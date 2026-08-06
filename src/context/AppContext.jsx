@@ -87,6 +87,17 @@ const mapVideoFromDb = (row, clientName) => ({
   timestamps: row.timestamps || [],
 });
 
+const mapPhotoFromDb = (row, clientName) => ({
+  id: row.id,
+  clientId: row.client_id,
+  clientName: clientName || '',
+  url: row.photo_url,
+  angle: row.angle,
+  weight: row.weight,
+  notes: row.notes,
+  date: row.date,
+});
+
 // ============================================================================
 // PROVIDER
 // ============================================================================
@@ -100,6 +111,7 @@ export const AppProvider = ({ children }) => {
   const [anthropometry, setAnthropometry] = useState({});
   const [nutrition, setNutrition] = useState({});
   const [videos, setVideos] = useState([]);
+  const [progressPhotos, setProgressPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const activeClient = clients.find((c) => c.id === selectedClientId) || clients[0];
@@ -127,14 +139,16 @@ export const AppProvider = ({ children }) => {
       setAnthropometry({});
       setNutrition({});
       setVideos([]);
+      setProgressPhotos([]);
       return;
     }
 
-    const [wdRes, anthroRes, nutriRes, vidsRes] = await Promise.all([
+    const [wdRes, anthroRes, nutriRes, vidsRes, photosRes] = await Promise.all([
       supabase.from('workout_data').select('*').in('client_id', ids),
       supabase.from('anthropometry').select('*').in('client_id', ids),
       supabase.from('nutrition_plans').select('*').in('client_id', ids),
       supabase.from('videos').select('*').in('client_id', ids).order('date', { ascending: false }),
+      supabase.from('progress_photos').select('*').in('client_id', ids).order('date', { ascending: false }),
     ]);
 
     setWorkoutData(Object.fromEntries((wdRes.data || []).map((r) => [r.client_id, mapWorkoutFromDb(r)])));
@@ -143,6 +157,11 @@ export const AppProvider = ({ children }) => {
     setVideos(
       (vidsRes.data || []).map((r) =>
         mapVideoFromDb(r, mappedClients.find((c) => c.id === r.client_id)?.name)
+      )
+    );
+    setProgressPhotos(
+      (photosRes.data || []).map((r) =>
+        mapPhotoFromDb(r, mappedClients.find((c) => c.id === r.client_id)?.name)
       )
     );
   }, []);
@@ -167,6 +186,7 @@ export const AppProvider = ({ children }) => {
         setAnthropometry({});
         setNutrition({});
         setVideos([]);
+        setProgressPhotos([]);
       }
     });
 
@@ -340,6 +360,32 @@ export const AppProvider = ({ children }) => {
     }));
   };
 
+  // Crea el primer microciclo desde cero para un cliente sin ninguno todavía.
+  // cloneMicrocycle no sirve aquí porque necesita un microciclo existente
+  // del que partir; esta es la función que faltaba para arrancar.
+  const createMicrocycle = (clientId) => {
+    const today = new Date().toISOString().split('T')[0];
+    applyWorkoutUpdate(clientId, (cd) => ({
+      ...cd,
+      weeklySplit:
+        Object.keys(cd.weeklySplit || {}).length > 0
+          ? cd.weeklySplit
+          : {
+              Lunes: 'Descanso', Martes: 'Descanso', Miércoles: 'Descanso', Jueves: 'Descanso',
+              Viernes: 'Descanso', Sábado: 'Descanso', Domingo: 'Descanso',
+            },
+      microcycles: [
+        {
+          id: 'mc_' + Date.now(),
+          weekNumber: 1,
+          sessionNumber: 1,
+          date: today,
+          days: [{ dayName: 'Día 1', exercises: [] }],
+        },
+      ],
+    }));
+  };
+
   const cloneMicrocycle = (clientId, weekNum) => {
     applyWorkoutUpdate(clientId, (cd) => {
       const src = cd.microcycles.find((m) => m.weekNumber === weekNum);
@@ -463,6 +509,40 @@ export const AppProvider = ({ children }) => {
     setVideos((prev) => [mapVideoFromDb(inserted, client?.name), ...prev]);
   };
 
+  // Sube una foto de progreso real a Storage (bucket "client-media", igual
+  // que los vídeos) y crea su fila en progress_photos.
+  const uploadProgressPhoto = async (data) => {
+    const client = clients.find((c) => c.id === data.clientId) || clients[0];
+    const path = `${data.clientId}/photos/${Date.now()}-${data.file.name}`;
+
+    const { error: uploadErr } = await supabase.storage.from('client-media').upload(path, data.file);
+    if (uploadErr) {
+      console.error('uploadProgressPhoto storage:', uploadErr.message);
+      return;
+    }
+    const { data: signed } = await supabase.storage
+      .from('client-media')
+      .createSignedUrl(path, 60 * 60 * 24 * 365);
+
+    const { data: inserted, error } = await supabase
+      .from('progress_photos')
+      .insert({
+        client_id: data.clientId,
+        photo_url: signed?.signedUrl || '',
+        angle: data.angle || 'frontal',
+        weight: data.weight ? Number(data.weight) : null,
+        notes: data.notes || '',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('uploadProgressPhoto insert:', error.message);
+      return;
+    }
+    setProgressPhotos((prev) => [mapPhotoFromDb(inserted, client?.name), ...prev]);
+  };
+
   const reviewVideo = (videoId, feedback) => {
     setVideos((prev) => prev.map((v) => (v.id === videoId ? { ...v, status: 'reviewed', coachFeedback: feedback } : v)));
     supabase
@@ -515,16 +595,19 @@ export const AppProvider = ({ children }) => {
         anthropometry,
         nutrition,
         videos,
+        progressPhotos,
         // Helpers
         calcFatPct, calcMuscleVolume, calcTonnage,
         // Workout
-        updateExerciseSet, addExercise, removeExercise, addDay, cloneMicrocycle, updateWeeklySplit,
+        updateExerciseSet, addExercise, removeExercise, addDay, createMicrocycle, cloneMicrocycle, updateWeeklySplit,
         // Nutrition
         updateNutrition, updateMeal, addMeal, removeMeal,
         // Anthropometry
         addAnthropometryLog, updateThreeDayWeights,
         // Videos
         uploadClientVideo, reviewVideo,
+        // Progress photos
+        uploadProgressPhoto,
         // Clients
         updateClient, addClient,
       }}

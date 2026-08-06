@@ -53,7 +53,7 @@ const SET_COLORS = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'];
 export const WorkoutLogEditor = () => {
   const {
     activeClient, workoutData, updateExerciseSet,
-    addExercise, removeExercise, addDay, cloneMicrocycle,
+    addExercise, removeExercise, addDay, createMicrocycle, cloneMicrocycle,
     updateWeeklySplit, calcTonnage, calcMuscleVolume,
   } = useApp();
 
@@ -120,9 +120,12 @@ export const WorkoutLogEditor = () => {
       <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center' }}>
         <Dumbbell size={40} color="var(--accent-emerald)" style={{ marginBottom: 12 }} />
         <h3>No hay microciclos para este cliente aún</h3>
-        <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>
-          Crea el primer microciclo desde el panel de Clientes.
+        <p style={{ color: 'var(--text-muted)', marginTop: 8, marginBottom: 20 }}>
+          Crea el primer microciclo para empezar a programar días y ejercicios.
         </p>
+        <button className="btn-primary" onClick={() => createMicrocycle(activeClient.id)}>
+          <Plus size={16} /> Crear primer microciclo
+        </button>
       </div>
     );
   }

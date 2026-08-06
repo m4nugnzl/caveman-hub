@@ -3,12 +3,22 @@ import { useApp } from '../../context/AppContext';
 import { UserCheck, ExternalLink, Calendar, CheckCircle2, AlertTriangle, Search, Plus, FolderCheck, CreditCard, Sparkles } from 'lucide-react';
 
 export const ClientRoster = () => {
-  const { clients, updateClientStatus } = useApp();
+  const { clients, updateClient, addClient } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all'); // 'all' | 'pending_onboarding' | 'due_soon'
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', email: '', phone: '' });
+
+  const handleCreateClient = async (e) => {
+    e.preventDefault();
+    if (!newClient.name.trim()) return;
+    await addClient(newClient);
+    setNewClient({ name: '', email: '', phone: '' });
+    setShowNewClientForm(false);
+  };
 
   const filteredClients = clients.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || (c.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     if (selectedFilter === 'pending_onboarding') return matchesSearch && !c.onboardingComplete;
     if (selectedFilter === 'due_soon') return matchesSearch && c.paymentStatus === 'due_soon';
     return matchesSearch;
@@ -47,11 +57,44 @@ export const ClientRoster = () => {
             />
           </div>
 
-          <button className="btn-primary" onClick={() => alert('Generado enlace de onboarding automático con Cal.com/Calendly para enviar al prospecto.')}>
-            <Plus size={16} /> Nuevo Alta / Enlace Onboarding
+          <button className="btn-primary" onClick={() => setShowNewClientForm(!showNewClientForm)}>
+            <Plus size={16} /> Nuevo Cliente
           </button>
         </div>
       </div>
+
+      {showNewClientForm && (
+        <form onSubmit={handleCreateClient} className="glass-panel" style={{ padding: '1.25rem', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Nombre *</label>
+            <input
+              value={newClient.name}
+              onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+              required
+              style={{ background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: '0.88rem', width: 200 }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Email</label>
+            <input
+              type="email"
+              value={newClient.email}
+              onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
+              style={{ background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: '0.88rem', width: 200 }}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Teléfono / WhatsApp</label>
+            <input
+              value={newClient.phone}
+              onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+              style={{ background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: '0.88rem', width: 160 }}
+            />
+          </div>
+          <button type="submit" className="btn-primary">Guardar cliente</button>
+          <button type="button" className="btn-secondary" onClick={() => setShowNewClientForm(false)}>Cancelar</button>
+        </form>
+      )}
 
       {/* Roster Cards Table */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
@@ -59,7 +102,7 @@ export const ClientRoster = () => {
           <div key={c.id} className="glass-panel" style={{ padding: '1.25rem', position: 'relative' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
               <img
-                src={c.avatar}
+                src={c.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name)}`}
                 alt={c.name}
                 style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--accent-emerald)' }}
               />
@@ -81,7 +124,7 @@ export const ClientRoster = () => {
                   </span>
                 ) : (
                   <button
-                    onClick={() => updateClientStatus(c.id, { onboardingComplete: true })}
+                    onClick={() => updateClient(c.id, { onboardingComplete: true })}
                     style={{ background: 'var(--accent-amber)', color: '#000', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}
                   >
                     Marcar Completado
@@ -95,7 +138,7 @@ export const ClientRoster = () => {
                   <span style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>✓ Analizada</span>
                 ) : (
                   <button
-                    onClick={() => updateClientStatus(c.id, { postureReviewed: true })}
+                    onClick={() => updateClient(c.id, { postureReviewed: true })}
                     style={{ background: 'var(--accent-cyan)', color: '#000', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}
                   >
                     Revisar Postura
