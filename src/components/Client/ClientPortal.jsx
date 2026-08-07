@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { Dumbbell, Upload, Utensils, Scale, MessageSquare, Play, CheckCircle2, Mic } from 'lucide-react';
+import { Dumbbell, Upload, Utensils, Scale, MessageSquare, Play, CheckCircle2, Mic, LayoutGrid, TrendingUp, Calendar, RotateCw, ArrowRight, CircleDashed } from 'lucide-react';
 
 const CLIENT_TABS = [
+  { id: 'dashboard', label: 'Mi Panel', icon: LayoutGrid },
   { id: 'workout', label: 'Mi Rutina', icon: Dumbbell },
   { id: 'upload', label: 'Subir Vídeo', icon: Upload },
   { id: 'nutrition', label: 'Mi Dieta', icon: Utensils },
@@ -11,12 +12,21 @@ const CLIENT_TABS = [
 ];
 
 export const ClientPortal = () => {
-  const { activeClient, workoutData, nutrition, anthropometry, videos, uploadClientVideo, updateThreeDayWeights } = useApp();
-  const [activeTab, setActiveTab] = useState('workout');
+  const {
+    activeClient, workoutData, nutrition, anthropometry, videos, uploadClientVideo, updateThreeDayWeights,
+    updateExerciseSet, calcTonnage, calcMuscleVolume, calcOptionKcals,
+  } = useApp();
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const cd = workoutData[activeClient.id];
   const microcycles = cd?.microcycles || [];
-  const currentMicro = microcycles[microcycles.length - 1] || microcycles[0];
+  const [selectedWeek, setSelectedWeek] = useState(null);
+  const [dietView, setDietView] = useState('training');
+  const currentMicro =
+    microcycles.find((m) => m.weekNumber === selectedWeek) || microcycles[microcycles.length - 1] || microcycles[0];
+  const cycleType = activeClient.cycleType || 'weekly';
+  const cyclePattern = activeClient.cyclePattern || { train: 2, rest: 1 };
+  const unitLabel = cycleType === 'rotating' ? 'Sesión' : 'Semana';
 
   const nut = nutrition[activeClient.id] || {};
   const anth = anthropometry[activeClient.id] || { threeDayWeights: { day1: '', day2: '', day3: '' } };
@@ -75,6 +85,100 @@ export const ClientPortal = () => {
         ))}
       </div>
 
+      {/* ── MI PANEL (dashboard del cliente, mismo tipo de datos que ve el
+            coach en su Resumen & Volumen, pero acotado a este cliente) ── */}
+      {activeTab === 'dashboard' && (() => {
+        const weightLogs = (anth.history || [])
+          .filter((h) => h && h.weight)
+          .slice()
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        const weights = weightLogs.map((h) => Number(h.weight));
+        const minW = weights.length ? Math.min(...weights) : 0;
+        const maxW = weights.length ? Math.max(...weights) : 1;
+        const range = maxW - minW || 1;
+
+        const tonnageByWeek = microcycles.map((m) => ({ week: m.weekNumber, tonnage: Number(calcTonnage(activeClient.id, m.weekNumber)) }));
+        const maxTonnage = Math.max(1, ...tonnageByWeek.map((t) => t.tonnage));
+
+        const muscleVol = currentMicro ? calcMuscleVolume(activeClient.id, currentMicro.weekNumber) : {};
+        const maxVol = Math.max(1, ...Object.values(muscleVol));
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+              {[
+                { label: 'Peso Actual', value: `${activeClient.currentWeight ?? '—'} kg`, color: 'var(--accent-emerald)' },
+                { label: 'Tonelaje esta semana', value: `${tonnageByWeek.find((t) => t.week === currentMicro?.weekNumber)?.tonnage || 0} kg`, color: 'var(--accent-cyan)' },
+                { label: `${unitLabel} activa`, value: currentMicro?.weekNumber ?? '—', color: 'var(--accent-amber)' },
+                { label: 'Vídeos revisados', value: clientVideos.filter((v) => v.status === 'reviewed').length, color: '#ec4899' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="glass-panel" style={{ padding: '1.1rem', borderRadius: 18, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 900, color, marginTop: 6 }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Evolución de peso */}
+            <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: 20 }}>
+              <h4 style={{ fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-emerald)' }}>
+                <TrendingUp size={18} /> Evolución de Peso
+              </h4>
+              {weights.length < 2 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Aún no hay suficientes registros de peso para ver una tendencia.</p>
+              ) : (
+                <svg viewBox="0 0 600 160" style={{ width: '100%', height: 160 }} preserveAspectRatio="none">
+                  <polyline
+                    fill="none" stroke="var(--accent-emerald)" strokeWidth="3"
+                    points={weights.map((w, i) => `${(i / (weights.length - 1)) * 580 + 10},${150 - ((w - minW) / range) * 130}`).join(' ')}
+                  />
+                  {weights.map((w, i) => (
+                    <circle key={i} cx={(i / (weights.length - 1)) * 580 + 10} cy={150 - ((w - minW) / range) * 130} r="4" fill="var(--accent-emerald)" />
+                  ))}
+                </svg>
+              )}
+            </div>
+
+            {/* Tonelaje por semana */}
+            {tonnageByWeek.length > 0 && (
+              <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: 20 }}>
+                <h4 style={{ fontWeight: 800, marginBottom: 14, color: 'var(--accent-cyan)' }}>🏋️ Tonelaje por {unitLabel.toLowerCase()}</h4>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 140 }}>
+                  {tonnageByWeek.map((t) => (
+                    <div key={t.week} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                      <div style={{
+                        width: '100%', maxWidth: 34, borderRadius: '8px 8px 0 0',
+                        background: t.week === currentMicro?.weekNumber ? 'var(--accent-cyan)' : 'rgba(34,211,238,0.35)',
+                        height: `${Math.max(4, (t.tonnage / maxTonnage) * 110)}px`,
+                      }} />
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700 }}>{t.week}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Volumen muscular de la semana activa */}
+            {Object.keys(muscleVol).length > 0 && (
+              <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: 20 }}>
+                <h4 style={{ fontWeight: 800, marginBottom: 14, color: 'var(--accent-amber)' }}>💪 Volumen por Músculo — {unitLabel} {currentMicro?.weekNumber}</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {Object.entries(muscleVol).sort((a, b) => b[1] - a[1]).map(([muscle, count]) => (
+                    <div key={muscle} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ width: 130, fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>{muscle}</span>
+                      <div style={{ flex: 1, background: '#0f172a', borderRadius: 6, overflow: 'hidden', height: 14 }}>
+                        <div style={{ width: `${(count / maxVol) * 100}%`, height: '100%', background: 'var(--accent-amber)' }} />
+                      </div>
+                      <span style={{ width: 30, fontSize: '0.75rem', fontWeight: 800, textAlign: 'right' }}>{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {/* ── MY ROUTINE ── */}
       {activeTab === 'workout' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -90,37 +194,137 @@ export const ClientPortal = () => {
             </div>
           )}
 
+          {/* Estructura del programa: igual que ve el coach, en modo lectura */}
+          <div className="glass-panel" style={{ padding: '1.25rem', borderRadius: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: cycleType === 'weekly' ? 14 : 0 }}>
+              <RotateCw size={16} color="var(--accent-cyan)" />
+              <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>
+                {cycleType === 'weekly' ? 'Estructura semanal' : `Ciclo rotativo ${cyclePattern.train}-${cyclePattern.rest}`}
+              </span>
+            </div>
+            {cycleType === 'weekly' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))', gap: 8 }}>
+                {Object.entries(cd?.weeklySplit || {}).map(([day, val]) => (
+                  <div key={day} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4, textTransform: 'uppercase' }}>{day.slice(0, 3)}</div>
+                    <div style={{
+                      background: val === 'Descanso' ? '#0f172a' : 'rgba(16,185,129,0.12)',
+                      border: `1px solid ${val === 'Descanso' ? 'var(--border-color)' : 'var(--accent-emerald)'}`,
+                      borderRadius: 10, padding: '8px 4px', fontSize: '0.72rem', fontWeight: 700,
+                      color: val === 'Descanso' ? 'var(--text-muted)' : '#fff',
+                    }}>
+                      {val}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {Array.from({ length: cyclePattern.train }).map((_, i) => (
+                  <React.Fragment key={`t-${i}`}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)', padding: '6px 12px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 800 }}>
+                      <CheckCircle2 size={13} /> Entreno
+                    </div>
+                    {(i < cyclePattern.train - 1 || cyclePattern.rest > 0) && <ArrowRight size={13} color="rgba(255,255,255,0.2)" />}
+                  </React.Fragment>
+                ))}
+                {Array.from({ length: cyclePattern.rest }).map((_, i) => (
+                  <React.Fragment key={`r-${i}`}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '6px 12px', borderRadius: 20, fontSize: '0.78rem', fontWeight: 800 }}>
+                      <CircleDashed size={13} /> Descanso
+                    </div>
+                    {i < cyclePattern.rest - 1 && <ArrowRight size={13} color="rgba(255,255,255,0.2)" />}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Selector de semana/sesión: navega y consulta cualquier semana que
+              te haya programado tu entrenador, no solo la última */}
+          {microcycles.length > 1 && (
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+              {microcycles.map((m) => {
+                const isSelected = m.weekNumber === currentMicro?.weekNumber;
+                return (
+                  <button
+                    key={m.weekNumber}
+                    onClick={() => setSelectedWeek(m.weekNumber)}
+                    style={{
+                      padding: '8px 16px', borderRadius: 20, fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer',
+                      background: isSelected ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.03)',
+                      color: isSelected ? '#000' : 'var(--text-muted)',
+                      border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {unitLabel} {m.weekNumber}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {currentMicro ? currentMicro.days.map((day, dIdx) => (
             <div key={dIdx} className="glass-panel" style={{ padding: '1.25rem' }}>
               <div style={{ background: '#f87171', color: '#fff', padding: '8px 14px', borderRadius: 8, fontWeight: 900, fontSize: '0.95rem', textTransform: 'uppercase', marginBottom: '1rem' }}>
                 {day.dayName}
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 540 }}>
-                  <thead>
-                    <tr style={{ background: '#1e293b', borderBottom: '1px solid var(--border-color)' }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)' }}>Ejercicio</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--accent-emerald)' }}>S1</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--accent-cyan)' }}>S2</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--accent-purple)' }}>S3</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--accent-amber)' }}>S4</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>Rango</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {day.exercises.map((ex, idx) => (
-                      <tr key={ex.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
-                        <td style={{ padding: '9px 12px', fontWeight: 700 }}>{ex.name}</td>
-                        {['set1', 'set2', 'set3', 'set4'].map((sk, si) => (
-                          <td key={sk} style={{ padding: '9px 12px', textAlign: 'center', fontWeight: 700, color: ['var(--accent-emerald)', 'var(--accent-cyan)', 'var(--accent-purple)', 'var(--accent-amber)'][si] }}>
-                            {ex[sk]?.kg ? `${ex[sk].kg}×${ex[sk].reps}` : '—'}
-                          </td>
+                {(() => {
+                  // Nº de series variable por ejercicio (antes fijo a 4): la
+                  // tabla saca tantas columnas "S{n}" como el ejercicio con
+                  // más series tenga ese día.
+                  const SET_COLORS = ['var(--accent-emerald)', 'var(--accent-cyan)', 'var(--accent-purple)', 'var(--accent-amber)', '#ec4899', '#22d3ee'];
+                  const maxSets = Math.max(1, ...day.exercises.map((ex) => (ex.sets || []).length));
+                  return (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 540 }}>
+                      <thead>
+                        <tr style={{ background: '#1e293b', borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--text-muted)' }}>Ejercicio</th>
+                          {Array.from({ length: maxSets }, (_, i) => (
+                            <th key={i} style={{ padding: '8px 12px', textAlign: 'center', color: SET_COLORS[i % SET_COLORS.length] }}>S{i + 1}</th>
+                          ))}
+                          <th style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>Rango</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {day.exercises.map((ex, idx) => (
+                          <tr key={ex.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
+                            <td style={{ padding: '9px 12px', fontWeight: 700 }}>{ex.name}</td>
+                            {Array.from({ length: maxSets }, (_, si) => {
+                              const s = (ex.sets || [])[si];
+                              const color = SET_COLORS[si % SET_COLORS.length];
+                              if (!s) return <td key={si} />;
+                              return (
+                                <td key={si} style={{ padding: '6px 8px', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
+                                    <input
+                                      type="text" inputMode="numeric" step="0.25" placeholder="kg" value={s.kg}
+                                      onChange={(e) => updateExerciseSet(activeClient.id, currentMicro.weekNumber, day.dayName, ex.id, si, 'kg', e.target.value)}
+                                      style={{ width: 44, background: '#0f172a', border: `1px solid ${color}40`, color: '#fff', textAlign: 'center', padding: '4px 2px', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700 }}
+                                    />
+                                    <input
+                                      type="text" inputMode="numeric" placeholder="reps" value={s.reps}
+                                      onChange={(e) => updateExerciseSet(activeClient.id, currentMicro.weekNumber, day.dayName, ex.id, si, 'reps', e.target.value)}
+                                      style={{ width: 38, background: '#0f172a', border: `1px solid ${color}40`, color: '#fff', textAlign: 'center', padding: '4px 2px', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700 }}
+                                    />
+                                    <input
+                                      type="text" placeholder="rir" value={s.rir}
+                                      onChange={(e) => updateExerciseSet(activeClient.id, currentMicro.weekNumber, day.dayName, ex.id, si, 'rir', e.target.value)}
+                                      style={{ width: 32, background: '#0f172a', border: `1px solid ${color}40`, color, textAlign: 'center', padding: '4px 2px', borderRadius: 6, fontSize: '0.78rem', fontWeight: 800 }}
+                                    />
+                                  </div>
+                                </td>
+                              );
+                            })}
+                            <td style={{ padding: '9px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{ex.targetReps}</td>
+                          </tr>
                         ))}
-                        <td style={{ padding: '9px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{ex.targetReps}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                      </tbody>
+                    </table>
+                  );
+                })()}
               </div>
             </div>
           )) : (
@@ -164,7 +368,7 @@ export const ClientPortal = () => {
               {[['Kilos (kg)', loadKg, setLoadKg], ['Reps', reps, setReps], ['RPE', rpe, setRpe], ['RIR', rir, setRir]].map(([label, val, setter]) => (
                 <div key={label}>
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{label}</label>
-                  <input type="number" step="0.5" value={val} onChange={(e) => setter(e.target.value)}
+                  <input type="text" inputMode="numeric" step="0.5" value={val} onChange={(e) => setter(e.target.value)}
                     style={{ width: '100%', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', fontWeight: 800, padding: 10, borderRadius: 8, textAlign: 'center', fontSize: '1rem' }}
                   />
                 </div>
@@ -191,42 +395,93 @@ export const ClientPortal = () => {
       )}
 
       {/* ── MY DIET ── */}
-      {activeTab === 'nutrition' && (
-        <div className="glass-panel" style={{ padding: '1.5rem' }}>
-          <div style={{ background: '#f87171', padding: '10px 16px', borderRadius: 8, textAlign: 'center', fontWeight: 900, fontSize: '1.05rem', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
-            MI PLAN NUTRICIONAL
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-            {[
-              { label: 'KCALS', value: `${nut.targetKcals || '—'}`, color: '#f87171' },
-              { label: 'PROTEÍNA', value: `${nut.proteinGrams || '—'}g`, color: 'var(--accent-emerald)' },
-              { label: 'CARBOS', value: `${nut.carbsGrams || '—'}g`, color: 'var(--accent-cyan)' },
-              { label: 'GRASAS', value: `${nut.fatsGrams || '—'}g`, color: 'var(--accent-amber)' },
-            ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: '#0f172a', padding: '1.25rem', borderRadius: 10, textAlign: 'center' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 900, color, marginTop: 4 }}>{value}</div>
-              </div>
-            ))}
-          </div>
-          {nut.type === 'closed' && nut.closedMeals?.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <h4 style={{ fontWeight: 800, color: 'var(--accent-emerald)' }}>📋 Menú Estructurado</h4>
-              {nut.closedMeals.map((meal, i) => (
-                <div key={i} style={{ background: '#0f172a', padding: '1rem', borderRadius: 10, border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontWeight: 800, color: 'var(--accent-emerald)', marginBottom: 4 }}>{meal.name}</div>
-                  <div style={{ fontSize: '0.88rem', lineHeight: 1.5 }}>{meal.description}</div>
+      {activeTab === 'nutrition' && (() => {
+        const variant = nut.hasDayVariants ? dietView : 'default';
+        const meals = variant === 'training' ? nut.closedMealsTraining : variant === 'rest' ? nut.closedMealsRest : nut.closedMeals;
+        const mealsTotalKcal = (meals || []).reduce((sum, meal) => sum + Math.max(0, ...meal.options.map(calcOptionKcals), 0), 0);
+
+        return (
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <div style={{ background: '#f87171', padding: '10px 16px', borderRadius: 8, textAlign: 'center', fontWeight: 900, fontSize: '1.05rem', textTransform: 'uppercase', marginBottom: '1.25rem' }}>
+              MI PLAN NUTRICIONAL {nut.type === 'closed' ? '— MENÚ CERRADO' : '— POR MACROS'}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+              {[
+                { label: 'KCALS OBJETIVO', value: `${nut.targetKcals || '—'}`, color: '#f87171' },
+                { label: 'PROTEÍNA', value: `${nut.proteinGrams || '—'}g`, color: 'var(--accent-emerald)' },
+                { label: 'CARBOS', value: `${nut.carbsGrams || '—'}g`, color: 'var(--accent-cyan)' },
+                { label: 'GRASAS', value: `${nut.fatsGrams || '—'}g`, color: 'var(--accent-amber)' },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ background: '#0f172a', padding: '1.25rem', borderRadius: 10, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{label}</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color, marginTop: 4 }}>{value}</div>
                 </div>
               ))}
             </div>
-          )}
-          {nut.stepsGoal && (
-            <div style={{ marginTop: '1rem', background: '#0f172a', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)' }}>
-              🚶 <strong>Pasos diarios:</strong> {nut.stepsGoal}
-            </div>
-          )}
-          {nut.habitsNotes?.length > 0 && (
-            <div style={{ marginTop: '1rem' }}>
+
+            {nut.type === 'closed' && (
+              <>
+                {nut.hasDayVariants && (
+                  <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', background: '#0f172a', padding: 4, borderRadius: 12, width: 'fit-content' }}>
+                    <button
+                      onClick={() => setDietView('training')}
+                      style={{ padding: '8px 16px', borderRadius: 10, fontWeight: 800, fontSize: '0.82rem', border: 'none', cursor: 'pointer', background: dietView === 'training' ? 'var(--accent-emerald)' : 'transparent', color: dietView === 'training' ? '#000' : 'var(--text-muted)' }}
+                    >
+                      Días de Entreno
+                    </button>
+                    <button
+                      onClick={() => setDietView('rest')}
+                      style={{ padding: '8px 16px', borderRadius: 10, fontWeight: 800, fontSize: '0.82rem', border: 'none', cursor: 'pointer', background: dietView === 'rest' ? 'var(--accent-cyan)' : 'transparent', color: dietView === 'rest' ? '#000' : 'var(--text-muted)' }}
+                    >
+                      Días de Descanso
+                    </button>
+                  </div>
+                )}
+
+                {meals?.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h4 style={{ fontWeight: 800, color: 'var(--accent-emerald)' }}>📋 Menú Estructurado</h4>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-amber)' }}>~{mealsTotalKcal} kcal/día (opción por defecto)</span>
+                    </div>
+                    {meals.map((meal) => (
+                      <div key={meal.id} style={{ background: '#0f172a', padding: '1rem', borderRadius: 14, border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontWeight: 800, color: 'var(--accent-emerald)', marginBottom: 10 }}>{meal.name}</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {meal.options.map((opt, oi) => (
+                            <div key={opt.id} style={{ background: '#1e293b', borderRadius: 12, padding: '0.75rem' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Opción {oi + 1}</span>
+                                <span style={{ fontWeight: 800, color: 'var(--accent-amber)', fontSize: '0.82rem' }}>{calcOptionKcals(opt)} kcal</span>
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {(opt.foods || []).map((food) => (
+                                  <span key={food.id} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 20, padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600 }}>
+                                    {food.name} <span style={{ color: 'var(--text-muted)' }}>· {food.grams}g</span>
+                                  </span>
+                                ))}
+                                {(!opt.foods || opt.foods.length === 0) && (
+                                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{opt.description || 'Sin alimentos configurados'}</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Tu entrenador aún no ha configurado el menú cerrado.</p>
+                )}
+              </>
+            )}
+            {nut.stepsGoal && (
+              <div style={{ marginTop: '1rem', background: '#0f172a', padding: 14, borderRadius: 8, border: '1px solid var(--border-color)' }}>
+                🚶 <strong>Pasos diarios:</strong> {nut.stepsGoal}
+              </div>
+            )}
+            {nut.habitsNotes?.length > 0 && (
+              <div style={{ marginTop: '1rem' }}>
               <h4 style={{ fontWeight: 800, color: 'var(--accent-cyan)', marginBottom: 8 }}>💡 Recomendaciones de tu Entrenador</h4>
               {nut.habitsNotes.map((note, i) => (
                 <div key={i} style={{ background: '#0f172a', padding: '8px 14px', borderRadius: 8, border: '1px solid var(--border-color)', marginBottom: 6, fontSize: '0.88rem' }}>
@@ -235,8 +490,9 @@ export const ClientPortal = () => {
               ))}
             </div>
           )}
-        </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* ── WEIGHT REGISTER ── */}
       {activeTab === 'weight' && (
@@ -254,7 +510,7 @@ export const ClientPortal = () => {
                   Día {i + 1} ({['L', 'X', 'V'][i]})
                 </label>
                 <input
-                  type="number" step="0.05"
+                  type="text" inputMode="numeric" step="0.05"
                   value={anth.threeDayWeights?.[key] || ''}
                   onChange={(e) => updateThreeDayWeights(activeClient.id, { ...anth.threeDayWeights, [key]: e.target.value })}
                   placeholder="81.5"

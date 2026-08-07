@@ -80,7 +80,7 @@ export const AnthropometryModule = () => {
                 Día {i + 1} (Ej: {['Lunes', 'Miércoles', 'Viernes'][i]})
               </label>
               <input
-                type="number" step="0.05"
+                type="text" inputMode="numeric" step="0.05"
                 value={tdw[key] || ''}
                 onChange={(e) => updateThreeDayWeights(activeClient.id, { ...tdw, [key]: e.target.value })}
                 style={{ width: '100%', background: '#1e293b', border: 'none', color: '#fff', fontWeight: 800, padding: '8px', borderRadius: 6, textAlign: 'center', fontSize: '1.1rem' }}
@@ -129,7 +129,7 @@ export const AnthropometryModule = () => {
           <div style={{ flex: 1, minWidth: 120 }}>
             <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Peso (kg)</label>
             <input
-              type="number" step="0.05" value={newWeight}
+              type="text" inputMode="numeric" step="0.05" value={newWeight}
               onChange={(e) => setNewWeight(e.target.value)}
               placeholder="81.3"
               style={{ width: '100%', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '10px', borderRadius: 8, fontSize: '0.9rem', fontWeight: 700 }}
@@ -148,7 +148,7 @@ export const AnthropometryModule = () => {
                 <div key={key} style={{ background: '#0f172a', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{label}</span>
                   <input
-                    type="number" step="0.5"
+                    type="text" inputMode="numeric" step="0.5"
                     value={newFolds[key]}
                     onChange={(e) => setNewFolds({ ...newFolds, [key]: e.target.value })}
                     style={{ width: 50, background: '#1e293b', border: 'none', color: '#fff', fontWeight: 800, padding: '4px', textAlign: 'center', borderRadius: 4, fontSize: '0.9rem' }}
@@ -174,7 +174,7 @@ export const AnthropometryModule = () => {
                 <div key={key} style={{ background: '#0f172a', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{label}</span>
                   <input
-                    type="number" step="0.5"
+                    type="text" inputMode="numeric" step="0.5"
                     value={newPerimeters[key]}
                     onChange={(e) => setNewPerimeters({ ...newPerimeters, [key]: e.target.value })}
                     style={{ width: 55, background: '#1e293b', border: 'none', color: '#fff', fontWeight: 800, padding: '4px', textAlign: 'center', borderRadius: 4, fontSize: '0.9rem' }}
