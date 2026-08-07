@@ -1,177 +1,290 @@
-import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
-import { UserCheck, ExternalLink, Calendar, CheckCircle2, AlertTriangle, Search, Plus, FolderCheck, CreditCard, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+  CheckCircle2,
+  CreditCard,
+  ExternalLink,
+  FolderCheck,
+  Plus,
+  Search,
+  UserCheck,
+  UserPlus,
+} from 'lucide-react';
+
+import { useApp } from '@/context/AppContext';
+import { EmptyState, Field, Notice, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
+
+const FILTERS = [
+  { id: 'all', label: 'Todos' },
+  { id: 'pending_onboarding', label: 'Onboarding pendiente' },
+  { id: 'due_soon', label: 'Pago próximo' },
+];
+
+const EMPTY_FORM = { name: '', email: '', phone: '', gender: 'Hombre', plan: '' };
+
+const NewClientForm = ({ onCreate, onCancel }) => {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!form.name.trim()) return;
+
+    setBusy(true);
+    setError(null);
+    const result = await onCreate({ ...form, name: form.name.trim() });
+    setBusy(false);
+
+    if (result?.ok) {
+      setForm(EMPTY_FORM);
+      onCancel();
+    } else {
+      setError(result?.error || 'No se pudo crear el cliente.');
+    }
+  };
+
+  return (
+    <Panel as="form" className="col gap-4" onSubmit={submit}>
+      <SectionTitle icon={UserPlus}>Nuevo cliente</SectionTitle>
+      {error && <Notice tone="error">{error}</Notice>}
+
+      <div className="row-end wrap gap-4">
+        <Field label="Nombre *" className="grow">
+          {(props) => (
+            <input {...props} className="input" value={form.name} onChange={set('name')} required autoFocus />
+          )}
+        </Field>
+        <Field label="Email" className="grow">
+          {(props) => (
+            <input {...props} type="email" className="input" value={form.email} onChange={set('email')} />
+          )}
+        </Field>
+        <Field label="Teléfono / WhatsApp" className="grow">
+          {(props) => <input {...props} className="input" value={form.phone} onChange={set('phone')} />}
+        </Field>
+        <Field label="Sexo" className="shrink-0" hint="Determina la fórmula de % graso">
+          {(props) => (
+            <select {...props} className="select" value={form.gender} onChange={set('gender')}>
+              <option value="Hombre">Hombre</option>
+              <option value="Mujer">Mujer</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Plan" className="grow">
+          {(props) => (
+            <input {...props} className="input" value={form.plan} onChange={set('plan')} placeholder="Ej: Online Premium" />
+          )}
+        </Field>
+      </div>
+
+      <div className="row gap-2 wrap">
+        <button type="submit" className="btn btn-primary" disabled={busy || !form.name.trim()}>
+          {busy ? 'Creando…' : 'Guardar cliente'}
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+    </Panel>
+  );
+};
+
+const ClientCard = ({ client, onUpdate }) => (
+  <Panel className="col gap-4">
+    <div className="row gap-3">
+      <img
+        src={client.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(client.name)}`}
+        alt=""
+        width={48}
+        height={48}
+        style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid var(--accent-emerald)', flexShrink: 0 }}
+      />
+      <div className="grow">
+        <div style={{ fontWeight: 800 }}>{client.name}</div>
+        <div className="text-xs text-muted">
+          {[client.email, client.phone].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
+        </div>
+      </div>
+      <span className={`badge ${client.paymentStatus === 'paid' ? 'badge-ok' : 'badge-urgent'}`}>
+        <CreditCard size={10} /> {client.paymentStatus === 'paid' ? 'Al día' : 'Pendiente'}
+      </span>
+    </div>
+
+    <div className="panel-sunken col gap-2 text-sm">
+      <div className="row between gap-2">
+        <span className="text-muted">Onboarding</span>
+        {client.onboardingComplete ? (
+          <span className="row gap-1" style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>
+            <CheckCircle2 size={12} /> Completado
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onUpdate({ onboardingComplete: true })}
+          >
+            Marcar completado
+          </button>
+        )}
+      </div>
+
+      <div className="row between gap-2">
+        <span className="text-muted">Revisión postural inicial</span>
+        {client.postureReviewed ? (
+          <span style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>Analizada</span>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onUpdate({ postureReviewed: true })}
+          >
+            Marcar revisada
+          </button>
+        )}
+      </div>
+
+      {client.gymEquipmentLink && (
+        <div className="row between gap-2">
+          <span className="text-muted">Maquinaria del gimnasio</span>
+          <a
+            href={client.gymEquipmentLink}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="row gap-1"
+            style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}
+          >
+            <FolderCheck size={12} /> Abrir carpeta <ExternalLink size={10} />
+          </a>
+        </div>
+      )}
+    </div>
+
+    <div className="row between wrap gap-2 text-sm">
+      <span className="text-muted">
+        Próxima renovación: <strong>{client.nextPaymentDate || 'sin fecha'}</strong>
+      </span>
+      {client.phone && (
+        /*
+          Antes esto era un `alert('Enviando recordatorio…')` que no enviaba
+          nada. Ahora es un enlace real a WhatsApp con el mensaje preparado; el
+          envío automático necesitaría la API de WhatsApp Business, que es una
+          fase posterior del roadmap.
+        */
+        <a
+          className="btn btn-secondary btn-sm"
+          href={`https://wa.me/${client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+            `Hola ${client.name}, te recuerdo la renovación de tu plan.`
+          )}`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          Escribir por WhatsApp
+        </a>
+      )}
+    </div>
+  </Panel>
+);
 
 export const ClientRoster = () => {
   const { clients, updateClient, addClient } = useApp();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all'); // 'all' | 'pending_onboarding' | 'due_soon'
-  const [showNewClientForm, setShowNewClientForm] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', email: '', phone: '' });
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [showForm, setShowForm] = useState(false);
 
-  const handleCreateClient = async (e) => {
-    e.preventDefault();
-    if (!newClient.name.trim()) return;
-    await addClient(newClient);
-    setNewClient({ name: '', email: '', phone: '' });
-    setShowNewClientForm(false);
-  };
-
-  const filteredClients = clients.filter(c => {
-    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || (c.email || '').toLowerCase().includes(searchTerm.toLowerCase());
-    if (selectedFilter === 'pending_onboarding') return matchesSearch && !c.onboardingComplete;
-    if (selectedFilter === 'due_soon') return matchesSearch && c.paymentStatus === 'due_soon';
-    return matchesSearch;
-  });
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return clients.filter((client) => {
+      const matches =
+        !term ||
+        client.name.toLowerCase().includes(term) ||
+        (client.email || '').toLowerCase().includes(term);
+      if (!matches) return false;
+      if (filter === 'pending_onboarding') return !client.onboardingComplete;
+      if (filter === 'due_soon') return client.paymentStatus !== 'paid';
+      return true;
+    });
+  }, [clients, search, filter]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Header & Actions Bar */}
-      <div className="glass-panel" style={{ padding: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+    <div className="stack">
+      <Panel className="row between wrap gap-4">
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <UserCheck size={20} color="var(--accent-cyan)" /> Control de Clientes & Onboarding
+          <h2 className="section-title">
+            <UserCheck size={19} color="var(--accent-cyan)" /> Clientes y onboarding
           </h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Gestiona la entrada de nuevos atletas, la revisión inicial postura/maquinaria y el control de pagos.
+          <p className="text-sm text-muted">
+            Alta de nuevos atletas, revisión inicial y control de pagos.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div className="row wrap gap-3">
           <div style={{ position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o correo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+            <Search
+              size={15}
               style={{
-                background: '#0f172a',
-                border: '1px solid var(--border-color)',
-                padding: '8px 12px 8px 34px',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '0.85rem',
-                width: '240px'
+                position: 'absolute',
+                left: 11,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: 'var(--text-muted)',
+                pointerEvents: 'none',
               }}
             />
+            <input
+              type="search"
+              className="input"
+              style={{ paddingLeft: 34, width: 230 }}
+              placeholder="Buscar por nombre o email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Buscar cliente"
+            />
           </div>
 
-          <button className="btn-primary" onClick={() => setShowNewClientForm(!showNewClientForm)}>
-            <Plus size={16} /> Nuevo Cliente
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
+            <Plus size={15} /> Nuevo cliente
           </button>
         </div>
-      </div>
+      </Panel>
 
-      {showNewClientForm && (
-        <form onSubmit={handleCreateClient} className="glass-panel" style={{ padding: '1.25rem', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Nombre *</label>
-            <input
-              value={newClient.name}
-              onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-              required
-              style={{ background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: '0.88rem', width: 200 }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Email</label>
-            <input
-              type="email"
-              value={newClient.email}
-              onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-              style={{ background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: '0.88rem', width: 200 }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Teléfono / WhatsApp</label>
-            <input
-              value={newClient.phone}
-              onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-              style={{ background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: '8px 12px', borderRadius: 8, fontSize: '0.88rem', width: 160 }}
-            />
-          </div>
-          <button type="submit" className="btn-primary">Guardar cliente</button>
-          <button type="button" className="btn-secondary" onClick={() => setShowNewClientForm(false)}>Cancelar</button>
-        </form>
+      {clients.length > 0 && (
+        <SegmentedControl value={filter} onChange={setFilter} options={FILTERS} label="Filtrar clientes" />
       )}
 
-      {/* Roster Cards Table */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
-        {filteredClients.map(c => (
-          <div key={c.id} className="glass-panel" style={{ padding: '1.25rem', position: 'relative' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
-              <img
-                src={c.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name)}`}
-                alt={c.name}
-                style={{ width: '48px', height: '48px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--accent-emerald)' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: '1rem' }}>{c.name}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{c.email} • {c.phone}</div>
-              </div>
-              <span className={`badge ${c.paymentStatus === 'paid' ? 'badge-reviewed' : 'badge-urgent'}`}>
-                <CreditCard size={10} /> {c.paymentStatus === 'paid' ? 'Al día' : 'Pago Pendiente'}
-              </span>
-            </div>
+      {showForm && <NewClientForm onCreate={addClient} onCancel={() => setShowForm(false)} />}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#0f172a', padding: '12px', borderRadius: '8px', marginBottom: '1rem', border: '1px solid var(--border-color)', fontSize: '0.82rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Estado Onboarding:</span>
-                {c.onboardingComplete ? (
-                  <span style={{ color: 'var(--accent-emerald)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CheckCircle2 size={12} /> Completado
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => updateClient(c.id, { onboardingComplete: true })}
-                    style={{ background: 'var(--accent-amber)', color: '#000', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}
-                  >
-                    Marcar Completado
-                  </button>
-                )}
-              </div>
+      {clients.length === 0 && !showForm && (
+        <EmptyState
+          icon={UserPlus}
+          title="Empieza dando de alta a tu primer cliente"
+          message="En cuanto exista un cliente podrás programarle la rutina, su plan nutricional y seguir su evolución con fotos."
+          action={
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => setShowForm(true)}>
+              <Plus size={17} /> Nuevo cliente
+            </button>
+          }
+        />
+      )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Revisión Postural Inicial:</span>
-                {c.postureReviewed ? (
-                  <span style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>✓ Analizada</span>
-                ) : (
-                  <button
-                    onClick={() => updateClient(c.id, { postureReviewed: true })}
-                    style={{ background: 'var(--accent-cyan)', color: '#000', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 700 }}
-                  >
-                    Revisar Postura
-                  </button>
-                )}
-              </div>
+      {clients.length > 0 && filtered.length === 0 && (
+        <Panel>
+          <p className="text-sm text-muted">Ningún cliente coincide con la búsqueda o el filtro.</p>
+        </Panel>
+      )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Vídeos de Maquinaria Gimnasio:</span>
-                <a
-                  href={c.gymEquipmentLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <FolderCheck size={12} /> Ver Carpeta Drive <ExternalLink size={10} />
-                </a>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Próxima Renovación: <strong>{c.nextPaymentDate}</strong></span>
-              <button
-                className="btn-secondary"
-                onClick={() => alert(`Enviando recordatorio automático de WhatsApp a ${c.name}`)}
-                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-              >
-                Notificar por WhatsApp
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {filtered.length > 0 && (
+        <div className="grid-auto-lg">
+          {filtered.map((client) => (
+            <ClientCard
+              key={client.id}
+              client={client}
+              onUpdate={(fields) => updateClient(client.id, fields)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

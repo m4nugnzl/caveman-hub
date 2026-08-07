@@ -1,99 +1,141 @@
-import React, { useState } from 'react';
-import { supabase } from '../../lib/supabaseClient';
+import { useState } from 'react';
 import { Dumbbell } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
+import { Field, Notice, Panel } from '@/components/ui/primitives';
+
+const MIN_PASSWORD = 8;
 
 export const Login = () => {
-  const [mode, setMode] = useState('login'); // 'login' | 'signup'
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [mode, setMode] = useState('login');
+  const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
     setInfo(null);
-    setLoading(true);
 
-    if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError(error.message);
-    } else {
-      // Alta de un nuevo ENTRENADOR (role='coach' por defecto vía trigger
-      // handle_new_user en schema.sql). Los clientes se dan de alta desde el
-      // flujo de "canjear invitación", no desde este formulario.
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { name } },
-      });
-      if (error) setError(error.message);
-      else setInfo('Cuenta creada. Revisa tu email para confirmar el registro.');
+    if (mode === 'signup' && form.password.length < MIN_PASSWORD) {
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.`);
+      return;
     }
-    setLoading(false);
+
+    setBusy(true);
+    try {
+      if (mode === 'login') {
+        const { error: err } = await supabase.auth.signInWithPassword({
+          email: form.email.trim(),
+          password: form.password,
+        });
+        if (err) setError(traduce(err.message));
+      } else {
+        // Alta de un ENTRENADOR. El rol 'coach' lo asigna el trigger
+        // handle_new_user en la base de datos, no el cliente.
+        const { error: err } = await supabase.auth.signUp({
+          email: form.email.trim(),
+          password: form.password,
+          options: { data: { name: form.name.trim() } },
+        });
+        if (err) setError(traduce(err.message));
+        else setInfo('Cuenta creada. Revisa tu correo para confirmar el registro.');
+      }
+    } catch (e) {
+      setError(e?.message || 'No se pudo conectar. Comprueba tu conexión.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <form onSubmit={handleSubmit} className="glass-panel" style={{ width: '100%', maxWidth: 380, padding: '2rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center', marginBottom: 8 }}>
-          <div className="logo-icon">
-            <Dumbbell size={22} />
-          </div>
-          <div style={{ fontWeight: 900, fontSize: '1.2rem' }}>FitCoach Hub</div>
+    <div className="row center" style={{ minHeight: '100vh', padding: 'var(--space-4)' }}>
+      <Panel as="form" onSubmit={handleSubmit} className="col gap-4" style={{ width: '100%', maxWidth: 390 }}>
+        <div className="row center gap-2">
+          <span className="logo-icon">
+            <Dumbbell size={21} />
+          </span>
+          <strong style={{ fontSize: '1.15rem' }}>Caveman Hub</strong>
         </div>
 
-        {error && (
-          <div style={{ background: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)', color: '#fda4af', fontSize: '0.82rem', padding: '8px 12px', borderRadius: 8 }}>
-            {error}
-          </div>
-        )}
-        {info && (
-          <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: 'var(--accent-emerald)', fontSize: '0.82rem', padding: '8px 12px', borderRadius: 8 }}>
-            {info}
-          </div>
-        )}
+        {error && <Notice tone="error">{error}</Notice>}
+        {info && <Notice tone="success">{info}</Notice>}
 
         {mode === 'signup' && (
-          <div>
-            <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Nombre</label>
-            <input
-              value={name} onChange={(e) => setName(e.target.value)} required
-              style={{ width: '100%', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: 10, borderRadius: 8 }}
-            />
-          </div>
+          <Field label="Nombre">
+            {(props) => (
+              <input
+                {...props}
+                className="input"
+                value={form.name}
+                onChange={(e) => set('name')(e.target.value)}
+                autoComplete="name"
+                required
+              />
+            )}
+          </Field>
         )}
 
-        <div>
-          <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Email</label>
-          <input
-            type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-            style={{ width: '100%', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: 10, borderRadius: 8 }}
-          />
-        </div>
+        <Field label="Email">
+          {(props) => (
+            <input
+              {...props}
+              className="input"
+              type="email"
+              value={form.email}
+              onChange={(e) => set('email')(e.target.value)}
+              autoComplete="email"
+              required
+            />
+          )}
+        </Field>
 
-        <div>
-          <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Contraseña</label>
-          <input
-            type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6}
-            style={{ width: '100%', background: '#0f172a', border: '1px solid var(--border-color)', color: '#fff', padding: 10, borderRadius: 8 }}
-          />
-        </div>
+        <Field
+          label="Contraseña"
+          hint={mode === 'signup' ? `Mínimo ${MIN_PASSWORD} caracteres.` : undefined}
+        >
+          {(props) => (
+            <input
+              {...props}
+              className="input"
+              type="password"
+              value={form.password}
+              onChange={(e) => set('password')(e.target.value)}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              required
+            />
+          )}
+        </Field>
 
-        <button type="submit" disabled={loading} className="btn-primary" style={{ justifyContent: 'center', padding: '10px' }}>
-          {loading ? 'Un momento...' : mode === 'login' ? 'Entrar' : 'Crear cuenta de entrenador'}
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
+          {busy ? 'Un momento…' : mode === 'login' ? 'Entrar' : 'Crear cuenta de entrenador'}
         </button>
 
         <button
           type="button"
-          onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); setInfo(null); }}
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.8rem', cursor: 'pointer' }}
+          className="btn btn-sm"
+          style={{ color: 'var(--text-muted)' }}
+          onClick={() => {
+            setMode(mode === 'login' ? 'signup' : 'login');
+            setError(null);
+            setInfo(null);
+          }}
         >
           {mode === 'login' ? '¿No tienes cuenta? Crear una' : '¿Ya tienes cuenta? Entrar'}
         </button>
-      </form>
+      </Panel>
     </div>
   );
 };
+
+/** Los mensajes de Supabase Auth llegan en inglés. */
+function traduce(message = '') {
+  const map = {
+    'Invalid login credentials': 'Email o contraseña incorrectos.',
+    'Email not confirmed': 'Tienes que confirmar tu email antes de entrar.',
+    'User already registered': 'Ya existe una cuenta con ese email.',
+  };
+  return map[message] || message;
+}

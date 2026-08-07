@@ -1,83 +1,192 @@
-# CavemanHUB — de prototipo a app real (Supabase)
+# Caveman Hub
 
-## Diagnóstico (por si lo necesitas releer)
+Aplicación de gestión de entrenamiento personal: programación de rutinas,
+nutrición, antropometría y seguimiento de la evolución física con fotos.
 
-- **`CavemanHUB` (sin guion)** es el proyecto real: Vite + React, todos los
-  módulos del entrenador y el portal del cliente ya escritos y con el
-  diseño visual que te gusta. Pero vivía 100% en memoria (`AppContext.jsx`
-  con `useState`) — al recargar, se perdía todo.
-- Los `docs/` de ese mismo repo describen una arquitectura objetivo con
-  Express + Prisma + Redis + Docker, pero `packages/` y `apps/` están vacíos
-  (solo `package.json`, cero código). Es un plan de 9 semanas sin empezar.
-- Decidiste el atajo: mismo modelo de datos relacional que ya tenías
-  pensado, pero sobre **Supabase** (Postgres + Auth + Storage) en vez de
-  construir Express/JWT/Redis/Docker a mano.
+Dos roles sobre la misma base de datos:
 
-## Qué hice en esta carpeta
+- **Entrenador** — da de alta clientes, les programa microciclos, define su plan
+  nutricional, registra sus mediciones y monta comparativas de sus fotos.
+- **Cliente** — consulta su rutina y registra lo que levanta, ve su dieta, anota
+  su peso semanal y **sube sus fotos de progreso**, que le llegan al entrenador.
 
-Es tu `CavemanHUB` con **una sola pieza reemplazada**: `AppContext.jsx`.
-Ningún componente de `components/Coach/` o `components/Client/` cambió —
-siguen recibiendo exactamente la misma forma de datos que antes
-(`clients`, `workoutData`, `anthropometry`, `nutrition`, `videos`,
-`activeClient`, y las mismas ~20 funciones de mutación). Solo cambió
-**de dónde vienen esos datos**.
+## Stack
 
-- **`supabase/schema.sql`**: el esquema completo — tablas `profiles`,
-  `clients`, `workout_data`, `anthropometry`, `nutrition_plans`, `videos`,
-  con Row Level Security para que un entrenador solo vea a sus clientes y
-  un cliente solo vea lo suyo. Los bloques muy anidados (microciclos →
-  días → ejercicios → series, historial antropométrico, comidas cerradas)
-  se guardan como JSONB — es la misma decisión que ya tenías en
-  `architecture_decision.md` (`WorkoutData.data Json` en Prisma), aplicada
-  directamente en Postgres sin el paso intermedio de Prisma/Express.
-- **`src/lib/supabaseClient.js`**: cliente de Supabase para Vite.
-- **`src/context/AppContext.jsx`**: reescrito. Al cargar, trae de Supabase
-  los clientes del entrenador logueado (o el propio registro si es un
-  cliente) y todos sus datos relacionados. Cada función de mutación
-  (`updateExerciseSet`, `cloneMicrocycle`, `addAnthropometryLog`,
-  `uploadClientVideo`, etc.) actualiza el estado local al instante (UI
-  optimista, igual que antes) y además persiste en Supabase.
-- **`src/components/Auth/Login.jsx`** + `App.jsx` actualizado: login/registro
-  real con Supabase Auth. Sin sesión, ves el login; con sesión, tu
-  dashboard de siempre.
-- **`package.json` corregido**: el que tenía tu repo en la raíz era la
-  configuración del monorepo Turbo (vacío), sin `react` ni `vite` como
-  dependencias — por eso no podía arrancar de verdad. Este trae lo que la
-  app realmente usa: `react`, `vite`, `lucide-react`, `@supabase/supabase-js`.
+| Pieza | Tecnología |
+|---|---|
+| Build y dev server | Vite 5 |
+| Interfaz | React 18 (JSX, sin TypeScript por ahora) |
+| Iconos | lucide-react |
+| Backend | Supabase — Postgres + Auth + Storage |
+| Estilos | CSS propio con tokens y utilidades (`src/index.css`) |
+| Lint | ESLint 9 (flat config) + react-hooks |
 
-## Cómo arrancarlo
+No hay framework de servidor: es una SPA que habla directamente con Supabase, y
+la autorización la aplican las políticas de **Row Level Security** de la base de
+datos.
 
-1. Crea un proyecto en [supabase.com](https://supabase.com) (gratis para
-   empezar).
-2. SQL Editor → pega el contenido de `supabase/schema.sql` → Run.
-3. Settings → API → copia `Project URL` y `anon public key`.
-4. `cp .env.example .env` y rellena esas dos variables.
-5. `npm install`
-6. `npm run dev` → verás el login. Créate una cuenta (queda como `coach`
-   por defecto) y desde el dashboard usa "+ Nuevo Cliente" para dar de
-   alta a tus atletas — ya no son los 3 clientes de ejemplo, es tu roster
-   real.
+## Arrancar el proyecto
 
-## Lo que queda simplificado (y por qué)
+```bash
+npm install
+cp .env.example .env      # rellena con los datos de tu proyecto Supabase
+npm run dev               # http://localhost:3000
+```
 
-- **Vídeos**: se suben de verdad a Supabase Storage (bucket
-  `client-media`, privado). Por simplicidad, la URL firmada que se guarda
-  dura 1 año; para producción real conviene regenerarla al vuelo en vez
-  de guardarla fija (cambio pequeño, lo hacemos cuando quieras).
-- **Google Drive y Notion** (fotos de equipo, sincronización de pagos):
-  no están conectados todavía. Es la misma fase 4/5 que ya tenías en tu
-  roadmap — cambiar de "adapter" de almacenamiento no toca el esquema.
-- **Alta de clientes desde cero**: ya no arrancas con Franco/Ana/Javier de
-  ejemplo — el roster empieza vacío y lo rellenas tú. Si quieres esos 3
-  clientes de ejemplo para seguir probando visualmente, dímelo y te paso
-  un `seed.sql` con esos mismos datos ya convertidos a filas reales.
-- **Vincular la cuenta de un cliente**: la tabla `clients` tiene
-  `client_profile_id` preparado para esto (igual que `fitcoach_hub_documentacion_tecnica.md`
-  ya describía), pero el flujo de "canjear invitación" (que el cliente se
-  registre y quede enlazado a su ficha) todavía no tiene pantalla propia.
-  Es el siguiente paso lógico si quieres que tus clientes entren con su
-  propia cuenta en vez de que tú operes todo desde el rol de coach.
+Las variables van en `.env` (Supabase Dashboard → *Settings* → *API*):
 
-¿Sigo con el flujo de invitación de clientes, o prefieres que primero te
-deje el `seed.sql` con los 3 clientes de ejemplo para probar todo el
-ecosistema de un tirón?
+```
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+```
+
+La `anon key` es segura de exponer en el cliente: toda la autorización real vive
+en RLS. **Nunca** pongas aquí la `service_role key`.
+
+Necesitas además el esquema de base de datos y un bucket privado llamado
+`client-media`. Ver **[`supabase/README.md`](supabase/README.md)** — incluye la
+estructura que la aplicación espera y cómo exportar el esquema real.
+
+### Comandos
+
+```bash
+npm run dev       # servidor de desarrollo
+npm run build     # build de producción en dist/
+npm run preview   # sirve el build para comprobarlo
+npm run lint      # ESLint sobre todo el proyecto
+```
+
+## Estructura
+
+```
+src/
+├── main.jsx                  ErrorBoundary → ConfirmProvider → AppProvider → App
+├── App.jsx                   decide entre Login, panel del coach y portal del cliente
+├── index.css                 tokens, primitivas (.btn, .input, .panel…) y responsive
+│
+├── domain/                   REGLAS DE NEGOCIO — funciones puras, sin React
+│   ├── training.js           volumen efectivo, tonelaje, MEV/MRV, microciclos
+│   ├── anthropometry.js      % graso por pliegues, promedios, series temporales
+│   ├── nutrition.js          macros, kcal por alimento/opción/día
+│   ├── photos.js             semanas, rutas de Storage, agrupación, ángulos
+│   └── photoLayout.js        geometría del montaje de fotos
+│
+├── lib/                      infraestructura
+│   ├── supabaseClient.js
+│   ├── mappers.js            frontera snake_case ↔ camelCase
+│   ├── saveQueue.js          cola de guardado con debounce y estado
+│   ├── useMirroredState.js   estado con espejo sincrónico (ver el archivo)
+│   ├── ids.js, num.js, useClickOutside.js
+│
+├── context/AppContext.jsx    estado global, carga y persistencia
+│
+└── components/
+    ├── ui/                   primitivas compartidas (Panel, Modal, charts…)
+    ├── photos/               diálogo de subida, usado por coach y cliente
+    ├── Coach/
+    │   ├── Workout/          editor de rutina, en piezas
+    │   ├── Nutrition/        editor de comidas
+    │   └── PhotoStudio/      comparador y editor de fotos
+    └── Client/               portal del cliente, una vista por pestaña
+```
+
+La separación importante es **`domain/` no sabe que existe React**. Todo lo que
+es una regla de negocio (qué cuenta como serie efectiva, cómo se calcula el %
+graso, cómo se encaja una foto en un hueco) son funciones puras que se pueden
+razonar y testear sin montar un componente.
+
+## Modelo de datos
+
+Híbrido relacional + JSONB. Las entidades con identidad propia son tablas; los
+árboles profundos van en columnas `jsonb`, una fila por cliente:
+
+```
+microcycles[] → { id, weekNumber, sessionNumber, date, days[] }
+                                                  → { dayName, exercises[] }
+                                                        → { id, name, muscle, sets[] }
+                                                              → { kg, reps, rir, targetReps }
+```
+
+Detalle completo de tablas y columnas en [`supabase/README.md`](supabase/README.md).
+
+### Cómo se guardan los cambios
+
+Toda mutación es optimista: primero se actualiza la interfaz, después se
+persiste. Tres garantías, implementadas en `src/lib/saveQueue.js`:
+
+1. **Una sola petición en vuelo por clave.** Si llegan más cambios mientras se
+   guarda, se retiene el último y se reenvía al terminar. Sin esto, una respuesta
+   antigua puede llegar después de una nueva y pisar el cambio reciente.
+2. **Debounce en los campos de texto.** Escribir `102.5` en un campo de kg
+   lanzaba cinco escrituras, y cada una reserializaba el programa completo. Los
+   cambios estructurales (añadir, borrar, reordenar) sí se envían al instante.
+3. **Los fallos se ven.** El estado de guardado es `saving` / `saved` / `error`
+   con botón de reintento. La interfaz nunca dice «Guardado» sobre una escritura
+   que falló.
+
+## Fotos de progreso
+
+El circuito completo:
+
+1. El cliente sube una foto desde **Mis fotos**, indicando semana y ángulo
+   (frontal / lateral / espalda).
+2. Se guarda en el bucket privado `client-media`, en
+   `<clientId>/photos/week-<n>/…`. Las carpetas por semana son reales.
+3. Al entrenador le aparece en **Fotos & Evolución**, agrupada por semana.
+
+En el **Photo Studio** el entrenador puede:
+
+- Comparar en tres composiciones: **antes/después**, **rejilla** de varias
+  semanas, y **deslizador** superpuesto.
+- **Encuadrar** cada foto (zoom, desplazamiento, rotación, espejo) para que dos
+  fotos de semanas distintas queden a la misma escala y altura. Sin esto la
+  comparación engaña: dos fotos a distinta distancia sugieren un cambio que no
+  existe.
+- **Ajustar** brillo, contraste y saturación para compensar diferencias de luz.
+- **Anotar** con guías horizontales, líneas, flechas y texto.
+- **Exportar** a PNG en proporción automática, 1:1, 4:5, 9:16 o 16:9.
+
+Los ajustes son **no destructivos**: son parámetros de renderizado del montaje.
+El archivo original en Storage no se modifica nunca.
+
+## Decisiones y deuda técnica conocida
+
+Cosas que están así a propósito, y por qué:
+
+- **Sin routing.** Las secciones son pestañas con estado local, así que no hay
+  URLs por sección ni enlaces profundos. Es la mejora estructural más rentable
+  pendiente: habilitaría deep links, botón atrás y code splitting por ruta.
+- **Sin TypeScript.** El contrato de las estructuras JSONB es convencional, no
+  verificado. Ya se rompió una vez (`targetReps` pasó de estar en el ejercicio a
+  estar en cada serie y una vista siguió leyendo el sitio antiguo). Tipar la
+  frontera de datos es donde más rendiría.
+- **Sin tests.** Las funciones de `domain/` son puras precisamente para poder
+  testearlas; es el siguiente paso natural.
+- **Un solo contexto global.** Funciona y está memoizado, pero mezcla caché de
+  datos de servidor con estado de interfaz. Una librería de datos (TanStack
+  Query) daría revalidación, reintentos y rollback automáticos.
+- **Escritura concurrente coach ↔ cliente.** Los dos pueden editar las mismas
+  series y se escribe el bloque JSONB completo, así que el último en guardar gana
+  sobre *todo el programa*, no solo sobre la celda tocada. Lo más sensato es
+  separar el **plan** (del coach) del **registro de ejecución** (del cliente) en
+  tablas distintas.
+- **Carga inicial completa.** Al entrar se traen los datos de todos los clientes.
+  Con muchos clientes y programas largos habrá que paginar o cargar bajo demanda.
+- **Vulnerabilidad de `esbuild` (moderada, solo desarrollo).** Afecta al dev
+  server de Vite 5, no al build de producción (`npm audit --omit=dev` da 0).
+  Resolverla exige subir a Vite 6/7, que es un cambio con rupturas.
+- **Google Fonts por CDN.** Bloquea el primer render y añade una dependencia
+  externa. Autoalojar la fuente lo arreglaría.
+
+## Convenciones
+
+- Los estilos van en **clases CSS** (`src/index.css`). El `style` inline se
+  reserva para valores dinámicos de verdad (un ancho calculado, el color de un
+  dato). Nada de simular `:hover` con handlers de JavaScript.
+- Los números que teclea el usuario se guardan como texto y se convierten con
+  `toNum` de `src/lib/num.js`, que devuelve `null` para «sin dato» — `Number('')`
+  es `0` y confundir ambos falseaba los cálculos de volumen.
+- Los identificadores de entidades dentro de JSONB se crean con `newId()`
+  (`crypto.randomUUID`), nunca con `Date.now()`.
+- Toda acción destructiva pasa por `useConfirm()`.
+- Importaciones con el alias `@/` en lugar de cadenas `../../..`.
