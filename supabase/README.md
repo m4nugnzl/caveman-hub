@@ -5,8 +5,26 @@
   estas columnas exactamente.
 - **`roles.sql`** — volcado de columnas en JSON. Útil como referencia, pero **no
   contiene las políticas RLS** (ver el apartado pendiente al final).
-- **`migrations/0001_optional_normalizations.sql`** — dos mejoras opcionales. La
-  aplicación funciona sin ejecutarlas.
+
+## Estado de las migraciones
+
+Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
+
+| Archivo | ¿Ejecutar? | Qué pasa si no |
+|---|---|---|
+| `0001_optional_normalizations.sql` | Opcional | Nada. `upsertByName` hace dos consultas en vez de una. |
+| `0002_rls_hardening.sql` | **Sí** | El cliente puede ponerse el pago al día, cambiar su `role` y borrar todo su programa con la anon key. |
+| `0003_unique_client_blocks.sql` | Recomendada | Dos escrituras simultáneas pueden partir los datos de un cliente en dos filas, sin error visible. |
+| `0004_nutrition_rest_targets.sql` | Opcional | Nada. El objetivo de descanso sigue en la columna `meals`. |
+| `0005_client_preferences.sql` | **Sí** | La personalización del resumen no se guarda. |
+| `0007_storage_policies.sql` | **Sí** | **El bucket `client-media` no existe**: toda subida de fotos falla. Comprobado en el proyecto real. |
+| `0008_client_preferences_rpc.sql` | **Sí** | La personalización del resumen no se guarda (la app llama a esta función). |
+| `0006_teams.sql` | Cuando quieras equipos | La pestaña «Equipo» avisa de que falta y la app funciona como entrenador único. Ver `docs/modelo-de-equipo.md`. |
+
+Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
+
+`0002` va antes de `0007` porque las políticas de Storage se apoyan en poder leer
+`clients`, pero son independientes.
 
 ## Cómo se corresponde el código con el esquema
 
@@ -101,6 +119,13 @@ Un bucket **privado** llamado `client-media`:
 ```
 <clientId>/photos/week-<n>/<timestamp>-<angulo>.<ext>
 ```
+
+El primer segmento de la ruta es el id del cliente, y eso es lo que usan las
+políticas para acotar el acceso sin ninguna tabla extra
+(`0007_storage_policies.sql`). La aplicación firma las URLs con 8 h de caducidad,
+así que el bucket **tiene que seguir siendo privado**: si se pone público,
+cualquiera con la URL ve la foto para siempre y las políticas de lectura dejan de
+importar.
 
 ## Pendiente: las políticas RLS
 

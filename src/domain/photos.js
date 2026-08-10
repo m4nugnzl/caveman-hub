@@ -24,6 +24,8 @@
  */
 
 import { toNum } from '@/lib/num';
+import { daysBetween, weekStart } from '@/lib/dates';
+import { weeklyWeightAverages } from './anthropometry';
 
 export const ANGLES = [
   { id: 'frontal', label: 'Frontal', hint: 'De frente, brazos relajados' },
@@ -178,13 +180,95 @@ export const suggestPair = (photos) => {
   return { before: sorted[sorted.length - 1], after: sorted[0] };
 };
 
+// ── El peso de una foto sale del check-in, no se teclea ────────────────────
+//
+// ── El problema que tenía ───────────────────────────────────────────────────
+// Al subir una foto había un campo «Peso en esa foto (kg)» que el cliente
+// rellenaba a mano. Eso hacía que esta herramienta pareciera no tener nada que
+// ver con el resto de la aplicación: el mismo peso se escribía dos veces, en dos
+// pantallas distintas, y podía no coincidir. Y si el cliente lo dejaba vacío —lo
+// normal— la comparativa se quedaba sin la única cifra que la hace útil.
+//
+// El peso de una foto es el de SU SEMANA, y ese dato ya existe: es el promedio
+// del check-in semanal, que es además más fiable que un pesaje suelto porque
+// filtra la variación diaria de agua.
+//
+// Las filas antiguas que guardaron un peso a mano en `tag` se siguen respetando:
+// es un dato real que alguien introdujo, y descartarlo sería perder información.
+
+/**
+ * Peso asociado a una foto: el promedio de su semana natural, o el pesaje más
+ * cercano si esa semana no tiene ninguno.
+ */
+export const photoWeight = (photo, history = []) => {
+  const stored = toNum(photo?.weight);
+  if (stored !== null) return stored;
+  if (!photo?.date) return null;
+
+  const key = weekStart(photo.date);
+  const week = weeklyWeightAverages(history).find((w) => w.date === key);
+  if (week) return week.value;
+
+  // Sin promedio de esa semana: el pesaje más próximo en el tiempo, siempre que
+  // no esté a más de diez días (más allá ya no describe la foto).
+  let best = null;
+  for (const entry of history) {
+    const value = toNum(entry?.weight);
+    const distance = Math.abs(daysBetween(entry?.date, photo.date) ?? Infinity);
+    if (value === null || distance > 10) continue;
+    if (best === null || distance < best.distance) best = { value, distance };
+  }
+  return best?.value ?? null;
+};
+
 /** Diferencia de peso entre dos fotos, o null si falta alguno de los dos. */
-export const weightDelta = (before, after) => {
-  const a = toNum(before?.weight);
-  const b = toNum(after?.weight);
+export const weightDelta = (before, after, history = []) => {
+  const a = photoWeight(before, history);
+  const b = photoWeight(after, history);
   if (a === null || b === null) return null;
   return Math.round((b - a) * 10) / 10;
 };
+
+// ── Comparar VARIAS semanas, no dos ────────────────────────────────────────
+
+/**
+ * Matriz de comparación: una columna por semana, una fila por ángulo.
+ *
+ * ── Por qué una matriz ──────────────────────────────────────────────────────
+ * Comparar la evolución no es «esta foto contra esa»: es ver el frontal de las
+ * semanas 1, 6 y 12 en una fila y el de espaldas justo debajo. Con dos huecos
+ * había que montar tres collages y pegarlos a mano.
+ *
+ * Devuelve los huecos en el orden de lectura del lienzo (fila a fila), con
+ * `photoId` en null donde esa semana no tiene ese ángulo, para que el montaje
+ * conserve la cuadrícula en lugar de descolocar las columnas.
+ */
+export const weekAngleMatrix = ({ photos, weeks, angles, startDate }) => {
+  const chosenWeeks = [...weeks].sort((a, b) => a - b);
+  const chosenAngles = ANGLE_IDS.filter((id) => angles.includes(id));
+
+  const byKey = new Map();
+  for (const photo of sortPhotos(photos)) {
+    const key = `${photoWeek(photo, startDate)}|${photo.angle}`;
+    // sortPhotos deja la más reciente primero: la primera de cada celda es la
+    // que se queda si hay varias del mismo ángulo esa semana.
+    if (!byKey.has(key)) byKey.set(key, photo);
+  }
+
+  const cells = [];
+  for (const angle of chosenAngles) {
+    for (const week of chosenWeeks) {
+      const photo = byKey.get(`${week}|${angle}`) || null;
+      cells.push({ week, angle, photoId: photo?.id || null });
+    }
+  }
+
+  return { cells, cols: chosenWeeks.length, rows: chosenAngles.length, weeks: chosenWeeks, angles: chosenAngles };
+};
+
+/** Ángulos con al menos una foto, en orden estable. */
+export const availableAngles = (photos) =>
+  ANGLE_IDS.filter((id) => photos.some((p) => p.angle === id));
 
 /** Semanas transcurridas entre dos fotos según su semana de programa. */
 export const weekSpan = (before, after, startDate) => {

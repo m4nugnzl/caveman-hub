@@ -27,6 +27,15 @@ export const mapClientFromDb = (row) => ({
   startDate: row.start_date,
   cycleType: row.cycle_type || 'weekly',
   cyclePattern: row.cycle_pattern || { train: 2, rest: 1 },
+  // Equipos (migración 0006). Mientras no esté aplicada llegan `undefined`, y
+  // `assignedTo` cae en `coach_id`, que es exactamente lo que significaba antes:
+  // el entrenador responsable. Así ninguna vista necesita distinguir los dos
+  // mundos.
+  teamId: row.team_id ?? null,
+  assignedTo: row.assigned_to ?? row.coach_id ?? null,
+  // Objeto abierto: la app ignora lo que no conoce y aplica valores por
+  // defecto a lo que falta (ver domain/preferences.js).
+  preferences: row.preferences || {},
 });
 
 const CLIENT_COLUMNS = {
@@ -47,6 +56,11 @@ const CLIENT_COLUMNS = {
   startDate: 'start_date',
   cycleType: 'cycle_type',
   cyclePattern: 'cycle_pattern',
+  assignedTo: 'assigned_to',
+  // `preferences` NO está aquí a propósito, aunque se lea arriba: no se escribe
+  // con un UPDATE a `clients` sino con la función `set_client_preferences`
+  // (migración 0008), porque RLS filtra filas y no columnas. Dejarla disponible
+  // aquí abriría un segundo camino de escritura que el cliente no puede usar.
 };
 
 /** Convierte solo las claves presentes: sirve para crear y para actualizar. */
@@ -97,6 +111,30 @@ export const mapAnthroToDb = (clientId, data) => ({
 
 // ── Nutrición ──────────────────────────────────────────────────────────────
 
+/**
+ * ── Dónde se guarda el objetivo de los días de descanso ─────────────────────
+ * Cuando el cliente tiene dieta de entreno y de descanso hacen falta DOS
+ * objetivos de kcal y macros, y la tabla solo tiene un juego de columnas
+ * (`target_kcals`, `protein_grams`…).
+ *
+ * Las columnas principales guardan el objetivo de los días de ENTRENO (o el
+ * único, si no hay variantes), y el de descanso va en la columna `meals`, que es
+ * un jsonb heredado de una versión anterior y que la aplicación no usa para
+ * nada más.
+ *
+ * Es un compromiso consciente: evita una migración y queda contenido en este
+ * archivo. La migración que lo normaliza está preparada en
+ * `supabase/migrations/0004_nutrition_rest_targets.sql`; en cuanto se aplique,
+ * basta cambiar estas dos funciones.
+ */
+const readRestTargets = (raw) => {
+  if (!raw || Array.isArray(raw)) return null; // '[]' es el valor heredado
+  const rest = raw.restTargets || raw;
+  const keys = ['targetKcals', 'proteinGrams', 'carbsGrams', 'fatsGrams'];
+  if (!keys.some((k) => rest?.[k] !== undefined)) return null;
+  return Object.fromEntries(keys.map((k) => [k, rest[k] ?? null]));
+};
+
 export const mapNutritionFromDb = (row) => ({
   type: row.type,
   targetKcals: row.target_kcals,
@@ -106,6 +144,7 @@ export const mapNutritionFromDb = (row) => ({
   stepsGoal: row.steps_goal,
   habitsNotes: row.habits_notes || [],
   hasDayVariants: row.has_day_variants || false,
+  restTargets: readRestTargets(row.meals),
   closedMeals: row.closed_meals || [],
   closedMealsTraining: row.closed_meals_training || [],
   closedMealsRest: row.closed_meals_rest || [],
@@ -121,6 +160,7 @@ export const mapNutritionToDb = (clientId, data) => ({
   steps_goal: data.stepsGoal,
   habits_notes: data.habitsNotes,
   has_day_variants: data.hasDayVariants,
+  meals: data.restTargets ? { restTargets: data.restTargets } : [],
   closed_meals: data.closedMeals,
   closed_meals_training: data.closedMealsTraining,
   closed_meals_rest: data.closedMealsRest,

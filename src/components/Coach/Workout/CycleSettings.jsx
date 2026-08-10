@@ -17,7 +17,7 @@ const PatternChain = ({ pattern }) => {
 
   return (
     <div className="row wrap gap-2">
-      <span className="text-sm text-muted" style={{ fontWeight: 700 }}>
+      <span className="t-sm t-secondary" style={{ fontWeight: 700 }}>
         Patrón:
       </span>
       {items.map((item, index) => (
@@ -26,14 +26,14 @@ const PatternChain = ({ pattern }) => {
             className="badge"
             style={
               item.train
-                ? { background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)' }
-                : { background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }
+                ? { background: 'var(--accent-soft)', color: 'var(--accent)' }
+                : { background: 'var(--fill-subtle)', color: 'var(--text-secondary)' }
             }
           >
             {item.train ? <CheckCircle2 size={13} /> : <CircleDashed size={13} />}
             {item.train ? 'Entreno' : 'Descanso'}
           </span>
-          {index < items.length - 1 && <ArrowRight size={13} color="rgba(255,255,255,0.25)" />}
+          {index < items.length - 1 && <ArrowRight size={13} color="var(--text-tertiary)" />}
         </span>
       ))}
     </div>
@@ -50,17 +50,17 @@ export const CycleSettings = ({ client, open, onToggle, onChange, saveIndicator 
         <div className="row gap-3">
           <span
             style={{
-              background: 'rgba(34,211,238,0.1)',
+              background: 'var(--info-soft)',
               padding: 8,
               borderRadius: 10,
               display: 'grid',
               placeItems: 'center',
             }}
           >
-            <RotateCw size={19} color="var(--accent-cyan)" />
+            <RotateCw size={19} color="var(--data-blue)" />
           </span>
           <div>
-            <span className="uppercase-label">Estructura del programa</span>
+            <span className="section-label">Estructura del programa</span>
             <h4 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
               {cycleType === 'weekly' ? 'Semana natural (lunes–domingo)' : 'Ciclo rotativo ininterrumpido'}
             </h4>

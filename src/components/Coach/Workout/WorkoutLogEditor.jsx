@@ -3,8 +3,11 @@ import { Dumbbell, Plus } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { dayMuscleVolume, unitLabel } from '@/domain/training';
+import { sessionMuscleVolume } from '@/domain/sessions';
 import { EmptyState, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { useProgramNavigation } from './useProgramNavigation';
+import { useDaySession } from './useDaySession';
+import { SessionBar } from './SessionBar';
 import { CycleSettings } from './CycleSettings';
 import { WeeklySplitEditor } from './WeeklySplitEditor';
 import { MicrocycleBar } from './MicrocycleBar';
@@ -31,6 +34,10 @@ export const WorkoutLogEditor = () => {
     retrySave,
     updateClient,
     updateWeeklySplit,
+    startSession,
+    logSessionSet,
+    updateSession,
+    removeSession,
     startProgram,
     appendMicrocycle,
     cloneMicrocycle,
@@ -43,12 +50,12 @@ export const WorkoutLogEditor = () => {
     removeExercise,
     moveExercise,
     updateExerciseSet,
+    updateExerciseTarget,
     addExerciseSetSlot,
     removeExerciseSetSlot,
     upsertLibraryExercise,
-    copyDayToClient,
-    copyMicrocycleToClient,
-    copyProgramToClient,
+    nutrition,
+    replicateClient,
   } = useApp();
 
   const [cycleOpen, setCycleOpen] = useState(false);
@@ -63,7 +70,21 @@ export const WorkoutLogEditor = () => {
   const nav = useProgramNavigation(activeClient.id, microcycles);
   const save = saveStatus('workout', activeClient.id);
 
-  const muscleSummary = useMemo(() => dayMuscleVolume(nav.day), [nav.day]);
+  const daySession = useDaySession(nav.microcycle, nav.day);
+
+  /*
+   * El volumen de los chips refleja lo REGISTRADO en la sesión activa, no lo
+   * planificado: son "series efectivas", y una serie sin repeticiones anotadas
+   * todavía no cuenta. Si aún no hay ninguna sesión se cae al plan para que el
+   * entrenador vea el reparto que está montando.
+   */
+  const muscleSummary = useMemo(
+    () =>
+      daySession.session
+        ? sessionMuscleVolume(daySession.session)
+        : dayMuscleVolume(nav.day),
+    [daySession.session, nav.day]
+  );
 
   const indicator = (
     <SaveIndicator
@@ -153,13 +174,10 @@ export const WorkoutLogEditor = () => {
           clients={clients}
           activeClient={activeClient}
           cycleType={cycleType}
-          dayName={nav.day?.dayName}
           weekCount={microcycles.length}
-          onCopyDay={(targetId) =>
-            copyDayToClient(activeClient.id, nav.week, nav.day.dayName, targetId)
-          }
-          onCopyWeek={(targetId) => copyMicrocycleToClient(activeClient.id, nav.week, targetId)}
-          onCopyProgram={(targetId) => copyProgramToClient(activeClient.id, targetId)}
+          hasProgram={microcycles.length > 0}
+          hasDiet={Boolean(nutrition[activeClient.id])}
+          onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
           onClose={() => setCopyOpen(false)}
         />
       )}
@@ -173,7 +191,7 @@ export const WorkoutLogEditor = () => {
             className="chip"
             style={
               index === nav.dayIndex
-                ? { background: '#fff', color: '#000', borderColor: 'transparent' }
+                ? { background: 'var(--accent)', color: 'var(--accent-on)', borderColor: 'transparent' }
                 : undefined
             }
             aria-pressed={index === nav.dayIndex}
@@ -210,9 +228,9 @@ export const WorkoutLogEditor = () => {
       {Object.keys(muscleSummary).length > 0 && (
         <div className="row wrap gap-2">
           {Object.entries(muscleSummary).map(([muscle, count]) => (
-            <span className="badge badge-neutral" key={muscle}>
+            <span className="badge" key={muscle}>
               {muscle}
-              <strong style={{ color: 'var(--accent-emerald)' }}>{count} series</strong>
+              <strong style={{ color: 'var(--accent)' }}>{count} series</strong>
             </span>
           ))}
         </div>
@@ -229,12 +247,51 @@ export const WorkoutLogEditor = () => {
             onRemove={() => removeDay(activeClient.id, nav.week, nav.day.dayName)}
           />
 
+          <SessionBar
+            sessions={daySession.sessions}
+            activeId={daySession.activeId}
+            day={nav.day}
+            onSelect={daySession.select}
+            onCreate={(date) => {
+              const id = startSession(activeClient.id, nav.week, nav.day.dayName, date);
+              if (id) daySession.select(id);
+            }}
+            onChangeDate={(id, date) => updateSession(activeClient.id, nav.week, id, { date })}
+            onRemove={(id) => removeSession(activeClient.id, nav.week, id)}
+          />
+
+          {/*
+            El objetivo de repeticiones va al PLAN; los kg, reps y RIR a la
+            SESIÓN con su fecha. Antes todo se escribía en el plan, así que no
+            quedaba constancia de cuándo se entrenó y cambiar el plan borraba el
+            registro.
+          */}
           <ExerciseList
-            exercises={nav.day.exercises || []}
+            exercises={daySession.exercises}
             onMove={(from, to) => moveExercise(activeClient.id, nav.week, nav.day.dayName, from, to)}
             onRemove={(exId) => removeExercise(activeClient.id, nav.week, nav.day.dayName, exId)}
-            onSetChange={(exId, setIdx, field, value) =>
-              updateExerciseSet(activeClient.id, nav.week, nav.day.dayName, exId, setIdx, field, value)
+            onSetChange={(exId, setIdx, field, value) => {
+              if (field === 'targetReps') {
+                updateExerciseSet(activeClient.id, nav.week, nav.day.dayName, exId, setIdx, field, value);
+                return;
+              }
+              const exercise = (nav.day.exercises || []).find((ex) => ex.id === exId);
+              if (!exercise) return;
+              const id = logSessionSet(
+                activeClient.id,
+                nav.week,
+                daySession.session?.isLegacy ? null : daySession.activeId,
+                daySession.session?.date || undefined,
+                nav.day.dayName,
+                exercise,
+                setIdx,
+                field,
+                value
+              );
+              if (id && id !== daySession.activeId) daySession.select(id);
+            }}
+            onTargetChange={(exId, value) =>
+              updateExerciseTarget(activeClient.id, nav.week, nav.day.dayName, exId, value)
             }
             onAddSet={(exId) => addExerciseSetSlot(activeClient.id, nav.week, nav.day.dayName, exId)}
             onRemoveSet={(exId, setIdx) =>

@@ -218,3 +218,56 @@ export const weeklyRateOfChange = (history) => {
 /** ¿Se ha medido algún pliegue o perímetro alguna vez? */
 export const hasMeasurements = (history) =>
   chronological(history).some((h) => h.skinFolds || h.perimeters);
+
+// ── Check-in semanal ───────────────────────────────────────────────────────
+//
+// El seguimiento real de un cliente no es un pesaje suelto: es un CHECK-IN
+// semanal. Se pesa varios días, se promedia para filtrar el ruido diario de agua
+// y glucógeno, y ese promedio es el dato que se compara con la semana anterior.
+//
+// Los pesajes del día se guardan como registros normales de `history`, así que
+// no hace falta ninguna estructura nueva: el check-in es una LECTURA de los
+// registros de una semana, no otro tipo de dato.
+
+/** Registros de peso que caen dentro de la semana natural de `date`. */
+export const weekEntries = (history, date) => {
+  const key = weekStart(date);
+  if (!key) return [];
+  return chronological(history).filter((h) => weekStart(h.date) === key && toNum(h.weight) !== null);
+};
+
+/**
+ * Estado del check-in de una semana: qué días se ha pesado, cuál es el promedio
+ * y cuánto ha cambiado respecto a la semana anterior.
+ *
+ * `target` son los días de pesaje recomendados (3 alternos por defecto). No es
+ * un requisito: con dos ya se promedia, y el aviso solo informa de cuántos
+ * faltan para tener una media fiable.
+ */
+export const weeklyCheckIn = (history, date, target = 3) => {
+  const entries = weekEntries(history, date);
+  const values = entries.map((h) => toNum(h.weight));
+  const average = values.length > 0 ? round(values.reduce((a, b) => a + b, 0) / values.length, 2) : null;
+
+  const weekly = weeklyWeightAverages(history);
+  const current = weekStart(date);
+  const previousWeek = weekly.filter((w) => w.date < current).pop() || null;
+
+  return {
+    weekStart: current,
+    entries,
+    count: values.length,
+    target,
+    average,
+    previousAverage: previousWeek?.value ?? null,
+    delta: average !== null && previousWeek ? round(average - previousWeek.value, 2) : null,
+    complete: values.length >= target,
+  };
+};
+
+/** Días de la semana natural que empieza en `weekStartISO`, en ISO. */
+export const weekDates = (weekStartISO) => {
+  const start = Date.parse(`${weekStartISO}T00:00:00Z`);
+  if (!Number.isFinite(start)) return [];
+  return Array.from({ length: 7 }, (_, i) => new Date(start + i * 86400000).toISOString().slice(0, 10));
+};

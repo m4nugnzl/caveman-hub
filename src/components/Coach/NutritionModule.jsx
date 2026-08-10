@@ -1,41 +1,20 @@
 import { useState } from 'react';
-import { Beef, Droplet, Edit3, Flame, Footprints, Plus, Save, Sparkles, Trash2, Utensils, Wheat } from 'lucide-react';
+import { Plus, Salad, Sparkles, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import {
-  MACRO_COLORS,
-  dayKcalRange,
-  dayKcals,
-  emptyNutrition,
-  macroSplit,
-  mealsForVariant,
-} from '@/domain/nutrition';
-import { fmt } from '@/lib/num';
-import {
-  Field,
-  Panel,
-  SaveIndicator,
-  SectionTitle,
-  SegmentedControl,
-  StatCard,
-} from '@/components/ui/primitives';
+import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant } from '@/domain/nutrition';
+import { Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
+import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 
 const DIET_TYPES = [
-  { id: 'macros', label: 'Por macros', tone: 'tone-coral' },
-  { id: 'closed', label: 'Menú cerrado', tone: 'tone-coral' },
+  { id: 'macros', label: 'Por macros' },
+  { id: 'closed', label: 'Menú cerrado' },
 ];
 
 const VARIANT_OPTIONS = [
   { id: 'training', label: 'Días de entreno' },
-  { id: 'rest', label: 'Días de descanso', tone: 'tone-cyan' },
-];
-
-const MACRO_FIELDS = [
-  { key: 'targetKcals', label: 'Kcal', icon: Flame, color: 'var(--accent-coral)' },
-  { key: 'proteinGrams', label: 'Proteína (g)', icon: Beef, color: 'var(--accent-emerald)' },
-  { key: 'carbsGrams', label: 'Carbos (g)', icon: Wheat, color: 'var(--accent-cyan)' },
-  { key: 'fatsGrams', label: 'Grasas (g)', icon: Droplet, color: 'var(--accent-amber)' },
+  { id: 'rest', label: 'Días de descanso' },
 ];
 
 export const NutritionModule = () => {
@@ -46,6 +25,7 @@ export const NutritionModule = () => {
     saveStatus,
     retrySave,
     updateNutrition,
+    updateNutritionTargets,
     setHasDayVariants,
     addMeal,
     removeMeal,
@@ -65,30 +45,10 @@ export const NutritionModule = () => {
   const variant = plan.hasDayVariants ? dietView : 'default';
   const meals = mealsForVariant(plan, variant);
 
-  const [editingMacros, setEditingMacros] = useState(false);
-  const [macroForm, setMacroForm] = useState(null);
   const [newNote, setNewNote] = useState('');
 
-  const macros = macroSplit(plan);
   const dayTotal = dayKcals(meals);
   const dayRange = dayKcalRange(meals);
-
-  const openMacroEditor = () => {
-    setMacroForm({
-      targetKcals: plan.targetKcals ?? '',
-      proteinGrams: plan.proteinGrams ?? '',
-      carbsGrams: plan.carbsGrams ?? '',
-      fatsGrams: plan.fatsGrams ?? '',
-      stepsGoal: plan.stepsGoal ?? '',
-    });
-    setEditingMacros(true);
-  };
-
-  const saveMacros = (event) => {
-    event.preventDefault();
-    updateNutrition(activeClient.id, macroForm);
-    setEditingMacros(false);
-  };
 
   const addNote = () => {
     const note = newNote.trim();
@@ -105,147 +65,84 @@ export const NutritionModule = () => {
 
   return (
     <div className="stack">
-      <Panel className="row between wrap gap-4">
-        <div className="row gap-4">
-          <span
-            style={{
-              width: 46,
-              height: 46,
-              borderRadius: 16,
-              background: 'linear-gradient(135deg, #f8717130, #f8717110)',
-              border: '1px solid #f8717140',
-              display: 'grid',
-              placeItems: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <Utensils size={21} color="var(--accent-coral)" />
-          </span>
+      <section className="col gap-4">
+        <div className="section-head">
           <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800 }}>
-              Plan nutricional de {activeClient.name}
-            </h2>
-            <p className="text-sm text-muted">Macros, menú cerrado por alimentos, pasos y hábitos.</p>
+            <h2>Plan nutricional</h2>
+            <p>Objetivo, menú cerrado por alimentos y hábitos de {activeClient.name}.</p>
+          </div>
+          <div className="row gap-3 wrap">
+            <SaveIndicator
+              status={save.status}
+              error={save.error}
+              onRetry={() => retrySave('nutrition', activeClient.id)}
+            />
+            <SegmentedControl
+              value={plan.type}
+              onChange={(type) => updateNutrition(activeClient.id, { type })}
+              options={DIET_TYPES}
+              label="Tipo de dieta"
+            />
           </div>
         </div>
 
-        <div className="row gap-3 wrap">
-          <SaveIndicator
-            status={save.status}
-            error={save.error}
-            onRetry={() => retrySave('nutrition', activeClient.id)}
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={Boolean(plan.hasDayVariants)}
+            onChange={(e) => setHasDayVariants(activeClient.id, e.target.checked)}
           />
-          <SegmentedControl
-            value={plan.type}
-            onChange={(type) => updateNutrition(activeClient.id, { type })}
-            options={DIET_TYPES}
-            label="Tipo de dieta"
-          />
-        </div>
-      </Panel>
+          Dos dietas distintas para días de entreno y de descanso
+        </label>
 
-      <Panel className="col gap-4">
-        <SectionTitle
-          action={
-            <button type="button" className="btn btn-secondary btn-sm" onClick={editingMacros ? () => setEditingMacros(false) : openMacroEditor}>
-              <Edit3 size={13} /> {editingMacros ? 'Cancelar' : 'Editar'}
-            </button>
-          }
-        >
-          Objetivo diario
-        </SectionTitle>
-
-        {editingMacros ? (
-          <form className="col gap-4" onSubmit={saveMacros}>
-            <div className="grid-auto">
-              {MACRO_FIELDS.map(({ key, label, color }) => (
-                <Field key={key} label={label}>
-                  {(props) => (
-                    <input
-                      {...props}
-                      type="text"
-                      inputMode="decimal"
-                      className="input input-center"
-                      style={{ borderColor: `${color}55`, color }}
-                      value={macroForm[key]}
-                      onChange={(e) => setMacroForm({ ...macroForm, [key]: e.target.value })}
-                    />
-                  )}
-                </Field>
-              ))}
-            </div>
-
-            <Field label="Pasos diarios">
-              {(props) => (
-                <input
-                  {...props}
-                  className="input"
-                  value={macroForm.stepsGoal}
-                  onChange={(e) => setMacroForm({ ...macroForm, stepsGoal: e.target.value })}
-                  placeholder="10000"
-                />
-              )}
-            </Field>
-
-            <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-end' }}>
-              <Save size={15} /> Guardar objetivo
-            </button>
-          </form>
+        {/*
+          Con variantes activas hay DOS objetivos, no uno: activar la opción
+          implica que las calorías y el reparto de macros cambian entre un día de
+          entreno y uno de descanso, que es justo el motivo de separarlos.
+        */}
+        {plan.hasDayVariants ? (
+          <div className="grid-2">
+            <MacroTargetCard
+              plan={plan}
+              variant="training"
+              title="Objetivo · días de entreno"
+              editable
+              onSave={(fields) => updateNutritionTargets(activeClient.id, 'training', fields)}
+            />
+            <MacroTargetCard
+              plan={plan}
+              variant="rest"
+              title="Objetivo · días de descanso"
+              editable
+              showSteps={false}
+              onSave={(fields) => updateNutritionTargets(activeClient.id, 'rest', fields)}
+            />
+          </div>
         ) : (
-          <>
-            <div className="grid-auto">
-              {MACRO_FIELDS.map(({ key, label, icon: Icon, color }) => (
-                <div className="stat stat-center" key={key} style={{ borderColor: `${color}35` }}>
-                  <Icon size={17} color={color} />
-                  <span className="stat-value" style={{ color, fontSize: '1.25rem' }}>
-                    {fmt(plan[key], { dash: '—' })}
-                  </span>
-                  <span className="stat-label">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            {macros.total > 0 && (
-              <div className="macro-bar">
-                <div style={{ width: `${macros.pct.protein}%`, background: MACRO_COLORS.protein }} />
-                <div style={{ width: `${macros.pct.carbs}%`, background: MACRO_COLORS.carbs }} />
-                <div style={{ width: `${macros.pct.fats}%`, background: MACRO_COLORS.fats }} />
-              </div>
-            )}
-
-            {plan.stepsGoal && (
-              <div className="panel-plain row gap-2 text-sm">
-                <Footprints size={15} color="var(--accent-cyan)" />
-                <strong>{plan.stepsGoal}</strong> pasos al día
-              </div>
-            )}
-          </>
+          <MacroTargetCard
+            plan={plan}
+            variant="default"
+            title="Objetivo diario"
+            editable
+            onSave={(fields) => updateNutritionTargets(activeClient.id, 'default', fields)}
+          />
         )}
-      </Panel>
+      </section>
 
       {plan.type === 'closed' && (
-        <Panel className="col gap-4">
-          <div className="row between wrap gap-3">
+        <section className="col gap-4">
+          <div className="section-head">
             <div>
-              <h3 className="section-title">Menú estructurado</h3>
-              <p className="text-sm text-muted">
+              <h2>Menú estructurado</h2>
+              <p>
                 {meals.length === 0
                   ? 'Sin comidas todavía.'
                   : `${Math.round(dayTotal)} kcal/día con la primera opción de cada comida` +
                     (dayRange.min !== dayRange.max
-                      ? ` · entre ${Math.round(dayRange.min)} y ${Math.round(dayRange.max)} según las opciones elegidas`
+                      ? ` · entre ${Math.round(dayRange.min)} y ${Math.round(dayRange.max)} según las opciones`
                       : '')}
               </p>
             </div>
-
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={Boolean(plan.hasDayVariants)}
-                onChange={(e) => setHasDayVariants(activeClient.id, e.target.checked)}
-              />
-              Dos dietas (entreno / descanso)
-            </label>
           </div>
 
           {plan.hasDayVariants && (
@@ -280,26 +177,39 @@ export const NutritionModule = () => {
 
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-tinted"
               style={{ alignSelf: 'flex-start' }}
               onClick={() => addMeal(activeClient.id, variant)}
             >
               <Plus size={15} /> Añadir comida
             </button>
           </div>
+        </section>
+      )}
+
+      {plan.type === 'macros' && (
+        <Panel tight>
+          <p className="t-sm t-secondary">
+            <Salad size={14} style={{ display: 'inline', verticalAlign: -2, marginRight: 6 }} />
+            Plan por macros: el cliente reparte los alimentos como quiera mientras cuadre las cifras del
+            objetivo. Cambia a «Menú cerrado» si prefieres detallar las comidas.
+          </p>
         </Panel>
       )}
 
-      <Panel className="col gap-4">
-        <SectionTitle icon={Sparkles} color="var(--accent-coral)">
-          Hábitos y recomendaciones
-        </SectionTitle>
+      <section className="col gap-4">
+        <div className="section-head">
+          <div>
+            <h2>Hábitos y recomendaciones</h2>
+            <p>Notas que el cliente ve en su plan.</p>
+          </div>
+        </div>
 
-        <div className="col gap-2">
+        <Panel tight className="col gap-3">
           {(plan.habitsNotes || []).map((note, index) => (
-            <div className="panel-plain row between gap-2 text-sm" key={`${note}-${index}`}>
-              <span>
-                <span style={{ color: 'var(--accent-emerald)', marginRight: 8 }}>✓</span>
+            <div className="row between gap-2 t-sm" key={`${note}-${index}`}>
+              <span className="row gap-2">
+                <Sparkles size={13} color="var(--accent)" />
                 {note}
               </span>
               <button
@@ -310,7 +220,7 @@ export const NutritionModule = () => {
                     habitsNotes: plan.habitsNotes.filter((_, i) => i !== index),
                   })
                 }
-                aria-label={`Eliminar la recomendación «${note}»`}
+                aria-label={`Eliminar «${note}»`}
               >
                 <Trash2 size={13} />
               </button>
@@ -328,27 +238,15 @@ export const NutritionModule = () => {
                   addNote();
                 }
               }}
-              placeholder="Añadir recomendación de hábito…"
+              placeholder="Añadir recomendación…"
               aria-label="Nueva recomendación"
             />
             <button type="button" className="btn btn-secondary" onClick={addNote} disabled={!newNote.trim()}>
               <Plus size={14} /> Añadir
             </button>
           </div>
-        </div>
-      </Panel>
-
-      {plan.type === 'closed' && meals.length > 0 && (
-        <div className="grid-auto">
-          <StatCard label="Comidas" value={meals.length} />
-          <StatCard label="Kcal de referencia" value={Math.round(dayTotal)} color="var(--accent-amber)" />
-          <StatCard
-            label="Rango según opciones"
-            value={`${Math.round(dayRange.min)}–${Math.round(dayRange.max)}`}
-            color="var(--accent-cyan)"
-          />
-        </div>
-      )}
+        </Panel>
+      </section>
     </div>
   );
 };

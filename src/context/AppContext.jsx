@@ -39,6 +39,7 @@ import {
   emptyNutrition,
 } from '@/domain/nutrition';
 import { buildPhotoPath, validatePhotoFile } from '@/domain/photos';
+import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessions';
 
 const AppContext = createContext(null);
 
@@ -74,6 +75,10 @@ export const AppProvider = ({ children }) => {
   const [anthropometry, setAnthropometry, anthroRef] = useMirroredState({});
   const [nutrition, setNutrition, nutritionRef] = useMirroredState({});
   const [progressPhotos, setProgressPhotos, photosRef] = useMirroredState([]);
+
+  /** Equipo del entrenador. `null` mientras la migración 0006 no esté aplicada. */
+  const [team, setTeam] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
 
   const [saveState, setSaveState] = useState({});
 
@@ -165,6 +170,22 @@ export const AppProvider = ({ children }) => {
         nutrition: (data) =>
           upsertClientRow('nutrition_plans', clientId, mapNutritionToDb(clientId, data)),
         client: (data) => supabase.from('clients').update(mapClientToDb(data)).eq('id', clientId),
+        /*
+          Las preferencias NO van por un UPDATE a `clients`, sino por una función
+          de la base de datos.
+          ------------------------------------------------------------------
+          Porque RLS filtra FILAS, no columnas: permitir que el cliente escriba en
+          su propia fila para guardar cómo quiere ver su panel le devuelve también
+          el poder de ponerse el pago al día o cambiarse de entrenador. La función
+          `set_client_preferences` (migración 0008) escribe exactamente esa columna
+          después de comprobar quién llama, así que el permiso concedido es la
+          operación y no la fila.
+
+          El entrenador usa el mismo camino: un solo trayecto para los dos, y una
+          sola regla que revisar.
+        */
+        preferences: (data) =>
+          supabase.rpc('set_client_preferences', { target: clientId, prefs: data }),
       };
 
       queue.enqueue(`${domain}:${clientId}`, payload, senders[domain], { immediate });
@@ -217,9 +238,64 @@ export const AppProvider = ({ children }) => {
       setProfileRole(role);
       setViewMode(role === 'coach' ? 'coach' : 'client');
 
+      /*
+        El equipo, si existe.
+        --------------------------------------------------------------------
+        Mientras la migración 0006 no esté aplicada estas tablas no existen y la
+        consulta falla con «Could not find the table». Eso NO es un error para el
+        usuario: significa "todavía no hay equipos", y la aplicación sigue
+        funcionando como siempre —un entrenador con sus clientes—. Por eso se
+        traga el fallo aquí en lugar de propagarlo a `loadError`.
+      */
+      let team = null;
+      let members = [];
+
+      if (role === 'coach') {
+        const membership = await supabase.from('team_members').select('team_id, role');
+
+        if (!isStale() && !membership.error && (membership.data || []).length > 0) {
+          const teamId = membership.data[0].team_id;
+          const [teamRes, memberRes] = await Promise.all([
+            supabase.from('teams').select('*').eq('id', teamId).single(),
+            supabase
+              .from('team_members')
+              .select('profile_id, role, profiles(full_name, email)')
+              .eq('team_id', teamId),
+          ]);
+
+          if (!teamRes.error) {
+            team = {
+              id: teamRes.data.id,
+              name: teamRes.data.name,
+              ownerId: teamRes.data.owner_id,
+              myRole: membership.data[0].role,
+            };
+          }
+          members = (memberRes.data || []).map((row) => ({
+            profileId: row.profile_id,
+            role: row.role,
+            name: row.profiles?.full_name || '',
+            email: row.profiles?.email || '',
+          }));
+        }
+      }
+
+      if (isStale()) return;
+      setTeam(team);
+      setTeamMembers(members);
+
+      /*
+        Sin `.eq('coach_id', …)`: el filtro lo aplica RLS.
+        --------------------------------------------------------------------
+        Con equipos, quién ve a quién depende del rol —un entrenador ve solo los
+        suyos, el dueño todos—, y reproducir esa regla en JavaScript sería
+        duplicar la autorización en el único sitio donde no se puede confiar en
+        ella. Sin equipos el resultado es idéntico, porque la política actual ya
+        es `coach_id = auth.uid()`.
+      */
       const clientsQuery =
         role === 'coach'
-          ? supabase.from('clients').select('*').eq('coach_id', user.id).order('created_at')
+          ? supabase.from('clients').select('*').order('created_at')
           : supabase.from('clients').select('*').eq('client_profile_id', user.id);
 
       const { data: clientRows, error: clientsErr } = await clientsQuery;
@@ -316,6 +392,8 @@ export const AppProvider = ({ children }) => {
     setNutrition({});
     setProgressPhotos([]);
     setSelectedClientId('');
+    setTeam(null);
+    setTeamMembers([]);
   }, [queue, setAnthropometry, setClients, setNutrition, setProgressPhotos, setWorkoutData]);
 
   useEffect(() => {
@@ -402,7 +480,10 @@ export const AppProvider = ({ children }) => {
     [applyWorkout]
   );
 
-  /** Teclear kg/reps/rir: se agrupa la ráfaga en un solo guardado. */
+  /**
+   * Objetivo de repeticiones de una serie. Vive en el PLAN, no en la sesión: es
+   * lo que el entrenador programa, no lo que se ejecuta.
+   */
   const updateExerciseSet = useCallback(
     (clientId, weekNumber, dayName, exId, setIdx, field, value) =>
       applyDay(
@@ -420,6 +501,134 @@ export const AppProvider = ({ children }) => {
         { immediate: false }
       ),
     [applyDay]
+  );
+
+  /**
+   * Objetivo de repeticiones de un ejercicio: se escribe en TODAS sus series.
+   *
+   * El dato vive por serie en el JSONB (así estaba y no merece una migración),
+   * pero se programa por ejercicio: "4×8-10". Editarlo en un solo sitio evita
+   * tener que repetir la misma cifra cuatro veces.
+   */
+  const updateExerciseTarget = useCallback(
+    (clientId, weekNumber, dayName, exId, value) =>
+      applyDay(
+        clientId,
+        weekNumber,
+        dayName,
+        (d) => ({
+          ...d,
+          exercises: d.exercises.map((ex) =>
+            ex.id !== exId ? ex : { ...ex, sets: ex.sets.map((s) => ({ ...s, targetReps: value })) }
+          ),
+        }),
+        { immediate: false }
+      ),
+    [applyDay]
+  );
+
+  // ── Sesiones de entrenamiento ────────────────────────────────────────────
+  //
+  // El plan (`microcycle.days`) y la ejecución (`microcycle.sessions`) están
+  // separados. Antes los kilos se anotaban dentro del plan, así que no quedaba
+  // constancia de CUÁNDO se entrenó, no se podía repetir un día en la misma
+  // semana, y si el entrenador cambiaba el plan se sobrescribía el registro.
+
+  const applyMicrocycle = useCallback(
+    (clientId, weekNumber, updater, options) =>
+      applyWorkout(
+        clientId,
+        (cd) => ({
+          ...cd,
+          microcycles: cd.microcycles.map((m) => (m.weekNumber === weekNumber ? updater(m) : m)),
+        }),
+        options
+      ),
+    [applyWorkout]
+  );
+
+  /**
+   * Crea una sesión para un día y una fecha. Si ya existe una en esa fecha la
+   * devuelve en lugar de duplicarla: dos registros del mismo día no son dos
+   * sesiones distintas.
+   */
+  const startSession = useCallback(
+    (clientId, weekNumber, dayName, date = today()) => {
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      const micro = findMicrocycle(current.microcycles, weekNumber);
+      if (!micro) return null;
+
+      const existing = sessionsOf(micro).find((s) => s.dayName === dayName && s.date === date);
+      if (existing) return existing.id;
+
+      const day = (micro.days || []).find((d) => d.dayName === dayName);
+      if (!day) return null;
+
+      const session = buildSessionFromPlan(day, date);
+      applyMicrocycle(clientId, weekNumber, (m) => ({
+        ...m,
+        sessions: [...sessionsOf(m), session],
+      }));
+      return session.id;
+    },
+    [applyMicrocycle, workoutRef]
+  );
+
+  /**
+   * Registra un valor ejecutado (kg, reps o RIR). Si la sesión indicada no
+   * existe todavía se crea al vuelo, de modo que el usuario solo tiene que
+   * empezar a escribir.
+   */
+  const logSessionSet = useCallback(
+    (clientId, weekNumber, sessionId, date, dayName, exercise, setIndex, field, value) => {
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      const micro = findMicrocycle(current.microcycles, weekNumber);
+      if (!micro) return null;
+
+      let targetId = sessionId;
+      let sessions = sessionsOf(micro);
+
+      if (!targetId || !sessions.some((s) => s.id === targetId)) {
+        const day = (micro.days || []).find((d) => d.dayName === dayName);
+        if (!day) return null;
+        const created = buildSessionFromPlan(day, date);
+        targetId = created.id;
+        sessions = [...sessions, created];
+      }
+
+      applyMicrocycle(
+        clientId,
+        weekNumber,
+        (m) => ({
+          ...m,
+          sessions: sessions.map((s) =>
+            s.id === targetId ? withSessionSet(s, exercise, setIndex, field, value) : s
+          ),
+        }),
+        { immediate: false }
+      );
+
+      return targetId;
+    },
+    [applyMicrocycle, workoutRef]
+  );
+
+  const updateSession = useCallback(
+    (clientId, weekNumber, sessionId, fields) =>
+      applyMicrocycle(clientId, weekNumber, (m) => ({
+        ...m,
+        sessions: sessionsOf(m).map((s) => (s.id === sessionId ? { ...s, ...fields } : s)),
+      })),
+    [applyMicrocycle]
+  );
+
+  const removeSession = useCallback(
+    (clientId, weekNumber, sessionId) =>
+      applyMicrocycle(clientId, weekNumber, (m) => ({
+        ...m,
+        sessions: sessionsOf(m).filter((s) => s.id !== sessionId),
+      })),
+    [applyMicrocycle]
   );
 
   const addExercise = useCallback(
@@ -719,8 +928,8 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
-   * Copia el programa completo. Se AÑADE a lo que el cliente destino ya tenga
-   * (no sustituye nada) para no borrar por accidente un programa existente.
+   * Copia el programa completo AÑADIÉNDOLO al que el cliente destino ya tenga.
+   * Se conserva para el caso de "traerme también estas semanas".
    */
   const copyProgramToClient = useCallback(
     (sourceClientId, targetClientId) => {
@@ -741,6 +950,75 @@ export const AppProvider = ({ children }) => {
       return true;
     },
     [applyWorkout, workoutRef]
+  );
+
+  /**
+   * Réplica completa de un cliente a otro: entrenamiento y/o nutrición.
+   *
+   * A diferencia de `copyProgramToClient`, esto **sustituye**: es la operación de
+   * "montar a este cliente igual que aquel", no la de añadirle semanas. Incluye
+   * la estructura semanal y el tipo de ciclo, que antes no se copiaban y dejaban
+   * el programa copiado a medias (los días existían pero no la planificación de
+   * la semana ni el patrón rotativo).
+   *
+   * Lo que NO se copia son las SESIONES: son el registro de lo que otra persona
+   * ejecutó, y no tienen ningún sentido en la ficha de un cliente distinto.
+   */
+  const replicateClient = useCallback(
+    (sourceClientId, targetClientId, { training = false, diet = false } = {}) => {
+      const result = { training: false, diet: false };
+      if (sourceClientId === targetClientId) return result;
+
+      if (training) {
+        const source = workoutRef.current[sourceClientId];
+        const sourceClient = clientsRef.current.find((c) => c.id === sourceClientId);
+
+        if (source && (source.microcycles.length > 0 || Object.keys(source.weeklySplit || {}).length > 0)) {
+          applyWorkout(targetClientId, () => ({
+            weeklySplit: deepClone(source.weeklySplit || {}),
+            mobilityDrills: deepClone(source.mobilityDrills || []),
+            notes: source.notes || '',
+            microcycles: [...source.microcycles]
+              .sort((a, b) => a.weekNumber - b.weekNumber)
+              .map((m, index) =>
+                buildMicrocycle({
+                  weekNumber: index + 1,
+                  days: cloneDays(m.days || []),
+                  date: m.date,
+                })
+              ),
+          }));
+
+          // El tipo de ciclo vive en la ficha del cliente, no en workout_data.
+          // Se escribe aquí directamente porque `updateClient` se define más
+          // abajo en el archivo y todavía no está inicializado.
+          if (sourceClient) {
+            const fields = {
+              cycleType: sourceClient.cycleType,
+              cyclePattern: deepClone(sourceClient.cyclePattern),
+            };
+            setClients(
+              clientsRef.current.map((c) => (c.id === targetClientId ? { ...c, ...fields } : c))
+            );
+            persist('client', targetClientId, fields, { immediate: true });
+          }
+          result.training = true;
+        }
+      }
+
+      if (diet) {
+        const source = nutritionRef.current[sourceClientId];
+        if (source) {
+          const copy = deepClone(source);
+          setNutrition({ ...nutritionRef.current, [targetClientId]: copy });
+          persist('nutrition', targetClientId, copy, { immediate: true });
+          result.diet = true;
+        }
+      }
+
+      return result;
+    },
+    [applyWorkout, clientsRef, nutritionRef, persist, setClients, setNutrition, workoutRef]
   );
 
   // ── Nutrición ────────────────────────────────────────────────────────────
@@ -779,15 +1057,43 @@ export const AppProvider = ({ children }) => {
     [applyNutrition]
   );
 
+  /**
+   * Actualiza el objetivo de kcal y macros de UNA variante.
+   *
+   * Las columnas principales son el objetivo de los días de entreno (o el único
+   * si no hay variantes); el de descanso vive en `restTargets`. Sin esta
+   * separación, activar "dos dietas" mostraba la misma cifra en los dos días,
+   * que es precisamente lo que la opción quiere distinguir.
+   */
+  const updateNutritionTargets = useCallback(
+    (clientId, variant, fields, options) =>
+      applyNutrition(
+        clientId,
+        (n) =>
+          variant === 'rest' && n.hasDayVariants
+            ? { ...n, restTargets: { ...(n.restTargets || {}), ...fields } }
+            : { ...n, ...fields },
+        options
+      ),
+    [applyNutrition]
+  );
+
   const setHasDayVariants = useCallback(
     (clientId, value) =>
       applyNutrition(clientId, (n) => {
         if (!value || n.hasDayVariants) return { ...n, hasDayVariants: value };
         // Al activar por primera vez se parte de una copia de la dieta única,
-        // para no perder lo ya configurado.
+        // tanto en comidas como en OBJETIVO, para no dejar el día de descanso
+        // con cifras vacías ni perder lo ya configurado.
         return {
           ...n,
           hasDayVariants: true,
+          restTargets: n.restTargets || {
+            targetKcals: n.targetKcals,
+            proteinGrams: n.proteinGrams,
+            carbsGrams: n.carbsGrams,
+            fatsGrams: n.fatsGrams,
+          },
           closedMealsTraining: n.closedMealsTraining?.length
             ? n.closedMealsTraining
             : deepClone(n.closedMeals || []),
@@ -1169,14 +1475,55 @@ export const AppProvider = ({ children }) => {
     [clientsRef, persist, setClients]
   );
 
+  /**
+   * Preferencias del panel (ver domain/preferences.js).
+   *
+   * Se fusiona por SECCIÓN, no se reemplaza el objeto entero: así una preferencia
+   * futura que viva en `preferences.otraCosa` no desaparece cada vez que se toca
+   * un KPI del panel.
+   *
+   * Va por la cola de guardado con su propia clave, de modo que un fallo —la
+   * columna o la función que faltan— se ve en pantalla como «No se guardó» con su
+   * botón de reintentar, en lugar de perderse en silencio. Y por tener clave
+   * propia, un guardado de preferencias no se mezcla con los campos de la ficha
+   * que el entrenador pueda estar editando a la vez.
+   */
+  const updateClientPreferences = useCallback(
+    (clientId, section, patch) => {
+      const current = clientsRef.current.find((c) => c.id === clientId)?.preferences || {};
+      const next = { ...current, [section]: { ...(current[section] || {}), ...patch } };
+
+      setClients(
+        clientsRef.current.map((c) => (c.id === clientId ? { ...c, preferences: next } : c))
+      );
+      persist('preferences', clientId, next, { immediate: true });
+    },
+    [clientsRef, persist, setClients]
+  );
+
   const addClient = useCallback(
     async (clientData) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
 
+      /*
+        `coach_id` se sigue escribiendo aunque haya equipo: la columna es NOT NULL
+        y su retirada va en una migración posterior (ver 0006). `team_id` y
+        `assigned_to` solo se mandan si hay equipo; si no, las columnas no existen
+        y PostgREST rechazaría la fila entera.
+      */
+      const teamFields = team
+        ? { team_id: team.id, assigned_to: clientData.assignedTo || userId }
+        : {};
+
       const { data, error } = await supabase
         .from('clients')
-        .insert({ coach_id: userId, start_date: today(), ...mapClientToDb(clientData) })
+        .insert({
+          coach_id: userId,
+          start_date: today(),
+          ...teamFields,
+          ...mapClientToDb(clientData),
+        })
         .select()
         .single();
 
@@ -1187,7 +1534,124 @@ export const AppProvider = ({ children }) => {
       setSelectedClientId(created.id);
       return { ok: true, client: created };
     },
-    [clientsRef, session, setClients]
+    [clientsRef, session, setClients, team]
+  );
+
+  // ── Equipo ───────────────────────────────────────────────────────────────
+  //
+  // Estas cuatro operaciones son puntuales y no van por la cola de guardado: la
+  // cola existe para escrituras repetidas de un mismo bloque (los kilos de una
+  // serie, el historial de peso). Aquí cada acción es un acto deliberado del
+  // usuario y devuelve su resultado para que la vista lo muestre.
+
+  const reloadTeamMembers = useCallback(async (teamId) => {
+    const { data, error } = await supabase
+      .from('team_members')
+      .select('profile_id, role, profiles(full_name, email)')
+      .eq('team_id', teamId);
+
+    if (error) return;
+    setTeamMembers(
+      (data || []).map((row) => ({
+        profileId: row.profile_id,
+        role: row.role,
+        name: row.profiles?.full_name || '',
+        email: row.profiles?.email || '',
+      }))
+    );
+  }, []);
+
+  const inviteTeamMember = useCallback(
+    async (email, role = 'trainer') => {
+      if (!team) return { ok: false, error: 'Todavía no hay ningún equipo.' };
+
+      const { error } = await supabase.rpc('invite_team_member', {
+        target_team: team.id,
+        member_email: email,
+        member_role: role,
+      });
+      if (error) return { ok: false, error: error.message };
+
+      await reloadTeamMembers(team.id);
+      return { ok: true };
+    },
+    [reloadTeamMembers, team]
+  );
+
+  const updateTeamMemberRole = useCallback(
+    async (profileId, role) => {
+      if (!team) return { ok: false, error: 'Todavía no hay ningún equipo.' };
+      if (profileId === team.ownerId) {
+        return { ok: false, error: 'El dueño del equipo no puede cambiar de rol.' };
+      }
+
+      const { error } = await supabase
+        .from('team_members')
+        .update({ role })
+        .eq('team_id', team.id)
+        .eq('profile_id', profileId);
+      if (error) return { ok: false, error: error.message };
+
+      await reloadTeamMembers(team.id);
+      return { ok: true };
+    },
+    [reloadTeamMembers, team]
+  );
+
+  const removeTeamMember = useCallback(
+    async (profileId) => {
+      if (!team) return { ok: false, error: 'Todavía no hay ningún equipo.' };
+      if (profileId === team.ownerId) {
+        return { ok: false, error: 'No se puede sacar del equipo a quien lo creó.' };
+      }
+
+      const { error } = await supabase
+        .from('team_members')
+        .delete()
+        .eq('team_id', team.id)
+        .eq('profile_id', profileId);
+      if (error) return { ok: false, error: error.message };
+
+      /*
+        Sus clientes quedan sin asignar, no se borran ni se reparten solos: quién
+        se hace cargo de cada uno es una decisión del entrenador jefe, y adivinarla
+        sería peor que preguntarla. La cartera los muestra como «sin asignar».
+      */
+      const orphans = clientsRef.current.filter((c) => c.assignedTo === profileId);
+      if (orphans.length > 0) {
+        await supabase
+          .from('clients')
+          .update({ assigned_to: null })
+          .in('id', orphans.map((c) => c.id));
+        setClients(
+          clientsRef.current.map((c) => (c.assignedTo === profileId ? { ...c, assignedTo: null } : c))
+        );
+      }
+
+      await reloadTeamMembers(team.id);
+      return { ok: true, unassigned: orphans.length };
+    },
+    [clientsRef, reloadTeamMembers, setClients, team]
+  );
+
+  /** Cambia el entrenador responsable de un cliente. */
+  const assignClient = useCallback(
+    (clientId, profileId) => updateClient(clientId, { assignedTo: profileId || null }),
+    [updateClient]
+  );
+
+  const renameTeam = useCallback(
+    async (name) => {
+      const clean = String(name || '').trim();
+      if (!team || !clean) return { ok: false, error: 'El nombre no puede estar vacío.' };
+
+      const { error } = await supabase.from('teams').update({ name: clean }).eq('id', team.id);
+      if (error) return { ok: false, error: error.message };
+
+      setTeam({ ...team, name: clean });
+      return { ok: true };
+    },
+    [team]
   );
 
   // ── Vista activa ─────────────────────────────────────────────────────────
@@ -1226,6 +1690,7 @@ export const AppProvider = ({ children }) => {
 
       // Rutina
       updateExerciseSet,
+      updateExerciseTarget,
       addExercise,
       removeExercise,
       addExerciseSetSlot,
@@ -1236,6 +1701,10 @@ export const AppProvider = ({ children }) => {
       duplicateDay,
       removeDay,
       updateWeeklySplit,
+      startSession,
+      logSessionSet,
+      updateSession,
+      removeSession,
       startProgram,
       appendMicrocycle,
       cloneMicrocycle,
@@ -1243,9 +1712,11 @@ export const AppProvider = ({ children }) => {
       copyDayToClient,
       copyMicrocycleToClient,
       copyProgramToClient,
+      replicateClient,
 
       // Nutrición
       updateNutrition,
+      updateNutritionTargets,
       setHasDayVariants,
       addMeal,
       removeMeal,
@@ -1274,22 +1745,36 @@ export const AppProvider = ({ children }) => {
       // Clientes
       addClient,
       updateClient,
+      updateClientPreferences,
+
+      // Equipo
+      team,
+      teamMembers,
+      hasTeams: Boolean(team),
+      myTeamRole: team?.myRole || null,
+      inviteTeamMember,
+      updateTeamMemberRole,
+      removeTeamMember,
+      assignClient,
+      renameTeam,
     }),
     [
       session, loading, loadError, signOut, profileRole, isCoach, effectiveView,
       clients, activeClient, selectedClientId, workoutData, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary,
       saveStatus, retrySave, hasUnsavedChanges,
-      updateExerciseSet, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
+      updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
       moveExercise, addDay, renameDay, duplicateDay, removeDay, updateWeeklySplit,
+      startSession, logSessionSet, updateSession, removeSession,
       startProgram, appendMicrocycle, cloneMicrocycle, removeMicrocycle,
-      copyDayToClient, copyMicrocycleToClient, copyProgramToClient,
-      updateNutrition, setHasDayVariants, addMeal, removeMeal, updateMealName,
+      copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
+      updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
       addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams,
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls,
-      addClient, updateClient,
+      addClient, updateClient, updateClientPreferences,
+      team, teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
     ]
   );
 

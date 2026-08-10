@@ -1,77 +1,79 @@
 import { useState } from 'react';
-import { Copy } from 'lucide-react';
+import { Copy, Dumbbell, Salad } from 'lucide-react';
 
-import { unitLabel, unitLabelPlural } from '@/domain/training';
-import { Field, Notice, Panel, SegmentedControl } from '@/components/ui/primitives';
+import { unitLabelPlural } from '@/domain/training';
+import { Field, Notice, Panel } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 /**
- * Copia un día, una semana o el programa completo a otro cliente.
+ * Réplica de un cliente a otro.
  *
- * Muchos clientes llevan rutinas muy parecidas, así que esto ahorra reescribir
- * a mano. Copiar SIEMPRE añade al final del programa destino: nunca sustituye
- * lo que el otro cliente ya tuviera.
+ * Antes solo copiaba días o semanas del entrenamiento, y dejaba fuera la
+ * estructura semanal y el tipo de ciclo — así que el programa llegaba a medias:
+ * los días existían pero no la planificación de la semana. Y no había forma de
+ * traerse la dieta, que es la otra mitad del trabajo cuando montas a un cliente
+ * nuevo como otro que ya tienes.
+ *
+ * Ahora se elige **entrenamiento, dieta o las dos cosas**. Copiar SUSTITUYE lo
+ * que el destino tuviera de esos bloques, así que la confirmación lo dice
+ * explícitamente antes de tocar nada.
  */
 export const CopyToClientPanel = ({
   clients,
   activeClient,
   cycleType,
-  dayName,
   weekCount,
-  onCopyDay,
-  onCopyWeek,
-  onCopyProgram,
+  hasProgram,
+  hasDiet,
+  onReplicate,
   onClose,
 }) => {
   const confirm = useConfirm();
-  const [targetId, setTargetId] = useState('');
-  const [scope, setScope] = useState('day');
+  const [sourceId, setSourceId] = useState('');
+  const [training, setTraining] = useState(true);
+  const [diet, setDiet] = useState(false);
   const [result, setResult] = useState(null);
 
-  const unit = unitLabel(cycleType);
   const others = clients.filter((c) => c.id !== activeClient.id);
-
-  const scopeOptions = [
-    ...(dayName ? [{ id: 'day', label: `Solo «${dayName}»` }] : []),
-    { id: 'week', label: `${unit} completa` },
-    { id: 'program', label: `Programa entero (${weekCount} ${unitLabelPlural(cycleType)})` },
-  ];
+  const source = others.find((c) => c.id === sourceId) || null;
+  const nothingSelected = !training && !diet;
 
   const handleCopy = async () => {
-    const target = others.find((c) => c.id === targetId);
-    if (!target) return;
+    if (!source || nothingSelected) return;
+
+    const parts = [training && 'el programa de entrenamiento', diet && 'el plan nutricional']
+      .filter(Boolean)
+      .join(' y ');
+
+    const overwrites = [training && hasProgram && 'su programa actual', diet && hasDiet && 'su dieta actual']
+      .filter(Boolean)
+      .join(' y ');
 
     const ok = await confirm({
-      title: `¿Copiar a ${target.name}?`,
-      message:
-        scope === 'program'
-          ? `Se añadirán ${weekCount} ${unitLabelPlural(cycleType)} al final del programa de ${target.name}.`
-          : `Se añadirá al programa de ${target.name}, sin borrar nada de lo que ya tenga.`,
+      title: `¿Copiar de ${source.name}?`,
+      message: `Se traerá ${parts} de ${source.name} a ${activeClient.name}.`,
+      detail: overwrites
+        ? `Atención: esto SUSTITUYE ${overwrites}. No se puede deshacer.`
+        : `${activeClient.name} no tiene nada configurado en esos bloques, así que no se sobrescribe nada.`,
       confirmLabel: 'Copiar',
+      tone: overwrites ? 'danger' : 'default',
     });
     if (!ok) return;
 
-    const copied =
-      scope === 'program'
-        ? onCopyProgram(targetId)
-        : scope === 'week'
-          ? onCopyWeek(targetId)
-          : onCopyDay(targetId);
+    const done = onReplicate(sourceId, { training, diet });
+    const copied = [done.training && 'entrenamiento', done.diet && 'dieta'].filter(Boolean);
 
     setResult(
-      copied
-        ? { tone: 'success', text: `Copiado a ${target.name}.` }
-        : { tone: 'error', text: 'No había nada que copiar.' }
+      copied.length > 0
+        ? { tone: 'success', text: `Copiado de ${source.name}: ${copied.join(' y ')}.` }
+        : { tone: 'warn', text: `${source.name} no tiene datos en los bloques seleccionados.` }
     );
-    if (copied) setTargetId('');
   };
 
   if (others.length === 0) {
     return (
       <Panel tight>
-        <Notice tone="info">
-          Necesitas al menos dos clientes para poder copiar rutinas entre ellos.
-        </Notice>
+        <Notice tone="info">Necesitas al menos dos clientes para copiar entre ellos.</Notice>
       </Panel>
     );
   }
@@ -81,14 +83,17 @@ export const CopyToClientPanel = ({
       {result && <Notice tone={result.tone}>{result.text}</Notice>}
 
       <div className="row-end wrap gap-4">
-        <Field label="Cliente destino">
+        <Field label="Copiar desde" hint="El cliente que ya tiene lo que quieres replicar">
           {(props) => (
             <select
               {...props}
               className="select"
-              style={{ minWidth: 190 }}
-              value={targetId}
-              onChange={(e) => setTargetId(e.target.value)}
+              style={{ minWidth: 200 }}
+              value={sourceId}
+              onChange={(e) => {
+                setSourceId(e.target.value);
+                setResult(null);
+              }}
             >
               <option value="">Selecciona cliente…</option>
               {others.map((client) => (
@@ -100,12 +105,32 @@ export const CopyToClientPanel = ({
           )}
         </Field>
 
-        <Field label="Qué copiar">
-          <SegmentedControl value={scope} onChange={setScope} options={scopeOptions} label="Qué copiar" />
+        <Field label="Qué se copia">
+          <div className="col gap-2">
+            <label className="checkbox-row">
+              <input type="checkbox" checked={training} onChange={(e) => setTraining(e.target.checked)} />
+              <Dumbbell size={13} />
+              Entrenamiento
+              <span className="t-xs t-tertiary">
+                (estructura semanal, {weekCount} {unitLabelPlural(cycleType)} y tipo de ciclo)
+              </span>
+            </label>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={diet} onChange={(e) => setDiet(e.target.checked)} />
+              <Salad size={13} />
+              Dieta
+              <span className="t-xs t-tertiary">(objetivo, macros, menú y hábitos)</span>
+            </label>
+          </div>
         </Field>
 
         <div className="row gap-2">
-          <button type="button" className="btn btn-primary" onClick={handleCopy} disabled={!targetId}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleCopy}
+            disabled={!sourceId || nothingSelected}
+          >
             <Copy size={15} /> Copiar
           </button>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
@@ -113,6 +138,11 @@ export const CopyToClientPanel = ({
           </button>
         </div>
       </div>
+
+      <p className="t-xs t-tertiary">
+        No se copian las sesiones registradas: son el registro de lo que ejecutó otra persona y no tienen
+        sentido en esta ficha.
+      </p>
     </Panel>
   );
 };

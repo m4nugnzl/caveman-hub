@@ -99,12 +99,12 @@ export const Autocomplete = ({
               role="option"
               aria-selected={cursor === i}
               className="menu-item"
-              style={cursor === i ? { background: 'rgba(255,255,255,0.06)' } : undefined}
+              style={cursor === i ? { background: 'var(--fill)' } : undefined}
               onMouseEnter={() => setCursor(i)}
               onClick={() => pick(item)}
             >
               <span className="grow">{getLabel(item)}</span>
-              {getMeta && <span className="text-xs text-muted">{getMeta(item)}</span>}
+              {getMeta && <span className="t-xs t-secondary">{getMeta(item)}</span>}
             </button>
           ))}
 
@@ -115,8 +115,8 @@ export const Autocomplete = ({
               aria-selected={cursor === matches.length}
               className="menu-item"
               style={{
-                color: 'var(--accent-emerald)',
-                ...(cursor === matches.length ? { background: 'rgba(255,255,255,0.06)' } : {}),
+                color: 'var(--accent)',
+                ...(cursor === matches.length ? { background: 'var(--fill)' } : {}),
               }}
               onMouseEnter={() => setCursor(matches.length)}
               onClick={() => {

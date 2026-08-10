@@ -37,14 +37,14 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise }) => {
 
   if (!open) {
     return (
-      <button type="button" className="btn btn-ghost btn-block btn-lg" onClick={() => setOpen(true)}>
+      <button type="button" className="btn btn-secondary btn-block btn-lg" onClick={() => setOpen(true)}>
         <Plus size={18} /> Nuevo ejercicio
       </button>
     );
   }
 
   return (
-    <form className="panel-sunken col gap-4" onSubmit={submit}>
+    <form className="card-inset col gap-4" onSubmit={submit}>
       <div className="row-end wrap gap-4">
         <Field label="Nombre del ejercicio" className="grow" hint="Se guarda para autocompletar después">
           <Autocomplete

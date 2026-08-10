@@ -38,4 +38,15 @@ export default [
       'prefer-const': 'error',
     },
   },
+
+  /*
+   * Los scripts de `scripts/` corren en Node, no en el navegador: usan `process`,
+   * `fs` y consola libremente. Sin este bloque, el bloque anterior los evalúa con
+   * los globales del navegador y `process` sale como no definido.
+   */
+  {
+    files: ['scripts/**/*.mjs', 'scripts/**/*.js', '*.config.js'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': 'off' },
+  },
 ];

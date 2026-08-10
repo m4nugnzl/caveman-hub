@@ -1,0 +1,177 @@
+/* ==========================================================================
+   Tokens
+   --------------------------------------------------------------------------
+   Toda decisión de color, tipografía, espaciado y radio vive aquí. Ningún
+   componente escribe un color literal: si aparece un `#fff` en un JSX es un
+   error, no una excepción. Eso es lo que permite cambiar el tema entero desde
+   un solo sitio.
+
+   El tema por defecto es CLARO, siguiendo la referencia visual: superficies
+   blancas, separadores muy finos, sombras amplias y suaves, y color reservado
+   a los datos. El tema oscuro se mantiene como variante bajo
+   `[data-theme='dark']`, con los mismos nombres semánticos.
+   ========================================================================== */
+
+:root {
+  /* ── Superficies ────────────────────────────────────────────────────────
+     `canvas` es el fondo de la página; `surface` las tarjetas, que en el tema
+     claro son blancas y se separan del fondo por la sombra, no por un borde. */
+  --canvas: #f4f6f9;
+  --canvas-alt: #eef1f6;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #f7f9fb;
+  --surface-glass: rgba(255, 255, 255, 0.82);
+
+  /* ── Separadores y rellenos ── */
+  --hairline: #e6eaf0;
+  --hairline-strong: #d5dbe4;
+  --fill-subtle: #f2f5f9;
+  --fill: #e9edf3;
+  --fill-strong: #dde3eb;
+
+  /* ── Texto ── */
+  --text: #0f1729;
+  --text-secondary: #5c6880;
+  --text-tertiary: #96a0b3;
+  --text-inverse: #ffffff;
+
+  /* ── Acento de marca y acción ── */
+  --accent: #0f9d76;
+  --accent-hover: #0c8a67;
+  --accent-soft: #e6f7f1;
+  --accent-on: #ffffff;
+
+  /* ── Colores de dato. Uno por serie, nunca decorativos. ── */
+  --data-blue: #3b82f6;
+  --data-rose: #f43f5e;
+  --data-teal: #14b8a6;
+  --data-amber: #f59e0b;
+  --data-violet: #8b5cf6;
+  --data-pink: #ec4899;
+  --data-lime: #65a30d;
+  --data-orange: #f97316;
+  --data-slate: #94a3b8;
+
+  /* Área bajo las líneas: el mismo color con muy poca opacidad. */
+  --area-opacity: 0.1;
+
+  /* ── Semántica de estado ── */
+  --positive: #059669;
+  --positive-soft: #ecfdf5;
+  --negative: #e11d48;
+  --negative-soft: #fff1f2;
+  --warning: #b45309;
+  --warning-soft: #fffbeb;
+  --info: #1d4ed8;
+  --info-soft: #eff6ff;
+
+  /* ── Tipografía ──────────────────────────────────────────────────────────
+     Fuente del sistema: SF en Apple, Segoe en Windows. Es lo que hace que la
+     interfaz se sienta nativa, y evita la petición externa a Google Fonts que
+     bloqueaba el primer render. */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text',
+    'Segoe UI', Inter, Roboto, system-ui, sans-serif;
+
+  --fs-2xs: 0.625rem;   /* 10px — encabezados de columna */
+  --fs-xs: 0.6875rem;   /* 11px — etiquetas, deltas */
+  --fs-sm: 0.8125rem;   /* 13px — secundario */
+  --fs-base: 0.9375rem; /* 15px — cuerpo */
+  --fs-md: 1.0625rem;   /* 17px — título de fila */
+  --fs-lg: 1.25rem;     /* 20px — título de sección */
+  --fs-xl: 1.75rem;     /* 28px — cifra de tarjeta */
+  --fs-2xl: 2.375rem;   /* 38px — cifra principal */
+
+  --lh-tight: 1.15;
+  --lh-base: 1.45;
+
+  /* ── Radios ── */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* ── Espaciado ── */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 22px;
+  --s6: 32px;
+  --s7: 44px;
+
+  /* ── Sombras: amplias y de baja opacidad, como en la referencia ── */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 41, 0.05);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 41, 0.06), 0 1px 2px rgba(15, 23, 41, 0.04);
+  --shadow-md: 0 4px 14px -2px rgba(15, 23, 41, 0.08), 0 2px 4px rgba(15, 23, 41, 0.04);
+  --shadow-lg: 0 18px 40px -12px rgba(15, 23, 41, 0.18), 0 4px 10px rgba(15, 23, 41, 0.05);
+  --shadow-float: 0 12px 32px -8px rgba(15, 23, 41, 0.16);
+
+  /* ── Movimiento ── */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --fast: 0.16s var(--ease);
+  --normal: 0.26s var(--ease);
+
+  --header-h: 58px;
+  --max-w: 1320px;
+}
+
+/* ==========================================================================
+   Tema oscuro
+   --------------------------------------------------------------------------
+   Solo se redefinen los tokens. Ningún componente sabe que existe.
+   ========================================================================== */
+
+[data-theme='dark'] {
+  --canvas: #0a0d14;
+  --canvas-alt: #0d111a;
+  --surface: #151a24;
+  --surface-raised: #1b212e;
+  --surface-sunken: #10141d;
+  --surface-glass: rgba(13, 17, 26, 0.78);
+
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.15);
+  --fill-subtle: rgba(255, 255, 255, 0.04);
+  --fill: rgba(255, 255, 255, 0.08);
+  --fill-strong: rgba(255, 255, 255, 0.13);
+
+  --text: #f2f5f9;
+  --text-secondary: #98a3b6;
+  --text-tertiary: #68738a;
+  --text-inverse: #0f1729;
+
+  --accent: #10b981;
+  --accent-hover: #14c88b;
+  --accent-soft: rgba(16, 185, 129, 0.15);
+  --accent-on: #04150f;
+
+  --data-blue: #60a5fa;
+  --data-rose: #fb7185;
+  --data-teal: #2dd4bf;
+  --data-amber: #fbbf24;
+  --data-violet: #a78bfa;
+  --data-pink: #f472b6;
+  --data-lime: #a3e635;
+  --data-orange: #fb923c;
+  --data-slate: #94a3b8;
+
+  --area-opacity: 0.16;
+
+  --positive: #34d399;
+  --positive-soft: rgba(52, 211, 153, 0.14);
+  --negative: #fb7185;
+  --negative-soft: rgba(251, 113, 133, 0.14);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.14);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.14);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.6);
+  --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.55);
+}

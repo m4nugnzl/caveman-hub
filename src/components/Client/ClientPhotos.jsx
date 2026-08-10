@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Camera } from 'lucide-react';
 
-import { ANGLES, angleLabel, groupByWeek, suggestPair, weightDelta } from '@/domain/photos';
+import { ANGLES, angleLabel, groupByWeek, photoWeight, suggestPair, weightDelta } from '@/domain/photos';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 
@@ -16,12 +16,22 @@ import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
  * El cliente ve además su propia comparación antes/después, pero no puede
  * borrar fotos: eso queda en manos del entrenador.
  */
-export const ClientPhotos = ({ client, photos, onUpload }) => {
+export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload }) => {
   const [uploadOpen, setUploadOpen] = useState(false);
+
+  /*
+    El peso de cada foto sale del check-in de su semana, no de un campo que el
+    cliente rellenase al subirla: el mismo dato escrito dos veces acaba sin
+    coincidir, y casi nunca se rellenaba.
+  */
+  const photos = useMemo(
+    () => rawPhotos.map((p) => ({ ...p, derivedWeight: photoWeight(p, history) })),
+    [rawPhotos, history]
+  );
 
   const groups = useMemo(() => groupByWeek(photos, client.startDate), [photos, client.startDate]);
   const pair = useMemo(() => suggestPair(photos), [photos]);
-  const delta = weightDelta(pair.before, pair.after);
+  const delta = weightDelta(pair.before, pair.after, history);
 
   const uploadButton = (
     <button type="button" className="btn btn-primary" onClick={() => setUploadOpen(true)}>
@@ -57,9 +67,9 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
       <Panel tight className="row between wrap gap-3">
         <div>
           <h2 className="section-title">
-            <Camera size={18} color="var(--accent-purple)" /> Mis fotos de progreso
+            <Camera size={18} color="var(--data-violet)" /> Mis fotos de progreso
           </h2>
-          <p className="text-sm text-muted">
+          <p className="t-sm t-secondary">
             {photos.length} {photos.length === 1 ? 'foto' : 'fotos'} en {groups.length}{' '}
             {groups.length === 1 ? 'semana' : 'semanas'}
           </p>
@@ -74,7 +84,7 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
 
       {pair.before && pair.after && (
         <Panel tight className="col gap-4">
-          <SectionTitle color="var(--accent-emerald)">Tu evolución</SectionTitle>
+          <SectionTitle color="var(--accent)">Tu evolución</SectionTitle>
 
           <div className="comparison-grid">
             {[pair.before, pair.after].map((photo, index) => (
@@ -84,12 +94,12 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
                   className="photo-label"
                   style={
                     index === 1
-                      ? { background: 'rgba(16,185,129,0.85)', color: '#fff' }
+                      ? { background: 'var(--accent)', color: 'var(--accent-on)' }
                       : undefined
                   }
                 >
                   {photo.week != null ? `Semana ${photo.week}` : photo.date}
-                  {photo.weight != null ? ` · ${photo.weight} kg` : ''}
+                  {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
                 </figcaption>
               </figure>
             ))}
@@ -100,7 +110,7 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
               <StatCard
                 label="Variación de peso"
                 value={`${delta > 0 ? '+' : ''}${delta} kg`}
-                color={delta <= 0 ? 'var(--accent-emerald)' : 'var(--accent-amber)'}
+                color={delta <= 0 ? 'var(--accent)' : 'var(--data-amber)'}
               />
               <StatCard label="Ángulo comparado" value={angleLabel(pair.after.angle)} />
             </div>
@@ -111,8 +121,8 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
       {groups.map((group) => (
         <Panel tight className="col gap-3" key={group.week ?? 'sin-semana'}>
           <div className="row between wrap gap-2">
-            <strong className="text-sm">{group.label}</strong>
-            <span className="text-xs text-muted">
+            <strong className="t-sm">{group.label}</strong>
+            <span className="t-xs t-secondary">
               {group.dateRange?.from === group.dateRange?.to
                 ? group.dateRange?.from
                 : `${group.dateRange?.from} – ${group.dateRange?.to}`}
@@ -123,7 +133,7 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-              gap: 'var(--space-2)',
+              gap: 'var(--s2)',
             }}
           >
             {group.photos.map((photo) => (
@@ -131,13 +141,13 @@ export const ClientPhotos = ({ client, photos, onUpload }) => {
                 {photo.url ? (
                   <img src={photo.url} alt={`${angleLabel(photo.angle)} del ${photo.date}`} loading="lazy" />
                 ) : (
-                  <span className="row center text-xs text-dim" style={{ height: '100%' }}>
+                  <span className="row center t-xs t-tertiary" style={{ height: '100%' }}>
                     sin vista previa
                   </span>
                 )}
                 <figcaption className="photo-label" style={{ fontSize: '0.68rem', padding: '4px 8px' }}>
                   {angleLabel(photo.angle)}
-                  {photo.weight != null ? ` · ${photo.weight} kg` : ''}
+                  {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
                 </figcaption>
               </figure>
             ))}

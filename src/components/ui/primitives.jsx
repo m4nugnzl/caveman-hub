@@ -15,7 +15,7 @@ import { CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react';
 
 export const Panel = ({ as: Tag = 'section', tight, plain, className = '', children, ...rest }) => (
   <Tag
-    className={[plain ? 'panel-plain' : 'panel', tight && !plain ? 'panel-tight' : '', className]
+    className={[plain ? 'card-inset' : 'card', tight && !plain ? 'card-tight' : '', className]
       .filter(Boolean)
       .join(' ')}
     {...rest}
@@ -117,7 +117,7 @@ export const SaveIndicator = ({ status, error, onRetry }) => {
   if (status === 'saved') {
     return (
       <span className="save-indicator is-saved" role="status">
-        <CheckCircle2 size={13} color="var(--accent-emerald)" />
+        <CheckCircle2 size={13} color="var(--accent)" />
         Guardado
       </span>
     );

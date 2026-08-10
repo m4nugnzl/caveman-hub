@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Ruler, Scale, Save, Trash2, TrendingDown } from 'lucide-react';
 
 import {
@@ -14,13 +14,14 @@ import {
   reverseChronological,
   rollingWeightAverage,
   seriesDelta,
+  weeklyCheckIn,
   weeklyRateOfChange,
   weeklyWeightAverages,
   weightSeries,
 } from '@/domain/anthropometry';
 import { todayISO } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
-import { TrendChart } from '@/components/ui/charts';
+import { BandChart } from '@/components/ui/charts';
 import {
   Field,
   Notice,
@@ -30,20 +31,21 @@ import {
   StatCard,
 } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { WeeklyCheckIn } from './WeeklyCheckIn';
 
 /** Rejilla de campos numéricos etiquetados (pliegues y perímetros). */
 const MeasureGrid = ({ labels, values, unit, onChange }) => (
   <div className="grid-auto" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
     {Object.entries(labels).map(([key, label]) => (
-      <div className="panel-sunken row between gap-2" key={key} style={{ padding: '8px 12px' }}>
-        <label className="text-sm text-muted" htmlFor={`m-${key}`}>
+      <div className="card-inset row between gap-2" key={key} style={{ padding: '8px 12px' }}>
+        <label className="t-sm t-secondary" htmlFor={`m-${key}`}>
           {label}
         </label>
         <input
           id={`m-${key}`}
           type="text"
           inputMode="decimal"
-          className="input input-center input-bare"
+          className="input input-center"
           style={{ width: 58 }}
           value={values[key] ?? ''}
           onChange={(e) => onChange(key, e.target.value)}
@@ -74,6 +76,10 @@ export const AnthropometryPanel = ({
   onRetry,
   onAdd,
   onRemove,
+  // Fotos del cliente y forma de subirlas. Si no llegan, el check-in solo cubre
+  // el peso, que es como funcionaba antes.
+  photos = null,
+  onUploadPhoto = null,
 }) => {
   const confirm = useConfirm();
   // Memoizado: `|| []` crearía un array nuevo en cada render e invalidaría los
@@ -86,6 +92,26 @@ export const AnthropometryPanel = ({
   const [perimeters, setPerimeters] = useState(emptyPerimeters);
   const [showMeasures, setShowMeasures] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  /*
+    ── El peso llega propuesto, no guardado ──────────────────────────────────
+    Los pesajes que se van anotando arriba en el check-in ya dan un promedio de la
+    semana, que es la cifra buena: filtra la variación diaria de agua. Tecleársela
+    otra vez aquí para cerrar la revisión es copiar un número de una caja a otra de
+    la misma pantalla.
+    Así que el campo aparece RELLENO con ese promedio, pero **no se guarda nada
+    hasta enviar el formulario**, y se puede sobrescribir: el cliente sabe si ese
+    día se pesó en condiciones raras y su criterio manda sobre la media.
+    `touched` es lo que impide que el prellenado pise lo que esté escribiendo: en
+    cuanto toca el campo, deja de proponerse.
+  */
+  const [touched, setTouched] = useState(false);
+  const suggestedWeight = useMemo(() => weeklyCheckIn(history, todayISO()).average, [history]);
+
+  useEffect(() => {
+    if (touched) return;
+    setWeight(suggestedWeight === null ? '' : String(suggestedWeight));
+  }, [suggestedWeight, touched]);
 
   const isClient = audience === 'client';
 
@@ -124,7 +150,9 @@ export const AnthropometryPanel = ({
       })
     );
 
-    setWeight('');
+    // `touched` vuelve a false para que el campo recupere el promedio propuesto
+    // en la siguiente revisión, en lugar de quedarse en blanco.
+    setTouched(false);
     setFolds(emptyFolds());
     setPerimeters(emptyPerimeters());
     setDate(todayISO());
@@ -152,20 +180,20 @@ export const AnthropometryPanel = ({
           <StatCard
             label="Último peso"
             value={fmt(weights[weights.length - 1].value, { decimals: 1, unit: ' kg' })}
-            color="var(--accent-emerald)"
+            color="var(--accent)"
             sub={weights[weights.length - 1].date}
           />
           <StatCard
             label="Media últimos 3"
             value={rolling ? `${rolling.average} kg` : '—'}
-            color="var(--accent-amber)"
+            color="var(--data-amber)"
             sub={rolling ? `${rolling.count} ${rolling.count === 1 ? 'pesaje' : 'pesajes'}` : 'sin datos'}
           />
           {delta && (
             <StatCard
               label="Variación total"
               value={`${delta.delta > 0 ? '+' : ''}${delta.delta} kg`}
-              color={delta.delta <= 0 ? 'var(--accent-emerald)' : 'var(--accent-coral)'}
+              color={delta.delta <= 0 ? 'var(--accent)' : 'var(--data-rose)'}
               sub={`de ${delta.from} a ${delta.to} kg`}
             />
           )}
@@ -173,25 +201,38 @@ export const AnthropometryPanel = ({
             <StatCard
               label="Ritmo semanal"
               value={`${rate > 0 ? '+' : ''}${rate} kg`}
-              color="var(--accent-cyan)"
+              color="var(--data-blue)"
               sub="promedio por semana"
             />
           )}
         </div>
       )}
 
+      {/* El check-in semanal va PRIMERO: es la acción de cada semana. El
+          registro completo con pliegues y perímetros es puntual, así que queda
+          debajo. */}
+      <WeeklyCheckIn
+        history={history}
+        audience={audience}
+        onAddWeight={onAdd}
+        onRemoveEntry={onRemove}
+        client={client}
+        photos={photos}
+        onUpload={onUploadPhoto}
+      />
+
       <Panel as="form" className="col gap-5" onSubmit={submit}>
         <SectionTitle
           icon={Scale}
-          color="var(--accent-amber)"
+          color="var(--data-amber)"
           action={<SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />}
         >
-          {isClient ? 'Registrar mi peso' : `Nueva revisión de ${client.name}`}
+          {isClient ? 'Revisión completa' : `Nueva revisión de ${client.name}`}
         </SectionTitle>
 
-        <p className="text-sm text-muted">
+        <p className="t-sm t-secondary">
           {isClient
-            ? 'Pésate por la mañana, en ayunas y después de ir al baño. Lo ideal es registrar 3 días alternos por semana: el promedio filtra la variación diaria de agua y es lo que de verdad indica si tu peso sube o baja.'
+            ? 'Aquí puedes registrar una revisión completa con pliegues y perímetros, o corregir el peso de una fecha concreta. Para el día a día usa el check-in de arriba.'
             : 'El peso es el único dato obligatorio. Los pliegues y perímetros son opcionales; normalmente los registra el cliente, pero puedes añadirlos tú si mides en persona.'}
         </p>
 
@@ -212,7 +253,12 @@ export const AnthropometryPanel = ({
             )}
           </Field>
 
-          <Field label="Peso (kg) *" className="grow" hint="Obligatorio">
+          {/*
+            Sin `hint`: el texto de ayuda solo bajo este campo hacía que la caja
+            del peso midiera más que la de la fecha y el par quedaba desalineado.
+            El asterisco del label ya indica que es obligatorio.
+          */}
+          <Field label="Peso (kg) *" className="grow">
             {(props) => (
               <input
                 {...props}
@@ -222,11 +268,20 @@ export const AnthropometryPanel = ({
                 style={{ fontSize: '1.1rem' }}
                 placeholder="81.5"
                 value={weight}
-                onChange={(e) => setWeight(e.target.value)}
+                onChange={(e) => {
+                  setTouched(true);
+                  setWeight(e.target.value);
+                }}
                 required
               />
             )}
           </Field>
+
+          {suggestedWeight !== null && !touched && (
+            <span className="badge badge-info shrink-0" style={{ alignSelf: 'center' }}>
+              promedio de la semana
+            </span>
+          )}
 
           <button type="submit" className="btn btn-primary btn-lg shrink-0">
             <Save size={16} /> Guardar
@@ -236,7 +291,7 @@ export const AnthropometryPanel = ({
         <div className="col gap-3">
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-secondary btn-sm"
             style={{ alignSelf: 'flex-start' }}
             aria-expanded={showMeasures}
             onClick={() => setShowMeasures((v) => !v)}
@@ -256,7 +311,7 @@ export const AnthropometryPanel = ({
               </Notice>
 
               <div className="col gap-3">
-                <h4 className="uppercase-label">Pliegues cutáneos (mm)</h4>
+                <h4 className="section-label">Pliegues cutáneos (mm)</h4>
                 <MeasureGrid
                   labels={FOLDS_LABELS}
                   values={folds}
@@ -267,13 +322,13 @@ export const AnthropometryPanel = ({
                   <div
                     className="row between wrap gap-3"
                     style={{
-                      background: 'rgba(6,182,212,0.14)',
-                      border: '1px solid rgba(6,182,212,0.3)',
-                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--info-soft)',
+                      border: '1px solid var(--info)',
+                      borderRadius: 'var(--r-md)',
                       padding: '12px 16px',
                     }}
                   >
-                    <span className="text-sm" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>
+                    <span className="t-sm" style={{ color: 'var(--data-blue)', fontWeight: 700 }}>
                       Suma: {sum} mm
                     </span>
                     <strong style={{ fontSize: '1.25rem' }}>% graso: {pct ?? '—'}%</strong>
@@ -282,7 +337,7 @@ export const AnthropometryPanel = ({
               </div>
 
               <div className="col gap-3">
-                <h4 className="uppercase-label">Perímetros corporales (cm)</h4>
+                <h4 className="section-label">Perímetros corporales (cm)</h4>
                 <MeasureGrid
                   labels={PERIMETER_LABELS}
                   values={perimeters}
@@ -297,11 +352,16 @@ export const AnthropometryPanel = ({
 
       {weekly.length >= 2 && (
         <Panel tight className="col gap-4">
-          <SectionTitle icon={TrendingDown} color="var(--accent-emerald)">
+          <SectionTitle icon={TrendingDown} color="var(--accent)">
             Tendencia de peso (promedio semanal)
           </SectionTitle>
-          <TrendChart points={weekly} color="var(--accent-emerald)" unit=" kg" />
-          <p className="text-xs text-dim">
+          <BandChart
+            labels={weekly.map((w) => w.date)}
+            series={[{ id: 'w', label: 'Peso', color: 'var(--data-blue)', unit: ' kg', decimals: 1, points: weekly.map((w) => ({ label: w.date, value: w.value })) }]}
+            height={116}
+            emptyMessage="Con dos semanas de pesajes ya se ve la tendencia."
+          />
+          <p className="t-xs t-tertiary">
             Cada punto es el promedio de la semana, no un pesaje suelto: así la línea refleja la
             tendencia real y no el ruido del día a día.
           </p>
@@ -336,21 +396,21 @@ export const AnthropometryPanel = ({
                   return (
                     <tr key={log.id || log.date}>
                       <td style={{ fontWeight: 700 }}>{log.date}</td>
-                      <td className="num" style={{ fontWeight: 800, color: 'var(--accent-amber)' }}>
+                      <td className="num" style={{ fontWeight: 800, color: 'var(--data-amber)' }}>
                         {fmt(log.weight, { decimals: 1 })}
                       </td>
                       {hasMeasurements(history) && (
                         <>
-                          <td className="num" style={{ color: 'var(--accent-cyan)', fontWeight: 700 }}>
+                          <td className="num" style={{ color: 'var(--data-blue)', fontWeight: 700 }}>
                             {logPct === null ? '—' : `${logPct}%`}
                           </td>
-                          <td className="num text-muted">
+                          <td className="num t-secondary">
                             {fmt(log.perimeters?.ombligo, { decimals: 1 })}
                           </td>
-                          <td className="num text-muted">{foldsSum(log.skinFolds) || '—'}</td>
+                          <td className="num t-secondary">{foldsSum(log.skinFolds) || '—'}</td>
                         </>
                       )}
-                      <td className="num text-muted">{fmt(log.nutrition?.kcals)}</td>
+                      <td className="num t-secondary">{fmt(log.nutrition?.kcals)}</td>
                       <td className="num">
                         <button
                           type="button"

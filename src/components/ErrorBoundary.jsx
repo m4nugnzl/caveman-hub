@@ -35,10 +35,10 @@ export class ErrorBoundary extends Component {
     if (!error) return this.props.children;
 
     return (
-      <div className="layout-container layout-narrow">
-        <section className="panel">
+      <div className="layout layout-narrow">
+        <section className="card">
           <div className="empty">
-            <span className="empty-icon" style={{ background: 'rgba(244,63,94,0.12)', color: 'var(--accent-rose)' }}>
+            <span className="empty-icon" style={{ background: 'var(--negative-soft)', color: 'var(--negative)' }}>
               <TriangleAlert size={26} />
             </span>
             <h3>Algo ha fallado en esta pantalla</h3>
@@ -47,7 +47,7 @@ export class ErrorBoundary extends Component {
               que se guardó está a salvo en el servidor.
             </p>
             <pre
-              className="panel-sunken text-xs"
+              className="card-inset t-xs"
               style={{ textAlign: 'left', overflowX: 'auto', width: '100%', whiteSpace: 'pre-wrap' }}
             >
               {error.message || String(error)}

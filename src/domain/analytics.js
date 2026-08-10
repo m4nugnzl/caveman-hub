@@ -43,11 +43,11 @@ export const weekAdherence = (microcycles, weekNumber) => {
 
 /** Métricas disponibles para los ejes de los gráficos. */
 export const METRICS = [
-  { id: 'weight', label: 'Peso corporal', unit: ' kg', color: 'var(--accent-emerald)', decimals: 1 },
-  { id: 'fat', label: '% graso', unit: '%', color: 'var(--accent-coral)', decimals: 1 },
-  { id: 'kcals', label: 'Kcal objetivo', unit: ' kcal', color: 'var(--accent-amber)', decimals: 0 },
-  { id: 'tonnage', label: 'Tonelaje', unit: ' kg', color: 'var(--accent-cyan)', decimals: 0 },
-  { id: 'sets', label: 'Series efectivas', unit: '', color: 'var(--accent-purple)', decimals: 0 },
+  { id: 'weight', label: 'Peso corporal', unit: ' kg', color: 'var(--accent)', decimals: 1 },
+  { id: 'fat', label: '% graso', unit: '%', color: 'var(--data-rose)', decimals: 1 },
+  { id: 'kcals', label: 'Kcal objetivo', unit: ' kcal', color: 'var(--data-amber)', decimals: 0 },
+  { id: 'tonnage', label: 'Tonelaje', unit: ' kg', color: 'var(--data-violet)', decimals: 0 },
+  { id: 'sets', label: 'Series efectivas', unit: '', color: 'var(--data-violet)', decimals: 0 },
   { id: 'adherence', label: 'Adherencia', unit: '%', color: '#a3e635', decimals: 0 },
   { id: 'waist', label: 'Cintura', unit: ' cm', color: '#fb923c', decimals: 1 },
   { id: 'proteinShare', label: '% de kcal en proteína', unit: '%', color: '#ec4899', decimals: 0 },

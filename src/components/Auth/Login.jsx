@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dumbbell } from 'lucide-react';
+import { LogoMark } from '@/components/ui/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
 
@@ -51,13 +51,12 @@ export const Login = () => {
   };
 
   return (
-    <div className="row center" style={{ minHeight: '100vh', padding: 'var(--space-4)' }}>
+    <div className="row center" style={{ minHeight: '100vh', padding: 'var(--s4)' }}>
       <Panel as="form" onSubmit={handleSubmit} className="col gap-4" style={{ width: '100%', maxWidth: 390 }}>
-        <div className="row center gap-2">
-          <span className="logo-icon">
-            <Dumbbell size={21} />
-          </span>
-          <strong style={{ fontSize: '1.15rem' }}>Caveman Hub</strong>
+        <div className="col center gap-2" style={{ alignItems: 'center', marginBottom: 'var(--s2)' }}>
+          <LogoMark size={54} />
+          <strong style={{ fontSize: 'var(--fs-lg)', letterSpacing: '-0.022em' }}>Caveman Hub</strong>
+          <span className="t-sm t-tertiary">Entrenamiento y progreso</span>
         </div>
 
         {error && <Notice tone="error">{error}</Notice>}
@@ -116,7 +115,7 @@ export const Login = () => {
         <button
           type="button"
           className="btn btn-sm"
-          style={{ color: 'var(--text-muted)' }}
+          style={{ color: 'var(--text-secondary)' }}
           onClick={() => {
             setMode(mode === 'login' ? 'signup' : 'login');
             setError(null);

@@ -11,7 +11,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="row center" style={{ minHeight: '100vh' }}>
-        <span className="text-muted">Cargando…</span>
+        <span className="t-secondary">Cargando…</span>
       </div>
     );
   }
@@ -23,7 +23,7 @@ export default function App() {
       <Header />
       <main>
         {loadError && (
-          <div className="layout-container" style={{ paddingBottom: 0 }}>
+          <div className="layout" style={{ paddingBottom: 0 }}>
             <Notice tone="error">{loadError}</Notice>
           </div>
         )}

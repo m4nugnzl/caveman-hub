@@ -4,7 +4,7 @@ import { Sparkles, Utensils } from 'lucide-react';
 import { dayKcalRange, dayKcals, mealsForVariant } from '@/domain/nutrition';
 import { Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { MealCard } from '@/components/nutrition/MealCard';
-import { NutritionHeadline } from '@/components/dashboard/NutritionHeadline';
+import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 
 const VARIANT_OPTIONS = [
   { id: 'training', label: 'Días de entreno' },
@@ -24,7 +24,7 @@ export const ClientDiet = ({ plan }) => {
   if (!plan) {
     return (
       <Panel>
-        <p className="text-sm text-muted">Tu entrenador aún no ha configurado tu plan nutricional.</p>
+        <p className="t-sm t-secondary">Tu entrenador aún no ha configurado tu plan nutricional.</p>
       </Panel>
     );
   }
@@ -36,19 +36,38 @@ export const ClientDiet = ({ plan }) => {
 
   return (
     <div className="stack">
-      <NutritionHeadline plan={plan} />
+      {/*
+        Con dos dietas, el selector va ARRIBA y manda también sobre el objetivo.
+        Antes el objetivo mostraba siempre el de los días de entreno mientras el
+        menú de abajo podía estar enseñando el de descanso: dos cifras que se
+        contradecían en la misma pantalla.
+      */}
+      {plan.hasDayVariants && (
+        <SegmentedControl
+          value={dietView}
+          onChange={setDietView}
+          options={VARIANT_OPTIONS}
+          label="Variante de dieta"
+        />
+      )}
+
+      <MacroTargetCard
+        plan={plan}
+        variant={variant}
+        title={plan.hasDayVariants ? `Mi objetivo · ${variant === 'rest' ? 'descanso' : 'entreno'}` : 'Mi objetivo diario'}
+      />
 
       {plan.type === 'closed' && (
         <Panel className="col gap-4">
           <div className="row between wrap gap-3">
-            <SectionTitle icon={Utensils} color="var(--accent-emerald)">
+            <SectionTitle icon={Utensils} color="var(--accent)">
               Mi menú
             </SectionTitle>
             {meals.length > 0 && (
-              <span className="meal-card-kcal">
+              <span className="meal-kcal">
                 ~{Math.round(total)} kcal/día
                 {range.min !== range.max && (
-                  <span className="text-xs" style={{ opacity: 0.7, fontWeight: 600 }}>
+                  <span className="t-xs" style={{ opacity: 0.7, fontWeight: 600 }}>
                     {' '}
                     ({Math.round(range.min)}–{Math.round(range.max)})
                   </span>
@@ -57,17 +76,8 @@ export const ClientDiet = ({ plan }) => {
             )}
           </div>
 
-          {plan.hasDayVariants && (
-            <SegmentedControl
-              value={dietView}
-              onChange={setDietView}
-              options={VARIANT_OPTIONS}
-              label="Variante de dieta"
-            />
-          )}
-
           {meals.length === 0 ? (
-            <p className="text-sm text-muted">Tu entrenador aún no ha configurado el menú cerrado.</p>
+            <p className="t-sm t-secondary">Tu entrenador aún no ha configurado el menú cerrado.</p>
           ) : (
             <div className="col gap-4">
               {meals.map((meal) => (
@@ -80,7 +90,7 @@ export const ClientDiet = ({ plan }) => {
 
       {plan.type === 'macros' && (
         <Panel>
-          <p className="text-sm text-muted">
+          <p className="t-sm t-secondary">
             Tu plan es por macros: no hay un menú cerrado, sino los objetivos de arriba. Reparte los
             alimentos como quieras siempre que cuadres esas cifras al final del día.
           </p>
@@ -89,12 +99,12 @@ export const ClientDiet = ({ plan }) => {
 
       {plan.habitsNotes?.length > 0 && (
         <Panel className="col gap-3">
-          <SectionTitle icon={Sparkles} color="var(--accent-cyan)">
+          <SectionTitle icon={Sparkles} color="var(--data-blue)">
             Recomendaciones de tu entrenador
           </SectionTitle>
           {plan.habitsNotes.map((note, index) => (
-            <div className="panel-plain text-sm" key={`${note}-${index}`}>
-              <span style={{ color: 'var(--accent-emerald)', marginRight: 8 }}>✓</span>
+            <div className="card-inset t-sm" key={`${note}-${index}`}>
+              <span style={{ color: 'var(--accent)', marginRight: 8 }}>✓</span>
               {note}
             </div>
           ))}

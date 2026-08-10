@@ -24,9 +24,9 @@ const Avatar = ({ name, active, size = 32 }) => (
       fontWeight: 900,
       fontSize: size * 0.3,
       background: active
-        ? 'linear-gradient(135deg, var(--accent-emerald), var(--accent-cyan))'
-        : 'rgba(255,255,255,0.06)',
-      color: active ? 'var(--text-on-accent)' : 'var(--text-muted)',
+        ? 'linear-gradient(135deg, var(--accent), var(--data-blue))'
+        : 'var(--fill)',
+      color: active ? 'var(--accent-on)' : 'var(--text-secondary)',
     }}
   >
     {initials(name)}
@@ -61,7 +61,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
           <span style={{ display: 'block', fontSize: '0.9rem', fontWeight: 800, lineHeight: 1.15 }}>
             {current.name}
           </span>
-          <span className="text-xs text-muted" style={{ fontWeight: 600 }}>
+          <span className="t-xs t-secondary" style={{ fontWeight: 600 }}>
             {current.plan || 'Sin plan'}
           </span>
         </span>
@@ -82,7 +82,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
                 role="menuitemradio"
                 aria-checked={selected}
                 className="menu-item"
-                style={selected ? { background: 'rgba(16,185,129,0.1)' } : undefined}
+                style={selected ? { background: 'var(--accent-soft)' } : undefined}
                 onClick={() => {
                   onSelect(client.id);
                   setOpen(false);
@@ -102,9 +102,9 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
                   >
                     {client.name}
                   </span>
-                  <span className="text-xs text-muted">{client.plan || 'Sin plan'}</span>
+                  <span className="t-xs t-secondary">{client.plan || 'Sin plan'}</span>
                 </span>
-                {selected && <Check size={15} color="var(--accent-emerald)" />}
+                {selected && <Check size={15} color="var(--accent)" />}
               </button>
             );
           })}

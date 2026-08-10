@@ -11,7 +11,7 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
  */
 export const WeeklySplitEditor = ({ split, onChange }) => (
   <Panel tight className="col gap-4">
-    <SectionTitle icon={Calendar} color="var(--accent-coral)">
+    <SectionTitle icon={Calendar} color="var(--data-rose)">
       Planificación semanal
     </SectionTitle>
 
@@ -21,17 +21,17 @@ export const WeeklySplitEditor = ({ split, onChange }) => (
         const isRest = value.trim().toLowerCase() === 'descanso';
         return (
           <div className="col gap-1" key={day}>
-            <label className="uppercase-label" style={{ textAlign: 'center' }} htmlFor={`split-${day}`}>
+            <label className="section-label" style={{ textAlign: 'center' }} htmlFor={`split-${day}`}>
               {day}
             </label>
             <input
               id={`split-${day}`}
               className="input input-center"
               style={{
-                background: isRest ? 'var(--bg-sunken)' : 'rgba(16,185,129,0.12)',
-                borderColor: isRest ? 'var(--border-color)' : 'var(--accent-emerald)',
-                color: isRest ? 'var(--text-muted)' : '#fff',
-                fontSize: '0.8rem',
+                background: isRest ? 'var(--surface-sunken)' : 'var(--accent-soft)',
+                borderColor: isRest ? 'var(--hairline)' : 'var(--accent)',
+                color: isRest ? 'var(--text-secondary)' : 'var(--accent)',
+                fontSize: 'var(--fs-sm)',
               }}
               value={value}
               onChange={(e) => onChange(day, e.target.value)}

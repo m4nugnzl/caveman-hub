@@ -82,7 +82,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
       )}
 
       {photos.length > 0 && groups.length === 0 && (
-        <p className="text-sm text-muted">Ninguna foto con ese ángulo.</p>
+        <p className="t-sm t-secondary">Ninguna foto con ese ángulo.</p>
       )}
 
       <div className="col gap-2">
@@ -100,7 +100,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
               >
                 {isCollapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                 <span className="grow">{group.label}</span>
-                <span className="badge badge-neutral">{group.photos.length}</span>
+                <span className="badge">{group.photos.length}</span>
               </button>
 
               {!isCollapsed && (
@@ -118,12 +118,12 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                           style={{ width: '100%' }}
                           aria-pressed={used}
                           onClick={() => onAssign(photo.id)}
-                          title={`${angleLabel(photo.angle)} · ${photo.date}${photo.weight ? ` · ${photo.weight} kg` : ''}`}
+                          title={`${angleLabel(photo.angle)} · ${photo.date}${photo.derivedWeight ? ` · ${photo.derivedWeight} kg` : ''}`}
                         >
                           {photo.url ? (
                             <img src={photo.url} alt={`${angleLabel(photo.angle)} del ${photo.date}`} loading="lazy" />
                           ) : (
-                            <span className="row center text-xs text-dim" style={{ height: '100%' }}>
+                            <span className="row center t-xs t-tertiary" style={{ height: '100%' }}>
                               sin vista previa
                             </span>
                           )}

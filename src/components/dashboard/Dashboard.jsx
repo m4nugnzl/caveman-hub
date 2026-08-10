@@ -1,77 +1,78 @@
 import { useMemo, useState } from 'react';
-import { Activity, Calendar, LineChart as LineChartIcon, Weight } from 'lucide-react';
+import {
+  Activity,
+  Camera,
+  Dumbbell,
+  Flame,
+  Percent,
+  Ruler,
+  Scale,
+  Settings2,
+  Target,
+} from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/domain/analytics';
+import { MRV_GOALS, MUSCLE_COLORS, WEEK_DAYS, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
+import { macroSplit } from '@/domain/nutrition';
+import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
 import {
-  buildWeeklySeries,
-  lastWeeks,
-  linearTrend,
-  metricById,
-  metricPoints,
-  weekAdherence,
-  weekOverWeek,
-} from '@/domain/analytics';
-import { WEEK_DAYS, tonnageByWeek, unitLabel } from '@/domain/training';
-import { round } from '@/lib/num';
-import { BarTrendChart, LineChart } from '@/components/ui/LineChart';
-import { ChartCard, ChartToggle, RangeChips } from '@/components/ui/ChartCard';
-import { Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
-import { NutritionHeadline } from './NutritionHeadline';
+  CARDS,
+  WIDGETS,
+  dashboardPrefs,
+  defaultDashboardPrefs,
+  isCustomized,
+  layoutCards,
+  movePref,
+  toggleSpan,
+  togglePref,
+  widgetById,
+} from '@/domain/preferences';
+import { shortDate, todayISO } from '@/lib/dates';
+import { fmt } from '@/lib/num';
+import { BandChart, BarBandChart, MeterList, Sparkline } from '@/components/ui/charts';
+import { Delta, MetricCard, MetricList, StatWidget } from '@/components/ui/metrics';
+import { Panel, SaveIndicator } from '@/components/ui/primitives';
+import { MacroBar } from '@/components/nutrition/macros';
+import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
 
-const RANGES = [
-  { id: '8', label: '8 sem' },
-  { id: '12', label: '12 sem' },
-  { id: '0', label: 'Todo' },
+const MACRO_KEYS = [
+  { share: 'protein', color: 'var(--data-pink)' },
+  { share: 'carbs', color: 'var(--data-amber)' },
+  { share: 'fats', color: 'var(--data-teal)' },
 ];
 
-/** KPI con su variación respecto a la semana anterior. */
-const DeltaCard = ({ label, metricId, series, lowerIsBetter = false }) => {
-  const metric = metricById(metricId);
-  const points = metricPoints(series, metricId);
-  const latest = points[points.length - 1];
-  const wow = weekOverWeek(series, metricId);
-
-  if (!latest) return <StatCard label={label} value="—" sub="sin datos todavía" />;
-
-  const good = wow && (lowerIsBetter ? wow.delta < 0 : wow.delta > 0);
-  const flat = !wow || wow.delta === 0;
-
-  return (
-    <StatCard
-      label={label}
-      value={`${round(latest.value, metric.decimals)}${metric.unit}`}
-      color={metric.color}
-      sub={
-        wow ? (
-          <span
-            style={{
-              color: flat ? 'var(--text-dark)' : good ? 'var(--accent-emerald)' : 'var(--accent-amber)',
-            }}
-          >
-            {wow.delta > 0 ? '+' : ''}
-            {wow.delta}
-            {metric.unit} vs. semana anterior
-          </span>
-        ) : (
-          'primera semana con datos'
-        )
-      }
-    />
-  );
-};
-
 /**
- * Resumen. Responde a una sola pregunta: **¿esto va bien o va mal?**
+ * Resumen.
  *
- * Antes esta pantalla acumulaba nueve gráficos y una barra de controles
- * globales. Con tanto material dejaba de ser un resumen: había que leerla entera
- * para sacar una conclusión. Ahora se queda con los indicadores accionables y
- * dos gráficos, y toda la exploración —progresión por ejercicio, volumen por
- * músculo, intensidad, perímetros— vive en la pestaña «Analítica», donde cada
- * gráfico tiene sus propios filtros.
+ * Responde a una sola pregunta: **¿esto va bien?** Cifras condensadas arriba,
+ * gráficos con su banda debajo, y una lista agrupada con todo lo demás —que es
+ * donde caben las métricas que no merecen un gráfico propio.
+ *
+ * ── Qué se ve lo decide el cliente ──────────────────────────────────────────
+ * Ni las cifras ni los gráficos están fijados aquí: se construyen todos y se
+ * renderizan los que estén en `preferences.dashboard`, EN SU ORDEN (ver
+ * `domain/preferences.js`). Un cliente que no ha tocado nada ve un panel
+ * completo y sensato; uno que compite puede dejar arriba el tonelaje y las
+ * series y quitarse las calorías de la vista.
+ *
+ * Construir todas las piezas y elegir después —en lugar de montar cada una
+ * dentro de un condicional— es lo que hace que añadir una pieza nueva sea
+ * añadir una entrada al catálogo y otra a este mapa, sin tocar el layout.
  */
 export const Dashboard = ({ audience = 'coach' }) => {
-  const { activeClient, workoutData, anthropometry, nutrition } = useApp();
+  const {
+    activeClient,
+    workoutData,
+    anthropometry,
+    nutrition,
+    progressPhotos,
+    updateClientPreferences,
+    saveStatus,
+    retrySave,
+  } = useApp();
+
+  const [editing, setEditing] = useState(false);
 
   const program = workoutData[activeClient.id];
   const microcycles = useMemo(() => program?.microcycles || [], [program]);
@@ -81,21 +82,25 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const unit = unitLabel(activeClient.cycleType);
   const isClient = audience === 'client';
 
-  const [weightRange, setWeightRange] = useState('12');
-  const [weightSmooth, setWeightSmooth] = useState(true);
-  const [tonnageSmooth, setTonnageSmooth] = useState(false);
+  const prefs = dashboardPrefs(activeClient.preferences);
+  const savePrefs = (patch) => updateClientPreferences(activeClient.id, 'dashboard', patch);
+  const prefsSave = saveStatus('preferences', activeClient.id);
 
-  const fullSeries = useMemo(
+  const series = useMemo(
     () => buildWeeklySeries({ microcycles, history, gender: activeClient.gender }),
     [microcycles, history, activeClient.gender]
   );
+  const labels = series.map((row) => row.label);
 
-  const weightSeries = useMemo(
-    () => lastWeeks(fullSeries, Number(weightRange) || null),
-    [fullSeries, weightRange]
-  );
-  const weightPoints = metricPoints(weightSeries, 'weight');
-  const weightTrend = linearTrend(weightPoints);
+  const weightPts = metricPoints(series, 'weight');
+  const tonnagePts = metricPoints(series, 'tonnage');
+  const setsPts = metricPoints(series, 'sets');
+
+  const weightWow = weekOverWeek(series, 'weight');
+  const tonnageWow = weekOverWeek(series, 'tonnage');
+  const setsWow = weekOverWeek(series, 'sets');
+  const rate = weeklyRateOfChange(history);
+  const checkIn = useMemo(() => weeklyCheckIn(history, todayISO()), [history]);
 
   const latestWeek = useMemo(() => {
     const weeks = microcycles.map((m) => m.weekNumber);
@@ -104,144 +109,494 @@ export const Dashboard = ({ audience = 'coach' }) => {
 
   const adherence = latestWeek ? weekAdherence(microcycles, latestWeek) : null;
   const tonnage = useMemo(() => tonnageByWeek(microcycles), [microcycles]);
+  const macros = macroSplit(plan);
+  const photos = progressPhotos.filter((p) => p.clientId === activeClient.id);
 
-  return (
-    <div className="stack">
-      <NutritionHeadline plan={plan} />
+  const volume = useMemo(
+    () => (latestWeek ? Object.entries(weekMuscleVolume(microcycles, latestWeek)) : []),
+    [microcycles, latestWeek]
+  );
+  const maxVolume = Math.max(1, ...volume.map(([, count]) => count), ...volume.map(([name]) => MRV_GOALS[name]?.mrv || 0));
 
-      {program && activeClient.cycleType !== 'rotating' && program.weeklySplit && (
-        <Panel tight className="col gap-4">
-          <SectionTitle icon={Calendar} color="var(--accent-coral)">
-            {isClient ? 'Tu estructura semanal' : 'Estructura semanal'}
-          </SectionTitle>
-          <div className="split-grid">
-            {WEEK_DAYS.map((day) => {
-              const value = program.weeklySplit[day] ?? 'Descanso';
-              const isRest = value.trim().toLowerCase() === 'descanso';
-              return (
-                <div className="col gap-1" key={day}>
-                  <span className="uppercase-label" style={{ textAlign: 'center' }}>
-                    {day.slice(0, 3)}
-                  </span>
-                  <span
-                    className="text-xs"
-                    style={{
-                      background: isRest ? 'var(--bg-sunken)' : 'rgba(16,185,129,0.14)',
-                      border: `1px solid ${isRest ? 'var(--border-color)' : 'var(--accent-emerald)'}`,
-                      borderRadius: 10,
-                      padding: '9px 4px',
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      color: isRest ? 'var(--text-muted)' : '#fff',
-                    }}
-                  >
-                    {value}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
-      )}
+  const logs = useMemo(() => reverseChronological(history), [history]);
+  const lastLog = logs[0];
+  const lastFatLog = useMemo(() => logs.find((h) => h.skinFolds), [logs]);
+  const lastFat = lastFatLog ? fatPercent(lastFatLog.skinFolds, activeClient.gender) : null;
 
-      <div className="grid-auto">
-        <DeltaCard label="Peso corporal" metricId="weight" series={fullSeries} lowerIsBetter />
-        {weightTrend && (
-          <StatCard
-            label="Ritmo del peso"
-            value={`${weightTrend.perWeek > 0 ? '+' : ''}${weightTrend.perWeek} kg`}
-            color="var(--accent-amber)"
-            sub={
-              weightTrend.r2 < 0.4
-                ? 'por semana · datos aún dispersos'
-                : `por semana · fiabilidad ${Math.round(weightTrend.r2 * 100)}%`
-            }
-          />
-        )}
-        {adherence && (
-          <StatCard
-            label="Adherencia"
-            value={`${adherence.pct}%`}
-            color={adherence.pct >= 85 ? 'var(--accent-emerald)' : 'var(--accent-amber)'}
-            sub={`${adherence.logged} de ${adherence.planned} series registradas`}
-          />
-        )}
-        <DeltaCard label="Tonelaje" metricId="tonnage" series={fullSeries} />
-        <DeltaCard label="Series efectivas" metricId="sets" series={fullSeries} />
-        <StatCard label={`${unit}s programadas`} value={microcycles.length} color="var(--accent-purple)" />
-      </div>
+  /**
+   * Las cifras de arriba, por identificador.
+   *
+   * Todas se construyen aunque no haya dato: si el cliente ha pedido ver su
+   * adherencia, un hueco con «—» le dice que aún no hay series registradas, y eso
+   * es más predecible que un widget que aparece y desaparece según el día.
+   */
+  const widgetNodes = {
+    weight: (
+      <StatWidget
+        title="Peso"
+        icon={Scale}
+        timeframe={labels.length > 0 ? `${labels.length} semanas` : 'sin registros'}
+        value={fmt(weightPts[weightPts.length - 1]?.value, { decimals: 1 })}
+        unit="kg"
+        color="var(--data-blue)"
+        delta={<Delta value={weightWow?.delta} unit=" kg" lowerIsBetter />}
+      >
+        <Sparkline points={weightPts.slice(-10)} color="var(--data-blue)" />
+      </StatWidget>
+    ),
 
-      <ChartCard
-        icon={Weight}
-        color="var(--accent-emerald)"
-        title="Evolución del peso"
-        subtitle="Promedio de cada semana, no pesajes sueltos."
-        controls={
-          <>
-            <ChartToggle checked={weightSmooth} onChange={setWeightSmooth}>
-              Suavizar
-            </ChartToggle>
-            <RangeChips value={weightRange} onChange={setWeightRange} options={RANGES} />
-          </>
+    rate: (
+      <StatWidget
+        title="Ritmo del peso"
+        icon={Scale}
+        timeframe="promedio semanal"
+        value={rate === null ? '—' : `${rate > 0 ? '+' : ''}${rate}`}
+        unit="kg"
+        color="var(--data-blue)"
+      />
+    ),
+
+    tonnage: (
+      <StatWidget
+        title="Tonelaje"
+        icon={Dumbbell}
+        timeframe={latestWeek ? `${unit} ${latestWeek}` : 'sin programa'}
+        value={fmt(tonnagePts[tonnagePts.length - 1]?.value)}
+        unit="kg"
+        color="var(--data-violet)"
+        delta={<Delta value={tonnageWow?.delta} percent={tonnageWow?.pct} />}
+      >
+        <Sparkline points={tonnagePts.slice(-10)} color="var(--data-violet)" bars />
+      </StatWidget>
+    ),
+
+    sets: (
+      <StatWidget
+        title="Series efectivas"
+        icon={Activity}
+        timeframe={latestWeek ? `${unit} ${latestWeek}` : 'sin programa'}
+        value={fmt(setsPts[setsPts.length - 1]?.value)}
+        color="var(--data-teal)"
+        delta={<Delta value={setsWow?.delta} />}
+      >
+        <Sparkline points={setsPts.slice(-10)} color="var(--data-teal)" bars />
+      </StatWidget>
+    ),
+
+    kcals: (
+      <StatWidget
+        title="Kcal objetivo"
+        icon={Flame}
+        timeframe={
+          macros.total > 0
+            ? `P ${macros.pct.protein}% · C ${macros.pct.carbs}% · G ${macros.pct.fats}%`
+            : 'sin plan'
         }
-        note={
-          weightTrend
-            ? `De media ${weightTrend.perWeek > 0 ? 'sube' : weightTrend.perWeek < 0 ? 'baja' : 'se mantiene'} ${Math.abs(weightTrend.perWeek)} kg por semana en el periodo mostrado.`
-            : null
+        value={fmt(plan?.targetKcals)}
+        unit="kcal"
+        color="var(--data-amber)"
+      >
+        {macros.total > 0 && (
+          <div className="macro-bar">
+            {MACRO_KEYS.map(({ share, color }) => (
+              <div key={share} style={{ width: `${macros.pct[share]}%`, background: color }} />
+            ))}
+          </div>
+        )}
+      </StatWidget>
+    ),
+
+    adherence: (
+      <StatWidget
+        title="Adherencia"
+        icon={Target}
+        timeframe={adherence ? `${adherence.logged} de ${adherence.planned} series` : 'sin programa'}
+        value={adherence ? adherence.pct : '—'}
+        unit={adherence ? '%' : ''}
+        color={!adherence || adherence.pct >= 85 ? 'var(--positive)' : 'var(--warning)'}
+      />
+    ),
+
+    // El check-in es lo único del panel sobre lo que hay que ACTUAR esta semana,
+    // así que su cifra son los pesajes hechos y su meta, no el promedio.
+    checkin: (
+      <StatWidget
+        title="Check-in de esta semana"
+        icon={Scale}
+        timeframe={
+          checkIn.average !== null
+            ? `promedio ${checkIn.average} kg`
+            : 'sin pesajes esta semana'
+        }
+        value={`${checkIn.count}/${checkIn.target}`}
+        color={checkIn.complete ? 'var(--positive)' : 'var(--data-blue)'}
+        delta={<Delta value={checkIn.delta} unit=" kg" lowerIsBetter />}
+      />
+    ),
+
+    photos: (
+      <StatWidget
+        title="Fotos de progreso"
+        icon={Camera}
+        timeframe={photos[0] ? `última el ${shortDate(photos[0].date)}` : 'ninguna todavía'}
+        value={photos.length}
+        color="var(--data-pink)"
+      />
+    ),
+  };
+
+  const hasSplit = Boolean(program && activeClient.cycleType !== 'rotating' && program.weeklySplit);
+
+  /** Los gráficos, por identificador. `null` = no aplica a este cliente. */
+  const cardNodes = {
+    weightTrend: (
+      <MetricCard
+        title="Peso corporal"
+        subtitle="Promedio de cada semana"
+        value={fmt(weightPts[weightPts.length - 1]?.value, { decimals: 1 })}
+        unit="kg"
+        delta={<Delta value={weightWow?.delta} unit=" kg" lowerIsBetter />}
+        foot={
+          rate !== null
+            ? `Tendencia de ${rate > 0 ? '+' : ''}${rate} kg por semana.`
+            : 'Con dos o tres pesajes más se podrá leer la tendencia.'
         }
       >
-        <LineChart
+        <BandChart
+          labels={labels}
           series={[
             {
               id: 'weight',
               label: 'Peso',
-              color: 'var(--accent-emerald)',
+              color: 'var(--data-blue)',
               unit: ' kg',
               decimals: 1,
-              axis: 'left',
-              points: weightPoints,
+              points: weightPts,
             },
           ]}
-          labels={weightSeries.map((row) => row.label)}
-          smoothWindow={weightSmooth ? 3 : 0}
-          showTrend={false}
-          height={250}
-          emptyMessage="Registra tu peso en «Peso y medidas» para empezar a ver la evolución."
+          height={110}
+          emptyMessage="Registra tu peso en «Peso y medidas» para ver la evolución."
         />
-      </ChartCard>
+      </MetricCard>
+    ),
 
-      <ChartCard
-        icon={Activity}
-        color="var(--accent-cyan)"
+    tonnageTrend: (
+      <MetricCard
         title={`Tonelaje por ${unit.toLowerCase()}`}
-        subtitle="Kilos totales levantados en cada microciclo. La línea une el valor real de cada semana."
-        controls={
-          <ChartToggle checked={tonnageSmooth} onChange={setTonnageSmooth}>
-            Media de 3 semanas
-          </ChartToggle>
-        }
+        subtitle="Kilos totales levantados"
+        value={fmt(tonnagePts[tonnagePts.length - 1]?.value)}
+        unit="kg"
+        delta={<Delta value={tonnageWow?.delta} percent={tonnageWow?.pct} />}
       >
-        <BarTrendChart
+        <BarBandChart
           bars={tonnage.map((t) => ({
             label: `${unit.charAt(0)}${t.week}`,
             value: t.tonnage,
             highlight: t.week === latestWeek,
           }))}
+          color="var(--data-violet)"
           unit=" kg"
-          showLine
-          showSmooth={tonnageSmooth}
-          height={250}
+          height={128}
+          emptyMessage="Sin series registradas todavía."
         />
-      </ChartCard>
+      </MetricCard>
+    ),
 
-      <Panel tight className="row gap-3">
-        <LineChartIcon size={17} color="var(--accent-purple)" />
-        <p className="text-sm text-muted grow">
-          {isClient
-            ? 'En la pestaña «Analítica» tienes la progresión de cada ejercicio, el volumen por músculo y tus perímetros.'
-            : 'La pestaña «Analítica» tiene la progresión por ejercicio, el volumen y la frecuencia por músculo, la intensidad y los perímetros.'}
-        </p>
-      </Panel>
+    // La misma franja que en la hoja de nutrición, para no tener dos lenguajes
+    // distintos para el mismo dato.
+    macros: (
+      <MetricCard
+        title="Reparto de macros"
+        subtitle="Objetivo diario"
+        value={fmt(plan?.targetKcals)}
+        unit="kcal"
+        foot={
+          plan?.hasDayVariants
+            ? 'Objetivo de los días de entreno. El de descanso está en «Nutrición».'
+            : undefined
+        }
+      >
+        {macros.total > 0 ? (
+          <MacroBar
+            protein={plan?.proteinGrams}
+            carbs={plan?.carbsGrams}
+            fats={plan?.fatsGrams}
+            kcals={plan?.targetKcals ?? Math.round(macros.total)}
+            size="sm"
+            showTotal={false}
+          />
+        ) : (
+          <p className="t-sm t-secondary">
+            {isClient
+              ? 'Tu entrenador todavía no ha definido tus macros.'
+              : 'Sin macros definidos en la hoja de nutrición.'}
+          </p>
+        )}
+      </MetricCard>
+    ),
+
+    split: hasSplit ? (
+      <MetricCard
+        title={isClient ? 'Tu estructura semanal' : 'Estructura semanal'}
+        subtitle="Qué toca cada día"
+        value={WEEK_DAYS.filter(
+          (d) => (program.weeklySplit[d] ?? 'Descanso').trim().toLowerCase() !== 'descanso'
+        ).length}
+        unit="días"
+      >
+        <div className="split-grid">
+          {WEEK_DAYS.map((day) => {
+            const value = program.weeklySplit[day] ?? 'Descanso';
+            const isRest = value.trim().toLowerCase() === 'descanso';
+            return (
+              <div className="split-day" key={day}>
+                <span className="name">{day.slice(0, 3)}</span>
+                <span className={`value${isRest ? '' : ' is-training'}`}>{value}</span>
+              </div>
+            );
+          })}
+        </div>
+      </MetricCard>
+    ) : null,
+
+    volume: (
+      <MetricCard
+        title="Volumen por músculo"
+        subtitle={latestWeek ? `${unit} ${latestWeek}` : 'sin programa'}
+        value={volume.reduce((acc, [, count]) => acc + count, 0)}
+        unit="series"
+        foot={volume.length > 0 ? 'La marca roja señala el MRV estimado de cada grupo.' : undefined}
+      >
+        {volume.length === 0 ? (
+          <p className="t-sm t-secondary">Sin series registradas en esta {unit.toLowerCase()}.</p>
+        ) : (
+          <MeterList
+            items={volume.map(([name, count]) => ({
+              label: name,
+              value: count,
+              pct: (count / maxVolume) * 100,
+              color: MUSCLE_COLORS[name] || 'var(--data-slate)',
+              markerPct: MRV_GOALS[name] ? (MRV_GOALS[name].mrv / maxVolume) * 100 : null,
+              markerTitle: MRV_GOALS[name] ? `MRV: ${MRV_GOALS[name].mrv} series` : undefined,
+            }))}
+          />
+        )}
+      </MetricCard>
+    ),
+  };
+
+  /** Filas de la lista agrupada. Solo entran las que tienen dato. */
+  const metricRows = [
+    lastLog && {
+      id: 'weight',
+      label: 'Peso corporal',
+      icon: Scale,
+      color: 'var(--data-blue)',
+      value: fmt(lastLog.weight, { decimals: 1, unit: ' kg' }),
+      updated: shortDate(lastLog.date),
+    },
+    lastFat != null && {
+      id: 'fat',
+      label: '% graso',
+      icon: Percent,
+      color: 'var(--data-rose)',
+      value: `${lastFat}%`,
+      updated: shortDate(lastFatLog.date),
+    },
+    lastLog?.perimeters?.ombligo != null && {
+      id: 'waist',
+      label: 'Cintura',
+      icon: Ruler,
+      color: 'var(--data-orange)',
+      value: `${lastLog.perimeters.ombligo} cm`,
+      updated: shortDate(lastLog.date),
+    },
+    plan?.targetKcals && {
+      id: 'kcals',
+      label: 'Objetivo calórico',
+      icon: Flame,
+      color: 'var(--data-amber)',
+      value: `${plan.targetKcals} kcal`,
+      sub:
+        macros.total > 0
+          ? `P ${macros.pct.protein}% · C ${macros.pct.carbs}% · G ${macros.pct.fats}%`
+          : null,
+      updated: 'Vigente',
+    },
+    latestWeek && {
+      id: 'tonnage',
+      label: 'Tonelaje',
+      icon: Dumbbell,
+      color: 'var(--data-violet)',
+      value: `${tonnagePts[tonnagePts.length - 1]?.value ?? 0} kg`,
+      updated: `${unit} ${latestWeek}`,
+    },
+    adherence && {
+      id: 'adherence',
+      label: 'Adherencia',
+      icon: Target,
+      color: 'var(--data-teal)',
+      value: `${adherence.pct}%`,
+      sub: `${adherence.logged} de ${adherence.planned} series`,
+      updated: `${unit} ${latestWeek}`,
+    },
+    {
+      id: 'photos',
+      label: 'Fotos de progreso',
+      icon: Camera,
+      color: 'var(--data-pink)',
+      value: photos.length,
+      updated: photos[0] ? shortDate(photos[0].date) : '—',
+    },
+  ].filter(Boolean);
+
+  const visibleWidgets = prefs.widgets.filter((id) => widgetNodes[id]);
+  const cardLayout = layoutCards(prefs, prefs.cards.filter((id) => cardNodes[id]));
+
+  /**
+   * Un hueco del panel. Fuera del modo edición no añade nada más que su ancho;
+   * dentro, envuelve la pieza con sus controles.
+   *
+   * Envolver siempre —en lugar de solo al editar— evita que las piezas se
+   * remonten al entrar y salir del modo edición, que hacía que los gráficos se
+   * volvieran a animar desde cero cada vez.
+   */
+  const Slot = ({ node, wide, tools }) => (
+    <div className={`slot${wide ? ' is-wide' : ''}${editing ? ' is-editing' : ''}`}>
+      {editing && tools}
+      {node}
+    </div>
+  );
+
+  return (
+    <div className="stack">
+      <section className="col gap-3">
+        <div className="section-head">
+          <div>
+            <h2>{isClient ? 'Tu resumen' : activeClient.name}</h2>
+            <p>
+              {[activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`]
+                .filter(Boolean)
+                .join(' · ') || 'Sin plan asignado'}
+            </p>
+          </div>
+
+          <div className="row gap-3 wrap">
+            {/* Guardar las preferencias puede fallar (falta la función 0008, o RLS
+                no lo permite). Sin este indicador el fallo sería invisible: los
+                cambios se ven en pantalla porque el estado local ya cambió. */}
+            <SaveIndicator
+              status={prefsSave.status}
+              error={prefsSave.error}
+              onRetry={() => retrySave('preferences', activeClient.id)}
+            />
+
+            {!editing && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>
+                <Settings2 size={14} />
+                Personalizar
+                {isCustomized(activeClient.preferences) && (
+                  <span className="badge badge-info">a medida</span>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {editing && (
+          <DashboardEditBar
+            prefs={prefs}
+            audience={audience}
+            onApplyPreset={(preset) => savePrefs(preset)}
+            onToggleMetricList={() => savePrefs({ showMetricList: !prefs.showMetricList })}
+            onReset={() => savePrefs(defaultDashboardPrefs())}
+            onDone={() => setEditing(false)}
+          />
+        )}
+
+        {visibleWidgets.length > 0 && (
+          <div className="grid-auto">
+            {visibleWidgets.map((id, index) => (
+              <Slot
+                key={id}
+                node={widgetNodes[id]}
+                tools={
+                  <SlotTools
+                    label={widgetById(id)?.label || id}
+                    index={index}
+                    total={visibleWidgets.length}
+                    onMove={(dir) => savePrefs({ widgets: movePref(prefs.widgets, id, dir) })}
+                    onHide={() => savePrefs({ widgets: togglePref(prefs.widgets, id, WIDGETS) })}
+                  />
+                }
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {cardLayout.length > 0 && (
+        <section className="grid-slots">
+          {cardLayout.map(({ id, span }, index) => {
+            const meta = cardMeta(prefs, id);
+            return (
+              <Slot
+                key={id}
+                node={cardNodes[id]}
+                wide={span === 'full'}
+                tools={
+                  <SlotTools
+                    label={meta.label}
+                    index={index}
+                    total={cardLayout.length}
+                    /* El ancho que se muestra en el control es el ELEGIDO, no el
+                       calculado: si una tarjeta está estirada solo porque se ha
+                       quedado sin pareja, el botón debe seguir diciendo qué pasa
+                       al pulsarlo. */
+                    span={meta.span}
+                    onMove={(dir) => savePrefs({ cards: movePref(prefs.cards, id, dir) })}
+                    onToggleSpan={
+                      meta.fixed ? null : () => savePrefs({ spans: toggleSpan(prefs.spans, id) })
+                    }
+                    onHide={() => savePrefs({ cards: togglePref(prefs.cards, id, CARDS) })}
+                  />
+                }
+              />
+            );
+          })}
+        </section>
+      )}
+
+      {editing && (
+        <DashboardTrays
+          prefs={prefs}
+          onAddWidget={(id) => savePrefs({ widgets: togglePref(prefs.widgets, id, WIDGETS) })}
+          onAddCard={(id) => savePrefs({ cards: togglePref(prefs.cards, id, CARDS) })}
+        />
+      )}
+
+      {!editing && visibleWidgets.length === 0 && cardLayout.length === 0 && (
+        <Panel className="col gap-2">
+          <span className="section-title">Has escondido todo el resumen</span>
+          <p className="t-sm t-secondary">Pulsa «Personalizar» para volver a elegir qué quieres ver.</p>
+        </Panel>
+      )}
+
+      {prefs.showMetricList && (
+        <MetricList
+          title="Todas las métricas"
+          count={metricRows.length}
+          rows={metricRows}
+          emptyMessage="Aún no hay ninguna métrica registrada."
+        />
+      )}
+
+      <p className="t-sm t-tertiary">
+        {isClient
+          ? 'En «Analítica» tienes la evolución de tus calorías y macros, la progresión de cada ejercicio y tus perímetros.'
+          : 'En «Analítica» está la evolución nutricional, el volumen y la frecuencia por músculo, y la progresión ejercicio a ejercicio.'}
+      </p>
+
     </div>
   );
 };

@@ -1,68 +1,173 @@
-import { ArrowRight, CheckCircle2, CircleDashed, Dumbbell, Play, RotateCw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleDashed, Dumbbell, Play, Plus, RotateCw } from 'lucide-react';
 
 import { WEEK_DAYS, countSets, dayMuscleVolume, unitLabel, weekdayForDay } from '@/domain/training';
+import { sessionLabel, sessionSetCount } from '@/domain/sessions';
+import { todayISO } from '@/lib/dates';
 import { Panel, SaveIndicator, WeekPicker } from '@/components/ui/primitives';
 import { ExerciseList } from '@/components/Coach/Workout/ExerciseList';
+import { useDaySession } from '@/components/Coach/Workout/useDaySession';
 
 /**
  * Cabecera de día con el mismo lenguaje visual que la del entrenador (comparte
- * la clase `.day-header`), pero sin el menú de acciones: el cliente no renombra
+ * la clase `.day-head`), pero sin el menú de acciones: el cliente no renombra
  * ni borra días.
  */
 const DayBanner = ({ day, weeklySplit }) => {
   const weekday = weekdayForDay(weeklySplit, day.dayName);
 
   return (
-    <header className="day-header">
+    <header className="day-head">
       <div className="row gap-4">
-        <span
-          style={{
-            background: 'rgba(34,211,238,0.15)',
-            padding: 12,
-            borderRadius: 16,
-            display: 'grid',
-            placeItems: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Dumbbell size={24} color="var(--accent-cyan)" />
+        <span className="day-icon">
+          <Dumbbell size={22} />
         </span>
 
         <div className="col gap-1">
           <div className="row gap-2 wrap">
-            <span className="uppercase-label" style={{ color: 'var(--accent-cyan)' }}>
+            <span className="section-label" style={{ color: 'var(--accent)' }}>
               Sesión
             </span>
-            {weekday && <span className="badge badge-neutral">{weekday}</span>}
+            {weekday && <span className="badge">{weekday}</span>}
           </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 900 }}>{day.dayName}</h2>
+          <h2 style={{ fontSize: 'var(--fs-lg)' }}>{day.dayName}</h2>
         </div>
       </div>
 
-      <div
-        className="row gap-5"
-        style={{
-          background: 'rgba(0,0,0,0.25)',
-          padding: '10px 18px',
-          borderRadius: 16,
-          border: '1px solid var(--border-color)',
-        }}
-      >
-        <div className="col gap-1" style={{ alignItems: 'center' }}>
-          <span className="stat-label">Ejercicios</span>
-          <strong style={{ fontSize: '1.15rem' }}>{day.exercises?.length || 0}</strong>
+      <div className="day-stats">
+        <div className="day-stat">
+          <span className="section-label">Ejercicios</span>
+          <span className="v">{day.exercises?.length || 0}</span>
         </div>
-        <span style={{ width: 1, height: 28, background: 'var(--border-color)' }} />
-        <div className="col gap-1" style={{ alignItems: 'center' }}>
-          <span className="stat-label">Series</span>
-          <strong style={{ fontSize: '1.15rem', color: 'var(--accent-emerald)' }}>{countSets(day)}</strong>
+        <div className="day-stat">
+          <span className="section-label">Series</span>
+          <span className="v" style={{ color: 'var(--accent)' }}>{countSets(day)}</span>
         </div>
       </div>
     </header>
   );
 };
 
-export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek, onSetChange, save, onRetry }) => {
+/**
+ * Un día de la rutina, con su sesión.
+ *
+ * ── El fallo que corrige ────────────────────────────────────────────────────
+ * El cliente escribía sus kilos DENTRO DEL PLAN (`updateExerciseSet`), mientras el
+ * entrenador los escribía en sesiones con fecha (`logSessionSet`). Dos formas del
+ * mismo dato, y dos consecuencias graves:
+ *
+ *   1. Lo que registraba el cliente se fechaba con la fecha del MICROCICLO, no
+ *      con el día real en que entrenó.
+ *   2. `allSessions()` descarta la versión heredada de un día que ya tiene sesión
+ *      real. Es decir: en cuanto el entrenador abría una sesión de ese mismo día,
+ *      **los kilos del cliente desaparecían de la analítica** sin ningún aviso.
+ *
+ * Ahora el cliente escribe en el mismo sitio que el entrenador. El componente es
+ * aparte porque `useDaySession` es un hook y no se puede llamar dentro de un
+ * `.map`.
+ */
+const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet }) => {
+  const daySession = useDaySession(microcycle, day);
+  const volume = dayMuscleVolume(day);
+
+  const logged = daySession.session ? sessionSetCount(daySession.session) : 0;
+  const planned = countSets(day);
+
+  const logSet = (exId, setIndex, field, value) => {
+    const exercise = (day.exercises || []).find((ex) => ex.id === exId);
+    if (!exercise) return;
+
+    const id = onLogSet({
+      clientId: client.id,
+      weekNumber: microcycle.weekNumber,
+      // Una sesión heredada (kilos que quedaron dentro del plan de una versión
+      // anterior) no tiene id real: se manda `null` y se crea una de verdad.
+      sessionId: daySession.session?.isLegacy ? null : daySession.activeId,
+      date: daySession.session?.date || todayISO(),
+      dayName: day.dayName,
+      exercise,
+      setIndex,
+      field,
+      value,
+    });
+    if (id && id !== daySession.activeId) daySession.select(id);
+  };
+
+  return (
+    <Panel className="col gap-5">
+      <DayBanner day={day} weeklySplit={cycleType === 'weekly' ? program?.weeklySplit : null} />
+
+      {Object.keys(volume).length > 0 && (
+        <div className="row wrap gap-2">
+          {Object.entries(volume).map(([muscle, count]) => (
+            <span className="badge" key={muscle}>
+              {muscle}
+              <strong style={{ color: 'var(--accent)' }}>{count} series</strong>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/*
+        Qué día se está registrando. El cliente no necesita el selector completo
+        del entrenador —ni borrar sesiones ni cambiar fechas a mano—, pero sí
+        saber sobre qué fecha está escribiendo y poder empezar otra si repite el
+        mismo día de rutina en la semana.
+      */}
+      <div className="row between wrap gap-2">
+        <div className="rail" role="group" aria-label={`Sesiones de ${day.dayName}`}>
+          {daySession.sessions.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className="chip"
+              aria-pressed={s.id === daySession.activeId}
+              onClick={() => daySession.select(s.id)}
+            >
+              {sessionLabel(s)}
+            </button>
+          ))}
+          <button
+            type="button"
+            className="chip chip-dashed"
+            onClick={() => {
+              const id = onLogSet({
+                clientId: client.id,
+                weekNumber: microcycle.weekNumber,
+                sessionId: null,
+                date: todayISO(),
+                dayName: day.dayName,
+                startOnly: true,
+              });
+              if (id) daySession.select(id);
+            }}
+          >
+            <Plus size={13} /> Registrar hoy
+          </button>
+        </div>
+
+        {planned > 0 && (
+          <span className="t-xs t-tertiary">
+            {logged} de {planned} series registradas
+          </span>
+        )}
+      </div>
+
+      {/*
+        Exactamente la misma lista que usa el entrenador, con `canEditStructure`
+        en false: el cliente registra sus kg, reps y RIR pero no puede reordenar,
+        borrar ni añadir series.
+      */}
+      <ExerciseList
+        exercises={daySession.exercises}
+        canEditStructure={false}
+        emptyMessage="Tu entrenador no ha programado ejercicios en este día."
+        onSetChange={logSet}
+      />
+    </Panel>
+  );
+};
+
+export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek, onLogSet, save, onRetry }) => {
   const microcycles = program?.microcycles || [];
   const micro = microcycles.find((m) => m.weekNumber === activeWeek);
   const cycleType = client.cycleType || 'weekly';
@@ -72,7 +177,7 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
   if (microcycles.length === 0) {
     return (
       <Panel>
-        <p className="text-sm text-muted">Tu entrenador aún no te ha asignado ningún microciclo.</p>
+        <p className="t-sm t-secondary">Tu entrenador aún no te ha asignado ningún microciclo.</p>
       </Panel>
     );
   }
@@ -82,15 +187,15 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
       {client.youtubeExplanationUrl && (
         <Panel tight className="row between wrap gap-3">
           <div>
-            <strong style={{ color: 'var(--accent-coral)' }}>Vídeo explicativo de tu rutina</strong>
-            <p className="text-sm text-muted">Grabado por tu entrenador para ti</p>
+            <strong style={{ color: 'var(--data-rose)' }}>Vídeo explicativo de tu rutina</strong>
+            <p className="t-sm t-secondary">Grabado por tu entrenador para ti</p>
           </div>
           <a
             href={client.youtubeExplanationUrl}
             target="_blank"
             rel="noreferrer noopener"
             className="btn btn-primary"
-            style={{ background: '#ef4444' }}
+            style={{ background: 'var(--negative)' }}
           >
             <Play size={15} /> Ver en YouTube
           </a>
@@ -100,8 +205,8 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
       <Panel tight className="col gap-4">
         <div className="row between wrap gap-3">
           <div className="row gap-2">
-            <RotateCw size={16} color="var(--accent-cyan)" />
-            <strong className="text-sm">
+            <RotateCw size={16} color="var(--data-blue)" />
+            <strong className="t-sm">
               {cycleType === 'weekly'
                 ? 'Tu estructura semanal'
                 : `Ciclo rotativo ${pattern.train} entreno / ${pattern.rest} descanso`}
@@ -116,24 +221,10 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
               const value = program?.weeklySplit?.[day] ?? 'Descanso';
               const isRest = value.trim().toLowerCase() === 'descanso';
               return (
-                <div className="col gap-1" key={day}>
-                  <span className="uppercase-label" style={{ textAlign: 'center' }}>
-                    {day.slice(0, 3)}
-                  </span>
-                  <span
-                    className="text-xs"
-                    style={{
-                      background: isRest ? 'var(--bg-sunken)' : 'rgba(16,185,129,0.12)',
-                      border: `1px solid ${isRest ? 'var(--border-color)' : 'var(--accent-emerald)'}`,
-                      borderRadius: 10,
-                      padding: '9px 4px',
-                      fontWeight: 700,
-                      textAlign: 'center',
-                      color: isRest ? 'var(--text-muted)' : '#fff',
-                    }}
-                  >
-                    {value}
-                  </span>
+                // .split-day del sistema, en vez de repetir aquí los colores.
+                <div className="split-day" key={day}>
+                  <span className="name">{day.slice(0, 3)}</span>
+                  <span className={`value${isRest ? '' : ' is-training'}`}>{value}</span>
                 </div>
               );
             })}
@@ -149,14 +240,14 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
                   className="badge"
                   style={
                     item.train
-                      ? { background: 'rgba(16,185,129,0.15)', color: 'var(--accent-emerald)' }
-                      : { background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }
+                      ? { background: 'var(--accent-soft)', color: 'var(--accent)' }
+                      : { background: 'var(--fill-subtle)', color: 'var(--text-secondary)' }
                   }
                 >
                   {item.train ? <CheckCircle2 size={12} /> : <CircleDashed size={12} />}
                   {item.train ? 'Entreno' : 'Descanso'}
                 </span>
-                {index < all.length - 1 && <ArrowRight size={12} color="rgba(255,255,255,0.25)" />}
+                {index < all.length - 1 && <ArrowRight size={12} color="var(--text-tertiary)" />}
               </span>
             ))}
           </div>
@@ -167,42 +258,17 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
         <WeekPicker weeks={weeks} value={activeWeek} onChange={onSelectWeek} prefix={unit} />
       )}
 
-      {micro?.days.map((day) => {
-        const volume = dayMuscleVolume(day);
-
-        return (
-          <Panel className="col gap-5" key={day.dayName}>
-            <DayBanner day={day} weeklySplit={cycleType === 'weekly' ? program?.weeklySplit : null} />
-
-            {Object.keys(volume).length > 0 && (
-              <div className="row wrap gap-2">
-                {Object.entries(volume).map(([muscle, count]) => (
-                  <span className="badge badge-neutral" key={muscle}>
-                    {muscle}
-                    <strong style={{ color: 'var(--accent-emerald)' }}>{count} series</strong>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/*
-              Exactamente la misma lista que usa el entrenador, con
-              `canEditStructure` en false: el cliente registra sus kg, reps y RIR
-              pero no puede reordenar, borrar ni añadir series. Antes esto era
-              una tabla aparte, con otro aspecto y su propio bug (la columna del
-              objetivo de repeticiones salía siempre vacía).
-            */}
-            <ExerciseList
-              exercises={day.exercises || []}
-              canEditStructure={false}
-              emptyMessage="Tu entrenador no ha programado ejercicios en este día."
-              onSetChange={(exId, setIndex, field, value) =>
-                onSetChange(client.id, micro.weekNumber, day.dayName, exId, setIndex, field, value)
-              }
-            />
-          </Panel>
-        );
-      })}
+      {micro?.days.map((day) => (
+        <ClientDay
+          key={day.dayName}
+          client={client}
+          program={program}
+          microcycle={micro}
+          day={day}
+          cycleType={cycleType}
+          onLogSet={onLogSet}
+        />
+      ))}
     </div>
   );
 };

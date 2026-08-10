@@ -1,4 +1,4 @@
-import { FlipHorizontal, RotateCcw, RotateCw, Sparkles, Trash2, ZoomIn } from 'lucide-react';
+import { ArrowLeftRight, FlipHorizontal, RotateCcw, RotateCw, Sparkles, Trash2, ZoomIn } from 'lucide-react';
 
 import { angleLabel } from '@/domain/photos';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
@@ -6,7 +6,7 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
 /** Fila etiqueta + deslizador + valor, usada por encuadre y ajustes de luz. */
 const SliderRow = ({ label, value, min, max, step = 1, suffix = '', decimals = 0, onChange }) => (
   <label className="adjust-row">
-    <span className="text-muted">{label}</span>
+    <span className="t-secondary">{label}</span>
     <input
       type="range"
       className="range"
@@ -35,9 +35,19 @@ const SliderRow = ({ label, value, min, max, step = 1, suffix = '', decimals = 0
  * Ninguno de los dos modifica el archivo original: son parámetros de
  * renderizado que solo existen en este montaje.
  */
-export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots, onSelectSlot, onUpdate, onReset, onRemove, onAddSlot, onApplyToAll }) => {
+export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots, onSelectSlot, onUpdate, onReset, onRemove, onAddSlot, onApplyToAll, onSwap }) => {
   const slot = slots[activeSlot];
   if (!slot) return null;
+
+  /*
+    Invertir el orden. En «Antes / Después» es imprescindible: la sugerencia
+    automática coloca la antigua a la izquierda, pero si el cliente está ganando
+    masa a veces se quiere la reciente delante, y antes había que reasignar las dos
+    fotos a mano desde la biblioteca para conseguirlo.
+    En la matriz no aparece: allí el orden lo dan las semanas, de la más antigua a
+    la más reciente, y eso no se discute.
+  */
+  const canSwap = layout !== 'matrix' && slots.filter((s) => s.photoId).length > 1;
 
   const photo = slot.photoId ? photoOf(slot.photoId) : null;
   const { transform: t, adjustments: a } = slot;
@@ -73,24 +83,36 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
         )}
       </div>
 
+      {canSwap && (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          style={{ alignSelf: 'flex-start' }}
+          onClick={onSwap}
+        >
+          <ArrowLeftRight size={14} />
+          {slots.length === 2 ? 'Cambiar antes por después' : 'Invertir el orden'}
+        </button>
+      )}
+
       {!photo ? (
-        <p className="text-sm text-muted">
+        <p className="t-sm t-secondary">
           Este hueco está vacío. Pulsa una foto de la biblioteca para colocarla aquí.
         </p>
       ) : (
         <>
-          <div className="panel-sunken col gap-1">
-            <span className="text-sm" style={{ fontWeight: 700 }}>
+          <div className="card-inset col gap-1">
+            <span className="t-sm" style={{ fontWeight: 700 }}>
               {photo.week != null ? `Semana ${photo.week}` : 'Semana sin determinar'} · {angleLabel(photo.angle)}
             </span>
-            <span className="text-xs text-muted">
+            <span className="t-xs t-secondary">
               {photo.date}
-              {photo.weight != null ? ` · ${photo.weight} kg` : ''}
+              {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
             </span>
           </div>
 
           <div className="col gap-2">
-            <span className="uppercase-label">
+            <span className="section-label">
               <ZoomIn size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Encuadre
             </span>
             <SliderRow label="Zoom" value={t.zoom} min={0.4} max={3} step={0.02} decimals={2} suffix="×" onChange={(v) => setTransform({ zoom: v })} />
@@ -99,15 +121,15 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
             <SliderRow label="Rotación" value={t.rotation} min={-180} max={180} step={0.5} decimals={1} suffix="°" onChange={(v) => setTransform({ rotation: v })} />
 
             <div className="row gap-2 wrap">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTransform({ rotation: t.rotation - 90 })}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTransform({ rotation: t.rotation - 90 })}>
                 <RotateCcw size={13} /> 90°
               </button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTransform({ rotation: t.rotation + 90 })}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTransform({ rotation: t.rotation + 90 })}>
                 <RotateCw size={13} /> 90°
               </button>
               <button
                 type="button"
-                className="btn btn-ghost btn-sm"
+                className="btn btn-secondary btn-sm"
                 aria-pressed={t.flipH}
                 onClick={() => setTransform({ flipH: !t.flipH })}
                 title="Voltear en horizontal (útil si una foto está en espejo)"
@@ -120,7 +142,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
           <hr className="divider" />
 
           <div className="col gap-2">
-            <span className="uppercase-label">
+            <span className="section-label">
               <Sparkles size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Ajustes de imagen
             </span>
             <SliderRow label="Brillo" value={a.brightness} min={40} max={180} suffix="%" onChange={(v) => setAdjust({ brightness: v })} />

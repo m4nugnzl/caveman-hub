@@ -35,8 +35,8 @@ export const StudioCanvas = ({
   const [draft, setDraft] = useState(null);
 
   const size = useMemo(
-    () => canvasSize({ layout: state.layout, count: state.slots.length, ratio: state.ratio }),
-    [state.layout, state.slots.length, state.ratio]
+    () => canvasSize({ layout: state.layout, count: state.slots.length, ratio: state.ratio, dims: state.dims }),
+    [state.layout, state.slots.length, state.ratio, state.dims]
   );
 
   // Se redibuja al cambiar el estado del montaje y cuando `imageVersion` avisa
@@ -75,9 +75,11 @@ export const StudioCanvas = ({
       return;
     }
 
-    if (state.tool === 'hline') {
+    // Las reglas se colocan con un solo clic: cruzan el montaje entero, así que
+    // solo hace falta decir a qué altura (o a qué distancia del borde).
+    if (state.tool === 'hline' || state.tool === 'vline') {
       onAddAnnotation({
-        type: 'hline',
+        type: state.tool,
         color: state.color,
         width: 3,
         points: [normalizePoint(point, size)],

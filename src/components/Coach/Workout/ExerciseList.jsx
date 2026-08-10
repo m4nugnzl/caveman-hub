@@ -10,17 +10,26 @@ import { SetCell } from './SetCell';
  *
  * El drag & drop arranca SOLO desde el asa: cuando la fila entera era
  * arrastrable, el gesto competía con hacer clic en los inputs y en los botones,
- * y a veces no se podía escribir en un campo.
+ * y a veces no se podía escribir en un campo. Hay además reordenación por
+ * teclado (Alt + flechas sobre el asa), porque el arrastre con ratón deja fuera
+ * a quien no lo pueda usar.
  *
- * Se añade además reordenación por teclado (Alt + flechas sobre el asa), porque
- * el arrastre con ratón dejaba fuera a cualquiera que no lo pueda usar.
- */
-/**
  * @param canEditStructure  true para el entrenador (reordenar, borrar, añadir
- *   series). El cliente usa la MISMA lista con esto en false: puede registrar
- *   sus kg, reps y RIR, pero no cambiar el programa que le han montado.
- *   Antes el cliente tenía su propia tabla, con otro aspecto y su propio bug.
+ *   series, definir objetivos). El cliente usa la MISMA lista con esto en false:
+ *   registra sus kg, reps y RIR, pero no cambia el programa que le han montado.
  */
+
+/**
+ * Objetivo "común" del ejercicio, solo para el atajo de rellenar todas las
+ * series. Si las series tienen objetivos distintos —una pirámide— se muestra en
+ * blanco para no dar a entender que todas comparten el mismo.
+ */
+const commonTarget = (exercise) => {
+  const targets = (exercise.sets || []).map((s) => s.targetReps ?? '');
+  if (targets.length === 0) return '';
+  return targets.every((t) => t === targets[0]) ? targets[0] : '';
+};
+
 export const ExerciseList = ({
   exercises,
   canEditStructure = true,
@@ -28,6 +37,7 @@ export const ExerciseList = ({
   onMove,
   onRemove,
   onSetChange,
+  onTargetChange = () => {},
   onAddSet,
   onRemoveSet,
 }) => {
@@ -65,7 +75,7 @@ export const ExerciseList = ({
 
   if (exercises.length === 0) {
     return (
-      <p className="text-sm text-muted" style={{ padding: 'var(--space-4) 0' }}>
+      <p className="t-sm t-secondary" style={{ padding: 'var(--s4) 0' }}>
         {emptyMessage}
       </p>
     );
@@ -79,7 +89,7 @@ export const ExerciseList = ({
           <li
             key={exercise.id}
             className={[
-              'exercise-row',
+              'exercise',
               overIndex === index && dragIndex !== index ? 'is-drop-target' : '',
               dragIndex === index ? 'is-dragging' : '',
             ]
@@ -124,11 +134,34 @@ export const ExerciseList = ({
               {index + 1}
             </span>
 
+            {/*
+              Nombre arriba; músculo debajo en gris pequeño, y —solo para el
+              entrenador— un atajo para poner el mismo objetivo en todas las
+              series de golpe. El objetivo real vive en cada serie, que es donde
+              tiene que estar.
+            */}
             <div className="exercise-name">
-              <div className="name">{exercise.name}</div>
-              <span className="badge badge-neutral" style={{ fontSize: '0.6rem', marginTop: 3 }}>
-                {exercise.muscle}
-              </span>
+              <div className="name" title={exercise.name}>
+                {exercise.name}
+              </div>
+              <div className="exercise-meta">
+                <span className="muscle">{exercise.muscle}</span>
+                {canEditStructure && (
+                  <>
+                    <span className="dot">·</span>
+                    <input
+                      type="text"
+                      className="target-input"
+                      value={commonTarget(exercise)}
+                      placeholder="8-10"
+                      onChange={(e) => onTargetChange(exercise.id, e.target.value)}
+                      aria-label={`Objetivo para todas las series de ${exercise.name}`}
+                      title="Atajo: pone este objetivo en TODAS las series del ejercicio"
+                    />
+                    <span>a todas</span>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="set-lane">
@@ -138,7 +171,6 @@ export const ExerciseList = ({
                   index={setIndex}
                   set={set}
                   exerciseName={exercise.name}
-                  color={setColor(setIndex)}
                   canRemove={canEditStructure && exercise.sets.length > 1}
                   canEditTarget={canEditStructure}
                   onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}

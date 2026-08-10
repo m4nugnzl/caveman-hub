@@ -1,29 +1,99 @@
 import { useState } from 'react';
-import { Edit3, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, X } from 'lucide-react';
 
 import { foodMacros, mealKcalRange, optionMacros } from '@/domain/nutrition';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { AddFoodControl } from './AddFoodControl';
+import { MACRO_META, MacroRing } from './macros';
+
+/**
+ * Encabezado de la tabla de alimentos.
+ *
+ * ── Por qué existe ──────────────────────────────────────────────────────────
+ * Antes cada fila llevaba escrito «P 38  C 85  G 8». Con cinco alimentos eran
+ * quince letras repetidas que no informaban de nada y que hacían leer las cifras
+ * como texto en lugar de como una columna.
+ *
+ * Las etiquetas van una sola vez, aquí, y con el color de su macro: los mismos
+ * del anillo de arriba, de modo que la tabla y el gráfico son el mismo lenguaje.
+ */
+const FoodTableHead = ({ editable }) => (
+  <div className="food-head" aria-hidden="true">
+    <span>Alimento</span>
+    <span>Cantidad</span>
+    {MACRO_META.map(({ key, short, color }) => (
+      <span key={key} style={{ color }}>
+        {short}
+      </span>
+    ))}
+    <span>Kcal</span>
+    {editable && <span />}
+  </div>
+);
+
+const CELL = ['is-p', 'is-c', 'is-f'];
+
+/** Un alimento: solo números, alineados con el encabezado. */
+const FoodRow = ({ food, editable, onGrams, onRemove }) => {
+  const macros = foodMacros(food);
+
+  return (
+    <div className="food-row">
+      <span className="name">{food.name}</span>
+
+      <span className="grams">
+        {editable ? (
+          <input
+            type="text"
+            inputMode="decimal"
+            className="input input-sm input-center"
+            style={{ width: 58 }}
+            value={food.grams ?? ''}
+            onChange={(e) => onGrams(e.target.value)}
+            aria-label={`Gramos de ${food.name}`}
+          />
+        ) : (
+          <span className="fixed">{food.grams}</span>
+        )}
+        <span className="unit">g</span>
+      </span>
+
+      {MACRO_META.map(({ key, short, label }, index) => (
+        <span
+          key={key}
+          className={`n ${CELL[index]}`}
+          data-macro={short}
+          aria-label={`${label} de ${food.name}`}
+        >
+          {Math.round(macros[key])}
+        </span>
+      ))}
+
+      <span className="kcal">{Math.round(macros.kcal)}</span>
+
+      {editable && (
+        <button
+          type="button"
+          className="btn btn-icon btn-icon-danger del"
+          style={{ width: 26, height: 26 }}
+          onClick={onRemove}
+          aria-label={`Quitar ${food.name}`}
+        >
+          <X size={13} />
+        </button>
+      )}
+    </div>
+  );
+};
 
 /**
  * Una comida del menú cerrado.
  *
- * ── El problema de estructura que resuelve ──────────────────────────────────
- * Antes esto eran tres niveles de cajas anidadas: la comida contenía una caja
- * por cada opción, y cada opción una caja por cada alimento. Con tres comidas y
- * dos opciones cada una, la pantalla era una sucesión de rectángulos dentro de
- * rectángulos donde no se distinguía qué pertenecía a qué.
+ * Dos niveles, no tres: la comida es una tarjeta, **las opciones son pestañas**
+ * —lo que además comunica que se elige UNA, no todas— y los alimentos son cajas
+ * flotantes. Antes eran cajas dentro de cajas dentro de cajas.
  *
- * Ahora hay dos niveles:
- *   · Las opciones son PESTAÑAS. Además de aplanar el anidamiento, comunica lo
- *     que de verdad significan: se elige UNA, no se comen todas.
- *   · Los alimentos son una TABLA con columnas alineadas (gramos, P, C, G,
- *     kcal). Comparar dos alimentos o revisar que los macros cuadran era
- *     imposible cuando cada uno era una fila con su propio formato.
- *
- * El mismo componente sirve para el entrenador y para el cliente: `editable`
- * decide si se puede tocar. Antes eran dos renderizados distintos del mismo
- * dato, con aspecto diferente.
+ * El mismo componente sirve al entrenador y al cliente; `editable` decide.
  */
 export const MealCard = ({
   meal,
@@ -72,14 +142,13 @@ export const MealCard = ({
   };
 
   return (
-    <article className="meal-card">
-      {/* ── Cabecera: nombre y kcal ── */}
-      <header className="meal-card-head">
+    <article className="meal">
+      <header className="meal-head">
         {editingName && editable ? (
           <input
             autoFocus
             className="input grow"
-            style={{ fontWeight: 800, fontSize: '1rem' }}
+            style={{ fontWeight: 650 }}
             value={meal.name}
             onChange={(e) => onRenameMeal(e.target.value)}
             onBlur={() => setEditingName(false)}
@@ -87,29 +156,29 @@ export const MealCard = ({
             aria-label="Nombre de la comida"
           />
         ) : (
-          <h4 className="meal-card-title">
+          <h4 className="meal-title">
             {meal.name}
             {editable && (
               <button
                 type="button"
                 className="btn btn-icon"
-                style={{ width: 26, height: 26 }}
+                style={{ width: 24, height: 24 }}
                 onClick={() => setEditingName(true)}
                 aria-label={`Renombrar ${meal.name}`}
               >
-                <Edit3 size={12} />
+                <Pencil size={12} />
               </button>
             )}
           </h4>
         )}
 
         <div className="row gap-2 shrink-0">
-          <span className="meal-card-kcal">
+          <span className="meal-kcal">
             {kcal.first} kcal
             {kcal.varies && (
-              <span className="text-xs" style={{ opacity: 0.7, fontWeight: 600 }}>
+              <span className="t-xs" style={{ opacity: 0.75, fontWeight: 550 }}>
                 {' '}
-                ({kcal.min}–{kcal.max} según la opción)
+                ({kcal.min}–{kcal.max})
               </span>
             )}
           </span>
@@ -126,7 +195,6 @@ export const MealCard = ({
         </div>
       </header>
 
-      {/* ── Pestañas de opción ── */}
       {(options.length > 1 || editable) && (
         <div className="rail" role="tablist" aria-label={`Opciones de ${meal.name}`}>
           {options.map((opt, i) => (
@@ -140,12 +208,11 @@ export const MealCard = ({
               onClick={() => setActiveOption(i)}
             >
               Opción {i + 1}
-              <span className="text-xs" style={{ opacity: 0.75 }}>
-                {Math.round(optionMacros(opt).kcal)} kcal
+              <span className="t-xs" style={{ opacity: 0.75 }}>
+                {Math.round(optionMacros(opt).kcal)}
               </span>
             </button>
           ))}
-
           {editable && (
             <button type="button" className="chip chip-dashed" onClick={onAddOption}>
               <Plus size={13} /> Alternativa
@@ -155,96 +222,54 @@ export const MealCard = ({
       )}
 
       {options.length > 1 && !editable && (
-        <p className="text-xs text-dim">
+        <p className="t-xs t-tertiary">
           Elige UNA de las {options.length} opciones, la que mejor te encaje ese día.
         </p>
       )}
 
-      {/* ── Tabla de alimentos ── */}
+      {/*
+        El reparto de ESTA opción, como anillo.
+        --------------------------------------------------------------------
+        Es lo que permite ver de un vistazo si una opción está desequilibrada y
+        comparar dos alternativas de la misma comida sin hacer cuentas: dos
+        anillos con el mismo lenguaje al lado. El total del día usa una barra
+        —otra forma para otra escala— y la diferencia es intencionada.
+      */}
+      {foods.length > 0 && (
+        <div className="card-inset">
+          <MacroRing
+            protein={totals.protein}
+            carbs={totals.carbs}
+            fats={totals.fats}
+            kcals={totals.kcal}
+            size={86}
+            caption={options.length > 1 ? `Opción ${index + 1} de ${options.length}` : undefined}
+          />
+        </div>
+      )}
+
       {foods.length === 0 ? (
-        <p className="text-sm text-muted">
+        <p className="t-sm t-secondary">
           {editable ? 'Sin alimentos todavía.' : 'Tu entrenador no ha detallado esta opción.'}
         </p>
       ) : (
-        <div className="table-scroll">
-          <table className="table table-compact">
-            <caption className="sr-only">
-              Alimentos de {meal.name}, opción {index + 1}
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Alimento</th>
-                <th scope="col" className="num">Gramos</th>
-                <th scope="col" className="num">P</th>
-                <th scope="col" className="num">C</th>
-                <th scope="col" className="num">G</th>
-                <th scope="col" className="num">Kcal</th>
-                {editable && <th scope="col" className="num"><span className="sr-only">Quitar</span></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {foods.map((food) => {
-                const macros = foodMacros(food);
-                return (
-                  <tr key={food.id}>
-                    <td style={{ fontWeight: 700 }}>{food.name}</td>
-                    <td className="num">
-                      {editable ? (
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="input input-center input-sm"
-                          style={{ width: 64 }}
-                          value={food.grams ?? ''}
-                          onChange={(e) => onGrams(index, food.id, e.target.value)}
-                          aria-label={`Gramos de ${food.name}`}
-                        />
-                      ) : (
-                        <strong>{food.grams} g</strong>
-                      )}
-                    </td>
-                    <td className="num text-muted">{macros.protein.toFixed(0)}</td>
-                    <td className="num text-muted">{macros.carbs.toFixed(0)}</td>
-                    <td className="num text-muted">{macros.fats.toFixed(0)}</td>
-                    <td className="num" style={{ fontWeight: 800, color: 'var(--accent-amber)' }}>
-                      {Math.round(macros.kcal)}
-                    </td>
-                    {editable && (
-                      <td className="num">
-                        <button
-                          type="button"
-                          className="btn btn-icon btn-icon-danger"
-                          onClick={() => onRemoveFood(index, food.id)}
-                          aria-label={`Quitar ${food.name}`}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr className="meal-card-totals">
-                <td style={{ fontWeight: 800 }}>Total</td>
-                <td className="num" />
-                <td className="num">{totals.protein.toFixed(0)}</td>
-                <td className="num">{totals.carbs.toFixed(0)}</td>
-                <td className="num">{totals.fats.toFixed(0)}</td>
-                <td className="num" style={{ color: 'var(--accent-amber)' }}>
-                  {Math.round(totals.kcal)}
-                </td>
-                {editable && <td />}
-              </tr>
-            </tfoot>
-          </table>
+        <div className="food-table">
+          <FoodTableHead editable={editable} />
+          {foods.map((food) => (
+            <FoodRow
+              key={food.id}
+              food={food}
+              editable={editable}
+              onGrams={(grams) => onGrams(index, food.id, grams)}
+              onRemove={() => onRemoveFood(index, food.id)}
+            />
+          ))}
         </div>
       )}
 
       {editable && (
         <div className="row between wrap gap-2">
-          <div className="grow" style={{ minWidth: 220 }}>
+          <div className="grow" style={{ minWidth: 210 }}>
             <AddFoodControl foodLibrary={foodLibrary} onAdd={(food) => onAddFood(index, food)} />
           </div>
           {options.length > 1 && (

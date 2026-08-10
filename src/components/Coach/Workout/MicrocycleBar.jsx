@@ -67,7 +67,7 @@ export const MicrocycleBar = ({
             <h3 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
               {unit} {activeWeek}
             </h3>
-            <span className="text-xs text-muted" style={{ fontWeight: 600 }}>
+            <span className="t-xs t-secondary" style={{ fontWeight: 600 }}>
               {microcycleDate || 'Fecha por definir'}
             </span>
           </div>

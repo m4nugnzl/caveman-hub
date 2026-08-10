@@ -71,9 +71,14 @@ const drawCaption = (ctx, rect, photo, size) => {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 
+  // El peso viene del check-in de esa semana (`photoWeight`), no de un campo que
+  // el cliente rellenara al subir la foto. `derivedWeight` lo resuelve una sola
+  // vez en PhotoStudio, así que el pie, la biblioteca y la tarjeta de variación
+  // muestran siempre la misma cifra.
+  const weight = photo.derivedWeight ?? photo.weight;
   const title = [
     photo.week != null ? `Semana ${photo.week}` : null,
-    photo.weight != null ? `${photo.weight} kg` : null,
+    weight != null ? `${weight} kg` : null,
   ]
     .filter(Boolean)
     .join('  ·  ');
@@ -110,11 +115,20 @@ const drawAnnotation = (ctx, annotation, size) => {
   ctx.lineWidth = width;
   ctx.lineCap = 'round';
 
-  if (annotation.type === 'hline') {
+  if (annotation.type === 'hline' || annotation.type === 'vline') {
+    // Regla de referencia a todo lo ancho o a todo lo alto del montaje. Es lo
+    // que permite comprobar si dos fotos están a la misma altura de hombro o si
+    // la cintura se ha estrechado: sin una recta que cruce las dos, el ojo se
+    // engaña con cualquier diferencia de encuadre.
     const p = denormalizePoint(annotation.points[0], size);
     ctx.beginPath();
-    ctx.moveTo(0, p.y);
-    ctx.lineTo(size.width, p.y);
+    if (annotation.type === 'hline') {
+      ctx.moveTo(0, p.y);
+      ctx.lineTo(size.width, p.y);
+    } else {
+      ctx.moveTo(p.x, 0);
+      ctx.lineTo(p.x, size.height);
+    }
     ctx.stroke();
   } else if (annotation.type === 'line' || annotation.type === 'arrow') {
     const [a, b] = annotation.points.map((p) => denormalizePoint(p, size));
@@ -173,6 +187,7 @@ export function renderComposition({ canvas, state, size, photoOf, imageOf, previ
     width: size.width,
     height: size.height,
     showCaptions: state.showCaptions,
+    dims: state.dims,
   });
 
   const resolve = (slot) => {

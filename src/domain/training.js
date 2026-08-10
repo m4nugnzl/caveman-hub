@@ -189,8 +189,8 @@ export const weekdayForDay = (weeklySplit, dayName) => {
 // ── Analítica de entrenamiento ─────────────────────────────────────────────
 //
 // Todo lo de aquí abajo existe para responder preguntas de entrenamiento que
-// antes no se podían responder: ¿este ejercicio progresa? ¿con qué intensidad
-// se está entrenando? ¿cuántas veces por semana se toca cada músculo?
+// antes no se podían responder: ¿este ejercicio progresa? ¿cuánto volumen
+// lleva cada músculo? ¿cuántas veces por semana se toca?
 
 /**
  * 1RM estimado por la fórmula de Epley: kg × (1 + reps/30).
@@ -319,36 +319,6 @@ export const muscleFrequency = (microcycles, weekNumber) => {
     for (const muscle of inDay) frequency[muscle] = (frequency[muscle] || 0) + 1;
   }
   return frequency;
-};
-
-/**
- * Reparto de RIR de una semana: cuántas series se han hecho a cada nivel de
- * repeticiones en reserva. Es la medida de intensidad real del bloque — dice si
- * se está entrenando cerca del fallo o sobrado.
- */
-export const rirDistribution = (microcycles, weekNumber) => {
-  const micro = findMicrocycle(microcycles, weekNumber);
-  if (!micro) return [];
-
-  const counts = new Map();
-  for (const day of micro.days || []) {
-    for (const exercise of day.exercises || []) {
-      for (const set of exercise.sets || []) {
-        if ((toNum(set?.reps) ?? 0) <= 0) continue;
-        const rir = toNum(set?.rir);
-        const key = rir === null ? 'sin dato' : String(Math.round(rir));
-        counts.set(key, (counts.get(key) || 0) + 1);
-      }
-    }
-  }
-
-  return [...counts.entries()]
-    .sort((a, b) => {
-      if (a[0] === 'sin dato') return 1;
-      if (b[0] === 'sin dato') return -1;
-      return Number(a[0]) - Number(b[0]);
-    })
-    .map(([rir, count]) => ({ label: rir === 'sin dato' ? '—' : `RIR ${rir}`, value: count }));
 };
 
 /** Resumen de una semana: días, ejercicios, series y tonelaje. */

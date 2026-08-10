@@ -42,27 +42,18 @@ export const DayHeader = ({ day, weeklySplit, onRename, onDuplicate, onRemove, c
   };
 
   return (
-    <header className="day-header">
+    <header className="day-head">
       <div className="row gap-4" style={{ position: 'relative', zIndex: 1 }}>
-        <span
-          style={{
-            background: 'rgba(34,211,238,0.15)',
-            padding: 13,
-            borderRadius: 16,
-            display: 'grid',
-            placeItems: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Dumbbell size={26} color="var(--accent-cyan)" />
+        <span className="day-icon">
+          <Dumbbell size={22} />
         </span>
 
         <div className="col gap-1">
           <div className="row gap-2 wrap">
-            <span className="uppercase-label" style={{ color: 'var(--accent-cyan)' }}>
+            <span className="section-label" style={{ color: 'var(--accent)' }}>
               Día de entrenamiento
             </span>
-            {weekday && <span className="badge badge-neutral">{weekday}</span>}
+            {weekday && <span className="badge">{weekday}</span>}
           </div>
 
           {editing ? (
@@ -70,7 +61,7 @@ export const DayHeader = ({ day, weeklySplit, onRename, onDuplicate, onRemove, c
               <input
                 autoFocus
                 className="input"
-                style={{ fontSize: '1.2rem', fontWeight: 900, minWidth: 200 }}
+                style={{ fontSize: 'var(--fs-lg)', fontWeight: 680, minWidth: 200 }}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -93,29 +84,20 @@ export const DayHeader = ({ day, weeklySplit, onRename, onDuplicate, onRemove, c
               </button>
             </div>
           ) : (
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 900 }}>{day.dayName}</h2>
+            <h2 style={{ fontSize: 'var(--fs-lg)' }}>{day.dayName}</h2>
           )}
         </div>
       </div>
 
       <div className="row gap-4 wrap" style={{ position: 'relative', zIndex: 1 }}>
-        <div
-          className="row gap-5"
-          style={{
-            background: 'rgba(0,0,0,0.25)',
-            padding: '10px 18px',
-            borderRadius: 16,
-            border: '1px solid var(--border-color)',
-          }}
-        >
-          <div className="col gap-1" style={{ alignItems: 'center' }}>
-            <span className="stat-label">Ejercicios</span>
-            <strong style={{ fontSize: '1.2rem' }}>{exerciseCount}</strong>
+        <div className="day-stats">
+          <div className="day-stat">
+            <span className="section-label">Ejercicios</span>
+            <span className="v">{exerciseCount}</span>
           </div>
-          <span style={{ width: 1, height: 30, background: 'var(--border-color)' }} />
-          <div className="col gap-1" style={{ alignItems: 'center' }}>
-            <span className="stat-label">Series</span>
-            <strong style={{ fontSize: '1.2rem', color: 'var(--accent-emerald)' }}>{setCount}</strong>
+          <div className="day-stat">
+            <span className="section-label">Series</span>
+            <span className="v" style={{ color: 'var(--accent)' }}>{setCount}</span>
           </div>
         </div>
 

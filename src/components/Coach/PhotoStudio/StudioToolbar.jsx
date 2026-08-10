@@ -6,7 +6,8 @@ import { Field, Panel, SectionTitle, SegmentedControl } from '@/components/ui/pr
 
 const TOOLS = [
   { id: 'pan', label: 'Mover', icon: Hand, hint: 'Arrastra para encuadrar (o mover el divisor)' },
-  { id: 'hline', label: 'Guía', icon: Minus, hint: 'Línea horizontal de referencia' },
+  { id: 'hline', label: 'Regla —', icon: Minus, hint: 'Regla horizontal: comprueba si dos fotos están a la misma altura' },
+  { id: 'vline', label: 'Regla |', icon: Minus, hint: 'Regla vertical: comprueba anchuras y simetría', rotate: true },
   { id: 'line', label: 'Línea', icon: Move, hint: 'Línea libre entre dos puntos' },
   { id: 'arrow', label: 'Flecha', icon: ArrowUpRight, hint: 'Flecha para señalar un cambio' },
   { id: 'text', label: 'Texto', icon: Type, hint: 'Etiqueta de texto' },
@@ -73,8 +74,8 @@ export const StudioToolbar = ({
       <hr className="divider" />
 
       <Field label="Herramienta">
-        <div className="rail" role="group" aria-label="Herramienta de anotación">
-          {TOOLS.map(({ id, label, icon: Icon, hint }) => (
+        <div className="rail-wrap" role="group" aria-label="Herramienta de anotación">
+          {TOOLS.map(({ id, label, icon: Icon, hint, rotate }) => (
             <button
               key={id}
               type="button"
@@ -83,7 +84,7 @@ export const StudioToolbar = ({
               onClick={() => onTool(id)}
               title={hint}
             >
-              <Icon size={13} /> {label}
+              <Icon size={13} style={rotate ? { transform: 'rotate(90deg)' } : undefined} /> {label}
             </button>
           ))}
         </div>
@@ -106,8 +107,8 @@ export const StudioToolbar = ({
       </Field>
 
       {pendingText && (
-        <form className="panel-sunken col gap-2" onSubmit={commitText}>
-          <span className="text-xs text-muted">Texto de la etiqueta</span>
+        <form className="card-inset col gap-2" onSubmit={commitText}>
+          <span className="t-xs t-secondary">Texto de la etiqueta</span>
           <div className="row gap-2">
             <input
               autoFocus
@@ -158,7 +159,7 @@ export const StudioToolbar = ({
       <button type="button" className="btn btn-primary btn-block" onClick={onExport} disabled={exportDisabled}>
         <Download size={16} /> Descargar PNG
       </button>
-      {exportHint && <p className="text-xs text-muted">{exportHint}</p>}
+      {exportHint && <p className="t-xs t-secondary">{exportHint}</p>}
     </Panel>
   );
 };

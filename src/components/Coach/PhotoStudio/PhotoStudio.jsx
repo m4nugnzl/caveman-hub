@@ -2,8 +2,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { Camera } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { canvasSize } from '@/domain/photoLayout';
-import { weekSpan, weightDelta } from '@/domain/photos';
+import { canvasSize, isDerivedLayout } from '@/domain/photoLayout';
+import { photoWeight, weekSpan, weightDelta } from '@/domain/photos';
 import { EmptyState, Notice, Panel, StatCard } from '@/components/ui/primitives';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { usePhotoStudio } from './usePhotoStudio';
@@ -13,6 +13,8 @@ import { PhotoLibrary } from './PhotoLibrary';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioToolbar } from './StudioToolbar';
 import { SlotControls } from './SlotControls';
+import { WeekAnglePicker } from './WeekAnglePicker';
+import { ComparisonData } from './ComparisonData';
 
 /**
  * Photo Studio — comparación y montaje de fotos de progreso.
@@ -26,14 +28,40 @@ import { SlotControls } from './SlotControls';
  * aparecen agrupadas por semana, listas para comparar, montar y descargar.
  */
 export const PhotoStudio = () => {
-  const { activeClient, progressPhotos, uploadProgressPhoto, deleteProgressPhoto, refreshPhotoUrls } = useApp();
+  const {
+    activeClient,
+    progressPhotos,
+    anthropometry,
+    uploadProgressPhoto,
+    deleteProgressPhoto,
+    refreshPhotoUrls,
+  } = useApp();
 
-  const photos = useMemo(
-    () => progressPhotos.filter((p) => p.clientId === activeClient.id),
-    [progressPhotos, activeClient.id]
+  const history = useMemo(
+    () => anthropometry[activeClient.id]?.history || [],
+    [anthropometry, activeClient.id]
   );
 
-  const studio = usePhotoStudio({ photos, clientId: activeClient.id });
+  /*
+    Las fotos llegan con su peso ya resuelto desde el check-in de su semana.
+    ------------------------------------------------------------------------
+    Se calcula UNA vez aquí en lugar de en cada consumidor, para que el pie de
+    foto del lienzo, la biblioteca lateral y la tarjeta de variación no puedan
+    llegar a mostrar cifras distintas del mismo dato.
+  */
+  const photos = useMemo(
+    () =>
+      progressPhotos
+        .filter((p) => p.clientId === activeClient.id)
+        .map((p) => ({ ...p, derivedWeight: photoWeight(p, history) })),
+    [progressPhotos, activeClient.id, history]
+  );
+
+  const studio = usePhotoStudio({
+    photos,
+    clientId: activeClient.id,
+    startDate: activeClient.startDate,
+  });
   const { state, photoOf } = studio;
 
   const canvasRef = useRef(null);
@@ -48,8 +76,14 @@ export const PhotoStudio = () => {
   const images = useImageCache(urls);
 
   const size = useMemo(
-    () => canvasSize({ layout: state.layout, count: state.slots.length, ratio: state.ratio }),
-    [state.layout, state.slots.length, state.ratio]
+    () =>
+      canvasSize({
+        layout: state.layout,
+        count: state.slots.length,
+        ratio: state.ratio,
+        dims: state.dims,
+      }),
+    [state.layout, state.slots.length, state.ratio, state.dims]
   );
 
   const handleExport = useCallback(() => {
@@ -124,8 +158,16 @@ export const PhotoStudio = () => {
     );
   }
 
-  const [first, second] = state.slots.map((s) => photoOf(s.photoId));
-  const delta = weightDelta(first, second);
+  /*
+    Extremos de la comparación. En la matriz no son los dos primeros huecos sino
+    el PRIMERO y el ÚLTIMO con foto: con seis huecos, «de la semana 1 a la 12» es
+    lo que interesa, no «de la 1 a la 6».
+  */
+  const filled = state.slots.map((s) => photoOf(s.photoId)).filter(Boolean);
+  const first = filled[0] || null;
+  const second = filled.length > 1 ? filled[filled.length - 1] : null;
+
+  const delta = weightDelta(first, second, history);
   const span = weekSpan(first, second, activeClient.startDate);
 
   return (
@@ -175,23 +217,33 @@ export const PhotoStudio = () => {
 
           {(delta !== null || span !== null) && (
             <div className="grid-auto">
-              {span !== null && <StatCard label="Semanas entre fotos" value={span} color="var(--accent-cyan)" />}
+              {span !== null && <StatCard label="Semanas entre fotos" value={span} color="var(--data-blue)" />}
               {delta !== null && (
                 <StatCard
                   label="Variación de peso"
                   value={`${delta > 0 ? '+' : ''}${delta} kg`}
-                  color={delta <= 0 ? 'var(--accent-emerald)' : 'var(--accent-amber)'}
-                  sub={`De ${first.weight} kg a ${second.weight} kg`}
+                  color={delta <= 0 ? 'var(--accent)' : 'var(--data-amber)'}
+                  sub={`De ${first.derivedWeight} kg a ${second.derivedWeight} kg · según el check-in de cada semana`}
                 />
               )}
               {second?.notes && (
                 <Panel plain className="col gap-1">
                   <span className="stat-label">Notas</span>
-                  <span className="text-sm text-muted">{second.notes}</span>
+                  <span className="t-sm t-secondary">{second.notes}</span>
                 </Panel>
               )}
             </div>
           )}
+
+          {/* Dos fotos lado a lado son una impresión; «cintura −5 cm» es la
+              prueba. Va justo debajo del lienzo, no en la barra lateral, porque
+              se lee A LA VEZ que las fotos. */}
+          <ComparisonData
+            before={first}
+            after={second}
+            history={history}
+            gender={activeClient.gender}
+          />
         </div>
 
         <div className="studio-col studio-controls studio-side">
@@ -221,6 +273,20 @@ export const PhotoStudio = () => {
             onCancelText={() => setPendingText(null)}
           />
 
+          {/* En la matriz los huecos no se eligen a mano: se marcan semanas y
+              ángulos y la cuadrícula se monta sola. */}
+          {isDerivedLayout(state.layout) && (
+            <WeekAnglePicker
+              weeks={studio.weeks}
+              angles={studio.angles}
+              pickedWeeks={studio.pickedWeeks}
+              pickedAngles={studio.pickedAngles}
+              onToggleWeek={studio.toggleWeek}
+              onToggleAngle={studio.toggleAngle}
+              matrix={studio.matrix}
+            />
+          )}
+
           <SlotControls
             slots={state.slots}
             activeSlot={state.activeSlot}
@@ -233,6 +299,7 @@ export const PhotoStudio = () => {
             onRemove={studio.removeSlot}
             onAddSlot={studio.addGridSlot}
             onApplyToAll={studio.applyToAll}
+            onSwap={studio.swapSlots}
           />
         </div>
       </div>

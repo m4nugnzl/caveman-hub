@@ -64,13 +64,13 @@ export const ConfirmProvider = ({ children }) => {
         >
           <div className="row-top">
             {request.tone === 'danger' && (
-              <span style={{ color: 'var(--accent-rose)', flexShrink: 0, marginTop: 2 }}>
+              <span style={{ color: 'var(--negative)', flexShrink: 0, marginTop: 2 }}>
                 <AlertTriangle size={20} />
               </span>
             )}
             <div className="col gap-2">
-              {request.message && <p className="text-sm text-muted">{request.message}</p>}
-              {request.detail && <p className="text-xs text-dim">{request.detail}</p>}
+              {request.message && <p className="t-sm t-secondary">{request.message}</p>}
+              {request.detail && <p className="t-xs t-tertiary">{request.detail}</p>}
             </div>
           </div>
         </Modal>

@@ -26,7 +26,7 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
 
   if (draft) {
     return (
-      <div className="panel-sunken col gap-3">
+      <div className="card-inset col gap-3">
         <div className="row-end wrap gap-2">
           <Field label="Alimento" className="grow">
             {(props) => (

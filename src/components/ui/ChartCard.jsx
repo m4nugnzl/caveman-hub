@@ -19,14 +19,14 @@ export const ChartCard = ({ icon, color, title, subtitle, controls, children, no
         <SectionTitle icon={icon} color={color}>
           {title}
         </SectionTitle>
-        {subtitle && <p className="text-xs text-dim">{subtitle}</p>}
+        {subtitle && <p className="t-xs t-tertiary">{subtitle}</p>}
       </div>
       {controls && <div className="row wrap gap-2 shrink-0">{controls}</div>}
     </div>
 
     {children}
 
-    {note && <p className="text-xs text-dim">{note}</p>}
+    {note && <p className="t-xs t-tertiary">{note}</p>}
   </Panel>
 );
 
@@ -70,7 +70,7 @@ export const ChartSelect = ({ value, onChange, options, label, width = 190 }) =>
 
 /** Interruptor pequeño para variantes del propio gráfico (media móvil, etc.). */
 export const ChartToggle = ({ checked, onChange, children }) => (
-  <label className="checkbox-row text-xs">
+  <label className="checkbox-row t-xs">
     <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
     {children}
   </label>

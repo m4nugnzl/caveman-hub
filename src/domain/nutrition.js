@@ -34,10 +34,61 @@ export const emptyNutrition = () => ({
   stepsGoal: '',
   habitsNotes: [],
   hasDayVariants: false,
+  // Objetivo de los días de DESCANSO. Ver `targetsFor` más abajo.
+  restTargets: null,
   closedMeals: [],
   closedMealsTraining: [],
   closedMealsRest: [],
 });
+
+export const TARGET_FIELDS = ['targetKcals', 'proteinGrams', 'carbsGrams', 'fatsGrams'];
+
+/**
+ * Objetivo calórico y de macros de una variante.
+ *
+ * ── Por qué hay dos ─────────────────────────────────────────────────────────
+ * Activar "dos dietas (entreno / descanso)" no era solo tener dos listas de
+ * comidas: en un día de descanso cambian las calorías y el reparto de macros,
+ * que es justo el motivo de separarlos. Antes había un único objetivo para las
+ * dos variantes, así que la cifra mostrada era incorrecta en uno de los dos días.
+ *
+ * Reparto: las columnas principales de la tabla guardan el objetivo de los días
+ * de ENTRENO (o el único, si no hay variantes), y `restTargets` el de los días
+ * de descanso. Si el de descanso no se ha configurado, se hereda el de entreno,
+ * de modo que activar la opción nunca deja una cifra vacía.
+ */
+export const targetsFor = (nutrition, variant) => {
+  const base = {
+    targetKcals: nutrition?.targetKcals ?? null,
+    proteinGrams: nutrition?.proteinGrams ?? null,
+    carbsGrams: nutrition?.carbsGrams ?? null,
+    fatsGrams: nutrition?.fatsGrams ?? null,
+    stepsGoal: nutrition?.stepsGoal ?? '',
+  };
+
+  if (variant !== 'rest' || !nutrition?.hasDayVariants) return base;
+
+  const rest = nutrition.restTargets || {};
+  const hasAny = TARGET_FIELDS.some((key) => rest[key] !== null && rest[key] !== undefined && rest[key] !== '');
+  if (!hasAny) return base;
+
+  return {
+    targetKcals: rest.targetKcals ?? base.targetKcals,
+    proteinGrams: rest.proteinGrams ?? base.proteinGrams,
+    carbsGrams: rest.carbsGrams ?? base.carbsGrams,
+    fatsGrams: rest.fatsGrams ?? base.fatsGrams,
+    stepsGoal: base.stepsGoal,
+  };
+};
+
+/** Las dos variantes que hay que mostrar, según la configuración del plan. */
+export const activeVariants = (nutrition) =>
+  nutrition?.hasDayVariants
+    ? [
+        { id: 'training', label: 'Días de entreno' },
+        { id: 'rest', label: 'Días de descanso' },
+      ]
+    : [{ id: 'default', label: 'Dieta única' }];
 
 export const buildMeal = () => ({
   id: newId('meal'),

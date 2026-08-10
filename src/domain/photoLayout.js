@@ -11,9 +11,23 @@
 
 export const LAYOUTS = [
   { id: 'pair', label: 'Antes / Después', slots: 2, fixedSlots: true },
-  { id: 'grid', label: 'Rejilla', slots: null, fixedSlots: false },
+  /*
+    Matriz semanas × ángulos: una columna por semana, una fila por ángulo.
+    ------------------------------------------------------------------------
+    Es el montaje que de verdad se quiere para ver una evolución: el frontal de
+    las semanas 1, 6 y 12 en una fila y el de espaldas justo debajo. Con los
+    layouts de dos huecos había que montar tres collages y pegarlos a mano.
+
+    Sus huecos NO se eligen a mano: los calcula `weekAngleMatrix` a partir de las
+    semanas y los ángulos marcados, y se conservan los huecos vacíos para que las
+    columnas no se descoloquen cuando a una semana le falta un ángulo.
+  */
+  { id: 'matrix', label: 'Semanas × ángulos', slots: null, fixedSlots: true, derived: true },
+  { id: 'grid', label: 'Rejilla libre', slots: null, fixedSlots: false },
   { id: 'slider', label: 'Deslizador', slots: 2, fixedSlots: true },
 ];
+
+export const isDerivedLayout = (id) => Boolean(LAYOUTS.find((l) => l.id === id)?.derived);
 
 export const ASPECT_RATIOS = [
   { id: 'native', label: 'Automático', value: null },
@@ -38,17 +52,19 @@ export const gridDims = (count) => {
 };
 
 /** Proporción "natural" del lienzo para un layout, si no se fuerza otra. */
-export const nativeAspect = (layout, count) => {
+export const nativeAspect = (layout, count, dims = null) => {
   if (layout === 'slider') return SLOT_ASPECT;
   if (layout === 'pair') return (2 * SLOT_ASPECT) / 1;
-  const { cols, rows } = gridDims(count);
-  return (cols * SLOT_ASPECT) / rows;
+  // La matriz impone sus propias dimensiones: no se puede deducir del número de
+  // huecos, porque 6 huecos pueden ser 3×2 o 2×3 y no son lo mismo.
+  const { cols, rows } = layout === 'matrix' && dims ? dims : gridDims(count);
+  return (cols * SLOT_ASPECT) / Math.max(1, rows);
 };
 
 /** Tamaño del lienzo en píxeles a partir del ratio elegido. */
-export const canvasSize = ({ layout, count, ratio = 'native', width = EXPORT_WIDTH }) => {
+export const canvasSize = ({ layout, count, ratio = 'native', width = EXPORT_WIDTH, dims = null }) => {
   const preset = ASPECT_RATIOS.find((r) => r.id === ratio);
-  const aspect = preset?.value ?? nativeAspect(layout, count);
+  const aspect = preset?.value ?? nativeAspect(layout, count, dims);
   return { width: Math.round(width), height: Math.round(width / aspect) };
 };
 
@@ -70,15 +86,16 @@ export const spacing = ({ width, height, showCaptions }) => {
  * - slider → un único rectángulo a sangre (las dos fotos se superponen y la
  *            segunda se recorta según la posición del divisor)
  */
-export const slotRects = ({ layout, count, width, height, showCaptions = true }) => {
+export const slotRects = ({ layout, count, width, height, showCaptions = true, dims = null }) => {
   const { pad, gap, caption } = spacing({ width, height, showCaptions });
 
   if (layout === 'slider') {
     return [{ x: 0, y: 0, w: width, h: height, captionH: caption }];
   }
 
-  const cols = layout === 'pair' ? 2 : gridDims(count).cols;
-  const rows = layout === 'pair' ? 1 : gridDims(count).rows;
+  const matrix = layout === 'matrix' && dims;
+  const cols = layout === 'pair' ? 2 : matrix ? dims.cols : gridDims(count).cols;
+  const rows = layout === 'pair' ? 1 : matrix ? dims.rows : gridDims(count).rows;
 
   const innerW = width - pad * 2 - gap * (cols - 1);
   const innerH = height - pad * 2 - gap * (rows - 1);
@@ -86,14 +103,16 @@ export const slotRects = ({ layout, count, width, height, showCaptions = true })
   const cellH = innerH / rows;
 
   const rects = [];
-  const total = layout === 'pair' ? 2 : count;
+  const total = layout === 'pair' ? 2 : matrix ? cols * rows : count;
 
   for (let i = 0; i < total; i += 1) {
     const row = Math.floor(i / cols);
     const col = i % cols;
 
-    // Centrar la última fila cuando está incompleta.
-    const itemsInRow = Math.min(cols, total - row * cols);
+    // Centrar la última fila cuando está incompleta. En la matriz NO: las
+    // columnas son semanas y tienen que quedar alineadas entre filas, aunque a
+    // alguna le falte un ángulo.
+    const itemsInRow = matrix ? cols : Math.min(cols, total - row * cols);
     const rowOffset = ((cols - itemsInRow) * (cellW + gap)) / 2;
 
     rects.push({

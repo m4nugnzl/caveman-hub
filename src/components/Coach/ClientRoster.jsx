@@ -99,24 +99,24 @@ const ClientCard = ({ client, onUpdate }) => (
         alt=""
         width={48}
         height={48}
-        style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid var(--accent-emerald)', flexShrink: 0 }}
+        style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid var(--accent)', flexShrink: 0 }}
       />
       <div className="grow">
         <div style={{ fontWeight: 800 }}>{client.name}</div>
-        <div className="text-xs text-muted">
+        <div className="t-xs t-secondary">
           {[client.email, client.phone].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
         </div>
       </div>
-      <span className={`badge ${client.paymentStatus === 'paid' ? 'badge-ok' : 'badge-urgent'}`}>
+      <span className={`badge ${client.paymentStatus === 'paid' ? 'badge-ok' : 'badge-bad'}`}>
         <CreditCard size={10} /> {client.paymentStatus === 'paid' ? 'Al día' : 'Pendiente'}
       </span>
     </div>
 
-    <div className="panel-sunken col gap-2 text-sm">
+    <div className="card-inset col gap-2 t-sm">
       <div className="row between gap-2">
-        <span className="text-muted">Onboarding</span>
+        <span className="t-secondary">Onboarding</span>
         {client.onboardingComplete ? (
-          <span className="row gap-1" style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>
+          <span className="row gap-1" style={{ color: 'var(--accent)', fontWeight: 600 }}>
             <CheckCircle2 size={12} /> Completado
           </span>
         ) : (
@@ -131,9 +131,9 @@ const ClientCard = ({ client, onUpdate }) => (
       </div>
 
       <div className="row between gap-2">
-        <span className="text-muted">Revisión postural inicial</span>
+        <span className="t-secondary">Revisión postural inicial</span>
         {client.postureReviewed ? (
-          <span style={{ color: 'var(--accent-emerald)', fontWeight: 600 }}>Analizada</span>
+          <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Analizada</span>
         ) : (
           <button
             type="button"
@@ -147,13 +147,13 @@ const ClientCard = ({ client, onUpdate }) => (
 
       {client.gymEquipmentLink && (
         <div className="row between gap-2">
-          <span className="text-muted">Maquinaria del gimnasio</span>
+          <span className="t-secondary">Maquinaria del gimnasio</span>
           <a
             href={client.gymEquipmentLink}
             target="_blank"
             rel="noreferrer noopener"
             className="row gap-1"
-            style={{ color: 'var(--accent-cyan)', fontWeight: 600 }}
+            style={{ color: 'var(--data-blue)', fontWeight: 600 }}
           >
             <FolderCheck size={12} /> Abrir carpeta <ExternalLink size={10} />
           </a>
@@ -161,8 +161,8 @@ const ClientCard = ({ client, onUpdate }) => (
       )}
     </div>
 
-    <div className="row between wrap gap-2 text-sm">
-      <span className="text-muted">
+    <div className="row between wrap gap-2 t-sm">
+      <span className="t-secondary">
         Próxima renovación: <strong>{client.nextPaymentDate || 'sin fecha'}</strong>
       </span>
       {client.phone && (
@@ -212,30 +212,19 @@ export const ClientRoster = () => {
       <Panel className="row between wrap gap-4">
         <div>
           <h2 className="section-title">
-            <UserCheck size={19} color="var(--accent-cyan)" /> Clientes y onboarding
+            <UserCheck size={19} color="var(--data-blue)" /> Clientes y onboarding
           </h2>
-          <p className="text-sm text-muted">
+          <p className="t-sm t-secondary">
             Alta de nuevos atletas, revisión inicial y control de pagos.
           </p>
         </div>
 
         <div className="row wrap gap-3">
-          <div style={{ position: 'relative' }}>
-            <Search
-              size={15}
-              style={{
-                position: 'absolute',
-                left: 11,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)',
-                pointerEvents: 'none',
-              }}
-            />
+          <div className="searchbox">
+            <Search size={15} aria-hidden="true" />
             <input
               type="search"
               className="input"
-              style={{ paddingLeft: 34, width: 230 }}
               placeholder="Buscar por nombre o email…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -270,12 +259,12 @@ export const ClientRoster = () => {
 
       {clients.length > 0 && filtered.length === 0 && (
         <Panel>
-          <p className="text-sm text-muted">Ningún cliente coincide con la búsqueda o el filtro.</p>
+          <p className="t-sm t-secondary">Ningún cliente coincide con la búsqueda o el filtro.</p>
         </Panel>
       )}
 
       {filtered.length > 0 && (
-        <div className="grid-auto-lg">
+        <div className="grid-2">
           {filtered.map((client) => (
             <ClientCard
               key={client.id}
