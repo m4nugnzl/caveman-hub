@@ -191,7 +191,34 @@ export const macroSplit = (nutrition) => {
   };
 };
 
-export const MACRO_COLORS = { protein: '#ec4899', carbs: '#f59e0b', fats: '#22d3ee' };
+/**
+ * Los tres macros con su color, en UN SOLO SITIO.
+ *
+ * ── Por qué estaba mal ──────────────────────────────────────────────────────
+ * La tripleta estaba escrita cuatro veces —en la hoja de nutrición, en el
+ * resumen, en analítica y aquí— y aquí con la paleta chillona anterior, ya sin
+ * usar. Cuatro copias del mismo dato divergen: basta que alguien cambie una.
+ *
+ * Y la elección era mala: las grasas usaban `--data-teal`, que está a un paso del
+ * verde de marca (`--accent`). El resultado es que «grasas» se leía como el color
+ * de acento de la aplicación en lugar de como una serie más, y en los anillos y
+ * las bandas apiladas competía con todo lo demás.
+ *
+ * Ahora la tripleta son tres tintes bien separados que además no colisionan con
+ * ningún color de ESTADO —ni con el verde de acento, ni con el rojo de error, ni
+ * con el ámbar de aviso—, que era la otra fuente de confusión:
+ *
+ *   proteína → magenta   (carne)
+ *   carbos   → dorado    (cereal)
+ *   grasas   → violeta   (el único hueco libre lejos del verde y del rojo)
+ */
+export const MACROS = [
+  { key: 'protein', label: 'Proteína', short: 'P', color: 'var(--data-pink)' },
+  { key: 'carbs', label: 'Carbos', short: 'C', color: 'var(--data-amber)' },
+  { key: 'fats', label: 'Grasas', short: 'G', color: 'var(--data-violet)' },
+];
+
+export const macroColor = (key) => MACROS.find((m) => m.key === key)?.color || 'var(--data-slate)';
 
 /** Nº de comidas configuradas, contando las dos variantes si están activas. */
 export const mealsConfigured = (nutrition) =>

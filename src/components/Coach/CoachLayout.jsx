@@ -1,0 +1,153 @@
+import { useEffect } from 'react';
+import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, UserPlus } from 'lucide-react';
+
+import { useApp } from '@/context/AppContext';
+import {
+  COACH_CLIENT,
+  COACH_PRIMARY,
+  SETTINGS_SECTIONS,
+  clientPath,
+  sameSectionFor,
+} from '@/routes';
+import { EmptyState } from '@/components/ui/primitives';
+import { ClientSwitcher } from './ClientSwitcher';
+
+/**
+ * Marco del panel del entrenador: navegación de dos niveles y contenido.
+ *
+ * ── El problema que resuelve la estructura ──────────────────────────────────
+ * Antes había once pestañas en una sola fila, mezclando planos distintos:
+ * «Cartera» habla de todos los clientes, «Rutina» de uno, e «Integraciones» de
+ * ninguno. Once opciones planas obligan a leerlas todas cada vez y en el móvil se
+ * salían de la pantalla.
+ *
+ * Ahora la barra de arriba tiene TRES entradas y el segundo nivel aparece solo
+ * cuando estás dentro de algo: las secciones del cliente, o las de ajustes. Nunca
+ * los dos a la vez.
+ *
+ * El cliente activo lo manda la URL. El contexto lo sincroniza desde la ruta, no al
+ * revés: una sola fuente de verdad, la de arriba.
+ */
+export const CoachLayout = () => {
+  const { clients, selectedClientId, setSelectedClientId, activeClient } = useApp();
+  const { clientId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const hasClients = clients.length > 0;
+  const onClient = Boolean(clientId);
+  const onSettings = location.pathname.startsWith('/ajustes');
+
+  /*
+    La ruta manda sobre el contexto. `clientId` puede venir de una URL pegada, de un
+    marcador o del botón atrás, y en los tres casos el resto de la aplicación tiene
+    que estar mirando a ese cliente.
+  */
+  useEffect(() => {
+    if (clientId && clientId !== selectedClientId) setSelectedClientId(clientId);
+  }, [clientId, selectedClientId, setSelectedClientId]);
+
+  /*
+    Un id que no existe —cliente borrado, enlace viejo, URL mal copiada— no puede
+    dejar la pantalla en blanco leyendo `activeClient.id` sobre undefined, que es
+    justo lo que tumbaba la aplicación antes.
+  */
+  if (onClient && hasClients && !clients.some((c) => c.id === clientId)) {
+    return <Navigate to="/cartera" replace />;
+  }
+  if (onClient && !hasClients) return <Navigate to="/clientes" replace />;
+
+  return (
+    <div className="layout">
+      {/* ── Nivel 1: tres entradas, siempre ─────────────────────────────── */}
+      <nav className="tabs" aria-label="Secciones principales">
+        {COACH_PRIMARY.map(({ path, label, icon: Icon }) => (
+          <NavLink
+            key={path}
+            to={path}
+            className="tab"
+            /* «Ajustes» tiene que quedar marcado también en sus subrutas, y
+               «Cartera» no debe marcarse por estar dentro de un cliente. */
+            end={path !== '/ajustes'}
+          >
+            <Icon size={16} />
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* ── Nivel 2a: dentro de un cliente ──────────────────────────────── */}
+      {onClient && activeClient && (
+        <div className="subnav">
+          <div className="subnav-head">
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={() => navigate('/cartera')}
+              aria-label="Volver a la cartera"
+              title="Volver a la cartera"
+            >
+              <ArrowLeft size={16} />
+            </button>
+
+            <ClientSwitcher
+              clients={clients}
+              selectedClientId={selectedClientId}
+              /* Cambiar de cliente conserva la sección: si estabas en su
+                 nutrición, pasas a la nutrición del otro. */
+              onSelect={(id) => navigate(sameSectionFor(location.pathname, id))}
+            />
+
+            <div className="row gap-2 wrap">
+              <span
+                className={`badge ${activeClient.paymentStatus === 'paid' ? 'badge-ok' : 'badge-bad'}`}
+              >
+                {activeClient.paymentStatus === 'paid' ? 'Pago al día' : 'Pago pendiente'}
+              </span>
+              {activeClient.startDate && <span className="badge">Desde {activeClient.startDate}</span>}
+            </div>
+          </div>
+
+          <nav className="rail" aria-label={`Secciones de ${activeClient.name}`}>
+            {COACH_CLIENT.map(({ path, label, icon: Icon }) => (
+              <NavLink key={path} to={clientPath(clientId, path)} className="chip">
+                <Icon size={13} />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      {/* ── Nivel 2b: dentro de ajustes ─────────────────────────────────── */}
+      {onSettings && (
+        <div className="subnav">
+          <nav className="rail" aria-label="Secciones de ajustes">
+            {SETTINGS_SECTIONS.map(({ path, label, icon: Icon, hint }) => (
+              <NavLink key={path} to={`/ajustes/${path}`} className="chip" title={hint}>
+                <Icon size={13} />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      {!hasClients && location.pathname === '/cartera' ? (
+        <EmptyState
+          icon={UserPlus}
+          title="Todavía no tienes clientes"
+          message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
+          action={
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
+              <UserPlus size={17} /> Dar de alta un cliente
+            </button>
+          }
+        />
+      ) : (
+        <Outlet />
+      )}
+    </div>
+  );
+};

@@ -49,4 +49,17 @@ export default [
     languageOptions: { globals: { ...globals.node } },
     rules: { 'no-console': 'off' },
   },
+
+  /*
+   * Pruebas. `describe`, `it` y `expect` se inyectan… no: en este proyecto se
+   * importan explícitamente de `vitest`, así que no hacen falta globales. Lo que sí
+   * hace falta es relajar dos reglas:
+   *
+   *   · las aserciones de una prueba a veces piden comparaciones flojas;
+   *   · un `expect` con mensaje incluye datos que solo existen si falla.
+   */
+  {
+    files: ['**/*.test.js', '**/*.test.jsx'],
+    rules: { 'no-console': 'off' },
+  },
 ];

@@ -33,10 +33,16 @@ const SRC = join(ROOT, 'src');
  */
 const COLOR_EXCEPTIONS = [
   'components/ui/Logo.jsx',
+  // Logotipos de terceros: el negro de Notion y el violeta de Stripe son SU marca.
+  // Pasarlos por los tokens del tema dejaría de ser su logotipo.
+  'components/ui/BrandMark.jsx',
   'components/ui/charts.jsx',
   'components/Coach/PhotoStudio/renderComposition.js',
   'components/Coach/PhotoStudio/StudioToolbar.jsx',
   'components/Coach/PhotoStudio/usePhotoStudio.js',
+  // Compone la grabación sobre un canvas: `ctx.fillStyle` no entiende `var(--x)`,
+  // y además el vídeo tiene que verse igual en tema claro y oscuro.
+  'lib/useReviewRecorder.js',
   'domain/training.js',
   'domain/analytics.js',
   'domain/nutrition.js',

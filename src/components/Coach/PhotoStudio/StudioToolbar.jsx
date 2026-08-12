@@ -1,32 +1,74 @@
 import { useState } from 'react';
-import { ArrowUpRight, Download, Hand, Minus, Move, Type, Undo2, X } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Hand,
+  SeparatorHorizontal,
+  SeparatorVertical,
+  Slash,
+  Type,
+  Undo2,
+  X,
+} from 'lucide-react';
 
-import { ASPECT_RATIOS, LAYOUTS } from '@/domain/photoLayout';
-import { Field, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
+// Sin `Panel`: este bloque se pinta dentro de `StudioPanel`, que ya es la tarjeta.
 
-const TOOLS = [
-  { id: 'pan', label: 'Mover', icon: Hand, hint: 'Arrastra para encuadrar (o mover el divisor)' },
-  { id: 'hline', label: 'Regla —', icon: Minus, hint: 'Regla horizontal: comprueba si dos fotos están a la misma altura' },
-  { id: 'vline', label: 'Regla |', icon: Minus, hint: 'Regla vertical: comprueba anchuras y simetría', rotate: true },
-  { id: 'line', label: 'Línea', icon: Move, hint: 'Línea libre entre dos puntos' },
-  { id: 'arrow', label: 'Flecha', icon: ArrowUpRight, hint: 'Flecha para señalar un cambio' },
-  { id: 'text', label: 'Texto', icon: Type, hint: 'Etiqueta de texto' },
+/**
+ * Herramientas, agrupadas por lo que hacen.
+ *
+ * ── Por qué iconos y no seis chips con texto ────────────────────────────────
+ * Con texto, «Regla —» y «Regla |» ocupaban tanto que de las seis solo cabían tres
+ * en la columna, y las otras tres desaparecían sin dejar rastro. Y leer seis
+ * etiquetas cada vez que quieres trazar una línea es trabajo que el icono ahorra.
+ *
+ * Los grupos separan lo que no se mezcla: mover el encuadre no es anotar, una regla
+ * que cruza el montaje no es una línea entre dos puntos, y el texto va aparte
+ * porque abre un campo.
+ *
+ * ── Por qué estos glifos y no los anteriores ────────────────────────────────
+ * Los de antes no decían lo que hacía la herramienta:
+ *
+ *   · las dos reglas eran el MISMO `Minus` —un signo de restar, que se lee como
+ *     «quitar»— y la vertical era ese mismo icono girado 90° por CSS. Dos botones
+ *     con el mismo dibujo, uno torcido, parecen un apaño porque lo eran. Ahora son
+ *     `SeparatorHorizontal` y `SeparatorVertical`: una guía que cruza el montaje,
+ *     que es exactamente lo que dibujan, y cada una con su propio glifo.
+ *   · «Línea» llevaba `Move`, la cruz de cuatro flechas. Eso significa mover, no
+ *     trazar: chocaba de frente con la herramienta de al lado, que sí mueve. Ahora
+ *     `Slash`, un trazo diagonal — la forma literal de una línea entre dos puntos.
+ */
+const TOOL_GROUPS = [
+  [{ id: 'pan', label: 'Mover', icon: Hand, hint: 'Arrastra para encuadrar (o mover el divisor)' }],
+  [
+    {
+      id: 'hline',
+      label: 'Regla horizontal',
+      icon: SeparatorHorizontal,
+      hint: 'Regla horizontal: comprueba si dos fotos están a la misma altura',
+    },
+    {
+      id: 'vline',
+      label: 'Regla vertical',
+      icon: SeparatorVertical,
+      hint: 'Regla vertical: comprueba anchuras y simetría',
+    },
+  ],
+  [
+    { id: 'line', label: 'Línea', icon: Slash, hint: 'Línea libre entre dos puntos' },
+    { id: 'arrow', label: 'Flecha', icon: ArrowUpRight, hint: 'Flecha para señalar un cambio' },
+  ],
+  [{ id: 'text', label: 'Texto', icon: Type, hint: 'Etiqueta de texto sobre la imagen' }],
 ];
+
+const ALL_TOOLS = TOOL_GROUPS.flat();
 
 const COLORS = ['#10b981', '#06b6d4', '#f59e0b', '#f43f5e', '#a855f7', '#ffffff'];
 
 export const StudioToolbar = ({
   state,
-  onLayout,
-  onRatio,
   onTool,
   onColor,
-  onCaptions,
   onUndo,
   onClearAnnotations,
-  onExport,
-  exportDisabled,
-  exportHint,
   pendingText,
   onCommitText,
   onCancelText,
@@ -42,55 +84,40 @@ export const StudioToolbar = ({
   };
 
   return (
-    <Panel tight className="col gap-4">
-      <SectionTitle>Montaje</SectionTitle>
+    <div className="col gap-4">
+      <div className="col gap-2">
+        <span className="section-label">Herramienta</span>
 
-      <Field label="Composición">
-        <SegmentedControl
-          value={state.layout}
-          onChange={onLayout}
-          options={LAYOUTS.map((l) => ({ id: l.id, label: l.label }))}
-          label="Composición"
-        />
-      </Field>
-
-      <Field label="Proporción de salida">
-        {(props) => (
-          <select {...props} className="select" value={state.ratio} onChange={(e) => onRatio(e.target.value)}>
-            {ASPECT_RATIOS.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
-
-      <label className="checkbox-row">
-        <input type="checkbox" checked={state.showCaptions} onChange={(e) => onCaptions(e.target.checked)} />
-        Mostrar semana, fecha y peso sobre cada foto
-      </label>
-
-      <hr className="divider" />
-
-      <Field label="Herramienta">
-        <div className="rail-wrap" role="group" aria-label="Herramienta de anotación">
-          {TOOLS.map(({ id, label, icon: Icon, hint, rotate }) => (
-            <button
-              key={id}
-              type="button"
-              className="chip"
-              aria-pressed={state.tool === id}
-              onClick={() => onTool(id)}
-              title={hint}
-            >
-              <Icon size={13} style={rotate ? { transform: 'rotate(90deg)' } : undefined} /> {label}
-            </button>
+        <div className="toolbar" role="group" aria-label="Herramienta de anotación">
+          {TOOL_GROUPS.map((group, index) => (
+            <div className="toolbar-group" key={group[0].id}>
+              {index > 0 && <span className="toolbar-sep" aria-hidden="true" />}
+              {group.map(({ id, label, icon: Icon, hint }) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="tool"
+                  aria-pressed={state.tool === id}
+                  aria-label={label}
+                  onClick={() => onTool(id)}
+                  title={hint}
+                >
+                  <Icon size={16} />
+                </button>
+              ))}
+            </div>
           ))}
         </div>
-      </Field>
 
-      <Field label="Color de la anotación">
+        {/* El nombre de la herramienta activa, debajo: los iconos son rápidos de
+            pulsar pero no se explican solos la primera vez. */}
+        <span className="t-xs t-tertiary">
+          {ALL_TOOLS.find((t) => t.id === state.tool)?.hint}
+        </span>
+      </div>
+
+      <div className="col gap-2">
+        <span className="section-label">Color</span>
         <div className="swatches">
           {COLORS.map((c) => (
             <button
@@ -104,7 +131,7 @@ export const StudioToolbar = ({
             />
           ))}
         </div>
-      </Field>
+      </div>
 
       {pendingText && (
         <form className="card-inset col gap-2" onSubmit={commitText}>
@@ -135,31 +162,22 @@ export const StudioToolbar = ({
         </form>
       )}
 
-      <div className="row gap-2 wrap">
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={onUndo}
-          disabled={state.annotations.length === 0}
-        >
-          <Undo2 size={13} /> Deshacer
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={onClearAnnotations}
-          disabled={state.annotations.length === 0}
-        >
-          Limpiar anotaciones
-        </button>
-      </div>
-
-      <hr className="divider" />
-
-      <button type="button" className="btn btn-primary btn-block" onClick={onExport} disabled={exportDisabled}>
-        <Download size={16} /> Descargar PNG
-      </button>
-      {exportHint && <p className="t-xs t-secondary">{exportHint}</p>}
-    </Panel>
+      {state.annotations.length > 0 && (
+        <div className="row between wrap gap-2">
+          <span className="t-xs t-tertiary">
+            {state.annotations.length}{' '}
+            {state.annotations.length === 1 ? 'anotación' : 'anotaciones'}
+          </span>
+          <div className="row gap-2">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onUndo}>
+              <Undo2 size={13} /> Deshacer
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onClearAnnotations}>
+              Limpiar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

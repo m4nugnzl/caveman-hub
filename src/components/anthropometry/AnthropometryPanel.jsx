@@ -106,7 +106,10 @@ export const AnthropometryPanel = ({
     cuanto toca el campo, deja de proponerse.
   */
   const [touched, setTouched] = useState(false);
-  const suggestedWeight = useMemo(() => weeklyCheckIn(history, todayISO()).average, [history]);
+  // El check-in completo, no solo el promedio: hace falta el número de pesajes
+  // para poder decir de cuántos sale la media que se propone.
+  const weekCheckIn = useMemo(() => weeklyCheckIn(history, todayISO()), [history]);
+  const suggestedWeight = weekCheckIn.average;
 
   useEffect(() => {
     if (touched) return;
@@ -277,16 +280,32 @@ export const AnthropometryPanel = ({
             )}
           </Field>
 
-          {suggestedWeight !== null && !touched && (
-            <span className="badge badge-info shrink-0" style={{ alignSelf: 'center' }}>
-              promedio de la semana
-            </span>
-          )}
-
           <button type="submit" className="btn btn-primary btn-lg shrink-0">
             <Save size={16} /> Guardar
           </button>
         </div>
+
+        {/*
+          De dónde sale el número, dicho DEBAJO de la fila y no al lado del campo.
+          ----------------------------------------------------------------------
+          Antes era una insignia hermana de los dos campos dentro de un `.row-end`:
+          con `align-items: flex-end` quedaba pegada al borde inferior de las cajas
+          y con `alignSelf: center` flotando a media altura entre ellas. En los dos
+          casos parecía un trozo suelto, porque no estaba anclada a nada.
+
+          Y decía menos de lo que hacía falta: «promedio de la semana» no dice
+          CUÁNTO ni DE CUÁNTOS pesajes, que es lo que permite decidir si el valor
+          propuesto sirve o hay que corregirlo. Ahora lo dice, ocupa el ancho
+          completo —así no puede descolocar ninguna caja— y desaparece en cuanto
+          se escribe encima, porque entonces ya no describe lo que hay.
+        */}
+        {suggestedWeight !== null && !touched && (
+          <p className="t-xs t-tertiary">
+            Propuesto: <strong>{suggestedWeight} kg</strong>, el promedio de{' '}
+            {weekCheckIn.count === 1 ? 'tu pesaje' : `tus ${weekCheckIn.count} pesajes`} de esta
+            semana. Escribe encima si quieres registrar otro valor.
+          </p>
+        )}
 
         <div className="col gap-3">
           <button

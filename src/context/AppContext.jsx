@@ -8,6 +8,8 @@ import { toNum } from '@/lib/num';
 import {
   mapAnthroFromDb,
   mapAnthroToDb,
+  mapCheckInFromDb,
+  mapEventFromDb,
   mapClientFromDb,
   mapClientToDb,
   mapLibraryExerciseFromDb,
@@ -21,6 +23,7 @@ import {
 } from '@/lib/mappers';
 import {
   buildMicrocycle,
+  blankDays,
   cloneDays,
   emptyWorkoutData,
   findMicrocycle,
@@ -38,7 +41,7 @@ import {
   buildOption,
   emptyNutrition,
 } from '@/domain/nutrition';
-import { buildPhotoPath, validatePhotoFile } from '@/domain/photos';
+import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
 import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessions';
 
 const AppContext = createContext(null);
@@ -80,6 +83,9 @@ export const AppProvider = ({ children }) => {
   const [team, setTeam] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
 
+  /** Último check-in por cliente. Vacío si la migración 0009 no está aplicada. */
+  const [checkIns, setCheckIns] = useState({});
+
   const [saveState, setSaveState] = useState({});
 
   // ── Cola de guardado ─────────────────────────────────────────────────────
@@ -97,12 +103,51 @@ export const AppProvider = ({ children }) => {
   }
   const queue = queueRef.current;
 
+  /**
+   * Estado de guardado de un dominio.
+   *
+   * ── Por qué «workout» mira también las claves `set:` ────────────────────────
+   * Cuando el cliente registra una serie no se guarda el bloque completo, sino un
+   * campo concreto con `log_session_set` (ver 0014), y cada campo tiene su propia
+   * clave de cola para que kg, reps y RIR no se pisen. Eso deja al indicador de
+   * guardado sin nada que mirar: la clave `workout:<id>` ya no se usa en el portal
+   * del cliente, y el indicador diría «guardado» sin que se haya guardado nada.
+   *
+   * Así que para `workout` se agrega: cualquier campo fallando pone el indicador en
+   * error —un fallo silencioso es exactamente lo que la cola existe para evitar—, y
+   * cualquiera en vuelo lo pone en «guardando».
+   */
   const saveStatus = useCallback(
-    (domain, clientId) => saveState[`${domain}:${clientId}`] || EMPTY_SAVE_STATE,
+    (domain, clientId) => {
+      const own = saveState[`${domain}:${clientId}`];
+      if (domain !== 'workout') return own || EMPTY_SAVE_STATE;
+
+      const prefix = `set:${clientId}:`;
+      const parts = Object.entries(saveState).filter(([key]) => key.startsWith(prefix));
+      if (parts.length === 0) return own || EMPTY_SAVE_STATE;
+
+      const failed = parts.find(([, s]) => s.status === 'error');
+      if (failed) return failed[1];
+      if (parts.some(([, s]) => s.status === 'saving')) return { status: 'saving', error: null };
+      if (own?.status === 'error' || own?.status === 'saving') return own;
+      return { status: 'saved', error: null };
+    },
     [saveState]
   );
 
-  const retrySave = useCallback((domain, clientId) => queue.retry(`${domain}:${clientId}`), [queue]);
+  const retrySave = useCallback(
+    (domain, clientId) => {
+      queue.retry(`${domain}:${clientId}`);
+      // Y los campos sueltos que hayan fallado, que son los que de verdad tiene
+      // pendientes el cliente.
+      if (domain === 'workout') {
+        for (const key of Object.keys(saveState)) {
+          if (key.startsWith(`set:${clientId}:`) && saveState[key]?.status === 'error') queue.retry(key);
+        }
+      }
+    },
+    [queue, saveState]
+  );
 
   /** ¿Hay algo escrito que todavía no está confirmado en el servidor? */
   const hasUnsavedChanges = useMemo(
@@ -191,6 +236,40 @@ export const AppProvider = ({ children }) => {
       queue.enqueue(`${domain}:${clientId}`, payload, senders[domain], { immediate });
     },
     [queue, upsertClientRow]
+  );
+
+  /**
+   * Guarda UN campo de UNA serie, por su propia clave de cola.
+   *
+   * Es el camino del cliente. Ver `log_session_set` en la migración 0014 y el
+   * comentario largo en `logSessionSet`: el cliente no tiene UPDATE sobre
+   * `workout_data` porque ese permiso, sobre una fila que contiene el programa
+   * completo en un jsonb, le habría permitido reescribirlo entero.
+   *
+   * La clave incluye el campo para que kg, reps y RIR de la misma serie no se
+   * sustituyan entre sí en la cola —que solo retiene el último payload por clave—.
+   */
+  const persistSet = useCallback(
+    (key, clientId, args) => {
+      queue.enqueue(
+        key,
+        args,
+        (data) =>
+          supabase.rpc('log_session_set', {
+            p_client: clientId,
+            p_week: data.weekNumber,
+            p_session_id: data.sessionId,
+            p_date: data.date,
+            p_day_name: data.dayName,
+            p_exercise_id: data.exercise.id,
+            p_set_index: data.setIndex,
+            p_field: data.field,
+            p_value: String(data.value ?? ''),
+          }),
+        { immediate: false }
+      );
+    },
+    [queue]
   );
 
   // ── Carga inicial ────────────────────────────────────────────────────────
@@ -333,6 +412,7 @@ export const AppProvider = ({ children }) => {
         setAnthropometry({});
         setNutrition({});
         setProgressPhotos([]);
+        setCheckIns({});
         return;
       }
 
@@ -365,6 +445,34 @@ export const AppProvider = ({ children }) => {
         Object.fromEntries((nutri.data || []).map((r) => [r.client_id, mapNutritionFromDb(r)]))
       );
 
+      /*
+        Check-ins: el ÚLTIMO de cada cliente.
+        --------------------------------------------------------------------
+        Solo hace falta el más reciente para saber si hay algo por revisar hoy;
+        traer el histórico completo de veinte clientes serían cientos de filas que
+        nadie mira. Como con los equipos, si la tabla no existe (migración 0009 sin
+        aplicar) se ignora el error: significa «todavía no hay check-ins cerrados»
+        y el tablero deduce el estado de los datos que ya hay.
+      */
+      const checkInRes = await supabase
+        .from('check_ins')
+        .select('*')
+        .in('client_id', ids)
+        .order('week_start', { ascending: false });
+
+      if (isStale()) return;
+      setCheckIns(
+        checkInRes.error
+          ? {}
+          : Object.fromEntries(
+              (checkInRes.data || [])
+                .map(mapCheckInFromDb)
+                // El primero de cada cliente es el más reciente: el orden ya viene
+                // dado, así que la primera entrada gana.
+                .reduce((acc, row) => (acc.has(row.clientId) ? acc : acc.set(row.clientId, row)), new Map())
+            )
+      );
+
       const nameOf = (clientId) => mappedClients.find((c) => c.id === clientId)?.name;
       const mappedPhotos = (photos.data || []).map((r) => mapPhotoFromDb(r, nameOf(r.client_id)));
       const withUrls = await resolvePhotoUrls(mappedPhotos);
@@ -394,6 +502,7 @@ export const AppProvider = ({ children }) => {
     setSelectedClientId('');
     setTeam(null);
     setTeamMembers([]);
+    setCheckIns({});
   }, [queue, setAnthropometry, setClients, setNutrition, setProgressPhotos, setWorkoutData]);
 
   useEffect(() => {
@@ -450,14 +559,22 @@ export const AppProvider = ({ children }) => {
    * y encola el guardado. Devuelve el nuevo valor para que quien llame pueda
    * derivar datos (ej. el número de la semana creada) sin esperar a React.
    */
+  /**
+   * @param skipPersist  Actualiza solo el estado local. Lo usa el cliente al
+   *   registrar una serie: el dato se guarda por otro camino —la función
+   *   `log_session_set`, que escribe únicamente ese campo— porque el cliente no
+   *   tiene permiso para reescribir el bloque completo. Sin esta opción, cada
+   *   tecleo suyo lanzaría además un upsert que la base de datos rechazaría, y el
+   *   indicador de guardado mostraría un error por cada letra.
+   */
   const applyWorkout = useCallback(
-    (clientId, updater, { immediate = true } = {}) => {
+    (clientId, updater, { immediate = true, skipPersist = false } = {}) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       const next = updater(current);
       if (next === current) return current;
 
       setWorkoutData({ ...workoutRef.current, [clientId]: next });
-      persist('workout', clientId, next, { immediate });
+      if (!skipPersist) persist('workout', clientId, next, { immediate });
       return next;
     },
     [persist, setWorkoutData, workoutRef]
@@ -596,21 +713,64 @@ export const AppProvider = ({ children }) => {
         sessions = [...sessions, created];
       }
 
-      applyMicrocycle(
-        clientId,
-        weekNumber,
-        (m) => ({
-          ...m,
-          sessions: sessions.map((s) =>
-            s.id === targetId ? withSessionSet(s, exercise, setIndex, field, value) : s
-          ),
-        }),
-        { immediate: false }
+      /*
+        ── Dos caminos para el mismo dato, y el motivo es de permisos ──────────
+        El estado local se actualiza igual en los dos casos: la interfaz tiene que
+        responder al instante y no depender de la red. Lo que cambia es CÓMO se
+        persiste.
+
+        El ENTRENADOR reescribe el jsonb completo. Es lo correcto para él: está
+        editando el programa, que es suyo, y tiene UPDATE sobre la fila.
+
+        El CLIENTE llama a `log_session_set` (migración 0014), que recibe qué serie
+        y qué valor y escribe solo eso. Antes usaba el mismo camino que el
+        entrenador, y eso significaba darle UPDATE sobre la fila entera: como RLS
+        filtra filas y no columnas, ese permiso —concedido para anotar «8
+        repeticiones»— le alcanzaba para borrarse el programa completo desde la
+        consola del navegador. No hacía falta mala intención: una pestaña vieja
+        guardando su copia en caché encima de la actual bastaba.
+
+        Es el mismo arreglo que se hizo con `preferences` en la 0008: el permiso
+        pasa de ser una fila a ser una operación.
+      */
+      const nextSessions = sessions.map((s) =>
+        s.id === targetId ? withSessionSet(s, exercise, setIndex, field, value) : s
       );
+
+      if (profileRole === 'client') {
+        // Estado local sin persistir el bloque: `skipPersist` evita el upsert que
+        // ya no está permitido.
+        applyMicrocycle(clientId, weekNumber, (m) => ({ ...m, sessions: nextSessions }), {
+          skipPersist: true,
+        });
+
+        /*
+          Una clave de cola por CAMPO: cada tecleo sustituye el valor anterior de
+          ese campo, y kg, reps y RIR no se pisan entre sí. Si la clave fuera por
+          día, la cola solo guardaría el último payload y perdería los otros dos.
+
+          El id de la sesión se genera aquí y se manda siempre el mismo, así que las
+          tres llamadas escriben en la misma sesión aunque lleguen a la vez.
+        */
+        persistSet(`set:${clientId}:${targetId}:${exercise.id}:${setIndex}:${field}`, clientId, {
+          weekNumber,
+          sessionId: targetId,
+          date,
+          dayName,
+          exercise,
+          setIndex,
+          field,
+          value,
+        });
+      } else {
+        applyMicrocycle(clientId, weekNumber, (m) => ({ ...m, sessions: nextSessions }), {
+          immediate: false,
+        });
+      }
 
       return targetId;
     },
-    [applyMicrocycle, workoutRef]
+    [applyMicrocycle, persistSet, profileRole, workoutRef]
   );
 
   const updateSession = useCallback(
@@ -868,6 +1028,73 @@ export const AppProvider = ({ children }) => {
       return newWeek;
     },
     [applyWorkout, workoutRef]
+  );
+
+  /**
+   * Continúa el programa una semana más, con la estructura de la última y sin
+   * ningún número.
+   *
+   * ── Por qué la necesita el CLIENTE y no solo el entrenador ──────────────────
+   * El entrenador programa la estructura una vez y el cliente la va rellenando
+   * semana a semana. Si cada semana nueva tuviera que crearla el entrenador, el
+   * cliente se quedaría bloqueado al acabar la última: o entrena sin registrar
+   * nada, o escribe encima de la semana anterior y borra su propio histórico. Las
+   * dos salidas pierden datos, y la segunda los pierde sin avisar.
+   *
+   * ── Por qué se distingue de `cloneMicrocycle` ──────────────────────────────
+   * `cloneMicrocycle` trae los kilos de la semana copiada, que es lo que el
+   * entrenador quiere al duplicar. Aquí sería un desastre: los números aparecerían
+   * rellenos sin haber entrenado y la analítica los contaría como reales. Por eso
+   * `blankDays` y no `cloneDays`.
+   *
+   * ── Sobre el permiso ───────────────────────────────────────────────────────
+   * El cliente ya tiene UPDATE sobre `workout_data` para registrar sus series, y
+   * como RLS filtra filas y no columnas, ese permiso alcanza al JSONB completo.
+   * Esto no abre ninguna puerta nueva: usa la que ya estaba abierta por el diseño
+   * de un único bloque `microcycles`.
+   */
+  const continueProgram = useCallback(
+    (clientId) => {
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      if (current.microcycles.length === 0) return null;
+
+      const last = [...current.microcycles].sort((a, b) => b.weekNumber - a.weekNumber)[0];
+      const newWeek = nextWeekNumber(current.microcycles);
+      const days = blankDays(last.days || []);
+
+      /*
+        Igual que al registrar series: el estado local se actualiza en los dos
+        casos, y lo que cambia es quién puede escribir el bloque.
+
+        El cliente no puede —ni debe— reescribir `microcycles`, así que llama a
+        `continue_program` (0014), que construye la semana EN EL SERVIDOR copiando
+        la estructura de la última y vaciando los valores. La diferencia importa:
+        lo que se le concede es «duplica la última semana en blanco», no «guárdame
+        este programa».
+
+        La semana local y la del servidor se construyen con la misma regla, así que
+        coinciden salvo en los identificadores, que se recolocan en la próxima carga.
+      */
+      applyWorkout(
+        clientId,
+        (cd) => ({
+          ...cd,
+          microcycles: [...cd.microcycles, buildMicrocycle({ weekNumber: newWeek, days })],
+        }),
+        { skipPersist: profileRole === 'client' }
+      );
+
+      if (profileRole === 'client') {
+        queue.enqueue(
+          `continue:${clientId}:${newWeek}`,
+          newWeek,
+          () => supabase.rpc('continue_program', { p_client: clientId }),
+          { immediate: true }
+        );
+      }
+      return newWeek;
+    },
+    [applyWorkout, profileRole, queue, workoutRef]
   );
 
   // ── Copiar entre clientes ────────────────────────────────────────────────
@@ -1501,6 +1728,28 @@ export const AppProvider = ({ children }) => {
     [clientsRef, persist, setClients]
   );
 
+  /**
+   * Enlace de invitación de un cliente (migración 0015).
+   *
+   * Es lo que hace que el portal del cliente sea alcanzable: `client_profile_id`
+   * existía desde el principio y no había ninguna pantalla que lo rellenara, así que
+   * la única forma de que un cliente entrara era escribir su uuid a mano en la base
+   * de datos.
+   *
+   * Devuelve la URL completa y no solo el token: lo que el entrenador va a hacer es
+   * pegarla en un WhatsApp.
+   */
+  const createInvite = useCallback(async (clientId) => {
+    const { data, error } = await supabase.rpc('create_client_invite', { target: clientId });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, token: data, url: `${window.location.origin}/invitacion/${data}` };
+  }, []);
+
+  const revokeInvite = useCallback(async (clientId) => {
+    const { error } = await supabase.rpc('revoke_client_invite', { target: clientId });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
   const addClient = useCallback(
     async (clientData) => {
       const userId = session?.user?.id;
@@ -1536,6 +1785,409 @@ export const AppProvider = ({ children }) => {
     },
     [clientsRef, session, setClients, team]
   );
+
+  /**
+   * Vuelve a leer las fichas de los clientes.
+   *
+   * ── Por qué hace falta ──────────────────────────────────────────────────────
+   * Las integraciones escriben `payment_status` y `next_payment_date` desde el
+   * SERVIDOR, con `service_role`, porque el estado lo decide la función después de
+   * conciliar. La aplicación no se enteraba: su lista de clientes era la de la carga
+   * inicial, así que después de sincronizar Notion se veía al cliente recién creado
+   * sin pago —«no les coge el pago»— cuando en la base de datos ya lo tenía.
+   *
+   * Es el mismo problema que tendría cualquier escritura hecha por fuera de la
+   * aplicación, y la solución es la misma: releer cuando se sabe que algo ha
+   * cambiado ahí fuera.
+   */
+  const reloadClients = useCallback(async () => {
+    const { data, error } = await supabase.from('clients').select('*').order('created_at');
+    if (error) return { ok: false, error: error.message };
+    setClients((data || []).map(mapClientFromDb));
+    return { ok: true };
+  }, [setClients]);
+
+  // ── Integraciones ────────────────────────────────────────────────────────
+  //
+  // Se cargan a demanda desde su pantalla: son una o dos filas que no hacen falta
+  // para nada más. Si las tablas no existen (migración 0010 sin aplicar), la
+  // pantalla lo dice.
+
+  const loadIntegration = useCallback(
+    async (provider = 'notion') => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('provider', provider)
+        .maybeSingle();
+
+      if (error) return { ok: false, error: error.message, integration: null };
+      if (!data) return { ok: true, integration: null, hasToken: false };
+
+      // Del token solo se puede saber SI existe: no hay forma de leerlo desde el
+      // cliente, y eso es deliberado (ver migración 0010).
+      const { data: hasToken } = await supabase.rpc('integration_has_token', {
+        integration: data.id,
+      });
+
+      // Lo mismo con el secreto de firma del webhook. Falla en silencio si la
+      // migración 0013 no está aplicada: entonces simplemente no hay webhook.
+      const { data: webhook } = await supabase
+        .rpc('integration_has_webhook', { integration: data.id })
+        .then((r) => r, () => ({ data: false }));
+
+      return {
+        ok: true,
+        hasToken: Boolean(hasToken),
+        hasWebhook: Boolean(webhook),
+        integration: {
+          id: data.id,
+          provider: data.provider,
+          label: data.label,
+          config: data.config || {},
+          status: data.status,
+          lastSyncAt: data.last_sync_at,
+          lastError: data.last_error,
+          // Sin 0013 estas columnas no existen y llegan como undefined: la
+          // pantalla lo lee como «todavía no ha llegado ningún evento».
+          lastEventAt: data.last_event_at || null,
+          eventCount: data.event_count || 0,
+        },
+      };
+    },
+    [session]
+  );
+
+  const saveIntegration = useCallback(
+    async ({ id, provider = 'notion', config, label }) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const row = {
+        owner_id: userId,
+        provider,
+        config,
+        label,
+        team_id: team?.id ?? null,
+        updated_at: new Date().toISOString(),
+      };
+
+      const query = id
+        ? supabase.from('integrations').update(row).eq('id', id).select().single()
+        : supabase.from('integrations').insert(row).select().single();
+
+      const { data, error } = await query;
+      return error ? { ok: false, error: error.message } : { ok: true, id: data.id };
+    },
+    [session, team]
+  );
+
+  const setIntegrationToken = useCallback(async (integrationId, token) => {
+    const { error } = await supabase.rpc('set_integration_token', {
+      integration: integrationId,
+      token,
+    });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  /**
+   * Llama a la Edge Function.
+   *
+   * `functions.invoke` manda el JWT de la sesión automáticamente, que es lo que la
+   * función usa para comprobar —vía RLS— que la integración es del que llama. El
+   * token de Notion no pasa por aquí en ningún momento.
+   */
+  const runIntegration = useCallback(async (integrationId, action) => {
+    const { data, error } = await supabase.functions.invoke('notion-payments', {
+      body: { integrationId, action },
+    });
+
+    if (error) {
+      // El cuerpo del error trae el mensaje útil; `error.message` a secas suele ser
+      // un genérico «non-2xx status code» que no ayuda a nadie.
+      const detail = await error.context?.json?.().catch(() => null);
+      return { ok: false, error: detail?.error || error.message };
+    }
+    return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
+  }, []);
+
+  /**
+   * Da de alta un cliente A PARTIR de un nombre de Notion y lo vincula.
+   *
+   * ── Por qué esto es lo que faltaba ──────────────────────────────────────────
+   * La conciliación solo sabía emparejar con clientes que YA existían. Pero el caso
+   * real es el contrario: el entrenador lleva años cobrando en Notion y su cartera
+   * entera está ahí, mientras que en la aplicación no hay nadie. Sin esto la
+   * integración enseñaba catorce nombres seguidos con «¿Está dado de alta en
+   * Clientes?» y no ofrecía ninguna forma de darlos de alta — que es exactamente lo
+   * que hacía que no sirviera de nada.
+   *
+   * Con esto, la tabla de pagos se convierte en el alta masiva de la cartera: un
+   * toque por persona y el pago queda ya asignado.
+   */
+  const createClientFromExternal = useCallback(
+    async ({ integrationId, externalKey, externalLabel }) => {
+      const created = await addClient({ name: String(externalLabel || '').trim() });
+      if (!created.ok) return created;
+
+      // Vincular a la vez que se crea: si no, el siguiente sincronizado volvería a
+      // preguntar por el mismo nombre.
+      const linked = await supabase.from('client_external_refs').upsert(
+        {
+          integration_id: integrationId,
+          external_key: externalKey,
+          external_label: externalLabel,
+          client_id: created.client.id,
+          linked_by: session?.user?.id,
+        },
+        { onConflict: 'integration_id,external_key' }
+      );
+
+      if (linked.error) return { ok: false, error: linked.error.message };
+      return { ok: true, client: created.client };
+    },
+    [addClient, session]
+  );
+
+  /**
+   * Guarda el secreto de firma del webhook de Stripe.
+   *
+   * Va por su propia función (migración 0013) y no por un UPDATE: la tabla de
+   * secretos no tiene políticas, así que ni el dueño puede escribirla desde el
+   * navegador. La función comprueba además que empiece por «whsec_», que es el
+   * error más común: pegar la clave de API en el hueco del secreto de firma.
+   */
+  const setWebhookSecret = useCallback(async (integrationId, secret) => {
+    const { error } = await supabase.rpc('set_integration_webhook_secret', {
+      integration: integrationId,
+      secret,
+    });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  /** Lo mismo para Stripe, que tiene su propia función. */
+  const runStripe = useCallback(async (integrationId, action) => {
+    const { data, error } = await supabase.functions.invoke('stripe-payments', {
+      body: { integrationId, action },
+    });
+    if (error) {
+      const detail = await error.context?.json?.().catch(() => null);
+      return { ok: false, error: detail?.error || error.message };
+    }
+    return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
+  }, []);
+
+  /** Confirma que una cadena de Notion corresponde a un cliente, para siempre. */
+  const linkExternalName = useCallback(
+    async ({ integrationId, externalKey, externalLabel, clientId }) => {
+      const userId = session?.user?.id;
+      const { error } = await supabase.from('client_external_refs').upsert(
+        {
+          integration_id: integrationId,
+          external_key: externalKey,
+          external_label: externalLabel,
+          client_id: clientId,
+          linked_by: userId,
+        },
+        { onConflict: 'integration_id,external_key' }
+      );
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
+    [session]
+  );
+
+  // ── Vídeos de revisión ───────────────────────────────────────────────────
+  //
+  // Se guardan en el MISMO bucket y con el mismo esquema de rutas que las fotos
+  // (`<clientId>/…`), así que las políticas de Storage de la migración 0007 ya los
+  // cubren sin tocar nada: acotan por el primer segmento de la ruta.
+  //
+  // Y no hacen falta filas en ninguna tabla: se listan directamente de Storage. Un
+  // registro en base de datos solo añadiría algo si hubiera que guardar metadatos
+  // (visto por el cliente, comentarios), y eso todavía no existe.
+
+  const uploadReview = useCallback(
+    async ({ clientId, blob, mimeType, label }) => {
+      if (!blob || blob.size === 0) return { ok: false, error: 'La grabación está vacía.' };
+
+      const extension = mimeType?.includes('mp4') ? 'mp4' : 'webm';
+      const path = `${clientId}/reviews/${Date.now()}-${slugify(label || 'revision')}.${extension}`;
+
+      const { error } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, blob, { contentType: mimeType || 'video/webm', upsert: false });
+
+      if (error) return { ok: false, error: error.message };
+
+      // Se firma más largo que las fotos: un vídeo se manda por WhatsApp y el
+      // cliente lo abre cuando puede, no en los siguientes minutos.
+      const signed = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7);
+      return { ok: true, path, url: signed.data?.signedUrl || null };
+    },
+    []
+  );
+
+  const listReviews = useCallback(async (clientId) => {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list(`${clientId}/reviews`, { sortBy: { column: 'name', order: 'desc' } });
+
+    if (error) return { ok: false, error: error.message, reviews: [] };
+
+    const paths = (data || []).filter((f) => f.id).map((f) => `${clientId}/reviews/${f.name}`);
+    if (paths.length === 0) return { ok: true, reviews: [] };
+
+    const signed = await supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60 * 24 * 7);
+    const urlByPath = new Map((signed.data || []).map((s) => [s.path, s.signedUrl]));
+
+    return {
+      ok: true,
+      reviews: paths.map((path, index) => ({
+        path,
+        url: urlByPath.get(path) || null,
+        name: data[index].name,
+        // El nombre empieza por el timestamp de la subida: es la fecha sin
+        // necesitar una tabla.
+        createdAt: Number(data[index].name.split('-')[0]) || null,
+        size: data[index].metadata?.size ?? null,
+      })),
+    };
+  }, []);
+
+  /**
+   * Crea el enlace permanente de un vídeo y devuelve su URL pública.
+   *
+   * El token lo genera la base de datos (migración 0011), no el navegador: así no
+   * depende de la calidad de su generador aleatorio y no se puede forzar uno
+   * elegido a mano.
+   */
+  const createReviewLink = useCallback(async ({ clientId, path, title, weekStart, notes }) => {
+    const { data, error } = await supabase.rpc('create_review_link', {
+      target: clientId,
+      path,
+      link_title: title || null,
+      week: weekStart || null,
+      link_notes: notes || null,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, token: data, url: `${window.location.origin}/r/${data}` };
+  }, []);
+
+  /** Enlaces ya creados de un cliente, con sus visitas. */
+  const listReviewLinks = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('review_links')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+
+    if (error) return { ok: false, error: error.message, links: [] };
+    return {
+      ok: true,
+      links: (data || []).map((row) => ({
+        id: row.id,
+        token: row.token,
+        path: row.storage_path,
+        title: row.title,
+        weekStart: row.week_start,
+        createdAt: row.created_at,
+        revokedAt: row.revoked_at,
+        firstViewedAt: row.first_viewed_at,
+        lastViewedAt: row.last_viewed_at,
+        viewCount: row.view_count,
+        url: `${window.location.origin}/r/${row.token}`,
+      })),
+    };
+  }, []);
+
+  /** Revocar: el enlace deja de servir sin borrar que existió ni sus visitas. */
+  const revokeReviewLink = useCallback(async (id) => {
+    const { error } = await supabase
+      .from('review_links')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('id', id);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  const deleteReview = useCallback(async (path) => {
+    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  // ── Calendario ───────────────────────────────────────────────────────────
+  //
+  // Los eventos se cargan por cliente y a demanda, no todos al arrancar: son la
+  // única cosa del proyecto que crece sin techo con el tiempo, y nadie mira el
+  // calendario de veinte clientes a la vez.
+
+  const loadEvents = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('client_events')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date');
+
+    // Sin la migración 0009 la tabla no existe: se devuelve vacío y la pantalla
+    // avisa, en lugar de tratarlo como un fallo de carga.
+    if (error) return { ok: false, error: error.message, events: [] };
+    return { ok: true, events: (data || []).map(mapEventFromDb) };
+  }, []);
+
+  const addClientEvent = useCallback(
+    async ({ clientId, date, kind, title }) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const { data, error } = await supabase
+        .from('client_events')
+        // `created_by` lo exige la política: cada uno crea lo suyo, y así se sabe
+        // quién puso cada cosa cuando el entrenador y el cliente comparten el mes.
+        .insert({ client_id: clientId, date, kind, title, created_by: userId })
+        .select()
+        .single();
+
+      if (error) return { ok: false, error: error.message };
+      return { ok: true, event: mapEventFromDb(data) };
+    },
+    [session]
+  );
+
+  const setEventDone = useCallback(async (eventId, done) => {
+    const { error } = await supabase.from('client_events').update({ done }).eq('id', eventId);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  const removeClientEvent = useCallback(async (eventId) => {
+    const { error } = await supabase.from('client_events').delete().eq('id', eventId);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  // ── Check-ins ────────────────────────────────────────────────────────────
+
+  /**
+   * Marca un check-in como revisado.
+   *
+   * Va por la función `review_check_in` (migración 0009) y no por un UPDATE, para
+   * que quede registrado QUIÉN lo revisó sin que la aplicación tenga que acordarse
+   * de mandarlo — que es justo el dato que se olvida y luego se echa en falta con
+   * un equipo de varios entrenadores.
+   */
+  const reviewCheckIn = useCallback(async (checkInId, notes = null) => {
+    const { error } = await supabase.rpc('review_check_in', { check_in: checkInId, notes });
+    if (error) return { ok: false, error: error.message };
+
+    // Se refleja en local sin recargar: la revisión es un gesto y tiene que
+    // desaparecer del tablero al instante.
+    setCheckIns((prev) => {
+      const entry = Object.values(prev).find((c) => c.id === checkInId);
+      if (!entry) return prev;
+      return { ...prev, [entry.clientId]: { ...entry, reviewedAt: new Date().toISOString() } };
+    });
+    return { ok: true };
+  }, []);
 
   // ── Equipo ───────────────────────────────────────────────────────────────
   //
@@ -1708,6 +2360,7 @@ export const AppProvider = ({ children }) => {
       startProgram,
       appendMicrocycle,
       cloneMicrocycle,
+      continueProgram,
       removeMicrocycle,
       copyDayToClient,
       copyMicrocycleToClient,
@@ -1747,6 +2400,35 @@ export const AppProvider = ({ children }) => {
       updateClient,
       updateClientPreferences,
 
+      // Integraciones
+      reloadClients,
+      createInvite,
+      revokeInvite,
+      loadIntegration,
+      saveIntegration,
+      setIntegrationToken,
+      runIntegration,
+      runStripe,
+      setWebhookSecret,
+      linkExternalName,
+      createClientFromExternal,
+
+      // Vídeos de revisión
+      uploadReview,
+      listReviews,
+      deleteReview,
+      createReviewLink,
+      listReviewLinks,
+      revokeReviewLink,
+
+      // Check-ins y calendario
+      checkIns,
+      reviewCheckIn,
+      loadEvents,
+      addClientEvent,
+      setEventDone,
+      removeClientEvent,
+
       // Equipo
       team,
       teamMembers,
@@ -1766,7 +2448,7 @@ export const AppProvider = ({ children }) => {
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
       moveExercise, addDay, renameDay, duplicateDay, removeDay, updateWeeklySplit,
       startSession, logSessionSet, updateSession, removeSession,
-      startProgram, appendMicrocycle, cloneMicrocycle, removeMicrocycle,
+      startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
       updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
       addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams,
@@ -1774,7 +2456,9 @@ export const AppProvider = ({ children }) => {
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls,
       addClient, updateClient, updateClientPreferences,
-      team, teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
+      reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
+      uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink,
+      checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent, team, teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
     ]
   );
 

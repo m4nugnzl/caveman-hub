@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, FolderOpen, Trash2, Upload } from 'lucide-react';
 
-import { ANGLES, angleLabel, groupByWeek } from '@/domain/photos';
+import { ANGLES, angleLabel, angleShort, groupByWeek } from '@/domain/photos';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
@@ -52,7 +52,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
         Fotos por semana
       </SectionTitle>
 
-      <div className="rail" role="group" aria-label="Filtrar por ángulo">
+      <div className="rail-wrap" role="group" aria-label="Filtrar por ángulo">
         <button
           type="button"
           className="chip"
@@ -128,7 +128,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                             </span>
                           )}
                           {used && <span className="photo-thumb-slot">✓</span>}
-                          <span className="photo-thumb-tag">{angleLabel(photo.angle).slice(0, 4)}</span>
+                          <span className="photo-thumb-tag">{angleShort(photo.angle)}</span>
                         </button>
 
                         <button

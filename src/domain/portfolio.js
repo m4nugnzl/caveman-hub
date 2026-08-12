@@ -28,6 +28,8 @@
 import { allSessions } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
+import { buildWeeklySeries } from './analytics';
+import { readingHeadline, weeklyReading } from './reading';
 
 /** Umbrales, en un solo sitio para poder discutirlos sin buscarlos. */
 export const THRESHOLDS = {
@@ -52,7 +54,7 @@ const daysSince = (date, today) => (date ? daysBetween(date, today) : null);
  * y las alertas que se derivan de todo ello.
  */
 export const clientStatus = (
-  { client, program, anthro, photos = [] },
+  { client, program, anthro, photos = [], checkIn: submitted = null },
   today = todayISO()
 ) => {
   const microcycles = program?.microcycles || [];
@@ -67,6 +69,26 @@ export const clientStatus = (
   const alerts = [];
 
   const add = (id, severity, label, detail) => alerts.push({ id, severity, label, detail });
+
+  /*
+    ── Acceso ────────────────────────────────────────────────────────────────
+    Sin cuenta enlazada el cliente no puede entrar en su portal, así que no va a
+    registrar nada nunca. Es la alerta que explica todas las demás: sin ella la
+    ficha decía «no ha registrado ningún entreno» y «nunca ha registrado su peso»,
+    que son ciertas y llevan a la conclusión equivocada de que el cliente no
+    colabora.
+
+    Va PRIMERA por eso mismo, y es de gravedad alta: hasta que se resuelva, ninguna
+    otra cifra de la ficha significa nada.
+  */
+  if (!client.clientProfileId) {
+    add(
+      'no_account',
+      'alta',
+      'Sin acceso a su portal',
+      'No tiene ninguna cuenta enlazada: no puede entrar ni registrar nada. Mándale la invitación.'
+    );
+  }
 
   // ── Programa ──────────────────────────────────────────────────────────────
   if (microcycles.length === 0) {
@@ -125,9 +147,40 @@ export const clientStatus = (
     add('stale_photos', 'baja', `${sincePhoto} días sin fotos`, 'Última foto de progreso.');
   }
 
+  /*
+    Estado de revisión del check-in de esta semana.
+    ------------------------------------------------------------------------
+    Con la migración 0009 es exacto: `submitted_at` y `reviewed_at` lo dicen. Sin
+    ella se aproxima con «el cliente ha hecho su parte» —pesajes suficientes y al
+    menos una foto de la semana—, que detecta lo mismo salvo que no sabe si ya lo
+    revisaste. `exact` deja claro cuál de los dos casos es, para que la interfaz
+    pueda avisar en lugar de fingir precisión.
+  */
+  const hasWeekPhoto = photos.some((p) => p.date && weekStart(p.date) === checkIn.weekStart);
+  const review = submitted
+    ? {
+        exact: true,
+        submittedAt: submitted.submittedAt,
+        reviewedAt: submitted.reviewedAt,
+        pending: Boolean(submitted.submittedAt) && !submitted.reviewedAt,
+        id: submitted.id,
+      }
+    : {
+        exact: false,
+        submittedAt: null,
+        reviewedAt: null,
+        pending: checkIn.complete && hasWeekPhoto,
+        id: null,
+      };
+
+  if (review.pending && review.exact) {
+    add('review_pending', 'media', 'Check-in por revisar', 'Entregado y esperando tu respuesta.');
+  }
+
   alerts.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
   return {
+    review,
     client,
     lastTraining,
     lastWeight,
@@ -155,7 +208,7 @@ export const clientStatus = (
  * lo que hay que hacer hoy está siempre arriba.
  */
 export const buildPortfolio = (
-  { clients = [], workoutData = {}, anthropometry = {}, progressPhotos = [] },
+  { clients = [], workoutData = {}, anthropometry = {}, progressPhotos = [], checkIns = {} },
   today = todayISO()
 ) => {
   const photosByClient = new Map();
@@ -164,6 +217,8 @@ export const buildPortfolio = (
     photosByClient.get(photo.clientId).push(photo);
   }
 
+  const week = weekStart(today);
+
   const rows = clients.map((client) =>
     clientStatus(
       {
@@ -171,10 +226,43 @@ export const buildPortfolio = (
         program: workoutData[client.id],
         anthro: anthropometry[client.id],
         photos: photosByClient.get(client.id) || [],
+        // El check-in de LA SEMANA EN CURSO. Los anteriores no dicen nada del
+        // estado de hoy, y mezclarlos haría que un cliente pareciera pendiente
+        // por algo que entregó en marzo.
+        checkIn: checkIns[client.id]?.weekStart === week ? checkIns[client.id] : null,
       },
       today
     )
-  );
+  ).map((row) => ({
+    ...row,
+    /*
+      El titular de la lectura de la semana, en la ficha del tablero.
+      ----------------------------------------------------------------------
+      Hasta ahora la cartera contaba ALERTAS —«3 avisos»— y las alertas son todas
+      del mismo tipo: cosas que faltan. Ninguna decía lo único que el entrenador
+      quiere saber de un vistazo, que es si el cliente está progresando.
+
+      «En rumbo: −0,5 kg/semana» y «Estancado» son eso, y ya están calculados: el
+      mismo `weeklyReading` que alimenta la analítica. Se reutiliza en vez de
+      reimplementar un criterio paralelo que acabaría discrepando del otro.
+
+      Es `null` cuando no hay objetivo o no hay semanas suficientes, y la ficha se
+      queda como estaba: no se inventa un veredicto para rellenar el hueco.
+    */
+    headline: readingHeadline(
+      weeklyReading({
+        client: row.client,
+        series: buildWeeklySeries({
+          microcycles: workoutData[row.client.id]?.microcycles || [],
+          history: anthropometry[row.client.id]?.history || [],
+          gender: row.client.gender,
+        }),
+        microcycles: workoutData[row.client.id]?.microcycles || [],
+        history: anthropometry[row.client.id]?.history || [],
+        today,
+      }).filter((f) => f.id === 'rate')
+    ),
+  }));
 
   return rows.sort((a, b) => {
     const sa = a.severity ? SEVERITY_ORDER[a.severity] : 9;
@@ -183,6 +271,86 @@ export const buildPortfolio = (
     if (b.alerts.length !== a.alerts.length) return b.alerts.length - a.alerts.length;
     return a.client.name.localeCompare(b.client.name);
   });
+};
+
+/**
+ * El tablero: cada cliente en UNA columna, nunca en dos.
+ *
+ * ── Por qué un tablero y no una lista ───────────────────────────────────────
+ * Una lista ordenada por urgencia responde «a quién atiendo primero». Un tablero
+ * responde algo distinto y más útil cuando llevas veinte: **dónde está el cuello
+ * de botella del grupo**. Ver ocho fichas en «por revisar» y dos en «en riesgo»
+ * dice qué clase de trabajo tienes hoy antes de leer un solo nombre.
+ *
+ * Para que eso funcione, cada cliente tiene que estar en una sola columna y los
+ * contadores tienen que sumar el total. Si un cliente aparece en dos, los números
+ * dejan de significar nada.
+ *
+ * ── El orden de las columnas ES el orden de prioridad ───────────────────────
+ * De izquierda a derecha, y la primera que encaja se queda al cliente. Ese orden
+ * no es estético, es el de la mañana del entrenador:
+ *
+ *   1. `to_review`  — trabajo que espera POR MÍ. Lo primero, siempre.
+ *   2. `at_risk`    — el cliente se está descolgando. Hay que intervenir.
+ *   3. `checkin`    — recordatorio de rutina.
+ *   4. `on_track`   — nada.
+ *
+ * Un cliente que lleva veinte días sin entrenar Y sin hacer el check-in sale en
+ * «en riesgo», no en «check-in pendiente»: lo segundo es un síntoma de lo primero,
+ * y meterlo en la columna suave escondería el problema de verdad.
+ *
+ * ── Sin la migración 0009 esto sigue funcionando ────────────────────────────
+ * `to_review` necesita saber si el cliente ENTREGÓ y si yo REVISÉ, y eso solo lo
+ * puede decir la tabla `check_ins`. Mientras no exista, se aproxima con «el
+ * cliente ha hecho su parte esta semana» (pesajes suficientes y fotos), que es una
+ * señal útil aunque no distinga lo ya revisado. La columna lo advierte.
+ */
+export const BOARD_COLUMNS = [
+  {
+    id: 'to_review',
+    label: 'Por revisar',
+    hint: 'Han entregado su check-in y esperan tu respuesta',
+    tone: 'info',
+  },
+  {
+    id: 'at_risk',
+    label: 'En riesgo',
+    hint: 'Sin entrenar, sin rutina asignada o con el pago vencido',
+    tone: 'bad',
+  },
+  {
+    id: 'checkin',
+    label: 'Check-in pendiente',
+    hint: 'Les toca pesarse y subir fotos esta semana',
+    tone: 'warn',
+  },
+  { id: 'on_track', label: 'Al día', hint: 'Nada pendiente con ellos', tone: 'ok' },
+];
+
+const RISK_ALERTS = new Set([
+  'stale_training',
+  'never_trained',
+  'no_program',
+  'payment_overdue',
+]);
+
+/** Columna de un cliente. La primera que encaja gana. */
+export const columnFor = (row) => {
+  if (row.review?.pending) return 'to_review';
+  if (row.alerts.some((a) => RISK_ALERTS.has(a.id))) return 'at_risk';
+  if (!row.checkIn.complete) return 'checkin';
+  return 'on_track';
+};
+
+/**
+ * Agrupa la cartera en columnas. Devuelve siempre las cuatro, aunque estén
+ * vacías: una columna que desaparece cambia el ancho de las demás y obliga a
+ * releer la pantalla cada vez.
+ */
+export const portfolioBoard = (rows) => {
+  const byId = new Map(BOARD_COLUMNS.map((c) => [c.id, { ...c, rows: [] }]));
+  for (const row of rows) byId.get(columnFor(row)).rows.push(row);
+  return [...byId.values()];
 };
 
 /**

@@ -5,7 +5,13 @@ import { Field, Notice, Panel } from '@/components/ui/primitives';
 
 const MIN_PASSWORD = 8;
 
-export const Login = () => {
+/**
+ * @param notice  Aviso de contexto sobre la pantalla. Lo usa la página de
+ *   invitación: quien llega desde un enlace de su entrenador tiene que saber a qué
+ *   está entrando ANTES de crearse una cuenta, o el formulario parece el de una
+ *   aplicación cualquiera que alguien le ha mandado.
+ */
+export const Login = ({ notice = null }) => {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState(null);
@@ -51,14 +57,15 @@ export const Login = () => {
   };
 
   return (
-    <div className="row center" style={{ minHeight: '100vh', padding: 'var(--s4)' }}>
-      <Panel as="form" onSubmit={handleSubmit} className="col gap-4" style={{ width: '100%', maxWidth: 390 }}>
-        <div className="col center gap-2" style={{ alignItems: 'center', marginBottom: 'var(--s2)' }}>
+    <div className="login">
+      <Panel as="form" onSubmit={handleSubmit} className="login-card col gap-4">
+        <div className="login-head">
           <LogoMark size={54} />
-          <strong style={{ fontSize: 'var(--fs-lg)', letterSpacing: '-0.022em' }}>Caveman Hub</strong>
+          <strong className="login-title">Caveman Hub</strong>
           <span className="t-sm t-tertiary">Entrenamiento y progreso</span>
         </div>
 
+        {notice && <Notice tone="info">{notice}</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
         {info && <Notice tone="success">{info}</Notice>}
 
@@ -114,8 +121,7 @@ export const Login = () => {
 
         <button
           type="button"
-          className="btn btn-sm"
-          style={{ color: 'var(--text-secondary)' }}
+          className="btn btn-sm login-alt"
           onClick={() => {
             setMode(mode === 'login' ? 'signup' : 'login');
             setError(null);

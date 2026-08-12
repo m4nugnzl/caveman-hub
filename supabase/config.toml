@@ -1,0 +1,56 @@
+# Configuración del CLI de Supabase.
+#
+# Solo contiene lo imprescindible para desplegar las Edge Functions. El resto de
+# la configuración del proyecto (auth, base de datos, storage) se gestiona desde
+# el panel: este repositorio no usa entorno local de Supabase.
+
+project_id = "pscpermmojmircadirzk"
+
+# ── notion-payments ─────────────────────────────────────────────────────────
+#
+# `verify_jwt = false` NO significa que la función sea pública, y merece la pena
+# explicarlo porque parece lo contrario.
+#
+# Con `verify_jwt = true` (el valor por defecto) es la PASARELA de Supabase la que
+# exige un JWT válido antes de dejar pasar la petición a la función. El problema
+# es que el navegador manda primero una petición `OPTIONS` de comprobación
+# (preflight), y **un preflight nunca lleva cabeceras personalizadas**: eso es
+# justo su razón de ser. Así que la pasarela lo rechaza con un 401, el navegador ve
+# un preflight fallido y la llamada real ni se intenta. El error que sale es un
+# CORS confuso que no tiene nada que ver con CORS.
+#
+# Desactivándolo, la pasarela deja pasar el preflight —que la función responde con
+# 200 y las cabeceras correctas— y **la autorización la hace la propia función**,
+# que es más estricta que la pasarela:
+#
+#   1. Exige la cabecera `Authorization` y devuelve 401 sin ella.
+#   2. Crea un cliente de Supabase CON ese JWT y lee la integración a través de
+#      RLS. Si RLS no la devuelve, no es del que llama y responde 403.
+#
+# Es decir: la pasarela solo comprobaba que el token fuera válido; la función
+# comprueba además que el recurso sea tuyo. No se pierde nada.
+[functions.notion-payments]
+verify_jwt = false
+
+# ── review-link ─────────────────────────────────────────────────────────────
+#
+# Aquí `verify_jwt = false` no es un apaño de CORS: es el requisito. La página
+# /r/<token> la abre el CLIENTE desde WhatsApp, sin sesión y puede que sin cuenta.
+# Exigir un JWT haría imposible lo único que esta función existe para hacer.
+#
+# Lo que concede sin autenticar está acotado a propósito: canjear un token por una
+# URL firmada de 30 minutos, y solo si el token existe y no está revocado. No lee
+# nada más de la ficha del cliente que su nombre.
+[functions.review-link]
+verify_jwt = false
+
+# Mismo criterio que notion-payments: la pasarela rechaza el preflight y la
+# autorizacion la hace la funcion, comprobando ademas que la integracion sea tuya.
+[functions.stripe-payments]
+verify_jwt = false
+
+# El webhook lo llama STRIPE, que no tiene sesión de Supabase. Y no puede tenerla:
+# es un servidor ajeno. Lo que autentica cada peticion es la firma HMAC del propio
+# evento, que la funcion comprueba antes de tocar nada.
+[functions.stripe-webhook]
+verify_jwt = false

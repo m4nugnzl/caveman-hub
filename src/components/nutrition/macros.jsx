@@ -1,6 +1,6 @@
 import { Beef, Droplet, Wheat } from 'lucide-react';
 
-import { KCAL_PER_GRAM } from '@/domain/nutrition';
+import { KCAL_PER_GRAM, MACROS } from '@/domain/nutrition';
 import { round, toNum0 } from '@/lib/num';
 import { MacroDonut } from '@/components/ui/charts';
 
@@ -9,11 +9,10 @@ import { MacroDonut } from '@/components/ui/charts';
  * solo sitio: cómo se llaman, de qué color son, qué icono los representa y
  * cuántas kcal aporta cada gramo.
  */
-export const MACRO_META = [
-  { key: 'protein', label: 'Proteína', short: 'P', color: 'var(--data-pink)', Icon: Beef },
-  { key: 'carbs', label: 'Carbos', short: 'C', color: 'var(--data-amber)', Icon: Wheat },
-  { key: 'fats', label: 'Grasas', short: 'G', color: 'var(--data-teal)', Icon: Droplet },
-];
+const ICONS = { protein: Beef, carbs: Wheat, fats: Droplet };
+
+/** La tripleta del dominio más su icono. El color NO se decide aquí. */
+export const MACRO_META = MACROS.map((macro) => ({ ...macro, Icon: ICONS[macro.key] }));
 
 /**
  * Reparto calórico a partir de los gramos.

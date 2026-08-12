@@ -24,9 +24,16 @@ export const LogoMark = ({ size = 34, rounded = true }) => (
     style={{ flexShrink: 0 }}
   >
     <defs>
+      {/*
+        Verde mineral, de claro a profundo. Antes iba de esmeralda a azul cielo:
+        el azul no pertenecía a la paleta de marca —no aparecía en ningún otro
+        sitio salvo aquí— y con el acento nuevo el salto de tinta cantaba. Un
+        degradado dentro de una sola tinta lee más firme y deja que el volumen lo
+        dé la luz, no el cambio de color.
+      */}
       <linearGradient id="cm-bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#34d399" />
-        <stop offset="100%" stopColor="#0ea5e9" />
+        <stop offset="0%" stopColor="#35b98d" />
+        <stop offset="100%" stopColor="#14795c" />
       </linearGradient>
     </defs>
 

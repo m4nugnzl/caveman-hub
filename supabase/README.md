@@ -19,12 +19,42 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0005_client_preferences.sql` | **Sí** | La personalización del resumen no se guarda. |
 | `0007_storage_policies.sql` | **Sí** | **El bucket `client-media` no existe**: toda subida de fotos falla. Comprobado en el proyecto real. |
 | `0008_client_preferences_rpc.sql` | **Sí** | La personalización del resumen no se guarda (la app llama a esta función). |
+| `0009_checkins_calendar.sql` | Cuando quieras el aviso de check-in exacto y el calendario | El tablero deduce el estado y el calendario no guarda eventos. |
+| `0010_integrations.sql` | Cuando quieras conectar Notion | La pantalla de Integraciones avisa de que falta. Requiere además desplegar la Edge Function. |
+| `0011_review_links.sql` | **Sí, para compartir vídeos** | El enlace del vídeo caduca a los 7 días y no se sabe si el cliente lo ha visto. Requiere desplegar `review-link`. |
 | `0006_teams.sql` | Cuando quieras equipos | La pestaña «Equipo» avisa de que falta y la app funciona como entrenador único. Ver `docs/modelo-de-equipo.md`. |
 
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
 
 `0002` va antes de `0007` porque las políticas de Storage se apoyan en poder leer
 `clients`, pero son independientes.
+
+## Edge Functions
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase functions deploy notion-payments
+npx supabase functions deploy review-link
+```
+
+La configuración está en `supabase/config.toml`. `notion-payments` se despliega con
+**`verify_jwt = false`** a propósito: con la comprobación en la pasarela, la
+petición `OPTIONS` de comprobación del navegador —que nunca lleva cabecera de
+sesión— se rechaza con un 401, y el navegador lo reporta como un error de CORS que
+no tiene nada que ver con CORS. La autorización la hace la propia función, y
+comprueba **más** que la pasarela: que la integración sea tuya, no solo que el
+token sea válido.
+
+Para saber si una función está desplegada:
+
+```bash
+curl -i -X OPTIONS https://<proyecto>.supabase.co/functions/v1/notion-payments
+```
+
+**204** = desplegada. **404** = no lo está — y el navegador lo enseñará como un
+fallo de CORS, porque un 404 no lleva cabeceras de CORS. Es el despiste más
+probable la primera vez.
 
 ## Cómo se corresponde el código con el esquema
 
@@ -169,3 +199,68 @@ Puntos que la aplicación asume que RLS protege:
 
 El conmutador de vista coach/cliente de la interfaz **no es un control de
 seguridad**: solo cambia lo que se pinta.
+
+---
+
+## Migraciones 0014 y 0015 — el permiso del cliente y su forma de entrar
+
+Estas dos cierran los dos agujeros más grandes que quedaban, y conviene leer por qué
+antes de aplicarlas.
+
+### 0014 — el cliente escribía más de lo que necesitaba
+
+El punto 5 de arriba dice «escribir en `workout_data` (registra sus kg, reps y RIR)».
+Eso era lo que se pretendía; **no era lo que el permiso concedía**.
+
+RLS filtra FILAS, no columnas, y la fila de `workout_data` contiene el programa
+completo en un único jsonb. Así que un `UPDATE` sobre esa fila —dado para anotar «8
+repeticiones»— alcanzaba a:
+
+```sql
+update workout_data set microcycles = '[]' where client_id = <el suyo>;
+```
+
+El cliente podía borrarse el programa entero desde la consola del navegador. Y sin
+mala intención: una pestaña vieja guardando su copia en caché encima de la actual
+produce lo mismo.
+
+La 0014 sustituye ese permiso por tres funciones que reciben la operación en vez de
+la fila: `log_session_set` (un campo de una serie), `continue_program` (una semana en
+blanco copiando la estructura de la última) y `save_workout_data` (solo el
+entrenador, con control de concurrencia). Al final **retira la política
+`workout_client_log`**, así que hay que aplicarla junto con el despliegue del código
+que usa las funciones nuevas.
+
+Es el mismo arreglo que la 0008 hizo con `preferences`, por el mismo motivo.
+
+### 0014 — y nadie comparaba `updated_at`
+
+Se escribía y no se leía nunca, así que dos escrituras simultáneas sobre el mismo
+cliente se pisaban en silencio: la última ganaba. Con equipos —dos entrenadores— o
+con dos pestañas abiertas, eso deja de ser improbable.
+
+`save_workout_data(p_client, p_microcycles, p_seen)` devuelve `null` en vez de
+escribir si la fila cambió desde `p_seen`. No es un bloqueo: es poder detectarlo y
+avisar, que es lo que hoy no ocurre.
+
+### 0015 — el portal del cliente era inalcanzable
+
+`clients.client_profile_id` es de donde salen TODOS los permisos del cliente
+(`is_me()` la consulta), y **no había ninguna pantalla que la rellenara**. La única
+forma de que un cliente entrara era escribir su uuid a mano en el panel de Supabase.
+
+La 0015 añade `client_invites` con un token de un solo uso que caduca en 14 días, y
+las funciones `create_client_invite`, `revoke_client_invite` y `claim_client_invite`.
+El entrenador copia un enlace `/invitacion/<token>` y lo manda por WhatsApp.
+
+**Por qué token y no email:** enlazar por email al registrarse convertiría «conocer
+el email de un cliente» en «poder ser ese cliente», y esos emails los tiene el
+entrenador en su agenda. Con token hacen falta las dos cosas: recibir el enlace y
+crearse una cuenta.
+
+### Orden de aplicación
+
+```
+0014_workout_write_scope.sql     (requiere 0002; despliega el código a la vez)
+0015_client_invites.sql          (aditiva, sin riesgo)
+```

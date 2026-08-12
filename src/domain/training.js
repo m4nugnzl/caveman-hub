@@ -8,6 +8,8 @@
 
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
+// `sessions` no importa de aquí, así que no hay ciclo: es la capa de debajo.
+import { executedSessions, sessionMuscleVolume, sessionTonnage } from './sessions';
 
 export const MUSCLE_GROUPS = [
   'Pecho',
@@ -112,6 +114,37 @@ export const reidExercises = (exercises) =>
 export const cloneDays = (days) =>
   deepClone(days).map((d) => ({ ...d, exercises: reidExercises(d.exercises || []) }));
 
+/**
+ * Clona la ESTRUCTURA de unos días y vacía lo EJECUTADO.
+ *
+ * ── La distinción que hace falta y `cloneDays` no hace ──────────────────────
+ * Un día tiene dos clases de información mezcladas en el mismo objeto:
+ *
+ *   · lo que el entrenador PROGRAMA — nombre del día, ejercicios, grupo
+ *     muscular, cuántas series y el rango objetivo de cada una;
+ *   · lo que se REGISTRA al entrenar — kg, reps y RIR.
+ *
+ * `cloneDays` copia las dos, que es lo correcto para «duplicar la semana 3» del
+ * entrenador: quiere la semana entera tal cual para retocarla.
+ *
+ * Pero cuando lo que se quiere es la semana SIGUIENTE, arrastrar los kilos de la
+ * anterior es peor que no traer nada. Los números aparecerían ya rellenos sin que
+ * nadie los haya levantado, y a partir de ahí no hay forma de distinguir un peso
+ * heredado de uno real: la analítica contaría como entrenada una semana que no se
+ * ha hecho, y `weekAdherence` daría 100 % con cero series realizadas.
+ *
+ * Se conserva `targetReps` porque no es un registro sino parte del plan: es el
+ * rango que el entrenador puso, y sigue vigente la semana siguiente.
+ */
+export const blankDays = (days) =>
+  cloneDays(days).map((day) => ({
+    ...day,
+    exercises: (day.exercises || []).map((exercise) => ({
+      ...exercise,
+      sets: (exercise.sets || []).map((set) => emptySet(set?.targetReps ?? '')),
+    })),
+  }));
+
 // ── Consultas ──────────────────────────────────────────────────────────────
 
 export const findMicrocycle = (microcycles, weekNumber) =>
@@ -140,13 +173,30 @@ export const dayMuscleVolume = (day) => {
   return out;
 };
 
+/*
+  ══ Todo lo que sigue lee LO EJECUTADO, no el plan ══════════════════════════
+
+  Estas funciones leían `micro.days`, que es donde los kilos se guardaban ANTES de
+  separar plan y ejecución. Desde que el registro va a `micro.sessions`, leer el
+  plan significa leer un sitio donde ya nadie escribe: la pantalla de Analítica
+  daba tonelaje 0, volumen vacío, adherencia 0 % y progresión sin puntos con las
+  series correctamente guardadas al lado. Reproducido con un microciclo de tres
+  series a 100×8: 2400 kg registrados, 0 kg en la analítica.
+
+  `executedSessions` es la única puerta a esos datos y ya resuelve la
+  compatibilidad: si un día no tiene sesión pero sí kilos dentro del plan (datos
+  antiguos), los expone como sesión heredada. Así el histórico se sigue viendo sin
+  necesidad de migrar nada.
+*/
+
 /** Series efectivas de una semana completa, agrupadas por grupo muscular. */
 export const weekMuscleVolume = (microcycles, weekNumber) => {
   const micro = findMicrocycle(microcycles, weekNumber);
   if (!micro) return {};
+
   const out = {};
-  for (const day of micro.days || []) {
-    for (const [muscle, count] of Object.entries(dayMuscleVolume(day))) {
+  for (const session of executedSessions(micro)) {
+    for (const [muscle, count] of Object.entries(sessionMuscleVolume(session))) {
       out[muscle] = (out[muscle] || 0) + count;
     }
   }
@@ -157,16 +207,9 @@ export const weekMuscleVolume = (microcycles, weekNumber) => {
 export const weekTonnage = (microcycles, weekNumber) => {
   const micro = findMicrocycle(microcycles, weekNumber);
   if (!micro) return 0;
+
   let total = 0;
-  for (const day of micro.days || []) {
-    for (const ex of day.exercises || []) {
-      for (const s of ex.sets || []) {
-        const kg = toNum(s?.kg);
-        const reps = toNum(s?.reps);
-        if (kg !== null && reps !== null && kg > 0 && reps > 0) total += kg * reps;
-      }
-    }
-  }
+  for (const session of executedSessions(micro)) total += sessionTonnage(session);
   return Math.round(total);
 };
 
@@ -234,14 +277,20 @@ export const exerciseProgression = (microcycles, name) => {
     let best = null;
     let tonnage = 0;
     let sets = 0;
-    let found = false;
 
-    for (const day of micro.days || []) {
-      for (const exercise of day.exercises || []) {
-        if (exercise.name !== name) continue;
-        found = true;
+    // El ejercicio está PROGRAMADO en el plan y REGISTRADO en las sesiones. La
+    // fila existe si está programado —así una semana planificada y no entrenada
+    // aparece con un hueco en vez de desaparecer del eje— y los números salen de
+    // lo ejecutado.
+    const found = (micro.days || []).some((day) =>
+      (day.exercises || []).some((exercise) => exercise.name === name)
+    );
 
-        for (const set of exercise.sets || []) {
+    for (const session of executedSessions(micro)) {
+      for (const entry of session.entries || []) {
+        if (entry.name !== name) continue;
+
+        for (const set of entry.sets || []) {
           const kg = toNum(set?.kg);
           const reps = toNum(set?.reps);
           if (kg === null || reps === null || reps <= 0) continue;
@@ -257,7 +306,7 @@ export const exerciseProgression = (microcycles, name) => {
       }
     }
 
-    if (!found) continue;
+    if (!found && sets === 0) continue;
     rows.push({
       week: micro.weekNumber,
       label: `S${micro.weekNumber}`,

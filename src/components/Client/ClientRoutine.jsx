@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, CircleDashed, Dumbbell, Play, Plus, RotateCw } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleDashed, Dumbbell, Play, RotateCw } from 'lucide-react';
 
 import { WEEK_DAYS, countSets, dayMuscleVolume, unitLabel, weekdayForDay } from '@/domain/training';
 import { sessionLabel, sessionSetCount } from '@/domain/sessions';
@@ -108,42 +108,45 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet }) =>
       )}
 
       {/*
-        Qué día se está registrando. El cliente no necesita el selector completo
-        del entrenador —ni borrar sesiones ni cambiar fechas a mano—, pero sí
-        saber sobre qué fecha está escribiendo y poder empezar otra si repite el
-        mismo día de rutina en la semana.
+        ── Ya no hay «Registrar hoy» ─────────────────────────────────────────
+        Era un botón que creaba una sesión vacía para el día de hoy, y no encajaba
+        con cómo piensa el cliente. Dos motivos:
+
+          1. Era REDUNDANTE. Al escribir el primer kilo, `logSessionSet` ya crea la
+             sesión con la fecha de hoy. El botón hacía por adelantado algo que
+             pasaba solo, así que solo servía para plantear una duda —«¿tengo que
+             pulsar esto antes de anotar?»— cuya respuesta era no.
+          2. Introducía un concepto que el cliente no necesita. Para él la unidad es
+             la SEMANA: se rellena la semana y, cuando se acaba, se añade otra. Que
+             además pudiera haber varias sesiones del mismo día dentro de una semana
+             es del modelo del entrenador, no de su forma de trabajar.
+
+        Lo que sí hacía falta —saber sobre qué fecha se está escribiendo— se queda,
+        pero como INFORMACIÓN. Y los selectores solo aparecen si de verdad hay más
+        de una sesión, que es cuando hay algo que elegir.
       */}
       <div className="row between wrap gap-2">
-        <div className="rail" role="group" aria-label={`Sesiones de ${day.dayName}`}>
-          {daySession.sessions.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="chip"
-              aria-pressed={s.id === daySession.activeId}
-              onClick={() => daySession.select(s.id)}
-            >
-              {sessionLabel(s)}
-            </button>
-          ))}
-          <button
-            type="button"
-            className="chip chip-dashed"
-            onClick={() => {
-              const id = onLogSet({
-                clientId: client.id,
-                weekNumber: microcycle.weekNumber,
-                sessionId: null,
-                date: todayISO(),
-                dayName: day.dayName,
-                startOnly: true,
-              });
-              if (id) daySession.select(id);
-            }}
-          >
-            <Plus size={13} /> Registrar hoy
-          </button>
-        </div>
+        {daySession.sessions.length > 1 ? (
+          <div className="rail-wrap" role="group" aria-label={`Sesiones de ${day.dayName}`}>
+            {daySession.sessions.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="chip"
+                aria-pressed={s.id === daySession.activeId}
+                onClick={() => daySession.select(s.id)}
+              >
+                {sessionLabel(s)}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="t-xs t-tertiary">
+            {daySession.session
+              ? `Registrando el ${daySession.session.date}`
+              : 'Escribe tus kilos y se registrará con la fecha de hoy'}
+          </span>
+        )}
 
         {planned > 0 && (
           <span className="t-xs t-tertiary">
@@ -167,9 +170,20 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet }) =>
   );
 };
 
-export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek, onLogSet, save, onRetry }) => {
+export const ClientRoutine = ({
+  client,
+  program,
+  weeks,
+  activeWeek,
+  onSelectWeek,
+  onLogSet,
+  onContinue,
+  save,
+  onRetry,
+}) => {
   const microcycles = program?.microcycles || [];
   const micro = microcycles.find((m) => m.weekNumber === activeWeek);
+  const lastWeek = weeks.length > 0 ? Math.max(...weeks) : null;
   const cycleType = client.cycleType || 'weekly';
   const pattern = client.cyclePattern || { train: 2, rest: 1 };
   const unit = unitLabel(cycleType);
@@ -254,8 +268,28 @@ export const ClientRoutine = ({ client, program, weeks, activeWeek, onSelectWeek
         )}
       </Panel>
 
-      {weeks.length > 1 && (
-        <WeekPicker weeks={weeks} value={activeWeek} onChange={onSelectWeek} prefix={unit} />
+      {/*
+        ── Añadir semana, aquí ───────────────────────────────────────────────
+        Estaba en un panel al final de la página, detrás de todos los ejercicios
+        del día: si no lo buscabas no existía. Y era el sitio equivocado por una
+        razón concreta — es una acción sobre EL PROGRAMA, no sobre el día que
+        estás mirando, así que su lugar es la tira de semanas, que es donde se
+        mira cuando lo que quieres es otra semana.
+
+        `WeekPicker` ya aceptaba `onAdd`; solo había que usarlo.
+
+        La condición pasa de `weeks.length > 1` a «hay semanas»: con una sola
+        semana la tira se ocultaba, y con ella la única forma de añadir la segunda.
+      */}
+      {weeks.length > 0 && (
+        <WeekPicker
+          weeks={weeks}
+          value={activeWeek}
+          onChange={onSelectWeek}
+          prefix={unit}
+          onAdd={onContinue}
+          addLabel={`${unit} ${(lastWeek ?? 0) + 1}`}
+        />
       )}
 
       {micro?.days.map((day) => (

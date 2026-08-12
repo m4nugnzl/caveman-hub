@@ -1,15 +1,20 @@
-import { LogOut, Moon, ShieldCheck, Sun, User } from 'lucide-react';
+import { ShieldCheck, User } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
-import { useTheme } from '@/lib/useTheme.jsx';
 import { Logo } from '@/components/ui/Logo';
+import { AccountMenu } from '@/components/AccountMenu';
 
 export const Header = () => {
-  const { view, setViewMode, isCoach, clients, signOut, hasUnsavedChanges } = useApp();
-  const { isDark, toggle } = useTheme();
+  const { view, setViewMode, isCoach, clients, hasUnsavedChanges } = useApp();
 
   return (
     <header className="app-header">
-      <Logo />
+      {/*
+        Sin subtítulo. «Entrenamiento y progreso» presenta el producto a quien
+        aún no ha entrado, y ahí sigue —en la pantalla de acceso—; en una
+        cabecera pegajosa que acompaña al entrenador toda la jornada es una línea
+        que no informa de nada y que compite con el nombre del cliente.
+      */}
+      <Logo subtitle={null} />
 
       <div className="row wrap center gap-2 grow">
         {isCoach && (
@@ -53,21 +58,9 @@ export const Header = () => {
           </div>
         )}
 
-        <button
-          type="button"
-          className="btn btn-icon"
-          onClick={toggle}
-          title={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-          aria-pressed={isDark}
-        >
-          {isDark ? <Sun size={15} /> : <Moon size={15} />}
-          <span className="sr-only">{isDark ? 'Tema claro' : 'Tema oscuro'}</span>
-        </button>
-
-        <button type="button" className="btn btn-icon" onClick={signOut} title="Cerrar sesión">
-          <LogOut size={15} />
-          <span className="sr-only">Cerrar sesión</span>
-        </button>
+        {/* Configuración, tema y salir cuelgan del avatar, que es donde la gente
+            los busca en cualquier aplicación. */}
+        <AccountMenu />
       </div>
     </header>
   );

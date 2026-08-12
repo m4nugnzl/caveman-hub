@@ -113,6 +113,36 @@ export const legacySession = (day, microcycle) => {
 };
 
 /**
+ * Lo EJECUTADO en un microciclo: sus sesiones reales, más las heredadas de los
+ * días que no tengan ninguna.
+ *
+ * ── Por qué esta función es la única puerta a los datos ejecutados ───────────
+ * Es la respuesta a «¿qué se ha entrenado esta semana?», y toda la analítica de
+ * entrenamiento debe pasar por aquí. Cuando no era así, cada función leía
+ * `micro.days` por su cuenta —el PLAN— y el resultado fue que **la analítica dejó
+ * de ver los kilos en cuanto el registro pasó a sesiones**: tonelaje 0, volumen
+ * vacío, adherencia 0 % y progresión sin puntos, con las series perfectamente
+ * guardadas al lado.
+ *
+ * El descarte de la versión heredada cuando el día ya tiene sesión no es un
+ * detalle: sin él los mismos kilos se contarían dos veces.
+ */
+export const executedSessions = (micro) => {
+  if (!micro) return [];
+  const real = sessionsOf(micro);
+  const covered = new Set(real.map((s) => s.dayName));
+
+  const legacy = [];
+  for (const day of micro.days || []) {
+    if (covered.has(day.dayName)) continue;
+    const session = legacySession(day, micro);
+    if (session) legacy.push(session);
+  }
+
+  return [...real, ...legacy];
+};
+
+/**
  * Todas las sesiones del programa, reales y heredadas, con su microciclo.
  *
  * Si un día ya tiene sesiones registradas, su versión heredada se descarta: los
@@ -122,14 +152,8 @@ export const allSessions = (microcycles) => {
   const out = [];
 
   for (const micro of microcycles || []) {
-    const real = sessionsOf(micro);
-    for (const session of real) out.push({ ...session, weekNumber: micro.weekNumber });
-
-    const daysWithSessions = new Set(real.map((s) => s.dayName));
-    for (const day of micro.days || []) {
-      if (daysWithSessions.has(day.dayName)) continue;
-      const legacy = legacySession(day, micro);
-      if (legacy) out.push({ ...legacy, weekNumber: micro.weekNumber });
+    for (const session of executedSessions(micro)) {
+      out.push({ ...session, weekNumber: micro.weekNumber });
     }
   }
 

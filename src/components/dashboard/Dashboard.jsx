@@ -14,7 +14,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/domain/analytics';
 import { MRV_GOALS, MUSCLE_COLORS, WEEK_DAYS, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
-import { macroSplit } from '@/domain/nutrition';
+import { MACROS, macroSplit } from '@/domain/nutrition';
 import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
 import {
   CARDS,
@@ -36,11 +36,7 @@ import { Panel, SaveIndicator } from '@/components/ui/primitives';
 import { MacroBar } from '@/components/nutrition/macros';
 import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
 
-const MACRO_KEYS = [
-  { share: 'protein', color: 'var(--data-pink)' },
-  { share: 'carbs', color: 'var(--data-amber)' },
-  { share: 'fats', color: 'var(--data-teal)' },
-];
+// La tripleta de colores viene del dominio: cuatro copias del mismo dato divergen.
 
 /**
  * Resumen.
@@ -198,8 +194,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
       >
         {macros.total > 0 && (
           <div className="macro-bar">
-            {MACRO_KEYS.map(({ share, color }) => (
-              <div key={share} style={{ width: `${macros.pct[share]}%`, background: color }} />
+            {MACROS.map(({ key, color }) => (
+              <div key={key} style={{ width: `${macros.pct[key]}%`, background: color }} />
             ))}
           </div>
         )}

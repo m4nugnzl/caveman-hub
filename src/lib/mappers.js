@@ -17,6 +17,11 @@ export const mapClientFromDb = (row) => ({
   plan: row.plan,
   gender: row.gender,
   onboardingComplete: row.onboarding_complete,
+  // Si es null, este cliente NO puede entrar en su portal: no hay ninguna cuenta
+  // enlazada con su ficha. Es lo que decide si se le muestra el botón de invitar.
+  // No está en CLIENT_COLUMNS a propósito: se escribe solo desde
+  // `claim_client_invite` (migración 0015), nunca desde el navegador.
+  clientProfileId: row.client_profile_id ?? null,
   postureReviewed: row.posture_reviewed,
   paymentStatus: row.payment_status,
   nextPaymentDate: row.next_payment_date,
@@ -72,6 +77,37 @@ export const mapClientToDb = (fields) => {
   }
   return out;
 };
+
+// ── Check-ins (migración 0009) ─────────────────────────────────────────────
+
+/**
+ * Un check-in semanal cerrado.
+ *
+ * `submittedAt` y `reviewedAt` son las dos fechas que hacen posible el aviso al
+ * entrenador: entregado y sin revisar es exactamente la bandeja de trabajo.
+ */
+export const mapCheckInFromDb = (row) => ({
+  id: row.id,
+  clientId: row.client_id,
+  weekStart: row.week_start,
+  programWeek: row.program_week,
+  weight: row.weight,
+  notes: row.notes || '',
+  submittedAt: row.submitted_at,
+  reviewedAt: row.reviewed_at,
+  reviewedBy: row.reviewed_by,
+  coachNotes: row.coach_notes || '',
+});
+
+export const mapEventFromDb = (row) => ({
+  id: row.id,
+  clientId: row.client_id,
+  date: row.date,
+  kind: row.kind,
+  title: row.title,
+  done: row.done,
+  createdBy: row.created_by,
+});
 
 // ── Rutina ─────────────────────────────────────────────────────────────────
 

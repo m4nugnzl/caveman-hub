@@ -3,23 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#0a0d14" />
+    <!--
+      El tema por defecto es CLARO y `ThemeProvider` escribe `data-theme` en
+      cuanto arranca. Declarar aquí `color-scheme: dark` —como estaba— pintaba de
+      oscuro los controles nativos, los desplegables y la barra de scroll sobre
+      una interfaz clara. `light dark` deja que el navegador siga al tema real.
+    -->
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f2f0ec" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Caveman Hub</title>
     <!--
+      La tipografía de titulares y cifras (Archivo) va AUTOALOJADA, no en Google
+      Fonts: sin petición a terceros, sin dependencia de que nadie mueva un
+      archivo, y sin el bloqueo del primer render que motivó quitar la fuente
+      externa en su día. El `preload` la pide en paralelo con el CSS en vez de
+      esperar a que el navegador descubra el @font-face dentro de la hoja.
+
+      `crossorigin` es obligatorio aunque el archivo sea del mismo origen: las
+      fuentes se piden siempre en modo CORS, y sin el atributo el navegador
+      descarga el archivo DOS veces —una por el preload y otra por el @font-face.
+    -->
+    <link
+      rel="preload"
+      href="/fonts/archivo-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <!--
       El favicon es el mismo mark de la aplicación (tres monolitos ascendentes),
       en línea como data URI: sin petición extra y sin archivo binario que
-      mantener sincronizado con el componente.
-
-      Tampoco se cargan fuentes externas: la interfaz usa la tipografía del
-      sistema, que es lo que la hace sentirse nativa y evita el bloqueo del
-      primer render que provocaba Google Fonts.
+      mantener sincronizado con el componente. Sus tintas son las mismas que las
+      de `LogoMark`, así que si una cambia hay que cambiar la otra.
     -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2334d399'/%3E%3Cstop offset='100%25' stop-color='%230ea5e9'/%3E%3C/linearGradient%3E%3Crect width='34' height='34' rx='9.5' fill='url(%23g)'/%3E%3Cg fill='%2304150f' opacity='.82'%3E%3Crect x='7' y='17' width='5' height='12' rx='2.5'/%3E%3Crect x='14.5' y='11' width='5' height='18' rx='2.5'/%3E%3Crect x='22' y='4' width='5' height='25' rx='2.5'/%3E%3C/g%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 34'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%2335b98d'/%3E%3Cstop offset='100%25' stop-color='%2314795c'/%3E%3C/linearGradient%3E%3Crect width='34' height='34' rx='9.5' fill='url(%23g)'/%3E%3Cg fill='%2304150f' opacity='.82'%3E%3Crect x='7' y='17' width='5' height='12' rx='2.5'/%3E%3Crect x='14.5' y='11' width='5' height='18' rx='2.5'/%3E%3Crect x='22' y='4' width='5' height='25' rx='2.5'/%3E%3C/g%3E%3C/svg%3E"
     />
   </head>
   <body>

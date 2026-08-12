@@ -28,10 +28,13 @@ import { daysBetween, weekStart } from '@/lib/dates';
 import { weeklyWeightAverages } from './anthropometry';
 
 export const ANGLES = [
-  { id: 'frontal', label: 'Frontal', hint: 'De frente, brazos relajados' },
-  { id: 'lateral', label: 'Lateral', hint: 'De perfil, mismo lado siempre' },
-  { id: 'espalda', label: 'Espalda', hint: 'De espaldas, brazos relajados' },
+  { id: 'frontal', label: 'Frontal', short: 'F', hint: 'De frente, brazos relajados' },
+  { id: 'lateral', label: 'Lateral', short: 'L', hint: 'De perfil, mismo lado siempre' },
+  { id: 'espalda', label: 'Espalda', short: 'E', hint: 'De espaldas, brazos relajados' },
 ];
+
+/** Inicial del ángulo, para etiquetas donde no cabe la palabra. */
+export const angleShort = (id) => ANGLES.find((a) => a.id === id)?.short || '?';
 
 export const ANGLE_IDS = ANGLES.map((a) => a.id);
 export const angleLabel = (id) => ANGLES.find((a) => a.id === id)?.label || id || 'Sin ángulo';
@@ -72,7 +75,7 @@ const extensionOf = (fileName) => {
  */
 const COMBINING_MARKS = new RegExp('[\\u0300-\\u036f]', 'g');
 
-const slug = (s) =>
+export const slug = (s) =>
   String(s || '')
     .normalize('NFD')
     .replace(COMBINING_MARKS, '')

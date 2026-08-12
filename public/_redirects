@@ -1,0 +1,9 @@
+# Fallback de aplicación de una sola página (Netlify, Cloudflare Pages).
+#
+# Con rutas reales, entrar directo en /c/<id>/rutina —desde un marcador, un enlace
+# compartido o al recargar— hace que el servidor busque un archivo en esa ruta y
+# devuelva 404. La aplicación no llega ni a arrancar.
+#
+# Esta regla sirve index.html para cualquier ruta y deja que el router decida. El
+# 200 (y no un 301) es importante: la URL tiene que conservarse tal cual.
+/*  /index.html  200

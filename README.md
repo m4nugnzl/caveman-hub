@@ -54,14 +54,47 @@ npm run dev       # servidor de desarrollo
 npm run build     # build de producción en dist/
 npm run preview   # sirve el build para comprobarlo
 npm run lint      # ESLint sobre todo el proyecto
+npm run verify    # comprueba que no hay clases ni tokens CSS sin definir
 ```
+
+## Rutas
+
+La URL es el estado de la navegación, no un `useState`. Eso es lo que permite
+recargar sin perder el sitio, usar el botón atrás y compartir un enlace a la
+pantalla concreta de un cliente.
+
+| Ruta | Qué es |
+|---|---|
+| `/cartera` | Cartera de clientes (pantalla de entrada del entrenador) |
+| `/clientes` | Alta, onboarding y pagos |
+| `/ajustes/equipo` · `integraciones` | Lo que se configura una vez: equipo y Notion |
+| `/c/:clientId/resumen` | Resumen de un cliente |
+| `/c/:clientId/analitica` · `rutina` · `nutricion` · `fotos` · `checkins` · `calendario` | Sus demás secciones |
+| `/mi/panel` · `analitica` · `rutina` · `dieta` · `fotos` · `checkins` · `calendario` | Portal del cliente |
+
+El cliente activo lo manda la ruta: `/c/:clientId/...` sincroniza
+`selectedClientId` en el contexto, nunca al revés. Las secciones se declaran una
+sola vez en **`src/routes.jsx`**, de donde salen tanto las pestañas como las
+rutas.
+
+La navegación tiene **dos niveles**: arriba solo tres entradas (Cartera, Clientes,
+Ajustes), y el segundo nivel aparece únicamente cuando estás dentro de algo —las
+siete secciones de un cliente, o las de ajustes—, nunca los dos a la vez. Antes
+esto eran once pestañas seguidas mezclando planos distintos.
+
+> ⚠️ **Al desplegar**: una aplicación de una sola página con rutas necesita que el
+> servidor devuelva `index.html` para cualquier ruta. Si no, entrar directo en
+> `/c/abc/rutina` da un 404 y la aplicación no arranca. Ya están incluidos
+> `public/_redirects` (Netlify, Cloudflare Pages) y `vercel.json` (Vercel). Con
+> Nginx o Apache hay que añadir la regla a mano.
 
 ## Estructura
 
 ```
 src/
 ├── main.jsx                  ErrorBoundary → ConfirmProvider → AppProvider → App
-├── App.jsx                   decide entre Login, panel del coach y portal del cliente
+├── App.jsx                   mapa de rutas: Login, panel del coach y portal del cliente
+├── routes.jsx                secciones y rutas, declaradas una sola vez
 ├── index.css                 tokens, primitivas (.btn, .input, .panel…) y responsive
 │
 ├── domain/                   REGLAS DE NEGOCIO — funciones puras, sin React

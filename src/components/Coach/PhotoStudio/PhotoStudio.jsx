@@ -12,9 +12,12 @@ import { renderComposition } from './renderComposition';
 import { PhotoLibrary } from './PhotoLibrary';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioToolbar } from './StudioToolbar';
+import { StudioBar } from './StudioBar';
+import { StudioPanel } from './StudioPanel';
 import { SlotControls } from './SlotControls';
 import { WeekAnglePicker } from './WeekAnglePicker';
 import { ComparisonData } from './ComparisonData';
+import { ReviewRecorder } from './ReviewRecorder';
 
 /**
  * Photo Studio — comparación y montaje de fotos de progreso.
@@ -68,6 +71,9 @@ export const PhotoStudio = () => {
   const [pendingText, setPendingText] = useState(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  // «Ajustar» por defecto: encuadrar es lo que se hace sin parar, y las otras dos
+  // pestañas se visitan una vez.
+  const [panelTab, setPanelTab] = useState('adjust');
 
   const urls = useMemo(
     () => state.slots.map((s) => (s.photoId ? photoOf(s.photoId)?.url : null)).filter(Boolean),
@@ -187,6 +193,25 @@ export const PhotoStudio = () => {
         </Notice>
       )}
 
+      {/* Las decisiones sobre EL DOCUMENTO —composición, proporción, descargar—
+          van arriba y en horizontal. Las que se tocan sin parar mientras trabajas
+          se quedan junto al lienzo. */}
+      <StudioBar
+        state={state}
+        onLayout={studio.setLayout}
+        onRatio={studio.setRatio}
+        onCaptions={studio.setShowCaptions}
+        onExport={handleExport}
+        exportDisabled={!images.isReady}
+        exportHint={
+          !images.isReady
+            ? 'Esperando a que carguen las fotos…'
+            : images.anyTainted
+              ? 'Una foto se cargó sin permisos de origen cruzado; la descarga puede fallar.'
+              : null
+        }
+      />
+
       <div className="studio">
         <div className="studio-col studio-side">
           <PhotoLibrary
@@ -212,7 +237,13 @@ export const PhotoStudio = () => {
             onNudgeSlot={studio.nudgeSlot}
             onSliderPos={studio.setSliderPos}
             onAddAnnotation={studio.addAnnotation}
-            onPickTextPosition={setPendingText}
+            // Al marcar dónde va un texto, el campo para escribirlo está en la
+            // pestaña de anotar: se abre sola. Si no, el clic parecería no haber
+            // hecho nada.
+            onPickTextPosition={(point) => {
+              setPendingText(point);
+              setPanelTab('annotate');
+            }}
           />
 
           {(delta !== null || span !== null) && (
@@ -246,63 +277,83 @@ export const PhotoStudio = () => {
           />
         </div>
 
+        {/*
+          Un panel, tres pestañas — no tres paneles apilados.
+          --------------------------------------------------------------------
+          Ver StudioPanel: los tres bloques que había aquí medían más de mil píxeles
+          de alto en una columna de 272, así que el último quedaba fuera de la
+          pantalla. Y no se usan a la vez: encuadrar, anotar y decidir qué fotos
+          entran son tres momentos distintos del trabajo.
+        */}
         <div className="studio-col studio-controls studio-side">
-          <StudioToolbar
-            state={state}
-            onLayout={studio.setLayout}
-            onRatio={studio.setRatio}
-            onTool={studio.setTool}
-            onColor={studio.setColor}
-            onCaptions={studio.setShowCaptions}
-            onUndo={studio.undoAnnotation}
-            onClearAnnotations={studio.clearAnnotations}
-            onExport={handleExport}
-            exportDisabled={!images.isReady}
-            exportHint={
-              !images.isReady
-                ? 'Esperando a que carguen las fotos…'
-                : images.anyTainted
-                  ? 'Una de las fotos se cargó sin permisos de origen cruzado; la descarga puede fallar.'
-                  : null
-            }
-            pendingText={pendingText}
-            onCommitText={(text) => {
-              studio.addAnnotation({ type: 'text', color: state.color, text, points: [pendingText] });
-              setPendingText(null);
-            }}
-            onCancelText={() => setPendingText(null)}
-          />
-
-          {/* En la matriz los huecos no se eligen a mano: se marcan semanas y
-              ángulos y la cuadrícula se monta sola. */}
-          {isDerivedLayout(state.layout) && (
-            <WeekAnglePicker
-              weeks={studio.weeks}
-              angles={studio.angles}
-              pickedWeeks={studio.pickedWeeks}
-              pickedAngles={studio.pickedAngles}
-              onToggleWeek={studio.toggleWeek}
-              onToggleAngle={studio.toggleAngle}
-              matrix={studio.matrix}
-            />
-          )}
-
-          <SlotControls
-            slots={state.slots}
-            activeSlot={state.activeSlot}
-            photoOf={photoOf}
+          <StudioPanel
+            tab={panelTab}
+            onTab={setPanelTab}
             layout={state.layout}
-            maxGridSlots={studio.maxGridSlots}
-            onSelectSlot={studio.setActiveSlot}
-            onUpdate={studio.updateSlot}
-            onReset={studio.resetSlot}
-            onRemove={studio.removeSlot}
-            onAddSlot={studio.addGridSlot}
-            onApplyToAll={studio.applyToAll}
-            onSwap={studio.swapSlots}
-          />
+            annotationCount={state.annotations.length}
+          >
+            {panelTab === 'adjust' && (
+              <SlotControls
+                slots={state.slots}
+                activeSlot={state.activeSlot}
+                photoOf={photoOf}
+                layout={state.layout}
+                maxGridSlots={studio.maxGridSlots}
+                onSelectSlot={studio.setActiveSlot}
+                onUpdate={studio.updateSlot}
+                onReset={studio.resetSlot}
+                onRemove={studio.removeSlot}
+                onAddSlot={studio.addGridSlot}
+                onApplyToAll={studio.applyToAll}
+                onSwap={studio.swapSlots}
+              />
+            )}
+
+            {panelTab === 'annotate' && (
+              <StudioToolbar
+                state={state}
+                onTool={studio.setTool}
+                onColor={studio.setColor}
+                onUndo={studio.undoAnnotation}
+                onClearAnnotations={studio.clearAnnotations}
+                pendingText={pendingText}
+                onCommitText={(text) => {
+                  studio.addAnnotation({ type: 'text', color: state.color, text, points: [pendingText] });
+                  setPendingText(null);
+                }}
+                onCancelText={() => setPendingText(null)}
+              />
+            )}
+
+            {panelTab === 'compose' &&
+              // En la matriz los huecos no se eligen a mano: se marcan semanas y
+              // ángulos y la cuadrícula se monta sola. En las demás composiciones
+              // el montaje es asignar fotos a huecos, y eso ya lo hace la
+              // biblioteca de la izquierda.
+              (isDerivedLayout(state.layout) ? (
+                <WeekAnglePicker
+                  weeks={studio.weeks}
+                  angles={studio.angles}
+                  pickedWeeks={studio.pickedWeeks}
+                  pickedAngles={studio.pickedAngles}
+                  onToggleWeek={studio.toggleWeek}
+                  onToggleAngle={studio.toggleAngle}
+                  matrix={studio.matrix}
+                />
+              ) : (
+                <p className="t-sm t-secondary">
+                  En esta composición los huecos se llenan pulsando las fotos de la biblioteca. Elige
+                  «Semanas × ángulos» arriba si quieres que la cuadrícula se monte sola.
+                </p>
+              ))}
+          </StudioPanel>
         </div>
       </div>
+
+      {/* Grabar es una tarea distinta de montar, con su propio principio y fin, y
+          en una columna de 290 px no cabía ni la vista previa. A ancho completo y
+          al final, que es cuando se hace: primero se prepara el montaje. */}
+      <ReviewRecorder client={activeClient} canvasRef={canvasRef} />
     </div>
   );
 };

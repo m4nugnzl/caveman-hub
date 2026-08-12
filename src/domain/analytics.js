@@ -16,6 +16,7 @@ import { toNum, toNum0, round } from '@/lib/num';
 import { weekStart, shortDate } from '@/lib/dates';
 import { fatPercent } from './anthropometry';
 import { countSets, findMicrocycle, weekMuscleVolume, weekTonnage } from './training';
+import { executedSessions, sessionSetCount } from './sessions';
 
 /**
  * Adherencia: qué porcentaje de las series programadas tienen repeticiones
@@ -26,19 +27,28 @@ export const weekAdherence = (microcycles, weekNumber) => {
   const micro = findMicrocycle(microcycles, weekNumber);
   if (!micro) return null;
 
-  let planned = 0;
-  let logged = 0;
-  for (const day of micro.days || []) {
-    planned += countSets(day);
-    for (const exercise of day.exercises || []) {
-      for (const set of exercise.sets || []) {
-        if ((toNum(set?.reps) ?? 0) > 0) logged += 1;
-      }
-    }
-  }
+  /*
+    Los dos números salen de sitios distintos, y ahí estaba el fallo.
+    ------------------------------------------------------------------------
+    `planned` es del PLAN (`micro.days`): cuántas series se han programado.
+    `logged` es de lo EJECUTADO (`micro.sessions`): cuántas se han hecho.
 
+    Antes los dos se leían del plan, así que en cuanto el registro pasó a
+    sesiones el numerador se quedó en cero para siempre: adherencia 0 % con todas
+    las series anotadas. Y como esta función alimenta la columna «por revisar» de
+    la cartera, el error no se quedaba en la pantalla de analítica.
+  */
+  let planned = 0;
+  for (const day of micro.days || []) planned += countSets(day);
   if (planned === 0) return null;
-  return { planned, logged, pct: round((logged / planned) * 100) };
+
+  let logged = 0;
+  for (const session of executedSessions(micro)) logged += sessionSetCount(session);
+
+  // Se acota a 100: repetir un día en la misma semana —dos sesiones del mismo
+  // «Push»— es legítimo y daría más series hechas que programadas, y «120 % de
+  // adherencia» no significa nada.
+  return { planned, logged, pct: Math.min(100, round((logged / planned) * 100)) };
 };
 
 /** Métricas disponibles para los ejes de los gráficos. */

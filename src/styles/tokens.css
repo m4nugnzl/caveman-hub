@@ -6,72 +6,132 @@
    error, no una excepción. Eso es lo que permite cambiar el tema entero desde
    un solo sitio.
 
-   El tema por defecto es CLARO, siguiendo la referencia visual: superficies
-   blancas, separadores muy finos, sombras amplias y suaves, y color reservado
-   a los datos. El tema oscuro se mantiene como variante bajo
-   `[data-theme='dark']`, con los mismos nombres semánticos.
+   ── El lenguaje visual: «Piedra» ───────────────────────────────────────────
+   La identidad ya estaba en el logotipo y no se usaba en ninguna otra parte:
+   tres monolitos ascendentes, que leen a la vez como piedras y como una
+   progresión. De ahí sale todo lo demás.
+
+   La base deja de ser el gris azulado frío de cualquier panel y pasa a ser
+   caliza: un gris cálido, con el texto en negro cálido y el acento en un verde
+   mineral profundo. El color sigue reservado al dato — eso no cambia—, pero las
+   series pasan de la paleta genérica a PIGMENTOS: ocre, terracota, índigo,
+   verdigrís. Sobre una base cálida, un azul de caramelo flota; un pigmento se
+   asienta.
+
+   El tema por defecto es CLARO. El oscuro es basalto —la misma piedra sin luz—,
+   no una inversión del claro.
    ========================================================================== */
 
 :root {
   /* ── Superficies ────────────────────────────────────────────────────────
      `canvas` es el fondo de la página; `surface` las tarjetas, que en el tema
-     claro son blancas y se separan del fondo por la sombra, no por un borde. */
-  --canvas: #f4f6f9;
-  --canvas-alt: #eef1f6;
+     claro son blancas y se separan del fondo por la sombra, no por un borde.
+     Que el lienzo sea cálido y la tarjeta blanca pura es lo que da la lectura
+     de «papel sobre piedra». */
+  --canvas: #f2f0ec;
+  --canvas-alt: #e9e6e0;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-sunken: #f7f9fb;
+  --surface-sunken: #f8f6f3;
   --surface-glass: rgba(255, 255, 255, 0.82);
 
   /* ── Separadores y rellenos ── */
-  --hairline: #e6eaf0;
-  --hairline-strong: #d5dbe4;
-  --fill-subtle: #f2f5f9;
-  --fill: #e9edf3;
-  --fill-strong: #dde3eb;
+  --hairline: #e5e1d9;
+  --hairline-strong: #d3cec3;
+  --fill-subtle: #f4f2ee;
+  --fill: #eae7e0;
+  --fill-strong: #ddd8ce;
 
-  /* ── Texto ── */
-  --text: #0f1729;
-  --text-secondary: #5c6880;
-  --text-tertiary: #96a0b3;
+  /* ── Texto ──────────────────────────────────────────────────────────────
+     `text-tertiary` se ha oscurecido respecto al valor anterior (#96a0b3, que
+     daba 2.9:1 sobre blanco). Es el color de las etiquetas de 10-11 px, o sea
+     el texto más pequeño de la interfaz: es justo donde menos se puede
+     escatimar contraste. Ahora da 3.7:1. */
+  --text: #1c1917;
+  --text-secondary: #6b6459;
+  --text-tertiary: #8c8477;
   --text-inverse: #ffffff;
 
-  /* ── Acento de marca y acción ── */
-  --accent: #0f9d76;
-  --accent-hover: #0c8a67;
-  --accent-soft: #e6f7f1;
+  /* ── Acento de marca y acción ───────────────────────────────────────────
+     Verde mineral, no esmeralda. Además de identidad es una corrección: el
+     acento se usa como TEXTO en la pestaña activa y en `.btn-plain`, y el
+     anterior (#0f9d76) daba 3.45:1 sobre blanco, por debajo del mínimo AA.
+     Este da 5.4:1. */
+  --accent: #15795c;
+  --accent-hover: #10634a;
+  --accent-soft: #e2f0ea;
   --accent-on: #ffffff;
 
-  /* ── Colores de dato. Uno por serie, nunca decorativos. ── */
-  --data-blue: #3b82f6;
-  --data-rose: #f43f5e;
-  --data-teal: #14b8a6;
-  --data-amber: #f59e0b;
-  --data-violet: #8b5cf6;
-  --data-pink: #ec4899;
-  --data-lime: #65a30d;
-  --data-orange: #f97316;
-  --data-slate: #94a3b8;
+  /* ── Colores de dato. Uno por serie, nunca decorativos. ──────────────────
+     Pigmentos terrosos en vez de la paleta genérica: mantienen la distancia
+     entre series —que es lo que tiene que hacer una paleta categórica— pero
+     pertenecen a la misma tierra que el lienzo. */
+  --data-blue: #2f6fb5;
+  --data-rose: #c14a45;
+  --data-teal: #12897a;
+  --data-amber: #b8820f;
+  --data-violet: #6b5bab;
+  --data-pink: #b2477c;
+  --data-lime: #6b8f22;
+  --data-orange: #cc6a20;
+  --data-slate: #8c8477;
 
   /* Área bajo las líneas: el mismo color con muy poca opacidad. */
   --area-opacity: 0.1;
 
   /* ── Semántica de estado ── */
-  --positive: #059669;
-  --positive-soft: #ecfdf5;
-  --negative: #e11d48;
-  --negative-soft: #fff1f2;
-  --warning: #b45309;
-  --warning-soft: #fffbeb;
-  --info: #1d4ed8;
-  --info-soft: #eff6ff;
+  --positive: #147a52;
+  --positive-soft: #e3f0e8;
+  --negative: #b3372f;
+  --negative-soft: #fbe9e6;
+  /* ── El aviso NO es ámbar ─────────────────────────────────────────────────
+     Lo era, y `--data-amber` también: en tema oscuro los dos valían exactamente
+     `#e0ac3c`. Consecuencia: la píldora de kcal de una comida —que usa el ámbar
+     de dato— se leía igual que un aviso, y el entrenador veía advertencias donde
+     solo había calorías.
+
+     El aviso pasa a un ámbar quemado, claramente más rojizo que el de dato. Sigue
+     siendo «atención» sin invadir el pigmento que significa energía. */
+  --warning: #a85a12;
+  --warning-soft: #fbeee0;
+  --info: #2f6fb5;
+  --info-soft: #e7eff9;
+
+  /* Versión tenue del ámbar de dato, para las píldoras de kcal. Antes reutilizaban
+     `--warning-soft`, que es lo que hacía que las calorías parecieran un problema. */
+  --data-amber-soft: #f8f0da;
 
   /* ── Tipografía ──────────────────────────────────────────────────────────
-     Fuente del sistema: SF en Apple, Segoe en Windows. Es lo que hace que la
-     interfaz se sienta nativa, y evita la petición externa a Google Fonts que
-     bloqueaba el primer render. */
+     DOS voces, con papeles que no se solapan.
+
+     `--font` es la pila del sistema: SF en Apple, Segoe en Windows. Es la que
+     hace que la interfaz se sienta nativa y la que lee el usuario durante horas,
+     así que se queda en el cuerpo, los campos y los botones.
+
+     `--font-display` es Archivo, una grotesca de asta recta y cifras tabulares
+     excelentes que a tamaño grande resulta monumental. Se reserva a los TÍTULOS,
+     las CIFRAS y las etiquetas en versalita. En un producto que existe para
+     medir kilos, centímetros y semanas, el número es el contenido: merece voz
+     propia, y el resto de la interfaz no.
+
+     Va autoalojada en /public/fonts —no Google Fonts—, así que no hay petición a
+     terceros ni el bloqueo del primer render que motivó quitarla en su día. Son
+     35 KB para todo el rango de pesos 400-800, y `font-display: swap` deja que
+     el texto se pinte antes de que llegue. */
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text',
     'Segoe UI', Inter, Roboto, system-ui, sans-serif;
+
+  --font-display: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Display',
+    'Segoe UI', Inter, Roboto, system-ui, sans-serif;
+
+  /* Tercera voz, con un solo uso: los valores que se copian y pegan literalmente
+     —una URL de webhook, un id de base de datos, el nombre exacto de un evento—.
+     Ahí la monoespaciada no es estética: es la que hace distinguibles `l`, `1` e
+     `I`, y la que permite ver de un vistazo si sobra un carácter. No aparece en
+     ningún texto que el usuario simplemente lea. Es la pila del sistema, sin
+     ninguna descarga. */
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
 
   --fs-2xs: 0.625rem;   /* 10px — encabezados de columna */
   --fs-xs: 0.6875rem;   /* 11px — etiquetas, deltas */
@@ -85,12 +145,15 @@
   --lh-tight: 1.15;
   --lh-base: 1.45;
 
-  /* ── Radios ── */
-  --r-xs: 6px;
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 18px;
-  --r-xl: 24px;
+  /* ── Radios ──────────────────────────────────────────────────────────────
+     Más cerrados que antes (la tarjeta baja de 18 a 14 px). El radio muy
+     abierto lee blando; esto es una herramienta de medida y carga, y el canto
+     más recto la hace parecer construida en vez de inflada. */
+  --r-xs: 5px;
+  --r-sm: 8px;
+  --r-md: 11px;
+  --r-lg: 14px;
+  --r-xl: 20px;
   --r-pill: 999px;
 
   /* ── Espaciado ── */
@@ -102,76 +165,107 @@
   --s6: 32px;
   --s7: 44px;
 
-  /* ── Sombras: amplias y de baja opacidad, como en la referencia ── */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 41, 0.05);
-  --shadow-sm: 0 1px 3px rgba(15, 23, 41, 0.06), 0 1px 2px rgba(15, 23, 41, 0.04);
-  --shadow-md: 0 4px 14px -2px rgba(15, 23, 41, 0.08), 0 2px 4px rgba(15, 23, 41, 0.04);
-  --shadow-lg: 0 18px 40px -12px rgba(15, 23, 41, 0.18), 0 4px 10px rgba(15, 23, 41, 0.05);
-  --shadow-float: 0 12px 32px -8px rgba(15, 23, 41, 0.16);
+  /* ── Sombras ─────────────────────────────────────────────────────────────
+     Amplias y de baja opacidad, y teñidas con el negro cálido del texto: una
+     sombra azulada sobre un lienzo de caliza se ve gris sucio. */
+  --shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.05);
+  --shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.07), 0 1px 2px rgba(28, 25, 23, 0.04);
+  --shadow-md: 0 4px 14px -2px rgba(28, 25, 23, 0.09), 0 2px 4px rgba(28, 25, 23, 0.05);
+  --shadow-lg: 0 18px 40px -12px rgba(28, 25, 23, 0.2), 0 4px 10px rgba(28, 25, 23, 0.06);
+  --shadow-float: 0 12px 32px -8px rgba(28, 25, 23, 0.18);
 
   /* ── Movimiento ── */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --fast: 0.16s var(--ease);
   --normal: 0.26s var(--ease);
 
+  /* ── La veta: la firma visual ────────────────────────────────────────────
+     Aparece en tres sitios —la cabecera del día de entrenamiento, el saludo del
+     portal del cliente y la tarjeta de acceso—, es decir, en la pieza que
+     encabeza cada contexto del producto. Repetirla en cada tarjeta la
+     convertiría en textura y dejaría de significar nada.
+
+     ── Por qué es CONTINUA ──────────────────────────────────────────────────
+     Era una regla partida en tres segmentos, imitando los tres monolitos del
+     logotipo tumbados. Sobre el papel era la firma de la marca; en pantalla, a
+     3 px de alto, los dos huecos transparentes no se leían como intención sino
+     como una línea a la que le faltan trozos — «pausas sin relleno».
+
+     Un adorno que hay que explicar para que no parezca un fallo no está
+     funcionando. Ahora es una línea entera, con un degradado suave del acento
+     hacia su versión clara: sigue siendo un remate y ya no parece roto.
+
+     Hereda `--accent`, así que el tema oscuro la resuelve solo. */
+  --strata: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, transparent));
+
   --header-h: 58px;
   --max-w: 1320px;
 }
 
 /* ==========================================================================
-   Tema oscuro
+   Tema oscuro — basalto
    --------------------------------------------------------------------------
    Solo se redefinen los tokens. Ningún componente sabe que existe.
+
+   No es el claro invertido: es la misma piedra sin luz. Los grises llevan la
+   misma temperatura cálida que el tema claro, porque un gris neutro junto a un
+   acento verde se percibe azulado y rompía la continuidad entre los dos temas.
    ========================================================================== */
 
 [data-theme='dark'] {
-  --canvas: #0a0d14;
-  --canvas-alt: #0d111a;
-  --surface: #151a24;
-  --surface-raised: #1b212e;
-  --surface-sunken: #10141d;
-  --surface-glass: rgba(13, 17, 26, 0.78);
+  --canvas: #14120f;
+  --canvas-alt: #1a1714;
+  --surface: #201d19;
+  --surface-raised: #292520;
+  --surface-sunken: #1a1714;
+  --surface-glass: rgba(20, 18, 15, 0.78);
 
-  --hairline: rgba(255, 255, 255, 0.08);
-  --hairline-strong: rgba(255, 255, 255, 0.15);
-  --fill-subtle: rgba(255, 255, 255, 0.04);
-  --fill: rgba(255, 255, 255, 0.08);
-  --fill-strong: rgba(255, 255, 255, 0.13);
+  --hairline: rgba(255, 255, 255, 0.09);
+  --hairline-strong: rgba(255, 255, 255, 0.17);
+  --fill-subtle: rgba(255, 255, 255, 0.045);
+  --fill: rgba(255, 255, 255, 0.085);
+  --fill-strong: rgba(255, 255, 255, 0.14);
 
-  --text: #f2f5f9;
-  --text-secondary: #98a3b6;
-  --text-tertiary: #68738a;
-  --text-inverse: #0f1729;
+  --text: #f5f2ec;
+  --text-secondary: #a9a094;
+  --text-tertiary: #7d7568;
+  --text-inverse: #1c1917;
 
-  --accent: #10b981;
-  --accent-hover: #14c88b;
-  --accent-soft: rgba(16, 185, 129, 0.15);
-  --accent-on: #04150f;
+  --accent: #35b98d;
+  --accent-hover: #4ccb9f;
+  --accent-soft: rgba(53, 185, 141, 0.16);
+  --accent-on: #06120d;
 
-  --data-blue: #60a5fa;
-  --data-rose: #fb7185;
-  --data-teal: #2dd4bf;
-  --data-amber: #fbbf24;
-  --data-violet: #a78bfa;
-  --data-pink: #f472b6;
-  --data-lime: #a3e635;
-  --data-orange: #fb923c;
-  --data-slate: #94a3b8;
+  /* Los mismos pigmentos, subidos de luz para que mantengan el contraste sobre
+     basalto sin volverse fosforitos. */
+  --data-blue: #6ea8e8;
+  --data-rose: #e8827a;
+  --data-teal: #3fc3ae;
+  --data-amber: #e0ac3c;
+  --data-violet: #a494e0;
+  --data-pink: #e07bad;
+  --data-lime: #a7c455;
+  --data-orange: #eb9a51;
+  --data-slate: #a09789;
 
   --area-opacity: 0.16;
 
-  --positive: #34d399;
-  --positive-soft: rgba(52, 211, 153, 0.14);
-  --negative: #fb7185;
-  --negative-soft: rgba(251, 113, 133, 0.14);
-  --warning: #fbbf24;
-  --warning-soft: rgba(251, 191, 36, 0.14);
-  --info: #60a5fa;
-  --info-soft: rgba(96, 165, 250, 0.14);
+  --positive: #3fbd7e;
+  --positive-soft: rgba(63, 189, 126, 0.15);
+  --negative: #e8827a;
+  --negative-soft: rgba(232, 130, 122, 0.15);
+  /* Aquí era donde `--warning` y `--data-amber` valían LO MISMO. Ahora el aviso es
+     el ámbar quemado y el dato conserva el dorado. */
+  --warning: #eb9a51;
+  --warning-soft: rgba(235, 154, 81, 0.16);
+  --info: #6ea8e8;
+  --info-soft: rgba(110, 168, 232, 0.15);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.6);
-  --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.55);
+  --data-amber-soft: rgba(224, 172, 60, 0.16);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.65);
+  --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.6);
 }

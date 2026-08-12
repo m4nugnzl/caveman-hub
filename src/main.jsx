@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 
 import App from './App.jsx';
 import { AppProvider } from './context/AppContext.jsx';
@@ -12,7 +13,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* El tema va por encima de todo: la pantalla de login se pinta antes que
         la cabecera y también tiene que salir en el tema elegido. */}
-    <ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
       <ErrorBoundary>
         <ConfirmProvider>
           <AppProvider>
@@ -20,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           </AppProvider>
         </ConfirmProvider>
       </ErrorBoundary>
-    </ThemeProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

@@ -90,6 +90,20 @@ const labelStep = (count, width) => {
  * Banda: una o varias series sobre un eje común, ancha y baja.
  * @param series [{ id, label, color, unit, decimals, points: [{label,value}] }]
  */
+/**
+ * @param trend  Recta de tendencia a superponer: `{ from, to, weak }`, tal como la
+ *   devuelve `linearTrend`. Es la PRUEBA VISUAL del número que da la lectura de la
+ *   semana: sin ella el titular dice «−0,4 kg/semana» y el gráfico muestra una
+ *   línea que sube y baja, y no hay forma de ver de dónde sale esa cifra.
+ *
+ *   Cuando `weak` es true se dibuja más tenue y de trazo discontinuo. Ese es el
+ *   punto: una tendencia con r² bajo NO debe dibujarse igual que una buena, porque
+ *   una recta sólida sobre datos dispersos afirma una certeza que no existe.
+ *
+ * @param band  Banda horizontal de referencia: `{ from, to, label }`. Se usa para
+ *   el objetivo, y convierte «¿esto está bien?» en algo que se ve: el punto está
+ *   dentro de la banda o está fuera.
+ */
 export const BandChart = ({
   series,
   labels,
@@ -98,6 +112,8 @@ export const BandChart = ({
   smooth = false,
   showArea = true,
   gridLines = 3,
+  trend = null,
+  band = null,
   emptyMessage = 'Sin datos suficientes todavía.',
 }) => {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -120,12 +136,17 @@ export const BandChart = ({
       return { ...s, pts };
     });
 
+    // La banda de objetivo entra en la escala: si se quedara fuera, una banda por
+    // encima o por debajo del rango de los datos se dibujaría en el borde del
+    // gráfico o directamente fuera, y parecería que el cliente la está tocando.
+    const extra = band ? [band.from, band.to].map(toNum).filter((v) => v !== null) : [];
+
     return {
       total,
       series: withIndex,
-      scale: makeScale(withIndex.flatMap((s) => s.pts.map((p) => p.value)), { fromZero }),
+      scale: makeScale([...withIndex.flatMap((s) => s.pts.map((p) => p.value)), ...extra], { fromZero }),
     };
-  }, [series, labels, fromZero]);
+  }, [series, labels, fromZero, band]);
 
   const hasData = prepared.series.some((s) => s.pts.length > 0);
 
@@ -177,6 +198,18 @@ export const BandChart = ({
               ))}
             </g>
 
+            {/* La banda del objetivo, DEBAJO de los datos: es el fondo contra el
+                que se leen, no un elemento más que compita con ellos. */}
+            {band && (
+              <rect
+                className="chart-band"
+                x={PAD.left}
+                y={Math.min(yAt(band.from), yAt(band.to))}
+                width={innerW}
+                height={Math.max(2, Math.abs(yAt(band.to) - yAt(band.from)))}
+              />
+            )}
+
             <g className="chart-axis">
               {ticks.map((tick, i) => (
                 <text key={i} x={PAD.left - 6} y={yAt(tick)} textAnchor="end" dominantBaseline="middle">
@@ -194,6 +227,19 @@ export const BandChart = ({
 
             {hover !== null && (
               <line className="chart-cursor" x1={xAt(hover)} x2={xAt(hover)} y1={PAD.top} y2={PAD.top + innerH} />
+            )}
+
+            {/* La recta de tendencia, sobre la primera serie y con su color. Va
+                entre la banda y los datos: explica la línea, no la sustituye. */}
+            {trend && prepared.series[0]?.pts.length > 1 && (
+              <line
+                className={`chart-trend${trend.weak ? ' is-weak' : ''}`}
+                x1={xAt(prepared.series[0].pts[0].index)}
+                y1={yAt(trend.from)}
+                x2={xAt(prepared.series[0].pts[prepared.series[0].pts.length - 1].index)}
+                y2={yAt(trend.to)}
+                stroke={prepared.series[0].color}
+              />
             )}
 
             {prepared.series.map((s) => {

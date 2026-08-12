@@ -1,7 +1,7 @@
 import { ArrowLeftRight, FlipHorizontal, RotateCcw, RotateCw, Sparkles, Trash2, ZoomIn } from 'lucide-react';
 
 import { angleLabel } from '@/domain/photos';
-import { Panel, SectionTitle } from '@/components/ui/primitives';
+// Sin `Panel`: este bloque se pinta dentro de `StudioPanel`, que ya es la tarjeta.
 
 /** Fila etiqueta + deslizador + valor, usada por encuadre y ajustes de luz. */
 const SliderRow = ({ label, value, min, max, step = 1, suffix = '', decimals = 0, onChange }) => (
@@ -56,8 +56,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
   const setAdjust = (patch) => onUpdate(activeSlot, { adjustments: patch });
 
   return (
-    <Panel tight className="col gap-4">
-      <SectionTitle>Hueco seleccionado</SectionTitle>
+    <div className="col gap-4">
 
       <div className="slot-tabs">
         {slots.map((s, index) => {
@@ -173,6 +172,6 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
           </div>
         </>
       )}
-    </Panel>
+    </div>
   );
 };

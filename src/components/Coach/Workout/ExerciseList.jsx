@@ -19,17 +19,6 @@ import { SetCell } from './SetCell';
  *   registra sus kg, reps y RIR, pero no cambia el programa que le han montado.
  */
 
-/**
- * Objetivo "común" del ejercicio, solo para el atajo de rellenar todas las
- * series. Si las series tienen objetivos distintos —una pirámide— se muestra en
- * blanco para no dar a entender que todas comparten el mismo.
- */
-const commonTarget = (exercise) => {
-  const targets = (exercise.sets || []).map((s) => s.targetReps ?? '');
-  if (targets.length === 0) return '';
-  return targets.every((t) => t === targets[0]) ? targets[0] : '';
-};
-
 export const ExerciseList = ({
   exercises,
   canEditStructure = true,
@@ -37,7 +26,6 @@ export const ExerciseList = ({
   onMove,
   onRemove,
   onSetChange,
-  onTargetChange = () => {},
   onAddSet,
   onRemoveSet,
 }) => {
@@ -135,10 +123,13 @@ export const ExerciseList = ({
             </span>
 
             {/*
-              Nombre arriba; músculo debajo en gris pequeño, y —solo para el
-              entrenador— un atajo para poner el mismo objetivo en todas las
-              series de golpe. El objetivo real vive en cada serie, que es donde
-              tiene que estar.
+              Nombre y músculo. Nada más.
+              --------------------------------------------------------------
+              Aquí hubo un campo con el objetivo de repeticiones que parecía
+              informativo y escribía en TODAS las series a la vez, y después un
+              resumen de solo lectura. Los dos sobraban: el objetivo vive en cada
+              serie —una pirámide es 6-8 / 8-10 / 8-10 y solo se puede decir celda
+              a celda— y repetirlo aquí solo servía para confundir.
             */}
             <div className="exercise-name">
               <div className="name" title={exercise.name}>
@@ -146,25 +137,24 @@ export const ExerciseList = ({
               </div>
               <div className="exercise-meta">
                 <span className="muscle">{exercise.muscle}</span>
-                {canEditStructure && (
-                  <>
-                    <span className="dot">·</span>
-                    <input
-                      type="text"
-                      className="target-input"
-                      value={commonTarget(exercise)}
-                      placeholder="8-10"
-                      onChange={(e) => onTargetChange(exercise.id, e.target.value)}
-                      aria-label={`Objetivo para todas las series de ${exercise.name}`}
-                      title="Atajo: pone este objetivo en TODAS las series del ejercicio"
-                    />
-                    <span>a todas</span>
-                  </>
-                )}
               </div>
             </div>
 
-            <div className="set-lane">
+            {/*
+              El carril de series cambia de forma según quién lo use.
+              ------------------------------------------------------------------
+              El entrenador está PROGRAMANDO: recorre muchos ejercicios comparando
+              estructuras, y le sirve un carril compacto que se desliza —además
+              puede añadir series, así que el número no está acotado.
+
+              El cliente está RELLENANDO un formulario. Con cuatro series de 168 px
+              el carril desbordaba y aparecía una barra de scroll horizontal: fea, y
+              peor que fea, ESCONDE campos. En un móvil las series 3 y 4 no existían
+              hasta que descubrieras que aquello se arrastraba. Para él el carril es
+              una rejilla que reparte el ancho y baja de línea: 4 en fila si cabe,
+              2×2 si no, una debajo de otra en el móvil. Nunca se oculta nada.
+            */}
+            <div className={canEditStructure ? 'set-lane' : 'set-lane is-log'}>
               {(exercise.sets || []).map((set, setIndex) => (
                 <SetCell
                   key={setIndex}
