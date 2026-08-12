@@ -1,0 +1,275 @@
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, ArrowRight, Check, Eye, Inbox, Waves } from 'lucide-react';
+
+import { useApp } from '@/context/AppContext';
+import { buildPortfolio, portfolioBoard } from '@/domain/portfolio';
+import {
+  ACTIVITY_KINDS,
+  DEFAULT_WINDOW,
+  buildActivity,
+  buildInbox,
+  groupByDay,
+  activityScale,
+} from '@/domain/today';
+import { clientPath } from '@/routes';
+import { shortDate, todayISO } from '@/lib/dates';
+import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+
+/**
+ * «Hoy»: la pantalla con la que abre el entrenador.
+ *
+ * Tres piezas, en el orden en que se necesitan:
+ *
+ *   1. LA REGLA — catorce días de actividad de toda la cartera. Es la firma
+ *      visual del producto y, a la vez, un histograma: un hueco en mitad de la
+ *      tira es la cartera parada, y se ve antes de leer una línea.
+ *   2. LA BANDEJA — lo que espera respuesta tuya. Corta a propósito.
+ *   3. EL HILO — lo que han hecho ellos, por días.
+ *
+ * En escritorio la bandeja va a la derecha y se queda fija mientras se recorre el
+ * hilo; en móvil se apila ENCIMA, porque es lo accionable y ahí el orden de
+ * lectura es el de la página.
+ *
+ * Toda la lógica está en `domain/today.js`. Aquí solo hay presentación.
+ */
+
+/** Título del día, con su recuento. */
+const DayHead = ({ label, count }) => (
+  <div className="feed-date">
+    <span className="k">{label}</span>
+    <span className="n">{count}</span>
+  </div>
+);
+
+const ActivityRow = ({ event, onOpen }) => {
+  const kind = ACTIVITY_KINDS[event.kind];
+  return (
+    <button type="button" className="feed-row" onClick={onOpen}>
+      <span className="feed-dot" style={{ background: kind.color }} aria-hidden="true" />
+      <span className="who">{event.clientName}</span>
+      <span className="what">
+        {event.title}
+        {event.detail && <span className="detail"> · {event.detail}</span>}
+      </span>
+      <span className="feed-kind">{kind.label}</span>
+    </button>
+  );
+};
+
+export const Today = () => {
+  const {
+    clients,
+    workoutData,
+    anthropometry,
+    progressPhotos,
+    checkIns,
+    updateClient,
+    reviewCheckIn,
+  } = useApp();
+  const navigate = useNavigate();
+  const [error, setError] = useState(null);
+
+  const today = todayISO();
+
+  const events = useMemo(
+    () => buildActivity({ clients, workoutData, anthropometry, progressPhotos, checkIns }, today),
+    [clients, workoutData, anthropometry, progressPhotos, checkIns, today]
+  );
+
+  const rows = useMemo(
+    () => buildPortfolio({ clients, workoutData, anthropometry, progressPhotos, checkIns }, today),
+    [clients, workoutData, anthropometry, progressPhotos, checkIns, today]
+  );
+
+  const inbox = useMemo(() => buildInbox(rows), [rows]);
+  const days = useMemo(() => groupByDay(events, today), [events, today]);
+  const scale = useMemo(() => activityScale(events, today, DEFAULT_WINDOW), [events, today]);
+
+  /* El puente a la cartera: se cuenta cuántos hay en riesgo, no se repiten aquí.
+     Dos pantallas que dicen lo mismo obligan a mirar las dos por si acaso. */
+  const atRisk = useMemo(
+    () => portfolioBoard(rows).find((c) => c.id === 'at_risk')?.rows.length || 0,
+    [rows]
+  );
+
+  const maxCount = Math.max(1, ...scale.map((d) => d.count));
+  const activeToday = scale[scale.length - 1]?.count || 0;
+
+  const act = async (promise) => {
+    const result = await promise;
+    setError(result?.ok === false ? result.error : null);
+  };
+
+  const open = (clientId, section) => navigate(clientPath(clientId, section));
+
+  if (clients.length === 0) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        title="Todavía no hay nada que contar"
+        message="En cuanto des de alta a tu primer cliente, aquí aparecerá lo que va haciendo: sus entrenos, sus pesajes y sus fotos, en orden."
+      />
+    );
+  }
+
+  return (
+    <div className="stack">
+      <div className="section-head">
+        <div>
+          <h2>Hoy</h2>
+          <p>
+            {new Date(`${today}T00:00:00Z`)
+              .toLocaleDateString('es-ES', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                timeZone: 'UTC',
+              })
+              .replace(/^./, (c) => c.toUpperCase())}
+            {activeToday > 0
+              ? ` · ${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'}`
+              : ' · sin movimiento todavía'}
+          </p>
+        </div>
+      </div>
+
+      {error && <Notice tone="error">{error}</Notice>}
+
+      {/* ── LA REGLA ────────────────────────────────────────────────────────
+          Catorce días, uno por marca. La barra es cuántas cosas pasaron; la
+          marca de abajo existe aunque el día esté vacío, porque una escala a la
+          que le faltan las marcas vacías deja de ser una escala. */}
+      <section className="scale-card">
+        <span className="section-label">Últimas dos semanas</span>
+        <div
+          className="scale"
+          role="img"
+          aria-label={`Actividad de los últimos ${DEFAULT_WINDOW} días: ${events.length} registros en total.`}
+        >
+          {scale.map((day) => (
+            <div
+              key={day.date}
+              className={`scale-day${day.isToday ? ' is-today' : ''}`}
+              title={`${shortDate(day.date)}: ${day.count} ${day.count === 1 ? 'registro' : 'registros'}`}
+            >
+              <span className="scale-track">
+                <span
+                  className="scale-bar"
+                  style={{ height: `${day.count === 0 ? 0 : Math.max(9, (day.count / maxCount) * 100)}%` }}
+                />
+              </span>
+              <span className="scale-tick" aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+        <div className="scale-legend">
+          <span>{shortDate(scale[0]?.date)}</span>
+          <span>hoy</span>
+        </div>
+      </section>
+
+      <div className="today">
+        {/* ── EL HILO ──────────────────────────────────────────────────── */}
+        <section className="col gap-5">
+          {days.length === 0 ? (
+            <Panel className="col gap-2">
+              <span className="section-title">
+                <Waves size={17} /> Dos semanas en silencio
+              </span>
+              <p className="t-sm t-secondary">
+                Nadie ha registrado un entreno, un pesaje ni una foto en catorce días. Si tus
+                clientes entrenan pero no lo anotan, revisa que tengan acceso a su portal desde
+                «Clientes».
+              </p>
+            </Panel>
+          ) : (
+            days.map((day) => (
+              <section className="feed-day" key={day.date}>
+                <DayHead label={day.label} count={day.events.length} />
+                <div className="feed-rows">
+                  {day.events.map((event) => (
+                    <ActivityRow
+                      key={event.id}
+                      event={event}
+                      onOpen={() => open(event.clientId, ACTIVITY_KINDS[event.kind].section)}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))
+          )}
+        </section>
+
+        {/* ── LA BANDEJA ───────────────────────────────────────────────── */}
+        <aside className="today-side">
+          <section className="card col gap-3">
+            <div className="row between gap-2">
+              <span className="section-label">Te esperan</span>
+              <span className="badge">{inbox.length}</span>
+            </div>
+
+            {inbox.length === 0 ? (
+              <p className="t-sm t-secondary">
+                Nada pendiente por tu parte. Cuando alguien entregue su check-in o venza un cobro,
+                aparecerá aquí.
+              </p>
+            ) : (
+              <div className="col gap-2">
+                {inbox.map((item) => (
+                  <article className={`inbox-item is-${item.tone}`} key={item.id}>
+                    <button
+                      type="button"
+                      className="inbox-hit"
+                      onClick={() => open(item.clientId, item.section)}
+                      aria-label={`Abrir la ficha de ${item.name}`}
+                    />
+                    <span className="who">{item.name}</span>
+                    <span className="what">{item.title}</span>
+                    <span className="detail">{item.detail}</span>
+
+                    <footer className="row gap-2 wrap">
+                      {item.kind === 'review' && item.reviewId && (
+                        <button
+                          type="button"
+                          className="chip"
+                          onClick={() => act(reviewCheckIn(item.reviewId))}
+                        >
+                          <Eye size={12} /> Marcar revisado
+                        </button>
+                      )}
+                      {item.kind === 'payment' && (
+                        <button
+                          type="button"
+                          className="chip"
+                          onClick={() => act(updateClient(item.clientId, { paymentStatus: 'paid' }))}
+                        >
+                          <Check size={12} /> Marcar cobrado
+                        </button>
+                      )}
+                    </footer>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/*
+            Puente a la cartera. Es un enlace y un número, no una copia de las
+            fichas: quien está en riesgo se atiende en el tablero, que es donde
+            está ordenado por gravedad.
+          */}
+          {atRisk > 0 && (
+            <button type="button" className="today-bridge" onClick={() => navigate('/cartera')}>
+              <AlertTriangle size={16} />
+              <span className="grow">
+                {atRisk} {atRisk === 1 ? 'cliente se está descolgando' : 'clientes se están descolgando'}
+              </span>
+              <ArrowRight size={15} />
+            </button>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
+};

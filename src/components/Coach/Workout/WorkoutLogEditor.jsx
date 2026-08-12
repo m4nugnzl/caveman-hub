@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { Dumbbell, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { dayMuscleVolume, unitLabel } from '@/domain/training';
 import { sessionMuscleVolume } from '@/domain/sessions';
+import { activeQuestions, clientProtocol, isModuleOn } from '@/domain/protocol';
 import { EmptyState, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { SessionFeedback } from './SessionFeedback';
+import { WarmupEditor } from './WarmupBlock';
 import { useProgramNavigation } from './useProgramNavigation';
 import { useDaySession } from './useDaySession';
 import { SessionBar } from './SessionBar';
@@ -37,6 +40,8 @@ export const WorkoutLogEditor = () => {
     startSession,
     logSessionSet,
     updateSession,
+    updateSessionMeta,
+    updateMobilityDrills,
     removeSession,
     startProgram,
     appendMicrocycle,
@@ -63,9 +68,14 @@ export const WorkoutLogEditor = () => {
   const [newDayName, setNewDayName] = useState('');
   const [addingDay, setAddingDay] = useState(false);
 
+  const [warmupOpen, setWarmupOpen] = useState(false);
+
   const program = workoutData[activeClient.id];
   const microcycles = program?.microcycles || [];
   const cycleType = activeClient.cycleType || 'weekly';
+  /* Qué módulos existen para este cliente. Se configura en Ajustes → Protocolo y
+     decide qué piezas de esta pantalla se pintan siquiera. */
+  const protocol = clientProtocol(activeClient.preferences);
 
   const nav = useProgramNavigation(activeClient.id, microcycles);
   const save = saveStatus('workout', activeClient.id);
@@ -182,6 +192,35 @@ export const WorkoutLogEditor = () => {
         />
       )}
 
+      {/*
+        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad de
+        este cliente y se repite. Por eso vive aquí arriba y no dentro de cada día
+        —que obligaría a mantener cinco copias— y por eso va plegado: se monta una
+        vez y después se consulta poco.
+      */}
+      {isModuleOn(protocol, 'warmup') && (
+        <Panel tight className="col gap-3">
+          <button
+            type="button"
+            className="proto-toggle"
+            aria-expanded={warmupOpen}
+            onClick={() => setWarmupOpen((v) => !v)}
+          >
+            {warmupOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <Waves size={15} />
+            <span className="grow">Calentamiento y movilidad</span>
+            <span className="badge">{(program?.mobilityDrills || []).length}</span>
+          </button>
+
+          {warmupOpen && (
+            <WarmupEditor
+              drills={program?.mobilityDrills || []}
+              onChange={(drills) => updateMobilityDrills(activeClient.id, drills)}
+            />
+          )}
+        </Panel>
+      )}
+
       <div className="row wrap gap-2" role="tablist" aria-label="Días del microciclo">
         {nav.days.map((day, index) => (
           <button
@@ -261,6 +300,33 @@ export const WorkoutLogEditor = () => {
           />
 
           {/*
+            ── Lo que el protocolo enciende, en el orden en que ocurre ────────
+            Primero lo que el entrenador DICE (su nota), luego lo que el cliente
+            hace, y al final lo que el cliente CUENTA. Las tres piezas aparecen
+            solo si el módulo correspondiente está encendido en Ajustes →
+            Protocolo: un entrenador que no quiera nada de esto no ve un solo
+            control de más.
+          */}
+          {isModuleOn(protocol, 'coachNote') && daySession.activeId && (
+            <label className="feedback-q">
+              <span className="k">
+                <Quote size={12} /> Tu indicación para este día
+              </span>
+              <textarea
+                className="textarea"
+                rows={2}
+                placeholder="La verá tu cliente al abrir la sesión."
+                value={daySession.session?.coachNote ?? ''}
+                onChange={(e) =>
+                  updateSessionMeta(activeClient.id, nav.week, daySession.activeId, {
+                    coachNote: e.target.value,
+                  })
+                }
+              />
+            </label>
+          )}
+
+          {/*
             El objetivo de repeticiones va al PLAN; los kg, reps y RIR a la
             SESIÓN con su fecha. Antes todo se escribía en el plan, así que no
             quedaba constancia de cuándo se entrenó y cambiar el plan borraba el
@@ -298,6 +364,27 @@ export const WorkoutLogEditor = () => {
               removeExerciseSetSlot(activeClient.id, nav.week, nav.day.dayName, exId, setIdx)
             }
           />
+
+          {/*
+            Lo que ha contestado el cliente, en modo lectura y con el mismo
+            componente con el que lo contestó: si la respuesta se leyera con otra
+            forma, las dos versiones acabarían divergiendo.
+          */}
+          <SessionFeedback
+            readOnly
+            title="Lo que te ha contado"
+            questions={activeQuestions(protocol)}
+            answers={daySession.session?.feedback}
+          />
+
+          {isModuleOn(protocol, 'clientNote') && daySession.session?.clientNote?.trim() && (
+            <div className="coach-note is-client">
+              <span className="section-label">
+                <NotebookPen size={12} /> Su cuaderno
+              </span>
+              <p>{daySession.session.clientNote}</p>
+            </div>
+          )}
 
           <hr className="divider" />
 

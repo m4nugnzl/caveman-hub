@@ -30,12 +30,18 @@ export const ChartCard = ({ icon, color, title, subtitle, controls, children, no
   </Panel>
 );
 
-/** Selector de periodo en chips, para los gráficos que tienen eje temporal. */
+/**
+ * Selector de periodo en chips, para los gráficos que tienen eje temporal.
+ *
+ * `String(option.id)` como clave y no `option.id` a secas: la opción «Todo» vale
+ * `null` —que es lo que `lastWeeks` entiende como «sin recortar»— y una clave
+ * nula deja a React sin forma de identificar ese hijo.
+ */
 export const RangeChips = ({ value, onChange, options, label = 'Periodo' }) => (
   <div className="rail" role="group" aria-label={label}>
     {options.map((option) => (
       <button
-        key={option.id}
+        key={String(option.id)}
         type="button"
         className="chip"
         aria-pressed={value === option.id}

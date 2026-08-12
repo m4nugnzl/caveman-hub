@@ -1,4 +1,6 @@
-import { X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
+
+import { isSetLogged } from '@/domain/sessions';
 
 /**
  * Una serie.
@@ -24,15 +26,82 @@ const FIELDS = [
   { key: 'rir', unit: 'rir', label: 'RIR', mode: 'numeric' },
 ];
 
-export const SetCell = ({
-  index,
-  set,
-  canRemove,
-  canEditTarget = true,
-  onChange,
-  onRemove,
-  exerciseName,
-}) => {
+/**
+ * La misma serie, como FILA de una tabla.
+ *
+ * ══ Por qué existen dos formas ══════════════════════════════════════════════
+ *
+ * Son dos trabajos distintos, no dos tamaños de pantalla.
+ *
+ * El entrenador PROGRAMA: recorre muchos ejercicios comparando estructuras, y
+ * cada serie es una pieza que puede añadir, quitar y ajustar. La tarjeta —con su
+ * `S1`, su objetivo y sus tres campos etiquetados— es autónoma y se puede mover.
+ *
+ * El cliente RELLENA: tiene delante cuatro series iguales de un mismo ejercicio y
+ * escribe doce números seguidos. Ahí la tarjeta es la forma equivocada, y en el
+ * móvil se veía por qué: apiladas una debajo de otra, cada tarjeta repetía
+ * «KG REPS RIR», o sea las mismas tres etiquetas CUATRO veces por ejercicio. En
+ * escritorio no cantaba porque las cuatro tarjetas iban en fila y esas etiquetas
+ * se leían como una cabecera de columna. Al apilarlas dejaron de serlo.
+ *
+ * La fila lo arregla en el sitio correcto: las etiquetas salen de la serie y
+ * suben a UNA cabecera del ejercicio, que es de quien son.
+ *
+ * `FIELDS` se comparte con la tarjeta a propósito: dos listas de campos acaban
+ * divergiendo, y el día que se añada «tempo» tiene que aparecer en las dos.
+ */
+export const SetRow = ({ index, set, onChange, exerciseName }) => {
+  const label = `${exerciseName}, serie ${index + 1}`;
+  const done = isSetLogged(set);
+
+  return (
+    <div className={`set-row${done ? ' is-done' : ''}`}>
+      <span className="set-row-tag">
+        {/*
+          La marca de hecho sustituye al número, no lo acompaña: en una lista de
+          cuatro series el orden ya lo da la posición, así que repetir «S3» al lado
+          del visto es decir dos veces lo mismo. Lo que no se sabe de un vistazo es
+          cuáles quedan.
+        */}
+        {done ? <Check size={13} strokeWidth={3} /> : index + 1}
+      </span>
+
+      <span className="set-row-target">{set.targetReps || '—'}</span>
+
+      {FIELDS.map((field) => (
+        <input
+          key={field.key}
+          type="text"
+          inputMode={field.mode}
+          className="input input-center"
+          placeholder="—"
+          value={set[field.key] ?? ''}
+          onChange={(e) => onChange(field.key, e.target.value)}
+          aria-label={`${label}: ${field.label}`}
+        />
+      ))}
+    </div>
+  );
+};
+
+/** La cabecera de la tabla: las etiquetas, una sola vez por ejercicio. */
+export const SetRowHead = () => (
+  <div className="set-row is-head" aria-hidden="true">
+    <span>#</span>
+    <span>obj</span>
+    {FIELDS.map((field) => (
+      <span key={field.key}>{field.unit}</span>
+    ))}
+  </div>
+);
+
+/**
+ * Una serie, como TARJETA. La forma de PROGRAMAR: autónoma, movible, con su
+ * objetivo editable. Solo la usa el entrenador — el cliente registra con
+ * `SetRow`, así que ya no hace falta el interruptor `canEditTarget` que antes
+ * apagaba medio componente.
+ */
+export const SetCell = ({ index, set, canRemove, onChange, onRemove, exerciseName }) => {
   const label = `${exerciseName}, serie ${index + 1}`;
 
   return (
@@ -42,19 +111,15 @@ export const SetCell = ({
 
         <span className="set-cell-target">
           <span className="tag">obj</span>
-          {canEditTarget ? (
-            <input
-              type="text"
-              className="input"
-              placeholder="8-10"
-              value={set.targetReps ?? ''}
-              onChange={(e) => onChange('targetReps', e.target.value)}
-              aria-label={`${label}: repeticiones objetivo`}
-              title="Repeticiones objetivo de esta serie"
-            />
-          ) : (
-            <span className="fixed">{set.targetReps || '—'}</span>
-          )}
+          <input
+            type="text"
+            className="input"
+            placeholder="8-10"
+            value={set.targetReps ?? ''}
+            onChange={(e) => onChange('targetReps', e.target.value)}
+            aria-label={`${label}: repeticiones objetivo`}
+            title="Repeticiones objetivo de esta serie"
+          />
         </span>
 
         {canRemove && (

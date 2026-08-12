@@ -11,7 +11,8 @@
     "verify": "node scripts/verify-styles.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run verify && npm run test && npm run build"
+    "check": "npm run lint && npm run types && npm run verify && npm run test && npm run build",
+    "types": "tsc --noEmit -p jsconfig.json"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -27,6 +28,7 @@
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",
     "globals": "^15.12.0",
+    "typescript": "^5.6.3",
     "vite": "^5.4.0",
     "vitest": "^2.1.9"
   }

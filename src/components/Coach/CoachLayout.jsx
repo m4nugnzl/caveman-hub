@@ -5,12 +5,14 @@ import { ArrowLeft, UserPlus } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import {
   COACH_CLIENT,
+  COACH_HOME,
   COACH_PRIMARY,
   SETTINGS_SECTIONS,
   clientPath,
   sameSectionFor,
 } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
+import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientSwitcher } from './ClientSwitcher';
 
 /**
@@ -134,7 +136,10 @@ export const CoachLayout = () => {
         </div>
       )}
 
-      {!hasClients && location.pathname === '/cartera' ? (
+      {/* El alta del primer cliente se ofrece en las dos pantallas de trabajo, no
+          solo en la cartera: desde que «Hoy» es la de entrada, esa es la que ve
+          un entrenador recién registrado. */}
+      {!hasClients && (location.pathname === COACH_HOME || location.pathname === '/cartera') ? (
         <EmptyState
           icon={UserPlus}
           title="Todavía no tienes clientes"
@@ -148,6 +153,19 @@ export const CoachLayout = () => {
       ) : (
         <Outlet />
       )}
+
+      {/*
+        En móvil, la barra inferior lleva el PRIMER nivel —Hoy, Cartera,
+        Clientes—, que es el que las pestañas de arriba dejan de mostrar en cuanto
+        la pantalla es estrecha. El segundo nivel (las secciones del cliente, las
+        de ajustes) se queda en su carril: son dos planos distintos y ponerlos los
+        dos abajo volvería a mezclarlos, que es justo lo que esta navegación vino
+        a arreglar.
+      */}
+      <BottomNav
+        label="Secciones principales"
+        items={COACH_PRIMARY.map(({ path, label, icon }) => ({ to: path, label, icon }))}
+      />
     </div>
   );
 };

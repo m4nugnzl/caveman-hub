@@ -1,20 +1,43 @@
 import { CalendarPlus, Trash2 } from 'lucide-react';
 
 import { sessionCompletion, sessionLabel, sessionSetCount, sessionTonnage } from '@/domain/sessions';
-import { todayISO } from '@/lib/dates';
+import { shortDate, todayISO } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 /**
- * Selector de sesión de un día.
+ * Cuándo se entrenó este día.
  *
- * ── Qué resuelve ────────────────────────────────────────────────────────────
- * Hasta ahora los kilos se escribían dentro del plan, así que no había forma de
- * saber **cuándo** se entrenó ni de registrar dos veces el mismo día de la
- * semana. Aquí cada registro es una sesión con su fecha: se puede añadir la de
- * hoy, corregir una pasada, o llevar dos sesiones del mismo día en una semana.
+ * ══ Para qué sirve la fecha ═════════════════════════════════════════════════
  *
- * La fecha es editable porque casi nunca se apunta el entrenamiento en el
- * momento: se rellena por la noche, o al día siguiente.
+ * Es lo ÚNICO que sitúa un entrenamiento en el tiempo. `weekNumber` es un índice
+ * del programa —la semana 12 del bloque—, no una fecha: dos clientes en su semana
+ * 12 pueden estar a tres meses de distancia, y un mismo cliente puede pasarse dos
+ * semanas naturales en su semana 12 si se va de viaje.
+ *
+ * Toda la analítica agrupa por `weekStart(session.date)`: el tonelaje por semana,
+ * la progresión por ejercicio, el peso corporal y las series de sensaciones. Es lo
+ * que permite poner «subió el tonelaje» y «bajó el peso» en el mismo eje. Sin
+ * fecha, un bloque de entrenamiento no se puede cruzar con un pesaje ni con una
+ * foto, y el proyecto ya tuvo ese fallo: lo que registraba el cliente se fechaba
+ * con la fecha del MICROCICLO y la progresión salía movida.
+ *
+ * Por eso la fecha se rellena sola —la de hoy, al escribir el primer kilo— y es
+ * corregible: casi nadie apunta el entrenamiento en el momento, se hace por la
+ * noche o al día siguiente.
+ *
+ * ══ Lo que estaba mal ═══════════════════════════════════════════════════════
+ *
+ * No la fecha: su presentación. Aquí había un carril de chips con todas las
+ * sesiones del día y un botón «Nueva» permanente, y eso comunica que registrar
+ * VARIAS sesiones del mismo día es parte del trabajo semanal. No lo es: el modelo
+ * lo permite —un cliente puede repetir «Empuje A» dos veces en una semana— pero es
+ * la excepción, y ofrecerlo como control principal invita a crear sesiones vacías
+ * que después cuentan como entrenos en la adherencia.
+ *
+ * Ahora la barra dice UNA cosa —cuándo entrenó y cuánto hizo— y el carril solo
+ * aparece si de verdad hay más de una sesión que elegir, que es la misma regla que
+ * ya seguía el portal del cliente. Registrar otra queda como una acción secundaria
+ * y con su explicación.
  */
 export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChangeDate, onRemove }) => {
   const confirm = useConfirm();
@@ -23,7 +46,7 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
 
   const askRemove = async () => {
     const ok = await confirm({
-      title: `¿Eliminar la sesión del ${active.date}?`,
+      title: `¿Eliminar la sesión del ${shortDate(active.date)}?`,
       message: `Se borrarán los ${sessionSetCount(active)} registros de esa sesión. El plan del día no se toca.`,
       confirmLabel: 'Eliminar sesión',
       tone: 'danger',
@@ -33,48 +56,49 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
 
   return (
     <div className="session-bar">
-      <div className="row wrap gap-3">
-        <div className="col gap-1">
-          <span className="section-label">Sesión registrada</span>
-          <div className="rail">
-            {sessions.map((session) => (
-              <button
-                key={session.id}
-                type="button"
-                className="chip"
-                aria-pressed={session.id === activeId}
-                onClick={() => onSelect(session.id)}
-              >
-                {sessionLabel(session)}
-                <span className="t-xs" style={{ opacity: 0.75 }}>
-                  {sessionSetCount(session)}
-                </span>
-              </button>
-            ))}
-
-            <button
-              type="button"
-              className="chip chip-dashed"
-              onClick={() => onCreate(todayISO())}
-              title="Registrar una sesión nueva con la fecha de hoy"
-            >
-              <CalendarPlus size={13} /> Nueva
-            </button>
+      <div className="row wrap gap-4">
+        {/* Solo cuando hay algo que elegir. Con una sesión —el caso normal— un
+            selector de un elemento es una decisión que no existe. */}
+        {sessions.length > 1 && (
+          <div className="col gap-1">
+            <span className="section-label">Sesión</span>
+            <div className="rail">
+              {sessions.map((session) => (
+                <button
+                  key={session.id}
+                  type="button"
+                  className="chip"
+                  aria-pressed={session.id === activeId}
+                  onClick={() => onSelect(session.id)}
+                >
+                  {sessionLabel(session)}
+                  <span className="chip-count">{sessionSetCount(session)}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
-        {active && !active.isLegacy && (
+        {active && !active.isLegacy ? (
           <label className="col gap-1">
-            <span className="section-label">Fecha</span>
+            <span className="section-label">Entrenado el</span>
             <input
               type="date"
               className="input input-sm"
-              style={{ width: 148 }}
+              style={{ width: 150 }}
               value={active.date || ''}
               max={todayISO()}
               onChange={(e) => onChangeDate(active.id, e.target.value)}
+              title="La fecha real del entrenamiento. Es la que usa toda la analítica."
             />
           </label>
+        ) : (
+          <div className="col gap-1">
+            <span className="section-label">Entrenado el</span>
+            <span className="t-sm t-tertiary">
+              {active?.isLegacy ? 'Registro anterior, sin fecha propia' : 'Al anotar el primer kilo se fecha hoy'}
+            </span>
+          </div>
         )}
       </div>
 
@@ -97,6 +121,20 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
             <span className="row-value">{sessionTonnage(active)} kg</span>
           </div>
         )}
+
+        {/*
+          Secundaria y con su explicación: es para el caso raro de repetir el mismo
+          día dentro de la misma semana. Como botón principal invitaba a crear
+          sesiones vacías, que después cuentan como entrenos en la adherencia.
+        */}
+        <button
+          type="button"
+          className="btn btn-plain btn-sm"
+          onClick={() => onCreate(todayISO())}
+          title="Solo si tu cliente ha repetido este día dentro de la misma semana"
+        >
+          <CalendarPlus size={14} /> Otra sesión
+        </button>
 
         {active && !active.isLegacy && (
           <button

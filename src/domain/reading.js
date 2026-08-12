@@ -80,6 +80,23 @@ export const EVIDENCE_GROUPS = [
     label: 'Ejecución',
     question: '¿Ha hecho el cliente su parte?',
   },
+  /*
+    La quinta pregunta, y la única que no sale de los números que genera la
+    aplicación sino de lo que el cliente CUENTA.
+
+    Va después de «ejecución» a propósito: las dos hablan de él y no del plan, y
+    en ese orden se leen juntas. «Ha hecho el 95 % de sus series» y «lleva tres
+    semanas con la fatiga en 9» es una conclusión distinta de cada una por
+    separado.
+
+    Solo aparece si el protocolo del cliente pregunta algo (ver `domain/protocol.js`):
+    un entrenador que no pregunta nada no debería tener una pestaña vacía.
+  */
+  {
+    id: 'feel',
+    label: 'Sensaciones',
+    question: '¿Cómo lo está llevando?',
+  },
   {
     id: 'performance',
     label: 'Rendimiento',

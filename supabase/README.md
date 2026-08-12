@@ -23,6 +23,8 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0010_integrations.sql` | Cuando quieras conectar Notion | La pantalla de Integraciones avisa de que falta. Requiere además desplegar la Edge Function. |
 | `0011_review_links.sql` | **Sí, para compartir vídeos** | El enlace del vídeo caduca a los 7 días y no se sabe si el cliente lo ha visto. Requiere desplegar `review-link`. |
 | `0006_teams.sql` | Cuando quieras equipos | La pestaña «Equipo» avisa de que falta y la app funciona como entrenador único. Ver `docs/modelo-de-equipo.md`. |
+| `0017_audit_log.sql` | Cuando trabajes en equipo, o antes de tener clientes pagando | Nadie sabe quién cambió el plan de un cliente ni cuándo. La ficha del cliente avisa de que falta. Aditiva: solo añade una tabla y unos disparadores. |
+| `0016_session_feedback.sql` | Cuando quieras el feedback de las sesiones | El entrenador puede dejar sus notas y montar el calentamiento (los escribe él, que tiene UPDATE), pero **al cliente le falla el guardado** al contestar o al escribir en su cuaderno: ve el error con su botón de reintentar. Aditiva, no cambia ningún permiso. |
 
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
 
@@ -263,4 +265,12 @@ crearse una cuenta.
 ```
 0014_workout_write_scope.sql     (requiere 0002; despliega el código a la vez)
 0015_client_invites.sql          (aditiva, sin riesgo)
+0016_session_feedback.sql        (aditiva, sin riesgo; requiere 0014 por el mismo motivo)
+0017_audit_log.sql               (aditiva, sin riesgo; el disparador de check_ins solo si hay 0009)
 ```
+
+La `0016` existe por lo mismo que la `0014`: el cliente no tiene UPDATE sobre
+`workout_data`, así que contar cómo le ha ido —su feedback y su cuaderno— también
+tiene que pasar por una función que escriba exactamente eso y nada más. Fusiona en
+vez de reemplazar, para que la aplicación pueda mandar **una respuesta por
+llamada**; mandar el objeto entero haría que dos toques seguidos se pisaran.

@@ -4,6 +4,7 @@ import { Camera } from 'lucide-react';
 import { ANGLES, angleLabel, groupByWeek, photoWeight, suggestPair, weightDelta } from '@/domain/photos';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
+import { Thumb } from '@/components/photos/Thumb';
 
 /**
  * Fotos de progreso del cliente: aquí es donde SUBE sus fotos.
@@ -139,7 +140,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload
             {group.photos.map((photo) => (
               <figure className="photo-card" key={photo.id}>
                 {photo.url ? (
-                  <img src={photo.url} alt={`${angleLabel(photo.angle)} del ${photo.date}`} loading="lazy" />
+                  <Thumb url={photo.url} width={320} alt={`${angleLabel(photo.angle)} del ${photo.date}`} />
                 ) : (
                   <span className="row center t-xs t-tertiary" style={{ height: '100%' }}>
                     sin vista previa

@@ -58,7 +58,7 @@ puede casar con sus fotos de forma fiable.
 guarde también la semana de programa como dato derivado. Está previsto en la
 migración `0009` propuesta.
 
-### 1.3 Escritura sin control de concurrencia
+### 1.3 Escritura sin control de concurrencia — **CORREGIDO**
 
 `updated_at` se escribe en cada guardado pero **nadie lo compara**. Dos pestañas
 abiertas, o dos entrenadores del mismo equipo sobre el mismo cliente, se pisan sin
@@ -67,9 +67,14 @@ aviso: gana el último en escribir y el otro no se entera.
 La cola de guardado resuelve el reordenamiento de respuestas *dentro de una
 pestaña*, no entre pestañas.
 
-**Recomendación:** añadir un `version int` a las tres tablas de bloque y rechazar
-el UPDATE si no coincide (`WHERE version = $esperada`), devolviendo un conflicto
-que la interfaz pueda mostrar. Con equipos esto pasa de improbable a habitual.
+Resuelto sin migración: `upsertClientRow` escribe con `.eq('updated_at', leído)` y,
+si afecta a cero filas, distingue «no existía» de «alguien escribió en medio». El
+conflicto se muestra con dos salidas —quedarse con la versión del servidor o
+imponer la propia— y NUNCA se escribe encima en silencio, que era el fallo.
+
+Protege las TRES tablas de bloque y la fila entera. La función `save_workout_data`
+de la 0014 hace la misma comprobación pero solo sobre `microcycles`, así que
+usarla habría dejado de persistir el split, el calentamiento y las notas.
 
 ### 1.4 `workout_data.microcycles` es un JSONB que crece sin límite
 
@@ -98,7 +103,7 @@ el programa completo, el historial completo y todas las fotos de la cartera ente
 columnas concretas) y el detalle de cada cliente al abrirlo. La cartera ya está
 escrita sobre funciones puras, así que solo cambia de dónde vienen los datos.
 
-### 1.6 Sin miniaturas de fotos
+### 1.6 Sin miniaturas de fotos — **CORREGIDO**
 
 La biblioteca del estudio carga los originales. Sesenta fotos de 3 MB son 180 MB
 de tráfico para pintar una tira de miniaturas de 90 px.
@@ -130,7 +135,7 @@ la arregla la migración `0004`, que está escrita y sin aplicar.
 
 ## 3. Riesgos de cara a producción
 
-### 3.1 Cero pruebas automatizadas
+### 3.1 Cero pruebas automatizadas — **CORREGIDO en el dominio**
 
 No hay ni una. Tampoco comprobación de tipos (el proyecto es JSX sin TypeScript).
 La única red de seguridad es `npm run verify`, que solo mira el CSS.
@@ -142,7 +147,7 @@ reglas que duelen si se rompen: tonelaje, series efectivas, 1RM, promedios
 semanales, reparto de macros. Vitest y cincuenta casos cubren el 80 % del riesgo
 real sin tocar un solo componente.
 
-### 3.2 No existe el flujo de invitación de clientes
+### 3.2 No existe el flujo de invitación de clientes — **CORREGIDO**
 
 `clients.client_profile_id` existe y **no hay ninguna pantalla que lo rellene**.
 Hoy, para que un cliente entre a su portal, hay que enchufar su id a mano en la
@@ -153,7 +158,7 @@ Hace falta lo mismo que ya se hizo para invitar entrenadores
 (`invite_team_member`): una función `SECURITY DEFINER` que vincule por email, y
 una pantalla en la ficha del cliente.
 
-### 3.3 Sin traza de cambios
+### 3.3 Sin traza de cambios — **CORREGIDO (migración 0017)**
 
 Nadie sabe quién cambió el plan de un cliente, ni cuándo, ni qué había antes. Con
 un entrenador es un inconveniente; con un equipo es un problema de
@@ -164,25 +169,27 @@ la del otro.
 bloque, guardando `(tabla, client_id, actor, cuándo)` sin el contenido. Barato y
 suficiente.
 
-### 3.4 Sin división de código
+### 3.4 Sin división de código — **CORREGIDO**
 
 Todo se importa en el arranque: 233 KB de aplicación + 218 KB de cliente de
 Supabase, aunque un cliente solo use tres pestañas. `React.lazy` por pestaña y el
 panel del entrenador fuera del arranque del cliente rebajarían bastante la primera
 carga, que es la que se nota en un móvil con datos.
 
-### 3.5 Sin política de datos personales
+### 3.5 Sin política de datos personales — **PARCIAL**
 
 Esto guarda **fotos corporales, peso, pliegues cutáneos y perímetros**: datos de
 salud, la categoría más sensible del RGPD. Faltan tres cosas que no son opcionales
 si hay clientes reales en la UE:
 
-- **Exportación**: un cliente puede pedir todo lo que tienes de él.
-- **Borrado**: y puede pedir que lo elimines, incluidos los archivos de Storage.
-  Hoy borrar una fila de `clients` deja las fotos huérfanas en el bucket.
-- **Consentimiento y finalidad**: quién ve sus fotos y para qué.
+- **Exportación** — HECHA. `Clientes` → ficha → «Descargar sus datos»: un JSON con
+  todo, incluidos enlaces firmados a las fotos (7 días).
+- **Borrado** — HECHO. Borra los archivos del bucket, los bloques, los check-ins,
+  el calendario y la ficha, en ese orden (las claves foráneas no tienen cascada).
+  Pide escribir el nombre y reporta lo que no haya podido borrar.
+- **Consentimiento y finalidad** — PENDIENTE: quién ve sus fotos y para qué.
 
-### 3.6 Recuperación
+### 3.6 Recuperación — **PARCIAL**
 
 No hay ninguna copia de seguridad propia más allá de lo que haga Supabase por su
 plan, y el modelo de datos concentra todo el trabajo de un año en unas pocas filas

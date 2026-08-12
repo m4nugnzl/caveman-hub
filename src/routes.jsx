@@ -1,6 +1,8 @@
 import {
   CalendarDays,
   Camera,
+  ClipboardList,
+  HardDriveDownload,
   Gauge,
   Layers,
   LayoutGrid,
@@ -8,7 +10,7 @@ import {
   Ruler,
   Palette,
   Salad,
-  TrendingUp,
+  Sunrise,
   Users,
   UsersRound,
 } from 'lucide-react';
@@ -49,16 +51,36 @@ import {
  * salen los bugs de «selección rancia».
  */
 
-/** Nivel 1: lo que está siempre visible. Tres entradas y ni una más. */
+/**
+ * Nivel 1: lo que está siempre visible. Tres entradas y ni una más.
+ *
+ * ── Por qué «Hoy» va primero, y por delante de la cartera ───────────────────
+ * Porque es la primera pregunta de la mañana. La cartera contesta «¿en qué estado
+ * está cada cliente?» —un corte transversal, ordenado por gravedad— y eso es lo
+ * que se necesita cuando ya sabes que hay algo que atender. Pero antes de eso
+ * está «¿qué ha pasado desde ayer?», y esa no la contestaba nadie: los entrenos,
+ * los pesajes y las fotos tenían fecha desde el principio y solo se podían ver
+ * entrando cliente a cliente.
+ *
+ * Las dos son necesarias y ninguna repite a la otra: «Hoy» cuenta lo que HA
+ * OCURRIDO, la cartera lo que FALTA.
+ */
 export const COACH_PRIMARY = [
+  { path: '/hoy', label: 'Hoy', icon: Sunrise },
   { path: '/cartera', label: 'Cartera', icon: LayoutGrid },
   { path: '/clientes', label: 'Clientes', icon: Users },
 ];
 
 /** Nivel 2: las secciones de UN cliente. Cuelgan de `/c/:clientId/`. */
 export const COACH_CLIENT = [
-  { path: 'resumen', label: 'Resumen', icon: Gauge },
-  { path: 'analitica', label: 'Analítica', icon: TrendingUp },
+  /*
+    «Progreso» era dos entradas —Resumen y Analítica— y las dos contestan la misma
+    pregunta con distinto detalle. Eso obligaba a elegir cuál abrir antes de saber
+    qué se quería mirar. Ahora es una sección con dos niveles: se entra por el
+    resumen y se pasa al análisis desde dentro (`analytics/ProgressLayout.jsx`).
+    La ruta `/analitica` sigue existiendo, así que los enlaces guardados valen.
+  */
+  { path: 'resumen', label: 'Progreso', icon: Gauge },
   { path: 'rutina', label: 'Rutina', icon: Layers },
   { path: 'nutricion', label: 'Nutrición', icon: Salad },
   { path: 'fotos', label: 'Fotos', icon: Camera },
@@ -74,12 +96,24 @@ export const COACH_CLIENT = [
  * integraciones no son sitios donde trabajar, son sitios donde dejar algo puesto.
  */
 export const SETTINGS_SECTIONS = [
+  {
+    path: 'protocolo',
+    label: 'Protocolo',
+    icon: ClipboardList,
+    hint: 'Qué le pides a tus clientes y qué ve cada uno',
+  },
   { path: 'apariencia', label: 'Apariencia', icon: Palette, hint: 'Tema claro u oscuro' },
   {
     path: 'integraciones',
     label: 'Integraciones',
     icon: Plug,
     hint: 'Conecta Notion, Stripe y lo que venga',
+  },
+  {
+    path: 'copia',
+    label: 'Copia de seguridad',
+    icon: HardDriveDownload,
+    hint: 'Llévate todo lo que guarda la aplicación',
   },
   {
     path: 'equipo',
@@ -89,20 +123,37 @@ export const SETTINGS_SECTIONS = [
   },
 ];
 
-/** Secciones del portal del cliente. Cuelgan de `/mi/`. */
+/**
+ * Secciones del portal del cliente. Cuelgan de `/mi/`.
+ *
+ * ── El orden es el del USO, no el de la aplicación ──────────────────────────
+ * Estaban en el mismo orden que las del entrenador, con «Analítica» en segundo
+ * lugar. Eso tiene sentido para quien programa —mira el progreso y luego toca la
+ * rutina— y ninguno para quien entrena: un cliente abre esto en el gimnasio para
+ * apuntar lo que acaba de levantar, para mirar qué le toca comer y para meter su
+ * pesaje. La analítica y el calendario los abre de vez en cuando.
+ *
+ * Ese orden pasó a importar de verdad cuando el móvil dejó de navegar con un
+ * carril que se arrastra y pasó a tener barra inferior: ahora las CUATRO PRIMERAS
+ * son las que se ven siempre, y el resto queda detrás de «Más». La lista deja de
+ * ser una enumeración y es una decisión de producto.
+ *
+ * `short` es la etiqueta de la barra inferior. «Mis check-ins» no cabe en un
+ * destino de 78 px, y abreviar en el componente significaría cortar por caracteres
+ * y acabar con «Mis che…».
+ */
 export const CLIENT_SECTIONS = [
-  { path: 'panel', label: 'Mi panel', icon: Gauge },
-  { path: 'analitica', label: 'Analítica', icon: TrendingUp },
-  { path: 'rutina', label: 'Mi rutina', icon: Layers },
-  { path: 'dieta', label: 'Mi dieta', icon: Salad },
-  { path: 'fotos', label: 'Mis fotos', icon: Camera },
-  { path: 'checkins', label: 'Mis check-ins', icon: Ruler },
-  { path: 'calendario', label: 'Mi calendario', icon: CalendarDays },
+  { path: 'panel', label: 'Mi progreso', short: 'Progreso', icon: Gauge },
+  { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers },
+  { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad },
+  { path: 'checkins', label: 'Mis check-ins', short: 'Check-in', icon: Ruler },
+  { path: 'fotos', label: 'Mis fotos', short: 'Fotos', icon: Camera },
+  { path: 'calendario', label: 'Mi calendario', short: 'Calendario', icon: CalendarDays },
 ];
 
-export const COACH_HOME = '/cartera';
+export const COACH_HOME = '/hoy';
 export const CLIENT_HOME = '/mi/panel';
-export const SETTINGS_HOME = '/ajustes/apariencia';
+export const SETTINGS_HOME = '/ajustes/protocolo';
 
 /** Ruta de una sección de un cliente. Nadie construye estas cadenas a mano. */
 export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${section}`;

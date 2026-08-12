@@ -270,6 +270,96 @@ export const weekAngleMatrix = ({ photos, weeks, angles, startDate }) => {
 };
 
 /** Ángulos con al menos una foto, en orden estable. */
+/**
+ * La misma foto, pero servida como MINIATURA.
+ *
+ * ══ El problema ═════════════════════════════════════════════════════════════
+ *
+ * La biblioteca del estudio pinta una tira de miniaturas de 90 px, y para cada
+ * una descargaba el ORIGINAL: una foto de móvil de 3 MB. Sesenta fotos son 180 MB
+ * de tráfico para dibujar sesenta cuadraditos. En el móvil del cliente eso es su
+ * tarifa de datos; en el del entrenador, una pantalla que tarda en aparecer.
+ *
+ * ══ Cómo se convierte ═══════════════════════════════════════════════════════
+ *
+ * Supabase sirve las imágenes transformadas por una ruta distinta de la de los
+ * objetos: `/object/sign/…` entrega el archivo tal cual y `/render/image/sign/…`
+ * lo redimensiona. El token firmado es el mismo —firma la RUTA, no el tamaño—,
+ * así que basta con cambiar el segmento y añadir el ancho.
+ *
+ * ── Por qué esto devuelve la original si algo no cuadra ─────────────────────
+ * Porque la transformación de imágenes es una función del plan de Supabase y
+ * puede no estar disponible, y porque este cambio de ruta no lo he podido probar
+ * contra un proyecto real. Una optimización que puede fallar tiene que fallar
+ * hacia el lado bueno: si la URL no tiene la forma esperada se devuelve la de
+ * siempre, y quien la pinta debe además volver a la original si la miniatura no
+ * carga (ver `PhotoLibrary`). El peor caso es el comportamiento de antes, nunca
+ * una foto rota.
+ */
+export const thumbnailUrl = (url, width = 240) => {
+  if (typeof url !== 'string' || !url.includes('/object/sign/')) return url;
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url.replace('/object/sign/', '/render/image/sign/')}${separator}width=${width}&resize=contain&quality=70`;
+};
+
+/**
+ * La cobertura del historial: qué semanas tienen foto y de qué ángulos, desde la
+ * primera semana con foto hasta la última.
+ *
+ * ══ Por qué esto es lo que le faltaba al estudio ════════════════════════════
+ *
+ * La biblioteca enseña LO QUE HAY, agrupado por semana. Eso convierte el
+ * historial en un explorador de archivos: se ve lo subido y no se ve lo que
+ * falta, que es justo el dato accionable.
+ *
+ * Un entrenador que abre las fotos de un cliente quiere saber dos cosas, y la
+ * segunda no estaba en ninguna pantalla:
+ *
+ *   1. ¿Cómo ha cambiado? — para eso está el comparador.
+ *   2. ¿Tengo material para compararlo? — «me faltan las semanas 5, 7 y 9, y de
+ *      la 8 solo tengo el frontal».
+ *
+ * Lo segundo es una tarea: hay que escribirle. Y era invisible, porque una
+ * semana sin fotos simplemente no aparecía en la lista y no dejaba hueco.
+ *
+ * Se devuelven TODAS las semanas del rango, también las vacías. Es la misma
+ * decisión que la escala de días de «Hoy»: un historial al que le faltan los
+ * huecos no es un historial, es una selección.
+ *
+ * `angles` se pasa como argumento —normalmente los que el cliente usa de verdad—
+ * para no marcar como incompleta una semana por no tener un ángulo que ese
+ * cliente no se hace nunca.
+ */
+export const photoCoverage = ({ photos = [], startDate, angles = ANGLE_IDS }) => {
+  const byWeek = new Map();
+
+  for (const photo of photos) {
+    const week = photoWeek(photo, startDate);
+    if (week === null || week === undefined) continue;
+    if (!byWeek.has(week)) byWeek.set(week, new Set());
+    if (photo.angle) byWeek.get(week).add(photo.angle);
+  }
+
+  if (byWeek.size === 0) return [];
+
+  const weeks = [...byWeek.keys()].sort((a, b) => a - b);
+  const first = weeks[0];
+  const last = weeks[weeks.length - 1];
+
+  const out = [];
+  for (let week = first; week <= last; week += 1) {
+    const present = byWeek.get(week) || new Set();
+    out.push({
+      week,
+      angles: angles.map((angle) => ({ angle, has: present.has(angle) })),
+      count: present.size,
+      complete: angles.length > 0 && angles.every((angle) => present.has(angle)),
+      empty: present.size === 0,
+    });
+  }
+  return out;
+};
+
 export const availableAngles = (photos) =>
   ANGLE_IDS.filter((id) => photos.some((p) => p.angle === id));
 

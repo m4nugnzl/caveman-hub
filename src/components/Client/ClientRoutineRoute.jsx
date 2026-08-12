@@ -16,6 +16,7 @@ export const ClientRoutineRoute = () => {
     activeClient,
     workoutData,
     logSessionSet,
+    updateSessionMeta,
     continueProgram,
     saveStatus,
     retrySave,
@@ -50,6 +51,12 @@ export const ClientRoutineRoute = () => {
       activeWeek={activeWeek}
       onSelectWeek={setPreferredWeek}
       onLogSet={logClientSet}
+      /* Feedback y logbook. El cliente no puede escribir `workout_data`
+         directamente, así que esto viaja por `log_session_feedback` (0016); el
+         contexto elige el camino según el rol. */
+      onMeta={({ weekNumber, sessionId, patch }) =>
+        updateSessionMeta(activeClient.id, weekNumber, sessionId, patch)
+      }
       // Al continuar, se salta a la semana nueva: si no, el cliente la crea y se
       // queda mirando la anterior sin ver que ha pasado algo.
       onContinue={() => {

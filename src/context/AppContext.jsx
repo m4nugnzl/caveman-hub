@@ -46,6 +46,18 @@ import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessi
 
 const AppContext = createContext(null);
 
+/**
+ * Qué cola de guardado corresponde a cada tabla de bloque.
+ *
+ * Fuera del componente: es una constante, y dentro obligaría a memoizarla o a
+ * declararla como dependencia de todo lo que la use.
+ */
+const QUEUE_OF_TABLE = {
+  workout_data: 'workout',
+  anthropometry: 'anthro',
+  nutrition_plans: 'nutrition',
+};
+
 const BUCKET = 'client-media';
 
 /**
@@ -64,6 +76,12 @@ export const AppProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  /*
+    Escritura rechazada porque alguien tocó los mismos datos en medio. Es un
+    estado del que hay que SALIR —recargando o imponiendo tu versión—, no un
+    error que se pueda ignorar, y por eso vive aparte de `loadError`.
+  */
+  const [conflict, setConflict] = useState(null);
 
   /** Rol real, según la tabla `profiles`. La autorización la aplica RLS. */
   const [profileRole, setProfileRole] = useState('coach');
@@ -200,12 +218,130 @@ export const AppProvider = ({ children }) => {
    * nada impide dos filas para el mismo cliente, lo que partiría sus datos en
    * dos en silencio.
    */
-  const upsertClientRow = useCallback(async (table, clientId, row) => {
-    const updated = await supabase.from(table).update(row).eq('client_id', clientId).select('id');
-    if (updated.error) return updated;
-    if (updated.data && updated.data.length > 0) return updated;
-    return supabase.from(table).insert(row).select('id');
+  /**
+   * La versión que tenemos leída de cada bloque: `tabla → cliente → updated_at`.
+   *
+   * Es un ref y no estado porque nadie lo pinta: solo se compara al escribir, y
+   * un cambio aquí no debe provocar un render.
+   */
+  const versionsRef = useRef({});
+
+  const rememberVersion = useCallback((table, clientId, stamp) => {
+    if (!stamp) return;
+    if (!versionsRef.current[table]) versionsRef.current[table] = {};
+    versionsRef.current[table][clientId] = stamp;
   }, []);
+
+  /**
+   * Escribe un bloque de un cliente SOLO si nadie lo ha tocado desde que lo
+   * leímos.
+   *
+   * ══ El problema que cierra ══════════════════════════════════════════════════
+   *
+   * `updated_at` se escribía en cada guardado y **nadie lo comparaba nunca**. Dos
+   * escrituras simultáneas sobre el mismo cliente se pisaban sin dejar rastro:
+   * ganaba la última en llegar y la otra desaparecía. No hacía falta un equipo —
+   * bastaban dos pestañas abiertas, o una pestaña vieja que despierta y guarda su
+   * copia en caché encima de la actual.
+   *
+   * El caso concreto que ya podía ocurrir: el entrenador reordena los ejercicios
+   * del lunes mientras el cliente anota sus kilos. Los dos leyeron el mismo jsonb,
+   * los dos lo reescriben entero, y el segundo borra el trabajo del primero.
+   *
+   * ══ Por qué aquí y no con `save_workout_data` ═══════════════════════════════
+   *
+   * La migración 0014 dejó escrita esa función, que hace justo esta comprobación.
+   * No se usa por una razón concreta: solo escribe `microcycles`, y la fila lleva
+   * además el split semanal, el calentamiento y las notas. Enchufarla habría
+   * dejado de persistir esas tres columnas.
+   *
+   * Comparando `updated_at` desde aquí se protege la fila ENTERA y las TRES
+   * tablas de bloque —rutina, antropometría y nutrición— sin una migración más.
+   * La función sigue en la base de datos y es válida; simplemente cubre menos.
+   *
+   * ── Cómo se distingue «no existe» de «conflicto» ────────────────────────────
+   * Las dos cosas dan cero filas afectadas. Se resuelve con UNA consulta extra
+   * que solo ocurre en ese caso —la primera escritura de un cliente, o un
+   * conflicto de verdad—, no en cada guardado.
+   */
+  const upsertClientRow = useCallback(
+    async (table, clientId, row) => {
+      const seen = versionsRef.current[table]?.[clientId];
+
+      let query = supabase.from(table).update(row).eq('client_id', clientId);
+      if (seen) query = query.eq('updated_at', seen);
+
+      const updated = await query.select('updated_at');
+      if (updated.error) return updated;
+
+      if (updated.data && updated.data.length > 0) {
+        rememberVersion(table, clientId, updated.data[0].updated_at);
+        return updated;
+      }
+
+      const current = await supabase
+        .from(table)
+        .select('updated_at')
+        .eq('client_id', clientId)
+        .maybeSingle();
+
+      if (current.error) return current;
+
+      if (current.data) {
+        /*
+          La fila existe y su versión no es la nuestra: alguien ha escrito en
+          medio. Se devuelve como error para que la cola lo trate como tal —el
+          indicador dirá que no se guardó— y se marca el conflicto para poder
+          explicarlo y ofrecer salida. Lo que NO se hace es escribir igualmente:
+          eso es exactamente el borrado silencioso que esto viene a impedir.
+        */
+        setConflict({ table, clientId, at: current.data.updated_at });
+        return {
+          error: {
+            message:
+              'Alguien ha cambiado estos datos mientras editabas. Tus cambios no se han guardado para no pisar los suyos.',
+          },
+        };
+      }
+
+      const inserted = await supabase.from(table).insert(row).select('updated_at');
+      if (!inserted.error && inserted.data?.length > 0) {
+        rememberVersion(table, clientId, inserted.data[0].updated_at);
+      }
+      return inserted;
+    },
+    [rememberVersion]
+  );
+
+
+  /**
+   * Salir de un conflicto. Dos caminos, y ninguno es «reintentar»: reintentar tal
+   * cual volvería a chocar contra la misma versión, para siempre.
+   *
+   *   · `reload`    — recargar la página y quedarse con la versión del servidor.
+   *     Es una recarga completa a propósito: media aplicación tiene el bloque en
+   *     memoria y volver a pedir solo esa tabla dejaría el resto descuadrado.
+   *   · `overwrite` — imponer la versión local. Se olvida la versión leída, con lo
+   *     que la siguiente escritura va sin guardia, y se reenvía lo que quedó en la
+   *     cola.
+   *
+   * El segundo PIERDE el trabajo del otro, y por eso la interfaz lo dice con esas
+   * palabras en vez de llamarlo «forzar».
+   */
+  const resolveConflict = useCallback(
+    (mode) => {
+      if (!conflict) return;
+      if (mode === 'reload') {
+        window.location.reload();
+        return;
+      }
+      const { table, clientId } = conflict;
+      if (versionsRef.current[table]) delete versionsRef.current[table][clientId];
+      setConflict(null);
+      queue.retry(`${QUEUE_OF_TABLE[table]}:${clientId}`);
+    },
+    [conflict, queue]
+  );
 
   const persist = useCallback(
     (domain, clientId, payload, { immediate = false } = {}) => {
@@ -293,6 +429,27 @@ export const AppProvider = ({ children }) => {
     const byPath = new Map((data || []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
     return photos.map((p) => (p.path && byPath.has(p.path) ? { ...p, url: byPath.get(p.path) } : p));
   }, []);
+
+  /**
+   * Firma las fotos de UN cliente que todavía no tengan enlace.
+   *
+   * Lo llama la pantalla que va a enseñarlas. Si ya están firmadas no hace nada,
+   * así que se puede llamar en cada render sin pensarlo.
+   */
+  const ensurePhotoUrls = useCallback(
+    async (clientId) => {
+      const pending = photosRef.current.filter((p) => p.clientId === clientId && p.path && !p.url);
+      if (pending.length === 0) return;
+
+      const resolved = await resolvePhotoUrls(pending);
+      const byId = new Map(resolved.map((p) => [p.id, p.url]));
+
+      setProgressPhotos((prev) =>
+        prev.map((p) => (byId.has(p.id) && byId.get(p.id) ? { ...p, url: byId.get(p.id) } : p))
+      );
+    },
+    [photosRef, resolvePhotoUrls, setProgressPhotos]
+  );
 
   const loadForUser = useCallback(
     async (user) => {
@@ -435,6 +592,23 @@ export const AppProvider = ({ children }) => {
         setLoadError(`Algunos datos no se pudieron cargar: ${failed[0].error.message}`);
       }
 
+      /*
+        La versión de cada bloque, tal y como la acabamos de leer. Es contra esto
+        contra lo que se compara al escribir (ver `upsertClientRow`): sin
+        registrarla aquí, la primera escritura de la sesión iría sin guardia y
+        volvería a poder pisar el trabajo de otro.
+      */
+      versionsRef.current = { workout_data: {}, anthropometry: {}, nutrition_plans: {} };
+      for (const [table, res] of [
+        ['workout_data', wd],
+        ['anthropometry', anthro],
+        ['nutrition_plans', nutri],
+      ]) {
+        for (const row of res.data || []) {
+          versionsRef.current[table][row.client_id] = row.updated_at;
+        }
+      }
+
       setWorkoutData(
         Object.fromEntries((wd.data || []).map((r) => [r.client_id, mapWorkoutFromDb(r)]))
       );
@@ -473,14 +647,23 @@ export const AppProvider = ({ children }) => {
             )
       );
 
+      /*
+        ── Las fotos se cargan SIN firmar ────────────────────────────────────
+        Antes se firmaba aquí la URL de TODAS las fotos de TODOS los clientes. Con
+        veinte clientes y sesenta fotos cada uno son mil doscientos enlaces
+        temporales generados en el arranque, de los que se usan los de un cliente
+        —si es que se abre alguna foto—. Y caducan a las 8 horas, así que buena
+        parte se firmaba para nada.
+
+        La cartera y «Hoy» solo necesitan las FECHAS de las fotos, que vienen en la
+        fila. El enlace hace falta cuando se va a mirar una imagen, y entonces lo
+        pide la pantalla que la mira (`ensurePhotoUrls`).
+      */
       const nameOf = (clientId) => mappedClients.find((c) => c.id === clientId)?.name;
-      const mappedPhotos = (photos.data || []).map((r) => mapPhotoFromDb(r, nameOf(r.client_id)));
-      const withUrls = await resolvePhotoUrls(mappedPhotos);
       if (isStale()) return;
-      setProgressPhotos(withUrls);
+      setProgressPhotos((photos.data || []).map((r) => mapPhotoFromDb(r, nameOf(r.client_id))));
     },
     [
-      resolvePhotoUrls,
       setAnthropometry,
       setClients,
       setNutrition,
@@ -780,6 +963,122 @@ export const AppProvider = ({ children }) => {
         sessions: sessionsOf(m).map((s) => (s.id === sessionId ? { ...s, ...fields } : s)),
       })),
     [applyMicrocycle]
+  );
+
+  /**
+   * Lo que cuelga de una sesión y no son kilos: la nota del entrenador, el
+   * logbook del cliente y sus respuestas al terminar.
+   *
+   * ── Los dos caminos, otra vez, y por el mismo motivo ──────────────────────
+   * El ENTRENADOR reescribe el jsonb: es su programa y tiene UPDATE sobre la
+   * fila. El CLIENTE llama a `log_session_feedback` (migración 0016), que escribe
+   * exactamente dos claves de una sesión que ya existe. Es el mismo reparto que
+   * hay para las series con `log_session_set`, y por la misma razón: la fila
+   * contiene el programa entero, así que darle UPDATE para que pueda escribir
+   * «me dolió el hombro» le alcanzaría para borrárselo.
+   *
+   * `coachNote` NO viaja por la vía del cliente aunque él la vea: si pudiera
+   * escribirla, podría fabricarse indicaciones que parecen de su entrenador.
+   *
+   * ── Sin la 0016 aplicada ──────────────────────────────────────────────────
+   * El cliente ve el error de guardado con su botón de reintentar, como con
+   * cualquier otro fallo de escritura. Lo que NO pasa es que se pierda en
+   * silencio: el estado local ya cambió y el indicador dice que no se guardó.
+   */
+  const updateSessionMeta = useCallback(
+    (clientId, weekNumber, sessionId, patch) => {
+      /*
+        `patch.feedback` es un DELTA —una respuesta, no el objeto entero— y aquí se
+        fusiona sobre lo que ya hubiera, igual que hace la función de la 0016. Que
+        las dos capas fusionen es lo que hace posible mandar una respuesta por
+        llamada, que es lo que evita que dos toques seguidos se pisen.
+      */
+      const local = (m) => ({
+        ...m,
+        sessions: sessionsOf(m).map((s) =>
+          s.id !== sessionId
+            ? s
+            : {
+                ...s,
+                ...patch,
+                ...(patch.feedback ? { feedback: { ...(s.feedback || {}), ...patch.feedback } } : {}),
+              }
+        ),
+      });
+
+      if (profileRole !== 'client') {
+        applyMicrocycle(clientId, weekNumber, local, { immediate: false });
+        return;
+      }
+
+      applyMicrocycle(clientId, weekNumber, local, { skipPersist: true });
+
+      /*
+        ── Una clave de cola por CAMPO, y se manda SOLO ese campo ──────────────
+        La cola retiene un único payload por clave. Si la clave fuera la sesión y
+        el payload la sesión entera, dos ediciones seguidas —contestar una escala
+        y seguir escribiendo en el cuaderno— se pisarían: la segunda se construye
+        leyendo el estado, que todavía no ha recibido la primera, así que la
+        sobrescribe con un valor viejo. Es exactamente el caso que `log_session_set`
+        documenta para kg/reps/RIR, y se resuelve igual.
+
+        `null` en la función de la 0016 significa «no toques esto», así que mandar
+        un solo campo por llamada no borra el otro.
+      */
+      if (patch.clientNote !== undefined) {
+        queue.enqueue(
+          `note:${clientId}:${sessionId}`,
+          patch.clientNote,
+          (note) =>
+            supabase.rpc('log_session_feedback', {
+              p_client: clientId,
+              p_week: weekNumber,
+              p_session_id: sessionId,
+              p_note: String(note ?? ''),
+              p_feedback: null,
+            }),
+          { immediate: false }
+        );
+      }
+
+      if (patch.feedback !== undefined) {
+        /* La clave incluye las preguntas del delta: normalmente es una sola, así
+           que cada respuesta tiene su propia entrada en la cola y ninguna sustituye
+           a otra mientras se está guardando. */
+        queue.enqueue(
+          `feedback:${clientId}:${sessionId}:${Object.keys(patch.feedback).sort().join(',')}`,
+          patch.feedback,
+          (feedback) =>
+            supabase.rpc('log_session_feedback', {
+              p_client: clientId,
+              p_week: weekNumber,
+              p_session_id: sessionId,
+              p_note: null,
+              /* Las respuestas viajan como texto, igual que los kilos: el usuario
+                 escribe cadenas y `toNum` decide después qué es un número. La
+                 función de la 0016 rechaza cualquier otro tipo. */
+              p_feedback: Object.fromEntries(
+                Object.entries(feedback || {}).map(([k, v]) => [k, String(v ?? '')])
+              ),
+            }),
+          { immediate: false }
+        );
+      }
+    },
+    [applyMicrocycle, profileRole, queue]
+  );
+
+  /**
+   * El calentamiento / movilidad del cliente.
+   *
+   * Vive en `workout_data.mobility_drills`, una columna que existe desde el
+   * primer esquema y que no usaba ninguna pantalla. Es del ENTRENADOR: el cliente
+   * la lee y no la escribe, así que no necesita función propia.
+   */
+  const updateMobilityDrills = useCallback(
+    (clientId, drills) =>
+      applyWorkout(clientId, (cd) => ({ ...cd, mobilityDrills: drills }), { immediate: false }),
+    [applyWorkout]
   );
 
   const removeSession = useCallback(
@@ -1800,6 +2099,242 @@ export const AppProvider = ({ children }) => {
    * aplicación, y la solución es la misma: releer cuando se sabe que algo ha
    * cambiado ahí fuera.
    */
+  /*
+    ══ Protección de datos ═══════════════════════════════════════════════════
+
+    Esto guarda fotos corporales, peso, pliegues y perímetros: categoría especial
+    del RGPD. Con clientes reales en la UE, poder EXPORTAR y poder BORRAR no son
+    funciones de producto, son obligaciones — y hasta ahora no existía ninguna de
+    las dos: borrar la fila de un cliente ni siquiera era posible (sus bloques
+    tienen clave foránea sin cascada) y sus fotos se quedaban en el bucket para
+    siempre.
+  */
+
+  /** Todo lo que la aplicación guarda de un cliente, en un objeto. */
+  const exportClientData = useCallback(
+    async (clientId) => {
+      const client = clientsRef.current.find((c) => c.id === clientId);
+      if (!client) return { ok: false, error: 'Ese cliente ya no existe.' };
+
+      const table = (name) => supabase.from(name).select('*').eq('client_id', clientId);
+
+      const [wd, anthro, nutri, photos, checkins, events] = await Promise.all([
+        table('workout_data'),
+        table('anthropometry'),
+        table('nutrition_plans'),
+        table('progress_photos'),
+        table('check_ins'),
+        table('client_events'),
+      ]);
+
+      const failed = [wd, anthro, nutri, photos].find((r) => r.error);
+      if (failed) return { ok: false, error: `No se pudo exportar: ${failed.error.message}` };
+
+      /*
+        Las fotos van como ENLACES FIRMADOS de larga duración, no como binarios.
+        Meter los archivos dentro exigiría una librería de ZIP —una dependencia
+        nueva para una función que se usa dos veces al año— y un JSON con las
+        imágenes en base64 sería un archivo de cientos de megas que ningún editor
+        abre. Los enlaces caducan a los 7 días: es lo que hay que decirle a quien
+        recibe la exportación, y por eso va escrito dentro del propio archivo.
+      */
+      /* `photo_url` guarda una RUTA del bucket, no una URL (la columna se llama
+         mal desde el primer esquema). Las filas antiguas sí pueden tener una URL
+         completa, y esas no hay que firmarlas. */
+      const paths = (photos.data || [])
+        .map((p) => p.photo_url)
+        .filter((p) => p && !/^https?:\/\//i.test(p));
+      let signed = [];
+      if (paths.length > 0) {
+        const res = await supabase.storage.from(BUCKET).createSignedUrls(paths, 7 * 24 * 3600);
+        signed = res.data || [];
+      }
+
+      return {
+        ok: true,
+        data: {
+          _aviso:
+            'Exportación de datos personales. Los enlaces de las fotos caducan a los 7 días desde la fecha de generación.',
+          _generado: new Date().toISOString(),
+          cliente: client,
+          rutina: wd.data || [],
+          antropometria: anthro.data || [],
+          nutricion: nutri.data || [],
+          fotos: (photos.data || []).map((p, i) => ({ ...p, enlace: signed[i]?.signedUrl || null })),
+          // Las dos últimas dependen de la migración 0009: si no está, se
+          // exporta lo que hay en vez de fallar entero.
+          checkIns: checkins.error ? [] : checkins.data,
+          calendario: events.error ? [] : events.data,
+        },
+      };
+    },
+    [clientsRef]
+  );
+
+  /**
+   * La traza de cambios de un cliente: quién tocó qué y cuándo.
+   *
+   * Bajo demanda y no en la carga inicial: es un dato de consulta puntual —se
+   * mira cuando hay una duda— y traerlo para los veinte clientes al arrancar sería
+   * exactamente el problema que este proyecto ya tiene con el resto.
+   *
+   * Si la tabla no existe (migración 0017 sin aplicar) devuelve una lista vacía y
+   * lo dice, en vez de fallar: es el mismo trato que se le da a la 0009.
+   */
+  const loadAuditLog = useCallback(async (clientId, limit = 20) => {
+    const res = await supabase
+      .from('audit_log')
+      .select('id, table_name, action, at, actor, profiles(full_name, email)')
+      .eq('client_id', clientId)
+      .order('at', { ascending: false })
+      .limit(limit);
+
+    if (res.error) {
+      const missing = /does not exist|schema cache/i.test(res.error.message);
+      return { ok: false, missing, error: res.error.message, rows: [] };
+    }
+
+    return {
+      ok: true,
+      missing: false,
+      rows: (res.data || []).map((row) => ({
+        id: row.id,
+        table: row.table_name,
+        action: row.action,
+        at: row.at,
+        who: row.profiles?.full_name || row.profiles?.email || null,
+      })),
+    };
+  }, []);
+
+  /**
+   * Copia de seguridad de TODA la cartera.
+   *
+   * ── Por qué existe estando Supabase detrás ──────────────────────────────────
+   * Porque las copias de Supabase son de la base entera y dependen del plan: no
+   * sirven para «devuélveme el programa de Marta como estaba el martes». Y el
+   * modelo concentra el trabajo de un año de cada cliente en unas pocas filas
+   * jsonb, así que un UPDATE mal hecho —o un borrado por error— se lleva doce
+   * meses sin dejar rastro.
+   *
+   * Esto no es un sistema de copias: es un volcado que el entrenador puede
+   * guardar donde quiera y con el que se puede reconstruir a mano. Es poco, y es
+   * infinitamente más que nada.
+   *
+   * Una consulta por tabla con `in(...)`, no una por cliente: con cuarenta
+   * clientes eso serían doscientas peticiones.
+   */
+  const exportAllData = useCallback(async () => {
+    const all = clientsRef.current;
+    if (all.length === 0) return { ok: false, error: 'No hay clientes que copiar.' };
+
+    const ids = all.map((c) => c.id);
+    const table = (name) => supabase.from(name).select('*').in('client_id', ids);
+
+    const [wd, anthro, nutri, photos, checkins, events] = await Promise.all([
+      table('workout_data'),
+      table('anthropometry'),
+      table('nutrition_plans'),
+      table('progress_photos'),
+      table('check_ins'),
+      table('client_events'),
+    ]);
+
+    const failed = [wd, anthro, nutri, photos].find((r) => r.error);
+    if (failed) return { ok: false, error: `No se pudo copiar: ${failed.error.message}` };
+
+    return {
+      ok: true,
+      data: {
+        _aviso:
+          'Copia de seguridad de Caveman Hub. Contiene datos de salud: guárdala cifrada y no la compartas. NO incluye los archivos de fotos, solo sus rutas en el almacenamiento.',
+        _generado: new Date().toISOString(),
+        _clientes: all.length,
+        clientes: all,
+        rutina: wd.data || [],
+        antropometria: anthro.data || [],
+        nutricion: nutri.data || [],
+        fotos: photos.data || [],
+        checkIns: checkins.error ? [] : checkins.data,
+        calendario: events.error ? [] : events.data,
+      },
+    };
+  }, [clientsRef]);
+
+  /**
+   * Borra un cliente y TODO lo suyo, incluidas sus fotos del almacenamiento.
+   *
+   * ── Por qué es un procedimiento y no un `delete()` ──────────────────────────
+   * Las tablas de bloque referencian `clients` SIN cascada, así que borrar la
+   * ficha a secas falla por clave foránea. Y aunque no fallara, los archivos del
+   * bucket no los borra nadie: hoy quedarían las fotos corporales de una persona
+   * que pidió que la borraras.
+   *
+   * El orden importa: primero los archivos, después las filas hijas y al final la
+   * ficha. Si algo falla se sigue con el resto y se devuelve la lista de lo que
+   * quedó, porque un borrado a medias hay que poder terminarlo a mano — y para
+   * eso hay que saber qué falta.
+   */
+  const deleteClientCompletely = useCallback(
+    async (clientId) => {
+      const problems = [];
+
+      /* Los archivos. Se listan del bucket en vez de fiarse de las filas: una
+         subida que falló a mitad puede haber dejado el archivo sin su fila. */
+      try {
+        const root = `${clientId}/photos`;
+        const folders = await supabase.storage.from(BUCKET).list(root, { limit: 1000 });
+        const files = [];
+        for (const entry of folders.data || []) {
+          if (entry.id) {
+            files.push(`${root}/${entry.name}`);
+            continue;
+          }
+          const inner = await supabase.storage.from(BUCKET).list(`${root}/${entry.name}`, { limit: 1000 });
+          for (const file of inner.data || []) files.push(`${root}/${entry.name}/${file.name}`);
+        }
+        if (files.length > 0) {
+          const removed = await supabase.storage.from(BUCKET).remove(files);
+          if (removed.error) problems.push(`archivos: ${removed.error.message}`);
+        }
+      } catch (e) {
+        problems.push(`archivos: ${e?.message || 'error al listar el almacenamiento'}`);
+      }
+
+      for (const table of [
+        'progress_photos',
+        'workout_data',
+        'anthropometry',
+        'nutrition_plans',
+        'check_ins',
+        'client_events',
+        'client_invites',
+      ]) {
+        const res = await supabase.from(table).delete().eq('client_id', clientId);
+        /* Una tabla que no existe (migración sin aplicar) no es un problema: es
+           que ahí no hay nada de este cliente. */
+        if (res.error && !/does not exist|schema cache/i.test(res.error.message)) {
+          problems.push(`${table}: ${res.error.message}`);
+        }
+      }
+
+      const gone = await supabase.from('clients').delete().eq('id', clientId);
+      if (gone.error) {
+        return {
+          ok: false,
+          error: `No se pudo borrar la ficha: ${gone.error.message}`,
+          problems,
+        };
+      }
+
+      setClients((prev) => prev.filter((c) => c.id !== clientId));
+      setProgressPhotos((prev) => prev.filter((p) => p.clientId !== clientId));
+
+      return { ok: true, problems };
+    },
+    [setClients, setProgressPhotos]
+  );
+
   const reloadClients = useCallback(async () => {
     const { data, error } = await supabase.from('clients').select('*').order('created_at');
     if (error) return { ok: false, error: error.message };
@@ -2317,6 +2852,8 @@ export const AppProvider = ({ children }) => {
       session,
       loading,
       loadError,
+      conflict,
+      resolveConflict,
       signOut,
       profileRole,
       isCoach,
@@ -2356,6 +2893,8 @@ export const AppProvider = ({ children }) => {
       startSession,
       logSessionSet,
       updateSession,
+      updateSessionMeta,
+      updateMobilityDrills,
       removeSession,
       startProgram,
       appendMicrocycle,
@@ -2394,11 +2933,16 @@ export const AppProvider = ({ children }) => {
       deleteProgressPhoto,
       updateProgressPhoto,
       refreshPhotoUrls,
+      ensurePhotoUrls,
 
       // Clientes
       addClient,
       updateClient,
       updateClientPreferences,
+      exportClientData,
+      exportAllData,
+      loadAuditLog,
+      deleteClientCompletely,
 
       // Integraciones
       reloadClients,
@@ -2441,21 +2985,21 @@ export const AppProvider = ({ children }) => {
       renameTeam,
     }),
     [
-      session, loading, loadError, signOut, profileRole, isCoach, effectiveView,
+      session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
       clients, activeClient, selectedClientId, workoutData, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
       moveExercise, addDay, renameDay, duplicateDay, removeDay, updateWeeklySplit,
-      startSession, logSessionSet, updateSession, removeSession,
+      startSession, logSessionSet, updateSession, updateSessionMeta, updateMobilityDrills, removeSession,
       startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
       updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
       addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams,
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
-      uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls,
-      addClient, updateClient, updateClientPreferences,
+      uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,
+      addClient, updateClient, updateClientPreferences, exportClientData, exportAllData, loadAuditLog, deleteClientCompletely,
       reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
       uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink,
       checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent, team, teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,

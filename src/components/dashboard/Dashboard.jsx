@@ -4,6 +4,7 @@ import {
   Camera,
   Dumbbell,
   Flame,
+  MessageSquare,
   Percent,
   Ruler,
   Scale,
@@ -16,6 +17,13 @@ import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/
 import { MRV_GOALS, MUSCLE_COLORS, WEEK_DAYS, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
 import { MACROS, macroSplit } from '@/domain/nutrition';
 import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
+import { clientProtocol, scaleQuestions } from '@/domain/protocol';
+import {
+  buildFeedbackSeries,
+  feedbackAdherence,
+  feedbackLabels,
+  questionStats,
+} from '@/domain/readiness';
 import {
   CARDS,
   WIDGETS,
@@ -113,6 +121,23 @@ export const Dashboard = ({ audience = 'coach' }) => {
     [microcycles, latestWeek]
   );
   const maxVolume = Math.max(1, ...volume.map(([, count]) => count), ...volume.map(([name]) => MRV_GOALS[name]?.mrv || 0));
+
+  /*
+    El protocolo decide si estas dos piezas existen siquiera. Se calculan siempre
+    —construir todos los nodos y elegir después es lo que hace que añadir una
+    pieza no toque el layout— pero valen `null` cuando no hay nada que enseñar, y
+    el panel filtra los nulos.
+  */
+  const protocol = useMemo(() => clientProtocol(activeClient.preferences), [activeClient.preferences]);
+  const feedbackSeries = useMemo(
+    () => buildFeedbackSeries(microcycles, scaleQuestions(protocol)),
+    [microcycles, protocol]
+  );
+  const headline = useMemo(() => {
+    const first = scaleQuestions(protocol)[0];
+    return first ? questionStats(microcycles, first) : null;
+  }, [microcycles, protocol]);
+  const adherenceToFeedback = useMemo(() => feedbackAdherence(microcycles), [microcycles]);
 
   const logs = useMemo(() => reverseChronological(history), [history]);
   const lastLog = logs[0];
@@ -239,6 +264,33 @@ export const Dashboard = ({ audience = 'coach' }) => {
         color="var(--data-pink)"
       />
     ),
+
+    /*
+      Sensaciones: la PRIMERA pregunta medible del protocolo, no un promedio de
+      todas. Mezclar un RPE de 8 con un dolor de 1 en una sola cifra da un número
+      que no significa nada — son escalas con direcciones opuestas—. La primera es
+      la que el entrenador ha puesto arriba del todo, o sea la que le importa.
+
+      `null` cuando no hay protocolo que pregunte o todavía no hay respuestas: el
+      panel filtra los nodos nulos, así que el widget desaparece del catálogo en
+      lugar de enseñar un hueco.
+    */
+    readiness: headline && (
+      <StatWidget
+        title={headline.short}
+        icon={MessageSquare}
+        timeframe={`${headline.count} ${headline.count === 1 ? 'sesión' : 'sesiones'} · sobre ${headline.max}`}
+        value={headline.value}
+        color={headline.color}
+        delta={
+          headline.neutral ? null : (
+            <Delta value={headline.delta} lowerIsBetter={headline.lowerIsBetter} />
+          )
+        }
+      >
+        <Sparkline points={headline.points.slice(-10)} color={headline.color} />
+      </StatWidget>
+    ),
   };
 
   const hasSplit = Boolean(program && activeClient.cycleType !== 'rotating' && program.weeklySplit);
@@ -354,6 +406,38 @@ export const Dashboard = ({ audience = 'coach' }) => {
         </div>
       </MetricCard>
     ) : null,
+
+    /*
+      Una línea por pregunta de escala, semana a semana. Es la pieza que convierte
+      «que el cliente cuente cómo va» en algo que se puede leer junto al resto: la
+      fatiga y el tonelaje en el mismo panel y con el mismo eje.
+
+      El eje sale de las propias respuestas (`feedbackLabels`) y no del panel: hay
+      semanas en las que el cliente contesta y no se pesa, y con las etiquetas del
+      panel esas respuestas se caerían del gráfico sin dejar rastro.
+    */
+    feedbackTrend:
+      feedbackSeries.length > 0 ? (
+        <MetricCard
+          title="Cómo le ha ido"
+          subtitle="Promedio de cada semana"
+          value={feedbackSeries.length}
+          unit={feedbackSeries.length === 1 ? 'pregunta' : 'preguntas'}
+          foot={
+            adherenceToFeedback
+              ? `Contesta en ${adherenceToFeedback.pct} % de sus sesiones (${adherenceToFeedback.answered} de ${adherenceToFeedback.sessions}).`
+              : undefined
+          }
+        >
+          <BandChart
+            labels={feedbackLabels(feedbackSeries)}
+            series={feedbackSeries}
+            height={132}
+            showArea={false}
+            emptyMessage="Todavía no ha contestado ninguna sesión."
+          />
+        </MetricCard>
+      ) : null,
 
     volume: (
       <MetricCard
@@ -589,8 +673,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
 
       <p className="t-sm t-tertiary">
         {isClient
-          ? 'En «Analítica» tienes la evolución de tus calorías y macros, la progresión de cada ejercicio y tus perímetros.'
-          : 'En «Analítica» está la evolución nutricional, el volumen y la frecuencia por músculo, y la progresión ejercicio a ejercicio.'}
+          ? 'En «Análisis», aquí arriba, tienes la evolución de tus calorías y macros, la progresión de cada ejercicio y tus perímetros.'
+          : 'En «Análisis», aquí arriba, está la lectura de la semana, la evolución nutricional, el volumen por músculo y la progresión ejercicio a ejercicio.'}
       </p>
 
     </div>

@@ -1,65 +1,62 @@
-import { ShieldCheck, User } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { Logo } from '@/components/ui/Logo';
 import { AccountMenu } from '@/components/AccountMenu';
+import { useCommandPalette } from '@/components/ui/CommandPalette';
 
+/**
+ * Cabecera.
+ *
+ * ── Qué hay y qué se ha ido ─────────────────────────────────────────────────
+ * Tres cosas: la marca, la búsqueda y la cuenta. Han salido dos:
+ *
+ * · **El recuento de clientes.** «12 clientes» es un dato de la cartera, y en la
+ *   cartera está, con su desglose. En una barra pegajosa que acompaña toda la
+ *   jornada era una cifra que nunca cambia y que no lleva a ninguna parte.
+ *
+ * · **El conmutador Entrenador/Cliente.** Ocupaba el centro de la cabecera para
+ *   una función de PREVISUALIZACIÓN, que es algo que se usa un minuto al mes.
+ *   Se ha ido al menú de cuenta —junto al tema y a la configuración, que son las
+ *   otras cosas que se dejan puestas y no se tocan— y además está en la paleta.
+ *
+ * Lo que ocupa ese hueco ahora es la búsqueda, que es lo contrario: se usa
+ * decenas de veces al día. El botón existe además del atajo `⌘K` porque un atajo
+ * que no se anuncia no lo descubre nadie; el propio botón lleva la tecla escrita
+ * para enseñarlo.
+ *
+ * El aviso de cambios sin confirmar sí se queda: es lo único de la cabecera que
+ * habla de algo que puede perderse.
+ */
 export const Header = () => {
-  const { view, setViewMode, isCoach, clients, hasUnsavedChanges } = useApp();
+  const { hasUnsavedChanges } = useApp();
+  const palette = useCommandPalette();
 
   return (
     <header className="app-header">
-      {/*
-        Sin subtítulo. «Entrenamiento y progreso» presenta el producto a quien
-        aún no ha entrado, y ahí sigue —en la pantalla de acceso—; en una
-        cabecera pegajosa que acompaña al entrenador toda la jornada es una línea
-        que no informa de nada y que compite con el nombre del cliente.
-      */}
       <Logo subtitle={null} />
 
-      <div className="row wrap center gap-2 grow">
-        {isCoach && (
-          <span className="badge">
-            {clients.length} {clients.length === 1 ? 'cliente' : 'clientes'}
-          </span>
-        )}
+      <button type="button" className="omnibox" onClick={() => palette.setOpen(true)}>
+        <Search size={15} aria-hidden="true" />
+        <span className="omnibox-label">Busca un cliente o una sección</span>
+        {/*
+          `⌘` en Apple y `Ctrl` en el resto. Se decide por la plataforma y no se
+          escribe «Ctrl/⌘» porque una etiqueta que enseña las dos obliga a elegir
+          cuál es la tuya cada vez que la lees.
+        */}
+        <kbd className="kbd">
+          {typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
+            ? '⌘'
+            : 'Ctrl'}
+          {' K'}
+        </kbd>
+      </button>
+
+      <div className="row gap-2 shrink-0">
         {hasUnsavedChanges && (
           <span className="badge badge-warn" role="status">
             Cambios sin confirmar
           </span>
         )}
-      </div>
-
-      <div className="row gap-2">
-        {/*
-          El conmutador de rol solo se ofrece a un coach, y como "previsualizar"
-          el portal del cliente. Antes cualquier usuario podía ponerse rol de
-          entrenador desde aquí: RLS impedía la fuga de datos, pero un cliente
-          veía el panel completo del coach sobre su propia ficha.
-        */}
-        {isCoach && (
-          <div className="role-switcher" role="group" aria-label="Vista activa">
-            <button
-              type="button"
-              className="role-btn"
-              aria-pressed={view === 'coach'}
-              onClick={() => setViewMode('coach')}
-            >
-              <ShieldCheck size={14} /> Entrenador
-            </button>
-            <button
-              type="button"
-              className="role-btn"
-              aria-pressed={view === 'client'}
-              onClick={() => setViewMode('client')}
-              title="Ver la aplicación como la ve tu cliente"
-            >
-              <User size={14} /> Cliente
-            </button>
-          </div>
-        )}
-
-        {/* Configuración, tema y salir cuelgan del avatar, que es donde la gente
-            los busca en cualquier aplicación. */}
         <AccountMenu />
       </div>
     </header>

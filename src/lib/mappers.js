@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Frontera entre el `snake_case` de Postgres y el `camelCase` que consumen los
  * componentes. Toda conversión vive aquí: si cambia una columna, se cambia en
@@ -111,6 +112,10 @@ export const mapEventFromDb = (row) => ({
 
 // ── Rutina ─────────────────────────────────────────────────────────────────
 
+/**
+ * La frontera: de la fila de Postgres al contrato que usa el dominio.
+ * @returns {import('@/types').WorkoutData}
+ */
 export const mapWorkoutFromDb = (row) => ({
   weeklySplit: row.weekly_split || {},
   mobilityDrills: row.mobility_drills || [],

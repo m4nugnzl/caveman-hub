@@ -25,6 +25,9 @@ export const WIDGETS = [
   { id: 'adherence', label: 'Adherencia', hint: 'Series registradas sobre las programadas' },
   { id: 'checkin', label: 'Check-in semanal', hint: 'Pesajes de esta semana' },
   { id: 'photos', label: 'Fotos de progreso', hint: 'Cuántas hay y la última' },
+  /* Solo aparece si el protocolo pregunta algo medible: sin preguntas activas no
+     hay nada que enseñar, y el catálogo no debe ofrecer un hueco vacío. */
+  { id: 'readiness', label: 'Sensaciones', hint: 'La primera pregunta de tu protocolo, semana a semana' },
 ];
 
 /**
@@ -51,6 +54,22 @@ export const CARDS = [
     fixed: true,
   },
   { id: 'volume', label: 'Volumen por músculo', hint: 'Series por grupo con su MRV', span: 'full' },
+  /*
+    El feedback de las sesiones. Va a fila completa y es innegociable por lo mismo
+    que la estructura semanal: son varias líneas con su leyenda, y en media fila
+    la leyenda se come el gráfico.
+
+    Que esté en este catálogo —y no en una pantalla aparte— es el punto entero del
+    diseño: una respuesta de escala es una serie temporal como el peso, así que se
+    configura, se ordena y se esconde por el mismo sitio que todas las demás.
+  */
+  {
+    id: 'feedbackTrend',
+    label: 'Feedback de las sesiones',
+    hint: 'Una línea por pregunta — necesita la fila entera',
+    span: 'full',
+    fixed: true,
+  },
 ];
 
 const DEFAULTS = {

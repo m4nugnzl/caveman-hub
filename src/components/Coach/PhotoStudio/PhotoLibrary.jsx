@@ -5,6 +5,7 @@ import { ANGLES, angleLabel, angleShort, groupByWeek } from '@/domain/photos';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
+import { Thumb } from '@/components/photos/Thumb';
 
 /**
  * Biblioteca de fotos organizada en "carpetas" por semana — el mismo modelo
@@ -121,7 +122,10 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                           title={`${angleLabel(photo.angle)} · ${photo.date}${photo.derivedWeight ? ` · ${photo.derivedWeight} kg` : ''}`}
                         >
                           {photo.url ? (
-                            <img src={photo.url} alt={`${angleLabel(photo.angle)} del ${photo.date}`} loading="lazy" />
+                            /* Miniatura de 180 px, no el original de 3 MB. Ver
+                               `photos/Thumb.jsx`: si la versión redimensionada no
+                               está disponible, cae a la original sola. */
+                            <Thumb url={photo.url} width={180} alt={`${angleLabel(photo.angle)} del ${photo.date}`} />
                           ) : (
                             <span className="row center t-xs t-tertiary" style={{ height: '100%' }}>
                               sin vista previa

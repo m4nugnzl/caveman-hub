@@ -6,100 +6,143 @@
    error, no una excepción. Eso es lo que permite cambiar el tema entero desde
    un solo sitio.
 
-   ── El lenguaje visual: «Piedra» ───────────────────────────────────────────
-   La identidad ya estaba en el logotipo y no se usaba en ninguna otra parte:
-   tres monolitos ascendentes, que leen a la vez como piedras y como una
-   progresión. De ahí sale todo lo demás.
+   ══ El lenguaje visual: «Hierro y tiza» ═════════════════════════════════════
 
-   La base deja de ser el gris azulado frío de cualquier panel y pasa a ser
-   caliza: un gris cálido, con el texto en negro cálido y el acento en un verde
-   mineral profundo. El color sigue reservado al dato — eso no cambia—, pero las
-   series pasan de la paleta genérica a PIGMENTOS: ocre, terracota, índigo,
-   verdigrís. Sobre una base cálida, un azul de caramelo flota; un pigmento se
-   asienta.
+   ── La regla que lo ordena todo ─────────────────────────────────────────────
+   EL CROMO NO TIENE COLOR. El color es exclusivamente del dato.
 
-   El tema por defecto es CLARO. El oscuro es basalto —la misma piedra sin luz—,
-   no una inversión del claro.
+   El proyecto ya decía esto y no lo cumplía: había un verde de marca en la
+   pestaña activa, en el botón primario, en el foco, en el borde de la foto
+   seleccionada, en la cifra del peso del cliente… y al lado, en el mismo
+   gráfico, un teal y un lima de dato a un paso de él. Con nueve series que
+   distinguir —nueve grupos musculares, tres macros, cinco métricas en una misma
+   línea de tiempo— gastar una franja del círculo cromático en la interfaz es
+   gastarla dos veces: se pierde una serie distinguible Y se pierde la regla.
+
+   Aquí el acento es TIZA: casi blanco sobre hierro, casi negro sobre papel. Sin
+   tinte. Un botón primario es el máximo contraste posible contra su fondo, no un
+   color de marca, y eso además lo hace imposible de perder de vista. A cambio,
+   el círculo cromático entero queda libre para lo único que de verdad necesita
+   distinguirse: los datos.
+
+   ── De dónde sale la paleta de datos ────────────────────────────────────────
+   De los DISCOS. Rojo 25, azul 20, amarillo 15, verde 10, blanco 5: son los
+   colores de competición, y un entrenador los lee sin traducirlos porque los
+   tiene en las manos todos los días. Una paleta categórica que además significa
+   algo en el oficio vale más que una paleta bonita inventada desde cero.
+
+   ── Las dos tierras ─────────────────────────────────────────────────────────
+   HIERRO (oscuro): grafito frío con algo de azul, el color de una barra cargada
+   bajo la luz del gimnasio. No es negro: el negro puro aplasta las sombras de
+   las fotos de progreso, que es media aplicación.
+
+   PAPEL (claro): el gris frío de una hoja de programación impresa, con las
+   tarjetas en blanco puro. No es crema: el crema cálido lee editorial —una
+   revista— y esto es una hoja de cálculo con criterio.
+
+   Ninguna de las dos es la inversión de la otra: el papel se apoya en la sombra
+   y el hierro en el canto, porque una sombra sobre grafito no se ve.
+
+   ── La firma: LA REGLA ──────────────────────────────────────────────────────
+   Marcas de graduación, como las de una cinta métrica o un pie de rey. Aparece
+   SOLO donde de verdad hay una escala: el canto inferior de la cabecera, la
+   línea base de los gráficos y el eje de días de «Hoy». Repetirla como adorno la
+   convertiría en textura y dejaría de significar «aquí se mide».
    ========================================================================== */
 
 :root {
-  /* ── Superficies ────────────────────────────────────────────────────────
-     `canvas` es el fondo de la página; `surface` las tarjetas, que en el tema
-     claro son blancas y se separan del fondo por la sombra, no por un borde.
-     Que el lienzo sea cálido y la tarjeta blanca pura es lo que da la lectura
-     de «papel sobre piedra». */
-  --canvas: #f2f0ec;
-  --canvas-alt: #e9e6e0;
+  /* ── Superficies · PAPEL ─────────────────────────────────────────────────
+     `canvas` es el fondo de la página; `surface` las tarjetas, en blanco puro.
+     El salto entre el gris del lienzo y el blanco de la tarjeta es lo que separa
+     «la mesa» de «la hoja» sin necesidad de decorar nada. */
+  --canvas: #eceef1;
+  --canvas-alt: #e2e5ea;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-sunken: #f8f6f3;
-  --surface-glass: rgba(255, 255, 255, 0.82);
+  --surface-sunken: #f5f6f8;
+  --surface-glass: rgba(255, 255, 255, 0.86);
 
   /* ── Separadores y rellenos ── */
-  --hairline: #e5e1d9;
-  --hairline-strong: #d3cec3;
-  --fill-subtle: #f4f2ee;
-  --fill: #eae7e0;
-  --fill-strong: #ddd8ce;
+  --hairline: #e0e3e8;
+  --hairline-strong: #c6ccd4;
+  --fill-subtle: #f4f6f8;
+  --fill: #e9ecf0;
+  --fill-strong: #dadee6;
 
-  /* ── Texto ──────────────────────────────────────────────────────────────
-     `text-tertiary` se ha oscurecido respecto al valor anterior (#96a0b3, que
-     daba 2.9:1 sobre blanco). Es el color de las etiquetas de 10-11 px, o sea
-     el texto más pequeño de la interfaz: es justo donde menos se puede
-     escatimar contraste. Ahora da 3.7:1. */
-  --text: #1c1917;
-  --text-secondary: #6b6459;
-  --text-tertiary: #8c8477;
+  /* ── Canto de la tarjeta ─────────────────────────────────────────────────
+     Nuevo. Antes la tarjeta se separaba del fondo SOLO por la sombra, y en el
+     tema oscuro eso significaba que no se separaba en absoluto: una sombra sobre
+     grafito es invisible, así que las tarjetas se fundían con el lienzo y la
+     interfaz perdía su rejilla.
+
+     Ahora todas las superficies tienen canto definido. Un instrumento tiene
+     piezas con borde; una tarjeta que flota sin canto es una convención de
+     marketing, no de medida. */
+  --edge: #e4e7ec;
+
+  /* ── Texto ── */
+  --text: #14181c;
+  --text-secondary: #5a6472;
+  --text-tertiary: #7b8592;
   --text-inverse: #ffffff;
 
-  /* ── Acento de marca y acción ───────────────────────────────────────────
-     Verde mineral, no esmeralda. Además de identidad es una corrección: el
-     acento se usa como TEXTO en la pestaña activa y en `.btn-plain`, y el
-     anterior (#0f9d76) daba 3.45:1 sobre blanco, por debajo del mínimo AA.
-     Este da 5.4:1. */
-  --accent: #15795c;
-  --accent-hover: #10634a;
-  --accent-soft: #e2f0ea;
+  /* ── Acento: TIZA ────────────────────────────────────────────────────────
+     Acromático a propósito (ver la cabecera del archivo). Sobre papel, la tiza
+     es la tinta: negro hierro. `accent-on` es lo que va ENCIMA del acento, así
+     que en un botón primario el fondo es tinta y las letras el papel.
+
+     Contraste del acento como texto sobre blanco: 16,8:1. Como el acento se usa
+     en la pestaña activa y en `.btn-plain`, esto es también lo que arregla de
+     raíz el problema que arrastraba el verde: nunca más habrá que comprobar si
+     el color de marca llega al mínimo. */
+  --accent: #14181c;
+  --accent-hover: #000000;
+  --accent-soft: rgba(20, 24, 28, 0.06);
   --accent-on: #ffffff;
 
-  /* ── Colores de dato. Uno por serie, nunca decorativos. ──────────────────
-     Pigmentos terrosos en vez de la paleta genérica: mantienen la distancia
-     entre series —que es lo que tiene que hacer una paleta categórica— pero
-     pertenecen a la misma tierra que el lienzo. */
-  --data-blue: #2f6fb5;
-  --data-rose: #c14a45;
-  --data-teal: #12897a;
-  --data-amber: #b8820f;
-  --data-violet: #6b5bab;
-  --data-pink: #b2477c;
-  --data-lime: #6b8f22;
-  --data-orange: #cc6a20;
-  --data-slate: #8c8477;
+  /* ── Colores de dato: LOS DISCOS ─────────────────────────────────────────
+     Uno por serie, nunca decorativos. Los nombres se conservan —medio proyecto
+     los usa desde el JSX— pero los valores vienen de la barra: el rojo es el de
+     25, el azul el de 20, el amarillo el de 15, el verde el de 10.
+
+     Sobre papel van oscurecidos hasta pasar 4,5:1 como TEXTO, no solo como
+     relleno: en las listas de métricas y en las píldoras de macro el color es
+     texto pequeño, y ahí una paleta pensada solo para rellenar barras falla. */
+  --data-blue: #2a66c4;
+  --data-rose: #c0392b;
+  --data-teal: #0e7f73;
+  --data-amber: #96690a;
+  --data-violet: #5b45b8;
+  --data-pink: #a8306e;
+  --data-lime: #557d12;
+  --data-orange: #b3520f;
+  --data-slate: #656f7b;
 
   /* Área bajo las líneas: el mismo color con muy poca opacidad. */
   --area-opacity: 0.1;
 
-  /* ── Semántica de estado ── */
-  --positive: #147a52;
-  --positive-soft: #e3f0e8;
-  --negative: #b3372f;
-  --negative-soft: #fbe9e6;
-  /* ── El aviso NO es ámbar ─────────────────────────────────────────────────
-     Lo era, y `--data-amber` también: en tema oscuro los dos valían exactamente
-     `#e0ac3c`. Consecuencia: la píldora de kcal de una comida —que usa el ámbar
-     de dato— se leía igual que un aviso, y el entrenador veía advertencias donde
-     solo había calorías.
+  /* ── Semántica de estado ─────────────────────────────────────────────────
+     Tres tintas que NO se solapan con ninguna de dato:
 
-     El aviso pasa a un ámbar quemado, claramente más rojizo que el de dato. Sigue
-     siendo «atención» sin invadir el pigmento que significa energía. */
-  --warning: #a85a12;
-  --warning-soft: #fbeee0;
-  --info: #2f6fb5;
-  --info-soft: #e7eff9;
+     · positivo = el verde del disco de 10, oscurecido.
+     · negativo = el rojo del de 25.
+     · aviso    = naranja quemado, claramente más rojo que `--data-amber`.
 
-  /* Versión tenue del ámbar de dato, para las píldoras de kcal. Antes reutilizaban
-     `--warning-soft`, que es lo que hacía que las calorías parecieran un problema. */
-  --data-amber-soft: #f8f0da;
+     El aviso y el ámbar de dato valieron lo mismo una vez, y la consecuencia fue
+     que la píldora de kcal de una comida se leía como una advertencia: el
+     entrenador veía problemas donde solo había calorías. Están separados a
+     propósito y conviene que sigan estándolo. */
+  --positive: #10774c;
+  --positive-soft: #e3f1ea;
+  --negative: #b93429;
+  --negative-soft: #fbe9e7;
+  --warning: #a4530e;
+  --warning-soft: #fbeee1;
+  --info: #2a66c4;
+  --info-soft: #e8effa;
+
+  /* Versión tenue del ámbar de dato, para las píldoras de kcal. */
+  --data-amber-soft: #f7f0dd;
 
   /* ── Tipografía ──────────────────────────────────────────────────────────
      DOS voces, con papeles que no se solapan.
@@ -109,15 +152,19 @@
      así que se queda en el cuerpo, los campos y los botones.
 
      `--font-display` es Archivo, una grotesca de asta recta y cifras tabulares
-     excelentes que a tamaño grande resulta monumental. Se reserva a los TÍTULOS,
-     las CIFRAS y las etiquetas en versalita. En un producto que existe para
-     medir kilos, centímetros y semanas, el número es el contenido: merece voz
-     propia, y el resto de la interfaz no.
+     excelentes. Aquí tiene DOS registros, no uno:
+
+       · LA CIFRA, en grande y con el interletraje cerrado. En un producto que
+         existe para medir kilos, centímetros y semanas, el número es el
+         contenido y merece voz propia.
+       · LA ETIQUETA TROQUELADA: versalita, peso alto y el interletraje MUY
+         abierto (`--tracking-stencil`), como la serigrafía de un disco o el
+         rótulo de una máquina. Es lo que estructura la pantalla sin gastar ni
+         una gota de color.
 
      Va autoalojada en /public/fonts —no Google Fonts—, así que no hay petición a
-     terceros ni el bloqueo del primer render que motivó quitarla en su día. Son
-     35 KB para todo el rango de pesos 400-800, y `font-display: swap` deja que
-     el texto se pinte antes de que llegue. */
+     terceros ni bloqueo del primer render. Son 35 KB para todo el rango de pesos
+     400-800, y `font-display: swap` deja que el texto se pinte antes. */
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text',
     'Segoe UI', Inter, Roboto, system-ui, sans-serif;
 
@@ -125,11 +172,9 @@
     'Segoe UI', Inter, Roboto, system-ui, sans-serif;
 
   /* Tercera voz, con un solo uso: los valores que se copian y pegan literalmente
-     —una URL de webhook, un id de base de datos, el nombre exacto de un evento—.
-     Ahí la monoespaciada no es estética: es la que hace distinguibles `l`, `1` e
-     `I`, y la que permite ver de un vistazo si sobra un carácter. No aparece en
-     ningún texto que el usuario simplemente lea. Es la pila del sistema, sin
-     ninguna descarga. */
+     —una URL de webhook, un id, el nombre exacto de un evento—. Ahí la
+     monoespaciada no es estética: es la que hace distinguibles `l`, `1` e `I`.
+     Es la pila del sistema, sin ninguna descarga. */
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
     'Liberation Mono', monospace;
 
@@ -145,15 +190,22 @@
   --lh-tight: 1.15;
   --lh-base: 1.45;
 
+  /* El interletraje de la etiqueta troquelada. Va en un token porque aparece en
+     una docena de reglas y porque es una decisión, no un número suelto: por
+     debajo de 0.08em deja de leerse como rótulo y por encima de 0.13em las
+     palabras se deshacen. */
+  --tracking-stencil: 0.1em;
+
   /* ── Radios ──────────────────────────────────────────────────────────────
-     Más cerrados que antes (la tarjeta baja de 18 a 14 px). El radio muy
-     abierto lee blando; esto es una herramienta de medida y carga, y el canto
-     más recto la hace parecer construida en vez de inflada. */
-  --r-xs: 5px;
-  --r-sm: 8px;
-  --r-md: 11px;
-  --r-lg: 14px;
-  --r-xl: 20px;
+     Más cerrados que antes (la tarjeta baja de 14 a 10 px). El radio abierto lee
+     blando y de consumo; esto es una herramienta de medida y carga. No se va a
+     cero porque el canto vivo lee frágil en pantalla y se come el antialiasing
+     en las esquinas de las tarjetas anidadas. */
+  --r-xs: 3px;
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 14px;
   --r-pill: 999px;
 
   /* ── Espaciado ── */
@@ -166,106 +218,126 @@
   --s7: 44px;
 
   /* ── Sombras ─────────────────────────────────────────────────────────────
-     Amplias y de baja opacidad, y teñidas con el negro cálido del texto: una
-     sombra azulada sobre un lienzo de caliza se ve gris sucio. */
-  --shadow-xs: 0 1px 2px rgba(28, 25, 23, 0.05);
-  --shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.07), 0 1px 2px rgba(28, 25, 23, 0.04);
-  --shadow-md: 0 4px 14px -2px rgba(28, 25, 23, 0.09), 0 2px 4px rgba(28, 25, 23, 0.05);
-  --shadow-lg: 0 18px 40px -12px rgba(28, 25, 23, 0.2), 0 4px 10px rgba(28, 25, 23, 0.06);
-  --shadow-float: 0 12px 32px -8px rgba(28, 25, 23, 0.18);
+     Sobre papel la sombra sigue existiendo, pero ahora ACOMPAÑA al canto en vez
+     de sustituirlo: más corta y más suave que antes, porque una tarjeta con
+     borde y sombra larga parece despegada. */
+  --shadow-xs: 0 1px 1px rgba(20, 24, 28, 0.04);
+  --shadow-sm: 0 1px 2px rgba(20, 24, 28, 0.06);
+  --shadow-md: 0 3px 10px -2px rgba(20, 24, 28, 0.08), 0 1px 3px rgba(20, 24, 28, 0.05);
+  --shadow-lg: 0 16px 36px -14px rgba(20, 24, 28, 0.22), 0 3px 8px rgba(20, 24, 28, 0.06);
+  --shadow-float: 0 10px 28px -8px rgba(20, 24, 28, 0.18);
 
   /* ── Movimiento ── */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --fast: 0.16s var(--ease);
   --normal: 0.26s var(--ease);
 
-  /* ── La veta: la firma visual ────────────────────────────────────────────
-     Aparece en tres sitios —la cabecera del día de entrenamiento, el saludo del
-     portal del cliente y la tarjeta de acceso—, es decir, en la pieza que
-     encabeza cada contexto del producto. Repetirla en cada tarjeta la
-     convertiría en textura y dejaría de significar nada.
+  /* ── LA REGLA: la firma visual ───────────────────────────────────────────
+     Marcas de graduación de una cinta métrica. Sustituye a la «veta» —una línea
+     con degradado del color de marca— que ya no puede existir, porque el cromo
+     dejó de tener color.
 
-     ── Por qué es CONTINUA ──────────────────────────────────────────────────
-     Era una regla partida en tres segmentos, imitando los tres monolitos del
-     logotipo tumbados. Sobre el papel era la firma de la marca; en pantalla, a
-     3 px de alto, los dos huecos transparentes no se leían como intención sino
-     como una línea a la que le faltan trozos — «pausas sin relleno».
+     El cambio no es solo de forma: la veta era un adorno que encabezaba tres
+     piezas porque sí. La regla solo aparece donde hay una ESCALA de verdad: el
+     canto de la cabecera (que mide la jornada), la base de un gráfico (que mide
+     el eje) y el carril de días de «Hoy». Un adorno que solo sale cuando
+     significa algo deja de ser adorno.
 
-     Un adorno que hay que explicar para que no parezca un fallo no está
-     funcionando. Ahora es una línea entera, con un degradado suave del acento
-     hacia su versión clara: sigue siendo un remate y ya no parece roto.
-
-     Hereda `--accent`, así que el tema oscuro la resuelve solo. */
-  --strata: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 55%, transparent));
+     `--rule` son las marcas menores; `--rule-major` intercala una alta cada
+     cinco, como una cinta de verdad. */
+  --rule: repeating-linear-gradient(
+    90deg,
+    var(--hairline-strong) 0 1px,
+    transparent 1px 9px
+  );
+  --rule-major: repeating-linear-gradient(
+    90deg,
+    var(--hairline-strong) 0 1px,
+    transparent 1px 45px
+  );
 
   --header-h: 58px;
   --max-w: 1320px;
+
+  /* Alto de la barra de navegación inferior del móvil, incluida el área segura
+     del iPhone. Vive aquí porque no lo usa solo la barra: el contenido de la
+     página tiene que reservar ese hueco al final o la última fila queda debajo
+     de ella, que es el error clásico de estas barras. */
+  --bottombar-h: 56px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
 /* ==========================================================================
-   Tema oscuro — basalto
+   Tema oscuro — HIERRO
    --------------------------------------------------------------------------
    Solo se redefinen los tokens. Ningún componente sabe que existe.
 
-   No es el claro invertido: es la misma piedra sin luz. Los grises llevan la
-   misma temperatura cálida que el tema claro, porque un gris neutro junto a un
-   acento verde se percibe azulado y rompía la continuidad entre los dos temas.
+   No es el claro invertido. Sobre papel la jerarquía la dan la sombra y el
+   blanco de la tarjeta; sobre hierro la dan el CANTO y un escalón de luz muy
+   corto entre superficies, porque una sombra sobre grafito no existe y un
+   escalón largo convierte cada tarjeta en un parche gris claro.
    ========================================================================== */
 
 [data-theme='dark'] {
-  --canvas: #14120f;
-  --canvas-alt: #1a1714;
-  --surface: #201d19;
-  --surface-raised: #292520;
-  --surface-sunken: #1a1714;
-  --surface-glass: rgba(20, 18, 15, 0.78);
+  --canvas: #101317;
+  --canvas-alt: #161a1f;
+  --surface: #1a1f25;
+  --surface-raised: #222831;
+  --surface-sunken: #15191e;
+  --surface-glass: rgba(16, 19, 23, 0.82);
 
-  --hairline: rgba(255, 255, 255, 0.09);
-  --hairline-strong: rgba(255, 255, 255, 0.17);
-  --fill-subtle: rgba(255, 255, 255, 0.045);
-  --fill: rgba(255, 255, 255, 0.085);
-  --fill-strong: rgba(255, 255, 255, 0.14);
+  --hairline: rgba(226, 233, 241, 0.09);
+  --hairline-strong: rgba(226, 233, 241, 0.2);
+  --fill-subtle: rgba(226, 233, 241, 0.05);
+  --fill: rgba(226, 233, 241, 0.09);
+  --fill-strong: rgba(226, 233, 241, 0.15);
 
-  --text: #f5f2ec;
-  --text-secondary: #a9a094;
-  --text-tertiary: #7d7568;
-  --text-inverse: #1c1917;
+  /* Aquí el canto hace todo el trabajo que sobre papel hace la sombra. */
+  --edge: rgba(226, 233, 241, 0.1);
 
-  --accent: #35b98d;
-  --accent-hover: #4ccb9f;
-  --accent-soft: rgba(53, 185, 141, 0.16);
-  --accent-on: #06120d;
+  --text: #e8ecf1;
+  --text-secondary: #a3acb8;
+  --text-tertiary: #7b8592;
+  --text-inverse: #14181c;
 
-  /* Los mismos pigmentos, subidos de luz para que mantengan el contraste sobre
-     basalto sin volverse fosforitos. */
-  --data-blue: #6ea8e8;
-  --data-rose: #e8827a;
-  --data-teal: #3fc3ae;
-  --data-amber: #e0ac3c;
-  --data-violet: #a494e0;
-  --data-pink: #e07bad;
-  --data-lime: #a7c455;
-  --data-orange: #eb9a51;
-  --data-slate: #a09789;
+  /* La tiza, literal. Un botón primario sobre hierro es un rectángulo de tiza
+     con la letra en grafito: es el máximo contraste que la pantalla puede dar. */
+  --accent: #e8ecf1;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(232, 236, 241, 0.1);
+  --accent-on: #14181c;
+
+  /* Los mismos discos, subidos de luz para mantener el contraste sobre hierro
+     sin volverse fosforitos. */
+  --data-blue: #6fa5ee;
+  --data-rose: #ee7368;
+  --data-teal: #47cdb8;
+  --data-amber: #e8bc55;
+  --data-violet: #a797ee;
+  --data-pink: #ee8ab9;
+  --data-lime: #9fd45e;
+  --data-orange: #f2a362;
+  --data-slate: #9ba5b1;
 
   --area-opacity: 0.16;
 
-  --positive: #3fbd7e;
-  --positive-soft: rgba(63, 189, 126, 0.15);
-  --negative: #e8827a;
-  --negative-soft: rgba(232, 130, 122, 0.15);
-  /* Aquí era donde `--warning` y `--data-amber` valían LO MISMO. Ahora el aviso es
-     el ámbar quemado y el dato conserva el dorado. */
-  --warning: #eb9a51;
-  --warning-soft: rgba(235, 154, 81, 0.16);
-  --info: #6ea8e8;
-  --info-soft: rgba(110, 168, 232, 0.15);
+  --positive: #45c98c;
+  --positive-soft: rgba(69, 201, 140, 0.15);
+  --negative: #ee7368;
+  --negative-soft: rgba(238, 115, 104, 0.15);
+  --warning: #f2a362;
+  --warning-soft: rgba(242, 163, 98, 0.16);
+  --info: #6fa5ee;
+  --info-soft: rgba(111, 165, 238, 0.15);
 
-  --data-amber-soft: rgba(224, 172, 60, 0.16);
+  --data-amber-soft: rgba(232, 188, 85, 0.16);
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.65);
-  --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.6);
+  /* Se conservan para las piezas que de verdad flotan —menús, modales— donde una
+     sombra sí se percibe porque hay una capa oscura debajo. En las tarjetas
+     planas no hacen nada, y por eso ahí manda `--edge`. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+  --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.65);
 }

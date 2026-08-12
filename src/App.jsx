@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
@@ -5,27 +6,46 @@ import { Header } from '@/components/Header';
 import { Login } from '@/components/Auth/Login';
 import { CoachLayout } from '@/components/Coach/CoachLayout';
 import { ClientLayout } from '@/components/Client/ClientLayout';
+import { Today } from '@/components/Coach/Today';
 import { ClientPortfolio } from '@/components/Coach/ClientPortfolio';
-import { ClientRoster } from '@/components/Coach/ClientRoster';
-import { TeamPanel } from '@/components/Coach/TeamPanel';
-import { SettingsLayout } from '@/components/Coach/Settings/SettingsLayout';
-import { AppearancePanel } from '@/components/Coach/Settings/AppearancePanel';
-import { IntegrationsCatalogue } from '@/components/Coach/Settings/IntegrationsCatalogue';
-import { WorkoutLogEditor } from '@/components/Coach/Workout/WorkoutLogEditor';
-import { NutritionModule } from '@/components/Coach/NutritionModule';
-import { AnthropometryModule } from '@/components/Coach/AnthropometryModule';
-import { PhotoStudio } from '@/components/Coach/PhotoStudio/PhotoStudio';
 import { Dashboard } from '@/components/dashboard/Dashboard';
-import { AnalyticsPanel } from '@/components/analytics/AnalyticsPanel';
-import { ClientRoutineRoute } from '@/components/Client/ClientRoutineRoute';
-import { ClientDietRoute } from '@/components/Client/ClientDietRoute';
-import { ClientPhotosRoute } from '@/components/Client/ClientPhotosRoute';
-import { ClientCheckInsRoute } from '@/components/Client/ClientCheckInsRoute';
-import { CalendarPanel } from '@/components/calendar/CalendarPanel';
+import { ProgressLayout } from '@/components/analytics/ProgressLayout';
+
+/*
+  ══ Todo lo demás se carga cuando se abre ══════════════════════════════════
+
+  Antes se importaba la aplicación entera en el arranque: 409 KB de código más
+  218 KB del cliente de Supabase, aunque quien entrara fuera un cliente que usa
+  tres pantallas desde el móvil con datos. El editor de rutina, el estudio de
+  fotos —con su lienzo, su caché de imágenes y su grabador de vídeo— y los diez
+  gráficos de la analítica se descargaban siempre, los mirara alguien o no.
+
+  Se quedan en el arranque solo las tres pantallas de ENTRADA —«Hoy», la cartera
+  y el resumen—, que son las que se ven antes de decidir nada. Cargar esas en
+  diferido solo añadiría un parpadeo a lo primero que ve el usuario.
+*/
+const ClientRoster = lazy(() => import('@/components/Coach/ClientRoster').then((m) => ({ default: m.ClientRoster })));
+const TeamPanel = lazy(() => import('@/components/Coach/TeamPanel').then((m) => ({ default: m.TeamPanel })));
+const SettingsLayout = lazy(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
+const AppearancePanel = lazy(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
+const ProtocolPanel = lazy(() => import('@/components/Coach/Settings/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
+const IntegrationsCatalogue = lazy(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
+const BackupPanel = lazy(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
+const WorkoutLogEditor = lazy(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
+const NutritionModule = lazy(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
+const AnthropometryModule = lazy(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
+const PhotoStudio = lazy(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
+const AnalyticsPanel = lazy(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
+const ClientRoutineRoute = lazy(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
+const ClientDietRoute = lazy(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
+const ClientPhotosRoute = lazy(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
+const ClientCheckInsRoute = lazy(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
+const CalendarPanel = lazy(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
 import { COACH_HOME, CLIENT_HOME } from '@/routes';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
+import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 
 /**
  * Mapa de rutas.
@@ -39,7 +59,7 @@ import { Notice } from '@/components/ui/primitives';
  * `src/routes.jsx`, así que las pestañas y las URLs no pueden divergir.
  */
 export default function App() {
-  const { session, loading, loadError, view } = useApp();
+  const { session, loading, loadError, conflict, resolveConflict, view } = useApp();
 
   /*
     La revisión compartida se ve SIN sesión, y por eso va antes de todo lo demás:
@@ -78,7 +98,12 @@ export default function App() {
   const home = view === 'coach' ? COACH_HOME : CLIENT_HOME;
 
   return (
-    <>
+    /*
+      La paleta de comandos envuelve a la aplicación entera porque la abren dos
+      cosas: el atajo `⌘K` (que escucha en `window`) y el botón de la cabecera. El
+      proveedor comparte ese único booleano entre las dos.
+    */
+    <CommandPaletteProvider>
       <Header />
       <main>
         {loadError && (
@@ -87,25 +112,84 @@ export default function App() {
           </div>
         )}
 
+        {/*
+          Conflicto de escritura: alguien ha tocado los mismos datos mientras
+          editabas. Va aquí arriba y no dentro de una pantalla porque es un estado
+          del que hay que SALIR, y porque puede saltar en cualquiera de las tres
+          secciones que escriben bloques.
+
+          Las dos salidas se nombran por lo que HACEN, no por lo que son: «quedarme
+          con lo suyo» y «imponer lo mío», en vez de «recargar» y «forzar».
+        */}
+        {conflict && (
+          <div className="layout" style={{ paddingBottom: 0 }}>
+            <Notice
+              tone="warn"
+              action={
+                <span className="row gap-2 shrink-0">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => resolveConflict('reload')}
+                  >
+                    Quedarme con lo suyo
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => resolveConflict('overwrite')}
+                  >
+                    Imponer lo mío
+                  </button>
+                </span>
+              }
+            >
+              Otra persona —u otra pestaña tuya— ha cambiado estos datos mientras editabas. Tus
+              cambios <strong>no se han guardado</strong>, para no borrar los suyos. Recarga para ver
+              su versión, o impón la tuya sabiendo que se pierde la de ellos.
+            </Notice>
+          </div>
+        )}
+
+        {/*
+          El respaldo de Suspense es deliberadamente sobrio: un texto y nada más.
+          Una pantalla de carga con animación para un fragmento que tarda 80 ms en
+          red local llama más la atención que la propia espera.
+        */}
+        <Suspense
+          fallback={
+            <div className="layout">
+              <p className="t-sm t-tertiary">Cargando…</p>
+            </div>
+          }
+        >
         <Routes>
           {view === 'coach' ? (
             <>
               <Route element={<CoachLayout />}>
+                <Route path="hoy" element={<Today />} />
                 <Route path="cartera" element={<ClientPortfolio />} />
                 <Route path="clientes" element={<ClientRoster />} />
                 {/* Ajustes: lo que se configura una vez y no se toca a diario.
                     Fuera del nivel primario para que ese tenga tres entradas. */}
                 <Route path="ajustes" element={<SettingsLayout />}>
-                  <Route index element={<Navigate to="apariencia" replace />} />
+                  <Route index element={<Navigate to="protocolo" replace />} />
+                  <Route path="protocolo" element={<ProtocolPanel />} />
                   <Route path="apariencia" element={<AppearancePanel />} />
                   <Route path="integraciones" element={<IntegrationsCatalogue />} />
+                  <Route path="copia" element={<BackupPanel />} />
                   <Route path="equipo" element={<TeamPanel />} />
                 </Route>
 
                 <Route path="c/:clientId">
                   <Route index element={<Navigate to="resumen" replace />} />
-                  <Route path="resumen" element={<Dashboard audience="coach" />} />
-                  <Route path="analitica" element={<AnalyticsPanel audience="coach" />} />
+                  {/* Resumen y análisis son dos profundidades de la misma sección:
+                      una sola entrada en el carril, dos rutas debajo para que el
+                      enlace directo y el botón atrás sigan funcionando. */}
+                  <Route element={<ProgressLayout audience="coach" />}>
+                    <Route path="resumen" element={<Dashboard audience="coach" />} />
+                    <Route path="analitica" element={<AnalyticsPanel audience="coach" />} />
+                  </Route>
                   <Route path="rutina" element={<WorkoutLogEditor />} />
                   <Route path="nutricion" element={<NutritionModule />} />
                   <Route path="fotos" element={<PhotoStudio />} />
@@ -122,8 +206,10 @@ export default function App() {
             <>
               <Route path="mi" element={<ClientLayout />}>
                 <Route index element={<Navigate to="panel" replace />} />
-                <Route path="panel" element={<Dashboard audience="client" />} />
-                <Route path="analitica" element={<AnalyticsPanel audience="client" />} />
+                <Route element={<ProgressLayout audience="client" />}>
+                  <Route path="panel" element={<Dashboard audience="client" />} />
+                  <Route path="analitica" element={<AnalyticsPanel audience="client" />} />
+                </Route>
                 <Route path="rutina" element={<ClientRoutineRoute />} />
                 <Route path="dieta" element={<ClientDietRoute />} />
                 <Route path="fotos" element={<ClientPhotosRoute />} />
@@ -134,7 +220,10 @@ export default function App() {
             </>
           )}
         </Routes>
+        </Suspense>
       </main>
-    </>
+
+      <CommandPalette />
+    </CommandPaletteProvider>
   );
 }

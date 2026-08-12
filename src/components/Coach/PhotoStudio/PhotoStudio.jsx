@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -10,6 +10,7 @@ import { usePhotoStudio } from './usePhotoStudio';
 import { useImageCache } from './useImageCache';
 import { renderComposition } from './renderComposition';
 import { PhotoLibrary } from './PhotoLibrary';
+import { PhotoCoverage } from './PhotoCoverage';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioToolbar } from './StudioToolbar';
 import { StudioBar } from './StudioBar';
@@ -38,7 +39,15 @@ export const PhotoStudio = () => {
     uploadProgressPhoto,
     deleteProgressPhoto,
     refreshPhotoUrls,
+    ensurePhotoUrls,
   } = useApp();
+
+  /* Las fotos llegan de la carga inicial SIN enlace firmado: firmar las de toda
+     la cartera al arrancar eran mil doscientos enlaces temporales para mirar los
+     de un cliente. Se piden aquí, que es donde se van a ver. */
+  useEffect(() => {
+    ensurePhotoUrls(activeClient.id);
+  }, [ensurePhotoUrls, activeClient.id]);
 
   const history = useMemo(
     () => anthropometry[activeClient.id]?.history || [],
@@ -192,6 +201,20 @@ export const PhotoStudio = () => {
           Algunas fotos no se han podido cargar. Puede que su enlace temporal haya caducado.
         </Notice>
       )}
+
+      {/*
+        El historial ANTES del estudio, y con sus huecos.
+        --------------------------------------------------------------------
+        La biblioteca lateral enseña lo que hay; esto enseña lo que falta, que es
+        lo que genera trabajo: «me faltan la 5, la 7 y la 9». Una semana sin fotos
+        no aparecía en ninguna parte, así que ese hueco solo se descubría al ir a
+        comparar y no encontrar con qué.
+      */}
+      <PhotoCoverage
+        photos={photos}
+        startDate={activeClient.startDate}
+        phone={activeClient.phone}
+      />
 
       {/* Las decisiones sobre EL DOCUMENTO —composición, proporción, descargar—
           van arriba y en horizontal. Las que se tocan sin parar mientras trabajas

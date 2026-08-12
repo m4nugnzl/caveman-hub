@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { Eye, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme.jsx';
@@ -36,7 +36,7 @@ const initials = (value) =>
  * habitación.
  */
 export const AccountMenu = () => {
-  const { session, signOut, profileRole } = useApp();
+  const { session, signOut, profileRole, isCoach, view, setViewMode } = useApp();
   const { isDark, toggle } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -84,6 +84,38 @@ export const AccountMenu = () => {
                   {label}
                 </NavLink>
               ))}
+              <hr className="divider" />
+            </>
+          )}
+
+          {/*
+            Previsualizar el portal del cliente.
+            ------------------------------------------------------------------
+            Estaba en el centro de la cabecera, siempre visible, como un par de
+            botones de rol. Ahí sobraba: es una función que se usa un minuto al
+            mes —comprobar cómo le queda algo al cliente— y ocupaba el hueco de lo
+            que se usa cincuenta veces al día, que es buscar.
+
+            Aquí encaja porque el menú de cuenta es donde vive lo que se DEJA
+            PUESTO: el tema, la configuración y ahora la vista. Y como es un modo
+            y no una navegación, el texto dice a dónde te lleva, no cómo se llama
+            el rol: nadie piensa «quiero el rol cliente», piensa «quiero ver cómo
+            lo ve».
+          */}
+          {isCoach && (
+            <>
+              <button
+                type="button"
+                className="account-item"
+                role="menuitem"
+                onClick={() => {
+                  setViewMode(view === 'coach' ? 'client' : 'coach');
+                  setOpen(false);
+                }}
+              >
+                {view === 'coach' ? <Eye size={15} /> : <ShieldCheck size={15} />}
+                {view === 'coach' ? 'Ver como lo ve mi cliente' : 'Volver a mi panel'}
+              </button>
               <hr className="divider" />
             </>
           )}

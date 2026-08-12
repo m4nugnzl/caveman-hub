@@ -1,17 +1,41 @@
 /**
  * Marca de Caveman Hub.
  *
- * La pesita anterior era el cliché de cualquier app de gimnasio y no decía nada
- * del producto, que va de seguir una progresión en el tiempo. Este mark son tres
- * monolitos ascendentes: leen a la vez como piedras —el "caveman"— y como una
- * progresión creciente. Y encaja en el formato de icono de app: contenedor
- * redondeado con degradado y glifo blanco, sin detalle fino, legible a 16 px.
+ * ── Qué dibuja ──────────────────────────────────────────────────────────────
+ * Tres barras ascendentes: leen a la vez como piedras —el «caveman»— y como una
+ * progresión creciente, que es de lo que va el producto. Esa idea se conserva;
+ * lo que cambia es de qué está hecha.
+ *
+ * ── Por qué ya no es un degradado verde ─────────────────────────────────────
+ * Porque el resto de la aplicación dejó de tener color en el cromo: el acento es
+ * tiza, y el color quedó reservado al dato (ver `styles/tokens.css`). Un
+ * logotipo con un degradado esmeralda dentro de una interfaz acromática no es
+ * una marca, es el resto de otra.
+ *
+ * Ahora es lo mismo que la interfaz: hierro y tiza. Y lleva UNA sola gota de
+ * color, en la barra más alta: el rojo del disco de 25 kg, que es el que se pone
+ * cuando la barra va cargada de verdad. Es el único sitio de todo el producto
+ * donde el cromo se permite una tinta, y significa algo: hasta dónde ha llegado
+ * esto.
+ *
+ * ── Las tintas van literales, no en tokens ──────────────────────────────────
+ * A propósito, y por eso el archivo está en `COLOR_EXCEPTIONS` de
+ * `scripts/verify-styles.mjs`: una marca tiene que verse IGUAL en tema claro y
+ * oscuro. Si el mark siguiera a los tokens, en claro sería un cuadrado casi
+ * blanco con barras casi negras —el negativo de sí mismo— y dejaría de ser
+ * reconocible como icono de aplicación. El favicon de `index.html` repite estos
+ * mismos valores: si cambian aquí, hay que cambiarlos allí.
  */
 
-const MONOLITHS = [
-  { x: 7, h: 12 },
-  { x: 14.5, h: 18 },
-  { x: 22, h: 25 },
+const IRON = '#14181c';
+const CHALK = '#e8ecf1';
+const PLATE_25 = '#e2564a';
+
+/** x, altura y si va cargada. La tercera es la que lleva el disco rojo. */
+const BARS = [
+  { x: 7, h: 11, loaded: false },
+  { x: 14.5, h: 17, loaded: false },
+  { x: 22, h: 24, loaded: true },
 ];
 
 export const LogoMark = ({ size = 34, rounded = true }) => (
@@ -23,33 +47,30 @@ export const LogoMark = ({ size = 34, rounded = true }) => (
     aria-label="Caveman Hub"
     style={{ flexShrink: 0 }}
   >
-    <defs>
-      {/*
-        Verde mineral, de claro a profundo. Antes iba de esmeralda a azul cielo:
-        el azul no pertenecía a la paleta de marca —no aparecía en ningún otro
-        sitio salvo aquí— y con el acento nuevo el salto de tinta cantaba. Un
-        degradado dentro de una sola tinta lee más firme y deja que el volumen lo
-        dé la luz, no el cambio de color.
-      */}
-      <linearGradient id="cm-bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#35b98d" />
-        <stop offset="100%" stopColor="#14795c" />
-      </linearGradient>
-    </defs>
+    {rounded && <rect width="34" height="34" rx="8" fill={IRON} />}
 
-    {rounded && <rect width="34" height="34" rx="9.5" fill="url(#cm-bg)" />}
+    {BARS.map(({ x, h, loaded }) => (
+      /*
+        Cada barra es un grupo de dos piezas: el cuerpo en tiza y, en la cargada,
+        una banda roja arriba. Se dibuja como un rectángulo aparte y no como un
+        borde porque a 16 px un borde de medio píxel desaparece y el icono pierde
+        justo lo que lo distingue.
 
-    {MONOLITHS.map(({ x, h }) => (
-      <rect
-        key={x}
-        x={x}
-        y={29 - h}
-        width="5"
-        height={h}
-        rx="2.5"
-        fill={rounded ? '#04150f' : 'currentColor'}
-        opacity={rounded ? 0.82 : 1}
-      />
+        `rounded={false}` es el uso en línea (dentro de un texto o un botón): ahí
+        el mark hereda el color del texto y no lleva disco, porque un punto rojo
+        suelto dentro de un párrafo se lee como un error.
+      */
+      <g key={x}>
+        <rect
+          x={x}
+          y={29 - h}
+          width="5"
+          height={h}
+          rx="1.5"
+          fill={rounded ? CHALK : 'currentColor'}
+        />
+        {loaded && rounded && <rect x={x} y={29 - h} width="5" height="3.5" rx="1.5" fill={PLATE_25} />}
+      </g>
     ))}
   </svg>
 );

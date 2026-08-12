@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Sesiones de entrenamiento con fecha.
  *
@@ -47,6 +48,11 @@ const anyLogged = (sets) => (sets || []).some(isSetLogged);
  * Sesión vacía a partir del plan de un día: mismos ejercicios, mismo número de
  * series, todos los valores en blanco.
  */
+/**
+ * @param {import('@/types').Day} day
+ * @param {string} [date]
+ * @returns {import('@/types').Session}
+ */
 export const buildSessionFromPlan = (day, date = todayISO()) => ({
   id: newId('ses'),
   date: toISODate(date) || todayISO(),
@@ -89,6 +95,11 @@ export const setFrom = (session, exerciseId, index) =>
 /**
  * Convierte los kilos guardados dentro del plan en una sesión sin fecha propia.
  * Devuelve `null` si ese día no tiene nada registrado en el plan.
+ */
+/**
+ * @param {import('@/types').Day} day
+ * @param {import('@/types').Microcycle} microcycle
+ * @returns {import('@/types').Session | null}
  */
 export const legacySession = (day, microcycle) => {
   const entries = (day.exercises || [])
@@ -148,6 +159,10 @@ export const executedSessions = (micro) => {
  * Si un día ya tiene sesiones registradas, su versión heredada se descarta: los
  * mismos kilos estarían contados dos veces.
  */
+/**
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @returns {import('@/types').Session[]}
+ */
 export const allSessions = (microcycles) => {
   const out = [];
 
@@ -162,6 +177,7 @@ export const allSessions = (microcycles) => {
 
 // ── Métricas de una sesión ─────────────────────────────────────────────────
 
+/** @param {import('@/types').Session} session */
 export const sessionTonnage = (session) => {
   let total = 0;
   for (const entry of session?.entries || []) {

@@ -3,7 +3,7 @@ import { GripVertical, Plus, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { SetCell } from './SetCell';
+import { SetCell, SetRow, SetRowHead } from './SetCell';
 
 /**
  * Lista de ejercicios del día, reordenable.
@@ -78,6 +78,13 @@ export const ExerciseList = ({
             key={exercise.id}
             className={[
               'exercise',
+              /* Registrando, el ejercicio es una FICHA en columna —nombre arriba,
+                 tabla debajo— en cualquier ancho. Antes era la misma fila que usa
+                 el entrenador y solo se convertía en columna por debajo de 640 px,
+                 con `flex-wrap` y un `order: 10`: el resultado se sostenía por dos
+                 apaños que había que leer para entender por qué el nombre acababa
+                 encima. Si la forma correcta es la columna, se declara. */
+              canEditStructure ? '' : 'is-log',
               overIndex === index && dragIndex !== index ? 'is-drop-target' : '',
               dragIndex === index ? 'is-dragging' : '',
             ]
@@ -141,33 +148,29 @@ export const ExerciseList = ({
             </div>
 
             {/*
-              El carril de series cambia de forma según quién lo use.
+              Las series cambian de FORMA según el trabajo, no según el ancho.
               ------------------------------------------------------------------
-              El entrenador está PROGRAMANDO: recorre muchos ejercicios comparando
-              estructuras, y le sirve un carril compacto que se desliza —además
-              puede añadir series, así que el número no está acotado.
+              Programar (entrenador) es comparar estructuras entre ejercicios y
+              añadir o quitar piezas: cada serie es una tarjeta autónoma en un
+              carril que envuelve.
 
-              El cliente está RELLENANDO un formulario. Con cuatro series de 168 px
-              el carril desbordaba y aparecía una barra de scroll horizontal: fea, y
-              peor que fea, ESCONDE campos. En un móvil las series 3 y 4 no existían
-              hasta que descubrieras que aquello se arrastraba. Para él el carril es
-              una rejilla que reparte el ancho y baja de línea: 4 en fila si cabe,
-              2×2 si no, una debajo de otra en el móvil. Nunca se oculta nada.
+              Registrar (cliente) es escribir doce números seguidos de un mismo
+              ejercicio: eso es una tabla, con las etiquetas UNA vez arriba. Ver
+              `SetRow` para el porqué largo.
             */}
-            <div className={canEditStructure ? 'set-lane' : 'set-lane is-log'}>
-              {(exercise.sets || []).map((set, setIndex) => (
-                <SetCell
-                  key={setIndex}
-                  index={setIndex}
-                  set={set}
-                  exerciseName={exercise.name}
-                  canRemove={canEditStructure && exercise.sets.length > 1}
-                  canEditTarget={canEditStructure}
-                  onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
-                  onRemove={() => onRemoveSet(exercise.id, setIndex)}
-                />
-              ))}
-              {canEditStructure && (
+            {canEditStructure ? (
+              <div className="set-lane">
+                {(exercise.sets || []).map((set, setIndex) => (
+                  <SetCell
+                    key={setIndex}
+                    index={setIndex}
+                    set={set}
+                    exerciseName={exercise.name}
+                    canRemove={exercise.sets.length > 1}
+                    onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
+                    onRemove={() => onRemoveSet(exercise.id, setIndex)}
+                  />
+                ))}
                 <button
                   type="button"
                   className="set-add"
@@ -177,8 +180,21 @@ export const ExerciseList = ({
                 >
                   <Plus size={16} />
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="set-table">
+                <SetRowHead />
+                {(exercise.sets || []).map((set, setIndex) => (
+                  <SetRow
+                    key={setIndex}
+                    index={setIndex}
+                    set={set}
+                    exerciseName={exercise.name}
+                    onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
+                  />
+                ))}
+              </div>
+            )}
 
             {canEditStructure && (
               <button

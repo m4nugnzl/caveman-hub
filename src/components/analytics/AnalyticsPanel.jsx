@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -13,14 +13,17 @@ import {
   unitLabel,
   weekMuscleVolume,
 } from '@/domain/training';
-import { buildWeeklySeries, macroShareBands, metricPoints, weekOverWeek } from '@/domain/analytics';
+import { buildWeeklySeries, lastWeeks, macroShareBands, metricPoints, weekOverWeek } from '@/domain/analytics';
 import { clientGoal, goalFromDirection, targetRateKg } from '@/domain/goals';
 import { EVIDENCE_GROUPS, weeklyReading, weightTrend } from '@/domain/reading';
+import { asksFeedback, clientProtocol } from '@/domain/protocol';
+import { FeedbackHistory } from './FeedbackHistory';
 import { MACROS } from '@/domain/nutrition';
 import { PERIMETER_LABELS, perimeterSeries, seriesDelta } from '@/domain/anthropometry';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { BandChart, BarBandChart, MeterList, StackedShareChart } from '@/components/ui/charts';
+import { RangeChips } from '@/components/ui/ChartCard';
 import { Delta, MetricCard } from '@/components/ui/metrics';
 import { EmptyState, Panel } from '@/components/ui/primitives';
 import { AnalyticsReading } from './AnalyticsReading';
@@ -99,28 +102,72 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
   const plan = nutrition[activeClient.id];
   const unit = unitLabel(activeClient.cycleType);
   const isClient = audience === 'client';
+  /* Decide si existe la pestaña «Sensaciones» y qué preguntas se leen en ella. */
+  const protocol = useMemo(() => clientProtocol(activeClient.preferences), [activeClient.preferences]);
 
   const weeks = useMemo(() => microcycles.map((m) => m.weekNumber).sort((a, b) => a - b), [microcycles]);
   const exercises = useMemo(() => exerciseNames(microcycles), [microcycles]);
   const muscles = useMemo(() => trainedMuscles(microcycles), [microcycles]);
 
   const [openGroup, setOpenGroup] = useState('direction');
+
+  /*
+    Al cambiar de grupo, la vista vuelve al principio del contenido. Sin esto,
+    cambiar entre dos grupos que empiezan parecido —«Dirección» y «Ejecución»
+    abren las dos con una tarjeta de métrica y un gráfico— desde media página
+    abajo no se nota, y se lee como que el clic no ha funcionado.
+
+    `firstRender` evita el salto al entrar en la pantalla: ahí no se ha cambiado
+    de grupo, se ha llegado.
+  */
+  const contentRef = useRef(null);
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    contentRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [openGroup]);
   const [exercise, setExercise] = useState('');
   const [exerciseMetric, setExerciseMetric] = useState('tonnage');
   const [volumeScope, setVolumeScope] = useState('total');
   const [muscle, setMuscle] = useState('');
   const [volumeWeek, setVolumeWeek] = useState('');
   const [perimeter, setPerimeter] = useState('ombligo');
+  /*
+    Periodo de los gráficos, en semanas. `null` = todo el histórico, y es el valor
+    por defecto a propósito: esto es una herramienta para entrenadores que llevan
+    a la misma persona durante años, y lo primero que hay que poder ver es el
+    recorrido completo. Acotar es lo excepcional, no lo normal.
+  */
+  const [range, setRange] = useState(null);
 
   const lastWeek = weeks[weeks.length - 1];
   const activeExercise = exercises.includes(exercise) ? exercise : exercises[0] || '';
   const activeMuscle = muscles.includes(muscle) ? muscle : muscles[0] || '';
   const activeVolumeWeek = weeks.includes(Number(volumeWeek)) ? Number(volumeWeek) : lastWeek;
 
-  const series = useMemo(
+  /*
+    ══ Dos series, y la diferencia importa ═══════════════════════════════════
+
+    `fullSeries` es el histórico ENTERO, desde el primer pesaje. `series` es lo
+    que se dibuja: el periodo elegido.
+
+    La separación no es cosmética. LA LECTURA DE LA SEMANA Y LA TENDENCIA SE
+    CALCULAN SIEMPRE SOBRE EL HISTÓRICO COMPLETO, porque son conclusiones sobre
+    dónde está el cliente hoy y no deben depender de cuánto haya decidido mirar
+    el entrenador. Si el periodo afectara a la lectura, elegir «3 meses» cambiaría
+    el veredicto —y un veredicto que se mueve con el zoom no es un veredicto.
+
+    Los gráficos sí lo respetan: son la prueba, y a veces la prueba que interesa
+    es un tramo.
+  */
+  const fullSeries = useMemo(
     () => buildWeeklySeries({ microcycles, history, gender: activeClient.gender }),
     [microcycles, history, activeClient.gender]
   );
+  const series = useMemo(() => lastWeeks(fullSeries, range), [fullSeries, range]);
   const labels = series.map((row) => row.label);
 
   const kcalPts = metricPoints(series, 'kcals');
@@ -146,7 +193,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
     y además devuelve r², así que se puede DECIR cuándo la tendencia no es fiable
     en lugar de presentarla con la misma seguridad que una buena.
   */
-  const trend = useMemo(() => weightTrend(series), [series]);
+  const trend = useMemo(() => weightTrend(fullSeries), [fullSeries]);
 
   const goal = useMemo(() => clientGoal(activeClient), [activeClient]);
   const lastWeight = weightPts[weightPts.length - 1]?.value ?? null;
@@ -155,13 +202,14 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
     () =>
       weeklyReading({
         client: activeClient,
-        series,
+        // El histórico entero, nunca el periodo elegido: ver arriba.
+        series: fullSeries,
         microcycles,
         history,
         today: todayISO(),
         latestWeek: weeks[weeks.length - 1] ?? null,
       }),
-    [activeClient, series, microcycles, history, weeks]
+    [activeClient, fullSeries, microcycles, history, weeks]
   );
 
   /*
@@ -250,7 +298,10 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
     );
   }
 
-  const group = EVIDENCE_GROUPS.find((g) => g.id === openGroup) || EVIDENCE_GROUPS[0];
+  /* «Sensaciones» solo existe si el protocolo pregunta algo: una pestaña vacía
+     que nunca se llena es peor que no tenerla. */
+  const groups = EVIDENCE_GROUPS.filter((g) => g.id !== 'feel' || asksFeedback(protocol));
+  const group = groups.find((g) => g.id === openGroup) || groups[0];
 
   return (
     <div className="stack">
@@ -286,8 +337,32 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
         Un scroll con diez es un scroll que nadie recorre: se mira el primero y se
         cierra la pestaña. Cuatro pestañas con una pregunta cada una se eligen.
       */}
-      <div className="ev-tabs" role="tablist" aria-label="Grupos de evidencia">
-        {EVIDENCE_GROUPS.map((g) => {
+      {/*
+        ── Por qué esta barra lleva teclado y desplaza al contenido ────────────
+        Un `role="tablist"` sin flechas es una lista de pestañas que solo se puede
+        recorrer con el ratón, y es lo que exige el patrón ARIA.
+
+        Y lo segundo arregla un problema de RETROALIMENTACIÓN que se confunde con
+        un fallo: «Dirección» y «Ejecución» abren las dos con una tarjeta de
+        métrica y un gráfico de banda, así que con la página desplazada hacia
+        abajo cambiar de una a otra apenas se nota — parece que el clic no ha
+        hecho nada—. Al cambiar de grupo se lleva la vista al principio del
+        contenido, de modo que siempre se ve QUÉ se ha abierto.
+      */}
+      <div
+        className="ev-tabs"
+        role="tablist"
+        aria-label="Grupos de evidencia"
+        onKeyDown={(event) => {
+          const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+          if (step === 0) return;
+          event.preventDefault();
+          const index = groups.findIndex((g) => g.id === group.id);
+          const next = groups[(index + step + groups.length) % groups.length];
+          setOpenGroup(next.id);
+        }}
+      >
+        {groups.map((g) => {
           // Cuántos hallazgos apuntan aquí, y si alguno es grave. Así se ve qué
           // pestaña merece abrirse antes de abrirla.
           const own = findings.filter((f) => f.evidence === g.id);
@@ -304,6 +379,9 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
               role="tab"
               className="ev-tab"
               aria-selected={openGroup === g.id}
+              /* Solo la pestaña activa es tabulable, que es el patrón ARIA: dentro
+                 de la barra se navega con las flechas, no con el tabulador. */
+              tabIndex={openGroup === g.id ? 0 : -1}
               onClick={() => setOpenGroup(g.id)}
             >
               <span className="q">{g.question}</span>
@@ -316,7 +394,44 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
         })}
       </div>
 
-      <section className="col gap-4" aria-live="polite">
+      {/*
+        ── El periodo, y por qué está aquí y no en cada tarjeta ────────────────
+        Este panel llegó a tener una barra global de «periodo / escala /
+        tendencias» que se quitó porque no funcionaba: cada gráfico admite
+        variaciones distintas —uno se filtra por ejercicio, otro por músculo— y un
+        mando único no podía representar eso, así que la mitad de los controles no
+        hacía nada en la mitad de los gráficos. Por eso los controles propios de
+        cada gráfico viven en su tarjeta.
+
+        El PERIODO es la excepción, y no por comodidad: es lo único que significa
+        exactamente lo mismo en todos los gráficos con eje temporal. Repetirlo en
+        cinco tarjetas sería pedir cinco veces la misma decisión.
+
+        Se dice en voz alta que la lectura no le hace caso, porque si no la
+        pregunta obvia al acotar es «¿y ahora el veredicto es de estos tres meses?».
+      */}
+      {fullSeries.length > 6 && (
+        <div className="row between wrap gap-3">
+          <RangeChips
+            value={range}
+            onChange={setRange}
+            label="Periodo de los gráficos"
+            options={[
+              { id: 12, label: '3 meses' },
+              { id: 26, label: '6 meses' },
+              { id: 52, label: '1 año' },
+              { id: null, label: 'Todo' },
+            ]}
+          />
+          <span className="t-2xs t-tertiary">
+            {range
+              ? `${series.length} de ${fullSeries.length} semanas. La lectura de arriba sigue mirando el histórico completo.`
+              : `${fullSeries.length} semanas de histórico.`}
+          </span>
+        </div>
+      )}
+
+      <section className="col gap-4" aria-live="polite" ref={contentRef}>
         {/* ══ DIRECCIÓN — ¿va hacia donde se pretendía? ══ */}
         {group.id === 'direction' && (
           <>
@@ -428,6 +543,15 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
               </MetricCard>
             </div>
           </>
+        )}
+
+        {/* ══ SENSACIONES — ¿cómo lo está llevando? ══
+            Todo lo que el cliente contesta al terminar de entrenar se guardaba
+            desde el principio dentro de su sesión, y solo se podía leer abriendo
+            el día concreto de la semana concreta: el dato existía y el historial
+            no. Aquí está entero. */}
+        {group.id === 'feel' && (
+          <FeedbackHistory microcycles={microcycles} protocol={protocol} audience={audience} />
         )}
 
         {/* ══ EJECUCIÓN — ¿ha hecho el cliente su parte? ══ */}

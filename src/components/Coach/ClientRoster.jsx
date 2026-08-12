@@ -12,6 +12,7 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { EmptyState, Field, Notice, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
+import { ClientDataPanel } from './ClientDataPanel';
 
 const FILTERS = [
   { id: 'all', label: 'Todos' },
@@ -184,6 +185,11 @@ const ClientCard = ({ client, onUpdate }) => (
         </a>
       )}
     </div>
+
+    {/* Exportar y borrar sus datos personales. Va aquí, en la ficha
+        administrativa, y no en una sección propia: es lo que se hace cuando un
+        cliente entra o SALE, no mientras se trabaja con él. */}
+    <ClientDataPanel client={client} />
   </Panel>
 );
 

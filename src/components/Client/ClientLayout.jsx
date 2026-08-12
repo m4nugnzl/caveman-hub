@@ -1,9 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { UserX } from 'lucide-react';
+import { ShieldCheck, UserX } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { CONSENT_POINTS, grantConsent, hasConsent } from '@/domain/privacy';
 import { CLIENT_SECTIONS } from '@/routes';
 import { EmptyState, Panel } from '@/components/ui/primitives';
+import { BottomNav } from '@/components/ui/BottomNav';
+import { ClientPrivacy } from './ClientPrivacy';
 
 /**
  * Marco del portal del cliente: saludo, pestañas y contenido.
@@ -15,7 +18,7 @@ import { EmptyState, Panel } from '@/components/ui/primitives';
  * atrás no cierra la aplicación.
  */
 export const ClientLayout = () => {
-  const { activeClient, workoutData, isCoach } = useApp();
+  const { activeClient, workoutData, isCoach, updateClientPreferences } = useApp();
 
   // Un perfil de cliente sin ficha vinculada no tiene datos que mostrar. Antes
   // esto tumbaba la app entera al leer `activeClient.id` sobre undefined.
@@ -44,6 +47,41 @@ export const ClientLayout = () => {
         <Panel tight className="client-preview">
           Estás previsualizando el portal de <strong>{activeClient.name}</strong> tal y como lo ve tu
           cliente.
+        </Panel>
+      )}
+
+      {/*
+        ── El consentimiento, antes que nada ──────────────────────────────────
+        Se pide al CLIENTE y no lo marca el entrenador en el alta: es suyo. Va
+        arriba del todo y solo desaparece cuando lo da, porque mientras no conste
+        el tratamiento de sus fotos y sus medidas no está cubierto.
+
+        No bloquea el portal a propósito: impedirle ver su rutina hasta que acepte
+        convertiría el consentimiento en un peaje, y un consentimiento que no se
+        puede rechazar sin perder el servicio no es libre — que es justo lo que la
+        norma exige que sea.
+      */}
+      {!isCoach && !hasConsent(activeClient.preferences) && (
+        <Panel className="col gap-3" style={{ marginBottom: 'var(--s4)' }}>
+          <span className="section-title">
+            <ShieldCheck size={17} /> Antes de empezar
+          </span>
+          <ul className="col gap-2 t-sm t-secondary" style={{ paddingLeft: '1.1em' }}>
+            {CONSENT_POINTS.map((point) => (
+              <li key={point}>{point}</li>
+            ))}
+          </ul>
+          <div className="row gap-2 wrap">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() =>
+                updateClientPreferences(activeClient.id, 'consent', grantConsent())
+              }
+            >
+              Entendido, acepto
+            </button>
+          </div>
         </Panel>
       )}
 
@@ -79,6 +117,24 @@ export const ClientLayout = () => {
       </nav>
 
       <Outlet />
+
+      {/* Sus derechos, ejercitables por él y no pidiéndolos. Al final y plegado:
+          no es a lo que viene, pero tiene que estar. */}
+      {!isCoach && <ClientPrivacy client={activeClient} />}
+
+      {/*
+        En móvil las pestañas de arriba se ocultan y navega esta barra. No son dos
+        navegaciones: es la misma lista en el sitio donde se puede usar en cada
+        formato —arriba con ratón, abajo con el pulgar—. Ver `ui/BottomNav.jsx`.
+      */}
+      <BottomNav
+        label="Secciones de mi portal"
+        items={CLIENT_SECTIONS.map(({ path, short, label, icon }) => ({
+          to: `/mi/${path}`,
+          label: short || label,
+          icon,
+        }))}
+      />
     </div>
   );
 };
