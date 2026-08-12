@@ -40,8 +40,8 @@ export const WorkoutLogEditor = () => {
     startSession,
     logSessionSet,
     updateSession,
-    updateSessionMeta,
     updateMobilityDrills,
+    setDayNote,
     removeSession,
     startProgram,
     appendMicrocycle,
@@ -307,7 +307,17 @@ export const WorkoutLogEditor = () => {
             Protocolo: un entrenador que no quiera nada de esto no ve un solo
             control de más.
           */}
-          {isModuleOn(protocol, 'coachNote') && daySession.activeId && (
+          {/*
+            ── Sin condición de sesión, y ese era el fallo ─────────────────────
+            Esto estaba colgado de la SESIÓN y sujeto a `daySession.activeId`,
+            que es null hasta que alguien anota la primera serie. Consecuencia: la
+            indicación solo se podía escribir DESPUÉS de que el cliente entrenara
+            — justo al revés de para lo que sirve.
+
+            Vive en el día del plan, así que se escribe al programar la semana,
+            que es cuando el entrenador la está pensando.
+          */}
+          {isModuleOn(protocol, 'coachNote') && (
             <label className="feedback-q">
               <span className="k">
                 <Quote size={12} /> Tu indicación para este día
@@ -315,13 +325,9 @@ export const WorkoutLogEditor = () => {
               <textarea
                 className="textarea"
                 rows={2}
-                placeholder="La verá tu cliente al abrir la sesión."
-                value={daySession.session?.coachNote ?? ''}
-                onChange={(e) =>
-                  updateSessionMeta(activeClient.id, nav.week, daySession.activeId, {
-                    coachNote: e.target.value,
-                  })
-                }
+                placeholder="La verá tu cliente al abrir el día, antes de empezar."
+                value={nav.day.coachNote ?? ''}
+                onChange={(e) => setDayNote(activeClient.id, nav.week, nav.day.dayName, e.target.value)}
               />
             </label>
           )}

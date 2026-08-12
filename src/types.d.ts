@@ -66,6 +66,14 @@ export interface Exercise {
 export interface Day {
   dayName: string;
   exercises?: Exercise[];
+  /**
+   * La indicación del entrenador para este día. La ve el cliente al abrirlo.
+   *
+   * Está en el DÍA y no en la sesión porque es una instrucción para hacer el
+   * entrenamiento, no un comentario sobre uno ya hecho: en la sesión no se podía
+   * escribir hasta que el cliente hubiera entrenado.
+   */
+  coachNote?: string;
 }
 
 /** Un ejercicio dentro de una sesión ejecutada. Sin `targetReps`. */

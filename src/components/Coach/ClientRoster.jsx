@@ -6,6 +6,7 @@ import {
   FolderCheck,
   Plus,
   Search,
+  Send,
   UserCheck,
   UserPlus,
 } from 'lucide-react';
@@ -13,6 +14,7 @@ import {
 import { useApp } from '@/context/AppContext';
 import { EmptyState, Field, Notice, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { ClientDataPanel } from './ClientDataPanel';
+import { inviteMessage, useInvite } from './useInvite';
 
 const FILTERS = [
   { id: 'all', label: 'Todos' },
@@ -89,6 +91,63 @@ const NewClientForm = ({ onCreate, onCancel }) => {
         </button>
       </div>
     </Panel>
+  );
+};
+
+/**
+ * Acceso del cliente a su portal.
+ *
+ * ══ Por qué esto tiene que estar AQUÍ ═══════════════════════════════════════
+ *
+ * Invitar solo existía en la ficha del tablero de la cartera, y solo cuando
+ * saltaba la alerta «sin acceso a su portal». O sea: aparecía cuando el sistema
+ * decidía avisar, no cuando el entrenador quería invitar.
+ *
+ * Pero «Clientes» es la pantalla del alta y el onboarding — es donde uno va
+ * cuando acaba de crear a alguien y quiere darle acceso. Que la acción no
+ * estuviera ahí hacía que la respuesta a «¿cómo invito a un cliente?» fuera
+ * «vete a otra pantalla y espera a que salte un aviso».
+ *
+ * Aquí está siempre, y además dice el estado: si ya tiene cuenta enlazada no hay
+ * nada que invitar, y decirlo evita mandar un enlace que va a fallar.
+ */
+const PortalAccess = ({ client }) => {
+  const { result, busy, send } = useInvite();
+
+  if (client.clientProfileId) {
+    return (
+      <div className="card-inset row between wrap gap-2 t-sm">
+        <span className="t-secondary">Acceso al portal</span>
+        <span className="badge badge-ok">
+          <UserCheck size={11} /> Tiene su cuenta enlazada
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card-inset col gap-2">
+      <div className="row between wrap gap-2 t-sm">
+        <span className="t-secondary">Acceso al portal</span>
+        <button type="button" className="btn btn-primary btn-sm" onClick={() => send(client)} disabled={busy}>
+          <Send size={14} /> {busy ? 'Generando…' : 'Invitar'}
+        </button>
+      </div>
+
+      {result &&
+        (result.ok ? (
+          <Notice tone={result.copied ? 'success' : 'info'}>{inviteMessage(result)}</Notice>
+        ) : (
+          <Notice tone="error">{result.error}</Notice>
+        ))}
+
+      {!result && (
+        <span className="t-xs t-tertiary">
+          Genera un enlace de un solo uso que caduca en 14 días. Se copia solo: mándaselo por
+          WhatsApp y, al abrirlo, se crea su cuenta y queda enlazada a esta ficha.
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -185,6 +244,10 @@ const ClientCard = ({ client, onUpdate }) => (
         </a>
       )}
     </div>
+
+    {/* Sin acceso al portal, el cliente no puede registrar nada — así que todo lo
+        demás de esta ficha da igual. Por eso va antes que sus datos. */}
+    <PortalAccess client={client} />
 
     {/* Exportar y borrar sus datos personales. Va aquí, en la ficha
         administrativa, y no en una sección propia: es lo que se hace cuando un

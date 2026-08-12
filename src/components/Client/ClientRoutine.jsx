@@ -289,12 +289,17 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
       */}
       {/* La indicación del entrenador va ANTES de los ejercicios: es lo que hay
           que leer para hacerlos, no un comentario sobre lo hecho. */}
-      {isModuleOn(protocol, 'coachNote') && session?.coachNote?.trim() && (
+      {/*
+        La indicación vive en el DÍA del plan. Se lee también de la sesión como
+        respaldo: la primera versión la guardaba ahí, y lo que ya se escribiera no
+        tiene por qué desaparecer al cambiar el modelo.
+      */}
+      {isModuleOn(protocol, 'coachNote') && (day.coachNote?.trim() || session?.coachNote?.trim()) && (
         <div className="coach-note">
           <span className="section-label">
             <Quote size={12} /> De tu entrenador
           </span>
-          <p>{session.coachNote}</p>
+          <p>{day.coachNote?.trim() || session.coachNote}</p>
         </div>
       )}
 

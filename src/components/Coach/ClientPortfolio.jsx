@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, ChevronRight, Eye, MessageCircle, Search, Send, TrendingUp, Users } from 'lucide-react';
 
@@ -8,6 +8,7 @@ import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { shortDate, todayISO } from '@/lib/dates';
 import { EmptyState, Notice } from '@/components/ui/primitives';
+import { inviteMessage, useInvite } from './useInvite';
 
 const TONE = { alta: 'badge-bad', media: 'badge-warn', baja: 'badge-info' };
 
@@ -222,7 +223,6 @@ export const ClientPortfolio = () => {
     checkIns,
     updateClient,
     reviewCheckIn,
-    createInvite,
     team,
     teamMembers,
   } = useApp();
@@ -269,31 +269,17 @@ export const ClientPortfolio = () => {
     setError(result?.ok === false ? result.error : null);
   };
 
-  /*
-    Invitar: se genera el enlace y se copia. No se abre un diálogo con el token para
-    que el entrenador lo seleccione a mano — son 43 caracteres aleatorios y
-    transcribirlos es garantizar una errata que luego se manifiesta como «el enlace
-    no funciona» sin ninguna pista.
+  /* La lógica de invitar vive en `useInvite`: se usa aquí y en «Clientes», y las
+     tres cosas que hay que hacer bien —pedir el token, copiarlo y tener plan si
+     el portapapeles falla— son las mismas en los dos sitios. */
+  const { result: invite, send: sendInvite } = useInvite();
 
-    Si el portapapeles no está disponible (sin HTTPS, o permiso denegado) se muestra
-    la URL para poder copiarla a mano, en vez de fallar en silencio.
-  */
-  const [invite, setInvite] = useState(null);
-
-  const sendInvite = async (client) => {
-    const result = await createInvite(client.id);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    setError(null);
-    try {
-      await navigator.clipboard.writeText(result.url);
-      setInvite({ name: client.name, url: result.url, copied: true });
-    } catch {
-      setInvite({ name: client.name, url: result.url, copied: false });
-    }
-  };
+  /* El resultado de invitar aparece arriba del tablero; sin esto, quien pulsa en
+     una ficha de la parte de abajo no llega a verlo nunca. */
+  const noticeRef = useRef(null);
+  useEffect(() => {
+    if (invite) noticeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [invite]);
 
   if (clients.length === 0) {
     return (
@@ -336,12 +322,24 @@ export const ClientPortfolio = () => {
 
       {error && <Notice tone="error">{error}</Notice>}
 
+      {/*
+        ── Por qué esto se lleva la vista ─────────────────────────────────────
+        El aviso de una acción de FICHA sale aquí arriba, encima del tablero. Con
+        cuatro columnas de tarjetas, quien pulsa «Invitar» en una ficha de abajo
+        no ve nada — y el síntoma que reporta es «le doy y no hace nada», aunque
+        el error esté escrito a dos pantallas de distancia.
+
+        Es el precio de tener un solo sitio para los avisos en vez de uno por
+        tarjeta. Se paga trayendo la vista hasta él.
+      */}
       {invite && (
-        <Notice tone={invite.copied ? 'success' : 'info'}>
-          {invite.copied
-            ? `Enlace de invitación de ${invite.name} copiado. Mándaselo por WhatsApp: caduca en 14 días y sirve una vez.`
-            : `Enlace de invitación de ${invite.name} (cópialo a mano): ${invite.url}`}
-        </Notice>
+        <div ref={noticeRef}>
+          {invite.ok ? (
+            <Notice tone={invite.copied ? 'success' : 'info'}>{inviteMessage(invite)}</Notice>
+          ) : (
+            <Notice tone="error">{invite.error}</Notice>
+          )}
+        </div>
       )}
 
       {approximate && (

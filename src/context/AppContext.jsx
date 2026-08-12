@@ -1158,6 +1158,29 @@ export const AppProvider = ({ children }) => {
     [applyDay]
   );
 
+  /**
+   * La indicación del entrenador para un día.
+   *
+   * ── Por qué vive en el DÍA y no en la sesión ────────────────────────────────
+   * Estuvo colgada de la sesión, y era un error de modelo con una consecuencia
+   * inmediata: una sesión no existe hasta que alguien anota la primera serie, así
+   * que la nota solo se podía escribir DESPUÉS de que el cliente entrenara. Justo
+   * al revés de para lo que sirve — es una instrucción para hacer el
+   * entrenamiento, no un comentario sobre uno ya hecho.
+   *
+   * En el día del PLAN se puede escribir al programar la semana, que es cuando el
+   * entrenador la está pensando, y sigue ahí aunque el cliente repita el día dos
+   * veces. Y como es plan, la escribe solo el entrenador: el cliente no tiene
+   * UPDATE sobre `workout_data` y su RPC no toca `days`.
+   */
+  const setDayNote = useCallback(
+    (clientId, weekNumber, dayName, note) =>
+      applyDay(clientId, weekNumber, dayName, (d) => ({ ...d, coachNote: note }), {
+        immediate: false,
+      }),
+    [applyDay]
+  );
+
   const addDay = useCallback(
     (clientId, weekNumber, dayName) =>
       applyWorkout(clientId, (cd) => ({
@@ -2887,6 +2910,7 @@ export const AppProvider = ({ children }) => {
       moveExercise,
       addDay,
       renameDay,
+      setDayNote,
       duplicateDay,
       removeDay,
       updateWeeklySplit,
@@ -2990,7 +3014,7 @@ export const AppProvider = ({ children }) => {
       progressPhotos, exerciseLibrary, foodLibrary,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
-      moveExercise, addDay, renameDay, duplicateDay, removeDay, updateWeeklySplit,
+      moveExercise, addDay, renameDay, setDayNote, duplicateDay, removeDay, updateWeeklySplit,
       startSession, logSessionSet, updateSession, updateSessionMeta, updateMobilityDrills, removeSession,
       startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,

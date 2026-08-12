@@ -119,9 +119,27 @@ BEGIN
     RETURN v_token;
   END IF;
 
-  -- 32 bytes de aleatoriedad en base64url. Suficiente para que adivinarlo no sea
-  -- una estrategia.
-  v_token := translate(encode(gen_random_bytes(32), 'base64'), '+/=', '-_');
+  /*
+    ── 256 bits de aleatoriedad, SIN depender de ninguna extensión ────────────
+
+    Aquí había `gen_random_bytes(32)`, y fallaba en Supabase con
+    «function gen_random_bytes(integer) does not exist». El motivo no es que
+    falte pgcrypto: es que Supabase la instala en el esquema `extensions`, y esta
+    función está fijada a `SET search_path = public` —como debe estar, porque un
+    `search_path` abierto en una función `SECURITY DEFINER` es un agujero—. Así
+    que la extensión existe y aun así no se encuentra.
+
+    Se podría añadir `extensions` al `search_path`, pero eso ata la migración a
+    dónde decida Supabase poner sus extensiones. `gen_random_uuid()` vive en
+    `pg_catalog` desde PostgreSQL 13, así que se resuelve SIEMPRE, con cualquier
+    `search_path` y sin instalar nada.
+
+    Dos UUID v4 concatenados y sin guiones son 64 caracteres hexadecimales con
+    256 bits de entropía: exactamente la misma fuerza que los 32 bytes de antes,
+    y del mismo generador criptográfico. Y sale URL-safe por construcción, así
+    que ya no hace falta traducir los caracteres de base64.
+  */
+  v_token := replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '');
 
   INSERT INTO public.client_invites (client_id, token, created_by)
   VALUES (target, v_token, auth.uid());
