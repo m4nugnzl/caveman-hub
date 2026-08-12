@@ -167,7 +167,29 @@ Por orden, y ninguna tarda más de un minuto:
 
 ---
 
-## 6. Lo que sigue faltando, dicho claro
+## 6. Qué pasa con las pestañas abiertas al desplegar
+
+Los fragmentos de código llevan el hash del contenido en el nombre, y al
+desplegar **los del despliegue anterior desaparecen**. Una pestaña que llevaba
+abierta desde antes conserva el `index.html` viejo, y al navegar a una pantalla
+que todavía no había cargado pide un archivo que ya no existe:
+
+```
+Failed to fetch dynamically imported module: /assets/CalendarPanel-EM8W….js
+```
+
+No es un fallo de tu instalación ni se arregla con cabeceras de caché: el HTML ya
+está en memoria de esa pestaña. Es inherente a dividir el código.
+
+`src/lib/lazyRoute.js` lo maneja: al fallar una importación **recarga la página
+una sola vez**, con lo que llega el `index.html` nuevo y la aplicación sigue donde
+estaba —la ruta va en la URL—. Si tras recargar vuelve a fallar, el error sube a
+`ErrorBoundary` en vez de entrar en un bucle de recargas.
+
+Lo que verá alguien con la app abierta cuando despliegues: un parpadeo al cambiar
+de pantalla. Nada más.
+
+## 7. Lo que sigue faltando, dicho claro
 
 Nada de esto impide lanzar, pero conviene saberlo antes de tener clientes
 pagando:

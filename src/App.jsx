@@ -1,7 +1,8 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
+import { lazyRoute } from '@/lib/lazyRoute';
 import { Header } from '@/components/Header';
 import { Login } from '@/components/Auth/Login';
 import { CoachLayout } from '@/components/Coach/CoachLayout';
@@ -24,23 +25,23 @@ import { ProgressLayout } from '@/components/analytics/ProgressLayout';
   y el resumen—, que son las que se ven antes de decidir nada. Cargar esas en
   diferido solo añadiría un parpadeo a lo primero que ve el usuario.
 */
-const ClientRoster = lazy(() => import('@/components/Coach/ClientRoster').then((m) => ({ default: m.ClientRoster })));
-const TeamPanel = lazy(() => import('@/components/Coach/TeamPanel').then((m) => ({ default: m.TeamPanel })));
-const SettingsLayout = lazy(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
-const AppearancePanel = lazy(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
-const ProtocolPanel = lazy(() => import('@/components/Coach/Settings/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
-const IntegrationsCatalogue = lazy(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
-const BackupPanel = lazy(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
-const WorkoutLogEditor = lazy(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
-const NutritionModule = lazy(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
-const AnthropometryModule = lazy(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
-const PhotoStudio = lazy(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
-const AnalyticsPanel = lazy(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
-const ClientRoutineRoute = lazy(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
-const ClientDietRoute = lazy(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
-const ClientPhotosRoute = lazy(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
-const ClientCheckInsRoute = lazy(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
-const CalendarPanel = lazy(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
+const ClientRoster = lazyRoute(() => import('@/components/Coach/ClientRoster').then((m) => ({ default: m.ClientRoster })));
+const TeamPanel = lazyRoute(() => import('@/components/Coach/TeamPanel').then((m) => ({ default: m.TeamPanel })));
+const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
+const AppearancePanel = lazyRoute(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
+const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
+const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
+const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
+const WorkoutLogEditor = lazyRoute(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
+const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
+const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
+const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
+const AnalyticsPanel = lazyRoute(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
+const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
+const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
+const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
+const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
+const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
 import { COACH_HOME, CLIENT_HOME } from '@/routes';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
