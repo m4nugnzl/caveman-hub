@@ -1,0 +1,47 @@
+# Cabeceras de seguridad y caché (Netlify, Cloudflare Pages).
+#
+# El equivalente para Vercel está en `vercel.json`. Las dos listas dicen LO MISMO
+# y hay que cambiarlas a la vez: si divergen, la aplicación se comporta distinto
+# según dónde esté desplegada y el fallo solo aparece en uno de los dos sitios.
+#
+# ── Sobre el CSP ────────────────────────────────────────────────────────────
+# Se puede ser estricto porque el build no genera NI UN script ni un estilo en
+# línea: comprobado sobre `dist/index.html`. Lo único que obliga a ceder es
+# `style-src 'unsafe-inline'`, por los `style={{…}}` de React — que son atributos
+# de estilo, no etiquetas `<style>`, así que el riesgo es mucho menor.
+#
+# Cada permiso está por un motivo concreto:
+#
+#   img-src https:   los avatares pueden ser URLs externas (dicebear por defecto,
+#                    o la que ponga el entrenador). Sin esto se ven rotos.
+#   img-src blob:    las composiciones del estudio de fotos se generan en canvas.
+#   media-src blob:  el grabador de revisiones produce vídeo en memoria.
+#   connect-src      Supabase: REST, Storage, Edge Functions y Realtime (wss).
+#   camera/micro     el grabador de revisiones usa getUserMedia. Solo `self`.
+#
+# Si algo deja de cargar tras desplegar, la consola del navegador dice qué
+# directiva lo bloqueó: ese es el sitio donde mirar, no aquí a ciegas.
+
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# Los nombres llevan hash: si el contenido cambia, cambia el nombre. Se pueden
+# cachear para siempre.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# La fuente NO lleva hash en el nombre, así que un año sería arriesgado: si algún
+# día se cambia el archivo sin renombrarlo, los navegadores seguirían con el viejo.
+/fonts/*
+  Cache-Control: public, max-age=2592000
+
+# El index NUNCA se cachea. Es el que apunta a los bundles con hash: si un usuario
+# se queda con un index viejo después de un despliegue, pide archivos que ya no
+# existen y ve una pantalla en blanco.
+/index.html
+  Cache-Control: no-cache
