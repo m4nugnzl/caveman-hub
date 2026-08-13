@@ -6,13 +6,19 @@
 >
 > Fecha: agosto de 2026.
 >
-> **Estado: el cobro funciona de punta a punta en el entorno de prueba de Stripe.**
-> Construido y probado: bloqueantes legales (§2), planes y límites (§3.1, §3.3),
-> pasarela y webhook (§3.2), biblioteca de partida y carga perezosa (§4).
+> **Estado: EL PRODUCTO COBRA.** Probado en producción con una compra real el 13
+> de agosto de 2026 (§3). Construido: bloqueantes legales (§2), planes, límites y
+> modo solo lectura (§3), biblioteca de partida y carga perezosa (§4).
 >
-> Lo que queda antes de facturar de verdad: rehacer Stripe en la cuenta real
-> (§3.6), probar una restauración de copia (§2.3), y el correo transaccional
-> (§4.3).
+> Lo que queda **no es cobrar, es sostenerlo**:
+>
+> - **Correo transaccional** (§4.3). Es lo primero que se rompe con usuarios que
+>   no seas tú: el SMTP por defecto de Supabase se agota en unos pocos envíos por
+>   hora, compartidos entre registro y recuperación de contraseña.
+> - **Probar una restauración** de copia (§2.3). «Tengo copias» y «puedo
+>   recuperarme» no son lo mismo hasta que se prueba una vez.
+> - **Revisión legal** de privacidad y condiciones (§2.2).
+> - **Tres a cinco entrenadores** como socios de diseño antes de publicar precios.
 
 ---
 
@@ -117,12 +123,12 @@ de escape.
 
 ---
 
-## 3. La columna vertebral de cobro — **PROBADA DE PUNTA A PUNTA**
+## 3. La columna vertebral de cobro — **EN PRODUCCIÓN**
 
-> Verificado en sandbox el 13 de agosto de 2026: pasarela → pago → evento →
-> firma verificada → `team_subscriptions` con plan, estado, suscripción y fecha de
-> renovación. Lo único que separa esto de cobrar de verdad es rehacer productos,
-> clave y webhook en la cuenta real (ver §3.6).
+> Verificado en sandbox y **después con una compra real**, el 13 de agosto de
+> 2026: aviso de prueba caducada → pasarela con el precio de producción → cobro →
+> evento → firma verificada → plan activo con su fecha de renovación → baja y
+> reembolso → vuelta a `prueba`. El circuito entero, con dinero de verdad.
 >
 > Dos tropiezos por el camino, los dos por lo mismo y anotados porque volverán a
 > pasar al pasar a producción: **el sandbox y la cuenta real son mundos separados**.
@@ -244,7 +250,7 @@ Stripe.js embebido obligaría a abrir la CSP a `js.stripe.com` y `api.stripe.com
 absoluto** (`form-action 'self'` solo afecta al envío de formularios, no a una
 navegación). Es más seguro y es menos trabajo.
 
-### 3.6 Pasar del sandbox a cobrar de verdad
+### 3.6 Pasar del sandbox a cobrar de verdad — **HECHO el 13/08/2026**
 
 Nada de lo configurado en el sandbox sirve en la cuenta real. Los objetos de
 Stripe no cruzan entre entornos, y el fallo no siempre es ruidoso: un precio de
