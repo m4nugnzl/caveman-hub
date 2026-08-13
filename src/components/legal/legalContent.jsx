@@ -138,7 +138,7 @@ export const PRIVACIDAD = {
               <strong>Supabase</strong> — guarda la base de datos, las cuentas y los archivos.
             </li>
             <li>
-              <strong>Vercel</strong> — sirve la aplicación en tu navegador.
+              <strong>Cloudflare</strong> — sirve la aplicación en tu navegador.
             </li>
             <li>
               <strong>Stripe</strong> — cobra la suscripción de los entrenadores. Si eres cliente de

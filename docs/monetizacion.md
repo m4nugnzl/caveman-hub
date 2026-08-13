@@ -230,7 +230,7 @@ legal.
 
 ### 3.5 Detalle de infraestructura: Checkout alojado
 
-`vercel.json` declara `script-src 'self'` y un `connect-src` limitado a Supabase.
+`public/_headers` declara `script-src 'self'` y un `connect-src` limitado a Supabase.
 Stripe.js embebido obligaría a abrir la CSP a `js.stripe.com` y `api.stripe.com`;
 **Checkout alojado, con redirección por `window.location`, no toca la CSP en
 absoluto** (`form-action 'self'` solo afecta al envío de formularios, no a una

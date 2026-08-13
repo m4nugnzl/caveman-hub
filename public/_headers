@@ -1,8 +1,9 @@
-# Cabeceras de seguridad y caché (Netlify, Cloudflare Pages).
+# Cabeceras de seguridad y caché (Cloudflare Pages, Netlify).
 #
-# El equivalente para Vercel está en `vercel.json`. Las dos listas dicen LO MISMO
-# y hay que cambiarlas a la vez: si divergen, la aplicación se comporta distinto
-# según dónde esté desplegada y el fallo solo aparece en uno de los dos sitios.
+# Esta es la ÚNICA lista. Había otra en `vercel.json` que decía lo mismo, y se
+# retiró al mudar el hosting: dos listas de cabeceras que hay que cambiar a la vez
+# acaban divergiendo, y entonces la aplicación se comporta distinto según dónde
+# esté desplegada —con el fallo visible en solo uno de los dos sitios—.
 #
 # ── Sobre el CSP ────────────────────────────────────────────────────────────
 # Se puede ser estricto porque el build no genera NI UN script ni un estilo en
@@ -12,8 +13,9 @@
 #
 # Cada permiso está por un motivo concreto:
 #
-#   img-src https:   los avatares pueden ser URLs externas (dicebear por defecto,
-#                    o la que ponga el entrenador). Sin esto se ven rotos.
+#   img-src https:   el avatar de un cliente puede ser una URL externa, si el
+#                    entrenador la pone. Cuando no hay, las iniciales se dibujan
+#                    en el navegador y no se pide nada fuera.
 #   img-src blob:    las composiciones del estudio de fotos se generan en canvas.
 #   media-src blob:  el grabador de revisiones produce vídeo en memoria.
 #   connect-src      Supabase: REST, Storage, Edge Functions y Realtime (wss).

@@ -1,0 +1,54 @@
+/**
+ * Despliegue en Cloudflare.
+ *
+ * ══ Por qué existe este archivo ════════════════════════════════════════════
+ *
+ * El proyecto está dado de alta como **Worker**, no como Pages, así que el paso
+ * de despliegue ejecuta `npx wrangler deploy`. Sin esta configuración, wrangler no
+ * encuentra la suya y acaba intentando leer `vite.config.js`, que no es lo que
+ * busca: «Error parsing file: vite.config.js».
+ *
+ * ══ Aquí no hay ningún Worker, y es correcto ═══════════════════════════════
+ *
+ * Esta aplicación es una SPA estática: el build produce archivos y nada más. No
+ * hay código de servidor que ejecutar —todo el backend está en Supabase— así que
+ * no se declara ningún `main`. Un Worker con `assets` y sin script sirve los
+ * archivos y ya está.
+ *
+ * ══ Las cabeceras siguen viniendo de `public/_headers` ═════════════════════
+ *
+ * Cloudflare las aplica también en Workers con archivos estáticos, así que la CSP
+ * y las reglas de caché siguen saliendo de ahí y este archivo no las duplica. Esa
+ * duplicación es justo lo que se quitó al retirar `vercel.json`.
+ *
+ * Después de desplegar conviene comprobarlo, porque un fallo aquí es silencioso:
+ *
+ *     curl -I https://tu-dominio.com | grep -i content-security-policy
+ */
+{
+  "name": "caveman-hub",
+
+  /*
+    Fija el comportamiento del entorno de ejecución a como era en esta fecha, de
+    modo que un cambio futuro de Cloudflare no altere el sitio por su cuenta.
+    Subirla es una decisión deliberada, no algo que pase solo.
+  */
+  "compatibility_date": "2026-08-13",
+
+  "assets": {
+    "directory": "./dist/",
+
+    /*
+      El fallback de la aplicación de una sola página.
+
+      Con rutas reales, entrar directo en `/c/<id>/rutina` —desde un marcador, un
+      enlace compartido o al recargar— hace que el servidor busque un archivo en
+      esa ruta. Sin esto devolvería un 404 y la aplicación no llegaría a arrancar.
+
+      `single-page-application` sirve `index.html` con un **200** para lo que no
+      sea un archivo, y deja que el router decida. El 200 importa: con un 301 la
+      URL cambiaría y se perdería a dónde iba el usuario.
+    */
+    "not_found_handling": "single-page-application"
+  }
+}

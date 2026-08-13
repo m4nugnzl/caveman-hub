@@ -145,17 +145,75 @@ de `billing-checkout` es más estricta que la de la pasarela —exige sesión v�
 
 ---
 
-## 4. El hosting
+## 4. El hosting: Cloudflare Pages
 
-El proyecto es una SPA estática: cualquier hosting de archivos sirve.
+El proyecto es una SPA estática —el build produce archivos y nada más, sin
+renderizado en servidor ni funciones—, así que cualquier hosting de archivos
+sirve. **Se usa Cloudflare Pages**, por dos motivos:
 
-| Hosting | Config | Ya está en el repositorio |
+- Sirve archivos estáticos con peticiones gratuitas e ilimitadas, y la carga real
+  de esta aplicación es eso: archivos.
+- Su plan gratuito **no prohíbe el uso comercial**. El plan Hobby de Vercel sí:
+  define como comercial «cualquier método de solicitar o procesar pagos de los
+  visitantes del sitio», que es exactamente lo que hace la pantalla de Plan. Con
+  Vercel, cobrar obliga al plan Pro de 20 $/mes.
+
+La configuración ya está en el repositorio: `public/_redirects` (el fallback de
+la SPA) y `public/_headers` (seguridad y caché).
+
+### Darlo de alta
+
+Cloudflare → **Workers & Pages** → *Create* → conectar el repositorio de Git.
+
+Hay **dos caminos y no dan el mismo error si te equivocas**, así que conviene
+saber en cuál estás:
+
+| | Pages | Workers con archivos estáticos |
 |---|---|---|
-| Vercel | `vercel.json` | ✅ rewrites + cabeceras + caché |
-| Netlify / Cloudflare Pages | `public/_headers` y `public/_redirects` | ✅ |
-| Nginx / Apache | a mano | ❌ ver abajo |
+| Cómo despliega | Sube `dist` directamente | Ejecuta `npx wrangler deploy` |
+| Fallback de la SPA | `public/_redirects` | `not_found_handling` en `wrangler.jsonc` |
+| `_headers` | ✅ | ✅ |
+| Config en el repositorio | Ya está | `wrangler.jsonc`, ya está |
 
-Build command `npm run build`, output `dist`.
+**Este proyecto está en el segundo.** Si el paso de despliegue ejecuta
+`npx wrangler deploy` y falla con *«Error parsing file: vite.config.js»*, es que
+wrangler no encuentra su configuración: falta `wrangler.jsonc` o no llegó al
+repositorio.
+
+Ajustes del build, valgan cual valga el camino:
+
+- **Framework preset**: None
+- **Build command**: `npm run build`
+- **Build output directory**: `dist`
+3. **Variables de entorno** (las mismas que en `.env`, y solo estas dos):
+   ```
+   VITE_SUPABASE_URL
+   VITE_SUPABASE_ANON_KEY
+   ```
+   La `anon key` es segura aquí: toda la autorización vive en RLS. La
+   `service_role` **nunca**, ni aquí ni en ninguna variable `VITE_`, porque Vite
+   las incrusta en el build y acabaría en el navegador de cualquiera.
+4. Dominio propio en la pestaña **Custom domains**.
+
+### Al cambiar de dominio, tres cosas o algo deja de funcionar
+
+Esto vale tanto para el alta como para cualquier mudanza posterior:
+
+| Qué | Dónde | Si no |
+|---|---|---|
+| **Redirect URLs** | Supabase → Authentication → URL Configuration | Las invitaciones y el correo de contraseña devuelven al dominio viejo |
+| **`APP_URL`** | Secretos de las Edge Functions | Tras pagar, Stripe devuelve al dominio viejo |
+| **Site URL** | Supabase, misma pantalla | Igual que las Redirect URLs |
+
+Lo que **no** cambia es la URL del webhook de Stripe: apunta a la función de
+Supabase, no a tu dominio.
+
+### Otros hosting
+
+| Hosting | Config | ¿Está en el repositorio? |
+|---|---|---|
+| Cloudflare Pages / Netlify | `public/_headers`, `public/_redirects` | ✅ |
+| Nginx / Apache | a mano | ❌ ver abajo |
 
 ### Las dos reglas que no son opcionales
 
@@ -185,7 +243,7 @@ Por orden, y ninguna tarda más de un minuto:
 1. **Entra en una ruta profunda directamente**: `https://tu-dominio.com/cartera`.
    Si da 404, falta el fallback de SPA (paso 4).
 2. **Abre la consola del navegador.** Si algo no carga, el CSP dice qué directiva
-   lo bloqueó. Las cabeceras están en `vercel.json` y `public/_headers`.
+   lo bloqueó. Las cabeceras están en `public/_headers`.
 3. **Inicia sesión.** Si el correo de acceso te devuelve a `localhost`, falta el
    paso 3.
 4. **Sube una foto.** Si falla, falta la migración 0007 (el bucket).

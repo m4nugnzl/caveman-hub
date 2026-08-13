@@ -136,8 +136,8 @@ porque no llevan a ninguna parte.
 > ⚠️ **Al desplegar**: una aplicación de una sola página con rutas necesita que el
 > servidor devuelva `index.html` para cualquier ruta. Si no, entrar directo en
 > `/c/abc/rutina` da un 404 y la aplicación no arranca. Ya están incluidos
-> `public/_redirects` (Netlify, Cloudflare Pages) y `vercel.json` (Vercel). Con
-> Nginx o Apache hay que añadir la regla a mano.
+> `public/_redirects` y `public/_headers`, que es lo que usa **Cloudflare Pages**
+> (y Netlify). Con Nginx o Apache hay que añadir la regla a mano.
 
 ## Estructura
 
