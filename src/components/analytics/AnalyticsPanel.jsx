@@ -14,7 +14,8 @@ import {
   weekMuscleVolume,
 } from '@/domain/training';
 import { buildWeeklySeries, lastWeeks, macroShareBands, metricPoints, weekOverWeek } from '@/domain/analytics';
-import { clientGoal, goalFromDirection, targetRateKg } from '@/domain/goals';
+import { goalFromDirection, targetRateKg } from '@/domain/goals';
+import { effectiveGoal } from '@/domain/roadmap';
 import { EVIDENCE_GROUPS, weeklyReading, weightTrend } from '@/domain/reading';
 import { asksFeedback, clientProtocol } from '@/domain/protocol';
 import { FeedbackHistory } from './FeedbackHistory';
@@ -93,7 +94,7 @@ const Picker = ({ value, onChange, options, label, width = 160 }) => (
  * adherencia semanal, que el dominio ya calculaba y nadie mostraba.
  */
 export const AnalyticsPanel = ({ audience = 'coach' }) => {
-  const { activeClient, workoutData, anthropometry, nutrition, updateClientPreferences } = useApp();
+  const { activeClient, workoutData, anthropometry, nutrition, updateClientPreferences, phases } = useApp();
 
   const program = workoutData[activeClient.id];
   const microcycles = useMemo(() => program?.microcycles || [], [program]);
@@ -195,7 +196,17 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
   */
   const trend = useMemo(() => weightTrend(fullSeries), [fullSeries]);
 
-  const goal = useMemo(() => clientGoal(activeClient), [activeClient]);
+  /*
+    El objetivo contra el que se juzga TODO en esta pantalla sale de la fase que
+    cubre hoy, y solo si no hay ninguna se cae al objetivo suelto de la ficha (ver
+    `domain/roadmap.js`).
+
+    Sin esto, el día que alguien pasa de definición a volumen esta pantalla sigue
+    midiéndole contra lo viejo: subir de peso —que es lo que toca— sale marcado
+    como «en dirección contraria», y encima la banda del gráfico de peso se dibuja
+    alrededor de la pendiente equivocada.
+  */
+  const goal = useMemo(() => effectiveGoal(activeClient, phases), [activeClient, phases]);
   const lastWeight = weightPts[weightPts.length - 1]?.value ?? null;
 
   const findings = useMemo(
@@ -208,8 +219,9 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
         history,
         today: todayISO(),
         latestWeek: weeks[weeks.length - 1] ?? null,
+        phases,
       }),
-    [activeClient, fullSeries, microcycles, history, weeks]
+    [activeClient, fullSeries, microcycles, history, weeks, phases]
   );
 
   /*

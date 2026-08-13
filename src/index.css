@@ -1561,7 +1561,10 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .food-row,
 .food-head {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 74px repeat(3, 42px) 60px 26px;
+  /* La columna de cantidad pasó de 74 a 106 px al convertirse la medida en un
+     desplegable: casilla (54) + hueco (4) + desplegable (44) + 4 de respiro.
+     Los 32 px salen del nombre, que es `1fr` y ya se recortaba con puntos. */
+  grid-template-columns: minmax(0, 1fr) 106px repeat(3, 42px) 60px 26px;
   align-items: center;
   gap: var(--s2);
   padding: 8px var(--s3);
@@ -1590,6 +1593,41 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .food-row > .grams { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .food-row > .grams > .unit { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+
+/* La medida, como desplegable.
+   ---------------------------------------------------------------------------
+   El primer intento fue un botón que alternaba al pulsarlo. Dos problemas: no se
+   ve que sea pulsable —una palabra de 10 px con subrayado punteado no es una
+   affordance— y no cabe una tercera acción, que hace falta para poder DEFINIR la
+   unidad de un alimento que no la tiene.
+
+   Un `select` nativo resuelve las dos: se reconoce, funciona con teclado, se abre
+   como una rueda en el móvil y admite tantas opciones como haga falta. Aquí solo
+   se aprieta el relleno, porque el de `.select-sm` está pensado para filas de
+   ajustes y aquí hay 100 px para todo. */
+.unit-select {
+  appearance: none;
+  border: 0; background-color: transparent; cursor: pointer;
+  /* ANCHO FIJO, y es obligatorio: un `select` se dimensiona por su opción más
+     larga, así que «Definir unidad…» lo estiraba a ~120 px, empujaba la casilla
+     del número fuera de la columna y el número dejaba de verse. El texto cerrado
+     («g», «ud», «cda») cabe de sobra; la lista desplegada se sigue viendo entera
+     porque el navegador la dibuja fuera del flujo. */
+  width: 44px; flex-shrink: 0;
+  padding: 3px 14px 3px 3px;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 7px) center, calc(100% - 4px) center;
+  background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+  transition: color var(--fast);
+}
+.unit-select:hover { color: var(--accent); }
+
+/* Y la casilla tampoco se encoge: por defecto un elemento flexible cede espacio
+   antes que desbordar, y ceder aquí significa recortar la cifra. */
+.food-row > .grams > .input { flex-shrink: 0; }
 .food-row > .grams > .fixed { font-size: var(--fs-sm); font-weight: 650; }
 .food-row > .n { text-align: right; font-size: var(--fs-sm); color: var(--text-secondary); }
 .food-row > .kcal {
@@ -1836,6 +1874,20 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   background: var(--fill); color: var(--text-tertiary);
 }
 .step.is-done > .step-mark { background: var(--positive-soft); color: var(--positive); }
+
+/* La fase EN CURSO del roadmap.
+   ---------------------------------------------------------------------------
+   El bloque `.step` nació para los asistentes de integración, donde solo hay dos
+   estados: hecho y por hacer. Un roadmap tiene tres, y el que falta es el que
+   más importa —dónde está la persona hoy—.
+
+   El realce es un fondo tenue y una marca con borde, no un color de alarma: la
+   fase de hoy es la normal, no una incidencia. El color de la marca lo pone el
+   componente con el tono de la dirección (definición / mantenimiento / volumen),
+   así que aquí solo se prepara el hueco. */
+.step.is-current { background: var(--surface-sunken); border-radius: var(--r-md); }
+.step.is-current > .step-mark { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.step.is-current .step-head > strong { font-weight: 700; }
 
 .step-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); }
 .step-head { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }

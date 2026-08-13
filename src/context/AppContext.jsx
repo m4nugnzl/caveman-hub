@@ -8,6 +8,7 @@ import { toNum } from '@/lib/num';
 import {
   mapAnthroFromDb,
   mapAnthroToDb,
+  mapCatalogFoodFromDb,
   mapCheckInFromDb,
   mapEventFromDb,
   mapClientFromDb,
@@ -16,6 +17,8 @@ import {
   mapLibraryFoodFromDb,
   mapNutritionFromDb,
   mapNutritionToDb,
+  mapPhaseFromDb,
+  mapPhaseToDb,
   mapPhotoFromDb,
   mapPhotoToDb,
   mapPlanFromDb,
@@ -105,6 +108,33 @@ export const AppProvider = ({ children }) => {
   const [anthropometry, setAnthropometry, anthroRef] = useMirroredState({});
   const [nutrition, setNutrition, nutritionRef] = useMirroredState({});
   const [progressPhotos, setProgressPhotos, photosRef] = useMirroredState([]);
+
+  /*
+    El catálogo común (migración 0033): alimentos y ejercicios de referencia que
+    ve todo el mundo y que nadie puede escribir desde el navegador.
+
+    Se carga UNA vez por sesión y no por cliente: es el mismo para todos y no
+    cambia salvo que se despliegue una migración. Vacío si la 0033 no está
+    aplicada, y entonces los buscadores se comportan como siempre.
+  */
+  const [catalogFoods, setCatalogFoods] = useState([]);
+  const [catalogExercises, setCatalogExercises] = useState([]);
+
+  /*
+    Las fases del roadmap DEL CLIENTE ABIERTO (migración 0028).
+
+    Un array y no un mapa por cliente, a diferencia de las rutinas: son cuatro o
+    cinco filas diminutas y solo hacen falta en la ficha que se está mirando. Un
+    mapa aquí sería una caché con invalidación que resolvería un problema que
+    todavía no existe.
+
+    La contrapartida está anotada donde toca: `portfolio.js` llama a
+    `weeklyReading` para toda la cartera sin fases, así que los titulares de la
+    lista se siguen leyendo contra `preferences.goal`. Se nota poco —son una
+    frase por cliente— y arreglarlo bien es una consulta de fases en bloque, no
+    un mapa en memoria.
+  */
+  const [phases, setPhases] = useState([]);
 
   /** Equipo del entrenador. `null` mientras la migración 0006 no esté aplicada. */
   const [team, setTeam] = useState(null);
@@ -913,6 +943,134 @@ export const AppProvider = ({ children }) => {
     () => clients.find((c) => c.id === selectedClientId) || visibleClients[0] || null,
     [clients, visibleClients, selectedClientId]
   );
+
+  // ── Catálogo común ───────────────────────────────────────────────────────
+
+  /*
+    Una sola carga por sesión, en cuanto hay usuario. No se recarga al cambiar de
+    cliente ni al volver a la pestaña: son datos de referencia que solo cambian
+    cuando se despliega una migración, y volver a pedirlos sería tráfico por nada.
+  */
+  const catalogUserId = session?.user?.id || null;
+
+  useEffect(() => {
+    if (!catalogUserId) {
+      setCatalogFoods([]);
+      setCatalogExercises([]);
+      return undefined;
+    }
+
+    let cancelado = false;
+
+    (async () => {
+      const [foods, exercises] = await Promise.all([
+        supabase.from('catalog_foods').select('*').order('name'),
+        supabase.from('catalog_exercises').select('*').order('name'),
+      ]);
+
+      if (cancelado) return;
+      // Sin la 0033 las tablas no existen. Se traga: el catálogo es una ayuda,
+      // no un requisito, y un `loadError` aquí tumbaría la aplicación entera por
+      // una función opcional.
+      setCatalogFoods(foods.error ? [] : (foods.data || []).map(mapCatalogFoodFromDb));
+      setCatalogExercises(
+        exercises.error ? [] : (exercises.data || []).map(mapLibraryExerciseFromDb)
+      );
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [catalogUserId]);
+
+  // ── Roadmap ──────────────────────────────────────────────────────────────
+
+  const activeClientId = activeClient?.id || null;
+
+  /*
+    Las fases se recargan al cambiar de cliente.
+
+    `cancelado` es lo que evita el fallo clásico de este patrón: al pasar rápido de
+    una ficha a otra, la respuesta de la primera puede llegar DESPUÉS que la de la
+    segunda y dejar en pantalla el roadmap del cliente anterior. Con clientes
+    distintos en definición y en volumen, eso no es un parpadeo raro: es la
+    analítica juzgando a alguien contra el objetivo de otra persona.
+  */
+  useEffect(() => {
+    if (!activeClientId) {
+      setPhases([]);
+      return undefined;
+    }
+
+    let cancelado = false;
+    setPhases([]);
+
+    (async () => {
+      const { data, error } = await supabase
+        .from('client_phases')
+        .select('*')
+        .eq('client_id', activeClientId)
+        .order('starts_on');
+
+      if (cancelado) return;
+      /*
+        Sin la migración 0028 la tabla no existe y esto falla. Se traga: un
+        roadmap vacío deja la aplicación exactamente como estaba antes de que
+        existiera esta función, y `effectiveGoal` cae solo al objetivo declarado.
+        Un `loadError` aquí rompería la ficha entera por una función opcional.
+      */
+      setPhases(error ? [] : (data || []).map(mapPhaseFromDb));
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [activeClientId]);
+
+  const addPhase = useCallback(
+    async (clientId, fields) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const { data, error } = await supabase
+        .from('client_phases')
+        .insert({ client_id: clientId, created_by: userId, ...mapPhaseToDb(fields) })
+        .select()
+        .single();
+
+      if (error) return { ok: false, error: explicarErrorDeFase(error) };
+
+      const fase = mapPhaseFromDb(data);
+      if (clientId === activeClientId) setPhases((prev) => [...prev, fase]);
+      return { ok: true, phase: fase };
+    },
+    [activeClientId, session]
+  );
+
+  const updatePhase = useCallback(
+    async (phaseId, fields) => {
+      const { data, error } = await supabase
+        .from('client_phases')
+        .update({ ...mapPhaseToDb(fields), updated_at: new Date().toISOString() })
+        .eq('id', phaseId)
+        .select()
+        .single();
+
+      if (error) return { ok: false, error: explicarErrorDeFase(error) };
+
+      const fase = mapPhaseFromDb(data);
+      setPhases((prev) => prev.map((p) => (p.id === phaseId ? fase : p)));
+      return { ok: true, phase: fase };
+    },
+    []
+  );
+
+  const removePhase = useCallback(async (phaseId) => {
+    const { error } = await supabase.from('client_phases').delete().eq('id', phaseId);
+    if (error) return { ok: false, error: error.message };
+    setPhases((prev) => prev.filter((p) => p.id !== phaseId));
+    return { ok: true };
+  }, []);
 
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
 
@@ -1939,7 +2097,9 @@ export const AppProvider = ({ children }) => {
   );
 
   const addFoodToOption = useCallback(
-    (clientId, variant, mealIdx, optIdx, food, grams = 100) =>
+    // `null` y no 100: deja que `buildFoodEntry` elija: una unidad entera si el
+    // alimento la tiene, 100 g si se pesa. Ver `domain/nutrition.js`.
+    (clientId, variant, mealIdx, optIdx, food, grams = null) =>
       applyMeals(clientId, variant, (meals) =>
         meals.map((m, i) =>
           i !== mealIdx
@@ -1974,8 +2134,15 @@ export const AppProvider = ({ children }) => {
     [applyMeals]
   );
 
-  const updateFoodGrams = useCallback(
-    (clientId, variant, mealIdx, optIdx, foodId, grams) =>
+  /**
+   * Cambia UN alimento dentro de una opción de una comida.
+   *
+   * Los cuatro índices son el camino hasta él y son idénticos para cualquier
+   * cambio, así que estaban a punto de repetirse veinte líneas por cada campo
+   * nuevo. Se extrae una vez y cada acción pone solo lo suyo.
+   */
+  const patchFood = useCallback(
+    (clientId, variant, mealIdx, optIdx, foodId, patch) =>
       applyMeals(
         clientId,
         variant,
@@ -1991,7 +2158,7 @@ export const AppProvider = ({ children }) => {
                       : {
                           ...o,
                           foods: (o.foods || []).map((f) =>
-                            f.id === foodId ? { ...f, grams: toNum(grams) ?? 0 } : f
+                            f.id === foodId ? { ...f, ...patch(f) } : f
                           ),
                         }
                   ),
@@ -2000,6 +2167,33 @@ export const AppProvider = ({ children }) => {
         { immediate: false }
       ),
     [applyMeals]
+  );
+
+  const updateFoodGrams = useCallback(
+    (clientId, variant, mealIdx, optIdx, foodId, grams) =>
+      patchFood(clientId, variant, mealIdx, optIdx, foodId, () => ({
+        grams: toNum(grams) ?? 0,
+      })),
+    [patchFood]
+  );
+
+  /**
+   * Elige si este alimento se cuenta en gramos o en unidades.
+   *
+   * Es una preferencia POR ALIMENTO Y POR DIETA, no de la biblioteca: el mismo
+   * entrenador escribe «2 huevos» en la dieta de quien cocina y «110 g» en la de
+   * quien pesa todo. Que la biblioteca decidiera por los dos obligaría a tener el
+   * huevo duplicado.
+   *
+   * Los gramos no se tocan al cambiar de modo —son la verdad, la unidad es la
+   * lente—, así que ir y volver no mueve ni una caloría.
+   */
+  const setFoodDisplay = useCallback(
+    (clientId, variant, mealIdx, optIdx, foodId, mode) =>
+      patchFood(clientId, variant, mealIdx, optIdx, foodId, () => ({
+        showAs: mode === 'units' ? 'units' : 'grams',
+      })),
+    [patchFood]
   );
 
   // ── Antropometría ────────────────────────────────────────────────────────
@@ -2136,10 +2330,24 @@ export const AppProvider = ({ children }) => {
       const userId = session?.user?.id;
       if (!userId || !food?.name?.trim()) return null;
 
+      /*
+        Las dos columnas de unidad viajan juntas o no viajan (CHECK de la 0030).
+        Una etiqueta en blanco se manda como NULL en las DOS para poder quitarle la
+        unidad a un alimento: mandar solo `unit_label: null` dejaría los gramos
+        huérfanos y la fila la rechazaría la base.
+      */
+      const etiqueta = String(food.unitLabel || '').trim();
+      const gramosPorUnidad = toNum(food.unitGrams);
+      const unidad =
+        etiqueta && gramosPorUnidad && gramosPorUnidad > 0
+          ? { unit_label: etiqueta, unit_grams: gramosPorUnidad }
+          : { unit_label: null, unit_grams: null };
+
       const { data, error } = await upsertByName('foods', userId, team?.id || null, food.name, {
         protein_per_100g: toNum(food.proteinPer100) ?? 0,
         carbs_per_100g: toNum(food.carbsPer100) ?? 0,
         fats_per_100g: toNum(food.fatsPer100) ?? 0,
+        ...unidad,
       });
 
       if (error) {
@@ -2157,6 +2365,45 @@ export const AppProvider = ({ children }) => {
       return mapped;
     },
     [session, team, upsertByName]
+  );
+
+  /**
+   * Define cuánto pesa una unidad de un alimento, desde la dieta.
+   *
+   * ── Escribe en DOS sitios, y es deliberado ──────────────────────────────────
+   *   1. **La entrada abierta**, para que el cambio se vea al instante y sin
+   *      esperar a una recarga de la biblioteca.
+   *   2. **La biblioteca**, para que la próxima vez que se añada ese alimento a
+   *      cualquier dieta ya venga con su unidad.
+   *
+   * Sin (2) habría que repetir la definición en cada dieta, que es justo el
+   * trabajo manual que esto viene a quitar. Sin (1) el entrenador definiría la
+   * unidad y no pasaría nada visible, que parece que no ha funcionado.
+   *
+   * Va DESPUÉS de `upsertLibraryFood` en el archivo a propósito: las dependencias
+   * de un `useCallback` se evalúan al renderizar, así que declararlo antes daría
+   * «Cannot access before initialization» al montar la aplicación.
+   */
+  const defineFoodUnit = useCallback(
+    async (clientId, variant, mealIdx, optIdx, food, unitLabel, unitGrams) => {
+      patchFood(clientId, variant, mealIdx, optIdx, food.id, () => ({
+        unitLabel,
+        unitGrams,
+        showAs: 'units',
+      }));
+
+      // La biblioteca se actualiza por nombre (`upsertByName`), así que basta con
+      // el nombre y las macros que la entrada ya lleva copiadas.
+      return upsertLibraryFood({
+        name: food.name,
+        proteinPer100: food.proteinPer100,
+        carbsPer100: food.carbsPer100,
+        fatsPer100: food.fatsPer100,
+        unitLabel,
+        unitGrams,
+      });
+    },
+    [patchFood, upsertLibraryFood]
   );
 
   // ── Fotos de progreso ────────────────────────────────────────────────────
@@ -2426,28 +2673,49 @@ export const AppProvider = ({ children }) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
 
+      const { name, ...resto } = clientData || {};
+
       /*
-        `coach_id` se sigue escribiendo aunque haya equipo: la columna es NOT NULL
-        y su retirada va en una migración posterior (ver 0006). `team_id` y
-        `assigned_to` solo se mandan si hay equipo; si no, las columnas no existen
-        y PostgREST rechazaría la fila entera.
+        El alta va por `create_client` (migración 0032) y no por un INSERT.
+
+        El motivo no es de estilo. Con el INSERT, el `team_id` lo elegía el
+        navegador y el permiso lo juzgaba RLS, que rechaza en silencio: el usuario
+        veía «new row violates row-level security policy» y no había forma de
+        saber por qué desde fuera de la base de datos. La función resuelve el
+        equipo ella misma y, cuando el permiso falta, DICE cuál es tu rol.
+
+        Mismo permiso, misma comprobación del plan (el trigger corre igual). Lo
+        único que cambia es que ahora el fallo se puede leer.
       */
-      const teamFields = team
-        ? { team_id: team.id, assigned_to: clientData.assignedTo || userId }
-        : {};
+      const viaRpc = await supabase.rpc('create_client', {
+        p_name: String(name || '').trim(),
+        p_fields: mapClientToDb(resto),
+      });
 
-      const { data, error } = await supabase
-        .from('clients')
-        .insert({
-          coach_id: userId,
-          start_date: today(),
-          ...teamFields,
-          ...mapClientToDb(clientData),
-        })
-        .select()
-        .single();
+      let { data, error } = viaRpc;
 
-      if (error) return { ok: false, error: error.message };
+      /*
+        Respaldo para bases sin la 0032 aplicada: se intenta el camino de siempre.
+        `PGRST202` es «no existe esa función» — cualquier otro error es del alta y
+        hay que enseñarlo, no reintentar por otra puerta.
+      */
+      if (error?.code === 'PGRST202') {
+        const teamFields = team
+          ? { team_id: team.id, assigned_to: clientData.assignedTo || userId }
+          : {};
+        ({ data, error } = await supabase
+          .from('clients')
+          .insert({
+            coach_id: userId,
+            start_date: today(),
+            ...teamFields,
+            ...mapClientToDb(clientData),
+          })
+          .select()
+          .single());
+      }
+
+      if (error) return { ok: false, error: explicarErrorDeAlta(error) };
 
       const created = mapClientFromDb(data);
       setClients([...clientsRef.current, created]);
@@ -3248,6 +3516,8 @@ export const AppProvider = ({ children }) => {
       nutrition,
       progressPhotos,
       exerciseLibrary,
+      catalogFoods,
+      catalogExercises,
       foodLibrary,
 
       // Estado de guardado
@@ -3297,6 +3567,8 @@ export const AppProvider = ({ children }) => {
       addFoodToOption,
       removeFoodFromOption,
       updateFoodGrams,
+      setFoodDisplay,
+      defineFoodUnit,
 
       // Antropometría
       addAnthropometryLog,
@@ -3354,6 +3626,12 @@ export const AppProvider = ({ children }) => {
       setEventDone,
       removeClientEvent,
 
+      // Roadmap (fases del cliente abierto)
+      phases,
+      addPhase,
+      updatePhase,
+      removePhase,
+
       // Equipo
       team,
       teamMembers,
@@ -3370,7 +3648,7 @@ export const AppProvider = ({ children }) => {
     [
       session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
       clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, training, legacyPending, ensureProgram, anthropometry, nutrition,
-      progressPhotos, exerciseLibrary, foodLibrary,
+      progressPhotos, exerciseLibrary, foodLibrary, catalogFoods, catalogExercises,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
       moveExercise, addDay, renameDay, setDayNote, duplicateDay, removeDay, updateWeeklySplit,
@@ -3378,18 +3656,77 @@ export const AppProvider = ({ children }) => {
       startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
       updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
-      addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams,
+      addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,
       addClient, updateClient, setClientArchived, updateClientPreferences, exportClientData, exportAllData, normalizeLegacySessions, loadAuditLog, deleteClientCompletely,
       reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
       uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink,
-      checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent, team, teamMembers, plan, refreshPlan, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
+      checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent,
+      phases, addPhase, updatePhase, removePhase,
+      team, teamMembers, plan, refreshPlan, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
     ]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
+
+/*
+  ══ Traducir a Postgres ════════════════════════════════════════════════════
+
+  Los mensajes que devuelve la base de datos son exactos y no se le pueden
+  enseñar a nadie. «new row violates row-level security policy for table
+  "clients"» es correcto, describe lo ocurrido y no dice ni qué ha pasado ni qué
+  hacer — quien lo lee entiende que algo va mal y nada más.
+
+  Estas dos funciones traducen los códigos que de verdad pueden salir aquí. Solo
+  esos: un catálogo de veinte códigos sería adivinar, y el `error.message` de
+  respaldo es mejor que una traducción inventada.
+
+  Los mensajes del trigger `enforce_client_limit` (0019) NO se tocan: ya vienen
+  escritos para leerse y además dicen el número exacto de clientes y el plan.
+*/
+
+/** Códigos de Postgres que aparecen al escribir una ficha o una fase. */
+const PG = {
+  RLS: '42501', // insufficient_privilege — una política ha rechazado la fila
+  EXCLUSION: '23P01', // exclusion_violation — el solape de fases
+  CHECK: '23514', // check_violation — el trigger del límite de plan
+};
+
+const explicarErrorDeFase = (error) => {
+  if (error?.code === PG.EXCLUSION) {
+    return 'Esa fase se pisa con otra del mismo cliente. Una fase empieza el día siguiente al final de la anterior.';
+  }
+  if (error?.code === PG.RLS) {
+    return 'No se ha podido guardar el roadmap. Si tu suscripción no está activa, la planificación queda en solo lectura.';
+  }
+  return error?.message || 'No se ha podido guardar la fase.';
+};
+
+/**
+ * Por qué ha fallado un alta de cliente.
+ *
+ * El caso de RLS aquí tiene una causa concreta y una sola: la política
+ * `clients_team_insert` (0006) exige que quien inserta sea `owner`, `admin` o
+ * `trainer` DE SU EQUIPO. Si el rechazo llega es que el equipo no está resuelto
+ * o el rol es `viewer` — el `team_id` en blanco no puede ser, porque el trigger
+ * de la 0019 lo rellena antes de que la política mire la fila.
+ *
+ * Decirlo así convierte un callejón sin salida en algo que se puede comprobar.
+ */
+const explicarErrorDeAlta = (error) => {
+  if (error?.code === PG.RLS) {
+    return 'Tu cuenta no tiene permiso para dar de alta clientes en este equipo. Aplica la migración 0032 para que el error diga exactamente cuál es tu rol.';
+  }
+  /*
+    Todo lo demás llega ya escrito para leerse: los `RAISE EXCEPTION` de
+    `create_client` (0032) nombran el rol y el equipo, y los del trigger del plan
+    (0019) dan el número de clientes y el nombre del plan. Reescribirlos aquí
+    sería perder justamente lo que los hace útiles.
+  */
+  return error?.message || 'No se ha podido dar de alta al cliente.';
 };
 
 export const useApp = () => {

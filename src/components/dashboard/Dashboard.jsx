@@ -42,6 +42,7 @@ import { BandChart, BarBandChart, MeterList, Sparkline } from '@/components/ui/c
 import { Delta, MetricCard, MetricList, StatWidget } from '@/components/ui/metrics';
 import { Panel, SaveIndicator } from '@/components/ui/primitives';
 import { MacroBar } from '@/components/nutrition/macros';
+import { RoadmapPanel } from '@/components/roadmap/RoadmapPanel';
 import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
 
 // La tripleta de colores viene del dominio: cuatro copias del mismo dato divergen.
@@ -661,6 +662,21 @@ export const Dashboard = ({ audience = 'coach' }) => {
           <p className="t-sm t-secondary">Pulsa «Personalizar» para volver a elegir qué quieres ver.</p>
         </Panel>
       )}
+
+      {/*
+        El roadmap va aquí, debajo del tablero, y NO como un widget más.
+
+        Es la única cosa fija que se añade al resumen, y la razón es que el tablero
+        es configurable: un widget desactivado por defecto no lo activa nadie
+        —hay que entrar en «Personalizar», encontrarlo en la bandeja y sacarlo—, y
+        uno activado por defecto le ocuparía sitio a todo el mundo, incluidos los
+        que no planifican por fases.
+
+        Debajo no le quita el puesto a nada y se encuentra solo. Cuando el cliente
+        no tiene fases, es un bloque vacío que explica para qué sirve; en cuanto
+        las tiene, es lo que contesta «¿y ahora qué toca?».
+      */}
+      <RoadmapPanel audience={audience} />
 
       {prefs.showMetricList && (
         <MetricList

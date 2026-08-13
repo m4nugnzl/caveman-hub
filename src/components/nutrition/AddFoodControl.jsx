@@ -2,7 +2,17 @@ import { useState } from 'react';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { Field } from '@/components/ui/primitives';
 
-const EMPTY = { name: '', proteinPer100: '', carbsPer100: '', fatsPer100: '' };
+const EMPTY = {
+  name: '',
+  proteinPer100: '',
+  carbsPer100: '',
+  fatsPer100: '',
+  // Opcionales y en blanco por defecto: la mayoría de los alimentos se pesan, y
+  // pedir la unidad de todos convertiría un alta de cuatro campos en una de seis
+  // con dos que casi siempre se dejan vacías.
+  unitLabel: '',
+  unitGrams: '',
+};
 
 /**
  * Buscador y alta rápida de alimento. Autocompleta desde la biblioteca del
@@ -62,6 +72,51 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
           ))}
         </div>
 
+        {/*
+          ── La unidad, para lo que no se pesa ────────────────────────────────
+          Nadie pesa un huevo ni una manzana. Con estos dos campos rellenos, el
+          alimento se escribe y se lee en piezas —«2 huevos»— y los gramos se
+          calculan solos; sin rellenar, se comporta como siempre.
+
+          Van en una segunda fila y no mezclados con los macros porque son otra
+          cosa: los de arriba describen el alimento, estos describen cómo se
+          cuenta. Y son los únicos dos opcionales del formulario.
+        */}
+        <div className="row-end wrap gap-2">
+          <Field
+            label="Se cuenta en (opcional)"
+            hint="En singular: huevo, rebanada, cucharada…"
+            className="grow"
+          >
+            {(props) => (
+              <input
+                {...props}
+                className="input"
+                value={draft.unitLabel}
+                onChange={(e) => setDraft({ ...draft, unitLabel: e.target.value })}
+                placeholder="Se pesa en gramos"
+              />
+            )}
+          </Field>
+
+          <Field label="g por unidad" className="shrink-0">
+            {(props) => (
+              <input
+                {...props}
+                type="text"
+                inputMode="decimal"
+                className="input input-center"
+                style={{ width: 72 }}
+                value={draft.unitGrams}
+                onChange={(e) => setDraft({ ...draft, unitGrams: e.target.value })}
+                // Sin etiqueta, este número no significa nada y la base lo
+                // rechazaría: las dos columnas van juntas o no va ninguna.
+                disabled={!draft.unitLabel.trim()}
+              />
+            )}
+          </Field>
+        </div>
+
         <div className="row gap-2">
           <button type="button" className="btn btn-primary btn-sm" onClick={commitNew} disabled={!draft.name.trim()}>
             Añadir
@@ -79,7 +134,24 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
       value={query}
       onChange={setQuery}
       items={foodLibrary}
-      getMeta={(food) => `P${food.proteinPer100} C${food.carbsPer100} G${food.fatsPer100} /100g`}
+      /*
+        Dos datos además de los macros:
+
+        · La unidad, que es lo que distingue «Huevo entero» —que se cuenta— de
+          «Clara de huevo» cuando los dos salen en la lista.
+        · De dónde viene. Marcar los del catálogo explica por qué, al elegir uno,
+          aparece de repente en tu biblioteca: no es un efecto secundario raro,
+          es lo que significa usarlo por primera vez.
+      */
+      getMeta={(food) =>
+        [
+          `P${food.proteinPer100} C${food.carbsPer100} G${food.fatsPer100} /100g`,
+          food.unitLabel ? `1 ${food.unitLabel} = ${food.unitGrams} g` : null,
+          food.fromCatalog ? 'del catálogo' : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      }
       onPick={(food) => {
         onAdd(food);
         setQuery('');

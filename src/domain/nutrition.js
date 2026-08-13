@@ -98,14 +98,95 @@ export const buildMeal = () => ({
 
 export const buildOption = () => ({ id: newId('opt'), foods: [] });
 
-export const buildFoodEntry = (food, grams = 100) => ({
-  id: newId('food'),
-  name: food.name,
-  grams: toNum0(grams) || 100,
-  proteinPer100: toNum0(food.proteinPer100),
-  carbsPer100: toNum0(food.carbsPer100),
-  fatsPer100: toNum0(food.fatsPer100),
-});
+/**
+ * Un alimento dentro de una opción de comida.
+ *
+ * ── Por qué copia los datos en vez de referenciar la biblioteca ─────────────
+ * Ya lo hacía con las macros y ahora también con la unidad: la entrada es una
+ * FOTO del alimento en el momento de añadirlo. Si el entrenador corrige mañana
+ * los macros de «Pan integral» en su biblioteca, las dietas ya montadas no se
+ * recalculan solas a espaldas de nadie.
+ *
+ * `grams` arranca en una unidad entera cuando el alimento tiene una. Añadir un
+ * huevo y que aparezca «100 g» —casi dos huevos— obliga a corregirlo siempre; que
+ * aparezca «1 huevo» acierta la mayoría de las veces.
+ */
+export const buildFoodEntry = (food, grams = null) => {
+  const unitGrams = toNum0(food?.unitGrams) || null;
+  const porDefecto = unitGrams || 100;
+
+  return {
+    id: newId('food'),
+    name: food.name,
+    grams: toNum0(grams) || porDefecto,
+    proteinPer100: toNum0(food.proteinPer100),
+    carbsPer100: toNum0(food.carbsPer100),
+    fatsPer100: toNum0(food.fatsPer100),
+    // `null` explícito y no ausente: distingue «este alimento se pesa» de «esta
+    // entrada es antigua y no se sabe», que a efectos de pantalla son lo mismo
+    // pero a efectos de depuración no.
+    unitLabel: food.unitLabel ?? null,
+    unitGrams,
+    // Cómo se cuenta ESTA entrada. Empieza en unidades si las tiene, y el
+    // entrenador puede cambiarlo por alimento y por dieta: hay clientes que
+    // pesan todo y clientes que no tienen báscula.
+    showAs: unitGrams ? 'units' : 'grams',
+  };
+};
+
+// ── Unidades ───────────────────────────────────────────────────────────────
+//
+// Los gramos son la verdad y la unidad es una lente encima (ver la migración
+// 0030). Estas dos funciones son toda la conversión que existe, y por eso ningún
+// cálculo de macros necesitó cambiar.
+
+/** ¿Se PUEDE contar este alimento en piezas? (lo dice la biblioteca) */
+export const hasUnits = (entry) => Boolean(entry?.unitLabel) && toNum0(entry?.unitGrams) > 0;
+
+/**
+ * ¿Se ESTÁ contando en piezas? (lo dice el entrenador, alimento a alimento)
+ *
+ * Separado de `hasUnits` a propósito: poder y querer son cosas distintas. Un
+ * huevo siempre se puede contar en unidades, y aun así hay clientes que pesan
+ * todo y a los que «110 g» les dice más que «2 huevos».
+ *
+ * Las entradas guardadas antes de que existiera el interruptor no tienen `showAs`
+ * y caen en unidades, que es el motivo por el que se añadió todo esto.
+ */
+export const displayAsUnits = (entry) => hasUnits(entry) && entry?.showAs !== 'grams';
+
+/**
+ * Cuántas unidades son estos gramos. `null` si el alimento se pesa.
+ *
+ * Se redondea a un decimal porque media rebanada y medio huevo existen, y 0,37
+ * huevos no. Como los gramos no se tocan, el redondeo es solo de lo que se
+ * ENSEÑA: las macros se siguen calculando sobre el gramo exacto.
+ */
+export const foodUnits = (entry) => {
+  if (!hasUnits(entry)) return null;
+  return Math.round((toNum0(entry.grams) / toNum0(entry.unitGrams)) * 10) / 10;
+};
+
+/** Los gramos de N unidades, que es lo que se guarda al escribir en la casilla. */
+export const gramsFromUnits = (entry, units) => {
+  if (!hasUnits(entry)) return toNum0(units);
+  return Math.round(toNum0(units) * toNum0(entry.unitGrams));
+};
+
+/**
+ * «2 huevos», «1 rebanada», «1,5 cucharadas».
+ *
+ * El plural se hace añadiendo una «s» y solo funciona en castellano, que es el
+ * único idioma de la aplicación. La alternativa —guardar singular y plural de
+ * cada etiqueta— es el doble de campos para arreglar «lata»/«latas», y una
+ * etiqueta que acabe en consonante («filet») la escribe el entrenador y la ve él.
+ */
+export const unitsLabel = (entry) => {
+  const units = foodUnits(entry);
+  if (units === null) return null;
+  const nombre = units === 1 ? entry.unitLabel : `${entry.unitLabel}s`;
+  return `${String(units).replace('.', ',')} ${nombre}`;
+};
 
 // ── Cálculos ───────────────────────────────────────────────────────────────
 

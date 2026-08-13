@@ -44,6 +44,13 @@ import { round, toNum } from '@/lib/num';
  *   · Mantenimiento: la banda de ±0,25 % es lo que se puede considerar «estable»,
  *     porque por debajo de eso no se distingue del ruido de agua y glucógeno.
  */
+/*
+  `color` acompaña a cada dirección por la misma razón que en `EVENT_KINDS`
+  (`domain/calendar.js`): el roadmap dibuja una fila por fase y hace falta
+  distinguirlas de un vistazo, sin leer. Se eligen tres tonos NEUTROS a propósito
+  —nada de verde y rojo—: un volumen no es peor que una definición, y pintarlo
+  con el color de una alarma diría lo contrario.
+*/
 export const GOAL_DIRECTIONS = [
   {
     id: 'cut',
@@ -51,6 +58,7 @@ export const GOAL_DIRECTIONS = [
     short: 'Bajar',
     sign: -1,
     defaultRate: 0.6,
+    color: 'var(--data-teal)',
     hint: 'Bajar peso conservando masa muscular',
   },
   {
@@ -59,6 +67,7 @@ export const GOAL_DIRECTIONS = [
     short: 'Mantener',
     sign: 0,
     defaultRate: 0,
+    color: 'var(--data-slate)',
     hint: 'Peso estable: recomposición, fuerza o descanso de dieta',
   },
   {
@@ -67,6 +76,7 @@ export const GOAL_DIRECTIONS = [
     short: 'Subir',
     sign: 1,
     defaultRate: 0.25,
+    color: 'var(--data-amber)',
     hint: 'Subir peso despacio para ganar masa sin exceso de grasa',
   },
 ];

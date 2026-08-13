@@ -51,7 +51,9 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise }) => {
             value={form.name}
             onChange={(value) => set('name', value)}
             items={library}
-            getMeta={(item) => item.muscle}
+            // «del catálogo» avisa de que ese ejercicio todavía no es tuyo, y por
+            // tanto de que al elegirlo pasa a estar en tu biblioteca.
+            getMeta={(item) => (item.fromCatalog ? `${item.muscle} · del catálogo` : item.muscle)}
             onPick={(item) => setForm((f) => ({ ...f, name: item.name, muscle: item.muscle || f.muscle }))}
             placeholder="Ej: Press banca"
             inputProps={{ autoFocus: true }}

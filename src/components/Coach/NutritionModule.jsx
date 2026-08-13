@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Plus, Salad, Sparkles, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant } from '@/domain/nutrition';
+import { mergeCatalog } from '@/domain/catalog';
 import { Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
@@ -22,6 +23,7 @@ export const NutritionModule = () => {
     activeClient,
     nutrition,
     foodLibrary,
+    catalogFoods,
     saveStatus,
     retrySave,
     updateNutrition,
@@ -35,6 +37,8 @@ export const NutritionModule = () => {
     addFoodToOption,
     removeFoodFromOption,
     updateFoodGrams,
+    setFoodDisplay,
+    defineFoodUnit,
     upsertLibraryFood,
   } = useApp();
 
@@ -57,10 +61,24 @@ export const NutritionModule = () => {
     setNewNote('');
   };
 
+  /*
+    Tu biblioteca y el catálogo común, en una sola lista. Ver `domain/catalog.js`:
+    lo tuyo gana cuando el nombre se repite, y lo que viene del catálogo se copia
+    a tu biblioteca al elegirlo —por el mismo `upsertLibraryFood` de abajo, que ya
+    lo hacía con los alimentos escritos a mano—.
+  */
+  const alimentosDisponibles = useMemo(
+    () => mergeCatalog(foodLibrary, catalogFoods),
+    [foodLibrary, catalogFoods]
+  );
+
   /** Al elegir o crear un alimento se guarda también en la biblioteca del coach. */
   const handleAddFood = (mealIndex, optIndex, food) => {
     upsertLibraryFood(food);
-    addFoodToOption(activeClient.id, variant, mealIndex, optIndex, food, 100);
+    // Sin cantidad: la elige `buildFoodEntry` según el alimento —una unidad entera
+    // si la tiene, 100 g si se pesa—. Fijar 100 aquí metía «casi dos huevos» cada
+    // vez que se añadía uno.
+    addFoodToOption(activeClient.id, variant, mealIndex, optIndex, food);
   };
 
   return (
@@ -160,7 +178,7 @@ export const NutritionModule = () => {
                 key={meal.id}
                 meal={meal}
                 editable
-                foodLibrary={foodLibrary}
+                foodLibrary={alimentosDisponibles}
                 onRenameMeal={(name) => updateMealName(activeClient.id, variant, mealIndex, name)}
                 onRemoveMeal={() => removeMeal(activeClient.id, variant, mealIndex)}
                 onAddOption={() => addMealOption(activeClient.id, variant, mealIndex)}
@@ -171,6 +189,12 @@ export const NutritionModule = () => {
                 }
                 onGrams={(optIndex, foodId, grams) =>
                   updateFoodGrams(activeClient.id, variant, mealIndex, optIndex, foodId, grams)
+                }
+                onSetDisplay={(optIndex, foodId, mode) =>
+                  setFoodDisplay(activeClient.id, variant, mealIndex, optIndex, foodId, mode)
+                }
+                onDefineUnit={(optIndex, food, label, grams) =>
+                  defineFoodUnit(activeClient.id, variant, mealIndex, optIndex, food, label, grams)
                 }
               />
             ))}

@@ -42,7 +42,8 @@
 
 import { round } from '@/lib/num';
 import { linearTrend, metricPoints, weekAdherence } from './analytics';
-import { RATE_VERDICTS, clientGoal, directionById, rateVerdict, targetRateKg } from './goals';
+import { RATE_VERDICTS, directionById, rateVerdict, targetRateKg } from './goals';
+import { effectiveGoal } from './roadmap';
 import { exerciseNames, exerciseProgression } from './training';
 import { weekEntries } from './anthropometry';
 
@@ -226,9 +227,22 @@ export const weeklyReading = ({
   history = [],
   today,
   latestWeek = null,
+  phases = [],
 }) => {
   const findings = [];
-  const goal = clientGoal(client);
+  /*
+    El objetivo sale de la FASE que cubre el día leído, y solo si no hay ninguna se
+    cae al `preferences.goal` de siempre (ver `domain/roadmap.js`).
+
+    Este cambio de una línea es lo que evita el error más caro de esta pantalla: el
+    día que alguien pasa de definición a volumen, medirle contra el objetivo viejo
+    convierte «subir de peso, que es lo que toca» en «va en dirección contraria».
+    Una alarma falsa en la única pantalla que existe para dar veredictos.
+
+    `phases` por defecto vacío: quien no use el roadmap —y quien llame desde
+    `portfolio.js`— obtiene exactamente el comportamiento anterior.
+  */
+  const goal = effectiveGoal(client, phases, today);
   const trend = weightTrend(series);
   const lastWeight = metricPoints(series, 'weight').slice(-1)[0]?.value ?? null;
 

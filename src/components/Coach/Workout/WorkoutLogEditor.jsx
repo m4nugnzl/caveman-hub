@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } 
 import { useApp } from '@/context/AppContext';
 import { dayMuscleVolume, unitLabel } from '@/domain/training';
 import { sessionMuscleVolume } from '@/domain/sessions';
+import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn } from '@/domain/protocol';
 import { EmptyState, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { SessionFeedback } from './SessionFeedback';
@@ -33,6 +34,7 @@ export const WorkoutLogEditor = () => {
     clients,
     workoutData,
     exerciseLibrary,
+    catalogExercises,
     saveStatus,
     retrySave,
     updateClient,
@@ -81,6 +83,12 @@ export const WorkoutLogEditor = () => {
   const save = saveStatus('workout', activeClient.id);
 
   const daySession = useDaySession(nav.microcycle, nav.day);
+
+  // Ver `domain/catalog.js`: lo tuyo gana cuando el nombre se repite.
+  const ejerciciosDisponibles = useMemo(
+    () => mergeCatalog(exerciseLibrary, catalogExercises),
+    [exerciseLibrary, catalogExercises]
+  );
 
   /*
    * El volumen de los chips refleja lo REGISTRADO en la sesión activa, no lo
@@ -394,8 +402,13 @@ export const WorkoutLogEditor = () => {
 
           <hr className="divider" />
 
+          {/*
+            Tu biblioteca primero y el catálogo común detrás, sin repetidos. Al
+            elegir uno del catálogo, `onRememberExercise` lo copia a la tuya —el
+            mismo camino que ya seguía un ejercicio escrito a mano—.
+          */}
           <AddExerciseForm
-            library={exerciseLibrary}
+            library={ejerciciosDisponibles}
             onAdd={(exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)}
             onRememberExercise={upsertLibraryExercise}
           />

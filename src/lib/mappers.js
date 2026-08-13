@@ -110,6 +110,63 @@ export const mapEventFromDb = (row) => ({
   createdBy: row.created_by,
 });
 
+// ── Fases del roadmap (migración 0028) ─────────────────────────────────────
+
+/**
+ * Un tramo del plan.
+ *
+ * `endsOn` puede ser null y eso significa «abierta», no «falta el dato»: es la
+ * última fase, la que sigue en curso sin final decidido. Ver `domain/roadmap.js`.
+ */
+export const mapPhaseFromDb = (row) => ({
+  id: row.id,
+  clientId: row.client_id,
+  title: row.title,
+  direction: row.direction,
+  // Postgres devuelve `numeric` como cadena para no perder precisión. Sin este
+  // Number, `ratePct` llega como "0.6" y cualquier comparación con un número
+  // —que es lo que hace `rateVerdict`— empieza a dar resultados absurdos.
+  ratePct: Number(row.rate_pct ?? 0),
+  startsOn: row.starts_on,
+  endsOn: row.ends_on ?? null,
+  note: row.note || '',
+  createdBy: row.created_by ?? null,
+});
+
+/**
+ * Un alimento del catálogo común (migración 0033).
+ *
+ * Devuelve la MISMA forma que `mapLibraryFoodFromDb` más `category`, y eso es
+ * deliberado: así el buscador puede mezclar las dos listas sin distinguirlas y
+ * `upsertLibraryFood` puede copiar uno del catálogo sin traducir nada por el
+ * camino. `id` viene del catálogo y se descarta al copiar —la fila nueva de tu
+ * biblioteca tiene el suyo—.
+ */
+export const mapCatalogFoodFromDb = (row) => ({
+  ...mapLibraryFoodFromDb(row),
+  category: row.category || 'Otros',
+});
+
+const PHASE_COLUMNS = {
+  title: 'title',
+  direction: 'direction',
+  ratePct: 'rate_pct',
+  startsOn: 'starts_on',
+  endsOn: 'ends_on',
+  note: 'note',
+};
+
+export const mapPhaseToDb = (fields) => {
+  const out = {};
+  for (const [key, value] of Object.entries(fields || {})) {
+    const column = PHASE_COLUMNS[key];
+    // `endsOn: null` es un valor con significado —cerrar una fase abierta—, así
+    // que se comprueba la columna y no la verdad del valor.
+    if (column) out[column] = value === '' ? null : value;
+  }
+  return out;
+};
+
 // ── Rutina ─────────────────────────────────────────────────────────────────
 
 /**
@@ -222,6 +279,14 @@ export const mapLibraryFoodFromDb = (row) => ({
   proteinPer100: row.protein_per_100g,
   carbsPer100: row.carbs_per_100g,
   fatsPer100: row.fats_per_100g,
+  /*
+    Unidades (migración 0030). Las dos van juntas o no va ninguna —lo garantiza un
+    CHECK—, así que basta comprobar una para saber si este alimento se puede
+    contar en piezas. `numeric` llega como cadena: sin el Number, «2 × '55'» sería
+    concatenación en vez de multiplicación.
+  */
+  unitLabel: row.unit_label ?? null,
+  unitGrams: row.unit_grams === null || row.unit_grams === undefined ? null : Number(row.unit_grams),
 });
 
 // ── Fotos de progreso ──────────────────────────────────────────────────────

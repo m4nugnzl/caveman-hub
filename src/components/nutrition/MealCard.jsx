@@ -1,10 +1,40 @@
 import { useState } from 'react';
 import { Pencil, Plus, Trash2, X } from 'lucide-react';
 
-import { foodMacros, mealKcalRange, optionMacros } from '@/domain/nutrition';
+import {
+  displayAsUnits,
+  foodMacros,
+  foodUnits,
+  gramsFromUnits,
+  hasUnits,
+  mealKcalRange,
+  optionMacros,
+  unitsLabel,
+} from '@/domain/nutrition';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { Field } from '@/components/ui/primitives';
 import { AddFoodControl } from './AddFoodControl';
 import { MACRO_META, MacroRing } from './macros';
+
+/**
+ * La columna de cantidad mide 74 px contando la casilla, así que ahí no cabe
+ * «cucharada». Se abrevian las medidas que tienen abreviatura reconocible y el
+ * resto cae en «ud», que es lo que se entiende sin aprender nada.
+ *
+ * El nombre completo no se pierde: va en el `title` de la casilla —«2 huevos ·
+ * 110 g»— y en la etiqueta que leen los lectores de pantalla.
+ */
+const ABREVIATURAS = {
+  cucharada: 'cda',
+  cucharadita: 'cdta',
+  rebanada: 'reb',
+  vaso: 'vaso',
+  lata: 'lata',
+  cazo: 'cazo',
+  filete: 'fil',
+};
+
+const abreviar = (label) => ABREVIATURAS[String(label || '').toLowerCase()] || 'ud';
 
 /**
  * Encabezado de la tabla de alimentos.
@@ -33,29 +63,79 @@ const FoodTableHead = ({ editable }) => (
 
 const CELL = ['is-p', 'is-c', 'is-f'];
 
-/** Un alimento: solo números, alineados con el encabezado. */
-const FoodRow = ({ food, editable, onGrams, onRemove }) => {
+/**
+ * Un alimento: solo números, alineados con el encabezado.
+ *
+ * ── Gramos o unidades ──────────────────────────────────────────────────────
+ * Un alimento con unidad definida (huevos, plátanos, rebanadas) se escribe y se
+ * lee EN UNIDADES, porque es como se compra y como se come. Los gramos siguen
+ * siendo lo que se guarda y lo que alimenta el cálculo de macros —la conversión
+ * vive entera en `domain/nutrition.js`—, y aquí solo se eligen las palabras.
+ *
+ * El equivalente en gramos no desaparece: va en el `title` de la casilla. Hace
+ * falta para quien sí pesa, y ocuparle una columna a algo que se consulta de
+ * uvas a peras rompería la rejilla en el móvil.
+ */
+const FoodRow = ({ food, editable, onGrams, onSetDisplay, onDefineUnit, onRemove }) => {
   const macros = foodMacros(food);
+  const [definiendo, setDefiniendo] = useState(false);
+  const sePuede = hasUnits(food);
+  const porUnidades = displayAsUnits(food);
 
-  return (
+  // Lo que se enseña en la casilla y lo que significa al escribirlo.
+  const valor = porUnidades ? foodUnits(food) : food.grams;
+  const alEscribir = (raw) => onGrams(porUnidades ? gramsFromUnits(food, raw) : raw);
+
+  // El equivalente en la OTRA medida, que es lo que se pierde de vista al elegir
+  // una. Va en el `title` porque se consulta de uvas a peras y una columna más
+  // rompería la rejilla en el móvil.
+  const equivalencia = sePuede ? `${unitsLabel(food)} · ${food.grams} g` : undefined;
+
+  const row = (
     <div className="food-row">
       <span className="name">{food.name}</span>
 
-      <span className="grams">
+      <span className="grams" title={equivalencia}>
         {editable ? (
           <input
             type="text"
             inputMode="decimal"
             className="input input-sm input-center"
-            style={{ width: 58 }}
-            value={food.grams ?? ''}
-            onChange={(e) => onGrams(e.target.value)}
-            aria-label={`Gramos de ${food.name}`}
+            style={{ width: 54 }}
+            value={valor ?? ''}
+            onChange={(e) => alEscribir(e.target.value)}
+            aria-label={
+              porUnidades ? `${food.unitLabel} de ${food.name}` : `Gramos de ${food.name}`
+            }
           />
         ) : (
-          <span className="fixed">{food.grams}</span>
+          <span className="fixed">{valor}</span>
         )}
-        <span className="unit">g</span>
+
+        {/*
+          La medida es un desplegable mientras se edita, y texto cuando solo se
+          consulta —al cliente no le sirve de nada un control que no puede usar—.
+
+          «Definir…» es la tercera opción y la que faltaba: sin ella, un alimento
+          que ya está en la biblioteca sin unidad no tenía NINGÚN camino para
+          recibirla, porque el único formulario que la pedía era el de alta.
+        */}
+        {editable ? (
+          <select
+            className="unit-select"
+            value={porUnidades ? 'units' : 'grams'}
+            onChange={(e) =>
+              e.target.value === 'define' ? setDefiniendo(true) : onSetDisplay(e.target.value)
+            }
+            aria-label={`Medida de ${food.name}`}
+          >
+            <option value="grams">g</option>
+            {sePuede && <option value="units">{abreviar(food.unitLabel)}</option>}
+            <option value="define">{sePuede ? 'Cambiar unidad…' : 'Definir unidad…'}</option>
+          </select>
+        ) : (
+          <span className="unit">{porUnidades ? abreviar(food.unitLabel) : 'g'}</span>
+        )}
       </span>
 
       {MACRO_META.map(({ key, short, label }, index) => (
@@ -84,6 +164,115 @@ const FoodRow = ({ food, editable, onGrams, onRemove }) => {
       )}
     </div>
   );
+
+  if (!definiendo) return row;
+
+  return (
+    <div className="col gap-2">
+      {row}
+      <UnitForm
+        food={food}
+        onCancel={() => setDefiniendo(false)}
+        onSave={(unitLabel, unitGrams) => {
+          onDefineUnit(unitLabel, unitGrams);
+          setDefiniendo(false);
+        }}
+      />
+    </div>
+  );
+};
+
+/**
+ * Definir cuánto pesa una unidad, sin salir de la dieta.
+ *
+ * ── Por qué aquí y no en la biblioteca ──────────────────────────────────────
+ * Porque no existe una pantalla de biblioteca: un alimento solo se podía tocar
+ * EN EL MOMENTO DE CREARLO, y a partir de ahí quedaba congelado. Así que un
+ * alimento dado de alta antes de que existieran las unidades —o con un nombre que
+ * no estaba en la lista de la 0030, como «Huevos enteros frescos»— no tenía forma
+ * de recibir la suya.
+ *
+ * Y este es además el sitio donde te das cuenta de que la necesitas: montando la
+ * dieta, no administrando una lista.
+ *
+ * Lo que se guarda va a la BIBLIOTECA, no solo a esta entrada: la próxima vez que
+ * añadas ese alimento a cualquier dieta ya vendrá con su unidad puesta.
+ */
+const UnitForm = ({ food, onCancel, onSave }) => {
+  const [label, setLabel] = useState(food.unitLabel || '');
+  const [grams, setGrams] = useState(food.unitGrams || '');
+
+  const limpio = label.trim();
+  const gramos = Number(String(grams).replace(',', '.'));
+  const valido = limpio.length > 0 && Number.isFinite(gramos) && gramos > 0;
+
+  return (
+    <form
+      className="card-inset col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (valido) onSave(limpio, gramos);
+      }}
+    >
+      <span className="section-label">Cómo se cuenta {food.name}</span>
+
+      <div className="row-end wrap gap-2">
+        <Field label="Se cuenta en" hint="En singular: huevo, rebanada, cucharada…" className="grow">
+          {(props) => (
+            <input
+              {...props}
+              autoFocus
+              className="input"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="huevo"
+            />
+          )}
+        </Field>
+
+        <Field label="g por unidad" className="shrink-0">
+          {(props) => (
+            <input
+              {...props}
+              type="text"
+              inputMode="decimal"
+              className="input input-center"
+              style={{ width: 72 }}
+              value={grams}
+              onChange={(e) => setGrams(e.target.value)}
+              placeholder="55"
+            />
+          )}
+        </Field>
+      </div>
+
+      {/*
+        Lo que va a pasar con ESTE alimento y sus gramos actuales, antes de
+        guardar. Es lo que convierte dos casillas en una decisión: se ve al
+        momento si 55 es el peso correcto de una pieza o si te has equivocado de
+        orden de magnitud.
+      */}
+      <p className="t-xs t-secondary">
+        {valido ? (
+          <>
+            1 {limpio} = {gramos} g. Los {food.grams} g de ahora se leerán como{' '}
+            <strong>{unitsLabel({ ...food, unitLabel: limpio, unitGrams: gramos })}</strong>.
+          </>
+        ) : (
+          'Se guarda en tu biblioteca: la próxima vez que añadas este alimento a cualquier dieta ya vendrá con su unidad.'
+        )}
+      </p>
+
+      <div className="row gap-2">
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!valido}>
+          Guardar
+        </button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
 };
 
 /**
@@ -106,6 +295,8 @@ export const MealCard = ({
   onAddFood,
   onRemoveFood,
   onGrams,
+  onSetDisplay,
+  onDefineUnit,
 }) => {
   const confirm = useConfirm();
   const [activeOption, setActiveOption] = useState(0);
@@ -261,6 +452,8 @@ export const MealCard = ({
               food={food}
               editable={editable}
               onGrams={(grams) => onGrams(index, food.id, grams)}
+              onSetDisplay={(mode) => onSetDisplay?.(index, food.id, mode)}
+              onDefineUnit={(label, grams) => onDefineUnit?.(index, food, label, grams)}
               onRemove={() => onRemoveFood(index, food.id)}
             />
           ))}
