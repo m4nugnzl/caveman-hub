@@ -22,6 +22,7 @@ import {
   mapPhotoFromDb,
   mapPhotoToDb,
   mapPlanFromDb,
+  mapTicketFromDb,
   mapTrainingSummaryFromDb,
   mapWorkoutFromDb,
   mapWorkoutToDb,
@@ -42,6 +43,10 @@ import { emptyAnthropometry } from '@/domain/anthropometry';
 import {
   VARIANT_KEY,
   buildFoodEntry,
+  cloneMeal,
+  cloneMeals,
+  cloneOption,
+  moveItem,
   buildMeal,
   buildOption,
   emptyNutrition,
@@ -943,6 +948,129 @@ export const AppProvider = ({ children }) => {
     () => clients.find((c) => c.id === selectedClientId) || visibleClients[0] || null,
     [clients, visibleClients, selectedClientId]
   );
+
+  // ── Soporte ──────────────────────────────────────────────────────────────
+
+  /*
+    ¿Atiendo yo la plataforma? Se pregunta a la base y no se deduce de nada del
+    navegador.
+
+    Este valor solo decide QUÉ SE PINTA —la bandeja de todos, o solo mis hilos—.
+    Quién puede leer qué lo sigue decidiendo RLS, así que si esto se pusiera a
+    `true` desde la consola del navegador lo único que pasaría es que se vería una
+    bandeja vacía.
+  */
+  const [isSupport, setIsSupport] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user?.id) {
+      setIsSupport(false);
+      return undefined;
+    }
+
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await supabase.rpc('is_platform_admin');
+      // Sin la 0034 la función no existe: nadie es soporte, que es el lado
+      // correcto por el que equivocarse.
+      if (!cancelado) setIsSupport(!error && data === true);
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [session]);
+
+  /**
+   * Los tickets que puedo ver: los míos, o TODOS si atiendo la plataforma.
+   *
+   * La consulta es la misma en los dos casos y quien decide es RLS (migración
+   * 0034). Es lo que evita el error clásico de esto: un `if (soyAdmin)` en el
+   * navegador que elige entre dos consultas y que, mal puesto, enseña la bandeja
+   * entera a quien no debe. Aquí la aplicación no tiene forma de pedir de más.
+   */
+  const loadTickets = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .select('*, profiles(full_name, email), support_messages(*)')
+      .order('updated_at', { ascending: false });
+
+    if (error) return { ok: false, error: error.message, tickets: [] };
+
+    const tickets = (data || []).map(mapTicketFromDb).map((ticket) => ({
+      ...ticket,
+      // PostgREST no garantiza el orden de lo embebido; un hilo desordenado se
+      // lee como una conversación en la que nadie contesta a lo anterior.
+      messages: [...ticket.messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    }));
+
+    return { ok: true, tickets };
+  }, []);
+
+  const createTicket = useCallback(
+    async ({ subject, body, context = {} }) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const { data, error } = await supabase
+        .from('support_tickets')
+        .insert({
+          profile_id: userId,
+          team_id: team?.id ?? null,
+          subject: String(subject || '').trim(),
+          context,
+        })
+        .select()
+        .single();
+
+      if (error) return { ok: false, error: error.message };
+
+      /*
+        El primer mensaje va aparte y no en una columna del ticket. Así el hilo es
+        homogéneo desde el principio: la pantalla pinta una lista de mensajes y no
+        «el texto original, y además los mensajes», que es la variante que obliga
+        a tratar el primero como un caso especial en cada sitio.
+      */
+      const primero = await supabase.from('support_messages').insert({
+        ticket_id: data.id,
+        author_id: userId,
+        from_support: false,
+        body: String(body || '').trim(),
+      });
+
+      if (primero.error) return { ok: false, error: primero.error.message };
+      return { ok: true, ticketId: data.id };
+    },
+    [session, team]
+  );
+
+  const replyTicket = useCallback(
+    async (ticketId, body, fromSupport = false) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const { error } = await supabase.from('support_messages').insert({
+        ticket_id: ticketId,
+        author_id: userId,
+        // La política comprueba que esto coincida con si eres soporte de verdad
+        // (0034), así que mentir aquí no cuela: la fila se rechaza.
+        from_support: fromSupport,
+        body: String(body || '').trim(),
+      });
+
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
+    [session]
+  );
+
+  const setTicketStatus = useCallback(async (ticketId, status) => {
+    const { error } = await supabase
+      .from('support_tickets')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', ticketId);
+
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
 
   // ── Catálogo común ───────────────────────────────────────────────────────
 
@@ -1905,8 +2033,8 @@ export const AppProvider = ({ children }) => {
    * ejecutó, y no tienen ningún sentido en la ficha de un cliente distinto.
    */
   const replicateClient = useCallback(
-    async (sourceClientId, targetClientId, { training = false, diet = false } = {}) => {
-      const result = { training: false, diet: false };
+    async (sourceClientId, targetClientId, { training = false, diet = false, warmup = false } = {}) => {
+      const result = { training: false, diet: false, warmup: false };
       if (sourceClientId === targetClientId) return result;
 
       if (training) {
@@ -1952,6 +2080,45 @@ export const AppProvider = ({ children }) => {
             persist('client', targetClientId, fields, { immediate: true });
           }
           result.training = true;
+        }
+      }
+
+      /*
+        El calentamiento, por separado.
+
+        ── Por qué merece su propia opción ──────────────────────────────────────
+        Vive en `workout_data.mobility_drills` y hasta ahora solo viajaba DENTRO de
+        «entrenamiento», así que traerse la rutina de movilidad de un cliente
+        obligaba a llevarse también sus doce semanas de programa —y a sustituir
+        las del destino—. Como el calentamiento es lo que MÁS se repite entre
+        clientes (es la misma pauta articular para media cartera) y el programa lo
+        que menos, la combinación estaba justo al revés de lo que hace falta.
+
+        Va DESPUÉS del bloque de entrenamiento a propósito: aquel reemplaza el
+        objeto entero, así que hacerlo antes lo perdería.
+      */
+      if (warmup) {
+        await ensureProgram(sourceClientId);
+        /*
+          Y el del DESTINO también, aunque parezca que no hace falta.
+
+          Aquí se fusiona sobre lo que el destino tenga (`{...cd, mobilityDrills}`).
+          Si su programa no está cargado —carga perezosa: de un cliente que no se
+          ha abierto solo hay resumen—, `cd` sería un `emptyWorkoutData()` y esa
+          fusión escribiría un programa VACÍO encima del suyo. Borrar doce semanas
+          de trabajo por copiar cuatro estiramientos.
+
+          Con `training` no pasaba porque ese camino sustituye el objeto entero a
+          conciencia y con confirmación previa.
+        */
+        await ensureProgram(targetClientId);
+
+        const source = workoutRef.current[sourceClientId];
+        const drills = source?.mobilityDrills || [];
+
+        if (drills.length > 0) {
+          applyWorkout(targetClientId, (cd) => ({ ...cd, mobilityDrills: deepClone(drills) }));
+          result.warmup = true;
         }
       }
 
@@ -2054,6 +2221,42 @@ export const AppProvider = ({ children }) => {
     [applyNutrition]
   );
 
+  /**
+   * Trae el menú de una variante a la otra, dentro del mismo cliente.
+   *
+   * ── El hueco que cierra ─────────────────────────────────────────────────────
+   * Al ACTIVAR las dos dietas, `setHasDayVariants` copia la única a ambas, así que
+   * se empieza con lo mismo en las dos. Pero a partir de ahí divergen y no había
+   * ningún camino de vuelta: el entrenador monta seis comidas en el día de
+   * entreno, va al de descanso y se lo encuentra como lo dejó hace tres semanas.
+   * Rehacerlo a mano es media hora por cliente.
+   *
+   * Y es el caso NORMAL, no el raro: un día de descanso casi nunca es una dieta
+   * distinta, es la misma con menos hidratos. Partir de una copia y quitar es el
+   * flujo de trabajo real.
+   *
+   * ── Qué NO copia, y por qué ─────────────────────────────────────────────────
+   * El objetivo de kcal y macros. Es justo lo que distingue a las dos variantes
+   * —si fueran iguales no habría dos— y arrastrarlo borraría la única cifra que
+   * el entrenador ajustó a mano al separarlas.
+   *
+   * Los identificadores se regeneran (ver `cloneMeals`). Hoy no haría falta,
+   * porque cada variante es un array aparte y las acciones van dirigidas a uno;
+   * se hace igualmente para que compartir `id` entre listas nunca llegue a ser
+   * una suposición sobre la que alguien construya.
+   */
+  const copyVariantMeals = useCallback(
+    (clientId, from, to) => {
+      if (from === to) return false;
+      const source = nutritionRef.current[clientId]?.[VARIANT_KEY[from]] || [];
+      if (source.length === 0) return false;
+
+      applyMeals(clientId, to, () => cloneMeals(source));
+      return true;
+    },
+    [applyMeals, nutritionRef]
+  );
+
   const addMeal = useCallback(
     (clientId, variant) => applyMeals(clientId, variant, (meals) => [...meals, buildMeal()]),
     [applyMeals]
@@ -2093,6 +2296,71 @@ export const AppProvider = ({ children }) => {
             : { ...m, options: m.options.filter((_, o) => o !== optIdx) }
         )
       ),
+    [applyMeals]
+  );
+
+  // ── Orden y duplicados en la dieta ───────────────────────────────────────
+  //
+  // Montar una dieta es sobre todo REORGANIZAR: la comida que va antes, la
+  // alternativa que es casi igual que la anterior con un cambio. Sin esto, la
+  // única forma de cambiar el orden de dos comidas era borrar una y volver a
+  // escribirla entera con sus alimentos.
+
+  const moveMeal = useCallback(
+    (clientId, variant, fromIndex, toIndex) =>
+      applyMeals(clientId, variant, (meals) => moveItem(meals, fromIndex, toIndex)),
+    [applyMeals]
+  );
+
+  const moveFood = useCallback(
+    (clientId, variant, mealIdx, optIdx, fromIndex, toIndex) =>
+      applyMeals(clientId, variant, (meals) =>
+        meals.map((m, i) =>
+          i !== mealIdx
+            ? m
+            : {
+                ...m,
+                options: m.options.map((o, oi) =>
+                  oi !== optIdx ? o : { ...o, foods: moveItem(o.foods || [], fromIndex, toIndex) }
+                ),
+              }
+        )
+      ),
+    [applyMeals]
+  );
+
+  /**
+   * Duplica una alternativa dentro de su comida.
+   *
+   * Es el atajo que faltaba y el que más se usa: la segunda opción de una comida
+   * casi nunca se monta desde cero, sino que es la primera con el arroz cambiado
+   * por pasta. Sin esto había que volver a buscar y añadir los cinco alimentos.
+   */
+  const duplicateOption = useCallback(
+    (clientId, variant, mealIdx, optIdx) =>
+      applyMeals(clientId, variant, (meals) =>
+        meals.map((m, i) => {
+          if (i !== mealIdx) return m;
+          const source = m.options[optIdx];
+          if (!source) return m;
+          // Detrás de la que se copia, no al final: es donde se espera encontrarla.
+          const options = [...m.options];
+          options.splice(optIdx + 1, 0, cloneOption(source));
+          return { ...m, options };
+        })
+      ),
+    [applyMeals]
+  );
+
+  const duplicateMeal = useCallback(
+    (clientId, variant, mealIdx) =>
+      applyMeals(clientId, variant, (meals) => {
+        const source = meals[mealIdx];
+        if (!source) return meals;
+        const next = [...meals];
+        next.splice(mealIdx + 1, 0, cloneMeal(source));
+        return next;
+      }),
     [applyMeals]
   );
 
@@ -3516,6 +3784,11 @@ export const AppProvider = ({ children }) => {
       nutrition,
       progressPhotos,
       exerciseLibrary,
+      isSupport,
+      loadTickets,
+      createTicket,
+      replyTicket,
+      setTicketStatus,
       catalogFoods,
       catalogExercises,
       foodLibrary,
@@ -3562,6 +3835,11 @@ export const AppProvider = ({ children }) => {
       addMeal,
       removeMeal,
       updateMealName,
+      copyVariantMeals,
+      moveMeal,
+      moveFood,
+      duplicateOption,
+      duplicateMeal,
       addMealOption,
       removeMealOption,
       addFoodToOption,
@@ -3649,6 +3927,7 @@ export const AppProvider = ({ children }) => {
       session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
       clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, training, legacyPending, ensureProgram, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary, catalogFoods, catalogExercises,
+      isSupport, loadTickets, createTicket, replyTicket, setTicketStatus,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
       moveExercise, addDay, renameDay, setDayNote, duplicateDay, removeDay, updateWeeklySplit,
@@ -3656,7 +3935,7 @@ export const AppProvider = ({ children }) => {
       startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
       updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
-      addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
+      copyVariantMeals, moveMeal, moveFood, duplicateOption, duplicateMeal, addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,

@@ -133,6 +133,36 @@ export const mapPhaseFromDb = (row) => ({
   createdBy: row.created_by ?? null,
 });
 
+// ── Soporte (migración 0034) ───────────────────────────────────────────────
+
+/**
+ * Un ticket. `email` y `name` llegan del `profiles` embebido y solo cuando quien
+ * consulta es soporte: para el dueño del ticket sobran —ya sabe quién es— y RLS
+ * no le devuelve el perfil de nadie más.
+ */
+export const mapTicketFromDb = (row) => ({
+  id: row.id,
+  profileId: row.profile_id,
+  teamId: row.team_id ?? null,
+  subject: row.subject,
+  status: row.status,
+  context: row.context || {},
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  authorName: row.profiles?.full_name || '',
+  authorEmail: row.profiles?.email || '',
+  messages: (row.support_messages || []).map(mapTicketMessageFromDb),
+});
+
+export const mapTicketMessageFromDb = (row) => ({
+  id: row.id,
+  ticketId: row.ticket_id,
+  authorId: row.author_id ?? null,
+  fromSupport: Boolean(row.from_support),
+  body: row.body,
+  createdAt: row.created_at,
+});
+
 /**
  * Un alimento del catálogo común (migración 0033).
  *

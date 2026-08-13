@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Dumbbell, Salad } from 'lucide-react';
+import { Copy, Dumbbell, Salad, Waves } from 'lucide-react';
 
 import { unitLabelPlural } from '@/domain/training';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
@@ -25,27 +25,42 @@ export const CopyToClientPanel = ({
   weekCount,
   hasProgram,
   hasDiet,
+  hasWarmup,
   onReplicate,
   onClose,
 }) => {
   const confirm = useConfirm();
   const [sourceId, setSourceId] = useState('');
   const [training, setTraining] = useState(true);
+  const [warmup, setWarmup] = useState(false);
   const [diet, setDiet] = useState(false);
   const [result, setResult] = useState(null);
 
   const others = clients.filter((c) => c.id !== activeClient.id);
   const source = others.find((c) => c.id === sourceId) || null;
-  const nothingSelected = !training && !diet;
+  const nothingSelected = !training && !diet && !warmup;
 
   const handleCopy = async () => {
     if (!source || nothingSelected) return;
 
-    const parts = [training && 'el programa de entrenamiento', diet && 'el plan nutricional']
+    const parts = [
+      training && 'el programa de entrenamiento',
+      !training && warmup && 'el calentamiento',
+      diet && 'el plan nutricional',
+    ]
       .filter(Boolean)
       .join(' y ');
 
-    const overwrites = [training && hasProgram && 'su programa actual', diet && hasDiet && 'su dieta actual']
+    /*
+      Qué se pierde, dicho antes de tocar nada. El calentamiento solo aparece
+      aquí cuando va SUELTO: dentro de «entrenamiento» ya está incluido en «su
+      programa actual», y nombrarlo dos veces haría dudar de si son dos cosas.
+    */
+    const overwrites = [
+      training && hasProgram && 'su programa actual',
+      !training && warmup && hasWarmup && 'su calentamiento actual',
+      diet && hasDiet && 'su dieta actual',
+    ]
       .filter(Boolean)
       .join(' y ');
 
@@ -60,8 +75,12 @@ export const CopyToClientPanel = ({
     });
     if (!ok) return;
 
-    const done = await onReplicate(sourceId, { training, diet });
-    const copied = [done.training && 'entrenamiento', done.diet && 'dieta'].filter(Boolean);
+    const done = await onReplicate(sourceId, { training, diet, warmup });
+    const copied = [
+      done.training && 'entrenamiento',
+      done.warmup && 'calentamiento',
+      done.diet && 'dieta',
+    ].filter(Boolean);
 
     setResult(
       copied.length > 0
@@ -113,6 +132,29 @@ export const CopyToClientPanel = ({
               Entrenamiento
               <span className="t-xs t-tertiary">
                 (estructura semanal, {weekCount} {unitLabelPlural(cycleType)} y tipo de ciclo)
+              </span>
+            </label>
+            {/*
+              El calentamiento va suelto, y no dentro de «Entrenamiento», porque
+              es lo que MÁS se repite entre clientes —la misma pauta articular
+              para media cartera— mientras que el programa es lo que menos.
+              Mezclarlos obligaba a sustituir doce semanas de trabajo para
+              traerse cuatro estiramientos.
+
+              Marcar «Entrenamiento» lo trae igualmente: un programa sin su
+              calentamiento llega a medias.
+            */}
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={warmup || training}
+                disabled={training}
+                onChange={(e) => setWarmup(e.target.checked)}
+              />
+              <Waves size={13} />
+              Calentamiento y movilidad
+              <span className="t-xs t-tertiary">
+                {training ? '(va incluido en el entrenamiento)' : '(la pauta previa a entrenar)'}
               </span>
             </label>
             <label className="checkbox-row">

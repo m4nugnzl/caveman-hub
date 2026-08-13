@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 import {
   displayAsUnits,
@@ -57,6 +57,9 @@ const FoodTableHead = ({ editable }) => (
       </span>
     ))}
     <span>Kcal</span>
+    {/* Dos huecos al editar: ordenar y borrar. Uno solo desalinearía la columna
+        de kcal respecto a las filas. */}
+    {editable && <span />}
     {editable && <span />}
   </div>
 );
@@ -76,7 +79,7 @@ const CELL = ['is-p', 'is-c', 'is-f'];
  * falta para quien sí pesa, y ocuparle una columna a algo que se consulta de
  * uvas a peras rompería la rejilla en el móvil.
  */
-const FoodRow = ({ food, editable, onGrams, onSetDisplay, onDefineUnit, onRemove }) => {
+const FoodRow = ({ food, editable, onGrams, onSetDisplay, onDefineUnit, onMove, onRemove, first, last }) => {
   const macros = foodMacros(food);
   const [definiendo, setDefiniendo] = useState(false);
   const sePuede = hasUnits(food);
@@ -150,6 +153,37 @@ const FoodRow = ({ food, editable, onGrams, onSetDisplay, onDefineUnit, onRemove
       ))}
 
       <span className="kcal">{Math.round(macros.kcal)}</span>
+
+      {/*
+        Subir y bajar el alimento.
+
+        Van dentro de la celda de borrar y no en una columna propia: siete
+        columnas ya son las que caben, y en el móvil la rejilla se parte en dos
+        filas. Aparecen al pasar por encima o al enfocar con el teclado —el CSS lo
+        resuelve—, así que no compiten con las cifras, que es lo que se lee.
+      */}
+      {editable && onMove && (
+        <span className="food-order">
+          <button
+            type="button"
+            className="btn-plain"
+            onClick={() => onMove(-1)}
+            disabled={first}
+            aria-label={`Subir ${food.name}`}
+          >
+            <ChevronUp size={12} />
+          </button>
+          <button
+            type="button"
+            className="btn-plain"
+            onClick={() => onMove(1)}
+            disabled={last}
+            aria-label={`Bajar ${food.name}`}
+          >
+            <ChevronDown size={12} />
+          </button>
+        </span>
+      )}
 
       {editable && (
         <button
@@ -297,6 +331,12 @@ export const MealCard = ({
   onGrams,
   onSetDisplay,
   onDefineUnit,
+  onMoveFood,
+  onMoveMeal,
+  onDuplicateMeal,
+  onDuplicateOption,
+  firstMeal,
+  lastMeal,
 }) => {
   const confirm = useConfirm();
   const [activeOption, setActiveOption] = useState(0);
@@ -374,14 +414,52 @@ export const MealCard = ({
             )}
           </span>
           {editable && (
-            <button
-              type="button"
-              className="btn btn-icon btn-icon-danger"
-              onClick={askRemoveMeal}
-              aria-label={`Eliminar ${meal.name}`}
-            >
-              <Trash2 size={14} />
-            </button>
+            <>
+              {/* Mover la comida y duplicarla. En la cabecera y no en un menú:
+                  son tres acciones, y un menú para tres cosas es un clic de más
+                  en la operación que más se repite al montar un día. */}
+              {onMoveMeal && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    onClick={() => onMoveMeal(-1)}
+                    disabled={firstMeal}
+                    aria-label={`Subir ${meal.name}`}
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-icon"
+                    onClick={() => onMoveMeal(1)}
+                    disabled={lastMeal}
+                    aria-label={`Bajar ${meal.name}`}
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                </>
+              )}
+              {onDuplicateMeal && (
+                <button
+                  type="button"
+                  className="btn btn-icon"
+                  onClick={onDuplicateMeal}
+                  aria-label={`Duplicar ${meal.name}`}
+                  title="Duplicar la comida con todas sus alternativas"
+                >
+                  <Copy size={14} />
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-icon btn-icon-danger"
+                onClick={askRemoveMeal}
+                aria-label={`Eliminar ${meal.name}`}
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -407,6 +485,27 @@ export const MealCard = ({
           {editable && (
             <button type="button" className="chip chip-dashed" onClick={onAddOption}>
               <Plus size={13} /> Alternativa
+            </button>
+          )}
+          {/*
+            Duplicar la alternativa abierta.
+
+            Es el atajo que más se usa y el que faltaba: la segunda opción de una
+            comida casi nunca se monta desde cero, sino que es la primera con el
+            arroz cambiado por pasta. Sin esto había que volver a buscar y añadir
+            los cinco alimentos uno a uno.
+
+            Solo aparece con alimentos dentro: duplicar una opción vacía crea otra
+            vacía, que es lo mismo que «Alternativa» y confunde tener las dos.
+          */}
+          {editable && foods.length > 0 && (
+            <button
+              type="button"
+              className="chip chip-dashed"
+              onClick={() => onDuplicateOption(index)}
+              title={`Crear una alternativa copiando la opción ${index + 1}`}
+            >
+              <Copy size={13} /> Duplicar
             </button>
           )}
         </div>
@@ -446,14 +545,19 @@ export const MealCard = ({
       ) : (
         <div className="food-table">
           <FoodTableHead editable={editable} />
-          {foods.map((food) => (
+          {foods.map((food, foodIndex) => (
             <FoodRow
               key={food.id}
               food={food}
               editable={editable}
+              first={foodIndex === 0}
+              last={foodIndex === foods.length - 1}
               onGrams={(grams) => onGrams(index, food.id, grams)}
               onSetDisplay={(mode) => onSetDisplay?.(index, food.id, mode)}
               onDefineUnit={(label, grams) => onDefineUnit?.(index, food, label, grams)}
+              onMove={
+                onMoveFood ? (delta) => onMoveFood(index, foodIndex, foodIndex + delta) : null
+              }
               onRemove={() => onRemoveFood(index, food.id)}
             />
           ))}

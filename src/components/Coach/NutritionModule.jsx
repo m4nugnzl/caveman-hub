@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Plus, Salad, Sparkles, Trash2 } from 'lucide-react';
+import { Copy, Plus, Salad, Sparkles, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 
@@ -32,6 +33,11 @@ export const NutritionModule = () => {
     addMeal,
     removeMeal,
     updateMealName,
+    copyVariantMeals,
+    moveMeal,
+    moveFood,
+    duplicateMeal,
+    duplicateOption,
     addMealOption,
     removeMealOption,
     addFoodToOption,
@@ -42,6 +48,7 @@ export const NutritionModule = () => {
     upsertLibraryFood,
   } = useApp();
 
+  const confirm = useConfirm();
   const plan = nutrition[activeClient.id] || emptyNutrition();
   const save = saveStatus('nutrition', activeClient.id);
 
@@ -71,6 +78,33 @@ export const NutritionModule = () => {
     () => mergeCatalog(foodLibrary, catalogFoods),
     [foodLibrary, catalogFoods]
   );
+
+  // La variante que NO se está viendo, que es de donde se copia.
+  const otraVariante = VARIANT_OPTIONS.find((v) => v.id !== dietView) || VARIANT_OPTIONS[0];
+
+  /**
+   * Traer el menú de la otra variante.
+   *
+   * Sustituye, así que se pregunta antes — y el mensaje dice explícitamente que
+   * el objetivo de kcal y macros NO se toca: es lo que distingue a las dos
+   * dietas, y alguien que espere que también se copie se llevaría una sorpresa
+   * al día siguiente, cuando las cuentas del día de descanso no cuadren.
+   */
+  const traerLaOtra = async () => {
+    const destino = VARIANT_OPTIONS.find((v) => v.id === dietView);
+    const ok = await confirm({
+      title: `¿Copiar de ${otraVariante.label.toLowerCase()}?`,
+      message: `El menú de ${destino.label.toLowerCase()} pasará a ser una copia del de ${otraVariante.label.toLowerCase()}.`,
+      detail:
+        meals.length > 0
+          ? 'Se SUSTITUYEN las comidas que hay ahora aquí. El objetivo de kcal y macros no se toca. No se puede deshacer.'
+          : 'El objetivo de kcal y macros no se toca, solo las comidas.',
+      confirmLabel: 'Copiar',
+      tone: meals.length > 0 ? 'danger' : 'default',
+    });
+    if (!ok) return;
+    copyVariantMeals(activeClient.id, otraVariante.id, dietView);
+  };
 
   /** Al elegir o crear un alimento se guarda también en la biblioteca del coach. */
   const handleAddFood = (mealIndex, optIndex, food) => {
@@ -164,12 +198,30 @@ export const NutritionModule = () => {
           </div>
 
           {plan.hasDayVariants && (
-            <SegmentedControl
-              value={dietView}
-              onChange={setDietView}
-              options={VARIANT_OPTIONS}
-              label="Variante de dieta"
-            />
+            <div className="row gap-3 wrap">
+              <SegmentedControl
+                value={dietView}
+                onChange={setDietView}
+                options={VARIANT_OPTIONS}
+                label="Variante de dieta"
+              />
+
+              {/*
+                Traer el menú de la otra variante.
+
+                Un día de descanso casi nunca es una dieta distinta: es la misma
+                con menos hidratos. Partir de una copia y quitar es el flujo real,
+                y sin esto había que rehacer seis comidas a mano.
+
+                Solo aparece si la otra variante tiene algo que traer: un botón
+                que al pulsarlo no hace nada enseña a desconfiar de la pantalla.
+              */}
+              {mealsForVariant(plan, otraVariante.id).length > 0 && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={traerLaOtra}>
+                  <Copy size={14} /> Copiar desde {otraVariante.label.toLowerCase()}
+                </button>
+              )}
+            </div>
           )}
 
           <div className="col gap-4">
@@ -178,7 +230,19 @@ export const NutritionModule = () => {
                 key={meal.id}
                 meal={meal}
                 editable
+                firstMeal={mealIndex === 0}
+                lastMeal={mealIndex === meals.length - 1}
                 foodLibrary={alimentosDisponibles}
+                onMoveMeal={(delta) =>
+                  moveMeal(activeClient.id, variant, mealIndex, mealIndex + delta)
+                }
+                onDuplicateMeal={() => duplicateMeal(activeClient.id, variant, mealIndex)}
+                onDuplicateOption={(optIndex) =>
+                  duplicateOption(activeClient.id, variant, mealIndex, optIndex)
+                }
+                onMoveFood={(optIndex, from, to) =>
+                  moveFood(activeClient.id, variant, mealIndex, optIndex, from, to)
+                }
                 onRenameMeal={(name) => updateMealName(activeClient.id, variant, mealIndex, name)}
                 onRemoveMeal={() => removeMeal(activeClient.id, variant, mealIndex)}
                 onAddOption={() => addMealOption(activeClient.id, variant, mealIndex)}

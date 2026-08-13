@@ -134,6 +134,66 @@ export const buildFoodEntry = (food, grams = null) => {
   };
 };
 
+// ── Reordenar y duplicar ───────────────────────────────────────────────────
+
+/**
+ * Mueve un elemento de una lista a otra posición. Devuelve una lista nueva.
+ *
+ * ── Por qué está aquí y no repetido en cada acción ─────────────────────────
+ * Porque hacen falta tres —comidas, alimentos y, si algún día se ordenan, las
+ * alternativas— y la operación es idéntica. Es además la misma que `moveExercise`
+ * hace sobre la rutina: el orden importa en las dos pantallas por el mismo
+ * motivo, que es que la gente come y entrena EN UN ORDEN.
+ *
+ * Los índices fuera de rango devuelven la lista tal cual en vez de reventar: al
+ * arrastrar, el índice de destino puede pasarse por uno al soltar en el borde.
+ */
+export const moveItem = (list, fromIndex, toIndex) => {
+  const items = [...(list || [])];
+  if (fromIndex === toIndex || fromIndex < 0 || fromIndex >= items.length) return items;
+  const [moved] = items.splice(fromIndex, 1);
+  items.splice(Math.max(0, Math.min(items.length, toIndex)), 0, moved);
+  return items;
+};
+
+/**
+ * Copia una opción con identificadores NUEVOS.
+ *
+ * ── Por qué se regeneran los identificadores ───────────────────────────────
+ * Porque si no, los dos alimentos copiados comparten `id` con los originales, y
+ * `updateFoodGrams` busca por identificador: escribir 150 g en la alternativa B
+ * los escribiría también en la A. React además usa esos `id` como `key`, así que
+ * duplicados hacen que la lista se repinte mal.
+ *
+ * Es el mismo motivo por el que la rutina tiene `reidExercises`.
+ */
+export const cloneOption = (option) => ({
+  id: newId('opt'),
+  foods: (option?.foods || []).map((food) => ({ ...food, id: newId('food') })),
+});
+
+/**
+ * Copia una comida entera, con todas sus alternativas.
+ *
+ * ── Por qué el nombre se marca, y cuándo no ────────────────────────────────
+ * Duplicando DENTRO del mismo día, «(copia)» es necesario: dos comidas con el
+ * mismo nombre en la misma lista son indistinguibles y el entrenador acaba
+ * editando la que no era. Que salga marcada obliga a renombrarla, que es lo que
+ * iba a hacer igualmente.
+ *
+ * Copiando a la OTRA variante —de días de entreno a días de descanso— no hay tal
+ * ambigüedad: son dos listas distintas y «Desayuno» debe seguir llamándose
+ * «Desayuno». De ahí `rename`.
+ */
+export const cloneMeal = (meal, { rename = true } = {}) => ({
+  id: newId('meal'),
+  name: rename ? `${meal?.name || 'Comida'} (copia)` : meal?.name || 'Comida',
+  options: (meal?.options || []).map(cloneOption),
+});
+
+/** Un día entero de comidas, copiado tal cual y con identificadores nuevos. */
+export const cloneMeals = (meals) => (meals || []).map((meal) => cloneMeal(meal, { rename: false }));
+
 // ── Unidades ───────────────────────────────────────────────────────────────
 //
 // Los gramos son la verdad y la unidad es una lente encima (ver la migración

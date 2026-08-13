@@ -7,6 +7,7 @@ import {
   Gauge,
   Layers,
   LayoutGrid,
+  LifeBuoy,
   Plug,
   Ruler,
   Palette,
@@ -127,6 +128,20 @@ export const SETTINGS_SECTIONS = [
     label: 'Plan',
     icon: CreditCard,
     hint: 'Tu suscripción y hasta dónde llega',
+  },
+  /*
+    Ayuda va la última y dentro de Ajustes, no en el nivel primario.
+
+    No porque importe poco —es lo que evita que alguien atascado se vaya— sino
+    porque se busca cuando hace falta y no se visita a diario. El nivel primario
+    son tres entradas a propósito (Hoy, Cartera, Clientes) y meter aquí una cuarta
+    que se usa una vez al mes le quitaría sitio a las que se usan cada día.
+  */
+  {
+    path: 'ayuda',
+    label: 'Ayuda',
+    icon: LifeBuoy,
+    hint: 'Escríbenos y sigue tus conversaciones',
   },
 ];
 

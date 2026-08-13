@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFoodEntry,
+  cloneMeal,
+  cloneMeals,
+  cloneOption,
   displayAsUnits,
   foodMacros,
   foodUnits,
   gramsFromUnits,
   hasUnits,
+  moveItem,
   unitsLabel,
 } from './nutrition';
 
@@ -92,6 +96,109 @@ describe('hasUnits', () => {
     [null, false, 'sin alimento'],
   ])('%#: %s', (entry, expected) => {
     expect(hasUnits(entry)).toBe(expected);
+  });
+});
+
+describe('moveItem', () => {
+  const lista = ['a', 'b', 'c', 'd'];
+
+  it.each([
+    [0, 1, ['b', 'a', 'c', 'd'], 'baja uno'],
+    [3, 0, ['d', 'a', 'b', 'c'], 'sube del final al principio'],
+    [2, 1, ['a', 'c', 'b', 'd'], 'sube uno'],
+  ])('%s → %s: %s', (from, to, expected) => {
+    expect(moveItem(lista, from, to)).toEqual(expected);
+  });
+
+  it('no muta la lista original', () => {
+    moveItem(lista, 0, 3);
+    expect(lista).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  /*
+    Al arrastrar, el índice de destino puede pasarse por uno al soltar en el
+    borde. Reventar ahí perdería la dieta entera por un píxel.
+  */
+  it.each([
+    [0, 0],
+    [-1, 2],
+    [9, 0],
+    [0, 99],
+  ])('índices raros (%s → %s) no rompen nada', (from, to) => {
+    expect(moveItem(lista, from, to)).toHaveLength(4);
+  });
+});
+
+describe('cloneOption y cloneMeal', () => {
+  const opcion = {
+    id: 'opt-1',
+    foods: [
+      { id: 'f1', name: 'Arroz', grams: 80 },
+      { id: 'f2', name: 'Pollo', grams: 150 },
+    ],
+  };
+
+  /*
+    El motivo de que exista `cloneOption`. Sin identificadores nuevos, los
+    alimentos copiados COMPARTEN `id` con los originales, y `updateFoodGrams`
+    busca por identificador: escribir 150 g en la alternativa B los escribiría
+    también en la A, y nadie lo notaría hasta que las cuentas no cuadren.
+  */
+  it('regenera los identificadores de la opción y de sus alimentos', () => {
+    const copia = cloneOption(opcion);
+    expect(copia.id).not.toBe(opcion.id);
+    expect(copia.foods.map((f) => f.id)).not.toEqual(['f1', 'f2']);
+    expect(new Set(copia.foods.map((f) => f.id)).size).toBe(2);
+  });
+
+  it('conserva todo lo demás del alimento', () => {
+    const [arroz] = cloneOption(opcion).foods;
+    expect(arroz.name).toBe('Arroz');
+    expect(arroz.grams).toBe(80);
+  });
+
+  it('no toca el original', () => {
+    cloneOption(opcion);
+    expect(opcion.foods.map((f) => f.id)).toEqual(['f1', 'f2']);
+  });
+
+  it('una opción vacía se copia vacía, sin explotar', () => {
+    expect(cloneOption({ id: 'x' }).foods).toEqual([]);
+    expect(cloneOption(null).foods).toEqual([]);
+  });
+
+  it('la comida copiada se marca en el nombre', () => {
+    const copia = cloneMeal({ id: 'm1', name: 'Desayuno', options: [opcion] });
+    expect(copia.name).toBe('Desayuno (copia)');
+    expect(copia.id).not.toBe('m1');
+  });
+
+  it('la comida copiada trae todas sus alternativas, con ids nuevos', () => {
+    const copia = cloneMeal({ name: 'Cena', options: [opcion, opcion] });
+    expect(copia.options).toHaveLength(2);
+    expect(copia.options[0].id).not.toBe(copia.options[1].id);
+  });
+
+  /*
+    Copiando a la OTRA variante —de días de entreno a días de descanso— no hay
+    ambigüedad de nombres: son dos listas distintas y «Desayuno» tiene que seguir
+    llamándose «Desayuno». Marcarlo con «(copia)» ahí obligaría a renombrar seis
+    comidas a mano cada vez.
+  */
+  it('cloneMeals conserva los nombres tal cual', () => {
+    const dia = [
+      { id: 'm1', name: 'Desayuno', options: [opcion] },
+      { id: 'm2', name: 'Comida', options: [opcion] },
+    ];
+    const copia = cloneMeals(dia);
+
+    expect(copia.map((m) => m.name)).toEqual(['Desayuno', 'Comida']);
+    expect(copia.map((m) => m.id)).not.toEqual(['m1', 'm2']);
+  });
+
+  it('cloneMeals de un día vacío no explota', () => {
+    expect(cloneMeals([])).toEqual([]);
+    expect(cloneMeals(undefined)).toEqual([]);
   });
 });
 

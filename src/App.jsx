@@ -36,6 +36,7 @@ const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/Protoc
 const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
 const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
 const PlanPanel = lazyRoute(() => import('@/components/Coach/Settings/PlanPanel').then((m) => ({ default: m.PlanPanel })));
+const SupportPanel = lazyRoute(() => import('@/components/Coach/Settings/SupportPanel').then((m) => ({ default: m.SupportPanel })));
 const WorkoutLogEditor = lazyRoute(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
 const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
 const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
@@ -212,6 +213,7 @@ export default function App() {
                   <Route path="copia" element={<BackupPanel />} />
                   <Route path="equipo" element={<TeamPanel />} />
                   <Route path="plan" element={<PlanPanel />} />
+                  <Route path="ayuda" element={<SupportPanel />} />
                 </Route>
 
                 <Route path="c/:clientId">

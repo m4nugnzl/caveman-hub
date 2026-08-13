@@ -195,6 +195,7 @@ export const WorkoutLogEditor = () => {
           weekCount={microcycles.length}
           hasProgram={microcycles.length > 0}
           hasDiet={Boolean(nutrition[activeClient.id])}
+          hasWarmup={(program?.mobilityDrills || []).length > 0}
           onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
           onClose={() => setCopyOpen(false)}
         />
