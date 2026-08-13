@@ -50,6 +50,7 @@ import { COACH_HOME, CLIENT_HOME, RESET_PATH } from '@/routes';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
+import { PlanNotice } from '@/components/PlanNotice';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
 
@@ -137,6 +138,11 @@ export default function App() {
             <Notice tone="error">{loadError}</Notice>
           </div>
         )}
+
+        {/* El estado del plan, cuando tiene algo que decir. Va aquí y no en la
+            pantalla de Ajustes porque nadie entra en Ajustes: la prueba se
+            acababa sin que el entrenador hubiera visto un solo aviso. */}
+        <PlanNotice />
 
         {/*
           Conflicto de escritura: alguien ha tocado los mismos datos mientras
