@@ -120,6 +120,17 @@ export const AppProvider = ({ children }) => {
   const [serverSummaries, setServerSummaries] = useState({});
   const [legacyPending, setLegacyPending] = useState(false);
 
+  /*
+    El plan, accesible desde funciones que no deben depender de él.
+
+    `upsertClientRow` necesita saber si la suscripción está activa para explicar
+    un rechazo de escritura, pero meterlo en sus dependencias recrearía media
+    cadena de guardado cada vez que se relee el plan. Un espejo en un ref da el
+    valor de siempre sin arrastrar a nadie.
+  */
+  const planRef = useRef(null);
+  planRef.current = plan;
+
   /** Último check-in por cliente. Vacío si la migración 0009 no está aplicada. */
   const [checkIns, setCheckIns] = useState({});
 
@@ -307,6 +318,34 @@ export const AppProvider = ({ children }) => {
       if (current.error) return current;
 
       if (current.data) {
+        /*
+          ── ¿Conflicto, o escritura RECHAZADA? ────────────────────────────────
+          Las dos dan cero filas y hasta ahora se trataban igual, así que una
+          suscripción caducada —que hace que RLS rechace el UPDATE— se anunciaba
+          como «alguien ha cambiado estos datos mientras editabas». Mentira, y de
+          las que hacen perder una tarde buscando a ese alguien.
+
+          Se distinguen sin preguntar nada a nadie: si la versión que hay en el
+          servidor es EXACTAMENTE la que leímos, nadie ha tocado la fila. El
+          UPDATE llevaba esa misma condición, así que habría casado; si no casó,
+          fue la política la que lo rechazó, no la versión.
+
+          Sin `seen` es lo mismo: el UPDATE iba sin condición de versión, así que
+          cero filas sobre una fila que existe solo puede ser un rechazo.
+        */
+        const rechazado = !seen || current.data.updated_at === seen;
+
+        if (rechazado) {
+          return {
+            error: {
+              message:
+                planRef.current && planRef.current.activo === false
+                  ? 'Tu suscripción no está activa, así que no se pueden guardar cambios. Lo que ya tienes sigue visible y puedes descargar tu copia.'
+                  : 'No tienes permiso para guardar en esta ficha.',
+            },
+          };
+        }
+
         /*
           La fila existe y su versión no es la nuestra: alguien ha escrito en
           medio. Se devuelve como error para que la cola lo trate como tal —el

@@ -206,27 +206,35 @@ para que el límite fuera legítimo: sin ello, la única forma de bajar del tope
 borrar a alguien con su historial. Ahora `clients.status` se usa de verdad, el
 archivado no cuenta para el plan, no aparece en la cartera y conserva todo lo suyo.
 
-### 3.4 Impago: solo lectura, nunca borrado — **A MEDIAS, y a propósito**
+### 3.4 Impago: solo lectura, nunca borrado — **HECHO (0027)**
 
-Implementado: `past_due` y `canceled` impiden **dar de alta** clientes. Lo que ya
-existe se sigue leyendo, editando y exportando.
+La `0019` bloqueaba solo el alta de clientes, y eso dejaba un agujero de negocio:
+como la prueba permite tres, con tres clientes se podía usar la aplicación entera
+—programar, montar dietas, ampliar la biblioteca— indefinidamente y gratis. Un
+periodo de prueba que no termina no es un periodo de prueba.
 
-Lo que falta es congelar también la escritura, y no lo he hecho por dos razones
-que conviene decidir antes de tocarlo:
+La `0027` lo cierra por RLS, con tres decisiones deliberadas:
 
-1. Obliga a que **cada política de escritura de cada tabla** consulte la
-   suscripción. Es la clase de cambio que, si se equivoca, deja fuera a gente que
-   sí paga.
-2. Un fallo de Stripe, un webhook perdido o una tarjeta que caduca un domingo
-   dejarían a un entrenador sin poder trabajar con sus clientes. Bloquear el
-   crecimiento presiona igual y no rompe el trabajo en curso.
+- **Leer, exportar y borrar nunca se bloquean.** Los datos son del entrenador y de
+  sus clientes; no se retienen como rehenes. Y el borrado menos aún: es una
+  obligación legal suya, no un favor que dependa de tener un recibo al día.
+- **Los clientes no se enteran.** Sus escrituras van por las funciones de la
+  `0014` y la `0016`, no por estas políticas. Que su entrenador deje de pagar no
+  puede impedirle a una persona registrar su propio peso: no es ella quien debe.
+- **`past_due` sigue permitiendo trabajar.** Un webhook perdido o una tarjeta que
+  caduca un domingo dejarían sin trabajar a alguien que sí paga, y eso es peor que
+  cobrar dos días tarde. Bloquear el crecimiento ya presiona. Cambiar de idea es
+  quitar una palabra de `team_write_allowed`.
 
-Va en su propia migración, si se decide que hace falta.
+Y una consecuencia en la aplicación que había que resolver aparte: RLS rechaza la
+fila sin mensaje, así que un guardado bloqueado llegaba a `upsertClientRow` como
+cero filas afectadas —lo mismo que un conflicto de edición— y se anunciaba como
+**«alguien ha cambiado estos datos mientras editabas»**. Mentira, y de las que
+hacen perder una tarde buscando a ese alguien.
 
-`past_due` deja el equipo en modo lectura, con aviso y enlace al portal de
-Stripe. Los datos de sus clientes siguen siendo legibles y exportables **siempre**.
-Borrar datos de salud por un recibo devuelto es, además de una faena, un problema
-legal.
+Se distinguen sin preguntar nada: si la versión del servidor es exactamente la que
+se leyó, nadie tocó la fila y el `UPDATE` habría casado; si no casó, lo rechazó la
+política. Ahora dice lo que pasa.
 
 ### 3.5 Detalle de infraestructura: Checkout alojado
 
