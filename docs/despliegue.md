@@ -198,12 +198,16 @@ Ajustes del build, valgan cual valga el camino:
    VITE_SUPABASE_ANON_KEY
    ```
 
-   > ⚠️ **«Del build» no es un matiz.** Cloudflare distingue las variables que ve
-   > el comando de compilación de las que ve el Worker al ejecutarse, y aquí solo
-   > sirven las primeras: Vite **incrusta** estos valores en los archivos al
-   > compilar, y después ya no lee nada del entorno. Puestas como variables del
-   > Worker no llegan al build, y el resultado es una aplicación desplegada que
-   > falla en la consola con:
+   > ⚠️ **«Del build» no es un matiz, y son dos pantallas distintas.**
+   >
+   > | Dónde | Qué es | ¿Sirve aquí? |
+   > |---|---|---|
+   > | *Settings → Build → **Build Variables and Secrets*** | Las ve el comando de compilación | **Sí** |
+   > | *Settings → **Variables and Secrets*** | Las ve el Worker al ejecutarse | No |
+   >
+   > Vite **incrusta** estos valores en los archivos al compilar y después ya no
+   > lee nada del entorno, así que puestas en la segunda no llegan al build. El
+   > resultado es una aplicación desplegada que falla en la consola con:
    >
    > ```
    > Faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY en tu .env
