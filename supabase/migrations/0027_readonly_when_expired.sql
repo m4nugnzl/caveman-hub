@@ -38,7 +38,13 @@ BEGIN
   IF to_regclass('public.team_subscriptions') IS NULL THEN
     RAISE EXCEPTION 'Falta 0019_billing.sql: sin suscripciones no hay nada que comprobar.';
   END IF;
-  IF to_regproc('public.can_write_client(uuid)') IS NULL THEN
+  /*
+    `to_regprocedure` y no `to_regproc`: el primero entiende la firma con sus
+    argumentos, el segundo solo el nombre a secas y devuelve NULL en cuanto ve un
+    paréntesis. Con el equivocado, esta guarda saltaba siempre —incluso con la
+    0006 aplicada— y acusaba de faltar a una migración que estaba puesta.
+  */
+  IF to_regprocedure('public.can_write_client(uuid)') IS NULL THEN
     RAISE EXCEPTION 'Falta 0006_teams.sql: `can_write_client` es la puerta que esta migración estrecha.';
   END IF;
 END $$;
