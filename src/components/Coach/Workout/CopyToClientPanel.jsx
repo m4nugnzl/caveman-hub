@@ -60,7 +60,7 @@ export const CopyToClientPanel = ({
     });
     if (!ok) return;
 
-    const done = onReplicate(sourceId, { training, diet });
+    const done = await onReplicate(sourceId, { training, diet });
     const copied = [done.training && 'entrenamiento', done.diet && 'dieta'].filter(Boolean);
 
     setResult(

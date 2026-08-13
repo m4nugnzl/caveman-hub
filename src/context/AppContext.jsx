@@ -19,6 +19,7 @@ import {
   mapPhotoFromDb,
   mapPhotoToDb,
   mapPlanFromDb,
+  mapTrainingSummaryFromDb,
   mapWorkoutFromDb,
   mapWorkoutToDb,
 } from '@/lib/mappers';
@@ -44,7 +45,13 @@ import {
 } from '@/domain/nutrition';
 import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
 import { isArchived } from '@/domain/portfolio';
-import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessions';
+import {
+  buildSessionFromPlan,
+  normalizeMicrocycles,
+  sessionsOf,
+  trainingSummary,
+  withSessionSet,
+} from '@/domain/sessions';
 
 const AppContext = createContext(null);
 
@@ -103,6 +110,15 @@ export const AppProvider = ({ children }) => {
   const [team, setTeam] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [plan, setPlan] = useState(null);
+
+  /*
+    El resumen de entrenamiento que calcula el servidor (migración 0024), por
+    cliente. Vacío significa «no hay resumen»: o falta la migración, o algún
+    cliente conserva registros del formato antiguo. En los dos casos se ha cargado
+    el programa completo y `training` sale de ahí.
+  */
+  const [serverSummaries, setServerSummaries] = useState({});
+  const [legacyPending, setLegacyPending] = useState(false);
 
   /** Último check-in por cliente. Vacío si la migración 0009 no está aplicada. */
   const [checkIns, setCheckIns] = useState({});
@@ -618,8 +634,39 @@ export const AppProvider = ({ children }) => {
         return;
       }
 
+      /*
+        ── El resumen, y por qué puede no usarse ─────────────────────────────
+        `training_summaries` (migración 0024) devuelve por cliente lo que la
+        cartera y «Hoy» necesitan, en kilobytes en vez de megas. Con él, el
+        programa completo solo se descarga del cliente que se abre.
+
+        Dos motivos para NO usarlo, y los dos acaban en la carga de siempre:
+
+          · la migración no está aplicada — la función no existe;
+          · algún cliente conserva registros del formato antiguo (`has_legacy`).
+            Esos kilos viven dentro del plan y el resumen no los ve, así que
+            usarlo diría «40 días sin entrenar» de alguien que entrenó ayer.
+            Cargar de más es un problema de velocidad; enseñar una alerta falsa
+            es un problema de confianza.
+
+        Es un todo o nada por entrenador: media cartera resumida y media completa
+        sería la peor versión de las dos.
+      */
+      let resumenes = null;
+      if (role === 'coach') {
+        const res = await supabase.rpc('training_summaries');
+        if (!isStale() && !res.error && Array.isArray(res.data)) {
+          const conHeredados = res.data.some((row) => row.has_legacy);
+          if (!conHeredados) resumenes = res.data.map(mapTrainingSummaryFromDb);
+          else setLegacyPending(true);
+        }
+      }
+
       const [wd, anthro, nutri, photos] = await Promise.all([
-        supabase.from('workout_data').select('*').in('client_id', ids),
+        // Con resumen no se piden los programas: es la descarga que sobra.
+        resumenes
+          ? Promise.resolve({ data: [], error: null })
+          : supabase.from('workout_data').select('*').in('client_id', ids),
         supabase.from('anthropometry').select('*').in('client_id', ids),
         supabase.from('nutrition_plans').select('*').in('client_id', ids),
         // `progress_photos` no tiene columna `date`; la fecha es `created_at`.
@@ -656,6 +703,9 @@ export const AppProvider = ({ children }) => {
 
       setWorkoutData(
         Object.fromEntries((wd.data || []).map((r) => [r.client_id, mapWorkoutFromDb(r)]))
+      );
+      setServerSummaries(
+        resumenes ? Object.fromEntries(resumenes.map((r) => [r.clientId, r])) : {}
       );
       setAnthropometry(
         Object.fromEntries((anthro.data || []).map((r) => [r.client_id, mapAnthroFromDb(r)]))
@@ -787,6 +837,27 @@ export const AppProvider = ({ children }) => {
     completo se expone aparte, para las tres cosas que sí lo necesitan: la lista
     de clientes, la copia de seguridad y resolver la ficha que pide la URL.
   */
+  /**
+   * El resumen de entrenamiento de cada cliente, venga de donde venga.
+   *
+   * ── Por qué el programa cargado MANDA sobre el resumen del servidor ─────────
+   * Porque es más reciente. El resumen se calculó al arrancar; el programa que hay
+   * en memoria incluye la serie que el entrenador acaba de anotar hace diez
+   * segundos. Si el resumen ganara, «Hoy» no enseñaría el entreno que se está
+   * registrando en la pestaña de al lado.
+   *
+   * Y por eso mismo la mezcla es por cliente y no una elección global: del que
+   * está abierto se tiene el programa entero, del resto el resumen, y la cartera
+   * los trata igual sin saber cuál es cuál.
+   */
+  const training = useMemo(() => {
+    const out = { ...serverSummaries };
+    for (const [clientId, program] of Object.entries(workoutData)) {
+      out[clientId] = trainingSummary(program);
+    }
+    return out;
+  }, [serverSummaries, workoutData]);
+
   const visibleClients = useMemo(() => clients.filter((c) => !isArchived(c)), [clients]);
   const archivedClients = useMemo(() => clients.filter(isArchived), [clients]);
 
@@ -819,6 +890,60 @@ export const AppProvider = ({ children }) => {
    *   tecleo suyo lanzaría además un upsert que la base de datos rechazaría, y el
    *   indicador de guardado mostraría un error por cada letra.
    */
+  /**
+   * Trae el programa completo de un cliente si todavía no está en memoria.
+   *
+   * ── Por qué hace falta y por qué es delicado ────────────────────────────────
+   * Con el resumen (0024), al arrancar no se descarga el programa de nadie. Eso
+   * está bien para pintar la cartera y mal para todo lo demás: en cuanto se abre
+   * un cliente, o se copia el programa de otro, hacen falta los datos de verdad.
+   *
+   * Y no es solo que falten: `applyWorkout` cae en `emptyWorkoutData()` cuando no
+   * encuentra al cliente, así que escribir sobre alguien sin cargar **sustituiría
+   * su programa por uno vacío**. Por eso todo lo que escriba o lea el programa de
+   * un cliente que no sea el abierto tiene que pasar por aquí primero.
+   *
+   * Devuelve el programa, o `null` si ese cliente no tiene fila todavía.
+   */
+  const ensureProgram = useCallback(
+    async (clientId) => {
+      if (!clientId) return null;
+      if (workoutRef.current[clientId]) return workoutRef.current[clientId];
+
+      const { data, error } = await supabase
+        .from('workout_data')
+        .select('*')
+        .eq('client_id', clientId)
+        .maybeSingle();
+
+      if (error || !data) return null;
+
+      // La versión leída, para que la primera escritura no vaya sin guardia.
+      rememberVersion('workout_data', clientId, data.updated_at);
+
+      const mapped = mapWorkoutFromDb(data);
+      setWorkoutData({ ...workoutRef.current, [clientId]: mapped });
+      return mapped;
+    },
+    [rememberVersion, setWorkoutData, workoutRef]
+  );
+
+  /*
+    El programa del cliente que se está mirando.
+
+    Es la otra mitad de la carga perezosa: el arranque trae el resumen de todos y
+    esto trae el detalle del que se abre. Con la carga completa no hace nada —ya
+    está en memoria—, así que el efecto vale para los dos modos sin condicionales.
+
+    Va aquí, justo detrás de `ensureProgram`, y no arriba con el resto del estado
+    derivado: las dependencias de un efecto se evalúan al RENDERIZAR, así que
+    nombrar una función declarada más abajo revienta con «Cannot access before
+    initialization» antes de que el efecto llegue a ejecutarse nunca.
+  */
+  useEffect(() => {
+    if (selectedClientId) ensureProgram(selectedClientId);
+  }, [selectedClientId, ensureProgram]);
+
   const applyWorkout = useCallback(
     (clientId, updater, { immediate = true, skipPersist = false } = {}) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
@@ -1583,11 +1708,20 @@ export const AppProvider = ({ children }) => {
    * ejecutó, y no tienen ningún sentido en la ficha de un cliente distinto.
    */
   const replicateClient = useCallback(
-    (sourceClientId, targetClientId, { training = false, diet = false } = {}) => {
+    async (sourceClientId, targetClientId, { training = false, diet = false } = {}) => {
       const result = { training: false, diet: false };
       if (sourceClientId === targetClientId) return result;
 
       if (training) {
+        /*
+          El programa del ORIGEN, traído si no estaba.
+
+          Con la carga perezosa, de los clientes que no se han abierto solo hay
+          resumen. Sin esto, copiar de uno de ellos leería `undefined`, se saldría
+          por el `if` de abajo y diría «no había nada que copiar» de alguien que
+          tiene doce semanas programadas.
+        */
+        await ensureProgram(sourceClientId);
         const source = workoutRef.current[sourceClientId];
         const sourceClient = clientsRef.current.find((c) => c.id === sourceClientId);
 
@@ -1636,7 +1770,7 @@ export const AppProvider = ({ children }) => {
 
       return result;
     },
-    [applyWorkout, clientsRef, nutritionRef, persist, setClients, setNutrition, workoutRef]
+    [applyWorkout, clientsRef, ensureProgram, nutritionRef, persist, setClients, setNutrition, workoutRef]
   );
 
   // ── Nutrición ────────────────────────────────────────────────────────────
@@ -2091,6 +2225,53 @@ export const AppProvider = ({ children }) => {
       persist('client', clientId, merged, { immediate });
     },
     [clientsRef, persist, setClients]
+  );
+
+  /**
+   * Convierte los registros heredados de TODA la cartera en sesiones con fecha.
+   *
+   * ── Por qué es una operación aparte y no algo que pase solo ─────────────────
+   * Porque reescribe el programa completo de cada cliente. Es la única escritura
+   * de la aplicación que toca a todos a la vez, así que se pide a mano, se puede
+   * ensayar sin escribir (`apply: false`) y avisa de que antes hay que bajarse una
+   * copia. La regla la aplica `normalizeMicrocycles`, que está probada aparte —lo
+   * que se comprueba ahí es que el tonelaje es idéntico antes y después—.
+   *
+   * ── Por qué escribe una por una y esperando ─────────────────────────────────
+   * La cola de guardado está pensada para tecleo: agrupa, rebota y no dice cuándo
+   * terminó. Aquí hace falta lo contrario —saber de cada cliente si se guardó— y
+   * `upsertClientRow` además comprueba que nadie haya escrito en medio, que en una
+   * migración de datos es justo lo que no se puede pasar por alto.
+   */
+  const normalizeLegacySessions = useCallback(
+    async ({ apply = false } = {}) => {
+      const report = { clients: 0, converted: 0, skipped: 0, failed: [] };
+
+      for (const client of clientsRef.current) {
+        const current = workoutRef.current[client.id];
+        if (!current) continue;
+
+        const { microcycles, converted, skipped } = normalizeMicrocycles(current.microcycles || []);
+        report.skipped += skipped;
+        if (converted === 0) continue;
+
+        report.clients += 1;
+        report.converted += converted;
+        if (!apply) continue;
+
+        const next = { ...current, microcycles };
+        const result = await upsertClientRow('workout_data', client.id, mapWorkoutToDb(client.id, next));
+
+        if (result.error) {
+          report.failed.push(`${client.name}: ${result.error.message}`);
+          continue;
+        }
+        setWorkoutData({ ...workoutRef.current, [client.id]: next });
+      }
+
+      return report;
+    },
+    [clientsRef, setWorkoutData, upsertClientRow, workoutRef]
   );
 
   /**
@@ -3004,6 +3185,9 @@ export const AppProvider = ({ children }) => {
       selectedClientId,
       setSelectedClientId,
       workoutData,
+      training,
+      legacyPending,
+      ensureProgram,
       anthropometry,
       nutrition,
       progressPhotos,
@@ -3081,6 +3265,7 @@ export const AppProvider = ({ children }) => {
       updateClientPreferences,
       exportClientData,
       exportAllData,
+      normalizeLegacySessions,
       loadAuditLog,
       deleteClientCompletely,
 
@@ -3128,7 +3313,7 @@ export const AppProvider = ({ children }) => {
     }),
     [
       session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
-      clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, anthropometry, nutrition,
+      clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, training, legacyPending, ensureProgram, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
@@ -3141,7 +3326,7 @@ export const AppProvider = ({ children }) => {
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,
-      addClient, updateClient, setClientArchived, updateClientPreferences, exportClientData, exportAllData, loadAuditLog, deleteClientCompletely,
+      addClient, updateClient, setClientArchived, updateClientPreferences, exportClientData, exportAllData, normalizeLegacySessions, loadAuditLog, deleteClientCompletely,
       reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
       uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink,
       checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent, team, teamMembers, plan, refreshPlan, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,

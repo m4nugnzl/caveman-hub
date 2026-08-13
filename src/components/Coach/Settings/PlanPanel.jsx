@@ -233,8 +233,18 @@ export const PlanPanel = () => {
         </p>
       )}
 
-      {/* ── Facturación ──────────────────────────────────────────────────── */}
-      {esDueno && plan.status !== 'trialing' && (
+      {/*
+        ── Facturación ────────────────────────────────────────────────────
+        Solo si hay cliente de Stripe. Antes la condición era «no está en
+        prueba», y eso ofrecía el botón a equipos activos sin relación con
+        Stripe —los injertados como `fundador`, por ejemplo—, que al pulsarlo
+        recibían «todavía no hay ninguna suscripción que gestionar». Un botón que
+        no debería haberse ofrecido enseña a desconfiar de la pantalla.
+
+        `conFacturacion` es `null` mientras falte la 0026: entonces se usa el
+        criterio viejo, que es lo que había.
+      */}
+      {esDueno && (plan.conFacturacion ?? plan.status !== 'trialing') && (
         <Panel className="row between wrap gap-3">
           <div className="row gap-3">
             <span className="day-icon">

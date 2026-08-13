@@ -123,13 +123,20 @@ de Stripe en orden):
 
 ```bash
 npx supabase functions deploy billing-checkout
-npx supabase functions deploy billing-webhook --no-verify-jwt
+npx supabase functions deploy billing-webhook
 ```
 
-`--no-verify-jwt` **solo en el webhook**: lo llama Stripe, que no tiene sesión de
-Supabase, y lo que autentica ahí es la firma HMAC. En `billing-checkout` es al
-revés —de su token sale quién paga y a nombre de qué equipo—, así que la
-verificación es imprescindible.
+Sin banderas: `supabase/config.toml` declara las dos con `verify_jwt = false` y
+explica por qué **las dos**. El webhook lo llama Stripe, que no tiene sesión de
+Supabase. Y a `billing-checkout` la llama el navegador, que manda antes un
+preflight `OPTIONS` sin cabeceras propias: con la comprobación en la pasarela, ese
+preflight se rechaza con un 401 y el navegador lo enseña como un error de CORS que
+no tiene nada que ver con CORS. Es el mismo caso que ya documenta
+`notion-payments`.
+
+Ninguna de las dos queda abierta: cada una comprueba su propia autorización, y la
+de `billing-checkout` es más estricta que la de la pasarela —exige sesión válida
+**y** ser el dueño del equipo—.
 
 > ⚠️ Las funciones `billing-*` usan la clave **completa** de Stripe, la que puede
 > cobrar. No confundirla con la de la integración de Ajustes, que es la del

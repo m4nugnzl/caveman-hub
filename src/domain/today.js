@@ -42,7 +42,7 @@
  */
 
 import { daysBetween, todayISO, toISODate } from '@/lib/dates';
-import { allSessions, isSetLogged, sessionTonnage } from './sessions';
+import { isSetLogged, sessionTonnage } from './sessions';
 
 /**
  * Los cuatro tipos de actividad, con el color del dato al que pertenecen y la
@@ -93,12 +93,21 @@ const loggedSetCount = (session) => {
  * empujan al resto de la cartera fuera de la pantalla. Lo mismo con las series de
  * una sesión: doce series registradas son un entreno.
  */
-const clientEvents = ({ client, program, anthro, photos, checkIn }, today, days) => {
+const clientEvents = ({ client, training, anthro, photos, checkIn }, today, days) => {
   const out = [];
   const push = (event) => out.push({ clientId: client.id, clientName: client.name, ...event });
 
-  // ── Entrenos ──────────────────────────────────────────────────────────────
-  for (const session of allSessions(program?.microcycles || [])) {
+  /*
+    ── Entrenos ──────────────────────────────────────────────────────────────
+    De `recentSessions`, que ya viene acotado a los últimos días. Antes esto
+    recorría el programa ENTERO de cada cliente para quedarse con los dos últimos
+    entrenos, lo que obligaba a tenerlo descargado (`auditoria.md` 1.5).
+
+    Las sesiones que llegan son las mismas de siempre, con sus entradas completas:
+    el tonelaje y las series se siguen calculando aquí, con las mismas funciones.
+    Lo que cambia es cuántas hay que traer, no cómo se leen.
+  */
+  for (const session of training?.recentSessions || []) {
     if (!inWindow(session.date, today, days)) continue;
     const sets = loggedSetCount(session);
     if (sets === 0) continue;
@@ -173,7 +182,7 @@ const clientEvents = ({ client, program, anthro, photos, checkIn }, today, days)
  * cuando no ha pasado nada.
  */
 export const buildActivity = (
-  { clients = [], workoutData = {}, anthropometry = {}, progressPhotos = [], checkIns = {} },
+  { clients = [], training = {}, anthropometry = {}, progressPhotos = [], checkIns = {} },
   today = todayISO(),
   days = DEFAULT_WINDOW
 ) => {
@@ -187,7 +196,7 @@ export const buildActivity = (
     clientEvents(
       {
         client,
-        program: workoutData[client.id],
+        training: training[client.id],
         anthro: anthropometry[client.id],
         photos: photosByClient.get(client.id) || [],
         checkIn: checkIns[client.id] || null,

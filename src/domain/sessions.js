@@ -124,6 +124,149 @@ export const legacySession = (day, microcycle) => {
 };
 
 /**
+ * Lo que la CARTERA necesita saber del entrenamiento de un cliente.
+ *
+ * ══ Por qué existe esta forma ══════════════════════════════════════════════
+ *
+ * La cartera y «Hoy» hablan de veinte clientes a la vez, y para eso no hace falta
+ * su programa entero: hace falta cuándo entrenó por última vez, cuántas sesiones
+ * lleva, cuántas semanas tiene programadas, y las sesiones de los últimos días
+ * —esas sí completas, porque «Hoy» dice cuántas series y cuántos kilos—.
+ *
+ * Un año de programa son varios MB por cliente; esto son unos kilobytes. Es lo que
+ * permite que el arranque deje de descargar la cartera entera (`auditoria.md` 1.5).
+ *
+ * ══ Por qué es una función y no un formato que arme cada uno ═══════════════
+ *
+ * Porque hay DOS sitios que producen esta forma: el servidor, que la calcula para
+ * los veinte clientes a la vez, y esta función, que la deriva del programa
+ * completo cuando ya está cargado. Que los dos caminos den lo mismo es la
+ * condición para que la cartera no cambie según de dónde vengan los datos, y
+ * teniendo la forma definida aquí se puede comprobar con una prueba.
+ *
+ * @param {{ microcycles?: import('@/types').Microcycle[] }} program
+ * @param {{ today?: string, days?: number }} ventana
+ */
+export const trainingSummary = (program, { today = todayISO(), days = 21 } = {}) => {
+  const microcycles = program?.microcycles || [];
+  const sessions = allSessions(microcycles);
+
+  const desde = new Date(Date.parse(`${today}T00:00:00Z`) - days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+  return {
+    microcycleCount: microcycles.length,
+    sessionCount: sessions.length,
+    /*
+      La última de todas, tenga la edad que tenga: la alerta «X días sin entrenar»
+      es justamente la que salta cuando la fecha se sale de cualquier ventana.
+
+      Se busca el máximo entre las que TIENEN fecha en lugar de coger la última de
+      la lista: una sesión heredada de un microciclo sin fecha ordena al final
+      —`String(null)` es «null», que va después de cualquier año— y dejaría el
+      último entreno en blanco teniendo veinte sesiones fechadas delante.
+    */
+    lastTraining:
+      sessions
+        .map((s) => s.date)
+        .filter(Boolean)
+        .sort()
+        .pop() || null,
+    recentSessions: sessions.filter((s) => s.date && s.date >= desde),
+  };
+};
+
+/** El resumen de quien no tiene nada. Evita comprobar `null` en cada consumidor. */
+export const emptyTrainingSummary = () => ({
+  microcycleCount: 0,
+  sessionCount: 0,
+  lastTraining: null,
+  recentSessions: [],
+});
+
+/**
+ * Convierte los registros heredados en sesiones reales, de una vez y para siempre.
+ *
+ * ══ Por qué hay que hacerlo, y por qué ahora ═══════════════════════════════
+ *
+ * Un registro heredado no tiene fecha propia: `legacySession` le pone la del
+ * microciclo. Eso ya trae dos problemas conocidos —la analítica de progresión sale
+ * movida, y `executedSessions` descarta la versión heredada de un día en cuanto
+ * ese día tiene una sesión real, así que los kilos pueden desaparecer sin aviso—.
+ *
+ * Y trae un tercero que aparece al querer dejar de descargar el programa entero de
+ * todos los clientes al arrancar: para saber en el SERVIDOR cuándo entrenó alguien
+ * habría que reimplementar en SQL esta compatibilidad —qué cuenta como día
+ * entrenado, cuándo se descarta la versión heredada—, es decir, escribir por
+ * segunda vez una regla de negocio que ya costó un fallo grave. Con los datos
+ * normalizados, «cuándo entrenó» es leer las fechas de `sessions`: mecánico, sin
+ * ninguna regla que duplicar.
+ *
+ * ══ Qué hace exactamente ═══════════════════════════════════════════════════
+ *
+ * Por cada día del plan con kilos anotados y sin sesión propia, crea la sesión
+ * equivalente y **vacía esos valores del plan**, que es donde nunca debieron
+ * estar. El plan conserva su estructura: los mismos ejercicios y el mismo número
+ * de series, en blanco.
+ *
+ * Es idempotente: pasado dos veces, la segunda no encuentra nada que convertir.
+ *
+ * ══ Lo que NO convierte ════════════════════════════════════════════════════
+ *
+ * Un microciclo sin fecha. La sesión resultante no tendría cuándo, y una sesión
+ * sin fecha es exactamente el problema que esto viene a quitar. Se quedan como
+ * están —se siguen viendo por el camino heredado— y se informa de cuántos son,
+ * porque son los que hay que mirar a mano.
+ *
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @returns {{ microcycles: import('@/types').Microcycle[], converted: number, skipped: number }}
+ */
+export const normalizeMicrocycles = (microcycles) => {
+  let converted = 0;
+  let skipped = 0;
+
+  const next = (microcycles || []).map((micro) => {
+    const covered = new Set(sessionsOf(micro).map((s) => s.dayName));
+    const nuevas = [];
+    let tocado = false;
+
+    const days = (micro.days || []).map((day) => {
+      if (covered.has(day.dayName)) return day;
+
+      const session = legacySession(day, micro);
+      if (!session) return day;
+
+      if (!session.date) {
+        skipped += 1;
+        return day;
+      }
+
+      // La sesión pasa a ser real: pierde la marca de heredada, que es lo que
+      // hacía que `executedSessions` la tratara como un apaño.
+      const { isLegacy: _isLegacy, ...real } = session;
+      nuevas.push(real);
+      converted += 1;
+      tocado = true;
+
+      // El plan se queda con su forma y sin los kilos: eran ejecución, no plan.
+      return {
+        ...day,
+        exercises: (day.exercises || []).map((exercise) => ({
+          ...exercise,
+          sets: (exercise.sets || []).map(() => emptySet()),
+        })),
+      };
+    });
+
+    if (!tocado) return micro;
+    return { ...micro, days, sessions: [...sessionsOf(micro), ...nuevas] };
+  });
+
+  return { microcycles: next, converted, skipped };
+};
+
+/**
  * Lo EJECUTADO en un microciclo: sus sesiones reales, más las heredadas de los
  * días que no tengan ninguna.
  *

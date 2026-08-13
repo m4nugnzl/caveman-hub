@@ -89,6 +89,23 @@ async function verifySignature(
 const isoTime = (seconds: number | null | undefined) =>
   seconds ? new Date(seconds * 1000).toISOString() : null;
 
+/**
+ * Cuándo renueva una suscripción.
+ *
+ * ── Por qué se mira en dos sitios ───────────────────────────────────────────
+ * Stripe movió `current_period_end` del objeto suscripción a sus LÍNEAS: en las
+ * versiones de API antiguas está arriba, en las nuevas está en cada `item`. Y la
+ * versión que se aplica no la decide este código: la elige quien da de alta el
+ * destino de eventos en el panel, y puede cambiar el día que se actualice.
+ *
+ * Leer los dos sitios cuesta una línea y evita el fallo silencioso: la
+ * suscripción se activaría igual y la fecha de renovación quedaría en blanco, que
+ * es de esas cosas que no se notan hasta que alguien pregunta cuándo se le cobra.
+ */
+const periodEnd = (subscription: any): string | null =>
+  isoTime(subscription?.current_period_end) ||
+  isoTime(subscription?.items?.data?.[0]?.current_period_end);
+
 Deno.serve(async (request) => {
   if (request.method !== 'POST') return text('Usa POST.', 405);
 
@@ -148,7 +165,7 @@ Deno.serve(async (request) => {
           if (response.ok) {
             const sub = await response.json();
             patch.status = sub.status || 'active';
-            patch.current_period_end = isoTime(sub.current_period_end);
+            patch.current_period_end = periodEnd(sub);
           }
         }
         break;
@@ -164,7 +181,7 @@ Deno.serve(async (request) => {
         teamId = object.metadata?.team_id || null;
         patch.stripe_subscription_id = object.id;
         patch.status = event.type.endsWith('deleted') ? 'canceled' : object.status;
-        patch.current_period_end = isoTime(object.current_period_end);
+        patch.current_period_end = periodEnd(object);
 
         /*
           Al cancelar se vuelve a `prueba`, no se deja el plan de pago puesto: si

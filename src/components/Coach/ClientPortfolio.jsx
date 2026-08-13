@@ -217,7 +217,7 @@ const FolioCard = ({ row, trainer, onOpen, onUpdate, onReview, onInvite }) => {
 export const ClientPortfolio = () => {
   const {
     clients,
-    workoutData,
+    training,
     anthropometry,
     progressPhotos,
     checkIns,
@@ -234,8 +234,8 @@ export const ClientPortfolio = () => {
 
   const today = todayISO();
   const rows = useMemo(
-    () => buildPortfolio({ clients, workoutData, anthropometry, progressPhotos, checkIns }, today),
-    [clients, workoutData, anthropometry, progressPhotos, checkIns, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, today]
   );
 
   /* El eje de entrenador solo existe si hay equipo con más de una persona: con un

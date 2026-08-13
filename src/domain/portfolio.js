@@ -20,12 +20,16 @@
  * saltaría constantemente para quien entrena 3 días por semana, y una lista que
  * avisa siempre no avisa de nada.
  *
- * Todo es cálculo puro sobre datos ya cargados en memoria: la carga inicial ya
- * trae la rutina, la antropometría y las fotos de TODOS los clientes, así que la
- * cartera no cuesta ni una consulta más.
+ * ── De qué se alimenta ──────────────────────────────────────────────────────
+ * De un RESUMEN por cliente (`trainingSummary`), no de su programa. La cartera
+ * necesita cuatro cifras de cada uno —cuándo entrenó, cuántas sesiones, cuántas
+ * semanas programadas— y pedir el programa completo es lo que obligaba a
+ * descargar varios MB por cliente al arrancar (`auditoria.md` 1.5).
+ *
+ * Sigue siendo cálculo puro sobre datos en memoria; lo que cambia es cuántos.
  */
 
-import { allSessions } from './sessions';
+import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
 import { buildWeeklySeries } from './analytics';
@@ -69,15 +73,20 @@ const daysSince = (date, today) => (date ? daysBetween(date, today) : null);
  * Estado de un cliente: las cuatro fechas que importan, el check-in de la semana
  * y las alertas que se derivan de todo ello.
  */
+/**
+ * @param training  El resumen de entrenamiento (`trainingSummary`), no el programa
+ *   completo. La cartera habla de veinte clientes a la vez y de cada uno solo
+ *   necesita cuatro cifras; pedir el programa entero es lo que obligaba a
+ *   descargarlo todo al arrancar. Ver `auditoria.md` 1.5.
+ */
 export const clientStatus = (
-  { client, program, anthro, photos = [], checkIn: submitted = null },
+  { client, training, anthro, photos = [], checkIn: submitted = null },
   today = todayISO()
 ) => {
-  const microcycles = program?.microcycles || [];
-  const sessions = allSessions(microcycles);
+  const resumen = training || emptyTrainingSummary();
   const history = anthro?.history || [];
 
-  const lastTraining = lastDate(sessions.map((s) => s.date));
+  const lastTraining = resumen.lastTraining;
   const lastWeight = lastDate(history.map((h) => h.date));
   const lastPhoto = lastDate(photos.map((p) => p.date));
 
@@ -107,13 +116,13 @@ export const clientStatus = (
   }
 
   // ── Programa ──────────────────────────────────────────────────────────────
-  if (microcycles.length === 0) {
+  if (resumen.microcycleCount === 0) {
     add('no_program', 'alta', 'Sin rutina asignada', 'No tiene ningún microciclo programado.');
   }
 
   // ── Entrenamiento ─────────────────────────────────────────────────────────
   const sinceTraining = daysSince(lastTraining, today);
-  if (microcycles.length > 0) {
+  if (resumen.microcycleCount > 0) {
     if (sinceTraining === null) {
       add('never_trained', 'alta', 'No ha registrado ningún entreno', 'Tiene rutina, pero ni una serie anotada.');
     } else if (sinceTraining >= THRESHOLDS.noTraining) {
@@ -206,8 +215,8 @@ export const clientStatus = (
     sincePhoto,
     daysToPayment,
     checkIn,
-    weeksProgrammed: microcycles.length,
-    sessionCount: sessions.length,
+    weeksProgrammed: resumen.microcycleCount,
+    sessionCount: resumen.sessionCount,
     alerts,
     // La gravedad del cliente es la de su peor alerta: es lo que decide su
     // posición en la lista.
@@ -224,7 +233,7 @@ export const clientStatus = (
  * lo que hay que hacer hoy está siempre arriba.
  */
 export const buildPortfolio = (
-  { clients = [], workoutData = {}, anthropometry = {}, progressPhotos = [], checkIns = {} },
+  { clients = [], training = {}, anthropometry = {}, progressPhotos = [], checkIns = {} },
   today = todayISO()
 ) => {
   const photosByClient = new Map();
@@ -239,7 +248,7 @@ export const buildPortfolio = (
     clientStatus(
       {
         client,
-        program: workoutData[client.id],
+        training: training[client.id],
         anthro: anthropometry[client.id],
         photos: photosByClient.get(client.id) || [],
         // El check-in de LA SEMANA EN CURSO. Los anteriores no dicen nada del
@@ -268,12 +277,19 @@ export const buildPortfolio = (
     headline: readingHeadline(
       weeklyReading({
         client: row.client,
+        /*
+          Sin microciclos, y a propósito. De toda la lectura semanal aquí solo se
+          conserva el factor `rate`, que es el ritmo de cambio de PESO: sale de la
+          serie de pesajes y no mira el entrenamiento. Está comprobado con una
+          prueba —la serie de peso es idéntica con y sin programa—, y es lo que
+          permite que la cartera no necesite descargarlo.
+        */
         series: buildWeeklySeries({
-          microcycles: workoutData[row.client.id]?.microcycles || [],
+          microcycles: [],
           history: anthropometry[row.client.id]?.history || [],
           gender: row.client.gender,
         }),
-        microcycles: workoutData[row.client.id]?.microcycles || [],
+        microcycles: [],
         history: anthropometry[row.client.id]?.history || [],
         today,
       }).filter((f) => f.id === 'rate')

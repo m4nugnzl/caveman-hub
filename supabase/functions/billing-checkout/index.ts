@@ -149,12 +149,55 @@ Deno.serve(async (request) => {
 
     const { data: planRow } = await service
       .from('plan_limits')
-      .select('plan, label, stripe_price_id, purchasable')
+      .select('plan, label, stripe_price_id, stripe_product_id, purchasable')
       .eq('plan', planName)
       .maybeSingle();
 
     if (!planRow?.purchasable) return json({ error: 'Ese plan no se puede contratar.' }, 400);
-    if (!planRow.stripe_price_id) {
+
+    /*
+      Qué se cobra. Dos formas, y la más específica manda:
+
+        · `stripe_price_id`   → ese precio exacto, pase lo que pase.
+        · `stripe_product_id` → el precio VIGENTE del producto.
+
+      La segunda existe porque los precios de Stripe son inmutables: subir de 25 €
+      a 29 € no edita el precio, crea otro y lo marca como predeterminado. Con solo
+      el precio guardado habría que acordarse de venir a cambiarlo, y si se olvida
+      se sigue cobrando el viejo sin que nada avise.
+    */
+    let priceId = planRow.stripe_price_id;
+
+    if (!priceId && planRow.stripe_product_id) {
+      const response = await fetch(
+        `${STRIPE_API}/products/${planRow.stripe_product_id}`,
+        { headers: { Authorization: `Bearer ${key}` } }
+      );
+
+      if (!response.ok) {
+        return json(
+          { error: `Stripe no encuentra el producto del plan ${planRow.label}. ¿Es de otro modo (prueba/directo)?` },
+          400
+        );
+      }
+
+      const product = await response.json();
+      // `default_price` llega como identificador o como objeto según se pida
+      // expandido; se aceptan los dos para no depender de ese detalle.
+      priceId =
+        typeof product.default_price === 'string'
+          ? product.default_price
+          : product.default_price?.id || null;
+
+      if (!priceId) {
+        return json(
+          { error: `El producto del plan ${planRow.label} no tiene precio predeterminado en Stripe.` },
+          400
+        );
+      }
+    }
+
+    if (!priceId) {
       return json(
         { error: `El plan ${planRow.label} no tiene precio configurado en Stripe todavía.` },
         400
@@ -163,7 +206,7 @@ Deno.serve(async (request) => {
 
     const form: Record<string, string> = {
       mode: 'subscription',
-      'line_items[0][price]': planRow.stripe_price_id,
+      'line_items[0][price]': priceId,
       'line_items[0][quantity]': '1',
       success_url: `${appUrl}/ajustes/plan?pago=ok`,
       cancel_url: `${appUrl}/ajustes/plan?pago=cancelado`,

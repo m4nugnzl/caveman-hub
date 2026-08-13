@@ -316,5 +316,37 @@ export const mapPlanFromDb = (row) =>
         maxClients: row.max_clientes ?? null,
         trialEndsAt: row.trial_ends_at || null,
         currentPeriodEnd: row.current_period_end || null,
+        /*
+          ¿Hay relación con Stripe? Decide si se ofrece el portal de facturación.
+
+          Llega `undefined` mientras no esté aplicada la 0026, y entonces se cae
+          en el criterio anterior: se ofrece a quien no está en prueba. Es peor
+          —puede fallar al pulsarlo— pero es lo que había, y no romper con una
+          migración pendiente es la regla del proyecto.
+        */
+        conFacturacion: row.con_facturacion ?? null,
       }
     : null;
+
+// ── Resumen de entrenamiento ───────────────────────────────────────────────
+
+/**
+ * Lo que devuelve `training_summaries()` (migración 0024).
+ *
+ * La forma resultante es exactamente la de `trainingSummary` en
+ * `domain/sessions.js`, y tiene que seguir siéndolo: la cartera mezcla los dos
+ * orígenes —el resumen del servidor para veinte clientes, el derivado del programa
+ * para el que está abierto— y no distingue cuál es cuál. Si divergieran, una ficha
+ * cambiaría de aspecto solo por haberla abierto.
+ *
+ * `recent_sessions` llega como el array de sesiones tal cual está guardado, sin
+ * transformar: quien calcula tonelaje y series es el dominio, con los mismos
+ * objetos de siempre.
+ */
+export const mapTrainingSummaryFromDb = (row) => ({
+  clientId: row.client_id,
+  lastTraining: row.last_training || null,
+  sessionCount: row.session_count || 0,
+  microcycleCount: row.microcycle_count || 0,
+  recentSessions: Array.isArray(row.recent_sessions) ? row.recent_sessions : [],
+});

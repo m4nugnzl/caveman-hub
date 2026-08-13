@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
 
 import { activityScale, buildActivity, buildInbox, dayLabel, groupByDay } from './today';
+import { trainingSummary } from './sessions';
 
 const TODAY = '2026-08-12';
 
 const client = (over = {}) => ({ id: 'c1', name: 'Ana Pérez', ...over });
+
+/**
+ * El resumen de entrenamiento de un cliente con una sesión en la fecha dada.
+ *
+ * Se deriva del programa completo con `trainingSummary`, que es la misma función
+ * que usa la aplicación cuando ya lo tiene cargado. Así estas pruebas comprueban
+ * de paso lo que sostiene la carga perezosa: que «Hoy» ve lo mismo venga el
+ * resumen del servidor o del programa entero.
+ */
+const resumen = (date, sets) => trainingSummary(program(date, sets), { today: TODAY });
 
 /** Un microciclo con una sesión registrada en la fecha dada. */
 const program = (date, sets = [{ kg: '100', reps: '5', rir: '2' }]) => ({
@@ -34,12 +45,12 @@ describe('buildActivity', () => {
       tercera vez.
     */
     const vacia = buildActivity(
-      { clients: [client()], workoutData: { c1: program(TODAY, [{ kg: '', reps: '', rir: '' }]) } },
+      { clients: [client()], training: { c1: resumen(TODAY, [{ kg: '', reps: '', rir: '' }]) } },
       TODAY
     );
     expect(vacia).toHaveLength(0);
 
-    const hecha = buildActivity({ clients: [client()], workoutData: { c1: program(TODAY) } }, TODAY);
+    const hecha = buildActivity({ clients: [client()], training: { c1: resumen(TODAY) } }, TODAY);
     expect(hecha).toHaveLength(1);
     expect(hecha[0].kind).toBe('session');
     expect(hecha[0].detail).toContain('500 kg');
@@ -90,7 +101,7 @@ describe('buildActivity', () => {
     const events = buildActivity(
       {
         clients: [client(), client({ id: 'c2', name: 'Bruno Gil' })],
-        workoutData: { c1: program('2026-08-10'), c2: program('2026-08-12') },
+        training: { c1: resumen('2026-08-10'), c2: resumen('2026-08-12') },
       },
       TODAY
     );

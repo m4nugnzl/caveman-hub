@@ -30,6 +30,7 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0020_client_archive.sql` | Junto con la `0019` | Archivar sigue funcionando (la columna ya existía), pero sin la comprobación de valores ni el índice del recuento. Aditiva y sin riesgo. |
 | `0021_billing_prices.sql` | Para cobrar de verdad | La pantalla de Plan no sabe qué vale cada plan y no hay nada que contratar. Requiere `0019` y desplegar `billing-checkout` y `billing-webhook`. Lleva dentro los pasos de Stripe en orden. |
 | `0022_starter_library.sql` | Antes de que se registre nadie nuevo | Los entrenadores nuevos entran con las bibliotecas de ejercicios y alimentos vacías y tienen que escribirlas ellos. Solo siembra donde no hay nada, así que no pisa ninguna biblioteca existente. Requiere `0006`. |
+| `0024_training_summary.sql` | Cuando la cartera pase de treinta clientes | El arranque sigue descargando el programa completo de todos, que son varios MB por cliente. Aditiva y sin riesgo: si no está, la aplicación carga como siempre. **Pasa antes el normalizador** (Ajustes → Copia de seguridad) o no se activará. |
 | `0023_pending_consent.sql` | Si tienes clientes enlazados de antes de la `0018` | Esos clientes siguen sin consentimiento registrado y no hay forma de pedírselo. La pantalla que lo pide deja pasar si la migración no está, así que aplicarla es lo que la activa. Requiere `0018`. |
 
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).

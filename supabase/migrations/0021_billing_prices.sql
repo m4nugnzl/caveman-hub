@@ -79,11 +79,15 @@ COMMIT;
 -- 3. Desplegar las dos funciones:
 --
 --      npx supabase functions deploy billing-checkout
---      npx supabase functions deploy billing-webhook --no-verify-jwt
+--      npx supabase functions deploy billing-webhook
 --
---    `--no-verify-jwt` SOLO en el webhook: lo llama Stripe, que no tiene sesión de
---    Supabase. Lo que autentica ahí es la firma HMAC, no un token. En
---    `billing-checkout` es al revés y la verificación del token es imprescindible.
+--    Sin banderas: `supabase/config.toml` ya declara las dos con
+--    `verify_jwt = false`, y ahí está explicado por qué **las dos** y no solo el
+--    webhook. Resumido: el webhook lo llama Stripe, que no tiene sesión de
+--    Supabase; y a `billing-checkout` la llama el navegador, que manda antes un
+--    preflight OPTIONS sin cabeceras, y la pasarela lo rechazaría con un 401 que
+--    aparece disfrazado de error de CORS. Las dos hacen su propia autorización,
+--    más estricta que la de la pasarela.
 --
 -- 4. Secretos de las funciones (Dashboard → Edge Functions → Secrets):
 --

@@ -54,3 +54,29 @@ verify_jwt = false
 # evento, que la funcion comprueba antes de tocar nada.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# ── Facturación de la plataforma ────────────────────────────────────────────
+#
+# OJO: estas dos son de la cuenta de Stripe NUESTRA, la que cobra las
+# suscripciones del hub. No confundir con las dos de arriba, que leen el Stripe
+# de cada entrenador con una clave de solo lectura.
+
+# El webhook del cobro: mismo caso que `stripe-webhook`. Lo llama Stripe y lo que
+# autentica es la firma HMAC.
+[functions.billing-webhook]
+verify_jwt = false
+
+# Y esta también, aunque parezca lo contrario: la llama el NAVEGADOR con sesión.
+#
+# El motivo es el del comentario de `notion-payments`: `functions.invoke` manda
+# cabecera `Authorization` y `Content-Type: application/json`, así que el navegador
+# hace primero un preflight `OPTIONS` —que por definición no lleva cabeceras
+# propias—. Con `verify_jwt = true` la pasarela lo rechaza con un 401 y la llamada
+# real ni se intenta; lo que ve el usuario es un error de CORS que no habla de lo
+# que pasa.
+#
+# La autorización la hace la función, y comprueba más que la pasarela: exige la
+# cabecera, verifica el token contra Auth, y además que quien llama sea el DUEÑO
+# del equipo. La pasarela solo miraba que el token fuera válido.
+[functions.billing-checkout]
+verify_jwt = false

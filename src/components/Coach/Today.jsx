@@ -60,7 +60,7 @@ const ActivityRow = ({ event, onOpen }) => {
 export const Today = () => {
   const {
     clients,
-    workoutData,
+    training,
     anthropometry,
     progressPhotos,
     checkIns,
@@ -73,13 +73,13 @@ export const Today = () => {
   const today = todayISO();
 
   const events = useMemo(
-    () => buildActivity({ clients, workoutData, anthropometry, progressPhotos, checkIns }, today),
-    [clients, workoutData, anthropometry, progressPhotos, checkIns, today]
+    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, today]
   );
 
   const rows = useMemo(
-    () => buildPortfolio({ clients, workoutData, anthropometry, progressPhotos, checkIns }, today),
-    [clients, workoutData, anthropometry, progressPhotos, checkIns, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, today]
   );
 
   const inbox = useMemo(() => buildInbox(rows), [rows]);

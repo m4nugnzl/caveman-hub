@@ -4,8 +4,15 @@
 > qué significa eso para la arquitectura y en qué orden hay que construirlo. No es
 > un plan comercial: es la lista de lo que cambia en el producto.
 >
-> Fecha: agosto de 2026. Estado: **ninguna de las piezas está construida**, salvo
-> la bienvenida (`components/WelcomeTour.jsx`), que es el punto 4.1.
+> Fecha: agosto de 2026.
+>
+> **Estado: el cobro funciona de punta a punta en el entorno de prueba de Stripe.**
+> Construido y probado: bloqueantes legales (§2), planes y límites (§3.1, §3.3),
+> pasarela y webhook (§3.2), biblioteca de partida y carga perezosa (§4).
+>
+> Lo que queda antes de facturar de verdad: rehacer Stripe en la cuenta real
+> (§3.6), probar una restauración de copia (§2.3), y el correo transaccional
+> (§4.3).
 
 ---
 
@@ -110,7 +117,19 @@ de escape.
 
 ---
 
-## 3. La columna vertebral de cobro
+## 3. La columna vertebral de cobro — **PROBADA DE PUNTA A PUNTA**
+
+> Verificado en sandbox el 13 de agosto de 2026: pasarela → pago → evento →
+> firma verificada → `team_subscriptions` con plan, estado, suscripción y fecha de
+> renovación. Lo único que separa esto de cobrar de verdad es rehacer productos,
+> clave y webhook en la cuenta real (ver §3.6).
+>
+> Dos tropiezos por el camino, los dos por lo mismo y anotados porque volverán a
+> pasar al pasar a producción: **el sandbox y la cuenta real son mundos separados**.
+> Los `price_…` creados en uno no existen en el otro («No such price»), y un
+> webhook dado de alta en uno no recibe los eventos del otro —que es peor, porque
+> no falla: simplemente no llega nada y el plan se queda como estaba—.
+
 
 ### 3.1 Esquema (`0019_billing.sql`) — **HECHO**
 
@@ -217,6 +236,29 @@ Stripe.js embebido obligaría a abrir la CSP a `js.stripe.com` y `api.stripe.com
 absoluto** (`form-action 'self'` solo afecta al envío de formularios, no a una
 navegación). Es más seguro y es menos trabajo.
 
+### 3.6 Pasar del sandbox a cobrar de verdad
+
+Nada de lo configurado en el sandbox sirve en la cuenta real. Los objetos de
+Stripe no cruzan entre entornos, y el fallo no siempre es ruidoso: un precio de
+otro entorno da «No such price», pero un **webhook** del entorno equivocado no da
+ningún error — simplemente no llega nada y el plan nunca se activa.
+
+La lista, en orden:
+
+1. Activar la cuenta de Stripe: datos fiscales, cuenta bancaria y las URLs
+   públicas de privacidad y condiciones (que exigen tener la app desplegada).
+2. Crear los dos productos **en la cuenta real** y ejecutar el `UPDATE` de
+   `plan_limits` con sus `price_…` nuevos.
+3. `STRIPE_SECRET_KEY` = la `sk_live_…`.
+4. Dar de alta el webhook **en la cuenta real**, con los mismos cinco eventos, y
+   guardar **su** `whsec_…`.
+5. `APP_URL` = el dominio de verdad, sin barra final.
+6. Registro fiscal de España en Stripe Tax, si se usa (sin registro calcula IVA
+   cero y no avisa).
+
+Comprobación: una compra real con tarjeta propia y su reembolso. En directo no
+funcionan las tarjetas de prueba.
+
 ---
 
 ## 4. Lo que hace que valga la pena pagarlo
@@ -241,7 +283,33 @@ Solo entra en bibliotecas vacías, y lo comprueba por separado para ejercicios y
 alimentos: completar la lista de quien ya escribió la suya sería reordenarle el
 trabajo sin permiso.
 
-### 4.2 La carga ansiosa es un bloqueante comercial
+### 4.2 La carga ansiosa es un bloqueante comercial — **EN CURSO**
+
+**Decidido**: un resumen por cliente calculado en Postgres. El arranque baja las
+fichas y ese resumen; el detalle de un cliente se carga al abrirlo. `domain/`
+sigue siendo puro —cambia de qué se alimenta, no lo que calcula—.
+
+**Primer paso, hecho: normalizar los registros heredados.** Al diseñar la vista
+apareció que «cuándo entrenó este cliente» no se puede responder hoy en SQL sin
+reimplementar la compatibilidad de `legacySession` —qué cuenta como día entrenado,
+cuándo se descarta la versión heredada—, o sea, duplicar en otro lenguaje la regla
+que ya causó el fallo grave de `auditoria.md` 1.1. Con los datos normalizados es
+leer fechas, mecánico y sin ninguna regla que copiar.
+
+El normalizador está en *Ajustes → Copia de seguridad*.
+
+**Segundo paso, hecho: `training_summaries()` (migración 0024).** El arranque baja
+las fichas y un resumen por cliente; el programa completo, solo del que se abre.
+
+- La función de Postgres **selecciona**, no calcula: devuelve las sesiones tal cual
+  y el tonelaje lo sigue sacando el mismo JavaScript. Ninguna regla duplicada.
+- Si a algún cliente le quedan registros heredados, la función lo dice y la
+  aplicación carga como antes. Todo o nada por entrenador: media cartera resumida
+  y media completa sería la peor versión de las dos.
+- `ensureProgram` trae el programa del cliente que se abre —y del que se copia—.
+  Sin eso, escribir sobre un cliente sin cargar habría sustituido su programa por
+  uno vacío.
+
 
 `auditoria.md` 1.5: se descargan todos los datos de todos los clientes al
 arrancar. Duele a partir de treinta clientes, que es exactamente el tamaño del

@@ -36,12 +36,25 @@ AHORA · el cliente registra su sesión:        2026-08-04 (1520 kg)
 AHORA · el entrenador añade otra:             2026-08-04 (1520 kg), 2026-08-06 (680 kg)
 ```
 
-**Pendiente relacionado:** los datos que YA existen con kilos dentro del plan
-siguen leyéndose (`legacySession` los expone), pero conservan el riesgo del punto
-2 hasta que se normalicen. Hace falta un normalizador de un solo uso que convierta
-esos valores en sesiones reales. **No se ha ejecutado**: reescribe el
-`workout_data` de todos los clientes y eso se hace con copia de seguridad delante
-y con el visto bueno explícito.
+**Pendiente relacionado — el normalizador ya existe.** Los datos que YA existen
+con kilos dentro del plan siguen leyéndose (`legacySession` los expone), pero
+conservan el riesgo del punto 2 hasta que se normalicen.
+
+Está en *Ajustes → Copia de seguridad → Normalizar registros antiguos*, junto a la
+descarga porque esa es su red de seguridad. Ensaya antes de escribir: el primer
+botón cuenta lo que haría y no toca nada, y solo después aparece el que escribe.
+La regla vive en `normalizeMicrocycles` (`domain/sessions.js`) y lo que sus
+pruebas comprueban no es la forma del resultado sino que **el tonelaje es idéntico
+antes y después**, que es lo único que no se puede romper.
+
+**Sigue sin ejecutarse**: reescribe el `workout_data` de todos los clientes y eso
+se hace con la copia delante y con el visto bueno explícito.
+
+Es además el requisito de la carga perezosa (1.5): con los datos normalizados,
+«cuándo entrenó este cliente» se responde leyendo fechas en el servidor. Sin
+normalizar habría que reimplementar en SQL la compatibilidad de `legacySession`
+—qué cuenta como día entrenado, cuándo se descarta— y duplicar en otro lenguaje
+justo la regla que causó el fallo de arriba.
 
 ### 1.2 Dos ejes de «semana» incompatibles
 
@@ -90,7 +103,7 @@ escalabilidad del proyecto.
 `sessions` / `session_sets` como tablas. Es una migración grande; hasta entonces,
 al menos no cargar los microciclos antiguos (ver 1.5).
 
-### 1.5 Se cargan todos los datos de todos los clientes al arrancar
+### 1.5 Se cargan todos los datos de todos los clientes al arrancar — **CORREGIDO (0024)**
 
 ```js
 supabase.from('workout_data').select('*').in('client_id', ids)   // y 3 tablas más
@@ -99,9 +112,23 @@ supabase.from('workout_data').select('*').in('client_id', ids)   // y 3 tablas m
 Cómodo con 20 clientes y letal con 200: la aplicación no pinta nada hasta que baja
 el programa completo, el historial completo y todas las fotos de la cartera entera.
 
-**Recomendación:** cargar la cartera con lo justo para el tablero (una vista o
-columnas concretas) y el detalle de cada cliente al abrirlo. La cartera ya está
-escrita sobre funciones puras, así que solo cambia de dónde vienen los datos.
+Hecho, y como estaba recomendado: `training_summaries()` (migración 0024) devuelve
+por cliente lo justo para el tablero —cuándo entrenó, cuántas sesiones, cuántas
+semanas, y las sesiones de los últimos días— y el programa completo se descarga
+solo del cliente que se abre. `domain/` no se enteró de nada: recibe un resumen en
+lugar de un programa y calcula exactamente lo mismo.
+
+Lo importante de cómo está hecho: **la función de Postgres no reimplementa ninguna
+regla**. Selecciona sesiones y las devuelve tal cual; el tonelaje, las series y las
+alertas los sigue calculando el mismo JavaScript. Eso solo es posible con los
+registros heredados normalizados (ver 1.1), y por eso la función informa de si a
+algún cliente le quedan: mientras quede uno, la aplicación vuelve a cargarlo todo
+—cargar de más es un problema de velocidad; enseñar «40 días sin entrenar» a quien
+entrenó ayer es un problema de confianza—.
+
+**Sigue cargándose entero** lo que no pesa: antropometría, fotos y check-ins. Y la
+nutrición, que sí podría diferirse pero la leen sitios que todavía no la piden por
+cliente. Cuando moleste, el camino ya está abierto (`ensureProgram`).
 
 ### 1.6 Sin miniaturas de fotos — **CORREGIDO**
 
