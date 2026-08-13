@@ -2066,24 +2066,41 @@ export const AppProvider = ({ children }) => {
    * Cuesta una petición extra; la alternativa es la migración que hay preparada
    * en `supabase/migrations/`, que permitiría volver a un único upsert.
    */
-  const upsertByName = useCallback(async (table, coachId, name, fields) => {
+  /**
+   * Alta o actualización de una entrada de biblioteca, buscándola por su nombre.
+   *
+   * ── El `team_id` no es opcional, aunque la columna lo permita ────────────────
+   * Se escribía solo `coach_id`, que era correcto antes de los equipos y dejó de
+   * serlo con la 0006: desde entonces las bibliotecas son del EQUIPO y sus
+   * políticas preguntan por `team_id`. Una fila nueva sin él nace huérfana —fuera
+   * de la biblioteca compartida— y, con las políticas de la 0027, ni se puede
+   * escribir ni se puede leer por la vía del equipo.
+   *
+   * ── Y por eso también se busca por equipo ───────────────────────────────────
+   * Buscar por `coach_id` en un equipo significa que si el dueño ya tiene «Pollo»
+   * y lo añade un entrenador suyo, salen dos «Pollo» con macros propios. Es
+   * exactamente la divergencia de bibliotecas que `modelo-de-equipo.md` daba como
+   * motivo para compartirlas.
+   */
+  const upsertByName = useCallback(async (table, coachId, teamId, name, fields) => {
     const trimmed = name.trim();
 
-    const { data: existing, error: findErr } = await supabase
-      .from(table)
-      .select('id')
-      .eq('coach_id', coachId)
-      .eq('name', trimmed)
-      .maybeSingle();
+    let find = supabase.from(table).select('id').eq('name', trimmed);
+    find = teamId ? find.eq('team_id', teamId) : find.eq('coach_id', coachId);
 
+    const { data: existing, error: findErr } = await find.maybeSingle();
     if (findErr) return { error: findErr };
 
     if (existing) {
       return supabase.from(table).update(fields).eq('id', existing.id).select().single();
     }
+
     return supabase
       .from(table)
-      .insert({ coach_id: coachId, name: trimmed, ...fields })
+      // `coach_id` se sigue escribiendo porque es NOT NULL y su retirada va en
+      // otra migración (ver 0006). `team_id`, solo si hay equipo: sin la 0006 esa
+      // columna no existe y PostgREST rechazaría la fila entera.
+      .insert({ coach_id: coachId, ...(teamId ? { team_id: teamId } : {}), name: trimmed, ...fields })
       .select()
       .single();
   }, []);
@@ -2093,7 +2110,7 @@ export const AppProvider = ({ children }) => {
       const userId = session?.user?.id;
       if (!userId || !name?.trim()) return null;
 
-      const { data, error } = await upsertByName('exercises', userId, name, {
+      const { data, error } = await upsertByName('exercises', userId, team?.id || null, name, {
         muscle_group: muscle,
       });
 
@@ -2111,7 +2128,7 @@ export const AppProvider = ({ children }) => {
       });
       return mapped;
     },
-    [session, upsertByName]
+    [session, team, upsertByName]
   );
 
   const upsertLibraryFood = useCallback(
@@ -2119,7 +2136,7 @@ export const AppProvider = ({ children }) => {
       const userId = session?.user?.id;
       if (!userId || !food?.name?.trim()) return null;
 
-      const { data, error } = await upsertByName('foods', userId, food.name, {
+      const { data, error } = await upsertByName('foods', userId, team?.id || null, food.name, {
         protein_per_100g: toNum(food.proteinPer100) ?? 0,
         carbs_per_100g: toNum(food.carbsPer100) ?? 0,
         fats_per_100g: toNum(food.fatsPer100) ?? 0,
@@ -2139,7 +2156,7 @@ export const AppProvider = ({ children }) => {
       });
       return mapped;
     },
-    [session, upsertByName]
+    [session, team, upsertByName]
   );
 
   // ── Fotos de progreso ────────────────────────────────────────────────────
