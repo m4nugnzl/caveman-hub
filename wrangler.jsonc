@@ -48,6 +48,21 @@
       `single-page-application` sirve `index.html` con un **200** para lo que no
       sea un archivo, y deja que el router decida. El 200 importa: con un 301 la
       URL cambiaría y se perdería a dónde iba el usuario.
+
+      ── Por qué ya no hay `public/_redirects` ─────────────────────────────
+      Ese archivo hacía lo mismo con la regla `/*  /index.html  200`, que es como
+      se escribe en Netlify y en Cloudflare Pages. Pero Workers **valida** el
+      archivo al desplegar y rechaza esa regla:
+
+        Invalid _redirects configuration:
+        Line 14: Infinite loop detected in this rule.
+
+      Y tiene razón: reescribir CUALQUIER ruta a `/index.html` incluye a
+      `/index.html`, así que la regla se dispara a sí misma. En Pages eso se
+      resuelve por convención; aquí es un error de despliegue.
+
+      Si algún día se vuelve a Netlify o a Pages, hay que recrear
+      `public/_redirects` con esa única línea.
     */
     "not_found_handling": "single-page-application"
   }

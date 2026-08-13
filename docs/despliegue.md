@@ -158,8 +158,15 @@ sirve. **Se usa Cloudflare Pages**, por dos motivos:
   visitantes del sitio», que es exactamente lo que hace la pantalla de Plan. Con
   Vercel, cobrar obliga al plan Pro de 20 $/mes.
 
-La configuración ya está en el repositorio: `public/_redirects` (el fallback de
-la SPA) y `public/_headers` (seguridad y caché).
+La configuración ya está en el repositorio: `public/_headers` (seguridad y caché)
+y `wrangler.jsonc` (el fallback de la SPA).
+
+> **No hay `public/_redirects`, y no es un olvido.** Workers **valida** ese
+> archivo al desplegar y rechaza la regla habitual de las SPA —`/* /index.html
+> 200`— con *«Infinite loop detected in this rule»*: reescribir cualquier ruta a
+> `/index.html` incluye a `/index.html`, así que la regla se dispara a sí misma.
+> En Pages y Netlify eso se resuelve por convención; aquí es un error que **corta
+> el despliegue**. Con `not_found_handling` no hace falta.
 
 ### Darlo de alta
 
@@ -171,7 +178,7 @@ saber en cuál estás:
 | | Pages | Workers con archivos estáticos |
 |---|---|---|
 | Cómo despliega | Sube `dist` directamente | Ejecuta `npx wrangler deploy` |
-| Fallback de la SPA | `public/_redirects` | `not_found_handling` en `wrangler.jsonc` |
+| Fallback de la SPA | `public/_redirects` (hay que recrearlo) | `not_found_handling` en `wrangler.jsonc` |
 | `_headers` | ✅ | ✅ |
 | Config en el repositorio | Ya está | `wrangler.jsonc`, ya está |
 
@@ -212,7 +219,7 @@ Supabase, no a tu dominio.
 
 | Hosting | Config | ¿Está en el repositorio? |
 |---|---|---|
-| Cloudflare Pages / Netlify | `public/_headers`, `public/_redirects` | ✅ |
+| Cloudflare Pages / Netlify | `public/_headers` ✅, `public/_redirects` ❌ (ver abajo) |
 | Nginx / Apache | a mano | ❌ ver abajo |
 
 ### Las dos reglas que no son opcionales
