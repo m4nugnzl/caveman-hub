@@ -25,7 +25,13 @@ import { Notice, Panel } from '@/components/ui/primitives';
  * Es poco. Es infinitamente más que nada, que es lo que había.
  */
 export const BackupPanel = () => {
-  const { clients, exportAllData } = useApp();
+  /*
+    La lista COMPLETA, con los archivados: una copia de seguridad que se dejara
+    fuera a los que terminaron sería justo lo contrario de lo que promete. El
+    volcado ya los incluye —lee el estado entero—, así que la cifra que se enseña
+    tiene que contarlos también o diría menos clientes de los que trae el archivo.
+  */
+  const { allClients: clients, exportAllData } = useApp();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
 

@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
+import { paletteShortcut } from '@/lib/platform';
 import { Logo } from '@/components/ui/Logo';
 import { AccountMenu } from '@/components/AccountMenu';
 import { useCommandPalette } from '@/components/ui/CommandPalette';
@@ -38,17 +39,8 @@ export const Header = () => {
       <button type="button" className="omnibox" onClick={() => palette.setOpen(true)}>
         <Search size={15} aria-hidden="true" />
         <span className="omnibox-label">Busca un cliente o una sección</span>
-        {/*
-          `⌘` en Apple y `Ctrl` en el resto. Se decide por la plataforma y no se
-          escribe «Ctrl/⌘» porque una etiqueta que enseña las dos obliga a elegir
-          cuál es la tuya cada vez que la lees.
-        */}
-        <kbd className="kbd">
-          {typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || '')
-            ? '⌘'
-            : 'Ctrl'}
-          {' K'}
-        </kbd>
+        {/* `⌘` en Apple y `Ctrl` en el resto: ver `lib/platform.js`. */}
+        <kbd className="kbd">{paletteShortcut()}</kbd>
       </button>
 
       <div className="row gap-2 shrink-0">

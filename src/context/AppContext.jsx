@@ -18,6 +18,7 @@ import {
   mapNutritionToDb,
   mapPhotoFromDb,
   mapPhotoToDb,
+  mapPlanFromDb,
   mapWorkoutFromDb,
   mapWorkoutToDb,
 } from '@/lib/mappers';
@@ -42,6 +43,7 @@ import {
   emptyNutrition,
 } from '@/domain/nutrition';
 import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
+import { isArchived } from '@/domain/portfolio';
 import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessions';
 
 const AppContext = createContext(null);
@@ -100,6 +102,7 @@ export const AppProvider = ({ children }) => {
   /** Equipo del entrenador. `null` mientras la migración 0006 no esté aplicada. */
   const [team, setTeam] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [plan, setPlan] = useState(null);
 
   /** Último check-in por cliente. Vacío si la migración 0009 no está aplicada. */
   const [checkIns, setCheckIns] = useState({});
@@ -487,7 +490,23 @@ export const AppProvider = ({ children }) => {
       let members = [];
 
       if (role === 'coach') {
-        const membership = await supabase.from('team_members').select('team_id, role');
+        let membership = await supabase.from('team_members').select('team_id, role');
+
+        /*
+          Un entrenador que se registró DESPUÉS de la 0006 no tiene equipo: aquella
+          migración rellenó los que ya existían y nada crea los nuevos. Daba igual
+          mientras el equipo solo servía para repartir clientes; con la suscripción
+          colgando de él (0019), quedarse sin equipo es quedarse sin plan.
+
+          `ensure_my_team` es idempotente y devuelve el que haya. Si la 0019 no está
+          aplicada, falla y todo sigue como antes.
+        */
+        if (!isStale() && !membership.error && (membership.data || []).length === 0) {
+          const created = await supabase.rpc('ensure_my_team');
+          if (!isStale() && !created.error && created.data) {
+            membership = await supabase.from('team_members').select('team_id, role');
+          }
+        }
 
         if (!isStale() && !membership.error && (membership.data || []).length > 0) {
           const teamId = membership.data[0].team_id;
@@ -521,6 +540,16 @@ export const AppProvider = ({ children }) => {
       setTeamMembers(members);
 
       /*
+        El plan. Mismo criterio que el equipo: si la 0019 no está aplicada la
+        función no existe, y eso no es un error del usuario sino «todavía no hay
+        planes». Queda en `null` y la pantalla de Plan lo dice.
+      */
+      if (role === 'coach' && team) {
+        const planRes = await supabase.rpc('my_team_plan');
+        if (!isStale() && !planRes.error) setPlan(mapPlanFromDb(planRes.data?.[0]));
+      }
+
+      /*
         Sin `.eq('coach_id', …)`: el filtro lo aplica RLS.
         --------------------------------------------------------------------
         Con equipos, quién ve a quién depende del rol —un entrenador ve solo los
@@ -547,12 +576,28 @@ export const AppProvider = ({ children }) => {
         mappedClients.some((c) => c.id === prev) ? prev : mappedClients[0]?.id || ''
       );
 
-      // Las bibliotecas solo las gestiona el coach (autocompletado al programar).
+      /*
+        Las bibliotecas solo las gestiona el coach (autocompletado al programar).
+
+        ── Sin filtro cuando hay equipo ──────────────────────────────────────
+        La 0006 pasó `exercises` y `foods` a ser del EQUIPO —su política ya es
+        `team_id IN (my_team_ids())`— y dejó la carga filtrando por `coach_id`,
+        que era lo que había antes. Con eso, un entrenador contratado no veía ni
+        un ejercicio: la biblioteca es del equipo pero él preguntaba por la suya,
+        que está vacía. Y desde la 0022 hay una biblioteca de partida que le
+        pasaría exactamente lo mismo.
+
+        Con equipo se deja decidir a RLS, igual que con los clientes. Sin equipo
+        se sigue filtrando por `coach_id`, porque entonces la columna `team_id` no
+        existe y la política antigua es la que manda.
+      */
       if (role === 'coach') {
-        const [exRes, foodRes] = await Promise.all([
-          supabase.from('exercises').select('*').eq('coach_id', user.id).order('name'),
-          supabase.from('foods').select('*').eq('coach_id', user.id).order('name'),
-        ]);
+        const library = (table) => {
+          const query = supabase.from(table).select('*').order('name');
+          return team ? query : query.eq('coach_id', user.id);
+        };
+
+        const [exRes, foodRes] = await Promise.all([library('exercises'), library('foods')]);
         if (isStale()) return;
         if (exRes.error) console.error('exercises:', exRes.error.message);
         if (foodRes.error) console.error('foods:', foodRes.error.message);
@@ -730,9 +775,33 @@ export const AppProvider = ({ children }) => {
 
   // ── Cliente activo ───────────────────────────────────────────────────────
 
+  /*
+    ── Dos listas, y por qué ─────────────────────────────────────────────────
+    `clients` es el estado completo y así se queda: todas las mutaciones y el
+    espejo (`clientsRef`) trabajan sobre él, y filtrarlo ahí dentro haría que
+    actualizar a un archivado lo borrase de la lista.
+
+    Lo que cambia es lo que se EXPONE. Casi todo el producto —la cartera, «Hoy»,
+    la paleta, el selector— habla de la cartera viva, así que `clients` sale ya
+    filtrado y ninguna de esas pantallas necesita saber que existe el archivo. Lo
+    completo se expone aparte, para las tres cosas que sí lo necesitan: la lista
+    de clientes, la copia de seguridad y resolver la ficha que pide la URL.
+  */
+  const visibleClients = useMemo(() => clients.filter((c) => !isArchived(c)), [clients]);
+  const archivedClients = useMemo(() => clients.filter(isArchived), [clients]);
+
+  /*
+    Se busca en la lista COMPLETA: `/c/<id>/resumen` de alguien archivado tiene que
+    seguir abriéndose —para consultar su historial o para recuperarlo—, y si se
+    resolviera contra la filtrada, el enlace caería en el primer cliente de la
+    lista y estarías mirando la ficha de otra persona sin enterarte.
+
+    El respaldo, en cambio, sale de la viva: al entrar sin haber elegido a nadie,
+    lo razonable es el primero de la cartera, no uno que ya terminó.
+  */
   const activeClient = useMemo(
-    () => clients.find((c) => c.id === selectedClientId) || clients[0] || null,
-    [clients, selectedClientId]
+    () => clients.find((c) => c.id === selectedClientId) || visibleClients[0] || null,
+    [clients, visibleClients, selectedClientId]
   );
 
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
@@ -2025,6 +2094,49 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * Vuelve a leer el plan.
+   *
+   * Hace falta cuando cambia el recuento de clientes —alta, archivo, borrado— y
+   * al volver de pagar. La cifra sale de la base y no de `clients.length` a
+   * propósito: quien impone el límite es el disparador de Postgres, y una segunda
+   * cuenta hecha en el navegador acabaría discrepando el día que dos pestañas den
+   * de alta a la vez. Se enseña la misma que manda.
+   */
+  const refreshPlan = useCallback(async () => {
+    const { data, error } = await supabase.rpc('my_team_plan');
+    if (error) return { ok: false, error: error.message };
+    setPlan(mapPlanFromDb(data?.[0]));
+    return { ok: true };
+  }, []);
+
+  /**
+   * Archiva o recupera un cliente.
+   *
+   * ── Por qué existe, habiendo borrar ─────────────────────────────────────────
+   * Porque el plan tiene un tope de clientes y borrar es irreversible: sin esto,
+   * caber en el plan obligaba a destruir el año de entrenamientos, los pesajes y
+   * las fotos de alguien que simplemente terminó su etapa.
+   *
+   * Archivar es la operación normal al terminar con un cliente. Borrar queda para
+   * lo que de verdad lo pide: que la persona ejerza su derecho de supresión.
+   *
+   * No se guarda con debounce (`immediate`) porque es una decisión, no una
+   * escritura continua: quien lo pulsa espera ver el efecto y probablemente
+   * cierre la pantalla a continuación.
+   */
+  const setClientArchived = useCallback(
+    async (clientId, archived) => {
+      updateClient(clientId, { status: archived ? 'archived' : 'active' });
+
+      /* El recuento del plan lo lleva la base de datos, así que después de
+         archivar hay que volver a preguntárselo: es justo la cifra que cambia. */
+      await refreshPlan();
+      return { ok: true };
+    },
+    [refreshPlan, updateClient]
+  );
+
+  /**
    * Preferencias del panel (ver domain/preferences.js).
    *
    * Se fusiona por SECCIÓN, no se reemplaza el objeto entero: así una preferencia
@@ -2884,7 +2996,10 @@ export const AppProvider = ({ children }) => {
       setViewMode,
 
       // Datos
-      clients,
+      // La cartera viva. Lo archivado sale por `archivedClients`.
+      clients: visibleClients,
+      allClients: clients,
+      archivedClients,
       activeClient,
       selectedClientId,
       setSelectedClientId,
@@ -2962,6 +3077,7 @@ export const AppProvider = ({ children }) => {
       // Clientes
       addClient,
       updateClient,
+      setClientArchived,
       updateClientPreferences,
       exportClientData,
       exportAllData,
@@ -3000,6 +3116,8 @@ export const AppProvider = ({ children }) => {
       // Equipo
       team,
       teamMembers,
+      plan,
+      refreshPlan,
       hasTeams: Boolean(team),
       myTeamRole: team?.myRole || null,
       inviteTeamMember,
@@ -3010,7 +3128,7 @@ export const AppProvider = ({ children }) => {
     }),
     [
       session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
-      clients, activeClient, selectedClientId, workoutData, anthropometry, nutrition,
+      clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
@@ -3023,10 +3141,10 @@ export const AppProvider = ({ children }) => {
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,
-      addClient, updateClient, updateClientPreferences, exportClientData, exportAllData, loadAuditLog, deleteClientCompletely,
+      addClient, updateClient, setClientArchived, updateClientPreferences, exportClientData, exportAllData, loadAuditLog, deleteClientCompletely,
       reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
       uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink,
-      checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent, team, teamMembers, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
+      checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent, team, teamMembers, plan, refreshPlan, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
     ]
   );
 

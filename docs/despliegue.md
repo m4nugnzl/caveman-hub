@@ -102,6 +102,11 @@ devuelve a `localhost` o directamente falla. La aplicación construye esos enlac
 con `window.location.origin`, así que el dominio correcto sale solo — lo que hay
 que autorizar es que Supabase acepte volver a él.
 
+De ahí cuelga también **la recuperación de contraseña**: el correo devuelve a
+`/nueva-contrasena`, que el comodín `/**` ya cubre. Comprueba de paso, en
+*Authentication → Emails*, cuánto dura ese enlace: mientras esté vivo **vale como
+acceso a la cuenta**, así que una hora es razonable y un día no lo es.
+
 Si usas las Edge Functions (Notion, Stripe, enlaces de revisión), despliégalas:
 
 ```bash
@@ -112,6 +117,24 @@ npx supabase functions deploy review-link
 npx supabase functions deploy stripe-payments
 npx supabase functions deploy stripe-webhook
 ```
+
+Y si cobras por la aplicación (ver `0021_billing_prices.sql`, que lleva los pasos
+de Stripe en orden):
+
+```bash
+npx supabase functions deploy billing-checkout
+npx supabase functions deploy billing-webhook --no-verify-jwt
+```
+
+`--no-verify-jwt` **solo en el webhook**: lo llama Stripe, que no tiene sesión de
+Supabase, y lo que autentica ahí es la firma HMAC. En `billing-checkout` es al
+revés —de su token sale quién paga y a nombre de qué equipo—, así que la
+verificación es imprescindible.
+
+> ⚠️ Las funciones `billing-*` usan la clave **completa** de Stripe, la que puede
+> cobrar. No confundirla con la de la integración de Ajustes, que es la del
+> entrenador y es de solo lectura. Va en los secretos de la función
+> (`STRIPE_SECRET_KEY`), nunca en la base de datos ni en el navegador.
 
 ---
 

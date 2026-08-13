@@ -94,7 +94,19 @@ export const CoachLayout = () => {
             </button>
 
             <ClientSwitcher
-              clients={clients}
+              /*
+                La cartera viva, más el cliente abierto si resulta estar
+                archivado. Sin ese añadido, entrar por enlace directo a la ficha
+                de alguien archivado enseñaría en el selector el nombre de OTRA
+                persona —el primero de la lista— mientras debajo se ve la ficha
+                del archivado. Aparecer no le desarchiva: sigue fuera de la
+                cartera en cuanto se sale de su ficha.
+              */
+              clients={
+                activeClient && !clients.some((c) => c.id === activeClient.id)
+                  ? [activeClient, ...clients]
+                  : clients
+              }
               selectedClientId={selectedClientId}
               /* Cambiar de cliente conserva la sección: si estabas en su
                  nutrición, pasas a la nutrición del otro. */

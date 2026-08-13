@@ -5,6 +5,7 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { Logo } from '@/components/ui/Logo';
 import { Login } from '@/components/Auth/Login';
+import { CONSENT_VERSION, ConsentNotice } from '@/components/Auth/ConsentNotice';
 
 /**
  * `/invitacion/<token>` — la puerta de entrada del cliente.
@@ -32,6 +33,7 @@ export const InvitePage = () => {
   const [session, setSession] = useState(null);
   const [checking, setChecking] = useState(true);
   const [state, setState] = useState({ status: 'idle' });
+  const [accepted, setAccepted] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -49,7 +51,16 @@ export const InvitePage = () => {
 
   const claim = useCallback(async () => {
     setState({ status: 'claiming' });
-    const { data, error } = await supabase.rpc('claim_client_invite', { p_token: token });
+    /*
+      Los dos argumentos van juntos y no por casualidad: la función que acepta la
+      versión del consentimiento es la única que `authenticated` puede ejecutar
+      (`0018_client_consent.sql`). Enlazar la cuenta sin dejar constancia no es que
+      esté desaconsejado: no se puede.
+    */
+    const { data, error } = await supabase.rpc('claim_client_invite', {
+      p_token: token,
+      p_consent_version: CONSENT_VERSION,
+    });
     if (error) {
       // Los mensajes vienen de la función y están escritos para leerse: «ha
       // caducado», «ya se ha usado», «ya está enlazada a otra cuenta». Se muestran
@@ -61,11 +72,15 @@ export const InvitePage = () => {
     setState({ status: 'done', name: data });
   }, [token]);
 
-  // En cuanto hay sesión se canjea, sin un botón intermedio: quien abre un enlace de
-  // invitación e inicia sesión ya ha dicho que sí dos veces.
-  useEffect(() => {
-    if (session && state.status === 'idle') claim();
-  }, [session, state.status, claim]);
+  /*
+    ── Antes esto se canjeaba solo, y ya no ──────────────────────────────────
+    El razonamiento era que quien abre un enlace de invitación y se registra ya ha
+    dicho que sí dos veces. Es verdad para el enlace, y no vale para lo que se
+    guarda detrás: esta aplicación trata peso, pliegues y fotos del cuerpo, y eso
+    necesita un sí explícito e informado, no uno deducido de dos clics anteriores.
+
+    Así que hay un paso más, y es el único sitio donde lo hay.
+  */
 
   if (checking) {
     return (
@@ -89,6 +104,35 @@ export const InvitePage = () => {
     <div className="review-page">
       <div className="review-card col gap-4">
         <Logo size={34} />
+
+        {state.status === 'idle' && (
+          <>
+            <div className="col gap-1">
+              <h2>Antes de entrar</h2>
+              <p className="t-sm t-secondary">
+                Esto es lo que se guarda de ti y quién puede verlo. Léelo con calma: sin tu permiso
+                no se enlaza nada.
+              </p>
+            </div>
+
+            <ConsentNotice checked={accepted} onChange={setAccepted} />
+
+            {/*
+              El botón está apagado hasta que se marca la casilla, en vez de dejarlo
+              activo y avisar al pulsarlo. Un error que se explica después obliga a
+              volver a leer para encontrar qué faltaba; uno que no deja pulsar dice
+              dónde está el paso que queda.
+            */}
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              disabled={!accepted}
+              onClick={claim}
+            >
+              Acepto y entro
+            </button>
+          </>
+        )}
 
         {state.status === 'claiming' && <p className="t-sm t-secondary">Enlazando tu cuenta…</p>}
 

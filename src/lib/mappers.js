@@ -294,3 +294,27 @@ export const mapPhotoToDb = ({ clientId, path, angle, weight, notes }) => ({
   photo_url: path,
   tag: buildTag({ angle, weight, notes }),
 });
+// ── Plan del equipo ────────────────────────────────────────────────────────
+
+/**
+ * Lo que devuelve `my_team_plan()`.
+ *
+ * Llega vacío cuando la migración 0019 no está aplicada o el equipo no tiene fila
+ * de suscripción. Se distingue de «plan sin límite» devolviendo `null`: son dos
+ * cosas distintas y la pantalla las cuenta distinto —una es «falta configurar»,
+ * la otra es «no hay tope»—.
+ */
+export const mapPlanFromDb = (row) =>
+  row
+    ? {
+        teamId: row.team_id,
+        plan: row.plan,
+        label: row.label,
+        status: row.status,
+        activo: row.activo,
+        clients: row.clientes ?? 0,
+        maxClients: row.max_clientes ?? null,
+        trialEndsAt: row.trial_ends_at || null,
+        currentPeriodEnd: row.current_period_end || null,
+      }
+    : null;

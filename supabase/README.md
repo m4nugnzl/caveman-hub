@@ -25,6 +25,12 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0006_teams.sql` | Cuando quieras equipos | La pestaña «Equipo» avisa de que falta y la app funciona como entrenador único. Ver `docs/modelo-de-equipo.md`. |
 | `0017_audit_log.sql` | Cuando trabajes en equipo, o antes de tener clientes pagando | Nadie sabe quién cambió el plan de un cliente ni cuándo. La ficha del cliente avisa de que falta. Aditiva: solo añade una tabla y unos disparadores. |
 | `0016_session_feedback.sql` | Cuando quieras el feedback de las sesiones | El entrenador puede dejar sus notas y montar el calentamiento (los escribe él, que tiene UPDATE), pero **al cliente le falla el guardado** al contestar o al escribir en su cuaderno: ve el error con su botón de reintentar. Aditiva, no cambia ningún permiso. |
+| `0018_client_consent.sql` | **Sí, antes de tener clientes reales** | **Ningún cliente puede canjear su invitación**: la aplicación pide el consentimiento y llama a la función de dos argumentos, que sin la migración no existe. Aplícala ANTES de desplegar. Requiere `0015`. |
+| `0019_billing.sql` | Cuando vayas a cobrar | No hay planes ni límites: todo el mundo usa todo sin tope, como hasta ahora. Ajustes → Plan avisa de que falta. Requiere `0006`. Los equipos que ya existen quedan **sin límite**, así que aplicarla no capa a nadie. |
+| `0020_client_archive.sql` | Junto con la `0019` | Archivar sigue funcionando (la columna ya existía), pero sin la comprobación de valores ni el índice del recuento. Aditiva y sin riesgo. |
+| `0021_billing_prices.sql` | Para cobrar de verdad | La pantalla de Plan no sabe qué vale cada plan y no hay nada que contratar. Requiere `0019` y desplegar `billing-checkout` y `billing-webhook`. Lleva dentro los pasos de Stripe en orden. |
+| `0022_starter_library.sql` | Antes de que se registre nadie nuevo | Los entrenadores nuevos entran con las bibliotecas de ejercicios y alimentos vacías y tienen que escribirlas ellos. Solo siembra donde no hay nada, así que no pisa ninguna biblioteca existente. Requiere `0006`. |
+| `0023_pending_consent.sql` | Si tienes clientes enlazados de antes de la `0018` | Esos clientes siguen sin consentimiento registrado y no hay forma de pedírselo. La pantalla que lo pide deja pasar si la migración no está, así que aplicarla es lo que la activa. Requiere `0018`. |
 
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
 
@@ -267,7 +273,21 @@ crearse una cuenta.
 0015_client_invites.sql          (aditiva, sin riesgo)
 0016_session_feedback.sql        (aditiva, sin riesgo; requiere 0014 por el mismo motivo)
 0017_audit_log.sql               (aditiva, sin riesgo; el disparador de check_ins solo si hay 0009)
+0018_client_consent.sql          (requiere 0015; APLÍCALA ANTES de desplegar el código)
 ```
+
+La `0018` es la única de este grupo que hay que coordinar con el despliegue.
+Retira a `authenticated` el permiso de canjear sin dejar constancia del
+consentimiento, y la aplicación pasa a llamar a la versión que sí la deja. Eso
+significa que **en cualquiera de los dos órdenes hay un rato en el que canjear
+falla**: con el código nuevo y sin migración, porque la función de dos argumentos
+no existe; con la migración y el código viejo, porque el permiso de la de uno ya
+no está.
+
+Ese rato son los minutos que tardes en desplegar, así que hazlo seguido. No se
+pierde nada en ninguno de los dos casos: el enlace de invitación sigue vivo sus
+catorce días y se canjea después. Lo que no hay que hacer es aplicarla y dejar el
+despliegue para otro día.
 
 La `0016` existe por lo mismo que la `0014`: el cliente no tiene UPDATE sobre
 `workout_data`, así que contar cómo le ha ido —su feedback y su cuaderno— también

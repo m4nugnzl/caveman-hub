@@ -176,7 +176,7 @@ Supabase, aunque un cliente solo use tres pestañas. `React.lazy` por pestaña y
 panel del entrenador fuera del arranque del cliente rebajarían bastante la primera
 carga, que es la que se nota en un móvil con datos.
 
-### 3.5 Sin política de datos personales — **PARCIAL**
+### 3.5 Sin política de datos personales — **CORREGIDO (migración 0018)**
 
 Esto guarda **fotos corporales, peso, pliegues cutáneos y perímetros**: datos de
 salud, la categoría más sensible del RGPD. Faltan tres cosas que no son opcionales
@@ -187,15 +187,45 @@ si hay clientes reales en la UE:
 - **Borrado** — HECHO. Borra los archivos del bucket, los bloques, los check-ins,
   el calendario y la ficha, en ese orden (las claves foráneas no tienen cascada).
   Pide escribir el nombre y reporta lo que no haya podido borrar.
-- **Consentimiento y finalidad** — PENDIENTE: quién ve sus fotos y para qué.
+- **Consentimiento y finalidad** — HECHO. Al canjear su invitación, el cliente lee
+  qué se guarda, quién lo ve y qué puede pedir, y lo acepta con una casilla que
+  llega sin marcar. Queda archivado en `client_consents` con la versión del texto
+  que se le enseñó, en la **misma transacción** que el enlace de su cuenta: no
+  existe el estado «enlazado sin consentimiento».
+
+  **Los clientes que ya estaban enlazados** antes de la 0018 tampoco se quedan
+  fuera (migración 0023): al entrar al portal se les pide, y hasta que aceptan no
+  pasan —lo que hay detrás es el tratamiento, y en cuanto entran pueden subir una
+  foto—. No se les inventa una fila: el consentimiento se da, no se deduce de que
+  alguien lleve seis meses usando el portal.
+
+- **Política de privacidad y condiciones** — HECHAS, en `/privacidad` y
+  `/condiciones`, públicas y enlazadas desde el registro y el consentimiento.
+  Faltan los datos del titular, que la página marca en rojo mientras no estén.
+
+- **Una cesión de datos que nadie había decidido** — CORREGIDA. La ficha del
+  cliente pedía su avatar a `api.dicebear.com` **con el nombre de la persona en la
+  URL**: cada vez que se abría la pantalla se le mandaba a un tercero el nombre de
+  alguien de quien esto guarda su peso, sus pliegues y fotos de su cuerpo. Ahora
+  las iniciales se dibujan en el propio navegador y no sale nada.
 
 ### 3.6 Recuperación — **PARCIAL**
 
-No hay ninguna copia de seguridad propia más allá de lo que haga Supabase por su
-plan, y el modelo de datos concentra todo el trabajo de un año en unas pocas filas
-JSONB: un `UPDATE` mal hecho puede borrar el programa completo de un cliente sin
-que quede rastro. Antes de tener clientes pagando conviene un volcado periódico
-propio y verificado.
+No había ninguna copia de seguridad propia más allá de lo que hiciera Supabase por
+su plan, y el modelo de datos concentra todo el trabajo de un año en unas pocas
+filas JSONB: un `UPDATE` mal hecho puede borrar el programa completo de un cliente
+sin que quede rastro.
+
+Hecho: `npm run backup` (ver **[`copias.md`](copias.md)**) vuelca las filas, **las
+cuentas de `auth`** —sin las que los datos restaurados no pertenecen a nadie— y
+**los archivos del bucket**, que la copia de la aplicación no traía. Tiene modo de
+verificación que recalcula la huella de cada archivo, y termina con error si algo
+falta, de modo que una tarea programada avisa.
+
+Sigue **PARCIAL** por una razón que no es de código: **nadie ha probado una
+restauración completa todavía**. El procedimiento está escrito paso a paso, pero
+hasta que no se ejecute contra un proyecto de usar y tirar no se sabe qué se ha
+olvidado. Es lo que hay que hacer antes del primer cliente de pago, no después.
 
 ---
 

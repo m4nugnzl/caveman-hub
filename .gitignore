@@ -10,6 +10,13 @@
 .env
 .env.local
 .env.*.local
+# La de las copias lleva la service_role key, que salta TODAS las políticas de
+# seguridad. Va aparte y con su propia línea porque `.env.*.local` no la cubría.
+.env.backup
+
+# Las copias de seguridad: datos de salud de personas concretas y las fotos
+# originales. Aquí no entra nada de esto ni por error.
+/copias
 
 # logs
 npm-debug.log*

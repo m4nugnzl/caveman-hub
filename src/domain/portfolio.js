@@ -31,6 +31,22 @@ import { daysBetween, todayISO, weekStart } from '@/lib/dates';
 import { buildWeeklySeries } from './analytics';
 import { readingHeadline, weeklyReading } from './reading';
 
+/**
+ * ¿Está archivado?
+ *
+ * Un cliente archivado terminó su etapa: no aparece en la cartera, no sale en la
+ * paleta, no genera alertas y **no cuenta para el límite del plan**. Todo lo suyo
+ * sigue en la base de datos, así que si vuelve, vuelve con su historial.
+ *
+ * La comprobación es «distinto de archivado» y no «igual a activo» porque la
+ * columna es antigua: hay filas con `NULL` de antes de que tuviera valor por
+ * defecto, y un `NULL` ahí significa que no se archivó nunca. Es la misma
+ * comparación que hace el disparador del límite en la base de datos, y tiene que
+ * seguir siéndolo: si las dos discreparan, la aplicación enseñaría un recuento y
+ * el servidor rechazaría el alta por otro.
+ */
+export const isArchived = (client) => client?.status === 'archived';
+
 /** Umbrales, en un solo sitio para poder discutirlos sin buscarlos. */
 export const THRESHOLDS = {
   noTraining: 7, // días sin registrar un entreno

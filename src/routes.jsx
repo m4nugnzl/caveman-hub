@@ -2,6 +2,7 @@ import {
   CalendarDays,
   Camera,
   ClipboardList,
+  CreditCard,
   HardDriveDownload,
   Gauge,
   Layers,
@@ -121,6 +122,12 @@ export const SETTINGS_SECTIONS = [
     icon: UsersRound,
     hint: 'Entrenadores, roles y reparto de clientes',
   },
+  {
+    path: 'plan',
+    label: 'Plan',
+    icon: CreditCard,
+    hint: 'Tu suscripción y hasta dónde llega',
+  },
 ];
 
 /**
@@ -150,6 +157,19 @@ export const CLIENT_SECTIONS = [
   { path: 'fotos', label: 'Mis fotos', short: 'Fotos', icon: Camera },
   { path: 'calendario', label: 'Mi calendario', short: 'Calendario', icon: CalendarDays },
 ];
+
+/**
+ * Elegir contraseña nueva. Se llega desde el enlace del correo, así que es una de
+ * las rutas que existen SIN sesión previa, como `/r/` y `/invitacion/`.
+ *
+ * Está aquí y no escrita a mano en cada sitio porque la usan tres: el formulario
+ * que pide el enlace (para componer el `redirectTo`), el mapa de rutas y la propia
+ * pantalla. Y sobre todo porque **esta ruta tiene que estar dada de alta en
+ * Supabase** (Authentication → URL Configuration → Redirect URLs): si el texto de
+ * un sitio deja de coincidir con el del otro, el enlace del correo devuelve al
+ * usuario a la portada sin ningún error visible.
+ */
+export const RESET_PATH = '/nueva-contrasena';
 
 export const COACH_HOME = '/hoy';
 export const CLIENT_HOME = '/mi/panel';

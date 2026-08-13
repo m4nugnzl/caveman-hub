@@ -5,8 +5,11 @@ import { useApp } from '@/context/AppContext';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { Header } from '@/components/Header';
 import { Login } from '@/components/Auth/Login';
+import { PasswordResetPage } from '@/components/Auth/PasswordResetPage';
+import { LegalPage } from '@/components/legal/LegalPage';
 import { CoachLayout } from '@/components/Coach/CoachLayout';
 import { ClientLayout } from '@/components/Client/ClientLayout';
+import { ConsentGate } from '@/components/Client/ConsentGate';
 import { Today } from '@/components/Coach/Today';
 import { ClientPortfolio } from '@/components/Coach/ClientPortfolio';
 import { Dashboard } from '@/components/dashboard/Dashboard';
@@ -32,6 +35,7 @@ const AppearancePanel = lazyRoute(() => import('@/components/Coach/Settings/Appe
 const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
 const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
 const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
+const PlanPanel = lazyRoute(() => import('@/components/Coach/Settings/PlanPanel').then((m) => ({ default: m.PlanPanel })));
 const WorkoutLogEditor = lazyRoute(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
 const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
 const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
@@ -42,11 +46,12 @@ const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRo
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
-import { COACH_HOME, CLIENT_HOME } from '@/routes';
+import { COACH_HOME, CLIENT_HOME, RESET_PATH } from '@/routes';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
+import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
 
 /**
  * Mapa de rutas.
@@ -77,11 +82,25 @@ export default function App() {
     estuviera detrás del control de sesión no se podría llegar nunca a ella.
   */
   const path = window.location.pathname;
-  if (path.startsWith('/r/') || path.startsWith('/invitacion/')) {
+  const esLegal = path === '/privacidad' || path === '/condiciones';
+
+  if (path.startsWith('/r/') || path.startsWith('/invitacion/') || path === RESET_PATH || esLegal) {
     return (
       <Routes>
         <Route path="/r/:token" element={<ReviewPage />} />
         <Route path="/invitacion/:token" element={<InvitePage />} />
+
+        {/* Privacidad y condiciones se leen ANTES de tener cuenta —el cliente que
+            va a aceptar, el entrenador que se registra— y Stripe pide las dos
+            como direcciones públicas para activar el cobro. */}
+        <Route path="/:documento" element={<LegalPage />} />
+        {/*
+          Elegir contraseña nueva va aquí por un motivo distinto al de las otras
+          dos: el enlace del correo INICIA SESIÓN al abrirse, así que si dependiera
+          del control de sesión de abajo, quien viene a cambiar su contraseña
+          entraría directo al panel sin llegar nunca al formulario.
+        */}
+        <Route path={RESET_PATH} element={<PasswordResetPage />} />
       </Routes>
     );
   }
@@ -105,6 +124,12 @@ export default function App() {
       proveedor comparte ese único booleano entre las dos.
     */
     <CommandPaletteProvider>
+      {/*
+        La bienvenida envuelve a la aplicación por el mismo motivo que la paleta:
+        la abren dos sitios que no se conocen entre sí —la primera visita y el menú
+        de cuenta—, así que el booleano tiene que estar por encima de los dos.
+      */}
+      <TourProvider>
       <Header />
       <main>
         {loadError && (
@@ -180,6 +205,7 @@ export default function App() {
                   <Route path="integraciones" element={<IntegrationsCatalogue />} />
                   <Route path="copia" element={<BackupPanel />} />
                   <Route path="equipo" element={<TeamPanel />} />
+                  <Route path="plan" element={<PlanPanel />} />
                 </Route>
 
                 <Route path="c/:clientId">
@@ -205,7 +231,16 @@ export default function App() {
             </>
           ) : (
             <>
-              <Route path="mi" element={<ClientLayout />}>
+              {/* El consentimiento va por delante del portal entero, no de una
+                  pantalla: en cuanto entra puede subir una foto de su cuerpo. */}
+              <Route
+                path="mi"
+                element={
+                  <ConsentGate>
+                    <ClientLayout />
+                  </ConsentGate>
+                }
+              >
                 <Route index element={<Navigate to="panel" replace />} />
                 <Route element={<ProgressLayout audience="client" />}>
                   <Route path="panel" element={<Dashboard audience="client" />} />
@@ -225,6 +260,8 @@ export default function App() {
       </main>
 
       <CommandPalette />
+      <WelcomeTour />
+      </TourProvider>
     </CommandPaletteProvider>
   );
 }

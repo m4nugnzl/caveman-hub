@@ -58,7 +58,11 @@ npm run types     # comprueba el contrato de los JSONB (solo archivos con @ts-ch
 npm run verify    # comprueba que no hay clases ni tokens CSS sin definir
 npm run test      # tests del dominio
 npm run check     # todo lo anterior + build de producción
+npm run backup    # copia de seguridad completa (filas, cuentas y fotos)
 ```
+
+`backup` no es parte de `check`: corre contra la base de datos real y necesita la
+`service_role key` en `.env.backup`. Ver **[`docs/copias.md`](docs/copias.md)**.
 
 ## Rutas
 

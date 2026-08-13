@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
+  Archive,
+  ArchiveRestore,
   CheckCircle2,
   CreditCard,
   ExternalLink,
@@ -12,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { initials } from '@/lib/initials';
 import { EmptyState, Field, Notice, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { ClientDataPanel } from './ClientDataPanel';
 import { inviteMessage, useInvite } from './useInvite';
@@ -151,16 +154,105 @@ const PortalAccess = ({ client }) => {
   );
 };
 
+/**
+ * Terminar con un cliente sin borrarle.
+ *
+ * ══ Por qué archivar y no simplemente borrar ════════════════════════════════
+ *
+ * Porque el plan tiene un tope de clientes y borrar es irreversible: se lleva su
+ * año de entrenamientos, sus pesajes y sus fotos. Sin esto, caber en el plan
+ * obligaba a destruir el trabajo de alguien que solo había terminado su etapa.
+ *
+ * Archivar es lo normal al acabar con un cliente. Borrar —que sigue estando, en
+ * el bloque de abajo— queda para lo que de verdad lo pide: que la persona ejerza
+ * su derecho de supresión.
+ *
+ * No pregunta «¿seguro?» a propósito: es reversible desde la misma pantalla, y un
+ * diálogo de confirmación para algo que se deshace en un clic solo enseña a
+ * ignorar los diálogos de confirmación.
+ */
+const ArchiveRow = ({ client }) => {
+  const { setClientArchived } = useApp();
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="card-inset row between wrap gap-2 t-sm">
+      <div className="col gap-1">
+        <span className="t-secondary">Terminar con este cliente</span>
+        <span className="t-xs t-tertiary">
+          Deja de aparecer en la cartera y de contar para tu plan. Todo lo suyo se conserva.
+        </span>
+      </div>
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          setClientArchived(client.id, true);
+        }}
+      >
+        <Archive size={14} /> Archivar
+      </button>
+    </div>
+  );
+};
+
+/** Los que terminaron. Se recuperan desde aquí y siguen enteros. */
+const ArchivedList = () => {
+  const { archivedClients, setClientArchived } = useApp();
+
+  if (archivedClients.length === 0) return null;
+
+  return (
+    <Panel className="col gap-3">
+      <SectionTitle icon={Archive}>Archivados · {archivedClients.length}</SectionTitle>
+      <p className="t-sm t-secondary">
+        No aparecen en la cartera ni cuentan para tu plan. Su rutina, sus medidas y sus fotos siguen
+        guardadas: si vuelven, vuelven con su historial.
+      </p>
+
+      <div className="col gap-2">
+        {archivedClients.map((client) => (
+          <div key={client.id} className="card-inset row between wrap gap-2">
+            <div className="col gap-1">
+              <strong className="t-sm">{client.name}</strong>
+              <span className="t-xs t-tertiary">{client.email || 'Sin email'}</span>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setClientArchived(client.id, false)}
+            >
+              <ArchiveRestore size={14} /> Recuperar
+            </button>
+          </div>
+        ))}
+      </div>
+    </Panel>
+  );
+};
+
 const ClientCard = ({ client, onUpdate }) => (
   <Panel className="col gap-4">
     <div className="row gap-3">
-      <img
-        src={client.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(client.name)}`}
-        alt=""
-        width={48}
-        height={48}
-        style={{ borderRadius: 12, objectFit: 'cover', border: '1px solid var(--accent)', flexShrink: 0 }}
-      />
+      {/*
+        Su foto si la tiene y, si no, sus iniciales dibujadas aquí.
+
+        Antes las iniciales las servía `api.dicebear.com`, con el NOMBRE DEL
+        CLIENTE en la URL. Es decir: cada vez que se abría esta pantalla se le
+        mandaba a un tercero el nombre de una persona de la que esto guarda su
+        peso, sus pliegues y fotos de su cuerpo. Nadie lo había decidido y habría
+        que declararlo en la política de privacidad. Dos letras no necesitan salir
+        de la pantalla.
+      */}
+      {client.avatar ? (
+        <img src={client.avatar} alt="" width={48} height={48} className="client-avatar" />
+      ) : (
+        <span className="client-avatar is-initials" aria-hidden="true">
+          {initials(client.name)}
+        </span>
+      )}
       <div className="grow">
         <div style={{ fontWeight: 800 }}>{client.name}</div>
         <div className="t-xs t-secondary">
@@ -248,6 +340,10 @@ const ClientCard = ({ client, onUpdate }) => (
     {/* Sin acceso al portal, el cliente no puede registrar nada — así que todo lo
         demás de esta ficha da igual. Por eso va antes que sus datos. */}
     <PortalAccess client={client} />
+
+    {/* Las dos formas de terminar, en orden de gravedad: archivar es reversible
+        y va primero; borrar, que no lo es, va debajo. */}
+    <ArchiveRow client={client} />
 
     {/* Exportar y borrar sus datos personales. Va aquí, en la ficha
         administrativa, y no en una sección propia: es lo que se hace cuando un
@@ -343,6 +439,10 @@ export const ClientRoster = () => {
           ))}
         </div>
       )}
+
+      {/* Al final y no arriba: es un archivo, no una bandeja. Se entra a buscar
+          algo concreto, no se pasa por aquí todos los días. */}
+      <ArchivedList />
     </div>
   );
 };

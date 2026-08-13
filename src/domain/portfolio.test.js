@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BOARD_COLUMNS, buildPortfolio, clientStatus, portfolioBoard } from './portfolio';
+import { BOARD_COLUMNS, buildPortfolio, clientStatus, isArchived, portfolioBoard } from './portfolio';
 
 const client = (over = {}) => ({
   id: 'c1',
@@ -66,5 +66,24 @@ describe('portfolioBoard', () => {
     const board = portfolioBoard([]);
     expect(board).toHaveLength(BOARD_COLUMNS.length);
     expect(board.every((c) => c.rows.length === 0)).toBe(true);
+  });
+});
+
+describe('isArchived', () => {
+  /*
+    El caso que importa es el NULL. `clients.status` es anterior al valor por
+    defecto, así que hay filas con NULL, y si esto las diera por archivadas
+    desaparecerían de la cartera entera sin que nadie las hubiera archivado.
+
+    Y tiene que coincidir exactamente con lo que hace el disparador del límite en
+    la base de datos (`status IS DISTINCT FROM 'archived'`): si discreparan, la
+    pantalla enseñaría un recuento y el servidor rechazaría el alta por otro.
+  */
+  it('solo cuenta como archivado el valor explícito', () => {
+    expect(isArchived(client({ status: 'archived' }))).toBe(true);
+    expect(isArchived(client({ status: 'active' }))).toBe(false);
+    expect(isArchived(client({ status: null }))).toBe(false);
+    expect(isArchived(client({ status: undefined }))).toBe(false);
+    expect(isArchived(null)).toBe(false);
   });
 });

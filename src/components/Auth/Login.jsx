@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { LogoMark } from '@/components/ui/Logo';
 import { supabase } from '@/lib/supabaseClient';
+import { MIN_PASSWORD, traduceAuthError } from '@/lib/authErrors';
+import { RESET_PATH } from '@/routes';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
-
-const MIN_PASSWORD = 8;
 
 /**
  * @param notice  Aviso de contexto sobre la pantalla. Lo usa la página de
@@ -12,6 +12,11 @@ const MIN_PASSWORD = 8;
  *   aplicación cualquiera que alguien le ha mandado.
  */
 export const Login = ({ notice = null }) => {
+  /*
+    Tres modos y no dos. «Recuperar» no es una pantalla aparte porque es el mismo
+    formulario con un campo menos: quien está aquí ya ha escrito su email y ha
+    fallado la contraseña, así que sacarle a otra página le haría teclearlo otra vez.
+  */
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState(null);
@@ -19,6 +24,12 @@ export const Login = ({ notice = null }) => {
   const [busy, setBusy] = useState(false);
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
+
+  const go = (next) => {
+    setMode(next);
+    setError(null);
+    setInfo(null);
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -37,7 +48,24 @@ export const Login = ({ notice = null }) => {
           email: form.email.trim(),
           password: form.password,
         });
-        if (err) setError(traduce(err.message));
+        if (err) setError(traduceAuthError(err.message));
+      } else if (mode === 'reset') {
+        const { error: err } = await supabase.auth.resetPasswordForEmail(form.email.trim(), {
+          redirectTo: `${window.location.origin}${RESET_PATH}`,
+        });
+        if (err) setError(traduceAuthError(err.message));
+        /*
+          El mismo mensaje exista o no la cuenta, y a propósito.
+          ------------------------------------------------------------------
+          Decir «no hay ninguna cuenta con ese email» convierte esta pantalla en
+          un comprobador de direcciones: cualquiera puede averiguar quién está
+          dado de alta probando emails, uno por uno y sin límite. Es el mismo
+          motivo por el que la API de Supabase tampoco lo distingue.
+        */
+        else
+          setInfo(
+            'Si hay una cuenta con ese email, te llega un enlace para elegir contraseña nueva. Revisa también la carpeta de spam.'
+          );
       } else {
         // Alta de un ENTRENADOR. El rol 'coach' lo asigna el trigger
         // handle_new_user en la base de datos, no el cliente.
@@ -46,7 +74,7 @@ export const Login = ({ notice = null }) => {
           password: form.password,
           options: { data: { name: form.name.trim() } },
         });
-        if (err) setError(traduce(err.message));
+        if (err) setError(traduceAuthError(err.message));
         else setInfo('Cuenta creada. Revisa tu correo para confirmar el registro.');
       }
     } catch (e) {
@@ -55,6 +83,12 @@ export const Login = ({ notice = null }) => {
       setBusy(false);
     }
   };
+
+  const submitLabel = {
+    login: 'Entrar',
+    signup: 'Crear cuenta de entrenador',
+    reset: 'Enviar enlace',
+  }[mode];
 
   return (
     <div className="login">
@@ -68,6 +102,12 @@ export const Login = ({ notice = null }) => {
         {notice && <Notice tone="info">{notice}</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
         {info && <Notice tone="success">{info}</Notice>}
+
+        {mode === 'reset' && (
+          <p className="t-sm t-secondary">
+            Escribe el email de tu cuenta y te mandamos un enlace para elegir una contraseña nueva.
+          </p>
+        )}
 
         {mode === 'signup' && (
           <Field label="Nombre">
@@ -98,49 +138,67 @@ export const Login = ({ notice = null }) => {
           )}
         </Field>
 
-        <Field
-          label="Contraseña"
-          hint={mode === 'signup' ? `Mínimo ${MIN_PASSWORD} caracteres.` : undefined}
-        >
-          {(props) => (
-            <input
-              {...props}
-              className="input"
-              type="password"
-              value={form.password}
-              onChange={(e) => set('password')(e.target.value)}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              required
-            />
-          )}
-        </Field>
+        {mode !== 'reset' && (
+          <Field
+            label="Contraseña"
+            hint={mode === 'signup' ? `Mínimo ${MIN_PASSWORD} caracteres.` : undefined}
+          >
+            {(props) => (
+              <input
+                {...props}
+                className="input"
+                type="password"
+                value={form.password}
+                onChange={(e) => set('password')(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                required
+              />
+            )}
+          </Field>
+        )}
 
         <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'Un momento…' : mode === 'login' ? 'Entrar' : 'Crear cuenta de entrenador'}
+          {busy ? 'Un momento…' : submitLabel}
         </button>
+
+        {/*
+          El enlace de recuperación va DEBAJO del botón de entrar y no junto al
+          campo: solo hace falta cuando la contraseña ya ha fallado, y arriba
+          compite con lo que casi todo el mundo viene a hacer.
+        */}
+        {mode === 'login' && (
+          <button type="button" className="btn btn-sm login-alt" onClick={() => go('reset')}>
+            ¿Has olvidado tu contraseña?
+          </button>
+        )}
 
         <button
           type="button"
           className="btn btn-sm login-alt"
-          onClick={() => {
-            setMode(mode === 'login' ? 'signup' : 'login');
-            setError(null);
-            setInfo(null);
-          }}
+          onClick={() => go(mode === 'login' ? 'signup' : 'login')}
         >
           {mode === 'login' ? '¿No tienes cuenta? Crear una' : '¿Ya tienes cuenta? Entrar'}
         </button>
+
+        {/*
+          Solo al registrarse. Quien ya tiene cuenta las aceptó en su día y
+          enseñárselas cada vez que entra es ruido; quien la está creando las
+          acepta en este clic y tiene que poder leerlas antes.
+        */}
+        {mode === 'signup' && (
+          <p className="t-xs t-tertiary" style={{ textAlign: 'center' }}>
+            Al crear la cuenta aceptas las{' '}
+            <a href="/condiciones" target="_blank" rel="noreferrer">
+              condiciones del servicio
+            </a>{' '}
+            y la{' '}
+            <a href="/privacidad" target="_blank" rel="noreferrer">
+              política de privacidad
+            </a>
+            .
+          </p>
+        )}
       </Panel>
     </div>
   );
 };
-
-/** Los mensajes de Supabase Auth llegan en inglés. */
-function traduce(message = '') {
-  const map = {
-    'Invalid login credentials': 'Email o contraseña incorrectos.',
-    'Email not confirmed': 'Tienes que confirmar tu email antes de entrar.',
-    'User already registered': 'Ya existe una cuenta con ese email.',
-  };
-  return map[message] || message;
-}

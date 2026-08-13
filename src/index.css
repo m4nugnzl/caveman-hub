@@ -884,6 +884,27 @@ button.list-row:hover { background: var(--fill-subtle); }
   padding: var(--s4) var(--s5); border-top: 1px solid var(--hairline); flex-wrap: wrap;
 }
 
+/* ── Bienvenida ────────────────────────────────────────────────────────────
+   El cuerpo de cada paso reutiliza `.empty` —icono en círculo, título y párrafo
+   de 44ch, centrados—, que es exactamente la misma forma. Lo único propio es el
+   pie: el indicador de posición a la izquierda y la navegación a la derecha.
+
+   `.modal-footer` alinea a la derecha, así que el pie ocupa el ancho entero y
+   reparte por dentro. Envuelve en móvil, donde «Crear mi primer cliente» y
+   «Atrás» no caben en una línea junto a los puntos. */
+.tour-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); width: 100%; flex-wrap: wrap;
+}
+.tour-dots { display: inline-flex; align-items: center; gap: 6px; }
+.tour-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--fill-strong); transition: background-color var(--fast), width var(--fast);
+}
+/* El paso actual es una cápsula, no un punto más oscuro: en tema claro la
+   diferencia de color sola casi no se ve. */
+.tour-dot.is-on { width: 18px; border-radius: var(--r-pill); background: var(--accent); }
+
 .popover {
   position: absolute; z-index: 60; background: var(--surface);
   border-radius: var(--r-md); padding: 5px; min-width: 208px;
@@ -2105,6 +2126,112 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   padding: var(--s5); box-shadow: var(--shadow-sm);
   position: relative;
 }
+/* ── Privacidad y condiciones ──────────────────────────────────────────────
+   Un documento para leer, no una pantalla de aplicación: medida de línea corta,
+   párrafos separados y jerarquía marcada por el tamaño, no por cajas. Es el
+   único sitio del proyecto donde hay prosa larga de verdad. */
+.legal { max-width: 68ch; line-height: var(--lh-loose); }
+.legal h1 { font-size: var(--fs-xl); }
+.legal h2 { font-size: var(--fs-md); }
+.legal p, .legal li { font-size: var(--fs-base); color: var(--text-secondary); }
+.legal p + p { margin-top: var(--s3); }
+.legal ul { display: flex; flex-direction: column; gap: var(--s2); padding-left: 1.15em; }
+.legal li { list-style: disc; }
+.legal a { color: var(--accent); font-weight: 600; }
+.legal code { font-size: var(--fs-sm); background: var(--fill-subtle); padding: 1px 5px; border-radius: var(--r-xs); }
+.legal-url { font-weight: 600; color: var(--text); }
+
+/* El hueco por rellenar. Va en rojo y con fondo: tiene que ser imposible
+   publicar el documento sin verlo. */
+.legal-hueco {
+  background: var(--negative-soft); color: var(--negative);
+  padding: 0 6px; border-radius: var(--r-xs); font-weight: 600;
+}
+
+/* Avatar de la ficha del cliente: su foto, o sus iniciales dibujadas aquí. */
+.client-avatar {
+  width: 48px; height: 48px; flex-shrink: 0;
+  border-radius: var(--r-xl); object-fit: cover;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+.client-avatar.is-initials {
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+  font-family: var(--font-display); font-weight: 650; font-size: var(--fs-sm);
+  letter-spacing: 0.02em;
+}
+
+/* ── Plan ──────────────────────────────────────────────────────────────────
+   La cifra manda. Lo que decide un cambio de plan aquí no es comparar listas de
+   ventajas: es quedarse sin sitio, así que lo primero que se ve es cuántos
+   clientes llevas, en el tamaño de una cifra principal y en Archivo —el dato ES
+   el contenido, que es la regla de la fuente en este proyecto—.
+
+   Los planes van debajo como una escala de peldaños, no como tres tarjetas
+   compitiendo: solo cambia una cosa entre ellos y ponerlos en columnas obligaría
+   a leer tres veces lo mismo para encontrarla. */
+.plan-hero { display: flex; flex-direction: column; gap: var(--s4); }
+.plan-hero-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+}
+.plan-count {
+  font-family: var(--font-display); font-size: var(--fs-2xl);
+  font-weight: 700; line-height: 1; letter-spacing: -0.03em;
+}
+.plan-hero-side { display: flex; flex-direction: column; gap: var(--s1); align-items: flex-end; text-align: right; }
+
+/* Cada plan: nombre y para quién · tope · precio y acción. Tres columnas que se
+   apilan en móvil, donde el precio pasa a la izquierda con el resto. */
+.plan-tier {
+  display: grid; align-items: center; gap: var(--s3);
+  grid-template-columns: minmax(min(220px, 100%), 2fr) auto auto;
+}
+.plan-tier.is-current { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.plan-tier-main { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.plan-tier-name { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650; }
+.plan-tier-cap { color: var(--text-secondary); white-space: nowrap; }
+.plan-tier-buy { display: flex; align-items: center; gap: var(--s3); justify-content: flex-end; }
+.plan-price { font-family: var(--font-display); font-weight: 650; white-space: nowrap; }
+
+@media (max-width: 700px) {
+  /* Una sola columna: el precio debajo del nombre, y el botón a lo ancho, que es
+     donde llega el pulgar. */
+  .plan-tier { grid-template-columns: 1fr; }
+  .plan-tier-buy { justify-content: space-between; }
+  .plan-hero-side { align-items: flex-start; text-align: left; }
+}
+
+/* La barra: lo que se lee es «cuánto me queda», y una longitud se compara de un
+   vistazo mejor que un ángulo. En rojo al llegar al tope porque a partir de ahí
+   el siguiente alta falla — no es un matiz de color, es un cambio de estado. */
+.plan-bar {
+  height: 6px; border-radius: var(--r-pill); background: var(--fill);
+  overflow: hidden; width: 100%;
+}
+.plan-bar-fill {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--accent); transition: width var(--fast);
+}
+.plan-bar-fill.is-full { background: var(--negative); }
+
+/* ── Lo que se guarda de ti, en la invitación ──────────────────────────────
+   Cuatro puntos con icono, no un párrafo legal. La diferencia importa: el texto
+   tiene que informar de verdad, y un bloque de prosa en un móvil se salta entero
+   —con lo que el consentimiento deja de ser informado y deja de valer—.
+
+   `align-items: flex-start` porque el icono acompaña a la primera línea, no se
+   centra sobre un texto que en móvil ocupa tres. */
+.consent-list { display: flex; flex-direction: column; gap: var(--s4); list-style: none; }
+.consent-list li { display: flex; align-items: flex-start; gap: var(--s3); }
+.consent-icon {
+  width: 30px; height: 30px; border-radius: var(--r-md); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+/* La casilla sí alinea arriba: su etiqueta es una frase larga que envuelve. */
+.consent-list + .checkbox-row { align-items: flex-start; }
+
 .review-head { display: flex; justify-content: center; }
 .review-title { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
 .review-video { width: 100%; border-radius: var(--r-md); background: var(--fill); display: block; }

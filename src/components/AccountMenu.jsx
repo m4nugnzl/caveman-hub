@@ -1,21 +1,13 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Eye, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react';
+import { Eye, LifeBuoy, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
+import { initials } from '@/lib/initials';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { SETTINGS_SECTIONS } from '@/routes';
-
-/** Iniciales de la cuenta. Un avatar vacío se ve como un hueco. */
-const initials = (value) =>
-  String(value || '?')
-    .trim()
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('');
 
 /**
  * Menú de cuenta: ajustes, tema y salir.
@@ -38,6 +30,7 @@ const initials = (value) =>
 export const AccountMenu = () => {
   const { session, signOut, profileRole, isCoach, view, setViewMode } = useApp();
   const { isDark, toggle } = useTheme();
+  const tour = useTour();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -119,6 +112,24 @@ export const AccountMenu = () => {
               <hr className="divider" />
             </>
           )}
+
+          {/*
+            La bienvenida sale sola la primera vez y luego no vuelve. Sin una
+            forma de recuperarla, quien la cerró sin leerla —o quien la vio hace
+            tres meses— no tiene dónde mirar cómo se hacía lo primero. Aquí, junto
+            al resto de lo que se consulta de vez en cuando.
+          */}
+          <button
+            type="button"
+            className="account-item"
+            role="menuitem"
+            onClick={() => {
+              tour.setOpen(true);
+              setOpen(false);
+            }}
+          >
+            <LifeBuoy size={15} /> Ver el tutorial
+          </button>
 
           <button
             type="button"
