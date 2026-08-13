@@ -192,14 +192,36 @@ Ajustes del build, valgan cual valga el camino:
 - **Framework preset**: None
 - **Build command**: `npm run build`
 - **Build output directory**: `dist`
-3. **Variables de entorno** (las mismas que en `.env`, y solo estas dos):
+3. **Variables de entorno DEL BUILD** (las mismas que en `.env`, y solo estas dos):
    ```
    VITE_SUPABASE_URL
    VITE_SUPABASE_ANON_KEY
    ```
+
+   > ⚠️ **«Del build» no es un matiz.** Cloudflare distingue las variables que ve
+   > el comando de compilación de las que ve el Worker al ejecutarse, y aquí solo
+   > sirven las primeras: Vite **incrusta** estos valores en los archivos al
+   > compilar, y después ya no lee nada del entorno. Puestas como variables del
+   > Worker no llegan al build, y el resultado es una aplicación desplegada que
+   > falla en la consola con:
+   >
+   > ```
+   > Faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY en tu .env
+   > Uncaught Error: supabaseUrl is required.
+   > ```
+   >
+   > Por lo mismo, **cambiarlas obliga a volver a desplegar**: el build viejo
+   > conserva los valores viejos dentro.
+
    La `anon key` es segura aquí: toda la autorización vive en RLS. La
-   `service_role` **nunca**, ni aquí ni en ninguna variable `VITE_`, porque Vite
-   las incrusta en el build y acabaría en el navegador de cualquiera.
+   `service_role` **nunca**, ni aquí ni en ninguna variable `VITE_`, justamente
+   porque Vite las incrusta y acabaría en el navegador de cualquiera.
+
+   Para comprobar que un build las cogió, búscalas en el propio archivo servido:
+
+   ```bash
+   curl -s https://tu-dominio/assets/index-*.js | grep -o "supabase\.co" | head -1
+   ```
 4. Dominio propio en la pestaña **Custom domains**.
 
 ### Al cambiar de dominio, tres cosas o algo deja de funcionar
