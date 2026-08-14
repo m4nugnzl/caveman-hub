@@ -1,20 +1,20 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Check, Eye, Inbox, Waves } from 'lucide-react';
+import { Inbox, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { buildPortfolio, portfolioBoard } from '@/domain/portfolio';
+import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
 import {
   ACTIVITY_KINDS,
   DEFAULT_WINDOW,
   buildActivity,
-  buildInbox,
   groupByDay,
   activityScale,
 } from '@/domain/today';
 import { clientPath } from '@/routes';
 import { shortDate, todayISO } from '@/lib/dates';
 import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { TaskInbox } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
 
 /**
@@ -83,16 +83,12 @@ export const Today = () => {
     [clients, training, anthropometry, progressPhotos, checkIns, today]
   );
 
-  const inbox = useMemo(() => buildInbox(rows), [rows]);
+  /* La MISMA bandeja que calcula el dominio. Antes «Hoy» tenía la suya —tres
+     tipos de aviso contados aparte— y «Clientes» la de verdad, con siete tareas:
+     dos listas de «lo que te espera» que no coincidían. */
+  const inbox = useMemo(() => portfolioInbox(rows), [rows]);
   const days = useMemo(() => groupByDay(events, today), [events, today]);
   const scale = useMemo(() => activityScale(events, today, DEFAULT_WINDOW), [events, today]);
-
-  /* El puente a la cartera: se cuenta cuántos hay en riesgo, no se repiten aquí.
-     Dos pantallas que dicen lo mismo obligan a mirar las dos por si acaso. */
-  const atRisk = useMemo(
-    () => portfolioBoard(rows).find((c) => c.id === 'at_risk')?.rows.length || 0,
-    [rows]
-  );
 
   const maxCount = Math.max(1, ...scale.map((d) => d.count));
   const activeToday = scale[scale.length - 1]?.count || 0;
@@ -210,68 +206,21 @@ export const Today = () => {
           <section className="card col gap-3">
             <div className="row between gap-2">
               <span className="section-label">Te esperan</span>
-              <span className="badge">{inbox.length}</span>
+              <span className="badge">{inbox.tasks.reduce((n, t) => n + t.rows.length, 0)}</span>
             </div>
 
-            {inbox.length === 0 ? (
-              <p className="t-sm t-secondary">
-                Nada pendiente por tu parte. Cuando alguien entregue su check-in o venza un cobro,
-                aparecerá aquí.
-              </p>
-            ) : (
-              <div className="col gap-2">
-                {inbox.map((item) => (
-                  <article className={`inbox-item is-${item.tone}`} key={item.id}>
-                    <button
-                      type="button"
-                      className="inbox-hit"
-                      onClick={() => open(item.clientId, item.section)}
-                      aria-label={`Abrir la ficha de ${item.name}`}
-                    />
-                    <span className="who">{item.name}</span>
-                    <span className="what">{item.title}</span>
-                    <span className="detail">{item.detail}</span>
-
-                    <footer className="row gap-2 wrap">
-                      {item.kind === 'review' && item.reviewId && (
-                        <button
-                          type="button"
-                          className="chip"
-                          onClick={() => act(reviewCheckIn(item.reviewId))}
-                        >
-                          <Eye size={12} /> Marcar revisado
-                        </button>
-                      )}
-                      {item.kind === 'payment' && (
-                        <button
-                          type="button"
-                          className="chip"
-                          onClick={() => act(updateClient(item.clientId, { paymentStatus: 'paid' }))}
-                        >
-                          <Check size={12} /> Marcar cobrado
-                        </button>
-                      )}
-                    </footer>
-                  </article>
-                ))}
-              </div>
-            )}
+            <TaskInbox
+              tasks={inbox.tasks}
+              onOpen={(clientId) => open(clientId, 'resumen')}
+              handlers={{
+                paid: (clientId) => act(updateClient(clientId, { paymentStatus: 'paid' })),
+                review: (reviewId) => act(reviewCheckIn(reviewId)),
+                invite: () => navigate('/clientes'),
+              }}
+              emptyMessage="Nada pendiente por tu parte. Cuando alguien entregue su check-in o venza un cobro, aparecerá aquí."
+            />
           </section>
 
-          {/*
-            Puente a la cartera. Es un enlace y un número, no una copia de las
-            fichas: quien está en riesgo se atiende en el tablero, que es donde
-            está ordenado por gravedad.
-          */}
-          {atRisk > 0 && (
-            <button type="button" className="today-bridge" onClick={() => navigate('/clientes')}>
-              <AlertTriangle size={16} />
-              <span className="grow">
-                {atRisk} {atRisk === 1 ? 'cliente se está descolgando' : 'clientes se están descolgando'}
-              </span>
-              <ArrowRight size={15} />
-            </button>
-          )}
         </aside>
       </div>
     </div>

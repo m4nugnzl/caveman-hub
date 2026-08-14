@@ -1205,6 +1205,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 
 /* Grupo de métricas del día (ejercicios / series / tonelaje). */
+/* ── El reparto del día ────────────────────────────────────────────────────
+   Una barra proporcional y su leyenda, con los colores de músculo de la
+   analítica. Antes eran distintivos sueltos: había que leerlos todos y sumar
+   mentalmente para saber si el día estaba equilibrado. La barra contesta eso sin
+   leer nada, y la leyenda da la cifra exacta a quien la necesite. */
+.day-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; max-width: 420px; }
+.day-volume > .bar {
+  display: flex; height: 6px; border-radius: var(--r-pill); overflow: hidden;
+  background: var(--fill-subtle);
+}
+/* Una hebra de 1 px no se ve como un color, se ve como suciedad en el borde. */
+.day-volume > .bar > span { min-width: 3px; }
+
+.day-vol-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-2xs); color: var(--text-secondary); white-space: nowrap;
+}
+.day-vol-item > .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.day-vol-item > strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
 .day-stats {
   display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5);
   background: var(--surface); border-radius: var(--r-md);
@@ -1440,18 +1460,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
 .set-cell-target { display: flex; align-items: center; gap: 3px; min-width: 0; }
 
-/* Pedido frente a hecho, a lo ancho de la tarjeta.
-   El color va por SIGNIFICADO: menos RIR del pedido es una serie más dura de lo
-   previsto —número negativo, lectura «se pasó»— y por eso va en aviso. Más
-   suave queda en azul y no en verde, porque verde diría «bien» y dejarse cuatro
-   repeticiones cuando pediste dos no es bien: es otra cosa. */
-.set-cell-gap {
-  text-align: center; border-radius: var(--r-xs);
-  font-size: var(--fs-2xs); font-weight: 650; padding: 2px 4px;
-}
-.set-cell-gap.is-ok { background: var(--positive-soft); color: var(--positive); }
-.set-cell-gap.is-harder { background: var(--warning-soft); color: var(--warning); }
-.set-cell-gap.is-easier { background: var(--info-soft); color: var(--info); }
 .set-cell-target > .tag { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 650; }
 .set-cell-target .input {
   width: 48px; padding: 1px 3px;
@@ -1552,21 +1560,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    ve (ver el módulo `rir` en `domain/protocol.js`). */
 .set-row-target > .rir { font-weight: 550; opacity: 0.75; }
 
-/* Lo que salió frente a lo que se pidió.
-   ---------------------------------------------------------------------------
-   El color va por SIGNIFICADO y no por signo. Un RIR menor que el objetivo es
-   una serie más dura de lo previsto: el número es negativo pero la lectura es
-   «se pasó», así que se pinta en aviso. Al revés —más suave— es información, no
-   un logro, y por eso queda en azul y no en verde: verde diría «bien» y dejarse
-   cuatro repeticiones cuando se pidieron dos no es bien, es otra cosa. */
-.set-row-gap {
-  grid-column: 1 / -1; justify-self: end;
-  font-size: var(--fs-2xs); font-weight: 650;
-  padding: 1px 6px; border-radius: var(--r-pill);
-}
-.set-row-gap.is-ok { background: var(--positive-soft); color: var(--positive); }
-.set-row-gap.is-harder { background: var(--warning-soft); color: var(--warning); }
-.set-row-gap.is-easier { background: var(--info-soft); color: var(--info); }
 
 /* 42 px de alto: es un campo que se rellena de pie, con una mano y a veces con
    el dedo mojado. El mínimo táctil recomendado es 44 y aquí el objetivo real es
@@ -1723,19 +1716,56 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .meal-kcal { background: var(--data-amber-soft); color: var(--data-amber); border-radius: var(--r-pill); padding: 4px 10px; font-size: var(--fs-sm); font-weight: 650; white-space: nowrap; }
 .meal-totals td { background: var(--surface-sunken); }
 
-/* Lo que le falta a esta comida para su objetivo.
-   Va JUNTO a las kcal y con la misma forma de píldora, porque son la misma
-   cifra vista de dos maneras: cuánto lleva y cuánto le queda. El objetivo se
-   escribe en gris dentro de la propia píldora para no gastar una tercera. */
+
+/* ── El objetivo de una comida ─────────────────────────────────────────────
+   Cuatro barras con el color de su macro, al lado del anillo de la opción.
+
+   Lo ven los DOS, y no es lo mismo para cada uno: al cliente le dice lo que se
+   espera de esa comida —su prescripción, que antes no veía por ninguna parte— y
+   al entrenador le añade una columna con la desviación de lo que ha montado.
+
+   ── Por qué barras y no solo cifras ────────────────────────────────────────
+   Porque «40 de 45» y «120 de 500» son la misma resta y no el mismo problema. La
+   barra dice la PROPORCIÓN, que es lo que decide si hay que tocar algo. Las
+   cifras se quedan para después de haberlo decidido. */
 .meal-goal {
-  border-radius: var(--r-pill); padding: 4px 10px;
-  font-size: var(--fs-sm); font-weight: 650; white-space: nowrap;
-  background: var(--fill); color: var(--text-secondary);
+  display: flex; flex-direction: column; gap: 6px;
+  align-self: center; min-width: 190px; flex: 1;
+  font-variant-numeric: tabular-nums;
 }
-.meal-goal > .of { font-weight: 550; opacity: 0.7; }
-.meal-goal.is-ok { background: var(--positive-soft); color: var(--positive); }
-.meal-goal.is-over { background: var(--negative-soft); color: var(--negative); }
-.meal-goal.is-under { background: var(--info-soft); color: var(--info); }
+.meal-goal > .k {
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil); font-weight: 700;
+}
+.meal-goal > .rows { display: flex; flex-direction: column; gap: 5px; }
+
+/* La rejilla: etiqueta, barra elástica, objetivo y —solo para el entrenador—
+   desviación. Columnas fijas para que las cuatro filas se lean como una tabla y
+   no como cuatro líneas sueltas. */
+.meal-goal .fila {
+  display: grid; grid-template-columns: 26px minmax(40px, 1fr) 46px;
+  align-items: center; gap: var(--s2);
+}
+.meal-goal.is-coach .fila { grid-template-columns: 26px minmax(40px, 1fr) 46px 42px; }
+
+.meal-goal .fila > .n { font-size: var(--fs-2xs); font-weight: 700; }
+.meal-goal .fila > .track {
+  height: 5px; border-radius: var(--r-pill);
+  background: var(--fill-subtle); overflow: hidden;
+}
+.meal-goal .fila > .track > .fill { display: block; height: 100%; border-radius: inherit; }
+.meal-goal .fila > .v { font-size: var(--fs-sm); font-weight: 650; text-align: right; }
+
+/* La desviación. El signo y el color hacen el trabajo; lo que cuadra se marca y
+   deja de pedir atención, que es lo contrario de lo que hace un cero. */
+.meal-goal .fila > .d { font-size: var(--fs-2xs); font-weight: 700; text-align: right; }
+.meal-goal .fila > .d.is-ok { color: var(--positive); }
+.meal-goal .fila > .d.is-over { color: var(--negative); }
+.meal-goal .fila > .d.is-under { color: var(--info); }
+
+/* La sugerencia de hidratos: se ve que HAY un número propuesto y que todavía no
+   está escrito. Sin esto, un `placeholder` gris se lee como un hueco vacío. */
+.input.is-suggested::placeholder { color: var(--accent); opacity: 0.85; font-weight: 650; }
 
 /* La pauta escrita de una comida: se lee como texto, no como un formulario.
    Sin fondo ni borde hasta que se enfoca — un campo con marco en cada comida

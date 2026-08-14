@@ -1,6 +1,7 @@
 import { LayoutList } from 'lucide-react';
 
-import { mealTarget, mealTargetsTotal } from '@/domain/nutrition';
+import { carbsFromRest, mealTargetsTotal } from '@/domain/nutrition';
+import { toNum0 } from '@/lib/num';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 
 /**
@@ -81,26 +82,44 @@ export const MealStructure = ({ meals, dayTarget, onChange }) => {
         </div>
 
         {meals.map((meal, index) => {
-          const target = mealTarget(meal) || {};
+          /*
+            Los hidratos que cuadrarían esta comida. Se ofrecen como sugerencia
+            en el hueco vacío en vez de escribirse solos: rellenar una casilla
+            que el entrenador no ha tocado le quita la decisión, y hay planes
+            —cetogénicos, cargas— donde el resto NO son hidratos.
+
+            En cuanto hay algo escrito, la sugerencia desaparece: sobrescribir lo
+            que alguien acaba de teclear es la peor forma de ayudar.
+          */
+          const sugerido = carbsFromRest(meal.target || {});
+          const faltaCarbs = !toNum0(meal.target?.carbs);
+
           return (
             <div className="card-inset row gap-2" key={meal.id}>
               <span className="grow t-sm" style={{ fontWeight: 600, minWidth: 0 }}>
                 {meal.name}
               </span>
-              {CAMPOS.map((campo) => (
-                <input
-                  key={campo.key}
-                  type="text"
-                  inputMode="numeric"
-                  className="input input-sm input-center"
-                  style={{ width: campo.width }}
-                  placeholder="—"
-                  value={meal.target?.[campo.key] ?? ''}
-                  onChange={(e) => onChange(index, campo.key, e.target.value)}
-                  aria-label={`${campo.label} objetivo de ${meal.name}`}
-                  title={target[campo.key] ? undefined : `Sin objetivo de ${campo.label}`}
-                />
-              ))}
+              {CAMPOS.map((campo) => {
+                const ofrece = campo.key === 'carbs' && faltaCarbs && sugerido !== null;
+                return (
+                  <input
+                    key={campo.key}
+                    type="text"
+                    inputMode="numeric"
+                    className={`input input-sm input-center${ofrece ? ' is-suggested' : ''}`}
+                    style={{ width: campo.width }}
+                    placeholder={ofrece ? String(sugerido) : '—'}
+                    value={meal.target?.[campo.key] ?? ''}
+                    onChange={(e) => onChange(index, campo.key, e.target.value)}
+                    /* Al enfocar el hueco, la sugerencia se acepta. Es un gesto
+                       que ya se estaba haciendo —ibas a escribir ese número— y
+                       deja el valor donde se puede corregir. */
+                    onFocus={() => ofrece && onChange(index, 'carbs', String(sugerido))}
+                    aria-label={`${campo.label} objetivo de ${meal.name}`}
+                    title={ofrece ? `Los ${sugerido} g que cuadran esta comida` : undefined}
+                  />
+                );
+              })}
             </div>
           );
         })}

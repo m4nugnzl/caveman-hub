@@ -84,8 +84,14 @@ describe('portfolioInbox', () => {
     la más grave y la otra tarea no aparecía en ninguna parte.
   */
   it('un cliente con dos problemas sale en las dos tareas', () => {
+    /* La fecha vencida es necesaria: un cobro cuya fecha no ha llegado —o que no
+       tiene fecha— ya no es una tarea, y sin eso este caso no probaría nada. */
     const rows = buildPortfolio(
-      { clients: [client({ clientProfileId: null, paymentStatus: 'pending' })] },
+      {
+        clients: [
+          client({ clientProfileId: null, paymentStatus: 'pending', nextPaymentDate: '2026-08-01' }),
+        ],
+      },
       '2026-08-11'
     );
     const { tasks } = portfolioInbox(rows);
@@ -164,5 +170,86 @@ describe('isArchived', () => {
     expect(isArchived(client({ status: null }))).toBe(false);
     expect(isArchived(client({ status: undefined }))).toBe(false);
     expect(isArchived(null)).toBe(false);
+  });
+});
+
+describe('empezar no es descolgarse', () => {
+  /*
+    Un cliente recién dado de alta no tiene rutina, no ha entrenado y no se ha
+    pesado. Antes cada una disparaba su alerta —cuatro avisos, dos de gravedad
+    alta— y la persona con la que aún no habías hecho nada encabezaba la lista de
+    urgencias por delante de quien llevaba tres semanas sin aparecer.
+  */
+  it('el recién llegado tiene UNA alerta, no cuatro', () => {
+    const [row] = buildPortfolio({ clients: [client()] }, '2026-08-11');
+    const ids = row.alerts.map((a) => a.id);
+
+    expect(ids).toContain('not_started');
+    expect(ids).not.toContain('no_program');
+    expect(ids).not.toContain('never_trained');
+    expect(ids).not.toContain('no_weight');
+  });
+
+  it('«no ha empezado» no es de gravedad alta', () => {
+    const [row] = buildPortfolio({ clients: [client()] }, '2026-08-11');
+    expect(row.alerts.find((a) => a.id === 'not_started').severity).not.toBe('alta');
+  });
+
+  it('cae en «poner en marcha», no en «se están descolgando»', () => {
+    const { tasks } = portfolioInbox(buildPortfolio({ clients: [client()] }, '2026-08-11'));
+    const ids = tasks.map((t) => t.id);
+    expect(ids).toContain('start');
+    expect(ids).not.toContain('inactive');
+  });
+
+  /* En cuanto hay un pesaje ya ha empezado, y a partir de ahí las alertas de
+     descolgarse vuelven a significar algo. */
+  it('con un pesaje deja de estar «sin empezar»', () => {
+    const rows = buildPortfolio(
+      { clients: [client()], anthropometry: { c1: { history: [{ date: '2026-08-10', weight: 80 }] } } },
+      '2026-08-11'
+    );
+    const ids = rows[0].alerts.map((a) => a.id);
+    expect(ids).not.toContain('not_started');
+    expect(ids).toContain('no_program');
+  });
+});
+
+describe('el cobro solo se reclama cuando toca', () => {
+  /*
+    `paymentStatus` se pone en 'pending' al empezar el ciclo, así que quien
+    renueva el día 30 salía como «pago pendiente» desde el día 1. Veintinueve
+    días avisando de algo que no había que hacer, y el aviso de verdad —el del
+    vencimiento— indistinguible de ese ruido.
+  */
+  it('una fecha futura no genera ninguna tarea de cobro', () => {
+    const rows = buildPortfolio(
+      { clients: [client({ paymentStatus: 'pending', nextPaymentDate: '2026-09-30' })] },
+      '2026-08-11'
+    );
+    const ids = rows[0].alerts.map((a) => a.id);
+    expect(ids).not.toContain('payment_pending');
+    expect(ids).not.toContain('payment_overdue');
+    expect(portfolioInbox(rows).tasks.map((t) => t.id)).not.toContain('payment');
+  });
+
+  it('una fecha pasada sí, y es de gravedad alta', () => {
+    const rows = buildPortfolio(
+      { clients: [client({ paymentStatus: 'pending', nextPaymentDate: '2026-08-01' })] },
+      '2026-08-11'
+    );
+    const vencido = rows[0].alerts.find((a) => a.id === 'payment_overdue');
+    expect(vencido.severity).toBe('alta');
+    expect(portfolioInbox(rows).tasks.map((t) => t.id)).toContain('payment');
+  });
+
+  /* Sin fecha no es una deuda del cliente: es un dato que falta en su ficha. */
+  it('sin fecha se avisa en bajo, no como pago pendiente', () => {
+    const rows = buildPortfolio(
+      { clients: [client({ paymentStatus: 'pending', nextPaymentDate: null })] },
+      '2026-08-11'
+    );
+    const aviso = rows[0].alerts.find((a) => a.id === 'payment_no_date');
+    expect(aviso.severity).toBe('baja');
   });
 });

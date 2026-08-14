@@ -527,26 +527,72 @@ export const mealTargetsTotal = (meals, dayTarget) => {
 };
 
 /**
- * Lo que hay puesto en una comida frente a lo que se le pidió.
+ * Los hidratos que faltan para cuadrar una comida.
  *
- * Se mide contra la PRIMERA opción, que es la que cuenta para el total del día
- * (ver `dayKcals`). Las alternativas son intercambiables entre sí, y comparar el
- * objetivo contra la suma de todas daría un exceso del 300 % en una comida con
- * tres alternativas perfectamente correctas.
+ * ── Por qué solo los hidratos ───────────────────────────────────────────────
+ * Porque en la práctica son los que se ajustan. La proteína se fija por peso
+ * corporal y las grasas por un mínimo; lo que sobra de calorías se rellena con
+ * hidratos, siempre. Calcular al revés —«dime hidratos y grasas y te digo la
+ * proteína»— sería técnicamente igual y no es lo que hace nadie.
+ *
+ * Devuelve `null` cuando no hay con qué calcular, y CERO cuando la proteína y la
+ * grasa ya se comen las calorías: pasarse es un dato, y esconderlo detrás de un
+ * hueco vacío haría que el entrenador no se enterara de que su reparto no cabe.
  */
-export const mealProgress = (meal) => {
+export const carbsFromRest = ({ kcals, protein, fats }) => {
+  const total = toNum0(kcals);
+  if (!total) return null;
+
+  const resto =
+    total - toNum0(protein) * KCAL_PER_GRAM.protein - toNum0(fats) * KCAL_PER_GRAM.fats;
+  return Math.max(0, Math.round(resto / KCAL_PER_GRAM.carbs));
+};
+
+/**
+ * Lo que hay en CADA opción frente al objetivo de la comida.
+ *
+ * ── Por qué todas y no solo la primera ──────────────────────────────────────
+ * La primera opción es la que cuenta para el total del día, así que sería la
+ * candidata obvia a ser la única medida.
+ *
+ * Pero las alternativas existen para ser intercambiables, y eso solo se cumple
+ * si se parecen: una opción B que se va 300 kcal por encima de la A no es una
+ * alternativa, es otra comida. Sin verlo opción a opción, el día cuadra con la
+ * primera y descuadra en cuanto el cliente elige otra.
+ *
+ * Y da los CUATRO valores, no solo las kilocalorías: dos opciones pueden coincidir
+ * en calorías y llevar 40 g de proteína de diferencia, que es exactamente el
+ * error que no se ve mirando un único número.
+ */
+export const optionGaps = (meal) => {
   const target = mealTarget(meal);
-  if (!target) return null;
+  if (!target) return [];
 
-  const actual = optionMacros(meal?.options?.[0]);
-  const diff = Math.round(actual.kcal) - target.kcals;
-
-  return {
-    target,
-    actual,
-    diff,
-    // 5 % de margen: cuadrar una comida al kilocaloría exacta no es posible con
-    // alimentos reales, y un aviso que nunca se apaga se deja de mirar.
-    tone: target.kcals === 0 ? 'none' : Math.abs(diff) <= target.kcals * 0.05 ? 'ok' : diff > 0 ? 'over' : 'under',
-  };
+  return (meal?.options || []).map((option, index) => {
+    const actual = optionMacros(option);
+    const diff = {
+      kcals: Math.round(actual.kcal) - target.kcals,
+      protein: Math.round(actual.protein) - target.protein,
+      carbs: Math.round(actual.carbs) - target.carbs,
+      fats: Math.round(actual.fats) - target.fats,
+    };
+    return {
+      index,
+      id: option.id,
+      target,
+      actual,
+      diff,
+      // Margen del 5 %: cuadrar al kilocaloría exacta
+      // con alimentos reales no es posible, y un aviso que nunca se apaga se
+      // deja de mirar.
+      tone:
+        target.kcals === 0
+          ? 'none'
+          : Math.abs(diff.kcals) <= target.kcals * 0.05
+            ? 'ok'
+            : diff.kcals > 0
+              ? 'over'
+              : 'under',
+    };
+  });
 };

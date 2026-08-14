@@ -116,46 +116,96 @@ export const clientStatus = (
     );
   }
 
-  // ── Programa ──────────────────────────────────────────────────────────────
-  if (resumen.microcycleCount === 0) {
-    add('no_program', 'alta', 'Sin rutina asignada', 'No tiene ningún microciclo programado.');
-  }
+  /*
+    ══ Empezar no es lo mismo que descolgarse ═════════════════════════════════
 
-  // ── Entrenamiento ─────────────────────────────────────────────────────────
+    Un cliente recién dado de alta no tiene rutina, no ha entrenado, no se ha
+    pesado y no ha subido fotos. Cada una de esas cuatro cosas disparaba su
+    alerta, así que la persona con la que todavía no has hecho nada aparecía
+    como el caso MÁS GRAVE de la cartera —cuatro avisos, dos de gravedad alta—
+    por delante de quien lleva tres semanas sin aparecer.
+
+    Y no dice lo mismo: «12 días sin entrenar» es alguien que se está
+    descolgando; «nunca ha entrenado» es alguien que aún no ha empezado. Lo
+    primero pide una llamada, lo segundo pide que le montes la rutina.
+
+    Así que quien no ha arrancado tiene UNA alerta, la suya, y ninguna de las
+    otras. Las de descolgarse necesitan un punto de partida para significar algo.
+  */
   const sinceTraining = daysSince(lastTraining, today);
-  if (resumen.microcycleCount > 0) {
-    if (sinceTraining === null) {
-      add('never_trained', 'alta', 'No ha registrado ningún entreno', 'Tiene rutina, pero ni una serie anotada.');
-    } else if (sinceTraining >= THRESHOLDS.noTraining) {
-      add('stale_training', sinceTraining >= THRESHOLDS.noTraining * 2 ? 'alta' : 'media',
-        `${sinceTraining} días sin entrenar`, 'Último entreno registrado.');
+  const sinceWeight = daysSince(lastWeight, today);
+  const started = resumen.microcycleCount > 0 || sinceTraining !== null || sinceWeight !== null;
+
+  if (!started) {
+    add(
+      'not_started',
+      'media',
+      'Todavía no ha empezado',
+      'Sin rutina, sin entrenos y sin pesajes. Le falta la puesta en marcha, no es que se haya descolgado.'
+    );
+  } else {
+    // ── Programa ────────────────────────────────────────────────────────────
+    if (resumen.microcycleCount === 0) {
+      add('no_program', 'alta', 'Sin rutina asignada', 'No tiene ningún microciclo programado.');
+    }
+
+    // ── Entrenamiento ───────────────────────────────────────────────────────
+    if (resumen.microcycleCount > 0) {
+      if (sinceTraining === null) {
+        add('never_trained', 'alta', 'No ha registrado ningún entreno', 'Tiene rutina, pero ni una serie anotada.');
+      } else if (sinceTraining >= THRESHOLDS.noTraining) {
+        add('stale_training', sinceTraining >= THRESHOLDS.noTraining * 2 ? 'alta' : 'media',
+          `${sinceTraining} días sin entrenar`, 'Último entreno registrado.');
+      }
+    }
+
+    // ── Peso y check-in ─────────────────────────────────────────────────────
+    if (sinceWeight === null) {
+      add('no_weight', 'media', 'Nunca ha registrado su peso', 'No hay ningún pesaje en su historial.');
+    } else if (sinceWeight >= THRESHOLDS.noWeight) {
+      add('stale_weight', 'media', `${sinceWeight} días sin pesarse`, 'Último pesaje registrado.');
+    }
+
+    // El check-in solo se reclama a mitad de semana: el lunes por la mañana nadie
+    // lo tiene hecho y avisar de eso sería ruido.
+    const dayOfWeek = daysBetween(weekStart(today), today);
+    if (!checkIn.complete && dayOfWeek !== null && dayOfWeek >= 3) {
+      add('checkin_pending', checkIn.count === 0 ? 'media' : 'baja',
+        checkIn.count === 0 ? 'Check-in sin empezar' : `Check-in a medias (${checkIn.count}/${checkIn.target})`,
+        'Pesajes de esta semana.');
     }
   }
 
-  // ── Peso y check-in ───────────────────────────────────────────────────────
-  const sinceWeight = daysSince(lastWeight, today);
-  if (sinceWeight === null) {
-    add('no_weight', 'media', 'Nunca ha registrado su peso', 'No hay ningún pesaje en su historial.');
-  } else if (sinceWeight >= THRESHOLDS.noWeight) {
-    add('stale_weight', 'media', `${sinceWeight} días sin pesarse`, 'Último pesaje registrado.');
-  }
-
-  // El check-in solo se reclama a mitad de semana: el lunes por la mañana nadie
-  // lo tiene hecho y avisar de eso sería ruido.
-  const dayOfWeek = daysBetween(weekStart(today), today);
-  if (!checkIn.complete && dayOfWeek !== null && dayOfWeek >= 3) {
-    add('checkin_pending', checkIn.count === 0 ? 'media' : 'baja',
-      checkIn.count === 0 ? 'Check-in sin empezar' : `Check-in a medias (${checkIn.count}/${checkIn.target})`,
-      'Pesajes de esta semana.');
-  }
-
   // ── Cobro ─────────────────────────────────────────────────────────────────
+  /*
+    ══ Un cobro cuya fecha no ha llegado no está pendiente ════════════════════
+
+    `paymentStatus` se pone en 'pending' en cuanto empieza un ciclo nuevo, así
+    que un cliente que renueva el día 30 aparecía como «pago pendiente» desde el
+    día 1 — veintinueve días avisando de algo que no había que hacer todavía. Y
+    con eso, un aviso que se aprende a ignorar: cuando de verdad vence, ya no
+    se distingue del ruido de las cuatro semanas anteriores.
+
+    Ahora solo se reclama lo que YA toca:
+
+      · vencido            → la fecha pasó. Eso sí es una tarea.
+      · sin fecha          → no se puede saber cuándo toca, y eso es un dato que
+                             falta en la ficha, no una deuda del cliente.
+      · fecha en el futuro → no es nada. A lo sumo, «renueva en 3 días» cuando
+                             está a la vuelta de la esquina, que es un aviso de
+                             gravedad baja y no una tarea.
+  */
   const daysToPayment = client.nextPaymentDate ? daysBetween(today, client.nextPaymentDate) : null;
   if (client.paymentStatus !== 'paid') {
     if (daysToPayment !== null && daysToPayment < 0) {
       add('payment_overdue', 'alta', `Pago vencido hace ${Math.abs(daysToPayment)} días`, client.nextPaymentDate);
-    } else {
-      add('payment_pending', 'media', 'Pago pendiente', client.nextPaymentDate || 'sin fecha de renovación');
+    } else if (daysToPayment === null) {
+      add(
+        'payment_no_date',
+        'baja',
+        'Sin fecha de renovación',
+        'No se sabe cuándo le toca renovar, así que no se puede avisar a tiempo.'
+      );
     }
   } else if (daysToPayment !== null && daysToPayment >= 0 && daysToPayment <= THRESHOLDS.paymentSoon) {
     add('payment_soon', 'baja',
@@ -448,6 +498,20 @@ export const INBOX_TASKS = [
     tone: 'bad',
     match: (row) => row.alerts.some((a) => a.id === 'no_account'),
     why: () => 'Sin cuenta enlazada',
+  },
+  {
+    /*
+      Los que aún no han arrancado. Van antes que los que se descuelgan porque
+      son trabajo TUYO —montarles el plan— mientras que descolgarse es algo que
+      hace el cliente. Y antes iban mezclados con ellos, con cuatro alertas cada
+      uno, así que el recién llegado encabezaba la lista de urgencias.
+    */
+    id: 'start',
+    label: 'Poner en marcha',
+    hint: 'Dados de alta y sin empezar todavía',
+    tone: 'info',
+    match: (row) => row.alerts.some((a) => a.id === 'not_started'),
+    why: () => 'Sin rutina ni registros',
   },
   {
     id: 'program',

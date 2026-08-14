@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { supabase } from '@/lib/supabaseClient';
 import { createSaveQueue } from '@/lib/saveQueue';
+import { pendingStore } from '@/lib/pendingSaves';
 import { useMirroredState } from '@/lib/useMirroredState';
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
@@ -77,6 +78,9 @@ const QUEUE_OF_TABLE = {
 };
 
 const BUCKET = 'client-media';
+
+/** Destinos válidos de un guardado recuperado. Ver el efecto de recuperación. */
+const DOMINIOS = ['workout', 'anthro', 'nutrition', 'client', 'preferences'];
 
 /**
  * Duración de las URLs firmadas de Storage.
@@ -174,9 +178,26 @@ export const AppProvider = ({ children }) => {
 
   // ── Cola de guardado ─────────────────────────────────────────────────────
 
+  /*
+    ══ Lo pendiente sobrevive a que se cierre la pestaña ══════════════════════
+
+    La cola retenía en MEMORIA lo que no había podido enviar. En un gimnasio con
+    mala cobertura eso significa que las series anotadas viven en una pestaña que
+    el móvil puede matar en cualquier momento — y ahí no hay reintento posible.
+
+    El almacén se enchufa por referencia y no directamente porque la cola se
+    construye en el primer render, cuando todavía no se sabe QUIÉN es el usuario,
+    y lo pendiente tiene que quedar separado por persona: dos entrenadores en el
+    mismo ordenador no pueden heredar los guardados a medias del otro.
+  */
+  const storeRef = useRef(null);
   const queueRef = useRef(null);
   if (queueRef.current === null) {
     queueRef.current = createSaveQueue({
+      store: {
+        save: (key, payload) => storeRef.current?.save(key, payload),
+        clear: (key) => storeRef.current?.clear(key),
+      },
       onStatus: (key, next) => {
         /*
           Un guardado que falla se apunta para el diagnóstico (`lib/diagnostics`).
@@ -512,6 +533,47 @@ export const AppProvider = ({ children }) => {
     },
     [queue]
   );
+
+  /**
+   * Reenvía lo que quedó sin confirmar la última vez.
+   *
+   * ── Por qué se reconstruye el envío y no se guarda ─────────────────────────
+   * Lo que se apunta en el navegador es el PAYLOAD, nunca la función que lo
+   * manda: una función no se puede serializar, y guardar la petición ya montada
+   * la congelaría con la sesión de entonces. Al volver, el payload se vuelve a
+   * meter por el mismo camino de siempre, con la sesión de ahora.
+   *
+   * La clave dice a dónde iba. `domain:clientId` para lo que se guarda entero, y
+   * `set:clientId:…` para una serie suelta —el camino del cliente en el gimnasio,
+   * que es justo el caso que esto viene a salvar—. Una clave que no encaje en
+   * ninguno de los dos se ignora: reenviar algo a un destino adivinado es peor
+   * que perderlo.
+   */
+  const recuperadoRef = useRef(false);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      // Al cerrar sesión se suelta el almacén: lo que escriba el siguiente no
+      // puede acabar bajo la clave del anterior.
+      storeRef.current = null;
+      recuperadoRef.current = false;
+      return;
+    }
+    if (recuperadoRef.current) return;
+
+    recuperadoRef.current = true;
+    storeRef.current = pendingStore(userId);
+
+    for (const { key, payload } of storeRef.current.list()) {
+      const partes = key.split(':');
+      if (partes[0] === 'set' && partes[1]) {
+        persistSet(key, partes[1], payload);
+      } else if (DOMINIOS.includes(partes[0]) && partes[1]) {
+        persist(partes[0], partes[1], payload, { immediate: true });
+      }
+    }
+  }, [session, persist, persistSet]);
 
   // ── Carga inicial ────────────────────────────────────────────────────────
 

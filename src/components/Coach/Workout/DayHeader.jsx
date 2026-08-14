@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Copy, Dumbbell, Edit2, MoreVertical, Save, Trash2, X } from 'lucide-react';
 
-import { countSets, weekdayForDay } from '@/domain/training';
+import { MUSCLE_COLORS, countSets, weekdayForDay } from '@/domain/training';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
@@ -26,6 +26,10 @@ export const DayHeader = ({
   const weekday = weekdayForDay(weeklySplit, day.dayName);
   const exerciseCount = day.exercises?.length || 0;
   const setCount = countSets(day);
+
+  /* De más a menos: así el músculo dominante del día se lee sin buscarlo, y la
+     barra se ordena igual que la leyenda. */
+  const reparto = Object.entries(volume).sort((a, b) => b[1] - a[1]);
 
   const startEditing = () => {
     setDraft(day.dayName);
@@ -107,16 +111,38 @@ export const DayHeader = ({
             repartido ESTE día— y ya no compite con nada: es la tercera línea de
             una cabecera que va de más general a más concreto.
           */}
-          {Object.keys(volume).length > 0 && (
-            <div className="row gap-2 wrap">
-              {Object.entries(volume)
-                .sort((a, b) => b[1] - a[1])
-                .map(([muscle, count]) => (
-                  <span className="badge" key={muscle}>
+          {reparto.length > 0 && (
+            <div className="day-volume">
+              {/*
+                Una barra proporcional y su leyenda, con los colores de músculo
+                que ya usa la analítica. La barra contesta de un vistazo lo que
+                una fila de distintivos obligaba a leer y sumar: si el día está
+                equilibrado o si se ha ido a un solo grupo.
+              */}
+              <div className="bar" role="img" aria-label={`Reparto de ${setCount} series`}>
+                {reparto.map(([muscle, count]) => (
+                  <span
+                    key={muscle}
+                    style={{
+                      width: `${(count / setCount) * 100}%`,
+                      background: MUSCLE_COLORS[muscle] || 'var(--data-slate)',
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="row gap-3 wrap">
+                {reparto.map(([muscle, count]) => (
+                  <span className="day-vol-item" key={muscle}>
+                    <span
+                      className="dot"
+                      style={{ background: MUSCLE_COLORS[muscle] || 'var(--data-slate)' }}
+                    />
                     {muscle}
-                    <strong style={{ color: 'var(--accent)' }}>{count}</strong>
+                    <strong>{count}</strong>
                   </span>
                 ))}
+              </div>
             </div>
           )}
         </div>

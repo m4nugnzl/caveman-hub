@@ -21,11 +21,19 @@
  *    salvo.
  *    → `onStatus` publica 'saving' | 'saved' | 'error', el payload fallido se
  *      retiene y `retry(key)` lo reenvía.
+ *
+ * 4. LA PESTAÑA QUE MUERE. Los tres anteriores se resolvían en MEMORIA, así que
+ *    un payload retenido esperando reintento desaparecía si el navegador cerraba
+ *    la pestaña — que es exactamente lo que pasa en un gimnasio con mala
+ *    cobertura y un móvil con poca memoria.
+ *    → `store` escribe lo pendiente en el navegador y lo borra al confirmarse.
+ *      Ver `lib/pendingSaves`. Es opcional: sin él, la cola se comporta como
+ *      antes.
  */
 
 const DEFAULT_DEBOUNCE_MS = 600;
 
-export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS }) {
+export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, store = null }) {
   /** key -> { latest, sender, inFlight, timer, sent } */
   const queues = new Map();
 
@@ -55,6 +63,10 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS }) 
           send(key); // llegó algo más nuevo mientras se guardaba
         } else {
           q.hasPayload = false;
+          /* La nota se borra SOLO aquí, cuando el servidor ha confirmado. Si se
+             borrara al enviar, un fallo de red dejaría la cola con el payload en
+             memoria y sin copia — que es justo el caso que esto viene a cubrir. */
+          store?.clear(key);
           emit(key, 'saved');
         }
       })
@@ -70,6 +82,12 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS }) 
     q.sender = sender;
     q.hasPayload = true;
     queues.set(key, q);
+
+    /* Se apunta ANTES de enviar y no después: lo que hay que sobrevivir es
+       precisamente el hueco entre «el usuario lo escribió» y «el servidor lo
+       confirmó». Apuntarlo al terminar solo cubriría el caso en el que ya no
+       hace falta. */
+    store?.save(key, payload);
 
     if (q.timer) {
       clearTimeout(q.timer);

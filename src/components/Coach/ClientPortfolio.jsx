@@ -1,18 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Check,
-  ChevronRight,
-  Eye,
-  MessageCircle,
-  Plus,
-  Search,
-  Send,
-  UserPlus,
-} from 'lucide-react';
+import { ChevronRight, Plus, Search, UserPlus } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
+import { buildPortfolio } from '@/domain/portfolio';
 import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { todayISO } from '@/lib/dates';
@@ -100,24 +91,17 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
  * persona. Todo lo de un cliente —incluida su ficha administrativa— cuelga de
  * `/c/:id/…`, que es donde ya vivían su rutina y su nutrición.
  *
- * ══ Por qué una BANDEJA y ya no un tablero ═════════════════════════════════
+ * ══ Y por qué aquí ya no hay tareas ════════════════════════════════════════
  *
- * Aquí hubo un tablero de cuatro columnas que agrupaba por el estado del
- * cliente. Contestaba «¿en qué estado está cada uno?», que es una pregunta
- * legítima pero no la que trae a nadie a esta pantalla: esa es «¿qué hago
- * ahora?».
+ * Hubo un tablero de cuatro columnas, y después una bandeja de tareas. Las dos
+ * contestaban «¿qué hago ahora?» — que es la pregunta de «Hoy», la pantalla con
+ * la que se abre el día, y no la de esta.
  *
- * Y tenía un fallo que no era de gusto. Cada cliente cabía en UNA columna, así
- * que alguien con el pago vencido y sin cuenta salía en la más grave y la otra
- * tarea no aparecía por ningún lado. La pantalla escondía trabajo.
- *
- * Ahora se agrupa por LO QUE HAY QUE HACER, un cliente sale en todas las tareas
- * que tiene abiertas, y cada fila lleva su acción — la que cierra esa tarea y
- * solo esa. Los contadores ya no suman el total de la cartera: no cuentan
- * personas, cuentan trabajo.
- *
- * El reparto vive en `domain/portfolio.js` (`portfolioInbox`), porque decidir
- * qué es una tarea y en qué orden van es una regla de negocio.
+ * Tenerlas en los dos sitios obligaba a mirar los dos por si acaso, y encima no
+ * coincidían: «Hoy» calculaba su propia bandeja con tres tipos de aviso y aquí
+ * había siete tareas. Ahora el reparto vive en `domain/portfolio.js`, lo enseña
+ * «Hoy» a través de `TaskInbox`, y esto es lo que su nombre dice: tus clientes,
+ * en orden de urgencia, con lo que le pasa a cada uno al lado.
  */
 export const ClientPortfolio = () => {
   const {
@@ -126,9 +110,7 @@ export const ClientPortfolio = () => {
     anthropometry,
     progressPhotos,
     checkIns,
-    updateClient,
     addClient,
-    reviewCheckIn,
     team,
     teamMembers,
   } = useApp();
@@ -136,9 +118,7 @@ export const ClientPortfolio = () => {
 
   const [trainer, setTrainer] = useState('all');
   const [search, setSearch] = useState('');
-  const [error, setError] = useState(null);
   const [alta, setAlta] = useState(false);
-  const [verAlDia, setVerAlDia] = useState(false);
 
   const today = todayISO();
   const rows = useMemo(
@@ -166,21 +146,14 @@ export const ClientPortfolio = () => {
     });
   }, [rows, showTrainers, trainer, search]);
 
-  const inbox = useMemo(() => portfolioInbox(visible), [visible]);
-
   /* Abrir un cliente es NAVEGAR, no cambiar de pestaña: queda en el historial, el
      botón atrás vuelve a la cartera y el enlace se puede compartir. */
   const open = (clientId) => navigate(clientPath(clientId, 'resumen'));
 
-  const act = async (promise) => {
-    const result = await promise;
-    setError(result?.ok === false ? result.error : null);
-  };
-
   /* La lógica de invitar vive en `useInvite`: se usa aquí y en «Clientes», y las
      tres cosas que hay que hacer bien —pedir el token, copiarlo y tener plan si
      el portapapeles falla— son las mismas en los dos sitios. */
-  const { result: invite, send: sendInvite } = useInvite();
+  const { result: invite } = useInvite();
 
   /* El resultado de invitar aparece arriba del tablero; sin esto, quien pulsa en
      una ficha de la parte de abajo no llega a verlo nunca. */
@@ -217,58 +190,9 @@ export const ClientPortfolio = () => {
      está aproximando, y hay que decirlo en lugar de fingir precisión. */
   const approximate = visible.length > 0 && visible.every((r) => !r.review.exact);
 
-  /* Trabajo total, que es el número que resume la pantalla. No es «cuántos
-     clientes tienen algo»: es cuántas cosas hay que hacer, y son distintos. */
-  const tareas = inbox.tasks.reduce((n, task) => n + task.rows.length, 0);
-
-  /**
-   * La acción que cierra cada tarea.
-   *
-   * Una por grupo, y solo la que corresponde. En el tablero cada ficha llevaba
-   * las cuatro posibles —invitar, revisar, cobrar, cerrar onboarding— y había
-   * que leer cuál aplicaba; aquí el grupo ya lo ha dicho.
-   *
-   * Las que no se resuelven en un clic —programar una rutina, escribirle a quien
-   * no entrena— no tienen botón a propósito: no hay nada honesto que poner ahí
-   * salvo «abrir al cliente», y para eso ya sirve la fila entera.
-   */
-  const accionDe = (taskId, row) => {
-    if (taskId === 'access') {
-      return { icon: Send, label: 'Invitar', title: 'Generar su enlace de acceso', onClick: () => sendInvite(row.client) };
-    }
-    if (taskId === 'payment') {
-      return {
-        icon: Check,
-        label: 'Cobrado',
-        title: 'Marcar el pago como recibido',
-        onClick: () => updateClient(row.client.id, { paymentStatus: 'paid' }),
-      };
-    }
-    /* Solo cuando hay un check-in de verdad que marcar: con la aproximación no
-       hay nada que escribir en la base de datos. */
-    if (taskId === 'review' && row.review.pending && row.review.id) {
-      return {
-        icon: Eye,
-        label: 'Revisado',
-        title: 'Marcar su check-in como revisado',
-        onClick: () => act(reviewCheckIn(row.review.id)),
-      };
-    }
-    if (taskId === 'inactive' && row.client.phone) {
-      return {
-        icon: MessageCircle,
-        label: 'WhatsApp',
-        title: 'Escribirle por WhatsApp',
-        onClick: () =>
-          window.open(
-            `https://wa.me/${row.client.phone.replace(/[^\d]/g, '')}`,
-            '_blank',
-            'noopener,noreferrer'
-          ),
-      };
-    }
-    return null;
-  };
+  /* Cuántos necesitan algo. Las TAREAS están en «Hoy»; aquí solo se dice cuánta
+     gente tiene algo abierto, para no obligar a contar la lista. */
+  const tareas = visible.filter((r) => r.alerts.length > 0).length;
 
   return (
     <div className="stack">
@@ -304,7 +228,6 @@ export const ClientPortfolio = () => {
 
       {alta && <NewClientForm onCreate={addClient} onCancel={() => setAlta(false)} />}
 
-      {error && <Notice tone="error">{error}</Notice>}
 
       {/*
         ── Por qué esto se lleva la vista ─────────────────────────────────────
@@ -377,74 +300,30 @@ export const ClientPortfolio = () => {
       )}
 
       {/*
-        ── La bandeja ────────────────────────────────────────────────────────
-        Un grupo por tarea, y solo los que tienen trabajo dentro. Un grupo a cero
-        no se enseña: al revés que en el tablero —donde la columna vacía era
-        información sobre el estado de la cartera—, aquí una tarea sin nadie es
-        una línea que no lleva a ninguna parte.
+        ── La lista, y solo la lista ─────────────────────────────────────────
+        Aquí hubo un tablero de cuatro columnas, y después la bandeja de tareas.
+        Las dos contestaban «¿qué hago ahora?», que es la pregunta de «Hoy» —la
+        pantalla con la que se abre el día— y no la de esta.
+
+        Tener las tareas en los dos sitios obligaba a mirar las dos por si acaso,
+        y las dos no coincidían. Ahora las tareas viven en «Hoy» y esto es lo que
+        su nombre dice: tus clientes, en orden de urgencia, con lo que le pasa a
+        cada uno escrito al lado. Se busca a alguien y se entra.
       */}
-      {inbox.tasks.map((task) => (
-        <section className={`task is-${task.tone}`} key={task.id}>
-          <header className="task-head">
-            <span className="k">{task.label}</span>
-            <span className="n">{task.rows.length}</span>
-            <span className="hint">{task.hint}</span>
-          </header>
+      <div className="task-rows">
+        {visible.map((row) => (
+          <TaskRow
+            key={row.client.id}
+            row={{ ...row, why: row.alerts[0]?.label || "Al día" }}
+            trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
+            onOpen={() => open(row.client.id)}
+            action={null}
+          />
+        ))}
+      </div>
 
-          <div className="task-rows">
-            {task.rows.map((row) => (
-              <TaskRow
-                key={row.client.id}
-                row={row}
-                trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
-                onOpen={() => open(row.client.id)}
-                /* La acción que CIERRA esta tarea, y solo ella. En el tablero
-                   cada ficha llevaba las cuatro acciones posibles; aquí el grupo
-                   ya dice cuál es la que toca. */
-                action={accionDe(task.id, row)}
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {visible.length === 0 && (
 
-      {/*
-        Los que no tienen nada pendiente. Van al final, plegados y sin fichas:
-        son la mayoría de la cartera y no hay nada que hacer con ellos, pero
-        esconderlos del todo dejaría la pantalla mintiendo sobre cuánta gente
-        llevas — y hay que poder llegar a ellos sin buscarlos.
-      */}
-      {inbox.clear.length > 0 && (
-        <section className="task is-ok">
-          <button
-            type="button"
-            className="task-head"
-            aria-expanded={verAlDia}
-            onClick={() => setVerAlDia((v) => !v)}
-          >
-            <span className="k">Al día</span>
-            <span className="n">{inbox.clear.length}</span>
-            <span className="hint">Nada pendiente con ellos</span>
-            <ChevronRight size={16} className="chevron" />
-          </button>
-
-          {verAlDia && (
-            <div className="task-rows">
-              {inbox.clear.map((row) => (
-                <TaskRow
-                  key={row.client.id}
-                  row={row}
-                  trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
-                  onOpen={() => open(row.client.id)}
-                  action={null}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {inbox.tasks.length === 0 && inbox.clear.length === 0 && (
         <Panel>
           <p className="t-sm t-secondary">Ningún cliente coincide con la búsqueda.</p>
         </Panel>

@@ -18,7 +18,6 @@ import {
   gramsFromUnits,
   hasUnits,
   mealKcalRange,
-  mealProgress,
   optionMacros,
   unitsLabel,
 } from '@/domain/nutrition';
@@ -27,6 +26,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Field, Notice, SegmentedControl } from '@/components/ui/primitives';
 import { AddFoodControl } from './AddFoodControl';
 import { MACRO_META, MacroRing } from './macros';
+import { MealGoal } from './MealGoal';
 
 /**
  * La columna de cantidad mide 74 px contando la casilla, así que ahí no cabe
@@ -466,7 +466,6 @@ export const MealCard = ({
   const index = Math.min(activeOption, Math.max(0, options.length - 1));
   const option = options[index];
   const kcal = mealKcalRange(meal);
-  const progress = mealProgress(meal);
   const totals = optionMacros(option);
   const foods = option?.foods || [];
 
@@ -525,28 +524,6 @@ export const MealCard = ({
         )}
 
         <div className="row gap-2 shrink-0">
-          {/*
-            Lo que le queda a esta comida para llegar a su objetivo.
-
-            Es la razón de ser del reparto de arriba: sin esto, el objetivo por
-            comida sería un número que se pone una vez y no se vuelve a ver, y
-            cuadrar la dieta seguiría siendo sumar el día entero al final.
-
-            Se mide contra la PRIMERA opción, que es la que cuenta para el total
-            del día. Comparar contra la suma de las alternativas daría un 300 %
-            de exceso en una comida con tres opciones correctas.
-          */}
-          {progress && progress.tone !== 'none' && (
-            <span className={`meal-goal is-${progress.tone}`} title={`Objetivo: ${progress.target.kcals} kcal`}>
-              {progress.diff === 0
-                ? 'cuadra'
-                : progress.diff < 0
-                  ? `faltan ${Math.abs(progress.diff)}`
-                  : `+${progress.diff}`}
-              <span className="of"> / {progress.target.kcals}</span>
-            </span>
-          )}
-
           <span className="meal-kcal">
             {kcal.first} kcal
             {kcal.varies && (
@@ -730,7 +707,7 @@ export const MealCard = ({
         —otra forma para otra escala— y la diferencia es intencionada.
       */}
       {foods.length > 0 && (
-        <div className="card-inset">
+        <div className="card-inset row wrap gap-4">
           <MacroRing
             protein={totals.protein}
             carbs={totals.carbs}
@@ -739,6 +716,14 @@ export const MealCard = ({
             size={86}
             caption={options.length > 1 ? `Opción ${index + 1} de ${options.length}` : undefined}
           />
+          {/*
+            El objetivo de esta comida, al lado de su anillo.
+
+            El MISMO componente para los dos: al cliente le enseña lo que se
+            espera de la comida —que es su prescripción, y estaba escondida— y al
+            entrenador le añade la desviación de la opción abierta.
+          */}
+          <MealGoal meal={meal} optionIndex={index} showGap={editable} />
         </div>
       )}
 

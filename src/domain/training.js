@@ -409,34 +409,6 @@ export const weekSummary = (microcycles, weekNumber) => {
     tonnage: weekTonnage(microcycles, weekNumber),
   };
 };
-/**
- * Qué tal encajó el esfuerzo real con el que se pidió.
- *
- * ── Por qué esto es una función y no una resta en la pantalla ───────────────
- * Porque el signo se lee al revés de lo que parece. Un RIR MENOR que el
- * objetivo significa que la serie fue MÁS dura de lo previsto —quedaban menos
- * repeticiones en el depósito—, así que un «-2» es una señal de exceso, no de
- * defecto. Escrito a mano en cada sitio, tarde o temprano alguien lo pinta en
- * verde por ser un número negativo pequeño.
- *
- * Devuelve `null` cuando no hay con qué comparar, que es el caso normal: quien
- * no programa por RIR no tiene objetivo, y una serie sin registrar no tiene
- * valor real.
- */
-export const rirGap = (set) => {
-  const objetivo = toNum(set?.targetRir);
-  const real = toNum(set?.rir);
-  if (objetivo === null || real === null) return null;
-
-  const diff = real - objetivo;
-  return {
-    diff,
-    // Medio punto de margen: pedir 2 y anotar 2 es clavarlo, y con enteros la
-    // tolerancia da igual, pero deja la puerta abierta a los medios RIR.
-    tone: Math.abs(diff) <= 0.5 ? 'ok' : diff < 0 ? 'harder' : 'easier',
-    label: diff === 0 ? 'clavado' : diff < 0 ? `${Math.abs(diff)} más duro` : `${diff} más suave`,
-  };
-};
 
 /**
  * Volumen PLANIFICADO de un día: series por grupo muscular, se hayan hecho o no.

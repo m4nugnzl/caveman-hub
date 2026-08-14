@@ -4,7 +4,9 @@ import {
   buildFoodEntry,
   cloneMeal,
   cloneMeals,
+  carbsFromRest,
   cloneOption,
+  optionGaps,
   dietNotes,
   displayAsUnits,
   foodMacros,
@@ -12,7 +14,6 @@ import {
   gramsFromUnits,
   hasUnits,
   MAX_NOTES,
-  mealProgress,
   mealTarget,
   mealTargetsTotal,
   moveItem,
@@ -383,30 +384,6 @@ describe('la estructura del día', () => {
     expect(mealTargetsTotal([comida({ kcals: '500' })], null).left).toBeNull();
   });
 
-  /*
-    Se mide contra la PRIMERA opción. Comparar contra la suma de todas daría un
-    300 % de exceso en una comida con tres alternativas perfectamente correctas.
-  */
-  it('el progreso ignora las alternativas', () => {
-    const arroz = { id: 'f1', name: 'Arroz', grams: 100, proteinPer100: 0, carbsPer100: 100, fatsPer100: 0 };
-    const meal = {
-      id: 'm1',
-      name: 'Comida',
-      target: { kcals: '400' },
-      options: [{ id: 'o1', foods: [arroz] }, { id: 'o2', foods: [arroz] }],
-    };
-    // 100 g × 100 g de hidratos = 400 kcal → cuadra, no 800.
-    expect(mealProgress(meal)).toMatchObject({ diff: 0, tone: 'ok' });
-  });
-
-  it('el margen del 5 % evita el aviso que nunca se apaga', () => {
-    const casi = { id: 'f1', name: 'x', grams: 98, proteinPer100: 0, carbsPer100: 100, fatsPer100: 0 };
-    expect(mealProgress(comida({ kcals: '400' }, [casi])).tone).toBe('ok');
-  });
-
-  it('sin objetivo no hay progreso que enseñar', () => {
-    expect(mealProgress(comida(null))).toBeNull();
-  });
 
   /* La pauta y el objetivo viajan con la comida al copiarla al otro día: sin
      esto, «Cena» llegaría al día de descanso sin su indicación. */
@@ -414,5 +391,79 @@ describe('la estructura del día', () => {
     const copia = cloneMeal({ name: 'Cena', note: '2 h antes de dormir', target: { kcals: '500' }, options: [] });
     expect(copia.note).toBe('2 h antes de dormir');
     expect(copia.target).toEqual({ kcals: '500' });
+  });
+});
+
+describe('los hidratos son siempre el resto', () => {
+  it('rellena con lo que sobra de calorías', () => {
+    // 600 kcal − 40 P (160) − 15 G (135) = 305 → 76 g de hidratos
+    expect(carbsFromRest({ kcals: '600', protein: '40', fats: '15' })).toBe(76);
+  });
+
+  it('sin calorías no hay nada que repartir', () => {
+    expect(carbsFromRest({ kcals: '', protein: '40', fats: '15' })).toBeNull();
+    expect(carbsFromRest({})).toBeNull();
+  });
+
+  /* Cero y no negativo: un reparto que no cabe se ve como «no te queda nada»,
+     que es cierto y accionable. Un −20 solo confunde. */
+  it('si la proteína y la grasa ya se pasan, no quedan hidratos', () => {
+    expect(carbsFromRest({ kcals: '300', protein: '50', fats: '20' })).toBe(0);
+  });
+
+  it('sin proteína ni grasa, todas las calorías son hidratos', () => {
+    expect(carbsFromRest({ kcals: '400' })).toBe(100);
+  });
+});
+
+describe('cada opción contra el objetivo de su comida', () => {
+  const alimento = (grams, p, c, f) => ({
+    id: `f${grams}`,
+    name: 'x',
+    grams,
+    proteinPer100: p,
+    carbsPer100: c,
+    fatsPer100: f,
+  });
+
+  /*
+    Las alternativas existen para ser INTERCAMBIABLES, y eso solo se cumple si se
+    parecen. Mirando solo la primera, el día cuadra al montarlo y descuadra en
+    cuanto el cliente elige otra opción.
+  */
+  it('mide todas las opciones, no solo la primera', () => {
+    const meal = {
+      id: 'm1',
+      target: { kcals: '400' },
+      options: [
+        { id: 'o1', foods: [alimento(100, 0, 100, 0)] }, // 400 kcal
+        { id: 'o2', foods: [alimento(175, 0, 100, 0)] }, // 700 kcal
+      ],
+    };
+    const gaps = optionGaps(meal);
+
+    expect(gaps).toHaveLength(2);
+    expect(gaps[0]).toMatchObject({ tone: 'ok' });
+    expect(gaps[1]).toMatchObject({ tone: 'over' });
+    expect(gaps[1].diff.kcals).toBe(300);
+  });
+
+  /* Dos opciones pueden coincidir en calorías y llevar 40 g de proteína de
+     diferencia: ese es el error que no se ve mirando un solo número. */
+  it('da la diferencia de los cuatro valores, no solo de las kcal', () => {
+    const meal = {
+      id: 'm1',
+      target: { kcals: '400', protein: '40', carbs: '0', fats: '0' },
+      options: [{ id: 'o1', foods: [alimento(100, 0, 100, 0)] }],
+    };
+    const [gap] = optionGaps(meal);
+
+    expect(gap.diff.kcals).toBe(0);
+    expect(gap.diff.protein).toBe(-40);
+    expect(gap.diff.carbs).toBe(100);
+  });
+
+  it('sin objetivo no hay nada que comparar', () => {
+    expect(optionGaps({ id: 'm1', target: null, options: [{ id: 'o1', foods: [] }] })).toEqual([]);
   });
 });

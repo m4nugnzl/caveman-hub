@@ -8,7 +8,6 @@ import {
   dayPlannedSets,
   dayPlannedVolume,
   exerciseProgression,
-  rirGap,
   trainedMuscles,
   weekMuscleVolume,
   weekTonnage,
@@ -194,39 +193,6 @@ describe('blankDays', () => {
   });
 });
 
-describe('rirGap — lo que se pidió frente a lo que salió', () => {
-  /*
-    El signo se lee al revés de lo que parece: un RIR MENOR que el objetivo
-    significa que la serie fue MÁS DURA de lo previsto. Este test es lo que
-    impide que alguien lo pinte como si fuera un déficit.
-  */
-  it('menos RIR del pedido es más duro, no menos', () => {
-    expect(rirGap({ targetRir: '3', rir: '1' })).toMatchObject({ diff: -2, tone: 'harder' });
-  });
-
-  it('más RIR del pedido es más suave', () => {
-    expect(rirGap({ targetRir: '2', rir: '4' })).toMatchObject({ diff: 2, tone: 'easier' });
-  });
-
-  it('clavarlo se dice con esa palabra y no con un cero', () => {
-    expect(rirGap({ targetRir: '2', rir: '2' })).toMatchObject({ tone: 'ok', label: 'clavado' });
-  });
-
-  /* Sin objetivo o sin registro no hay comparación posible, y ese es el caso
-     NORMAL: quien no programa por RIR no tiene objetivo en ninguna serie. */
-  it.each([
-    [{ rir: '2' }, 'sin objetivo'],
-    [{ targetRir: '2' }, 'sin registro'],
-    [{ targetRir: '', rir: '' }, 'vacías'],
-    [undefined, 'sin serie'],
-  ])('devuelve null %#: %s', (set) => {
-    expect(rirGap(set)).toBeNull();
-  });
-
-  it('un RIR de cero es un valor real, no un hueco', () => {
-    expect(rirGap({ targetRir: '0', rir: '0' })).toMatchObject({ diff: 0, tone: 'ok' });
-  });
-});
 
 describe('el plan sobrevive a vaciar la semana', () => {
   /*
