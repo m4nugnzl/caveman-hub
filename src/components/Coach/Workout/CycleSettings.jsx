@@ -1,5 +1,6 @@
 import { ArrowRight, CheckCircle2, CircleDashed, RotateCw, Settings } from 'lucide-react';
 
+import { MODULES, isModuleOn, toggleModule } from '@/domain/protocol';
 import { clampInt } from '@/lib/num';
 import { Field, Panel, SegmentedControl } from '@/components/ui/primitives';
 
@@ -40,7 +41,15 @@ const PatternChain = ({ pattern }) => {
   );
 };
 
-export const CycleSettings = ({ client, open, onToggle, onChange, saveIndicator }) => {
+export const CycleSettings = ({
+  client,
+  open,
+  onToggle,
+  onChange,
+  saveIndicator,
+  protocol,
+  onProtocolChange,
+}) => {
   const cycleType = client.cycleType || 'weekly';
   const pattern = client.cyclePattern || { train: 2, rest: 1 };
 
@@ -79,6 +88,40 @@ export const CycleSettings = ({ client, open, onToggle, onChange, saveIndicator 
 
       {open && (
         <>
+          {/*
+            ══ Los módulos, AQUÍ y no solo en Ajustes ═════════════════════════
+
+            Vivían únicamente en Ajustes → Protocolo. Como concepto está bien —el
+            entrenador decide qué existe en su app— pero como sitio era invisible:
+            nadie va a una pantalla de ajustes a buscar una casilla que no sabe
+            que existe. El síntoma exacto fue «das la opción de pautar RIR pero
+            no veo dónde se hace en la rutina».
+
+            Así que la decisión se toma donde se nota. Ajustes → Protocolo sigue
+            siendo la lista completa y el sitio para dejarlo puesto de una vez
+            para todos; esto es el interruptor a mano, para ESTE cliente, en la
+            pantalla donde acabas de echarlo en falta.
+          */}
+          <hr className="divider" />
+          <fieldset className="col gap-2" style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="section-label">Qué se usa con este cliente</legend>
+            <div className="row wrap gap-4">
+              {MODULES.map((mod) => (
+                <label className="checkbox-row" key={mod.id} title={mod.hint}>
+                  <input
+                    type="checkbox"
+                    checked={isModuleOn(protocol, mod.id)}
+                    onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
+                  />
+                  {mod.label}
+                </label>
+              ))}
+            </div>
+            <span className="t-2xs t-tertiary">
+              Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
+            </span>
+          </fieldset>
+
           <hr className="divider" />
           <div className="row-end wrap gap-5">
             <Field label="Tipo de estructura">

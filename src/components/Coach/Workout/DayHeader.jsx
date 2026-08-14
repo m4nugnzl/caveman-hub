@@ -5,7 +5,16 @@ import { countSets, weekdayForDay } from '@/domain/training';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
-export const DayHeader = ({ day, weeklySplit, onRename, onDuplicate, onRemove, canRemove }) => {
+export const DayHeader = ({
+  day,
+  weeklySplit,
+  onRename,
+  onDuplicate,
+  onRemove,
+  canRemove,
+  volume = {},
+  doneSets = 0,
+}) => {
   const confirm = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -86,6 +95,30 @@ export const DayHeader = ({ day, weeklySplit, onRename, onDuplicate, onRemove, c
           ) : (
             <h2 style={{ fontSize: 'var(--fs-lg)' }}>{day.dayName}</h2>
           )}
+
+          {/*
+            ── El reparto del día, bajo su nombre ────────────────────────────
+            Esto estaba como una fila de distintivos FLOTANDO encima del panel,
+            y ahí no significaba nada: no se sabía si hablaba del día, de la
+            semana o del cliente, y repetía el contador de series que ya está
+            aquí al lado.
+
+            Debajo del nombre del día es donde se lee como lo que es —cómo está
+            repartido ESTE día— y ya no compite con nada: es la tercera línea de
+            una cabecera que va de más general a más concreto.
+          */}
+          {Object.keys(volume).length > 0 && (
+            <div className="row gap-2 wrap">
+              {Object.entries(volume)
+                .sort((a, b) => b[1] - a[1])
+                .map(([muscle, count]) => (
+                  <span className="badge" key={muscle}>
+                    {muscle}
+                    <strong style={{ color: 'var(--accent)' }}>{count}</strong>
+                  </span>
+                ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -98,6 +131,9 @@ export const DayHeader = ({ day, weeklySplit, onRename, onDuplicate, onRemove, c
           <div className="day-stat">
             <span className="section-label">Series</span>
             <span className="v" style={{ color: 'var(--accent)' }}>{setCount}</span>
+            {/* Lo hecho, debajo y en pequeño: al programar importa lo que pones;
+                lo que lleva registrado es referencia, no el dato principal. */}
+            {doneSets > 0 && <span className="t-2xs t-tertiary">{doneSets} hechas</span>}
           </div>
         </div>
 

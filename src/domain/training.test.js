@@ -4,7 +4,11 @@ import {
   blankDays,
   buildMicrocycle,
   cloneDays,
+  dayMuscleVolume,
+  dayPlannedSets,
+  dayPlannedVolume,
   exerciseProgression,
+  rirGap,
   trainedMuscles,
   weekMuscleVolume,
   weekTonnage,
@@ -187,5 +191,104 @@ describe('blankDays', () => {
     // y continuar el programa (cliente) NO son la misma operación.
     expect(cloneDays(source())[0].exercises[0].sets[0].kg).toBe('80');
     expect(blankDays(source())[0].exercises[0].sets[0].kg).toBe('');
+  });
+});
+
+describe('rirGap — lo que se pidió frente a lo que salió', () => {
+  /*
+    El signo se lee al revés de lo que parece: un RIR MENOR que el objetivo
+    significa que la serie fue MÁS DURA de lo previsto. Este test es lo que
+    impide que alguien lo pinte como si fuera un déficit.
+  */
+  it('menos RIR del pedido es más duro, no menos', () => {
+    expect(rirGap({ targetRir: '3', rir: '1' })).toMatchObject({ diff: -2, tone: 'harder' });
+  });
+
+  it('más RIR del pedido es más suave', () => {
+    expect(rirGap({ targetRir: '2', rir: '4' })).toMatchObject({ diff: 2, tone: 'easier' });
+  });
+
+  it('clavarlo se dice con esa palabra y no con un cero', () => {
+    expect(rirGap({ targetRir: '2', rir: '2' })).toMatchObject({ tone: 'ok', label: 'clavado' });
+  });
+
+  /* Sin objetivo o sin registro no hay comparación posible, y ese es el caso
+     NORMAL: quien no programa por RIR no tiene objetivo en ninguna serie. */
+  it.each([
+    [{ rir: '2' }, 'sin objetivo'],
+    [{ targetRir: '2' }, 'sin registro'],
+    [{ targetRir: '', rir: '' }, 'vacías'],
+    [undefined, 'sin serie'],
+  ])('devuelve null %#: %s', (set) => {
+    expect(rirGap(set)).toBeNull();
+  });
+
+  it('un RIR de cero es un valor real, no un hueco', () => {
+    expect(rirGap({ targetRir: '0', rir: '0' })).toMatchObject({ diff: 0, tone: 'ok' });
+  });
+});
+
+describe('el plan sobrevive a vaciar la semana', () => {
+  /*
+    `blankDays` borra lo EJECUTADO y conserva lo PROGRAMADO. El RIR objetivo es
+    plan, igual que el rango de repeticiones: si se perdiera, cada semana nueva
+    habría que volver a escribir el esfuerzo de todas las series.
+  */
+  it('blankDays conserva targetReps y targetRir, y borra kg, reps y rir', () => {
+    const days = [
+      {
+        dayName: 'Día 1',
+        exercises: [
+          {
+            id: 'e1',
+            name: 'Press',
+            muscle: 'Pecho',
+            sets: [{ kg: '100', reps: '8', rir: '1', targetReps: '8-10', targetRir: '2' }],
+          },
+        ],
+      },
+    ];
+    const [set] = blankDays(days)[0].exercises[0].sets;
+
+    expect(set.targetReps).toBe('8-10');
+    expect(set.targetRir).toBe('2');
+    expect(set.kg).toBe('');
+    expect(set.reps).toBe('');
+    expect(set.rir).toBe('');
+  });
+});
+
+describe('volumen planificado — lo que le pones, no lo que ha hecho', () => {
+  const day = {
+    dayName: 'Torso',
+    exercises: [
+      { id: 'e1', name: 'Press', muscle: 'Pecho', sets: [{}, {}, {}] },
+      { id: 'e2', name: 'Aperturas', muscle: 'Pecho', sets: [{}, {}] },
+      { id: 'e3', name: 'Remo', muscle: 'Dorsal', sets: [{}, {}, {}, {}] },
+    ],
+  };
+
+  it('suma las series por músculo aunque no haya nada registrado', () => {
+    expect(dayPlannedVolume(day)).toEqual({ Pecho: 5, Dorsal: 4 });
+  });
+
+  /*
+    El motivo de que exista: `dayMuscleVolume` cuenta series EFECTIVAS y devuelve
+    un objeto vacío mientras se programa, que es justo cuando hace falta ver el
+    reparto.
+  */
+  it('donde el volumen efectivo da vacío, el planificado da el reparto', () => {
+    expect(dayMuscleVolume(day)).toEqual({});
+    expect(dayPlannedSets(day)).toBe(9);
+  });
+
+  it('un ejercicio sin músculo cae en Otros y uno sin series no cuenta', () => {
+    const raro = { exercises: [{ id: 'x', sets: [{}] }, { id: 'y', muscle: 'Pecho', sets: [] }] };
+    expect(dayPlannedVolume(raro)).toEqual({ Otros: 1 });
+  });
+
+  it('un día vacío no explota', () => {
+    expect(dayPlannedVolume(undefined)).toEqual({});
+    expect(dayPlannedSets(null)).toBe(0);
   });
 });

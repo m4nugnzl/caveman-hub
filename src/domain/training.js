@@ -78,7 +78,29 @@ export const unitLabelPlural = (cycleType) => (cycleType === 'rotating' ? 'sesio
 
 // ── Constructores ──────────────────────────────────────────────────────────
 
-export const emptySet = (targetReps = '') => ({ kg: '', reps: '', rir: '', targetReps });
+/**
+ * Una serie.
+ *
+ * Los campos van en dos parejas, y la simetría no es casual:
+ *
+ *   · `targetReps` / `reps` — lo que se pidió y lo que se hizo.
+ *   · `targetRir`  / `rir`  — lo mismo con el esfuerzo.
+ *
+ * `rir` existía desde el principio; `targetRir` es lo que faltaba para poder
+ * comparar. Sin él, el RIR que anota el cliente es un número sin referencia:
+ * «me sobraron 4» no dice si eso está bien o mal hasta que se sabe que se le
+ * habían pedido 2.
+ *
+ * Va vacío por defecto y solo se ve si el entrenador enciende el módulo `rir`
+ * de su protocolo. Quien no programe por RIR no tiene por qué verlo.
+ */
+export const emptySet = (targetReps = '') => ({
+  kg: '',
+  reps: '',
+  rir: '',
+  targetReps,
+  targetRir: '',
+});
 export const buildSets = (n, targetReps = '') => Array.from({ length: n }, () => emptySet(targetReps));
 
 export const emptyWorkoutData = () => ({
@@ -133,15 +155,19 @@ export const cloneDays = (days) =>
  * heredado de uno real: la analítica contaría como entrenada una semana que no se
  * ha hecho, y `weekAdherence` daría 100 % con cero series realizadas.
  *
- * Se conserva `targetReps` porque no es un registro sino parte del plan: es el
- * rango que el entrenador puso, y sigue vigente la semana siguiente.
+ * Se conservan `targetReps` y `targetRir` porque no son registros sino parte del
+ * plan: son el rango y el esfuerzo que el entrenador puso, y siguen vigentes la
+ * semana siguiente. Lo que se borra es lo que levantó la persona.
  */
 export const blankDays = (days) =>
   cloneDays(days).map((day) => ({
     ...day,
     exercises: (day.exercises || []).map((exercise) => ({
       ...exercise,
-      sets: (exercise.sets || []).map((set) => emptySet(set?.targetReps ?? '')),
+      sets: (exercise.sets || []).map((set) => ({
+        ...emptySet(set?.targetReps ?? ''),
+        targetRir: set?.targetRir ?? '',
+      })),
     })),
   }));
 
@@ -383,3 +409,58 @@ export const weekSummary = (microcycles, weekNumber) => {
     tonnage: weekTonnage(microcycles, weekNumber),
   };
 };
+/**
+ * Qué tal encajó el esfuerzo real con el que se pidió.
+ *
+ * ── Por qué esto es una función y no una resta en la pantalla ───────────────
+ * Porque el signo se lee al revés de lo que parece. Un RIR MENOR que el
+ * objetivo significa que la serie fue MÁS dura de lo previsto —quedaban menos
+ * repeticiones en el depósito—, así que un «-2» es una señal de exceso, no de
+ * defecto. Escrito a mano en cada sitio, tarde o temprano alguien lo pinta en
+ * verde por ser un número negativo pequeño.
+ *
+ * Devuelve `null` cuando no hay con qué comparar, que es el caso normal: quien
+ * no programa por RIR no tiene objetivo, y una serie sin registrar no tiene
+ * valor real.
+ */
+export const rirGap = (set) => {
+  const objetivo = toNum(set?.targetRir);
+  const real = toNum(set?.rir);
+  if (objetivo === null || real === null) return null;
+
+  const diff = real - objetivo;
+  return {
+    diff,
+    // Medio punto de margen: pedir 2 y anotar 2 es clavarlo, y con enteros la
+    // tolerancia da igual, pero deja la puerta abierta a los medios RIR.
+    tone: Math.abs(diff) <= 0.5 ? 'ok' : diff < 0 ? 'harder' : 'easier',
+    label: diff === 0 ? 'clavado' : diff < 0 ? `${Math.abs(diff)} más duro` : `${diff} más suave`,
+  };
+};
+
+/**
+ * Volumen PLANIFICADO de un día: series por grupo muscular, se hayan hecho o no.
+ *
+ * ── Por qué no vale `dayMuscleVolume` ───────────────────────────────────────
+ * Esa cuenta series EFECTIVAS —las que tienen repeticiones anotadas—, que es lo
+ * correcto para medir lo que se entrenó. Pero al PROGRAMAR no hay nada anotado
+ * todavía, así que devuelve un objeto vacío justo cuando el entrenador está
+ * repartiendo el volumen y es cuando más falta hace verlo.
+ *
+ * Son dos preguntas distintas sobre el mismo día —«¿cuánto le he puesto?» y
+ * «¿cuánto ha hecho?»— y por eso son dos funciones y no un parámetro: mezclarlas
+ * lleva a enseñar una cuando se preguntaba la otra.
+ */
+export const dayPlannedVolume = (day) => {
+  const out = {};
+  for (const ex of day?.exercises || []) {
+    const muscle = ex.muscle || 'Otros';
+    const sets = (ex.sets || []).length;
+    if (sets > 0) out[muscle] = (out[muscle] || 0) + sets;
+  }
+  return out;
+};
+
+/** Series programadas del día, en total. */
+export const dayPlannedSets = (day) =>
+  (day?.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);

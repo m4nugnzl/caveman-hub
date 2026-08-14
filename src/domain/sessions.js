@@ -393,12 +393,15 @@ export const trainedDates = (sessions) =>
 /**
  * Combina el PLAN de un día con los valores de una SESIÓN concreta.
  *
- * Devuelve los ejercicios con la misma forma que antes —`sets` con `targetReps`,
- * `kg`, `reps` y `rir`— de modo que la lista de ejercicios no necesita saber que
- * ahora hay dos orígenes:
+ * Devuelve los ejercicios con la misma forma que antes, de modo que la lista de
+ * ejercicios no necesita saber que ahora hay dos orígenes:
  *
- *   · `targetReps` viene del PLAN (lo que el entrenador programó).
+ *   · `targetReps` y `targetRir` vienen del PLAN (lo que el entrenador pidió).
  *   · `kg`, `reps` y `rir` vienen de la SESIÓN (lo que se ejecutó ese día).
+ *
+ * Los dos objetivos van juntos por el mismo motivo: son lo que se PIDE. Dejar
+ * `targetRir` fuera de aquí era el fallo que hacía que el cliente escribiera su
+ * RIR sin ver nunca el que se le había programado.
  *
  * El número de series lo marca siempre el plan, así que si el entrenador añade o
  * quita series no hace falta migrar las sesiones ya guardadas: lo que falte sale
@@ -415,6 +418,7 @@ export const mergePlanWithSession = (day, session) => {
         const logged = entry?.sets?.[index];
         return {
           targetReps: planSet?.targetReps ?? '',
+          targetRir: planSet?.targetRir ?? '',
           kg: logged?.kg ?? '',
           reps: logged?.reps ?? '',
           rir: logged?.rir ?? '',

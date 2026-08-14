@@ -18,6 +18,7 @@ import {
   gramsFromUnits,
   hasUnits,
   mealKcalRange,
+  mealProgress,
   optionMacros,
   unitsLabel,
 } from '@/domain/nutrition';
@@ -448,6 +449,7 @@ export const MealCard = ({
   onDuplicateOption,
   onCopyMeal,
   onCopyOption,
+  onNote = () => {},
   otherVariantLabel = '',
   firstMeal,
   lastMeal,
@@ -464,6 +466,7 @@ export const MealCard = ({
   const index = Math.min(activeOption, Math.max(0, options.length - 1));
   const option = options[index];
   const kcal = mealKcalRange(meal);
+  const progress = mealProgress(meal);
   const totals = optionMacros(option);
   const foods = option?.foods || [];
 
@@ -522,6 +525,28 @@ export const MealCard = ({
         )}
 
         <div className="row gap-2 shrink-0">
+          {/*
+            Lo que le queda a esta comida para llegar a su objetivo.
+
+            Es la razón de ser del reparto de arriba: sin esto, el objetivo por
+            comida sería un número que se pone una vez y no se vuelve a ver, y
+            cuadrar la dieta seguiría siendo sumar el día entero al final.
+
+            Se mide contra la PRIMERA opción, que es la que cuenta para el total
+            del día. Comparar contra la suma de las alternativas daría un 300 %
+            de exceso en una comida con tres opciones correctas.
+          */}
+          {progress && progress.tone !== 'none' && (
+            <span className={`meal-goal is-${progress.tone}`} title={`Objetivo: ${progress.target.kcals} kcal`}>
+              {progress.diff === 0
+                ? 'cuadra'
+                : progress.diff < 0
+                  ? `faltan ${Math.abs(progress.diff)}`
+                  : `+${progress.diff}`}
+              <span className="of"> / {progress.target.kcals}</span>
+            </span>
+          )}
+
           <span className="meal-kcal">
             {kcal.first} kcal
             {kcal.varies && (
@@ -597,6 +622,36 @@ export const MealCard = ({
           )}
         </div>
       </header>
+
+      {/*
+        ── La pauta de esta comida ────────────────────────────────────────────
+        Lo que no cabe en un gramo: «aproximadamente 2 h antes de dormir», «el
+        yogur, de la marca X», «si entrenas por la tarde, cámbiala por la cena».
+
+        Va debajo de la cabecera y encima de los alimentos porque es el marco en
+        el que se leen: una indicación que apareciera al final se lee después de
+        haber entendido mal la comida.
+
+        Editando siempre se ve el campo —si hay que buscar dónde escribir, no se
+        escribe—; en modo consulta solo aparece si tiene algo, y con los saltos de
+        línea conservados.
+      */}
+      {editable ? (
+        <input
+          className="input input-sm meal-note"
+          value={meal.note ?? ''}
+          maxLength={200}
+          placeholder="Pauta de esta comida (opcional): marca, hora aproximada, sustituciones…"
+          onChange={(e) => onNote(e.target.value)}
+          aria-label={`Pauta de ${meal.name}`}
+        />
+      ) : (
+        meal.note?.trim() && (
+          <p className="t-sm t-secondary" style={{ whiteSpace: 'pre-wrap' }}>
+            {meal.note}
+          </p>
+        )
+      )}
 
       {(options.length > 1 || editable) && (
         <div className="rail" role="tablist" aria-label={`Opciones de ${meal.name}`}>

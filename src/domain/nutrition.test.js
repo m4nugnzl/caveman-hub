@@ -12,6 +12,9 @@ import {
   gramsFromUnits,
   hasUnits,
   MAX_NOTES,
+  mealProgress,
+  mealTarget,
+  mealTargetsTotal,
   moveItem,
   notesToStorage,
   unitsLabel,
@@ -350,5 +353,66 @@ describe('estabilidad de los ids de las pautas', () => {
 
   it('un id propio siempre gana al derivado de la posición', () => {
     expect(dietNotes([{ id: 'mio', body: 'texto' }])[0].id).toBe('mio');
+  });
+});
+
+describe('la estructura del día', () => {
+  const comida = (target, foods = []) => ({ id: 'm1', name: 'Comida', target, options: [{ id: 'o1', foods }] });
+
+  /* Distinguir «sin objetivo» de «objetivo cero» importa: sin esto, borrar los
+     cuatro campos dejaría la comida marcada con un objetivo imposible. */
+  it('una comida sin objetivo real da null', () => {
+    expect(mealTarget(comida(null))).toBeNull();
+    expect(mealTarget(comida({}))).toBeNull();
+    expect(mealTarget(comida({ kcals: '', protein: '0' }))).toBeNull();
+    expect(mealTarget(comida({ kcals: '500' }))).toEqual({ kcals: 500, protein: 0, carbs: 0, fats: 0 });
+  });
+
+  it('suma lo repartido y dice lo que queda del día', () => {
+    const meals = [comida({ kcals: '500' }), comida({ kcals: '700' }), comida(null)];
+    expect(mealTargetsTotal(meals, 2000)).toMatchObject({ kcals: 1200, meals: 2, left: 800 });
+  });
+
+  /* Pasarse tiene que salir en negativo: esconderlo con un `Math.max` sería
+     enseñar una cifra falsa justo donde se toma la decisión. */
+  it('pasarse del objetivo del día sale en negativo', () => {
+    expect(mealTargetsTotal([comida({ kcals: '2500' })], 2000).left).toBe(-500);
+  });
+
+  it('sin objetivo del día no se inventa un restante', () => {
+    expect(mealTargetsTotal([comida({ kcals: '500' })], null).left).toBeNull();
+  });
+
+  /*
+    Se mide contra la PRIMERA opción. Comparar contra la suma de todas daría un
+    300 % de exceso en una comida con tres alternativas perfectamente correctas.
+  */
+  it('el progreso ignora las alternativas', () => {
+    const arroz = { id: 'f1', name: 'Arroz', grams: 100, proteinPer100: 0, carbsPer100: 100, fatsPer100: 0 };
+    const meal = {
+      id: 'm1',
+      name: 'Comida',
+      target: { kcals: '400' },
+      options: [{ id: 'o1', foods: [arroz] }, { id: 'o2', foods: [arroz] }],
+    };
+    // 100 g × 100 g de hidratos = 400 kcal → cuadra, no 800.
+    expect(mealProgress(meal)).toMatchObject({ diff: 0, tone: 'ok' });
+  });
+
+  it('el margen del 5 % evita el aviso que nunca se apaga', () => {
+    const casi = { id: 'f1', name: 'x', grams: 98, proteinPer100: 0, carbsPer100: 100, fatsPer100: 0 };
+    expect(mealProgress(comida({ kcals: '400' }, [casi])).tone).toBe('ok');
+  });
+
+  it('sin objetivo no hay progreso que enseñar', () => {
+    expect(mealProgress(comida(null))).toBeNull();
+  });
+
+  /* La pauta y el objetivo viajan con la comida al copiarla al otro día: sin
+     esto, «Cena» llegaría al día de descanso sin su indicación. */
+  it('cloneMeal se lleva la nota y el objetivo', () => {
+    const copia = cloneMeal({ name: 'Cena', note: '2 h antes de dormir', target: { kcals: '500' }, options: [] });
+    expect(copia.note).toBe('2 h antes de dormir');
+    expect(copia.target).toEqual({ kcals: '500' });
   });
 });

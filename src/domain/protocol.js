@@ -70,6 +70,20 @@ export const MODULES = [
     label: 'Feedback al terminar de entrenar',
     hint: 'Las preguntas que elijas abajo. Cada respuesta numérica se convierte en una serie que puedes seguir.',
   },
+  {
+    /*
+      Programar por RIR es una forma de entrenar, no la forma. Quien prescribe
+      por porcentajes o por sensaciones no quiere una casilla más por serie —y
+      antes la tenía igualmente, porque el RIR que anota el cliente existía desde
+      el principio sin nada con que compararlo.
+
+      Encendido, cada serie lleva su RIR objetivo y al cliente se le enseña
+      cuánto se le pidió junto a lo que anotó.
+    */
+    id: 'rir',
+    label: 'RIR objetivo por serie',
+    hint: 'Programas cuántas repeticiones debe dejarse en cada serie, y ves lo que anotó frente a lo que le pediste.',
+  },
 ];
 
 export const moduleById = (id) => MODULES.find((m) => m.id === id) || null;

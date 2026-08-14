@@ -93,6 +93,9 @@ export const activeVariants = (nutrition) =>
 export const buildMeal = () => ({
   id: newId('meal'),
   name: 'Nueva Comida',
+  // La pauta de esta comida y su objetivo: ver el bloque «La estructura del día».
+  note: '',
+  target: null,
   options: [{ id: newId('opt'), foods: [] }],
 });
 
@@ -188,6 +191,11 @@ export const cloneOption = (option) => ({
 export const cloneMeal = (meal, { rename = true } = {}) => ({
   id: newId('meal'),
   name: rename ? `${meal?.name || 'Comida'} (copia)` : meal?.name || 'Comida',
+  /* La pauta y el objetivo viajan con la comida. Son parte de lo que se copia:
+     llevarse «Cena» al día de descanso sin su «que sea 2 h antes de dormir»
+     dejaría media comida en el destino. */
+  note: meal?.note || '',
+  target: meal?.target ? { ...meal.target } : null,
   options: (meal?.options || []).map(cloneOption),
 });
 
@@ -454,3 +462,91 @@ export const notesToStorage = (notes) =>
       title: String(note.title || '').trim().slice(0, NOTE_TITLE_MAX),
       body: String(note.body).trim().slice(0, NOTE_BODY_MAX),
     }));
+
+/* ==========================================================================
+   La estructura del día
+   --------------------------------------------------------------------------
+   Montar una dieta cerrada empieza siempre igual: 2400 kcal repartidas en cinco
+   comidas. Pero la aplicación solo conocía el total del día, así que ese reparto
+   —que es la PRIMERA decisión que se toma— vivía en la cabeza del entrenador
+   mientras iba metiendo alimentos, y solo se sabía si había acertado al sumar el
+   día entero al final.
+
+   Poner el objetivo por comida ANTES de llenarla convierte cada comida en un
+   problema pequeño y cerrado: «aquí me caben 520 kcal y 40 g de proteína». El
+   total del día deja de ser algo que se comprueba al final y pasa a ser algo que
+   se reparte al principio.
+
+   ── Por qué el objetivo vive EN la comida ───────────────────────────────────
+   Y no en una lista aparte del plan. Porque si fueran dos listas habría que
+   emparejarlas por nombre o por posición, y las dos formas se rompen igual: al
+   renombrar «Comida» a «Almuerzo», o al reordenar. Dentro de la comida, el
+   objetivo la sigue a donde vaya —incluso al copiarla al otro día—.
+   ========================================================================== */
+
+const TARGET_KEYS = ['kcals', 'protein', 'carbs', 'fats'];
+
+/** El objetivo de una comida, en números. `null` si no se ha puesto nada. */
+export const mealTarget = (meal) => {
+  const raw = meal?.target;
+  if (!raw || typeof raw !== 'object') return null;
+
+  const out = {};
+  let alguno = false;
+  for (const key of TARGET_KEYS) {
+    const value = toNum0(raw[key]);
+    out[key] = value || 0;
+    if (value) alguno = true;
+  }
+  return alguno ? out : null;
+};
+
+/**
+ * Lo que llevas repartido frente al objetivo del día.
+ *
+ * Es la cifra que hace útil el reparto: sin ella hay que sumar cinco comidas a
+ * mano para saber si te has pasado. `left` puede ser negativo a propósito —pasarse
+ * es información, y esconderla con un `Math.max` sería mentir—.
+ */
+export const mealTargetsTotal = (meals, dayTarget) => {
+  const sum = { kcals: 0, protein: 0, carbs: 0, fats: 0 };
+  let conObjetivo = 0;
+
+  for (const meal of meals || []) {
+    const target = mealTarget(meal);
+    if (!target) continue;
+    conObjetivo += 1;
+    for (const key of TARGET_KEYS) sum[key] += target[key];
+  }
+
+  return {
+    ...sum,
+    meals: conObjetivo,
+    left: toNum0(dayTarget) ? toNum0(dayTarget) - sum.kcals : null,
+  };
+};
+
+/**
+ * Lo que hay puesto en una comida frente a lo que se le pidió.
+ *
+ * Se mide contra la PRIMERA opción, que es la que cuenta para el total del día
+ * (ver `dayKcals`). Las alternativas son intercambiables entre sí, y comparar el
+ * objetivo contra la suma de todas daría un exceso del 300 % en una comida con
+ * tres alternativas perfectamente correctas.
+ */
+export const mealProgress = (meal) => {
+  const target = mealTarget(meal);
+  if (!target) return null;
+
+  const actual = optionMacros(meal?.options?.[0]);
+  const diff = Math.round(actual.kcal) - target.kcals;
+
+  return {
+    target,
+    actual,
+    diff,
+    // 5 % de margen: cuadrar una comida al kilocaloría exacta no es posible con
+    // alimentos reales, y un aviso que nunca se apaga se deja de mirar.
+    tone: target.kcals === 0 ? 'none' : Math.abs(diff) <= target.kcals * 0.05 ? 'ok' : diff > 0 ? 'over' : 'under',
+  };
+};

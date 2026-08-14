@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { Copy, Plus, Salad } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant } from '@/domain/nutrition';
+import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant, targetsFor } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { Notice, Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { DietNotes } from '@/components/nutrition/DietNotes';
+import { MealStructure } from '@/components/nutrition/MealStructure';
 
 const DIET_TYPES = [
   { id: 'macros', label: 'Por macros' },
@@ -34,6 +35,8 @@ export const NutritionModule = () => {
     addMeal,
     removeMeal,
     updateMealName,
+    updateMealNote,
+    updateMealTarget,
     copyVariantMeals,
     copyMealToVariant,
     copyOptionToVariant,
@@ -239,6 +242,16 @@ export const NutritionModule = () => {
 
           {copiado && <Notice tone="success">{copiado}</Notice>}
 
+          {/* El reparto va ANTES de las comidas: es la primera decisión que se
+              toma y la que hace cómodo todo lo de debajo. */}
+          <MealStructure
+            meals={meals}
+            dayTarget={targetsFor(plan, variant).targetKcals}
+            onChange={(mealIndex, field, value) =>
+              updateMealTarget(activeClient.id, variant, mealIndex, field, value)
+            }
+          />
+
           <div className="col gap-4">
             {meals.map((meal, mealIndex) => (
               <MealCard
@@ -288,6 +301,7 @@ export const NutritionModule = () => {
                   moveFood(activeClient.id, variant, mealIndex, optIndex, from, to)
                 }
                 onRenameMeal={(name) => updateMealName(activeClient.id, variant, mealIndex, name)}
+                onNote={(note) => updateMealNote(activeClient.id, variant, mealIndex, note)}
                 onRemoveMeal={() => removeMeal(activeClient.id, variant, mealIndex)}
                 onAddOption={() => addMealOption(activeClient.id, variant, mealIndex)}
                 onRemoveOption={(optIndex) => removeMealOption(activeClient.id, variant, mealIndex, optIndex)}

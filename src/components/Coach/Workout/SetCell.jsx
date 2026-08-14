@@ -1,6 +1,7 @@
 import { Check, X } from 'lucide-react';
 
 import { isSetLogged } from '@/domain/sessions';
+import { rirGap } from '@/domain/training';
 
 /**
  * Una serie.
@@ -50,9 +51,15 @@ const FIELDS = [
  * `FIELDS` se comparte con la tarjeta a propósito: dos listas de campos acaban
  * divergiendo, y el día que se añada «tempo» tiene que aparecer en las dos.
  */
-export const SetRow = ({ index, set, onChange, exerciseName }) => {
+export const SetRow = ({ index, set, onChange, exerciseName, showRir = false }) => {
   const label = `${exerciseName}, serie ${index + 1}`;
   const done = isSetLogged(set);
+  /*
+    Lo que se pidió frente a lo que salió. Solo aparece cuando hay las dos
+    cosas: un objetivo sin registro todavía no es una comparación, y un registro
+    sin objetivo es el caso de siempre —el de quien no programa por RIR—.
+  */
+  const gap = showRir ? rirGap(set) : null;
 
   return (
     <div className={`set-row${done ? ' is-done' : ''}`}>
@@ -66,7 +73,15 @@ export const SetRow = ({ index, set, onChange, exerciseName }) => {
         {done ? <Check size={13} strokeWidth={3} /> : index + 1}
       </span>
 
-      <span className="set-row-target">{set.targetReps || '—'}</span>
+      <span className="set-row-target">
+        {set.targetReps || '—'}
+        {/* El RIR pedido va pegado al rango de repeticiones y no en columna
+            propia: las dos cosas son «lo que te pido en esta serie», y separarlas
+            haría una columna que está vacía para casi todo el mundo. */}
+        {showRir && set.targetRir !== '' && set.targetRir != null && (
+          <span className="rir"> · RIR {set.targetRir}</span>
+        )}
+      </span>
 
       {FIELDS.map((field) => (
         <input
@@ -80,6 +95,12 @@ export const SetRow = ({ index, set, onChange, exerciseName }) => {
           aria-label={`${label}: ${field.label}`}
         />
       ))}
+
+      {gap && (
+        <span className={`set-row-gap is-${gap.tone}`} title={`Le pediste RIR ${set.targetRir}`}>
+          {gap.label}
+        </span>
+      )}
     </div>
   );
 };
@@ -101,8 +122,24 @@ export const SetRowHead = () => (
  * `SetRow`, así que ya no hace falta el interruptor `canEditTarget` que antes
  * apagaba medio componente.
  */
-export const SetCell = ({ index, set, canRemove, onChange, onRemove, exerciseName }) => {
+export const SetCell = ({
+  index,
+  set,
+  canRemove,
+  onChange,
+  onRemove,
+  exerciseName,
+  showRir = false,
+}) => {
   const label = `${exerciseName}, serie ${index + 1}`;
+  /*
+    ── La comparación también AQUÍ, y ese era el fallo ──────────────────────
+    Solo estaba en `SetRow`, que es la tabla de registro. Pero el entrenador
+    programa en la tarjeta y nunca cambia a la tabla, así que desde su lado el
+    RIR objetivo era «una casilla que no hace nada»: escribías un 2 y no volvías
+    a ver ese 2 comparado con nada.
+  */
+  const gap = showRir ? rirGap(set) : null;
 
   return (
     <div className="set-cell">
@@ -121,6 +158,24 @@ export const SetCell = ({ index, set, canRemove, onChange, onRemove, exerciseNam
             title="Repeticiones objetivo de esta serie"
           />
         </span>
+
+        {/* El RIR objetivo, con el mismo tratamiento que el rango de reps: es lo
+            otro que el entrenador PIDE, así que comparte su sitio y su color. */}
+        {showRir && (
+          <span className="set-cell-target">
+            <span className="tag">rir</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="input"
+              placeholder="2"
+              value={set.targetRir ?? ''}
+              onChange={(e) => onChange('targetRir', e.target.value)}
+              aria-label={`${label}: RIR objetivo`}
+              title="Repeticiones que debe dejarse en el depósito"
+            />
+          </span>
+        )}
 
         {canRemove && (
           <button
@@ -151,6 +206,15 @@ export const SetCell = ({ index, set, canRemove, onChange, onRemove, exerciseNam
           </label>
         ))}
       </div>
+
+      {/* Pedido frente a hecho. Ocupa el ancho entero de la tarjeta y solo
+          aparece cuando hay las dos cifras: es la conclusión de la serie, no
+          una etiqueta más. */}
+      {gap && (
+        <span className={`set-cell-gap is-${gap.tone}`} title={`Le pediste RIR ${set.targetRir}`}>
+          RIR {set.rir} de {set.targetRir} · {gap.label}
+        </span>
+      )}
     </div>
   );
 };

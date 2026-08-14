@@ -28,6 +28,7 @@ export const ExerciseList = ({
   onSetChange,
   onAddSet,
   onRemoveSet,
+  showRir = false,
 }) => {
   const confirm = useConfirm();
   const [dragIndex, setDragIndex] = useState(null);
@@ -169,6 +170,7 @@ export const ExerciseList = ({
                     canRemove={exercise.sets.length > 1}
                     onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
                     onRemove={() => onRemoveSet(exercise.id, setIndex)}
+                    showRir={showRir}
                   />
                 ))}
                 <button
@@ -191,6 +193,7 @@ export const ExerciseList = ({
                     set={set}
                     exerciseName={exercise.name}
                     onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
+                    showRir={showRir}
                   />
                 ))}
               </div>

@@ -1432,7 +1432,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .set-cell-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 20px; }
 .set-cell-tag { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil); color: var(--text-tertiary); }
 
+/* La cabecera envuelve: con el módulo de RIR encendido hay DOS objetivos —el
+   rango y el esfuerzo— y en una tarjeta de 168 px no caben en una línea junto al
+   número de serie. Envolver es preferible a encoger las casillas hasta que las
+   cifras no se lean. */
+.set-cell-head { flex-wrap: wrap; }
+
 .set-cell-target { display: flex; align-items: center; gap: 3px; min-width: 0; }
+
+/* Pedido frente a hecho, a lo ancho de la tarjeta.
+   El color va por SIGNIFICADO: menos RIR del pedido es una serie más dura de lo
+   previsto —número negativo, lectura «se pasó»— y por eso va en aviso. Más
+   suave queda en azul y no en verde, porque verde diría «bien» y dejarse cuatro
+   repeticiones cuando pediste dos no es bien: es otra cosa. */
+.set-cell-gap {
+  text-align: center; border-radius: var(--r-xs);
+  font-size: var(--fs-2xs); font-weight: 650; padding: 2px 4px;
+}
+.set-cell-gap.is-ok { background: var(--positive-soft); color: var(--positive); }
+.set-cell-gap.is-harder { background: var(--warning-soft); color: var(--warning); }
+.set-cell-gap.is-easier { background: var(--info-soft); color: var(--info); }
 .set-cell-target > .tag { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 650; }
 .set-cell-target .input {
   width: 48px; padding: 1px 3px;
@@ -1528,6 +1547,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   text-align: center; font-size: var(--fs-xs); font-weight: 650;
   color: var(--info); font-variant-numeric: tabular-nums;
 }
+/* El RIR pedido, dentro de la misma celda del objetivo y un punto más apagado:
+   es la parte opcional de «lo que te pido», y quien no programa por RIR nunca la
+   ve (ver el módulo `rir` en `domain/protocol.js`). */
+.set-row-target > .rir { font-weight: 550; opacity: 0.75; }
+
+/* Lo que salió frente a lo que se pidió.
+   ---------------------------------------------------------------------------
+   El color va por SIGNIFICADO y no por signo. Un RIR menor que el objetivo es
+   una serie más dura de lo previsto: el número es negativo pero la lectura es
+   «se pasó», así que se pinta en aviso. Al revés —más suave— es información, no
+   un logro, y por eso queda en azul y no en verde: verde diría «bien» y dejarse
+   cuatro repeticiones cuando se pidieron dos no es bien, es otra cosa. */
+.set-row-gap {
+  grid-column: 1 / -1; justify-self: end;
+  font-size: var(--fs-2xs); font-weight: 650;
+  padding: 1px 6px; border-radius: var(--r-pill);
+}
+.set-row-gap.is-ok { background: var(--positive-soft); color: var(--positive); }
+.set-row-gap.is-harder { background: var(--warning-soft); color: var(--warning); }
+.set-row-gap.is-easier { background: var(--info-soft); color: var(--info); }
 
 /* 42 px de alto: es un campo que se rellena de pie, con una mano y a veces con
    el dedo mojado. El mínimo táctil recomendado es 44 y aquí el objetivo real es
@@ -1683,6 +1722,32 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .meal-title { display: flex; align-items: center; gap: 6px; font-size: var(--fs-md); font-weight: 650; min-width: 0; }
 .meal-kcal { background: var(--data-amber-soft); color: var(--data-amber); border-radius: var(--r-pill); padding: 4px 10px; font-size: var(--fs-sm); font-weight: 650; white-space: nowrap; }
 .meal-totals td { background: var(--surface-sunken); }
+
+/* Lo que le falta a esta comida para su objetivo.
+   Va JUNTO a las kcal y con la misma forma de píldora, porque son la misma
+   cifra vista de dos maneras: cuánto lleva y cuánto le queda. El objetivo se
+   escribe en gris dentro de la propia píldora para no gastar una tercera. */
+.meal-goal {
+  border-radius: var(--r-pill); padding: 4px 10px;
+  font-size: var(--fs-sm); font-weight: 650; white-space: nowrap;
+  background: var(--fill); color: var(--text-secondary);
+}
+.meal-goal > .of { font-weight: 550; opacity: 0.7; }
+.meal-goal.is-ok { background: var(--positive-soft); color: var(--positive); }
+.meal-goal.is-over { background: var(--negative-soft); color: var(--negative); }
+.meal-goal.is-under { background: var(--info-soft); color: var(--info); }
+
+/* La pauta escrita de una comida: se lee como texto, no como un formulario.
+   Sin fondo ni borde hasta que se enfoca — un campo con marco en cada comida
+   convertiría el menú en una hoja de altas. */
+.meal-note {
+  width: 100%; background: transparent; border-color: transparent;
+  color: var(--text-secondary); font-size: var(--fs-sm); padding-left: 0;
+}
+.meal-note:focus {
+  background: var(--surface-sunken); border-color: var(--accent);
+  padding-left: 9px;
+}
 
 /* ── Los alimentos, como tabla con encabezado ───────────────────────────────
    Antes cada fila llevaba escrito «P 38  C 85  G 8». Repetir las etiquetas en

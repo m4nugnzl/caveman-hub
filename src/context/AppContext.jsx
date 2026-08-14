@@ -2535,6 +2535,43 @@ export const AppProvider = ({ children }) => {
     [applyMeals]
   );
 
+  /** La pauta escrita de una comida: «que sea 2 h antes de dormir», «marca X». */
+  const updateMealNote = useCallback(
+    (clientId, variant, mealIdx, note) =>
+      applyMeals(
+        clientId,
+        variant,
+        (meals) => meals.map((m, i) => (i === mealIdx ? { ...m, note } : m)),
+        { immediate: false }
+      ),
+    [applyMeals]
+  );
+
+  /**
+   * El objetivo de una comida, campo a campo.
+   *
+   * Un objetivo que se queda entero a cero se guarda como `null` y no como cuatro
+   * ceros: `mealTarget` distingue «no le he puesto objetivo» de «le he puesto
+   * cero kcal», y sin esto borrar los cuatro campos dejaría la comida marcada
+   * como si tuviera un objetivo imposible de cumplir.
+   */
+  const updateMealTarget = useCallback(
+    (clientId, variant, mealIdx, field, value) =>
+      applyMeals(
+        clientId,
+        variant,
+        (meals) =>
+          meals.map((m, i) => {
+            if (i !== mealIdx) return m;
+            const target = { ...(m.target || {}), [field]: value };
+            const vacio = Object.values(target).every((v) => v === '' || v === null || Number(v) === 0);
+            return { ...m, target: vacio ? null : target };
+          }),
+        { immediate: false }
+      ),
+    [applyMeals]
+  );
+
   const addMealOption = useCallback(
     (clientId, variant, mealIdx) =>
       applyMeals(clientId, variant, (meals) =>
@@ -4122,6 +4159,8 @@ export const AppProvider = ({ children }) => {
       addMeal,
       removeMeal,
       updateMealName,
+      updateMealNote,
+      updateMealTarget,
       copyVariantMeals,
       copyMealToVariant,
       copyOptionToVariant,
@@ -4224,7 +4263,7 @@ export const AppProvider = ({ children }) => {
       startSession, logSessionSet, updateSession, updateSessionMeta, updateMobilityDrills, removeSession,
       startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
-      updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
+      updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName, updateMealNote, updateMealTarget,
       copyVariantMeals, copyMealToVariant, copyOptionToVariant, moveMeal, moveFood, duplicateOption, duplicateMeal, addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,

@@ -310,6 +310,7 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
         canEditStructure={false}
         emptyMessage="Tu entrenador no ha programado ejercicios en este día."
         onSetChange={logSet}
+        showRir={isModuleOn(protocol, 'rir')}
       />
 
       {(asksFeedback(protocol) || isModuleOn(protocol, 'clientNote')) &&

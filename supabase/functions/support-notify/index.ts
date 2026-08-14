@@ -161,9 +161,32 @@ Deno.serve(async (request) => {
 
     const primero = mensajes?.[0]?.body || '';
     const autor = ticket.profiles?.full_name || ticket.profiles?.email || 'Un entrenador';
-    const contexto = Object.entries(ticket.context || {})
+    /*
+      ══ El contexto, y por qué los fallos van APARTE ═══════════════════════
+      Esto era una sola línea que recorría `context` entero con `${v}`. Como
+      `fallos` es un array de OBJETOS, se serializaba como
+      «fallos: [object Object],[object Object]» — es decir, el aviso llegaba sin
+      lo único que sirve para diagnosticar, que es justo lo que se recoge con más
+      cuidado en el cliente.
+
+      Ahora se separan: el resto del contexto sigue siendo una línea de
+      referencia, y los fallos se formatean uno por línea.
+    */
+    const { fallos = [], ...resto } = (ticket.context || {}) as Record<string, unknown>;
+
+    const contexto = Object.entries(resto)
+      .filter(([, v]) => v !== null && v !== '')
       .map(([k, v]) => `${k}: ${v}`)
       .join(' · ');
+
+    const lineaFallo = (f: Record<string, unknown>) =>
+      `[${f.source ?? '?'}] ${f.message ?? ''}` +
+      (Number(f.count) > 1 ? ` (×${f.count})` : '') +
+      (f.path ? ` — ${f.path}` : '');
+
+    const listaFallos = Array.isArray(fallos)
+      ? fallos.map((f) => lineaFallo(f as Record<string, unknown>))
+      : [];
 
     /*
       Los dos canales se lanzan A LA VEZ y ninguno espera al otro.
@@ -195,6 +218,16 @@ Deno.serve(async (request) => {
                 <p><strong>${esc(ticket.subject)}</strong></p>
                 <p style="white-space:pre-wrap">${esc(primero)}</p>
                 ${contexto ? `<p style="color:#666;font-size:12px">${esc(contexto)}</p>` : ''}
+                ${
+                  listaFallos.length > 0
+                    ? `<p style="color:#666;font-size:12px;margin-bottom:4px">
+                         Últimos fallos en su sesión, del más reciente al más antiguo:
+                       </p>
+                       <pre style="background:#f5f5f5;border-radius:6px;padding:10px;font-size:12px;white-space:pre-wrap;word-break:break-word;margin:0 0 12px">${esc(
+                         listaFallos.join('\n')
+                       )}</pre>`
+                    : '<p style="color:#999;font-size:12px">Sin fallos registrados en su sesión.</p>'
+                }
                 <p style="color:#666;font-size:12px">
                   Contesta desde Ajustes › Ayuda. Este correo es solo el aviso.
                 </p>
@@ -216,6 +249,17 @@ Deno.serve(async (request) => {
             `🛟 <b>${esc(ticket.subject)}</b>\n` +
               `<i>${esc(autor)}</i>\n\n` +
               `${esc(primero.slice(0, 400))}${primero.length > 400 ? '…' : ''}\n\n` +
+              /*
+                Solo el fallo MÁS RECIENTE, y solo si lo hay. Es el que suele
+                explicar lo que la persona está contando, y meter los seis
+                convertiría el aviso del móvil en un muro que no se lee.
+                Los seis van en el correo y en la aplicación.
+              */
+              (listaFallos.length > 0
+                ? `<code>${esc(listaFallos[0].slice(0, 200))}</code>\n` +
+                  (listaFallos.length > 1 ? `<i>+${listaFallos.length - 1} más</i>\n` : '') +
+                  '\n'
+                : '') +
               `Contesta en Ajustes › Ayuda.`
           )
         : Promise.resolve({ sent: false, reason: 'sin configurar' }),

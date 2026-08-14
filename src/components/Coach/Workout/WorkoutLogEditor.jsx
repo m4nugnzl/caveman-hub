@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { dayMuscleVolume, unitLabel } from '@/domain/training';
+import { dayMuscleVolume, dayPlannedVolume, unitLabel } from '@/domain/training';
 import { sessionMuscleVolume } from '@/domain/sessions';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn } from '@/domain/protocol';
@@ -38,6 +38,7 @@ export const WorkoutLogEditor = () => {
     saveStatus,
     retrySave,
     updateClient,
+    updateClientPreferences,
     updateWeeklySplit,
     startSession,
     logSessionSet,
@@ -128,16 +129,23 @@ export const WorkoutLogEditor = () => {
   );
 
   /*
-   * El volumen de los chips refleja lo REGISTRADO en la sesión activa, no lo
-   * planificado: son "series efectivas", y una serie sin repeticiones anotadas
-   * todavía no cuenta. Si aún no hay ninguna sesión se cae al plan para que el
-   * entrenador vea el reparto que está montando.
-   */
-  const muscleSummary = useMemo(
+    ══ Dos volúmenes, y son dos preguntas distintas ═══════════════════════════
+
+    Antes esto enseñaba UNO solo: lo registrado si había sesión y, si no, el
+    plan. El resultado era que el reparto que estabas montando desaparecía en
+    cuanto el cliente anotaba su primera serie, sustituido por lo que llevaba
+    hecho — justo cuando programar la semana siguiente exige verlo.
+
+    Ahora el PLANIFICADO manda, porque esta es la hoja de programar y la
+    pregunta de esta pantalla es «¿cuánto le he puesto?». Lo ejecutado se añade
+    al lado cuando existe, como referencia y sin quitarle el sitio.
+  */
+  const planned = useMemo(() => dayPlannedVolume(nav.day), [nav.day]);
+  const doneSets = useMemo(
     () =>
       daySession.session
-        ? sessionMuscleVolume(daySession.session)
-        : dayMuscleVolume(nav.day),
+        ? Object.values(sessionMuscleVolume(daySession.session)).reduce((a, b) => a + b, 0)
+        : Object.values(dayMuscleVolume(nav.day)).reduce((a, b) => a + b, 0),
     [daySession.session, nav.day]
   );
 
@@ -218,6 +226,8 @@ export const WorkoutLogEditor = () => {
         onToggle={() => setCycleOpen((v) => !v)}
         onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
         saveIndicator={indicator}
+        protocol={protocol}
+        onProtocolChange={(next) => updateClientPreferences(activeClient.id, 'protocol', next)}
       />
 
       {cycleType === 'weekly' && (
@@ -343,22 +353,13 @@ export const WorkoutLogEditor = () => {
         </Panel>
       )}
 
-      {Object.keys(muscleSummary).length > 0 && (
-        <div className="row wrap gap-2">
-          {Object.entries(muscleSummary).map(([muscle, count]) => (
-            <span className="badge" key={muscle}>
-              {muscle}
-              <strong style={{ color: 'var(--accent)' }}>{count} series</strong>
-            </span>
-          ))}
-        </div>
-      )}
-
       {nav.day ? (
         <Panel className="col gap-5">
           <DayHeader
             day={nav.day}
             weeklySplit={cycleType === 'weekly' ? program.weeklySplit : null}
+            volume={planned}
+            doneSets={doneSets}
             canRemove={nav.days.length > 1}
             onRename={(name) => renameDay(activeClient.id, nav.week, nav.day.dayName, name)}
             onDuplicate={() => duplicateDay(activeClient.id, nav.week, nav.day.dayName)}
@@ -419,10 +420,15 @@ export const WorkoutLogEditor = () => {
           */}
           <ExerciseList
             exercises={daySession.exercises}
+            showRir={isModuleOn(protocol, 'rir')}
             onMove={(from, to) => moveExercise(activeClient.id, nav.week, nav.day.dayName, from, to)}
             onRemove={(exId) => removeExercise(activeClient.id, nav.week, nav.day.dayName, exId)}
             onSetChange={(exId, setIdx, field, value) => {
-              if (field === 'targetReps') {
+              /* Los dos objetivos son PLAN y van a `updateExerciseSet`; los kg,
+                 reps y RIR reales son EJECUCIÓN y van a la sesión. Mandar el
+                 RIR objetivo por el camino de la ejecución lo guardaría como
+                 algo que la persona hizo, y se borraría al vaciar la semana. */
+              if (field === 'targetReps' || field === 'targetRir') {
                 updateExerciseSet(activeClient.id, nav.week, nav.day.dayName, exId, setIdx, field, value);
                 return;
               }
