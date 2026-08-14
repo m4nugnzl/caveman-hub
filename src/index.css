@@ -385,56 +385,97 @@ button.list-row:hover { background: var(--fill-subtle); }
    La tarjeta ENTERA abre la ficha. Se consigue con una capa de clic que la cubre
    —no envolviéndola en un <button>, porque dentro hay botones y anidarlos es
    HTML inválido y una trampa para el teclado. */
-/* ── Tablero de la cartera ─────────────────────────────────────────────────
-   Cuatro columnas fijas, de izquierda a derecha en orden de prioridad. Se
-   mantienen aunque estén vacías: una columna que aparece y desaparece cambia el
-   ancho de las demás y obliga a releer la pantalla en cada visita.
+/* ── La bandeja de tareas ──────────────────────────────────────────────────
+   Aquí hubo un tablero de cuatro columnas. Se cayó por dos motivos, y el
+   segundo no era de gusto:
 
-   En móvil el tablero se desplaza en horizontal —columnas de ancho fijo— en vez
-   de apilarse: apiladas dejarían de ser un tablero y volverían a ser la lista que
-   esto sustituye. */
-.board {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--s3); align-items: start;
-}
+     · Agrupaba por el ESTADO del cliente y contestaba «¿en qué estado está cada
+       uno?», que no es la pregunta con la que se abre esta pantalla.
+     · Cada cliente cabía en UNA columna, así que alguien con el pago vencido y
+       sin cuenta salía solo en la más grave. La pantalla escondía trabajo.
 
-.board-col {
+   Ahora cada grupo es una TAREA y se apila en vertical. Apilar y no columnar
+   tiene su razón: las tareas son una lista de prioridad —se atienden de arriba
+   abajo—, y en columnas la primera y la última pesan lo mismo. Además cabe en
+   el móvil sin desplazamiento horizontal, que era lo que hacía el tablero.
+
+   El tono solo tiñe el contador y el canto. Si tiñera el fondo, cinco bloques de
+   color compitiendo harían ilegibles los nombres, que es lo que se viene a leer. */
+.task {
   display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
   background: var(--surface-sunken); border-radius: var(--r-lg);
   padding: var(--s3);
 }
 
-.board-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
-.board-head > .k {
+.task-head {
+  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left;
+}
+button.task-head { cursor: pointer; }
+.task-head > .k {
   font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
   letter-spacing: var(--tracking-stencil); color: var(--text-secondary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: nowrap;
 }
-.board-head > .n {
+.task-head > .n {
   font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums;
   min-width: 22px; text-align: center; border-radius: var(--r-pill);
   background: var(--fill); color: var(--text-secondary); padding: 0 6px;
 }
+/* La pista se queda con el hueco sobrante y desaparece por elipsis antes que el
+   título o el contador, que son lo que no se puede perder. */
+.task-head > .hint {
+  flex: 1; min-width: 0;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.task-head > .chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform var(--fast); }
+.task-head[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
 
-/* El tono de la columna solo tiñe su contador y su canto: si tiñera el fondo,
-   cuatro bloques de color compitiendo harían ilegibles las fichas. */
-.board-col.is-info { box-shadow: inset 2px 0 0 var(--info); }
-.board-col.is-bad { box-shadow: inset 2px 0 0 var(--negative); }
-.board-col.is-warn { box-shadow: inset 2px 0 0 var(--warning); }
-.board-col.is-ok { box-shadow: inset 2px 0 0 var(--positive); }
-.board-col.is-info > .board-head > .n { background: var(--info-soft); color: var(--info); }
-.board-col.is-bad > .board-head > .n { background: var(--negative-soft); color: var(--negative); }
-.board-col.is-warn > .board-head > .n { background: var(--warning-soft); color: var(--warning); }
-.board-col.is-ok > .board-head > .n { background: var(--positive-soft); color: var(--positive); }
+.task.is-info { box-shadow: inset 2px 0 0 var(--info); }
+.task.is-bad { box-shadow: inset 2px 0 0 var(--negative); }
+.task.is-warn { box-shadow: inset 2px 0 0 var(--warning); }
+.task.is-ok { box-shadow: inset 2px 0 0 var(--positive); }
+.task.is-info > .task-head > .n { background: var(--info-soft); color: var(--info); }
+.task.is-bad > .task-head > .n { background: var(--negative-soft); color: var(--negative); }
+.task.is-warn > .task-head > .n { background: var(--warning-soft); color: var(--warning); }
+.task.is-ok > .task-head > .n { background: var(--positive-soft); color: var(--positive); }
 
-.board-hint { font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; }
-.board-cards { display: flex; flex-direction: column; gap: var(--s2); }
-.board-empty { font-size: var(--fs-xs); color: var(--text-tertiary); padding: var(--s2); }
+.task-rows { display: flex; flex-direction: column; gap: 2px; }
 
-/* Dentro de una columna estrecha, las fichas van más compactas. */
-.board-cards .folio { padding: var(--s3) var(--s3) var(--s3) calc(var(--s3) + 3px); gap: var(--s2); }
-.board-cards .folio-facts { grid-template-columns: 1fr 1fr; padding: var(--s2); gap: 4px var(--s2); }
-.board-cards .folio-head > .who > .name { font-size: var(--fs-base); }
+.task-row {
+  position: relative; display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s3); min-width: 0;
+  background: var(--surface); border-radius: var(--r-md);
+  transition: background-color var(--fast);
+}
+.task-row:hover { background: var(--fill-subtle); }
+.task-row:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+
+/* La capa de clic: cubre la fila POR DEBAJO del contenido, así que la acción y
+   el resto de lo que haya dentro siguen siendo pulsables. Envolver la fila en un
+   <button> no vale — dentro hay otro botón, y anidarlos es HTML inválido. */
+.task-hit { position: absolute; inset: 0; border: 0; background: none; cursor: pointer; border-radius: inherit; }
+.task-hit:focus-visible { outline: none; }
+
+.task-row > .mark {
+  position: relative; width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: var(--r-sm); display: grid; place-items: center;
+  background: var(--fill); color: var(--text-secondary);
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.02em;
+  pointer-events: none;
+}
+.task-row > .who { position: relative; flex: 1; min-width: 0; pointer-events: none; }
+.task-row > .who > .name {
+  display: block; font-size: var(--fs-base); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.task-row > .who > .sub {
+  display: block; font-size: var(--fs-2xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.task-row > .chip { position: relative; flex-shrink: 0; }
+.task-row > .chevron { position: relative; color: var(--text-tertiary); flex-shrink: 0; pointer-events: none; }
 
 /* ── El tablero cuando no caben cuatro columnas ────────────────────────────
    Era un carril horizontal: cuatro columnas de 270 px que sumaban 1.100 y se

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Copy, Plus, Salad, Sparkles, Trash2 } from 'lucide-react';
+import { Copy, Plus, Salad } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant } from '@/domain/nutrition';
@@ -8,6 +8,7 @@ import { Notice, Panel, SaveIndicator, SegmentedControl } from '@/components/ui/
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
+import { DietNotes } from '@/components/nutrition/DietNotes';
 
 const DIET_TYPES = [
   { id: 'macros', label: 'Por macros' },
@@ -58,18 +59,10 @@ export const NutritionModule = () => {
   const variant = plan.hasDayVariants ? dietView : 'default';
   const meals = mealsForVariant(plan, variant);
 
-  const [newNote, setNewNote] = useState('');
   const [copiado, setCopiado] = useState(null);
 
   const dayTotal = dayKcals(meals);
   const dayRange = dayKcalRange(meals);
-
-  const addNote = () => {
-    const note = newNote.trim();
-    if (!note) return;
-    updateNutrition(activeClient.id, { habitsNotes: [...(plan.habitsNotes || []), note] });
-    setNewNote('');
-  };
 
   /*
     Tu biblioteca y el catálogo común, en una sola lista. Ver `domain/catalog.js`:
@@ -136,7 +129,7 @@ export const NutritionModule = () => {
         <div className="section-head">
           <div>
             <h2>Plan nutricional</h2>
-            <p>Objetivo, menú cerrado por alimentos y hábitos de {activeClient.name}.</p>
+            <p>Objetivo, menú cerrado por alimentos y tus pautas para {activeClient.name}.</p>
           </div>
           <div className="row gap-3 wrap">
             <SaveIndicator
@@ -336,56 +329,12 @@ export const NutritionModule = () => {
         </Panel>
       )}
 
-      <section className="col gap-4">
-        <div className="section-head">
-          <div>
-            <h2>Hábitos y recomendaciones</h2>
-            <p>Notas que el cliente ve en su plan.</p>
-          </div>
-        </div>
-
-        <Panel tight className="col gap-3">
-          {(plan.habitsNotes || []).map((note, index) => (
-            <div className="row between gap-2 t-sm" key={`${note}-${index}`}>
-              <span className="row gap-2">
-                <Sparkles size={13} color="var(--accent)" />
-                {note}
-              </span>
-              <button
-                type="button"
-                className="btn btn-icon btn-icon-danger"
-                onClick={() =>
-                  updateNutrition(activeClient.id, {
-                    habitsNotes: plan.habitsNotes.filter((_, i) => i !== index),
-                  })
-                }
-                aria-label={`Eliminar «${note}»`}
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
-
-          <div className="row gap-2">
-            <input
-              className="input grow"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addNote();
-                }
-              }}
-              placeholder="Añadir recomendación…"
-              aria-label="Nueva recomendación"
-            />
-            <button type="button" className="btn btn-secondary" onClick={addNote} disabled={!newNote.trim()}>
-              <Plus size={14} /> Añadir
-            </button>
-          </div>
-        </Panel>
-      </section>
+      {/* Las pautas van al final: se escriben cuando el plan ya está montado, y
+          explican lo que las cifras de arriba no pueden explicar. */}
+      <DietNotes
+        notes={plan.habitsNotes}
+        onChange={(habitsNotes) => updateNutrition(activeClient.id, { habitsNotes })}
+      />
     </div>
   );
 };

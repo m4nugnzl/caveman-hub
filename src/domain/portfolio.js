@@ -394,6 +394,123 @@ export const portfolioBoard = (rows) => {
   return [...byId.values()];
 };
 
+/* ==========================================================================
+   La bandeja: agrupar por LO QUE HAY QUE HACER
+   --------------------------------------------------------------------------
+   El tablero de arriba agrupa por el estado del cliente y contesta «¿en qué
+   estado está cada uno?». Es una pregunta legítima, pero no es la que se hace
+   nadie al abrir la aplicación: esa es «¿qué hago ahora?».
+
+   Y como cada cliente cabía en UNA sola columna, la pantalla escondía trabajo.
+   Alguien con el pago vencido y doce días sin entrenar salía en «en riesgo», y
+   la tarea de cobrarle no aparecía en ningún sitio.
+
+   ── La diferencia que lo cambia todo ────────────────────────────────────────
+   Aquí un cliente sale en TODAS las tareas que tiene abiertas. Eso significa que
+   los contadores no suman el total de la cartera, y está bien: no cuentan
+   personas, cuentan trabajo. Dos tareas del mismo cliente son dos cosas que
+   hacer, no una persona contada dos veces.
+
+   ── Por qué la lista vive aquí y no en el componente ────────────────────────
+   Porque decidir qué es una tarea y en qué orden van es una regla de negocio, no
+   una decisión de maquetación. Aquí se puede comprobar caso por caso.
+   ========================================================================== */
+
+/**
+ * Las tareas, EN ORDEN DE PRIORIDAD.
+ *
+ * El orden es el de la mañana del entrenador y cada línea tiene su motivo:
+ *
+ *   1. Responder — es lo único que espera POR TI. El cliente ya hizo su parte.
+ *   2. Dar acceso — sin cuenta no puede hacer nada, así que bloquea a todo lo
+ *      demás que aparezca de él.
+ *   3. Programar — sin rutina no hay nada que entrenar.
+ *   4. Se descuelga — hay que intervenir, y cuanto antes.
+ *   5. Cobrar — importa, pero no le impide entrenar mañana.
+ *   6. Terminar el alta y recordar el check-in — mantenimiento.
+ *
+ * `verb` es lo que se hace, no lo que le pasa al cliente: «Responder el check-in»
+ * y no «Check-in por revisar». Una bandeja de tareas se lee en infinitivo.
+ */
+export const INBOX_TASKS = [
+  {
+    id: 'review',
+    label: 'Responder check-ins',
+    hint: 'Han entregado y esperan tu respuesta',
+    tone: 'info',
+    match: (row) => Boolean(row.review?.pending),
+    why: () => 'Entregado y esperando',
+  },
+  {
+    id: 'access',
+    label: 'Dar acceso al portal',
+    hint: 'Todavía no pueden entrar a ver nada',
+    tone: 'bad',
+    match: (row) => row.alerts.some((a) => a.id === 'no_account'),
+    why: () => 'Sin cuenta enlazada',
+  },
+  {
+    id: 'program',
+    label: 'Programar la rutina',
+    hint: 'No tienen ni un microciclo',
+    tone: 'bad',
+    match: (row) => row.alerts.some((a) => a.id === 'no_program'),
+    why: () => 'Sin rutina asignada',
+  },
+  {
+    id: 'inactive',
+    label: 'Se están descolgando',
+    hint: 'Llevan demasiado sin entrenar',
+    tone: 'bad',
+    match: (row) => row.alerts.some((a) => a.id === 'stale_training' || a.id === 'never_trained'),
+    why: (row) =>
+      row.alerts.find((a) => a.id === 'stale_training' || a.id === 'never_trained')?.label || '',
+  },
+  {
+    id: 'payment',
+    label: 'Cobrar',
+    hint: 'Pago vencido o pendiente',
+    tone: 'warn',
+    match: (row) =>
+      row.alerts.some((a) => a.id === 'payment_overdue' || a.id === 'payment_pending'),
+    why: (row) =>
+      row.alerts.find((a) => a.id === 'payment_overdue' || a.id === 'payment_pending')?.label || '',
+  },
+  {
+    id: 'intake',
+    label: 'Terminar el alta',
+    hint: 'Les faltan pasos de tu alta',
+    tone: 'warn',
+    match: (row) => row.alerts.some((a) => a.id === 'onboarding'),
+    why: () => 'Alta sin cerrar',
+  },
+  {
+    id: 'checkin',
+    label: 'Recordar el check-in',
+    hint: 'Les toca pesarse y subir fotos',
+    tone: 'warn',
+    match: (row) => row.alerts.some((a) => a.id === 'checkin_pending'),
+    why: (row) => row.alerts.find((a) => a.id === 'checkin_pending')?.label || '',
+  },
+];
+
+/**
+ * Reparte la cartera en tareas.
+ *
+ * Devuelve solo los grupos CON trabajo, más la lista de quien no tiene ninguna.
+ * Un grupo vacío en una bandeja es ruido: el tablero enseñaba sus cuatro
+ * columnas siempre y tres de cada cuatro visitas tenían alguna a cero.
+ */
+export const portfolioInbox = (rows) => {
+  const tasks = INBOX_TASKS.map((task) => ({
+    ...task,
+    rows: rows.filter((row) => task.match(row)).map((row) => ({ ...row, why: task.why(row) })),
+  })).filter((task) => task.rows.length > 0);
+
+  const conTarea = new Set(tasks.flatMap((t) => t.rows.map((r) => r.client.id)));
+  return { tasks, clear: rows.filter((row) => !conTarea.has(row.client.id)) };
+};
+
 /**
  * Filtros de la vista. Cada uno es una pregunta concreta del entrenador.
  *

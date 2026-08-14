@@ -5,12 +5,15 @@ import {
   cloneMeal,
   cloneMeals,
   cloneOption,
+  dietNotes,
   displayAsUnits,
   foodMacros,
   foodUnits,
   gramsFromUnits,
   hasUnits,
+  MAX_NOTES,
   moveItem,
+  notesToStorage,
   unitsLabel,
 } from './nutrition';
 
@@ -284,5 +287,68 @@ describe('unitsLabel', () => {
 
   it('un alimento que se pesa no tiene etiqueta de unidades', () => {
     expect(unitsLabel({ ...arroz, grams: 100 })).toBeNull();
+  });
+});
+
+describe('pautas del entrenador', () => {
+  /* El formato viejo son cadenas sueltas y hay clientes con ellas guardadas. Si
+     esto dejara de leerlas, sus recomendaciones desaparecerían de su plan. */
+  it('lee las notas viejas, que eran cadenas', () => {
+    const notes = dietNotes(['Bebe 2 L al día', 'Cena 2 h antes de dormir']);
+    expect(notes).toHaveLength(2);
+    expect(notes[0].body).toBe('Bebe 2 L al día');
+    expect(notes[0].title).toBe('');
+    expect(notes[0].id).toBeTruthy();
+  });
+
+  it('lee las nuevas con título y cuerpo', () => {
+    const notes = dietNotes([{ id: 'n1', title: 'Hipotiroidismo', body: 'Subimos hidratos\nlos días de pierna.' }]);
+    expect(notes[0]).toEqual({
+      id: 'n1',
+      title: 'Hipotiroidismo',
+      body: 'Subimos hidratos\nlos días de pierna.',
+    });
+  });
+
+  /* Un título sin cuerpo ocuparía sitio en la pantalla del cliente sin contarle
+     nada, así que no llega a existir. */
+  it('descarta las que no tienen cuerpo', () => {
+    expect(dietNotes([{ title: 'Solo título', body: '   ' }, '', '   '])).toEqual([]);
+  });
+
+  it('respeta el tope y no se rompe con basura', () => {
+    expect(dietNotes(Array.from({ length: 40 }, (_, i) => `n${i}`))).toHaveLength(MAX_NOTES);
+    expect(dietNotes(null)).toEqual([]);
+    expect(dietNotes([null, 42, undefined])).toEqual([]);
+  });
+
+  it('ida y vuelta conserva lo escrito', () => {
+    const original = [{ id: 'n1', title: 'Patología', body: 'Línea 1\nLínea 2' }];
+    expect(dietNotes(notesToStorage(dietNotes(original)))).toEqual(original);
+  });
+
+  it('al guardar se caen las vacías y se recortan los espacios', () => {
+    const guardado = notesToStorage([
+      { id: 'a', title: '  Título  ', body: '  Cuerpo  ' },
+      { id: 'b', title: 'x', body: '' },
+    ]);
+    expect(guardado).toEqual([{ id: 'a', title: 'Título', body: 'Cuerpo' }]);
+  });
+});
+
+describe('estabilidad de los ids de las pautas', () => {
+  /*
+    `dietNotes` se llama en cada render. Con ids aleatorios, React remontaría la
+    lista entera en cada tecla: se perdería el foco y el editor no reconocería su
+    propio borrador. Este test es lo que impide que alguien «arregle» esto
+    volviendo a `newId()`.
+  */
+  it('leer dos veces lo mismo da los mismos ids', () => {
+    const raw = ['Bebe 2 L al día', { title: 'X', body: 'Y' }];
+    expect(dietNotes(raw).map((n) => n.id)).toEqual(dietNotes(raw).map((n) => n.id));
+  });
+
+  it('un id propio siempre gana al derivado de la posición', () => {
+    expect(dietNotes([{ id: 'mio', body: 'texto' }])[0].id).toBe('mio');
   });
 });

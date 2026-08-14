@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, Utensils } from 'lucide-react';
 
-import { dayKcalRange, dayKcals, mealsForVariant } from '@/domain/nutrition';
+import { dayKcalRange, dayKcals, dietNotes, mealsForVariant } from '@/domain/nutrition';
 import { Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
@@ -20,6 +20,10 @@ const VARIANT_OPTIONS = [
  */
 export const ClientDiet = ({ plan }) => {
   const [dietView, setDietView] = useState('training');
+
+  /* Se normaliza al leer, no al guardar: hay planes con el formato viejo —una
+     cadena por nota— y tienen que seguir viéndose. */
+  const notas = dietNotes(plan?.habitsNotes);
 
   if (!plan) {
     return (
@@ -97,15 +101,30 @@ export const ClientDiet = ({ plan }) => {
         </Panel>
       )}
 
-      {plan.habitsNotes?.length > 0 && (
+      {/*
+        Las pautas de su entrenador.
+
+        Antes eran frases de una línea con un ✓ delante, y ese ✓ las convertía en
+        una lista de normas. Ahora cada una puede llevar título y varios párrafos
+        —«teniendo en cuenta tu patología…»— y por eso se pintan como texto y no
+        como casillas: `pre-wrap` conserva los saltos de línea exactamente como
+        los escribió, que es lo que hace que se lea como algo dirigido a ti.
+      */}
+      {notas.length > 0 && (
         <Panel className="col gap-3">
           <SectionTitle icon={Sparkles} color="var(--data-blue)">
-            Recomendaciones de tu entrenador
+            Pautas de tu entrenador
           </SectionTitle>
-          {plan.habitsNotes.map((note, index) => (
-            <div className="card-inset t-sm" key={`${note}-${index}`}>
-              <span style={{ color: 'var(--accent)', marginRight: 8 }}>✓</span>
-              {note}
+          {notas.map((note) => (
+            <div className="card-inset col gap-1" key={note.id}>
+              {note.title && (
+                <span className="t-sm" style={{ fontWeight: 700 }}>
+                  {note.title}
+                </span>
+              )}
+              <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
+                {note.body}
+              </p>
             </div>
           ))}
         </Panel>

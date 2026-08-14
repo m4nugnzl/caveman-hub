@@ -370,3 +370,87 @@ export const mealsConfigured = (nutrition) =>
 /** Lista de comidas activa según la variante seleccionada. */
 export const mealsForVariant = (nutrition, variant) =>
   nutrition?.[VARIANT_KEY[variant] || VARIANT_KEY.default] || [];
+/* ==========================================================================
+   Las pautas del entrenador
+   --------------------------------------------------------------------------
+   Esto era `habitsNotes`: una lista de frases sueltas de una línea, pintadas
+   con un ✓ delante. Servía para «bebe 2 L de agua al día» y para nada más.
+
+   Pero lo que un entrenador necesita dejar escrito casi nunca es una regla
+   suelta: es una explicación. «Teniendo en cuenta tu hipotiroidismo vamos a
+   repartir los hidratos así, y estos dos días de la semana los subimos porque
+   entrenas pierna». Eso no cabe en una línea, y sobre todo no se lee como una
+   casilla: se lee como algo que te han escrito a ti.
+
+   Así que la pauta pasa a tener TÍTULO y CUERPO, y el cuerpo conserva los saltos
+   de línea. El título es opcional a propósito: sin él sigue valiendo para la
+   frase corta de siempre, y con él una pauta larga se puede encontrar de un
+   vistazo entre otras cinco.
+
+   ── Por qué no es un concepto nuevo ─────────────────────────────────────────
+   Porque tener «hábitos» y «pautas» por separado obligaría a decidir en cuál de
+   los dos sitios va cada cosa cada vez, y la diferencia entre una frase corta y
+   un párrafo no justifica dos apartados en la pantalla ni dos columnas.
+
+   ── Sin migración ───────────────────────────────────────────────────────────
+   Se sigue guardando en `habits_notes`, que es jsonb. Lo que había son cadenas
+   sueltas y `dietNotes` las convierte al leerlas, así que ningún cliente pierde
+   lo que tuviera escrito.
+   ========================================================================== */
+
+/** Tope de pautas. Suficiente para un plan completo; corta el copia y pega. */
+export const MAX_NOTES = 12;
+export const NOTE_TITLE_MAX = 80;
+export const NOTE_BODY_MAX = 1500;
+
+export const buildDietNote = () => ({ id: newId('nota'), title: '', body: '' });
+
+/**
+ * Las pautas de un plan, normalizadas.
+ *
+ * Acepta las dos formas: la vieja —una cadena por pauta— y la nueva. Una pauta
+ * sin cuerpo se descarta: un título solo no dice nada y ocuparía sitio en la
+ * pantalla del cliente sin contarle nada.
+ */
+export const dietNotes = (raw) => {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  /*
+    El id de una nota sin id se deriva de su POSICIÓN, no de `newId()`.
+
+    Esta función se llama en cada render, así que un id aleatorio sería distinto
+    cada vez: React remontaría la lista entera —perdiendo el foco y lo que se
+    estuviera escribiendo— y el editor no podría reconocer su propio borrador. Un
+    id derivado de la posición es el mismo mientras la lista no cambie, que es
+    exactamente lo que se necesita aquí.
+  */
+  const posicional = (i) => `nota-${i}`;
+
+  for (const [i, item] of raw.entries()) {
+    if (typeof item === 'string') {
+      const body = item.trim().slice(0, NOTE_BODY_MAX);
+      if (body) out.push({ id: posicional(i), title: '', body });
+    } else if (item && typeof item === 'object') {
+      const body = String(item.body || '').trim().slice(0, NOTE_BODY_MAX);
+      if (!body) continue;
+      out.push({
+        id: String(item.id || '') || posicional(i),
+        title: String(item.title || '').trim().slice(0, NOTE_TITLE_MAX),
+        body,
+      });
+    }
+    if (out.length >= MAX_NOTES) break;
+  }
+  return out;
+};
+
+/** Lo que se escribe en `habits_notes`. Las vacías no llegan a guardarse. */
+export const notesToStorage = (notes) =>
+  (notes || [])
+    .filter((note) => String(note?.body || '').trim())
+    .slice(0, MAX_NOTES)
+    .map((note) => ({
+      id: note.id,
+      title: String(note.title || '').trim().slice(0, NOTE_TITLE_MAX),
+      body: String(note.body).trim().slice(0, NOTE_BODY_MAX),
+    }));
