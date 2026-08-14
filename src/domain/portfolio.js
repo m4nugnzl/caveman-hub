@@ -29,6 +29,7 @@
  * Sigue siendo cálculo puro sobre datos en memoria; lo que cambia es cuántos.
  */
 
+import { clientIntake } from './intake';
 import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
@@ -161,8 +162,16 @@ export const clientStatus = (
       daysToPayment === 0 ? 'Renueva hoy' : `Renueva en ${daysToPayment} días`, client.nextPaymentDate);
   }
 
-  // ── Onboarding ────────────────────────────────────────────────────────────
-  if (!client.onboardingComplete) {
+  /*
+    ── El alta ───────────────────────────────────────────────────────────────
+    Solo se avisa si el entrenador PIDE este paso. «Onboarding» era una alerta
+    para todo el mundo, y a quien trabaja de otra manera le salía en naranja algo
+    que él nunca hace — la aplicación reprochándole no seguir el método de otro.
+
+    Ahora es un paso más de los que cada uno elige (`domain/intake.js`) y, si lo
+    quita, el aviso desaparece con él.
+  */
+  if (clientIntake(client.preferences).steps.includes('onboarding') && !client.onboardingComplete) {
     add('onboarding', 'media', 'Onboarding sin cerrar', 'Falta marcarlo como completado.');
   }
 

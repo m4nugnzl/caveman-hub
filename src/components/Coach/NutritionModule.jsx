@@ -4,7 +4,7 @@ import { Copy, Plus, Salad, Sparkles, Trash2 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
-import { Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
+import { Notice, Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
@@ -34,6 +34,8 @@ export const NutritionModule = () => {
     removeMeal,
     updateMealName,
     copyVariantMeals,
+    copyMealToVariant,
+    copyOptionToVariant,
     moveMeal,
     moveFood,
     duplicateMeal,
@@ -57,6 +59,7 @@ export const NutritionModule = () => {
   const meals = mealsForVariant(plan, variant);
 
   const [newNote, setNewNote] = useState('');
+  const [copiado, setCopiado] = useState(null);
 
   const dayTotal = dayKcals(meals);
   const dayRange = dayKcalRange(meals);
@@ -104,6 +107,18 @@ export const NutritionModule = () => {
     });
     if (!ok) return;
     copyVariantMeals(activeClient.id, otraVariante.id, dietView);
+  };
+
+  /**
+   * Copiar al otro día ocurre EN LA OTRA PESTAÑA, así que no se ve.
+   *
+   * Sin decirlo, el gesto no tiene ninguna consecuencia visible y se lee como que
+   * no ha funcionado — que es exactamente lo que lleva a pulsarlo tres veces y
+   * acabar con tres cenas duplicadas. El aviso dice a dónde ha ido.
+   */
+  const avisarCopia = (nombre, texto) => {
+    if (!nombre) return;
+    setCopiado(`${texto} en ${otraVariante.label.toLowerCase()}.`);
   };
 
   /** Al elegir o crear un alimento se guarda también en la biblioteca del coach. */
@@ -201,7 +216,12 @@ export const NutritionModule = () => {
             <div className="row gap-3 wrap">
               <SegmentedControl
                 value={dietView}
-                onChange={setDietView}
+                /* Al cambiar de día se borra el aviso: hablaba de lo que había
+                   pasado en el otro, y ahora se está viendo. */
+                onChange={(v) => {
+                  setCopiado(null);
+                  setDietView(v);
+                }}
                 options={VARIANT_OPTIONS}
                 label="Variante de dieta"
               />
@@ -224,6 +244,8 @@ export const NutritionModule = () => {
             </div>
           )}
 
+          {copiado && <Notice tone="success">{copiado}</Notice>}
+
           <div className="col gap-4">
             {meals.map((meal, mealIndex) => (
               <MealCard
@@ -239,6 +261,35 @@ export const NutritionModule = () => {
                 onDuplicateMeal={() => duplicateMeal(activeClient.id, variant, mealIndex)}
                 onDuplicateOption={(optIndex) =>
                   duplicateOption(activeClient.id, variant, mealIndex, optIndex)
+                }
+                /* Copiar al otro día solo existe si hay otro día. */
+                otherVariantLabel={plan.hasDayVariants ? otraVariante.label.toLowerCase() : ''}
+                onCopyMeal={
+                  plan.hasDayVariants
+                    ? () => {
+                        const nombre = copyMealToVariant(
+                          activeClient.id,
+                          variant,
+                          otraVariante.id,
+                          mealIndex
+                        );
+                        avisarCopia(nombre, `«${nombre}» copiada`);
+                      }
+                    : null
+                }
+                onCopyOption={
+                  plan.hasDayVariants
+                    ? (optIndex) => {
+                        const nombre = copyOptionToVariant(
+                          activeClient.id,
+                          variant,
+                          otraVariante.id,
+                          mealIndex,
+                          optIndex
+                        );
+                        avisarCopia(nombre, `Opción ${optIndex + 1} copiada a «${nombre}»`);
+                      }
+                    : null
                 }
                 onMoveFood={(optIndex, from, to) =>
                   moveFood(activeClient.id, variant, mealIndex, optIndex, from, to)

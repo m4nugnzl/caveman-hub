@@ -17,8 +17,11 @@ import {
   toggleModule,
   toggleQuestion,
 } from '@/domain/protocol';
+import { clientIntake, intakeToPreferences } from '@/domain/intake';
+import { applyIntakeTemplate, readIntakeTemplate, writeIntakeTemplate } from '@/lib/intakeTemplate';
 import { matchesTemplate, readTemplate, writeTemplate } from '@/lib/protocolTemplate';
 import { Field, Notice, Panel, SegmentedControl, TextInput } from '@/components/ui/primitives';
+import { IntakeSteps } from './IntakeSteps';
 
 /**
  * Ajustes → Protocolo: el entrenador diseña su aplicación.
@@ -96,11 +99,36 @@ export const ProtocolPanel = () => {
   /** `null` = la plantilla; si no, el id del cliente que se está editando. */
   const [target, setTarget] = useState(null);
   const [template, setTemplate] = useState(() => readTemplate(userId));
+  const [intakeTemplate, setIntakeTemplate] = useState(() => readIntakeTemplate(userId));
   const [feedback, setFeedback] = useState(null);
   const [draft, setDraft] = useState({ label: '', max: '10', lowerIsBetter: false });
 
   const client = target ? clients.find((c) => c.id === target) : null;
   const protocol = client ? clientProtocol(client.preferences) : template;
+
+  /*
+    Los pasos del alta van por su propio carril. Comparten el selector de destino
+    —se configuran para la plantilla o para un cliente, igual que el protocolo—
+    pero NO comparten almacenamiento: `clientProtocol()` sanea y descarta lo que
+    no conoce, así que colgarlos de `protocol` los borraría en el primer cambio
+    que se hiciera aquí arriba.
+  */
+  const intake = client ? clientIntake(client.preferences) : intakeTemplate;
+
+  const saveIntake = (next) => {
+    setFeedback(null);
+    if (client) {
+      updateClientPreferences(client.id, 'intake', intakeToPreferences(next));
+      return;
+    }
+    setIntakeTemplate(next);
+    if (!writeIntakeTemplate(userId, next)) {
+      setFeedback({
+        tone: 'warn',
+        text: 'Tu navegador no deja guardar la plantilla, así que durará lo que esta pestaña. Aplícala a tus clientes para no perderla.',
+      });
+    }
+  };
 
   const save = (next) => {
     setFeedback(null);
@@ -128,12 +156,32 @@ export const ProtocolPanel = () => {
   /* Cuántos clientes NO tienen puesta la plantilla. Es el número que dice si
      «aplicar a todos» va a cambiar algo, y evita el botón que no hace nada. */
   const drifted = useMemo(
-    () => clients.filter((c) => !matchesTemplate(template, clientProtocol(c.preferences))).length,
-    [clients, template]
+    () =>
+      clients.filter((c) => {
+        if (!matchesTemplate(template, clientProtocol(c.preferences))) return true;
+        /* Los pasos del alta cuentan para el desvío. Sin esto, cambiar solo los
+           pasos dejaba «Aplicar a todos» apagado y no había forma de empujarlos. */
+        const suyo = clientIntake(c.preferences);
+        return (
+          suyo.steps.join() !== intakeTemplate.steps.join() ||
+          JSON.stringify(suyo.custom) !== JSON.stringify(intakeTemplate.custom)
+        );
+      }).length,
+    [clients, template, intakeTemplate]
   );
 
   const applyToAll = () => {
-    clients.forEach((c) => updateClientPreferences(c.id, 'protocol', template));
+    clients.forEach((c) => {
+      updateClientPreferences(c.id, 'protocol', template);
+      /* La plantilla decide QUÉ pasos hay; cada cliente conserva por cuáles va y
+         qué tiene enlazado. Sobrescribirlo entero borraría los vídeos que se han
+         ido pegando cliente a cliente, que es el trabajo que no se puede rehacer. */
+      updateClientPreferences(
+        c.id,
+        'intake',
+        intakeToPreferences(applyIntakeTemplate(intakeTemplate, c.preferences))
+      );
+    });
     setFeedback({
       tone: 'success',
       text: `Aplicado a ${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}.`,
@@ -231,6 +279,11 @@ export const ProtocolPanel = () => {
           </div>
         )}
       </Panel>
+
+      {/* ── El alta ──────────────────────────────────────────────────────────
+          Va la primera porque es lo primero que pasa: los pasos del alta se dan
+          antes de que exista una sesión que puntuar. */}
+      <IntakeSteps intake={intake} onChange={saveIntake} forClient={Boolean(client)} />
 
       {/* ── Perfiles ─────────────────────────────────────────────────────── */}
       <Panel className="col gap-3">

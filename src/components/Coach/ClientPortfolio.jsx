@@ -1,24 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, ChevronRight, Eye, MessageCircle, Search, Send, TrendingUp, Users } from 'lucide-react';
+import {
+  Check,
+  ChevronRight,
+  Eye,
+  MessageCircle,
+  Plus,
+  Search,
+  Send,
+  TrendingUp,
+  UserPlus,
+} from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { THRESHOLDS, buildPortfolio, portfolioBoard } from '@/domain/portfolio';
 import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { shortDate, todayISO } from '@/lib/dates';
+import { initials } from '@/lib/initials';
 import { EmptyState, Notice } from '@/components/ui/primitives';
+import { ArchivedClients } from './ArchivedClients';
+import { NewClientForm } from './NewClientForm';
 import { inviteMessage, useInvite } from './useInvite';
 
 const TONE = { alta: 'badge-bad', media: 'badge-warn', baja: 'badge-info' };
-
-const initials = (name) =>
-  (name || '?')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('');
 
 /** «hace 3 días» dice más que una fecha cuando lo que importa es la antigüedad. */
 const sinceLabel = (days, date) => {
@@ -199,7 +204,24 @@ const FolioCard = ({ row, trainer, onOpen, onUpdate, onReview, onInvite }) => {
 };
 
 /**
- * Cartera de clientes, como TABLERO.
+ * Clientes: la única pantalla que habla de toda la cartera.
+ *
+ * ══ Por qué esto era DOS pantallas y ya no ══════════════════════════════════
+ *
+ * Había «Cartera» —este tablero— y «Clientes» —el alta, invitar, archivar y los
+ * datos—. Dos entradas del menú principal que listaban a las mismas personas y
+ * hacían cosas distintas al pulsarlas: en una entrabas al cliente, en la otra se
+ * desplegaba administración.
+ *
+ * Eso no era una molestia estética. Un entrenador nuevo crea su primer cliente en
+ * «Clientes», que es donde está el botón de alta; pulsa sobre él esperando entrar;
+ * y lo que se abre es un panel de exportar datos. La pregunta que llegó a soporte
+ * fue «¿dónde hago la rutina?» — y la respuesta era «en la OTRA pantalla que
+ * también lista clientes».
+ *
+ * Ahora hay una: se da de alta aquí, se ve el estado aquí, y el clic entra en la
+ * persona. Todo lo de un cliente —incluida su ficha administrativa— cuelga de
+ * `/c/:id/…`, que es donde ya vivían su rutina y su nutrición.
  *
  * ── Por qué un tablero y no una lista ───────────────────────────────────────
  * Una lista ordenada por urgencia responde «a quién atiendo primero». Un tablero
@@ -222,6 +244,7 @@ export const ClientPortfolio = () => {
     progressPhotos,
     checkIns,
     updateClient,
+    addClient,
     reviewCheckIn,
     team,
     teamMembers,
@@ -231,6 +254,7 @@ export const ClientPortfolio = () => {
   const [trainer, setTrainer] = useState('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState(null);
+  const [alta, setAlta] = useState(false);
 
   const today = todayISO();
   const rows = useMemo(
@@ -281,13 +305,27 @@ export const ClientPortfolio = () => {
     if (invite) noticeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }, [invite]);
 
+  /* Sin clientes no hay tablero que enseñar, pero sí hay algo que hacer — y el
+     botón para hacerlo tiene que estar aquí. Antes esta pantalla se limitaba a
+     decir que estaba vacía y mandaba a buscar el alta a otro sitio. */
   if (clients.length === 0) {
     return (
-      <EmptyState
-        icon={Users}
-        title="Tu cartera está vacía"
-        message="En cuanto des de alta a tu primer cliente aparecerá aquí, con lo que le falta por hacer esta semana."
-      />
+      <div className="stack">
+        {alta && <NewClientForm onCreate={addClient} onCancel={() => setAlta(false)} />}
+        {!alta && (
+          <EmptyState
+            icon={UserPlus}
+            title="Empieza dando de alta a tu primer cliente"
+            message="En cuanto exista podrás programarle la rutina, su plan nutricional y seguir su evolución. Aquí verás lo que le falta cada semana."
+            action={
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => setAlta(true)}>
+                <Plus size={17} /> Nuevo cliente
+              </button>
+            }
+          />
+        )}
+        <ArchivedClients />
+      </div>
     );
   }
 
@@ -300,25 +338,33 @@ export const ClientPortfolio = () => {
     <div className="stack">
       <div className="section-head">
         <div>
-          <h2>Cartera</h2>
+          <h2>Clientes</h2>
           <p>
             {clients.length} {clients.length === 1 ? 'cliente' : 'clientes'}
-            {pending > 0 && ` · ${pending} por revisar`}
+            {pending > 0 && ` · ${pending} por revisar`} · pulsa uno para abrirlo
           </p>
         </div>
 
-        <div className="searchbox">
-          <Search size={15} aria-hidden="true" />
-          <input
-            type="search"
-            className="input"
-            placeholder="Buscar cliente…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Buscar cliente en la cartera"
-          />
+        <div className="row wrap gap-3">
+          <div className="searchbox">
+            <Search size={15} aria-hidden="true" />
+            <input
+              type="search"
+              className="input"
+              placeholder="Buscar cliente…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Buscar cliente"
+            />
+          </div>
+
+          <button type="button" className="btn btn-primary" onClick={() => setAlta((v) => !v)}>
+            <Plus size={15} /> Nuevo cliente
+          </button>
         </div>
       </div>
+
+      {alta && <NewClientForm onCreate={addClient} onCancel={() => setAlta(false)} />}
 
       {error && <Notice tone="error">{error}</Notice>}
 
@@ -430,6 +476,8 @@ export const ClientPortfolio = () => {
           </section>
         ))}
       </div>
+
+      <ArchivedClients />
     </div>
   );
 };

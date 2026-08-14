@@ -1664,7 +1664,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   /* La primera columna es el asa de arrastre, como en la lista de ejercicios.
      Al consultar no hay asa y el hueco se queda vacío, que es lo correcto: la
      tabla del cliente y la del entrenador quedan alineadas entre sí. */
-  grid-template-columns: 20px minmax(0, 1fr) 104px repeat(3, 42px) 60px 26px;
+  grid-template-columns: 20px minmax(0, 1fr) 112px repeat(3, 42px) 60px 26px;
   align-items: center;
   gap: var(--s2);
   padding: 8px var(--s3);
@@ -1694,33 +1694,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .food-row > .grams { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .food-row > .grams > .unit { font-size: var(--fs-2xs); color: var(--text-tertiary); }
 
-/* La medida: una palabra gris detrás del número, y al editar, pulsable.
+/* La medida: al consultar, una palabra gris detrás del número; al editar, un
+   desplegable. Se mantiene en `fs-2xs` y gris para que no compita con la cifra
+   —el contenido de esta tabla son números, y el control que los acompaña no
+   puede pesar más que ellos—. */
+/* El desplegable de la medida, en la columna de cantidad.
    ---------------------------------------------------------------------------
-   Aquí hubo un desplegable y antes dos botones con flechas. Los dos estaban mal
-   por la misma razón: el contenido de esta tabla son CIFRAS, y meterle cromo a la
-   columna de al lado hace que compita con ellas. Un select de 44 px pesa más que
-   el número al que acompaña.
+   ANCHO FIJO, y no es un detalle: un `select` se dimensiona por su opción más
+   larga, y aquí una de ellas es «Definir unidad…». Sin fijarlo, esa opción
+   estiraba el control hasta empujar la casilla de la cantidad fuera de la
+   rejilla — el síntoma era que el número desaparecía.
 
-   Así que la medida vuelve a ser lo que era —fs-2xs y gris terciario, igual que
-   en modo consulta— y lo único que cambia al editar es que responde al puntero.
-   La acción entera vive en su diálogo. */
-/* El `segmented` en miniatura de la columna de cantidad.
-   ---------------------------------------------------------------------------
-   Mismo componente que los selectores grandes de la pantalla, apretado para que
-   quepa junto a la casilla. Enseñar las DOS medidas es lo que hace que el
-   control se explique solo: con una sola palabra visible, quien no sabe que se
-   puede cambiar no lo cambia nunca. */
-.unit-toggle { padding: 2px; gap: 1px; flex-shrink: 0; }
-.unit-toggle > .segmented-item {
+   Cerrado solo se lee lo elegido («g», «ud»), que siempre cabe. La opción larga
+   se ve entera al desplegarlo, que es donde hace falta leerla. */
+.unit-select {
+  width: 54px; flex-shrink: 0;
+  padding: 3px 17px 3px 6px;
   font-size: var(--fs-2xs); font-weight: 700;
-  padding: 2px 5px; border-radius: 4px;
-  color: var(--text-tertiary);
-}
-
-/* El lado sin unidad definida: se ve que está ahí y que está vacío, igual que
-   `.chip-dashed` dice «esto se puede añadir» en el resto de la aplicación. */
-.unit-toggle > .segmented-item.is-undefined {
-  border: 1px dashed var(--hairline); padding: 1px 4px;
+  border-radius: var(--r-sm); color: var(--text-secondary);
+  background-position: calc(100% - 9px) center, calc(100% - 6px) center;
+  background-size: 4px 4px, 4px 4px;
 }
 
 /* Y la casilla no se encoge: por defecto un elemento flexible cede espacio antes
@@ -2305,48 +2298,6 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .legal-hueco {
   background: var(--negative-soft); color: var(--negative);
   padding: 0 6px; border-radius: var(--r-xs); font-weight: 600;
-}
-
-/* Avatar de la ficha del cliente: su foto, o sus iniciales dibujadas aquí. */
-.client-avatar {
-  width: 48px; height: 48px; flex-shrink: 0;
-  border-radius: var(--r-xl); object-fit: cover;
-  box-shadow: inset 0 0 0 1px var(--hairline-strong);
-}
-.client-avatar.is-initials {
-  display: grid; place-items: center;
-  background: var(--accent-soft); color: var(--accent);
-  font-family: var(--font-display); font-weight: 650; font-size: var(--fs-sm);
-  letter-spacing: 0.02em;
-}
-
-/* ── La tarjeta de la cartera ──────────────────────────────────────────────
-   Esta ficha fue creciendo: onboarding, revisión postural, maquinaria del
-   gimnasio, renovación, acceso al portal, archivar y exportar/borrar datos.
-   Cada bloque estaba justificado por separado, y juntos hacían que un solo
-   cliente ocupara media pantalla. Con una cartera de verdad eso rompe lo único
-   que se hace aquí a diario, que es encontrar a alguien.
-
-   Plegada dice tres cosas —quién es, cómo se le escribe y qué le falta— y esas
-   tres son justamente las que se vienen a mirar. Lo demás es administración de
-   cuando alguien entra o sale, y se abre cuando toca. */
-.client-head {
-  display: flex; align-items: center; gap: var(--s3); width: 100%;
-  background: none; border: 0; padding: 0; color: inherit; font: inherit;
-  text-align: left; cursor: pointer;
-}
-.client-head .chevron {
-  color: var(--text-tertiary); flex-shrink: 0;
-  transition: transform var(--fast);
-}
-.client-head[aria-expanded='true'] .chevron { transform: rotate(90deg); }
-
-/* `align-items: start` y no el `.grid-2` de siempre: al desplegar una ficha, su
-   compañera de fila se estiraba hasta la misma altura y dejaba un panel vacío
-   de medio metro al lado. Cada tarjeta mide lo que mide. */
-.client-grid {
-  display: grid; gap: var(--s4); align-items: start;
-  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
 }
 
 /* ── Plan ──────────────────────────────────────────────────────────────────

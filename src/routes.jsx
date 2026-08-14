@@ -3,10 +3,10 @@ import {
   Camera,
   ClipboardList,
   CreditCard,
+  FileText,
   HardDriveDownload,
   Gauge,
   Layers,
-  LayoutGrid,
   LifeBuoy,
   Plug,
   Ruler,
@@ -54,22 +54,29 @@ import {
  */
 
 /**
- * Nivel 1: lo que está siempre visible. Tres entradas y ni una más.
+ * Nivel 1: lo que está siempre visible. Dos entradas y ni una más.
  *
- * ── Por qué «Hoy» va primero, y por delante de la cartera ───────────────────
- * Porque es la primera pregunta de la mañana. La cartera contesta «¿en qué estado
- * está cada cliente?» —un corte transversal, ordenado por gravedad— y eso es lo
- * que se necesita cuando ya sabes que hay algo que atender. Pero antes de eso
- * está «¿qué ha pasado desde ayer?», y esa no la contestaba nadie: los entrenos,
- * los pesajes y las fotos tenían fecha desde el principio y solo se podían ver
+ * ── Por qué «Hoy» va primero ────────────────────────────────────────────────
+ * Porque es la primera pregunta de la mañana. «Clientes» contesta «¿en qué estado
+ * está cada uno?» —un corte transversal, ordenado por gravedad— y eso es lo que
+ * se necesita cuando ya sabes que hay algo que atender. Pero antes de eso está
+ * «¿qué ha pasado desde ayer?», y esa no la contestaba nadie: los entrenos, los
+ * pesajes y las fotos tenían fecha desde el principio y solo se podían ver
  * entrando cliente a cliente.
  *
  * Las dos son necesarias y ninguna repite a la otra: «Hoy» cuenta lo que HA
- * OCURRIDO, la cartera lo que FALTA.
+ * OCURRIDO, «Clientes» lo que FALTA.
+ *
+ * ── Por qué eran tres y ahora son dos ───────────────────────────────────────
+ * Había «Cartera» y «Clientes»: dos entradas que listaban a las mismas personas.
+ * En una el clic entraba al cliente; en la otra desplegaba administración. Un
+ * entrenador daba de alta a alguien en «Clientes», pulsaba sobre él esperando
+ * entrar, y se encontraba un panel de exportar datos — de ahí la pregunta «¿dónde
+ * hago la rutina?». Ahora hay una lista, el clic entra, y la administración de
+ * cada cliente es una sección suya más (`/c/:id/ficha`).
  */
 export const COACH_PRIMARY = [
   { path: '/hoy', label: 'Hoy', icon: Sunrise },
-  { path: '/cartera', label: 'Cartera', icon: LayoutGrid },
   { path: '/clientes', label: 'Clientes', icon: Users },
 ];
 
@@ -88,6 +95,14 @@ export const COACH_CLIENT = [
   { path: 'fotos', label: 'Fotos', icon: Camera },
   { path: 'checkins', label: 'Check-ins', icon: Ruler },
   { path: 'calendario', label: 'Calendario', icon: CalendarDays },
+  /*
+    La ficha va la última del carril a propósito. Sus datos, su acceso al portal,
+    archivarle y exportar lo suyo son cosas de cuando alguien ENTRA o SALE; las
+    seis de delante son con las que se trabaja cada semana. Pero está en el mismo
+    carril que ellas porque habla del mismo cliente, y tenerla fuera —que es de
+    donde viene— obligaba a salirse de la persona para tocar sus datos.
+  */
+  { path: 'ficha', label: 'Ficha', icon: FileText },
 ];
 
 /**

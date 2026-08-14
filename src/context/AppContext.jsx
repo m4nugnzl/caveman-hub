@@ -877,15 +877,72 @@ export const AppProvider = ({ children }) => {
     setCheckIns({});
   }, [queue, setAnthropometry, setClients, setNutrition, setProgressPhotos, setWorkoutData]);
 
+  /**
+   * Quién está cargado ahora mismo. Es la guardia de la recarga completa.
+   *
+   * ══ Por qué no basta con filtrar por nombre de evento ══════════════════════
+   *
+   * Aquí había `if (event === 'TOKEN_REFRESHED') return;`, puesto porque recargar
+   * en ese evento «pisaba el estado local y el trabajo reciente parecía borrarse
+   * solo». El diagnóstico era correcto y la guardia se quedó corta: **`auth-js`
+   * emite `SIGNED_IN` cada vez que la pestaña vuelve a estar visible**. Su
+   * manejador de `visibilitychange` llama a `_recoverAndRefresh()`, y esa función
+   * termina en `_notifyAllSubscribers('SIGNED_IN', session)` siempre que la sesión
+   * guardada siga siendo válida. No es una sesión nueva: es la misma, recuperada.
+   *
+   * Así que salir un momento a otra pestaña y volver disparaba `loadForUser`
+   * entero. Y con la carga perezosa (0024) eso **vacía `workoutData`**: la consulta
+   * de programas no se hace cuando hay resumen, así que el mapa se reescribe con
+   * `{}` y el cliente abierto se queda sin programa en memoria. La pantalla de
+   * rutina —que no distingue «no cargado» de «no tiene»— pasaba a decir «este
+   * cliente no tiene programa todavía» y a ofrecer «crear el primer microciclo»,
+   * que al pulsarlo escribía un programa vacío ENCIMA del bueno. De ahí que el
+   * microciclo desapareciera «a pesar de aparecer como guardado» y no volviera ni
+   * recargando: para entonces ya no estaba en el servidor.
+   *
+   * La guardia ahora es por IDENTIDAD y no por evento: se recarga cuando cambia
+   * QUIÉN está dentro. Eso cubre `TOKEN_REFRESHED`, `SIGNED_IN` al volver a la
+   * pestaña, `USER_UPDATED` y lo que auth-js añada mañana —una lista de nombres de
+   * evento vuelve a quedarse corta cada vez que la librería crece—. Y de paso
+   * evita la doble carga del arranque, donde `getSession()` e `INITIAL_SESSION`
+   * llegaban a la vez.
+   *
+   * Refrescar datos a propósito sigue teniendo su camino: `refreshClients`.
+   */
+  const loadedUserRef = useRef(null);
+
   useEffect(() => {
     let active = true;
+
+    /** Carga la cartera entera, y solo si de verdad ha cambiado el usuario. */
+    const loadOnce = async (user) => {
+      if (!user) {
+        loadedUserRef.current = null;
+        clearAll();
+        return;
+      }
+      if (loadedUserRef.current === user.id) return;
+      // Se marca ANTES de esperar: los dos caminos de arranque corren en el mismo
+      // hilo y, sin esto, ambos verían el ref vacío y cargarían por duplicado.
+      loadedUserRef.current = user.id;
+      try {
+        await loadForUser(user);
+      } catch (e) {
+        // Una carga que revienta no puede dejar la marca puesta: sin esto, la
+        // aplicación se quedaría vacía hasta cerrar sesión, porque ya nadie
+        // volvería a intentarlo.
+        loadedUserRef.current = null;
+        recordIssue('carga', e);
+        setLoadError(e?.message || 'No se han podido cargar tus datos.');
+      }
+    };
 
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
         if (!active) return;
         setSession(data.session);
-        if (data.session?.user) await loadForUser(data.session.user);
+        if (data.session?.user) await loadOnce(data.session.user);
       })
       .catch((e) => active && setLoadError(e?.message || 'Error al iniciar sesión.'))
       .finally(() => active && setLoading(false));
@@ -893,17 +950,7 @@ export const AppProvider = ({ children }) => {
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, next) => {
       if (!active) return;
       setSession(next);
-
-      // TOKEN_REFRESHED dispara cada ~hora en segundo plano y al volver a la
-      // pestaña. Recargar en ese evento pisaba el estado local con lo último
-      // persistido y el trabajo reciente parecía borrarse solo.
-      if (event === 'TOKEN_REFRESHED') return;
-
-      if (next?.user) {
-        await loadForUser(next.user);
-      } else {
-        clearAll();
-      }
+      await loadOnce(next?.user || null);
     });
 
     return () => {
@@ -1329,27 +1376,64 @@ export const AppProvider = ({ children }) => {
    * su programa por uno vacío**. Por eso todo lo que escriba o lea el programa de
    * un cliente que no sea el abierto tiene que pasar por aquí primero.
    *
-   * Devuelve el programa, o `null` si ese cliente no tiene fila todavía.
+   * ── «Sin fila» también se recuerda ──────────────────────────────────────────
+   * Antes, un cliente sin fila salía de aquí sin dejar entrada en el mapa, y eso
+   * hacía que `undefined` significara dos cosas incompatibles: «todavía no lo he
+   * pedido» y «lo pedí y no tiene nada». Nadie podía distinguirlas, y de las dos
+   * solo una permite escribir sin riesgo.
+   *
+   * Ahora se guarda un programa vacío, así que la entrada existe siempre que se
+   * haya mirado. `undefined` pasa a significar exactamente una cosa —«no
+   * cargado»— y es lo que deja al efecto de abajo volver a intentarlo y a la
+   * pantalla de rutina saber que aún no puede opinar.
+   *
+   * Un fallo de red NO se cachea: sin entrada, se reintenta.
+   *
+   * Devuelve el programa (vacío si ese cliente no tiene fila), o `null` si la
+   * consulta falló.
    */
+  /** Peticiones de programa en vuelo, por cliente. Ver el comentario de dentro. */
+  const programLoadsRef = useRef(new Map());
+
   const ensureProgram = useCallback(
     async (clientId) => {
       if (!clientId) return null;
       if (workoutRef.current[clientId]) return workoutRef.current[clientId];
 
-      const { data, error } = await supabase
-        .from('workout_data')
-        .select('*')
-        .eq('client_id', clientId)
-        .maybeSingle();
+      /*
+        Una petición por cliente, aunque la pidan dos a la vez.
 
-      if (error || !data) return null;
+        La piden dos: el efecto del cliente abierto y la propia pantalla de rutina,
+        que ya no se fía de que alguien lo haya hecho por ella. Sin esto serían dos
+        consultas idénticas en vuelo por cada apertura de ficha, y la segunda
+        llegaría a `setWorkoutData` con lo mismo que la primera.
+      */
+      const enCurso = programLoadsRef.current.get(clientId);
+      if (enCurso) return enCurso;
 
-      // La versión leída, para que la primera escritura no vaya sin guardia.
-      rememberVersion('workout_data', clientId, data.updated_at);
+      const peticion = (async () => {
+        const { data, error } = await supabase
+          .from('workout_data')
+          .select('*')
+          .eq('client_id', clientId)
+          .maybeSingle();
 
-      const mapped = mapWorkoutFromDb(data);
-      setWorkoutData({ ...workoutRef.current, [clientId]: mapped });
-      return mapped;
+        // Un fallo NO deja entrada en el mapa: es lo que permite reintentarlo.
+        if (error) return null;
+
+        // La versión leída, para que la primera escritura no vaya sin guardia.
+        if (data) rememberVersion('workout_data', clientId, data.updated_at);
+
+        const mapped = data ? mapWorkoutFromDb(data) : emptyWorkoutData();
+        setWorkoutData({ ...workoutRef.current, [clientId]: mapped });
+        return mapped;
+      })()
+        // No puede rechazar: quien espera esto lee `null` como «no se pudo».
+        .catch(() => null)
+        .finally(() => programLoadsRef.current.delete(clientId));
+
+      programLoadsRef.current.set(clientId, peticion);
+      return peticion;
     },
     [rememberVersion, setWorkoutData, workoutRef]
   );
@@ -1366,9 +1450,20 @@ export const AppProvider = ({ children }) => {
     nombrar una función declarada más abajo revienta con «Cannot access before
     initialization» antes de que el efecto llegue a ejecutarse nunca.
   */
+  /*
+    La condición mira el MAPA, no solo el cliente elegido. Con `[selectedClientId]`
+    a secas esto corría una vez por cliente y nunca más, así que cualquier cosa que
+    dejara el programa fuera de memoria —una recarga completa a mitad de sesión, un
+    fallo de red en el primer intento— abría un hueco del que no se salía sin
+    cambiar de cliente. Y un hueco aquí no es una pantalla vacía: es la puerta por
+    la que se escribe un programa vacío encima del bueno.
+
+    Depender de `workoutData` no lo hace correr en cada tecleo: la guardia lo
+    convierte en nada en cuanto la entrada existe.
+  */
   useEffect(() => {
-    if (selectedClientId) ensureProgram(selectedClientId);
-  }, [selectedClientId, ensureProgram]);
+    if (selectedClientId && !workoutData[selectedClientId]) ensureProgram(selectedClientId);
+  }, [selectedClientId, workoutData, ensureProgram]);
 
   const applyWorkout = useCallback(
     (clientId, updater, { immediate = true, skipPersist = false } = {}) => {
@@ -2354,6 +2449,66 @@ export const AppProvider = ({ children }) => {
 
       applyMeals(clientId, to, () => cloneMeals(source));
       return true;
+    },
+    [applyMeals, nutritionRef]
+  );
+
+  /**
+   * Llevar UNA comida a la otra variante.
+   *
+   * `copyVariantMeals` copia el día entero y sustituye lo que hubiera. Eso vale
+   * para montar el día de descanso desde cero, pero no para lo que se hace
+   * después: el día de descanso ya está hecho y solo quieres llevarte la cena que
+   * acabas de ajustar en el de entreno. Con la única herramienta que había, la
+   * opción era rehacerla a mano o tirar el día entero y volver a empezar.
+   *
+   * Se AÑADE al final y no sustituye nada: copiar no debería poder borrar. Si
+   * acaba habiendo dos «Cena», se ve al momento y se borra una — que es un error
+   * reversible, al revés que perder la que estaba.
+   */
+  const copyMealToVariant = useCallback(
+    (clientId, from, to, mealIdx) => {
+      if (from === to) return null;
+      const source = nutritionRef.current[clientId]?.[VARIANT_KEY[from]]?.[mealIdx];
+      if (!source) return null;
+
+      applyMeals(clientId, to, (meals) => [...meals, cloneMeal(source, { rename: false })]);
+      return source.name || 'Comida';
+    },
+    [applyMeals, nutritionRef]
+  );
+
+  /**
+   * Llevar UNA opción a la comida que se llama igual en la otra variante.
+   *
+   * ── Por qué no pregunta a dónde ─────────────────────────────────────────────
+   * Porque la respuesta es siempre la misma: la alternativa de pasta del almuerzo
+   * de entreno va al almuerzo de descanso. Un selector de destino sería un paso
+   * más para elegir lo único que se iba a elegir, y el nombre de la comida ya
+   * dice a dónde va.
+   *
+   * Si esa comida no existe allí, se crea con ese nombre. La alternativa —negarse
+   * a copiar— obligaría a ir a la otra variante, crear la comida vacía, volver y
+   * repetir la operación.
+   */
+  const copyOptionToVariant = useCallback(
+    (clientId, from, to, mealIdx, optIdx) => {
+      if (from === to) return null;
+      const source = nutritionRef.current[clientId]?.[VARIANT_KEY[from]]?.[mealIdx];
+      const option = source?.options?.[optIdx];
+      if (!option) return null;
+
+      const nombre = source.name || 'Comida';
+      applyMeals(clientId, to, (meals) => {
+        const destino = meals.findIndex((m) => (m.name || '') === nombre);
+        if (destino < 0) {
+          return [...meals, { ...buildMeal(), name: nombre, options: [cloneOption(option)] }];
+        }
+        return meals.map((m, i) =>
+          i === destino ? { ...m, options: [...(m.options || []), cloneOption(option)] } : m
+        );
+      });
+      return nombre;
     },
     [applyMeals, nutritionRef]
   );
@@ -3968,6 +4123,8 @@ export const AppProvider = ({ children }) => {
       removeMeal,
       updateMealName,
       copyVariantMeals,
+      copyMealToVariant,
+      copyOptionToVariant,
       moveMeal,
       moveFood,
       duplicateOption,
@@ -4068,7 +4225,7 @@ export const AppProvider = ({ children }) => {
       startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
       copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
       updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName,
-      copyVariantMeals, moveMeal, moveFood, duplicateOption, duplicateMeal, addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
+      copyVariantMeals, copyMealToVariant, copyOptionToVariant, moveMeal, moveFood, duplicateOption, duplicateMeal, addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
       addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
       upsertLibraryExercise, upsertLibraryFood,
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,

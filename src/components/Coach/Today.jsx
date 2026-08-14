@@ -15,6 +15,7 @@ import {
 import { clientPath } from '@/routes';
 import { shortDate, todayISO } from '@/lib/dates';
 import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { GettingStarted } from './GettingStarted';
 
 /**
  * «Hoy»: la pantalla con la que abre el entrenador.
@@ -135,6 +136,9 @@ export const Today = () => {
       </div>
 
       {error && <Notice tone="error">{error}</Notice>}
+
+      {/* La guía de las primeras veces. Se cierra y no vuelve. */}
+      <GettingStarted />
 
       {/* ── LA REGLA ────────────────────────────────────────────────────────
           Catorce días, uno por marca. La barra es cuántas cosas pasaron; la
@@ -260,7 +264,7 @@ export const Today = () => {
             está ordenado por gravedad.
           */}
           {atRisk > 0 && (
-            <button type="button" className="today-bridge" onClick={() => navigate('/cartera')}>
+            <button type="button" className="today-bridge" onClick={() => navigate('/clientes')}>
               <AlertTriangle size={16} />
               <span className="grow">
                 {atRisk} {atRisk === 1 ? 'cliente se está descolgando' : 'clientes se están descolgando'}

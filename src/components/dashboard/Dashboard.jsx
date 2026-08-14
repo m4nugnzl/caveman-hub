@@ -44,6 +44,7 @@ import { Notice, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroBar } from '@/components/nutrition/macros';
 import { RoadmapPanel } from '@/components/roadmap/RoadmapPanel';
+import { IntakeDeliverables } from '@/components/Client/IntakeDeliverables';
 import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
 
 // La tripleta de colores viene del dominio: cuatro copias del mismo dato divergen.
@@ -734,6 +735,11 @@ export const Dashboard = ({ audience = 'coach' }) => {
         las tiene, es lo que contesta «¿y ahora qué toca?».
       */}
       <RoadmapPanel audience={audience} />
+
+      {/* Lo que su entrenador le dejó al darle de alta —el vídeo de bienvenida,
+          el de la rutina—. Solo en el portal del cliente: el entrenador lo pone y
+          lo revisa en la ficha, y verlo dos veces no le dice nada nuevo. */}
+      {isClient && <IntakeDeliverables client={activeClient} />}
 
       {prefs.showMetricList && (
         <MetricList

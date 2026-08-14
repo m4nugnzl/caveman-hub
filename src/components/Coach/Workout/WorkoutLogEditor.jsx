@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -63,6 +63,7 @@ export const WorkoutLogEditor = () => {
     upsertLibraryExercise,
     nutrition,
     replicateClient,
+    ensureProgram,
   } = useApp();
 
   const [cycleOpen, setCycleOpen] = useState(false);
@@ -73,6 +74,42 @@ export const WorkoutLogEditor = () => {
   const [warmupOpen, setWarmupOpen] = useState(false);
 
   const program = workoutData[activeClient.id];
+
+  /*
+    ══ Esta pantalla pide SU programa ════════════════════════════════════════
+
+    Lo pedía un efecto del contexto, y con eso «a veces entras y dice que no hay
+    rutina, recargas y aparece». Dos motivos, y los dos se arreglan aquí:
+
+      · Aquel efecto se dispara con `selectedClientId`, y esta pantalla pinta
+        `activeClient`, que NO siempre es el mismo: mientras la ruta no ha
+        terminado de sincronizar la selección, `activeClient` cae en el primero
+        de la cartera. Se pedía el programa de uno y se pintaba el de otro.
+      · Y solo se disparaba al CAMBIAR de cliente. Si la petición fallaba —un
+        corte de red, un túnel— no había segundo intento, y la ficha se quedaba
+        diciendo que no hay rutina hasta recargar la página.
+
+    Pedirlo desde donde se usa quita las dos: no hay dos ids que puedan
+    discrepar, y un fallo se ve y se reintenta sin recargar nada. `ensureProgram`
+    no repite consulta si ya está en memoria o si ya hay una en vuelo.
+  */
+  const [intento, setIntento] = useState(0);
+  const [fallo, setFallo] = useState(false);
+
+  useEffect(() => {
+    if (program !== undefined) return undefined;
+
+    let vivo = true;
+    setFallo(false);
+    ensureProgram(activeClient.id).then((cargado) => {
+      // El id en las dependencias: una respuesta del cliente anterior no puede
+      // pintar un error sobre la ficha que estás mirando ahora.
+      if (vivo && cargado === null) setFallo(true);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [program, activeClient.id, ensureProgram, intento]);
   const microcycles = program?.microcycles || [];
   const cycleType = activeClient.cycleType || 'weekly';
   /* Qué módulos existen para este cliente. Se configura en Ajustes → Protocolo y
@@ -111,6 +148,39 @@ export const WorkoutLogEditor = () => {
       onRetry={() => retrySave('workout', activeClient.id)}
     />
   );
+
+  /*
+    Mientras el programa no está en memoria, esta pantalla NO puede decir que no
+    hay programa.
+
+    `workoutData[id]` es `undefined` hasta que `ensureProgram` contesta, y con eso
+    los microciclos salían a cero: la pantalla enseñaba «este cliente no tiene
+    programa todavía» y su botón, que reemplaza el programa por uno de una semana.
+    Pulsarlo durante ese instante borraba el trabajo de verdad —y el instante no
+    era teórico: cada vez que el mapa se vaciaba, esta era la pantalla que se veía—.
+
+    Vacío y no cargado se cuentan distinto porque llevan a decisiones distintas.
+  */
+  if (program === undefined) {
+    return fallo ? (
+      <EmptyState
+        icon={Dumbbell}
+        title="No se ha podido cargar el programa"
+        message="Parece un problema de conexión. No se ha perdido nada: vuelve a intentarlo."
+        action={
+          <button type="button" className="btn btn-primary" onClick={() => setIntento((n) => n + 1)}>
+            Reintentar
+          </button>
+        }
+      />
+    ) : (
+      <EmptyState
+        icon={Dumbbell}
+        title="Cargando el programa…"
+        message="Un momento: estamos trayendo los microciclos de este cliente."
+      />
+    );
+  }
 
   if (microcycles.length === 0) {
     return (

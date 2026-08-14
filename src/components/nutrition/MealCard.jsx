@@ -1,5 +1,15 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Copy, GripVertical, Pencil, Plus, Trash2, X } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  GripVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 
 import {
   displayAsUnits,
@@ -175,56 +185,42 @@ const FoodRow = ({
         )}
 
         {/*
-          Las DOS medidas a la vez, y marcada la que está en uso.
+          La medida, como desplegable.
+          ────────────────────────────────────────────────────────────────────
+          Por defecto gramos, y se cambia abriéndolo. Un desplegable dice por sí
+          solo que hay más de una opción detrás, que es lo que fallaba en los
+          primeros intentos —una palabra suelta o un subrayado no lo dicen—.
 
-          ── Por qué se enseñan las dos ───────────────────────────────────────
-          Los tres intentos anteriores enseñaban solo la activa: un botón que
-          alternaba, un subrayado punteado, un desplegable. Todos tenían el mismo
-          fallo de fondo —**si no sabes que se puede cambiar, no lo cambias**—,
-          porque una palabra suelta no dice que exista otra detrás.
-
-          Enseñando «g | ud» el control se explica solo: se ve que hay dos
-          estados, cuál está puesto y qué pasa al pulsar el otro. No hace falta
-          descubrir nada.
-
-          Es el mismo `segmented` que usan «Por macros / Menú cerrado» y «Días de
-          entreno / descanso», solo que en miniatura. Mismo vocabulario visual
-          para la misma pregunta: elegir entre dos.
+          ── El ancho es fijo A PROPÓSITO ─────────────────────────────────────
+          Un `select` se dimensiona por su opción MÁS LARGA, y aquí hay una que
+          lo es («Definir unidad…»). Sin ancho fijo estiraba la columna hasta
+          empujar la casilla de la cantidad fuera de la rejilla, y el número
+          desaparecía. Cerrado solo se lee la opción elegida —«g», «ud»—, que
+          siempre es corta; la larga se ve entera al desplegarlo, que es donde
+          hace falta.
         */}
         {editable ? (
-          <span className="segmented unit-toggle" role="group" aria-label={`Medida de ${food.name}`}>
-            <button
-              type="button"
-              className="segmented-item"
-              aria-pressed={!porUnidades}
-              onClick={() => onSetDisplay('grams')}
-              title="Contar en gramos"
-            >
-              g
-            </button>
-            <button
-              type="button"
-              className={`segmented-item${sePuede ? '' : ' is-undefined'}`}
-              aria-pressed={porUnidades}
+          <select
+            className="select unit-select"
+            value={porUnidades ? 'units' : 'grams'}
+            aria-label={`Medida de ${food.name}`}
+            title={equivalencia}
+            onChange={(e) => {
               /*
-                Sin unidad definida, este lado no es un estado al que cambiar sino
-                una invitación a crearlo: abre el diálogo. Con ella definida
-                alterna, y volver a pulsarlo estando activo permite corregir
-                cuánto pesa —que es raro, y por eso va en el `title` y no ocupa
-                sitio propio—.
+                «Definir» no es una medida, es una acción: abre el diálogo y no
+                se queda seleccionada. Como el `value` lo manda el alimento y no
+                el evento, el desplegable vuelve solo a lo que estaba.
               */
-              onClick={() => (sePuede && !porUnidades ? onSetDisplay('units') : setDefiniendo(true))}
-              title={
-                !sePuede
-                  ? 'Este alimento se pesa. Pulsa para contarlo por unidades.'
-                  : porUnidades
-                    ? `Cambiar cuánto pesa 1 ${food.unitLabel}`
-                    : `Contar en ${food.unitLabel}s`
-              }
-            >
-              {sePuede ? abreviar(food.unitLabel) : 'ud'}
-            </button>
-          </span>
+              if (e.target.value === 'define') setDefiniendo(true);
+              else onSetDisplay(e.target.value);
+            }}
+          >
+            <option value="grams">g</option>
+            {sePuede && <option value="units">{abreviar(food.unitLabel)}</option>}
+            <option value="define">
+              {sePuede ? `Cambiar ${food.unitLabel}…` : 'Definir unidad…'}
+            </option>
+          </select>
         ) : (
           <span className="unit">{porUnidades ? abreviar(food.unitLabel) : 'g'}</span>
         )}
@@ -450,6 +446,9 @@ export const MealCard = ({
   onMoveMeal,
   onDuplicateMeal,
   onDuplicateOption,
+  onCopyMeal,
+  onCopyOption,
+  otherVariantLabel = '',
   firstMeal,
   lastMeal,
 }) => {
@@ -570,6 +569,22 @@ export const MealCard = ({
                   <Copy size={14} />
                 </button>
               )}
+              {/*
+                Llevarse esta comida al otro día. Solo existe cuando el plan tiene
+                dos días distintos: sin variantes no hay «el otro», y el botón
+                sería un adorno que no lleva a ninguna parte.
+              */}
+              {onCopyMeal && (
+                <button
+                  type="button"
+                  className="btn btn-icon"
+                  onClick={onCopyMeal}
+                  aria-label={`Copiar ${meal.name} a ${otherVariantLabel}`}
+                  title={`Copiar esta comida a ${otherVariantLabel}`}
+                >
+                  <ArrowRightLeft size={14} />
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-icon btn-icon-danger"
@@ -625,6 +640,21 @@ export const MealCard = ({
               title={`Crear una alternativa copiando la opción ${index + 1}`}
             >
               <Copy size={13} /> Duplicar
+            </button>
+          )}
+          {/*
+            Y llevarse SOLO esta alternativa al otro día. Aterriza en la comida
+            que se llama igual, que es siempre la respuesta: la opción de pasta
+            del almuerzo de entreno va al almuerzo de descanso.
+          */}
+          {editable && foods.length > 0 && onCopyOption && (
+            <button
+              type="button"
+              className="chip chip-dashed"
+              onClick={() => onCopyOption(index)}
+              title={`Copiar la opción ${index + 1} a «${meal.name}» de ${otherVariantLabel}`}
+            >
+              <ArrowRightLeft size={13} /> A {otherVariantLabel}
             </button>
           )}
         </div>

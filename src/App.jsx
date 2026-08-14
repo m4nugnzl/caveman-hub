@@ -28,7 +28,7 @@ import { ProgressLayout } from '@/components/analytics/ProgressLayout';
   y el resumen—, que son las que se ven antes de decidir nada. Cargar esas en
   diferido solo añadiría un parpadeo a lo primero que ve el usuario.
 */
-const ClientRoster = lazyRoute(() => import('@/components/Coach/ClientRoster').then((m) => ({ default: m.ClientRoster })));
+const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then((m) => ({ default: m.ClientFile })));
 const TeamPanel = lazyRoute(() => import('@/components/Coach/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
 const AppearancePanel = lazyRoute(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
@@ -201,8 +201,12 @@ export default function App() {
             <>
               <Route element={<CoachLayout />}>
                 <Route path="hoy" element={<Today />} />
-                <Route path="cartera" element={<ClientPortfolio />} />
-                <Route path="clientes" element={<ClientRoster />} />
+                <Route path="clientes" element={<ClientPortfolio />} />
+                {/* «Cartera» y «Clientes» eran dos pantallas que listaban a las
+                    mismas personas. Se fusionaron en «Clientes»; la ruta vieja
+                    sigue viva porque está en marcadores y en enlaces
+                    compartidos. */}
+                <Route path="cartera" element={<Navigate to="/clientes" replace />} />
                 {/* Ajustes: lo que se configura una vez y no se toca a diario.
                     Fuera del nivel primario para que ese tenga tres entradas. */}
                 <Route path="ajustes" element={<SettingsLayout />}>
@@ -230,6 +234,7 @@ export default function App() {
                   <Route path="fotos" element={<PhotoStudio />} />
                   <Route path="checkins" element={<AnthropometryModule />} />
                   <Route path="calendario" element={<CalendarPanel audience="coach" />} />
+                  <Route path="ficha" element={<ClientFile />} />
                 </Route>
               </Route>
 

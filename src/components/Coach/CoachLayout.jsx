@@ -14,6 +14,7 @@ import {
 import { EmptyState } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientSwitcher } from './ClientSwitcher';
+import { GettingStarted } from './GettingStarted';
 
 /**
  * Marco del panel del entrenador: navegación de dos niveles y contenido.
@@ -56,7 +57,7 @@ export const CoachLayout = () => {
     justo lo que tumbaba la aplicación antes.
   */
   if (onClient && hasClients && !clients.some((c) => c.id === clientId)) {
-    return <Navigate to="/cartera" replace />;
+    return <Navigate to="/clientes" replace />;
   }
   if (onClient && !hasClients) return <Navigate to="/clientes" replace />;
 
@@ -86,9 +87,9 @@ export const CoachLayout = () => {
             <button
               type="button"
               className="btn btn-icon"
-              onClick={() => navigate('/cartera')}
-              aria-label="Volver a la cartera"
-              title="Volver a la cartera"
+              onClick={() => navigate('/clientes')}
+              aria-label="Volver a la lista de clientes"
+              title="Volver a la lista de clientes"
             >
               <ArrowLeft size={16} />
             </button>
@@ -148,20 +149,28 @@ export const CoachLayout = () => {
         </div>
       )}
 
-      {/* El alta del primer cliente se ofrece en las dos pantallas de trabajo, no
-          solo en la cartera: desde que «Hoy» es la de entrada, esa es la que ve
-          un entrenador recién registrado. */}
-      {!hasClients && (location.pathname === COACH_HOME || location.pathname === '/cartera') ? (
-        <EmptyState
-          icon={UserPlus}
-          title="Todavía no tienes clientes"
-          message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
-          action={
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
-              <UserPlus size={17} /> Dar de alta un cliente
-            </button>
-          }
-        />
+      {/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
+          entrenador recién registrado y no puede limitarse a estar vacía.
+          «Clientes» ya trae su propio vacío —con el formulario de alta dentro—,
+          por eso aquí solo se cubre la de inicio.
+
+          La guía va delante del vacío y no dentro: sin clientes explica por dónde
+          se empieza, y con clientes sigue contestando la pregunta que la trajo
+          —dónde se hace la rutina— hasta que se cierra. */}
+      {!hasClients && location.pathname === COACH_HOME ? (
+        <div className="stack">
+          <GettingStarted />
+          <EmptyState
+            icon={UserPlus}
+            title="Todavía no tienes clientes"
+            message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
+            action={
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
+                <UserPlus size={17} /> Dar de alta un cliente
+              </button>
+            }
+          />
+        </div>
       ) : (
         <Outlet />
       )}
