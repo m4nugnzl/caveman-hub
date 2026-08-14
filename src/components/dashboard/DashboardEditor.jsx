@@ -1,11 +1,13 @@
 import {
   ArrowLeft,
   ArrowRight,
+  BookmarkPlus,
   Check,
   Columns2,
   Plus,
   RectangleHorizontal,
   RotateCcw,
+  Users,
   X,
 } from 'lucide-react';
 
@@ -107,7 +109,16 @@ const Tray = ({ title, catalogue, chosen, onAdd }) => {
  * hace: la personalización que exige media hora no se usa. Un perfil deja el
  * panel montado de un toque, y el ajuste fino queda para quien lo quiera.
  */
-export const DashboardEditBar = ({ prefs, onApplyPreset, onToggleMetricList, onReset, onDone, audience }) => {
+export const DashboardEditBar = ({
+  prefs,
+  onApplyPreset,
+  onToggleMetricList,
+  onReset,
+  onDone,
+  onSaveAsDefault,
+  onApplyToAll,
+  audience,
+}) => {
   const preset = matchingPreset(prefs);
 
   return (
@@ -146,6 +157,49 @@ export const DashboardEditBar = ({ prefs, onApplyPreset, onToggleMetricList, onR
           </button>
         </div>
       </div>
+
+      {/*
+        Sacar esta configuración del cliente y convertirla en la TUYA.
+
+        Es la pieza que faltaba. Configurar el resumen se hacía por cliente, así
+        que un entrenador con veinte carteras lo repetía veinte veces —y cuando
+        cambiaba de opinión, otras veinte—. El resultado real era que nadie
+        personalizaba nada: se quedaba el panel por defecto porque no compensaba.
+
+        Solo para el entrenador: un cliente configura su propio panel y no tiene
+        a quién aplicárselo.
+      */}
+      {audience !== 'client' && (onSaveAsDefault || onApplyToAll) && (
+        <div className="col gap-2">
+          <span className="tray-title">Tu plantilla</span>
+          <div className="rail">
+            {onSaveAsDefault && (
+              <button
+                type="button"
+                className="chip"
+                onClick={onSaveAsDefault}
+                title="Los clientes nuevos empezarán con este resumen. Los que ya tengas no se tocan."
+              >
+                <BookmarkPlus size={13} /> Guardar como mi plantilla
+              </button>
+            )}
+            {onApplyToAll && (
+              <button
+                type="button"
+                className="chip"
+                onClick={onApplyToAll}
+                title="Sustituye el resumen de todos tus clientes activos por este"
+              >
+                <Users size={13} /> Aplicar a todos
+              </button>
+            )}
+          </div>
+          <p className="t-2xs t-tertiary">
+            «Mi plantilla» solo afecta a los clientes NUEVOS. «Aplicar a todos» sustituye el
+            resumen de los que ya tienes, incluidos los que hubieras ajustado a mano.
+          </p>
+        </div>
+      )}
 
       <div className="col gap-2">
         <span className="tray-title">Extras</span>

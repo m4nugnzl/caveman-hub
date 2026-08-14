@@ -40,7 +40,8 @@ import { shortDate, todayISO } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { BandChart, BarBandChart, MeterList, Sparkline } from '@/components/ui/charts';
 import { Delta, MetricCard, MetricList, StatWidget } from '@/components/ui/metrics';
-import { Panel, SaveIndicator } from '@/components/ui/primitives';
+import { Notice, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroBar } from '@/components/nutrition/macros';
 import { RoadmapPanel } from '@/components/roadmap/RoadmapPanel';
 import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
@@ -73,6 +74,9 @@ export const Dashboard = ({ audience = 'coach' }) => {
     nutrition,
     progressPhotos,
     updateClientPreferences,
+    coachPrefs,
+    updateCoachPreferences,
+    applyDashboardToAll,
     saveStatus,
     retrySave,
   } = useApp();
@@ -86,9 +90,55 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const plan = nutrition[activeClient.id];
   const unit = unitLabel(activeClient.cycleType);
   const isClient = audience === 'client';
+  const confirm = useConfirm();
+  const [aviso, setAviso] = useState(null);
 
-  const prefs = dashboardPrefs(activeClient.preferences);
+  /*
+    La ficha del cliente manda; si no dice nada, la plantilla del entrenador
+    (migración 0035). El orden importa: un cambio en la plantilla no puede
+    deshacer el panel que alguien ajustó a mano para Marta.
+
+    Al cliente no se le aplica plantilla ninguna —la del entrenador es sobre CÓMO
+    MIRA ÉL a su cartera, no sobre cómo quiere ver su propio panel quien entrena—.
+  */
+  const prefs = dashboardPrefs(
+    activeClient.preferences,
+    isClient ? null : coachPrefs?.dashboard || null
+  );
   const savePrefs = (patch) => updateClientPreferences(activeClient.id, 'dashboard', patch);
+
+  /** Convierte el panel de este cliente en el predeterminado para los nuevos. */
+  const guardarPlantilla = async () => {
+    const res = await updateCoachPreferences('dashboard', prefs);
+    setAviso(
+      res.ok
+        ? { tone: 'success', text: 'Guardado. Tus clientes nuevos empezarán con este resumen.' }
+        : { tone: 'error', text: `No se ha podido guardar: ${res.error}` }
+    );
+  };
+
+  /** Y lo aplica a los que ya existen. Sustituye, así que se pregunta antes. */
+  const aplicarATodos = async () => {
+    const ok = await confirm({
+      title: '¿Aplicar este resumen a todos?',
+      message: 'Todos tus clientes activos pasarán a tener exactamente este resumen.',
+      detail:
+        'SUSTITUYE el de los que hubieras ajustado a mano, uno por uno. Los archivados no se tocan. No se puede deshacer.',
+      confirmLabel: 'Aplicar a todos',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
+    const res = await applyDashboardToAll(prefs);
+    setAviso(
+      res.ok
+        ? {
+            tone: 'success',
+            text: `Aplicado a ${res.count} ${res.count === 1 ? 'cliente' : 'clientes'}.`,
+          }
+        : { tone: 'error', text: `No se ha podido aplicar: ${res.error}` }
+    );
+  };
   const prefsSave = saveStatus('preferences', activeClient.id);
 
   const series = useMemo(
@@ -584,6 +634,11 @@ export const Dashboard = ({ audience = 'coach' }) => {
           </div>
         </div>
 
+        {/* El resultado de las dos acciones de plantilla. Sin esto, «Aplicar a
+            todos» no daría ninguna señal de haber hecho nada: los cambios están
+            en OTROS clientes, no en el que se está mirando. */}
+        {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
+
         {editing && (
           <DashboardEditBar
             prefs={prefs}
@@ -592,6 +647,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
             onToggleMetricList={() => savePrefs({ showMetricList: !prefs.showMetricList })}
             onReset={() => savePrefs(defaultDashboardPrefs())}
             onDone={() => setEditing(false)}
+            onSaveAsDefault={isClient ? null : guardarPlantilla}
+            onApplyToAll={isClient ? null : aplicarATodos}
           />
         )}
 

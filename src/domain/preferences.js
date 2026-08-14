@@ -168,11 +168,20 @@ const sanitizeSpans = (raw) => {
 };
 
 /**
- * Preferencias efectivas del panel: lo elegido por el cliente, completado con
+ * Preferencias efectivas del panel: lo elegido para el cliente, completado con
  * los valores por defecto y limpio de claves que la aplicación no conoce.
+ *
+ * ── El predeterminado del entrenador (migración 0035) ───────────────────────
+ * `fallback` es la configuración que el entrenador guardó como suya. Se usa
+ * cuando la ficha del cliente no dice nada, que es el caso de todos los clientes
+ * nuevos.
+ *
+ * El orden importa y es este: **lo del cliente gana, y solo si no hay nada suyo
+ * se mira el predeterminado**. Si el entrenador se molestó en ajustar el panel de
+ * Marta fue por algo, y un cambio en su plantilla no puede deshacerlo.
  */
-export const dashboardPrefs = (preferences) => {
-  const raw = preferences?.dashboard || {};
+export const dashboardPrefs = (preferences, fallback = null) => {
+  const raw = preferences?.dashboard || fallback || {};
   return {
     widgets: sanitizeList(raw.widgets, WIDGETS, DEFAULTS.dashboard.widgets),
     cards: sanitizeList(raw.cards, CARDS, DEFAULTS.dashboard.cards),

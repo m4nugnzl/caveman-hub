@@ -85,7 +85,10 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
         <div className="row-end wrap gap-2">
           <Field
             label="Se cuenta en (opcional)"
-            hint="En singular: huevo, rebanada, cucharada…"
+            // Mismos ejemplos que en el diálogo de la dieta (`MealCard`): es la
+            // misma pregunta hecha en dos sitios, y dos listas distintas harían
+            // pensar que no lo es.
+            hint="En singular: unidad, cucharada, rebanada, lata, vaso…"
             className="grow"
           >
             {(props) => (

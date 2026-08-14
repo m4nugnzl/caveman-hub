@@ -949,6 +949,71 @@ export const AppProvider = ({ children }) => {
     [clients, visibleClients, selectedClientId]
   );
 
+  // ── Preferencias del entrenador ──────────────────────────────────────────
+
+  /*
+    Cómo mira ESTE entrenador a sus clientes (migración 0035).
+
+    Son dos preguntas distintas y hasta ahora solo existía la segunda: «¿cómo
+    miro yo a mis clientes?» —que se repite— y «¿qué necesita ver Marta?» —que es
+    la excepción—. Sin la primera, configurar el panel había que repetirlo tantas
+    veces como clientes, y el resultado real era que nadie lo configuraba.
+  */
+  const [coachPrefs, setCoachPrefs] = useState({});
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      setCoachPrefs({});
+      return undefined;
+    }
+
+    let cancelado = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', userId)
+        .single();
+
+      // Sin la 0035 la columna no existe. Vacío = «no hay plantilla», que es
+      // exactamente como se comportaba la aplicación antes.
+      if (!cancelado) setCoachPrefs(error ? {} : data?.preferences || {});
+    })();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [session]);
+
+  /**
+   * Guarda una sección de las preferencias del entrenador.
+   *
+   * Fusiona por sección, igual que `updateClientPreferences`: escribir el objeto
+   * entero desde el navegador borraría lo que otra pantalla hubiera guardado
+   * mientras tanto.
+   */
+  const updateCoachPreferences = useCallback(
+    async (section, patch) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const next = {
+        ...coachPrefs,
+        [section]: { ...(coachPrefs[section] || {}), ...patch },
+      };
+
+      setCoachPrefs(next); // optimista: el cambio se ve al instante
+      const { error } = await supabase
+        .from('profiles')
+        .update({ preferences: next })
+        .eq('id', userId);
+
+      return error ? { ok: false, error: error.message } : { ok: true };
+    },
+    [coachPrefs, session]
+  );
+
   // ── Soporte ──────────────────────────────────────────────────────────────
 
   /*
@@ -3250,6 +3315,34 @@ export const AppProvider = ({ children }) => {
     return { ok: true };
   }, [setClients]);
 
+  /**
+   * Aplica un panel a toda la cartera de una vez (migración 0035).
+   *
+   * ── Por qué una función de base de datos y no un bucle ──────────────────────
+   * Veinte llamadas son veinte transacciones: si la novena falla, quedan ocho
+   * clientes con el panel nuevo y doce con el viejo, y no hay forma de saber
+   * cuáles sin abrirlos uno a uno. Así, o entran todos o no entra ninguno.
+   *
+   * Va justo DESPUÉS de `reloadClients` a propósito: lo necesita en sus
+   * dependencias, y las de un `useCallback` se evalúan al renderizar. Declararlo
+   * antes daría «Cannot access before initialization» al arrancar la aplicación.
+   */
+  const applyDashboardToAll = useCallback(
+    async (dashboard) => {
+      const { data, error } = await supabase.rpc('apply_dashboard_to_my_clients', {
+        p_dashboard: dashboard,
+      });
+
+      if (error) return { ok: false, error: error.message };
+
+      // Las fichas cambiaron en el servidor. Sin releer, el panel abierto
+      // seguiría enseñando lo de antes hasta recargar la página entera.
+      await reloadClients();
+      return { ok: true, count: data ?? 0 };
+    },
+    [reloadClients]
+  );
+
   // ── Integraciones ────────────────────────────────────────────────────────
   //
   // Se cargan a demanda desde su pantalla: son una o dos filas que no hacen falta
@@ -3784,6 +3877,9 @@ export const AppProvider = ({ children }) => {
       nutrition,
       progressPhotos,
       exerciseLibrary,
+      coachPrefs,
+      updateCoachPreferences,
+      applyDashboardToAll,
       isSupport,
       loadTickets,
       createTicket,
@@ -3927,6 +4023,7 @@ export const AppProvider = ({ children }) => {
       session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
       clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, training, legacyPending, ensureProgram, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary, catalogFoods, catalogExercises,
+      coachPrefs, updateCoachPreferences, applyDashboardToAll,
       isSupport, loadTickets, createTicket, replyTicket, setTicketStatus,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
