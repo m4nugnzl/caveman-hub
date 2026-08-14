@@ -3,9 +3,11 @@ import {
   Archive,
   ArchiveRestore,
   CheckCircle2,
+  ChevronRight,
   CreditCard,
   ExternalLink,
   FolderCheck,
+  Pencil,
   Plus,
   Search,
   Send,
@@ -233,9 +235,140 @@ const ArchivedList = () => {
   );
 };
 
-const ClientCard = ({ client, onUpdate }) => (
+/**
+ * Editar los datos de un cliente ya dado de alta.
+ *
+ * ══ El hueco que cierra ════════════════════════════════════════════════════
+ *
+ * Estos cinco campos solo se podían poner **en el formulario de alta**. A partir
+ * de ahí quedaban congelados: un correo mal escrito no se podía corregir, y un
+ * cliente traído de Notion —que llega solo con el nombre— se quedaba sin correo,
+ * sin teléfono y sin sexo para siempre.
+ *
+ * Lo del sexo no era cosmético: la fórmula de pliegues es distinta para hombre y
+ * mujer, y sin definir se aplicaba **la de hombre en silencio**. El porcentaje
+ * graso salía, parecía bueno, y podía estar varios puntos desviado.
+ *
+ * ── Por qué en la propia tarjeta y no en un diálogo ────────────────────────
+ * Porque los datos ya están ahí escritos. Abrir una ventana encima para editar lo
+ * que se está mirando obliga a comparar de memoria; sustituir el bloque por sus
+ * campos deja cada valor en el sitio donde estaba.
+ */
+const ClientEditor = ({ client, onSave, onCancel }) => {
+  const [form, setForm] = useState({
+    name: client.name || '',
+    email: client.email || '',
+    phone: client.phone || '',
+    gender: client.gender || '',
+    plan: client.plan || '',
+  });
+
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const limpio = form.name.trim();
+
+  return (
+    <form
+      className="col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!limpio) return;
+        /*
+          Se manda TODO el formulario, incluidos los campos vacíos: dejar un
+          correo en blanco tiene que poder borrarlo. Filtrar los vacíos —que es
+          la tentación— convertiría «quitar el teléfono» en algo imposible.
+        */
+        onSave({ ...form, name: limpio });
+      }}
+    >
+      <Field label="Nombre">
+        {(props) => (
+          <input {...props} autoFocus className="input" value={form.name} onChange={set('name')} />
+        )}
+      </Field>
+
+      <div className="grid-2">
+        <Field label="Correo">
+          {(props) => (
+            <input {...props} type="email" className="input" value={form.email} onChange={set('email')} />
+          )}
+        </Field>
+        <Field label="Teléfono">
+          {(props) => (
+            <input {...props} type="tel" className="input" value={form.phone} onChange={set('phone')} />
+          )}
+        </Field>
+      </div>
+
+      <div className="grid-2">
+        <Field
+          label="Sexo"
+          hint="Cambia la fórmula del % graso por pliegues, así que conviene tenerlo."
+        >
+          {(props) => (
+            <select {...props} className="select" value={form.gender} onChange={set('gender')}>
+              <option value="">Sin definir</option>
+              <option value="Hombre">Hombre</option>
+              <option value="Mujer">Mujer</option>
+            </select>
+          )}
+        </Field>
+        <Field label="Plan" hint="El tuyo, el que le cobras. Texto libre.">
+          {(props) => (
+            <input {...props} className="input" value={form.plan} onChange={set('plan')} />
+          )}
+        </Field>
+      </div>
+
+      <div className="row gap-2">
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio}>
+          Guardar
+        </button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
+          Cancelar
+        </button>
+        {!limpio && <span className="t-xs t-tertiary">El nombre no puede quedar vacío.</span>}
+      </div>
+    </form>
+  );
+};
+
+/**
+ * Un cliente en la cartera.
+ *
+ * ══ Por qué empieza plegada ═════════════════════════════════════════════════
+ *
+ * Porque lo que se hace en esta pantalla a diario es encontrar a alguien, y lo
+ * que se hace de tarde en tarde —darle acceso, archivarle, exportar sus datos—
+ * estaba ocupando el mismo sitio que lo primero.
+ *
+ * Plegada enseña las tres cosas por las que se mira una ficha: quién es, cómo
+ * se le escribe y qué le falta. Ese «qué le falta» es lo que hace que merezca
+ * la pena abrirla, así que es lo único del interior que se ve desde fuera.
+ */
+const ClientCard = ({ client, onUpdate }) => {
+  const [abierta, setAbierta] = useState(false);
+  const [editando, setEditando] = useState(false);
+
+  /*
+    Los pendientes reales de la ficha, en una línea. El pago no entra aquí
+    porque ya tiene su distintivo al lado y repetirlo sería decir lo mismo dos
+    veces en la misma tarjeta.
+  */
+  const falta = [
+    !client.onboardingComplete && 'onboarding',
+    !client.postureReviewed && 'revisión postural',
+    !client.clientProfileId && 'acceso al portal',
+    !client.gender && 'sexo',
+  ].filter(Boolean);
+
+  const abrir = () => {
+    setAbierta((v) => !v);
+    setEditando(false);
+  };
+
+  return (
   <Panel className="col gap-4">
-    <div className="row gap-3">
+    <button type="button" className="client-head" aria-expanded={abierta} onClick={abrir}>
       {/*
         Su foto si la tiene y, si no, sus iniciales dibujadas aquí.
 
@@ -253,17 +386,43 @@ const ClientCard = ({ client, onUpdate }) => (
           {initials(client.name)}
         </span>
       )}
-      <div className="grow">
-        <div style={{ fontWeight: 800 }}>{client.name}</div>
-        <div className="t-xs t-secondary">
+      <span className="grow col gap-1" style={{ minWidth: 0 }}>
+        <span style={{ fontWeight: 800 }}>{client.name}</span>
+        <span className="t-xs t-secondary">
           {[client.email, client.phone].filter(Boolean).join(' · ') || 'Sin datos de contacto'}
-        </div>
-      </div>
-      <span className={`badge ${client.paymentStatus === 'paid' ? 'badge-ok' : 'badge-bad'}`}>
+        </span>
+        {/*
+          Lo que falta se dice plegado y en tono de aviso; lo que está hecho, no
+          se dice. Una ficha completa no necesita cuatro líneas confirmando que
+          está completa, y así la única línea de color que aparece en la cartera
+          señala siempre algo que hacer.
+        */}
+        {falta.length > 0 && (
+          <span className="t-2xs" style={{ color: 'var(--warning)' }}>
+            Falta: {falta.join(' · ')}
+          </span>
+        )}
+      </span>
+
+      <span className={`badge shrink-0 ${client.paymentStatus === 'paid' ? 'badge-ok' : 'badge-bad'}`}>
         <CreditCard size={10} /> {client.paymentStatus === 'paid' ? 'Al día' : 'Pendiente'}
       </span>
-    </div>
+      <ChevronRight size={16} className="chevron" aria-hidden="true" />
+    </button>
 
+    {abierta && editando && (
+      <ClientEditor
+        client={client}
+        onCancel={() => setEditando(false)}
+        onSave={(fields) => {
+          onUpdate(fields);
+          setEditando(false);
+        }}
+      />
+    )}
+
+    {abierta && !editando && (
+      <>
     <div className="card-inset col gap-2 t-sm">
       <div className="row between gap-2">
         <span className="t-secondary">Onboarding</span>
@@ -349,8 +508,20 @@ const ClientCard = ({ client, onUpdate }) => (
         administrativa, y no en una sección propia: es lo que se hace cuando un
         cliente entra o SALE, no mientras se trabaja con él. */}
     <ClientDataPanel client={client} />
+
+    {/* Editar va al final y con su nombre escrito. Antes era un lápiz suelto en
+        la cabecera: un icono sin etiqueta al lado del estado del pago, que es
+        justo donde no se espera una acción destructiva ni constructiva. */}
+    <div className="row">
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditando(true)}>
+        <Pencil size={13} /> Editar datos del cliente
+      </button>
+    </div>
+      </>
+    )}
   </Panel>
-);
+  );
+};
 
 export const ClientRoster = () => {
   const { clients, updateClient, addClient } = useApp();
@@ -429,7 +600,7 @@ export const ClientRoster = () => {
       )}
 
       {filtered.length > 0 && (
-        <div className="grid-2">
+        <div className="client-grid">
           {filtered.map((client) => (
             <ClientCard
               key={client.id}

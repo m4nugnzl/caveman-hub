@@ -186,13 +186,29 @@ const PHASE_COLUMNS = {
   note: 'note',
 };
 
+/**
+ * ── Por qué cada columna trata el vacío a su manera ─────────────────────────
+ * La primera versión convertía `''` en `null` para TODAS, pensando solo en la
+ * fecha de fin. Pero `note` es `NOT NULL DEFAULT ''` en la base, así que guardar
+ * una fase sin nota —el caso normal— mandaba `null` y Postgres la rechazaba con
+ * «null value in column "note" violates not-null constraint».
+ *
+ * Son dos vacíos distintos y no se pueden tratar igual:
+ *
+ *   · **`ends_on` vacío es `null`** y significa algo: fase abierta, sin final
+ *     decidido (ver la migración 0028).
+ *   · **`note` vacía es una cadena vacía** y significa «no hay nota». Un `null`
+ *     ahí no es «sin nota», es una violación de esquema.
+ */
 export const mapPhaseToDb = (fields) => {
   const out = {};
   for (const [key, value] of Object.entries(fields || {})) {
     const column = PHASE_COLUMNS[key];
-    // `endsOn: null` es un valor con significado —cerrar una fase abierta—, así
-    // que se comprueba la columna y no la verdad del valor.
-    if (column) out[column] = value === '' ? null : value;
+    if (!column) continue;
+
+    if (column === 'ends_on') out[column] = value === '' ? null : value;
+    else if (column === 'note') out[column] = value ?? '';
+    else out[column] = value;
   }
   return out;
 };

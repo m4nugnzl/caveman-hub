@@ -23,6 +23,7 @@ export const AnthropometryModule = () => {
     uploadProgressPhoto,
     saveStatus,
     retrySave,
+    updateClient,
   } = useApp();
 
   const photos = useMemo(
@@ -49,6 +50,7 @@ export const AnthropometryModule = () => {
         onRemove={(logId) => removeAnthropometryLog(activeClient.id, logId)}
         photos={photos}
         onUploadPhoto={uploadProgressPhoto}
+        onSetGender={(gender) => updateClient(activeClient.id, { gender })}
       />
     </div>
   );

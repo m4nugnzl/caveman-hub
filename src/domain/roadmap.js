@@ -39,13 +39,37 @@ import { clientGoal, directionById } from './goals';
 export const MIN_PHASE_DAYS = 7;
 
 /**
- * Duraciones que se ofrecen al crear una fase, en semanas.
+ * El rango de duraciones que se puede elegir, en semanas.
  *
- * No son un límite —se puede poner cualquier fecha— sino los atajos de lo que se
- * hace en la práctica: cuatro semanas es el bloque más corto que da señal, doce es
- * el largo típico de una definición, y dieciséis el de un volumen.
+ * ── Por qué se piensa en semanas y no en fechas ─────────────────────────────
+ * Porque es como se planifica: nadie dice «definición hasta el 23 de mayo», dice
+ * «doce semanas de definición». La fecha de fin es una CONSECUENCIA de esa
+ * decisión, no la decisión.
+ *
+ * La primera versión invirtió eso: pedía las dos fechas y ofrecía unos atajos de
+ * semanas al lado, con lo que había que hacer la cuenta mentalmente o aceptar el
+ * atajo más cercano. Ahora se elige la duración y la fecha se deriva.
+ *
+ * El tope de 24 no es arbitrario: por encima de medio año, un bloque deja de ser
+ * un bloque y lo que toca es partirlo en dos.
  */
+export const PHASE_WEEKS_RANGE = { min: 1, max: 24 };
+
+/** Duraciones de un toque: lo que más se usa en la práctica. */
 export const PHASE_PRESETS = [4, 8, 12, 16];
+
+/**
+ * La fecha en la que acaba un tramo de N semanas que empieza en `startsOn`.
+ *
+ * Se resta un día porque ambos extremos cuentan: cuatro semanas que empiezan el
+ * lunes 1 acaban el domingo 28, no el lunes 29. Ese día de más es justo el que
+ * haría que la fase siguiente se solapara y la base la rechazara.
+ */
+export const endFromWeeks = (startsOn, weeks) => {
+  const desde = iso(startsOn);
+  const semanas = Math.max(1, Math.round(Number(weeks) || 0));
+  return desde ? addDays(desde, semanas * 7 - 1) : null;
+};
 
 const iso = (value) => toISODate(value);
 
@@ -58,6 +82,21 @@ const iso = (value) => toISODate(value);
  */
 export const sortPhases = (phases) =>
   [...(phases || [])].sort((a, b) => String(a?.startsOn || '').localeCompare(String(b?.startsOn || '')));
+
+/**
+ * Cuántas semanas dura un tramo, o `null` si no son semanas exactas.
+ *
+ * Sirve para marcar cuál de los atajos de duración está puesto. Devolver `null`
+ * ante un tramo de 17 días es lo correcto: no es «2 semanas y pico», es que
+ * ninguno de los atajos lo describe, y marcar el más cercano diría que el
+ * formulario tiene un valor que no tiene.
+ */
+export const phaseWeeks = (startsOn, endsOn) => {
+  const dias = daysBetween(iso(startsOn), iso(endsOn));
+  if (dias === null) return null;
+  const total = dias + 1; // ambos extremos incluidos
+  return total > 0 && total % 7 === 0 ? total / 7 : null;
+};
 
 /** ¿Cubre esta fase esa fecha? Ambos extremos incluidos, igual que en la base. */
 export const coversDate = (phase, date = todayISO()) => {

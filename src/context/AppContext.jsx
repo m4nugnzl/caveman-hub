@@ -5,6 +5,7 @@ import { createSaveQueue } from '@/lib/saveQueue';
 import { useMirroredState } from '@/lib/useMirroredState';
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
+import { recordIssue } from '@/lib/diagnostics';
 import {
   mapAnthroFromDb,
   mapAnthroToDb,
@@ -176,12 +177,23 @@ export const AppProvider = ({ children }) => {
   const queueRef = useRef(null);
   if (queueRef.current === null) {
     queueRef.current = createSaveQueue({
-      onStatus: (key, next) =>
+      onStatus: (key, next) => {
+        /*
+          Un guardado que falla se apunta para el diagnóstico (`lib/diagnostics`).
+
+          Es el fallo que más veces está detrás de un ticket y el que peor se
+          cuenta: el usuario escribe «no me guarda», y lo que hace falta saber es
+          QUÉ no se guardó y con qué error. La clave de cola dice lo primero
+          —`workout:<cliente>`— y el mensaje lo segundo.
+        */
+        if (next.status === 'error') recordIssue('guardado', next.error, { key });
+
         setSaveState((prev) =>
           prev[key]?.status === next.status && prev[key]?.error === next.error
             ? prev
             : { ...prev, [key]: next }
-        ),
+        );
+      },
     });
   }
   const queue = queueRef.current;
@@ -593,6 +605,14 @@ export const AppProvider = ({ children }) => {
         */
         if (!isStale() && !membership.error && (membership.data || []).length === 0) {
           const created = await supabase.rpc('ensure_my_team');
+          /*
+            Si falla, la aplicación sigue —un entrenador sin equipo funciona— pero
+            el fallo se APUNTA. Es lo que faltaba cuando `ensure_my_team` chocaba
+            consigo misma (arreglado en la 0037): quedarse sin equipo aquí no
+            dejaba rastro, y el ticket llegaba con el error del alta, que es dos
+            pasos más abajo y no menciona el equipo por ninguna parte.
+          */
+          if (created.error) recordIssue('equipo', created.error);
           if (!isStale() && !created.error && created.data) {
             membership = await supabase.from('team_members').select('team_id, role');
           }

@@ -80,6 +80,10 @@ export const AnthropometryPanel = ({
   // el peso, que es como funcionaba antes.
   photos = null,
   onUploadPhoto = null,
+  // Solo lo pasa el entrenador: el sexo es un dato de la ficha y el cliente no
+  // edita su propia ficha (ver 0006). Sin esta función, el aviso explica el
+  // problema pero no ofrece arreglarlo.
+  onSetGender = null,
 }) => {
   const confirm = useConfirm();
   // Memoizado: `|| []` crearía un array nuevo en cada render e invalidaría los
@@ -321,13 +325,56 @@ export const AnthropometryPanel = ({
 
           {showMeasures && (
             <>
-              <Notice tone="info">
-                Fórmula de 6 pliegues ·{' '}
-                {client.gender === 'Mujer'
-                  ? '% graso = 3,5803 + (Σ mm × 0,1548)'
-                  : '% graso = 2,59 + (Σ mm × 0,1051)'}{' '}
-                · sexo registrado: {client.gender || 'sin definir'}
-              </Notice>
+              {/*
+                ── El sexo, DONDE se nota que falta ──────────────────────────
+                Hasta ahora esto decía «sexo registrado: sin definir» y ahí se
+                acababa: el único sitio donde se podía elegir era el formulario
+                de alta, así que un cliente creado sin él —o traído de Notion, que
+                solo trae el nombre— se quedaba así para siempre.
+
+                Y no es un dato cosmético: la fórmula de pliegues es distinta
+                para hombre y mujer, y sin definir se estaba aplicando **la de
+                hombre en silencio**. El porcentaje salía, parecía bueno y podía
+                estar cuatro puntos desviado.
+
+                Por eso el aviso cambia de tono cuando falta: no es información,
+                es algo que hay que arreglar, y se arregla aquí mismo.
+              */}
+              {client.gender ? (
+                <Notice tone="info">
+                  Fórmula de 6 pliegues ·{' '}
+                  {client.gender === 'Mujer'
+                    ? '% graso = 3,5803 + (Σ mm × 0,1548)'
+                    : '% graso = 2,59 + (Σ mm × 0,1051)'}{' '}
+                  · sexo registrado: {client.gender}
+                </Notice>
+              ) : (
+                <Notice
+                  tone="warn"
+                  action={
+                    onSetGender ? (
+                      <span className="row gap-2 shrink-0">
+                        {['Hombre', 'Mujer'].map((sexo) => (
+                          <button
+                            key={sexo}
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => onSetGender(sexo)}
+                          >
+                            {sexo}
+                          </button>
+                        ))}
+                      </span>
+                    ) : null
+                  }
+                >
+                  Falta el sexo de {client.name}, y la fórmula de pliegues es
+                  distinta para hombre y mujer.{' '}
+                  {onSetGender
+                    ? 'Mientras no se defina se aplica la de hombre, así que el % graso puede estar desviado.'
+                    : 'Pídeselo a tu entrenador: mientras tanto el % graso puede estar desviado.'}
+                </Notice>
+              )}
 
               <div className="col gap-3">
                 <h4 className="section-label">Pliegues cutáneos (mm)</h4>

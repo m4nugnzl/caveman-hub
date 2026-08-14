@@ -9,6 +9,7 @@ import {
   phaseAt,
   phaseGoal,
   phaseProgress,
+  phaseWeeks,
   roadmapState,
   validatePhase,
 } from './roadmap';
@@ -65,6 +66,35 @@ describe('coversDate — los extremos entran', () => {
     const abierta = fase({ endsOn: null });
     expect(coversDate(abierta, '2029-12-31')).toBe(true);
     expect(coversDate(abierta, '2026-02-28')).toBe(false);
+  });
+});
+
+describe('phaseWeeks — qué atajo de duración corresponde', () => {
+  it.each([
+    ['2026-03-01', '2026-03-28', 4],
+    ['2026-03-01', '2026-04-25', 8],
+    ['2026-03-01', '2026-05-23', 12],
+    ['2026-03-01', '2026-03-07', 1],
+  ])('%s → %s son %s semanas', (from, to, expected) => {
+    expect(phaseWeeks(from, to)).toBe(expected);
+  });
+
+  /*
+    Ambos extremos cuentan, igual que en `phaseProgress` y que en el rango de la
+    base. Del 1 al 28 son 28 días —cuatro semanas—, no 27: el desfase de un día
+    aquí marcaría el atajo equivocado en el formulario.
+  */
+  it('cuenta los dos extremos', () => {
+    expect(phaseWeeks('2026-03-01', '2026-03-27')).toBeNull(); // 27 días
+  });
+
+  it('lo que no son semanas exactas no lo describe ningún atajo', () => {
+    expect(phaseWeeks('2026-03-01', '2026-03-17')).toBeNull();
+  });
+
+  it('una fase abierta no tiene duración', () => {
+    expect(phaseWeeks('2026-03-01', null)).toBeNull();
+    expect(phaseWeeks('2026-03-01', '')).toBeNull();
   });
 });
 

@@ -5,8 +5,11 @@ import { useApp } from '@/context/AppContext';
 import { GOAL_DIRECTIONS, directionById, targetRateKg } from '@/domain/goals';
 import {
   PHASE_PRESETS,
+  PHASE_WEEKS_RANGE,
+  endFromWeeks,
   nextPhaseDraft,
   phaseProgress,
+  phaseWeeks,
   roadmapState,
   validatePhase,
 } from '@/domain/roadmap';
@@ -84,12 +87,22 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
     if (!res.ok) setError(res.error);
   };
 
+  /*
+    `col gap-4`: `Panel` pinta la tarjeta y su relleno, pero no separa a sus
+    hijos entre sí. Sin esto, la cabecera queda tocando la primera fase. Mismo
+    olvido que en el panel de Ayuda.
+  */
   return (
-    <Panel>
+    <Panel className="col gap-4">
       <SectionTitle
         icon={Route}
         action={
-          puedeEditar && !form ? (
+          /*
+            Sin fases, el hueco central ya ofrece «Crear la primera fase». Sacar
+            además este arriba deja dos botones iguales peleando por el mismo
+            clic, y el de la cabecera parece pegado encima del otro.
+          */
+          puedeEditar && !form && state.all.length > 0 ? (
             <button type="button" className="btn btn-secondary btn-sm" onClick={abrirNuevo}>
               <Plus size={14} /> Añadir fase
             </button>
@@ -135,7 +148,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
       )}
 
       {state.all.length > 0 && (
-        <div className="list">
+        <div className="rmap">
           {state.all.map((fase, index) => (
             <PhaseRow
               key={fase.id}
@@ -170,53 +183,92 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
 };
 
 /**
- * Una fase de la lista.
+ * Una parada del recorrido: su nodo en el carril y su tarjeta al lado.
  *
- * Se reutiliza el bloque `.step` de los asistentes de integración: es exactamente
- * la misma forma —una marca, un cuerpo y una línea que las une— y ya sabe pintar
- * lo hecho. Inventar un `.roadmap-item` paralelo sería un segundo sistema visual
- * para lo mismo.
+ * ── Por qué no reutiliza `.step` ────────────────────────────────────────────
+ * `.step` es de los asistentes de integración y tiene dos estados —hecho y por
+ * hacer—. Un recorrido tiene tres, y el que falta, **dónde estás hoy**, es el que
+ * más importa. Allí además la línea que une es un separador gris; aquí es el
+ * dato: lleva el color de la dirección, así que la secuencia entera
+ * —definición, mantener, volumen— se lee sin leer una palabra.
  */
 const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove, busy }) => {
   const meta = directionById(phase.direction);
   const progress = phaseProgress(phase, today);
   const kg = targetRateKg(phase, weight);
+  const semanas = phaseWeeks(phase.startsOn, phase.endsOn);
+
+  const estado = past ? 'is-past' : current ? 'is-current' : 'is-future';
 
   return (
-    <div className={`step${past ? ' is-done' : ''}${current ? ' is-current' : ''}`}>
-      <span className="step-mark" style={current ? { color: meta?.color } : undefined}>
-        {past ? <Check size={13} /> : index}
+    /*
+      El color va como variable CSS y no como estilo suelto porque lo leen tres
+      reglas: el nodo, su halo y el tramo de carril que baja hasta la fase
+      siguiente. Repartirlo en tres `style` obligaría a acordarse de los tres.
+    */
+    <div className={`rmap-item ${estado}`} style={{ '--fase': meta?.color }}>
+      <span className="rmap-node" aria-hidden="true">
+        {past ? <Check size={14} /> : index}
       </span>
 
-      <div className="step-body">
-        <div className="step-head">
+      <div className="rmap-card">
+        {/* Las acciones, en la píldora flotante que ya usan las piezas del
+            resumen (`.slot-tools`). Antes eran dos botones fijos en cada fila,
+            que convertían la lista en una barra de herramientas con datos al
+            lado; ahora aparecen al acercarse o al enfocar con el teclado. */}
+        {(onEdit || onRemove) && (
+          <div className="slot-tools" role="group" aria-label={`Ajustar ${phase.title}`}>
+            {onEdit && (
+              <button
+                type="button"
+                className="slot-btn"
+                onClick={onEdit}
+                aria-label={`Editar ${phase.title}`}
+                title="Editar"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+            {onRemove && (
+              <button
+                type="button"
+                className="slot-btn is-danger"
+                onClick={onRemove}
+                disabled={busy}
+                aria-label={`Borrar ${phase.title}`}
+                title="Borrar"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="rmap-head">
           <strong>{phase.title}</strong>
-          <span className="tnum">
-            {shortDate(phase.startsOn)} –{' '}
-            {phase.endsOn ? shortDate(phase.endsOn) : 'sin fecha de fin'}
-          </span>
           {current && <span className="badge badge-info">Ahora</span>}
         </div>
 
-        <div className="row gap-2 t-xs t-secondary">
-          <span className="chip" style={{ color: meta?.color }}>
-            {meta?.label || phase.direction}
+        <div className="rmap-when row gap-2 wrap">
+          <span className="tnum">
+            {shortDate(phase.startsOn)} – {phase.endsOn ? shortDate(phase.endsOn) : 'sin final'}
           </span>
-          {/*
-            El ritmo se enseña en kg/semana y no en el % que se guarda, porque es
-            como piensa el entrenador. Sin peso registrado no hay conversión
-            posible y se dice el porcentaje, que es mejor que un hueco.
-          */}
+          {semanas ? <span className="tnum">· {semanas} sem</span> : null}
+          <span style={{ color: meta?.color }}>· {meta?.label || phase.direction}</span>
+          {/* El ritmo en kg/semana y no en el % que se guarda, porque es como
+              piensa el entrenador. Sin peso registrado no hay conversión posible
+              y se dice el porcentaje, que es mejor que un hueco. */}
           {meta?.sign !== 0 && (
             <span className="tnum">
+              {'· '}
               {kg === null
-                ? `${fmt(phase.ratePct, { decimals: 2 })} %/semana`
-                : `${kg > 0 ? '+' : ''}${fmt(kg, { decimals: 2 })} kg/semana`}
+                ? `${fmt(phase.ratePct, { decimals: 2 })} %/sem`
+                : `${kg > 0 ? '+' : ''}${fmt(kg, { decimals: 2 })} kg/sem`}
             </span>
           )}
         </div>
 
-        {/* La barra solo en la fase en curso: en las pasadas siempre marcaría 100
+        {/* La barra solo en la fase en curso: en las pasadas marcaría siempre 100
             y en las futuras siempre 0, que no es información sino ruido. */}
         {current && progress && !progress.open && (
           <div className="col gap-1">
@@ -235,27 +287,6 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 
         {phase.note && <p className="t-xs t-secondary">{phase.note}</p>}
       </div>
-
-      {(onEdit || onRemove) && (
-        <span className="row gap-1 shrink-0">
-          {onEdit && (
-            <button type="button" className="btn-icon" onClick={onEdit} aria-label="Editar fase">
-              <Pencil size={14} />
-            </button>
-          )}
-          {onRemove && (
-            <button
-              type="button"
-              className="btn-icon btn-icon-danger"
-              onClick={onRemove}
-              disabled={busy}
-              aria-label="Borrar fase"
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-        </span>
-      )}
     </div>
   );
 };
@@ -264,6 +295,12 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
   const set = (patch) => onChange({ ...value, ...patch });
   const meta = directionById(value.direction);
+  // Sin fecha de fin, la fase queda abierta. Es un estado, no un campo vacío.
+  const abierta = !value.endsOn;
+  // Cuántas semanas dura lo que hay puesto. `null` si el rango no son semanas
+  // exactas —una fase heredada de 17 días, por ejemplo—: entonces la barra se
+  // planta en su valor por defecto y ningún atajo sale marcado, que es honesto.
+  const semanasActuales = phaseWeeks(value.startsOn, value.endsOn);
 
   return (
     <form className="card-inset col gap-3" onSubmit={onSubmit}>
@@ -297,48 +334,83 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
         ))}
       </div>
 
-      <div className="grid-2 gap-3">
-        <Field label="Empieza">
-          <input
-            type="date"
-            className="input"
-            value={value.startsOn || ''}
-            onChange={(e) => set({ startsOn: e.target.value })}
-          />
-        </Field>
-        <Field
-          label="Termina"
-          hint="Déjalo en blanco si todavía no sabes cuánto va a durar."
-        >
-          <input
-            type="date"
-            className="input"
-            value={value.endsOn || ''}
-            onChange={(e) => set({ endsOn: e.target.value || null })}
-          />
-        </Field>
-      </div>
+      <Field label="Empieza">
+        <input
+          type="date"
+          className="input"
+          value={value.startsOn || ''}
+          onChange={(e) => set({ startsOn: e.target.value })}
+        />
+      </Field>
 
-      {/* Los atajos de duración: lo que se usa de verdad, sin quitar la fecha
-          libre de arriba. Ver PHASE_PRESETS. */}
+      {/*
+        ══ La duración manda, la fecha de fin se deduce ══════════════════════
+
+        Antes había dos fechas y unos atajos de semanas al lado, y era el orden
+        equivocado: nadie planifica «definición hasta el 23 de mayo», planifica
+        «doce semanas de definición». Con dos calendarios había que hacer la
+        cuenta mentalmente y comprobar que cuadraba.
+
+        Ahora se elige la duración —barra para el ajuste fino, atajos para lo
+        habitual— y el día en que termina se enseña como CONSECUENCIA, en texto.
+        No hace falta escribirlo nunca.
+      */}
       {value.startsOn && (
-        <div className="row gap-2">
-          <span className="t-2xs t-tertiary">Duración</span>
-          {PHASE_PRESETS.map((semanas) => (
-            <button
-              key={semanas}
-              type="button"
-              className="chip"
-              onClick={() =>
-                set({
-                  endsOn: nextPhaseDraft([], value.direction, semanas, value.startsOn).endsOn,
-                })
-              }
-            >
-              {semanas} sem
-            </button>
-          ))}
-        </div>
+        <Field label="Duración">
+          <div className="col gap-2">
+            <div className="row gap-3">
+              <input
+                type="range"
+                className="range"
+                min={PHASE_WEEKS_RANGE.min}
+                max={PHASE_WEEKS_RANGE.max}
+                value={semanasActuales || 12}
+                disabled={abierta}
+                onChange={(e) => set({ endsOn: endFromWeeks(value.startsOn, e.target.value) })}
+                aria-label="Semanas que dura la fase"
+              />
+              <span className="tnum shrink-0" style={{ minWidth: 84 }}>
+                {abierta ? '—' : `${semanasActuales || 12} sem`}
+              </span>
+            </div>
+
+            <div className="row gap-2 wrap">
+              {PHASE_PRESETS.map((semanas) => (
+                <button
+                  key={semanas}
+                  type="button"
+                  className="chip"
+                  aria-pressed={!abierta && semanasActuales === semanas}
+                  onClick={() => set({ endsOn: endFromWeeks(value.startsOn, semanas) })}
+                >
+                  {semanas} sem
+                </button>
+              ))}
+            </div>
+
+            {/*
+              La fase abierta es una decisión, no un campo en blanco: «todavía no
+              sé cuánto va a durar». Como casilla lo dice; como fecha vacía en un
+              calendario parecía que faltaba rellenar algo.
+            */}
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={abierta}
+                onChange={(e) =>
+                  set({ endsOn: e.target.checked ? null : endFromWeeks(value.startsOn, 12) })
+                }
+              />
+              Todavía no sé cuánto va a durar
+            </label>
+
+            <span className="t-xs t-tertiary">
+              {abierta
+                ? 'La fase se queda abierta hasta que le pongas un final.'
+                : `Termina el ${shortDate(value.endsOn)}.`}
+            </span>
+          </div>
+        </Field>
       )}
 
       {meta?.sign !== 0 && (

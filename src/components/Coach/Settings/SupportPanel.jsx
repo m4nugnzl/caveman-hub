@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LifeBuoy, Plus, Send } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { recentIssues } from '@/lib/diagnostics';
 import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 
 /**
@@ -18,7 +19,8 @@ import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/
  * consola vería una bandeja vacía, porque la base no le devuelve nada más.
  */
 export const SupportPanel = () => {
-  const { loadTickets, createTicket, replyTicket, setTicketStatus, isSupport, session } = useApp();
+  const { loadTickets, createTicket, replyTicket, setTicketStatus, isSupport, session, plan } =
+    useApp();
 
   const [tickets, setTickets] = useState([]);
   const [estado, setEstado] = useState('cargando'); // cargando | listo | error
@@ -54,12 +56,44 @@ export const SupportPanel = () => {
 
   const pendientes = tickets.filter((t) => t.status === 'open').length;
 
+  /*
+    ¿Está pintándose el hueco vacío? Es lo único que decide si el botón de la
+    cabecera sobra, porque ese hueco ya ofrece la misma acción.
+
+    Se calcula aquí y no se repite la condición en dos sitios: la primera versión
+    las escribió por separado —`lista.length > 0` arriba y `estado === 'listo' &&
+    lista.length === 0` abajo— y dejó un caso sin cubrir: **con la lista vacía y
+    un error de carga no salía el botón por ningún lado**, así que no había forma
+    de escribir a soporte justo cuando algo estaba fallando. Que es exactamente
+    cuando hace falta.
+  */
+  const huecoVacio = estado === 'listo' && lista.length === 0 && !redactando;
+
   return (
-    <Panel>
+    /*
+      `col gap-4`, no `Panel` a secas.
+
+      `Panel` pinta una tarjeta con relleno pero NO es contenedor flexible ni
+      tiene separación propia: sus hijos se apilan pegados unos a otros. Por eso
+      el botón de la cabecera quedaba tocando el primer ticket. La convención del
+      proyecto es pasarle la separación —así lo hacen los paneles del resumen— y
+      en los dos paneles nuevos se me olvidó.
+    */
+    <Panel className="col gap-4">
       <SectionTitle
         icon={LifeBuoy}
         action={
-          !redactando && !isSupport ? (
+          /*
+            El botón sale SIEMPRE para quien pueda escribir —también para quien
+            atiende la plataforma: atenderla no deja de convertirte en entrenador
+            con tu propia cuenta—, pero NO cuando la lista está vacía.
+
+            Con la lista vacía el hueco central ya ofrece la misma acción, y
+            enseñar los dos deja dos botones idénticos en la misma pantalla
+            peleando por el mismo clic. La llamada a la acción es del hueco
+            vacío; la de la cabecera es para cuando ya hay algo debajo.
+          */
+          !redactando && !huecoVacio ? (
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -85,6 +119,7 @@ export const SupportPanel = () => {
 
       {redactando && (
         <NuevoTicket
+          plan={plan}
           onCancel={() => setRedactando(false)}
           onSend={async (campos) => {
             const res = await createTicket(campos);
@@ -105,21 +140,19 @@ export const SupportPanel = () => {
         </p>
       )}
 
-      {estado === 'listo' && lista.length === 0 && !redactando && (
+      {huecoVacio && (
         <EmptyState
           icon={LifeBuoy}
           title={isSupport ? 'No hay tickets' : '¿Te has atascado con algo?'}
           message={
             isSupport
-              ? 'Cuando alguien escriba, su hilo aparecerá aquí.'
+              ? 'Cuando alguien escriba, su hilo aparecerá aquí. También puedes abrir uno tú para anotar algo o para comprobar que los avisos llegan.'
               : 'Escríbenos y te contestamos por aquí mismo. Cuéntanos qué intentabas hacer y qué pasó en su lugar: con eso solemos resolverlo a la primera.'
           }
           action={
-            !isSupport ? (
-              <button type="button" className="btn btn-primary" onClick={() => setRedactando(true)}>
-                <Plus size={16} /> Escribir a soporte
-              </button>
-            ) : null
+            <button type="button" className="btn btn-primary" onClick={() => setRedactando(true)}>
+              <Plus size={16} /> Escribir a soporte
+            </button>
           }
         />
       )}
@@ -135,7 +168,16 @@ export const SupportPanel = () => {
               open={abierto === ticket.id}
               onToggle={() => setAbierto(abierto === ticket.id ? null : ticket.id)}
               onReply={async (body) => {
-                const res = await replyTicket(ticket.id, body, isSupport);
+                /*
+                  Se habla como soporte solo en los hilos AJENOS.
+
+                  En el tuyo propio eres el que pregunta, aunque además atiendas
+                  la plataforma: marcarlo como respuesta de soporte pondría el
+                  ticket en «contestado» por escribirte a ti mismo, y lo sacaría
+                  de tu propia bandeja de pendientes.
+                */
+                const esMio = ticket.profileId === session?.user?.id;
+                const res = await replyTicket(ticket.id, body, isSupport && !esMio);
                 if (!res.ok) return res.error;
                 await recargar();
                 return null;
@@ -206,13 +248,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
         <div className="card-inset col gap-3">
           {/* Contexto técnico, solo para quien atiende: al que escribe no le dice
               nada y le ocuparía la pantalla. */}
-          {isSupport && Object.keys(ticket.context || {}).length > 0 && (
-            <p className="t-2xs t-tertiary">
-              {Object.entries(ticket.context)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join(' · ')}
-            </p>
-          )}
+          {isSupport && <Contexto context={ticket.context} />}
 
           <div className="col gap-3">
             {ticket.messages.map((msg) => (
@@ -266,14 +302,73 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
   );
 };
 
+/**
+ * El contexto técnico del ticket, para quien lo atiende.
+ *
+ * Los fallos van aparte y en monoespaciada porque son lo único que se lee
+ * carácter a carácter: un nombre de tabla o un código de error se compara, no se
+ * ojea. El resto —ruta, plan, navegador— es una línea de referencia.
+ */
+const Contexto = ({ context }) => {
+  const { fallos = [], ...resto } = context || {};
+  const entradas = Object.entries(resto).filter(([, v]) => v !== null && v !== '');
+
+  if (entradas.length === 0 && fallos.length === 0) return null;
+
+  return (
+    <div className="col gap-2">
+      {entradas.length > 0 && (
+        <p className="t-2xs t-tertiary">
+          {entradas.map(([k, v]) => `${k}: ${v}`).join(' · ')}
+        </p>
+      )}
+
+      {fallos.length > 0 && (
+        <div className="col gap-1">
+          <span className="t-2xs t-tertiary">
+            Últimos fallos en su sesión, del más reciente al más antiguo:
+          </span>
+          {fallos.map((f, i) => (
+            <code key={i} className="t-2xs" style={{ wordBreak: 'break-word' }}>
+              [{f.source}] {f.message}
+              {f.count > 1 ? ` (×${f.count})` : ''}
+              {f.path ? ` — ${f.path}` : ''}
+            </code>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /** Abrir un ticket. Dos campos, y el contexto se recoge solo. */
-const NuevoTicket = ({ onCancel, onSend }) => {
+const NuevoTicket = ({ onCancel, onSend, plan }) => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
-  const valido = subject.trim().length > 2 && body.trim().length > 9;
+  /*
+    Qué falta para poder enviar, DICHO.
+
+    Antes era un booleano suelto que dejaba el botón gris sin explicar nada: si
+    escribías «no va» en la descripción, «Enviar» no se podía pulsar y la
+    pantalla no daba ninguna pista. Un botón deshabilitado sin motivo visible es
+    un callejón sin salida — y con un formulario de dos campos, encima parece que
+    la aplicación está rota.
+
+    Los mínimos son bajos a propósito: no están para exigir un informe, sino para
+    evitar el ticket con asunto «a» y cuerpo vacío, que no se puede contestar.
+  */
+  const falta = !subject.trim()
+    ? 'Ponle un asunto.'
+    : subject.trim().length <= 2
+      ? 'El asunto es demasiado corto.'
+      : body.trim().length <= 9
+        ? 'Cuenta un poco más en «Qué pasa»: con una o dos frases basta.'
+        : null;
+
+  const valido = falta === null;
 
   const enviar = async (event) => {
     event.preventDefault();
@@ -281,12 +376,22 @@ const NuevoTicket = ({ onCancel, onSend }) => {
 
     setEnviando(true);
     /*
-      El contexto lo recoge la aplicación, no se le pregunta al usuario. Ahorra el
-      primer intercambio entero —«¿en qué pantalla?», «¿en el móvil?»—, que
-      siempre es el mismo y cuesta un día de ida y vuelta.
+      El contexto lo recoge la aplicación, no se le pregunta al usuario.
 
-      Es información del navegador, no del usuario: nada de aquí identifica a
-      nadie más de lo que ya identifica su propio ticket.
+      ── Lo que cambia respecto a un formulario normal ──────────────────────
+      Un ticket que solo lleva lo que la persona sabe contar dice «no me guarda
+      la dieta», y eso no se puede diagnosticar. Aquí van además:
+
+        · Dónde estaba y con qué navegador — ahorra el primer intercambio entero.
+        · Su plan y cuántos clientes tiene — la mitad de los fallos de escritura
+          son el límite del plan o la suscripción caducada, y saberlo de entrada
+          evita ir a mirarlo cliente por cliente.
+        · **Los últimos fallos reales** (`lib/diagnostics`), que es la diferencia
+          entre «no me guarda» y «violates row-level security policy for table
+          workout_data, tres veces, en /c/abc/rutina».
+
+      Nada de esto sale de un formulario ni identifica a nadie más que a quien ya
+      firma el ticket.
     */
     const fallo = await onSend({
       subject: subject.trim(),
@@ -295,6 +400,11 @@ const NuevoTicket = ({ onCancel, onSend }) => {
         ruta: window.location.pathname,
         pantalla: `${window.screen?.width || '?'}×${window.screen?.height || '?'}`,
         navegador: navigator.userAgent.slice(0, 180),
+        plan: plan ? `${plan.plan} · ${plan.status}${plan.activo ? '' : ' · INACTIVO'}` : 'sin plan',
+        clientes: plan?.clients ?? null,
+        // Los seis últimos: más no caben en un vistazo y los viejos rara vez
+        // explican lo que acaba de pasar.
+        fallos: recentIssues().slice(0, 6),
       },
     });
     setEnviando(false);
@@ -336,13 +446,16 @@ const NuevoTicket = ({ onCancel, onSend }) => {
 
       {error && <Notice tone="error">{error}</Notice>}
 
-      <div className="row gap-2">
+      <div className="row gap-2 wrap">
         <button type="submit" className="btn btn-primary btn-sm" disabled={!valido || enviando}>
           {enviando ? 'Enviando…' : 'Enviar'}
         </button>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
           Cancelar
         </button>
+        {/* Al lado del botón que no se puede pulsar, que es donde se mira al no
+            entender por qué no pasa nada. */}
+        {falta && <span className="t-xs t-tertiary">{falta}</span>}
       </div>
     </form>
   );
