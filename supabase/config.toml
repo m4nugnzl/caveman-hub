@@ -66,6 +66,16 @@ verify_jwt = false
 [functions.billing-webhook]
 verify_jwt = false
 
+# ── Aviso de ticket de soporte ──────────────────────────────────────────────
+#
+# Mismo caso que `notion-payments`: la llama el navegador con `functions.invoke`,
+# así que el preflight `OPTIONS` llega sin cabeceras y la pasarela lo rechazaría.
+# La autorización la hace la función, y es más estricta que la pasarela: lee el
+# ticket CON EL TOKEN de quien llama, así que RLS decide si es suyo. Sin eso,
+# mandar el identificador de otro ticket enviaría su contenido por correo.
+[functions.support-notify]
+verify_jwt = false
+
 # Y esta también, aunque parezca lo contrario: la llama el NAVEGADOR con sesión.
 #
 # El motivo es el del comentario de `notion-payments`: `functions.invoke` manda

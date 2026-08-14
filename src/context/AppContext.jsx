@@ -1104,6 +1104,22 @@ export const AppProvider = ({ children }) => {
       });
 
       if (primero.error) return { ok: false, error: primero.error.message };
+
+      /*
+        El aviso por correo, y su fallo NO se propaga.
+
+        El ticket ya está guardado y se puede leer en la bandeja: si el correo no
+        sale —porque no hay clave configurada, porque Resend está caído— sería
+        mentira decirle al entrenador que no se ha podido crear su ticket. Se
+        traga a propósito.
+
+        Va después del INSERT y no dentro de la función: así el ticket existe
+        aunque el aviso falle, en vez de al revés.
+      */
+      supabase.functions
+        .invoke('support-notify', { body: { ticketId: data.id } })
+        .catch(() => {});
+
       return { ok: true, ticketId: data.id };
     },
     [session, team]

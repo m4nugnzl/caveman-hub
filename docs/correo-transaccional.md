@@ -6,6 +6,95 @@ está al final.
 
 ---
 
+## Atajo: el aviso de soporte funciona YA, sin dominio
+
+Todo lo de abajo hace falta para los correos que van **a tus usuarios**. Pero hay
+uno que va **a ti**, y ese se puede tener hoy.
+
+Resend permite enviar desde `onboarding@resend.dev` sin verificar ningún dominio,
+con una limitación: **solo entrega a la dirección con la que te registraste**.
+Para invitaciones o restablecer contraseña eso lo hace inservible; para avisarte
+de un ticket, es exactamente lo que hace falta.
+
+La función `supabase/functions/support-notify` ya está escrita. Para encenderla:
+
+```bash
+npx supabase secrets set RESEND_API_KEY=re_...
+npx supabase secrets set SUPPORT_EMAIL=el-correo-de-tu-cuenta-resend@ejemplo.com
+npx supabase functions deploy support-notify
+```
+
+`SUPPORT_EMAIL` **tiene que ser el correo de la cuenta de Resend**; cualquier otro
+lo rechaza mientras no haya dominio verificado.
+
+Cuando lo tengas, añade `SUPPORT_FROM` con tu remitente propio y la función no se
+toca:
+
+```bash
+npx supabase secrets set SUPPORT_FROM="Caveman Hub <soporte@tu-dominio.com>"
+```
+
+Y si no configuras nada, no pasa nada: la función responde «no configurado», el
+ticket se guarda igual y el contador de Ajustes › Ayuda sigue avisando dentro de
+la aplicación.
+
+---
+
+## Aviso por Telegram (mejor que el correo para esto)
+
+La misma función manda también un mensaje de Telegram, y es **el canal que de
+verdad cambia el tiempo de respuesta**: el correo llega a un buzón que se mira
+cuando se mira; esto llega al bolsillo al momento.
+
+No necesita dominio, ni verificación, ni tarjeta. Son dos datos:
+
+### 1. Crear el bot
+
+En Telegram, habla con [@BotFather](https://t.me/BotFather):
+
+```
+/newbot
+```
+
+Te pide un nombre y un usuario (tiene que acabar en `bot`, p. ej. `cavemanhub_soporte_bot`).
+Al terminar te da un **token** con esta pinta:
+
+```
+8123456789:AAF-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+Es una credencial: del chat de BotFather a la terminal, y a ningún sitio más.
+
+### 2. Sacar tu `chat_id`
+
+Un bot **no puede escribirte hasta que tú le escribas primero** — es de Telegram,
+para que nadie te mande mensajes sin permiso. Así que:
+
+1. Busca tu bot por su usuario y dale a **Iniciar** (o mándale cualquier cosa).
+2. Abre esta URL en el navegador, con tu token:
+
+```
+https://api.telegram.org/bot<TU_TOKEN>/getUpdates
+```
+
+3. Busca en la respuesta `"chat":{"id":123456789`. Ese número es tu `chat_id`.
+
+> Si sale `"result":[]`, es que el bot todavía no ha recibido ningún mensaje
+> tuyo. Escríbele algo y recarga.
+
+### 3. Guardarlo
+
+```bash
+npx supabase secrets set TELEGRAM_BOT_TOKEN=8123456789:AAF-...
+npx supabase secrets set TELEGRAM_CHAT_ID=123456789
+npx supabase functions deploy support-notify
+```
+
+Los dos canales son independientes: puedes tener solo Telegram, solo correo, o
+los dos. Se lanzan a la vez y **el fallo de uno no cancela al otro**.
+
+---
+
 ## Por qué hay que hacerlo
 
 Supabase manda los correos de autenticación con un SMTP **compartido entre todos
