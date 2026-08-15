@@ -115,11 +115,20 @@ describe.skipIf(!configurado)('enlaces de revisión', () => {
     expect(error).not.toBeNull();
   });
 
+  /*
+    Esta prueba estuvo en verde sin protegerse de nada.
+
+    La 0043 le hizo `REVOKE ALL ... FROM public` a esta función, y eso NO le quita
+    el permiso a `anon` ni a `authenticated`: Supabase se lo concede
+    explícitamente a los dos con sus `ALTER DEFAULT PRIVILEGES` sobre funciones,
+    y revocarle a PUBLIC no toca un permiso explícito. Es el mismo patrón inerte
+    que el `REVOKE UPDATE (role)` de la 0002.
+
+    Lo cierra la 0047, revocando a los roles por su nombre.
+  */
   it('`new_review_token` no es invocable desde el navegador', async () => {
-    /* Se le hizo REVOKE a propósito: la usan las otras dos por dentro, y que
-       cualquiera pudiera pedir tokens sueltos no aporta nada y da pistas. */
     const { error } = await ana.db.rpc('new_review_token');
-    expect(error).not.toBeNull();
+    expect(error, 'con sesión tampoco: la usan las otras dos por dentro').not.toBeNull();
   });
 
   it('el cliente marca su revisión como vista y sube el contador', async () => {

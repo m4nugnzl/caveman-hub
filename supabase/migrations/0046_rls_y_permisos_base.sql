@@ -168,6 +168,50 @@ GRANT SELECT, UPDATE                  ON public.review_links       TO authentica
 GRANT SELECT, UPDATE                  ON public.teams              TO authenticated;
 GRANT SELECT, UPDATE, DELETE          ON public.team_members       TO authenticated;
 
+-- ── 4. Y la clave de servidor, que tampoco tenía nada ──────────────────────
+--
+-- `service_role` es la clave de confianza: la que usan las funciones de borde, el
+-- webhook de Stripe y `npm run backup`. Nunca viaja al navegador.
+--
+-- Tiene `BYPASSRLS`, y ahí está la trampa: **saltarse RLS no es tener permisos**.
+-- Son dos cosas distintas y hacen falta las dos. En la base reconstruida el rol
+-- se saltaba todas las políticas y aun así no podía leer ni una fila, porque
+-- ninguna migración le concede nada.
+--
+-- La consecuencia más fea es la copia de seguridad: `backup.mjs` se conecta con
+-- esta clave, y sobre una instalación hecha solo desde el repositorio **no podría
+-- copiar nada**. Justo la herramienta que existe para el peor día.
+--
+-- Aquí sí es correcto conceder en bloque: este rol tiene acceso completo por
+-- definición, incluida `integration_secrets` —las funciones de borde leen de ahí
+-- los tokens—. Lo que lo protege no es el permiso, es que la clave no salga del
+-- servidor.
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
+
+/*
+  Y para las tablas que vengan.
+
+  Es lo que impide que este agujero se vuelva a abrir solo: sin esto, la próxima
+  migración que cree una tabla la dejaría otra vez sin permisos para la clave de
+  servidor, y nadie lo notaría hasta la siguiente copia de seguridad.
+
+  Se declara para `postgres` porque es el rol con el que se aplican las
+  migraciones, que es quien creará esas tablas.
+
+  A `authenticated` NO se le pone nada por defecto, y es deliberado: sus permisos
+  se conceden tabla por tabla más arriba, según lo que la aplicación necesita de
+  cada una. Un valor por defecto ancho para el rol del navegador convertiría cada
+  tabla nueva en accesible por descuido — que es exactamente lo contrario de lo
+  que arregla esta migración.
+*/
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT ALL ON TABLES TO service_role;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  GRANT ALL ON SEQUENCES TO service_role;
+
 /*
   Las secuencias de las tablas con clave autonumérica.
 

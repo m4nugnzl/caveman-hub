@@ -152,7 +152,19 @@ export const ReviewBar = () => {
       clientId: session.clientId,
       url: video.watchUrl,
       title: `Revisión de ${session.name}`,
-      weekStart: weekStart(todayISO()),
+      /*
+        La semana de la REVISIÓN, no la de hoy.
+
+        `reviewHistory` empareja cada vídeo con su fila comparando `weekStart`
+        exacto, y la fila lleva el lunes del PERIODO —que con cadencia quincenal,
+        o al cerrar una atrasada, no es el lunes de esta semana—. Con la de hoy,
+        el vídeo se guardaba huérfano: aparecía en la lista general del cliente
+        pero no en la fila que acababa de contestar, que seguía ofreciendo
+        «Enlazar vídeo» como si no se hubiera hecho nada.
+
+        `ReviewHistory.jsx` ya lo hace así en su propio enlazado.
+      */
+      weekStart: session.weekStart,
     });
     setEnCurso(false);
 

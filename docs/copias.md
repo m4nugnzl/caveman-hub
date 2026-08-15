@@ -120,6 +120,25 @@ lo que el RGPD llama conservar sin finalidad.
 
 ## 5. Restaurar
 
+> **Ensayado de verdad el 15 de agosto de 2026**, contra un proyecto local vacío:
+> se sembraron datos, se hizo la copia, se **destruyó la base entera** y se
+> restauró solo desde la carpeta. Resultado: 38 filas, 3 cuentas y 10 archivos,
+> con las huellas idénticas y las claves foráneas resueltas. Lo que sigue es el
+> procedimiento que funcionó, no el que se suponía que iba a funcionar.
+
+```bash
+npm run restore -- --ensayo   ./copias/2026-08-15T20-18-16   # comprueba, no escribe
+npm run restore -- --escribir ./copias/2026-08-15T20-18-16   # restaura
+```
+
+`--ensayo` es el primer botón a propósito: lee la copia, comprueba que está
+completa y dice qué haría, sin tocar nada. El mismo criterio que el normalizador
+de registros heredados.
+
+El script hace los pasos 5.2, 5.3 y 5.4 de abajo —cuentas, filas y archivos, en
+el orden de las claves foráneas—. Los pasos 5.1 y 5.5 siguen siendo a mano
+porque no son datos: uno es el esquema y el otro son credenciales.
+
 El orden importa: las claves foráneas hacen que cargar una tabla antes que su
 padre falle.
 
@@ -190,11 +209,50 @@ una URL, así que cualquier cambio de estructura deja las fotos huérfanas.
 
 ---
 
-## 6. Lo que sigue sin estar resuelto
+## 6. Qué apareció al ensayarlo
 
-- **Nadie ha hecho una restauración completa todavía.** El procedimiento está
-  escrito y es correcto sobre el papel; hasta que no se pruebe en un proyecto de
-  usar y tirar, no se sabe cuánto tarda ni qué se ha olvidado. Es lo primero que
-  haría antes del primer cliente de pago.
+El ensayo era el punto pendiente de este documento, y valió exactamente para lo
+que se decía: **encontrar lo que se había olvidado**. Todo lo de abajo está
+corregido, pero conviene que quede escrito, porque el patrón se repetirá.
+
+- **La copia no cubría cuatro tablas con datos reales.** `client_phases` (el
+  roadmap de cada cliente), `team_subscriptions` (quién paga) y los dos hilos de
+  soporte. La lista de tablas se escribió a mano y no se actualizó con las
+  migraciones posteriores. **No daba ningún error**: la copia terminaba bien y
+  `--verificar` la daba por buena, porque verificar comprueba que lo copiado esté
+  íntegro, no que esté todo. Ahora hay una prueba (`npm run test:db`) que compara
+  la lista contra el esquema real y falla si aparece una tabla que nadie ha
+  decidido copiar o excluir.
+
+- **El esquema no se podía reconstruir solo con el repositorio.** Faltaba
+  `handle_new_user` —el disparador del alta, que vivía solo en el proyecto de
+  Supabase— y `schema.sql` estaba fuera de la cadena de migraciones. Ver
+  `supabase/bootstrap.sql` y la migración `0000`.
+
+- **`service_role` no tenía permisos de tabla.** Tiene `BYPASSRLS`, y saltarse
+  RLS no es tener permisos: son dos cosas distintas y hacen falta las dos. Sobre
+  una base reconstruida, **el propio script de copia no podía leer nada**. Lo
+  arregla la migración `0046`.
+
+- **Detalles que solo se ven haciéndolo**, y que el script ya resuelve: cinco
+  tablas no tienen clave `id` sino compuesta o natural; `audit_log.id` lo genera
+  la base y rechaza que se le imponga uno; y un archivo subido sin declarar su
+  tipo se manda como `text/plain`, que el bucket rechaza — la restauración se
+  quedaba sin fotos justo al final, con todas las filas ya puestas.
+
+**Un aviso sobre el ensayo local.** Si vacías la base de un entorno local con
+`supabase db reset`, te llevas por delante los esquemas `auth` y `storage`, que
+los crean sus propios servicios. Hay que reiniciar esos dos contenedores para que
+los recreen antes de restaurar. En un proyecto NUEVO de Supabase esto no pasa: la
+plataforma los trae puestos.
+
+## 7. Lo que sigue sin estar resuelto
+
+- **No se ha ensayado contra un proyecto de Supabase real**, solo contra uno
+  local. Lo que cambia allí es la latencia y el volumen, no el procedimiento —
+  pero conviene repetirlo una vez con una copia de verdad antes de necesitarlo.
 - **No hay cifrado en el propio script.** Lo delega en dónde guardes la carpeta.
 - **No hay rotación automática.** Borrar las copias viejas es manual.
+- **Las contraseñas no se restauran** y no se pueden: cada persona entra con «he
+  olvidado mi contraseña». Con usuarios de pago, eso es un correo que hay que
+  saber mandar — otra razón para tener el correo transaccional resuelto.

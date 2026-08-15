@@ -144,6 +144,41 @@ describe.skipIf(!configurado)('la frontera entre carteras', () => {
     expect(guardado.error).toBeNull();
   });
 
+  /*
+    ══ Qué puede ejecutar alguien SIN SESIÓN ══════════════════════════════════
+
+    Las migraciones protegen sus funciones con `REVOKE ALL ... FROM public`, y eso
+    no le quita el permiso a `anon`: Supabase se lo concede explícitamente a toda
+    función nueva con sus `ALTER DEFAULT PRIVILEGES`, y revocarle a PUBLIC no toca
+    un permiso explícito. Durante mucho tiempo la lista de lo alcanzable sin
+    sesión fue, en la práctica, «todas».
+
+    No es una catástrofe porque las que importan se defienden solas —comprueban
+    `auth.uid()` o llaman a `app_can_write_client`, y sin sesión eso es nulo—.
+    Pero «no pasa nada porque además hay otra comprobación» es justo el
+    razonamiento que conviene tener vigilado.
+
+    Esta prueba fija las dos que NO se defendían solas y que la 0047 cerró. Si
+    alguna vuelve a ser alcanzable, salta aquí y no en producción.
+  */
+  it('sin sesión no se puede sembrar la biblioteca de un equipo ajeno', async () => {
+    const { anon } = await import('./harness');
+    const sinSesion = anon();
+    const { error } = await sinSesion.rpc('seed_team_library', {
+      target_team: '00000000-0000-0000-0000-000000000000',
+    });
+    expect(error, 'escribir sin identificarse no debería ser posible').not.toBeNull();
+  });
+
+  it('sin sesión no se puede saber si un equipo está al corriente de pago', async () => {
+    const { anon } = await import('./harness');
+    const sinSesion = anon();
+    const { error } = await sinSesion.rpc('team_write_allowed', {
+      target_team: '00000000-0000-0000-0000-000000000000',
+    });
+    expect(error).not.toBeNull();
+  });
+
   it('sin sesión no se ve absolutamente nada', async () => {
     const { anon } = await import('./harness');
     const sinSesion = anon();

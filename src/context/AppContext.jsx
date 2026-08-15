@@ -4355,21 +4355,37 @@ export const AppProvider = ({ children }) => {
       if (error) return { ok: false, error: error.message };
 
       /* Se refleja al instante: entregar es un gesto y la pantalla tiene que
-         cambiar de estado sin esperar a una recarga que quizá no llega. */
-      setCheckIns((prev) => ({
-        ...prev,
-        [clientId]: {
-          ...(prev[clientId]?.weekStart === week ? prev[clientId] : {}),
-          id: data,
-          clientId,
-          weekStart: week,
-          weight,
-          notes: notes || '',
-          submittedAt: new Date().toISOString(),
-          reviewedAt: null,
-          coachNotes: '',
-        },
-      }));
+         cambiar de estado sin esperar a una recarga que quizá no llega.
+
+         ── Pero solo si es MÁS RECIENTE que lo que ya había ─────────────────
+         `checkIns` guarda una sola entrega por cliente, la última: así la carga
+         inicial y todo lo que la lee —«Hoy», la cartera, el portal— hablan de la
+         semana en curso.
+
+         Entregar una ATRASADA rompía ese invariante. El cliente que ya entregó
+         esta semana, ya recibió respuesta, y luego pulsa el chip de la semana que
+         se le quedó sin mandar, se encontraba con que su pantalla volvía a
+         ofrecerle «Entregar mi semana» y la respuesta de su entrenador
+         desaparecía: la fila vieja había sustituido a la nueva. */
+      setCheckIns((prev) => {
+        const anterior = prev[clientId];
+        if (anterior && anterior.weekStart > week) return prev;
+
+        return {
+          ...prev,
+          [clientId]: {
+            ...(anterior?.weekStart === week ? anterior : {}),
+            id: data,
+            clientId,
+            weekStart: week,
+            weight,
+            notes: notes || '',
+            submittedAt: new Date().toISOString(),
+            reviewedAt: null,
+            coachNotes: '',
+          },
+        };
+      });
 
       return { ok: true, id: data };
     },

@@ -50,7 +50,13 @@ export default [
      * mismo motivo: las pruebas contra la base de datos leen sus credenciales de
      * `process.env` y corren fuera de un navegador.
      */
-    files: ['scripts/**/*.mjs', 'scripts/**/*.js', '*.config.js', 'supabase/tests/**/*.js'],
+    files: [
+      'scripts/**/*.mjs',
+      'scripts/**/*.js',
+      '*.config.js',
+      'supabase/tests/**/*.js',
+      'supabase/tests/**/*.mjs',
+    ],
     languageOptions: { globals: { ...globals.node } },
     rules: { 'no-console': 'off' },
   },

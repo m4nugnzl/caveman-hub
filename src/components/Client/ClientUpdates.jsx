@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 import { useActions, useData } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
-import { pendingTasks, unseenUpdates } from '@/domain/updates';
+import { lastSeen, pendingTasks, unseenUpdates } from '@/domain/updates';
 import { todayISO } from '@/lib/dates';
 import { Panel } from '@/components/ui/primitives';
 
@@ -33,6 +33,23 @@ import { Panel } from '@/components/ui/primitives';
  * volvería a pintar el componente sin las novedades **antes de que le diera
  * tiempo a leerlas**. Con dos segundos, las ve, y para la próxima visita ya no
  * están.
+ *
+ * ══ Y por qué el sello también se pone cuando NO hay novedades ══════════════
+ *
+ * Porque si no, no se pone nunca y esta pantalla no funciona para nadie.
+ *
+ * `unseenUpdates` devuelve vacío mientras no haya un `seen` guardado —para que
+ * quien estrena el portal no vea de golpe tres avisos de cosas que llevan ahí
+ * desde marzo—. Pero el ÚNICO sitio que escribe ese `seen` es este efecto, y
+ * estaba condicionado a que hubiera novedades. O sea: sin sello no hay novedades,
+ * y sin novedades no se escribía el sello.
+ *
+ * La consecuencia era que el aviso de «tu entrenador te ha cambiado la rutina»
+ * no le llegaba nunca a ningún cliente, en silencio y sin nada que lo delatara.
+ *
+ * Así que la primera visita PONE EL CONTADOR EN MARCHA aunque no haya nada que
+ * enseñar. Es lo que hace cierta la promesa del dominio: no ves lo de antes,
+ * pero sí todo lo que cambie a partir de ahora.
  */
 export const ClientUpdates = ({ client }) => {
   const { anthropometry } = useData();
@@ -61,13 +78,18 @@ export const ClientUpdates = ({ client }) => {
   const hayNovedades = novedades.length > 0;
   const clientId = client?.id;
 
+  /* Se sella si hay novedades que dar por vistas, o si no hay sello todavía
+     —la primera visita, que es la que arranca el contador—. Sin la segunda
+     mitad, `seen` no se escribía jamás y las novedades no llegaban nunca. */
+  const estrena = !lastSeen(preferences);
+
   useEffect(() => {
-    if (!clientId || !hayNovedades) return undefined;
+    if (!clientId || (!hayNovedades && !estrena)) return undefined;
     const id = setTimeout(() => {
       updateClientPreferences(clientId, 'feed', { seen: new Date().toISOString() });
     }, 2000);
     return () => clearTimeout(id);
-  }, [clientId, hayNovedades, updateClientPreferences]);
+  }, [clientId, hayNovedades, estrena, updateClientPreferences]);
 
   if (!hayNovedades && pendientes.length === 0) return null;
 

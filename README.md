@@ -60,6 +60,7 @@ npm run test      # tests del dominio
 npm run test:db   # tests contra una base de datos (ver abajo) — NO entra en check
 npm run check     # todo lo anterior + build de producción
 npm run backup    # copia de seguridad completa (filas, cuentas y fotos)
+npm run restore   # y devolverla a una base vacía — ensayado, ver docs/copias.md
 ```
 
 `backup` no es parte de `check`: corre contra la base de datos real y necesita la
