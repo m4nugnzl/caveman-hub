@@ -5,10 +5,8 @@ import {
   ChevronRight,
   Plus,
   Ruler,
-  Scale,
   Save,
   Trash2,
-  TrendingDown,
 } from 'lucide-react';
 
 import {
@@ -33,7 +31,6 @@ import { ANGLE_IDS, angleLabel, photoWeek, weekFromStart } from '@/domain/photos
 import { asksBlock, clientProtocol, requiredBlocks, requiresBlock } from '@/domain/protocol';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
-import { BandChart } from '@/components/ui/charts';
 import {
   Field,
   Notice,
@@ -42,6 +39,7 @@ import {
   SectionTitle,
   StatCard,
 } from '@/components/ui/primitives';
+import { Modal } from '@/components/ui/Modal';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { WeeklyCheckIn } from './WeeklyCheckIn';
@@ -233,7 +231,7 @@ export const AnthropometryPanel = ({
     porque quien mide en casa tiene que poder; solo deja de ser lo primero que
     ve. El entrenador lo tiene abierto: para él SÍ es la herramienta.
   */
-  const [completaAbierta, setCompletaAbierta] = useState(!isClient);
+  const [completaAbierta, setCompletaAbierta] = useState(false);
 
   const weights = useMemo(() => weightSeries(history), [history]);
   const weekly = useMemo(() => weeklyWeightAverages(history), [history]);
@@ -371,46 +369,44 @@ export const AnthropometryPanel = ({
         audience={audience}
         onAddWeight={onAdd}
         onRemoveEntry={onRemove}
-      />
+        /*
+          ══ Subir la revisión es una ACCIÓN, no una sección ══════════════════
 
-      {/*
-        ══ La revisión: una sola puerta ═══════════════════════════════════════
+          Era un panel estático debajo del check-in, y desde fuera no se
+          distinguía de «Tu semana»: dos tarjetas seguidas del mismo tamaño
+          hablando las dos de lo mismo. Ninguna de las dos decía qué la separaba
+          de la otra.
 
-        Arriba se PESA —cinco segundos, cada dos días—. Aquí se hace la revisión:
-        las fotos y los perímetros, que son un acto de una vez por semana. Son
-        dos ritmos distintos y estaban mezclados en la misma tarjeta.
-
-        Una sola opción y no dos: «sube tus fotos» y «añade tus medidas» son el
-        mismo momento —el del espejo, el metro y la báscula— y separarlos hacía
-        que la segunda se olvidara.
-      */}
-      {isClient && !completaAbierta ? (
-        <Panel tight className="row between wrap gap-3">
-          <div className="col gap-1">
-            <span className="section-title">
-              <Scale size={17} /> Subir mi revisión
-            </span>
-            <span className="t-sm t-secondary">
-              Tus fotos y tus perímetros. Tus pesajes de la semana van arriba, en el check-in.
-            </span>
-          </div>
+          Subir las fotos y medirse es algo que se HACE, una vez por semana y de
+          una sentada. Eso es un botón y un diálogo, no un apartado de la página
+          ocupando sitio los otros seis días.
+        */
+        action={
           <button
             type="button"
             className="btn btn-primary btn-sm"
             onClick={() => setCompletaAbierta(true)}
           >
-            Subir mi revisión
+            <Camera size={14} /> {isClient ? 'Subir mi revisión' : 'Nueva revisión'}
           </button>
-        </Panel>
-      ) : (
-      <Panel as="form" className="col gap-5" onSubmit={submit}>
-        <SectionTitle
-          icon={Scale}
-          color="var(--data-amber)"
-          action={<SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />}
+        }
+      />
+
+      {completaAbierta && (
+        <Modal
+          title={isClient ? 'Subir mi revisión' : `Nueva revisión de ${client.name}`}
+          size="lg"
+          onClose={() => setCompletaAbierta(false)}
         >
-          {isClient ? 'Mi revisión' : `Nueva revisión de ${client.name}`}
-        </SectionTitle>
+          <form className="col gap-5" onSubmit={submit}>
+            <div className="row between wrap gap-2">
+              <span className="t-sm t-secondary">
+                {isClient
+                  ? 'Tus fotos y tus perímetros, del mismo día. Los pesajes de la semana van en el check-in.'
+                  : 'El peso es el único dato obligatorio. Los pliegues y perímetros son opcionales.'}
+              </span>
+              <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
+            </div>
 
         <p className="t-sm t-secondary">
           {isClient
@@ -634,26 +630,12 @@ export const AnthropometryPanel = ({
           )}
         </div>
         )}
-      </Panel>
+          </form>
+        </Modal>
       )}
 
-      {weekly.length >= 2 && (
-        <Panel tight className="col gap-4">
-          <SectionTitle icon={TrendingDown} color="var(--accent)">
-            Tendencia de peso (promedio semanal)
-          </SectionTitle>
-          <BandChart
-            labels={weekly.map((w) => w.date)}
-            series={[{ id: 'w', label: 'Peso', color: 'var(--data-blue)', unit: ' kg', decimals: 1, points: weekly.map((w) => ({ label: w.date, value: w.value })) }]}
-            height={116}
-            emptyMessage="Con dos semanas de pesajes ya se ve la tendencia."
-          />
-          <p className="t-xs t-tertiary">
-            Cada punto es el promedio de la semana, no un pesaje suelto: así la línea refleja la
-            tendencia real y no el ruido del día a día.
-          </p>
-        </Panel>
-      )}
+      {/* La tendencia ya no vive aquí: está DENTRO del check-in, con los
+          pesajes de los que sale. Ver `WeeklyCheckIn`. */}
 
       {rows.length > 0 && (
         <Panel tight className="col gap-4">

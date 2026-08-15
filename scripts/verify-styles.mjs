@@ -84,6 +84,9 @@ const DATA_COLOR_ALLOWED = [
   'components/dashboard/Dashboard.jsx',
   'components/analytics/AnalyticsPanel.jsx',
   'components/anthropometry/AnthropometryPanel.jsx',
+  // La tendencia de peso se mudó aquí, con los pesajes de los que sale: el color
+  // es el de su serie.
+  'components/anthropometry/WeeklyCheckIn.jsx',
   // Cifras de comparación: las semanas entre fotos y el delta de peso.
   'components/Coach/PhotoStudio/PhotoStudio.jsx',
   'components/Client/ClientPhotos.jsx',

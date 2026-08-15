@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Check, Trash2 } from 'lucide-react';
 
-import { buildWeightLog, weekDates, weeklyCheckIn } from '@/domain/anthropometry';
+import {
+  buildWeightLog,
+  weekDates,
+  weeklyCheckIn,
+  weeklyWeightAverages,
+} from '@/domain/anthropometry';
+import { BandChart } from '@/components/ui/charts';
 import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { Delta } from '@/components/ui/metrics';
@@ -35,11 +41,12 @@ const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
  * Las fotos y los perímetros van juntos, detrás de «Subir mi revisión», que es
  * como se llama de verdad lo que se hace ahí.
  */
-export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 'client' }) => {
+export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 'client', action = null }) => {
   const [reference, setReference] = useState(() => weekStart(todayISO()));
   const [drafts, setDrafts] = useState({});
 
   const checkIn = useMemo(() => weeklyCheckIn(history, reference), [history, reference]);
+  const tendencia = useMemo(() => weeklyWeightAverages(history), [history]);
   const days = useMemo(() => weekDates(checkIn.weekStart), [checkIn.weekStart]);
 
   const byDate = useMemo(
@@ -73,7 +80,8 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
           <h3 className="section-title">Semana del {shortDate(checkIn.weekStart)}</h3>
         </div>
 
-        <div className="row gap-2">
+        <div className="row gap-2 wrap">
+          {action}
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => shift(-1)}>
             Anterior
           </button>
@@ -160,6 +168,38 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
         })}
       </div>
 
+
+      {/*
+        ══ La tendencia, DENTRO del check-in ══════════════════════════════════
+
+        Estaba en un panel suelto más abajo, después de la revisión y del
+        historial. Y es la lectura de lo que se acaba de escribir aquí arriba:
+        los pesajes de la semana y la línea que forman son la misma herramienta
+        —la báscula y lo que dice—, no dos cosas que casualmente hablan de peso.
+
+        Con el promedio al lado, además, se ve de dónde sale el punto de esta
+        semana.
+      */}
+      {tendencia.length >= 2 && (
+        <div className="col gap-2">
+          <span className="section-label">Tendencia · promedio de cada semana</span>
+          <BandChart
+            labels={tendencia.map((w) => w.date)}
+            series={[
+              {
+                id: 'w',
+                label: 'Peso',
+                color: 'var(--data-blue)',
+                unit: ' kg',
+                decimals: 1,
+                points: tendencia.map((w) => ({ label: w.date, value: w.value })),
+              },
+            ]}
+            height={104}
+            emptyMessage="Con dos semanas de pesajes ya se ve la tendencia."
+          />
+        </div>
+      )}
 
       {/* Resultado del check-in: el promedio y su variación contra la semana
           anterior, que es la cifra con la que de verdad se decide. */}
