@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, Layers, Plus, Search, Send, UserPlus, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { traeALaVista } from '@/lib/motion';
 import { buildPortfolio } from '@/domain/portfolio';
 import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
@@ -182,7 +183,7 @@ export const ClientPortfolio = () => {
      parte de abajo de una lista larga no llega a verlo nunca. */
   const noticeRef = useRef(null);
   useEffect(() => {
-    if (invite) noticeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (invite) traeALaVista(noticeRef.current, { block: 'center', behavior: 'smooth' });
   }, [invite]);
 
   /* Sin clientes no hay tablero que enseñar, pero sí hay algo que hacer — y el

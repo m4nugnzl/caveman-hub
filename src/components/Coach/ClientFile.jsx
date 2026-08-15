@@ -361,11 +361,11 @@ const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, on
           va a abrir, y comprobar que apunta a donde toca es media revisión. */}
       {url && !editando && (
         <a
-          className="row gap-1 t-xs"
+          className="row gap-1 t-xs link"
           href={url}
           target="_blank"
           rel="noreferrer noopener"
-          style={{ color: 'var(--data-blue)', fontWeight: 600, minWidth: 0 }}
+          style={{ minWidth: 0 }}
         >
           <ExternalLink size={12} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

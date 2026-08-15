@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, FileText, LifeBuoy, Paperclip, Plus, Send, X } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
+import { dayMonthMaybeYear } from '@/lib/dates';
 import {
   ATTACHMENT_ACCEPT,
   attachmentName,
@@ -334,11 +335,10 @@ const AdjuntoMensaje = ({ path, url }) => {
 
   return (
     <a
-      className="row gap-1 t-xs"
+      className="row gap-1 t-xs link"
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      style={{ color: 'var(--data-blue)', fontWeight: 600 }}
     >
       <FileText size={13} /> {attachmentName(path)} <ExternalLink size={11} />
     </a>
@@ -616,16 +616,6 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
   );
 };
 
-/** «12 mar, 18:04». Con el año solo si no es el actual, que es cuando importa. */
-const fecha = (iso) => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const mismoAno = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-    year: mismoAno ? undefined : 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+/* «12 mar, 18:04». Dos mensajes del mismo día son lo normal en un hilo, así que
+   aquí la hora sí hace falta para ordenarlos. */
+const fecha = (iso) => dayMonthMaybeYear(iso, { conHora: true });

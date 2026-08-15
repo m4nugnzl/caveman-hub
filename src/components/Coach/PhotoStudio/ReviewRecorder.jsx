@@ -28,7 +28,7 @@ import {
   hitsCamera,
 } from '@/domain/recorder';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
-import { todayISO, weekStart } from '@/lib/dates';
+import { dateTime, todayISO, weekStart } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 
 const mmss = (total) => `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
@@ -343,7 +343,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
   return (
     <Panel className="col gap-4">
       <div className="row between wrap gap-2">
-        <SectionTitle icon={Video} color="var(--data-rose)">
+        <SectionTitle icon={Video}>
           Grabar la revisión
         </SectionTitle>
         {recorder.status === 'recording' && (
@@ -593,7 +593,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                 <span className="list-row-label">
                   <span className="title">
                     {review.createdAt
-                      ? new Date(review.createdAt).toLocaleString('es-ES')
+                      ? dateTime(review.createdAt)
                       : review.name}
                   </span>
                   <span className="sub">

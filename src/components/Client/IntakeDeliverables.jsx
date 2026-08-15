@@ -114,10 +114,7 @@ export const IntakeDeliverables = ({ client }) => {
                   {esArchivo ? attachmentName(step.path) : step.hint}
                 </span>
               </span>
-              <span
-                className="row gap-1 shrink-0 t-xs"
-                style={{ color: 'var(--data-blue)', fontWeight: 600 }}
-              >
+              <span className="row gap-1 shrink-0 t-xs link">
                 Abrir {esArchivo ? <FileText size={12} /> : <ExternalLink size={12} />}
               </span>
             </a>

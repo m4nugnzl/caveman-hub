@@ -122,7 +122,7 @@ export const GettingStarted = () => {
               </span>
               <span className="t-xs t-secondary">{paso.texto}</span>
               {paso.to && (
-                <Link className="t-xs" to={paso.to} style={{ color: 'var(--data-blue)', fontWeight: 600 }}>
+                <Link className="t-xs link" to={paso.to}>
                   {paso.accion} →
                 </Link>
               )}

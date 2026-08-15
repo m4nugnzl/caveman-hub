@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Dumbbell, NotebookPen, Play, Quote } from 'lucide-react';
 
 import { WEEK_DAYS, countSets, dayMuscleVolume, unitLabel, weekdayForDay } from '@/domain/training';
-import { allSessionsOfDay, sessionLabel, sessionSetCount } from '@/domain/sessions';
+import {
+  allSessionsOfDay,
+  previousSetsBefore,
+  sessionLabel,
+  sessionSetCount,
+} from '@/domain/sessions';
 import { activeQuestions, asksFeedback, clientProtocol, isModuleOn } from '@/domain/protocol';
-import { todayISO } from '@/lib/dates';
+import { shortDate, todayISO } from '@/lib/dates';
 import { Panel, SaveIndicator, WeekPicker } from '@/components/ui/primitives';
 import { ExerciseList } from '@/components/Coach/Workout/ExerciseList';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
@@ -180,6 +185,16 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
   const planned = countSets(day);
   const weekday = weekdayForDay(cycleType === 'weekly' ? program?.weeklySplit : null, day.dayName);
 
+  /*
+    Lo que levantó la vez anterior en cada serie. Se calcula UNA vez por día y no
+    por celda: recorrer todas las sesiones del programa por cada uno de los
+    veinticuatro campos de la pantalla sería el mismo trabajo veinticuatro veces.
+  */
+  const previousSets = useMemo(
+    () => previousSetsBefore(program?.microcycles || [], microcycle.weekNumber),
+    [program?.microcycles, microcycle.weekNumber]
+  );
+
   const logSet = (exId, setIndex, field, value) => {
     const exercise = (day.exercises || []).find((ex) => ex.id === exId);
     if (!exercise) return;
@@ -223,7 +238,7 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
                 {[
                   weekday,
                   daySession.session
-                    ? `registrando el ${daySession.session.date}`
+                    ? `registrando el ${shortDate(daySession.session.date)}`
                     : 'se registrará con la fecha de hoy',
                 ]
                   .filter(Boolean)
@@ -311,6 +326,7 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
         emptyMessage="Tu entrenador no ha programado ejercicios en este día."
         onSetChange={logSet}
         showRir={isModuleOn(protocol, 'rir')}
+        previousSets={previousSets}
       />
 
       {(asksFeedback(protocol) || isModuleOn(protocol, 'clientNote')) &&

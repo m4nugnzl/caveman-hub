@@ -110,7 +110,7 @@ export const ClientUpdates = ({ client }) => {
                 </span>
                 <span className="t-2xs t-tertiary">{n.hint}</span>
               </span>
-              <ArrowRight size={15} style={{ color: 'var(--data-blue)', flexShrink: 0 }} />
+              <ArrowRight size={15} className="shrink-0 t-tertiary" />
             </Link>
           ))}
         </div>

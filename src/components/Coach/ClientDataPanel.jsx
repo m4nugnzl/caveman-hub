@@ -3,7 +3,7 @@ import { Download, History, ShieldAlert, Trash2 } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
 import { clientConsent } from '@/domain/privacy';
-import { shortDate } from '@/lib/dates';
+import { shortDate, timeOfDay } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Notice } from '@/components/ui/primitives';
 
@@ -171,7 +171,7 @@ export const ClientDataPanel = ({ client }) => {
             <li className="log-entry" key={row.id}>
               <div className="log-when">
                 <span className="d">{shortDate(row.at)}</span>
-                <span className="s">{new Date(row.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="s">{timeOfDay(row.at)}</span>
               </div>
               <div className="log-body">
                 <span className="t-sm">

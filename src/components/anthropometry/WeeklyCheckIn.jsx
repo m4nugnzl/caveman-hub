@@ -3,7 +3,7 @@ import { Camera, Check, Trash2 } from 'lucide-react';
 
 import { buildWeightLog, weekDates, weeklyCheckIn } from '@/domain/anthropometry';
 import { ANGLE_IDS, angleLabel, photoWeek, weekFromStart } from '@/domain/photos';
-import { todayISO, weekStart } from '@/lib/dates';
+import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { Delta } from '@/components/ui/metrics';
 import { Panel } from '@/components/ui/primitives';
@@ -97,7 +97,7 @@ export const WeeklyCheckIn = ({
       <div className="row between wrap gap-3">
         <div>
           <span className="section-label">Check-in semanal</span>
-          <h3 className="section-title">Semana del {checkIn.weekStart}</h3>
+          <h3 className="section-title">Semana del {shortDate(checkIn.weekStart)}</h3>
         </div>
 
         <div className="row gap-2">

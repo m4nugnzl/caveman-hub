@@ -66,7 +66,7 @@ export const CycleSettings = ({
               placeItems: 'center',
             }}
           >
-            <RotateCw size={19} color="var(--data-blue)" />
+            <RotateCw size={19} />
           </span>
           <div>
             <span className="section-label">Estructura del programa</span>

@@ -41,7 +41,7 @@
  * se puedan probar en enero y en agosto con el mismo resultado.
  */
 
-import { daysBetween, todayISO, toISODate } from '@/lib/dates';
+import { daysBetween, localeNumber, toISODate, todayISO, weekdayName } from '@/lib/dates';
 import { isSetLogged, sessionTonnage } from './sessions';
 
 /**
@@ -120,7 +120,7 @@ const clientEvents = ({ client, training, anthro, photos, checkIn }, today, days
       title: session.dayName || 'Entreno',
       detail: [
         `${sets} ${sets === 1 ? 'serie' : 'series'}`,
-        tonnage > 0 ? `${tonnage.toLocaleString('es-ES')} kg` : null,
+        tonnage > 0 ? `${localeNumber(tonnage)} kg` : null,
       ]
         .filter(Boolean)
         .join(' · '),
@@ -229,8 +229,8 @@ export const dayLabel = (date, today = todayISO()) => {
   */
   const label =
     age !== null && age < 7
-      ? d.toLocaleDateString('es-ES', { weekday: 'long', timeZone: 'UTC' })
-      : d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+      ? weekdayName(d)
+      : weekdayName(d, { conFecha: true });
 
   return label.charAt(0).toUpperCase() + label.slice(1);
 };

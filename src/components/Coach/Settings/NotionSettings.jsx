@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { dateOnly } from '@/lib/dates';
 import {
   NOTION_FIELDS,
   configIssues,
@@ -260,7 +261,7 @@ export const NotionSettings = ({ onChanged }) => {
     : integration?.status === 'error'
       ? { label: 'Con errores', tone: 'badge-bad' }
       : integration?.lastSyncAt
-        ? { label: `Sincronizado ${new Date(integration.lastSyncAt).toLocaleDateString('es-ES')}`, tone: 'badge-ok' }
+        ? { label: `Sincronizado ${dateOnly(integration.lastSyncAt)}`, tone: 'badge-ok' }
         : { label: 'Conectado, sin sincronizar', tone: 'badge-info' };
 
   const issues = configIssues(config);

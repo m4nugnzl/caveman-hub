@@ -32,7 +32,7 @@
 
 import { newId } from '@/lib/ids';
 import { toNum } from '@/lib/num';
-import { todayISO, toISODate } from '@/lib/dates';
+import { shortDate, todayISO, toISODate } from '@/lib/dates';
 
 const emptySet = () => ({ kg: '', reps: '', rir: '' });
 
@@ -479,5 +479,78 @@ export const allSessionsOfDay = (microcycle, dayName) => {
 export const sessionLabel = (session) => {
   if (!session) return 'Sin sesión';
   if (session.isLegacy) return 'Registro anterior';
-  return session.date || 'Sin fecha';
+  return session.date ? shortDate(session.date) : 'Sin fecha';
 };
+
+// ── La vez anterior ────────────────────────────────────────────────────────
+
+/**
+ * Lo último que se levantó en cada serie, antes de la semana que se está
+ * registrando.
+ *
+ * ══ Por qué hace falta ══════════════════════════════════════════════════════
+ *
+ * Es la pregunta que se hace CADA VEZ que alguien se pone delante de una barra:
+ * ¿cuánto le metí la semana pasada? Sin ella no hay progresión — subir cinco
+ * kilos exige saber de qué. Y la aplicación no la contestaba: para verlo había
+ * que irse al selector de semanas, retroceder, buscar el día, leer la cifra y
+ * volver, en mitad del descanso entre series y con el móvil en una mano.
+ *
+ * ── Y por qué NO se rellenan los campos ─────────────────────────────────────
+ * Porque son dos cosas distintas. `blankDays` vacía a propósito lo ejecutado al
+ * crear la semana siguiente, y hace bien: unos kilos heredados que nadie ha
+ * levantado son indistinguibles de los reales y la analítica daría por entrenada
+ * una semana que no se ha hecho. Esto no rellena nada — solo enseña la
+ * referencia al lado, y lo que se guarda sigue siendo únicamente lo que teclea
+ * la persona.
+ *
+ * ── Por qué se busca por NOMBRE y no por id ─────────────────────────────────
+ * Porque al clonar una semana, `reidExercises` le da un id nuevo a cada
+ * ejercicio: el press de banca de la semana 4 no comparte id con el de la 3. Lo
+ * que se mantiene entre semanas es el nombre, que además es lo que el cliente
+ * reconoce.
+ *
+ * ── Por qué el orden es por SEMANA y luego por fecha ────────────────────────
+ * Una sesión heredada puede no tener fecha, y `String(null)` ordena después de
+ * cualquier año. Ordenando primero por el número de semana, una sesión sin fecha
+ * no puede colarse como «la más reciente».
+ *
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @param {number} weekNumber Semana que se está registrando; solo cuentan las anteriores.
+ * @returns {Map<string, { kg: string, reps: string, weekNumber: number, date: string|null }>}
+ */
+export const previousSetsBefore = (microcycles, weekNumber) => {
+  const out = new Map();
+  if (!Number.isFinite(weekNumber)) return out;
+
+  const anteriores = allSessions(microcycles)
+    .filter((s) => Number.isFinite(s.weekNumber) && s.weekNumber < weekNumber)
+    .sort(
+      (a, b) =>
+        a.weekNumber - b.weekNumber || String(a.date || '').localeCompare(String(b.date || ''))
+    );
+
+  /* De la más antigua a la más reciente: la última que escribe cada clave es la
+     que queda, que es justo la que se busca. */
+  for (const session of anteriores) {
+    for (const entry of session.entries || []) {
+      if (!entry.name) continue;
+      (entry.sets || []).forEach((set, index) => {
+        if (!isSetLogged(set)) return;
+        out.set(previousSetKey(entry.name, index), {
+          kg: set.kg ?? '',
+          reps: set.reps ?? '',
+          weekNumber: session.weekNumber,
+          date: session.date || null,
+        });
+      });
+    }
+  }
+
+  return out;
+};
+
+/** La clave del mapa anterior. En un solo sitio para que no diverja. */
+export function previousSetKey(exerciseName, setIndex) {
+  return `${exerciseName}#${setIndex}`;
+}

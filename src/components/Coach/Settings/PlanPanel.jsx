@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
+import { localeNumber } from '@/lib/dates';
 import { supabase } from '@/lib/supabaseClient';
 import { Notice, Panel } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
@@ -293,7 +294,7 @@ const Header = ({ children }) => (
 const precio = (tier) => {
   if (!tier.price_cents) return 'Incluido';
 
-  const importe = (tier.price_cents / 100).toLocaleString('es-ES', {
+  const importe = localeNumber(tier.price_cents / 100, {
     style: 'currency',
     currency: (tier.currency || 'eur').toUpperCase(),
     minimumFractionDigits: tier.price_cents % 100 === 0 ? 0 : 2,

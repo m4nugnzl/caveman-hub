@@ -9,7 +9,7 @@ import {
   feedbackLog,
   questionStats,
 } from '@/domain/readiness';
-import { shortDate } from '@/lib/dates';
+import { localeNumber, shortDate } from '@/lib/dates';
 import { BandChart } from '@/components/ui/charts';
 import { ChartCard } from '@/components/ui/ChartCard';
 import { Delta } from '@/components/ui/metrics';
@@ -188,7 +188,7 @@ export const FeedbackHistory = ({ microcycles, protocol, audience = 'coach' }) =
                   </div>
 
                   {entry.tonnage > 0 && (
-                    <span className="log-tonnage">{entry.tonnage.toLocaleString('es-ES')} kg</span>
+                    <span className="log-tonnage">{localeNumber(entry.tonnage)} kg</span>
                   )}
                 </li>
               ))}

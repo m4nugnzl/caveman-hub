@@ -109,11 +109,10 @@ export const VideoEmbed = ({ video, title, onPlay }) => {
 export const VideoExternalLink = ({ video }) =>
   video ? (
     <a
-      className="row gap-1 t-xs"
+      className="row gap-1 t-xs link"
       href={video.watchUrl}
       target="_blank"
       rel="noreferrer noopener"
-      style={{ color: 'var(--data-blue)', fontWeight: 600 }}
     >
       Abrir en {video.label} <ExternalLink size={11} />
     </a>

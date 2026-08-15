@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
+import { previousSetKey } from '@/domain/sessions';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { SetCell, SetRow, SetRowHead } from './SetCell';
 
@@ -17,6 +18,9 @@ import { SetCell, SetRow, SetRowHead } from './SetCell';
  * @param canEditStructure  true para el entrenador (reordenar, borrar, añadir
  *   series, definir objetivos). El cliente usa la MISMA lista con esto en false:
  *   registra sus kg, reps y RIR, pero no cambia el programa que le han montado.
+ * @param previousSets  Mapa de `domain/sessions.previousSetsBefore`: lo que se
+ *   levantó en cada serie la vez anterior. Solo se usa registrando — programando
+ *   estorbaría, porque ahí las cifras son el plan y no la ejecución.
  */
 
 export const ExerciseList = ({
@@ -29,6 +33,7 @@ export const ExerciseList = ({
   onAddSet,
   onRemoveSet,
   showRir = false,
+  previousSets = null,
 }) => {
   const confirm = useConfirm();
   const [dragIndex, setDragIndex] = useState(null);
@@ -74,6 +79,9 @@ export const ExerciseList = ({
     <ul className="col gap-2" style={{ listStyle: 'none' }}>
       {exercises.map((exercise, index) => {
         const accent = setColor(index);
+        /* La referencia de la primera serie sirve para saber SI hay vez
+           anterior y de qué semana. Las cifras de cada serie van en su campo. */
+        const antes = previousSets?.get(previousSetKey(exercise.name, 0)) || null;
         return (
           <li
             key={exercise.id}
@@ -145,6 +153,13 @@ export const ExerciseList = ({
               </div>
               <div className="exercise-meta">
                 <span className="muscle">{exercise.muscle}</span>
+                {/* De cuándo son las cifras apagadas de los campos. Sin esto, un
+                    número gris dentro de una casilla vacía no dice nada. */}
+                {antes && (
+                  <span className="prev-hint">
+                    la vez anterior · semana {antes.weekNumber}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -194,6 +209,7 @@ export const ExerciseList = ({
                     exerciseName={exercise.name}
                     onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
                     showRir={showRir}
+                    previous={previousSets?.get(previousSetKey(exercise.name, setIndex))}
                   />
                 ))}
               </div>

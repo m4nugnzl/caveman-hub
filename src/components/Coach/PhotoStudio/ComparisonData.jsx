@@ -109,7 +109,7 @@ export const ComparisonData = ({ before, after, history, gender }) => {
 
   return (
     <Panel className="col gap-3">
-      <SectionTitle icon={Ruler} color="var(--data-orange)">
+      <SectionTitle icon={Ruler}>
         Qué dicen los números
       </SectionTitle>
 

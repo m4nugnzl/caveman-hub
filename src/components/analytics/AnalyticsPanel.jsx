@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { traeALaVista } from '@/lib/motion';
 import {
   MRV_GOALS,
   MUSCLE_COLORS,
@@ -128,7 +129,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
       firstRender.current = false;
       return;
     }
-    contentRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    traeALaVista(contentRef.current, { block: 'start', behavior: 'smooth' });
   }, [openGroup]);
   const [exercise, setExercise] = useState('');
   const [exerciseMetric, setExerciseMetric] = useState('tonnage');

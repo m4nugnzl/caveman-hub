@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
+import { dateOnly, dateTime } from '@/lib/dates';
 import { BrandMark } from '@/components/ui/BrandMark';
 import { Notice, Panel } from '@/components/ui/primitives';
 
@@ -190,7 +191,7 @@ export const StripeSettings = ({ onChanged }) => {
       ? { label: 'Con errores', tone: 'badge-bad' }
       : integration?.lastSyncAt
         ? {
-            label: `Sincronizado ${new Date(integration.lastSyncAt).toLocaleDateString('es-ES')}`,
+            label: `Sincronizado ${dateOnly(integration.lastSyncAt)}`,
             tone: 'badge-ok',
           }
         : { label: 'Conectado, sin sincronizar', tone: 'badge-info' };
@@ -346,7 +347,7 @@ export const StripeSettings = ({ onChanged }) => {
                       Está llegando: {integration.eventCount}{' '}
                       {integration.eventCount === 1 ? 'aviso recibido' : 'avisos recibidos'}
                       {integration.lastEventAt &&
-                        `, el último el ${new Date(integration.lastEventAt).toLocaleString('es-ES')}`}
+                        `, el último el ${dateTime(integration.lastEventAt)}`}
                       .
                     </Notice>
                   ) : (

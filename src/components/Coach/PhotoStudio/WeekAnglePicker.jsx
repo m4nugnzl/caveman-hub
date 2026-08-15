@@ -30,7 +30,7 @@ export const WeekAnglePicker = ({
 
   return (
     <Panel className="col gap-4">
-      <SectionTitle icon={CalendarRange} color="var(--data-blue)">
+      <SectionTitle icon={CalendarRange}>
         Qué comparar
       </SectionTitle>
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Video } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
+import { dayMonthMaybeYear } from '@/lib/dates';
 import { parseVideoUrl } from '@/domain/video';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 import { VideoEmbed, VideoExternalLink } from '@/components/ui/VideoEmbed';
@@ -90,7 +91,7 @@ export const ClientReviews = ({ client }) => {
 
   return (
     <Panel className="col gap-4">
-      <SectionTitle icon={Video} color="var(--data-rose)">
+      <SectionTitle icon={Video}>
         Tus revisiones
       </SectionTitle>
 
@@ -165,14 +166,6 @@ export const ClientReviews = ({ client }) => {
   );
 };
 
-/** «12 mar» — sin hora: de una revisión importa el día, no el minuto. */
-const fecha = (iso) => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const mismoAno = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-    year: mismoAno ? undefined : 'numeric',
-  });
-};
+/* «12 mar», sin hora: de una revisión importa el día, no el minuto. El formato
+   vive en `lib/dates`, que es donde está decidido el idioma. */
+const fecha = (iso) => dayMonthMaybeYear(iso);

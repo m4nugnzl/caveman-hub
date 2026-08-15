@@ -111,8 +111,35 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 
 :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
 
+/* ==========================================================================
+   Movimiento reducido
+   --------------------------------------------------------------------------
+   Quien lo pide en su sistema suele hacerlo por mareo o por sensibilidad al
+   parpadeo, no por gusto.
+
+   ── Por qué no basta con acortar las duraciones ─────────────────────────────
+   Acortar a 0.01ms es la receta habitual y sirve para lo que TERMINA: una
+   transición, un desplegable. Pero esta interfaz tiene dos animaciones
+   INFINITAS —el punto de «guardando» y el de «grabando»—, y una animación
+   infinita a 0.01ms no se para: se convierte en un parpadeo rapidísimo, que es
+   exactamente lo que esa preferencia quiere evitar. Peor que el original.
+
+   `animation-iteration-count: 1` es lo que las detiene de verdad: dan una vuelta
+   y se quedan quietas.
+
+   ── Y el desplazamiento, que no lo cubre ninguna media query ────────────────
+   `scrollIntoView({ behavior: 'smooth' })` se pide desde JavaScript y le da igual
+   lo que diga el CSS. `scroll-behavior: auto` aquí solo tapa el que se declara en
+   hoja de estilos; el de JavaScript lo resuelve `lib/motion.js`, que pregunta la
+   misma preferencia antes de animar.
+   ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 ::-webkit-scrollbar { width: 11px; height: 11px; }
@@ -728,6 +755,42 @@ button.task-head { cursor: pointer; }
   transition: width var(--normal);
 }
 .meter-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--negative); opacity: 0.5; z-index: 2; }
+
+/* ==========================================================================
+   Enlaces
+   --------------------------------------------------------------------------
+   ══ Por qué existe esta clase ══════════════════════════════════════════════
+
+   Porque no existía, y cada enlace se la inventaba: había nueve escritos a mano
+   con `style={{ color: 'var(--data-blue)' }}` —abrir un adjunto, ver la revisión
+   en vídeo, el enlace de la guía de inicio, los entregables del alta…—.
+
+   Eso rompía la regla que ordena todo el producto: EL CROMO NO TIENE COLOR, el
+   color es del dato. Un enlace es cromo, y estaba gastando el azul del disco de
+   20 —una de las nueve tintas reservadas para distinguir series— en decir «esto
+   se puede pulsar». `verify-styles` no lo veía porque `--data-blue` es un token
+   perfectamente válido; lo que estaba mal era dónde se usaba.
+
+   Aquí un enlace se distingue como se distinguen los enlaces desde que existe el
+   texto subrayado: por el subrayado. La tinta es la del texto, así que funciona
+   igual sobre papel y sobre hierro, y no gasta ni una de las nueve.
+   ========================================================================== */
+
+.link {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  /* Separado del texto y fino: un subrayado pegado a las descendentes de una
+     «g» o una «p» las corta y el enlace se lee peor que sin él. */
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--hairline-strong);
+  transition: text-decoration-color var(--fast);
+}
+.link:hover { text-decoration-color: var(--accent); }
+/* El icono que acompaña —el cuadrado de «se abre fuera», la cámara de vídeo— no
+   se subraya: no es texto y el subrayado bajo un glifo cuadrado lo emborrona. */
+.link > svg { text-decoration: none; flex-shrink: 0; }
 
 /* ==========================================================================
    Botones
@@ -1376,6 +1439,24 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .exercise-meta > .muscle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .exercise-meta > .dot { opacity: 0.5; }
+
+/* ── De cuándo son las cifras apagadas de los campos ───────────────────────
+   Registrando, cada casilla vacía lleva de marcador lo que se levantó la vez
+   anterior en esa misma serie. Un número gris dentro de un hueco no dice de
+   cuándo es, así que el ejercicio lo dice una vez y no cuatro.
+
+   Va en versalita como el resto de las etiquetas del producto: es un rótulo, no
+   un dato, y ninguno de los dos puede confundirse con el otro. */
+.exercise-meta > .prev-hint {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-stencil);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exercise-meta > .prev-hint::before { content: '· '; }
 .exercise-meta .target-summary { font-weight: 650; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 /* Botón de igualar objetivos. Discreto y con el valor escrito dentro: un atajo que

@@ -423,11 +423,10 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
                     lo que ofrece completarla. */}
                 {fila.video ? (
                   <a
-                    className="row gap-1 t-xs"
+                    className="row gap-1 t-xs link"
                     href={fila.video.externalUrl || fila.video.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    style={{ color: 'var(--data-blue)', fontWeight: 600 }}
                   >
                     <Video size={12} /> Ver la revisión en vídeo
                   </a>

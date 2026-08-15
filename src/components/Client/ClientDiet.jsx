@@ -117,7 +117,7 @@ export const ClientDiet = ({ plan }) => {
       */}
       {notas.length > 0 && (
         <Panel className="col gap-3">
-          <SectionTitle icon={Sparkles} color="var(--data-blue)">
+          <SectionTitle icon={Sparkles}>
             Pautas de tu entrenador
           </SectionTitle>
           {notas.map((note) => (

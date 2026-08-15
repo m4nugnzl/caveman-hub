@@ -20,7 +20,7 @@ import {
   weightSeries,
 } from '@/domain/anthropometry';
 import { asksBlock, clientProtocol, requiredBlocks, requiresBlock } from '@/domain/protocol';
-import { todayISO } from '@/lib/dates';
+import { shortDate, todayISO } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { BandChart } from '@/components/ui/charts';
 import {
@@ -230,7 +230,7 @@ export const AnthropometryPanel = ({
   const askRemove = async (log) => {
     const ok = await confirm({
       title: '¿Eliminar este registro?',
-      message: `Se borrará la medición del ${log.date}.`,
+      message: `Se borrará la medición del ${shortDate(log.date)}.`,
       confirmLabel: 'Eliminar',
       tone: 'danger',
     });
@@ -556,7 +556,7 @@ export const AnthropometryPanel = ({
                   const logPct = fatPercent(log.skinFolds, client.gender);
                   return (
                     <tr key={log.id || log.date}>
-                      <td style={{ fontWeight: 700 }}>{log.date}</td>
+                      <td style={{ fontWeight: 700 }}>{shortDate(log.date)}</td>
                       <td className="num" style={{ fontWeight: 800, color: 'var(--data-amber)' }}>
                         {fmt(log.weight, { decimals: 1 })}
                       </td>

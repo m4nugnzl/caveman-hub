@@ -11,7 +11,7 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
  */
 export const WeeklySplitEditor = ({ split, onChange }) => (
   <Panel tight className="col gap-4">
-    <SectionTitle icon={Calendar} color="var(--data-rose)">
+    <SectionTitle icon={Calendar}>
       Planificación semanal
     </SectionTitle>
 

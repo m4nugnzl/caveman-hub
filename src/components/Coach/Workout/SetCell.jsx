@@ -49,8 +49,22 @@ const FIELDS = [
  *
  * `FIELDS` se comparte con la tarjeta a propósito: dos listas de campos acaban
  * divergiendo, y el día que se añada «tempo» tiene que aparecer en las dos.
+ *
+ * ── La vez anterior, dentro del propio campo ────────────────────────────────
+ * `previous` es lo que se levantó en ESTA serie la última vez (ver
+ * `domain/sessions.js`). Va como marcador de posición del campo y no en una
+ * columna nueva por dos razones:
+ *
+ *   · Está donde se necesita. La pregunta «¿cuánto le metí?» se hace justo antes
+ *     de escribir la cifra, y la respuesta aparece en el hueco donde se escribe.
+ *   · No cuesta un milímetro. Una sexta columna en una fila que ya tiene cinco
+ *     dejaría los campos por debajo del objetivo táctil en un móvil de 360 px, y
+ *     esto se rellena de pie y con una mano.
+ *
+ * Y no rellena el valor: un marcador desaparece al escribir y NO se guarda. Unos
+ * kilos heredados que nadie ha levantado son indistinguibles de los reales.
  */
-export const SetRow = ({ index, set, onChange, exerciseName, showRir = false }) => {
+export const SetRow = ({ index, set, onChange, exerciseName, showRir = false, previous = null }) => {
   const label = `${exerciseName}, serie ${index + 1}`;
   const done = isSetLogged(set);
 
@@ -76,18 +90,27 @@ export const SetRow = ({ index, set, onChange, exerciseName, showRir = false }) 
         )}
       </span>
 
-      {FIELDS.map((field) => (
-        <input
-          key={field.key}
-          type="text"
-          inputMode={field.mode}
-          className="input input-center"
-          placeholder="—"
-          value={set[field.key] ?? ''}
-          onChange={(e) => onChange(field.key, e.target.value)}
-          aria-label={`${label}: ${field.label}`}
-        />
-      ))}
+      {FIELDS.map((field) => {
+        /* Solo kg y reps tienen referencia: el RIR de la vez anterior no dice
+           qué peso poner hoy, y ofrecerlo invitaría a copiarlo. */
+        const antes = previous?.[field.key];
+        return (
+          <input
+            key={field.key}
+            type="text"
+            inputMode={field.mode}
+            className="input input-center"
+            placeholder={antes || '—'}
+            value={set[field.key] ?? ''}
+            onChange={(e) => onChange(field.key, e.target.value)}
+            aria-label={
+              antes
+                ? `${label}: ${field.label}. La vez anterior, ${antes}`
+                : `${label}: ${field.label}`
+            }
+          />
+        );
+      })}
 
     </div>
   );

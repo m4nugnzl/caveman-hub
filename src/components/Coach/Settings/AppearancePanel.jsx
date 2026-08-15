@@ -25,7 +25,7 @@ export const AppearancePanel = () => {
 
   return (
     <Panel className="col gap-4">
-      <SectionTitle icon={Palette} color="var(--data-violet)">
+      <SectionTitle icon={Palette}>
         Apariencia
       </SectionTitle>
 

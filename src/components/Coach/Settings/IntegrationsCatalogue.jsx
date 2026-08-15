@@ -101,7 +101,7 @@ export const IntegrationsCatalogue = () => {
   return (
     <div className="col gap-4">
       <Panel className="col gap-4">
-        <SectionTitle icon={Plug} color="var(--data-teal)">
+        <SectionTitle icon={Plug}>
           Integraciones
         </SectionTitle>
         <p className="t-sm t-secondary">

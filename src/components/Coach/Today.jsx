@@ -13,7 +13,7 @@ import {
   activityScale,
 } from '@/domain/today';
 import { clientPath } from '@/routes';
-import { shortDate, todayISO } from '@/lib/dates';
+import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
 import { TaskInbox } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
@@ -143,14 +143,9 @@ export const Today = () => {
         <div>
           <h2>Hoy</h2>
           <p>
-            {new Date(`${today}T00:00:00Z`)
-              .toLocaleDateString('es-ES', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                timeZone: 'UTC',
-              })
-              .replace(/^./, (c) => c.toUpperCase())}
+            {weekdayName(`${today}T00:00:00Z`, { conFecha: true }).replace(/^./, (c) =>
+              c.toUpperCase()
+            )}
             {activeToday > 0
               ? ` · ${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'}`
               : ' · sin movimiento todavía'}

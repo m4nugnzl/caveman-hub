@@ -68,7 +68,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload
       <Panel tight className="row between wrap gap-3">
         <div>
           <h2 className="section-title">
-            <Camera size={18} color="var(--data-violet)" /> Mis fotos de progreso
+            <Camera size={18} /> Mis fotos de progreso
           </h2>
           <p className="t-sm t-secondary">
             {photos.length} {photos.length === 1 ? 'foto' : 'fotos'} en {groups.length}{' '}
