@@ -119,9 +119,13 @@ export const nuevoEntrenador = async (etiqueta) => {
 
 /** Da de alta un cliente de ese entrenador y devuelve su id. */
 export const nuevoCliente = async (entrenador, nombre = 'Cliente de prueba') => {
-  const { data, error } = await entrenador.db.rpc('create_client', { client_name: nombre });
+  /* `p_name`, no `client_name`: PostgREST resuelve las funciones por el NOMBRE de
+     sus parámetros, así que equivocarse no da «argumento inválido» sino «no existe
+     la función», que despista mucho más (migración 0032). */
+  const { data, error } = await entrenador.db.rpc('create_client', { p_name: nombre });
   if (error) throw new Error(`create_client falló: ${error.message}`);
-  return typeof data === 'string' ? data : data?.id || data?.[0]?.id;
+  /* Devuelve la fila entera (`RETURNS public.clients`), no solo el id. */
+  return data?.id || data?.[0]?.id || null;
 };
 
 /**

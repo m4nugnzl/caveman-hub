@@ -1,7 +1,32 @@
+-- ============================================================================
+-- Las tablas base
+-- ----------------------------------------------------------------------------
+-- Era `supabase/schema.sql`, fuera de la cadena de migraciones. Se ha movido
+-- aquí porque estando fuera **el repositorio no podía reconstruirse a sí mismo**:
+-- la 0001 empieza con `ALTER TABLE public.exercises` y esa tabla solo la creaba
+-- este archivo, así que aplicar las migraciones sobre una base vacía moría en la
+-- primera con `relation "public.exercises" does not exist`.
+--
+-- Eso convertía el paso 1 de `docs/copias.md` §5.1 en un paso manual que había
+-- que recordar. En una restauración —el único momento en que ese documento se
+-- lee— olvidarlo significa una base a medias.
+--
+-- ══ Es seguro sobre el proyecto que ya está en marcha ══════════════════════
+--
+-- Todo lo de abajo es `CREATE ... IF NOT EXISTS`: una extensión y nueve tablas.
+-- Ni un DROP, ni un DELETE, ni un ALTER. Sobre una base donde ya existen, esta
+-- migración no hace absolutamente nada.
+--
+-- ── Sigue siendo una reconstrucción ────────────────────────────────────────
+-- Salió de introspeccionar el `information_schema` del proyecto real, no de
+-- haberse escrito primero. En las CONSTRAINTS no coincide del todo con la
+-- realidad —está anotado en `upsertClientRow` (`src/context/AppContext.jsx`),
+-- donde un `upsert` fallaba por una constraint que aquí figura y allí no—.
+-- Para las tablas y columnas es fiable; para las constraints, la 0003.
+-- ============================================================================
+
 -- Caveman Hub - current public schema
 -- Reconstructed from Supabase information_schema + constraint introspection.
--- This file describes the current schema and can be used as a local source of truth.
--- Generated without modifying the remote database.
 
 BEGIN;
 

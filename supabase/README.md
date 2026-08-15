@@ -3,8 +3,20 @@
 - **`schema.sql`** — esquema real de `public`, ya versionado. Es la fuente de
   verdad del código: los mapeadores de `src/lib/mappers.js` se corresponden con
   estas columnas exactamente.
-- **`roles.sql`** — volcado de columnas en JSON. Útil como referencia, pero **no
-  contiene las políticas RLS** (ver el apartado pendiente al final).
+- **`bootstrap.sql`** — el disparador `handle_new_user`, que crea el perfil al
+  registrarse. **No es una migración**: es lo que hace falta entre `schema.sql` y
+  `migrations/` para levantar un proyecto desde cero o restaurar uno. Nunca
+  estuvo en el repositorio hasta hace poco; ver el aviso dentro del archivo.
+- **`columnas.json`** — volcado de columnas en JSON. Útil como referencia, pero
+  **no contiene las políticas RLS** (ver el apartado pendiente al final).
+
+  > Se llamaba `roles.sql`, y ese nombre rompía el entorno local. La CLI de
+  > Supabase **reserva `supabase/roles.sql`** para los roles globales y lo
+  > ejecuta al arrancar (`Seeding globals from roles.sql…`). Como el contenido es
+  > JSON, `supabase start` moría con `syntax error at or near "["` y paraba los
+  > contenedores — sin ninguna pista de que el culpable fuera un archivo que
+  > nadie creía que se ejecutara. No se notó porque, hasta ahora, este
+  > repositorio no usaba entorno local.
 
 ## Estado de las migraciones
 
@@ -169,7 +181,7 @@ importar.
 
 ## Pendiente: las políticas RLS
 
-`roles.sql` no las incluye, así que **siguen sin estar versionadas ni
+`columnas.json` no las incluye, así que **siguen sin estar versionadas ni
 revisadas**. Es el único riesgo importante que queda abierto: la anon key es
 pública por diseño, de modo que RLS es la única frontera de autorización real.
 
