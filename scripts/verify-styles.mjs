@@ -9,15 +9,31 @@
  * sin actualizar a sus 38 consumidores y la aplicación entera se descolocó sin
  * que ni el linter ni el build dijeran nada.
  *
- * Este script cierra ese hueco. Comprueba tres cosas:
+ * Este script cierra ese hueco. Comprueba cuatro cosas:
  *   1. Toda clase usada en `className` existe en el CSS.
- *   2. Todo `var(--x)` usado existe como token.
- *   3. No hay literales de color en el JSX (salvo las excepciones declaradas:
+ *   2. Todo `var(--x)` usado existe como token — en el JSX **y en el CSS**.
+ *   3. La paleta de datos no se usa como cromo.
+ *   4. No hay literales de color en el JSX (salvo las excepciones declaradas:
  *      el logo de marca y las paletas de dibujo sobre canvas, que no pueden usar
  *      variables CSS).
  *
+ * ── Por qué la 2 mira también el CSS ────────────────────────────────────────
+ * Porque solo miraba el JSX, y por ahí se coló un `border: 1px solid var(--border)`
+ * —token que no existe; se llama `--edge`— en dos reglas nuevas. Un `var()` sin
+ * fallback que apunta a nada no es un color por defecto: invalida la declaración
+ * ENTERA, así que los dos bordes simplemente no se pintaban. Y nada lo dijo.
+ *
+ * ── Por qué la 3 ────────────────────────────────────────────────────────────
+ * Es la regla que ordena el producto: EL CROMO NO TIENE COLOR, el color es del
+ * dato (ver `styles/tokens.css`). Estaba escrita en un comentario y por tanto se
+ * degradaba sola: había diecisiete sitios pintando iconos de sección y enlaces
+ * con tintas de la paleta de series. Ninguno era un error de token —`--data-blue`
+ * existe— y por eso este script no los veía: lo que estaba mal era DÓNDE.
+ *
+ * Una regla que solo vive en un comentario dura lo que dure quien la escribió.
+ *
  * Uso:  npm run verify
- * Salida: código 1 si hay clases o tokens sin definir.
+ * Salida: código 1 si hay clases, tokens o usos de la paleta de datos indebidos.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -48,6 +64,37 @@ const COLOR_EXCEPTIONS = [
   'domain/nutrition.js',
 ];
 
+/**
+ * Dónde SÍ puede aparecer la paleta de datos (`--data-*`).
+ *
+ * El criterio para entrar en esta lista es uno solo: **que el color signifique
+ * algo**. Una serie de un gráfico, un grupo muscular, un macro, el delta de una
+ * cifra. Si el color solo está para que la pieza se vea más bonita, es cromo, y
+ * el cromo va en tinta —`--accent`, `--text`, `--text-tertiary`— o en la
+ * semántica de estado, que para eso existe.
+ *
+ * `domain/` entra entero: ahí es donde se declaran los mapas de color de las
+ * series (grupos musculares, macros, tipos de actividad), que es la definición
+ * misma de «el color es del dato».
+ */
+const DATA_COLOR_ALLOWED = [
+  'components/ui/charts.jsx',
+  'components/ui/metrics.jsx',
+  'components/nutrition/macros.jsx',
+  'components/dashboard/Dashboard.jsx',
+  'components/analytics/AnalyticsPanel.jsx',
+  'components/anthropometry/AnthropometryPanel.jsx',
+  // Cifras de comparación: las semanas entre fotos y el delta de peso.
+  'components/Coach/PhotoStudio/PhotoStudio.jsx',
+  'components/Client/ClientPhotos.jsx',
+  // Barras de volumen por grupo muscular.
+  'components/Coach/Workout/DayHeader.jsx',
+  // Logotipos de terceros: su color es su marca, no nuestra paleta.
+  'components/ui/BrandMark.jsx',
+  // La marca del cliente activo. Es identidad, no decoración de una sección.
+  'components/Coach/ClientSwitcher.jsx',
+];
+
 const walk = (dir) =>
   readdirSync(dir).flatMap((name) => {
     const full = join(dir, name);
@@ -65,6 +112,19 @@ const definedTokens = new Set([...cssText.matchAll(/--([\w-]+)\s*:/g)].map((m) =
 const badClasses = [];
 const badTokens = [];
 const colorLiterals = [];
+const dataAsChrome = [];
+
+/*
+  Los tokens que usa el propio CSS. Un `var(--noExiste)` sin fallback invalida la
+  declaración entera, así que el borde, el color o el fondo no se pintan — y
+  mirando el archivo no se ve nada raro.
+*/
+for (const file of styles) {
+  const rel = relative(SRC, file).replace(/\\/g, '/');
+  for (const match of readFileSync(file, 'utf8').matchAll(/var\(--([\w-]+)\)/g)) {
+    if (!definedTokens.has(match[1])) badTokens.push(`${rel} → --${match[1]}`);
+  }
+}
 
 for (const file of code) {
   const rel = relative(SRC, file).replace(/\\/g, '/');
@@ -86,6 +146,13 @@ for (const file of code) {
     if (!definedTokens.has(match[1])) badTokens.push(`${rel} → --${match[1]}`);
   }
 
+  /* La paleta de series, usada como cromo. Ver `DATA_COLOR_ALLOWED`. */
+  if (!rel.startsWith('domain/') && !DATA_COLOR_ALLOWED.includes(rel)) {
+    for (const match of text.matchAll(/var\(--data-[\w-]+\)/g)) {
+      dataAsChrome.push(`${rel} → ${match[0]}`);
+    }
+  }
+
   if (!COLOR_EXCEPTIONS.includes(rel)) {
     for (const match of text.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)/g)) {
       colorLiterals.push(`${rel} → ${match[0]}`);
@@ -103,6 +170,7 @@ const report = (label, list, fatal) => {
 
 const classErrors = report('clases sin definir', badClasses, true);
 const tokenErrors = report('tokens sin definir', badTokens, true);
+const chromeErrors = report('paleta de datos usada como cromo', dataAsChrome, true);
 report('literales de color fuera de las excepciones', colorLiterals, false);
 
-process.exit(classErrors + tokenErrors > 0 ? 1 : 0);
+process.exit(classErrors + tokenErrors + chromeErrors > 0 ? 1 : 0);

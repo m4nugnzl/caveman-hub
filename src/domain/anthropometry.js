@@ -129,6 +129,34 @@ export const weightSeries = (history) =>
     .map((h) => ({ date: h.date, value: toNum(h.weight) }))
     .filter((p) => p.value !== null);
 
+/**
+ * El último peso registrado, o `null` si no hay ninguno.
+ *
+ * ══ Por qué existe, y qué reemplaza ═════════════════════════════════════════
+ *
+ * Había una columna `clients.current_weight` que se pintaba en el portal del
+ * cliente bajo la etiqueta «Peso actual» y en el roadmap. **Nadie la escribía**:
+ * ni la aplicación ni ninguna migración. Se quedó con el valor que tuviera el día
+ * que se dejó de rellenar, y desde entonces le enseñaba a cada persona un peso
+ * congelado presentado como el de hoy.
+ *
+ * Un dato desactualizado con etiqueta de actual es peor que no tener el dato: el
+ * hueco vacío se pregunta, la cifra equivocada se cree. Y aquí la cree quien está
+ * siguiendo una dieta a partir de ella.
+ *
+ * El peso de verdad siempre estuvo en `anthropometry.history`, que es lo que la
+ * persona rellena cada semana. Esto lo lee de ahí.
+ *
+ * Se pone en el dominio y no en cada pantalla porque ya se estaba calculando a
+ * mano en la analítica (`weightPts[weightPts.length - 1]`), y dos sitios
+ * calculando «el último peso» por su cuenta es de donde salen las cifras que no
+ * coinciden entre pantallas.
+ */
+export const latestWeight = (history) => {
+  const puntos = weightSeries(history);
+  return puntos.length > 0 ? puntos[puntos.length - 1].value : null;
+};
+
 export const fatSeries = (history, gender) =>
   chronological(history)
     .map((h) => ({ date: h.date, value: fatPercent(h.skinFolds, gender) }))

@@ -189,6 +189,11 @@
 
   --lh-tight: 1.15;
   --lh-base: 1.45;
+  /* Para prosa larga de verdad: hoy solo la privacidad y las condiciones, que se
+     leen de corrido y no se escanean. `.legal` ya lo pedía y el token no
+     existía, así que el interlineado no llegaba a aplicarse — el único texto
+     largo del producto se leía con el mismo aire que una tabla. */
+  --lh-loose: 1.65;
 
   /* El interletraje de la etiqueta troquelada. Va en un token porque aparece en
      una docena de reglas y porque es una decisión, no un número suelto: por

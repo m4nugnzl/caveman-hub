@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { ShieldCheck, UserX } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { latestWeight } from '@/domain/anthropometry';
 import { CONSENT_POINTS, grantConsent, hasConsent } from '@/domain/privacy';
 import { CLIENT_SECTIONS } from '@/routes';
 import { EmptyState, Panel } from '@/components/ui/primitives';
@@ -18,7 +19,11 @@ import { ClientPrivacy } from './ClientPrivacy';
  * atrás no cierra la aplicación.
  */
 export const ClientLayout = () => {
-  const { activeClient, workoutData, isCoach, updateClientPreferences } = useApp();
+  const { activeClient, workoutData, anthropometry, isCoach, updateClientPreferences } = useApp();
+
+  /* Del histórico de pesajes, no de `clients.current_weight`: esa columna no la
+     escribía nadie y enseñaba un peso congelado como si fuera el de hoy. */
+  const pesoActual = latestWeight(anthropometry[activeClient?.id]?.history);
 
   // Un perfil de cliente sin ficha vinculada no tiene datos que mostrar. Antes
   // esto tumbaba la app entera al leer `activeClient.id` sobre undefined.
@@ -100,10 +105,10 @@ export const ClientLayout = () => {
           </div>
         </div>
 
-        {activeClient.currentWeight && (
+        {pesoActual !== null && (
           <div className="client-hero-figure">
             <span className="stat-label">Peso actual</span>
-            <span className="v">{activeClient.currentWeight} kg</span>
+            <span className="v">{pesoActual} kg</span>
           </div>
         )}
       </Panel>

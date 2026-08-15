@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Check, Pencil, Plus, Route, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { latestWeight } from '@/domain/anthropometry';
 import { GOAL_DIRECTIONS, directionById, targetRateKg } from '@/domain/goals';
 import {
   PHASE_PRESETS,
@@ -33,7 +34,11 @@ import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/
  * (migración 0028), no este componente: aquí solo se decide qué botones salen.
  */
 export const RoadmapPanel = ({ audience = 'coach' }) => {
-  const { activeClient, phases, addPhase, updatePhase, removePhase, plan } = useApp();
+  const { activeClient, phases, anthropometry, addPhase, updatePhase, removePhase, plan } = useApp();
+
+  /* Igual que en el portal: el peso sale del histórico, que es lo único que se
+     mantiene al día. */
+  const pesoActual = latestWeight(anthropometry[activeClient?.id]?.history);
   const [form, setForm] = useState(null); // null | {…draft, id?}
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -157,7 +162,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
               today={hoy}
               current={state.current?.id === fase.id}
               past={state.past.some((p) => p.id === fase.id)}
-              weight={activeClient.currentWeight}
+              weight={pesoActual}
               onEdit={puedeEditar ? () => setForm({ ...fase }) : null}
               onRemove={puedeEditar ? () => borrar(fase.id) : null}
               busy={busy}
