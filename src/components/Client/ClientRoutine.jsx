@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Dumbbell, NotebookPen, Play, Quote } from 'lucide-react';
 
-import { WEEK_DAYS, countSets, dayMuscleVolume, unitLabel, weekdayForDay } from '@/domain/training';
+import {
+  WEEK_DAYS,
+  countSets,
+  dayMuscleVolume,
+  drillsForDay,
+  unitLabel,
+  weekdayForDay,
+} from '@/domain/training';
 import {
   allSessionsOfDay,
   previousSetsBefore,
@@ -318,7 +325,7 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
         </div>
       )}
 
-      {isModuleOn(protocol, 'warmup') && <WarmupView drills={program?.mobilityDrills} />}
+      {isModuleOn(protocol, 'warmup') && <WarmupView drills={drillsForDay(program, day)} />}
 
       <ExerciseList
         exercises={daySession.exercises}

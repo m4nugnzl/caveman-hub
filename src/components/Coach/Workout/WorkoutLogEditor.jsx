@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
+
+/* Al hacer propio el calentamiento de un día se parte de una COPIA del programa,
+   no de cero: lo normal es querer lo mismo con un ejercicio cambiado. Con ids
+   nuevos, para que editarlo aquí no toque el del programa. */
+const deepCopyDrills = (drills) =>
+  (drills || []).map((d) => ({ ...d, id: `${d.id}-dia-${Math.random().toString(36).slice(2, 8)}` }));
 import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { dayMuscleVolume, dayPlannedVolume, unitLabel } from '@/domain/training';
+import {
+  dayHasOwnDrills,
+  dayMuscleVolume,
+  dayPlannedVolume,
+  unitLabel,
+} from '@/domain/training';
 import { sessionMuscleVolume } from '@/domain/sessions';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn } from '@/domain/protocol';
@@ -45,6 +56,7 @@ export const WorkoutLogEditor = () => {
     updateSession,
     updateMobilityDrills,
     setDayNote,
+    setDayDrills,
     removeSession,
     startProgram,
     appendMicrocycle,
@@ -415,6 +427,59 @@ export const WorkoutLogEditor = () => {
                 onChange={(e) => setDayNote(activeClient.id, nav.week, nav.day.dayName, e.target.value)}
               />
             </label>
+          )}
+
+          {/*
+            ══ El calentamiento de ESTE día ═══════════════════════════════════
+
+            Por defecto hereda el del programa, que es lo que se monta una vez y
+            vale para todos los días. Pero el día de pierna no se calienta como
+            el de empuje, así que se le puede dar el suyo — y entonces manda.
+
+            «No se calienta» también es una decisión: una lista vacía se respeta
+            en lugar de caer al del programa (`domain/training.js`).
+          */}
+          {isModuleOn(protocol, 'warmup') && (
+            <div className="col gap-2">
+              <div className="row between wrap gap-2">
+                <span className="section-label">
+                  <Waves size={12} /> Calentamiento de {nav.day.dayName}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() =>
+                    setDayDrills(
+                      activeClient.id,
+                      nav.week,
+                      nav.day.dayName,
+                      dayHasOwnDrills(nav.day) ? null : deepCopyDrills(program?.mobilityDrills)
+                    )
+                  }
+                >
+                  {dayHasOwnDrills(nav.day) ? 'Usar el del programa' : 'Hacerlo propio de este día'}
+                </button>
+              </div>
+
+              {dayHasOwnDrills(nav.day) ? (
+                <WarmupEditor
+                  drills={nav.day.mobilityDrills}
+                  onChange={(drills) =>
+                    setDayDrills(activeClient.id, nav.week, nav.day.dayName, drills)
+                  }
+                />
+              ) : (
+                <p className="t-xs t-tertiary">
+                  Usa el del programa
+                  {(program?.mobilityDrills || []).length > 0
+                    ? ` (${program.mobilityDrills.length} ${
+                        program.mobilityDrills.length === 1 ? 'ejercicio' : 'ejercicios'
+                      }).`
+                    : ', que todavía está vacío.'}{' '}
+                  Hazlo propio si este día necesita otra cosa.
+                </p>
+              )}
+            </div>
           )}
 
           {/*

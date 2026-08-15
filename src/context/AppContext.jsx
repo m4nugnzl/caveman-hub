@@ -2190,6 +2190,26 @@ export const AppProvider = ({ children }) => {
     [applyDay]
   );
 
+  /**
+   * El calentamiento propio de un día, o quitárselo para que herede el del
+   * programa.
+   *
+   * ── `null` y `[]` no son lo mismo ───────────────────────────────────────────
+   * `null` devuelve el día al calentamiento del programa —«no he decidido
+   * nada»—; `[]` dice «este día NO se calienta», que es una decisión y hay que
+   * poder tomarla: un día de test o un descanso activo no llevan movilidad, y
+   * caer al del programa reaparecería el que se acaba de quitar.
+   *
+   * La regla de lectura vive en `domain/training.js` (`drillsForDay`).
+   */
+  const setDayDrills = useCallback(
+    (clientId, weekNumber, dayName, drills) =>
+      applyDay(clientId, weekNumber, dayName, (d) => ({ ...d, mobilityDrills: drills }), {
+        immediate: false,
+      }),
+    [applyDay]
+  );
+
   const addDay = useCallback(
     (clientId, weekNumber, dayName) =>
       applyWorkout(clientId, (cd) => ({
@@ -4766,6 +4786,7 @@ export const AppProvider = ({ children }) => {
     addDay,
     renameDay,
     setDayNote,
+    setDayDrills,
     duplicateDay,
     removeDay,
     updateWeeklySplit,

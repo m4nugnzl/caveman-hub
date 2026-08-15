@@ -98,9 +98,16 @@ export const COACH_CLIENT = [
     (`ReviewSession`) con barra flotante para poder terminar la tarea cruzando de
     una sección a otra. Ver `components/review/ReviewLayout.jsx`.
   */
-  { path: 'revision', label: 'Revisión', icon: Ruler, also: ['revision/fotos'] },
+  /*
+    ── Y por qué va DESPUÉS de rutina y nutrición ────────────────────────────
+    Porque el orden del carril es el del trabajo, y programar viene antes de
+    revisar: no se puede revisar una semana que no se ha programado. Revisión
+    iba delante por ser lo más frecuente, pero la frecuencia no es el orden —
+    para eso está «Hoy», que es por donde se entra a revisar de verdad.
+  */
   { path: 'rutina', label: 'Rutina', icon: Layers },
   { path: 'nutricion', label: 'Nutrición', icon: Salad },
+  { path: 'revision', label: 'Revisión', icon: Ruler, also: ['revision/fotos'] },
   { path: 'calendario', label: 'Calendario', icon: CalendarDays },
   /*
     La ficha va la última del carril a propósito. Sus datos, su acceso al portal,

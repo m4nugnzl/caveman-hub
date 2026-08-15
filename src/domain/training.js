@@ -436,3 +436,37 @@ export const dayPlannedVolume = (day) => {
 /** Series programadas del día, en total. */
 export const dayPlannedSets = (day) =>
   (day?.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
+
+// ── Calentamiento: el del programa, o el de este día ───────────────────────
+
+/**
+ * El calentamiento que toca en un día concreto.
+ *
+ * ══ Por qué el día SUSTITUYE y no tiene el suyo desde el principio ══════════
+ *
+ * Un calentamiento se repite: es la rutina de movilidad de esta persona, no una
+ * decisión que se tome cada lunes. Si cada día tuviera el suyo habría que
+ * montarlo cinco veces y mantenerlo cinco veces, y en cuanto uno divergiera el
+ * cliente haría cosas distintas según el día sin que nadie lo hubiera decidido.
+ *
+ * Pero hay días que sí piden lo suyo —el de pierna no se calienta como el de
+ * empuje—, así que un día puede tener el suyo Y ENTONCES manda. El caso común
+ * sigue costando cero y el específico es posible.
+ *
+ * ── `null` y `[]` no significan lo mismo ────────────────────────────────────
+ * `undefined`/`null` es «este día no ha decidido nada, usa el del programa».
+ * `[]` es «este día ha decidido que NO se calienta», y hay que respetarlo: un
+ * día de descanso activo o una sesión de test no llevan movilidad, y caer al del
+ * programa reaparecería el que el entrenador acaba de quitar.
+ *
+ * @param {{ mobilityDrills?: MobilityDrill[] }} program
+ * @param {{ mobilityDrills?: MobilityDrill[]|null }} day
+ */
+export const drillsForDay = (program, day) => {
+  const propios = day?.mobilityDrills;
+  if (Array.isArray(propios)) return propios;
+  return program?.mobilityDrills || [];
+};
+
+/** ¿Este día tiene calentamiento propio, o hereda el del programa? */
+export const dayHasOwnDrills = (day) => Array.isArray(day?.mobilityDrills);

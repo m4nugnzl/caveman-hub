@@ -4,8 +4,10 @@ import {
   blankDays,
   buildMicrocycle,
   cloneDays,
+  dayHasOwnDrills,
   dayMuscleVolume,
   dayPlannedSets,
+  drillsForDay,
   dayPlannedVolume,
   exerciseProgression,
   trainedMuscles,
@@ -256,5 +258,42 @@ describe('volumen planificado — lo que le pones, no lo que ha hecho', () => {
   it('un día vacío no explota', () => {
     expect(dayPlannedVolume(undefined)).toEqual({});
     expect(dayPlannedSets(null)).toBe(0);
+  });
+});
+
+describe('drillsForDay — el calentamiento del programa o el del día', () => {
+  const programa = { mobilityDrills: [{ id: 'a', name: 'Movilidad de cadera' }] };
+
+  it('sin nada propio, el día hereda el del programa', () => {
+    expect(drillsForDay(programa, { dayName: 'Empuje' })).toEqual(programa.mobilityDrills);
+    expect(drillsForDay(programa, { dayName: 'Empuje', mobilityDrills: null })).toEqual(
+      programa.mobilityDrills
+    );
+  });
+
+  it('con el suyo, manda el del día', () => {
+    const propio = [{ id: 'b', name: 'Movilidad de tobillo' }];
+    expect(drillsForDay(programa, { mobilityDrills: propio })).toEqual(propio);
+  });
+
+  it('una lista VACÍA es una decisión, no un hueco', () => {
+    /*
+      «Este día no se calienta» tiene que poder decirse. Si `[]` cayera al del
+      programa, quitar el calentamiento de un día lo haría reaparecer — y el
+      entrenador no tendría forma de expresar lo que acaba de decidir.
+    */
+    expect(drillsForDay(programa, { mobilityDrills: [] })).toEqual([]);
+  });
+
+  it('sin programa y sin día, no hay calentamiento', () => {
+    expect(drillsForDay(null, null)).toEqual([]);
+    expect(drillsForDay({}, {})).toEqual([]);
+  });
+
+  it('dayHasOwnDrills distingue heredar de haber decidido', () => {
+    expect(dayHasOwnDrills({})).toBe(false);
+    expect(dayHasOwnDrills({ mobilityDrills: null })).toBe(false);
+    expect(dayHasOwnDrills({ mobilityDrills: [] })).toBe(true);
+    expect(dayHasOwnDrills({ mobilityDrills: [{ id: 'a' }] })).toBe(true);
   });
 });

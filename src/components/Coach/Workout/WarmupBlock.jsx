@@ -1,6 +1,8 @@
 import { ChevronDown, ChevronUp, Play, Plus, Trash2, Waves } from 'lucide-react';
 
+import { parseVideoUrl } from '@/domain/video';
 import { newId } from '@/lib/ids';
+import { VideoEmbed } from '@/components/ui/VideoEmbed';
 import { Field, TextInput } from '@/components/ui/primitives';
 
 /**
@@ -12,21 +14,28 @@ import { Field, TextInput } from '@/components/ui/primitives';
  * mapeada en `lib/mappers.js`, se clonaba al replicar un cliente, y no había
  * forma de escribir ni de leer un solo ejercicio en toda la aplicación.
  *
- * ── Por qué es del programa y no de cada día ────────────────────────────────
- * Un calentamiento se repite: es la rutina de movilidad de este cliente, no una
- * decisión que se toma cada lunes. Colgarlo de cada día obligaría a copiarlo
- * cinco veces y a mantenerlo cinco veces, y en cuanto uno diverja el cliente hará
- * cosas distintas según el día sin que nadie lo haya decidido.
+ * ── Del programa, salvo que el día diga otra cosa ───────────────────────────
+ * Un calentamiento se repite: es la rutina de movilidad de esta persona, no una
+ * decisión que se tome cada lunes. Por eso el de por defecto es del PROGRAMA y
+ * se monta una vez.
  *
- * Si algún día hace falta un calentamiento específico de un día concreto, la
- * forma correcta es que el día pueda SUSTITUIR al del programa, no que cada día
- * tenga el suyo desde el principio.
+ * Pero hay días que piden lo suyo —el de pierna no se calienta como el de
+ * empuje—, así que un día puede tener el suyo y entonces manda. La regla vive en
+ * `domain/training.js` (`drillsForDay`), y ahí está también por qué una lista
+ * vacía significa «este día no se calienta» y no «usa el del programa».
  *
- * ── El vídeo es un enlace, no un incrustado ─────────────────────────────────
- * Un `<iframe>` de YouTube en la pantalla que el cliente abre en el gimnasio
- * significa una petición a un tercero, sus cookies y su peso, en cada carga y aunque
- * nadie lo mire. El enlace abre la aplicación nativa, que es donde se ve mejor y
- * donde ya está la sesión iniciada.
+ * ── El vídeo se ve AQUÍ ─────────────────────────────────────────────────────
+ * Antes era un enlace que sacaba de la aplicación: el cliente está en el
+ * gimnasio, con una mano, y para ver diez segundos de una movilidad acababa en
+ * YouTube —con sus recomendados— y tenía que volver.
+ *
+ * Ahora se reproduce dentro, y sin coste para quien no lo mire: lo que se pinta
+ * de entrada es una fila, y el reproductor se monta al pulsarla (`VideoEmbed`).
+ * Sin reproducir, YouTube no se entera de que esta página existe.
+ *
+ * Lo que no sea YouTube ni Loom —un Drive, un archivo suyo— sigue siendo un
+ * enlace: la CSP no deja incrustar otra cosa, y prometer un reproductor que no
+ * va a aparecer es peor que decir la verdad.
  */
 
 const emptyDrill = () => ({ id: newId('drill'), name: '', prescription: '', videoUrl: '', notes: '' });
@@ -58,16 +67,16 @@ export const WarmupView = ({ drills }) => {
               {drill.notes && <span className="t-xs t-secondary">{drill.notes}</span>}
             </div>
 
-            {drill.videoUrl && (
-              <a
-                className="chip shrink-0"
-                href={drill.videoUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <Play size={12} /> Vídeo
-              </a>
-            )}
+            {drill.videoUrl &&
+              (parseVideoUrl(drill.videoUrl) ? (
+                /* Se ve aquí: una fila que al pulsarla monta el reproductor. */
+                <VideoEmbed video={parseVideoUrl(drill.videoUrl)} title={drill.name} />
+              ) : (
+                /* Lo que no se puede incrustar se dice como lo que es. */
+                <a className="link t-xs" href={drill.videoUrl} target="_blank" rel="noreferrer noopener">
+                  <Play size={12} /> Ver el vídeo
+                </a>
+              ))}
           </li>
         ))}
       </ul>

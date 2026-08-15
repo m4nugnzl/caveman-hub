@@ -111,9 +111,9 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 155 claves', () => {
+  it('el reparto conserva las 156 claves', () => {
     montar();
-    expect(Object.keys(visto.app).length).toBe(155);
+    expect(Object.keys(visto.app).length).toBe(156);
   });
 
   it('toda acción es una función', () => {

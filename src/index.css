@@ -3229,9 +3229,12 @@ span.scale-step.is-on { opacity: 1; }
   background: var(--surface-sunken); border-radius: var(--r-md);
 }
 .warmup-list { display: flex; flex-direction: column; gap: 2px; list-style: none; }
+/* En COLUMNA desde que el vídeo se ve aquí dentro: en fila, el reproductor
+   competía por el ancho con el nombre del ejercicio y dejaba los dos a la
+   mitad. Arriba qué hacer, debajo cómo se hace. */
 .warmup-item {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: 7px 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--s2);
+  padding: var(--s2) 0; min-width: 0;
 }
 .warmup-item + .warmup-item { border-top: 1px solid var(--hairline); }
 
