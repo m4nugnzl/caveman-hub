@@ -127,11 +127,26 @@ padre falle.
 
 Está en el repositorio, no en la copia. En un proyecto nuevo de Supabase:
 
-1. `supabase/schema.sql`
-2. las migraciones de `supabase/migrations/` **en orden numérico** (ver
+1. `supabase/schema.sql` — las tablas base
+2. **`supabase/bootstrap.sql`** — el disparador que crea el perfil al registrarse
+3. las migraciones de `supabase/migrations/` **en orden numérico** (ver
    `supabase/README.md`: no todas son obligatorias, pero las que uses tienen que
-   ir en orden)
-3. crear el bucket privado `client-media`
+   ir en orden). El bucket privado `client-media` lo crea la `0007`.
+
+> ⚠️ **El paso 2 faltaba en este documento, y es el que rompe una restauración.**
+> `handle_new_user` —el disparador que crea la fila de `profiles` cuando alguien
+> se registra— nunca estuvo en el repositorio: está escrito a mano en el proyecto
+> de Supabase, y la migración `0019` lo dice de pasada al explicar por qué
+> `ensure_my_team` se puso al lado en vez de dentro.
+>
+> Sin él la base se levanta entera y **registrarse no crea ningún perfil**: sin
+> fila en `profiles` no hay rol, `ensure_my_team()` falla por clave foránea y no
+> se puede dar de alta ni un cliente. La aplicación arranca y no sirve, y el
+> fallo no se parece en nada a su causa.
+>
+> `bootstrap.sql` es una **reconstrucción** escrita desde el contrato que el
+> resto del proyecto da por hecho, no una copia del original. Vuelca el de verdad
+> y compáralo antes de fiarte —el propio archivo lleva las dos consultas—.
 
 ### 5.2 Las cuentas
 
