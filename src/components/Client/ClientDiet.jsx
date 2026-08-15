@@ -5,6 +5,7 @@ import { dietNotes, mealsForVariant } from '@/domain/nutrition';
 import { Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
+import { StepsGoalCard } from '@/components/nutrition/StepsGoalCard';
 
 const VARIANT_OPTIONS = [
   { id: 'training', label: 'Días de entreno' },
@@ -58,6 +59,11 @@ export const ClientDiet = ({ plan }) => {
         variant={variant}
         title={plan.hasDayVariants ? `Mi objetivo · ${variant === 'rest' ? 'descanso' : 'entreno'}` : 'Mi objetivo diario'}
       />
+
+      {/* Los pasos no cambian entre las dos dietas, así que van fuera de la
+          tarjeta de objetivo y no se mueven al cambiar de día. Sin objetivo
+          puesto, esta tarjeta no aparece. */}
+      <StepsGoalCard stepsGoal={plan.stepsGoal} />
 
       {plan.type === 'closed' && (
         <Panel className="col gap-4">

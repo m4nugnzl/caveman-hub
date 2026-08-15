@@ -10,6 +10,7 @@ import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { DietNotes } from '@/components/nutrition/DietNotes';
 import { MealStructure } from '@/components/nutrition/MealStructure';
+import { StepsGoalCard } from '@/components/nutrition/StepsGoalCard';
 
 const DIET_TYPES = [
   { id: 'macros', label: 'Por macros' },
@@ -177,7 +178,6 @@ export const NutritionModule = () => {
               variant="rest"
               title="Objetivo · días de descanso"
               editable
-              showSteps={false}
               onSave={(fields) => updateNutritionTargets(activeClient.id, 'rest', fields)}
             />
           </div>
@@ -190,6 +190,20 @@ export const NutritionModule = () => {
             onSave={(fields) => updateNutritionTargets(activeClient.id, 'default', fields)}
           />
         )}
+
+        {/*
+          Los pasos, fuera de las tarjetas de objetivo y a lo ancho.
+
+          Son del PLAN, no de una variante: con dos dietas vivían solo en la
+          tarjeta de entreno —en la de descanso se escondían a mano— y quien
+          empezara por el día de descanso no encontraba dónde ponerlos. Aquí
+          están una vez, valgan para los días que valgan.
+        */}
+        <StepsGoalCard
+          stepsGoal={plan.stepsGoal}
+          editable
+          onSave={(stepsGoal) => updateNutrition(activeClient.id, { stepsGoal })}
+        />
       </section>
 
       {plan.type === 'closed' && (

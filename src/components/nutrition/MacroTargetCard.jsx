@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Footprints, Pencil, X } from 'lucide-react';
+import { Check, Pencil, X } from 'lucide-react';
 
 import { TARGET_FIELDS, macroSplit, targetsFor } from '@/domain/nutrition';
 import { MacroBar } from './macros';
@@ -22,15 +22,14 @@ const LABELS = {
  *
  * El anillo queda para las comidas y sus opciones, donde lo que se hace es
  * comparar varias piezas pequeñas entre sí.
+ *
+ * ── Los pasos diarios ya no están aquí ──────────────────────────────────────
+ * Se fueron a `StepsGoalCard`. Esta tarjeta es de UNA VARIANTE y los pasos son de
+ * la persona: metidos aquí, el campo solo existía en la tarjeta de los días de
+ * entreno —en la de descanso había que esconderlo a mano— y daban a entender que
+ * eran los pasos de esos días.
  */
-export const MacroTargetCard = ({
-  plan,
-  variant = 'default',
-  title,
-  editable = false,
-  onSave,
-  showSteps = true,
-}) => {
+export const MacroTargetCard = ({ plan, variant = 'default', title, editable = false, onSave }) => {
   const targets = targetsFor(plan, variant);
   const macros = macroSplit(targets);
 
@@ -38,19 +37,13 @@ export const MacroTargetCard = ({
   const [form, setForm] = useState(null);
 
   const open = () => {
-    setForm(
-      Object.fromEntries([
-        ...TARGET_FIELDS.map((key) => [key, targets[key] ?? '']),
-        ['stepsGoal', plan?.stepsGoal ?? ''],
-      ])
-    );
+    setForm(Object.fromEntries(TARGET_FIELDS.map((key) => [key, targets[key] ?? ''])));
     setEditing(true);
   };
 
   const commit = (event) => {
     event.preventDefault();
-    const { stepsGoal, ...rest } = form;
-    onSave({ ...rest, ...(showSteps ? { stepsGoal } : {}) });
+    onSave(form);
     setEditing(false);
   };
 
@@ -89,17 +82,6 @@ export const MacroTargetCard = ({
           ))}
         </div>
 
-        {showSteps && (
-          <label className="field">
-            <span className="field-label">Pasos diarios</span>
-            <input
-              className="input"
-              value={form.stepsGoal}
-              onChange={(e) => setForm({ ...form, stepsGoal: e.target.value })}
-              placeholder="10000"
-            />
-          </label>
-        )}
       </form>
     );
   }
@@ -109,11 +91,6 @@ export const MacroTargetCard = ({
       <div className="row between wrap gap-2">
         <span className="section-label">{title || 'Objetivo diario'}</span>
         <div className="row gap-2">
-          {showSteps && plan?.stepsGoal && (
-            <span className="badge badge-info">
-              <Footprints size={11} /> {plan.stepsGoal} pasos
-            </span>
-          )}
           {editable && (
             <button type="button" className="btn btn-icon" onClick={open} aria-label="Editar objetivo">
               <Pencil size={14} />

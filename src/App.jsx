@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { lazyRoute } from '@/lib/lazyRoute';
@@ -47,7 +47,7 @@ const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRo
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
-import { COACH_HOME, CLIENT_HOME, RESET_PATH } from '@/routes';
+import { RESET_PATH, clientViewOf, coachViewOf } from '@/routes';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
@@ -66,8 +66,43 @@ import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
  * del cliente— y la ruta decide qué hay dentro. Las secciones salen de
  * `src/routes.jsx`, así que las pestañas y las URLs no pueden divergir.
  */
+/**
+ * Dónde cae lo que este árbol de rutas no reconoce.
+ *
+ * ══ Por qué no es un `<Navigate to={home}>` ════════════════════════════════
+ *
+ * Porque el caso que más se da NO es una URL equivocada: es **la misma pantalla
+ * vista desde el otro lado**. Un entrenador que mira la dieta de Marta y pulsa
+ * «ver como lo ve mi cliente» deja la ruta en `/c/<id>/nutricion`, que en el
+ * árbol del cliente no existe. Mandarlo al inicio le hace volver a buscar lo que
+ * estaba mirando, y otra vez al volver.
+ *
+ * Aquí se traduce: `/c/<id>/nutricion` ⇄ `/mi/dieta`, con la tabla de
+ * equivalencias de `routes.jsx`. Lo que no tenga pareja —la ficha, los ajustes,
+ * una URL de verdad equivocada— sigue cayendo en el inicio, como antes.
+ *
+ * ── Y por qué AQUÍ y no al pulsar el botón ─────────────────────────────────
+ * Ese fue el primer intento: cambiar de vista y navegar en el mismo manejador.
+ * No funcionaba, y el motivo es que las dos cosas no se pintan a la vez. React
+ * Router navega dentro de una transición —prioridad baja— mientras que el cambio
+ * de vista es una actualización normal: se pinta ANTES, con la ruta todavía
+ * vieja, y para cuando llegaba la navegación buena este comodín ya había
+ * redirigido al inicio.
+ *
+ * Puesto en el comodín, no depende de qué se pinte primero: cuando el árbol nuevo
+ * ve una ruta del otro, la traduce. Y de paso arregla el enlace pegado y el botón
+ * atrás, que tenían el mismo problema y ningún botón que arreglarlos.
+ */
+const OtherViewFallback = ({ view, clientId }) => {
+  const { pathname } = useLocation();
+  const destino = view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname);
+  return <Navigate to={destino} replace />;
+};
+
 export default function App() {
-  const { session, loading, loadError, conflict, resolveConflict, view } = useApp();
+  /* `activeClient` solo se usa para volver del portal del cliente: su ruta no
+     lleva el id dentro, así que sin él no se puede componer la del entrenador. */
+  const { session, loading, loadError, conflict, resolveConflict, view, activeClient } = useApp();
 
   /*
     La revisión compartida se ve SIN sesión, y por eso va antes de todo lo demás:
@@ -116,8 +151,6 @@ export default function App() {
   }
 
   if (!session) return <Login />;
-
-  const home = view === 'coach' ? COACH_HOME : CLIENT_HOME;
 
   return (
     /*
@@ -238,9 +271,12 @@ export default function App() {
                 </Route>
               </Route>
 
-              {/* Cualquier otra cosa —incluida una URL de cliente pegada por
-                  alguien que ahora está en vista de cliente— cae en su inicio. */}
-              <Route path="*" element={<Navigate to={home} replace />} />
+              {/* Una ruta del portal del cliente se traduce a su equivalente de
+                  aquí; lo que no tenga pareja cae en «Hoy». */}
+              <Route
+                path="*"
+                element={<OtherViewFallback view="coach" clientId={activeClient?.id} />}
+              />
             </>
           ) : (
             <>
@@ -265,7 +301,7 @@ export default function App() {
                 <Route path="checkins" element={<ClientCheckInsRoute />} />
                 <Route path="calendario" element={<CalendarPanel audience="client" />} />
               </Route>
-              <Route path="*" element={<Navigate to={home} replace />} />
+              <Route path="*" element={<OtherViewFallback view="client" />} />
             </>
           )}
         </Routes>
