@@ -31,7 +31,19 @@ export const CopyToClientPanel = ({
 }) => {
   const confirm = useConfirm();
   const [sourceId, setSourceId] = useState('');
-  const [training, setTraining] = useState(true);
+  /*
+    ══ Nada viene marcado ═════════════════════════════════════════════════════
+
+    Copiar SUSTITUYE lo que el destino tuviera, así que llegar con una casilla ya
+    puesta es llegar armado: basta con elegir de quién y pulsar para reemplazar
+    doce semanas de programa sin haber decidido nada.
+
+    Y era además lo que rompía la movilidad: «Entrenamiento» venía marcado y la
+    casilla del calentamiento estaba `disabled` mientras lo estuviera, así que
+    NACÍA BLOQUEADA. Para poder pulsarla había que descubrir primero que hay que
+    desmarcar la de arriba, cosa que no dice nadie.
+  */
+  const [training, setTraining] = useState(false);
   const [warmup, setWarmup] = useState(false);
   const [diet, setDiet] = useState(false);
   const [result, setResult] = useState(null);
@@ -130,48 +142,38 @@ export const CopyToClientPanel = ({
               <input
                 type="checkbox"
                 checked={training}
-                /*
-                  Marcar «Entrenamiento» marca también el calentamiento DE VERDAD,
-                  no solo en pantalla.
-
-                  Antes la casilla de abajo se pintaba con `checked={warmup ||
-                  training}` pero su estado real seguía en `false`. Al desmarcar
-                  «Entrenamiento» —el gesto exacto de quien quiere copiar SOLO el
-                  calentamiento— la de abajo se vaciaba sola y el botón se quedaba
-                  sin nada seleccionado. Parecía que no dejaba copiar la movilidad.
-                */
-                onChange={(e) => {
-                  setTraining(e.target.checked);
-                  if (e.target.checked) setWarmup(true);
-                }}
+                onChange={(e) => setTraining(e.target.checked)}
               />
               <Dumbbell size={13} />
               Entrenamiento
               <span className="t-xs t-tertiary">
-                (estructura semanal, {weekCount} {unitLabelPlural(cycleType)} y tipo de ciclo)
+                (estructura semanal, {weekCount} {unitLabelPlural(cycleType)}, tipo de ciclo y su
+                calentamiento)
               </span>
             </label>
             {/*
-              El calentamiento va suelto, y no dentro de «Entrenamiento», porque
-              es lo que MÁS se repite entre clientes —la misma pauta articular
-              para media cartera— mientras que el programa es lo que menos.
-              Mezclarlos obligaba a sustituir doce semanas de trabajo para
-              traerse cuatro estiramientos.
+              ══ El calentamiento, suelto y SIEMPRE pulsable ══════════════════
 
-              Marcar «Entrenamiento» lo trae igualmente: un programa sin su
-              calentamiento llega a medias.
+              Va aparte de «Entrenamiento» porque es lo que MÁS se repite entre
+              clientes —la misma pauta articular para media cartera— mientras que
+              el programa es lo que menos. Mezclarlos obligaba a sustituir doce
+              semanas de trabajo para traerse cuatro estiramientos.
+
+              Y ya no se desactiva. Estaba `disabled` mientras «Entrenamiento»
+              estuviera marcado —que era siempre, porque venía marcado de
+              serie—, así que en la práctica no se podía pulsar nunca. La
+              redundancia se DICE, que es lo que hacía falta; no se prohíbe.
             */}
             <label className="checkbox-row">
               <input
                 type="checkbox"
-                checked={warmup}
-                disabled={training}
+                checked={warmup || training}
                 onChange={(e) => setWarmup(e.target.checked)}
               />
               <Waves size={13} />
               Calentamiento y movilidad
               <span className="t-xs t-tertiary">
-                {training ? '(va incluido en el entrenamiento)' : '(la pauta previa a entrenar)'}
+                {training ? '(ya va con el entrenamiento)' : '(solo la pauta previa a entrenar)'}
               </span>
             </label>
             <label className="checkbox-row">

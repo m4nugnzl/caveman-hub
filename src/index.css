@@ -1192,124 +1192,237 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* ==========================================================================
    Portada pública
    --------------------------------------------------------------------------
-   Lo que ve quien llega sin sesión a la raíz. La aplicación no tenía cara
-   pública: la raíz era el formulario de acceso, así que para enterarse de qué
-   era esto y cuánto costaba había que registrarse antes.
+   ══ La decisión: enseñar el producto, no describirlo ════════════════════════
 
-   ── Por qué se parece tanto a la aplicación ────────────────────────────────
-   Porque es lo que hay que enseñar. El producto tiene un lenguaje visual propio
-   y defendible —hierro y tiza, la cifra en Archivo, la regla como firma— y una
-   portada con estética de campaña, con degradados y formas que no salen por
-   ningún lado dentro, prometería otra cosa distinta de la que se entrega.
+   Una página de captación de una herramienta de entrenadores es, casi siempre,
+   un titular sobre un degradado y tres tarjetas con iconos. Eso se puede
+   maquetar sin haber visto el producto, y se nota.
 
-   Aquí la única licencia es el aire: medidas de línea más largas y más espacio
-   entre bloques, porque esto se LEE y la aplicación se OPERA.
+   Aquí el héroe es una PIEZA REAL: la tabla de series que el cliente rellena en
+   el gimnasio, con la misma tipografía, las mismas cifras tabulares y el mismo
+   canto que dentro. Lo que se promete es literalmente lo que se entrega.
+
+   ── Ni una tinta de marca ──────────────────────────────────────────────────
+   El cromo no tiene color, y aquí tampoco: lo único con color de toda la página
+   es el disco de 25 del logotipo. Las cifras del héroe son grafito y las
+   apagadas —lo de la vez anterior— son terciario. Un degradado de campaña
+   prometería un producto distinto del que hay detrás.
+
+   ── Y la regla mide algo ───────────────────────────────────────────────────
+   Aparece dos veces: separando la promesa de su prueba, y encabezando los
+   cuatro pasos del circuito, que es semanal. En ningún sitio como adorno.
    ========================================================================== */
 
-.landing {
-  min-height: 100vh;
+.lp {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--s4) var(--s4) var(--s7);
   display: flex;
   flex-direction: column;
   gap: var(--s7);
-  max-width: 940px;
-  margin: 0 auto;
-  padding: var(--s4) var(--s4) var(--s6);
 }
 
-.landing-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
-.landing-brand {
+.lp-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.lp-brand {
   font-family: var(--font-display); font-size: var(--fs-md);
   font-weight: 700; letter-spacing: -0.02em;
 }
 
-.landing-hero {
-  display: flex; flex-direction: column; align-items: center; gap: var(--s4);
-  text-align: center; padding-top: var(--s5);
-}
-.landing-hero > h1 {
-  font-family: var(--font-display);
-  font-size: clamp(1.9rem, 6vw, 3.1rem);
-  font-weight: 750; line-height: 1.06; letter-spacing: -0.028em;
-  max-width: 16ch; text-wrap: balance;
-}
-.landing-claim {
-  font-size: var(--fs-md); color: var(--text-secondary);
-  max-width: 54ch; line-height: var(--lh-base);
-}
+/* ── El héroe: lo que se dice y lo que lo demuestra ──────────────────────── */
 
-/* LA REGLA. Cierra la promesa, igual que cierra la cabecera de la aplicación:
-   solo aparece donde algo se mide, y aquí lo que se mide es lo de abajo. */
-.landing-rule {
-  width: 100%; max-width: 620px; height: 9px;
-  background-image: var(--rule); opacity: 0.7; margin-top: var(--s3);
-}
-
-.landing-keys {
+.lp-hero {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
-  gap: var(--s4);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  gap: var(--s6);
+  align-items: center;
+  padding-top: var(--s5);
 }
-.landing-key {
+
+.lp-hero-say { display: flex; flex-direction: column; gap: var(--s4); }
+.lp-hero-say > h1 {
+  font-family: var(--font-display);
+  /* Grande y MUY cerrado: es la voz de las cifras del producto aplicada a una
+     frase. Con el interletraje por defecto lee como un titular cualquiera. */
+  font-size: clamp(2.2rem, 5.2vw, 3.6rem);
+  font-weight: 780; line-height: 1.02; letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.lp-lede {
+  font-size: var(--fs-md); color: var(--text-secondary);
+  line-height: var(--lh-base); max-width: 46ch;
+}
+.lp-cta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); }
+.lp-cta-note { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── La prueba: la tabla de series, de verdad ────────────────────────────── */
+
+.lp-proof {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--s4);
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+.lp-proof-head { display: flex; flex-direction: column; gap: 2px; }
+.lp-proof-name { font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em; }
+.lp-proof-hint {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+
+.lp-sets { display: flex; flex-direction: column; gap: 6px; }
+.lp-set {
+  display: grid; grid-template-columns: 26px 42px repeat(3, minmax(0, 1fr));
+  align-items: center; gap: var(--s2);
+}
+.lp-set.is-head {
+  font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary); text-align: center;
+}
+.lp-set > .tag {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--fill); color: var(--text-tertiary);
+}
+.lp-set.is-done > .tag { background: var(--positive-soft); color: var(--positive); }
+.lp-set > .obj {
+  text-align: center; font-size: var(--fs-xs); font-weight: 650;
+  color: var(--info); font-variant-numeric: tabular-nums;
+}
+/* Las casillas, con el mismo alto táctil que dentro (42 px): la prueba no vale
+   si la pieza que se enseña no es la que hay. */
+.lp-set > .v {
+  min-height: 42px; display: grid; place-items: center;
+  border: 1px solid var(--edge); border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  font-size: var(--fs-base); font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+/* Lo de la vez anterior: el marcador de posición, que es LA idea de la pieza. */
+.lp-set > .v.is-ghost { color: var(--text-tertiary); font-weight: 500; }
+
+.lp-proof-foot { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
+
+/* ── LA REGLA ────────────────────────────────────────────────────────────── */
+
+.lp-rule { height: 9px; background-image: var(--rule); opacity: 0.7; }
+
+/* ── El circuito de la semana ────────────────────────────────────────────── */
+
+.lp-loop { display: flex; flex-direction: column; gap: var(--s3); }
+.lp-loop > h2, .lp-plans > h2, .lp-end > h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+  font-weight: 740; letter-spacing: -0.025em; line-height: 1.1;
+  text-wrap: balance; max-width: 22ch;
+}
+.lp-sec-lede { font-size: var(--fs-base); color: var(--text-secondary); max-width: 58ch; }
+
+.lp-steps {
+  list-style: none; margin: var(--s3) 0 0; padding: 0;
+  display: grid; gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+}
+/* Cada paso se encabeza con la cinta: el circuito es semanal, y lo que se mide
+   aquí es el ORDEN, que sí es información —cada paso necesita el anterior—. */
+.lp-step {
+  display: flex; flex-direction: column; gap: 4px;
+  padding-top: var(--s4);
+  position: relative;
+}
+.lp-step::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 7px;
+  background-image: var(--rule); opacity: 0.5;
+}
+.lp-step > .n {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 780;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary); line-height: 1;
+}
+.lp-step > .who {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+.lp-step > .what { font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em; }
+.lp-step > .how { font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base); }
+
+/* ── Las tres claves ─────────────────────────────────────────────────────── */
+
+.lp-keys {
+  display: grid; gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+}
+.lp-key {
   background: var(--surface); border: 1px solid var(--edge);
   border-radius: var(--r-lg); padding: var(--s5);
   box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: var(--s2);
 }
-.landing-key-icon {
-  width: 38px; height: 38px; border-radius: var(--r-md);
-  display: grid; place-items: center; margin-bottom: var(--s1);
-  background: var(--fill); color: var(--text);
-}
-.landing-key > h2 {
+.lp-key > h3 {
   font-family: var(--font-display); font-size: var(--fs-md);
-  font-weight: 700; letter-spacing: -0.012em;
+  font-weight: 720; letter-spacing: -0.015em; line-height: 1.2; text-wrap: balance;
 }
-.landing-key > p { font-size: var(--fs-sm); color: var(--text-secondary); }
+.lp-key > p { font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base); }
 
-.landing-plans { display: flex; flex-direction: column; gap: var(--s3); align-items: center; text-align: center; }
-.landing-plans > h2 {
-  font-family: var(--font-display); font-size: var(--fs-lg);
-  font-weight: 720; letter-spacing: -0.02em;
-}
-.landing-plans-lede, .landing-plans-foot { font-size: var(--fs-sm); color: var(--text-secondary); max-width: 52ch; }
-.landing-plans-foot { color: var(--text-tertiary); font-size: var(--fs-xs); }
+/* ── Planes ──────────────────────────────────────────────────────────────── */
 
-.landing-plan-grid {
-  display: grid; width: 100%; gap: var(--s3); margin-top: var(--s2);
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+.lp-plans { display: flex; flex-direction: column; gap: var(--s4); }
+.lp-plan-grid {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
 }
-.landing-plan {
+.lp-plan {
   background: var(--surface); border: 1px solid var(--edge);
   border-radius: var(--r-lg); padding: var(--s5) var(--s4);
   box-shadow: var(--shadow-sm);
-  display: flex; flex-direction: column; gap: 6px; align-items: center;
+  display: flex; flex-direction: column; gap: 6px;
 }
-/* El plan de partida se marca por el canto y no por el fondo: teñirlo lo
-   convertiría en una oferta, y aquí lo que se dice es por dónde se empieza. */
-.landing-plan.is-free { border-color: var(--hairline-strong); }
-.landing-plan-name {
+.lp-plan-name {
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: var(--tracking-stencil);
   color: var(--text-tertiary);
 }
-/* La CIFRA: es el contenido de esta tarjeta, así que lleva la voz de las cifras. */
-.landing-plan-price {
-  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 750;
-  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
-  display: flex; align-items: baseline; gap: 5px;
+/* LA CIFRA: es el contenido de esta tarjeta, así que lleva la voz de las cifras
+   y el interletraje cerrado, como cualquier cifra del producto. */
+.lp-plan-price {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 780;
+  letter-spacing: -0.035em; font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 3px; line-height: 1.1;
 }
-.landing-plan-price > .per {
+.lp-plan-price > .per {
   font-family: var(--font); font-size: var(--fs-xs);
   font-weight: 500; color: var(--text-tertiary); letter-spacing: 0;
 }
-.landing-plan-limit { font-size: var(--fs-sm); font-weight: 600; }
-.landing-plan > p { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.lp-plan-limit { font-size: var(--fs-sm); font-weight: 600; }
+.lp-plan > p { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
 
-.landing-foot {
+/* ── Cierre ──────────────────────────────────────────────────────────────── */
+
+.lp-end {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
+  padding-top: var(--s6);
+  border-top: 1px solid var(--hairline);
+}
+.lp-end > p { font-size: var(--fs-base); color: var(--text-secondary); max-width: 52ch; }
+
+.lp-foot {
   display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: var(--s3); margin-top: auto;
+  flex-wrap: wrap; gap: var(--s3);
   padding-top: var(--s4); border-top: 1px solid var(--hairline);
   font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+
+@media (max-width: 860px) {
+  /* La prueba pasa DEBAJO del titular, no al lado: en vertical, una columna de
+     0.85fr deja la tabla de series con casillas de 40 px. */
+  .lp-hero { grid-template-columns: 1fr; gap: var(--s5); padding-top: var(--s4); }
+  .lp { gap: var(--s6); }
 }
 
 /* ==========================================================================
