@@ -3770,3 +3770,38 @@ span.scale-step.is-on { opacity: 1; }
      avatar de al lado cuando se solapan. */
   box-shadow: 0 0 0 2px var(--surface-glass);
 }
+
+/* ── El vídeo de una revisión, antes de pulsarlo ───────────────────────────
+   Una FILA, no un marco de 16:9. El marco vacío ocupaba media pantalla de móvil
+   y en la lista de revisiones hay uno por semana: cuatro rectángulos con su
+   botón de play en medio para ver, como mucho, el de arriba.
+
+   Sin reproducir, un vídeo es un enlace: se dice como tal y el marco aparece al
+   pulsarlo. */
+.video-row {
+  display: flex; align-items: stretch; gap: 1px;
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--edge); overflow: hidden;
+}
+.video-row-play {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 9px var(--s3); border: 0; cursor: pointer;
+  background: var(--surface-sunken); color: var(--text);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
+  transition: background-color var(--fast);
+}
+.video-row-play:hover { background: var(--fill-subtle); }
+.video-row-play > .mark {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-on);
+}
+/* La salida a su aplicación: un icono al final, no una segunda fila que repite
+   la acción principal con otras palabras. */
+.video-row-out {
+  display: grid; place-items: center; width: 40px; flex-shrink: 0;
+  background: var(--surface-sunken); color: var(--text-tertiary);
+  transition: color var(--fast), background-color var(--fast);
+}
+.video-row-out:hover { background: var(--fill-subtle); color: var(--text); }

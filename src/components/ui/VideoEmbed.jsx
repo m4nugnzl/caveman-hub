@@ -25,10 +25,62 @@ import { ExternalLink, Play } from 'lucide-react';
  * el marco antes de cargar nada y la página no da un salto cuando el vídeo
  * aparece.
  */
+/**
+ * ── Y por qué la fachada es una FILA y no un marco 16:9 ─────────────────────
+ *
+ * Porque un marco de 16:9 ocupa media pantalla de móvil, y en la lista de
+ * revisiones de un cliente hay una por semana: cuatro rectángulos vacíos, cada
+ * uno con su botón de play en medio, para ver como mucho el de arriba. La
+ * pantalla se llenaba de huecos.
+ *
+ * Sin reproducir, un vídeo no es un vídeo: es un enlace con una miniatura que no
+ * se puede cargar sin llamar a YouTube. Así que se dice como lo que es —una
+ * línea que se puede pulsar— y el marco aparece cuando de verdad hay algo que
+ * enseñar.
+ *
+ * ── El enlace de salida va DENTRO ───────────────────────────────────────────
+ * Antes era un componente aparte que se pintaba debajo, así que la pantalla
+ * quedaba con «Ver en YouTube» y justo debajo «Abrir en YouTube»: dos controles
+ * seguidos que hacen casi lo mismo y que obligan a leer los dos para descubrir
+ * en qué se diferencian. Ahora hay una acción principal —verlo aquí— y la
+ * salida a la aplicación de YouTube es un icono al final de la misma fila.
+ */
 export const VideoEmbed = ({ video, title, onPlay }) => {
   const [playing, setPlaying] = useState(false);
 
   if (!video) return null;
+
+  if (!playing) {
+    return (
+      <div className="video-row">
+        <button
+          type="button"
+          className="video-row-play"
+          onClick={() => {
+            setPlaying(true);
+            onPlay?.();
+          }}
+        >
+          <span className="mark" aria-hidden="true">
+            <Play size={13} fill="currentColor" />
+          </span>
+          <span className="grow">Ver la revisión en vídeo</span>
+        </button>
+
+        {/* La salida a su aplicación, sin repetir la acción principal. */}
+        <a
+          className="video-row-out"
+          href={video.watchUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label={`Abrir en ${video.label}`}
+          title={`Abrir en ${video.label}`}
+        >
+          <ExternalLink size={13} />
+        </a>
+      </div>
+    );
+  }
 
   const marco = {
     position: 'relative',
@@ -40,80 +92,20 @@ export const VideoEmbed = ({ video, title, onPlay }) => {
     border: '1px solid var(--edge)',
   };
 
-  if (playing) {
-    return (
-      <div style={marco}>
-        <iframe
-          src={`${video.embedUrl}${video.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
-          title={title || `Vídeo de ${video.label}`}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          /* `sandbox` no: los dos reproductores necesitan scripts y pantalla
-             completa, y con la lista de permisos que haría falta no queda
-             restricción real. Lo que acota de verdad es que la dirección solo
-             puede ser de YouTube o Loom (`domain/video.js` y migración 0040). */
-          referrerPolicy="strict-origin-when-cross-origin"
-        />
-      </div>
-    );
-  }
-
   return (
     <div style={marco}>
-      <button
-        type="button"
-        onClick={() => {
-          setPlaying(true);
-          onPlay?.();
-        }}
-        aria-label={`Reproducir ${title || 'la revisión'} en ${video.label}`}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          background: 'transparent',
-          border: 0,
-          cursor: 'pointer',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            display: 'grid',
-            placeItems: 'center',
-            background: 'var(--surface)',
-            boxShadow: 'var(--shadow-sm)',
-            color: 'var(--text)',
-          }}
-        >
-          <Play size={22} fill="currentColor" />
-        </span>
-        <span className="t-xs">Ver en {video.label}</span>
-      </button>
+      <iframe
+        src={`${video.embedUrl}${video.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+        title={title || `Vídeo de ${video.label}`}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowFullScreen
+        /* `sandbox` no: los dos reproductores necesitan scripts y pantalla
+           completa, y con la lista de permisos que haría falta no queda
+           restricción real. Lo que acota de verdad es que la dirección solo
+           puede ser de YouTube o Loom (`domain/video.js` y migración 0040). */
+        referrerPolicy="strict-origin-when-cross-origin"
+    />
     </div>
   );
 };
-
-/** El enlace de salida, para quien prefiera abrirlo en su aplicación. */
-export const VideoExternalLink = ({ video }) =>
-  video ? (
-    <a
-      className="row gap-1 t-xs link"
-      href={video.watchUrl}
-      target="_blank"
-      rel="noreferrer noopener"
-    >
-      Abrir en {video.label} <ExternalLink size={11} />
-    </a>
-  ) : null;

@@ -1,34 +1,46 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Check, Compass, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowRight, Check, Compass, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { onboardingCurrent, onboardingProgress, onboardingSteps } from '@/domain/onboarding';
 import { clientPath } from '@/routes';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
+import { useInvite } from './useInvite';
 
 /**
- * El mapa de la aplicación para quien acaba de entrar.
+ * Los primeros pasos, con el estado real de cada uno.
  *
- * ══ El problema que resuelve ════════════════════════════════════════════════
+ * ══ Por qué esto sustituye a TRES cosas ═════════════════════════════════════
  *
- * Un entrenador preguntó dónde se hacía la rutina. No es que estuviera escondida:
- * es que TODO lo de un cliente vive dentro de él —`/c/:id/rutina`— y para llegar
- * hay que entender antes que aquí primero se entra en una persona y después se
- * elige qué hacerle. Eso es evidente cuando ya lo sabes y no lo es la primera
- * vez, porque el menú de arriba no nombra ni la rutina ni la dieta.
+ * Un entrenador recién registrado recibía, seguidas: un diálogo de bienvenida de
+ * cuatro pasos, este panel con otros cuatro, y un estado vacío con el botón de
+ * dar de alta. Tres piezas diciendo la misma frase con distintas palabras.
+ * Repetir un mensaje tres veces no lo refuerza — enseña que el producto se
+ * repite, y que se puede cerrar sin leer.
  *
- * Esto lo dice en cuatro líneas, con los enlaces puestos.
+ * Ahora hay una sola, y lo que la hace útil es que **sabe por dónde vas**:
  *
- * ── Por qué no se marca solo lo hecho ───────────────────────────────────────
- * La rutina y la dieta se cargan cuando se abre a un cliente, no al arrancar. Un
- * indicador que dijera «rutina: sin programar» porque el dato aún no ha llegado
- * mentiría justo a quien menos puede detectarlo. Solo se comprueba lo que se sabe
- * de verdad al cargar la aplicación: si hay clientes.
+ *   · Enseña UN paso, el que toca. Los otros tres están detrás, en una línea,
+ *     porque cuatro tareas a la vez no son una guía sino una lista de deberes —
+ *     y tres de ellas ni siquiera se pueden hacer todavía.
+ *   · El botón te lleva CON QUIEN le falta: «Programar a Marta», no «Ir a
+ *     Rutina». La primera vez, la mitad del trabajo es saber a dónde ir.
+ *   · Cada paso se marca solo cuando de verdad está hecho. Nadie tiene que
+ *     acordarse de tacharlo.
+ *   · Y cuando no queda ninguno, desaparece sola. La que hay que cerrar a mano
+ *     se cierra el primer día, antes de haber servido de nada.
  *
- * ── Por qué se puede cerrar ─────────────────────────────────────────────────
- * Porque deja de hacer falta y quedarse para siempre lo convertiría en ruido. Se
- * recuerda cerrado en este navegador; si se pierde, vuelve a salir, que es mejor
- * error que el contrario.
+ * ── El paso que se olvida ───────────────────────────────────────────────────
+ * Invitar. Hasta que al cliente no le llega el enlace no puede entrar, así que
+ * los registros, el check-in y las fotos —media aplicación— se quedan sin usar
+ * sin que nada lo diga. Por eso ese paso se completa DESDE AQUÍ, con su botón,
+ * en vez de mandar a buscarlo dentro de la ficha.
+ *
+ * ── Por qué se puede ocultar igualmente ─────────────────────────────────────
+ * Porque quien ya sabe hacer esto no tiene por qué demostrarlo, y porque un
+ * panel que no se puede quitar acaba siendo parte del ruido. Se recuerda en este
+ * navegador; si se pierde, vuelve a salir, que es mejor error que el contrario.
  */
 const key = (userId) => `caveman-guia:${userId || 'anon'}`;
 
@@ -41,95 +53,126 @@ const leerCerrado = (userId) => {
 };
 
 export const GettingStarted = () => {
-  const { clients, session } = useApp();
+  const { clients, training, session, preferences } = useApp();
+  const navigate = useNavigate();
   const userId = session?.user?.id;
+
   const [cerrado, setCerrado] = useState(() => leerCerrado(userId));
+  const [verTodo, setVerTodo] = useState(false);
+  const { busy: invitando, send: invitar, result: invite } = useInvite();
 
-  if (cerrado) return null;
+  /* Que haya tocado su protocolo alguna vez: se mira si existe la clave, no si
+     su contenido difiere del de por defecto —eso marcaría el paso como hecho a
+     quien no ha entrado nunca ahí—. */
+  const protocolTocado = Boolean(preferences?.protocol);
 
-  const primero = clients[0];
-  const tieneClientes = clients.length > 0;
+  const pasos = onboardingSteps({ clients, training, protocolTocado });
+  const actual = onboardingCurrent(pasos);
+  const { hechos, total } = onboardingProgress(pasos);
 
-  /* Sin clientes, los tres pasos que van después no tienen a dónde llevar: se
-     nombran igual, sin enlace, porque saber que existen es la mitad del mapa. */
-  const pasos = [
-    {
-      id: 'alta',
-      hecho: tieneClientes,
-      titulo: 'Da de alta a un cliente',
-      texto: 'En «Clientes». Solo hace falta su nombre; lo demás se completa luego.',
-      to: '/clientes',
-      accion: 'Ir a Clientes',
-    },
-    {
-      id: 'entrar',
-      titulo: 'Entra en él pulsando su tarjeta',
-      texto:
-        'Todo lo suyo vive dentro: su rutina, su dieta, sus fotos, sus medidas y su ficha. Cambias de sección en el carril que aparece bajo su nombre.',
-      to: primero ? clientPath(primero.id, 'resumen') : null,
-      accion: primero ? `Abrir a ${primero.name}` : null,
-    },
-    {
-      id: 'rutina',
-      titulo: 'Prográmale la rutina y la dieta',
-      texto:
-        'Dentro del cliente, en «Rutina» y «Nutrición». Son dos de las secciones de su carril.',
-      to: primero ? clientPath(primero.id, 'rutina') : null,
-      accion: primero ? 'Ver la rutina' : null,
-    },
-    {
-      id: 'protocolo',
-      titulo: 'Decide qué le pides a tus clientes',
-      texto:
-        'En Ajustes → Protocolo eliges los pasos de tu alta, qué preguntas al terminar de entrenar y qué módulos ve cada uno. Nada de eso viene impuesto.',
-      to: '/ajustes/protocolo',
-      accion: 'Configurar mi protocolo',
-    },
-  ];
+  /* Sin nada pendiente, la guía sobra. No hay que cerrarla: se va. */
+  if (cerrado || !actual) return null;
+
+  const ocultar = () => {
+    setCerrado(true);
+    try {
+      localStorage.setItem(key(userId), '1');
+    } catch {
+      /* Sin almacenamiento la guía volverá a salir. Es lo de menos y romper la
+         pantalla por ello sería mucho peor. */
+    }
+  };
+
+  /* A dónde lleva cada paso. El de invitar no navega: se resuelve aquí mismo. */
+  const ir = () => {
+    if (actual.id === 'alta') return navigate('/clientes');
+    if (actual.id === 'protocolo') return navigate('/ajustes/protocolo');
+    if (actual.id === 'programar' && actual.cliente) {
+      return navigate(clientPath(actual.cliente.id, 'rutina'));
+    }
+    if (actual.id === 'invitar' && actual.cliente) return invitar(actual.cliente);
+    return undefined;
+  };
 
   return (
     <Panel className="col gap-4">
       <div className="row between wrap gap-2">
-        <SectionTitle icon={Compass}>Cómo funciona esto</SectionTitle>
-        <button
-          type="button"
-          className="btn btn-icon"
-          onClick={() => {
-            setCerrado(true);
-            try {
-              localStorage.setItem(key(userId), '1');
-            } catch {
-              /* Sin almacenamiento la guía volverá a salir. Es lo de menos y
-                 romper la pantalla por ello sería mucho peor. */
-            }
-          }}
-          aria-label="Ocultar la guía"
-          title="Ocultar"
-        >
-          <X size={15} />
-        </button>
+        <SectionTitle icon={Compass}>Por dónde empezar</SectionTitle>
+        <div className="row gap-2">
+          <span className="badge">
+            {hechos} de {total}
+          </span>
+          <button
+            type="button"
+            className="btn btn-icon"
+            onClick={ocultar}
+            aria-label="Ocultar la guía"
+            title="Ocultar"
+          >
+            <X size={15} />
+          </button>
+        </div>
       </div>
 
-      <ol className="col gap-3">
-        {pasos.map((paso, i) => (
-          <li key={paso.id} className="card-inset row gap-3">
-            <span className="list-icon" aria-hidden="true">
-              {paso.hecho ? <Check size={15} /> : i + 1}
+      {/* EL PASO: uno, con su porqué y su botón. */}
+      <div className="card-inset col gap-2">
+        <span className="t-sm" style={{ fontWeight: 650 }}>
+          {actual.titulo}
+        </span>
+        <span className="t-xs t-secondary">{actual.texto}</span>
+
+        <div className="row gap-2 wrap" style={{ marginTop: 'var(--s1)' }}>
+          <button type="button" className="btn btn-primary btn-sm" disabled={invitando} onClick={ir}>
+            {invitando ? 'Generando…' : actual.accion} <ArrowRight size={14} />
+          </button>
+
+          {/* El enlace se copia solo, y hay que decirlo: si no, el botón parece
+              no haber hecho nada. */}
+          {actual.id === 'invitar' && invite?.ok && (
+            <span className="t-xs t-secondary">
+              {invite.copied
+                ? 'Enlace copiado. Mándaselo por WhatsApp.'
+                : `Cópialo a mano: ${invite.url}`}
             </span>
-            <span className="col gap-1 grow" style={{ minWidth: 0 }}>
-              <span className="t-sm" style={{ fontWeight: 650 }}>
-                {paso.titulo}
+          )}
+          {invite?.ok === false && (
+            <span className="t-xs" style={{ color: 'var(--negative)' }}>
+              {invite.error}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Y el resto, en una línea. Están para saber que existen, no para hacerse
+          ahora: los de abajo dependen de éste. */}
+      <button
+        type="button"
+        className="btn btn-sm login-alt"
+        aria-expanded={verTodo}
+        onClick={() => setVerTodo((v) => !v)}
+      >
+        {verTodo ? 'Ocultar los demás pasos' : 'Ver los cuatro pasos'}
+      </button>
+
+      {verTodo && (
+        <ol className="col gap-2">
+          {pasos.map((paso, i) => (
+            <li key={paso.id} className="row gap-3" style={{ alignItems: 'flex-start' }}>
+              <span className="list-icon" aria-hidden="true">
+                {paso.sabido && paso.hecho ? <Check size={14} /> : i + 1}
               </span>
-              <span className="t-xs t-secondary">{paso.texto}</span>
-              {paso.to && (
-                <Link className="t-xs link" to={paso.to}>
-                  {paso.accion} →
-                </Link>
-              )}
-            </span>
-          </li>
-        ))}
-      </ol>
+              <span className="col gap-1 grow" style={{ minWidth: 0 }}>
+                <span className="t-sm" style={{ fontWeight: paso.id === actual.id ? 650 : 500 }}>
+                  {paso.titulo}
+                </span>
+                {/* Lo que todavía no se puede saber se dice, en vez de marcarse
+                    a la ligera: un paso mal marcado enseña a no fiarse. */}
+                {!paso.sabido && <span className="t-2xs t-tertiary">Cuando tengas un cliente</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
     </Panel>
   );
 };

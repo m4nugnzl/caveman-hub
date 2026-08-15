@@ -479,6 +479,12 @@ export const MealCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
+
+  /* El de la OPCIÓN abierta, que es otro plano: la cabecera actúa sobre la
+     comida entera y esto sobre una de sus alternativas. */
+  const [opcionMenu, setOpcionMenu] = useState(false);
+  const opcionMenuRef = useRef(null);
+  useClickOutside(opcionMenuRef, () => setOpcionMenu(false), opcionMenu);
   // Estado del arrastre, igual que en `ExerciseList`: quién se arrastra y sobre
   // quién se está soltando, para poder pintar las dos filas de forma distinta.
   const [dragIndex, setDragIndex] = useState(null);
@@ -770,40 +776,86 @@ export const MealCard = ({
             </button>
           )}
           {/*
-            Duplicar la alternativa abierta.
+            ══ Y las acciones SOBRE la opción abierta, en un menú ═════════════
 
-            Es el atajo que más se usa y el que faltaba: la segunda opción de una
-            comida casi nunca se monta desde cero, sino que es la primera con el
-            arroz cambiado por pasta. Sin esto había que volver a buscar y añadir
-            los cinco alimentos uno a uno.
+            El carril tenía cuatro clases de cosa seguidas y todas con la misma
+            forma: las pestañas de cada opción —que son dónde ESTÁS—, «+
+            Alternativa» —que crea—, «Duplicar» y «A días de descanso» —que
+            actúan sobre la abierta—, y más abajo, suelto, un botón rojo de
+            quitar. Con tres alternativas eran siete controles en una comida, y
+            una comida no es la única de la pantalla.
 
-            Solo aparece con alimentos dentro: duplicar una opción vacía crea otra
-            vacía, que es lo mismo que «Alternativa» y confunde tener las dos.
+            Ahora el carril dice lo que es —en qué opción estás, y añadir otra— y
+            lo que se le HACE a la abierta vive en un menú, igual que en la
+            cabecera de la comida. Quitar entra ahí también: estaba lejos de las
+            otras tres y es la que hay que mirar dos veces antes de pulsar.
           */}
-          {editable && foods.length > 0 && (
-            <button
-              type="button"
-              className="chip chip-dashed"
-              onClick={() => onDuplicateOption(index)}
-              title={`Crear una alternativa copiando la opción ${index + 1}`}
-            >
-              <Copy size={13} /> Duplicar
-            </button>
-          )}
-          {/*
-            Y llevarse SOLO esta alternativa al otro día. Aterriza en la comida
-            que se llama igual, que es siempre la respuesta: la opción de pasta
-            del almuerzo de entreno va al almuerzo de descanso.
-          */}
-          {editable && foods.length > 0 && onCopyOption && (
-            <button
-              type="button"
-              className="chip chip-dashed"
-              onClick={() => onCopyOption(index)}
-              title={`Copiar la opción ${index + 1} a «${meal.name}» de ${otherVariantLabel}`}
-            >
-              <ArrowRightLeft size={13} /> A {otherVariantLabel}
-            </button>
+          {editable && (
+            <div ref={opcionMenuRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="btn btn-icon"
+                onClick={() => setOpcionMenu((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={opcionMenu}
+                aria-label={`Acciones de la opción ${index + 1}`}
+              >
+                <MoreVertical size={16} />
+              </button>
+
+              {opcionMenu && (
+                <div className="popover popover-right" style={{ top: '120%' }} role="menu">
+                  {/* Solo con alimentos dentro: duplicar una opción vacía crea
+                      otra vacía, que es lo mismo que «Alternativa». */}
+                  {foods.length > 0 && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="menu-item"
+                      onClick={() => {
+                        onDuplicateOption(index);
+                        setOpcionMenu(false);
+                      }}
+                    >
+                      <Copy size={15} /> Duplicar esta opción
+                    </button>
+                  )}
+
+                  {/* Llevarse SOLO esta alternativa al otro día. Aterriza en la
+                      comida que se llama igual, que es siempre la respuesta. */}
+                  {foods.length > 0 && onCopyOption && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="menu-item"
+                      onClick={() => {
+                        onCopyOption(index);
+                        setOpcionMenu(false);
+                      }}
+                    >
+                      <ArrowRightLeft size={15} /> Copiar a {otherVariantLabel}
+                    </button>
+                  )}
+
+                  {options.length > 1 && (
+                    <>
+                      <hr className="divider" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="menu-item menu-item-danger"
+                        onClick={() => {
+                          setOpcionMenu(false);
+                          askRemoveOption();
+                        }}
+                      >
+                        <Trash2 size={15} /> Quitar la opción {index + 1}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -909,11 +961,6 @@ export const MealCard = ({
           <div className="grow" style={{ minWidth: 210 }}>
             <AddFoodControl foodLibrary={foodLibrary} onAdd={(food) => onAddFood(index, food)} />
           </div>
-          {options.length > 1 && (
-            <button type="button" className="btn btn-danger btn-sm" onClick={askRemoveOption}>
-              <Trash2 size={13} /> Quitar opción {index + 1}
-            </button>
-          )}
         </div>
       )}
     </article>

@@ -1,10 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Layers, Ruler, Salad, Send, Sunrise, Users } from 'lucide-react';
+import { Camera, Layers, Ruler, Salad } from 'lucide-react';
 
 import { useSession } from '@/context/AppContext';
 import { Modal } from '@/components/ui/Modal';
-import { paletteShortcut } from '@/lib/platform';
 import { hasSeenTour, markTourSeen } from '@/lib/tourSeen';
 
 /**
@@ -40,56 +39,22 @@ import { hasSeenTour, markTourSeen } from '@/lib/tourSeen';
  * puede entrar —que es el error más caro, porque la mitad de la aplicación queda
  * sin usar sin que nada avise—.
  */
-const COACH_STEPS = [
-  {
-    icon: Users,
-    title: 'Empieza por dar de alta a un cliente',
-    body: (
-      <>
-        En <strong>Clientes</strong> creas su ficha con lo mínimo: su nombre. Todo lo demás —rutina,
-        nutrición, medidas y fotos— cuelga de ahí.
-      </>
-    ),
-  },
-  {
-    icon: Layers,
-    title: 'Prográmale la semana',
-    body: (
-      <>
-        Al abrir un cliente tienes sus secciones. En <strong>Rutina</strong> montas su microciclo
-        —días, ejercicios y series—, y <strong>Nutrición</strong> y <strong>Check-ins</strong>{' '}
-        funcionan igual: se programa una vez y se ajusta sobre la marcha.
-      </>
-    ),
-  },
-  {
-    icon: Send,
-    title: 'Invítale a su portal',
-    body: (
-      <>
-        El botón <strong>Invitar</strong> genera un enlace para mandarle por WhatsApp. Con él se crea
-        su cuenta y pasa a ver su rutina, apuntar lo que levanta y subir sus fotos.{' '}
-        <strong>Hasta que no lo mandes, tu cliente no puede entrar.</strong>
-      </>
-    ),
-  },
-  {
-    icon: Sunrise,
-    title: 'Y a partir de ahí, «Hoy»',
-    body: (
-      <>
-        <strong>Hoy</strong> te cuenta lo que ha pasado desde ayer y qué espera respuesta tuya;{' '}
-        <strong>Clientes</strong>, en qué estado está cada uno. Para ir a cualquier sitio sin
-        buscarlo, <kbd className="kbd">{paletteShortcut()}</kbd>.
-      </>
-    ),
-  },
-];
+/*
+  ══ El entrenador ya no tiene recorrido ════════════════════════════════════
 
-/**
- * El del cliente va por lo que se hace CON EL MÓVIL EN LA MANO, en el mismo orden
- * que la barra inferior: entrenar, comer, pesarse.
- */
+  Tenía uno de cuatro pasos, y contaba exactamente lo mismo que el panel de
+  «Por dónde empezar» y que el estado vacío de la cartera: tres superficies
+  diciendo «da de alta → programa → invita» con distintas palabras, seguidas.
+
+  Un diálogo que se abre ANTES de haber tocado nada es un manual de una máquina
+  que todavía no has visto: se cierra sin leer, y con él se va la única pista
+  del orden. La guía se quedó, porque es la que sabe por dónde vas y la que
+  puede llevarte con quien te falta (`domain/onboarding.js`).
+
+  El del CLIENTE sí se queda: llega desde un enlace de WhatsApp sin saber qué es
+  esto ni qué se espera de él, y no tiene ninguna otra superficie que se lo
+  cuente.
+*/
 const CLIENT_STEPS = [
   {
     icon: Layers,
@@ -167,14 +132,17 @@ export const WelcomeTour = () => {
     previsualiza el portal de su cliente no está viendo esto por primera vez, y
     soltarle ahí la bienvenida del cliente sería ruido en mitad de una comprobación.
   */
+  /* Solo el cliente. El entrenador tiene su guía viva en «Hoy». */
   const isCoach = profileRole === 'coach';
-  const steps = isCoach ? COACH_STEPS : CLIENT_STEPS;
+  const steps = CLIENT_STEPS;
 
-  /* La primera visita la abre sola; el menú de cuenta la abre a mano. */
+  /* La primera visita la abre sola; el menú de cuenta la abre a mano. Al
+     entrenador no se le abre sola: su guía es el panel de «Por dónde empezar»,
+     que sí sabe por dónde va. */
   useEffect(() => {
-    if (!userId || hasSeenTour(userId)) return;
+    if (!userId || isCoach || hasSeenTour(userId)) return;
     setOpen(true);
-  }, [userId, setOpen]);
+  }, [userId, isCoach, setOpen]);
 
   /* Cada apertura empieza por el primer paso, venga de donde venga: quien vuelve a
      abrirla desde el menú quiere el recorrido, no el punto donde la dejó. */
@@ -196,14 +164,14 @@ export const WelcomeTour = () => {
      que está mirando. */
   const finish = () => {
     close();
-    navigate(isCoach ? '/clientes' : '/mi/rutina');
+    navigate(isCoach ? '/hoy' : '/mi/rutina');
   };
 
   const { icon: Icon, title, body } = steps[step];
 
   return (
     <Modal
-      title={isCoach ? 'Te damos la bienvenida' : 'Este es tu espacio'}
+      title="Este es tu espacio"
       onClose={close}
       footer={
         <div className="tour-foot">
@@ -224,7 +192,7 @@ export const WelcomeTour = () => {
               className="btn btn-primary"
               onClick={() => (last ? finish() : setStep(step + 1))}
             >
-              {last ? (isCoach ? 'Crear mi primer cliente' : 'Ver mi rutina') : 'Siguiente'}
+              {last ? 'Ver mi rutina' : 'Siguiente'}
             </button>
           </span>
         </div>

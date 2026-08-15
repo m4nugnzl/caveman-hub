@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, Video } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { dayMonthMaybeYear } from '@/lib/dates';
+import { shortDate } from '@/lib/dates';
 import { parseVideoUrl } from '@/domain/video';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
-import { VideoEmbed, VideoExternalLink } from '@/components/ui/VideoEmbed';
+import { VideoEmbed } from '@/components/ui/VideoEmbed';
 
 /**
  * Las revisiones que le ha grabado su entrenador.
@@ -106,9 +106,12 @@ export const ClientReviews = ({ client }) => {
               <div className="row between wrap gap-2">
                 <span className="col" style={{ gap: 1, minWidth: 0 }}>
                   <span className="t-sm" style={{ fontWeight: 650 }}>
-                    {link.title || (link.weekStart ? `Revisión del ${link.weekStart}` : 'Revisión')}
+                    {/* La fecha de la SEMANA revisada, legible y una sola vez.
+                        Salían dos —«Revisión del 3 ago» y debajo «15 ago», la de
+                        subida del vídeo— y ninguna de las dos decía cuál era
+                        cuál. La que importa es de qué semana habla. */}
+                    {link.weekStart ? `Revisión del ${shortDate(link.weekStart)}` : link.title || 'Revisión'}
                   </span>
-                  <span className="t-2xs t-tertiary">{fecha(link.createdAt)}</span>
                 </span>
 
                 {/* Que ya la has visto, dicho para ti — y contado para él, que es
@@ -121,10 +124,7 @@ export const ClientReviews = ({ client }) => {
               </div>
 
               {video ? (
-                <>
-                  <VideoEmbed video={video} title={link.title} onPlay={() => marcar(link.id)} />
-                  <VideoExternalLink video={video} />
-                </>
+                <VideoEmbed video={video} title={link.title} onPlay={() => marcar(link.id)} />
               ) : firmada ? (
                 /* Grabada en la aplicación: reproductor del navegador con la URL
                    firmada. `preload="none"` para no descargar megas de vídeo por
@@ -166,6 +166,3 @@ export const ClientReviews = ({ client }) => {
   );
 };
 
-/* «12 mar», sin hora: de una revisión importa el día, no el minuto. El formato
-   vive en `lib/dates`, que es donde está decidido el idioma. */
-const fecha = (iso) => dayMonthMaybeYear(iso);
