@@ -3223,34 +3223,112 @@ span.scale-step { cursor: default; opacity: 0.55; }
 span.scale-step.is-on { opacity: 1; }
 
 /* ── Calentamiento ─────────────────────────────────────────────────────── */
+/* ── Calentamiento y movilidad ─────────────────────────────────────────────
+   ══ Lo que ve el cliente ═══════════════════════════════════════════════════
+
+   Una lista de ejercicios donde el vídeo es una PROPIEDAD del ejercicio, no un
+   destino aparte. Antes cada uno con vídeo llevaba debajo una banda del ancho
+   del panel con un botón dentro: para diez segundos de una movilidad eso es un
+   cartel, y con cinco ejercicios, cinco carteles.
+
+   Ahora la fila entera abre el vídeo y lo que lo anuncia es una miniatura con su
+   triángulo, como en cualquier lista de reproducción. El reproductor se abre
+   dentro del propio ejercicio, no encima de la pantalla. */
+
 .warmup {
   display: flex; flex-direction: column; gap: var(--s2);
   padding: var(--s3) var(--s4);
   background: var(--surface-sunken); border-radius: var(--r-md);
 }
 .warmup-list { display: flex; flex-direction: column; gap: 2px; list-style: none; }
-/* En COLUMNA desde que el vídeo se ve aquí dentro: en fila, el reproductor
-   competía por el ancho con el nombre del ejercicio y dejaba los dos a la
-   mitad. Arriba qué hacer, debajo cómo se hace. */
-.warmup-item {
-  display: flex; flex-direction: column; align-items: stretch; gap: var(--s2);
-  padding: var(--s2) 0; min-width: 0;
-}
+.warmup-item { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
 .warmup-item + .warmup-item { border-top: 1px solid var(--hairline); }
 
+/* La fila. Es un botón cuando hay vídeo y un span cuando no, pero mide y se
+   alinea igual en los dos casos: una lista donde las filas con vídeo tienen otra
+   altura se lee como dos listas. */
+.warmup-hit {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; min-width: 0; text-align: left;
+  padding: var(--s2) 0; border: 0; background: none; font: inherit; color: inherit;
+  cursor: pointer; border-radius: var(--r-sm);
+  transition: opacity var(--fast);
+}
+.warmup-hit.is-plain { cursor: default; }
+.warmup-hit:not(.is-plain):hover { opacity: 0.72; }
+
+/* La miniatura: proporción de vídeo (3:2), no un círculo. Un círculo lee como
+   «botón de reproducir la pantalla»; un rectángulo lee como «hay un vídeo». */
+.warmup-thumb {
+  width: 42px; height: 28px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--r-xs);
+  background: var(--accent); color: var(--accent-on);
+}
+
+.warmup-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.warmup-say > .nm {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  font-size: var(--fs-sm); font-weight: 650; min-width: 0;
+}
+/* La prescripción no es una píldora: es parte del nombre —«movilidad de cadera,
+   2 × 10»—. Como píldora competía con él y hacía la lista más alta. */
+.warmup-say > .nm > .dose {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text-tertiary);
+  letter-spacing: -0.01em;
+}
+.warmup-say > .note { font-size: var(--fs-xs); color: var(--text-secondary); }
+
+.warmup-go { flex-shrink: 0; color: var(--text-tertiary); display: grid; place-items: center; }
+
+/* El reproductor, dentro del ejercicio y sangrado a la altura del texto: así se
+   lee como parte de él y no como un bloque suelto entre dos ejercicios.
+
+   El ancho va en AUTO: el marco del reproductor trae 100 % desde su propia
+   regla, y con el margen izquierdo encima el total pasaba del contenedor — el
+   vídeo se salía del recuadro por la derecha. */
+.warmup-item > .video-frame {
+  width: auto;
+  margin: 0 0 var(--s2) calc(42px + var(--s3));
+}
+
+/* ══ Lo que edita el entrenador ═════════════════════════════════════════════
+
+   Eran cuatro campos en una fila —ejercicio, prescripción, vídeo, indicaciones—
+   con el mismo tamaño y el mismo peso, así que el NOMBRE, que es de lo que se
+   habla, medía lo mismo que la URL de un vídeo. Con cinco ejercicios eran veinte
+   casillas idénticas.
+
+   Ahora cada ejercicio es una ficha con jerarquía: el nombre grande arriba con
+   su dosis al lado, y debajo, en gris, lo que lo acompaña. */
+
 .warmup-edit {
-  display: flex; align-items: flex-start; gap: var(--s3);
-  padding: var(--s3); background: var(--surface-sunken);
-  border: 1px solid var(--edge); border-radius: var(--r-md);
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-md);
 }
-/* `auto-fit` con el mínimo acotado al 100 %: en escritorio los cuatro campos van
-   en fila y en un móvil caen a una columna, sin punto de ruptura. */
-.warmup-edit-main {
-  flex: 1; min-width: 0;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
-  gap: var(--s3);
+.warmup-edit-top { display: flex; align-items: flex-start; gap: var(--s3); }
+/* El nombre y la dosis: lo que define el ejercicio, en la primera línea. La
+   dosis es corta por definición, así que no compite por el ancho. */
+.warmup-edit-name { flex: 1; min-width: 0; display: flex; gap: var(--s2); }
+.warmup-edit-name > .input { font-weight: 650; }
+.warmup-edit-name > .input.dose {
+  width: 92px; flex-shrink: 0; text-align: center;
+  font-family: var(--font-display); font-variant-numeric: tabular-nums;
 }
-.warmup-edit-tools { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.warmup-edit-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+.warmup-edit-more {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+/* Qué va a pasar con ese enlace, dicho al escribirlo. Sin esto, un enlace de
+   Drive parece que se va a poder ver dentro y no se sabe hasta abrirlo. */
+.warmup-edit-video { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.warmup-edit-video.is-ok { color: var(--positive); }
+
 
 /* ── El registro sesión a sesión ───────────────────────────────────────────
    Un gráfico de promedios contesta «¿va a más o a menos?» y borra justo lo que
@@ -3921,3 +3999,13 @@ span.scale-step.is-on { opacity: 1; }
   transition: color var(--fast), background-color var(--fast);
 }
 .video-row-out:hover { background: var(--fill-subtle); color: var(--text); }
+
+/* ── El reproductor, allá donde se abra ────────────────────────────────────
+   `aspect-ratio` en el contenedor: el hueco lo reserva el marco antes de cargar
+   nada, así que la página no da un salto cuando el vídeo aparece. */
+.video-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  border-radius: var(--r-md); overflow: hidden;
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.video-frame > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

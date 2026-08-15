@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { ChevronDown, ChevronUp, Play, Plus, Trash2, Waves } from 'lucide-react';
 
 import { parseVideoUrl } from '@/domain/video';
 import { newId } from '@/lib/ids';
-import { VideoEmbed } from '@/components/ui/VideoEmbed';
+import { VideoPlayer } from '@/components/ui/VideoEmbed';
 import { Field, TextInput } from '@/components/ui/primitives';
 
 /**
@@ -42,6 +43,79 @@ const emptyDrill = () => ({ id: newId('drill'), name: '', prescription: '', vide
 
 // ── Lo que ve el cliente ───────────────────────────────────────────────────
 
+/**
+ * Un ejercicio del calentamiento. Con vídeo, la FILA ENTERA lo abre.
+ *
+ * ── Por qué no un botón aparte ──────────────────────────────────────────────
+ * Lo era: una banda del ancho del panel con «Ver la revisión en vídeo» dentro
+ * —texto de otro sitio, además— y una celda pegada al lado para salir a
+ * YouTube. Para diez segundos de una movilidad, eso es un cartel; y con cinco
+ * ejercicios, cinco carteles.
+ *
+ * Un vídeo de un ejercicio no es un destino: es una propiedad del ejercicio.
+ * Así que se dice como se dice en cualquier lista de reproducción —una
+ * miniatura con su triángulo a la izquierda del nombre— y al pulsar la fila el
+ * reproductor se abre debajo, dentro del propio ejercicio.
+ */
+const WarmupDrill = ({ drill }) => {
+  const [abierto, setAbierto] = useState(false);
+  const video = drill.videoUrl ? parseVideoUrl(drill.videoUrl) : null;
+
+  const cuerpo = (
+    <>
+      {/* La miniatura solo si se puede reproducir aquí: prometer un play que
+          acaba abriendo otra pestaña es prometer lo que no es. */}
+      {video && (
+        <span className="warmup-thumb" aria-hidden="true">
+          <Play size={13} fill="currentColor" />
+        </span>
+      )}
+
+      <span className="warmup-say">
+        <span className="nm">
+          {drill.name}
+          {drill.prescription && <span className="dose">{drill.prescription}</span>}
+        </span>
+        {drill.notes && <span className="note">{drill.notes}</span>}
+      </span>
+
+      {video && (
+        <span className="warmup-go" aria-hidden="true">
+          {abierto ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <li className="warmup-item">
+      {video ? (
+        <button
+          type="button"
+          className="warmup-hit"
+          aria-expanded={abierto}
+          onClick={() => setAbierto((v) => !v)}
+        >
+          {cuerpo}
+        </button>
+      ) : (
+        <span className="warmup-hit is-plain">{cuerpo}</span>
+      )}
+
+      {video && abierto && <VideoPlayer video={video} title={drill.name} />}
+
+      {/* Lo que no se puede incrustar —un Drive, un archivo suyo— se dice como
+          lo que es: la CSP no deja otra cosa, y un play que abre otra pestaña
+          engaña más de lo que ayuda. */}
+      {drill.videoUrl && !video && (
+        <a className="link t-xs" href={drill.videoUrl} target="_blank" rel="noreferrer noopener">
+          <Play size={12} /> Ver el vídeo
+        </a>
+      )}
+    </li>
+  );
+};
+
 export const WarmupView = ({ drills }) => {
   const list = (drills || []).filter((d) => d.name?.trim());
   if (list.length === 0) return null;
@@ -58,26 +132,7 @@ export const WarmupView = ({ drills }) => {
 
       <ul className="warmup-list">
         {list.map((drill) => (
-          <li className="warmup-item" key={drill.id}>
-            <div className="col gap-1 grow">
-              <span className="row gap-2 wrap">
-                <strong className="t-sm">{drill.name}</strong>
-                {drill.prescription && <span className="badge">{drill.prescription}</span>}
-              </span>
-              {drill.notes && <span className="t-xs t-secondary">{drill.notes}</span>}
-            </div>
-
-            {drill.videoUrl &&
-              (parseVideoUrl(drill.videoUrl) ? (
-                /* Se ve aquí: una fila que al pulsarla monta el reproductor. */
-                <VideoEmbed video={parseVideoUrl(drill.videoUrl)} title={drill.name} />
-              ) : (
-                /* Lo que no se puede incrustar se dice como lo que es. */
-                <a className="link t-xs" href={drill.videoUrl} target="_blank" rel="noreferrer noopener">
-                  <Play size={12} /> Ver el vídeo
-                </a>
-              ))}
-          </li>
+          <WarmupDrill drill={drill} key={drill.id} />
         ))}
       </ul>
     </section>
@@ -109,84 +164,104 @@ export const WarmupEditor = ({ drills = [], onChange }) => {
         </p>
       )}
 
-      {list.map((drill, index) => (
-        <div className="warmup-edit" key={drill.id}>
-          <div className="warmup-edit-main">
-            <Field label="Ejercicio">
-              {(props) => (
+      {list.map((drill, index) => {
+        /* Qué va a pasar con ese enlace, dicho AL ESCRIBIRLO. Sin esto, un
+           enlace de Drive parece que se va a poder ver dentro de la aplicación
+           y no se descubre hasta que el cliente lo abre en el gimnasio. */
+        const video = drill.videoUrl?.trim() ? parseVideoUrl(drill.videoUrl) : null;
+
+        return (
+          <div className="warmup-edit" key={drill.id}>
+            {/* La primera línea es lo que define el ejercicio: qué y cuánto. */}
+            <div className="warmup-edit-top">
+              <div className="warmup-edit-name">
                 <TextInput
-                  {...props}
                   value={drill.name}
                   onChange={(v) => patch(drill.id, 'name', v)}
                   placeholder="Movilidad de cadera"
+                  aria-label="Nombre del ejercicio"
                 />
-              )}
-            </Field>
-
-            <Field label="Prescripción" hint="Series, repeticiones o tiempo">
-              {(props) => (
                 <TextInput
-                  {...props}
+                  className="dose"
                   value={drill.prescription}
                   onChange={(v) => patch(drill.id, 'prescription', v)}
                   placeholder="2 × 10"
+                  aria-label="Series, repeticiones o tiempo"
                 />
-              )}
-            </Field>
+              </div>
 
-            <Field label="Vídeo" hint="Un enlace de YouTube, Drive o donde lo tengas">
-              {(props) => (
-                <TextInput
-                  {...props}
-                  value={drill.videoUrl}
-                  onChange={(v) => patch(drill.id, 'videoUrl', v)}
-                  placeholder="https://…"
-                />
-              )}
-            </Field>
+              <div className="warmup-edit-tools">
+                <button
+                  type="button"
+                  className="btn btn-icon"
+                  onClick={() => move(index, 'up')}
+                  disabled={index === 0}
+                  aria-label={`Subir ${drill.name || 'el ejercicio'}`}
+                >
+                  <ChevronUp size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-icon"
+                  onClick={() => move(index, 'down')}
+                  disabled={index === list.length - 1}
+                  aria-label={`Bajar ${drill.name || 'el ejercicio'}`}
+                >
+                  <ChevronDown size={15} />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-icon btn-icon-danger"
+                  onClick={() => onChange(list.filter((d) => d.id !== drill.id))}
+                  aria-label={`Quitar ${drill.name || 'el ejercicio'}`}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </div>
 
-            <Field label="Indicaciones" className="grow">
-              {(props) => (
-                <TextInput
-                  {...props}
-                  value={drill.notes}
-                  onChange={(v) => patch(drill.id, 'notes', v)}
-                  placeholder="Sin rebotes, controla la bajada"
-                />
-              )}
-            </Field>
+            {/* Y debajo lo que lo acompaña, en gris: el vídeo y la indicación. */}
+            <div className="warmup-edit-more">
+              <Field
+                label="Vídeo"
+                hint={
+                  drill.videoUrl?.trim()
+                    ? undefined
+                    : 'De YouTube o Loom para que se vea aquí dentro'
+                }
+              >
+                {(props) => (
+                  <TextInput
+                    {...props}
+                    value={drill.videoUrl}
+                    onChange={(v) => patch(drill.id, 'videoUrl', v)}
+                    placeholder="https://…"
+                  />
+                )}
+              </Field>
+
+              <Field label="Indicaciones">
+                {(props) => (
+                  <TextInput
+                    {...props}
+                    value={drill.notes}
+                    onChange={(v) => patch(drill.id, 'notes', v)}
+                    placeholder="Sin rebotes, controla la bajada"
+                  />
+                )}
+              </Field>
+            </div>
+
+            {drill.videoUrl?.trim() && (
+              <span className={`warmup-edit-video${video ? ' is-ok' : ''}`}>
+                {video
+                  ? `Se verá dentro de la sesión, sin salir a ${video.label}.`
+                  : 'No es de YouTube ni de Loom, así que se abrirá en otra pestaña.'}
+              </span>
+            )}
           </div>
-
-          <div className="warmup-edit-tools">
-            <button
-              type="button"
-              className="btn btn-icon"
-              onClick={() => move(index, 'up')}
-              disabled={index === 0}
-              aria-label={`Subir ${drill.name || 'el ejercicio'}`}
-            >
-              <ChevronUp size={15} />
-            </button>
-            <button
-              type="button"
-              className="btn btn-icon"
-              onClick={() => move(index, 'down')}
-              disabled={index === list.length - 1}
-              aria-label={`Bajar ${drill.name || 'el ejercicio'}`}
-            >
-              <ChevronDown size={15} />
-            </button>
-            <button
-              type="button"
-              className="btn btn-icon btn-icon-danger"
-              onClick={() => onChange(list.filter((d) => d.id !== drill.id))}
-              aria-label={`Quitar ${drill.name || 'el ejercicio'}`}
-            >
-              <Trash2 size={15} />
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
 
       <button
         type="button"

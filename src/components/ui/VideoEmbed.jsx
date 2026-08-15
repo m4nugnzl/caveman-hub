@@ -45,7 +45,35 @@ import { ExternalLink, Play } from 'lucide-react';
  * en qué se diferencian. Ahora hay una acción principal —verlo aquí— y la
  * salida a la aplicación de YouTube es un icono al final de la misma fila.
  */
-export const VideoEmbed = ({ video, title, onPlay }) => {
+/**
+ * El reproductor, sin disparador.
+ *
+ * Se saca aparte porque el BOTÓN de reproducir no puede ser el mismo en todas
+ * partes: en el histórico de revisiones el vídeo es la fila entera, y en un
+ * ejercicio de calentamiento es un detalle de un ejercicio que ya tiene su
+ * nombre y su prescripción. Un mismo disparador para los dos acababa poniendo
+ * «Ver la revisión en vídeo» encima de una movilidad de cadera.
+ */
+export const VideoPlayer = ({ video, title }) => {
+  if (!video) return null;
+  return (
+    <div className="video-frame">
+      <iframe
+        src={`${video.embedUrl}${video.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
+        title={title || `Vídeo de ${video.label}`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowFullScreen
+        /* `sandbox` no: los dos reproductores necesitan scripts y pantalla
+           completa, y con la lista de permisos que haría falta no queda
+           restricción real. Lo que acota de verdad es que la dirección solo
+           puede ser de YouTube o Loom (`domain/video.js` y migración 0040). */
+        referrerPolicy="strict-origin-when-cross-origin"
+      />
+    </div>
+  );
+};
+
+export const VideoEmbed = ({ video, title, onPlay, label = 'Ver la revisión en vídeo' }) => {
   const [playing, setPlaying] = useState(false);
 
   if (!video) return null;
@@ -64,7 +92,7 @@ export const VideoEmbed = ({ video, title, onPlay }) => {
           <span className="mark" aria-hidden="true">
             <Play size={13} fill="currentColor" />
           </span>
-          <span className="grow">Ver la revisión en vídeo</span>
+          <span className="grow">{label}</span>
         </button>
 
         {/* La salida a su aplicación, sin repetir la acción principal. */}
@@ -82,30 +110,5 @@ export const VideoEmbed = ({ video, title, onPlay }) => {
     );
   }
 
-  const marco = {
-    position: 'relative',
-    width: '100%',
-    aspectRatio: '16 / 9',
-    borderRadius: 'var(--r-md)',
-    overflow: 'hidden',
-    background: 'var(--surface-sunken)',
-    border: '1px solid var(--edge)',
-  };
-
-  return (
-    <div style={marco}>
-      <iframe
-        src={`${video.embedUrl}${video.embedUrl.includes('?') ? '&' : '?'}autoplay=1`}
-        title={title || `Vídeo de ${video.label}`}
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 }}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-        allowFullScreen
-        /* `sandbox` no: los dos reproductores necesitan scripts y pantalla
-           completa, y con la lista de permisos que haría falta no queda
-           restricción real. Lo que acota de verdad es que la dirección solo
-           puede ser de YouTube o Loom (`domain/video.js` y migración 0040). */
-        referrerPolicy="strict-origin-when-cross-origin"
-    />
-    </div>
-  );
+  return <VideoPlayer video={video} title={title} />;
 };
