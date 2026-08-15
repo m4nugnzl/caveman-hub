@@ -366,7 +366,30 @@ describe('la estructura del día', () => {
     expect(mealTarget(comida(null))).toBeNull();
     expect(mealTarget(comida({}))).toBeNull();
     expect(mealTarget(comida({ kcals: '', protein: '0' }))).toBeNull();
-    expect(mealTarget(comida({ kcals: '500' }))).toEqual({ kcals: 500, protein: 0, carbs: 0, fats: 0 });
+  });
+
+  /*
+    La casilla de hidratos casi nunca se rellena: la estructura del día ya enseña
+    los gramos que cuadran la comida y el entrenador los da por buenos. Si el
+    objetivo se leyera tal cual, el anillo del cliente diría «C 0 g» con un
+    reparto que no cuadra con sus propias kilocalorías — que es exactamente lo que
+    hacía.
+  */
+  it('los hidratos en blanco son lo que sobra de las calorías', () => {
+    // 600 − 40 P (160) − 15 G (135) = 305 → 76 g
+    expect(mealTarget(comida({ kcals: '600', protein: '40', fats: '15' }))).toEqual({
+      kcals: 600,
+      protein: 40,
+      carbs: 76,
+      fats: 15,
+    });
+    expect(mealTarget(comida({ kcals: '500' })).carbs).toBe(125);
+  });
+
+  /* Un cero escrito es una decisión —una comida cetogénica— y no una casilla sin
+     tocar. Completarlo sería cambiarle el plan al entrenador. */
+  it('un cero escrito se respeta', () => {
+    expect(mealTarget(comida({ kcals: '500', protein: '50', carbs: '0' })).carbs).toBe(0);
   });
 
   it('suma lo repartido y dice lo que queda del día', () => {

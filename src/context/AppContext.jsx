@@ -53,6 +53,11 @@ import {
   buildOption,
   emptyNutrition,
 } from '@/domain/nutrition';
+import {
+  buildIntakePath,
+  buildSupportPath,
+  validateAttachment,
+} from '@/domain/attachments';
 import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
 import { isArchived } from '@/domain/portfolio';
 import {
@@ -1089,11 +1094,21 @@ export const AppProvider = ({ children }) => {
     veces como clientes, y el resultado real era que nadie lo configuraba.
   */
   const [coachPrefs, setCoachPrefs] = useState({});
+  /*
+    Si ya se han LEÍDO, que no es lo mismo que si están vacías.
+
+    Hace falta desde que las plantillas viven aquí: «este entrenador no tiene
+    plantilla guardada» es la condición que dispara la subida de la que tenga en
+    el navegador, y confundirla con «todavía no han llegado» significa subir la
+    plantilla por defecto encima de la suya en cada arranque.
+  */
+  const [coachPrefsReady, setCoachPrefsReady] = useState(false);
 
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) {
       setCoachPrefs({});
+      setCoachPrefsReady(false);
       return undefined;
     }
 
@@ -1107,7 +1122,9 @@ export const AppProvider = ({ children }) => {
 
       // Sin la 0035 la columna no existe. Vacío = «no hay plantilla», que es
       // exactamente como se comportaba la aplicación antes.
-      if (!cancelado) setCoachPrefs(error ? {} : data?.preferences || {});
+      if (cancelado) return;
+      setCoachPrefs(error ? {} : data?.preferences || {});
+      setCoachPrefsReady(true);
     })();
 
     return () => {
@@ -1198,11 +1215,57 @@ export const AppProvider = ({ children }) => {
       messages: [...ticket.messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     }));
 
+    /*
+      Los adjuntos se firman TODOS DE UNA VEZ, no uno por mensaje.
+
+      Una bandeja de soporte con veinte hilos abiertos son veinte peticiones de
+      firma en cascada nada más entrar. `createSignedUrls` acepta la lista entera
+      y devuelve lo que puede firmar; lo que no —un archivo borrado a mano, una
+      ruta de un ticket ajeno— se queda sin URL y el mensaje lo dice, en vez de
+      dejar un enlace roto.
+    */
+    const paths = tickets.flatMap((t) => t.messages.map((m) => m.attachmentPath).filter(Boolean));
+
+    if (paths.length > 0) {
+      const { data: firmadas } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+
+      const porRuta = new Map(
+        (firmadas || []).filter((f) => f.signedUrl).map((f) => [f.path, f.signedUrl])
+      );
+
+      for (const ticket of tickets) {
+        ticket.messages = ticket.messages.map((m) =>
+          m.attachmentPath ? { ...m, attachmentUrl: porRuta.get(m.attachmentPath) || null } : m
+        );
+      }
+    }
+
     return { ok: true, tickets };
   }, []);
 
+  /**
+   * Sube el adjunto de un mensaje de soporte y devuelve su ruta.
+   *
+   * La ruta lleva el id del ticket dentro (`support/<ticketId>/…`) y eso es lo
+   * que la política de la 0039 comprueba: no hay forma de dejar un archivo en el
+   * hilo de otro, ni siquiera llamando a Storage directamente.
+   */
+  const uploadSupportAttachment = useCallback(async ({ ticketId, file }) => {
+    const invalido = validateAttachment(file);
+    if (invalido) return { ok: false, error: invalido };
+
+    const path = buildSupportPath({ ticketId, fileName: file.name });
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { contentType: file.type || undefined, upsert: false });
+
+    return error ? { ok: false, error: error.message } : { ok: true, path };
+  }, []);
+
   const createTicket = useCallback(
-    async ({ subject, body, context = {} }) => {
+    async ({ subject, body, context = {}, attachment = null }) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
 
@@ -1220,6 +1283,23 @@ export const AppProvider = ({ children }) => {
       if (error) return { ok: false, error: error.message };
 
       /*
+        La captura, si la hay, se sube DESPUÉS de crear el ticket: su ruta lleva
+        el id dentro y hasta aquí no existe.
+
+        Y si la subida falla, el mensaje se manda igual. El texto es lo que se
+        puede contestar; perder el ticket entero porque la imagen pesaba de más
+        —justo cuando la persona está escribiendo porque algo no le funciona— es
+        la peor respuesta posible. Se avisa y se sigue.
+      */
+      let adjunto = null;
+      let aviso = null;
+      if (attachment) {
+        const subida = await uploadSupportAttachment({ ticketId: data.id, file: attachment });
+        if (subida.ok) adjunto = subida.path;
+        else aviso = `El ticket se ha enviado, pero el archivo no: ${subida.error}`;
+      }
+
+      /*
         El primer mensaje va aparte y no en una columna del ticket. Así el hilo es
         homogéneo desde el principio: la pantalla pinta una lista de mensajes y no
         «el texto original, y además los mensajes», que es la variante que obliga
@@ -1230,6 +1310,7 @@ export const AppProvider = ({ children }) => {
         author_id: userId,
         from_support: false,
         body: String(body || '').trim(),
+        attachment_path: adjunto,
       });
 
       if (primero.error) return { ok: false, error: primero.error.message };
@@ -1249,15 +1330,24 @@ export const AppProvider = ({ children }) => {
         .invoke('support-notify', { body: { ticketId: data.id } })
         .catch(() => {});
 
-      return { ok: true, ticketId: data.id };
+      return { ok: true, ticketId: data.id, aviso };
     },
-    [session, team]
+    [session, team, uploadSupportAttachment]
   );
 
   const replyTicket = useCallback(
-    async (ticketId, body, fromSupport = false) => {
+    async (ticketId, body, fromSupport = false, attachment = null) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      /* Aquí el ticket ya existe, así que la subida va PRIMERO: si falla, no se
+         ha escrito nada y el fallo se puede contar entero. */
+      let adjunto = null;
+      if (attachment) {
+        const subida = await uploadSupportAttachment({ ticketId, file: attachment });
+        if (!subida.ok) return { ok: false, error: `No se pudo subir el archivo: ${subida.error}` };
+        adjunto = subida.path;
+      }
 
       const { error } = await supabase.from('support_messages').insert({
         ticket_id: ticketId,
@@ -1266,12 +1356,55 @@ export const AppProvider = ({ children }) => {
         // (0034), así que mentir aquí no cuela: la fila se rechaza.
         from_support: fromSupport,
         body: String(body || '').trim(),
+        attachment_path: adjunto,
       });
 
       return error ? { ok: false, error: error.message } : { ok: true };
     },
-    [session]
+    [session, uploadSupportAttachment]
   );
+
+  // ── Archivos de los pasos del alta ───────────────────────────────────────
+  //
+  // Van al MISMO bucket y con el mismo esquema de rutas que las fotos y las
+  // revisiones (`<clientId>/…`), así que las políticas de la 0007 ya los cubren:
+  // el entrenador dueño sube y lee, el propio cliente lee. Ni una política nueva.
+  //
+  // La RUTA es lo que se guarda en `preferences.intake.files`, nunca la URL: el
+  // bucket es privado y lo que se firma caduca. Guardar una URL firmada sería
+  // guardar algo que deja de abrir a las ocho horas.
+
+  const uploadIntakeFile = useCallback(async ({ clientId, stepId, file }) => {
+    const invalido = validateAttachment(file);
+    if (invalido) return { ok: false, error: invalido };
+
+    const path = buildIntakePath({ clientId, stepId, fileName: file.name });
+    const { error } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, file, { contentType: file.type || undefined, upsert: false });
+
+    if (error) return { ok: false, error: `No se pudo subir el archivo: ${error.message}` };
+    return { ok: true, path };
+  }, []);
+
+  /**
+   * Firma una lista de rutas del bucket. Devuelve un `Map` ruta → URL.
+   *
+   * Existe porque ya son cuatro los sitios que necesitan lo mismo —fotos,
+   * revisiones, adjuntos de soporte y ahora los archivos del alta— y cada uno se
+   * lo estaba montando con su propia llamada. Lo que no se firma no aparece en el
+   * mapa, así que quien llame puede distinguir «no hay archivo» de «hay archivo y
+   * no puedo abrirlo», que son dos mensajes distintos para el usuario.
+   */
+  const signPaths = useCallback(async (paths, ttl = SIGNED_URL_TTL_SECONDS) => {
+    const limpias = [...new Set((paths || []).filter(Boolean))];
+    if (limpias.length === 0) return new Map();
+
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(limpias, ttl);
+    if (error) return new Map();
+
+    return new Map((data || []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+  }, []);
 
   const setTicketStatus = useCallback(async (ticketId, status) => {
     const { error } = await supabase
@@ -4168,6 +4301,7 @@ export const AppProvider = ({ children }) => {
       progressPhotos,
       exerciseLibrary,
       coachPrefs,
+      coachPrefsReady,
       updateCoachPreferences,
       applyDashboardToAll,
       isSupport,
@@ -4175,6 +4309,8 @@ export const AppProvider = ({ children }) => {
       createTicket,
       replyTicket,
       setTicketStatus,
+      uploadIntakeFile,
+      signPaths,
       catalogFoods,
       catalogExercises,
       foodLibrary,
@@ -4317,8 +4453,8 @@ export const AppProvider = ({ children }) => {
       session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
       clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, training, legacyPending, ensureProgram, anthropometry, nutrition,
       progressPhotos, exerciseLibrary, foodLibrary, catalogFoods, catalogExercises,
-      coachPrefs, updateCoachPreferences, applyDashboardToAll,
-      isSupport, loadTickets, createTicket, replyTicket, setTicketStatus,
+      coachPrefs, coachPrefsReady, updateCoachPreferences, applyDashboardToAll,
+      isSupport, loadTickets, createTicket, replyTicket, setTicketStatus, uploadIntakeFile, signPaths,
       saveStatus, retrySave, hasUnsavedChanges,
       updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
       moveExercise, addDay, renameDay, setDayNote, duplicateDay, removeDay, updateWeeklySplit,

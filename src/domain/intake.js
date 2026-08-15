@@ -26,6 +26,24 @@
  * en su portal. Así el paso deja de ser el recordatorio privado del entrenador y
  * pasa a ser la cosa que se entrega.
  *
+ * ══ Enlace o archivo, y solo uno de los dos ═════════════════════════════════
+ *
+ * El enlace vale para lo que ya vive en algún sitio —el vídeo de bienvenida está
+ * en YouTube o en Loom— y no vale para lo que no vive en ninguno: la anamnesis en
+ * PDF, la hoja de la primera medición, el análisis postural escrito. Eso obligaba
+ * a subirlo a Drive, hacerlo público y pegar aquí ese enlace: tres pasos fuera de
+ * la aplicación, y los datos de salud de alguien colgando de una dirección sin
+ * caducidad ni dueño.
+ *
+ * Subiéndolo, el archivo va al mismo bucket privado que sus fotos y se entrega
+ * con una URL firmada que caduca (migración 0039).
+ *
+ * ── Por qué UNO y no los dos a la vez ───────────────────────────────────────
+ * Porque el paso entrega UNA cosa. Con enlace y archivo a la vez, el portal del
+ * cliente tendría que enseñar dos botones «Abrir» en la misma fila y explicar cuál
+ * es cuál — y quien los puso tendría que acordarse de qué había en cada uno. Poner
+ * uno quita el otro, que es lo que ya se esperaba al pulsar «Cambiar».
+ *
  * ══ Dónde vive ═════════════════════════════════════════════════════════════
  *
  * En `clients.preferences.intake`, que ya tiene su función de guardado
@@ -128,6 +146,7 @@ export const defaultIntake = () => ({
   custom: [],
   done: [],
   links: {},
+  files: {},
 });
 
 // ── Saneado ────────────────────────────────────────────────────────────────
@@ -149,6 +168,22 @@ export const safeLink = (raw) => {
   } catch {
     return null;
   }
+};
+
+/**
+ * Una ruta de Storage escrita por la aplicación, no por una persona.
+ *
+ * Se comprueba de todas formas porque llega desde `preferences`, que es una
+ * columna que el propio entrenador puede escribir con la API: sin esto, ahí
+ * cabría `../` o una ruta de otro cliente. Pedir que empiece por la carpeta del
+ * alta es barato y deja fuera todo lo que no sea lo que escribe `buildIntakePath`.
+ *
+ * Quién puede leer el archivo lo decide Storage, no esto (0007). Esta
+ * comprobación evita guardar basura, no un acceso indebido.
+ */
+export const safeFilePath = (raw) => {
+  const text = String(raw || '').trim().slice(0, MAX_LINK);
+  return /^[0-9a-f-]{36}\/intake\/[A-Za-z0-9._-]+$/i.test(text) ? text : null;
 };
 
 const sanitizeCustom = (raw) => {
@@ -198,7 +233,21 @@ export const clientIntake = (preferences) => {
     }
   }
 
-  return { steps, custom, done, links };
+  /* Un paso entrega una cosa: si por lo que sea llegaran las dos —dos pestañas
+     guardando a la vez, un plan tocado a mano— manda el archivo, que es el que
+     está subido y por tanto el que alguien se molestó en poner. */
+  const files = {};
+  if (raw.files && typeof raw.files === 'object') {
+    for (const id of steps) {
+      const file = safeFilePath(raw.files[id]);
+      if (file) {
+        files[id] = file;
+        delete links[id];
+      }
+    }
+  }
+
+  return { steps, custom, done, links, files };
 };
 
 // ── Leer ───────────────────────────────────────────────────────────────────
@@ -223,6 +272,12 @@ export const stepDone = (step, client, intake) =>
 /** El enlace de un paso, ya saneado, o null. */
 export const stepLink = (intake, id) => intake.links[id] || null;
 
+/** El archivo subido de un paso: su RUTA en Storage, que hay que firmar. */
+export const stepFile = (intake, id) => intake.files?.[id] || null;
+
+/** Si el paso entrega algo, sea de la forma que sea. */
+export const stepHasContent = (intake, id) => Boolean(stepLink(intake, id) || stepFile(intake, id));
+
 /** Cuánto queda del alta. `total` 0 significa que el entrenador no pide nada. */
 export const intakeProgress = (client, intake) => {
   const steps = intakeSteps(intake);
@@ -230,29 +285,47 @@ export const intakeProgress = (client, intake) => {
   return { done, total: steps.length, complete: done === steps.length };
 };
 
-/** Lo que el cliente puede abrir: pasos con contenido enlazado. */
+/**
+ * Lo que el cliente puede abrir: pasos con contenido, venga de donde venga.
+ *
+ * `url` es una dirección de fuera lista para pinchar; `path` es un archivo del
+ * bucket privado y **hay que firmarlo** antes de poder abrirlo. Van en la misma
+ * lista y no en dos porque para quien lo lee son lo mismo —«lo que me dejó
+ * preparado»— y separarlos obligaría a la pantalla a pintar dos secciones que
+ * dicen lo mismo.
+ */
 export const intakeDeliverables = (intake) =>
   intakeSteps(intake)
-    .filter((step) => intake.links[step.id])
-    .map((step) => ({ ...step, url: intake.links[step.id] }));
+    .filter((step) => stepHasContent(intake, step.id))
+    .map((step) => ({
+      ...step,
+      url: stepLink(intake, step.id),
+      path: stepFile(intake, step.id),
+    }));
 
 // ── Escribir ───────────────────────────────────────────────────────────────
 //
 // Todas devuelven un alta NUEVA y no tocan la que reciben: quien llama decide
 // cuándo guardarla, y el estado de React no se puede mutar en el sitio.
 
-/** Enciende o apaga un paso. Al apagarlo se lleva su enlace y su marca. */
+/** Enciende o apaga un paso. Al apagarlo se lleva su contenido y su marca. */
 export const toggleStep = (intake, id) => {
   if (!stepById(intake, id)) return intake;
   if (!intake.steps.includes(id)) return { ...intake, steps: [...intake.steps, id] };
 
   const links = { ...intake.links };
+  const files = { ...intake.files };
   delete links[id];
+  /* Se olvida la referencia, no se borra el objeto de Storage: quitar un paso es
+     reversible y volver a encenderlo con el archivo perdido sería peor. Los
+     huérfanos los limpia el borrado del cliente, que ya vacía su carpeta. */
+  delete files[id];
   return {
     ...intake,
     steps: intake.steps.filter((s) => s !== id),
     done: intake.done.filter((s) => s !== id),
     links,
+    files,
   };
 };
 
@@ -284,13 +357,16 @@ export const addCustomStep = (intake, id, label) => {
 export const removeCustomStep = (intake, id) => {
   if (!intake.custom.some((s) => s.id === id)) return intake;
   const links = { ...intake.links };
+  const files = { ...intake.files };
   delete links[id];
+  delete files[id];
   return {
     ...intake,
     custom: intake.custom.filter((s) => s.id !== id),
     steps: intake.steps.filter((s) => s !== id),
     done: intake.done.filter((s) => s !== id),
     links,
+    files,
   };
 };
 
@@ -315,19 +391,43 @@ export const markStep = (intake, step, done) => {
   };
 };
 
-/** Pega o quita el contenido de un paso. Un enlace que no vale se trata como quitarlo. */
+/**
+ * Pega o quita el ENLACE de un paso. Un enlace que no vale se trata como quitarlo.
+ *
+ * Poner uno retira el archivo que hubiera: el paso entrega una cosa, y la que
+ * vale es la última que se puso.
+ */
 export const setStepLink = (intake, id, url) => {
   const link = safeLink(url);
   const links = { ...intake.links };
-  if (link) links[id] = link;
-  else delete links[id];
-  return { ...intake, links };
+  const files = { ...intake.files };
+  if (link) {
+    links[id] = link;
+    delete files[id];
+  } else {
+    delete links[id];
+  }
+  return { ...intake, links, files };
+};
+
+/** Y lo mismo con el ARCHIVO subido, que se guarda por su ruta en el bucket. */
+export const setStepFile = (intake, id, path) => {
+  const file = safeFilePath(path);
+  const links = { ...intake.links };
+  const files = { ...intake.files };
+  if (file) {
+    files[id] = file;
+    delete links[id];
+  } else {
+    delete files[id];
+  }
+  return { ...intake, links, files };
 };
 
 /**
  * Lo que se guarda en `preferences.intake`.
  *
- * Se escriben las CUATRO claves siempre, aunque vayan vacías, porque
+ * Se escriben las CINCO claves siempre, aunque vayan vacías, porque
  * `updateClientPreferences` fusiona por sección: una clave ausente conservaría
  * el valor viejo, y entonces quitar el último paso o borrar el último enlace no
  * llegaría a guardarse nunca.
@@ -341,4 +441,5 @@ export const intakeToPreferences = (intake) => ({
   custom: intake.custom.map(({ id, label }) => ({ id, label })),
   done: intake.done,
   links: intake.links,
+  files: intake.files || {},
 });

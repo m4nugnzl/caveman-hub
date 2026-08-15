@@ -486,7 +486,25 @@ export const notesToStorage = (notes) =>
 
 const TARGET_KEYS = ['kcals', 'protein', 'carbs', 'fats'];
 
-/** El objetivo de una comida, en números. `null` si no se ha puesto nada. */
+/**
+ * El objetivo de una comida, en números. `null` si no se ha puesto nada.
+ *
+ * ── Los hidratos en blanco son el resto, no un cero ─────────────────────────
+ * La casilla de hidratos de la estructura del día casi nunca se rellena: ofrece
+ * los gramos que cuadran la comida como sugerencia y el entrenador la deja pasar
+ * porque el número que ve YA es el correcto. Pero solo era un texto de ayuda, así
+ * que el objetivo se guardaba sin hidratos y todo el que lo leía —el anillo del
+ * cliente, el más visible— enseñaba «C 0 g» y un reparto que no cuadraba con sus
+ * propias kilocalorías.
+ *
+ * Se completa AQUÍ, en el sitio por el que pasan todos, y no escribiéndolo en la
+ * casilla del entrenador: rellenar solo lo que alguien ha tocado sigue siendo
+ * suyo, y así un plan antiguo se arregla sin tener que reabrirlo comida a comida.
+ *
+ * Quien quiera cero hidratos —una comida cetogénica— escribe un 0, que sí se
+ * guarda y sí se respeta. En blanco significa «lo que sobre», que es lo que
+ * significa en la cabeza de quien reparte un día.
+ */
 export const mealTarget = (meal) => {
   const raw = meal?.target;
   if (!raw || typeof raw !== 'object') return null;
@@ -498,7 +516,13 @@ export const mealTarget = (meal) => {
     out[key] = value || 0;
     if (value) alguno = true;
   }
-  return alguno ? out : null;
+  if (!alguno) return null;
+
+  /* `raw.carbs` en blanco, no `out.carbs` a cero: son cosas distintas y solo la
+     primera es una casilla sin tocar. */
+  if (!String(raw.carbs ?? '').trim()) out.carbs = carbsFromRest(out) ?? 0;
+
+  return out;
 };
 
 /**

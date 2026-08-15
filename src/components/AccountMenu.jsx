@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, LifeBuoy, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -7,7 +7,7 @@ import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
 import { initials } from '@/lib/initials';
 import { useClickOutside } from '@/lib/useClickOutside';
-import { SETTINGS_SECTIONS } from '@/routes';
+import { SETTINGS_SECTIONS, clientViewOf, coachViewOf } from '@/routes';
 
 /**
  * Menú de cuenta: ajustes, tema y salir.
@@ -28,11 +28,13 @@ import { SETTINGS_SECTIONS } from '@/routes';
  * habitación.
  */
 export const AccountMenu = () => {
-  const { session, signOut, profileRole, isCoach, view, setViewMode } = useApp();
+  const { session, signOut, profileRole, isCoach, view, setViewMode, activeClient } = useApp();
   const { isDark, toggle } = useTheme();
   const tour = useTour();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useClickOutside(ref, () => setOpen(false), open);
 
@@ -102,7 +104,31 @@ export const AccountMenu = () => {
                 className="account-item"
                 role="menuitem"
                 onClick={() => {
+                  /*
+                    ══ Cambiar de vista SIN perder la pantalla ═══════════════
+
+                    Las dos cosas —el modo y la ruta— se hacen en el mismo
+                    manejador a propósito, y ese es el detalle que lo hace
+                    funcionar: React agrupa las dos, así que el árbol nuevo se
+                    pinta ya con la URL nueva y el comodín «lo que no conozco va
+                    al inicio» nunca llega a verla.
+
+                    Hacerlo en un efecto —después de cambiar de vista— es lo que
+                    no funcionaba: para entonces la ruta ya era la que el árbol
+                    nuevo no reconoce, y la redirección al inicio corría antes de
+                    poder corregirla.
+
+                    Al volver, el cliente sale del contexto: su portal no lo
+                    lleva en la URL. Es el mismo del que se estaba viendo la
+                    pantalla, así que se vuelve a la sección equivalente DE ESA
+                    persona.
+                  */
+                  const destino =
+                    view === 'coach'
+                      ? clientViewOf(location.pathname)
+                      : coachViewOf(location.pathname, activeClient?.id);
                   setViewMode(view === 'coach' ? 'client' : 'coach');
+                  navigate(destino, { replace: true });
                   setOpen(false);
                 }}
               >

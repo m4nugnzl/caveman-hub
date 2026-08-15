@@ -13,9 +13,12 @@ import {
   moveStep,
   removeCustomStep,
   safeLink,
+  setStepFile,
   setStepLink,
   stepById,
   stepDone,
+  stepFile,
+  stepLink,
   toggleStep,
 } from './intake';
 
@@ -201,13 +204,69 @@ describe('guardado', () => {
   /* Se guarda el objeto ENTERO y no un parche: `updateClientPreferences` fusiona
      por sección, así que una clave ausente conservaría el valor viejo y quitar un
      paso no llegaría a guardarse nunca. */
-  it('escribe las cuatro claves aunque estén vacías', () => {
+  it('escribe las cinco claves aunque estén vacías', () => {
     expect(Object.keys(intakeToPreferences(defaultIntake())).sort()).toEqual([
       'custom',
       'done',
+      'files',
       'links',
       'steps',
     ]);
+  });
+});
+
+/*
+  ══ Enlace o archivo, nunca los dos ══════════════════════════════════════════
+
+  Un paso entrega UNA cosa. Con las dos puestas, el portal del cliente tendría
+  que pintar dos botones «Abrir» en la misma fila sin poder decir cuál es cuál.
+  Por eso poner una retira la otra, en las dos direcciones.
+*/
+describe('el archivo subido de un paso', () => {
+  const ruta = '11111111-2222-3333-4444-555555555555/intake/1738-welcome-guia.pdf';
+
+  it('poner un archivo retira el enlace, y al revés', () => {
+    let intake = clientIntake(prefs({ steps: ['welcome'] }));
+
+    intake = setStepLink(intake, 'welcome', 'https://youtu.be/w');
+    intake = setStepFile(intake, 'welcome', ruta);
+    expect(stepFile(intake, 'welcome')).toBe(ruta);
+    expect(stepLink(intake, 'welcome')).toBeNull();
+
+    intake = setStepLink(intake, 'welcome', 'https://youtu.be/w');
+    expect(stepLink(intake, 'welcome')).toBe('https://youtu.be/w');
+    expect(stepFile(intake, 'welcome')).toBeNull();
+  });
+
+  /* La ruta la escribe la aplicación, pero llega desde `preferences`, que el
+     entrenador puede escribir con la API: una ruta que no sea la de la carpeta
+     del alta de un cliente no se guarda. */
+  it('una ruta que no es la del alta no se acepta', () => {
+    let intake = clientIntake(prefs({ steps: ['welcome'] }));
+    for (const mala of ['../otro/secreto.pdf', 'c1/photos/week-1/a.jpg', 'https://x.com/a.pdf', '']) {
+      intake = setStepFile(intake, 'welcome', mala);
+      expect(stepFile(intake, 'welcome')).toBeNull();
+    }
+  });
+
+  it('sobrevive a la ida y vuelta por preferencias', () => {
+    let intake = clientIntake(prefs({ steps: ['welcome'] }));
+    intake = setStepFile(intake, 'welcome', ruta);
+
+    const vuelta = clientIntake(prefs(intakeToPreferences(intake)));
+    expect(stepFile(vuelta, 'welcome')).toBe(ruta);
+    expect(intakeDeliverables(vuelta)).toEqual([
+      expect.objectContaining({ id: 'welcome', path: ruta, url: null }),
+    ]);
+  });
+
+  /* Apagar el paso se lleva su archivo: si no, volver a encenderlo resucitaría
+     un documento que su entrenador ya había retirado del portal del cliente. */
+  it('apagar el paso se lleva el archivo', () => {
+    let intake = clientIntake(prefs({ steps: ['welcome'] }));
+    intake = setStepFile(intake, 'welcome', ruta);
+    intake = toggleStep(intake, 'welcome');
+    expect(intake.files.welcome).toBeUndefined();
   });
 });
 

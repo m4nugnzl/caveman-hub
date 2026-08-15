@@ -30,6 +30,7 @@
  */
 
 import { clientIntake } from './intake';
+import { clientProtocol, requiredBlocks } from './protocol';
 import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
@@ -69,6 +70,19 @@ const lastDate = (dates) => {
 };
 
 const daysSince = (date, today) => (date ? daysBetween(date, today) : null);
+
+/**
+ * Si un registro trae medido ese bloque.
+ *
+ * `buildAnthropometryLog` solo escribe `skinFolds` y `perimeters` cuando hay
+ * algo dentro, así que basta con que la clave exista — pero se comprueba también
+ * que no esté vacía, porque los registros antiguos y los importados no pasaron
+ * necesariamente por ahí.
+ */
+const hasBlock = (log, block) => {
+  const datos = block === 'folds' ? log?.skinFolds : log?.perimeters;
+  return Boolean(datos) && Object.keys(datos).length > 0;
+};
 
 /**
  * Estado de un cliente: las cuatro fechas que importan, el check-in de la semana
@@ -173,6 +187,38 @@ export const clientStatus = (
       add('checkin_pending', checkIn.count === 0 ? 'media' : 'baja',
         checkIn.count === 0 ? 'Check-in sin empezar' : `Check-in a medias (${checkIn.count}/${checkIn.target})`,
         'Pesajes de esta semana.');
+    }
+
+    /*
+      ══ Lo que el entrenador EXIGE medir y no ha llegado ══════════════════════
+
+      Pliegues y perímetros pueden estar en «obligatorio» (`domain/protocol.js`).
+      El formulario del cliente ya no deja cerrar el check-in sin ellos, pero eso
+      solo cubre lo que se registra DESDE la aplicación: quedan las semanas en las
+      que no registra nada, y las medidas que mete el entrenador a mano.
+
+      Sin esta alerta, exigir un bloque no se notaba en ninguna parte hasta que
+      alguien iba a mirar la ficha. Con ella, «Marta no ha dado perímetros esta
+      semana» sale donde ya se mira todo lo demás.
+
+      Es de gravedad baja a propósito: es una medida que falta, no un cliente que
+      se descuelga. Y se reclama con el mismo margen que el check-in —a mitad de
+      semana— para no llenar la cartera cada lunes.
+    */
+    const exigidos = requiredBlocks(clientProtocol(client.preferences));
+    if (exigidos.length > 0 && dayOfWeek !== null && dayOfWeek >= 3) {
+      const deLaSemana = history.filter((h) => h.date && weekStart(h.date) === checkIn.weekStart);
+      const faltan = exigidos.filter(
+        (bloque) => !deLaSemana.some((log) => hasBlock(log, bloque.id))
+      );
+      if (faltan.length > 0) {
+        add(
+          'measures_missing',
+          'baja',
+          `Sin ${faltan.map((b) => b.label.toLowerCase()).join(' ni ')} esta semana`,
+          'Se lo pides en cada check-in.'
+        );
+      }
     }
   }
 

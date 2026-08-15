@@ -88,6 +88,71 @@ export const MODULES = [
 
 export const moduleById = (id) => MODULES.find((m) => m.id === id) || null;
 
+// ── Lo que se mide en el check-in ──────────────────────────────────────────
+
+/**
+ * Pliegues y perímetros: **tres estados, no un interruptor**.
+ *
+ * ══ Por qué tres y no dos ═══════════════════════════════════════════════════
+ *
+ * Estaban clavados como «opcional» para todo el mundo: plegados detrás de un
+ * botón que dice «(opcional)». Eso deja fuera a los dos extremos, que son
+ * justamente las dos formas de trabajar de verdad:
+ *
+ *   · Quien mide de verdad —el que hace antropometría cada cuatro semanas— no
+ *     tiene forma de PEDIRLO. Su cliente cierra el check-in con el peso y se le
+ *     olvidan los pliegues, y el entrenador se entera al ir a mirarlos.
+ *   · Quien no mide nunca —la mayoría del entrenamiento online— tiene a su
+ *     cliente mirando un botón de seis pliegues cutáneos que no va a usar jamás,
+ *     con el plicómetro que no tiene.
+ *
+ * Un interruptor de dos posiciones solo resuelve al segundo. El tercer estado es
+ * el que convierte esto en una decisión del entrenador en lugar de una opinión de
+ * la aplicación.
+ *
+ * ── Y por qué por BLOQUE y no uno para los dos ──────────────────────────────
+ * Porque no cuestan lo mismo. Un perímetro se mide con una cinta de tres euros y
+ * lo puede tomar cualquiera en su casa; un pliegue necesita plicómetro, práctica
+ * y que lo tome siempre la misma mano. Pedir perímetros cada semana y pliegues
+ * nunca es una configuración normal — y con un solo interruptor era imposible.
+ */
+export const CHECKIN_BLOCKS = [
+  {
+    id: 'perimeters',
+    label: 'Perímetros corporales',
+    hint: 'Cintura, cadera, brazo… Se miden con una cinta métrica.',
+  },
+  {
+    id: 'folds',
+    label: 'Pliegues cutáneos',
+    hint: 'Los seis pliegues del % graso. Hace falta plicómetro y buena mano.',
+  },
+];
+
+/**
+ * Los tres estados.
+ *
+ * `required` no es «recordárselo»: es que el check-in **no se cierra** sin ese
+ * bloque relleno. Un obligatorio que se puede saltar es un opcional con más
+ * texto.
+ */
+export const CHECKIN_MODES = [
+  { id: 'required', label: 'Obligatorio', hint: 'No podrá cerrar el check-in sin rellenarlo.' },
+  { id: 'optional', label: 'Opcional', hint: 'Lo tiene a mano, plegado, y lo rellena si quiere.' },
+  { id: 'off', label: 'Apagado', hint: 'No le aparece. Ni a ti al revisar su check-in.' },
+];
+
+const CHECKIN_MODE_IDS = CHECKIN_MODES.map((m) => m.id);
+
+/**
+ * Lo de siempre: los dos a mano y ninguno obligatorio.
+ *
+ * Es exactamente lo que hacía la aplicación antes de que esto se pudiera
+ * configurar, y por eso es el valor por defecto: quien no toque nada no puede
+ * notar el cambio.
+ */
+export const defaultCheckin = () => ({ perimeters: 'optional', folds: 'optional' });
+
 // ── El catálogo de preguntas ───────────────────────────────────────────────
 
 /**
@@ -288,6 +353,7 @@ export const defaultProtocol = () => ({
   modules: ['coachNote', 'clientNote', 'sessionFeedback'],
   questions: ['rpe', 'note'],
   custom: [],
+  checkin: defaultCheckin(),
 });
 
 // ── Saneado ────────────────────────────────────────────────────────────────
@@ -352,10 +418,22 @@ export const clientProtocol = (preferences) => {
     return out;
   };
 
+  /* Bloque a bloque y con el de siempre como respaldo: así un estado escrito a
+     mano que no exista —o una clave que se retire en el futuro— vuelve a
+     «opcional», que es lo que la aplicación hacía antes de poder configurarlo, en
+     vez de apagarle a alguien un bloque sin haberlo pedido. */
+  const porDefecto = defaultCheckin();
+  const checkin = {};
+  for (const { id } of CHECKIN_BLOCKS) {
+    const modo = raw.checkin?.[id];
+    checkin[id] = CHECKIN_MODE_IDS.includes(modo) ? modo : porDefecto[id];
+  }
+
   return {
     modules: dedupe(raw.modules, moduleIds, defaultProtocol().modules),
     questions: dedupe(raw.questions, known, defaultProtocol().questions),
     custom,
+    checkin,
   };
 };
 
@@ -386,7 +464,39 @@ export const scaleQuestions = (protocol) => activeQuestions(protocol).filter(isS
 export const asksFeedback = (protocol) =>
   isModuleOn(protocol, 'sessionFeedback') && activeQuestions(protocol).length > 0;
 
+/**
+ * En qué estado está un bloque del check-in. Siempre uno de los tres, nunca
+ * `undefined`: quien pregunta se ahorra el respaldo, que es donde se coló el
+ * fallo la última vez que un valor por defecto vivía en cada consumidor.
+ */
+export const checkinMode = (protocol, block) =>
+  protocol?.checkin?.[block] || defaultCheckin()[block] || 'optional';
+
+/** Si el bloque se le enseña al cliente. */
+export const asksBlock = (protocol, block) => checkinMode(protocol, block) !== 'off';
+
+/** Si además no puede cerrar el check-in sin él. */
+export const requiresBlock = (protocol, block) => checkinMode(protocol, block) === 'required';
+
+/** Los bloques que se piden, en el orden en el que se enseñan. */
+export const checkinBlocks = (protocol) =>
+  CHECKIN_BLOCKS.filter((b) => asksBlock(protocol, b.id));
+
+/** Y los que no se pueden dejar en blanco. */
+export const requiredBlocks = (protocol) =>
+  CHECKIN_BLOCKS.filter((b) => requiresBlock(protocol, b.id));
+
 // ── Escritura ──────────────────────────────────────────────────────────────
+
+/** Cambia el estado de un bloque del check-in. Un estado que no existe no hace nada. */
+export const setCheckinMode = (protocol, block, mode) => {
+  if (!CHECKIN_BLOCKS.some((b) => b.id === block)) return protocol;
+  if (!CHECKIN_MODE_IDS.includes(mode)) return protocol;
+  return {
+    ...protocol,
+    checkin: { ...defaultCheckin(), ...protocol.checkin, [block]: mode },
+  };
+};
 
 export const toggleModule = (protocol, id) => {
   const on = isModuleOn(protocol, id);

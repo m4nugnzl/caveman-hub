@@ -1713,7 +1713,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .meal { display: flex; flex-direction: column; gap: var(--s3); background: var(--surface); border-radius: var(--r-lg); padding: var(--s4); box-shadow: var(--shadow-sm); }
 .meal-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
 .meal-title { display: flex; align-items: center; gap: 6px; font-size: var(--fs-md); font-weight: 650; min-width: 0; }
-.meal-kcal { background: var(--data-amber-soft); color: var(--data-amber); border-radius: var(--r-pill); padding: 4px 10px; font-size: var(--fs-sm); font-weight: 650; white-space: nowrap; }
 .meal-totals td { background: var(--surface-sunken); }
 
 
@@ -1728,9 +1727,13 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    Porque «40 de 45» y «120 de 500» son la misma resta y no el mismo problema. La
    barra dice la PROPORCIÓN, que es lo que decide si hay que tocar algo. Las
    cifras se quedan para después de haberlo decidido. */
+/* ANCHO PROPIO Y SIN CRECER, y no es un detalle: con `flex: 1` este bloque se
+   comía todo el ancho sobrante de la tarjeta, empujaba la tabla de alimentos
+   fuera de su sitio y los nombres se quedaban en dos letras. Mide lo que mide y
+   deja el resto a lo que hay debajo. */
 .meal-goal {
   display: flex; flex-direction: column; gap: 6px;
-  align-self: center; min-width: 190px; flex: 1;
+  align-self: center; flex: 0 0 auto; min-width: 0;
   font-variant-numeric: tabular-nums;
 }
 .meal-goal > .k {
@@ -1739,45 +1742,65 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .meal-goal > .rows { display: flex; flex-direction: column; gap: 5px; }
 
-/* La rejilla: etiqueta, barra elástica, objetivo y —solo para el entrenador—
-   desviación. Columnas fijas para que las cuatro filas se lean como una tabla y
-   no como cuatro líneas sueltas. */
+/* Etiqueta, barra de ancho FIJO y las dos cifras. Fijo porque lo que se compara
+   es el relleno de una fila con el de la de al lado, y eso exige que las cuatro
+   midan lo mismo; 72 px basta para distinguir un 60 % de un 90 %. */
 .meal-goal .fila {
-  display: grid; grid-template-columns: 26px minmax(40px, 1fr) 46px;
+  display: grid; grid-template-columns: 26px 72px auto;
   align-items: center; gap: var(--s2);
 }
-.meal-goal.is-coach .fila { grid-template-columns: 26px minmax(40px, 1fr) 46px 42px; }
-
 .meal-goal .fila > .n { font-size: var(--fs-2xs); font-weight: 700; }
+
 .meal-goal .fila > .track {
-  height: 5px; border-radius: var(--r-pill);
+  height: 6px; border-radius: var(--r-pill);
   background: var(--fill-subtle); overflow: hidden;
+  box-shadow: inset 0 0 0 1px transparent;
 }
 .meal-goal .fila > .track > .fill { display: block; height: 100%; border-radius: inherit; }
-.meal-goal .fila > .v { font-size: var(--fs-sm); font-weight: 650; text-align: right; }
 
-/* La desviación. El signo y el color hacen el trabajo; lo que cuadra se marca y
-   deja de pedir atención, que es lo contrario de lo que hace un cero. */
-.meal-goal .fila > .d { font-size: var(--fs-2xs); font-weight: 700; text-align: right; }
-.meal-goal .fila > .d.is-ok { color: var(--positive); }
-.meal-goal .fila > .d.is-over { color: var(--negative); }
-.meal-goal .fila > .d.is-under { color: var(--info); }
+/* El carril entero avisa de lo que la barra no puede: llena y con borde verde es
+   que cuadra; llena y roja es que se ha pasado. Sin esto, «100 %» y «140 %» se
+   pintaban exactamente igual, que era lo que hacía imposible ver el exceso. */
+.meal-goal .fila.is-ok > .track { box-shadow: inset 0 0 0 1px var(--positive); }
+.meal-goal .fila.is-over > .track {
+  background: var(--negative-soft);
+  box-shadow: inset 0 0 0 1px var(--negative);
+}
+
+.meal-goal .fila > .v {
+  font-size: var(--fs-sm); font-weight: 650; text-align: right; white-space: nowrap;
+}
+.meal-goal .fila > .v > .of { font-size: var(--fs-2xs); font-weight: 550; color: var(--text-tertiary); }
+/* La cifra repite lo que dice el carril, con la precisión que el carril no da. */
+.meal-goal .fila.is-over > .v { color: var(--negative); }
+.meal-goal .fila.is-ok > .v { color: var(--positive); }
 
 /* La sugerencia de hidratos: se ve que HAY un número propuesto y que todavía no
    está escrito. Sin esto, un `placeholder` gris se lee como un hueco vacío. */
 .input.is-suggested::placeholder { color: var(--accent); opacity: 0.85; font-weight: 650; }
 
-/* La pauta escrita de una comida: se lee como texto, no como un formulario.
-   Sin fondo ni borde hasta que se enfoca — un campo con marco en cada comida
-   convertiría el menú en una hoja de altas. */
+/* La pauta escrita de una comida —«esto cocínalo a la plancha», «el yogur, de
+   la marca X»—.
+   ---------------------------------------------------------------------------
+   Iba sin fondo ni borde para no convertir el menú en una hoja de altas. Salió
+   mal: sin marco no se lee como un sitio donde escribir, se lee como texto de
+   relleno, y quien no lo sabía no lo usaba nunca.
+
+   Ahora tiene fondo hundido y su icono. Sigue siendo discreto —no compite con
+   los alimentos— pero se ve que es un campo. */
 .meal-note {
+  display: flex; align-items: center; gap: var(--s2);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  padding: 0 var(--s3); color: var(--text-tertiary);
+}
+.meal-note > .input {
   width: 100%; background: transparent; border-color: transparent;
   color: var(--text-secondary); font-size: var(--fs-sm); padding-left: 0;
 }
-.meal-note:focus {
-  background: var(--surface-sunken); border-color: var(--accent);
-  padding-left: 9px;
-}
+.meal-note:focus-within { box-shadow: inset 0 0 0 1.5px var(--accent); }
+/* Un solo cerco: el campo de dentro no tiene marco propio, así que tampoco debe
+   pintar el suyo al enfocarse — se veían los dos, uno dentro del otro. */
+.meal-note > .input:focus { box-shadow: none; border-color: transparent; outline: none; }
 
 /* ── Los alimentos, como tabla con encabezado ───────────────────────────────
    Antes cada fila llevaba escrito «P 38  C 85  G 8». Repetir las etiquetas en
@@ -1792,7 +1815,15 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
    La plantilla de columnas se define una vez y la comparten encabezado, filas y
    total: ninguna posibilidad de que se desalineen. */
-.food-table { display: flex; flex-direction: column; gap: 3px; }
+/* Si la tabla no cabe, se DESPLAZA; no se estruja.
+   ---------------------------------------------------------------------------
+   El nombre del alimento tenía `minmax(0, 1fr)`, así que era la única columna
+   que podía ceder y cedía hasta cero: entre los 640 px del diseño de móvil y el
+   ancho al que la tabla entera cabe, «Copos de avena» se quedaba en «C…».
+
+   Con un mínimo en el nombre, lo que sobra deja de tener a quién quitarle sitio
+   y la tabla se sale por el lado — que se ve, se arrastra y no pierde nada. */
+.food-table { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
 
 .food-row,
 .food-head {
@@ -1800,10 +1831,24 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   /* La primera columna es el asa de arrastre, como en la lista de ejercicios.
      Al consultar no hay asa y el hueco se queda vacío, que es lo correcto: la
      tabla del cliente y la del entrenador quedan alineadas entre sí. */
-  grid-template-columns: 20px minmax(0, 1fr) 112px repeat(3, 42px) 60px 26px;
+  grid-template-columns: 20px minmax(132px, 1fr) 112px repeat(3, 42px) 60px 26px;
   align-items: center;
   gap: var(--s2);
   padding: 8px var(--s3);
+  /*
+    ── Por qué `max-content` y no basta con el mínimo de la columna ──────────
+    La fila es hija de un contenedor flex EN COLUMNA, y ahí el ancho lo impone
+    el contenedor: la fila se estira a lo que haya y nunca reclama lo que
+    necesita. Poner un mínimo en la columna del nombre no cambiaba eso, y por
+    eso «Copos de avena» seguía quedándose en «C…».
+
+    `width: max-content` hace que la fila pida lo que ocupa de verdad, y
+    `min-width: 100%` que no se encoja por debajo del contenedor cuando sobra
+    sitio. Lo que no cabe se desplaza en `.food-table`, que para eso tiene su
+    `overflow-x`.
+  */
+  width: max-content;
+  min-width: 100%;
 }
 
 .food-head {

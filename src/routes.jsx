@@ -220,3 +220,58 @@ export const sameSectionFor = (pathname, clientId) => {
   const known = COACH_CLIENT.some((s) => s.path === section);
   return clientPath(clientId, known ? section : 'resumen');
 };
+
+/* ==========================================================================
+   Las dos vistas de la misma pantalla
+   --------------------------------------------------------------------------
+   Un entrenador que mira la dieta de Marta y pulsa «ver como lo ve mi cliente»
+   quiere ver ESA dieta desde el otro lado. Lo que pasaba era que aterrizaba en
+   el inicio del portal, y al volver, en «Hoy»: dos saltos al principio en una
+   comprobación que dura diez segundos, y encima perdiendo de vista lo que
+   estaba mirando.
+
+   La causa es que los dos árboles de rutas no comparten ni una sola URL, así
+   que al cambiar de vista la ruta actual no existe en el árbol nuevo y cae en
+   el comodín. Nombrar las secciones igual en los dos no era opción: `/mi/dieta`
+   se le enseña al cliente y `/c/<id>/nutricion` es de trabajo interno.
+
+   Así que la equivalencia se declara, aquí, al lado de las dos listas que
+   relaciona. Es la única forma de que renombrar una sección obligue a mirar la
+   otra.
+
+   Las secciones sin pareja —«Ficha» del lado del entrenador— caen en el inicio
+   del otro portal: no hay nada equivalente que enseñar, y es mejor un inicio
+   honesto que aterrizar en una sección que no es la que se estaba mirando.
+   ========================================================================== */
+
+/** Pares [sección del entrenador, sección del cliente]. */
+const EQUIVALENTES = [
+  ['resumen', 'panel'],
+  ['analitica', 'analitica'],
+  ['rutina', 'rutina'],
+  ['nutricion', 'dieta'],
+  ['fotos', 'fotos'],
+  ['checkins', 'checkins'],
+  ['calendario', 'calendario'],
+];
+
+/** La misma sección, vista desde el portal del cliente. */
+export const clientViewOf = (pathname) => {
+  const section = /^\/c\/[^/]+\/([^/]+)/.exec(pathname)?.[1];
+  const par = EQUIVALENTES.find(([coach]) => coach === section);
+  return par ? `/mi/${par[1]}` : CLIENT_HOME;
+};
+
+/**
+ * La misma sección, vista desde el panel del entrenador.
+ *
+ * Hace falta el cliente porque su portal no lo lleva en la URL: `/mi/dieta` es
+ * «mi dieta» y solo el contexto sabe de quién se estaba mirando. Sin cliente
+ * —un entrenador que aún no ha entrado en ninguno— no hay ruta que componer.
+ */
+export const coachViewOf = (pathname, clientId) => {
+  if (!clientId) return COACH_HOME;
+  const section = /^\/mi\/([^/]+)/.exec(pathname)?.[1];
+  const par = EQUIVALENTES.find(([, cliente]) => cliente === section);
+  return par ? clientPath(clientId, par[0]) : COACH_HOME;
+};

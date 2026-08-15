@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Sparkles, Utensils } from 'lucide-react';
 
-import { dayKcalRange, dayKcals, dietNotes, mealsForVariant } from '@/domain/nutrition';
+import { dietNotes, mealsForVariant } from '@/domain/nutrition';
 import { Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
@@ -35,8 +35,6 @@ export const ClientDiet = ({ plan }) => {
 
   const variant = plan.hasDayVariants ? dietView : 'default';
   const meals = mealsForVariant(plan, variant);
-  const total = dayKcals(meals);
-  const range = dayKcalRange(meals);
 
   return (
     <div className="stack">
@@ -67,17 +65,18 @@ export const ClientDiet = ({ plan }) => {
             <SectionTitle icon={Utensils} color="var(--accent)">
               Mi menú
             </SectionTitle>
-            {meals.length > 0 && (
-              <span className="meal-kcal">
-                ~{Math.round(total)} kcal/día
-                {range.min !== range.max && (
-                  <span className="t-xs" style={{ opacity: 0.7, fontWeight: 600 }}>
-                    {' '}
-                    ({Math.round(range.min)}–{Math.round(range.max)})
-                  </span>
-                )}
-              </span>
-            )}
+            {/*
+              ── Aquí ya no va ninguna cifra ────────────────────────────────
+              Había un «~3072 kcal/día (2081–3203)»: un total aproximado, porque
+              se calculaba con la primera opción de cada comida y dejaba de ser
+              cierto en cuanto el cliente elegía otra, más un rango que tampoco
+              se explicaba solo.
+
+              Y no había nada que hacer con esa cifra. El objetivo del día está
+              arriba, en su tarjeta, con las cifras que su entrenador fijó; lo que
+              se come está en cada comida. Un tercer número aproximado entre los
+              dos solo invitaba a comparar dos cosas que no se comparan.
+            */}
           </div>
 
           {meals.length === 0 ? (

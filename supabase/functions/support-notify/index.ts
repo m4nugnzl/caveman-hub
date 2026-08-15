@@ -154,12 +154,38 @@ Deno.serve(async (request) => {
 
     const { data: mensajes } = await supabase
       .from('support_messages')
-      .select('body, from_support, created_at')
+      .select('body, from_support, created_at, attachment_path')
       .eq('ticket_id', ticketId)
       .order('created_at')
       .limit(1);
 
     const primero = mensajes?.[0]?.body || '';
+
+    /*
+      ══ La captura, como enlace firmado ════════════════════════════════════
+
+      El adjunto (migración 0039) vive en un bucket privado, así que no se puede
+      poner su ruta en un correo: hay que firmarla. Se firma con el MISMO cliente
+      que lee el ticket —el token de quien escribe—, no con la clave de servicio,
+      para no abrir aquí un camino a firmar cualquier objeto del bucket mandando
+      una ruta cualquiera.
+
+      Siete días: el aviso se lee cuando se lee, y un enlace caducado en un buzón
+      obliga a entrar a la aplicación a buscar la misma imagen. La conversación
+      completa está ahí de todas formas; esto es para poder mirarla desde el móvil
+      sin abrir nada.
+
+      Si la firma falla no se corta el aviso: el ticket y su texto son lo que hay
+      que entregar, y la imagen se puede ver en la aplicación.
+    */
+    const adjuntoPath = mensajes?.[0]?.attachment_path || null;
+    let adjuntoUrl: string | null = null;
+    if (adjuntoPath) {
+      const firmada = await supabase.storage
+        .from('client-media')
+        .createSignedUrl(adjuntoPath, 60 * 60 * 24 * 7);
+      adjuntoUrl = firmada.data?.signedUrl || null;
+    }
     const autor = ticket.profiles?.full_name || ticket.profiles?.email || 'Un entrenador';
     /*
       ══ El contexto, y por qué los fallos van APARTE ═══════════════════════
@@ -217,6 +243,14 @@ Deno.serve(async (request) => {
                 <p><strong>${esc(autor)}</strong> ha abierto un ticket.</p>
                 <p><strong>${esc(ticket.subject)}</strong></p>
                 <p style="white-space:pre-wrap">${esc(primero)}</p>
+                ${
+                  adjuntoUrl
+                    ? `<p><a href="${esc(adjuntoUrl)}">Ver el archivo adjunto</a>
+                         <span style="color:#999;font-size:12px">(el enlace caduca en 7 días)</span></p>`
+                    : adjuntoPath
+                      ? '<p style="color:#999;font-size:12px">Adjuntó un archivo; míralo en la aplicación.</p>'
+                      : ''
+                }
                 ${contexto ? `<p style="color:#666;font-size:12px">${esc(contexto)}</p>` : ''}
                 ${
                   listaFallos.length > 0
@@ -249,6 +283,13 @@ Deno.serve(async (request) => {
             `🛟 <b>${esc(ticket.subject)}</b>\n` +
               `<i>${esc(autor)}</i>\n\n` +
               `${esc(primero.slice(0, 400))}${primero.length > 400 ? '…' : ''}\n\n` +
+              /*
+                El adjunto va como enlace y no como foto de Telegram: mandarlo con
+                `sendPhoto` sería descargar el archivo aquí y volver a subirlo, y
+                un aviso no debería mover megas. Como enlace se abre con un toque
+                desde la misma notificación.
+              */
+              (adjuntoUrl ? `📎 <a href="${esc(adjuntoUrl)}">Archivo adjunto</a>\n\n` : '') +
               /*
                 Solo el fallo MÁS RECIENTE, y solo si lo hay. Es el que suele
                 explicar lo que la persona está contando, y meter los seis

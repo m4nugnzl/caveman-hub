@@ -1,10 +1,10 @@
 /**
  * La plantilla de alta del entrenador: qué pasos da al empezar con alguien.
  *
- * Mismo trato y mismo compromiso que `protocolTemplate.js`, por el mismo motivo:
- * no hay tabla de ajustes del entrenador en el esquema. La plantilla vive en el
- * navegador y **no le sigue si cambia de ordenador**; lo que sí le sigue es lo
- * que cada cliente tiene aplicado, que está en `clients.preferences.intake`.
+ * Mismo trato que `protocolTemplate.js` y por el mismo motivo: vive en
+ * `profiles.preferences.intakeTemplate` (migración 0035) y ya no en el navegador,
+ * así que le sigue de un ordenador a otro. Lo que quedara guardado en local se
+ * rescata una vez y se limpia.
  *
  * De la plantilla solo salen la DEFINICIÓN —qué pasos existen y en qué orden— y
  * los pasos propios. Lo hecho y los enlaces son de cada cliente y no tendría
@@ -15,27 +15,45 @@ import { clientIntake, defaultIntake } from '@/domain/intake';
 
 const key = (userId) => `caveman-intake:${userId || 'anon'}`;
 
-export const readIntakeTemplate = (userId) => {
+/** La plantilla de alta guardada, o `null` si el entrenador no tiene ninguna. */
+export const intakeTemplateFrom = (coachPrefs) => {
+  const raw = coachPrefs?.intakeTemplate;
+  if (!raw || typeof raw !== 'object') return null;
+  return clientIntake({ intake: raw });
+};
+
+/**
+ * Lo que se guarda: solo la definición.
+ *
+ * Ni `done` ni `links` ni `files`: son de cada cliente. Guardarlos en la
+ * plantilla haría que «aplicar a todos» repartiera el vídeo de uno a los demás.
+ */
+export const intakeTemplateToPreferences = (intake) => ({
+  steps: intake.steps,
+  custom: intake.custom.map(({ id, label }) => ({ id, label })),
+});
+
+/** La que quedara en el navegador, para subirla una vez. `null` si no hay. */
+export const readLocalIntakeTemplate = (userId) => {
   try {
     const raw = localStorage.getItem(key(userId));
-    if (!raw) return defaultIntake();
-    // Se sanea con la misma función que lo guardado en el servidor: el
-    // almacenamiento local es tan poco de fiar como cualquier otra entrada.
+    if (!raw) return null;
     return clientIntake({ intake: JSON.parse(raw) });
   } catch {
-    // Modo privado, almacenamiento bloqueado o JSON corrupto: se usa el defecto.
-    return defaultIntake();
+    return null;
   }
 };
 
-export const writeIntakeTemplate = (userId, intake) => {
+export const clearLocalIntakeTemplate = (userId) => {
   try {
-    localStorage.setItem(key(userId), JSON.stringify({ steps: intake.steps, custom: intake.custom }));
-    return true;
+    localStorage.removeItem(key(userId));
   } catch {
-    return false;
+    /* Ver `protocolTemplate.js`: una copia vieja que no se puede borrar no hace
+       daño, porque el rescate solo mira si el servidor está vacío. */
   }
 };
+
+export { defaultIntake };
 
 /**
  * Aplica la plantilla a un cliente CONSERVANDO lo suyo.
@@ -53,6 +71,10 @@ export const applyIntakeTemplate = (template, preferences) => {
       custom: template.custom,
       done: actual.done,
       links: actual.links,
+      /* Los archivos subidos son del cliente, igual que los enlaces: la anamnesis
+         de Marta se queda en el paso de Marta. Olvidarlos aquí borraría la
+         referencia y dejaría el documento en el bucket sin nada que apunte a él. */
+      files: actual.files,
     },
   });
 };

@@ -5,6 +5,7 @@ import {
   ChevronUp,
   Copy,
   GripVertical,
+  NotebookPen,
   Pencil,
   Plus,
   Trash2,
@@ -17,7 +18,7 @@ import {
   foodUnits,
   gramsFromUnits,
   hasUnits,
-  mealKcalRange,
+  mealTarget,
   optionMacros,
   unitsLabel,
 } from '@/domain/nutrition';
@@ -165,6 +166,21 @@ const FoodRow = ({
           <GripVertical size={14} />
         </button>
       )}
+
+      {/*
+        ══ El hueco del asa existe SIEMPRE ═══════════════════════════════════
+
+        Sin esto, cuando no hay asa —la vista del cliente, que no reordena nada—
+        no se pintaba nada en la primera celda, y la rejilla corre a los hijos una
+        posición: el NOMBRE caía en la columna de 20 px del asa y se quedaba en
+        «C…», mientras la suya se la llevaba la cantidad.
+
+        Es el mismo hueco vacío que ya pinta `FoodTableHead` por el mismo motivo,
+        y por eso las dos tablas quedan alineadas entre sí. Que el fallo solo se
+        viera «como cliente» es exactamente lo que costó encontrarlo: en la
+        pantalla del entrenador el asa ocupa su celda y todo cuadra.
+      */}
+      {!(editable && onMove) && <span aria-hidden="true" />}
 
       <span className="name">{food.name}</span>
 
@@ -465,9 +481,31 @@ export const MealCard = ({
   const options = meal.options || [];
   const index = Math.min(activeOption, Math.max(0, options.length - 1));
   const option = options[index];
-  const kcal = mealKcalRange(meal);
   const totals = optionMacros(option);
+  /* Lo que el entrenador estipuló para esta comida. Es lo que ve el cliente. */
+  const objetivo = mealTarget(meal);
   const foods = option?.foods || [];
+
+  /*
+    ══ De quién es cada cifra ═════════════════════════════════════════════════
+
+    El anillo enseña una cosa distinta a cada uno, y no por adornar:
+
+    · Al ENTRENADOR, el reparto REAL de la opción que tiene abierta. Es lo que
+      está montando, y lo que compara contra su objetivo en las barras de al
+      lado.
+    · Al CLIENTE, lo ESTIPULADO. Su plan es lo que su entrenador fijó para esa
+      comida, y no cambia según la alternativa que abra. La suma de los
+      alimentos es una cifra aproximada que además se contradice a sí misma al
+      cambiar de opción — la misma razón por la que la cabecera ya enseña el
+      objetivo y no el total.
+
+    Sin objetivo puesto el cliente no ve anillo: no hay nada estipulado que
+    enseñar, y el real es precisamente el que no le toca ver.
+  */
+  const anillo = editable
+    ? { protein: totals.protein, carbs: totals.carbs, fats: totals.fats, kcals: totals.kcal }
+    : objetivo;
 
   const askRemoveMeal = async () => {
     const ok = await confirm({
@@ -523,16 +561,15 @@ export const MealCard = ({
           </h4>
         )}
 
+        {/*
+          ── Aquí ya no va ninguna cifra ──────────────────────────────────────
+          Había una pastilla de kcal, y decía cosas distintas a cada uno: al
+          entrenador la suma de la opción abierta, al cliente lo estipulado. Las
+          dos sobraban por el mismo motivo: **el anillo de abajo ya las dice**,
+          con su reparto al lado, y una cifra suelta a dos centímetros de otra
+          igual solo invita a compararlas y a preguntarse por qué no coinciden.
+        */}
         <div className="row gap-2 shrink-0">
-          <span className="meal-kcal">
-            {kcal.first} kcal
-            {kcal.varies && (
-              <span className="t-xs" style={{ opacity: 0.75, fontWeight: 550 }}>
-                {' '}
-                ({kcal.min}–{kcal.max})
-              </span>
-            )}
-          </span>
           {editable && (
             <>
               {/* Mover la comida y duplicarla. En la cabecera y no en un menú:
@@ -614,14 +651,17 @@ export const MealCard = ({
         línea conservados.
       */}
       {editable ? (
-        <input
-          className="input input-sm meal-note"
-          value={meal.note ?? ''}
-          maxLength={200}
-          placeholder="Pauta de esta comida (opcional): marca, hora aproximada, sustituciones…"
-          onChange={(e) => onNote(e.target.value)}
-          aria-label={`Pauta de ${meal.name}`}
-        />
+        <label className="meal-note">
+          <NotebookPen size={14} aria-hidden="true" />
+          <input
+            className="input input-sm"
+            value={meal.note ?? ''}
+            maxLength={200}
+            placeholder="Cómo cocinarlo, marcas, sustituciones… lo verá tal cual"
+            onChange={(e) => onNote(e.target.value)}
+            aria-label={`Pauta de ${meal.name}`}
+          />
+        </label>
       ) : (
         meal.note?.trim() && (
           <p className="t-sm t-secondary" style={{ whiteSpace: 'pre-wrap' }}>
@@ -643,9 +683,18 @@ export const MealCard = ({
               onClick={() => setActiveOption(i)}
             >
               Opción {i + 1}
-              <span className="t-xs" style={{ opacity: 0.75 }}>
-                {Math.round(optionMacros(opt).kcal)}
-              </span>
+              {/*
+                Las kcal de cada alternativa, solo al programar: son la suma de
+                sus alimentos, y sirven para comprobar que las opciones de una
+                misma comida son de verdad intercambiables. Al cliente le
+                enseñaban cuatro cifras distintas para una comida que su
+                entrenador fijó en una sola.
+              */}
+              {editable && (
+                <span className="t-xs" style={{ opacity: 0.75 }}>
+                  {Math.round(optionMacros(opt).kcal)}
+                </span>
+              )}
             </button>
           ))}
           {editable && (
@@ -706,24 +755,36 @@ export const MealCard = ({
         anillos con el mismo lenguaje al lado. El total del día usa una barra
         —otra forma para otra escala— y la diferencia es intencionada.
       */}
-      {foods.length > 0 && (
+      {foods.length > 0 && anillo && (
         <div className="card-inset row wrap gap-4">
           <MacroRing
-            protein={totals.protein}
-            carbs={totals.carbs}
-            fats={totals.fats}
-            kcals={totals.kcal}
+            protein={anillo.protein}
+            carbs={anillo.carbs}
+            fats={anillo.fats}
+            kcals={anillo.kcals}
             size={86}
-            caption={options.length > 1 ? `Opción ${index + 1} de ${options.length}` : undefined}
+            /*
+              El pie dice de QUÉ son las cifras, que es lo que cambia entre los
+              dos. Al entrenador, de la opción abierta —solo hace falta cuando
+              hay más de una—. Al cliente, de la comida entera: el anillo es el
+              mismo abra la opción que abra, y titularlo «Opción 1 de 3» le haría
+              creer que esos gramos son los de esa alternativa.
+            */
+            caption={
+              editable
+                ? options.length > 1
+                  ? `Opción ${index + 1} de ${options.length}`
+                  : undefined
+                : 'Objetivo de esta comida'
+            }
           />
           {/*
-            El objetivo de esta comida, al lado de su anillo.
-
-            El MISMO componente para los dos: al cliente le enseña lo que se
-            espera de la comida —que es su prescripción, y estaba escondida— y al
-            entrenador le añade la desviación de la opción abierta.
+            El objetivo, solo al programar. El cliente se queda con su anillo y
+            nada más: la comparación no la puede resolver él, y metida en esta
+            misma fila estrujaba la tabla de alimentos hasta dejar los nombres
+            en dos letras.
           */}
-          <MealGoal meal={meal} optionIndex={index} showGap={editable} />
+          {editable && <MealGoal meal={meal} optionIndex={index} />}
         </div>
       )}
 

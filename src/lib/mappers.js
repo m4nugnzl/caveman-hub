@@ -161,6 +161,14 @@ export const mapTicketMessageFromDb = (row) => ({
   fromSupport: Boolean(row.from_support),
   body: row.body,
   createdAt: row.created_at,
+  /*
+    La RUTA del adjunto (migración 0039), no su URL: el bucket es privado y lo
+    que se firma caduca. `attachmentUrl` lo rellena quien carga los tickets,
+    firmando todas las rutas del hilo de una vez, y se queda en `null` cuando el
+    archivo ya no está — que se enseña distinto a no tener ninguno.
+  */
+  attachmentPath: row.attachment_path ?? null,
+  attachmentUrl: null,
 });
 
 /**

@@ -1,25 +1,42 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, RotateCcw, Users, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import {
+  CHECKIN_BLOCKS,
+  CHECKIN_MODES,
   MAX_CUSTOM,
   MODULES,
   PROTOCOL_PRESETS,
   SESSION_QUESTIONS,
   activeQuestions,
   addCustomQuestion,
+  checkinMode,
   clientProtocol,
   isModuleOn,
   matchingPreset,
   moveQuestion,
   removeCustomQuestion,
+  setCheckinMode,
   toggleModule,
   toggleQuestion,
 } from '@/domain/protocol';
 import { clientIntake, intakeToPreferences } from '@/domain/intake';
-import { applyIntakeTemplate, readIntakeTemplate, writeIntakeTemplate } from '@/lib/intakeTemplate';
-import { matchesTemplate, readTemplate, writeTemplate } from '@/lib/protocolTemplate';
+import {
+  applyIntakeTemplate,
+  clearLocalIntakeTemplate,
+  defaultIntake,
+  intakeTemplateFrom,
+  intakeTemplateToPreferences,
+  readLocalIntakeTemplate,
+} from '@/lib/intakeTemplate';
+import {
+  clearLocalTemplate,
+  defaultProtocol,
+  matchesTemplate,
+  readLocalTemplate,
+  templateFrom,
+} from '@/lib/protocolTemplate';
 import { Field, Notice, Panel, SegmentedControl, TextInput } from '@/components/ui/primitives';
 import { IntakeSteps } from './IntakeSteps';
 
@@ -93,15 +110,57 @@ const QuestionRow = ({ question, index, total, onMove, onRemove, canDelete, onDe
 );
 
 export const ProtocolPanel = () => {
-  const { session, clients, updateClientPreferences } = useApp();
+  const { session, clients, updateClientPreferences, coachPrefs, coachPrefsReady, updateCoachPreferences } =
+    useApp();
   const userId = session?.user?.id;
 
   /** `null` = la plantilla; si no, el id del cliente que se está editando. */
   const [target, setTarget] = useState(null);
-  const [template, setTemplate] = useState(() => readTemplate(userId));
-  const [intakeTemplate, setIntakeTemplate] = useState(() => readIntakeTemplate(userId));
   const [feedback, setFeedback] = useState(null);
   const [draft, setDraft] = useState({ label: '', max: '10', lowerIsBetter: false });
+
+  /*
+    ══ Las plantillas ya no viven en el navegador ═════════════════════════════
+
+    Están en `profiles.preferences` (0035), así que le siguen al entrenador de un
+    ordenador a otro. Antes eran `localStorage` y se perdían al cambiar de
+    máquina o al limpiar el navegador — con el agravante de que no se perdía un
+    ajuste, se perdía su forma de trabajar.
+
+    No hay estado local que mantener: la plantilla ES lo que hay en `coachPrefs`,
+    y `updateCoachPreferences` ya lo actualiza de forma optimista, así que el
+    cambio se ve al instante igual que antes. Duplicarlo en un `useState` sería
+    la segunda copia de una verdad que ya tiene dueño.
+  */
+  const template = templateFrom(coachPrefs) || defaultProtocol();
+  const intakeTemplate = intakeTemplateFrom(coachPrefs) || defaultIntake();
+
+  /*
+    ── El rescate de la que quedara en el navegador ────────────────────────────
+    Una sola vez, y solo si el servidor no tiene ninguna: quien ya había
+    configurado su plantilla no puede notar la mudanza. Se espera a que las
+    preferencias estén LEÍDAS —no basta con que estén vacías— porque si no, en el
+    primer render de cada arranque parecerían vacías y se subiría lo de siempre
+    encima de lo suyo.
+  */
+  useEffect(() => {
+    if (!coachPrefsReady || !userId) return;
+
+    if (!templateFrom(coachPrefs)) {
+      const local = readLocalTemplate(userId);
+      if (local) {
+        updateCoachPreferences('protocolTemplate', local);
+        clearLocalTemplate(userId);
+      }
+    }
+    if (!intakeTemplateFrom(coachPrefs)) {
+      const local = readLocalIntakeTemplate(userId);
+      if (local) {
+        updateCoachPreferences('intakeTemplate', intakeTemplateToPreferences(local));
+        clearLocalIntakeTemplate(userId);
+      }
+    }
+  }, [coachPrefsReady, coachPrefs, userId, updateCoachPreferences]);
 
   const client = target ? clients.find((c) => c.id === target) : null;
   const protocol = client ? clientProtocol(client.preferences) : template;
@@ -115,33 +174,33 @@ export const ProtocolPanel = () => {
   */
   const intake = client ? clientIntake(client.preferences) : intakeTemplate;
 
-  const saveIntake = (next) => {
+  /*
+    Guardar es lo mismo con dos destinos: el cliente elegido o la plantilla. El
+    fallo del servidor SÍ se enseña —antes solo se avisaba de que el navegador no
+    dejaba escribir— porque ahora es una escritura de red y puede fallar por estar
+    sin conexión, que es un caso frecuente y silencioso.
+  */
+  const saveIntake = async (next) => {
     setFeedback(null);
     if (client) {
       updateClientPreferences(client.id, 'intake', intakeToPreferences(next));
       return;
     }
-    setIntakeTemplate(next);
-    if (!writeIntakeTemplate(userId, next)) {
-      setFeedback({
-        tone: 'warn',
-        text: 'Tu navegador no deja guardar la plantilla, así que durará lo que esta pestaña. Aplícala a tus clientes para no perderla.',
-      });
+    const res = await updateCoachPreferences('intakeTemplate', intakeTemplateToPreferences(next));
+    if (!res?.ok) {
+      setFeedback({ tone: 'error', text: `No se ha podido guardar tu plantilla: ${res?.error || ''}` });
     }
   };
 
-  const save = (next) => {
+  const save = async (next) => {
     setFeedback(null);
     if (client) {
       updateClientPreferences(client.id, 'protocol', next);
       return;
     }
-    setTemplate(next);
-    if (!writeTemplate(userId, next)) {
-      setFeedback({
-        tone: 'warn',
-        text: 'Tu navegador no deja guardar la plantilla, así que durará lo que esta pestaña. Aplícala a tus clientes para no perderla.',
-      });
+    const res = await updateCoachPreferences('protocolTemplate', next);
+    if (!res?.ok) {
+      setFeedback({ tone: 'error', text: `No se ha podido guardar tu plantilla: ${res?.error || ''}` });
     }
   };
 
@@ -337,6 +396,46 @@ export const ProtocolPanel = () => {
             );
           })}
         </ul>
+      </Panel>
+
+      {/* ── Qué se mide en el check-in ───────────────────────────────────────
+          Va justo detrás de los módulos porque es lo mismo —qué existe para este
+          cliente— con una posición más: aquí se puede además EXIGIR. */}
+      <Panel className="col gap-3">
+        <div>
+          <span className="section-title">Qué mide en cada check-in</span>
+          <p className="t-sm t-secondary">
+            El peso siempre se pide. Estos dos los decides tú: si los exiges, no podrá cerrar el
+            check-in sin rellenarlos; apagados, ni le aparecen.
+          </p>
+        </div>
+
+        <div className="col gap-3">
+          {CHECKIN_BLOCKS.map((bloque) => (
+            <div className="card-inset col gap-2" key={bloque.id}>
+              <div className="col" style={{ gap: 1 }}>
+                <span className="t-sm" style={{ fontWeight: 600 }}>
+                  {bloque.label}
+                </span>
+                <span className="t-xs t-tertiary">{bloque.hint}</span>
+              </div>
+
+              <SegmentedControl
+                value={checkinMode(protocol, bloque.id)}
+                onChange={(modo) => save(setCheckinMode(protocol, bloque.id, modo))}
+                options={CHECKIN_MODES.map((m) => ({ id: m.id, label: m.label }))}
+                label={`Cómo se pide: ${bloque.label}`}
+              />
+
+              {/* Lo que significa el estado elegido, debajo y en una línea. Tres
+                  palabras sueltas —«Obligatorio · Opcional · Apagado»— no dicen qué
+                  cambia para el cliente, que es lo único que se está decidiendo. */}
+              <span className="t-2xs t-tertiary">
+                {CHECKIN_MODES.find((m) => m.id === checkinMode(protocol, bloque.id))?.hint}
+              </span>
+            </div>
+          ))}
+        </div>
       </Panel>
 
       {/* ── Preguntas ────────────────────────────────────────────────────── */}

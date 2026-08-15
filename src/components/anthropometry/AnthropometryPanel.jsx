@@ -19,6 +19,7 @@ import {
   weeklyWeightAverages,
   weightSeries,
 } from '@/domain/anthropometry';
+import { asksBlock, clientProtocol, requiredBlocks, requiresBlock } from '@/domain/protocol';
 import { todayISO } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { BandChart } from '@/components/ui/charts';
@@ -94,8 +95,29 @@ export const AnthropometryPanel = ({
   const [weight, setWeight] = useState('');
   const [folds, setFolds] = useState(emptyFolds);
   const [perimeters, setPerimeters] = useState(emptyPerimeters);
-  const [showMeasures, setShowMeasures] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  /*
+    ══ Qué se mide aquí lo decide el entrenador ═══════════════════════════════
+
+    Pliegues y perímetros eran «opcional» para todo el mundo: plegados detrás de
+    un botón. Ahora cada bloque puede estar en tres estados
+    (`domain/protocol.js`), y esta pantalla es donde se notan los tres:
+
+      · apagado    → no se pinta, y ni siquiera se ofrece desplegarlo.
+      · opcional   → como siempre: plegado, y quien quiera lo abre.
+      · obligatorio→ se abre SOLO y el check-in no se cierra sin él.
+
+    Lo obligatorio empieza desplegado por la misma razón por la que es
+    obligatorio: si hay que buscar dónde se rellena, no se rellena — y entonces
+    lo único que hace la exigencia es dar un error al enviar.
+  */
+  const protocol = useMemo(() => clientProtocol(client.preferences), [client.preferences]);
+  const pideFolds = asksBlock(protocol, 'folds');
+  const pidePerimetros = asksBlock(protocol, 'perimeters');
+  const obligatorios = useMemo(() => requiredBlocks(protocol), [protocol]);
+
+  const [showMeasures, setShowMeasures] = useState(obligatorios.length > 0);
 
   /*
     ── El peso llega propuesto, no guardado ──────────────────────────────────
@@ -132,6 +154,12 @@ export const AnthropometryPanel = ({
   const sum = foldsSum(folds);
   const pct = fatPercent(folds, client.gender);
 
+  /** Los campos de un bloque que están sin rellenar, por su nombre visible. */
+  const sinRellenar = (values, labels) =>
+    Object.entries(labels)
+      .filter(([key]) => toNum(values[key]) === null)
+      .map(([, label]) => label);
+
   const submit = (event) => {
     event.preventDefault();
     if (toNum(weight) === null) {
@@ -141,6 +169,34 @@ export const AnthropometryPanel = ({
     if (!date) {
       setFeedback({ tone: 'error', text: 'Indica la fecha del pesaje.' });
       return;
+    }
+
+    /*
+      Un bloque obligatorio se pide ENTERO.
+
+      No es rigidez: la suma de pliegues con cinco de seis no es un % graso más
+      impreciso, es un número distinto que se pintaría en la misma serie que los
+      completos y la estropearía sin avisar. Y para los perímetros, comparar la
+      cintura de esta semana con la cadera de la anterior no significa nada.
+
+      El error dice QUÉ falta —no «rellena los pliegues»— porque con seis casillas
+      idénticas encontrar la vacía a ojo es el trabajo que debería hacer la
+      aplicación.
+    */
+    for (const bloque of obligatorios) {
+      const esPliegues = bloque.id === 'folds';
+      const faltan = sinRellenar(
+        esPliegues ? folds : perimeters,
+        esPliegues ? FOLDS_LABELS : PERIMETER_LABELS
+      );
+      if (faltan.length > 0) {
+        setShowMeasures(true);
+        setFeedback({
+          tone: 'error',
+          text: `${isClient ? 'Tu entrenador pide' : 'Este cliente tiene como obligatorio'} ${bloque.label.toLowerCase()} en cada check-in. Falta${faltan.length === 1 ? '' : 'n'}: ${faltan.join(', ')}.`,
+        });
+        return;
+      }
     }
 
     const existing = history.some((h) => h.date === date);
@@ -163,7 +219,8 @@ export const AnthropometryPanel = ({
     setFolds(emptyFolds());
     setPerimeters(emptyPerimeters());
     setDate(todayISO());
-    setShowMeasures(false);
+    // Se repliega salvo que haya algo obligatorio, que es como estaba al entrar.
+    setShowMeasures(obligatorios.length > 0);
     setFeedback({
       tone: 'success',
       text: existing ? `Se ha actualizado el registro del ${date}.` : 'Registro guardado.',
@@ -311,6 +368,12 @@ export const AnthropometryPanel = ({
           </p>
         )}
 
+        {/*
+          Con los dos bloques apagados aquí no hay nada: ni el botón. Un
+          desplegable que abre un hueco vacío es peor que no tenerlo, y quien lo
+          apagó ya dijo que su check-in es solo el peso.
+        */}
+        {(pideFolds || pidePerimetros) && (
         <div className="col gap-3">
           <button
             type="button"
@@ -320,7 +383,17 @@ export const AnthropometryPanel = ({
             onClick={() => setShowMeasures((v) => !v)}
           >
             {showMeasures ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-            <Ruler size={14} /> Añadir pliegues y perímetros (opcional)
+            <Ruler size={14} />{' '}
+            {/* El botón nombra SOLO lo que se va a abrir, y dice si hay que
+                rellenarlo: «(opcional)» encima de algo obligatorio era la forma
+                más rápida de que nadie lo rellenara. */}
+            Añadir{' '}
+            {[pideFolds && 'pliegues', pidePerimetros && 'perímetros'].filter(Boolean).join(' y ')}
+            {obligatorios.length > 0
+              ? obligatorios.length === (pideFolds ? 1 : 0) + (pidePerimetros ? 1 : 0)
+                ? ' (obligatorio)'
+                : ' (uno es obligatorio)'
+              : ' (opcional)'}
           </button>
 
           {showMeasures && (
@@ -340,7 +413,10 @@ export const AnthropometryPanel = ({
                 Por eso el aviso cambia de tono cuando falta: no es información,
                 es algo que hay que arreglar, y se arregla aquí mismo.
               */}
-              {client.gender ? (
+              {/* El sexo solo importa aquí por la fórmula de los pliegues: con
+                  ese bloque apagado, el aviso hablaría de un cálculo que en esta
+                  pantalla ya no se hace. */}
+              {pideFolds && (client.gender ? (
                 <Notice tone="info">
                   Fórmula de 6 pliegues ·{' '}
                   {client.gender === 'Mujer'
@@ -374,10 +450,18 @@ export const AnthropometryPanel = ({
                     ? 'Mientras no se defina se aplica la de hombre, así que el % graso puede estar desviado.'
                     : 'Pídeselo a tu entrenador: mientras tanto el % graso puede estar desviado.'}
                 </Notice>
-              )}
+              ))}
 
+              {pideFolds && (
               <div className="col gap-3">
-                <h4 className="section-label">Pliegues cutáneos (mm)</h4>
+                <h4 className="section-label">
+                  Pliegues cutáneos (mm)
+                  {requiresBlock(protocol, 'folds') && (
+                    <span className="badge badge-warn" style={{ marginLeft: 8 }}>
+                      Obligatorio
+                    </span>
+                  )}
+                </h4>
                 <MeasureGrid
                   labels={FOLDS_LABELS}
                   values={folds}
@@ -401,9 +485,18 @@ export const AnthropometryPanel = ({
                   </div>
                 )}
               </div>
+              )}
 
+              {pidePerimetros && (
               <div className="col gap-3">
-                <h4 className="section-label">Perímetros corporales (cm)</h4>
+                <h4 className="section-label">
+                  Perímetros corporales (cm)
+                  {requiresBlock(protocol, 'perimeters') && (
+                    <span className="badge badge-warn" style={{ marginLeft: 8 }}>
+                      Obligatorio
+                    </span>
+                  )}
+                </h4>
                 <MeasureGrid
                   labels={PERIMETER_LABELS}
                   values={perimeters}
@@ -411,9 +504,11 @@ export const AnthropometryPanel = ({
                   onChange={(k, v) => setPerimeters((p) => ({ ...p, [k]: v }))}
                 />
               </div>
+              )}
             </>
           )}
         </div>
+        )}
       </Panel>
 
       {weekly.length >= 2 && (

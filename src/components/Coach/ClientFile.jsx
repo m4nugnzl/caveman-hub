@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Archive,
   Check,
   ContactRound,
   ExternalLink,
+  FileText,
   ListChecks,
   Link2,
+  Paperclip,
   Pencil,
   Send,
   UserCheck,
@@ -14,6 +16,7 @@ import {
 import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
+import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
 import {
   clientIntake,
   intakeProgress,
@@ -21,8 +24,10 @@ import {
   intakeToPreferences,
   markStep,
   safeLink,
+  setStepFile,
   setStepLink,
   stepDone,
+  stepFile,
   stepLink,
 } from '@/domain/intake';
 import { Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
@@ -289,10 +294,12 @@ const ArchiveRow = ({ client }) => {
  * recordatorio privado del entrenador y pasa a ser la cosa que se entrega: al
  * cliente le aparece en su portal y le queda guardada.
  */
-const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
+const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, onFile }) => {
   const [editando, setEditando] = useState(false);
   const [draft, setDraft] = useState(url || '');
   const [error, setError] = useState('');
+  const [subiendo, setSubiendo] = useState(false);
+  const input = useRef(null);
 
   const guardar = () => {
     const limpio = draft.trim();
@@ -303,6 +310,24 @@ const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
     onLink(limpio);
     setError('');
     setEditando(false);
+  };
+
+  /*
+    Se sube AL ELEGIR el archivo, sin pasar por «Guardar».
+
+    Elegir un archivo en un diálogo del sistema ya es una confirmación —hay que
+    buscarlo y pulsar «Abrir»—, y pedir una segunda deja el caso de quien elige,
+    ve el nombre puesto y se va creyendo que está subido. Como es una sola acción,
+    lo que se enseña mientras tanto es el estado: «Subiendo…».
+  */
+  const subir = async (elegido) => {
+    if (!elegido) return;
+    setSubiendo(true);
+    setError('');
+    const fallo = await onFile(elegido);
+    setSubiendo(false);
+    if (fallo) setError(fallo);
+    else setEditando(false);
   };
 
   return (
@@ -327,12 +352,12 @@ const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
               setEditando(true);
             }}
           >
-            <Link2 size={13} /> {url ? 'Cambiar enlace' : 'Enlazar'}
+            <Link2 size={13} /> {url || file ? 'Cambiar' : 'Añadir contenido'}
           </button>
         )}
       </div>
 
-      {/* El enlace puesto se ve SIEMPRE, no solo al editar: es lo que el cliente
+      {/* Lo que hay puesto se ve SIEMPRE, no solo al editar: es lo que el cliente
           va a abrir, y comprobar que apunta a donde toca es media revisión. */}
       {url && !editando && (
         <a
@@ -347,6 +372,19 @@ const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
             {url}
           </span>
         </a>
+      )}
+
+      {/* Del archivo se enseña su NOMBRE, no su ruta: `c1/intake/1738-anam.pdf`
+          no le dice nada a nadie. No se enlaza aquí porque abrirlo exige firmar la
+          URL, y esta pantalla es la de montar el alta, no la de consultarla; el
+          cliente sí lo abre desde su portal. */}
+      {file && !editando && (
+        <span className="row gap-1 t-xs t-secondary" style={{ minWidth: 0 }}>
+          <FileText size={12} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {attachmentName(file)}
+          </span>
+        </span>
       )}
 
       {editando && (
@@ -401,9 +439,52 @@ const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
             </div>
           )}
 
+          {/*
+            ══ O un archivo, para lo que no vive en ninguna parte ═════════════
+
+            El enlace de arriba vale para el vídeo de bienvenida, que está en
+            YouTube o en Loom. No vale para la anamnesis en PDF ni para la hoja de
+            la primera medición: para eso había que subirlas a Drive, hacerlas
+            públicas y pegar aquí ese enlace — tres pasos fuera de la aplicación, y
+            los datos de salud de alguien colgando de una dirección sin caducidad.
+
+            Subiéndolo va al mismo sitio privado que sus fotos, y el cliente lo
+            abre con una URL firmada que caduca.
+
+            Poner un archivo retira el enlace y al revés: el paso entrega UNA cosa
+            (`domain/intake.js`).
+          */}
+          <div className="col gap-1">
+            <span className="t-2xs t-tertiary">O súbelo, si no está en ninguna parte:</span>
+            <input
+              ref={input}
+              type="file"
+              accept={ATTACHMENT_ACCEPT}
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                subir(e.target.files?.[0] || null);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ alignSelf: 'flex-start' }}
+              disabled={subiendo}
+              onClick={() => input.current?.click()}
+            >
+              <Paperclip size={13} /> {subiendo ? 'Subiendo…' : 'Subir archivo'}
+            </button>
+            {file && (
+              <span className="t-2xs t-tertiary">
+                Ahora mismo: {attachmentName(file)}
+              </span>
+            )}
+          </div>
+
           <div className="row gap-2 wrap">
             <button type="button" className="btn btn-primary btn-sm" onClick={guardar}>
-              Guardar
+              Guardar enlace
             </button>
             <button
               type="button"
@@ -415,12 +496,15 @@ const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
             >
               Cancelar
             </button>
-            {url && (
+            {(url || file) && (
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
-                  onLink('');
+                  /* Quitar lo que haya: solo hay una de las dos cosas, así que se
+                     limpian las dos y da igual cuál estuviera puesta. */
+                  if (file) onFile(null);
+                  else onLink('');
                   setEditando(false);
                 }}
               >
@@ -443,7 +527,7 @@ const StepRow = ({ step, hecho, url, revisiones = [], onToggle, onLink }) => {
  * diferencia entre proponer una forma de trabajar e imponerla.
  */
 const Alta = ({ client, onUpdate, onPreferences }) => {
-  const { listReviewLinks } = useApp();
+  const { listReviewLinks, uploadIntakeFile } = useApp();
   const intake = clientIntake(client.preferences);
   const steps = intakeSteps(intake);
   const { done, total, complete } = intakeProgress(client, intake);
@@ -498,9 +582,26 @@ const Alta = ({ client, onUpdate, onPreferences }) => {
             step={step}
             hecho={stepDone(step, client, intake)}
             url={stepLink(intake, step.id)}
+            file={stepFile(intake, step.id)}
             revisiones={revisiones}
             onToggle={(valor) => toggle(step, valor)}
             onLink={(url) => onPreferences(setStepLink(intake, step.id, url))}
+            /* Devuelve el fallo —o null— porque quien lo enseña es la fila: el
+               archivo se elige ahí y ahí es donde se mira si ha ido bien. */
+            onFile={async (archivo) => {
+              if (!archivo) {
+                onPreferences(setStepFile(intake, step.id, null));
+                return null;
+              }
+              const res = await uploadIntakeFile({
+                clientId: client.id,
+                stepId: step.id,
+                file: archivo,
+              });
+              if (!res.ok) return res.error;
+              onPreferences(setStepFile(intake, step.id, res.path));
+              return null;
+            }}
           />
         ))}
       </div>

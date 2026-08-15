@@ -1,54 +1,83 @@
 /**
  * La plantilla de protocolo del entrenador.
  *
- * ── Por qué el navegador y no la base de datos ──────────────────────────────
- * Porque no hay dónde. El esquema tiene `profiles` con tres columnas y ninguna
- * tabla de ajustes del entrenador: guardar esto en el servidor significaría una
- * migración más, y la decisión fue no pedirla para esta pieza.
+ * ══ Dónde vive, y por qué ha cambiado ══════════════════════════════════════
  *
- * El compromiso es explícito y hay que conocerlo: **la plantilla no sigue al
- * entrenador si cambia de ordenador o borra los datos del navegador**. Lo que sí
- * le sigue es el protocolo YA APLICADO a cada cliente, que vive en la base de
- * datos (`clients.preferences.protocol`). O sea: se puede perder la plantilla,
- * nunca lo que sus clientes tienen configurado.
+ * En `profiles.preferences.protocolTemplate` (migración 0035), que es la columna
+ * donde ya vivían sus preferencias de panel.
  *
- * Por eso la plantilla es exactamente eso —una plantilla— y no la fuente de
- * verdad: lo que manda en cada cliente es su propia configuración.
+ * Antes vivía en `localStorage`, con un compromiso explícito: **no seguía al
+ * entrenador si cambiaba de ordenador o borraba los datos del navegador**. Eso se
+ * asumió cuando no había dónde guardarla en el servidor. Ya lo hay —la 0035 la
+ * añadió para otra cosa— así que el compromiso deja de tener contrapartida:
+ * mantenerlo solo significaba perder la forma de trabajar de alguien por abrir la
+ * aplicación en el portátil.
  *
- * Se guarda por identificador de usuario para que dos entrenadores que usen el
- * mismo ordenador no se pisen la suya.
+ * ── Lo guardado en el navegador no se tira ──────────────────────────────────
+ * `readLocalTemplate` sigue existiendo para una sola cosa: rescatar la plantilla
+ * de quien ya tenía una. La pantalla la sube al servidor la primera vez que entra
+ * y limpia la copia local. A partir de ahí este archivo solo sabe leer la del
+ * servidor.
+ *
+ * Se guardaba por identificador de usuario para que dos entrenadores que usaran
+ * el mismo ordenador no se pisaran la suya; el rescate respeta esa misma clave.
  */
 
-import { clientProtocol, defaultProtocol } from '@/domain/protocol';
+import { CHECKIN_BLOCKS, checkinMode, clientProtocol, defaultProtocol } from '@/domain/protocol';
 
 const key = (userId) => `caveman-protocol:${userId || 'anon'}`;
 
-export const readTemplate = (userId) => {
+/**
+ * La plantilla del entrenador, sacada de sus preferencias.
+ *
+ * `null` —y no el protocolo por defecto— cuando no tiene ninguna guardada: es la
+ * diferencia entre «no ha configurado nada» y «configuró justo lo de serie», y de
+ * ella depende que el rescate del navegador se dispare o no.
+ */
+export const templateFrom = (coachPrefs) => {
+  const raw = coachPrefs?.protocolTemplate;
+  if (!raw || typeof raw !== 'object') return null;
+  // Mismo saneado que lo de cada cliente: viene de una columna jsonb abierta.
+  return clientProtocol({ protocol: raw });
+};
+
+/** Lo que se guarda. Es el protocolo entero, que ya está saneado. */
+export const templateToPreferences = (protocol) => protocol;
+
+/** La que quedara en el navegador, para subirla una vez. `null` si no hay. */
+export const readLocalTemplate = (userId) => {
   try {
     const raw = localStorage.getItem(key(userId));
-    if (!raw) return defaultProtocol();
-    // Se sanea con la misma función que lo guardado en el servidor: el
-    // almacenamiento local es tan poco de fiar como cualquier otra entrada.
+    if (!raw) return null;
     return clientProtocol({ protocol: JSON.parse(raw) });
   } catch {
-    // Modo privado, almacenamiento bloqueado o JSON corrupto: se usa el defecto.
-    return defaultProtocol();
+    // Modo privado, almacenamiento bloqueado o JSON corrupto: no hay nada que
+    // rescatar, y no es un error que deba enseñarse a nadie.
+    return null;
   }
 };
 
-export const writeTemplate = (userId, protocol) => {
+export const clearLocalTemplate = (userId) => {
   try {
-    localStorage.setItem(key(userId), JSON.stringify(protocol));
-    return true;
+    localStorage.removeItem(key(userId));
   } catch {
-    // Sin persistencia la plantilla dura lo que la pestaña. No es un error que
-    // deba interrumpir nada, pero quien llama puede querer avisar.
-    return false;
+    /* Si no se puede limpiar, la copia vieja se queda ahí sin hacer daño: el
+       rescate solo se dispara cuando el servidor no tiene plantilla, y a partir
+       de ahora la tiene. */
   }
 };
 
-/** ¿El protocolo de este cliente coincide con la plantilla? */
+export { defaultProtocol };
+
+/**
+ * ¿El protocolo de este cliente coincide con la plantilla?
+ *
+ * Se comparan las CUATRO partes. Dejarse el check-in fuera haría que «aplicar a
+ * todos» apareciera deshabilitado con la única diferencia siendo justo eso, y el
+ * entrenador no tendría forma de propagar que ahora exige perímetros.
+ */
 export const matchesTemplate = (template, protocol) =>
   template.modules.join() === protocol.modules.join() &&
   template.questions.join() === protocol.questions.join() &&
-  JSON.stringify(template.custom) === JSON.stringify(protocol.custom);
+  JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
+  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id));

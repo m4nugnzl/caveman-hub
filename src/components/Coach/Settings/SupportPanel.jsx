@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LifeBuoy, Plus, Send } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ExternalLink, FileText, LifeBuoy, Paperclip, Plus, Send, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import {
+  ATTACHMENT_ACCEPT,
+  attachmentName,
+  isImagePath,
+  validateAttachment,
+} from '@/domain/attachments';
 import { recentIssues } from '@/lib/diagnostics';
 import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 
@@ -25,6 +31,7 @@ export const SupportPanel = () => {
   const [tickets, setTickets] = useState([]);
   const [estado, setEstado] = useState('cargando'); // cargando | listo | error
   const [error, setError] = useState('');
+  const [aviso, setAviso] = useState('');
   const [abierto, setAbierto] = useState(null); // id del hilo desplegado
   const [redactando, setRedactando] = useState(false);
 
@@ -117,6 +124,8 @@ export const SupportPanel = () => {
         </Notice>
       )}
 
+      {aviso && <Notice tone="warn">{aviso}</Notice>}
+
       {redactando && (
         <NuevoTicket
           plan={plan}
@@ -125,6 +134,10 @@ export const SupportPanel = () => {
             const res = await createTicket(campos);
             if (!res.ok) return res.error;
             setRedactando(false);
+            /* El ticket salió pero el archivo no. No es un error del envío —el
+               mensaje está y se puede contestar—, así que se cuenta arriba en vez
+               de dejar el formulario abierto con una alarma. */
+            setAviso(res.aviso || '');
             await recargar();
             setAbierto(res.ticketId);
             return null;
@@ -167,7 +180,7 @@ export const SupportPanel = () => {
               myId={session?.user?.id}
               open={abierto === ticket.id}
               onToggle={() => setAbierto(abierto === ticket.id ? null : ticket.id)}
-              onReply={async (body) => {
+              onReply={async (body, adjunto) => {
                 /*
                   Se habla como soporte solo en los hilos AJENOS.
 
@@ -177,7 +190,7 @@ export const SupportPanel = () => {
                   de tu propia bandeja de pendientes.
                 */
                 const esMio = ticket.profileId === session?.user?.id;
-                const res = await replyTicket(ticket.id, body, isSupport && !esMio);
+                const res = await replyTicket(ticket.id, body, isSupport && !esMio, adjunto);
                 if (!res.ok) return res.error;
                 await recargar();
                 return null;
@@ -200,9 +213,142 @@ const ESTADOS = {
   closed: { label: 'Cerrado', tone: 'badge-info' },
 };
 
+/**
+ * Elegir un archivo para mandarlo con el mensaje.
+ *
+ * ══ Por qué esto vale la pena ══════════════════════════════════════════════
+ *
+ * El formulario ya recoge la ruta, el navegador y los últimos fallos de verdad, y
+ * aun así la primera respuesta de casi cualquier soporte es «¿me mandas una
+ * captura?». Un día de ida y vuelta por algo que quien escribe tenía delante
+ * mientras lo contaba.
+ *
+ * ── Se valida ANTES de mandar nada ──────────────────────────────────────────
+ * El tamaño y el tipo se comprueban al elegir el archivo, no al enviar. Enterarse
+ * de que la imagen pesa de más después de haber escrito el mensaje —y con el
+ * mensaje ya subiendo— es el momento exacto en el que la gente abandona.
+ *
+ * El `input` de verdad va escondido y se dispara desde el botón: el control nativo
+ * no se puede vestir y con el texto «Sin archivos seleccionados» al lado nunca
+ * queda como parte del formulario.
+ */
+const Adjunto = ({ file, onChange, disabled }) => {
+  const input = useRef(null);
+  const [error, setError] = useState('');
+
+  const elegir = (elegido) => {
+    if (!elegido) return;
+    const invalido = validateAttachment(elegido);
+    if (invalido) {
+      setError(invalido);
+      onChange(null);
+      return;
+    }
+    setError('');
+    onChange(elegido);
+  };
+
+  return (
+    <div className="col gap-1">
+      <input
+        ref={input}
+        type="file"
+        accept={ATTACHMENT_ACCEPT}
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          elegir(e.target.files?.[0] || null);
+          /* Se limpia para que elegir DOS VECES el mismo archivo vuelva a
+             disparar el evento: sin esto, quitarlo y volver a ponerlo no hace
+             nada y parece que el botón está roto. */
+          e.target.value = '';
+        }}
+      />
+
+      {file ? (
+        <span className="row gap-2 wrap t-xs">
+          <Paperclip size={13} />
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {file.name}
+          </span>
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-danger"
+            style={{ width: 22, height: 22 }}
+            onClick={() => onChange(null)}
+            aria-label="Quitar el archivo"
+          >
+            <X size={12} />
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          disabled={disabled}
+          onClick={() => input.current?.click()}
+        >
+          <Paperclip size={13} /> Adjuntar captura
+        </button>
+      )}
+
+      {error && <span className="t-xs" style={{ color: 'var(--negative)' }}>{error}</span>}
+    </div>
+  );
+};
+
+/**
+ * El archivo que acompaña a un mensaje, ya firmado.
+ *
+ * Las imágenes se ven, el resto se abre. Una captura es lo que más se manda y es
+ * también lo que hay que mirar para entender el ticket: obligar a abrir otra
+ * pestaña para ver una imagen de 200 KB convierte el adjunto en algo que no se
+ * mira, y entonces daba igual haberlo pedido.
+ *
+ * Sin URL firmada el archivo ya no está —lo borró alguien, o la ruta es de otro
+ * hilo—. Se dice, en vez de dejar un enlace que lleva a un error.
+ */
+const AdjuntoMensaje = ({ path, url }) => {
+  if (!path) return null;
+
+  if (!url) {
+    return <span className="t-2xs t-tertiary">Adjunto no disponible.</span>;
+  }
+
+  if (isImagePath(path)) {
+    return (
+      <a href={url} target="_blank" rel="noreferrer noopener" title={attachmentName(path)}>
+        <img
+          src={url}
+          alt={`Adjunto: ${attachmentName(path)}`}
+          loading="lazy"
+          style={{
+            maxWidth: 'min(100%, 320px)',
+            borderRadius: 'var(--r-md)',
+            border: '1px solid var(--border)',
+            display: 'block',
+          }}
+        />
+      </a>
+    );
+  }
+
+  return (
+    <a
+      className="row gap-1 t-xs"
+      href={url}
+      target="_blank"
+      rel="noreferrer noopener"
+      style={{ color: 'var(--data-blue)', fontWeight: 600 }}
+    >
+      <FileText size={13} /> {attachmentName(path)} <ExternalLink size={11} />
+    </a>
+  );
+};
+
 /** Un hilo: cabecera siempre, conversación al desplegarlo. */
 const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }) => {
   const [body, setBody] = useState('');
+  const [adjunto, setAdjunto] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
@@ -215,7 +361,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
     if (!limpio) return;
 
     setEnviando(true);
-    const fallo = await onReply(limpio);
+    const fallo = await onReply(limpio, adjunto);
     setEnviando(false);
 
     if (fallo) {
@@ -223,6 +369,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
       return;
     }
     setBody('');
+    setAdjunto(null);
     setError('');
   };
 
@@ -263,6 +410,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
                 <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
                   {msg.body}
                 </p>
+                <AdjuntoMensaje path={msg.attachmentPath} url={msg.attachmentUrl} />
               </div>
             ))}
           </div>
@@ -278,7 +426,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
                 onChange={(e) => setBody(e.target.value)}
                 placeholder={isSupport ? 'Responder…' : 'Añadir algo más…'}
               />
-              <div className="row gap-2">
+              <div className="row gap-2 wrap">
                 <button
                   type="submit"
                   className="btn btn-primary btn-sm"
@@ -286,6 +434,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
                 >
                   <Send size={14} /> {enviando ? 'Enviando…' : 'Enviar'}
                 </button>
+                <Adjunto file={adjunto} onChange={setAdjunto} disabled={enviando} />
                 <button type="button" className="btn btn-sm" onClick={onClose}>
                   Cerrar hilo
                 </button>
@@ -345,6 +494,7 @@ const Contexto = ({ context }) => {
 const NuevoTicket = ({ onCancel, onSend, plan }) => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [adjunto, setAdjunto] = useState(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
@@ -396,6 +546,7 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
     const fallo = await onSend({
       subject: subject.trim(),
       body: body.trim(),
+      attachment: adjunto,
       context: {
         ruta: window.location.pathname,
         pantalla: `${window.screen?.width || '?'}×${window.screen?.height || '?'}`,
@@ -445,6 +596,10 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
       </Field>
 
       {error && <Notice tone="error">{error}</Notice>}
+
+      {/* Debajo de «Qué pasa» y no al final del formulario: es parte de contar lo
+          que pasa, no un trámite posterior al envío. */}
+      <Adjunto file={adjunto} onChange={setAdjunto} disabled={enviando} />
 
       <div className="row gap-2 wrap">
         <button type="submit" className="btn btn-primary btn-sm" disabled={!valido || enviando}>

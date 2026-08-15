@@ -4,7 +4,13 @@ import {
   MAX_CUSTOM,
   activeQuestions,
   addCustomQuestion,
+  asksBlock,
   asksFeedback,
+  checkinBlocks,
+  checkinMode,
+  requiredBlocks,
+  requiresBlock,
+  setCheckinMode,
   clientProtocol,
   defaultProtocol,
   isModuleOn,
@@ -137,5 +143,58 @@ describe('lectura', () => {
     expect(asksFeedback({ ...protocol, questions: [] })).toBe(false);
     expect(asksFeedback({ ...protocol, modules: [] })).toBe(false);
     expect(isModuleOn(protocol, 'warmup')).toBe(false);
+  });
+});
+
+/*
+  ══ Los tres estados del check-in ═══════════════════════════════════════════
+
+  Lo que protege esto es el valor por defecto: un cliente sin configurar —o con
+  un estado escrito a mano que no existe— tiene que seguir viendo los dos bloques
+  como opcionales, que es lo que hacía la aplicación antes de que esto se pudiera
+  configurar. Cualquier otro respaldo le apaga o le exige a alguien un bloque que
+  no ha pedido.
+*/
+describe('qué se mide en el check-in', () => {
+  it('sin configurar, los dos son opcionales y ninguno se exige', () => {
+    const protocol = clientProtocol(undefined);
+    expect(checkinMode(protocol, 'folds')).toBe('optional');
+    expect(checkinMode(protocol, 'perimeters')).toBe('optional');
+    expect(asksBlock(protocol, 'folds')).toBe(true);
+    expect(requiresBlock(protocol, 'folds')).toBe(false);
+    expect(requiredBlocks(protocol)).toEqual([]);
+  });
+
+  it('cada bloque va por su cuenta', () => {
+    let protocol = clientProtocol(undefined);
+    protocol = setCheckinMode(protocol, 'perimeters', 'required');
+    protocol = setCheckinMode(protocol, 'folds', 'off');
+
+    expect(requiredBlocks(protocol).map((b) => b.id)).toEqual(['perimeters']);
+    expect(checkinBlocks(protocol).map((b) => b.id)).toEqual(['perimeters']);
+    expect(asksBlock(protocol, 'folds')).toBe(false);
+  });
+
+  it('un estado o un bloque que no existen no cambian nada', () => {
+    const protocol = clientProtocol(undefined);
+    expect(setCheckinMode(protocol, 'folds', 'obligatorio')).toBe(protocol);
+    expect(setCheckinMode(protocol, 'peso', 'off')).toBe(protocol);
+  });
+
+  it('lo guardado se lee, y lo que no se reconoce vuelve a opcional', () => {
+    const protocol = clientProtocol({
+      protocol: { checkin: { folds: 'required', perimeters: 'a saber' } },
+    });
+    expect(checkinMode(protocol, 'folds')).toBe('required');
+    expect(checkinMode(protocol, 'perimeters')).toBe('optional');
+  });
+
+  /* Sobrevivir a la ida y vuelta importa más aquí que en otras claves: se guarda
+     el objeto entero (`updateClientPreferences` fusiona por sección) y un
+     `checkin` que se perdiera al leer volvería a «opcional» en silencio, con el
+     entrenador convencido de que lo dejó exigido. */
+  it('sobrevive a la ida y vuelta por preferencias', () => {
+    const puesto = setCheckinMode(clientProtocol(undefined), 'folds', 'required');
+    expect(checkinMode(clientProtocol({ protocol: puesto }), 'folds')).toBe('required');
   });
 });
