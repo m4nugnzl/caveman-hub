@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
-import { useApp } from '@/context/AppContext';
+import { useSession } from '@/context/AppContext';
 import { Notice } from '@/components/ui/primitives';
 
 /**
@@ -29,7 +29,7 @@ import { Notice } from '@/components/ui/primitives';
  *   · todo lo demás        → nada
  */
 export const PlanNotice = () => {
-  const { plan, session, view } = useApp();
+  const { plan, session, view } = useSession();
   const { pathname } = useLocation();
   const [cerrado, setCerrado] = useState(() => leerCerrado(session?.user?.id));
 

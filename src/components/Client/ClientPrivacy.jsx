@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Download, ShieldCheck } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { CONSENT_POINTS, clientConsent, hasConsent, grantConsent, withdrawConsent } from '@/domain/privacy';
 import { shortDate } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -28,7 +28,7 @@ import { Notice, Panel } from '@/components/ui/primitives';
  * sitio del pie de página.
  */
 export const ClientPrivacy = ({ client }) => {
-  const { exportClientData, updateClientPreferences } = useApp();
+  const { exportClientData, updateClientPreferences } = useActions();
   const confirm = useConfirm();
 
   const [open, setOpen] = useState(false);

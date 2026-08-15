@@ -16,7 +16,7 @@ import {
   VideoOff,
 } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { estimatedMb, useReviewRecorder } from '@/lib/useReviewRecorder';
 import {
   CAMERA_ANCHORS,
@@ -50,7 +50,7 @@ const mmss = (total) => `${Math.floor(total / 60)}:${String(total % 60).padStart
  * algo sobre la hoja de la rutina, sin salir de la aplicación ni pegar nada.
  */
 const ExternalReview = ({ client, onDone }) => {
-  const { createReviewUrl, publishUpdate } = useApp();
+  const { createReviewUrl, publishUpdate } = useActions();
   const [abierto, setAbierto] = useState(false);
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
@@ -182,7 +182,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
     listReviewLinks,
     revokeReviewLink,
     publishUpdate,
-  } = useApp();
+  } = useActions();
   const recorder = useReviewRecorder();
 
   const [camera, setCameraState] = useState(defaultCamera);

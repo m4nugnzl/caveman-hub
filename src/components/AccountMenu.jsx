@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Eye, LifeBuoy, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useSession } from '@/context/AppContext';
 import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
 import { initials } from '@/lib/initials';
@@ -28,7 +28,8 @@ import { SETTINGS_SECTIONS } from '@/routes';
  * habitación.
  */
 export const AccountMenu = () => {
-  const { session, signOut, profileRole, isCoach, view, setViewMode } = useApp();
+  const { session, profileRole, isCoach, view } = useSession();
+  const { signOut, setViewMode } = useActions();
   const { isDark, toggle } = useTheme();
   const tour = useTour();
   const [open, setOpen] = useState(false);

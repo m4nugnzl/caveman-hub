@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 
 import { SETTINGS_SECTIONS } from '@/routes';
-import { useApp } from '@/context/AppContext';
+import { useActions, useSession } from '@/context/AppContext';
 
 /**
  * Configuración.
@@ -71,7 +71,8 @@ export const SettingsLayout = () => {
  * cambia dos veces al día.
  */
 const useTicketsPendientes = () => {
-  const { loadTickets, isSupport, session } = useApp();
+  const { isSupport, session } = useSession();
+  const { loadTickets } = useActions();
   const [pendientes, setPendientes] = useState(0);
 
   useEffect(() => {

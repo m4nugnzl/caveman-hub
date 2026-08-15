@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useSession } from '@/context/AppContext';
 import { supabase } from '@/lib/supabaseClient';
 import { Notice, Panel } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
@@ -29,7 +29,8 @@ import { useBilling } from './useBilling';
  * bastaría con abrir la pasarela y cerrar la pestaña.
  */
 export const PlanPanel = () => {
-  const { plan, team, myTeamRole, refreshPlan } = useApp();
+  const { plan, team, myTeamRole } = useSession();
+  const { refreshPlan } = useActions();
   const { busy, error, contratar, abrirPortal } = useBilling();
   const [tiers, setTiers] = useState([]);
   const [params, setParams] = useSearchParams();

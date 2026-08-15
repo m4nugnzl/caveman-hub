@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, FileText, PlayCircle } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { attachmentName } from '@/domain/attachments';
 import { clientIntake, intakeDeliverables } from '@/domain/intake';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
@@ -37,7 +37,7 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
  * rutas juntas, no una por fila.
  */
 export const IntakeDeliverables = ({ client }) => {
-  const { signPaths } = useApp();
+  const { signPaths } = useActions();
   const items = intakeDeliverables(clientIntake(client?.preferences));
   const [urls, setUrls] = useState(() => new Map());
 

@@ -11,7 +11,7 @@ import {
   Webhook,
 } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { BrandMark } from '@/components/ui/BrandMark';
 import { Notice, Panel } from '@/components/ui/primitives';
 
@@ -103,7 +103,7 @@ export const StripeSettings = ({ onChanged }) => {
     setWebhookSecret,
     createClientFromExternal,
     reloadClients,
-  } = useApp();
+  } = useActions();
 
   const [ready, setReady] = useState(false);
   const [integration, setIntegration] = useState(null);

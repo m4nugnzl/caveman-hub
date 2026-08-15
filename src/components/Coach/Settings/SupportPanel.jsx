@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, FileText, LifeBuoy, Paperclip, Plus, Send, X } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useSession } from '@/context/AppContext';
 import {
   ATTACHMENT_ACCEPT,
   attachmentName,
@@ -25,8 +25,8 @@ import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/
  * consola vería una bandeja vacía, porque la base no le devuelve nada más.
  */
 export const SupportPanel = () => {
-  const { loadTickets, createTicket, replyTicket, setTicketStatus, isSupport, session, plan } =
-    useApp();
+  const { isSupport, session, plan } = useSession();
+  const { loadTickets, createTicket, replyTicket, setTicketStatus } = useActions();
 
   const [tickets, setTickets] = useState([]);
   const [estado, setEstado] = useState('cargando'); // cargando | listo | error

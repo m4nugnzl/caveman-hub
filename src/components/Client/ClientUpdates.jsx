@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { ArrowRight, BellRing, CircleAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useData } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
 import { pendingTasks, unseenUpdates } from '@/domain/updates';
 import { todayISO } from '@/lib/dates';
@@ -35,7 +35,8 @@ import { Panel } from '@/components/ui/primitives';
  * están.
  */
 export const ClientUpdates = ({ client }) => {
-  const { anthropometry, updateClientPreferences } = useApp();
+  const { anthropometry } = useData();
+  const { updateClientPreferences } = useActions();
 
   const preferences = client?.preferences;
   /* Memoizado: `|| []` crea un array nuevo en cada render y con él invalidaría el

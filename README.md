@@ -255,9 +255,27 @@ Cosas que están así a propósito, y por qué:
 - **Tests solo del dominio.** `npm test` cubre `training`, `portfolio`,
   `reading`, `goals`, `preferences` y `today` — las reglas que duelen si se
   rompen. Los componentes no tienen ninguno.
-- **Un solo contexto global.** Funciona y está memoizado, pero mezcla caché de
-  datos de servidor con estado de interfaz. Una librería de datos (TanStack
-  Query) daría revalidación, reintentos y rollback automáticos.
+- **Tres contextos, no uno.** Era uno solo con 154 claves, y se rehacía en cuanto
+  cambiaba cualquiera de ellas: escribir un carácter en un campo de kilos volvía
+  a pintar los 44 componentes que llaman a `useApp()`, incluidos el menú de
+  cuenta y el panel de soporte, que no leen ninguno de los datos que habían
+  cambiado. El problema no era que se pintaran de más, era que estaban
+  **suscritos a más de lo que leen**.
+
+  Ahora se parte por frecuencia de cambio: `useSession()` (quién eres),
+  `useData()` (la cartera y sus bloques) y `useActions()` (las 120 funciones,
+  detrás de una fachada de identidad fija que **no cambia nunca**). `useApp()`
+  sigue existiendo y devolviéndolo todo junto, así que el corte entró sin tocar
+  ningún componente; lo que se gana está en bajar cada pantalla al gancho que de
+  verdad necesita, y eso va archivo a archivo.
+
+  `saveStatus` vive con los DATOS aunque sea una función: no hace nada, lee el
+  estado de guardado durante el render. Detrás de la fachada estable, un
+  componente no se enteraría de que un guardado ha fallado.
+
+  Sigue en pie que esto mezcla caché de servidor con estado de interfaz: una
+  librería de datos (TanStack Query) daría revalidación, reintentos y rollback
+  automáticos.
 - **Escritura concurrente: detectada, no fusionada.** Ya no se pierde trabajo en
   silencio —ver abajo— pero la resolución la decide una persona: quedarse con la
   versión del servidor o imponer la suya. Fusionar de verdad exige separar el

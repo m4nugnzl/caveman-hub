@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Video } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { parseVideoUrl } from '@/domain/video';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 import { VideoEmbed, VideoExternalLink } from '@/components/ui/VideoEmbed';
@@ -33,7 +33,7 @@ import { VideoEmbed, VideoExternalLink } from '@/components/ui/VideoEmbed';
 const CUANTAS = 6;
 
 export const ClientReviews = ({ client }) => {
-  const { listReviewLinks, signPaths, markReviewViewed } = useApp();
+  const { listReviewLinks, signPaths, markReviewViewed } = useActions();
   const [links, setLinks] = useState([]);
   const [urls, setUrls] = useState(() => new Map());
   const [vistas, setVistas] = useState(() => new Set());

@@ -1,5 +1,5 @@
 import { Search } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
+import { useData } from '@/context/AppContext';
 import { paletteShortcut } from '@/lib/platform';
 import { Logo } from '@/components/ui/Logo';
 import { AccountMenu } from '@/components/AccountMenu';
@@ -29,7 +29,7 @@ import { useCommandPalette } from '@/components/ui/CommandPalette';
  * habla de algo que puede perderse.
  */
 export const Header = () => {
-  const { hasUnsavedChanges } = useApp();
+  const { hasUnsavedChanges } = useData();
   const palette = useCommandPalette();
 
   return (

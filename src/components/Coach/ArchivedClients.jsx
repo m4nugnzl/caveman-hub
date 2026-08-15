@@ -1,6 +1,6 @@
 import { Archive, ArchiveRestore } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useData } from '@/context/AppContext';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 
 /**
@@ -10,7 +10,8 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
  * a buscar algo concreto, no se pasa por aquí todos los días.
  */
 export const ArchivedClients = () => {
-  const { archivedClients, setClientArchived } = useApp();
+  const { archivedClients } = useData();
+  const { setClientArchived } = useActions();
 
   if (archivedClients.length === 0) return null;
 

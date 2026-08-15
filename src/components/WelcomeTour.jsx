@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Layers, Ruler, Salad, Send, Sunrise, Users } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useSession } from '@/context/AppContext';
 import { Modal } from '@/components/ui/Modal';
 import { paletteShortcut } from '@/lib/platform';
 import { hasSeenTour, markTourSeen } from '@/lib/tourSeen';
@@ -155,7 +155,7 @@ export const useTour = () => {
 // ── El diálogo ─────────────────────────────────────────────────────────────
 
 export const WelcomeTour = () => {
-  const { session, profileRole } = useApp();
+  const { session, profileRole } = useSession();
   const { open, setOpen } = useTour();
   const [step, setStep] = useState(0);
   const navigate = useNavigate();

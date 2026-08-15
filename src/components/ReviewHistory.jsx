@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, History, Link2, MessageSquareQuote, Pencil, Trash2, Video } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { groupChanges, reviewHistory } from '@/domain/reviews';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { shortDate } from '@/lib/dates';
@@ -52,7 +52,7 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
     publishUpdate,
     reviewCheckIn,
     deleteCheckIn,
-  } = useApp();
+  } = useActions();
   const confirm = useConfirm();
   const [filas, setFilas] = useState([]);
   const [cargando, setCargando] = useState(true);

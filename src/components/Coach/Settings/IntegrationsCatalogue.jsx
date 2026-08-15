@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Check, Plug } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { PROVIDERS, providerById } from '@/domain/integrations';
 import { BrandMark } from '@/components/ui/BrandMark';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
@@ -56,7 +56,7 @@ const ProviderCard = ({ provider, connected, onOpen }) => (
  * entrenador sabe si merece la pena esperar o montar lo que hay.
  */
 export const IntegrationsCatalogue = () => {
-  const { loadIntegration } = useApp();
+  const { loadIntegration } = useActions();
   const [open, setOpen] = useState(null);
   const [connected, setConnected] = useState({});
   const [unavailable, setUnavailable] = useState(false);

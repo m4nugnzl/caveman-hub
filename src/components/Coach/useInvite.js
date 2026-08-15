@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 
 /**
  * Generar el enlace de invitación de un cliente y dejarlo en el portapapeles.
@@ -22,7 +22,7 @@ import { useApp } from '@/context/AppContext';
  * propia ficha—.
  */
 export const useInvite = () => {
-  const { createInvite } = useApp();
+  const { createInvite } = useActions();
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
 

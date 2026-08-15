@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Download, History, ShieldAlert, Trash2 } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions } from '@/context/AppContext';
 import { clientConsent } from '@/domain/privacy';
 import { shortDate } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -39,7 +39,7 @@ const AUDIT_LABEL = {
 const AUDIT_ACTION = { INSERT: 'creado', UPDATE: 'modificado', DELETE: 'borrado' };
 
 export const ClientDataPanel = ({ client }) => {
-  const { exportClientData, deleteClientCompletely, loadAuditLog } = useApp();
+  const { exportClientData, deleteClientCompletely, loadAuditLog } = useActions();
   const confirm = useConfirm();
   const [audit, setAudit] = useState(null);
 

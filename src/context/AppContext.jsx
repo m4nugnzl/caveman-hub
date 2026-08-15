@@ -70,7 +70,14 @@ import {
   withSessionSet,
 } from '@/domain/sessions';
 
-const AppContext = createContext(null);
+/*
+  Los tres contextos. Ver el razonamiento entero donde se construyen sus valores,
+  al final de `AppProvider`: se separan por FRECUENCIA DE CAMBIO, que es lo que
+  decide a quién arrastra cada cosa cuando se repinta.
+*/
+const SessionContext = createContext(null);
+const DataContext = createContext(null);
+const ActionsContext = createContext(null);
 
 /**
  * Qué cola de guardado corresponde a cada tabla de bloque.
@@ -4540,218 +4547,291 @@ export const AppProvider = ({ children }) => {
   const isCoach = profileRole === 'coach';
   const effectiveView = isCoach ? viewMode : 'client';
 
-  const value = useMemo(
+  /* ==========================================================================
+     Tres contextos, y no uno
+     --------------------------------------------------------------------------
+     Todo esto vivía en un solo objeto con ciento cincuenta y cuatro claves, y
+     ese objeto se rehacía en cuanto cambiaba cualquiera de sus dependencias:
+     `workoutData`, `nutrition`, `clients`, `saveState`… Como los cuarenta y
+     cuatro componentes que llaman a `useApp()` leían de ahí, escribir UN CARÁCTER
+     en un campo de kilos volvía a pintar la aplicación entera —incluidos el menú
+     de cuenta, el panel de integraciones y el de soporte, que no leen ni uno de
+     los datos que habían cambiado—.
+
+     No hay ningún `React.memo` en el proyecto que cortara esa propagación, y
+     ponerlos habría sido tratar el síntoma: el problema no es que los
+     componentes se pinten de más, es que estaban SUSCRITOS a más de lo que
+     leen.
+
+     Se parte por FRECUENCIA DE CAMBIO, que es lo que determina a quién arrastra
+     cada cosa:
+
+       · SESIÓN   — quién eres y qué puedes. Cambia al entrar y poco más.
+       · DATOS    — la cartera y sus bloques. Cambia con cada escritura.
+       · ACCIONES — las ciento veinte funciones. NO CAMBIA NUNCA (ver abajo).
+
+     `useApp()` se conserva y sigue devolviendo las tres cosas juntas, así que no
+     hay que tocar ni un componente para que esto entre. Lo que se gana está en
+     los que se pasen a los ganchos estrechos: un componente que solo llame a
+     `useActions()` deja de repintarse cuando alguien teclea un peso.
+     ========================================================================== */
+
+  /** Quién eres y qué puedes. */
+  const sessionValue = useMemo(
     () => ({
-      // Sesión y estado global
       session,
       loading,
       loadError,
       conflict,
-      resolveConflict,
-      signOut,
       profileRole,
       isCoach,
       view: effectiveView,
-      setViewMode,
+      team,
+      teamMembers,
+      plan,
+      hasTeams: Boolean(team),
+      myTeamRole: team?.myRole || null,
+      isSupport,
+      coachPrefs,
+      coachPrefsReady,
+    }),
+    [
+      session, loading, loadError, conflict, profileRole, isCoach, effectiveView,
+      team, teamMembers, plan, isSupport, coachPrefs, coachPrefsReady,
+    ]
+  );
 
-      // Datos
-      // La cartera viva. Lo archivado sale por `archivedClients`.
+  /**
+   * La cartera y sus bloques.
+   *
+   * `saveStatus` va aquí y no con las acciones aunque sea una función: no hace
+   * nada, LEE `saveState` y se llama durante el render para pintar el indicador.
+   * Detrás de la fachada estable de las acciones, un componente no se enteraría
+   * de que un guardado ha fallado — que es justo lo que la cola existe para
+   * evitar.
+   */
+  const dataValue = useMemo(
+    () => ({
       clients: visibleClients,
       allClients: clients,
       archivedClients,
       activeClient,
       selectedClientId,
-      setSelectedClientId,
       workoutData,
       training,
       legacyPending,
-      ensureProgram,
       anthropometry,
       nutrition,
       progressPhotos,
       exerciseLibrary,
-      coachPrefs,
-      coachPrefsReady,
-      updateCoachPreferences,
-      applyDashboardToAll,
-      isSupport,
-      loadTickets,
-      createTicket,
-      replyTicket,
-      setTicketStatus,
-      uploadIntakeFile,
-      signPaths,
+      foodLibrary,
       catalogFoods,
       catalogExercises,
-      foodLibrary,
-
-      // Estado de guardado
-      saveStatus,
-      retrySave,
-      hasUnsavedChanges,
-
-      // Rutina
-      updateExerciseSet,
-      updateExerciseTarget,
-      addExercise,
-      removeExercise,
-      addExerciseSetSlot,
-      removeExerciseSetSlot,
-      moveExercise,
-      addDay,
-      renameDay,
-      setDayNote,
-      duplicateDay,
-      removeDay,
-      updateWeeklySplit,
-      startSession,
-      logSessionSet,
-      updateSession,
-      updateSessionMeta,
-      updateMobilityDrills,
-      removeSession,
-      startProgram,
-      appendMicrocycle,
-      cloneMicrocycle,
-      continueProgram,
-      removeMicrocycle,
-      copyDayToClient,
-      copyMicrocycleToClient,
-      copyProgramToClient,
-      replicateClient,
-
-      // Nutrición
-      updateNutrition,
-      updateNutritionTargets,
-      setHasDayVariants,
-      addMeal,
-      removeMeal,
-      updateMealName,
-      updateMealNote,
-      updateMealTarget,
-      copyVariantMeals,
-      copyMealToVariant,
-      copyOptionToVariant,
-      moveMeal,
-      moveFood,
-      duplicateOption,
-      duplicateMeal,
-      addMealOption,
-      removeMealOption,
-      addFoodToOption,
-      removeFoodFromOption,
-      updateFoodGrams,
-      setFoodDisplay,
-      defineFoodUnit,
-
-      // Antropometría
-      addAnthropometryLog,
-      removeAnthropometryLog,
-      updateAnthropometryLog,
-
-      // Bibliotecas
-      upsertLibraryExercise,
-      upsertLibraryFood,
-
-      // Fotos
-      uploadProgressPhoto,
-      deleteProgressPhoto,
-      updateProgressPhoto,
-      refreshPhotoUrls,
-      ensurePhotoUrls,
-
-      // Clientes
-      addClient,
-      updateClient,
-      setClientArchived,
-      updateClientPreferences,
-      exportClientData,
-      exportAllData,
-      normalizeLegacySessions,
-      loadAuditLog,
-      deleteClientCompletely,
-
-      // Integraciones
-      reloadClients,
-      createInvite,
-      revokeInvite,
-      loadIntegration,
-      saveIntegration,
-      setIntegrationToken,
-      runIntegration,
-      runStripe,
-      setWebhookSecret,
-      linkExternalName,
-      createClientFromExternal,
-
-      // Vídeos de revisión
-      uploadReview,
-      listReviews,
-      deleteReview,
-      createReviewLink,
-      createReviewUrl,
-      markReviewViewed,
-      publishUpdate,
-      listReviewLinks,
-      revokeReviewLink,
-
-      // Check-ins y calendario
       checkIns,
-      reviewCheckIn,
-      submitCheckIn,
-      loadCheckInHistory,
-      deleteCheckIn,
-      loadEvents,
-      addClientEvent,
-      setEventDone,
-      removeClientEvent,
-
-      // Roadmap (fases del cliente abierto)
       phases,
-      addPhase,
-      updatePhase,
-      removePhase,
-
-      // Equipo
-      team,
-      teamMembers,
-      plan,
-      refreshPlan,
-      hasTeams: Boolean(team),
-      myTeamRole: team?.myRole || null,
-      inviteTeamMember,
-      updateTeamMemberRole,
-      removeTeamMember,
-      assignClient,
-      renameTeam,
+      saveStatus,
+      hasUnsavedChanges,
     }),
     [
-      session, loading, loadError, conflict, resolveConflict, signOut, profileRole, isCoach, effectiveView,
-      clients, visibleClients, archivedClients, activeClient, selectedClientId, workoutData, training, legacyPending, ensureProgram, anthropometry, nutrition,
-      progressPhotos, exerciseLibrary, foodLibrary, catalogFoods, catalogExercises,
-      coachPrefs, coachPrefsReady, updateCoachPreferences, applyDashboardToAll,
-      isSupport, loadTickets, createTicket, replyTicket, setTicketStatus, uploadIntakeFile, signPaths,
-      saveStatus, retrySave, hasUnsavedChanges,
-      updateExerciseSet, updateExerciseTarget, addExercise, removeExercise, addExerciseSetSlot, removeExerciseSetSlot,
-      moveExercise, addDay, renameDay, setDayNote, duplicateDay, removeDay, updateWeeklySplit,
-      startSession, logSessionSet, updateSession, updateSessionMeta, updateMobilityDrills, removeSession,
-      startProgram, appendMicrocycle, cloneMicrocycle, continueProgram, removeMicrocycle,
-      copyDayToClient, copyMicrocycleToClient, copyProgramToClient, replicateClient,
-      updateNutrition, updateNutritionTargets, setHasDayVariants, addMeal, removeMeal, updateMealName, updateMealNote, updateMealTarget,
-      copyVariantMeals, copyMealToVariant, copyOptionToVariant, moveMeal, moveFood, duplicateOption, duplicateMeal, addMealOption, removeMealOption, addFoodToOption, removeFoodFromOption, updateFoodGrams, setFoodDisplay, defineFoodUnit,
-      addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog,
-      upsertLibraryExercise, upsertLibraryFood,
-      uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,
-      addClient, updateClient, setClientArchived, updateClientPreferences, exportClientData, exportAllData, normalizeLegacySessions, loadAuditLog, deleteClientCompletely,
-      reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
-      uploadReview, listReviews, deleteReview, createReviewLink, createReviewUrl, markReviewViewed, publishUpdate, listReviewLinks, revokeReviewLink,
-      checkIns, reviewCheckIn, submitCheckIn, loadCheckInHistory, deleteCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent,
-      phases, addPhase, updatePhase, removePhase,
-      team, teamMembers, plan, refreshPlan, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
+      visibleClients, clients, archivedClients, activeClient, selectedClientId,
+      workoutData, training, legacyPending, anthropometry, nutrition, progressPhotos,
+      exerciseLibrary, foodLibrary, catalogFoods, catalogExercises, checkIns, phases,
+      saveStatus, hasUnsavedChanges,
     ]
   );
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  /*
+    ══ Las acciones, con identidad fija ═══════════════════════════════════════
+
+    El espejo se reescribe en cada render, así que siempre apunta a la versión
+    recién creada de cada `useCallback`. Lo que se reparte por el contexto es una
+    FACHADA construida una sola vez: cada nombre es una función estable que
+    reenvía al espejo.
+
+    Dos consecuencias, las dos buenas:
+
+      · El objeto de acciones nunca cambia de identidad, así que un componente
+        que solo consuma acciones no vuelve a pintarse por culpa de un dato.
+      · Desaparecen los cierres rancios. Una acción guardada en un `useEffect` al
+        montar llamaba a la versión de entonces; ahora siempre entra por el
+        espejo y ejecuta la de ahora.
+
+    Y un efecto que conviene entender antes de tocar nada: los `useEffect` que
+    llevaban una acción en su lista de dependencias dejan de dispararse cuando
+    esa acción se recrea. Es lo correcto —esas recreaciones eran ruido, no una
+    señal de que hubiera que volver a pedir nada— pero si algún día un efecto
+    depende de eso, el problema es el efecto.
+  */
+  const actionsRef = useRef(null);
+  actionsRef.current = {
+    // Sesión
+    resolveConflict,
+    signOut,
+    setViewMode,
+    setSelectedClientId,
+
+    // Estado de guardado
+    retrySave,
+
+    // Rutina
+    updateExerciseSet,
+    updateExerciseTarget,
+    addExercise,
+    removeExercise,
+    addExerciseSetSlot,
+    removeExerciseSetSlot,
+    moveExercise,
+    addDay,
+    renameDay,
+    setDayNote,
+    duplicateDay,
+    removeDay,
+    updateWeeklySplit,
+    startSession,
+    logSessionSet,
+    updateSession,
+    updateSessionMeta,
+    updateMobilityDrills,
+    removeSession,
+    startProgram,
+    appendMicrocycle,
+    cloneMicrocycle,
+    continueProgram,
+    removeMicrocycle,
+    copyDayToClient,
+    copyMicrocycleToClient,
+    copyProgramToClient,
+    replicateClient,
+    ensureProgram,
+
+    // Nutrición
+    updateNutrition,
+    updateNutritionTargets,
+    setHasDayVariants,
+    addMeal,
+    removeMeal,
+    updateMealName,
+    updateMealNote,
+    updateMealTarget,
+    copyVariantMeals,
+    copyMealToVariant,
+    copyOptionToVariant,
+    moveMeal,
+    moveFood,
+    duplicateOption,
+    duplicateMeal,
+    addMealOption,
+    removeMealOption,
+    addFoodToOption,
+    removeFoodFromOption,
+    updateFoodGrams,
+    setFoodDisplay,
+    defineFoodUnit,
+
+    // Antropometría
+    addAnthropometryLog,
+    removeAnthropometryLog,
+    updateAnthropometryLog,
+
+    // Bibliotecas
+    upsertLibraryExercise,
+    upsertLibraryFood,
+
+    // Fotos
+    uploadProgressPhoto,
+    deleteProgressPhoto,
+    updateProgressPhoto,
+    refreshPhotoUrls,
+    ensurePhotoUrls,
+
+    // Clientes
+    addClient,
+    updateClient,
+    setClientArchived,
+    updateClientPreferences,
+    exportClientData,
+    exportAllData,
+    normalizeLegacySessions,
+    loadAuditLog,
+    deleteClientCompletely,
+
+    // Preferencias del entrenador
+    updateCoachPreferences,
+    applyDashboardToAll,
+
+    // Soporte
+    loadTickets,
+    createTicket,
+    replyTicket,
+    setTicketStatus,
+    uploadIntakeFile,
+    signPaths,
+
+    // Integraciones
+    reloadClients,
+    createInvite,
+    revokeInvite,
+    loadIntegration,
+    saveIntegration,
+    setIntegrationToken,
+    runIntegration,
+    runStripe,
+    setWebhookSecret,
+    linkExternalName,
+    createClientFromExternal,
+
+    // Revisiones
+    uploadReview,
+    listReviews,
+    deleteReview,
+    createReviewLink,
+    createReviewUrl,
+    markReviewViewed,
+    publishUpdate,
+    listReviewLinks,
+    revokeReviewLink,
+
+    // Check-ins y calendario
+    reviewCheckIn,
+    submitCheckIn,
+    loadCheckInHistory,
+    deleteCheckIn,
+    loadEvents,
+    addClientEvent,
+    setEventDone,
+    removeClientEvent,
+
+    // Roadmap
+    addPhase,
+    updatePhase,
+    removePhase,
+
+    // Equipo y plan
+    refreshPlan,
+    inviteTeamMember,
+    updateTeamMemberRole,
+    removeTeamMember,
+    assignClient,
+    renameTeam,
+  };
+
+  /* La fachada. Lista vacía de dependencias a propósito: es lo que la hace
+     estable, y el conjunto de nombres no cambia en tiempo de ejecución. */
+  const actionsValue = useMemo(() => {
+    const estable = {};
+    for (const nombre of Object.keys(actionsRef.current)) {
+      estable[nombre] = (...args) => actionsRef.current[nombre](...args);
+    }
+    return Object.freeze(estable);
+  }, []);
+
+  return (
+    <SessionContext.Provider value={sessionValue}>
+      <ActionsContext.Provider value={actionsValue}>
+        <DataContext.Provider value={dataValue}>{children}</DataContext.Provider>
+      </ActionsContext.Provider>
+    </SessionContext.Provider>
+  );
 };
 
 /*
@@ -4811,8 +4891,46 @@ const explicarErrorDeAlta = (error) => {
   return error?.message || 'No se ha podido dar de alta al cliente.';
 };
 
-export const useApp = () => {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp debe usarse dentro de <AppProvider>.');
+/* ==========================================================================
+   Los ganchos
+   --------------------------------------------------------------------------
+   Cuatro, y el orden de esta lista es el de preferencia: cuanto más estrecho es
+   lo que se pide, menos veces se repinta quien lo pide.
+
+   `useApp()` sigue existiendo y sigue devolviéndolo todo junto, así que ningún
+   componente tuvo que cambiar para que el corte entrara. Pero es el más ancho
+   de los cuatro: quien lo usa se suscribe a los tres contextos y se repinta con
+   cualquier escritura, aunque solo lea una función. Al tocar un componente,
+   merece la pena bajarlo al gancho que de verdad necesita.
+   ========================================================================== */
+
+const dentroDelProveedor = (ctx, nombre) => {
+  if (!ctx) throw new Error(`${nombre} debe usarse dentro de <AppProvider>.`);
   return ctx;
+};
+
+/**
+ * Las acciones. **El más barato de los cuatro**: su objeto no cambia nunca, así
+ * que un componente que solo llame a esto no se repinta jamás por un dato.
+ */
+export const useActions = () => dentroDelProveedor(useContext(ActionsContext), 'useActions');
+
+/** Quién eres y qué puedes. Cambia al entrar y poco más. */
+export const useSession = () => dentroDelProveedor(useContext(SessionContext), 'useSession');
+
+/** La cartera y sus bloques. Cambia con cada escritura, que es lo que se pinta. */
+export const useData = () => dentroDelProveedor(useContext(DataContext), 'useData');
+
+/**
+ * Todo junto, como antes.
+ *
+ * Se conserva para no tener que reescribir cuarenta y cuatro componentes de
+ * golpe, y porque hay pantallas —el editor de rutina, la analítica— que de
+ * verdad leen de los tres. Para las que no, están los tres de arriba.
+ */
+export const useApp = () => {
+  const session = useSession();
+  const data = useData();
+  const actions = useActions();
+  return useMemo(() => ({ ...session, ...data, ...actions }), [session, data, actions]);
 };
