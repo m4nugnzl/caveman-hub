@@ -45,7 +45,12 @@ export default [
    * los globales del navegador y `process` sale como no definido.
    */
   {
-    files: ['scripts/**/*.mjs', 'scripts/**/*.js', '*.config.js'],
+    /*
+     * `supabase/tests/` va con los de Node y no con los del navegador por el
+     * mismo motivo: las pruebas contra la base de datos leen sus credenciales de
+     * `process.env` y corren fuera de un navegador.
+     */
+    files: ['scripts/**/*.mjs', 'scripts/**/*.js', '*.config.js', 'supabase/tests/**/*.js'],
     languageOptions: { globals: { ...globals.node } },
     rules: { 'no-console': 'off' },
   },

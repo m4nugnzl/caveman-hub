@@ -14,6 +14,15 @@ export default defineConfig({
     port: 3000,
     open: true,
   },
+  /*
+    Las pruebas de `supabase/` quedan FUERA de `npm test`, y por tanto de
+    `npm run check`: necesitan un proyecto de base de datos y `check` tiene que
+    poder correr en cualquier máquina recién clonada y sin red. Van por su cuenta
+    en `npm run test:db` (ver `vitest.db.config.js`).
+  */
+  test: {
+    exclude: ['**/node_modules/**', '**/dist/**', 'supabase/**'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: true,

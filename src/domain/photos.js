@@ -105,16 +105,59 @@ export const parsePhotoPath = (path) => {
 const DAY_MS = 86400000;
 
 /**
- * Semana del programa (1-indexada) en la que cae una fecha, contando desde el
- * inicio del cliente. Se usa para dos cosas: proponer la semana por defecto al
- * subir una foto, y situar las fotos antiguas que no llevan semana en la ruta.
+ * Semana del programa (1-indexada) en la que cae una fecha.
+ *
+ * ══ Los dos ejes de «semana», y por qué ahora sí encajan ════════════════════
+ *
+ * Esta aplicación cuenta las semanas de DOS maneras: las fotos por **semana de
+ * programa** (`week-12` en la ruta de Storage) y los check-ins por **semana
+ * natural** (el lunes, `weekStart`). `auditoria.md` §1.2 las señaló como dos
+ * calendarios incompatibles, y lo eran por una razón concreta y pequeña:
+ *
+ * esto contaba desde la FECHA CRUDA de alta. Un cliente que empezaba en
+ * miércoles tenía semanas de miércoles a martes, mientras sus pesajes iban de
+ * lunes a domingo. Sus dos ejes no compartían ni un corte, así que la «semana 3»
+ * de sus fotos y su «semana del 17 de agosto» no cubrían los mismos días y un
+ * check-in no podía casar con sus fotos de forma fiable.
+ *
+ * Anclando al LUNES del alta, la semana de programa deja de ser otro calendario
+ * y pasa a ser **la misma partición del tiempo con otra etiqueta**: la semana N
+ * es exactamente una semana natural, y la conversión entre las dos es exacta en
+ * los dos sentidos (ver `weekStartOfProgramWeek`).
+ *
+ * Un cliente que empieza en miércoles sigue empezando en miércoles: lo que
+ * cambia es que sus tres primeros días cuentan como semana 1 —la suya, la que va
+ * de ese lunes a ese domingo— en vez de arrastrar el corte durante todo el
+ * programa.
+ *
+ * No hace falta migrar nada: las fotos que ya existen llevan su semana escrita
+ * en la ruta y `photoWeek` la respeta. Esto solo cambia lo que se DEDUCE de una
+ * fecha, que es lo que estaba mal.
  */
 export const weekFromStart = (startDate, date) => {
-  const start = Date.parse(startDate);
-  const when = Date.parse(date);
-  if (!Number.isFinite(start) || !Number.isFinite(when)) return null;
-  const weeks = Math.floor((when - start) / (7 * DAY_MS));
-  return Math.max(1, weeks + 1);
+  const start = weekStart(startDate);
+  const when = weekStart(date);
+  if (!start || !when) return null;
+  const dias = daysBetween(start, when);
+  if (dias === null) return null;
+  return Math.max(1, Math.floor(dias / 7) + 1);
+};
+
+/**
+ * El camino de vuelta: el lunes en el que empieza la semana de programa `week`.
+ *
+ * Existe para que la conversión entre los dos ejes viva en UN sitio y en los dos
+ * sentidos. Sin ella, cada pantalla que quisiera casar una foto con un check-in
+ * se inventaría su propia aritmética de semanas — que es exactamente de donde
+ * venía el problema.
+ */
+export const weekStartOfProgramWeek = (startDate, week) => {
+  const start = weekStart(startDate);
+  const n = Math.max(1, Math.round(toNum(week) ?? 1));
+  if (!start) return null;
+  return new Date(Date.parse(`${start}T00:00:00Z`) + (n - 1) * 7 * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
 };
 
 /** Semana efectiva de una foto: la de la ruta, o la deducida de la fecha. */

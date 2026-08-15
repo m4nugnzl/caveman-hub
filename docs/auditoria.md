@@ -56,7 +56,7 @@ normalizar habría que reimplementar en SQL la compatibilidad de `legacySession`
 —qué cuenta como día entrenado, cuándo se descarta— y duplicar en otro lenguaje
 justo la regla que causó el fallo de arriba.
 
-### 1.2 Dos ejes de «semana» incompatibles
+### 1.2 Dos ejes de «semana» incompatibles — **CORREGIDO**
 
 Las fotos se archivan por **semana de programa** (`<clientId>/photos/week-12/…`, en
 la ruta de Storage) y el check-in va por **semana natural** (el lunes, `weekStart`).
@@ -67,9 +67,25 @@ Efecto práctico: si un cliente empieza en miércoles, su «semana 3» de fotos 
 «semana del 17 de agosto» de pesajes no cubren los mismos días, y un check-in no
 puede casar con sus fotos de forma fiable.
 
-**Recomendación:** que la identidad del check-in sea la **semana natural** y que
-guarde también la semana de programa como dato derivado. Está previsto en la
-migración `0009` propuesta.
+**La causa era más pequeña de lo que parecía**, y no hacía falta cambiar la
+identidad del check-in: `weekFromStart` contaba desde la **fecha cruda** del alta.
+Quien empezaba en miércoles tenía semanas de miércoles a martes, así que sus dos
+ejes no compartían ni un solo corte y el desfase se arrastraba el programa entero.
+
+Resuelto anclando la semana de programa **al lunes del alta**. Con eso deja de ser
+otro calendario y pasa a ser la misma partición del tiempo con otra etiqueta: la
+semana N es exactamente una semana natural, y la conversión es exacta en los dos
+sentidos —`weekStartOfProgramWeek` es el camino de vuelta, que antes no existía y
+por eso cada pantalla se inventaba su propia aritmética—.
+
+**Sin migración.** Las fotos que ya existen llevan su semana escrita en la ruta y
+`photoWeek` la sigue respetando; lo que cambia es lo que se DEDUCE de una fecha,
+que es lo que estaba mal. Un cliente que empezó en miércoles sigue empezando en
+miércoles: lo que cambia es que sus tres primeros días cuentan como su semana 1 en
+vez de correr el corte para siempre.
+
+Lo fija `photos.test.js` con la propiedad que importa —que ninguna semana de
+programa se parte entre dos semanas naturales— y no con casos sueltos.
 
 ### 1.3 Escritura sin control de concurrencia — **CORREGIDO**
 

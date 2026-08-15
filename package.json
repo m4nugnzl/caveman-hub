@@ -12,6 +12,7 @@
     "backup": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/backup.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:db": "vitest run --config vitest.db.config.js",
     "check": "npm run lint && npm run types && npm run verify && npm run test && npm run build",
     "types": "tsc --noEmit -p jsconfig.json"
   },

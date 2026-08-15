@@ -57,6 +57,7 @@ npm run lint      # ESLint sobre todo el proyecto
 npm run types     # comprueba el contrato de los JSONB (solo archivos con @ts-check)
 npm run verify    # comprueba que no hay clases ni tokens CSS sin definir
 npm run test      # tests del dominio
+npm run test:db   # tests contra una base de datos (ver abajo) — NO entra en check
 npm run check     # todo lo anterior + build de producción
 npm run backup    # copia de seguridad completa (filas, cuentas y fotos)
 ```
@@ -252,9 +253,36 @@ Cosas que están así a propósito, y por qué:
   Existe porque el contrato ya se rompió una vez: `targetReps` pasó de estar en el
   ejercicio a estar en cada serie, una vista siguió leyendo el sitio antiguo, y no
   falló nada — el objetivo dejó de aparecer, en silencio.
-- **Tests solo del dominio.** `npm test` cubre `training`, `portfolio`,
-  `reading`, `goals`, `preferences` y `today` — las reglas que duelen si se
-  rompen. Los componentes no tienen ninguno.
+- **Tests del dominio, y dos capas más.** `npm test` cubre `domain/` —las reglas
+  que duelen si se rompen— y desde hace poco también el proveedor de contexto
+  (que monta de verdad con `renderToString`, sin jsdom) y la instrumentación.
+
+  Aparte va **`npm run test:db`**, que ejercita lo que nunca tuvo red: las
+  políticas de RLS y las funciones `SECURITY DEFINER`. Ahí es donde vivieron los
+  dos fallos más caros del proyecto —las series escritas en dos sitios, y
+  `gen_random_bytes` fuera del `search_path`, que dejó **imposible crear un
+  enlace de revisión** durante meses sin que nada lo dijera—.
+
+  No entra en `check` a propósito: necesita un proyecto de Supabase de usar y
+  tirar (`.env.test`, ver `supabase/tests/harness.js`) y `check` tiene que poder
+  correr sin red en una máquina recién clonada. Sin credenciales, `test:db` se
+  salta las suites en vez de fallar. Lleva una guarda que se niega a correr si
+  apunta al mismo proyecto que la aplicación: crea y borra cuentas.
+
+  Los componentes de pantalla siguen sin tener pruebas.
+
+- **Instrumentación propia, no de terceros** (migración 0045). `lib/analytics.js`
+  apunta uso —qué pantallas se abren, quién llega a invitar a su primer cliente—
+  en una tabla de Supabase. No se usa una herramienta de las de siempre por dos
+  razones: la CSP limita `connect-src` a Supabase, y esto guarda datos del
+  artículo 9, así que mandar el comportamiento a un tercero sería una cesión que
+  habría que declarar y consentir.
+
+  Tres reglas que la sostienen: el nombre del evento tiene que ser un
+  identificador corto —lo impone un CHECK, así que un nombre o un correo no
+  pasan—, en las propiedades van tramos y no cifras (`bucket`), y **no hay
+  `client_id`**. Al cliente final no se le instrumenta: quien es el sujeto de los
+  datos no va a ser además el sujeto de la medición.
 - **Tres contextos, no uno.** Era uno solo con 154 claves, y se rehacía en cuanto
   cambiaba cualquiera de ellas: escribir un carácter en un campo de kilos volvía
   a pintar los 44 componentes que llaman a `useApp()`, incluidos el menú de

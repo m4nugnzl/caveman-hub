@@ -7,6 +7,7 @@ import { useMirroredState } from '@/lib/useMirroredState';
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
 import { recordIssue } from '@/lib/diagnostics';
+import { bucket, flushEvents, forgetActor, identify, track } from '@/lib/analytics';
 import {
   mapAnthroFromDb,
   mapAnthroToDb,
@@ -1109,8 +1110,25 @@ export const AppProvider = ({ children }) => {
 
   const signOut = useCallback(async () => {
     queue.flushAll();
+    flushEvents();
+    forgetActor();
     await supabase.auth.signOut();
   }, [queue]);
+
+  /*
+    A quién se le apunta el uso (migración 0045).
+
+    Va en un efecto y no dentro de `loadForUser` porque depende de tres cosas que
+    se resuelven en momentos distintos —la sesión, el rol y el equipo— y aquí se
+    reacciona a las tres a la vez sin ensuciar la carga.
+
+    `identify` decide por su cuenta que solo se instrumenta al ENTRENADOR: el
+    cliente final es el sujeto de los datos de salud que esto guarda, y no va a
+    ser además el sujeto de la medición.
+  */
+  useEffect(() => {
+    identify({ userId: session?.user?.id, team: team?.id, role: profileRole });
+  }, [session?.user?.id, team?.id, profileRole]);
 
   // ── Cliente activo ───────────────────────────────────────────────────────
 
@@ -2256,6 +2274,10 @@ export const AppProvider = ({ children }) => {
         weeklySplit: Object.keys(cd.weeklySplit || {}).length > 0 ? cd.weeklySplit : restWeekSplit(),
         microcycles: [buildMicrocycle({ weekNumber: 1, days: [{ dayName: 'Día 1', exercises: [] }] })],
       }));
+      /* El tercer hito: ya hay un cliente con programa empezado. La comprobación
+         de arriba garantiza que esto solo se apunta la PRIMERA vez de cada
+         cliente, que es lo que hace que el embudo se pueda leer. */
+      track('programa_iniciado');
       return 1;
     },
     [applyWorkout, workoutRef]
@@ -3528,6 +3550,15 @@ export const AppProvider = ({ children }) => {
   const createInvite = useCallback(async (clientId) => {
     const { data, error } = await supabase.rpc('create_client_invite', { target: clientId });
     if (error) return { ok: false, error: error.message };
+    /*
+      El hito que de verdad importa del arranque.
+
+      Dar de alta a alguien es rellenar un formulario; INVITARLE es el momento en
+      que el producto empieza a existir para su cliente, y es donde
+      `monetizacion.md` §4.1 supone que está el abandono. Suponerlo es justo lo
+      que esto viene a dejar de hacer.
+    */
+    track('invitacion_creada');
     return { ok: true, token: data, url: `${window.location.origin}/invitacion/${data}` };
   }, []);
 
@@ -3588,6 +3619,11 @@ export const AppProvider = ({ children }) => {
       const created = mapClientFromDb(data);
       setClients([...clientsRef.current, created]);
       setSelectedClientId(created.id);
+      /* El primer paso del embudo. En TRAMOS: «tiene 28 clientes» señala a un
+         entrenador concreto y «tiene entre 10 y 29» contesta igual de bien a la
+         única pregunta que se le va a hacer —en qué tamaño de cartera se
+         abandona—. */
+      track('cliente_creado', { cartera: bucket(clientsRef.current.length) });
       return { ok: true, client: created };
     },
     [clientsRef, session, setClients, team]

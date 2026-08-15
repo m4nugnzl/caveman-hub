@@ -1,5 +1,7 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+
+import { track } from '@/lib/analytics';
 
 import { useApp } from '@/context/AppContext';
 import { lazyRoute } from '@/lib/lazyRoute';
@@ -48,7 +50,7 @@ const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRo
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
-import { RESET_PATH, clientViewOf, coachViewOf } from '@/routes';
+import { COACH_CLIENT, RESET_PATH, SETTINGS_SECTIONS, clientViewOf, coachViewOf } from '@/routes';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
@@ -95,6 +97,44 @@ import { ReviewBar, ReviewSessionProvider } from '@/components/Coach/ReviewSessi
  * ve una ruta del otro, la traduce. Y de paso arregla el enlace pegado y el botón
  * atrás, que tenían el mismo problema y ningún botón que arreglarlos.
  */
+/**
+ * Qué pantalla se está mirando, en una palabra segura.
+ *
+ * ══ Por qué se valida contra la tabla de rutas ══════════════════════════════
+ *
+ * Porque lo que salga de aquí se guarda (migración 0045) y una ruta lleva
+ * dentro el **id de un cliente**: `/c/8f3a…/rutina`. Sacar el tramo a pelo
+ * metería ese id en la tabla de uso el día que alguien escriba una URL rara, y
+ * entonces la instrumentación pasaría a describir a personas concretas — que es
+ * justo lo que la 0045 se compromete a no hacer.
+ *
+ * Cotejando contra las secciones declaradas, lo único que puede salir es una de
+ * las que hay en `routes.jsx`. Lo que no reconozca se cuenta como `otra`: perder
+ * una etiqueta es barato, guardar un identificador de una persona no.
+ */
+const SECCIONES_CLIENTE = new Set(COACH_CLIENT.map((s) => s.path).concat('analitica'));
+const SECCIONES_AJUSTES = new Set(SETTINGS_SECTIONS.map((s) => s.path));
+const RAIZ = new Set(['hoy', 'clientes', 'cartera']);
+
+export const pantallaDe = (pathname) => {
+  const deCliente = /^\/c\/[^/]+\/([^/]+)/.exec(pathname)?.[1];
+  if (deCliente) return SECCIONES_CLIENTE.has(deCliente) ? `cliente_${deCliente}` : 'otra';
+
+  const deAjustes = /^\/ajustes\/([^/]+)/.exec(pathname)?.[1];
+  if (deAjustes) return SECCIONES_AJUSTES.has(deAjustes) ? `ajustes_${deAjustes}` : 'otra';
+
+  const raiz = pathname.replace(/^\//, '').split('/')[0];
+  return RAIZ.has(raiz) ? raiz : 'otra';
+};
+
+/** Apunta la pantalla cada vez que cambia. Solo cuenta desde el panel. */
+const usePantallaVista = (pathname, view) => {
+  useEffect(() => {
+    if (view !== 'coach') return;
+    track('pantalla_vista', { pantalla: pantallaDe(pathname) });
+  }, [pathname, view]);
+};
+
 const OtherViewFallback = ({ view, clientId }) => {
   const { pathname } = useLocation();
   const destino = view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname);
@@ -130,6 +170,11 @@ export default function App() {
   */
   const { pathname: path } = useLocation();
   const esLegal = path === '/privacidad' || path === '/condiciones';
+
+  /* Antes de cualquier `return`: es un hook y no puede quedar detrás de una
+     rama. No apunta nada hasta que `identify` sabe que hay un entrenador, así
+     que en las rutas públicas de aquí abajo no llega a hacer nada. */
+  usePantallaVista(path, view);
 
   if (path.startsWith('/r/') || path.startsWith('/invitacion/') || path === RESET_PATH || esLegal) {
     return (

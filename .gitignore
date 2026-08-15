@@ -14,6 +14,11 @@
 # seguridad. Va aparte y con su propia línea porque `.env.*.local` no la cubría.
 .env.backup
 
+# La del proyecto de pruebas: también lleva una service_role key. Es de un
+# proyecto de usar y tirar, pero una clave que salta la seguridad no entra en el
+# repositorio ni siendo de mentira.
+.env.test
+
 # Las copias de seguridad: datos de salud de personas concretas y las fotos
 # originales. Aquí no entra nada de esto ni por error.
 /copias
