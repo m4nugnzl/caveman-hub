@@ -3257,13 +3257,32 @@ span.scale-step.is-on { opacity: 1; }
 .warmup-hit.is-plain { cursor: default; }
 .warmup-hit:not(.is-plain):hover { opacity: 0.72; }
 
-/* La miniatura: proporción de vídeo (3:2), no un círculo. Un círculo lee como
-   «botón de reproducir la pantalla»; un rectángulo lee como «hay un vídeo». */
+/* ── La miniatura ────────────────────────────────────────────────────────
+   Un rectángulo negro con un triángulo dentro leía como el botón de YouTube:
+   una marca ajena dentro de un producto que no gasta ni una tinta en marca.
+
+   Lo que hay que decir es «aquí hay un vídeo», y en un móvil eso se dice como lo
+   dice iOS: el hueco donde iría el fotograma, y encima un disco claro con el
+   triángulo. El play FLOTA sobre el medio, no es el medio.
+
+   Radio de tarjeta y no círculo, para que siga leyéndose como un fotograma y no
+   como un botón suelto. */
 .warmup-thumb {
-  width: 42px; height: 28px; flex-shrink: 0;
+  position: relative;
+  width: 44px; height: 30px; flex-shrink: 0;
   display: grid; place-items: center;
-  border-radius: var(--r-xs);
-  background: var(--accent); color: var(--accent-on);
+  border-radius: var(--r-sm);
+  background: var(--fill-strong);
+  border: 1px solid var(--edge);
+  color: var(--text);
+}
+/* El disco se dibuja con la sombra del propio icono: un elemento menos y
+   siempre centrado con él. */
+.warmup-thumb > svg {
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 5px var(--surface), var(--shadow-xs);
+  margin-left: 1px;
 }
 
 .warmup-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
@@ -4009,3 +4028,102 @@ span.scale-step.is-on { opacity: 1; }
   background: var(--surface-sunken); border: 1px solid var(--edge);
 }
 .video-frame > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* ── La semana del check-in: SIETE columnas, siempre ───────────────────────
+   Iba en `grid-auto`, que se adapta al ancho con un mínimo de 158 px por celda:
+   por debajo de unos 1.100 px la semana se partía en dos filas, y una semana
+   partida en dos deja de leerse como una semana — hay que contar para saber qué
+   día es cuál.
+
+   Siete columnas iguales pase lo que pase. Lo que va dentro es un día de tres
+   letras y un número, así que estrecharse es exactamente lo correcto. */
+.checkin-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.checkin-week > .card-inset { padding: var(--s2) 6px; min-width: 0; }
+/* A esta anchura, el nombre del día y la píldora de «hoy» no caben en la misma
+   línea: la etiqueta se queda y el «hoy» lo dice el canto. */
+.checkin-week .section-label { font-size: var(--fs-2xs); letter-spacing: 0.04em; }
+.checkin-week .badge { display: none; }
+.checkin-week .metric-value { font-size: var(--fs-sm); }
+.checkin-week .input { padding-left: 2px; padding-right: 2px; }
+
+/* «Hoy» sin píldora: un canto de tiza, que es como se marca lo activo en el
+   resto del producto. */
+.checkin-week > .card-inset.is-today {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+@media (max-width: 560px) {
+  /* En un móvil, siete columnas de 44 px no admiten una casilla de texto. Se
+     parten en dos filas de cuatro y tres, que sigue leyéndose como una semana
+     porque el orden se conserva. */
+  .checkin-week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ── Avisos del cliente ────────────────────────────────────────────────────
+   ══ Por qué NO son `card-inset` ════════════════════════════════════════════
+
+   Lo eran, y se veían como recuadros grises pegados unos a otros con el texto
+   en dos tamaños diminutos: el título a 13 px y la explicación a 10, sobre un
+   fondo que casi no se distingue del panel. A eso se le añadía que no se podían
+   quitar, así que se acumulaban.
+
+   Un aviso es una NOTIFICACIÓN, y la forma que todo el mundo reconoce ya está
+   inventada: una tarjeta con su propia superficie —que flota sobre el fondo, no
+   se hunde en él—, el texto legible, y una equis para quitarla.
+
+   ── La equis va DENTRO de la tarjeta, no al lado ───────────────────────────
+   Un botón fuera obligaría a que la tarjeta dejara sitio para él y a que el
+   destino se encogiera. Aquí la tarjeta entera navega y la equis se superpone
+   en la esquina, que es donde la busca el pulgar. */
+.alert-card {
+  position: relative;
+  display: flex;
+  /* La tarjeta puede ser ella misma el enlace —los pendientes lo son— y
+     entonces hereda el subrayado y el azul del navegador. El reset va aquí y no
+     solo en el interior, que es donde faltaba. */
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--fast), box-shadow var(--fast);
+}
+.alert-card:hover { box-shadow: var(--shadow-sm); }
+.alert-card:active { transform: scale(0.99); }
+
+.alert-hit {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s3);
+  /* Sitio a la derecha para la equis, y solo cuando la hay. */
+  padding: var(--s3) var(--s4);
+  color: inherit; text-decoration: none;
+}
+.alert-card:not(.is-todo) > .alert-hit { padding-right: 40px; }
+
+.alert-hit > .say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+/* 15 px, no 13: es la línea que se lee. La de debajo baja a 13, no a 10 —a ese
+   tamaño el gris terciario deja de leerse en un móvil con brillo bajo. */
+.alert-hit > .say > .t { font-size: var(--fs-base); font-weight: 640; letter-spacing: -0.01em; }
+.alert-hit > .say > .h { font-size: var(--fs-sm); color: var(--text-secondary); }
+.alert-hit > .go { flex-shrink: 0; color: var(--text-tertiary); }
+
+/* Lo pendiente se distingue por el CANTO, no por el fondo: teñir la superficie
+   convertiría una lista de tres cosas por hacer en tres manchas de color. */
+.alert-card.is-todo { border-color: var(--warning); }
+.alert-card.is-todo .go { color: var(--warning); }
+
+.alert-x {
+  position: absolute; top: 6px; right: 6px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 0; background: none; cursor: pointer;
+  color: var(--text-tertiary);
+  transition: background-color var(--fast), color var(--fast);
+}
+.alert-x:hover { background: var(--fill); color: var(--text); }

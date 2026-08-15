@@ -67,7 +67,7 @@ const WarmupDrill = ({ drill }) => {
           acaba abriendo otra pestaña es prometer lo que no es. */}
       {video && (
         <span className="warmup-thumb" aria-hidden="true">
-          <Play size={13} fill="currentColor" />
+          <Play size={11} fill="currentColor" />
         </span>
       )}
 

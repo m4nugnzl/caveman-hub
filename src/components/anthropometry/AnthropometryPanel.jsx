@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Plus, Ruler, Scale, Save, Trash2, TrendingDown } from 'lucide-react';
+import {
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Ruler,
+  Scale,
+  Save,
+  Trash2,
+  TrendingDown,
+} from 'lucide-react';
 
 import {
   FOLDS_LABELS,
@@ -19,6 +29,7 @@ import {
   weeklyWeightAverages,
   weightSeries,
 } from '@/domain/anthropometry';
+import { ANGLE_IDS, angleLabel, photoWeek, weekFromStart } from '@/domain/photos';
 import { asksBlock, clientProtocol, requiredBlocks, requiresBlock } from '@/domain/protocol';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
@@ -32,6 +43,7 @@ import {
   StatCard,
 } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { WeeklyCheckIn } from './WeeklyCheckIn';
 
 /** Rejilla de campos numéricos etiquetados (pliegues y perímetros). */
@@ -68,6 +80,71 @@ const MeasureGrid = ({ labels, values, unit, onChange }) => (
  * perímetros son opcionales y van plegados para no estorbar, porque no se miden
  * todas las semanas.
  */
+/**
+ * Las fotos de la revisión: qué ángulos llevas y el botón para subirlas.
+ *
+ * ── Por qué la semana la decide HOY ─────────────────────────────────────────
+ * Antes esto vivía dentro de la calculadora de pesajes y seguía a la semana que
+ * se estuviera mirando ahí, que es una nicetad que costaba entender: cambiar de
+ * semana en la báscula movía a dónde iban las fotos. Una revisión se sube el día
+ * que se hace, así que la semana es la de hoy.
+ */
+const PhotoSlot = ({ client, photos, onUpload }) => {
+  const [abierto, setAbierto] = useState(false);
+
+  const semana = weekFromStart(client.startDate, todayISO());
+  const deEstaSemana = (photos || []).filter((p) => photoWeek(p, client.startDate) === semana);
+  const faltan = ANGLE_IDS.filter((id) => !deEstaSemana.some((p) => p.angle === id));
+
+  return (
+    <div className="card-inset row between wrap gap-3">
+      <div className="col gap-1">
+        <span className="section-label">Tus fotos de esta semana</span>
+        <span className="t-sm">
+          {deEstaSemana.length === 0 ? (
+            <span className="t-secondary">Ninguna todavía</span>
+          ) : (
+            <>
+              <strong>{deEstaSemana.length}</strong>{' '}
+              {deEstaSemana.length === 1 ? 'foto' : 'fotos'}
+              <span className="t-tertiary">
+                {' · '}
+                {ANGLE_IDS.filter((id) => deEstaSemana.some((p) => p.angle === id))
+                  .map(angleLabel)
+                  .join(', ')}
+              </span>
+            </>
+          )}
+        </span>
+        {faltan.length > 0 && deEstaSemana.length > 0 && (
+          <span className="t-xs" style={{ color: 'var(--warning)' }}>
+            Falta {faltan.map(angleLabel).join(' y ').toLowerCase()}
+          </span>
+        )}
+      </div>
+
+      <button
+        type="button"
+        className={deEstaSemana.length === 0 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+        onClick={() => setAbierto(true)}
+      >
+        <Camera size={14} />
+        {deEstaSemana.length === 0 ? 'Subir mis fotos' : 'Añadir más'}
+      </button>
+
+      {abierto && (
+        <PhotoUploadDialog
+          client={client}
+          existingPhotos={photos || []}
+          defaultWeek={semana}
+          onUpload={onUpload}
+          onClose={() => setAbierto(false)}
+        />
+      )}
+    </div>
+  );
+};
+
 export const AnthropometryPanel = ({
   client,
   anthropometry,
@@ -294,28 +371,35 @@ export const AnthropometryPanel = ({
         audience={audience}
         onAddWeight={onAdd}
         onRemoveEntry={onRemove}
-        client={client}
-        photos={photos}
-        onUpload={onUploadPhoto}
       />
 
+      {/*
+        ══ La revisión: una sola puerta ═══════════════════════════════════════
+
+        Arriba se PESA —cinco segundos, cada dos días—. Aquí se hace la revisión:
+        las fotos y los perímetros, que son un acto de una vez por semana. Son
+        dos ritmos distintos y estaban mezclados en la misma tarjeta.
+
+        Una sola opción y no dos: «sube tus fotos» y «añade tus medidas» son el
+        mismo momento —el del espejo, el metro y la báscula— y separarlos hacía
+        que la segunda se olvidara.
+      */}
       {isClient && !completaAbierta ? (
         <Panel tight className="row between wrap gap-3">
           <div className="col gap-1">
             <span className="section-title">
-              <Scale size={17} /> Mis medidas
+              <Scale size={17} /> Subir mi revisión
             </span>
             <span className="t-sm t-secondary">
-              Tus pesajes de la semana van arriba. Aquí puedes añadir pliegues y perímetros si los
-              mides, o corregir el peso de un día concreto.
+              Tus fotos y tus perímetros. Tus pesajes de la semana van arriba, en el check-in.
             </span>
           </div>
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-primary btn-sm"
             onClick={() => setCompletaAbierta(true)}
           >
-            Añadir medidas
+            Subir mi revisión
           </button>
         </Panel>
       ) : (
@@ -325,14 +409,21 @@ export const AnthropometryPanel = ({
           color="var(--data-amber)"
           action={<SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />}
         >
-          {isClient ? 'Revisión completa' : `Nueva revisión de ${client.name}`}
+          {isClient ? 'Mi revisión' : `Nueva revisión de ${client.name}`}
         </SectionTitle>
 
         <p className="t-sm t-secondary">
           {isClient
-            ? 'Aquí puedes registrar una revisión completa con pliegues y perímetros, o corregir el peso de una fecha concreta. Para el día a día usa el check-in de arriba.'
+            ? 'Tus fotos y tus perímetros, del mismo día. Los pesajes de la semana van arriba, en el check-in.'
             : 'El peso es el único dato obligatorio. Los pliegues y perímetros son opcionales; normalmente los registra el cliente, pero puedes añadirlos tú si mides en persona.'}
         </p>
+
+        {/* LAS FOTOS, aquí dentro: son la otra mitad de una revisión y se hacen
+            el mismo día que se miden los perímetros. Estaban con la báscula, que
+            es un gesto de cada dos días y de cinco segundos. */}
+        {client && photos && onUploadPhoto && (
+          <PhotoSlot client={client} photos={photos} onUpload={onUploadPhoto} />
+        )}
 
         {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
 

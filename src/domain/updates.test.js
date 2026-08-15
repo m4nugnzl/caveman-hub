@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { clientUpdates, pendingTasks, stampUpdate, unseenUpdates } from './updates';
+import { clientUpdates, pendingTasks, stampUpdate, unseenUpdates, dismissUpdate } from './updates';
 import { parseVideoUrl } from './video';
 
 /**
@@ -168,5 +168,44 @@ describe('enlaces de vídeo', () => {
     const a = parseVideoUrl('https://youtu.be/dQw4w9WgXcQ');
     const b = parseVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90');
     expect(a.watchUrl).toBe(b.watchUrl);
+  });
+});
+
+describe('dismissUpdate — quitar una novedad sin quitar las demás', () => {
+  const ayer = '2026-08-14T10:00:00Z';
+  const hoy = '2026-08-15T10:00:00Z';
+
+  const prefs = (updates, dismissed, seen = '2026-08-01T00:00:00Z') => ({
+    updates,
+    feed: { seen, ...(dismissed ? { dismissed } : {}) },
+  });
+
+  it('la quitada desaparece y la otra se queda', () => {
+    const p = prefs({ routine: ayer, diet: ayer }, { routine: ayer });
+    const ids = unseenUpdates(p, hoy).map((u) => u.id);
+    expect(ids).not.toContain('routine');
+    expect(ids).toContain('diet');
+  });
+
+  it('si el entrenador vuelve a tocarlo, la novedad VUELVE', () => {
+    /*
+      Es la razón de comparar contra el sello y no guardar un booleano: haberla
+      leído en agosto no puede tapar un cambio de septiembre.
+    */
+    const p = prefs({ routine: hoy }, { routine: ayer });
+    expect(unseenUpdates(p, hoy).map((u) => u.id)).toContain('routine');
+  });
+
+  it('descartar no toca a las demás claves', () => {
+    const previo = { routine: ayer };
+    expect(dismissUpdate({ feed: { dismissed: previo } }, 'diet', hoy)).toEqual({
+      routine: ayer,
+      diet: hoy,
+    });
+  });
+
+  it('una clave que no existe no ensucia nada', () => {
+    const previo = { routine: ayer };
+    expect(dismissUpdate({ feed: { dismissed: previo } }, 'inventada', hoy)).toEqual(previo);
   });
 });

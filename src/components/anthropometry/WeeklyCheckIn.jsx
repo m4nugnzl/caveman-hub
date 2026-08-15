@@ -1,13 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Camera, Check, Trash2 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 
 import { buildWeightLog, weekDates, weeklyCheckIn } from '@/domain/anthropometry';
-import { ANGLE_IDS, angleLabel, photoWeek, weekFromStart } from '@/domain/photos';
 import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { Delta } from '@/components/ui/metrics';
 import { Panel } from '@/components/ui/primitives';
-import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -27,21 +25,19 @@ const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
  * Cada pesaje se guarda como un registro normal del historial, así que la
  * analítica lo ve inmediatamente: el check-in es una forma de LEER y RELLENAR la
  * semana, no un tipo de dato aparte.
+ *
+ * ── Y aquí SOLO se pesa ─────────────────────────────────────────────────────
+ * Las fotos estaban dentro, y era una mezcla de dos ritmos: pesarse son cinco
+ * segundos que se repiten cada dos días, y hacerse las fotos es un acto de una
+ * vez por semana que además se hace desnudo delante de un espejo. Metidos en la
+ * misma tarjeta, la herramienta de la báscula cargaba con el peso de la otra.
+ *
+ * Las fotos y los perímetros van juntos, detrás de «Subir mi revisión», que es
+ * como se llama de verdad lo que se hace ahí.
  */
-export const WeeklyCheckIn = ({
-  history,
-  onAddWeight,
-  onRemoveEntry,
-  audience = 'client',
-  // Fotos de la semana. Opcionales: si el panel no las pasa, el bloque de fotos
-  // no aparece y el check-in sigue siendo solo de peso.
-  client = null,
-  photos = null,
-  onUpload = null,
-}) => {
+export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 'client' }) => {
   const [reference, setReference] = useState(() => weekStart(todayISO()));
   const [drafts, setDrafts] = useState({});
-  const [uploadOpen, setUploadOpen] = useState(false);
 
   const checkIn = useMemo(() => weeklyCheckIn(history, reference), [history, reference]);
   const days = useMemo(() => weekDates(checkIn.weekStart), [checkIn.weekStart]);
@@ -54,30 +50,7 @@ export const WeeklyCheckIn = ({
   const today = todayISO();
   const isClient = audience === 'client';
 
-  const photoBlock = Boolean(client && photos && onUpload);
 
-  /*
-    Semana de PROGRAMA que corresponde a la semana natural que se está viendo.
-    Son dos ejes distintos —las fotos se archivan por semana de programa y el
-    check-in va por semana natural— y esta es la única conversión entre ellos.
-  */
-  const programWeek = useMemo(
-    () => (client ? weekFromStart(client.startDate, checkIn.weekStart) : null),
-    [client, checkIn.weekStart]
-  );
-
-  const weekPhotos = useMemo(
-    () =>
-      photoBlock
-        ? (photos || []).filter((p) => photoWeek(p, client.startDate) === programWeek)
-        : [],
-    [photoBlock, photos, client, programWeek]
-  );
-
-  const missingAngles = useMemo(
-    () => ANGLE_IDS.filter((id) => !weekPhotos.some((p) => p.angle === id)),
-    [weekPhotos]
-  );
 
   const shift = (weeks) => {
     const base = Date.parse(`${checkIn.weekStart}T00:00:00Z`);
@@ -115,19 +88,30 @@ export const WeeklyCheckIn = ({
         </div>
       </div>
 
-      {/* Los siete días. Se anota el peso el día que toque; el resto quedan
-          disponibles pero sin exigir nada. */}
-      <div className="grid-auto">
+      {/*
+        ══ Los siete días, en UNA fila ════════════════════════════════════════
+
+        Iban en una rejilla que se adapta al ancho con un mínimo de 158 px por
+        celda, así que en cuanto el contenedor bajaba de 1.100 px la semana se
+        partía en dos filas — y una semana partida en dos deja de leerse como una
+        semana: hay que contar para saber qué día es cuál.
+
+        Siete columnas iguales, pase lo que pase. Las celdas se estrechan, que es
+        exactamente lo que tiene que pasar: lo que va dentro es un día de tres
+        letras y un número.
+      */}
+      <div className="checkin-week">
         {days.map((date, index) => {
           const entry = byDate.get(date);
           const future = date > today;
 
           return (
-            <div className="card-inset col gap-2" key={date} style={{ opacity: future ? 0.5 : 1 }}>
-              <div className="row between gap-2">
-                <span className="section-label">{DAY_NAMES[index]}</span>
-                {date === today && <span className="badge badge-info">Hoy</span>}
-              </div>
+            <div
+              className={`card-inset col gap-2${date === today ? ' is-today' : ''}`}
+              key={date}
+              style={{ opacity: future ? 0.5 : 1 }}
+            >
+              <span className="section-label">{DAY_NAMES[index]}</span>
 
               {entry ? (
                 <div className="row between gap-2">
@@ -176,54 +160,6 @@ export const WeeklyCheckIn = ({
         })}
       </div>
 
-      {/*
-        Las fotos, dentro del check-in.
-        --------------------------------------------------------------------
-        Un check-in no es solo pesarse: es pesarse y hacerse las fotos en las
-        mismas condiciones. Tenerlas en otra pestaña hacía que fueran dos tareas
-        que se recuerdan por separado, y la segunda se olvida.
-
-        La semana que se propone es la de programa que corresponde a la semana
-        natural que se está viendo, así que si el cliente navega a una semana
-        anterior para completarla, las fotos van a esa y no a la de hoy.
-      */}
-      {photoBlock && (
-        <div className="card-inset row between wrap gap-3">
-          <div className="col gap-1">
-            <span className="section-label">Fotos de esta semana</span>
-            <span className="t-sm">
-              {weekPhotos.length === 0 ? (
-                <span className="t-secondary">Ninguna todavía</span>
-              ) : (
-                <>
-                  <strong>{weekPhotos.length}</strong>{' '}
-                  {weekPhotos.length === 1 ? 'foto' : 'fotos'}
-                  <span className="t-tertiary">
-                    {' · '}
-                    {ANGLE_IDS.filter((id) => weekPhotos.some((p) => p.angle === id))
-                      .map(angleLabel)
-                      .join(', ')}
-                  </span>
-                </>
-              )}
-            </span>
-            {missingAngles.length > 0 && weekPhotos.length > 0 && (
-              <span className="t-xs" style={{ color: 'var(--warning)' }}>
-                Falta {missingAngles.map(angleLabel).join(' y ').toLowerCase()}
-              </span>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className={weekPhotos.length === 0 ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
-            onClick={() => setUploadOpen(true)}
-          >
-            <Camera size={14} />
-            {weekPhotos.length === 0 ? 'Subir las fotos' : 'Añadir más'}
-          </button>
-        </div>
-      )}
 
       {/* Resultado del check-in: el promedio y su variación contra la semana
           anterior, que es la cifra con la que de verdad se decide. */}
@@ -259,15 +195,6 @@ export const WeeklyCheckIn = ({
           : 'El promedio semanal filtra el ruido diario. Es la cifra que conviene mirar para decidir ajustes, no un pesaje suelto.'}
       </p>
 
-      {uploadOpen && (
-        <PhotoUploadDialog
-          client={client}
-          existingPhotos={photos || []}
-          defaultWeek={programWeek}
-          onUpload={onUpload}
-          onClose={() => setUploadOpen(false)}
-        />
-      )}
     </Panel>
   );
 };

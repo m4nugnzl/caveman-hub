@@ -115,13 +115,49 @@ export const unseenUpdates = (preferences, now = new Date().toISOString()) => {
   const desde = lastSeen(preferences);
   if (!desde) return [];
 
-  return UPDATE_KINDS.filter((kind) => sellos[kind.id] && sellos[kind.id] > desde)
+  return UPDATE_KINDS.filter((kind) => {
+    const at = sellos[kind.id];
+    if (!at || at <= desde) return false;
+    /* Y que no se haya quitado a mano. Se compara contra el sello, no contra
+       «está descartada»: si el entrenador vuelve a tocarlo, el sello nuevo es
+       posterior al descarte y la novedad vuelve, que es lo correcto. */
+    const quitada = dismissedAt(preferences, kind.id);
+    return !quitada || at > quitada;
+  })
     .map((kind) => ({ ...kind, at: sellos[kind.id] }))
     .filter((u) => u.at <= now)
     .sort((a, b) => b.at.localeCompare(a.at));
 };
 
 /** El objeto que se guarda al sellar un cambio. Conserva los otros dos sellos. */
+/**
+ * Dar por vista UNA novedad, sin dar por vistas las demás.
+ *
+ * ══ Por qué hacía falta ════════════════════════════════════════════════════
+ *
+ * El único «visto» que existía era el sello global: al entrar, dos segundos
+ * después, TODAS las novedades pasaban a vistas de golpe. Así que la lista era
+ * de solo lectura —aparecía sola y desaparecía sola— y no había forma de decir
+ * «ésta ya la he leído, quítamela» dejando la otra.
+ *
+ * Un aviso que no se puede quitar deja de ser un aviso en cuanto hay dos.
+ *
+ * ── Cómo se guarda ──────────────────────────────────────────────────────────
+ * Con la MISMA marca de tiempo del sello de esa novedad. No hace falta una
+ * estructura nueva: si `feed.dismissed.routine` es igual o posterior al sello
+ * `updates.routine`, esa novedad está leída; y si el entrenador vuelve a tocar
+ * la rutina, el sello nuevo es posterior y la novedad reaparece — que es
+ * exactamente lo que tiene que pasar.
+ */
+export const dismissUpdate = (preferences, kind, at) => {
+  const previo = preferences?.feed?.dismissed || {};
+  if (!KIND_IDS.includes(kind)) return previo;
+  return { ...previo, [kind]: isoOrNull(at) || new Date().toISOString() };
+};
+
+/** Lo que se ha dado por leído, una a una. */
+const dismissedAt = (preferences, kind) => isoOrNull(preferences?.feed?.dismissed?.[kind]);
+
 export const stampUpdate = (preferences, kind, now = new Date().toISOString()) => {
   if (!KIND_IDS.includes(kind)) return clientUpdates(preferences);
   return { ...clientUpdates(preferences), [kind]: now };

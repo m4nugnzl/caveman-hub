@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
-import { ArrowRight, BellRing, CircleAlert } from 'lucide-react';
+import { ArrowRight, BellRing, CircleAlert, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useActions, useData } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
-import { lastSeen, pendingTasks, unseenUpdates } from '@/domain/updates';
+import { dismissUpdate, lastSeen, pendingTasks, unseenUpdates } from '@/domain/updates';
 import { todayISO } from '@/lib/dates';
 import { Panel } from '@/components/ui/primitives';
 
@@ -103,15 +103,30 @@ export const ClientUpdates = ({ client }) => {
           </span>
 
           {novedades.map((n) => (
-            <Link className="card-inset row between wrap gap-2" to={n.href} key={n.id}>
-              <span className="col" style={{ gap: 1, minWidth: 0 }}>
-                <span className="t-sm" style={{ fontWeight: 650 }}>
-                  {n.label}
+            <div className="alert-card" key={n.id}>
+              <Link className="alert-hit" to={n.href}>
+                <span className="say">
+                  <span className="t">{n.label}</span>
+                  <span className="h">{n.hint}</span>
                 </span>
-                <span className="t-2xs t-tertiary">{n.hint}</span>
-              </span>
-              <ArrowRight size={15} className="shrink-0 t-tertiary" />
-            </Link>
+                <ArrowRight size={16} className="go" />
+              </Link>
+
+              {/* Quitarla. Un aviso que no se puede quitar deja de ser un aviso
+                  en cuanto hay dos: se acumulan y se dejan de mirar. */}
+              <button
+                type="button"
+                className="alert-x"
+                aria-label={`Descartar «${n.label}»`}
+                onClick={() =>
+                  updateClientPreferences(clientId, 'feed', {
+                    dismissed: dismissUpdate(preferences, n.id, n.at),
+                  })
+                }
+              >
+                <X size={14} />
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -128,15 +143,18 @@ export const ClientUpdates = ({ client }) => {
             Te falta esta semana
           </span>
 
+          {/* Los pendientes NO se pueden descartar: no son un aviso de algo que
+              ha pasado, son algo que falta por hacer. Desaparecen solos al
+              hacerlo, que es la única forma honesta de quitarlos. */}
           {pendientes.map((p) => (
-            <Link className="card-inset row between wrap gap-2" to={p.href} key={p.id}>
-              <span className="col" style={{ gap: 1, minWidth: 0 }}>
-                <span className="t-sm" style={{ fontWeight: 650 }}>
-                  {p.label}
+            <Link className="alert-card is-todo" to={p.href} key={p.id}>
+              <span className="alert-hit">
+                <span className="say">
+                  <span className="t">{p.label}</span>
+                  <span className="h">{p.hint}</span>
                 </span>
-                <span className="t-2xs t-tertiary">{p.hint}</span>
+                <ArrowRight size={16} className="go" />
               </span>
-              <ArrowRight size={15} style={{ color: 'var(--warning)', flexShrink: 0 }} />
             </Link>
           ))}
         </div>
