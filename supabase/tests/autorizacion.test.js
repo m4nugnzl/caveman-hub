@@ -103,6 +103,47 @@ describe.skipIf(!configurado)('la frontera entre carteras', () => {
     expect(ajeno.error ? true : ajeno.data === false).toBe(true);
   });
 
+  /*
+    ══ La escalada de rol, que estuvo abierta ═════════════════════════════════
+
+    La 0002 quiso cerrarla con `REVOKE UPDATE (role) ON profiles`, y eso **no
+    hace nada** mientras exista el permiso de UPDATE sobre la TABLA: en Postgres
+    el permiso de tabla cubre todas las columnas y un revoke de columna no puede
+    restarle nada. No da error, no avisa, y queda escrito en la migración como si
+    protegiera algo.
+
+    Dejó de ser latente cuando `ensure_my_team` (0019/0037) empezó a mirar el
+    rol: un cliente que se pusiera `coach` pasaba esa puerta y se auto-creaba un
+    equipo con catorce días de prueba. Es exactamente lo que la 0002 escribió que
+    pasaría —«en cuanto algo confíe en `role`, deja de serlo»— y nadie lo vio
+    porque se daba por cerrado.
+
+    Esta prueba mira la CONSECUENCIA y no el permiso: que el UPDATE no pase. Así
+    da igual cómo se implemente la protección el día que se toque.
+  */
+  it('nadie puede ascenderse a entrenador escribiendo su propio rol', async () => {
+    const intento = await ana.db
+      .from('profiles')
+      .update({ role: 'coach' })
+      .eq('id', ana.id)
+      .select('id');
+
+    expect(intento.error, 'escribir `role` tiene que estar prohibido').not.toBeNull();
+    expect(intento.error.code).toBe('42501'); // insufficient_privilege
+  });
+
+  it('pero sí puede escribir lo suyo que la aplicación usa', async () => {
+    /* El contrapeso: si el arreglo se pasara de estricto, la plantilla del
+       protocolo (0035) dejaría de guardarse y nadie lo notaría hasta usarla. */
+    const guardado = await ana.db
+      .from('profiles')
+      .update({ preferences: { protocolo: { prueba: true } } })
+      .eq('id', ana.id)
+      .select('id');
+
+    expect(guardado.error).toBeNull();
+  });
+
   it('sin sesión no se ve absolutamente nada', async () => {
     const { anon } = await import('./harness');
     const sinSesion = anon();
