@@ -17,7 +17,7 @@
  * domingo y los años bisiestos son donde fallan estas cosas.
  */
 
-import { toISODate, todayISO, weekStart } from '@/lib/dates';
+import { daysBetween, toISODate, todayISO, weekStart } from '@/lib/dates';
 
 const DAY_MS = 86400000;
 
@@ -95,9 +95,122 @@ export const shiftMonth = (year, month, delta) => {
  * Solo se materializan como fila los que TIENEN algo: el check-in entregado vive en
  * `check_ins`, no aquí.
  */
-export const checkInDates = (grid, weekday) => {
+export const checkInDates = (grid, weekday, everyWeeks = 1, anchor = null) => {
   if (weekday === null || weekday === undefined) return new Set();
-  return new Set(grid.filter((cell) => weekdayIndex(cell.date) === weekday).map((cell) => cell.date));
+
+  const cada = Number.isInteger(everyWeeks) && everyWeeks > 0 ? everyWeeks : 1;
+  const desde = anchor ? weekStart(anchor) : null;
+
+  return new Set(
+    grid
+      .filter((cell) => {
+        if (weekdayIndex(cell.date) !== weekday) return false;
+        if (cada === 1 || !desde) return true;
+
+        /*
+          Solo las semanas que le tocan. Sin esto el calendario marcaba TODAS
+          —también a quien revisa cada dos semanas—, y entonces el cliente veía
+          una cita cada semana mientras la aplicación le reclamaba una cada dos.
+          Dos verdades sobre la misma pregunta, y la que se cree es la del
+          calendario, que es la que se mira.
+
+          Se cuenta desde la misma ancla que `currentCheckInPeriod`, así que las
+          fechas marcadas y las reclamadas no pueden discrepar.
+        */
+        const semanas = Math.floor((daysBetween(desde, cell.weekStart) || 0) / 7);
+        return ((semanas % cada) + cada) % cada === 0;
+      })
+      .map((cell) => cell.date)
+  );
+};
+
+/* ==========================================================================
+   Cada cuánto toca el check-in
+   --------------------------------------------------------------------------
+   ══ Por qué hacía falta ═════════════════════════════════════════════════════
+
+   El día ya se elegía (`preferences.checkin.weekday`), pero la aplicación daba
+   por hecho que TODAS las semanas tocaba. Con eso, la lista de revisiones
+   pendientes del entrenador enseñaba a los veinte clientes cada lunes —incluidos
+   los que revisan cada dos semanas y los que no habían subido nada— y una lista
+   que sale entera siempre no es una lista de pendientes, es la cartera otra vez.
+
+   Con la cadencia, «pendiente» pasa a significar algo: le tocaba, y o lo ha
+   subido (y te espera) o no lo ha subido (y se le reclama). A quien no le toca no
+   aparece.
+
+   ── El ancla, y por qué es la fecha de alta ─────────────────────────────────
+   «Cada dos semanas» necesita saber CUÁLES son esas semanas. Se cuentan desde
+   que empezó el cliente, que es la única fecha que ya existe, que no hay que
+   inventar ni mantener, y que además se explica sola: «cada dos semanas desde que
+   empezaste». Sin fecha de alta se comporta como semanal, que es no estorbar.
+   ========================================================================== */
+
+/**
+ * Las cadencias que se pueden elegir. En semanas, porque el check-in cuelga de un
+ * día de la semana: «cada 10 días» no tendría dónde caer.
+ */
+export const CHECKIN_CADENCES = [
+  { weeks: 1, label: 'Cada semana' },
+  { weeks: 2, label: 'Cada 2 semanas' },
+  { weeks: 4, label: 'Cada 4 semanas' },
+];
+
+/** El día y la cadencia de un cliente, con los valores por defecto puestos. */
+export const checkInSchedule = (preferences) => {
+  const raw = preferences?.checkin;
+  const weekday = Number.isInteger(raw?.weekday) && raw.weekday >= 0 && raw.weekday <= 6 ? raw.weekday : null;
+  const weeks = CHECKIN_CADENCES.some((c) => c.weeks === raw?.everyWeeks) ? raw.everyWeeks : 1;
+  return { weekday, everyWeeks: weeks };
+};
+
+/**
+ * El periodo de check-in vigente: cuándo empezó y qué día toca entregarlo.
+ *
+ * Devuelve `null` cuando el cliente no ha elegido día — sin día no hay «le
+ * tocaba», y reclamar algo que nadie ha fijado es ruido.
+ *
+ *   `start`  — el lunes del periodo en curso. Un check-in de esa fecha en
+ *              adelante cuenta como el de este periodo.
+ *   `dueOn`  — la fecha exacta en la que le toca.
+ *   `isDue`  — si ya ha llegado ese día. Antes no se le reclama nada: el jueves
+ *              por la mañana nadie ha hecho el check-in del jueves.
+ */
+export const currentCheckInPeriod = (preferences, startDate, today = todayISO()) => {
+  const { weekday, everyWeeks } = checkInSchedule(preferences);
+  if (weekday === null) return null;
+
+  const semanaDeHoy = weekStart(today);
+  const ancla = startDate ? weekStart(startDate) : semanaDeHoy;
+
+  /*
+    ══ El alta futura no tiene periodo en curso ═══════════════════════════════
+
+    Pasa al dar de alta a alguien que empieza el mes que viene, y hasta ahora
+    esto lo decía el comentario y no lo hacía el código: sin esta guarda, el
+    módulo de abajo —`((semanas % everyWeeks) + everyWeeks) % everyWeeks`—
+    normaliza las semanas NEGATIVAS al rango [0, everyWeeks-1], lo que anclaba el
+    periodo a esta semana y daba un `dueOn` ya pasado.
+
+    Con `isDue` en cierto, `reviewState` no entraba en `off`, caía en `missing`, y
+    la cola de revisiones reclamaba el check-in de alguien cuyo contrato todavía
+    no ha empezado. `null` es lo que ya se devuelve cuando no hay día elegido, y
+    todos los consumidores lo traducen a «no le toca».
+  */
+  if (ancla > semanaDeHoy) return null;
+
+  /* Cuántas semanas van desde el ancla. Nunca negativo: lo anterior ya salió. */
+  const semanas = Math.floor((daysBetween(ancla, semanaDeHoy) || 0) / 7);
+  const dentro = ((semanas % everyWeeks) + everyWeeks) % everyWeeks;
+
+  const start = new Date(Date.parse(`${semanaDeHoy}T00:00:00Z`) - dentro * 7 * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+  const dueOn = new Date(Date.parse(`${start}T00:00:00Z`) + weekday * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+
+  return { start, dueOn, everyWeeks, isDue: today >= dueOn };
 };
 
 /** Eventos indexados por fecha, para pintar la rejilla sin recorrer la lista N veces. */
@@ -115,16 +228,49 @@ export const eventsByDate = (events) => {
   return map;
 };
 
+/** Sumar días a una fecha ISO, que aquí se hace en tres sitios. */
+const masDias = (iso, dias) =>
+  new Date(Date.parse(`${iso}T00:00:00Z`) + dias * DAY_MS).toISOString().slice(0, 10);
+
 /**
  * El próximo check-in a partir de hoy, o null si el cliente no ha elegido día.
  *
  * Es la cifra que se le enseña al cliente: «te toca el jueves» dice más que un
  * calendario entero.
+ *
+ * ══ Por qué recibe las preferencias y no un día suelto ══════════════════════
+ *
+ * Antes la firma era `(weekday, from)` y devolvía **el próximo jueves natural**,
+ * sin saber nada de la cadencia ni de la fecha de alta. Con cadencia quincenal
+ * eso es mentira la mitad de las veces, que es justo lo que el único sitio que la
+ * usaba —el calendario— avisaba por escrito de no querer.
+ *
+ * Pidiendo las preferencias y el alta no hay forma de llamarla mal: es la misma
+ * pareja de datos con la que `currentCheckInPeriod` decide si toca, así que las
+ * dos contestan siempre lo mismo.
  */
-export const nextCheckIn = (weekday, from = todayISO()) => {
-  if (weekday === null || weekday === undefined) return null;
-  const today = weekdayIndex(from);
-  if (today === null) return null;
-  const ahead = (weekday - today + 7) % 7;
-  return new Date(Date.parse(`${from}T00:00:00Z`) + ahead * DAY_MS).toISOString().slice(0, 10);
+export const nextCheckIn = (preferences, startDate, from = todayISO()) => {
+  const { weekday, everyWeeks } = checkInSchedule(preferences);
+  if (weekday === null) return null;
+  if (weekdayIndex(from) === null) return null;
+
+  const semanaDeHoy = weekStart(from);
+  const ancla = startDate ? weekStart(startDate) : semanaDeHoy;
+
+  /*
+    Con el alta en el futuro el primero que le toca es el de SU primera semana:
+    no hay periodo en curso que continuar. Con el alta ya pasada se retrocede
+    hasta el inicio del periodo vigente, igual que en `currentCheckInPeriod`.
+  */
+  let inicio = ancla;
+  if (ancla <= semanaDeHoy) {
+    const semanas = Math.floor((daysBetween(ancla, semanaDeHoy) || 0) / 7);
+    const dentro = ((semanas % everyWeeks) + everyWeeks) % everyWeeks;
+    inicio = masDias(semanaDeHoy, -dentro * 7);
+  }
+
+  const deEstePeriodo = masDias(inicio, weekday);
+  /* Si el de este periodo ya pasó, el siguiente está una cadencia más allá — no
+     la semana que viene, que es lo que devolvía la versión anterior. */
+  return deEstePeriodo >= from ? deEstePeriodo : masDias(inicio, everyWeeks * 7 + weekday);
 };

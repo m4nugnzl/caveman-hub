@@ -70,6 +70,23 @@ const videoFor = (stream) => {
   return el;
 };
 
+/**
+ * El presupuesto de datos de una grabación, en un solo sitio.
+ *
+ * `BYTES_PER_SECOND` no se mide: se deriva de los otros dos, porque es lo que el
+ * codificador va a escribir. Sirve para enseñar el tamaño MIENTRAS se graba, que
+ * es la única forma de que quien graba sepa lo que está gastando antes de
+ * gastarlo — y de que se entienda por qué una revisión larga va por enlace.
+ */
+export const VIDEO_BPS = 900_000;
+export const AUDIO_BPS = 96_000;
+export const CAPTURE_FPS = 15;
+const BYTES_PER_SECOND = (VIDEO_BPS + AUDIO_BPS) / 8;
+
+/** Lo que ocupará una grabación de `seconds` segundos, en MB y redondeado. */
+export const estimatedMb = (seconds) =>
+  Math.round(((Number(seconds) || 0) * BYTES_PER_SECOND) / 1024 / 1024);
+
 export function useReviewRecorder() {
   const [status, setStatus] = useState('idle'); // idle | preview | recording | ready | error
   const [error, setError] = useState(null);
@@ -305,11 +322,44 @@ export function useReviewRecorder() {
     const mimeType = pickMimeType();
     if (!mix || !mimeType) return false;
 
-    // Vídeo del lienzo mezclado + audio del micrófono que ya está abierto.
-    const tracks = [...mix.captureStream(30).getVideoTracks()];
+    /*
+      ══ La calidad se FIJA, y esto no es una preferencia ═══════════════════
+
+      Antes se creaba el `MediaRecorder` sin decir nada, así que el navegador
+      elegía por su cuenta: entre 2,5 y 5 Mbps para un lienzo de 1600 px a 30
+      fotogramas. Son unos 22 MB por minuto, y el bucket admite 80.
+
+      Es decir: **la grabación reventaba a los tres o cuatro minutos**, y una
+      revisión de verdad —quince o veinte— no llegaba a subirse nunca. El
+      síntoma que llegaba era «no me deja guardar el vídeo», que suena a permiso
+      y era aritmética.
+
+      ── Por qué estos números y no otros ────────────────────────────────────
+      Lo que se graba aquí es una pantalla quieta con una voz encima: una hoja
+      de rutina, una gráfica, una cara en una esquina. Nada de eso se mueve.
+
+        · 900 kbps de vídeo — suficiente para que se lea un número en una tabla.
+          El resto del presupuesto en un vídeo así se gasta en codificar dos
+          veces el mismo fotograma.
+        · 96 kbps de audio — la voz es lo ÚNICO que no se puede escatimar: un
+          vídeo pixelado se entiende y uno con la voz rota no.
+
+      Salen unos 7,5 MB por minuto: veinte minutos entran en 150 MB… que sigue
+      sin caber en 80. Por eso las revisiones largas van por enlace de YouTube o
+      Loom (migración 0040) y el grabador se queda para lo corto, que es donde
+      gana: tres minutos sin salir de la aplicación ni pegar nada.
+
+      Los quince fotogramas los pone `captureStream`. Treinta era el doble de
+      datos para un contenido que no se mueve.
+    */
+    const tracks = [...mix.captureStream(CAPTURE_FPS).getVideoTracks()];
     for (const stream of streamsRef.current) tracks.push(...stream.getAudioTracks());
 
-    const recorder = new MediaRecorder(new MediaStream(tracks), { mimeType });
+    const recorder = new MediaRecorder(new MediaStream(tracks), {
+      mimeType,
+      videoBitsPerSecond: VIDEO_BPS,
+      audioBitsPerSecond: AUDIO_BPS,
+    });
     recorderRef.current = recorder;
     chunksRef.current = [];
 

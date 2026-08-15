@@ -59,7 +59,9 @@ import {
   validateAttachment,
 } from '@/domain/attachments';
 import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
+import { shrinkImage } from '@/lib/shrinkImage';
 import { isArchived } from '@/domain/portfolio';
+import { stampUpdate } from '@/domain/updates';
 import {
   buildSessionFromPlan,
   normalizeMicrocycles,
@@ -474,6 +476,44 @@ export const AppProvider = ({ children }) => {
     [conflict, queue]
   );
 
+  /*
+    Quién está escribiendo, en una referencia.
+
+    `persist` no puede depender del rol como valor sin volver a crearse cada vez
+    que cambia —y con él la mitad de las funciones del contexto—. Una referencia
+    da el valor de AHORA sin entrar en las dependencias.
+  */
+  const isCoachRef = useRef(false);
+  isCoachRef.current = profileRole === 'coach';
+
+  /** Cuándo se selló por última vez cada (tipo, cliente). Ver `persist`. */
+  const stampedRef = useRef(new Map());
+
+  /**
+   * Deja constancia de que el entrenador ha tocado algo, para que al cliente le
+   * salga como novedad.
+   *
+   * Escribe por la función de la base directamente y no por
+   * `updateClientPreferences`, que se define mucho más abajo y usa `persist`: el
+   * ciclo no compilaría. Y actualiza también el estado local, porque el sello
+   * siguiente se calcula sobre lo que hay en memoria — sin eso, sellar la dieta
+   * borraría el sello de la rutina.
+   */
+  const stampNow = useCallback(
+    (clientId, kind) => {
+      const actual = clientsRef.current.find((c) => c.id === clientId);
+      if (!actual) return;
+
+      const prefs = { ...(actual.preferences || {}), updates: stampUpdate(actual.preferences, kind) };
+      setClients(clientsRef.current.map((c) => (c.id === clientId ? { ...c, preferences: prefs } : c)));
+
+      /* Su fallo no se propaga: no haber podido dejar el aviso no puede
+         estropear el guardado del trabajo, que es lo que importa. */
+      supabase.rpc('set_client_preferences', { target: clientId, prefs }).catch(() => {});
+    },
+    [clientsRef, setClients]
+  );
+
   const persist = useCallback(
     (domain, clientId, payload, { immediate = false } = {}) => {
       const senders = {
@@ -501,8 +541,42 @@ export const AppProvider = ({ children }) => {
       };
 
       queue.enqueue(`${domain}:${clientId}`, payload, senders[domain], { immediate });
+
+      /*
+        ══ La novedad del cliente sale SOLA de aquí ═══════════════════════════
+
+        Hubo un botón de «avisar del cambio» y sobraba: si le has cambiado la
+        rutina, que le aparezca que ha cambiado no es una decisión, es la
+        consecuencia. Un botón para eso solo añade una forma de que se te olvide.
+
+        ── Por qué no llena de avisos al cliente ───────────────────────────────
+        Porque la novedad es una COMPARACIÓN —«esto se tocó después de la última
+        vez que entré»— y no una lista de sucesos. Cuarenta guardados en una tarde
+        de programación dejan un solo sello, y por tanto una sola línea en su
+        panel. Ver `domain/updates.js`.
+
+        ── Por qué solo cuando escribe el ENTRENADOR ──────────────────────────
+        `workout_data` la escriben los dos: tú al programar y él al anotar sus
+        series. Un sello puesto por su propio entrenamiento le diría «tu rutina ha
+        cambiado» por algo que ha hecho él. Como esto corre en la sesión de quien
+        escribe, `isCoachRef` distingue las dos sin preguntarle a la base de datos
+        quién tocó la fila.
+
+        Y se limita a uno cada cinco minutos: sin eso, montar un mesociclo serían
+        cien llamadas a `set_client_preferences` que acabarían todas en el mismo
+        valor.
+      */
+      if ((domain === 'workout' || domain === 'nutrition') && isCoachRef.current) {
+        const kind = domain === 'workout' ? 'routine' : 'diet';
+        const clave = `${kind}:${clientId}`;
+        const ultimo = stampedRef.current.get(clave) || 0;
+        if (Date.now() - ultimo > 5 * 60 * 1000) {
+          stampedRef.current.set(clave, Date.now());
+          stampNow(clientId, kind);
+        }
+      }
     },
-    [queue, upsertClientRow]
+    [queue, upsertClientRow, isCoachRef, stampedRef, stampNow]
   );
 
   /**
@@ -3173,11 +3247,22 @@ export const AppProvider = ({ children }) => {
       const invalid = validatePhotoFile(file);
       if (invalid) return { ok: false, error: invalid };
 
-      const path = buildPhotoPath({ clientId, week, angle, fileName: file.name });
+      /*
+        Se reduce ANTES de subir, y se valida antes de reducir.
+
+        El orden importa: validar el original es lo que deja rechazar un archivo
+        que no es una foto sin haber gastado nada, y reducir después es lo que
+        evita subir doce megas de los que se ven trescientos kilos.
+
+        `shrinkImage` devuelve el mismo archivo si no puede con él, así que aquí
+        no hay caso de error que atender: o llega reducido o llega tal cual.
+      */
+      const subida = await shrinkImage(file);
+      const path = buildPhotoPath({ clientId, week, angle, fileName: subida.name });
 
       const { error: uploadErr } = await supabase.storage
         .from(BUCKET)
-        .upload(path, file, { contentType: file.type || undefined, upsert: false });
+        .upload(path, subida, { contentType: subida.type || undefined, upsert: false });
 
       if (uploadErr) {
         return { ok: false, error: `No se pudo subir la imagen: ${uploadErr.message}` };
@@ -3400,6 +3485,26 @@ export const AppProvider = ({ children }) => {
       persist('preferences', clientId, next, { immediate: true });
     },
     [clientsRef, persist, setClients]
+  );
+
+  /**
+   * Sella un cambio para que al cliente le salga como novedad.
+   *
+   * ── Por qué lo dice un botón y no el guardado ───────────────────────────────
+   * La rutina se guarda cada vez que se mueve una serie. Si esto se disparara con
+   * cada escritura, el cliente vería «tu rutina ha cambiado» cuarenta veces en una
+   * tarde de programación y a la tercera dejaría de mirarlo. Cuándo está terminado
+   * lo sabe el entrenador; la aplicación no puede adivinarlo.
+   *
+   * La excepción es la revisión, que sí es un acto único —crear el enlace— y por
+   * eso se sella sola.
+   */
+  const publishUpdate = useCallback(
+    (clientId, kind) => {
+      const prefs = clientsRef.current.find((c) => c.id === clientId)?.preferences;
+      updateClientPreferences(clientId, 'updates', stampUpdate(prefs, kind));
+    },
+    [clientsRef, updateClientPreferences]
   );
 
   /**
@@ -4035,6 +4140,43 @@ export const AppProvider = ({ children }) => {
     return { ok: true, token: data, url: `${window.location.origin}/r/${data}` };
   }, []);
 
+  /**
+   * Una revisión que vive fuera: YouTube oculto o Loom (migración 0040).
+   *
+   * Entra en la MISMA lista que las grabadas aquí, y esa es toda la gracia: para
+   * el cliente «la revisión de la semana 7» es una sola cosa, y dónde esté
+   * alojado el vídeo es un detalle de infraestructura que no le toca conocer.
+   *
+   * El dominio lo comprueba la base de datos además de la interfaz: esa URL acaba
+   * dentro de un `<iframe>` en la pantalla del cliente.
+   */
+  const createReviewUrl = useCallback(async ({ clientId, url, title, weekStart, notes }) => {
+    const { data, error } = await supabase.rpc('create_review_url', {
+      target: clientId,
+      url,
+      link_title: title || null,
+      week: weekStart || null,
+      link_notes: notes || null,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, token: data };
+  }, []);
+
+  /**
+   * «Visto», desde el portal del cliente.
+   *
+   * Las visitas las contaba la función de `/r/<token>`, por donde pasa quien abre
+   * el enlace compartido sin sesión. Viendo la revisión DENTRO de su portal ese
+   * camino no se usa, así que sin esto el contador del entrenador se quedaría a
+   * cero justo cuando el cliente sí la está viendo.
+   *
+   * Su fallo no se propaga: no haber podido contar una visita no es motivo para
+   * estropearle el vídeo a nadie.
+   */
+  const markReviewViewed = useCallback(async (linkId) => {
+    await supabase.rpc('mark_review_viewed', { link: linkId }).catch(() => {});
+  }, []);
+
   /** Enlaces ya creados de un cliente, con sus visitas. */
   const listReviewLinks = useCallback(async (clientId) => {
     const { data, error } = await supabase
@@ -4050,6 +4192,9 @@ export const AppProvider = ({ children }) => {
         id: row.id,
         token: row.token,
         path: row.storage_path,
+        // `null` si la revisión se grabó aquí; la dirección de YouTube o Loom si
+        // vive fuera (migración 0040). Nunca las dos: lo impide un CHECK.
+        externalUrl: row.external_url ?? null,
         title: row.title,
         weekStart: row.week_start,
         createdAt: row.created_at,
@@ -4134,19 +4279,144 @@ export const AppProvider = ({ children }) => {
    * de mandarlo — que es justo el dato que se olvida y luego se echa en falta con
    * un equipo de varios entrenadores.
    */
-  const reviewCheckIn = useCallback(async (checkInId, notes = null) => {
-    const { error } = await supabase.rpc('review_check_in', { check_in: checkInId, notes });
+  /**
+   * El cliente entrega su semana.
+   *
+   * ══ Era el eslabón que faltaba ═════════════════════════════════════════════
+   *
+   * La función existe en la base desde la migración 0009 y **no la llamaba
+   * nadie**. Sin ella, la fila de `check_ins` solo aparecía si la creaba el
+   * entrenador, así que el estado «entregado, esperando respuesta» —que es
+   * exactamente lo que la aplicación tenía que saber— no se daba nunca, y todo el
+   * seguimiento funcionaba con la aproximación de «parece que ha hecho su parte».
+   *
+   * Entregar es un ACTO del cliente, y por eso hace falta: pesarse tres veces no
+   * significa «ya está, mírame». Lo primero lo hace él para él; lo segundo es
+   * pedirle a alguien que mire.
+   *
+   * ── Por qué por función y no con un INSERT ──────────────────────────────────
+   * Porque `submitted_at` lo tiene que poner el servidor y `reviewed_at` no lo
+   * puede tocar el cliente. RLS filtra filas y no columnas, así que con permiso
+   * de escritura sobre su fila podría marcarse como revisado él solo.
+   */
+  const submitCheckIn = useCallback(
+    async (clientId, { weekStart: week, programWeek = null, weight = null, notes = null } = {}) => {
+      const { data, error } = await supabase.rpc('submit_check_in', {
+        target: clientId,
+        week,
+        program_week: programWeek,
+        weight_kg: weight,
+        client_notes: notes,
+      });
+
+      if (error) return { ok: false, error: error.message };
+
+      /* Se refleja al instante: entregar es un gesto y la pantalla tiene que
+         cambiar de estado sin esperar a una recarga que quizá no llega. */
+      setCheckIns((prev) => ({
+        ...prev,
+        [clientId]: {
+          ...(prev[clientId]?.weekStart === week ? prev[clientId] : {}),
+          id: data,
+          clientId,
+          weekStart: week,
+          weight,
+          notes: notes || '',
+          submittedAt: new Date().toISOString(),
+          reviewedAt: null,
+          coachNotes: '',
+        },
+      }));
+
+      return { ok: true, id: data };
+    },
+    []
+  );
+
+  /**
+   * Todas las revisiones de un cliente, para su histórico.
+   *
+   * A demanda y no en la carga inicial: `checkIns` guarda solo la última de cada
+   * uno porque es lo que necesitan la cartera y la cola, y traer el historial
+   * completo de veinte clientes al arrancar sería descargar años de filas para
+   * una pantalla que se abre de vez en cuando.
+   */
+  const loadCheckInHistory = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('check_ins')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('week_start', { ascending: false });
+
+    if (error) return { ok: false, error: error.message, checkIns: [] };
+    return { ok: true, checkIns: (data || []).map(mapCheckInFromDb) };
+  }, []);
+
+  /**
+   * Borra un check-in (migración 0044).
+   *
+   * Quita la revisión y su respuesta; el plan se queda como esté. Volver atrás la
+   * dieta o la rutina es otra cosa: haría falta guardar el contenido anterior
+   * entero, no el resumen de `snapshot`.
+   */
+  const deleteCheckIn = useCallback(async (checkInId) => {
+    const { error } = await supabase.rpc('delete_check_in', { check_in: checkInId });
     if (error) return { ok: false, error: error.message };
 
-    // Se refleja en local sin recargar: la revisión es un gesto y tiene que
-    // desaparecer del tablero al instante.
+    /* Fuera del estado también: si era el de la semana en curso, el cliente
+       vuelve a poder entregar y el entrenador a verlo pendiente. */
     setCheckIns((prev) => {
       const entry = Object.values(prev).find((c) => c.id === checkInId);
       if (!entry) return prev;
-      return { ...prev, [entry.clientId]: { ...entry, reviewedAt: new Date().toISOString() } };
+      const next = { ...prev };
+      delete next[entry.clientId];
+      return next;
     });
     return { ok: true };
   }, []);
+
+  const reviewCheckIn = useCallback(
+    async (checkInId, notes = null, snapshot = null) => {
+      const { error } = await supabase.rpc('review_check_in', {
+        check_in: checkInId,
+        notes,
+        snapshot,
+      });
+      if (error) return { ok: false, error: error.message };
+
+      /*
+        Se refleja en local sin recargar: la revisión es un gesto y tiene que
+        desaparecer de la cola al instante.
+
+        Y se guarda TAMBIÉN la nota. Antes solo se marcaba la fecha, así que el
+        cliente —que lee esa misma nota en su «Hoy»— veía «revisada» y ningún
+        texto hasta recargar la página. Escribir la respuesta y que no aparezca es
+        exactamente el fallo que hacía inútil todo esto.
+      */
+      let dueño = null;
+      setCheckIns((prev) => {
+        const entry = Object.values(prev).find((c) => c.id === checkInId);
+        if (!entry) return prev;
+        dueño = entry.clientId;
+        return {
+          ...prev,
+          [entry.clientId]: {
+            ...entry,
+            reviewedAt: new Date().toISOString(),
+            coachNotes: notes ?? entry.coachNotes,
+            snapshot: snapshot ?? entry.snapshot,
+          },
+        };
+      });
+
+      /* Y le sale como novedad, igual que un cambio de dieta. Sin esto, el
+         cliente tenía que adivinar que le habías contestado entrando a mirar. */
+      if (dueño) stampNow(dueño, 'checkin');
+
+      return { ok: true };
+    },
+    [stampNow]
+  );
 
   // ── Equipo ───────────────────────────────────────────────────────────────
   //
@@ -4419,12 +4689,18 @@ export const AppProvider = ({ children }) => {
       listReviews,
       deleteReview,
       createReviewLink,
+      createReviewUrl,
+      markReviewViewed,
+      publishUpdate,
       listReviewLinks,
       revokeReviewLink,
 
       // Check-ins y calendario
       checkIns,
       reviewCheckIn,
+      submitCheckIn,
+      loadCheckInHistory,
+      deleteCheckIn,
       loadEvents,
       addClientEvent,
       setEventDone,
@@ -4468,8 +4744,8 @@ export const AppProvider = ({ children }) => {
       uploadProgressPhoto, deleteProgressPhoto, updateProgressPhoto, refreshPhotoUrls, ensurePhotoUrls,
       addClient, updateClient, setClientArchived, updateClientPreferences, exportClientData, exportAllData, normalizeLegacySessions, loadAuditLog, deleteClientCompletely,
       reloadClients, createInvite, revokeInvite, loadIntegration, saveIntegration, setIntegrationToken, runIntegration, runStripe, setWebhookSecret, linkExternalName, createClientFromExternal,
-      uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink,
-      checkIns, reviewCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent,
+      uploadReview, listReviews, deleteReview, createReviewLink, createReviewUrl, markReviewViewed, publishUpdate, listReviewLinks, revokeReviewLink,
+      checkIns, reviewCheckIn, submitCheckIn, loadCheckInHistory, deleteCheckIn, loadEvents, addClientEvent, setEventDone, removeClientEvent,
       phases, addPhase, updatePhase, removePhase,
       team, teamMembers, plan, refreshPlan, inviteTeamMember, updateTeamMemberRole, removeTeamMember, assignClient, renameTeam,
     ]

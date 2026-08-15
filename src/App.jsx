@@ -42,6 +42,7 @@ const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModu
 const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
 const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
 const AnalyticsPanel = lazyRoute(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
+const ClientHomeRoute = lazyRoute(() => import('@/components/Client/ClientHome').then((m) => ({ default: m.ClientHome })));
 const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
 const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
@@ -54,6 +55,7 @@ import { Notice } from '@/components/ui/primitives';
 import { PlanNotice } from '@/components/PlanNotice';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
+import { ReviewBar, ReviewSessionProvider } from '@/components/Coach/ReviewSession';
 
 /**
  * Mapa de rutas.
@@ -118,7 +120,15 @@ export default function App() {
     especialmente importante: es la pantalla que CREA la cuenta, así que si
     estuviera detrás del control de sesión no se podría llegar nunca a ella.
   */
-  const path = window.location.pathname;
+  /*
+    `useLocation` y no `window.location`: leyendo del navegador, este componente
+    no se entera de una navegación de cliente —no está suscrito a nada— y la rama
+    de abajo se evalúa con la ruta anterior. Hoy no se notaba porque los enlaces a
+    los textos legales son `<a href>` con recarga entera, pero el primer
+    `<Link to="/privacidad">` que alguien escriba desde dentro caería en el
+    comodín en lugar de enseñar la página.
+  */
+  const { pathname: path } = useLocation();
   const esLegal = path === '/privacidad' || path === '/condiciones';
 
   if (path.startsWith('/r/') || path.startsWith('/invitacion/') || path === RESET_PATH || esLegal) {
@@ -165,6 +175,7 @@ export default function App() {
         de cuenta—, así que el booleano tiene que estar por encima de los dos.
       */}
       <TourProvider>
+      <ReviewSessionProvider>
       <Header />
       <main>
         {loadError && (
@@ -290,7 +301,8 @@ export default function App() {
                   </ConsentGate>
                 }
               >
-                <Route index element={<Navigate to="panel" replace />} />
+                <Route index element={<Navigate to="hoy" replace />} />
+                <Route path="hoy" element={<ClientHomeRoute />} />
                 <Route element={<ProgressLayout audience="client" />}>
                   <Route path="panel" element={<Dashboard audience="client" />} />
                   <Route path="analitica" element={<AnalyticsPanel audience="client" />} />
@@ -308,8 +320,13 @@ export default function App() {
         </Suspense>
       </main>
 
+      {/* La revisión en curso, por encima de todo: se empieza en la cola de
+          «Hoy» y se cierra desde donde estés. */}
+      {view === 'coach' && <ReviewBar />}
+
       <CommandPalette />
       <WelcomeTour />
+      </ReviewSessionProvider>
       </TourProvider>
     </CommandPaletteProvider>
   );

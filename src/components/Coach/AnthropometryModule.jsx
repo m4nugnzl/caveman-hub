@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Notice } from '@/components/ui/primitives';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
+import { ReviewHistory } from '@/components/ReviewHistory';
 
 /**
  * Los check-ins del cliente activo, vistos por el entrenador.
@@ -33,6 +34,10 @@ export const AnthropometryModule = () => {
 
   return (
     <div className="stack">
+      {/* Lo que se decidió en las revisiones anteriores, antes que el formulario:
+          para decidir esta semana hace falta saber qué se hizo la pasada. */}
+      <ReviewHistory client={activeClient} audience="coach" />
+
       <Notice tone="info">
         Un check-in son dos cosas: los pesajes de la semana —que se promedian para filtrar la
         variación diaria— y las fotos, siempre en las mismas condiciones. Lo normal es que lo haga el

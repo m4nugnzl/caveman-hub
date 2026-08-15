@@ -4,6 +4,7 @@ import { Inbox, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
+import { planSnapshot } from '@/domain/reviews';
 import {
   ACTIVITY_KINDS,
   DEFAULT_WINDOW,
@@ -16,6 +17,7 @@ import { shortDate, todayISO } from '@/lib/dates';
 import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
 import { TaskInbox } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
+import { ReviewQueue } from './ReviewQueue';
 
 /**
  * «Hoy»: la pantalla con la que abre el entrenador.
@@ -65,6 +67,8 @@ export const Today = () => {
     anthropometry,
     progressPhotos,
     checkIns,
+    nutrition,
+    workoutData,
     updateClient,
     reviewCheckIn,
   } = useApp();
@@ -99,6 +103,29 @@ export const Today = () => {
   };
 
   const open = (clientId, section) => navigate(clientPath(clientId, section));
+
+  /*
+    ══ Cerrar una revisión, en un solo sitio ══════════════════════════════════
+
+    La misma fila pendiente se puede cerrar desde DOS piezas de esta pantalla: la
+    cola de revisiones y la bandeja de tareas. Estaban llamando a `reviewCheckIn`
+    por su cuenta, y la bandeja lo hacía sin la foto del plan —que es opcional en
+    la firma— así que cerrar por un lado o por el otro dejaba rastros distintos:
+    unas revisiones con su plan congelado y otras con `null`, según por dónde se
+    hubiera pulsado.
+
+    Eso es un hueco que no se puede rellenar después: la foto vale porque se toma
+    EN EL MOMENTO de revisar. Ahora las dos piezas llaman aquí, y no hay ninguna
+    forma de cerrar una revisión sin ella.
+  */
+  const cerrarRevision = (reviewId, clientId, notas = null) =>
+    act(
+      reviewCheckIn(
+        reviewId,
+        notas,
+        planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId] })
+      )
+    );
 
   if (clients.length === 0) {
     return (
@@ -135,6 +162,26 @@ export const Today = () => {
 
       {/* La guía de las primeras veces. Se cierra y no vuelve. */}
       <GettingStarted />
+
+      {/*
+        ══ La pasada semanal, antes que el hilo ═══════════════════════════════
+
+        El hilo de abajo cuenta lo que HA PASADO —es el pulso de la cartera— y
+        eso se mira; la pasada es lo que hay que HACER, y eso se trabaja. Debajo
+        de catorce días de actividad, la lista de a quién le debes una respuesta
+        quedaba fuera de la primera pantalla.
+
+        No sustituye a la bandeja de tareas: aquélla ordena por tipo de trabajo
+        —cobrar, dar acceso, programar— y ésta recorre a las personas una por una,
+        que es el gesto del lunes.
+      */}
+      <ReviewQueue
+        rows={rows}
+        /* La misma foto del plan que guarda la bandeja: cerrar desde aquí o desde
+           allí tiene que dejar el mismo rastro, o el histórico saldría con huecos
+           según por dónde se cerrara. Por eso las dos pasan por `cerrarRevision`. */
+        onReview={(id, notas, clientId) => cerrarRevision(id, clientId, notas)}
+      />
 
       {/* ── LA REGLA ────────────────────────────────────────────────────────
           Catorce días, uno por marca. La barra es cuántas cosas pasaron; la
@@ -214,7 +261,7 @@ export const Today = () => {
               onOpen={(clientId) => open(clientId, 'resumen')}
               handlers={{
                 paid: (clientId) => act(updateClient(clientId, { paymentStatus: 'paid' })),
-                review: (reviewId) => act(reviewCheckIn(reviewId)),
+                review: (reviewId, clientId) => cerrarRevision(reviewId, clientId),
                 invite: () => navigate('/clientes'),
               }}
               emptyMessage="Nada pendiente por tu parte. Cuando alguien entregue su check-in o venza un cobro, aparecerá aquí."

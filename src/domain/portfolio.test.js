@@ -6,8 +6,10 @@ import {
   buildPortfolio,
   clientStatus,
   isArchived,
+  reviewState,
   portfolioBoard,
   portfolioInbox,
+  reviewQueue,
 } from './portfolio';
 
 const client = (over = {}) => ({
@@ -251,5 +253,82 @@ describe('el cobro solo se reclama cuando toca', () => {
     );
     const aviso = rows[0].alerts.find((a) => a.id === 'payment_no_date');
     expect(aviso.severity).toBe('baja');
+  });
+});
+
+
+/*
+  ══ La cola de revisiones ═══════════════════════════════════════════════════
+
+  Lo que protege esto es que la lista NO salga entera. Sin cadencia aparecían los
+  veinte clientes cada semana, y una lista de pendientes que sale siempre completa
+  es la cartera con otro título: se deja de mirar en dos semanas.
+*/
+describe('la cola de revisiones', () => {
+  const HOY = '2026-08-20'; // jueves
+  const LUNES = '2026-08-17';
+
+  const fila = (name, { weekday = 3, everyWeeks = 1, startDate = '2026-08-17' } = {}, review = {}, checkIn = {}) => ({
+    client: { id: name, name, startDate, preferences: { checkin: { weekday, everyWeeks } } },
+    review: { exact: true, submittedAt: null, reviewedAt: null, pending: false, id: 'ci', ...review },
+    checkIn: { count: 0, target: 3, weekStart: LUNES, ...checkIn },
+    severity: 'baja',
+  });
+
+  it('sin día elegido no se reclama nada', () => {
+    expect(reviewState(fila('Sin día', { weekday: null }), HOY)).toBe('off');
+  });
+
+  /* El jueves por la mañana nadie ha hecho el check-in del jueves. Antes del día
+     señalado no hay nada que reclamar. */
+  it('antes del día que le toca, tampoco', () => {
+    expect(reviewState(fila('Aún no', { weekday: 6 }), HOY)).toBe('off');
+  });
+
+  it('le tocaba y ha subido: te espera', () => {
+    const row = fila('Marta', {}, { submittedAt: '2026-08-20', pending: true });
+    expect(reviewState(row, HOY)).toBe('ready');
+  });
+
+  it('le tocaba y no ha subido: sin subir', () => {
+    expect(reviewState(fila('Luis'), HOY)).toBe('missing');
+  });
+
+  it('ya revisado en este periodo: fuera de la cola', () => {
+    const row = fila('Ana', {}, { submittedAt: '2026-08-19', reviewedAt: '2026-08-20' });
+    expect(reviewState(row, HOY)).toBe('done');
+    expect(reviewQueue([row], HOY)).toEqual([]);
+  });
+
+  /*
+    El caso que motivó todo esto. Quincenal con el día en el jueves: el lunes y el
+    martes de su semana no se le reclama nada, porque su cita todavía no ha
+    llegado. Antes aparecía igual, junto a los otros diecinueve.
+  */
+  it('quincenal: antes de su día no aparece', () => {
+    const row = fila('Quincenal', { everyWeeks: 2, startDate: '2026-08-17' });
+    expect(reviewState(row, '2026-08-18')).toBe('off');
+  });
+
+  /* Y pasado su día sigue pendiente hasta que lo suba, aunque cambie de semana:
+     llegar tarde no es dejar de deber. */
+  it('quincenal: pasado su día sigue pendiente la semana siguiente', () => {
+    const row = fila('Quincenal', { everyWeeks: 2, startDate: '2026-08-10' });
+    expect(reviewState(row, HOY)).toBe('missing');
+  });
+
+  it('quincenal: la semana que sí toca, y cuenta lo entregado de ese periodo', () => {
+    const row = fila(
+      'Quincenal',
+      { everyWeeks: 2, startDate: '2026-08-17' },
+      { submittedAt: '2026-08-20', pending: true }
+    );
+    expect(reviewState(row, HOY)).toBe('ready');
+  });
+
+  it('primero quien te espera y después quien no ha subido', () => {
+    const espera = fila('Espera', {}, { submittedAt: '2026-08-20', pending: true });
+    const falta = fila('Falta');
+    expect(reviewQueue([falta, espera], HOY).map((r) => r.client.name)).toEqual(['Espera', 'Falta']);
   });
 });

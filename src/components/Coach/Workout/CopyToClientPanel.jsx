@@ -127,7 +127,24 @@ export const CopyToClientPanel = ({
         <Field label="Qué se copia">
           <div className="col gap-2">
             <label className="checkbox-row">
-              <input type="checkbox" checked={training} onChange={(e) => setTraining(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={training}
+                /*
+                  Marcar «Entrenamiento» marca también el calentamiento DE VERDAD,
+                  no solo en pantalla.
+
+                  Antes la casilla de abajo se pintaba con `checked={warmup ||
+                  training}` pero su estado real seguía en `false`. Al desmarcar
+                  «Entrenamiento» —el gesto exacto de quien quiere copiar SOLO el
+                  calentamiento— la de abajo se vaciaba sola y el botón se quedaba
+                  sin nada seleccionado. Parecía que no dejaba copiar la movilidad.
+                */
+                onChange={(e) => {
+                  setTraining(e.target.checked);
+                  if (e.target.checked) setWarmup(true);
+                }}
+              />
               <Dumbbell size={13} />
               Entrenamiento
               <span className="t-xs t-tertiary">
@@ -147,7 +164,7 @@ export const CopyToClientPanel = ({
             <label className="checkbox-row">
               <input
                 type="checkbox"
-                checked={warmup || training}
+                checked={warmup}
                 disabled={training}
                 onChange={(e) => setWarmup(e.target.checked)}
               />

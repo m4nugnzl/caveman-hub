@@ -3467,3 +3467,74 @@ span.scale-step.is-on { opacity: 1; }
 .folio-verdict.is-good { background: var(--positive-soft); color: var(--positive); }
 .folio-verdict.is-warn { background: var(--warning-soft); color: var(--warning); }
 .folio-verdict.is-bad { background: var(--negative-soft); color: var(--negative); }
+
+
+/* ── La barra de la revisión en curso ──────────────────────────────────────
+   Fija abajo mientras se revisa a alguien. Va por encima de todo menos de los
+   diálogos, y en el móvil se sube por encima de la barra de navegación inferior
+   —si no, tapa justo los botones con los que se cierra—.
+
+   `env(safe-area-inset-bottom)` por el iPhone: sin eso, en pantalla completa el
+   botón «Todo ok» cae debajo de la barra del sistema.
+   ========================================================================== */
+.review-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px var(--s4) calc(10px + var(--safe-b, 0px));
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -4px 20px rgba(20, 24, 28, 0.1);
+}
+.review-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  max-width: var(--max-w);
+  margin: 0 auto;
+  width: 100%;
+}
+.review-bar-hint { text-align: center; }
+
+/* Con barra inferior de navegación (móvil), la de revisión se apoya encima. */
+@media (max-width: 720px) {
+  .review-bar { bottom: calc(var(--bottombar-h) + var(--safe-b)); }
+  .review-bar-hint { display: none; }
+}
+
+
+/* ── El antes y el después de una revisión ─────────────────────────────────
+   Lo retirado tachado y en rojo, lo nuevo en verde. El color NO dice si el
+   cambio es bueno —bajar calorías puede ser lo correcto—: dice qué salió y qué
+   entró, que es lo que se busca al mirar una revisión de hace dos meses.
+
+   Con `font-variant-numeric` para que dos cifras de distinto ancho no bailen al
+   compararlas una debajo de otra.
+   ========================================================================== */
+.diff-out {
+  color: var(--negative);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.diff-in {
+  color: var(--positive);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La respuesta de una revisión: el comentario y el vídeo son la misma cosa, así
+   que se agrupan con una marca a la izquierda en vez de quedar como dos
+   elementos sueltos de la fila. */
+.review-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}

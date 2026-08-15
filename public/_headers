@@ -20,12 +20,20 @@
 #   media-src blob:  el grabador de revisiones produce vídeo en memoria.
 #   connect-src      Supabase: REST, Storage, Edge Functions y Realtime (wss).
 #   camera/micro     el grabador de revisiones usa getUserMedia. Solo `self`.
+#   frame-src        los DOS sitios donde puede vivir una revisión que no se
+#                    grabó aquí (migración 0040 y `domain/video.js`). Sin esta
+#                    directiva el iframe hereda `default-src 'self'` y el
+#                    navegador lo bloquea: la revisión no se ve y NO hay ningún
+#                    error visible, solo un marco vacío. La lista es cerrada a
+#                    propósito y tiene que seguir coincidiendo con la que valida
+#                    `create_review_url` en la base de datos — si algún día se
+#                    admite un tercer proveedor, hay que tocar los dos sitios.
 #
 # Si algo deja de cargar tras desplegar, la consola del navegador dice qué
 # directiva lo bloqueó: ese es el sitio donde mirar, no aquí a ciegas.
 
 /*
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob:; font-src 'self'; frame-src https://www.youtube-nocookie.com https://www.loom.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin

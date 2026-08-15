@@ -44,7 +44,6 @@ import { Notice, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroBar } from '@/components/nutrition/macros';
 import { RoadmapPanel } from '@/components/roadmap/RoadmapPanel';
-import { IntakeDeliverables } from '@/components/Client/IntakeDeliverables';
 import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
 
 // La tripleta de colores viene del dominio: cuatro copias del mismo dato divergen.
@@ -640,6 +639,14 @@ export const Dashboard = ({ audience = 'coach' }) => {
             en OTROS clientes, no en el que se está mirando. */}
         {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
 
+        {/*
+          Lo que ha cambiado, lo que le falta, sus revisiones y lo que le dejó su
+          entrenador vivían aquí y se han ido a «Hoy», que es su pantalla de
+          entrada. Estaban en esta por un motivo malo —era la primera que se
+          abría— y convertían el resumen en dos cosas: un panel de cifras y un
+          tablón de avisos. Aquí se queda lo que esta pantalla sabe hacer.
+        */}
+
         {editing && (
           <DashboardEditBar
             prefs={prefs}
@@ -736,10 +743,9 @@ export const Dashboard = ({ audience = 'coach' }) => {
       */}
       <RoadmapPanel audience={audience} />
 
-      {/* Lo que su entrenador le dejó al darle de alta —el vídeo de bienvenida,
-          el de la rutina—. Solo en el portal del cliente: el entrenador lo pone y
-          lo revisa en la ficha, y verlo dos veces no le dice nada nuevo. */}
-      {isClient && <IntakeDeliverables client={activeClient} />}
+      {/* Lo que le dejó el entrenador —entregables del alta y revisiones— y lo
+          que ha cambiado esta semana viven ahora en «Hoy», que es su pantalla de
+          entrada. Aquí se queda lo que esta pantalla sabe hacer: sus cifras. */}
 
       {prefs.showMetricList && (
         <MetricList

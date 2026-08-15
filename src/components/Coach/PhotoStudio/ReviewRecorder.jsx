@@ -4,6 +4,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Link2,
   Link2Off,
   Mic,
   MicOff,
@@ -16,7 +17,7 @@ import {
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { useReviewRecorder } from '@/lib/useReviewRecorder';
+import { estimatedMb, useReviewRecorder } from '@/lib/useReviewRecorder';
 import {
   CAMERA_ANCHORS,
   CAMERA_SHAPES,
@@ -26,10 +27,134 @@ import {
   defaultCamera,
   hitsCamera,
 } from '@/domain/recorder';
+import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { todayISO, weekStart } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 
 const mmss = (total) => `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+
+/**
+ * Una revisión grabada fuera: YouTube oculto o Loom.
+ *
+ * ══ Por qué esto existe teniendo un grabador propio ═════════════════════════
+ *
+ * Por aritmética. Una revisión de las de verdad —quince o veinte minutos
+ * repasando la semana— ocupa cientos de megas, se repite cada semana y por cada
+ * cliente, y hay que seguir pagándola todos los meses siguientes. Veinte clientes
+ * son más de 300 GB al año que no se liberan nunca.
+ *
+ * En YouTube oculto o en Loom cuesta cero, no tiene techo de duración y el
+ * cliente la ve incrustada en su portal igual que si estuviera aquí dentro.
+ *
+ * El grabador se queda para lo corto, que es donde gana: tres minutos señalando
+ * algo sobre la hoja de la rutina, sin salir de la aplicación ni pegar nada.
+ */
+const ExternalReview = ({ client, onDone }) => {
+  const { createReviewUrl, publishUpdate } = useApp();
+  const [abierto, setAbierto] = useState(false);
+  const [url, setUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  const video = parseVideoUrl(url);
+  /* El botón se apaga si lo pegado no vale, y se dice por qué debajo. Un botón
+     gris sin motivo, con un campo de URL delante, se lee como que la aplicación
+     está rota. */
+  const listo = Boolean(video);
+
+  const guardar = async (event) => {
+    event.preventDefault();
+    if (!listo) return;
+
+    setEnviando(true);
+    const res = await createReviewUrl({
+      clientId: client.id,
+      // La dirección canónica, no la que se haya pegado: así dos formas de
+      // escribir el mismo vídeo —con lista, con marca de tiempo, acortada—
+      // acaban siendo la misma fila.
+      url: video.watchUrl,
+      title: title.trim() || null,
+      weekStart: weekStart(todayISO()),
+    });
+    setEnviando(false);
+
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    /* Añadir una revisión SÍ es un acto único, así que no hace falta un botón de
+       «avisar»: se sella sola y le sale como novedad al entrar. */
+    publishUpdate(client.id, 'review');
+    setUrl('');
+    setTitle('');
+    setAbierto(false);
+    onDone(`Revisión de ${video.label} añadida. Ya le aparece en su portal.`);
+  };
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        className="btn btn-secondary btn-sm"
+        style={{ alignSelf: 'flex-start' }}
+        onClick={() => setAbierto(true)}
+      >
+        <Link2 size={14} /> Añadir una revisión de YouTube o Loom
+      </button>
+    );
+  }
+
+  return (
+    <form className="card-inset col gap-3" onSubmit={guardar}>
+      <span className="section-label">Revisión grabada fuera</span>
+
+      <input
+        autoFocus
+        type="url"
+        className="input"
+        value={url}
+        placeholder="https://youtu.be/… o https://loom.com/share/…"
+        onChange={(e) => {
+          setUrl(e.target.value);
+          setError('');
+        }}
+        aria-label="Enlace del vídeo"
+      />
+
+      <input
+        className="input"
+        value={title}
+        maxLength={80}
+        placeholder="Título (opcional): «Revisión semana 7»"
+        onChange={(e) => setTitle(e.target.value)}
+        aria-label="Título de la revisión"
+      />
+
+      {error && <Notice tone="error">{error}</Notice>}
+
+      <span className="t-xs t-tertiary">
+        {url && !video ? VIDEO_URL_HINT : `Se le incrusta en su portal, y sabrás si la ha visto.`}
+      </span>
+
+      <div className="row gap-2 wrap">
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!listo || enviando}>
+          {enviando ? 'Guardando…' : 'Añadir'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => {
+            setAbierto(false);
+            setError('');
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  );
+};
 const megabytes = (bytes) => (bytes == null ? '' : `${(bytes / 1024 / 1024).toFixed(1)} MB`);
 
 /**
@@ -49,7 +174,15 @@ const megabytes = (bytes) => (bytes == null ? '' : `${(bytes / 1024 / 1024).toFi
  * literalmente lo que se guarda: no hay dos rutas de dibujo que puedan divergir.
  */
 export const ReviewRecorder = ({ client, canvasRef }) => {
-  const { uploadReview, listReviews, deleteReview, createReviewLink, listReviewLinks, revokeReviewLink } = useApp();
+  const {
+    uploadReview,
+    listReviews,
+    deleteReview,
+    createReviewLink,
+    listReviewLinks,
+    revokeReviewLink,
+    publishUpdate,
+  } = useApp();
   const recorder = useReviewRecorder();
 
   const [camera, setCameraState] = useState(defaultCamera);
@@ -214,8 +347,21 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
           Grabar la revisión
         </SectionTitle>
         {recorder.status === 'recording' && (
-          <span className="rec-live">
-            <Circle size={10} /> {mmss(recorder.seconds)}
+          <span className="row gap-2">
+            <span className="rec-live">
+              <Circle size={10} /> {mmss(recorder.seconds)}
+            </span>
+            {/*
+              Lo que llevas gastado, mientras lo gastas.
+
+              Un vídeo es lo único de la aplicación que cuesta dinero cada mes, y
+              hasta ahora no había forma de notarlo hasta que la subida fallaba.
+              Con la cifra delante, quien graba decide: a los diez minutos ya se
+              ve que esto va para largo y que toca YouTube o Loom.
+            */}
+            <span className="badge" title="Lo que ocupará el archivo">
+              ~{estimatedMb(recorder.seconds)} MB
+            </span>
           </span>
         )}
       </div>
@@ -424,6 +570,17 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
         </div>
       )}
 
+      {/* ── O la revisión que has grabado FUERA ───────────────────────────── */}
+      {recorder.status === 'idle' && (
+        <ExternalReview
+          client={client}
+          onDone={(text) => {
+            setFeedback({ tone: 'success', text });
+            refresh();
+          }}
+        />
+      )}
+
       {/* ── Los vídeos ya guardados ───────────────────────────────────────── */}
       {reviews.length > 0 && recorder.status === 'idle' && (
         <>
@@ -505,6 +662,9 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                         setFeedback({ tone: 'error', text: outcome.error });
                         return;
                       }
+                      /* Crear el enlace es lo que convierte un archivo en una
+                         revisión suya: hasta aquí el vídeo era solo tuyo. */
+                      publishUpdate(client.id, 'review');
                       await refresh();
                       copy(outcome.url, review.path);
                     }}

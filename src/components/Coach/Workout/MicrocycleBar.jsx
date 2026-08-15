@@ -87,13 +87,30 @@ export const MicrocycleBar = ({
           <button type="button" className="btn btn-secondary btn-sm btn-pill" onClick={onClone}>
             <Copy size={15} /> Duplicar {unit.toLowerCase()}
           </button>
+          {/*
+            ══ Decía «Copiar A otro cliente» y hace lo contrario ═══════════════
+
+            Lo que abre este botón trae el entrenamiento —y la dieta, y el
+            calentamiento— DEL cliente que elijas AL que tienes abierto,
+            sustituyendo lo suyo. El nombre prometía justo lo contrario en una
+            acción destructiva y sin deshacer: quien estuviera en Marta queriendo
+            pasarle su rutina a Luis, le borraba la rutina a Marta.
+
+            Y «traer» es además el gesto real: se usa al montar a alguien nuevo
+            copiando a otro que ya funciona, no al revés.
+
+            El verbo importa en toda la aplicación: DUPLICAR es dentro de lo
+            mismo, TRAER DE viene de fuera hacia aquí, ENVIAR A va de aquí hacia
+            fuera. Con tres botones que ponían «copiar» no había forma de saber la
+            dirección sin abrirlos.
+          */}
           <button
             type="button"
             className="btn btn-secondary btn-sm btn-pill"
             onClick={onToggleCopy}
             aria-expanded={copyOpen}
           >
-            <Copy size={15} /> Copiar a otro cliente
+            <Copy size={15} /> Traer de otro cliente
           </button>
           {/* Faltaba por completo: una semana creada por error no se podía
               eliminar de ninguna forma. */}

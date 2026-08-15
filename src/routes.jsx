@@ -180,6 +180,12 @@ export const SETTINGS_SECTIONS = [
  * y acabar con «Mis che…».
  */
 export const CLIENT_SECTIONS = [
+  /*
+    «Hoy» va la primera porque es la única que contesta la pregunta con la que se
+    abre la aplicación: ¿hay algo para mí y qué me toca? Las demás son sitios
+    donde se consulta algo que ya se sabe que existe.
+  */
+  { path: 'hoy', label: 'Hoy', short: 'Hoy', icon: Sunrise },
   { path: 'panel', label: 'Mi progreso', short: 'Progreso', icon: Gauge },
   { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers },
   { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad },
@@ -202,7 +208,7 @@ export const CLIENT_SECTIONS = [
 export const RESET_PATH = '/nueva-contrasena';
 
 export const COACH_HOME = '/hoy';
-export const CLIENT_HOME = '/mi/panel';
+export const CLIENT_HOME = '/mi/hoy';
 export const SETTINGS_HOME = '/ajustes/protocolo';
 
 /** Ruta de una sección de un cliente. Nadie construye estas cadenas a mano. */

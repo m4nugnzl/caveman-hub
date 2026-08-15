@@ -90,22 +90,51 @@ export function usePhotoStudio({ photos, clientId, startDate }) {
   }, []);
 
   /**
-   * Al abrir un cliente se propone el par más útil: la foto más antigua contra
-   * la más reciente DEL MISMO ÁNGULO. Comparar un frontal con un lateral no
-   * dice nada.
+   * Al abrir un cliente se propone LA REVISIÓN: las dos últimas semanas con
+   * fotos, enteras, la nueva a la derecha.
+   *
+   * ══ Por qué esto y no el par de siempre ════════════════════════════════════
+   *
+   * Antes proponía la foto más antigua contra la más reciente del mismo ángulo:
+   * la comparativa de «cómo has cambiado en seis meses», que es la que se hace
+   * dos veces al año y se descarga para enseñarla.
+   *
+   * Pero aquí se entra sobre todo desde una revisión pendiente, y ahí la pregunta
+   * es otra: **¿qué ha cambiado desde la última vez?** Para eso hacen falta las
+   * dos últimas semanas y TODOS los ángulos —el frontal solo esconde justo lo que
+   * se mira en un lateral—, no una foto contra otra.
+   *
+   * La semana nueva a la derecha porque el tiempo se lee de izquierda a derecha:
+   * las semanas van ordenadas de menor a mayor y la matriz las pinta en ese
+   * orden, así que lo reciente cae siempre en la misma columna. Antes dependía de
+   * cuál se marcara primero.
+   *
+   * Sin dos semanas con fotos no hay comparativa que proponer: se cae al par
+   * clásico, que al menos enseña algo.
    */
   useEffect(() => {
-    const { before, after } = suggestPair(photos);
-    setSlots([
-      before ? slotWith(before.id) : emptySlot(),
-      after && after.id !== before?.id ? slotWith(after.id) : emptySlot(),
-    ]);
+    const conFotos = availableWeeks(photos, startDate);
+    const ultimas = conFotos.slice(-2);
+
+    if (ultimas.length === 2) {
+      setPickedWeeks(ultimas);
+      setPickedAngles(availableAngles(photos));
+      setLayout('matrix');
+      setSlots([emptySlot(), emptySlot()]);
+    } else {
+      const { before, after } = suggestPair(photos);
+      setSlots([
+        before ? slotWith(before.id) : emptySlot(),
+        after && after.id !== before?.id ? slotWith(after.id) : emptySlot(),
+      ]);
+      setLayout('pair');
+      setPickedWeeks([]);
+      setPickedAngles(['frontal']);
+    }
+
     setAnnotations([]);
     setActiveSlot(0);
-    setLayout('pair');
     setSliderPos(0.5);
-    setPickedWeeks([]);
-    setPickedAngles(['frontal']);
     // Solo al cambiar de cliente: si dependiera de `photos`, cada subida
     // reiniciaría el montaje que el coach está preparando.
     // eslint-disable-next-line react-hooks/exhaustive-deps

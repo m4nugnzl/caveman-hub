@@ -94,7 +94,10 @@ export const taskAction = (taskId, row, handlers) => {
       icon: Eye,
       label: 'Revisado',
       title: 'Marcar su check-in como revisado',
-      onClick: () => handlers.review(row.review.id),
+      /* El cliente viaja con el id de la revisión porque cerrarla guarda una foto
+         de SU plan. Sin esto, cerrar desde aquí dejaba la foto vacía y el
+         histórico salía con huecos según por dónde se hubiera cerrado. */
+      onClick: () => handlers.review(row.review.id, row.client.id),
     };
   }
   if (taskId === 'inactive' && row.client.phone) {

@@ -324,7 +324,7 @@ const AdjuntoMensaje = ({ path, url }) => {
           style={{
             maxWidth: 'min(100%, 320px)',
             borderRadius: 'var(--r-md)',
-            border: '1px solid var(--border)',
+            border: '1px solid var(--edge)',
             display: 'block',
           }}
         />

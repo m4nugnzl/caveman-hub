@@ -88,13 +88,10 @@ export const StepsGoalCard = ({ stepsGoal, editable = false, onSave }) => {
           <Footprints size={12} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} />
           Pasos diarios
         </span>
-        <span className="t-sm t-secondary">
-          {puesto
-            ? editable
-              ? 'Los mismos entrene o no: es actividad diaria, no del entrenamiento.'
-              : 'Tu objetivo de actividad, entrenes o no ese día.'
-            : 'Sin definir. Es la otra mitad del gasto, y se decide aquí junto a las calorías.'}
-        </span>
+        {/* Con la cifra puesta no hace falta decir nada más: se explica sola. El
+            texto solo aparece cuando NO hay objetivo, que es cuando hay que decir
+            qué se puede poner ahí. */}
+        {!puesto && <span className="t-sm t-secondary">Sin definir.</span>}
       </span>
 
       <span className="row gap-2 shrink-0">

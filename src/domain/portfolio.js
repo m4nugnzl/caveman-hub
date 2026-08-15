@@ -30,6 +30,7 @@
  */
 
 import { clientIntake } from './intake';
+import { currentCheckInPeriod } from './calendar';
 import { clientProtocol, requiredBlocks } from './protocol';
 import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
@@ -330,6 +331,83 @@ export const clientStatus = (
   };
 };
 
+/* ==========================================================================
+   La pasada semanal
+   --------------------------------------------------------------------------
+   ══ Qué problema resuelve ═══════════════════════════════════════════════════
+
+   Revisar la semana de alguien es hoy abrir cuatro pantallas: check-ins para los
+   pesajes, fotos para comparar, rutina para ver qué hizo y nutrición para
+   ajustar. Multiplicado por veinte clientes, un lunes entero.
+
+   Y la mayoría de las veces la conclusión es **«bien, seguimos igual»**, durante
+   meses. Una herramienta que tarda lo mismo en decir eso que en rehacer un
+   mesociclo está mal calibrada: lo que hay que abaratar es el caso normal.
+
+   Estas dos funciones son el cálculo de esa pasada. La pantalla solo las pinta.
+
+   ── Por qué se apoya en `clientStatus` y no calcula nada nuevo ──────────────
+   Porque el criterio tiene que ser el MISMO que el de la cartera y el de las
+   alertas. Un segundo cálculo paralelo acabaría diciendo que Marta está al día
+   en una pantalla y pendiente en otra, y entonces no se puede confiar en
+   ninguna de las dos.
+   ========================================================================== */
+
+/**
+ * En qué punto está la revisión de un cliente, según SU cadencia.
+ *
+ *   `ready`   — le tocaba y lo ha subido: te espera. Es el trabajo.
+ *   `missing` — le tocaba y no lo ha subido. Es un recordatorio, no trabajo.
+ *   `done`    — ya revisado en este periodo.
+ *   `off`     — no le toca todavía, o no tiene día fijado. **No se enseña.**
+ *
+ * ══ Por qué `off` es la mitad del valor de esto ═════════════════════════════
+ *
+ * La primera versión listaba a los veinte clientes cada semana. Una lista que
+ * sale entera siempre no es una lista de pendientes: es la cartera con otro
+ * título, y se deja de mirar en dos semanas. Con la cadencia, a quien revisa cada
+ * dos semanas no se le reclama nada la semana que no toca, y quien no ha elegido
+ * día no aparece — porque no se puede llegar tarde a una cita que nadie ha puesto.
+ *
+ * `done` y `ready` solo se distinguen con la migración 0009 aplicada
+ * (`review.exact`). Sin ella se cae a la aproximación de «ha hecho su parte», que
+ * no sabe si ya le contestaste: ahí nunca se dice `done`, porque ofrecer la
+ * acción dos veces es mejor que darla por hecha sin saberlo.
+ */
+export const reviewState = (row, today = todayISO()) => {
+  const periodo = currentCheckInPeriod(row?.client?.preferences, row?.client?.startDate, today);
+  if (!periodo || !periodo.isDue) return 'off';
+
+  /* Que el check-in sea de ESTE periodo ya lo garantiza `buildPortfolio`, que
+     descarta el de periodos anteriores antes de llegar aquí. Comprobarlo otra vez
+     con `checkIn.weekStart` era mirar el dato equivocado: ese `checkIn` es el
+     recuento de pesajes de la semana natural, no la fila entregada. */
+  if (row?.review?.exact && row.review.reviewedAt) return 'done';
+  if (row?.review?.pending) return 'ready';
+  return 'missing';
+};
+
+/**
+ * La cola de revisiones: solo lo que hay que atender, y en ese orden.
+ *
+ * Primero quien te espera —eso es trabajo— y después quien no ha subido lo suyo
+ * —eso es un mensaje—. Lo ya revisado y lo que no toca se quedan fuera: la
+ * pantalla contesta «¿qué me queda?», y para eso lo hecho estorba.
+ *
+ * Dentro de cada grupo manda la gravedad, que ya viene calculada.
+ */
+const REVIEW_ORDER = { ready: 0, missing: 1 };
+
+export const reviewQueue = (rows = [], today = todayISO()) =>
+  rows
+    .map((row) => ({ ...row, review_state: reviewState(row, today) }))
+    .filter((row) => row.review_state === 'ready' || row.review_state === 'missing')
+    .sort((a, b) => {
+      const orden = REVIEW_ORDER[a.review_state] - REVIEW_ORDER[b.review_state];
+      if (orden !== 0) return orden;
+      return (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9);
+    });
+
 /**
  * La cartera completa, ordenada por urgencia.
  *
@@ -359,7 +437,17 @@ export const buildPortfolio = (
         // El check-in de LA SEMANA EN CURSO. Los anteriores no dicen nada del
         // estado de hoy, y mezclarlos haría que un cliente pareciera pendiente
         // por algo que entregó en marzo.
-        checkIn: checkIns[client.id]?.weekStart === week ? checkIns[client.id] : null,
+        /*
+          El check-in que cuenta es el del PERIODO vigente, no el de la semana
+          natural: con cadencia quincenal el periodo empezó hace dos semanas y
+          comparar contra el lunes de hoy dejaba fuera al que entregó a tiempo.
+        */
+        checkIn: (() => {
+          const suyo = checkIns[client.id];
+          if (!suyo) return null;
+          const periodo = currentCheckInPeriod(client.preferences, client.startDate, today);
+          return suyo.weekStart >= (periodo?.start || week) ? suyo : null;
+        })(),
       },
       today
     )

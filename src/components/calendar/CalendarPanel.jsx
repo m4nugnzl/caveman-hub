@@ -3,9 +3,11 @@ import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-re
 
 import { useApp } from '@/context/AppContext';
 import {
+  CHECKIN_CADENCES,
   EVENT_KINDS,
   WEEKDAYS,
   checkInDates,
+  checkInSchedule,
   eventsByDate,
   kindMeta,
   monthGrid,
@@ -15,7 +17,7 @@ import {
   weekdayIndex,
 } from '@/domain/calendar';
 import { shortDate, todayISO } from '@/lib/dates';
-import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Notice, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 
 /** Formulario de evento para un día concreto. Aparece al pulsar el día. */
 const DayForm = ({ date, onAdd, onClose }) => {
@@ -112,7 +114,7 @@ export const CalendarPanel = ({ audience = 'client' }) => {
   const clientId = activeClient.id;
 
   /** Día de check-in elegido. Vive en las preferencias: no necesita esquema. */
-  const weekday = activeClient.preferences?.checkin?.weekday ?? null;
+  const { weekday, everyWeeks } = checkInSchedule(activeClient.preferences);
 
   const refresh = useCallback(async () => {
     const result = await loadEvents(clientId);
@@ -126,8 +128,24 @@ export const CalendarPanel = ({ audience = 'client' }) => {
 
   const grid = useMemo(() => monthGrid(cursor.year, cursor.month), [cursor]);
   const byDate = useMemo(() => eventsByDate(events), [events]);
-  const checkInDays = useMemo(() => checkInDates(grid, weekday), [grid, weekday]);
-  const upcoming = nextCheckIn(weekday, today);
+  const checkInDays = useMemo(
+    () => checkInDates(grid, weekday, everyWeeks, activeClient.startDate),
+    [grid, weekday, everyWeeks, activeClient.startDate]
+  );
+  /*
+    El próximo que TOCA, no el próximo jueves: con cadencia quincenal son cosas
+    distintas y la segunda es mentira la mitad de las veces.
+
+    Sale de `nextCheckIn`, que ahora conoce la cadencia y el alta. Antes se
+    buscaba dentro de la rejilla visible y solo se recurría a la función cuando
+    no había ninguno — y como aquella versión no sabía de cadencia, al mirar un
+    mes pasado o al final de un mes quincenal la etiqueta decía el próximo jueves
+    natural. La rejilla es lo que se está mirando, no lo que le toca al cliente.
+  */
+  const upcoming = useMemo(
+    () => nextCheckIn(activeClient.preferences, activeClient.startDate, today),
+    [activeClient.preferences, activeClient.startDate, today]
+  );
 
   /* Semanas con check-in ya entregado, para no pedir otra vez lo que está hecho.
      `checkIns` solo trae el último, así que esto marca la semana en curso. */
@@ -213,6 +231,38 @@ export const CalendarPanel = ({ audience = 'client' }) => {
               ? `El próximo cae el ${shortDate(upcoming)}${upcoming === today ? ' — hoy' : ''}.`
               : 'Sin día fijo. Elegir uno hace que los pesajes de cada semana sean comparables entre sí.'}
           </span>
+
+          {/*
+            ══ Y cada cuánto ══════════════════════════════════════════════════
+
+            Faltaba, y no era un detalle: sin cadencia la aplicación daba por
+            hecho que TODAS las semanas tocaba, así que la lista de revisiones
+            pendientes del entrenador enseñaba también a quien revisa cada dos
+            semanas. Una lista que sale entera siempre se deja de mirar.
+
+            Va aquí, pegada al día, porque las dos contestan la misma pregunta
+            —cuándo— y separarlas obligaría a buscar la mitad de la respuesta en
+            otra pantalla. Solo se ofrece con día elegido: «cada dos semanas» sin
+            decir qué día no significa nada.
+          */}
+          {weekday !== null && (
+            <div className="col gap-2">
+              <SegmentedControl
+                value={String(everyWeeks)}
+                onChange={(valor) =>
+                  updateClientPreferences(clientId, 'checkin', { everyWeeks: Number(valor) })
+                }
+                options={CHECKIN_CADENCES.map((c) => ({ id: String(c.weeks), label: c.label }))}
+                label="Cada cuánto toca el check-in"
+              />
+              {everyWeeks > 1 && (
+                <span className="t-xs t-tertiary">
+                  Se cuentan desde que {isClient ? 'empezaste' : 'empezó el cliente'}, así que
+                  siempre caen en las mismas semanas.
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* La rejilla. Siempre semanas completas de lunes a domingo. */}

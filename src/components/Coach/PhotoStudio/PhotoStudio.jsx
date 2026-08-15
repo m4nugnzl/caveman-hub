@@ -10,7 +10,6 @@ import { usePhotoStudio } from './usePhotoStudio';
 import { useImageCache } from './useImageCache';
 import { renderComposition } from './renderComposition';
 import { PhotoLibrary } from './PhotoLibrary';
-import { PhotoCoverage } from './PhotoCoverage';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioToolbar } from './StudioToolbar';
 import { StudioBar } from './StudioBar';
@@ -203,18 +202,15 @@ export const PhotoStudio = () => {
       )}
 
       {/*
-        El historial ANTES del estudio, y con sus huecos.
-        --------------------------------------------------------------------
-        La biblioteca lateral enseña lo que hay; esto enseña lo que falta, que es
-        lo que genera trabajo: «me faltan la 5, la 7 y la 9». Una semana sin fotos
-        no aparecía en ninguna parte, así que ese hueco solo se descubría al ir a
-        comparar y no encontrar con qué.
+        El historial de cobertura se ha retirado de aquí.
+
+        Enseñaba «Historial · 14 semanas, de la 3 a la 17» con sus huecos, encima
+        del estudio. La información era cierta y el sitio no: quien entra aquí
+        viene a MIRAR DOS FOTOS —casi siempre desde una revisión pendiente— y lo
+        primero que se encontraba era un mapa de semanas que no le pedía nada.
+        Los huecos de fotos ya salen donde se pueden resolver: en las alertas de
+        la cartera.
       */}
-      <PhotoCoverage
-        photos={photos}
-        startDate={activeClient.startDate}
-        phone={activeClient.phone}
-      />
 
       {/* Las decisiones sobre EL DOCUMENTO —composición, proporción, descargar—
           van arriba y en horizontal. Las que se tocan sin parar mientras trabajas

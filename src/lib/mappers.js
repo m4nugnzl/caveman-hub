@@ -98,6 +98,9 @@ export const mapCheckInFromDb = (row) => ({
   reviewedAt: row.reviewed_at,
   reviewedBy: row.reviewed_by,
   coachNotes: row.coach_notes || '',
+  /* La foto del plan al cerrar la revisión (migración 0042). `null` en las
+     anteriores: entonces no se guardaba, y no se puede reconstruir. */
+  snapshot: row.snapshot || null,
 });
 
 export const mapEventFromDb = (row) => ({
