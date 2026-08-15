@@ -9,6 +9,7 @@ import { Header } from '@/components/Header';
 import { Login } from '@/components/Auth/Login';
 import { PasswordResetPage } from '@/components/Auth/PasswordResetPage';
 import { LegalPage } from '@/components/legal/LegalPage';
+import { LandingPage } from '@/components/marketing/LandingPage';
 import { CoachLayout } from '@/components/Coach/CoachLayout';
 import { ClientLayout } from '@/components/Client/ClientLayout';
 import { ConsentGate } from '@/components/Client/ConsentGate';
@@ -16,6 +17,7 @@ import { Today } from '@/components/Coach/Today';
 import { ClientPortfolio } from '@/components/Coach/ClientPortfolio';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ProgressLayout } from '@/components/analytics/ProgressLayout';
+import { ReviewLayout } from '@/components/review/ReviewLayout';
 
 /*
   ══ Todo lo demás se carga cuando se abre ══════════════════════════════════
@@ -112,13 +114,25 @@ import { ReviewBar, ReviewSessionProvider } from '@/components/Coach/ReviewSessi
  * las que hay en `routes.jsx`. Lo que no reconozca se cuenta como `otra`: perder
  * una etiqueta es barato, guardar un identificador de una persona no.
  */
-const SECCIONES_CLIENTE = new Set(COACH_CLIENT.map((s) => s.path).concat('analitica'));
+/*
+  Las secciones y TODOS sus niveles: desde que «Revisión» tiene dos rutas y
+  «Progreso» otras dos, quedarse con el primer tramo contaría `revision/fotos`
+  como `otra` y se perdería la mitad de la medición.
+
+  El nombre se normaliza con `/` → `_` para que el evento siga siendo un
+  identificador corto, que es lo que exige el CHECK de la migración 0045.
+*/
+const SECCIONES_CLIENTE = new Set(
+  COACH_CLIENT.flatMap((s) => [s.path, ...(s.also || [])])
+);
 const SECCIONES_AJUSTES = new Set(SETTINGS_SECTIONS.map((s) => s.path));
 const RAIZ = new Set(['hoy', 'clientes', 'cartera']);
 
 export const pantallaDe = (pathname) => {
-  const deCliente = /^\/c\/[^/]+\/([^/]+)/.exec(pathname)?.[1];
-  if (deCliente) return SECCIONES_CLIENTE.has(deCliente) ? `cliente_${deCliente}` : 'otra';
+  const deCliente = /^\/c\/[^/]+\/(.+?)\/?$/.exec(pathname)?.[1];
+  if (deCliente) {
+    return SECCIONES_CLIENTE.has(deCliente) ? `cliente_${deCliente.replace(/\//g, '_')}` : 'otra';
+  }
 
   const deAjustes = /^\/ajustes\/([^/]+)/.exec(pathname)?.[1];
   if (deAjustes) return SECCIONES_AJUSTES.has(deAjustes) ? `ajustes_${deAjustes}` : 'otra';
@@ -205,7 +219,22 @@ export default function App() {
     );
   }
 
-  if (!session) return <Login />;
+  /*
+    ══ Sin sesión: la portada en la raíz, el acceso en su ruta ════════════════
+
+    Antes, cualquier ruta sin sesión enseñaba el formulario de acceso — incluida
+    la raíz. Para vender esto había que pedirle a alguien que se registrara para
+    enterarse de qué era y cuánto costaba.
+
+    Ahora la raíz es la portada pública y el acceso vive en `/entrar`. El resto
+    de rutas siguen cayendo en el formulario A PROPÓSITO: quien tiene guardado
+    `/mi/rutina` y ha caducado su sesión quiere entrar, no que le vendan la
+    aplicación que ya usa. Y al entrar, la ruta que pidió sigue en la barra.
+  */
+  if (!session) {
+    if (path === '/') return <LandingPage />;
+    return <Login />;
+  }
 
   return (
     /*
@@ -320,8 +349,19 @@ export default function App() {
                   </Route>
                   <Route path="rutina" element={<WorkoutLogEditor />} />
                   <Route path="nutricion" element={<NutritionModule />} />
-                  <Route path="fotos" element={<PhotoStudio />} />
-                  <Route path="checkins" element={<AnthropometryModule />} />
+
+                  {/* Revisión: el check-in y las fotos son la misma tarea, y
+                      estaban en dos secciones porque son dos tablas. Ver
+                      `components/review/ReviewLayout.jsx`. */}
+                  <Route path="revision" element={<ReviewLayout audience="coach" />}>
+                    <Route index element={<AnthropometryModule />} />
+                    <Route path="fotos" element={<PhotoStudio />} />
+                  </Route>
+                  {/* Las dos rutas viejas siguen vivas: están en marcadores y en
+                      enlaces compartidos por WhatsApp. */}
+                  <Route path="checkins" element={<Navigate to="../revision" replace />} />
+                  <Route path="fotos" element={<Navigate to="../revision/fotos" replace />} />
+
                   <Route path="calendario" element={<CalendarPanel audience="coach" />} />
                   <Route path="ficha" element={<ClientFile />} />
                 </Route>
@@ -354,8 +394,16 @@ export default function App() {
                 </Route>
                 <Route path="rutina" element={<ClientRoutineRoute />} />
                 <Route path="dieta" element={<ClientDietRoute />} />
-                <Route path="fotos" element={<ClientPhotosRoute />} />
-                <Route path="checkins" element={<ClientCheckInsRoute />} />
+
+                {/* Su check-in y sus fotos: el mismo gesto de la semana, y
+                    además la única puerta para subirlas. */}
+                <Route path="evolucion" element={<ReviewLayout audience="client" />}>
+                  <Route index element={<ClientCheckInsRoute />} />
+                  <Route path="fotos" element={<ClientPhotosRoute />} />
+                </Route>
+                <Route path="checkins" element={<Navigate to="/mi/evolucion" replace />} />
+                <Route path="fotos" element={<Navigate to="/mi/evolucion/fotos" replace />} />
+
                 <Route path="calendario" element={<CalendarPanel audience="client" />} />
               </Route>
               <Route path="*" element={<OtherViewFallback view="client" />} />

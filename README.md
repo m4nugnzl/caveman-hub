@@ -74,30 +74,51 @@ pantalla concreta de un cliente.
 
 | Ruta | Qué es |
 |---|---|
+| `/` | La portada pública: qué es esto, para quién y cuánto cuesta. Solo sin sesión |
+| `/entrar` | Acceso y alta. Con `?alta=1` abre directamente el registro |
 | `/hoy` | La jornada: qué ha pasado en la cartera y qué espera respuesta (entrada del entrenador) |
-| `/cartera` | Cartera de clientes, como tablero por estado |
-| `/clientes` | Alta, onboarding y pagos |
-| `/ajustes/equipo` · `integraciones` | Lo que se configura una vez: equipo y Notion |
-| `/c/:clientId/resumen` · `analitica` | **Progreso**: una sección con dos niveles — el resumen y la revisión a fondo. Una sola entrada en el carril, dos rutas para que el enlace directo y el botón atrás sigan valiendo |
-| `/c/:clientId/rutina` · `nutricion` · `fotos` · `checkins` · `calendario` | Sus demás secciones |
-| `/mi/panel` · `analitica` · `rutina` · `dieta` · `fotos` · `checkins` · `calendario` | Portal del cliente (con el mismo par Progreso) |
+| `/clientes` | La cartera: alta, estado de cada uno y entrada a la persona |
+| `/ajustes/…` | Lo que se configura una vez: protocolo, equipo, integraciones, plan, copia y ayuda |
+| `/c/:clientId/resumen` · `analitica` | **Progreso**: el resumen y la revisión a fondo |
+| `/c/:clientId/revision` · `revision/fotos` | **Revisión**: su check-in y sus fotos. Una tarea, una sección |
+| `/c/:clientId/rutina` · `nutricion` · `calendario` · `ficha` | Sus demás secciones |
+| `/mi/hoy` · `rutina` · `dieta` · `evolucion` · `evolucion/fotos` · `panel` · `analitica` · `calendario` | Portal del cliente |
 
 El cliente activo lo manda la ruta: `/c/:clientId/...` sincroniza
 `selectedClientId` en el contexto, nunca al revés. Las secciones se declaran una
 sola vez en **`src/routes.jsx`**, de donde salen tanto las pestañas como las
 rutas.
 
-La navegación tiene **dos niveles**: arriba solo tres entradas (Hoy, Cartera,
-Clientes), y el segundo nivel aparece únicamente cuando estás dentro de algo —las
-siete secciones de un cliente, o las de ajustes—, nunca los dos a la vez. Antes
-esto eran once pestañas seguidas mezclando planos distintos. La configuración
-cuelga del avatar, que es donde la busca todo el mundo.
+Las rutas retiradas siguen vivas y redirigen —`/cartera`, `/c/:id/fotos`,
+`/c/:id/checkins`, `/mi/fotos`, `/mi/checkins`—: están en marcadores y en enlaces
+compartidos por WhatsApp.
 
-**«Hoy» y «Cartera» no se repiten.** La cartera contesta *en qué estado está cada
-cliente* —cuatro columnas, ordenadas por gravedad—; «Hoy» contesta *qué ha pasado
-desde ayer*: un hilo cronológico de entrenos, pesajes, fotos y check-ins de toda
-la cartera, más una bandeja con lo que espera respuesta del entrenador. Los dos
-salen de los datos que ya se cargan al arrancar, sin una consulta más.
+La navegación tiene **dos niveles**: arriba solo dos entradas (Hoy y Clientes), y
+el segundo nivel aparece únicamente cuando estás dentro de algo —las secciones de
+un cliente, o las de ajustes—, nunca los dos a la vez. Antes esto eran once
+pestañas seguidas mezclando planos distintos. La configuración cuelga del avatar,
+que es donde la busca todo el mundo.
+
+**Las secciones se llaman como el TRABAJO, no como la tabla.** «Fotos» y
+«Check-ins» eran dos entradas y son la misma tarea —mirar lo que ha subido esta
+semana y contestarle—, así que ahora son una: **Revisión**, con dos niveles. La
+prueba de que el corte anterior estaba mal es que hubo que inventar un *modo*
+(`ReviewSession`, con barra flotante) para poder terminar la tarea cruzando de una
+sección a otra. Del lado del cliente pasa lo mismo y por el mismo motivo:
+pesarse y hacerse las fotos es un solo gesto de la semana, y ahora es **Mi
+evolución**. De paso desaparece la segunda puerta para subir fotos.
+
+**«Hoy» y «Clientes» no se repiten.** «Clientes» contesta *en qué estado está cada
+uno* —en orden de urgencia—; «Hoy» contesta *qué ha pasado desde ayer*: un hilo
+cronológico de entrenos, pesajes, fotos y check-ins de toda la cartera, más una
+bandeja con lo que espera respuesta del entrenador. Los dos salen de los datos que
+ya se cargan al arrancar, sin una consulta más.
+
+**La marca de «estás aquí» no la decide el prefijo de la URL.** Desde que una
+sección tiene dos niveles, `NavLink` se queda corto: `analitica` no empieza por
+`resumen`, así que bajar al segundo nivel dejaba el carril entero sin marcar. Los
+niveles de cada sección se declaran en `also` (`routes.jsx`) y los tres sitios que
+navegan —carril, pestañas y barra inferior— preguntan a `isSectionActive`.
 
 ### Ir a cualquier sitio: `⌘K` / `Ctrl+K`
 

@@ -1,10 +1,10 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ShieldCheck, UserX } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
 import { CONSENT_POINTS, grantConsent, hasConsent } from '@/domain/privacy';
-import { CLIENT_SECTIONS } from '@/routes';
+import { CLIENT_SECTIONS, isSectionActive } from '@/routes';
 import { EmptyState, Panel } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientPrivacy } from './ClientPrivacy';
@@ -20,6 +20,7 @@ import { ClientPrivacy } from './ClientPrivacy';
  */
 export const ClientLayout = () => {
   const { activeClient, workoutData, anthropometry, isCoach, updateClientPreferences } = useApp();
+  const { pathname } = useLocation();
 
   /* Del histórico de pesajes, no de `clients.current_weight`: esa columna no la
      escribía nadie y enseñaba un peso congelado como si fuera el de hoy. */
@@ -113,12 +114,25 @@ export const ClientLayout = () => {
         )}
       </Panel>
 
+      {/* Igual que en el carril del entrenador: la marca de «estás aquí» sale de
+          `isSectionActive` y no del prefijo de URL, porque «Mi evolución» y «Mi
+          progreso» tienen dos niveles cada una y bajar al segundo dejaba las
+          pestañas sin marcar. */}
       <nav className="tabs" aria-label="Secciones de mi portal">
-        {CLIENT_SECTIONS.map(({ path, label, icon: Icon }) => (
-          <NavLink key={path} to={`/mi/${path}`} className="tab">
-            <Icon size={16} /> {label}
-          </NavLink>
-        ))}
+        {CLIENT_SECTIONS.map((seccion) => {
+          const { path, label, icon: Icon } = seccion;
+          const activa = isSectionActive(pathname, seccion, '/mi');
+          return (
+            <NavLink
+              key={path}
+              to={`/mi/${path}`}
+              className={`tab${activa ? ' active' : ''}`}
+              aria-current={activa ? 'page' : undefined}
+            >
+              <Icon size={16} /> {label}
+            </NavLink>
+          );
+        })}
       </nav>
 
       <Outlet />
@@ -134,10 +148,13 @@ export const ClientLayout = () => {
       */}
       <BottomNav
         label="Secciones de mi portal"
-        items={CLIENT_SECTIONS.map(({ path, short, label, icon }) => ({
-          to: `/mi/${path}`,
-          label: short || label,
-          icon,
+        items={CLIENT_SECTIONS.map((seccion) => ({
+          to: `/mi/${seccion.path}`,
+          label: seccion.short || seccion.label,
+          icon: seccion.icon,
+          /* Sus dos niveles cuentan como la misma sección: estando en las fotos
+             de «Mi evolución», el destino tiene que seguir marcado. */
+          isActive: (ruta) => isSectionActive(ruta, seccion, '/mi'),
         }))}
       />
     </div>

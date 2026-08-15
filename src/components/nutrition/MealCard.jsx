@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ArrowRightLeft,
   ChevronDown,
   ChevronUp,
   Copy,
   GripVertical,
+  MoreVertical,
   NotebookPen,
   Pencil,
   Plus,
@@ -22,6 +23,7 @@ import {
   optionMacros,
   unitsLabel,
 } from '@/domain/nutrition';
+import { useClickOutside } from '@/lib/useClickOutside';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Notice, SegmentedControl } from '@/components/ui/primitives';
@@ -473,6 +475,10 @@ export const MealCard = ({
   const confirm = useConfirm();
   const [activeOption, setActiveOption] = useState(0);
   const [editingName, setEditingName] = useState(false);
+  /* El menú de acciones de la comida. Mismo patrón que la cabecera de un día. */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
   // Estado del arrastre, igual que en `ExerciseList`: quién se arrastra y sobre
   // quién se está soltando, para poder pintar las dos filas de forma distinta.
   const [dragIndex, setDragIndex] = useState(null);
@@ -572,9 +578,23 @@ export const MealCard = ({
         <div className="row gap-2 shrink-0">
           {editable && (
             <>
-              {/* Mover la comida y duplicarla. En la cabecera y no en un menú:
-                  son tres acciones, y un menú para tres cosas es un clic de más
-                  en la operación que más se repite al montar un día. */}
+              {/*
+                ══ Por qué solo quedan tres iconos aquí ═══════════════════════
+
+                Eran SEIS seguidos —renombrar, subir, bajar, duplicar, copiar al
+                otro día y borrar—, todos del mismo tamaño, el mismo color y la
+                misma caja, sin una palabra. El sexto borraba la comida entera.
+                Un día de dieta son cinco o seis comidas: treinta iconos mudos en
+                una pantalla, con los destructivos escondidos entre ellos.
+
+                El razonamiento original —«un menú para tres cosas es un clic de
+                más en la operación que más se repite»— sigue siendo bueno; lo
+                que pasó es que dejaron de ser tres.
+
+                Se quedan fuera las que se usan MONTANDO, que son las repetidas:
+                subir y bajar. Lo demás pasa al menú de al lado, con borrar
+                separado y en su tono.
+              */}
               {onMoveMeal && (
                 <>
                   <button
@@ -597,41 +617,88 @@ export const MealCard = ({
                   </button>
                 </>
               )}
-              {onDuplicateMeal && (
-                <button
-                  type="button"
-                  className="btn btn-icon"
-                  onClick={onDuplicateMeal}
-                  aria-label={`Duplicar ${meal.name}`}
-                  title="Duplicar la comida con todas sus alternativas"
-                >
-                  <Copy size={14} />
-                </button>
-              )}
               {/*
-                Llevarse esta comida al otro día. Solo existe cuando el plan tiene
-                dos días distintos: sin variantes no hay «el otro», y el botón
-                sería un adorno que no lleva a ninguna parte.
+                El resto, en el mismo menú de desbordamiento que ya usa la
+                cabecera de un día en el editor de rutina (`Workout/DayHeader`).
+                Mismo gesto, mismo sitio, misma forma: no hay nada nuevo que
+                aprender.
               */}
-              {onCopyMeal && (
+              <div ref={menuRef} style={{ position: 'relative' }}>
                 <button
                   type="button"
                   className="btn btn-icon"
-                  onClick={onCopyMeal}
-                  aria-label={`Copiar ${meal.name} a ${otherVariantLabel}`}
-                  title={`Copiar esta comida a ${otherVariantLabel}`}
+                  onClick={() => setMenuOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  aria-label={`Acciones de ${meal.name}`}
                 >
-                  <ArrowRightLeft size={14} />
+                  <MoreVertical size={16} />
                 </button>
-              )}
-              <button
-                type="button"
-                className="btn btn-icon btn-icon-danger"
-                onClick={askRemoveMeal}
-                aria-label={`Eliminar ${meal.name}`}
-              >
-                <Trash2 size={14} />
-              </button>
+
+                {menuOpen && (
+                  <div className="popover popover-right" style={{ top: '120%' }} role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="menu-item"
+                      onClick={() => {
+                        setEditingName(true);
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <Pencil size={15} /> Renombrar
+                    </button>
+
+                    {onDuplicateMeal && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="menu-item"
+                        onClick={() => {
+                          onDuplicateMeal();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <Copy size={15} /> Duplicar con sus alternativas
+                      </button>
+                    )}
+
+                    {/*
+                      Llevarse esta comida al otro día. Solo existe cuando el plan
+                      tiene dos días distintos: sin variantes no hay «el otro», y
+                      la entrada sería un adorno que no lleva a ninguna parte.
+                    */}
+                    {onCopyMeal && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="menu-item"
+                        onClick={() => {
+                          onCopyMeal();
+                          setMenuOpen(false);
+                        }}
+                      >
+                        <ArrowRightLeft size={15} /> Copiar a {otherVariantLabel}
+                      </button>
+                    )}
+
+                    {/* Separado y en su tono: es la única de las cuatro que no se
+                        puede deshacer. */}
+                    <hr className="divider" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="menu-item menu-item-danger"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        askRemoveMeal();
+                      }}
+                    >
+                      <Trash2 size={15} /> Eliminar comida
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

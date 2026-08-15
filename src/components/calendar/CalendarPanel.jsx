@@ -198,8 +198,7 @@ export const CalendarPanel = ({ audience = 'client' }) => {
 
         {unavailable && (
           <Notice tone="info">
-            El calendario necesita la migración <code>0009_checkins_calendar.sql</code>. Hasta
-            aplicarla puedes ver los días de check-in, pero no guardar eventos.
+            El calendario todavía no está activo en tu cuenta: puedes ver los días de check-in, pero no guardar citas ni recordatorios. Escríbenos desde Ajustes → Ayuda y lo activamos.
           </Notice>
         )}
         {error && <Notice tone="error">{error}</Notice>}

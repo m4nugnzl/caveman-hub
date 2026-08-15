@@ -110,9 +110,7 @@ export const IntegrationsCatalogue = () => {
 
         {unavailable && ready && (
           <Notice tone="info">
-            Falta aplicar <code>0010_integrations.sql</code> y desplegar la función{' '}
-            <code>notion-payments</code>. Hasta entonces puedes ver el catálogo pero no conectar
-            nada.
+            Las integraciones todavía no están activas en tu cuenta: puedes ver qué hay, pero no conectar nada. Escríbenos desde Ajustes → Ayuda y las activamos.
           </Notice>
         )}
 

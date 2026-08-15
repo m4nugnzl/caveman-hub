@@ -178,7 +178,7 @@ export const TeamPanel = () => {
       <EmptyState
         icon={Users}
         title="Los equipos todavía no están activados"
-        message="Trabajas como entrenador único: tus clientes son tuyos y nadie más los ve. Para repartirlos entre varios entrenadores hay que aplicar la migración «0006_teams.sql» en Supabase; está explicada en docs/modelo-de-equipo.md."
+        message="Trabajas como entrenador único: tus clientes son tuyos y nadie más los ve. Trabajar en equipo —repartir la cartera entre varios entrenadores, con sus permisos— todavía no está activo en tu cuenta. Escríbenos desde Ajustes → Ayuda si lo necesitas."
       />
     );
   }

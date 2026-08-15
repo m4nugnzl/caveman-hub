@@ -106,8 +106,8 @@ export const BackupPanel = () => {
               recordatorio: una copia de hace seis meses recupera muy poco.
             </li>
             <li>
-              <strong>No incluye las fotos</strong>, solo sus rutas en el almacenamiento. Las
-              imágenes hay que bajarlas desde Supabase.
+              <strong>No incluye las fotos</strong>, solo la lista de cuáles hay y de qué semana
+              son. Si necesitas los archivos, escríbenos desde Ajustes → Ayuda.
             </li>
             <li>
               <strong>No se restaura sola.</strong> Es un JSON legible con el que reconstruir a

@@ -6,7 +6,7 @@ import { dayMuscleVolume, dayPlannedVolume, unitLabel } from '@/domain/training'
 import { sessionMuscleVolume } from '@/domain/sessions';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn } from '@/domain/protocol';
-import { EmptyState, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { EmptyState, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { SessionFeedback } from './SessionFeedback';
 import { WarmupEditor } from './WarmupBlock';
 import { useProgramNavigation } from './useProgramNavigation';
@@ -220,6 +220,11 @@ export const WorkoutLogEditor = () => {
 
   return (
     <div className="stack">
+      <PageHead
+        title="Rutina"
+        sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
+      />
+
       <CycleSettings
         client={activeClient}
         open={cycleOpen}

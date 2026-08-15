@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { LogoMark } from '@/components/ui/Logo';
 import { supabase } from '@/lib/supabaseClient';
 import { MIN_PASSWORD, traduceAuthError } from '@/lib/authErrors';
@@ -16,8 +17,14 @@ export const Login = ({ notice = null }) => {
     Tres modos y no dos. «Recuperar» no es una pantalla aparte porque es el mismo
     formulario con un campo menos: quien está aquí ya ha escrito su email y ha
     fallado la contraseña, así que sacarle a otra página le haría teclearlo otra vez.
+
+    Con `?alta=1` se entra directamente al registro. Lo usa el botón «Empezar
+    gratis» de la portada: quien viene de ahí ya ha decidido crearse la cuenta y
+    hacerle pulsar «¿No tienes cuenta?» sería un paso más entre la decisión y el
+    formulario.
   */
-  const [mode, setMode] = useState('login');
+  const [params] = useSearchParams();
+  const [mode, setMode] = useState(params.get('alta') ? 'signup' : 'login');
   const [form, setForm] = useState({ email: '', password: '', name: '' });
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
@@ -177,8 +184,28 @@ export const Login = ({ notice = null }) => {
           className="btn btn-sm login-alt"
           onClick={() => go(mode === 'login' ? 'signup' : 'login')}
         >
-          {mode === 'login' ? '¿No tienes cuenta? Crear una' : '¿Ya tienes cuenta? Entrar'}
+          {mode === 'login'
+            ? '¿No tienes cuenta? Crear una de entrenador'
+            : '¿Ya tienes cuenta? Entrar'}
         </button>
+
+        {/*
+          ══ Que un cliente no se cree una cuenta de entrenador ═══════════════
+
+          Este alta crea un ENTRENADOR: el rol lo asigna el disparador de la base
+          de datos. Pero el botón decía «Crear una» a secas, así que un cliente
+          que guardó la dirección en marcadores en vez del enlace de invitación
+          —o que cerró sesión y volvió mal— acababa con una cuenta de entrenador
+          vacía y sin acceso a sus datos. Y la queja llega al entrenador.
+
+          Se dice para quién es el alta, y qué hacer si no eres tú.
+        */}
+        {mode === 'signup' && (
+          <p className="t-xs t-tertiary" style={{ textAlign: 'center' }}>
+            ¿Eres cliente de un entrenador? No te crees una cuenta aquí: entra con el enlace que él
+            te mandó.
+          </p>
+        )}
 
         {/*
           Solo al registrarse. Quien ya tiene cuenta las aceptó en su día y

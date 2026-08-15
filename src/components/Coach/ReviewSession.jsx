@@ -223,7 +223,7 @@ export const ReviewBar = () => {
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
-                onClick={() => navigate(clientPath(session.clientId, 'fotos'))}
+                onClick={() => navigate(clientPath(session.clientId, 'revision/fotos'))}
               >
                 <Video size={14} /> Grabarlo
               </button>

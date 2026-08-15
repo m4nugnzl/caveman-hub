@@ -1,6 +1,5 @@
 import {
   CalendarDays,
-  Camera,
   ClipboardList,
   CreditCard,
   FileText,
@@ -89,11 +88,19 @@ export const COACH_CLIENT = [
     resumen y se pasa al análisis desde dentro (`analytics/ProgressLayout.jsx`).
     La ruta `/analitica` sigue existiendo, así que los enlaces guardados valen.
   */
-  { path: 'resumen', label: 'Progreso', icon: Gauge },
+  { path: 'resumen', label: 'Progreso', icon: Gauge, also: ['analitica'] },
+  /*
+    «Revisión» era dos entradas —Fotos y Check-ins— y las dos son la misma tarea:
+    mirar lo que ha subido esta semana y contestarle. Estaban separadas porque son
+    dos tablas distintas, que es dibujar el menú desde el modelo de datos.
+
+    La prueba de que el corte estaba mal es que hubo que inventar un MODO
+    (`ReviewSession`) con barra flotante para poder terminar la tarea cruzando de
+    una sección a otra. Ver `components/review/ReviewLayout.jsx`.
+  */
+  { path: 'revision', label: 'Revisión', icon: Ruler, also: ['revision/fotos'] },
   { path: 'rutina', label: 'Rutina', icon: Layers },
   { path: 'nutricion', label: 'Nutrición', icon: Salad },
-  { path: 'fotos', label: 'Fotos', icon: Camera },
-  { path: 'checkins', label: 'Check-ins', icon: Ruler },
   { path: 'calendario', label: 'Calendario', icon: CalendarDays },
   /*
     La ficha va la última del carril a propósito. Sus datos, su acceso al portal,
@@ -186,11 +193,19 @@ export const CLIENT_SECTIONS = [
     donde se consulta algo que ya se sabe que existe.
   */
   { path: 'hoy', label: 'Hoy', short: 'Hoy', icon: Sunrise },
-  { path: 'panel', label: 'Mi progreso', short: 'Progreso', icon: Gauge },
   { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers },
   { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad },
-  { path: 'checkins', label: 'Mis check-ins', short: 'Check-in', icon: Ruler },
-  { path: 'fotos', label: 'Mis fotos', short: 'Fotos', icon: Camera },
+  /*
+    «Mi evolución» era dos secciones —«Mis check-ins» y «Mis fotos»— y para el
+    cliente son el mismo gesto de la semana: pesarse y hacerse las fotos, en las
+    mismas condiciones y el mismo día. Tenerlas separadas hacía que fueran dos
+    tareas que se recuerdan por separado, y la segunda se olvidaba.
+
+    Además había DOS botones de subir foto en dos sitios distintos, lo que
+    obligaba a preguntarse cuál era el bueno. Ahora se sube donde toca hacerlo.
+  */
+  { path: 'evolucion', label: 'Mi evolución', short: 'Evolución', icon: Ruler, also: ['evolucion/fotos'] },
+  { path: 'panel', label: 'Mi progreso', short: 'Progreso', icon: Gauge, also: ['analitica'] },
   { path: 'calendario', label: 'Mi calendario', short: 'Calendario', icon: CalendarDays },
 ];
 
@@ -215,16 +230,47 @@ export const SETTINGS_HOME = '/ajustes/protocolo';
 export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${section}`;
 
 /**
+ * La sección que se está mirando, tal cual, con sus niveles.
+ *
+ * Devuelve `revision/fotos` y no solo `revision`: desde que una sección puede
+ * tener dos niveles, quedarse con el primer tramo perdía el segundo, y cambiar de
+ * cliente estando en las fotos te devolvía a su check-in.
+ */
+const seccionDe = (pathname, prefijo) =>
+  new RegExp(`^${prefijo}/(.+)$`).exec(pathname)?.[1]?.replace(/\/$/, '') || null;
+
+/** Todas las rutas que pertenecen a una sección: la suya y sus niveles. */
+const rutasDe = (seccion) => [seccion.path, ...(seccion.also || [])];
+
+/**
  * Mantiene la sección al cambiar de cliente.
  *
  * Si estás mirando la nutrición de Marta y cambias a Luis, quieres la nutrición de
  * Luis, no su resumen. Sin esto, cada cambio de cliente te devolvía al inicio.
  */
 export const sameSectionFor = (pathname, clientId) => {
-  const match = /^\/c\/[^/]+\/([^/]+)/.exec(pathname);
-  const section = match?.[1];
-  const known = COACH_CLIENT.some((s) => s.path === section);
+  const section = seccionDe(pathname, '/c/[^/]+');
+  const known = COACH_CLIENT.some((s) => rutasDe(s).includes(section));
   return clientPath(clientId, known ? section : 'resumen');
+};
+
+/**
+ * ¿Está el usuario dentro de esta sección?
+ *
+ * ══ Por qué no vale el `NavLink` a secas ═══════════════════════════════════
+ *
+ * `NavLink` marca por prefijo de URL, y desde que una sección tiene dos niveles
+ * eso deja de bastar: «Progreso» apunta a `resumen`, pero `analitica` es hermana
+ * suya y no empieza por `resumen`. El resultado era que al bajar al análisis —o a
+ * las fotos de una revisión— **ninguna pestaña quedaba marcada**, y la aplicación
+ * parecía haberse salido de sí misma.
+ *
+ * Los niveles de cada sección se declaran arriba en `also`, al lado de la propia
+ * sección, para que añadir uno obligue a verlos todos.
+ */
+export const isSectionActive = (pathname, seccion, prefijo) => {
+  const actual = seccionDe(pathname, prefijo);
+  return actual !== null && rutasDe(seccion).includes(actual);
 };
 
 /* ==========================================================================
@@ -256,14 +302,14 @@ const EQUIVALENTES = [
   ['analitica', 'analitica'],
   ['rutina', 'rutina'],
   ['nutricion', 'dieta'],
-  ['fotos', 'fotos'],
-  ['checkins', 'checkins'],
+  ['revision', 'evolucion'],
+  ['revision/fotos', 'evolucion/fotos'],
   ['calendario', 'calendario'],
 ];
 
 /** La misma sección, vista desde el portal del cliente. */
 export const clientViewOf = (pathname) => {
-  const section = /^\/c\/[^/]+\/([^/]+)/.exec(pathname)?.[1];
+  const section = seccionDe(pathname, '/c/[^/]+');
   const par = EQUIVALENTES.find(([coach]) => coach === section);
   return par ? `/mi/${par[1]}` : CLIENT_HOME;
 };
@@ -277,7 +323,7 @@ export const clientViewOf = (pathname) => {
  */
 export const coachViewOf = (pathname, clientId) => {
   if (!clientId) return COACH_HOME;
-  const section = /^\/mi\/([^/]+)/.exec(pathname)?.[1];
+  const section = seccionDe(pathname, '/mi');
   const par = EQUIVALENTES.find(([, cliente]) => cliente === section);
   return par ? clientPath(clientId, par[0]) : COACH_HOME;
 };

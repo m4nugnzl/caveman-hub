@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 
-/** Ruta `/mi/checkins`: pesajes de la semana, fotos y revisión completa. */
+/** Nivel «Check-in» de `/mi/evolucion`: pesajes de la semana y revisión completa. */
 export const ClientCheckInsRoute = () => {
   const {
     activeClient,

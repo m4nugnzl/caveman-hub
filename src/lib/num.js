@@ -1,3 +1,5 @@
+import { localeNumber } from '@/lib/dates';
+
 /**
  * Conversión de números introducidos por el usuario.
  *
@@ -44,4 +46,27 @@ export const fmt = (v, { decimals = 0, unit = '', dash = '—' } = {}) => {
   const n = toNum(v);
   if (n === null) return dash;
   return `${round(n, decimals)}${unit}`;
+};
+/**
+ * El precio de un plan: «25 € al mes», «Incluido».
+ *
+ * ── Por qué está aquí y no en la pantalla del plan ──────────────────────────
+ * Porque desde que hay página pública lo escriben DOS sitios —Ajustes → Plan y
+ * la portada—, y un precio formateado de dos maneras distintas es la clase de
+ * incoherencia que nadie ve hasta que un cliente la ve.
+ *
+ * Los céntimos solo se escriben si los hay: «25,00 €» en una lista de precios
+ * redondos es ruido, y lo único que se compara aquí es la cifra.
+ */
+export const planPrice = (plan, { conPeriodo = true } = {}) => {
+  if (!plan?.price_cents) return 'Gratis';
+
+  const importe = localeNumber(plan.price_cents / 100, {
+    style: 'currency',
+    currency: (plan.currency || 'eur').toUpperCase(),
+    minimumFractionDigits: plan.price_cents % 100 === 0 ? 0 : 2,
+  });
+
+  if (!conPeriodo) return importe;
+  return `${importe} al ${plan.interval === 'year' ? 'año' : 'mes'}`;
 };

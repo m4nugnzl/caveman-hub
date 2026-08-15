@@ -24,6 +24,37 @@ export const Panel = ({ as: Tag = 'section', tight, plain, className = '', child
   </Tag>
 );
 
+/**
+ * La cabecera de una pantalla: cómo se llama esto y qué se hace aquí.
+ *
+ * ══ Por qué hace falta un componente ════════════════════════════════════════
+ *
+ * Solo DOS de las siete secciones de un cliente tenían cabecera. Progreso y
+ * Nutrición abrían diciendo qué eran; Rutina, Revisión, Calendario y Ficha
+ * entraban directamente en controles —selectores de semana, barras de
+ * herramientas, formularios—. El efecto era que cambiar de sección se sentía como
+ * cambiar de aplicación, y en el móvil, donde el carril se pierde al desplazar,
+ * no quedaba nada que dijera dónde estás.
+ *
+ * El patrón existía (`.section-head`) pero estaba copiado a mano en nueve
+ * archivos, que es justo la forma de que la décima pantalla no lo lleve.
+ *
+ * ── Por qué emite un `h1` ───────────────────────────────────────────────────
+ * Porque ninguna pantalla del panel tenía uno: la jerarquía empezaba en `h2` y
+ * colgaba de la nada. El único `h1` del portal era «Hola, Marta», repetido
+ * idéntico en las siete secciones — para un lector de pantalla, siete pantallas
+ * con el mismo nombre. El saludo es cortesía; el título es estructura.
+ */
+export const PageHead = ({ title, sub, action }) => (
+  <div className="section-head">
+    <div>
+      <h1>{title}</h1>
+      {sub && <p>{sub}</p>}
+    </div>
+    {action}
+  </div>
+);
+
 export const SectionTitle = ({ icon: Icon, color, children, action }) => (
   <div className="row between wrap gap-2">
     <h3 className="section-title" style={color ? { color } : undefined}>

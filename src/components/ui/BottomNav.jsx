@@ -64,7 +64,9 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
   /* «Más» se marca cuando la sección activa es una de las que esconde. Sin esto,
      estando en «Mi calendario» la barra no señala nada y parece que estás fuera
      de la aplicación. */
-  const restIsActive = rest.some((item) => location.pathname === item.to);
+  const activo = (item) =>
+    typeof item.isActive === 'function' ? item.isActive(location.pathname) : location.pathname === item.to;
+  const restIsActive = rest.some(activo);
 
   return (
     <>
@@ -91,13 +93,30 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
         </div>
       )}
 
+      {/*
+        La marca de activo puede venir dada (`isActive`) en vez de deducirse de la
+        URL. Hace falta desde que una sección tiene dos niveles: «Mi evolución»
+        vive en `/mi/evolucion` y también en `/mi/evolucion/fotos`, y con el
+        emparejamiento por prefijo de `NavLink` bajar a las fotos apagaba el
+        destino y la barra dejaba de señalar dónde estás.
+      */}
       <nav className="bottombar" aria-label={label}>
-        {primary.map(({ to, label: text, icon: Icon }) => (
-          <NavLink key={to} to={to} className="bottombar-item" end={to.split('/').length <= 2}>
-            <Icon size={19} />
-            <span>{text}</span>
-          </NavLink>
-        ))}
+        {primary.map((item) => {
+          const { to, label: text, icon: Icon } = item;
+          const esActivo = activo(item);
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={`bottombar-item${esActivo ? ' active' : ''}`}
+              end={to.split('/').length <= 2}
+              aria-current={esActivo ? 'page' : undefined}
+            >
+              <Icon size={19} />
+              <span>{text}</span>
+            </NavLink>
+          );
+        })}
 
         {rest.length > 0 && (
           <button

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
-import { localeNumber } from '@/lib/dates';
+import { planPrice } from '@/lib/num';
 import { supabase } from '@/lib/supabaseClient';
 import { Notice, Panel } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
@@ -79,8 +79,8 @@ export const PlanPanel = () => {
     return (
       <Header>
         <Notice tone="info">
-          Todavía no tienes equipo. La suscripción es del equipo, así que aparecerá aquí en cuanto
-          exista. Si acabas de aplicar las migraciones, vuelve a entrar.
+          Todavía no tienes equipo. La suscripción va con el equipo, así que aparecerá aquí en
+          cuanto exista. Si acabas de registrarte, vuelve a entrar dentro de un momento.
         </Notice>
       </Header>
     );
@@ -94,8 +94,7 @@ export const PlanPanel = () => {
           en vez de enseñar una pantalla vacía que parece correcta.
         */}
         <Notice tone="warn">
-          Falta aplicar <strong>0019_billing.sql</strong>. Hasta entonces no hay planes ni límites:
-          la aplicación funciona como siempre, sin tope de clientes.
+          Tu cuenta todavía no tiene plan asignado, así que no hay tope de clientes y la aplicación funciona con todo abierto. Escríbenos desde Ajustes → Ayuda para ponerla al día.
         </Notice>
       </Header>
     );
@@ -287,18 +286,12 @@ const Header = ({ children }) => (
   </div>
 );
 
-/**
- * «25 € al mes». Los céntimos solo se escriben si los hay: «25,00 €» en una lista
- * de precios redondos es ruido, y aquí lo único que se compara es la cifra.
- */
-const precio = (tier) => {
-  if (!tier.price_cents) return 'Incluido';
+/*
+  El precio lo formatea `planPrice` (lib/num.js). Se sacó de aquí cuando la
+  portada pública pasó a enseñar los mismos importes: dos formatos distintos del
+  mismo precio es la clase de incoherencia que solo acaba viendo el cliente.
 
-  const importe = localeNumber(tier.price_cents / 100, {
-    style: 'currency',
-    currency: (tier.currency || 'eur').toUpperCase(),
-    minimumFractionDigits: tier.price_cents % 100 === 0 ? 0 : 2,
-  });
-
-  return `${importe} al ${tier.interval === 'year' ? 'año' : 'mes'}`;
-};
+  Aquí «sin precio» se dice «Incluido» —estás dentro, mirando tu plan— y en la
+  portada «Gratis», que es lo que significa desde fuera.
+*/
+const precio = (tier) => (tier.price_cents ? planPrice(tier) : 'Incluido');

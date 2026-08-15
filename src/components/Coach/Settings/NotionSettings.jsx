@@ -243,7 +243,7 @@ export const NotionSettings = ({ onChanged }) => {
       <EmptyState
         icon={Plug}
         title="Las integraciones no están activadas"
-        message="Falta aplicar la migración 0010_integrations.sql y desplegar la función notion-payments. Las instrucciones están al final del propio archivo SQL."
+        message="La conexión con Notion todavía no está activa en tu cuenta. Escríbenos desde Ajustes → Ayuda y la activamos."
       />
     );
   }

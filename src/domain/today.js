@@ -54,9 +54,9 @@ import { isSetLogged, sessionTonnage } from './sessions';
  */
 export const ACTIVITY_KINDS = {
   session: { id: 'session', label: 'Entreno', color: 'var(--data-violet)', section: 'rutina' },
-  weight: { id: 'weight', label: 'Pesaje', color: 'var(--data-blue)', section: 'checkins' },
-  photo: { id: 'photo', label: 'Fotos', color: 'var(--data-pink)', section: 'fotos' },
-  checkin: { id: 'checkin', label: 'Check-in', color: 'var(--data-teal)', section: 'checkins' },
+  weight: { id: 'weight', label: 'Pesaje', color: 'var(--data-blue)', section: 'revision' },
+  photo: { id: 'photo', label: 'Fotos', color: 'var(--data-pink)', section: 'revision/fotos' },
+  checkin: { id: 'checkin', label: 'Check-in', color: 'var(--data-teal)', section: 'revision' },
 };
 
 /** Ventana por defecto del hilo. Dos semanas es lo que cabe leer de una sentada. */
@@ -309,7 +309,7 @@ export const buildInbox = (rows = []) => {
           ? 'Esperando tu revisión'
           : 'Ha hecho su parte de la semana (deducido de pesajes y fotos)',
         reviewId: row.review.id,
-        section: 'checkins',
+        section: 'revision',
       });
     }
 

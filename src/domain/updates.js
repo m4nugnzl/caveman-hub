@@ -154,7 +154,7 @@ export const pendingTasks = ({ history = [], protocol = null, today }) => {
       id: 'weights',
       label: faltan === 1 ? 'Te falta 1 pesaje esta semana' : `Te faltan ${faltan} pesajes esta semana`,
       hint: `Llevas ${semana.count} de ${semana.target}.`,
-      href: '/mi/checkins',
+      href: '/mi/evolucion',
     });
   }
 
@@ -171,7 +171,7 @@ export const pendingTasks = ({ history = [], protocol = null, today }) => {
         id: `block-${bloque.id}`,
         label: `Te faltan tus ${bloque.label.toLowerCase()}`,
         hint: 'Tu entrenador los pide en cada check-in.',
-        href: '/mi/checkins',
+        href: '/mi/evolucion',
       });
     }
   }

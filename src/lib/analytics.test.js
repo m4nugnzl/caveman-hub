@@ -4,6 +4,7 @@ vi.mock('./supabaseClient', () => ({ supabase: { from: () => ({ insert: async ()
 
 const { bucket, identify, track } = await import('./analytics');
 const { pantallaDe } = await import('../App.jsx');
+const { COACH_CLIENT } = await import('../routes.jsx');
 
 /**
  * Que la instrumentación no pueda describir a nadie.
@@ -32,11 +33,25 @@ describe('pantallaDe', () => {
       descarta siempre, no se copia ni se sanea.
     */
     const identificadores = ['8f3a1c22-0000-4444-8888-abcdefabcdef', 'ana@correo.com', 'Ana%20Perez'];
+
+    /*
+      Las secciones salen de la tabla de rutas, no de una lista escrita a mano.
+      La lista a mano ya se quedó atrás una vez: al fundir «Fotos» y «Check-ins»
+      en «Revisión», seguía comprobando `fotos` —que ya solo redirige— y dejó de
+      comprobar las dos rutas nuevas. Una prueba de privacidad que se queda vieja
+      en silencio es peor que no tenerla.
+    */
+    const secciones = COACH_CLIENT.flatMap((s) => [s.path, ...(s.also || [])]);
+    expect(secciones.length).toBeGreaterThan(4);
+
     for (const quien of identificadores) {
-      for (const seccion of ['rutina', 'nutricion', 'fotos', 'ficha', 'resumen']) {
+      for (const seccion of secciones) {
         const salida = pantallaDe(`/c/${quien}/${seccion}`);
         expect(salida).not.toContain(quien);
-        expect(salida).toBe(`cliente_${seccion}`);
+        /* Los niveles llevan barra en la ruta (`revision/fotos`) y guion bajo en
+           la etiqueta: el nombre del evento tiene que ser un identificador
+           corto, que es lo que impone el CHECK de la 0045. */
+        expect(salida).toBe(`cliente_${seccion.replace(/\//g, '_')}`);
       }
     }
   });

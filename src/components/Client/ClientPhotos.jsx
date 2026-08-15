@@ -1,24 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Camera } from 'lucide-react';
 
 import { ANGLES, angleLabel, groupByWeek, photoWeight, suggestPair, weightDelta } from '@/domain/photos';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
-import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { Thumb } from '@/components/photos/Thumb';
 
 /**
- * Fotos de progreso del cliente: aquí es donde SUBE sus fotos.
+ * Las fotos del cliente: SU GALERÍA, no un formulario.
  *
- * Esta pantalla no existía. `uploadProgressPhoto` estaba escrito en el contexto
- * pero solo conectado al panel del entrenador, así que el cliente no tenía
- * forma de aportar nada; y el input de archivo que sí existía (para vídeo) no
- * tenía `onChange`, de modo que nunca subía el archivo.
+ * ══ Por qué aquí ya no se sube ══════════════════════════════════════════════
  *
- * El cliente ve además su propia comparación antes/después, pero no puede
- * borrar fotos: eso queda en manos del entrenador.
+ * Se podía subir una foto desde CUATRO sitios: aquí, en el check-in semanal, en
+ * el panel del entrenador y en la biblioteca del estudio. El mismo diálogo, cuatro
+ * puertas, y ninguna razón para elegir una u otra — que es la forma más segura de
+ * que alguien se pregunte cuál es la buena.
+ *
+ * La que se queda es la del check-in, y no por descarte: el propio check-in ya
+ * argumentaba que las fotos van dentro porque «tenerlas en otra pestaña hacía que
+ * fueran dos tareas que se recuerdan por separado, y la segunda se olvida». Si eso
+ * es cierto —y lo es—, esta pantalla no podía ser una segunda puerta.
+ *
+ * Lo que queda aquí es lo que el cliente de verdad no tenía: **verse**. Su
+ * evolución lado a lado, sus semanas, y qué ángulos le faltan. Subir está a un
+ * toque, en el nivel de al lado de esta misma sección.
+ *
+ * Borrar sigue sin poder hacerlo: eso es del entrenador.
  */
-export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload }) => {
-  const [uploadOpen, setUploadOpen] = useState(false);
+export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCheckIn }) => {
 
   /*
     El peso de cada foto sale del check-in de su semana, no de un campo que el
@@ -34,32 +42,22 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload
   const pair = useMemo(() => suggestPair(photos), [photos]);
   const delta = weightDelta(pair.before, pair.after, history);
 
-  const uploadButton = (
-    <button type="button" className="btn btn-primary" onClick={() => setUploadOpen(true)}>
-      <Camera size={16} /> Subir foto
+  /* Lleva al sitio donde SÍ se sube, que es el check-in de al lado. Un botón que
+     abriera aquí otro diálogo sería volver a tener dos puertas. */
+  const irASubir = (
+    <button type="button" className="btn btn-primary" onClick={onGoToCheckIn}>
+      <Camera size={16} /> Hacer mi check-in
     </button>
-  );
-
-  const dialog = uploadOpen && (
-    <PhotoUploadDialog
-      client={client}
-      existingPhotos={photos}
-      onUpload={onUpload}
-      onClose={() => setUploadOpen(false)}
-    />
   );
 
   if (photos.length === 0) {
     return (
-      <>
-        <EmptyState
-          icon={Camera}
-          title="Sube tu primera foto de progreso"
-          message="Tu entrenador las usa para valorar tu evolución real, que muchas veces no se ve reflejada en la báscula. Hazlas siempre con la misma luz, a la misma distancia y con la misma pose."
-          action={uploadButton}
-        />
-        {dialog}
-      </>
+      <EmptyState
+        icon={Camera}
+        title="Todavía no tienes fotos de progreso"
+        message="Se suben con tu check-in de la semana, junto al peso: así van siempre juntos y con la misma fecha. Tu entrenador las usa para ver la evolución que la báscula no cuenta."
+        action={irASubir}
+      />
     );
   }
 
@@ -75,7 +73,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload
             {groups.length === 1 ? 'semana' : 'semanas'}
           </p>
         </div>
-        {uploadButton}
+        {irASubir}
       </Panel>
 
       <Notice tone="info">
@@ -165,8 +163,6 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onUpload
           . Con los tres ángulos tu entrenador ve mucho mejor los cambios.
         </Notice>
       )}
-
-      {dialog}
     </div>
   );
 };

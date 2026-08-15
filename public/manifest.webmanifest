@@ -1,0 +1,49 @@
+{
+  "name": "Caveman Hub",
+  "short_name": "Caveman",
+  "description": "Entrena, apunta lo que levantas y sigue tu progreso con tu entrenador.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "es",
+  "dir": "ltr",
+  "background_color": "#eceef1",
+  "theme_color": "#eceef1",
+  "categories": ["health", "fitness", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mi rutina",
+      "short_name": "Rutina",
+      "description": "La sesión que te toca hoy",
+      "url": "/mi/rutina"
+    },
+    {
+      "name": "Mi check-in",
+      "short_name": "Check-in",
+      "description": "Tu peso de la semana y tus fotos",
+      "url": "/mi/evolucion"
+    }
+  ]
+}

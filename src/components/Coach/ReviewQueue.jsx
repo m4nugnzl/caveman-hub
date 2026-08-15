@@ -43,6 +43,21 @@ import { useReviewSession } from './ReviewSession';
  * check-in —la columna de la 0009 que no usaba nadie—.
  */
 
+/*
+  ══ Por qué estos controles ya no son «chips» ═══════════════════════════════
+
+  Lo eran los cuatro: «Seguimos igual», «Contestar», «Revisar» y «Ajustar». Y en
+  el resto del producto un chip significa otra cosa —la semana seleccionada, el
+  filtro activo, la sección en la que estás—: es la forma de ESTAR en un sitio,
+  no la de hacer algo.
+
+  Aquí, con esa misma forma, dos de los cuatro navegan y los otros dos escriben
+  en la base de datos: «Seguimos igual» cierra la semana de una persona. Cuatro
+  controles idénticos en una fila donde la mitad son irreversibles obliga a
+  leerlos todos antes de pulsar.
+
+  Ahora son botones, que es lo que ya significan en las otras sesenta pantallas.
+*/
 const ESTADOS = {
   ready: { label: 'Te espera', tone: 'badge-warn' },
   missing: { label: 'Sin subir', tone: '' },
@@ -139,7 +154,7 @@ export const ReviewQueue = ({ rows, onReview }) => {
                   <>
                     <button
                       type="button"
-                      className="chip"
+                      className="btn btn-secondary btn-sm"
                       disabled={enCurso === id}
                       title="Cierra su semana y le llega que está vista"
                       onClick={async () => {
@@ -156,7 +171,7 @@ export const ReviewQueue = ({ rows, onReview }) => {
                         frases no merecen perder el sitio de la pasada. */}
                     <button
                       type="button"
-                      className="chip"
+                      className="btn btn-secondary btn-sm"
                       aria-expanded={escribiendo === id}
                       onClick={() => setEscribiendo(escribiendo === id ? null : id)}
                     >
@@ -181,10 +196,10 @@ export const ReviewQueue = ({ rows, onReview }) => {
                 {row.review_state === 'ready' && (
                   <button
                     type="button"
-                    className="chip"
+                    className="btn btn-secondary btn-sm"
                     onClick={() => {
                       start(abrir(row));
-                      navigate(clientPath(id, 'fotos'));
+                      navigate(clientPath(id, 'revision/fotos'));
                     }}
                   >
                     <Images size={12} /> Revisar
@@ -196,7 +211,7 @@ export const ReviewQueue = ({ rows, onReview }) => {
                     cerrarla sin volver aquí. */}
                 <button
                   type="button"
-                  className="chip"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => {
                     start(abrir(row));
                     navigate(clientPath(id, 'rutina'));

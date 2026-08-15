@@ -107,7 +107,10 @@ export const ClientDataPanel = ({ client }) => {
          personales, que es justo donde no se puede. */
       setFeedback({
         tone: 'warn',
-        text: `Se borró la ficha, pero esto no: ${result.problems.join(' · ')}. Hay que limpiarlo a mano en Supabase.`,
+        /* El entrenador NO tiene acceso a la base de datos, así que decirle que lo
+           limpie a mano es dejarle con una obligación legal a medias y una
+           instrucción que no puede seguir. Se le da la salida que sí tiene. */
+        text: `Se borró la ficha, pero esto no: ${result.problems.join(' · ')}. Vuelve a intentarlo; si sigue igual, escríbenos desde Ajustes → Ayuda con este mensaje y lo terminamos nosotros.`,
       });
     }
   };
@@ -160,8 +163,7 @@ export const ClientDataPanel = ({ client }) => {
         </button>
       ) : audit.missing ? (
         <Notice tone="info">
-          El registro de cambios necesita la migración <code>0017_audit_log.sql</code>. Sin ella no
-          queda constancia de quién toca el plan de un cliente.
+          El registro de cambios todavía no está activo en tu cuenta, así que no queda constancia de quién toca el plan de un cliente. Escríbenos desde Ajustes → Ayuda.
         </Notice>
       ) : audit.rows.length === 0 ? (
         <p className="t-xs t-tertiary">Todavía no consta ningún cambio.</p>

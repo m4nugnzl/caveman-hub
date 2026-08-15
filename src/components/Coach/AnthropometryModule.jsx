@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { useApp } from '@/context/AppContext';
-import { Notice } from '@/components/ui/primitives';
+import { Notice, PageHead } from '@/components/ui/primitives';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 import { ReviewHistory } from '@/components/ReviewHistory';
 
@@ -34,6 +34,11 @@ export const AnthropometryModule = () => {
 
   return (
     <div className="stack">
+      <PageHead
+        title="Check-in"
+        sub={`El peso de la semana de ${activeClient.name} y sus medidas. Lo normal es que lo entregue él desde su portal.`}
+      />
+
       {/* Lo que se decidió en las revisiones anteriores, antes que el formulario:
           para decidir esta semana hace falta saber qué se hizo la pasada. */}
       <ReviewHistory client={activeClient} audience="coach" />

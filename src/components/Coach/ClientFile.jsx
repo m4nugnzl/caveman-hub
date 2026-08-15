@@ -3,6 +3,7 @@ import {
   Archive,
   Check,
   ContactRound,
+  CreditCard,
   ExternalLink,
   FileText,
   ListChecks,
@@ -30,7 +31,7 @@ import {
   stepFile,
   stepLink,
 } from '@/domain/intake';
-import { Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Field, Notice, PageHead, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { ClientDataPanel } from './ClientDataPanel';
 import { inviteMessage, useInvite } from './useInvite';
 
@@ -197,6 +198,73 @@ const Datos = ({ client, onUpdate }) => {
           pliegues pasan a usar la que toca.
         </Notice>
       )}
+    </Panel>
+  );
+};
+
+/**
+ * El cobro.
+ *
+ * ══ Por qué esto tiene que estar aquí ═══════════════════════════════════════
+ *
+ * «Pago al día» / «Pago pendiente» se enseña en la cabecera de las SIETE
+ * secciones de un cliente, así que acompaña al entrenador todo el rato. Y hasta
+ * ahora la única forma de cambiarlo era la bandeja de «Hoy», y solo cuando el
+ * cobro ya había vencido y había generado una tarea.
+ *
+ * O sea: si alguien te pagaba antes de tiempo, o querías volver a marcarle como
+ * pendiente porque le devolvieron el recibo, **no había ningún sitio donde
+ * hacerlo**. Un dato que se enseña en todas partes y no se puede tocar en
+ * ninguna es peor que no enseñarlo: invita a buscar el botón que no existe.
+ *
+ * La bandeja de «Hoy» conserva su atajo, porque ahí es donde se despacha lo
+ * vencido sin entrar en nadie. Esto es el sitio donde se mira y se corrige.
+ *
+ * ── Y por qué la fecha se puede escribir a mano ─────────────────────────────
+ * Porque `next_payment_date` la escriben también las integraciones desde el
+ * servidor al conciliar con Notion o Stripe. Quien no tenga ninguna conectada
+ * —que es casi todo el mundo al empezar— necesita poder ponerla; quien sí, verá
+ * que la próxima sincronización manda sobre lo que escriba aquí, y se dice.
+ */
+const Cobro = ({ client, onUpdate }) => {
+  const alDia = client.paymentStatus === 'paid';
+
+  return (
+    <Panel className="col gap-4">
+      <SectionTitle icon={CreditCard}>Cobro</SectionTitle>
+
+      <div className="row between wrap gap-4">
+        <Field label="Estado">
+          <SegmentedControl
+            label="Estado del cobro"
+            value={alDia ? 'paid' : 'pending'}
+            onChange={(value) => onUpdate({ paymentStatus: value })}
+            options={[
+              { id: 'paid', label: 'Al día' },
+              { id: 'pending', label: 'Pendiente' },
+            ]}
+          />
+        </Field>
+
+        <Field label="Próximo cobro" className="grow">
+          {(props) => (
+            <input
+              {...props}
+              type="date"
+              className="input"
+              value={client.nextPaymentDate || ''}
+              onChange={(e) => onUpdate({ nextPaymentDate: e.target.value || null })}
+            />
+          )}
+        </Field>
+      </div>
+
+      <p className="t-xs t-tertiary">
+        {client.plan
+          ? `Su plan es «${client.plan}». Se cambia arriba, en Datos.`
+          : 'No tiene plan escrito. Ponlo arriba, en Datos, para saber qué le cobras.'}{' '}
+        Si conectas Notion o Stripe, la sincronización actualiza esto sola.
+      </p>
     </Panel>
   );
 };
@@ -623,6 +691,11 @@ export const ClientFile = () => {
 
   return (
     <div className="stack">
+      <PageHead
+        title="Ficha"
+        sub={`Los datos de ${activeClient.name}, su acceso al portal, su cobro y su baja.`}
+      />
+
       {/* El alta va la primera: es lo que está sin terminar cuando alguien acaba
           de entrar, y lo que se viene a mirar en las primeras semanas. */}
       <Alta
@@ -634,6 +707,10 @@ export const ClientFile = () => {
       />
 
       <Datos client={activeClient} onUpdate={(fields) => updateClient(activeClient.id, fields)} />
+
+      {/* El cobro va justo detrás de los datos: las dos cosas son «quién es y qué
+          me paga», y hasta ahora la segunda no tenía dónde vivir. */}
+      <Cobro client={activeClient} onUpdate={(fields) => updateClient(activeClient.id, fields)} />
 
       <Panel className="col gap-3">
         <SectionTitle icon={Send}>Acceso y baja</SectionTitle>

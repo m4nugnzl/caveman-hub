@@ -78,8 +78,8 @@ const COACH_STEPS = [
     title: 'Y a partir de ahí, «Hoy»',
     body: (
       <>
-        <strong>Hoy</strong> te cuenta lo que ha pasado desde ayer y qué espera respuesta tuya; la{' '}
-        <strong>Cartera</strong>, en qué estado está cada cliente. Para ir a cualquier sitio sin
+        <strong>Hoy</strong> te cuenta lo que ha pasado desde ayer y qué espera respuesta tuya;{' '}
+        <strong>Clientes</strong>, en qué estado está cada uno. Para ir a cualquier sitio sin
         buscarlo, <kbd className="kbd">{paletteShortcut()}</kbd>.
       </>
     ),

@@ -259,8 +259,15 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   color: var(--text-tertiary);
 }
 
+/* ── La cabecera de una pantalla ───────────────────────────────────────────
+   Cómo se llama esto y qué se hace aquí. El `h1` es el título de la pantalla:
+   antes ninguna del panel tenía uno y la jerarquía empezaba en `h2`, colgando de
+   la nada. Ver `PageHead` en `ui/primitives.jsx`. */
 .section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
-.section-head h2 { font-size: var(--fs-lg); }
+.section-head h1, .section-head h2 {
+  font-family: var(--font-display); font-size: var(--fs-lg);
+  font-weight: 720; letter-spacing: -0.02em; line-height: var(--lh-tight);
+}
 .section-head p { font-size: var(--fs-sm); color: var(--text-secondary); }
 
 .section-title {
@@ -803,6 +810,10 @@ button.task-head { cursor: pointer; }
   background: var(--fill); color: var(--text); cursor: pointer;
   transition: background-color var(--fast), transform var(--fast), opacity var(--fast);
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  /* Un botón nunca va subrayado, sea `<button>` o `<a>`. Hasta la portada todos
+     eran `<button>` y el navegador no subrayaba nada; el primer `<Link className="btn">`
+     salió con la raya del enlace debajo del texto. */
+  text-decoration: none;
 }
 .btn:active:not(:disabled) { transform: scale(0.975); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
@@ -1149,7 +1160,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    `fontSize: '1.3rem', fontWeight: 900`. Era el único 900 de la aplicación, en
    la primera línea que lee el cliente, y no salía de ningún token.
 
-   Ahora la superficie es sobria, la veta la encabeza, y la jerarquía es
+   Ahora la superficie es sobria, la jerarquía es
    explícita: a la izquierda quién eres y en qué semana vas; a la derecha el
    peso, que es el dato que el cliente entra a mirar. */
 .client-hero {
@@ -1179,12 +1190,134 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 
 /* ==========================================================================
+   Portada pública
+   --------------------------------------------------------------------------
+   Lo que ve quien llega sin sesión a la raíz. La aplicación no tenía cara
+   pública: la raíz era el formulario de acceso, así que para enterarse de qué
+   era esto y cuánto costaba había que registrarse antes.
+
+   ── Por qué se parece tanto a la aplicación ────────────────────────────────
+   Porque es lo que hay que enseñar. El producto tiene un lenguaje visual propio
+   y defendible —hierro y tiza, la cifra en Archivo, la regla como firma— y una
+   portada con estética de campaña, con degradados y formas que no salen por
+   ningún lado dentro, prometería otra cosa distinta de la que se entrega.
+
+   Aquí la única licencia es el aire: medidas de línea más largas y más espacio
+   entre bloques, porque esto se LEE y la aplicación se OPERA.
+   ========================================================================== */
+
+.landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s7);
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--s4) var(--s4) var(--s6);
+}
+
+.landing-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.landing-brand {
+  font-family: var(--font-display); font-size: var(--fs-md);
+  font-weight: 700; letter-spacing: -0.02em;
+}
+
+.landing-hero {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s4);
+  text-align: center; padding-top: var(--s5);
+}
+.landing-hero > h1 {
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 6vw, 3.1rem);
+  font-weight: 750; line-height: 1.06; letter-spacing: -0.028em;
+  max-width: 16ch; text-wrap: balance;
+}
+.landing-claim {
+  font-size: var(--fs-md); color: var(--text-secondary);
+  max-width: 54ch; line-height: var(--lh-base);
+}
+
+/* LA REGLA. Cierra la promesa, igual que cierra la cabecera de la aplicación:
+   solo aparece donde algo se mide, y aquí lo que se mide es lo de abajo. */
+.landing-rule {
+  width: 100%; max-width: 620px; height: 9px;
+  background-image: var(--rule); opacity: 0.7; margin-top: var(--s3);
+}
+
+.landing-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: var(--s4);
+}
+.landing-key {
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); padding: var(--s5);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.landing-key-icon {
+  width: 38px; height: 38px; border-radius: var(--r-md);
+  display: grid; place-items: center; margin-bottom: var(--s1);
+  background: var(--fill); color: var(--text);
+}
+.landing-key > h2 {
+  font-family: var(--font-display); font-size: var(--fs-md);
+  font-weight: 700; letter-spacing: -0.012em;
+}
+.landing-key > p { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+.landing-plans { display: flex; flex-direction: column; gap: var(--s3); align-items: center; text-align: center; }
+.landing-plans > h2 {
+  font-family: var(--font-display); font-size: var(--fs-lg);
+  font-weight: 720; letter-spacing: -0.02em;
+}
+.landing-plans-lede, .landing-plans-foot { font-size: var(--fs-sm); color: var(--text-secondary); max-width: 52ch; }
+.landing-plans-foot { color: var(--text-tertiary); font-size: var(--fs-xs); }
+
+.landing-plan-grid {
+  display: grid; width: 100%; gap: var(--s3); margin-top: var(--s2);
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+.landing-plan {
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); padding: var(--s5) var(--s4);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 6px; align-items: center;
+}
+/* El plan de partida se marca por el canto y no por el fondo: teñirlo lo
+   convertiría en una oferta, y aquí lo que se dice es por dónde se empieza. */
+.landing-plan.is-free { border-color: var(--hairline-strong); }
+.landing-plan-name {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+/* La CIFRA: es el contenido de esta tarjeta, así que lleva la voz de las cifras. */
+.landing-plan-price {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 750;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 5px;
+}
+.landing-plan-price > .per {
+  font-family: var(--font); font-size: var(--fs-xs);
+  font-weight: 500; color: var(--text-tertiary); letter-spacing: 0;
+}
+.landing-plan-limit { font-size: var(--fs-sm); font-weight: 600; }
+.landing-plan > p { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.landing-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--s3); margin-top: auto;
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+
+/* ==========================================================================
    Acceso
    --------------------------------------------------------------------------
-   Una sola tarjeta centrada, encabezada por la veta y la marca. No hay nada que
-   vender aquí —quien llega ya es cliente o entrenador de alguien—, así que la
-   pantalla hace una sola cosa: dejar entrar rápido y decir con claridad qué ha
-   fallado cuando falla.
+   Una sola tarjeta centrada, encabezada por la marca. Aquí ya no hay nada que
+   vender —eso lo hace la portada— así que la pantalla hace una sola cosa: dejar
+   entrar rápido y decir con claridad qué ha fallado cuando falla.
    ========================================================================== */
 
 .login { min-height: 100vh; display: grid; place-items: center; padding: var(--s4); }

@@ -21,7 +21,56 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>Caveman Hub</title>
+    <meta name="apple-mobile-web-app-title" content="Caveman" />
+    <title>Caveman Hub — el entrenamiento de tus clientes, en un sitio</title>
+
+    <!--
+      ══ Lo que hacía falta para poder instalarla y para poder compartirla ═══
+
+      Aquí se declaraba `mobile-web-app-capable` desde el principio, o sea «esto
+      se puede añadir a la pantalla de inicio», y no había ni manifest ni icono
+      de inicio. La consecuencia era justo la del caso de uso que el propio
+      código describe —el cliente que abre esto en el gimnasio y se la guarda en
+      la pantalla de inicio—: al añadirla, el icono era una CAPTURA de la página
+      y el nombre lo que decidiera el navegador.
+
+      `apple-touch-icon` tiene que ser PNG: Safari en iOS no admite SVG ahí, y es
+      el único sitio donde el vectorial no vale. Los tres los genera
+      `scripts/generar-iconos.mjs` a partir de la misma geometría de la marca,
+      para que no se queden viejos.
+    -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon-180.png" />
+
+    <!--
+      ══ Y esto es lo que se ve al pegar el enlace ══════════════════════════
+
+      WhatsApp es EL canal de este producto: por ahí va la invitación del cliente
+      y por ahí se comparte la revisión en vídeo. Sin descripción ni imagen, esos
+      enlaces se pegaban desnudos —una línea de texto azul—, que es exactamente
+      como se ve un enlace en el que nadie pincha.
+
+      `og:url` se deja fuera a propósito: es absoluta por definición y aquí el
+      dominio no se conoce en tiempo de build. Sin ella, los rastreadores usan la
+      URL que están leyendo, que es la correcta.
+    -->
+    <meta
+      name="description"
+      content="Caveman Hub es donde un entrenador programa, revisa y sigue a sus clientes: rutinas, nutrición, medidas y fotos de progreso. Tus clientes apuntan lo que levantan desde el móvil."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Caveman Hub" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:title" content="Caveman Hub — el entrenamiento de tus clientes, en un sitio" />
+    <meta
+      property="og:description"
+      content="Programa rutinas y dietas, sigue medidas y fotos de progreso, y contesta el check-in de cada semana. Tus clientes lo llevan en el móvil."
+    />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Caveman Hub" />
+    <meta name="twitter:card" content="summary_large_image" />
     <!--
       La tipografía de titulares y cifras (Archivo) va AUTOALOJADA, no en Google
       Fonts: sin petición a terceros, sin dependencia de que nadie mueva un
