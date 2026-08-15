@@ -36,7 +36,7 @@ import { GettingStarted } from './GettingStarted';
  * revés: una sola fuente de verdad, la de arriba.
  */
 export const CoachLayout = () => {
-  const { clients, selectedClientId, setSelectedClientId, activeClient } = useApp();
+  const { clients, loading, selectedClientId, setSelectedClientId, activeClient } = useApp();
   const { clientId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,14 +55,26 @@ export const CoachLayout = () => {
   }, [clientId, selectedClientId, setSelectedClientId]);
 
   /*
-    Un id que no existe —cliente borrado, enlace viejo, URL mal copiada— no puede
-    dejar la pantalla en blanco leyendo `activeClient.id` sobre undefined, que es
-    justo lo que tumbaba la aplicación antes.
+    ══ Un id que no existe no puede tumbar la pantalla ════════════════════════
+
+    Cliente borrado, enlace viejo, URL mal copiada: leer `activeClient.id` sobre
+    undefined tumbaba la aplicación entera. De ahí esta guarda.
+
+    ── Pero NO se decide mientras se está cargando ─────────────────────────────
+    Había un segundo caso —`if (onClient && !hasClients)`— que disparaba también
+    cuando la cartera simplemente no había llegado todavía. Y esa es la situación
+    normal de una carga limpia: quien abre `/c/<id>/rutina` desde un marcador, o
+    desde el enlace que le pasaron por WhatsApp, entra con `clients` vacío
+    durante unas décimas y **acababa expulsado a la lista**.
+
+    Es justo lo que las rutas de verdad vinieron a permitir —compartir y guardar
+    la pantalla concreta de un cliente— roto por la guarda que protegía otra
+    cosa. Mientras `loading`, no se decide nada: se pinta el marco y se espera.
   */
-  if (onClient && hasClients && !clients.some((c) => c.id === clientId)) {
+  if (loading) return null;
+  if (onClient && !clients.some((c) => c.id === clientId)) {
     return <Navigate to="/clientes" replace />;
   }
-  if (onClient && !hasClients) return <Navigate to="/clientes" replace />;
 
   return (
     <div className="layout">
