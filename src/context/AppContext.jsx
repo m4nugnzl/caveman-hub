@@ -4477,6 +4477,36 @@ export const AppProvider = ({ children }) => {
     [stampNow]
   );
 
+  /**
+   * Corregir el texto de una revisión ya cerrada. NO es volver a revisarla.
+   *
+   * ── Qué NO hace, y ese es el punto ──────────────────────────────────────────
+   * No sella `reviewed_at` ni `reviewed_by`, y **no llama a `stampNow`**. Antes
+   * el histórico reutilizaba `reviewCheckIn` para esto, así que arreglar una
+   * errata movía la fecha de la revisión a hoy, ponía como autor a quien
+   * corregía —perdiendo quién la hizo de verdad— y le volvía a saltar la novedad
+   * al cliente por un texto que ya había leído.
+   *
+   * La función de la base (migración 0051) solo escribe `coach_notes`, y solo
+   * sobre filas que ya estaban revisadas.
+   */
+  const updateCheckInNotes = useCallback(async (checkInId, notes) => {
+    const { error } = await supabase.rpc('update_check_in_notes', {
+      check_in: checkInId,
+      notes,
+    });
+    if (error) return { ok: false, error: error.message };
+
+    /* Solo el texto: lo demás de esa fila no ha cambiado. */
+    setCheckIns((prev) => {
+      const entry = Object.values(prev).find((c) => c.id === checkInId);
+      if (!entry) return prev;
+      return { ...prev, [entry.clientId]: { ...entry, coachNotes: notes } };
+    });
+
+    return { ok: true };
+  }, []);
+
   // ── Equipo ───────────────────────────────────────────────────────────────
   //
   // Estas cuatro operaciones son puntuales y no van por la cola de guardado: la
@@ -4845,6 +4875,7 @@ export const AppProvider = ({ children }) => {
 
     // Check-ins y calendario
     reviewCheckIn,
+    updateCheckInNotes,
     submitCheckIn,
     loadCheckInHistory,
     deleteCheckIn,

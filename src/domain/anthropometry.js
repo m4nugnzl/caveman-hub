@@ -258,10 +258,28 @@ export const hasMeasurements = (history) =>
 // registros de una semana, no otro tipo de dato.
 
 /** Registros de peso que caen dentro de la semana natural de `date`. */
-export const weekEntries = (history, date) => {
+export const weekEntries = (history, date, weeks = 1) => {
   const key = weekStart(date);
   if (!key) return [];
-  return chronological(history).filter((h) => weekStart(h.date) === key && toNum(h.weight) !== null);
+
+  /*
+    ── Por qué esto puede abarcar más de una semana ──────────────────────────
+    Porque la cadencia de check-in no siempre es semanal: se puede revisar cada
+    dos o cada cuatro (`domain/calendar.js`). Con una ventana fija de una semana,
+    el cliente que se pesaba en la SEGUNDA semana de un periodo quincenal
+    entregaba su check-in sin peso —la media salía de la primera, que estaba
+    vacía— mientras la pantalla le decía «3 de 3 pesajes».
+
+    Por defecto sigue siendo una semana, que es la cadencia de casi todo el mundo
+    y lo que necesitan la analítica y el histórico.
+  */
+  const fin = new Date(Date.parse(`${key}T00:00:00Z`) + Math.max(1, weeks) * 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+  return chronological(history).filter(
+    (h) => h.date >= key && h.date < fin && toNum(h.weight) !== null
+  );
 };
 
 /**
@@ -272,8 +290,8 @@ export const weekEntries = (history, date) => {
  * un requisito: con dos ya se promedia, y el aviso solo informa de cuántos
  * faltan para tener una media fiable.
  */
-export const weeklyCheckIn = (history, date, target = 3) => {
-  const entries = weekEntries(history, date);
+export const weeklyCheckIn = (history, date, { target = 3, weeks = 1 } = {}) => {
+  const entries = weekEntries(history, date, weeks);
   const values = entries.map((h) => toNum(h.weight));
   const average = values.length > 0 ? round(values.reduce((a, b) => a + b, 0) / values.length, 2) : null;
 
@@ -285,11 +303,13 @@ export const weeklyCheckIn = (history, date, target = 3) => {
     weekStart: current,
     entries,
     count: values.length,
-    target,
+    /* El objetivo escala con el periodo: pedir tres pesajes en dos semanas sería
+       pedir la mitad de los que hacen falta para que la media signifique algo. */
+    target: target * Math.max(1, weeks),
     average,
     previousAverage: previousWeek?.value ?? null,
     delta: average !== null && previousWeek ? round(average - previousWeek.value, 2) : null,
-    complete: values.length >= target,
+    complete: values.length >= target * Math.max(1, weeks),
   };
 };
 

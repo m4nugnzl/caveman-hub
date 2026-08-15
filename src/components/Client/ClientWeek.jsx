@@ -7,57 +7,45 @@ import { currentCheckInPeriod } from '@/domain/calendar';
 import { deliverableWeeks } from '@/domain/reviews';
 import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
-import { ClientUpdates } from './ClientUpdates';
 import { ClientReviews } from './ClientReviews';
-import { IntakeDeliverables } from './IntakeDeliverables';
 import { ReviewHistory } from '@/components/ReviewHistory';
 
 /**
- * «Hoy» del cliente: lo que le ha llegado y lo que tiene que hacer.
+ * Tu semana: entregarla, y leer lo que te ha contestado tu entrenador.
  *
- * ══ Por qué es su pantalla de entrada y no una más ══════════════════════════
+ * ══ Por qué esto vive con el check-in y ya no en una pantalla propia ════════
  *
- * Su portal tenía seis secciones que son las tablas de la aplicación —progreso,
- * rutina, dieta, check-ins, fotos, calendario—, y ninguna contestaba la pregunta
- * con la que abre la aplicación: **«¿hay algo para mí y qué me toca?»**. Para
- * saberlo había que entrar en cuatro y comparar de memoria con la semana
- * anterior.
+ * Estaba en «Hoy», una sección para él solo. Y «Hoy» tenía un problema de fondo:
+ * **la mayoría de los días no tenía nada que decir**. Una pantalla que casi
+ * siempre está vacía es una pantalla que se deja de abrir, y cuando por fin tiene
+ * algo —la respuesta de su entrenador, que es el momento que cierra el círculo
+ * entero del producto— ya nadie entra a mirarla.
  *
- * ══ El círculo completo, que es lo que faltaba ══════════════════════════════
+ * Entregar la semana es el mismo gesto que pesarse y hacerse las fotos: se hace
+ * el mismo día, de una sentada. Así que vive donde se hace, al final de su
+ * check-in, y lo que su entrenador conteste aparece aquí mismo la próxima vez.
  *
- * Hasta ahora las piezas estaban y no se tocaban entre sí. Aquí se cierran:
- *
- *   1. Él sube su peso y sus fotos          → «Mis datos»
- *   2. **Entrega la semana**                → aquí abajo. Antes no existía: la
- *      función de la base (0009) no la llamaba nadie, así que el entrenador no
- *      podía saber si estaba esperando respuesta o simplemente no había acabado.
- *   3. El entrenador la mira y contesta     → su pasada semanal
- *   4. **Y él lee la respuesta**            → aquí, no en un WhatsApp enterrado
- *   5. Con la revisión en vídeo si la hubo  → abajo, incrustada
- *
- * ── Lo que sigue sin estar aquí, a propósito ────────────────────────────────
- * La conversación. Avisarle de que le has cambiado algo, preguntarle qué tal la
- * rodilla y mandarle un audio siguen siendo de WhatsApp, donde hay una persona.
- * Esta pantalla solo dice qué ha cambiado, qué falta y qué le has contestado.
+ * Lo urgente no se pierde por el camino: los avisos siguen saliendo en su inicio
+ * y en la campana de la cabecera, que es donde se miran en un móvil.
  */
-export const ClientHome = () => {
-  const { activeClient, anthropometry, checkIns, submitCheckIn, loadCheckInHistory } = useApp();
+export const ClientWeek = ({ client }) => {
+  const { anthropometry, checkIns, submitCheckIn, loadCheckInHistory } = useApp();
   const [historial, setHistorial] = useState([]);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
   const history = useMemo(
-    () => anthropometry?.[activeClient?.id]?.history || [],
-    [anthropometry, activeClient?.id]
+    () => anthropometry?.[client?.id]?.history || [],
+    [anthropometry, client?.id]
   );
 
   /* Su historial de check-ins, para saber cuáles ya entregó. `checkIns` solo
      guarda el más reciente, que no basta para mirar hacia atrás. */
   const cargarHistorial = useCallback(async () => {
-    if (!activeClient?.id) return;
-    const res = await loadCheckInHistory(activeClient.id);
+    if (!client?.id) return;
+    const res = await loadCheckInHistory(client.id);
     if (res.ok) setHistorial(res.checkIns);
-  }, [activeClient?.id, loadCheckInHistory]);
+  }, [client?.id, loadCheckInHistory]);
 
   useEffect(() => {
     cargarHistorial();
@@ -65,7 +53,6 @@ export const ClientHome = () => {
 
   const hoy = todayISO();
   const semana = weekStart(hoy);
-  const resumen = useMemo(() => weeklyCheckIn(history, hoy), [history, hoy]);
 
   /*
     El check-in del PERIODO vigente, no el de la semana natural.
@@ -76,11 +63,26 @@ export const ClientHome = () => {
     hecho, y su respuesta desaparecía de la pantalla.
   */
   const periodo = useMemo(
-    () => currentCheckInPeriod(activeClient?.preferences, activeClient?.startDate, hoy),
-    [activeClient?.preferences, activeClient?.startDate, hoy]
+    () => currentCheckInPeriod(client?.preferences, client?.startDate, hoy),
+    [client?.preferences, client?.startDate, hoy]
   );
   const desde = periodo?.start || semana;
-  const entrega = checkIns?.[activeClient?.id];
+  const cadaSemanas = periodo?.everyWeeks || 1;
+
+  /*
+    El resumen se mide sobre EL PERIODO, no sobre la semana natural de hoy.
+
+    Con cadencia quincenal eran dos ventanas distintas: el contador decía «3 de 3
+    pesajes» mirando esta semana, y el peso que se guardaba al entregar salía de
+    la PRIMERA semana del periodo. Si el cliente se había pesado solo en la
+    segunda, entregaba con el contador lleno y el check-in se guardaba sin peso.
+  */
+  const resumen = useMemo(
+    () => weeklyCheckIn(history, desde, { weeks: cadaSemanas }),
+    [history, desde, cadaSemanas]
+  );
+
+  const entrega = checkIns?.[client?.id];
   const deEstaSemana = entrega?.weekStart >= desde ? entrega : null;
 
   const atrasadas = useMemo(
@@ -94,19 +96,20 @@ export const ClientHome = () => {
     [history, historial, desde]
   );
 
-  const entregar = async (semana = desde) => {
+  const entregar = async (inicio = desde) => {
     setEnviando(true);
-    const res = await submitCheckIn(activeClient.id, {
-      weekStart: semana,
-      /*
-        El promedio DE ESA SEMANA, no el de esta.
+    /*
+      El promedio DE ESE PERIODO, no el de este.
 
-        Se mandaba `resumen.average` siempre, que es el de la semana en curso: al
-        entregar una atrasada, su check-in habría llegado con el peso de otra
-        semana. Y el promedio y no el último pesaje porque filtra la variación
-        diaria de agua, que es la misma razón por la que el formulario lo propone.
-      */
-      weight: weeklyCheckIn(history, semana).average,
+      Al entregar una atrasada, el peso tiene que ser el de aquella semana. Y una
+      atrasada siempre es una semana natural suelta, mientras que la del periodo
+      vigente puede abarcar varias — de ahí que la ventana solo sea la del periodo
+      cuando se entrega el periodo en curso.
+    */
+    const ventana = inicio === desde ? cadaSemanas : 1;
+    const res = await submitCheckIn(client.id, {
+      weekStart: inicio,
+      weight: weeklyCheckIn(history, inicio, { weeks: ventana }).average,
     });
     setEnviando(false);
     setError(res.ok ? '' : res.error);
@@ -115,21 +118,10 @@ export const ClientHome = () => {
     if (res.ok) cargarHistorial();
   };
 
-  if (!activeClient) return null;
+  if (!client) return null;
 
   return (
     <div className="stack">
-      <div className="section-head">
-        <div>
-          <h2>Hoy</h2>
-          <p>Lo que ha cambiado, lo que te falta y lo que te ha dicho tu entrenador.</p>
-        </div>
-      </div>
-
-      {/* Novedades y pendientes. Se pinta solo cuando tiene algo que decir. */}
-      <ClientUpdates client={activeClient} />
-
-      {/* ── Tu semana ─────────────────────────────────────────────────────── */}
       <Panel className="col gap-3">
         <SectionTitle icon={Sunrise}>Tu semana</SectionTitle>
 
@@ -138,21 +130,22 @@ export const ClientHome = () => {
         {deEstaSemana?.reviewedAt ? (
           <>
             <p className="t-sm">
-              <Check size={14} style={{ display: 'inline', verticalAlign: -2, marginRight: 4, color: 'var(--positive)' }} />
+              <Check
+                size={14}
+                style={{ display: 'inline', verticalAlign: -2, marginRight: 4, color: 'var(--positive)' }}
+              />
               Tu entrenador ha revisado tu semana.
             </p>
 
-            {/*
-              LA RESPUESTA. Es la columna `coach_notes`, que existía desde la
-              migración 0009 y no se pintaba en ninguna pantalla: se podía
-              escribir y no se podía leer. Aquí es donde tenía que estar desde el
-              principio — es lo único de todo esto que el cliente esperaba de
-              verdad.
-            */}
+            {/* LA RESPUESTA. Es lo único de todo esto que el cliente esperaba de
+                verdad, así que va en grande y lo primero. */}
             {deEstaSemana.coachNotes && (
               <div className="card-inset col gap-1">
                 <span className="t-2xs t-tertiary">
-                  <MessageSquareQuote size={11} style={{ display: 'inline', verticalAlign: -1, marginRight: 4 }} />
+                  <MessageSquareQuote
+                    size={11}
+                    style={{ display: 'inline', verticalAlign: -1, marginRight: 4 }}
+                  />
                   Lo que te dice
                 </span>
                 <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
@@ -185,7 +178,7 @@ export const ClientHome = () => {
                 type="button"
                 className="btn btn-primary btn-sm"
                 disabled={enviando}
-                onClick={entregar}
+                onClick={() => entregar()}
               >
                 <Send size={14} /> {enviando ? 'Entregando…' : 'Entregar mi semana'}
               </button>
@@ -213,15 +206,15 @@ export const ClientHome = () => {
           <div className="col gap-2">
             <span className="t-2xs t-tertiary">Se te quedaron sin entregar:</span>
             <div className="row gap-2 wrap">
-              {atrasadas.map((semana) => (
+              {atrasadas.map((inicio) => (
                 <button
-                  key={semana}
+                  key={inicio}
                   type="button"
-                  className="chip chip-dashed"
+                  className="btn btn-secondary btn-sm"
                   disabled={enviando}
-                  onClick={() => entregar(semana)}
+                  onClick={() => entregar(inicio)}
                 >
-                  <Send size={12} /> Semana del {shortDate(semana)}
+                  <Send size={12} /> Semana del {shortDate(inicio)}
                 </button>
               ))}
             </div>
@@ -229,16 +222,12 @@ export const ClientHome = () => {
         )}
       </Panel>
 
-      {/* Sus revisiones en vídeo y lo que le dejó preparado al darle de alta. Las
-          dos cosas son material del entrenador, y viven donde llegan las cosas. */}
-      <ClientReviews client={activeClient} />
+      {/* Sus revisiones en vídeo. Son la otra forma de la misma respuesta. */}
+      <ClientReviews client={client} />
 
       {/* Y lo que le fue diciendo semana a semana, con los cambios que hizo en su
-          plan. Es su historia con el entrenador, y hasta ahora no la tenía en
-          ninguna parte. */}
-      <ReviewHistory client={activeClient} audience="client" excludeId={deEstaSemana?.id} />
-
-      <IntakeDeliverables client={activeClient} />
+          plan. Es su historia con el entrenador. */}
+      <ReviewHistory client={client} audience="client" excludeId={deEstaSemana?.id} />
     </div>
   );
 };

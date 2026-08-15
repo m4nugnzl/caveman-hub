@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, History, ShieldAlert, Trash2 } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { clientConsent } from '@/domain/privacy';
+import { consentFromRow } from '@/domain/privacy';
+import { supabase } from '@/lib/supabaseClient';
 import { shortDate, timeOfDay } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Notice } from '@/components/ui/primitives';
@@ -116,7 +117,19 @@ export const ClientDataPanel = ({ client }) => {
   };
 
   const nameMatches = typed.trim().toLowerCase() === client.name.trim().toLowerCase();
-  const consent = clientConsent(client.preferences);
+  /* Sale de `client_consents` vía `consent_state` (migración 0050), que es
+     donde vive la prueba. Antes se leía de las preferencias del cliente, o sea
+     del OTRO sistema de consentimiento, y podía contradecir a la puerta. */
+  const [consent, setConsent] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    supabase.rpc('consent_state', { p_client: client.id }).then(({ data }) => {
+      if (vivo) setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [client.id]);
 
   return (
     <div className="card-inset col gap-3">
@@ -133,13 +146,13 @@ export const ClientDataPanel = ({ client }) => {
       */}
       <div className="row between wrap gap-2">
         <span className="t-xs t-secondary">Consentimiento de datos</span>
-        {consent?.withdrawnAt ? (
+        {consent && !consent.granted ? (
           /* Retirado: es lo más importante que puede decir esta línea. Significa
              que hay que dejar de tratar sus datos, así que se dice en rojo y con
              la fecha, no como «pendiente». */
-          <span className="badge badge-bad">Retirado el {shortDate(consent.withdrawnAt)}</span>
-        ) : consent?.acceptedAt ? (
-          <span className="badge badge-ok">Dado el {shortDate(consent.acceptedAt)}</span>
+          <span className="badge badge-bad">Retirado el {shortDate(consent.at)}</span>
+        ) : consent ? (
+          <span className="badge badge-ok">Dado el {shortDate(consent.at)}</span>
         ) : (
           <span className="badge badge-warn">
             {client.clientProfileId ? 'Pendiente de que lo acepte' : 'Aún no tiene acceso al portal'}

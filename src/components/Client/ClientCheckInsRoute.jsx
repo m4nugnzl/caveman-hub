@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 
 import { useApp } from '@/context/AppContext';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
+import { ClientWeek } from './ClientWeek';
 
 /** Nivel «Check-in» de `/mi/evolucion`: pesajes de la semana y revisión completa. */
 export const ClientCheckInsRoute = () => {
@@ -23,7 +24,12 @@ export const ClientCheckInsRoute = () => {
   );
 
   return (
-    <AnthropometryPanel
+    <div className="stack">
+      {/* Entregar la semana y leer lo que te ha contestado tu entrenador: el
+          mismo gesto que pesarse, así que el mismo sitio. Ver `ClientWeek`. */}
+      <ClientWeek client={activeClient} />
+
+      <AnthropometryPanel
       client={activeClient}
       anthropometry={anthropometry[activeClient.id]}
       nutritionPlan={nutrition[activeClient.id]}
@@ -33,7 +39,8 @@ export const ClientCheckInsRoute = () => {
       onAdd={(log) => addAnthropometryLog(activeClient.id, log)}
       onRemove={(logId) => removeAnthropometryLog(activeClient.id, logId)}
       photos={photos}
-      onUploadPhoto={uploadProgressPhoto}
-    />
+        onUploadPhoto={uploadProgressPhoto}
+      />
+    </div>
   );
 };

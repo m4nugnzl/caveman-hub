@@ -16,6 +16,7 @@ import { ConsentGate } from '@/components/Client/ConsentGate';
 import { Today } from '@/components/Coach/Today';
 import { ClientPortfolio } from '@/components/Coach/ClientPortfolio';
 import { Dashboard } from '@/components/dashboard/Dashboard';
+import { ClientStart } from '@/components/Client/ClientStart';
 import { ProgressLayout } from '@/components/analytics/ProgressLayout';
 import { ReviewLayout } from '@/components/review/ReviewLayout';
 
@@ -46,7 +47,6 @@ const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModu
 const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
 const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
 const AnalyticsPanel = lazyRoute(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
-const ClientHomeRoute = lazyRoute(() => import('@/components/Client/ClientHome').then((m) => ({ default: m.ClientHome })));
 const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
 const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
@@ -386,12 +386,18 @@ export default function App() {
                   </ConsentGate>
                 }
               >
-                <Route index element={<Navigate to="hoy" replace />} />
-                <Route path="hoy" element={<ClientHomeRoute />} />
+                <Route index element={<Navigate to="inicio" replace />} />
+
+                {/* Su inicio ES su progreso: las cifras y los gráficos, con lo
+                    que ha cambiado condensado arriba. Ver `ClientStart`. */}
                 <Route element={<ProgressLayout audience="client" />}>
-                  <Route path="panel" element={<Dashboard audience="client" />} />
+                  <Route path="inicio" element={<ClientStart />} />
                   <Route path="analitica" element={<AnalyticsPanel audience="client" />} />
                 </Route>
+                {/* «Hoy» dejó de ser una sección: lo suyo se repartió entre el
+                    inicio y el check-in. La ruta sigue viva por los marcadores. */}
+                <Route path="hoy" element={<Navigate to="/mi/inicio" replace />} />
+                <Route path="panel" element={<Navigate to="/mi/inicio" replace />} />
                 <Route path="rutina" element={<ClientRoutineRoute />} />
                 <Route path="dieta" element={<ClientDietRoute />} />
 

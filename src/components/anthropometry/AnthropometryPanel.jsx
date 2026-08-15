@@ -143,6 +143,20 @@ export const AnthropometryPanel = ({
   }, [suggestedWeight, touched]);
 
   const isClient = audience === 'client';
+  /*
+    ══ Al cliente, la revisión completa detrás de un paso ═════════════════════
+
+    Este formulario tiene pliegues y perímetros, y es el mismo para los dos
+    porque los cálculos son los mismos. Pero el trabajo real de un cliente en
+    esta pantalla es pesarse tres días y subir tres fotos: los pliegues se miden
+    con un plicómetro y casi siempre los toma su entrenador en persona.
+
+    Enseñárselo desplegado convertía su check-in —que son tres casillas— en un
+    formulario de quince campos que no va a rellenar. Sigue estando entero,
+    porque quien mide en casa tiene que poder; solo deja de ser lo primero que
+    ve. El entrenador lo tiene abierto: para él SÍ es la herramienta.
+  */
+  const [completaAbierta, setCompletaAbierta] = useState(!isClient);
 
   const weights = useMemo(() => weightSeries(history), [history]);
   const weekly = useMemo(() => weeklyWeightAverages(history), [history]);
@@ -285,6 +299,26 @@ export const AnthropometryPanel = ({
         onUpload={onUploadPhoto}
       />
 
+      {isClient && !completaAbierta ? (
+        <Panel tight className="row between wrap gap-3">
+          <div className="col gap-1">
+            <span className="section-title">
+              <Scale size={17} /> Mis medidas
+            </span>
+            <span className="t-sm t-secondary">
+              Tus pesajes de la semana van arriba. Aquí puedes añadir pliegues y perímetros si los
+              mides, o corregir el peso de un día concreto.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setCompletaAbierta(true)}
+          >
+            Añadir medidas
+          </button>
+        </Panel>
+      ) : (
       <Panel as="form" className="col gap-5" onSubmit={submit}>
         <SectionTitle
           icon={Scale}
@@ -510,6 +544,7 @@ export const AnthropometryPanel = ({
         </div>
         )}
       </Panel>
+      )}
 
       {weekly.length >= 2 && (
         <Panel tight className="col gap-4">

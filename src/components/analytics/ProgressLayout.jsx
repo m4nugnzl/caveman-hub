@@ -40,10 +40,10 @@ export const ProgressLayout = ({ audience = 'coach' }) => {
   return (
     <div className="stack">
       <nav className="progress-switch" aria-label="Nivel de detalle">
-        <NavLink to={to(isClient ? 'panel' : 'resumen')} className="progress-level" end>
+        <NavLink to={to(isClient ? 'inicio' : 'resumen')} className="progress-level" end>
           <Gauge size={15} />
-          <span className="l">Resumen</span>
-          <span className="h">Las cifras de un vistazo</span>
+          <span className="l">{isClient ? 'Mi progreso' : 'Resumen'}</span>
+          <span className="h">{isClient ? 'Cómo vas' : 'Las cifras de un vistazo'}</span>
         </NavLink>
 
         <NavLink to={to('analitica')} className="progress-level" end>

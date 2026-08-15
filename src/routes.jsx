@@ -192,7 +192,18 @@ export const CLIENT_SECTIONS = [
     abre la aplicación: ¿hay algo para mí y qué me toca? Las demás son sitios
     donde se consulta algo que ya se sabe que existe.
   */
-  { path: 'hoy', label: 'Hoy', short: 'Hoy', icon: Sunrise },
+  /*
+    ══ El inicio es SU PROGRESO ═══════════════════════════════════════════════
+
+    Era «Hoy» —una sección propia para los avisos— y «Mi progreso» iba quinto,
+    detrás de la rutina y de la dieta. Estaba al revés: el progreso es la razón
+    por la que un cliente paga, y «Hoy» era una pantalla que la mayoría de los
+    días no tenía nada que decir.
+
+    Ahora el inicio son sus cifras y sus gráficos, con lo que ha cambiado
+    condensado arriba y en la campana de la cabecera. Ver `ClientStart`.
+  */
+  { path: 'inicio', label: 'Mi progreso', short: 'Progreso', icon: Gauge, also: ['analitica'] },
   { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers },
   { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad },
   /*
@@ -205,7 +216,6 @@ export const CLIENT_SECTIONS = [
     obligaba a preguntarse cuál era el bueno. Ahora se sube donde toca hacerlo.
   */
   { path: 'evolucion', label: 'Mi evolución', short: 'Evolución', icon: Ruler, also: ['evolucion/fotos'] },
-  { path: 'panel', label: 'Mi progreso', short: 'Progreso', icon: Gauge, also: ['analitica'] },
   { path: 'calendario', label: 'Mi calendario', short: 'Calendario', icon: CalendarDays },
 ];
 
@@ -223,7 +233,7 @@ export const CLIENT_SECTIONS = [
 export const RESET_PATH = '/nueva-contrasena';
 
 export const COACH_HOME = '/hoy';
-export const CLIENT_HOME = '/mi/hoy';
+export const CLIENT_HOME = '/mi/inicio';
 export const SETTINGS_HOME = '/ajustes/protocolo';
 
 /** Ruta de una sección de un cliente. Nadie construye estas cadenas a mano. */
@@ -298,7 +308,7 @@ export const isSectionActive = (pathname, seccion, prefijo) => {
 
 /** Pares [sección del entrenador, sección del cliente]. */
 const EQUIVALENTES = [
-  ['resumen', 'panel'],
+  ['resumen', 'inicio'],
   ['analitica', 'analitica'],
   ['rutina', 'rutina'],
   ['nutricion', 'dieta'],

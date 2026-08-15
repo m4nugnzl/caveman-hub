@@ -1,62 +1,83 @@
 import { describe, expect, it } from 'vitest';
 
-import { CONSENT_VERSION, clientConsent, grantConsent, hasConsent, withdrawConsent } from './privacy';
+import { CONSENT_POINTS, consentFromRow } from './privacy';
 
-describe('consentimiento', () => {
-  it('sin nada guardado, no hay consentimiento', () => {
-    expect(clientConsent(undefined)).toBeNull();
-    expect(hasConsent({})).toBe(false);
+/**
+ * ══ Qué se prueba aquí, y qué NO ═══════════════════════════════════════════
+ *
+ * Estas pruebas cubrían la lógica del consentimiento entera: si cubría, si
+ * estaba retirado, si la versión valía. Ya no, y no porque se haya dejado de
+ * comprobar: es que **esa decisión ya no se toma en el navegador**.
+ *
+ * Había dos sistemas de consentimiento a la vez —uno en `clients.preferences` y
+ * otro en la tabla `client_consents`— con dos constantes de versión de tipos
+ * distintos y que no se miraban entre sí. Se quedó la tabla, que es la única que
+ * vale como prueba, y con ella la decisión se tomó donde no se puede saltar:
+ * `needs_consent` (migración 0050).
+ *
+ * Así que quién puede pasar y quién no lo fija **`supabase/tests/`**, contra una
+ * base de datos de verdad. Es el sitio correcto: un consentimiento que decide el
+ * cliente es un consentimiento que se salta abriendo las herramientas de
+ * desarrollo.
+ *
+ * Lo que queda aquí es lo que sigue siendo de este lado: leer la fila sin
+ * romperse, y que el texto que se acepta no se quede vacío por accidente.
+ */
+
+describe('consentFromRow — normalizar lo que devuelve la base', () => {
+  it('sin fila no hay consentimiento', () => {
+    expect(consentFromRow(null)).toBeNull();
+    expect(consentFromRow(undefined)).toBeNull();
+    expect(consentFromRow({})).toBeNull();
   });
 
-  it('una marca sin fecha no vale', () => {
+  it('una concesión se lee como concedida, con su versión y su fecha', () => {
+    const fila = { kind: 'granted', version: '2026-08', at: '2026-08-12T09:00:00Z' };
+    expect(consentFromRow(fila)).toEqual({
+      granted: true,
+      version: '2026-08',
+      at: '2026-08-12T09:00:00Z',
+    });
+  });
+
+  it('una retirada NO se lee como concedida, y sigue constando con su fecha', () => {
     /*
-      «Aceptó» sin cuándo no se puede demostrar si alguien lo reclama, que es la
-      mitad del motivo por el que esto se guarda.
+      Que la retirada conserve la fecha no es un detalle: «retiró el
+      consentimiento el 3 de marzo» es lo que el entrenador tiene que ver para
+      saber que debe parar, y es lo que hay que poder demostrar después.
     */
-    expect(clientConsent({ consent: { version: CONSENT_VERSION } })).toBeNull();
+    const fila = { kind: 'withdrawn', version: '2026-08', at: '2026-03-03T10:00:00Z' };
+    expect(consentFromRow(fila)).toEqual({
+      granted: false,
+      version: '2026-08',
+      at: '2026-03-03T10:00:00Z',
+    });
   });
 
-  it('un consentimiento de una versión anterior NO cubre el tratamiento actual', () => {
+  it('no decide si la versión vale: eso lo hace la base de datos', () => {
     /*
-      Es la razón de que exista el número. Si cambia qué se trata o quién lo ve
-      —por ejemplo, que un segundo entrenador del equipo pueda ver sus fotos— lo
-      que aceptó antes era sobre otra cosa, y hay que volver a preguntar.
+      Devuelve la versión tal cual y no la compara con nada. Comparar aquí sería
+      volver a tener dos jueces del mismo hecho, que es justo lo que se acaba de
+      quitar.
     */
-    const viejo = { consent: { acceptedAt: '2026-01-01T10:00:00Z', version: CONSENT_VERSION - 1 } };
-    expect(clientConsent(viejo)).not.toBeNull();
-    expect(hasConsent(viejo)).toBe(false);
-  });
-
-  it('el consentimiento de la versión vigente cubre', () => {
-    const dado = { consent: grantConsent('2026-08-12T09:00:00Z') };
-    expect(hasConsent(dado)).toBe(true);
-    expect(clientConsent(dado).acceptedAt).toBe('2026-08-12T09:00:00Z');
+    const vieja = consentFromRow({ kind: 'granted', version: '2025-01', at: '2025-01-01T00:00:00Z' });
+    expect(vieja.granted).toBe(true);
+    expect(vieja.version).toBe('2025-01');
   });
 });
 
-describe('retirada', () => {
-  it('retirar deja de cubrir, pero SIGUE CONSTANDO', () => {
+describe('CONSENT_POINTS — el contenido de lo que se acepta', () => {
+  it('dice las cuatro cosas que tiene que decir', () => {
     /*
-      La retirada tiene que quedar registrada por lo mismo que la aceptación: es
-      la fecha a partir de la cual el entrenador debía parar. Borrarla del
-      registro dejaría la retirada sin constancia.
+      Lo que se guarda es «aceptó esta versión», y esta versión es este texto. Si
+      alguien lo vacía sin querer, lo que quedaría archivado sería la prueba de
+      haber aceptado nada.
     */
-    const retirado = { consent: { ...grantConsent('2026-01-01T10:00:00Z'), ...withdrawConsent('2026-03-03T10:00:00Z') } };
-
-    expect(hasConsent(retirado)).toBe(false);
-    expect(clientConsent(retirado).withdrawnAt).toBe('2026-03-03T10:00:00Z');
+    expect(CONSENT_POINTS.length).toBeGreaterThanOrEqual(4);
+    for (const punto of CONSENT_POINTS) expect(punto.trim().length).toBeGreaterThan(20);
   });
 
-  it('volver a aceptar limpia la retirada', () => {
-    /*
-      `updateClientPreferences` FUSIONA por sección. Si `grantConsent` no pusiera
-      `withdrawnAt: null` de forma explícita, la fecha de retirada anterior se
-      quedaría puesta y quien vuelve a aceptar seguiría contando como retirado.
-    */
-    const previo = { ...grantConsent('2026-01-01T10:00:00Z'), ...withdrawConsent('2026-03-03T10:00:00Z') };
-    const denuevo = { consent: { ...previo, ...grantConsent('2026-04-04T10:00:00Z') } };
-
-    expect(hasConsent(denuevo)).toBe(true);
-    expect(clientConsent(denuevo).withdrawnAt).toBeNull();
+  it('menciona que se puede retirar, porque es la condición para que sea libre', () => {
+    expect(CONSENT_POINTS.some((p) => /retirar/i.test(p))).toBe(true);
   });
 });

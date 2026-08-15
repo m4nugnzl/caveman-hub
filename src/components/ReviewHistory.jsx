@@ -50,7 +50,7 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
     listReviewLinks,
     createReviewUrl,
     publishUpdate,
-    reviewCheckIn,
+    updateCheckInNotes,
     deleteCheckIn,
   } = useActions();
   const confirm = useConfirm();
@@ -95,12 +95,26 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
   /**
    * Reescribir el comentario de una revisión ya cerrada.
    *
-   * Va por la misma función que la cierra: vuelve a marcarla revisada —ya lo
-   * estaba— y sustituye la nota. No hace falta nada nuevo en la base, y el
-   * cliente ve el texto corregido donde ya lo estaba leyendo.
+   * ══ Por qué NO va por la función que la cierra ══════════════════════════════
+   *
+   * Iba, y parecía gratis: «vuelve a marcarla revisada, que ya lo estaba». No lo
+   * era. `review_check_in` sella `reviewed_at = now()` y `reviewed_by =
+   * auth.uid()` sin condiciones, y además el envoltorio avisa al cliente. O sea
+   * que corregir una errata en una nota de hace dos semanas:
+   *
+   *   · movía la fecha de la revisión a hoy —y este mismo panel escribe «revisada
+   *     el {fecha}» dos líneas más arriba, así que el histórico se contradecía a
+   *     sí mismo—;
+   *   · ponía como autor a quien corrige, borrando en silencio quién revisó de
+   *     verdad, que es exactamente lo que en un equipo hay que poder demostrar;
+   *   · y le saltaba al cliente «tu entrenador ha revisado tu semana» por un
+   *     texto que ya había leído.
+   *
+   * Cerrar una revisión y corregir su texto son dos cosas distintas, así que son
+   * dos funciones distintas (migración 0051).
    */
   const guardarNota = async (fila) => {
-    const res = await reviewCheckIn(fila.id, nota.trim());
+    const res = await updateCheckInNotes(fila.id, nota.trim());
     if (!res.ok) {
       setError(res.error);
       return;

@@ -1,9 +1,8 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ShieldCheck, UserX } from 'lucide-react';
+import { UserX } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
-import { CONSENT_POINTS, grantConsent, hasConsent } from '@/domain/privacy';
 import { CLIENT_SECTIONS, isSectionActive } from '@/routes';
 import { EmptyState, Panel } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
@@ -19,8 +18,11 @@ import { ClientPrivacy } from './ClientPrivacy';
  * atrás no cierra la aplicación.
  */
 export const ClientLayout = () => {
-  const { activeClient, workoutData, anthropometry, isCoach, updateClientPreferences } = useApp();
+  const { activeClient, workoutData, anthropometry, isCoach } = useApp();
   const { pathname } = useLocation();
+
+  /* El saludo y la privacidad son de la PORTADA, no del marco. Ver abajo. */
+  const esInicio = pathname === '/mi' || pathname.startsWith('/mi/inicio');
 
   /* Del histórico de pesajes, no de `clients.current_weight`: esa columna no la
      escribía nadie y enseñaba un peso congelado como si fuera el de hoy. */
@@ -57,40 +59,30 @@ export const ClientLayout = () => {
       )}
 
       {/*
-        ── El consentimiento, antes que nada ──────────────────────────────────
-        Se pide al CLIENTE y no lo marca el entrenador en el alta: es suyo. Va
-        arriba del todo y solo desaparece cuando lo da, porque mientras no conste
-        el tratamiento de sus fotos y sus medidas no está cubierto.
+        ══ El consentimiento ya no se pide DOS veces ══════════════════════════
 
-        No bloquea el portal a propósito: impedirle ver su rutina hasta que acepte
-        convertiría el consentimiento en un peaje, y un consentimiento que no se
-        puede rechazar sin perder el servicio no es libre — que es justo lo que la
-        norma exige que sea.
+        Aquí había un segundo panel que lo pedía otra vez y lo guardaba en un
+        sitio distinto —`clients.preferences.consent`— del que usa la puerta del
+        portal (`ConsentGate`, que escribe en `client_consents`). Como ninguno
+        miraba donde escribía el otro, quien aceptaba en la puerta se encontraba
+        la misma petición al entrar.
+
+        Se queda la puerta, que es la que deja prueba archivada y la que ya usa el
+        canje de la invitación. Ver `domain/privacy.js` y la migración 0050.
       */}
-      {!isCoach && !hasConsent(activeClient.preferences) && (
-        <Panel className="col gap-3" style={{ marginBottom: 'var(--s4)' }}>
-          <span className="section-title">
-            <ShieldCheck size={17} /> Antes de empezar
-          </span>
-          <ul className="col gap-2 t-sm t-secondary" style={{ paddingLeft: '1.1em' }}>
-            {CONSENT_POINTS.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-          <div className="row gap-2 wrap">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() =>
-                updateClientPreferences(activeClient.id, 'consent', grantConsent())
-              }
-            >
-              Entendido, acepto
-            </button>
-          </div>
-        </Panel>
-      )}
 
+      {/*
+        ══ El saludo, solo en el inicio ═══════════════════════════════════════
+
+        Se pintaba en las SIETE secciones. En un móvil de 390 px, un cliente que
+        abre su rutina en el gimnasio atravesaba el saludo, su avatar y su peso
+        antes de llegar a la primera serie: la pantalla entera para una
+        bienvenida, y una bienvenida se da una vez.
+
+        Y era además el único `h1` del portal, repetido idéntico en las siete —
+        para un lector de pantalla, siete pantallas con el mismo nombre—.
+      */}
+      {esInicio && (
       <Panel className="client-hero row between wrap gap-4">
         <div className="row gap-4">
           {activeClient.avatar && (
@@ -113,6 +105,7 @@ export const ClientLayout = () => {
           </div>
         )}
       </Panel>
+      )}
 
       {/* Igual que en el carril del entrenador: la marca de «estás aquí» sale de
           `isSectionActive` y no del prefijo de URL, porque «Mi evolución» y «Mi
@@ -137,9 +130,11 @@ export const ClientLayout = () => {
 
       <Outlet />
 
-      {/* Sus derechos, ejercitables por él y no pidiéndolos. Al final y plegado:
-          no es a lo que viene, pero tiene que estar. */}
-      {!isCoach && <ClientPrivacy client={activeClient} />}
+      {/* Sus derechos, ejercitables por él y no pidiéndolos. Al final, plegado y
+          SOLO en su inicio: estaba al pie de las siete secciones, así que quien
+          bajaba del todo en su rutina se encontraba con la privacidad. No es a lo
+          que viene, pero tiene que estar en un sitio, y ese es su portada. */}
+      {!isCoach && esInicio && <ClientPrivacy client={activeClient} />}
 
       {/*
         En móvil las pestañas de arriba se ocultan y navega esta barra. No son dos

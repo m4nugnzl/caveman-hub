@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ChevronDown, ChevronRight, Download, ShieldCheck } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { CONSENT_POINTS, clientConsent, hasConsent, grantConsent, withdrawConsent } from '@/domain/privacy';
+import { CONSENT_POINTS, consentFromRow } from '@/domain/privacy';
+import { supabase } from '@/lib/supabaseClient';
+import { CONSENT_VERSION } from '@/components/Auth/ConsentNotice';
 import { shortDate } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Notice, Panel } from '@/components/ui/primitives';
@@ -28,15 +30,30 @@ import { Notice, Panel } from '@/components/ui/primitives';
  * sitio del pie de página.
  */
 export const ClientPrivacy = ({ client }) => {
-  const { exportClientData, updateClientPreferences } = useActions();
+  const { exportClientData } = useActions();
   const confirm = useConfirm();
 
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const consent = clientConsent(client.preferences);
-  const active = hasConsent(client.preferences);
+  /*
+    El estado sale de `client_consents` —la tabla que guarda la prueba— y no de
+    las preferencias del cliente. Eran dos sistemas a la vez que no se miraban
+    entre sí; ver `domain/privacy.js`.
+  */
+  const [consent, setConsent] = useState(null);
+
+  const leerEstado = useCallback(async () => {
+    const { data } = await supabase.rpc('consent_state', { p_client: client.id });
+    setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
+  }, [client.id]);
+
+  useEffect(() => {
+    leerEstado();
+  }, [leerEstado]);
+
+  const active = Boolean(consent?.granted && consent.version === CONSENT_VERSION);
 
   const download = async () => {
     setBusy(true);
@@ -73,7 +90,12 @@ export const ClientPrivacy = ({ client }) => {
     });
     if (!ok) return;
 
-    updateClientPreferences(client.id, 'consent', withdrawConsent());
+    const { error } = await supabase.rpc('withdraw_my_consent', { p_version: CONSENT_VERSION });
+    if (error) {
+      setFeedback({ tone: 'error', text: error.message });
+      return;
+    }
+    await leerEstado();
     setFeedback({
       tone: 'info',
       text: 'Consentimiento retirado. Díselo a tu entrenador para que sepa que tiene que parar.',
@@ -103,12 +125,19 @@ export const ClientPrivacy = ({ client }) => {
             <span className="section-label">Estado</span>
             {active ? (
               <span className="t-sm">
-                Diste tu consentimiento el <strong>{shortDate(consent.acceptedAt)}</strong>.
+                Diste tu consentimiento el <strong>{shortDate(consent.at)}</strong>.
               </span>
-            ) : consent?.withdrawnAt ? (
+            ) : consent && !consent.granted ? (
               <span className="t-sm">
-                Lo retiraste el <strong>{shortDate(consent.withdrawnAt)}</strong>. Tu entrenador no
-                debería seguir tratando tus datos.
+                Lo retiraste el <strong>{shortDate(consent.at)}</strong>. Tu entrenador no debería
+                seguir tratando tus datos.
+              </span>
+            ) : consent ? (
+              /* Aceptó, pero una versión anterior: el texto ha cambiado desde
+                 entonces, así que lo que dio no cubre lo de ahora. */
+              <span className="t-sm">
+                Lo que aceptaste el <strong>{shortDate(consent.at)}</strong> ha cambiado. Vuelve a
+                darlo para seguir.
               </span>
             ) : (
               <span className="t-sm">Todavía no lo has dado.</span>
@@ -128,7 +157,13 @@ export const ClientPrivacy = ({ client }) => {
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                onClick={() => updateClientPreferences(client.id, 'consent', grantConsent())}
+                onClick={async () => {
+                  const { error } = await supabase.rpc('record_my_consent', {
+                    p_version: CONSENT_VERSION,
+                  });
+                  if (error) setFeedback({ tone: 'error', text: error.message });
+                  else await leerEstado();
+                }}
               >
                 Dar mi consentimiento
               </button>

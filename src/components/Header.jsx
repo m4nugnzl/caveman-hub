@@ -3,6 +3,7 @@ import { useData } from '@/context/AppContext';
 import { paletteShortcut } from '@/lib/platform';
 import { Logo } from '@/components/ui/Logo';
 import { AccountMenu } from '@/components/AccountMenu';
+import { ClientBell } from '@/components/Client/ClientBell';
 import { useCommandPalette } from '@/components/ui/CommandPalette';
 
 /**
@@ -44,6 +45,9 @@ export const Header = () => {
       </button>
 
       <div className="row gap-2 shrink-0">
+        {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
+            a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
+        <ClientBell />
         {hasUnsavedChanges && (
           <span className="badge badge-warn" role="status">
             Cambios sin confirmar
