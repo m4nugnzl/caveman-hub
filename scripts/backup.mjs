@@ -51,20 +51,34 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
 /*
-  Todas las tablas del esquema menos una.
+  Lo que se copia.
 
-  `integration_secrets` se queda fuera A PROPÓSITO: guarda los tokens de Notion y
-  Stripe en claro. Copiarlos convertiría cada copia de seguridad en un llavero de
-  credenciales vivas repartido por discos externos y carpetas de la nube. Se
-  vuelven a pegar en un minuto desde Ajustes → Integraciones; una filtración no se
-  arregla en un minuto.
+  ══ Esta lista se desfasó, y era invisible ══════════════════════════════════
 
-  Las que no existan —migraciones sin aplicar— no son un error: se anotan como
-  omitidas y la copia sigue. Una copia que se aborta porque falta una tabla
-  opcional es una copia que no se hace.
+  Se escribió a mano y no se actualizó con las migraciones posteriores. Al probar
+  por primera vez una restauración aparecieron CUATRO tablas con datos reales que
+  no se copiaban:
+
+    · `client_phases`      el roadmap de cada cliente (0028). Trabajo del
+                           entrenador, uno por cliente, irrecuperable.
+    · `team_subscriptions` quién paga, qué plan y hasta cuándo (0019).
+                           Restaurar sin esto deja a todo el mundo sin plan.
+    · `support_tickets`    las conversaciones con soporte (0034), que es donde
+    · `support_messages`   está la mitad del contexto de una incidencia.
+
+  Ninguna daba error: la copia salía «correcta», con su manifiesto y su
+  verificación en verde, y sin ellas dentro. Es el mismo fallo que el script dice
+  evitar en su cabecera —una copia vacía con aspecto de haber funcionado— pero por
+  tabla en vez de por todo.
+
+  Para que no vuelva a pasar, la lista de abajo ya no es la única fuente: hay una
+  prueba (`supabase/tests/copia.test.js`) que compara estas dos listas contra el
+  esquema REAL y falla si aparece una tabla que no esté en ninguna. Añadir una
+  tabla obliga a decidir si entra en la copia; olvidarse deja de ser posible.
 */
 const TABLES = [
   'profiles',
@@ -75,19 +89,50 @@ const TABLES = [
   'progress_photos',
   'check_ins',
   'client_events',
+  'client_phases',
   'exercises',
   'foods',
   'teams',
   'team_members',
+  'team_subscriptions',
   'client_invites',
   'client_consents',
   'integrations',
   'client_payments',
   'client_external_refs',
   'review_links',
+  'support_tickets',
+  'support_messages',
+  'platform_admins',
   'audit_log',
   'videos',
 ];
+
+/*
+  Lo que se deja fuera A PROPÓSITO, y por qué.
+
+  Existe como lista y no como comentario porque la prueba la lee: dejar una tabla
+  sin copiar tiene que ser una decisión escrita, no un olvido.
+*/
+export const EXCLUIDAS = {
+  integration_secrets:
+    'Guarda los tokens de Notion y Stripe en claro. Copiarlos convertiría cada copia en un ' +
+    'llavero de credenciales vivas repartido por discos externos. Se vuelven a pegar en un ' +
+    'minuto desde Ajustes → Integraciones; una filtración no se arregla en un minuto.',
+  catalog_exercises: 'Catálogo común, lo recrea la migración 0033. No es de nadie.',
+  catalog_foods: 'Catálogo común, lo recrea la migración 0033. No es de nadie.',
+  plan_limits: 'Los límites y precios de cada plan, los recrea la 0019. Configuración, no datos.',
+  product_events:
+    'Instrumentación de uso (0045). Es desechable por diseño y se poda a los seis meses: ' +
+    'restaurarla no devuelve nada que nadie vaya a echar de menos.',
+};
+
+/*
+  Las tablas que no existan —migraciones sin aplicar— no son un error: se anotan
+  como omitidas y la copia sigue. Una copia que se aborta porque falta una tabla
+  opcional es una copia que no se hace.
+*/
+export { TABLES };
 
 const BUCKET = 'client-media';
 
@@ -102,6 +147,54 @@ const value = (name) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : null;
 };
+
+/*
+  ══ Una opción desconocida PARA el script ══════════════════════════════════
+
+  Antes se ignoraba, y eso tiene una consecuencia peor de lo que parece: como la
+  copia completa es lo que se hace por defecto, escribir mal una opción
+  —`--ayuda`, `--sin-foto`, `--verificr`— no daba ningún aviso y lanzaba una copia
+  ENTERA de producción, con sus gigas de fotos y sus datos de salud, contra el
+  disco. Pasó exactamente eso al probar el script.
+
+  Lo caro y lo sensible no puede ser nunca lo que ocurre por descuido. Ahora una
+  opción que no se reconoce para el proceso y enseña las que hay.
+*/
+const OPCIONES = ['--sin-fotos', '--salida', '--verificar', '--ayuda', '-h', '--help'];
+
+const AYUDA = [
+  'Copia de seguridad de Caveman Hub.',
+  '',
+  '  npm run backup                        copia completa en ./copias/<fecha>',
+  '  npm run backup -- --sin-fotos         solo las filas: rápido, para el día a día',
+  '  npm run backup -- --salida D:/copias  otra carpeta (un disco externo)',
+  '  npm run backup -- --verificar <ruta>  recomprueba una copia ya hecha',
+  '',
+  'Necesita SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (ver docs/copias.md).',
+].join('\n');
+
+/*
+  Solo se ejecuta cuando se llama al script directamente.
+
+  Importado —lo hace `supabase/tests/copia.test.js` para leer `TABLES`— los
+  argumentos de la línea de órdenes son los de QUIEN importa: los de vitest, que
+  incluyen `--config`. Sin esta condición, la comprobación de opciones de abajo
+  vería `--config` como una opción desconocida y mataría las pruebas.
+*/
+const llamadoDirectamente =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (llamadoDirectamente) {
+  const desconocidas = args.filter((a) => a.startsWith('-') && !OPCIONES.includes(a));
+  if (desconocidas.length > 0) {
+    console.error(`\n✗ No conozco ${desconocidas.join(', ')}.\n\n${AYUDA}`);
+    process.exit(2);
+  }
+  if (flag('--ayuda') || flag('-h') || flag('--help')) {
+    console.log(AYUDA);
+    process.exit(0);
+  }
+}
 
 const log = (...parts) => console.log(...parts);
 const fail = (message) => {
@@ -450,4 +543,17 @@ const main = async () => {
   log('\n✓ Copia completa.');
 };
 
-main().catch((e) => fail(e?.message || String(e)));
+/*
+  Y la copia, por el mismo motivo: solo si se le llama directamente.
+
+  Antes corría con solo importarlo, así que este archivo no se podía leer desde
+  ninguna otra parte: la prueba que comprueba que la copia cubre todas las tablas
+  (`supabase/tests/copia.test.js`) importaba `TABLES`, el script arrancaba, no
+  encontraba credenciales y llamaba a `process.exit(1)` en mitad de las pruebas.
+
+  Un script que no se puede importar es un script que no se puede probar — y éste
+  es justo el que nadie quiere descubrir roto el día que hace falta.
+*/
+if (llamadoDirectamente) {
+  main().catch((e) => fail(e?.message || String(e)));
+}
