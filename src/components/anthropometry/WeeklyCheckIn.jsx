@@ -179,9 +179,18 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
 
         Con el promedio al lado, además, se ve de dónde sale el punto de esta
         semana.
+
+        ── Y su hueco existe desde el primer día ─────────────────────────────
+        Estaba condicionado a tener dos semanas de pesajes, así que hasta la
+        segunda semana la sección NO EXISTÍA: el gráfico no es que estuviera
+        vacío, es que no había ni sitio donde mirarlo — y quien acaba de empezar
+        no tiene forma de saber que va a aparecer.
+
+        Ahora el hueco está siempre y `BandChart` dice qué falta para llenarlo.
+        Reservar el sitio es además lo que evita que la pantalla dé un salto la
+        semana que por fin hay datos.
       */}
-      {tendencia.length >= 2 && (
-        <div className="col gap-2">
+      <div className="col gap-2">
           <span className="section-label">Tendencia · promedio de cada semana</span>
           <BandChart
             labels={tendencia.map((w) => w.date)}
@@ -196,10 +205,13 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
               },
             ]}
             height={104}
-            emptyMessage="Con dos semanas de pesajes ya se ve la tendencia."
+            emptyMessage={
+              tendencia.length === 1
+                ? 'Con una semana más de pesajes ya se ve la tendencia.'
+                : 'Aquí verás cómo evoluciona tu peso, semana a semana.'
+            }
           />
         </div>
-      )}
 
       {/* Resultado del check-in: el promedio y su variación contra la semana
           anterior, que es la cifra con la que de verdad se decide. */}
