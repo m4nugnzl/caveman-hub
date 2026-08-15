@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Plus, Search, UserPlus } from 'lucide-react';
+import { ChevronRight, Layers, Plus, Search, Send, UserPlus, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { buildPortfolio } from '@/domain/portfolio';
@@ -8,7 +8,7 @@ import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { todayISO } from '@/lib/dates';
 import { initials } from '@/lib/initials';
-import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { EmptyState, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { ArchivedClients } from './ArchivedClients';
 import { NewClientForm } from './NewClientForm';
 import { inviteMessage, useInvite } from './useInvite';
@@ -119,6 +119,8 @@ export const ClientPortfolio = () => {
   const [trainer, setTrainer] = useState('all');
   const [search, setSearch] = useState('');
   const [alta, setAlta] = useState(false);
+  /* El que se acaba de crear, para poder seguir con él sin ir a buscarlo. */
+  const [recien, setRecien] = useState(null);
 
   const today = todayISO();
   const rows = useMemo(
@@ -150,13 +152,34 @@ export const ClientPortfolio = () => {
      botón atrás vuelve a la cartera y el enlace se puede compartir. */
   const open = (clientId) => navigate(clientPath(clientId, 'resumen'));
 
-  /* La lógica de invitar vive en `useInvite`: se usa aquí y en «Clientes», y las
-     tres cosas que hay que hacer bien —pedir el token, copiarlo y tener plan si
-     el portapapeles falla— son las mismas en los dos sitios. */
-  const { result: invite } = useInvite();
+  /* La lógica de invitar vive en `useInvite`: la comparten esta pantalla y la
+     ficha del cliente, y las tres cosas que hay que hacer bien —pedir el token,
+     copiarlo y tener plan si el portapapeles falla— son las mismas en las dos. */
+  const { result: invite, busy: invitando, send: invitar } = useInvite();
 
-  /* El resultado de invitar aparece arriba del tablero; sin esto, quien pulsa en
-     una ficha de la parte de abajo no llega a verlo nunca. */
+  /*
+    ══ Dar de alta e invitar son el mismo gesto ═══════════════════════════════
+
+    Eran dos viajes. Se creaba al cliente, el formulario se cerraba y no pasaba
+    nada más: para invitarle había que encontrarlo en la lista, entrar, llegar
+    hasta «Ficha» —la última del carril de siete— y bajar a «Acceso y baja». Seis
+    pasos para lo que la propia bienvenida enseña como los pasos 1 y 3.
+
+    Y es un camino que no se puede saltar: hasta que no le llega el enlace, el
+    cliente no puede entrar, así que la mitad de la aplicación se queda sin usar
+    sin que nada avise.
+
+    Ahora el alta deja aquí mismo lo que viene después, con los dos botones
+    puestos. Sigue estando en su ficha para quien vuelva más tarde.
+  */
+  const crear = async (datos) => {
+    const res = await addClient(datos);
+    if (res?.ok) setRecien(res.client);
+    return res;
+  };
+
+  /* El aviso de la invitación aparece arriba; sin esto, quien la pide desde la
+     parte de abajo de una lista larga no llega a verlo nunca. */
   const noticeRef = useRef(null);
   useEffect(() => {
     if (invite) noticeRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -168,7 +191,7 @@ export const ClientPortfolio = () => {
   if (clients.length === 0) {
     return (
       <div className="stack">
-        {alta && <NewClientForm onCreate={addClient} onCancel={() => setAlta(false)} />}
+        {alta && <NewClientForm onCreate={crear} onCancel={() => setAlta(false)} />}
         {!alta && (
           <EmptyState
             icon={UserPlus}
@@ -226,18 +249,60 @@ export const ClientPortfolio = () => {
         </div>
       </div>
 
-      {alta && <NewClientForm onCreate={addClient} onCancel={() => setAlta(false)} />}
+      {alta && <NewClientForm onCreate={crear} onCancel={() => setAlta(false)} />}
 
+      {/*
+        Lo que viene DESPUÉS de crear a alguien, en el sitio donde se acaba de
+        crear. Las dos cosas que hay que hacerle a un cliente nuevo, y ninguna
+        más: darle acceso y programarle. Se cierra a mano porque hasta que no se
+        hacen las dos sigue haciendo falta.
+      */}
+      {recien && (
+        <Panel className="col gap-3">
+          <div className="row between wrap gap-2">
+            <SectionTitle icon={UserPlus}>{recien.name} ya está en tu cartera</SectionTitle>
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={() => setRecien(null)}
+              aria-label="Ocultar los siguientes pasos"
+              title="Ocultar"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <p className="t-sm t-secondary">
+            Mándale su enlace de acceso —hasta que no lo tenga no puede entrar ni apuntar nada— y
+            prográmale la primera semana.
+          </p>
+
+          <div className="row gap-2 wrap">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={invitando}
+              onClick={() => invitar(recien)}
+            >
+              <Send size={15} /> {invitando ? 'Generando…' : 'Copiar su enlace de acceso'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => navigate(clientPath(recien.id, 'rutina'))}
+            >
+              <Layers size={15} /> Programarle la rutina
+            </button>
+          </div>
+        </Panel>
+      )}
 
       {/*
         ── Por qué esto se lleva la vista ─────────────────────────────────────
-        El aviso de una acción de FICHA sale aquí arriba, encima del tablero. Con
-        cuatro columnas de tarjetas, quien pulsa «Invitar» en una ficha de abajo
-        no ve nada — y el síntoma que reporta es «le doy y no hace nada», aunque
-        el error esté escrito a dos pantallas de distancia.
-
-        Es el precio de tener un solo sitio para los avisos en vez de uno por
-        tarjeta. Se paga trayendo la vista hasta él.
+        El aviso de la invitación sale aquí arriba. Quien la pide desde la parte
+        de abajo de una lista larga no vería nada — y el síntoma que reporta es
+        «le doy y no hace nada», aunque el mensaje esté escrito dos pantallas más
+        arriba. Se paga trayendo la vista hasta él.
       */}
       {invite && (
         <div ref={noticeRef}>
@@ -249,11 +314,14 @@ export const ClientPortfolio = () => {
         </div>
       )}
 
+      {/* Se dice que la cifra es aproximada, no CÓMO se arregla: quien lee esto
+          ha pagado por la aplicación y no puede aplicar nada en su base de
+          datos. El detalle técnico va al registro del navegador y a soporte. */}
       {approximate && (
         <Notice tone="info">
-          «Por revisar» se está deduciendo de los pesajes y las fotos de la semana. Al aplicar la
-          migración <code>0009_checkins_calendar.sql</code> el cliente entrega su check-in y podrás
-          marcarlo como revisado, con lo que la columna pasa a ser exacta.
+          «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana, así que es una
+          aproximación. La entrega de check-ins todavía no está activa en tu cuenta; escríbenos desde
+          Ajustes → Ayuda y la activamos.
         </Notice>
       )}
 

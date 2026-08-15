@@ -6,7 +6,6 @@ import { useApp } from '@/context/AppContext';
 import { planSnapshot } from '@/domain/reviews';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { clientPath } from '@/routes';
-import { todayISO, weekStart } from '@/lib/dates';
 
 /**
  * Revisar como MODO, no como pantalla.

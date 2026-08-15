@@ -315,6 +315,21 @@ Cosas que están así a propósito, y por qué:
   transversales y los necesitan para deducir el estado de cada uno. Las fotos ya
   no se firman al arrancar, pero las filas sí se traen. Con doscientos clientes
   hará falta un resumen calculado en el servidor.
+- **Un solo idioma, y es una decisión, no un olvido.** Todo está en castellano y
+  embebido en el JSX: `<html lang="es">` y unas 44.000 líneas sin una capa de
+  traducción. **Decidido en agosto de 2026: más idiomas SÍ, pero no ahora.**
+
+  Lo que eso significa en la práctica, para que «a futuro» no se vuelva «nunca»:
+  no hay que montar `i18n` hoy —una migración a medias, con dos patrones
+  conviviendo, es peor que ninguna—, pero **conviene no repartir más la lógica de
+  idioma**. Las cadenas se extraen mecánicamente el día que haga falta; lo que
+  encarece de verdad es tener `toLocaleDateString('es-ES', …)` y decisiones de
+  formato esparcidas por los componentes.
+
+  El paso barato y pendiente, cuando se toque el tema: centralizar el formateo de
+  fechas y números en `lib/dates.js`, que ya existe para eso. Extraer las cadenas
+  puede esperar sin coste creciente; el formateo disperso, no.
+
 - **Vulnerabilidad de `esbuild` (moderada, solo desarrollo).** Afecta al dev
   server de Vite 5, no al build de producción (`npm audit --omit=dev` da 0).
   Resolverla exige subir a Vite 6/7, que es un cambio con rupturas.

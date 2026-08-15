@@ -40,3 +40,6 @@ yarn-error.log*
 # caché del CLI de Supabase: versiones detectadas del proyecto remoto y la URL del
 # pooler. Se regenera en cada comando y es específica de la máquina.
 supabase/.temp
+# La misma categoría: a qué rama apunta el CLI en ESTA máquina. Versionado hacía
+# que dos personas con el CLI abierto en ramas distintas chocaran en cada pull.
+supabase/.branches
