@@ -36,8 +36,10 @@ if (-not (Test-Path $destino)) { New-Item -ItemType Directory -Path $destino | O
 # La coma delante de la primera banda no es un descuido: sin ella PowerShell
 # aplana el array de arrays y una banda suelta llega como cuatro números.
 $recortes = @(
-  @{ nombre = 'hoy'; archivo = 'hoy.jpg'; bandas = @(, @(31, 230, 2017, 1050)) }
-  @{ nombre = 'rutina'; archivo = 'rutina.jpg'; bandas = @(@(31, 300, 2017, 235), @(31, 895, 2017, 385)) }
+  # La rutina empieza en el carril de semanas: sin él se ve un día suelto y lo
+  # que hay que entender es que detrás hay un programa —ocho semanas, tres días—
+  # y que el día abierto es uno de ellos.
+  @{ nombre = 'rutina'; archivo = 'rutina.jpg'; bandas = @(@(31, 100, 2017, 435), @(31, 895, 2017, 385)) }
   @{ nombre = 'progreso'; archivo = 'progreso.jpg'; bandas = @(, @(31, 645, 2017, 635)) }
   @{ nombre = 'm-rutina'; archivo = 'movil\rutina.png'; bandas = @(, @(8, 92, 392, 730)) }
   @{ nombre = 'm-dieta'; archivo = 'movil\dieta.png'; bandas = @(, @(8, 150, 392, 672)) }

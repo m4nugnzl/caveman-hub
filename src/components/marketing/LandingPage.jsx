@@ -25,8 +25,8 @@ import { LogoMark } from '@/components/ui/Logo';
  * cinco líneas, es material de las dudas o de la ayuda, no del escaparate.
  *
  * ── El orden ────────────────────────────────────────────────────────────────
- * Promesa (la escena entera) → lo que programas → lo que ve tu cliente → lo que
- * te devuelve → cuánto vale → cinco dudas → cierre.
+ * Promesa (la escena: tu rutina y su móvil) → lo que ve tu cliente → lo que te
+ * devuelve el lunes → cuánto vale → cinco dudas → cierre.
  *
  * ══ Y las capturas van RECORTADAS ═══════════════════════════════════════════
  *
@@ -67,18 +67,11 @@ import { LogoMark } from '@/components/ui/Logo';
  * REALES del archivo, así que si se cambia un recorte en el script hay que
  * traer aquí las medidas que imprime.
  */
-const HOY = {
-  src: '/capturas/hoy.jpg',
-  ancho: 2017,
-  alto: 1050,
-  alt: 'La pantalla «Hoy» del entrenador: diez movimientos del día —pesajes y fotos de sus clientes— y una bandeja con veintidós tareas esperando, entre ellas cuatro check-ins por responder.',
-};
-
 const RUTINA = {
   src: '/capturas/rutina.jpg',
   ancho: 2017,
-  alto: 620,
-  alt: 'El día «Empuje» de una rutina: seis ejercicios y veinte series, con el press de banca a 97,5 kg por 8 repeticiones y RIR 2 en cuatro series.',
+  alto: 820,
+  alt: 'La rutina de un cliente: ocho semanas en el carril de arriba, tres días —Empuje, Tirón y Pierna—, y el día abierto con seis ejercicios y veinte series, con el press de banca a 97,5 kg por 8 repeticiones y RIR 2.',
 };
 
 const PROGRESO = {
@@ -154,25 +147,6 @@ const Entra = ({ as: Etiqueta = 'div', className = '', retraso = 0, children, ..
     </Etiqueta>
   );
 };
-
-/**
- * El recuadro que se apoya sobre una captura y señala qué se está mirando.
- *
- * Solo lo lleva el héroe, y a propósito: ahí hay DOS pantallas a la vez y hay
- * que decir en un vistazo cuál es la tuya y cuál la de tu cliente. En las
- * secciones de abajo el rótulo de encima ya lo dice, y una nota más sería
- * repetirlo tapando la pieza.
- *
- * `aria-hidden` y `pointer-events: none`: es una anotación sobre algo que el
- * texto de al lado ya cuenta, así que a un lector de pantalla solo le añade
- * ruido.
- */
-const Nota = ({ donde, k, v }) => (
-  <span className={`lp-nota is-${donde}`} aria-hidden="true">
-    <span className="lp-nota-k">{k}</span>
-    <span className="lp-nota-v">{v}</span>
-  </span>
-);
 
 /**
  * Una captura de escritorio dentro de una ventana.
@@ -252,9 +226,9 @@ const Movil = ({ pieza, className = '' }) => {
  * acercarse a la pantalla para leer un número, que es justo lo contrario de lo
  * que se le pide a la única imagen de la sección.
  */
-const Bloque = ({ id, franja, rotulo, titulo, remate, texto, children }) => (
+const Bloque = ({ id, franja, ancha, rotulo, titulo, remate, texto, children }) => (
   <Entra as="section" className={`lp-sec${franja ? ' is-band' : ''}`} id={id}>
-    <div className="lp-in">
+    <div className={`lp-in${ancha ? ' is-ancha' : ''}`}>
       <div className="lp-sec-head is-center">
         <span className="lp-kicker">{rotulo}</span>
         <h2>
@@ -330,10 +304,24 @@ export const LandingPage = () => {
       </header>
 
       {/* ══ EL HÉROE ═══════════════════════════════════════════════════════
-          Cuatro palabras de titular y la escena debajo: tu ordenador a un lado y
-          el móvil de tu cliente al otro. Las dos pantallas juntas contestan de un
-          vistazo la única pregunta que trae todo el mundo —«¿esto qué es
-          exactamente?»— y lo hacen antes de que nadie lea una línea. */}
+          Cuatro palabras de titular y LA ESCENA debajo.
+
+          ── Por qué la rutina y no la bandeja del día ──────────────────────
+          Aquí estuvo «Hoy», que es la pantalla con la que se empieza a trabajar
+          y que por eso parecía la portada natural. Y no funciona: es una lista
+          de nombres con cifras al lado. Dice lo que ha pasado, pero no enseña
+          NADA de lo que se hace con esta herramienta, y como primera imagen de
+          un producto de entrenamiento es un panel de administración.
+
+          La rutina sí: se ve el programa entero —ocho semanas, tres días— y la
+          tabla de series con sus kilos y su RIR. Eso es el oficio.
+
+          ── Y el móvil se apoya en el ordenador ────────────────────────────
+          Las dos piezas no están una al lado de la otra: el móvil PISA el canto
+          de la ventana y cae por debajo de su base. Separados son dos capturas
+          en la misma fila; solapados son una escena, y además dicen sin
+          palabras lo que hay que entender —que lo de la derecha sale de lo de la
+          izquierda—. Las dos enseñan la misma sesión a propósito. */}
       <section className="lp-sec lp-hero" id="top">
         <div className="lp-in lp-hero-in">
           <span className="lp-eyebrow">Software para entrenadores online</span>
@@ -370,41 +358,36 @@ export const LandingPage = () => {
             {masBarato && <> Para crecer, desde {planPrice(masBarato)}.</>}
           </span>
 
-          <div className="lp-hero-art">
-            <div className="lp-hero-desk">
-              <Ventana pieza={HOY} titulo="Hoy" prioridad />
+          <div className="lp-escena">
+            <div className="lp-escena-desk">
+              <Ventana pieza={RUTINA} titulo="Rutina · Semana 8" prioridad />
             </div>
 
-            <div className="lp-hero-phone">
-              <Movil pieza={MOVIL_HERO} />
-            </div>
-
-            {/* Las notas cuelgan del contenedor y no de la pieza que tapan: el
-                móvil lleva su sombra en `filter`, y un filtro se aplica también a
-                los hijos, así que una nota metida ahí saldría con sombra doble. */}
-            <Nota donde="uno" k="Tu pantalla" v="Todo lo que han hecho" />
-            <Nota donde="dos" k="Su móvil" v="La sesión del día" />
+            <Movil pieza={MOVIL_HERO} className="lp-escena-movil" />
           </div>
+
+          {/* El pie de la escena. Dos líneas de nada que hacen el trabajo que
+              antes hacían dos recuadros flotando encima de las capturas: decir
+              cuál es tu pantalla y cuál la suya. Debajo y en pequeño, porque una
+              etiqueta que hay que leer no puede taparlo que viene a explicar. */}
+          <p className="lp-escena-pie">
+            <span>Tu pantalla: la semana que le programas</span>
+            <span>Su móvil: lo que abre en el gimnasio</span>
+          </p>
         </div>
       </section>
 
-      {/* ══ 1. LO QUE PROGRAMAS ═══════════════════════════════════════════ */}
-      <Bloque
-        id="producto"
-        franja
-        rotulo="Programación"
-        titulo="Móntale la semana"
-        remate="en cinco minutos"
-        texto="Duplicas el bloque anterior, ajustas kilos, series y RIR, y la tiene en el móvil al instante. Con 46 ejercicios por grupo muscular listos desde el primer día."
-      >
-        <Ventana pieza={RUTINA} titulo="Rutina" />
-      </Bloque>
+      {/* ══ 1. LO QUE VE TU CLIENTE ═══════════════════════════════════════
+          Dos móviles, y montados como una pareja: el de la dieta delante, el del
+          progreso medio escondido detrás y un escalón más abajo. Uno al lado del
+          otro y a la misma altura serían la ficha de producto de una tienda de
+          fundas; encajados se leen como lo que son, la misma aplicación abierta
+          por dos sitios.
 
-      {/* ══ 2. LO QUE VE TU CLIENTE ═══════════════════════════════════════
-          Dos móviles y no uno: lo que hay que enseñar aquí no es una pantalla,
-          es que el cliente lleva encima el plan ENTERO —lo que come y cómo va—
-          sin haberse instalado nada. */}
-      <Entra as="section" className="lp-sec lp-feat" id="cliente">
+          Y son los dos del cliente a propósito: lo que hay que enseñar aquí no
+          es una pantalla, es que la persona lleva encima el plan ENTERO —lo que
+          come y cómo va— sin haberse instalado nada. */}
+      <Entra as="section" className="lp-sec lp-feat is-band" id="producto">
         <div className="lp-in lp-feat-in">
           <div className="lp-feat-say">
             <span className="lp-kicker">La app de tu cliente</span>
@@ -426,13 +409,19 @@ export const LandingPage = () => {
         </div>
       </Entra>
 
-      {/* ══ 3. LO QUE TE DEVUELVE ═════════════════════════════════════════ */}
+      {/* ══ 2. LO QUE TE DEVUELVE ═════════════════════════════════════════
+          Esta pieza va MÁS ANCHA que el resto de la página (`is-ancha`), y es la
+          única. La hoja de progreso son cuatro cifras y dos gráficos, y un
+          gráfico es lo único de una portada que se puede quedar sin sitio: a
+          1200 px las etiquetas de los ejes se leen con esfuerzo y lo que hay que
+          poder decir aquí es «esto se entiende de un vistazo». */}
       <Bloque
-        franja
+        id="progreso"
+        ancha
         rotulo="Progreso"
         titulo="Su semana entera,"
-        remate="en cuatro cifras"
-        texto="Peso, check-in, tonelaje y calorías sobre la misma línea de tiempo. Cae solo de lo que registra tu cliente: nadie copia un dato a ninguna parte."
+        remate="en una hoja"
+        texto="Peso, check-in, tonelaje y calorías sobre la misma línea de tiempo, con sus gráficos debajo. Cae solo de lo que registra tu cliente: nadie copia un dato a ninguna parte."
       >
         <Ventana pieza={PROGRESO} titulo="Progreso" />
       </Bloque>
@@ -611,8 +600,8 @@ export const LandingPage = () => {
                 columna vacía es peor que un pie con tres columnas. */}
             <div className="lp-foot-col">
               <h3>Producto</h3>
-              <a href="#producto">Cómo funciona</a>
-              <a href="#cliente">La app de tu cliente</a>
+              <a href="#producto">La app de tu cliente</a>
+              <a href="#progreso">Progreso</a>
               <a href="#precios">Precios</a>
               <a href="#preguntas">Dudas</a>
             </div>

@@ -1330,6 +1330,13 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   padding-inline: var(--lp-pad);
 }
 
+/* La excepción, y hay una sola en la página: la hoja de progreso. Un gráfico es
+   lo único que se puede quedar sin sitio —las etiquetas de los ejes tienen un
+   tamaño mínimo por debajo del cual no se leen— así que esa sección se sale del
+   ancho de lectura. El titular de dentro no la sigue: se queda centrado y con su
+   tope de caracteres, que una línea de texto de 1440 px no se lee. */
+.lp-in.is-ancha { max-width: calc(1440px + var(--lp-pad) * 2); }
+
 .lp-sec { padding-block: var(--lp-air); }
 
 /* La franja: un escalón de luz a sangre. El filete de arriba y abajo es lo que
@@ -1357,17 +1364,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    para siempre. Esto lo impide desde la hoja de estilos, que no depende de nada. */
 @media (prefers-reduced-motion: reduce) {
   .lp-reveal { opacity: 1; transform: none; }
-  /* El balanceo de las notas es puro adorno: es lo primero que se apaga, y se
-     apaga entero, no se acorta. */
-  .lp-nota { animation: none !important; }
-}
-
-/* El balanceo de las notas. `translate` y no `transform`: las notas se colocan
-   con `top`/`left`, y usar la propiedad separada deja libre `transform` por si
-   alguna necesita además girarse. */
-@keyframes lp-flota {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -6px; }
 }
 
 /* ==========================================================================
@@ -1558,28 +1554,62 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* Aquí vive el precio, y por eso no es texto terciario diminuto: se lee. */
 .lp-cta-note { font-size: var(--fs-sm); color: var(--text-tertiary); }
 
-/* Las dos piezas apoyadas en el mismo suelo (`flex-end`) y no centradas: lo que
-   las hace leerse como una escena —dos objetos sobre una mesa— en vez de como
-   dos tarjetas de una rejilla es que el canto de abajo coincida. */
-.lp-hero-art {
+/* ══════════════════════════════════════════════════════════════════════════
+   LA ESCENA: el móvil apoyado en el ordenador
+   --------------------------------------------------------------------------
+   Las dos piezas del héroe estuvieron una al lado de la otra, separadas por un
+   hueco y apoyadas en el mismo suelo. Se leían como dos capturas en la misma
+   fila —el móvil, sobre todo, parecía pegado ahí— y eso es exactamente lo que
+   no puede pasar en la primera pantalla: si las dos piezas no se tocan, tampoco
+   se toca lo que cuentan.
+
+   Ahora el móvil PISA el canto derecho de la ventana y cae por debajo de su
+   base. Dos márgenes negativos y nada más:
+
+     · el horizontal mete el móvil dentro de la ventana lo justo para que se
+       superpongan sin comerse la última columna de series;
+     · el vertical lo deja caer por debajo del suelo del ordenador, que es lo
+       que da la profundidad —lo de delante baja, lo de detrás sube— sin tener
+       que inclinar nada ni inventarse una perspectiva.
+
+   Y el `z-index` es lo que decide cuál está delante, que aquí es el móvil: es
+   la pieza pequeña, y si quedara detrás el solape se leería como un recorte mal
+   hecho en vez de como un objeto encima de otro.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-escena {
   position: relative;
   width: 100%;
   margin-top: clamp(28px, 5vw, 64px);
   display: flex; align-items: flex-end; justify-content: center;
-  gap: clamp(18px, 3vw, 44px);
   text-align: left;
 }
 
-/* Tu pantalla. Con tope: una captura de 2048 px estirada a todo el ancho del
+/* La ventana. Con tope: una captura de 2017 px estirada a todo el ancho del
    héroe deja la letra de la aplicación más grande que el propio lede, y lo que
    se ve entonces no es un panel de trabajo sino un cartel. */
-.lp-hero-desk { flex: 1 1 600px; min-width: 0; max-width: 780px; }
+.lp-escena-desk { flex: 1 1 600px; min-width: 0; max-width: 860px; }
 
-/* Y el móvil de tu cliente, a su tamaño. Sobresale por arriba del ordenador
-   —está apoyado en el mismo suelo y es más alto— y eso es correcto: es la
-   silueta que hace que la escena se lea de un vistazo como «un ordenador y un
-   móvil», que es justo la frase que tiene que quedar. */
-.lp-hero-phone { flex: 0 0 clamp(186px, 19vw, 236px); }
+.lp-escena-movil {
+  flex: 0 0 clamp(150px, 17vw, 208px);
+  margin-left: clamp(-56px, -3.4vw, -30px);
+  margin-bottom: clamp(-44px, -2.8vw, -22px);
+  z-index: 1;
+}
+
+/* El pie: quién es cada pantalla, en dos líneas de nada. El aire de arriba
+   cuenta con que el móvil cuelga por debajo de la escena. */
+.lp-escena-pie {
+  margin-top: clamp(40px, 4.5vw, 66px);
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: var(--s3) clamp(20px, 3vw, 40px);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.lp-escena-pie > span { display: inline-flex; align-items: center; gap: var(--s2); }
+.lp-escena-pie > span::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--fill-strong);
+}
 
 /* ==========================================================================
    EL BLOQUE DE SECCIÓN: discurso y pieza
@@ -1606,16 +1636,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .lp-pieza { margin-top: clamp(28px, 4vw, 52px); }
 
 /* ── Dos móviles ─────────────────────────────────────────────────────────────
-   El segundo baja un escalón. Dos teléfonos exactamente a la misma altura se
-   leen como una ficha de producto de una tienda; desnivelados se leen como dos
-   objetos dejados encima de una mesa, que es lo que hace que la pareja parezca
-   una escena y no un montaje. */
+   Encajados, no alineados. El segundo se mete por detrás del primero y baja un
+   escalón, con el mismo recurso que la escena del héroe: un margen negativo y
+   un `z-index`.
+
+   Dos teléfonos separados y a la misma altura son la ficha de producto de una
+   tienda de fundas. Solapados son dos objetos dejados encima de una mesa, y esa
+   diferencia es la que hace que la pareja se lea como la misma aplicación
+   abierta por dos sitios en vez de como dos capturas puestas juntas.
+
+   El solape es corto —el ancho del canto y poco más— porque lo que tapa es
+   contenido: pasado de ahí, empieza a comerse las cifras del de detrás. */
 .lp-duo {
   display: flex; align-items: flex-start; justify-content: center;
-  gap: clamp(12px, 2vw, 26px);
 }
-.lp-duo > .lp-movil { flex: 0 1 250px; min-width: 0; }
-.lp-duo > .lp-movil:nth-child(2) { margin-top: clamp(20px, 4vw, 44px); }
+.lp-duo > .lp-movil { flex: 0 1 246px; min-width: 0; }
+.lp-duo > .lp-movil:first-child { z-index: 1; }
+.lp-duo > .lp-movil:nth-child(2) {
+  margin-left: clamp(-34px, -2vw, -16px);
+  margin-top: clamp(26px, 4.5vw, 52px);
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    LA VENTANA: una captura enmarcada
@@ -1669,10 +1709,10 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    pantalla alrededor de la captura.
 
    La sombra va en `filter` y no en `box-shadow` porque tiene que seguir el
-   contorno redondeado del móvil y no el de su caja. Y es la razón por la que las
-   notas del héroe cuelgan de `.lp-hero-art` y no de aquí dentro: un filtro
-   alcanza también a los hijos, así que una nota metida aquí saldría con sombra
-   doble. */
+   contorno redondeado del móvil y no el de su caja —con `box-shadow` se vería el
+   rectángulo de la sombra asomando por las esquinas—. Y es lo que despega el
+   teléfono de la ventana sobre la que se apoya: sin ella, dos superficies
+   solapadas y casi del mismo tono se leen como una sola pieza mal recortada. */
 
 .lp-movil {
   padding: 7px;
@@ -1685,45 +1725,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   display: block; width: 100%; height: auto;
   border-radius: 23px;
 }
-
-/* ══════════════════════════════════════════════════════════════════════════
-   LAS NOTAS QUE FLOTAN
-   --------------------------------------------------------------------------
-   El recuadro que se apoya sobre una pieza y señala qué se está mirando. Es lo
-   que cose el párrafo de al lado con la pantalla: sin él son dos cosas que hay
-   que juntar con la cabeza.
-
-   `pointer-events: none` no es un detalle: dos de las tres piezas sobre las que
-   se apoya son demostraciones que se tocan, y una nota que se come un clic
-   convierte la mejor pieza de la página en una que no responde.
-
-   El balanceo es de tres píxeles y de siete segundos. A esa amplitud no se ve
-   moverse: se ve que está VIVO, que es lo que hace que el ojo vuelva. Más que
-   eso es un adorno que compite con la pieza que viene a señalar.
-   ══════════════════════════════════════════════════════════════════════════ */
-
-.lp-nota {
-  position: absolute; z-index: 2;
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 10px 14px;
-  background: var(--surface-raised); border: 1px solid var(--hairline-strong);
-  border-radius: var(--lp-r);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-  text-align: left; pointer-events: none;
-  animation: lp-flota 7s var(--ease) infinite;
-}
-.lp-nota-k {
-  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
-  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
-  color: var(--text-tertiary);
-}
-.lp-nota-v { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
-
-/* Las tres posiciones. Cada una se sale de su caja por un lado —esa mordida es
-   lo que la hace leerse como algo apoyado ENCIMA y no como una esquina más del
-   panel— y por eso `.lp` lleva `overflow-x: clip`. */
-.lp-nota.is-uno { left: -18px; top: 24%; }
-.lp-nota.is-dos { right: -20px; bottom: 14%; animation-delay: -3.5s; }
 
 /* ── Planes ──────────────────────────────────────────────────────────────── */
 
@@ -1948,13 +1949,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .lp-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 1000px) {
-  /* Las notas de los lados se van. Se apoyan en el canto de dos piezas que a
-     este ancho ya se están encogiendo, y lo que hacen a partir de aquí es taparlas
-     en vez de señalarlas. La escena sigue entera: es lo que tiene que aguantar. */
-  .lp-nota.is-uno, .lp-nota.is-dos { display: none; }
-}
-
 @media (max-width: 860px) {
   /* Tres anclas no caben al lado de dos botones, y de las tres cosas que hay en
      la barra la que no puede faltar es la de empezar. */
@@ -1962,11 +1956,15 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 
 @media (max-width: 700px) {
-  /* El móvil se va del héroe. Enseñar un móvil dentro de un móvil no dice nada
-     —quien mira ya está sujetando uno— y a este ancho son doscientos píxeles de
-     altura robados al ordenador, que es la pieza que hay que ver. La captura del
-     portal del cliente vuelve en la sección de la rutina, a ancho completo. */
-  .lp-hero-phone { display: none; }
+  /* El móvil se va de la escena. Enseñar un móvil dentro de un móvil no dice
+     nada —quien mira ya está sujetando uno— y a este ancho el solape deja de
+     leerse como profundidad y pasa a ser un teléfono tapando media ventana. La
+     ventana se queda sola y a todo el ancho, que es la pieza que hay que ver.
+     Los dos móviles del cliente llegan enteros una sección más abajo. */
+  .lp-escena-movil { display: none; }
+  .lp-escena-desk { flex: 1 1 auto; max-width: none; }
+  /* Sin móvil colgando ya no hay que dejarle sitio al pie. */
+  .lp-escena-pie { margin-top: var(--s5); }
 
   /* Y la barra de la ventana se estrecha con la pantalla: a 360 px, 36 px de
      barra sobre una captura de 200 px de alto son marco comiéndose la pieza. */
