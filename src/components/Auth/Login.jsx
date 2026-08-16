@@ -1,10 +1,36 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { LogoMark } from '@/components/ui/Logo';
+
 import { supabase } from '@/lib/supabaseClient';
 import { MIN_PASSWORD, traduceAuthError } from '@/lib/authErrors';
 import { RESET_PATH } from '@/routes';
-import { Field, Notice, Panel } from '@/components/ui/primitives';
+import { Field, Notice, Panel, SegmentedControl } from '@/components/ui/primitives';
+import { Acceso } from '@/components/Auth/Acceso';
+
+/**
+ * Lo que dice cada modo en la cabecera de la tarjeta.
+ *
+ * En una tabla y no en tres ternarios repartidos por el JSX: son tres cadenas
+ * por modo —título, pie y botón— y con ternarios sueltos es donde se queda uno
+ * sin cambiar el día que se añade un cuarto estado.
+ */
+const VOZ = {
+  login: {
+    titulo: 'Entrar',
+    pie: 'Con la cuenta que ya tienes.',
+    boton: 'Entrar',
+  },
+  signup: {
+    titulo: 'Crear tu cuenta',
+    pie: 'Tres clientes gratis, sin tarjeta y sin límite de tiempo.',
+    boton: 'Crear cuenta de entrenador',
+  },
+  reset: {
+    titulo: 'Recuperar el acceso',
+    pie: 'Te mandamos un enlace para elegir otra contraseña.',
+    boton: 'Enviar enlace',
+  },
+};
 
 /**
  * @param notice  Aviso de contexto sobre la pantalla. Lo usa la página de
@@ -91,20 +117,70 @@ export const Login = ({ notice = null }) => {
     }
   };
 
-  const submitLabel = {
-    login: 'Entrar',
-    signup: 'Crear cuenta de entrenador',
-    reset: 'Enviar enlace',
-  }[mode];
+  const voz = VOZ[mode];
+
+  /*
+    ══ La columna de al lado no le habla a la misma persona ═══════════════════
+
+    Por esta pantalla entran dos: el entrenador que viene de la portada y el
+    cliente que ha pulsado el enlace de invitación de su entrenador. A ese
+    segundo, «tres clientes gratis» no le dice nada —él no lleva a nadie y no
+    paga nada— y encima le hace dudar de si esto le va a costar dinero.
+
+    El aviso de contexto es lo que distingue un caso del otro: solo lo manda la
+    página de invitación.
+  */
+  const aparte = notice
+    ? {
+        lema: 'Tu rutina y tu dieta,',
+        remate: 'donde entrenas',
+        puntos: [
+          'La sesión del día en el móvil, con lo que levantaste la vez anterior.',
+          'Lo que registras lo ve tu entrenador al momento.',
+          'Tú no pagas nada: la cuenta la lleva quien te entrena.',
+        ],
+      }
+    : {
+        lema: 'Tus clientes entrenan.',
+        remate: 'Tú lo ves todo.',
+        puntos: [
+          'Tres clientes gratis, para siempre y sin tarjeta.',
+          'En el navegador: no hay nada que instalar, ni tú ni ellos.',
+          'Tus datos se exportan o se borran cuando lo pidas.',
+        ],
+      };
 
   return (
-    <div className="login">
-      <Panel as="form" onSubmit={handleSubmit} className="login-card col gap-4">
-        <div className="login-head">
-          <LogoMark size={54} />
-          <strong className="login-title">Caveman Hub</strong>
-          <span className="t-sm t-tertiary">Entrenamiento y progreso</span>
+    <Acceso {...aparte}>
+      <Panel as="form" onSubmit={handleSubmit} className="acceso-card col gap-4">
+        <div className="acceso-card-head">
+          <strong className="acceso-title">{voz.titulo}</strong>
+          <span className="t-sm t-tertiary">{voz.pie}</span>
         </div>
+
+        {/*
+          Entrar y crear cuenta, arriba y como dos pestañas.
+
+          Antes eran dos enlaces de texto DEBAJO del botón de envío —«¿No tienes
+          cuenta? Crear una»— y eso tiene dos problemas: hay que leer el
+          formulario entero para descubrir que existe el otro camino, y a quien
+          llega con la intención de registrarse le da la bienvenida un formulario
+          que dice «Entrar». Arriba, la elección se ve antes de escribir nada.
+
+          En «recuperar» no aparece: ahí no se está eligiendo entre dos caminos,
+          se está en un desvío del primero, y su salida es el enlace de abajo.
+        */}
+        {mode !== 'reset' && (
+          <SegmentedControl
+            label="Entrar o crear una cuenta"
+            value={mode}
+            onChange={go}
+            options={[
+              { id: 'login', label: 'Entrar' },
+              { id: 'signup', label: 'Crear cuenta' },
+            ]}
+          />
+        )}
 
         {notice && <Notice tone="info">{notice}</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
@@ -164,8 +240,11 @@ export const Login = ({ notice = null }) => {
           </Field>
         )}
 
-        <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'Un momento…' : submitLabel}
+        {/* El botón de la portada, no el de la aplicación: es el mismo gesto que
+            se pulsó para llegar hasta aquí, y llevarlo igual es lo que hace que
+            las dos pantallas se lean como una sola secuencia. */}
+        <button type="submit" className="lp-btn is-fill acceso-go" disabled={busy}>
+          {busy ? 'Un momento…' : voz.boton}
         </button>
 
         {/*
@@ -174,34 +253,31 @@ export const Login = ({ notice = null }) => {
           compite con lo que casi todo el mundo viene a hacer.
         */}
         {mode === 'login' && (
-          <button type="button" className="btn btn-sm login-alt" onClick={() => go('reset')}>
+          <button type="button" className="btn btn-sm acceso-alt" onClick={() => go('reset')}>
             ¿Has olvidado tu contraseña?
           </button>
         )}
 
-        <button
-          type="button"
-          className="btn btn-sm login-alt"
-          onClick={() => go(mode === 'login' ? 'signup' : 'login')}
-        >
-          {mode === 'login'
-            ? '¿No tienes cuenta? Crear una de entrenador'
-            : '¿Ya tienes cuenta? Entrar'}
-        </button>
+        {mode === 'reset' && (
+          <button type="button" className="btn btn-sm acceso-alt" onClick={() => go('login')}>
+            Volver a entrar
+          </button>
+        )}
 
         {/*
           ══ Que un cliente no se cree una cuenta de entrenador ═══════════════
 
           Este alta crea un ENTRENADOR: el rol lo asigna el disparador de la base
-          de datos. Pero el botón decía «Crear una» a secas, así que un cliente
-          que guardó la dirección en marcadores en vez del enlace de invitación
-          —o que cerró sesión y volvió mal— acababa con una cuenta de entrenador
-          vacía y sin acceso a sus datos. Y la queja llega al entrenador.
+          de datos. Pero la pestaña dice «Crear cuenta» a secas, así que un
+          cliente que guardó la dirección en marcadores en vez del enlace de
+          invitación —o que cerró sesión y volvió mal— acabaría con una cuenta de
+          entrenador vacía y sin acceso a sus datos. Y la queja llega al
+          entrenador.
 
           Se dice para quién es el alta, y qué hacer si no eres tú.
         */}
         {mode === 'signup' && (
-          <p className="t-xs t-tertiary" style={{ textAlign: 'center' }}>
+          <p className="t-xs t-tertiary acceso-fine">
             ¿Eres cliente de un entrenador? No te crees una cuenta aquí: entra con el enlace que él
             te mandó.
           </p>
@@ -213,7 +289,7 @@ export const Login = ({ notice = null }) => {
           acepta en este clic y tiene que poder leerlas antes.
         */}
         {mode === 'signup' && (
-          <p className="t-xs t-tertiary" style={{ textAlign: 'center' }}>
+          <p className="t-xs t-tertiary acceso-fine">
             Al crear la cuenta aceptas las{' '}
             <a href="/condiciones" target="_blank" rel="noreferrer">
               condiciones del servicio
@@ -226,6 +302,6 @@ export const Login = ({ notice = null }) => {
           </p>
         )}
       </Panel>
-    </div>
+    </Acceso>
   );
 };

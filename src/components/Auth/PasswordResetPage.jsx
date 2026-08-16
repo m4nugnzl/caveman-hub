@@ -3,8 +3,8 @@ import { KeyRound } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { MIN_PASSWORD, traduceAuthError } from '@/lib/authErrors';
-import { LogoMark } from '@/components/ui/Logo';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
+import { Acceso } from '@/components/Auth/Acceso';
 
 /**
  * `/nueva-contrasena` — elegir contraseña nueva.
@@ -99,18 +99,32 @@ export const PasswordResetPage = () => {
      `<form>` alrededor solo añadiría un envío que no lleva a ninguna parte. */
   const isForm = ready && hasSession && !done;
 
+  /* El mismo escaparate que el acceso, y con el mismo motivo: se llega aquí
+     desde un enlace del correo, casi siempre en una pestaña nueva y sin haber
+     pasado por ninguna pantalla de esta aplicación. Si esto no se parece a lo
+     que hay en `/entrar`, lo que se abre no se reconoce como el mismo sitio —y
+     una pantalla que pide una contraseña es la peor de todas para no ser
+     reconocida—. */
   return (
-    <div className="login">
+    <Acceso
+      lema="Elige una contraseña"
+      remate="y sigue donde estabas"
+      puntos={[
+        'El enlace del correo vale una vez y caduca.',
+        'Al guardarla entras directamente, sin volver a escribirla.',
+      ]}
+    >
       <Panel
         as={isForm ? 'form' : 'div'}
         onSubmit={isForm ? handleSubmit : undefined}
-        className="login-card col gap-4"
+        className="acceso-card col gap-4"
       >
-        <div className="login-head">
-          <LogoMark size={54} />
-          <strong className="login-title">Caveman Hub</strong>
+        <div className="acceso-card-head">
+          <strong className="acceso-title">
+            {done ? 'Contraseña cambiada' : 'Contraseña nueva'}
+          </strong>
           <span className="t-sm t-tertiary">
-            {done ? 'Contraseña cambiada' : 'Elige una contraseña nueva'}
+            {done ? 'Ya puedes entrar con ella.' : 'La de antes deja de valer en cuanto guardes.'}
           </span>
         </div>
 
@@ -186,6 +200,6 @@ export const PasswordResetPage = () => {
           </>
         )}
       </Panel>
-    </div>
+    </Acceso>
   );
 };

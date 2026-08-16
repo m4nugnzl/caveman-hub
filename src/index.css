@@ -52,6 +52,41 @@
     U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* ── Y la CURSIVA, que solo pisa la portada ─────────────────────────────────
+   Un único uso en todo el proyecto: la frase que remata cada titular de la
+   página pública. Es lo único que la separa del resto del titular —allí no hay
+   tinta de marca que gastar— y basta: la cursiva de una grotesca ancha inclina
+   además las astas, así que dice «esto va rápido» sin gastar una palabra.
+
+   Va como archivo aparte y no como inclinación sintética a propósito: el
+   navegador, cuando no encuentra una cursiva de verdad, deforma la redonda con
+   una matriz de sesgo, y a 84 px eso se ve —las curvas quedan pesadas por un
+   lado y el ojo de la «a» se cierra—. Justo en la pieza más grande de la página.
+
+   No cuesta el primer render de nadie más: son dos archivos que el navegador
+   solo pide cuando encuentra texto en cursiva, y eso solo pasa aquí. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/archivo-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: italic;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/archivo-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -172,6 +207,7 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 .center { justify-content: center; }
 .grow { flex: 1; min-width: 0; }
 .shrink-0 { flex-shrink: 0; }
+.self-start { align-self: flex-start; }
 
 .gap-1 { gap: var(--s1); }
 .gap-2 { gap: var(--s2); }
@@ -1192,246 +1228,783 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* ==========================================================================
    Portada pública
    --------------------------------------------------------------------------
-   ══ La decisión: enseñar el producto, no describirlo ════════════════════════
+   ══ La decisión: enseñar la pantalla, entera ════════════════════════════════
 
    Una página de captación de una herramienta de entrenadores es, casi siempre,
-   un titular sobre un degradado y tres tarjetas con iconos. Eso se puede
-   maquetar sin haber visto el producto, y se nota.
+   un titular sobre un degradado, cuatro tarjetas con iconos y —con suerte— un
+   vídeo de producto. Eso se puede maquetar sin haber visto la aplicación, y se
+   nota.
 
-   Aquí el héroe es una PIEZA REAL: la tabla de series que el cliente rellena en
-   el gimnasio, con la misma tipografía, las mismas cifras tabulares y el mismo
-   canto que dentro. Lo que se promete es literalmente lo que se entrega.
+   Aquí hubo lo contrario y también falló: tres secciones eran la aplicación
+   FUNCIONANDO —se escribían kilos y se movía el tonelaje, se encendía un módulo
+   y aparecía en el móvil de al lado—. Piezas hechas a medida para la portada,
+   tocables, que seguían al tema y no envejecían. Y aun así lo que se veía era
+   una maqueta: una pieza cortada para caber en media columna NO es la pantalla,
+   es lo que cabe de ella, y un entrenador no reconoce ahí su trabajo.
 
-   ── Ni una tinta de marca ──────────────────────────────────────────────────
-   El cromo no tiene color, y aquí tampoco: lo único con color de toda la página
-   es el disco de 25 del logotipo. Las cifras del héroe son grafito y las
-   apagadas —lo de la vez anterior— son terciario. Un degradado de campaña
-   prometería un producto distinto del que hay detrás.
+   Ahora son capturas de la cuenta que monta `scripts/demo.mjs`, y RECORTADAS:
+   `scripts/recortar-capturas.ps1` deja en `public/capturas/portada/` una pieza
+   por sección con la tabla de series, los anillos de calorías y las cifras de la
+   semana, y sin nada de cromo. La cabecera con la marca, el buscador y el avatar
+   son exactamente lo que tiene igual cualquier aplicación del mundo: ocupaban un
+   tercio de cada captura diciendo lo que no distingue a esta de ninguna otra.
 
-   ── Y la regla mide algo ───────────────────────────────────────────────────
-   Aparece dos veces: separando la promesa de su prueba, y encabezando los
-   cuatro pasos del circuito, que es semanal. En ningún sitio como adorno.
+   El precio es que hay que volver a sacarlas y a recortarlas cuando una de esas
+   pantallas cambie de forma. Se paga.
+
+   ══ Y la forma: escaparate de noche ═════════════════════════════════════════
+
+   Cuatro reglas sostienen la página entera:
+
+   ── 1. Negro fijo ──────────────────────────────────────────────────────────
+   `.lp-noche` (en `styles/tokens.css`) lo ponen y lo quitan la portada y el
+   acceso, vía `lib/useNoche.js`, en el elemento raíz. Una pantalla de trabajo es
+   un objeto ILUMINADO: sobre un lienzo apagado se lee como la pieza que es, y
+   sobre papel compite con él.
+
+   ── 2. Franjas, no huecos ──────────────────────────────────────────────────
+   Las secciones no se separan con aire: se alternan entre el lienzo y un escalón
+   más claro a sangre, con filete arriba y abajo (`.is-band`). Seis bloques
+   separados solo por espacio se leen como una lista larga; en franjas se ve de
+   un vistazo dónde empieza y acaba cada argumento. Por eso `.lp` no tiene `gap`
+   y cada sección lleva su propio `padding-block`: dos franjas seguidas tienen
+   que TOCARSE o el escalón deja de leerse como tal.
+
+   ── 3. Sin tinta de marca ──────────────────────────────────────────────────
+   La misma paleta que el producto: tiza sobre hierro, y el color reservado para
+   los datos. Aquí hubo un amarillo de alta visibilidad pintando remates,
+   rótulos, botones y la losa del cierre, y sobraba: una portada que necesita una
+   tinta propia para tener carácter es una portada que no lo tiene.
+
+   Lo que separa un titular de su remate es la CURSIVA —fuente de verdad
+   (`archivo-italic-*.woff2`), no una inclinación sintética: a 84 px el sesgo que
+   se inventa el navegador se ve—, y lo que separa un rótulo de su párrafo es la
+   troquelada. El único color de la página es el que traen dentro las capturas,
+   que ahí sí significa algo.
+
+   ── 4. Toda captura va enmarcada ───────────────────────────────────────────
+   Las capturas son del tema CLARO y el lienzo es negro, así que ninguna se pega
+   desnuda: van dentro de una ventana con su barra y su sombra (`.lp-shot`) o de
+   un móvil con su bisel (`.lp-movil`). Sin marco, una imagen clara sobre negro no
+   tiene canto y se lee como un agujero en la página. Las secciones de producto
+   llevan el discurso a un lado y la ventana al otro, alternando el lado
+   (`.lp-feat`).
+
+   ── La rejilla ─────────────────────────────────────────────────────────────
+   Todas las secciones van a sangre y el ancho de lectura vive DENTRO, en
+   `.lp-in`. Es al revés que en la aplicación, y es lo que permite que una franja
+   ocupe la pantalla entera mientras su texto sigue alineado con el resto.
    ========================================================================== */
 
 .lp {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: var(--s4) var(--s4) var(--s7);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s7);
+  /* El ancho de lectura de la portada. Más ancho que el de la aplicación porque
+     aquí una sección son dos columnas —discurso y pieza— y la pieza es un trozo
+     de producto que necesita sitio para no leerse como una miniatura. */
+  --lp-w: 1200px;
+  /* El gutter, que crece con la pantalla. En una variable porque la caja de
+     contenido y la barra tienen que coincidir al píxel. */
+  --lp-pad: clamp(20px, 4vw, 40px);
+  /* El aire de una sección, arriba y abajo. Es lo único que separa un argumento
+     del siguiente cuando dos secciones sin franja se tocan. */
+  --lp-air: clamp(52px, 6.5vw, 104px);
+  /* Los radios del escaparate, mucho más abiertos que los del producto (14 px
+     como techo). Allí el canto cerrado dice «herramienta de medida»; aquí una
+     tarjeta con esquina dura al lado de un titular de 84 px lee como un recorte
+     de otra página. */
+  --lp-r: 18px;
+  --lp-r-lg: 26px;
+  --lp-r-xl: 34px;
+
+  background: var(--canvas);
+  /* El halo del héroe y las fichas que flotan se salen por los lados. Con
+     `clip` no se ve la barra horizontal y, a diferencia de `hidden`, no crea un
+     contenedor de desplazamiento —que rompería la barra pegajosa—. */
+  overflow-x: clip;
 }
 
-.lp-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
-.lp-brand {
-  font-family: var(--font-display); font-size: var(--fs-md);
-  font-weight: 700; letter-spacing: -0.02em;
+/* La caja de contenido. Vive dentro de cada sección, no envolviéndolas. */
+.lp-in {
+  width: 100%;
+  max-width: calc(var(--lp-w) + var(--lp-pad) * 2);
+  margin-inline: auto;
+  padding-inline: var(--lp-pad);
 }
 
-/* ── El héroe: lo que se dice y lo que lo demuestra ──────────────────────── */
+.lp-sec { padding-block: var(--lp-air); }
 
-.lp-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
-  gap: var(--s6);
-  align-items: center;
-  padding-top: var(--s5);
+/* La franja: un escalón de luz a sangre. El filete de arriba y abajo es lo que
+   la convierte en una banda y no en un cambio de fondo que se nota a medias. */
+.lp-sec.is-band {
+  background: var(--canvas-alt);
+  border-block: 1px solid var(--hairline);
 }
 
-.lp-hero-say { display: flex; flex-direction: column; gap: var(--s4); }
-.lp-hero-say > h1 {
+/* El destino de un ancla no puede quedar debajo de la barra pegajosa. */
+.lp [id] { scroll-margin-top: calc(var(--header-h) + var(--s4)); }
+
+/* ── Entrar al llegar ────────────────────────────────────────────────────── */
+
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.lp-reveal.is-in { opacity: 1; transform: none; }
+
+/* El segundo cinturón. `useReveal` ya devuelve «visible» a quien pidió menos
+   movimiento, pero si ese gancho no llegara a ejecutarse —JavaScript que falla,
+   un navegador sin `IntersectionObserver`— el contenido se quedaría invisible
+   para siempre. Esto lo impide desde la hoja de estilos, que no depende de nada. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal { opacity: 1; transform: none; }
+  /* El balanceo de las notas es puro adorno: es lo primero que se apaga, y se
+     apaga entero, no se acorta. */
+  .lp-nota { animation: none !important; }
+}
+
+/* El balanceo de las notas. `translate` y no `transform`: las notas se colocan
+   con `top`/`left`, y usar la propiedad separada deja libre `transform` por si
+   alguna necesita además girarse. */
+@keyframes lp-flota {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -6px; }
+}
+
+/* ==========================================================================
+   LA VOZ
+   --------------------------------------------------------------------------
+   Tres tamaños y un remate, y con eso está toda la página:
+
+     · el titular del héroe, de 44 a 84 px;
+     · el titular de sección, de 30 a 52 px;
+     · el rótulo troquelado, de 11 px, que encabeza cada una;
+
+   y el REMATE: la última frase del titular, en cursiva. Es lo que convierte un
+   titular grande en un titular con acento, y lo que hace que ocho secciones se
+   lean como una sola página en vez de como ocho pantallas.
+   ========================================================================== */
+
+.lp h1, .lp h2 {
   font-family: var(--font-display);
-  /* Grande y MUY cerrado: es la voz de las cifras del producto aplicada a una
-     frase. Con el interletraje por defecto lee como un titular cualquiera. */
-  font-size: clamp(2.2rem, 5.2vw, 3.6rem);
-  font-weight: 780; line-height: 1.02; letter-spacing: -0.035em;
+  font-weight: 800;
   text-wrap: balance;
 }
-.lp-lede {
-  font-size: var(--fs-md); color: var(--text-secondary);
-  line-height: var(--lh-base); max-width: 46ch;
-}
-.lp-cta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); }
-.lp-cta-note { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
-/* ── La prueba: la tabla de series, de verdad ────────────────────────────── */
-
-.lp-proof {
-  margin: 0;
-  background: var(--surface);
-  border: 1px solid var(--edge);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-md);
-  padding: var(--s4);
-  display: flex; flex-direction: column; gap: var(--s3);
-}
-.lp-proof-head { display: flex; flex-direction: column; gap: 2px; }
-.lp-proof-name { font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em; }
-.lp-proof-hint {
-  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
-  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
-  color: var(--text-tertiary);
+.lp-h1 {
+  font-size: clamp(2.75rem, 7vw, 5.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
 }
 
-.lp-sets { display: flex; flex-direction: column; gap: 6px; }
-.lp-set {
-  display: grid; grid-template-columns: 26px 42px repeat(3, minmax(0, 1fr));
-  align-items: center; gap: var(--s2);
+.lp h2 {
+  font-size: clamp(1.9rem, 4.4vw, 3.25rem);
+  line-height: 1.03;
+  letter-spacing: -0.032em;
+  max-width: 17ch;
 }
-.lp-set.is-head {
-  font-size: var(--fs-2xs); font-weight: 700;
-  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
-  color: var(--text-tertiary); text-align: center;
-}
-.lp-set > .tag {
-  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+
+/* EL REMATE. `em` y no un `span` con clase: esto es énfasis de verdad —la parte
+   de la frase que carga el significado— y así lo dice también el lector de
+   pantalla, que le sube el tono.
+
+   Solo cursiva. Antes iba además en amarillo, y con la tinta puesta el remate se
+   leía por el color: quitarla obliga a que la frase esté partida donde tiene que
+   estarlo, que es lo que hace el trabajo de verdad. */
+.lp h1 em, .lp h2 em { font-style: italic; }
+
+/* El rótulo va en tiza plena, un escalón por encima del párrafo que encabeza.
+   Es todo el contraste que necesita: troquelada, pequeña y blanca sobre un lede
+   secundario ya se lee como otra voz. */
+.lp-eyebrow, .lp-kicker {
   font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--fill); color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--text);
 }
-.lp-set.is-done > .tag { background: var(--positive-soft); color: var(--positive); }
-.lp-set > .obj {
-  text-align: center; font-size: var(--fs-xs); font-weight: 650;
-  color: var(--info); font-variant-numeric: tabular-nums;
+
+.lp-lede {
+  font-size: clamp(1rem, 1.5vw, 1.15rem); color: var(--text-secondary);
+  line-height: 1.5; max-width: 56ch;
 }
-/* Las casillas, con el mismo alto táctil que dentro (42 px): la prueba no vale
-   si la pieza que se enseña no es la que hay. */
-.lp-set > .v {
-  min-height: 42px; display: grid; place-items: center;
-  border: 1px solid var(--edge); border-radius: var(--r-sm);
-  background: var(--surface-sunken);
-  font-size: var(--fs-base); font-weight: 650;
-  font-variant-numeric: tabular-nums;
+.lp-lede-sm {
+  font-size: var(--fs-md); color: var(--text-secondary);
+  line-height: 1.55; max-width: 54ch;
 }
-/* Lo de la vez anterior: el marcador de posición, que es LA idea de la pieza. */
-.lp-set > .v.is-ghost { color: var(--text-tertiary); font-weight: 500; }
 
-.lp-proof-foot { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
+.lp-sec-head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+.lp-sec-head.is-center { align-items: center; text-align: center; }
+.lp-sec-head.is-center > h2 { max-width: 20ch; }
+.lp-sec-head.is-center > .lp-lede-sm { max-width: 58ch; }
 
-/* ── LA REGLA ────────────────────────────────────────────────────────────── */
+/* ==========================================================================
+   LOS BOTONES DE LA PORTADA
+   --------------------------------------------------------------------------
+   No son los del producto, y no es un descuido. Dentro, un botón es una
+   herramienta: fuente del sistema, esquina corta, tamaño de dedo justo. Aquí es
+   SEÑALÉTICA —hay dos en toda la primera pantalla y tienen que verse desde el
+   otro lado de la habitación—, así que van en pastilla, en versalita troquelada
+   y en tiza plena: sobre un lienzo casi negro, un rectángulo blanco es el máximo
+   contraste que da la pantalla, y no hace falta ningún color para conseguirlo.
+   ========================================================================== */
 
-.lp-rule { height: 9px; background-image: var(--rule); opacity: 0.7; }
-
-/* ── El circuito de la semana ────────────────────────────────────────────── */
-
-.lp-loop { display: flex; flex-direction: column; gap: var(--s3); }
-.lp-loop > h2, .lp-plans > h2, .lp-end > h2 {
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 3.4vw, 2.1rem);
-  font-weight: 740; letter-spacing: -0.025em; line-height: 1.1;
-  text-wrap: balance; max-width: 22ch;
+.lp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  height: 52px; padding-inline: 30px;
+  border: 0; border-radius: var(--r-pill);
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none;
+  white-space: nowrap; cursor: pointer;
+  transition: box-shadow var(--fast), background-color var(--fast), color var(--fast),
+    border-color var(--fast), transform var(--fast);
 }
-.lp-sec-lede { font-size: var(--fs-base); color: var(--text-secondary); max-width: 58ch; }
+.lp-btn:active { transform: scale(0.975); }
+.lp-btn.is-sm { height: 38px; padding-inline: 18px; font-size: var(--fs-2xs); }
 
-.lp-steps {
-  list-style: none; margin: var(--s3) 0 0; padding: 0;
-  display: grid; gap: var(--s4);
-  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+/* La tiza del producto, literal: el mismo par que pinta un botón primario dentro
+   de la aplicación. */
+.lp-btn.is-fill { background: var(--accent); color: var(--accent-on); }
+/* Blanco puro y un halo al pasar por encima. Solo el cambio de tinta se queda
+   corto —de tiza a blanco hay siete puntos de luz— y solo el halo no responde
+   lo bastante rápido para un botón de este tamaño. */
+.lp-btn.is-fill:hover { background: var(--accent-hover); box-shadow: 0 0 0 5px var(--accent-soft); }
+
+.lp-btn.is-ghost {
+  background: transparent; color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
-/* Cada paso se encabeza con la cinta: el circuito es semanal, y lo que se mide
-   aquí es el ORDEN, que sí es información —cada paso necesita el anterior—. */
-.lp-step {
-  display: flex; flex-direction: column; gap: 4px;
-  padding-top: var(--s4);
+.lp-btn.is-ghost:hover { box-shadow: inset 0 0 0 1px var(--text); }
+
+/* El de la losa: allí la tiza es el fondo, así que el botón se invierte. */
+.lp-btn.is-dark { background: var(--accent-on); color: var(--accent); }
+.lp-btn.is-dark:hover { box-shadow: 0 0 0 5px rgba(20, 24, 28, 0.12); }
+
+/* ── La barra ────────────────────────────────────────────────────────────── */
+
+.lp-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-block: 0;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid var(--hairline);
+}
+.lp-bar-in {
+  height: var(--header-h);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+}
+.lp-brand {
+  display: inline-flex; align-items: center; gap: var(--s3);
+  font-family: var(--font-display); font-size: var(--fs-md);
+  font-weight: 700; letter-spacing: -0.02em;
+  color: var(--text); text-decoration: none; white-space: nowrap;
+}
+.lp-nav { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 34px); }
+.lp-bar-cta { display: flex; align-items: center; gap: var(--s4); }
+/* Versalita troquelada también en la navegación: son cuatro rótulos sueltos y en
+   caja baja se leían como texto corrido al lado del logotipo. */
+.lp-nav-link {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-secondary); text-decoration: none; white-space: nowrap;
+  transition: color var(--fast);
+}
+.lp-nav-link:hover { color: var(--text); }
+.lp-nav-link.is-plain { color: var(--text); }
+
+/* ==========================================================================
+   EL HÉROE
+   --------------------------------------------------------------------------
+   Centrado, a una columna y con la ilustración DEBAJO, no al lado. Partirlo en
+   dos columnas obliga a leer y mirar a la vez y deja el titular a la mitad de su
+   tamaño posible; así el titular ocupa lo que puede ocupar y el producto llega
+   entero justo después.
+
+   Y la ilustración son dos piezas, no una: el hilo de «Hoy» a un lado y el móvil
+   del cliente al otro. Juntas dicen lo mismo que el titular —tus clientes
+   entrenan, tú lo ves todo— en otro idioma.
+
+   Las dos son COMPONENTES, no capturas. Aquí hubo una fotografía de la pantalla
+   de escritorio recortada con un desvanecido, y tenía dos problemas que no se
+   arreglan retocándola: envejece con la primera pantalla que se toque, y en una
+   portada se nota que es una foto —justo donde hay que demostrar que hay algo
+   detrás—. Lo que se pinta con reglas no se puede quedar viejo.
+   ========================================================================== */
+
+.lp-hero { position: relative; padding-top: clamp(44px, 8vh, 92px); }
+.lp-hero-in {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: var(--s4);
+}
+
+/* El halo. Un degradado radial muy tenue detrás del titular: no se ve como un
+   efecto, se ve como que ahí hay luz. Va a sangre —se sale del contenedor por
+   los dos lados— porque un halo que se corta en el gutter es una mancha. */
+.lp-hero::before {
+  content: '';
+  position: absolute; inset: 0 50% auto; translate: -50% 0;
+  width: 150vw; height: 680px;
+  background: radial-gradient(
+    50% 50% at 50% 20%,
+    rgba(232, 236, 241, 0.07) 0%,
+    rgba(232, 236, 241, 0.025) 38%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+.lp-hero-in > * { position: relative; }
+
+.lp-cta { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s3); }
+/* Aquí vive el precio, y por eso no es texto terciario diminuto: se lee. */
+.lp-cta-note { font-size: var(--fs-sm); color: var(--text-tertiary); }
+
+/* Las dos piezas apoyadas en el mismo suelo (`flex-end`) y no centradas: lo que
+   las hace leerse como una escena —dos objetos sobre una mesa— en vez de como
+   dos tarjetas de una rejilla es que el canto de abajo coincida. */
+.lp-hero-art {
   position: relative;
+  width: 100%;
+  margin-top: clamp(28px, 5vw, 64px);
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: clamp(18px, 3vw, 44px);
+  text-align: left;
 }
-.lp-step::before {
-  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 7px;
-  background-image: var(--rule); opacity: 0.5;
+
+/* Tu pantalla. Con tope: una captura de 2048 px estirada a todo el ancho del
+   héroe deja la letra de la aplicación más grande que el propio lede, y lo que
+   se ve entonces no es un panel de trabajo sino un cartel. */
+.lp-hero-desk { flex: 1 1 600px; min-width: 0; max-width: 780px; }
+
+/* Y el móvil de tu cliente, a su tamaño. Sobresale por arriba del ordenador
+   —está apoyado en el mismo suelo y es más alto— y eso es correcto: es la
+   silueta que hace que la escena se lea de un vistazo como «un ordenador y un
+   móvil», que es justo la frase que tiene que quedar. */
+.lp-hero-phone { flex: 0 0 clamp(186px, 19vw, 236px); }
+
+/* ==========================================================================
+   EL BLOQUE DE SECCIÓN: discurso y pieza
+   --------------------------------------------------------------------------
+   La mitad de la página está hecha con esto. Las columnas van casi al 50 % con
+   la pieza un poco más ancha, porque el discurso son cuatro líneas y la pieza es
+   un trozo de aplicación de verdad: si se reparte a partes iguales, la tabla de
+   series se queda sin sitio y hay que encogerle la letra.
+   ========================================================================== */
+
+.lp-feat-in {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
 }
-.lp-step > .n {
-  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 780;
-  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
-  color: var(--text-tertiary); line-height: 1;
+.lp-feat-say { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+.lp-feat-art { position: relative; min-width: 0; }
+
+/* ── La pieza de una sección ─────────────────────────────────────────────────
+   La captura debajo del titular y a todo lo ancho de la caja de lectura. Es
+   donde acaba el ojo después de leer cuatro palabras, así que no lleva nada
+   alrededor: ni marco de sección, ni fondo, ni pie. */
+.lp-pieza { margin-top: clamp(28px, 4vw, 52px); }
+
+/* ── Dos móviles ─────────────────────────────────────────────────────────────
+   El segundo baja un escalón. Dos teléfonos exactamente a la misma altura se
+   leen como una ficha de producto de una tienda; desnivelados se leen como dos
+   objetos dejados encima de una mesa, que es lo que hace que la pareja parezca
+   una escena y no un montaje. */
+.lp-duo {
+  display: flex; align-items: flex-start; justify-content: center;
+  gap: clamp(12px, 2vw, 26px);
 }
-.lp-step > .who {
+.lp-duo > .lp-movil { flex: 0 1 250px; min-width: 0; }
+.lp-duo > .lp-movil:nth-child(2) { margin-top: clamp(20px, 4vw, 44px); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA VENTANA: una captura enmarcada
+   --------------------------------------------------------------------------
+   Las cuatro capturas de la portada son de la aplicación en tema CLARO y la
+   portada es de noche. Una imagen clara pegada sobre negro se lee como un
+   agujero en la página: no tiene canto, así que no se sabe dónde acaba la
+   pantalla y empieza el lienzo.
+
+   El marco arregla las tres cosas a la vez:
+
+     · Le pone un borde, así que la captura pasa a ser un OBJETO sobre el
+       lienzo en vez de una mancha clara.
+     · Le pone barra arriba, y con ella el corte superior de la captura deja de
+       ser un recorte y pasa a ser el canto de una ventana.
+     · Y le pone sombra larga, que es lo que la despega del fondo.
+
+   La barra lleva el nombre de la sección de la aplicación y no una dirección
+   inventada: una URL falsa en una portada es una promesa sobre algo que
+   todavía no existe.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-shot {
+  margin: 0;
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--lp-r-lg);
+  /* Recorta la imagen contra el radio del marco. Sin esto la captura saca las
+     cuatro esquinas cuadradas por fuera de la ventana. */
+  overflow: hidden;
+  box-shadow: 0 34px 70px rgba(0, 0, 0, 0.6);
+}
+.lp-shot-bar {
+  display: flex; align-items: center; gap: var(--s4);
+  height: 36px; padding-inline: 14px;
+  border-bottom: 1px solid var(--hairline);
+}
+.lp-shot-dots { display: flex; gap: 6px; }
+.lp-shot-dots > i { width: 9px; height: 9px; border-radius: 50%; background: var(--fill-strong); }
+.lp-shot-tab {
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: var(--tracking-stencil);
   color: var(--text-tertiary);
 }
-.lp-step > .what { font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em; }
-.lp-step > .how { font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base); }
+/* `display: block` no es cosmético: una imagen en línea arrastra el hueco del
+   descendente de la línea de texto y deja una banda clara bajo la captura. */
+.lp-shot-img { display: block; width: 100%; height: auto; }
 
-/* ── Las tres claves ─────────────────────────────────────────────────────── */
+/* ── El móvil ────────────────────────────────────────────────────────────────
+   El mismo marco, con el bisel de un teléfono: canto muy abierto y un filete de
+   pantalla alrededor de la captura.
 
-.lp-keys {
-  display: grid; gap: var(--s4);
-  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+   La sombra va en `filter` y no en `box-shadow` porque tiene que seguir el
+   contorno redondeado del móvil y no el de su caja. Y es la razón por la que las
+   notas del héroe cuelgan de `.lp-hero-art` y no de aquí dentro: un filtro
+   alcanza también a los hijos, así que una nota metida aquí saldría con sombra
+   doble. */
+
+.lp-movil {
+  padding: 7px;
+  background: var(--surface-raised);
+  border: 1px solid var(--hairline-strong);
+  border-radius: 30px;
+  filter: drop-shadow(0 26px 52px rgba(0, 0, 0, 0.7));
 }
-.lp-key {
-  background: var(--surface); border: 1px solid var(--edge);
-  border-radius: var(--r-lg); padding: var(--s5);
-  box-shadow: var(--shadow-sm);
-  display: flex; flex-direction: column; gap: var(--s2);
+.lp-movil-img {
+  display: block; width: 100%; height: auto;
+  border-radius: 23px;
 }
-.lp-key > h3 {
-  font-family: var(--font-display); font-size: var(--fs-md);
-  font-weight: 720; letter-spacing: -0.015em; line-height: 1.2; text-wrap: balance;
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAS NOTAS QUE FLOTAN
+   --------------------------------------------------------------------------
+   El recuadro que se apoya sobre una pieza y señala qué se está mirando. Es lo
+   que cose el párrafo de al lado con la pantalla: sin él son dos cosas que hay
+   que juntar con la cabeza.
+
+   `pointer-events: none` no es un detalle: dos de las tres piezas sobre las que
+   se apoya son demostraciones que se tocan, y una nota que se come un clic
+   convierte la mejor pieza de la página en una que no responde.
+
+   El balanceo es de tres píxeles y de siete segundos. A esa amplitud no se ve
+   moverse: se ve que está VIVO, que es lo que hace que el ojo vuelva. Más que
+   eso es un adorno que compite con la pieza que viene a señalar.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-nota {
+  position: absolute; z-index: 2;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 10px 14px;
+  background: var(--surface-raised); border: 1px solid var(--hairline-strong);
+  border-radius: var(--lp-r);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+  text-align: left; pointer-events: none;
+  animation: lp-flota 7s var(--ease) infinite;
 }
-.lp-key > p { font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base); }
+.lp-nota-k {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+.lp-nota-v { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
+
+/* Las tres posiciones. Cada una se sale de su caja por un lado —esa mordida es
+   lo que la hace leerse como algo apoyado ENCIMA y no como una esquina más del
+   panel— y por eso `.lp` lleva `overflow-x: clip`. */
+.lp-nota.is-uno { left: -18px; top: 24%; }
+.lp-nota.is-dos { right: -20px; bottom: 14%; animation-delay: -3.5s; }
 
 /* ── Planes ──────────────────────────────────────────────────────────────── */
 
-.lp-plans { display: flex; flex-direction: column; gap: var(--s4); }
 .lp-plan-grid {
+  margin-top: clamp(28px, 4vw, 52px);
   display: grid; gap: var(--s3);
-  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
 }
+/* ══ La tarjeta de un plan ═══════════════════════════════════════════════════
+   Es lo último que se mira antes de decidir, así que es la única superficie de
+   la página que se ilumina. Tres cosas a la vez y ninguna sobra:
+
+     · SUBE. Cuatro píxeles. Una tarjeta de plan es algo que se ELIGE, y una
+       superficie que no acusa el puntero se lee como un cartel, no como una
+       opción. Va en `translate` y no en `transform` completo: la propiedad
+       separada se anima sin forzar una capa de composición por cada tarjeta.
+
+     · SE ENCIENDE. Un degradado radial que entra por el canto de arriba, en un
+       pseudo-elemento detrás del contenido. En el fondo no puede ir: tendría que
+       aparecer y desaparecer cambiando el color de la tarjeta, y eso es un
+       parpadeo. `isolation: isolate` es lo que mantiene ese `z-index: -1` dentro
+       de la tarjeta en vez de mandarlo detrás de la sección entera.
+
+     · Y EL CANTO. De filete a canto marcado, que es lo que dibuja el contorno
+       cuando la sombra ya no toca porque la tarjeta está sobre franja.
+   ══════════════════════════════════════════════════════════════════════════ */
+
 .lp-plan {
-  background: var(--surface); border: 1px solid var(--edge);
-  border-radius: var(--r-lg); padding: var(--s5) var(--s4);
-  box-shadow: var(--shadow-sm);
+  position: relative; isolation: isolate;
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--lp-r); padding: var(--s5) var(--s4);
   display: flex; flex-direction: column; gap: 6px;
+  transition: border-color var(--fast), translate var(--fast), box-shadow var(--fast);
 }
+.is-band .lp-plan { background: var(--canvas); }
+
+.lp-plan::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(115% 75% at 50% 0%, var(--accent-soft) 0%, transparent 68%);
+  opacity: 0; transition: opacity var(--fast);
+}
+.lp-plan:hover::before { opacity: 1; }
+.lp-plan:hover {
+  border-color: var(--hairline-strong);
+  translate: 0 -4px;
+  box-shadow: var(--shadow-lg);
+}
+
+/* El gratuito llega ya encendido, con el canto en tiza y su etiqueta. Es el
+   punto de entrada del producto entero: si la sección tiene un foco, es este. */
+.lp-plan.is-primero { border-color: var(--accent); }
+.lp-plan.is-primero::before { opacity: 0.6; }
+.lp-plan.is-primero:hover::before { opacity: 1; }
+.lp-plan-tag {
+  align-self: flex-start; margin-bottom: var(--s2);
+  padding: 3px 10px; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.lp-plan-blurb {
+  margin-top: var(--s1);
+  font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base);
+}
+/* Las tres líneas de cada plan. Las dos primeras son las dos únicas columnas que
+   separan un plan de otro; la tercera dice que no hay más, y va con el mismo
+   punto que las otras a propósito: en una lista de plan, una línea sin marca se
+   lee como una nota al pie y esto no es una nota al pie. */
+.lp-plan-list {
+  list-style: none;
+  margin-top: var(--s3); padding-top: var(--s3);
+  border-top: 1px solid var(--hairline);
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.lp-plan-list > li {
+  position: relative; padding-left: var(--s4);
+  font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base);
+}
+.lp-plan-list > li::before {
+  content: ''; position: absolute; left: 0; top: 0.52em;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--fill-strong);
+}
+/* El botón se pega al fondo de la tarjeta, así que los tres quedan a la misma
+   altura aunque un plan tenga el `blurb` más largo. */
+.lp-plan-list { margin-bottom: var(--s4); }
+.lp-plan > .lp-btn { margin-top: auto; align-self: flex-start; }
 .lp-plan-name {
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
-  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  text-transform: uppercase; letter-spacing: 0.1em;
   color: var(--text-tertiary);
 }
-/* LA CIFRA: es el contenido de esta tarjeta, así que lleva la voz de las cifras
-   y el interletraje cerrado, como cualquier cifra del producto. */
+/* LA CIFRA: es el contenido de esta tarjeta y tiene que verse desde lejos, así
+   que va en la voz de las cifras —troquelada, peso alto, interletraje cerrado y
+   dígitos de ancho fijo— y a tamaño de titular, no de dato. La diferencia con el
+   nombre del plan y con la lista de debajo, que van en la fuente de texto, es lo
+   que hace que el precio se lea SOLO en un vistazo por las tres tarjetas. */
 .lp-plan-price {
-  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 780;
-  letter-spacing: -0.035em; font-variant-numeric: tabular-nums;
-  display: flex; align-items: baseline; gap: 3px; line-height: 1.1;
+  margin-top: var(--s1);
+  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 800;
+  letter-spacing: -0.045em; font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 4px; line-height: 1;
 }
 .lp-plan-price > .per {
   font-family: var(--font); font-size: var(--fs-xs);
   font-weight: 500; color: var(--text-tertiary); letter-spacing: 0;
 }
-.lp-plan-limit { font-size: var(--fs-sm); font-weight: 600; }
-.lp-plan > p { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
-
-/* ── Cierre ──────────────────────────────────────────────────────────────── */
-
-.lp-end {
-  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
-  padding-top: var(--s6);
-  border-top: 1px solid var(--hairline);
+.lp-plan-foot {
+  margin-top: var(--s4);
+  font-size: var(--fs-sm); color: var(--text-tertiary); line-height: var(--lh-base); max-width: 62ch;
 }
-.lp-end > p { font-size: var(--fs-base); color: var(--text-secondary); max-width: 52ch; }
+/* ── Dudas ───────────────────────────────────────────────────────────────────
+   Numeradas. El número no es adorno: convierte diez filas idénticas en una lista
+   con principio y final, y deja ver de un vistazo cuánto queda por leer. */
 
-.lp-foot {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: var(--s3);
-  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+.lp-faq-list { margin-top: clamp(24px, 3.5vw, 44px); display: flex; flex-direction: column; }
+.lp-faq-item { border-top: 1px solid var(--hairline); }
+.lp-faq-item:last-child { border-bottom: 1px solid var(--hairline); }
+.lp-faq-q {
+  position: relative; cursor: pointer; list-style: none;
+  display: flex; align-items: baseline; gap: var(--s4);
+  padding: var(--s5) var(--s6) var(--s5) 0;
+  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.012em;
+  transition: color var(--fast);
+}
+.lp-faq-q::-webkit-details-marker { display: none; }
+.lp-faq-n {
+  flex-shrink: 0; width: 2.4em;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0.1em; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.lp-faq-item[open] > .lp-faq-q > .lp-faq-n { color: var(--text); }
+/* La punta de flecha, con dos cantos y un giro: sin icono que descargar y gira
+   sola al abrir, que es lo que dice si hay algo más debajo. */
+.lp-faq-q::after {
+  content: ''; position: absolute; right: 6px; top: 50%;
+  width: 9px; height: 9px; margin-top: -7px;
+  border-right: 1.5px solid var(--text-tertiary);
+  border-bottom: 1.5px solid var(--text-tertiary);
+  transform: rotate(45deg);
+  transition: transform var(--fast);
+}
+.lp-faq-item[open] > .lp-faq-q::after { transform: rotate(225deg); margin-top: -2px; }
+.lp-faq-a {
+  padding: 0 var(--s6) var(--s5) calc(2.4em + var(--s4));
+  font-size: var(--fs-sm); color: var(--text-secondary);
+  line-height: var(--lh-loose); max-width: 74ch;
+}
+
+/* ── El cierre: la losa ──────────────────────────────────────────────────────
+   El único bloque de la página con el lienzo invertido: tiza de fondo y grafito
+   encima, que es el par que pinta un botón primario del producto llevado al
+   tamaño de una sección. Después de siete secciones sobre negro es imposible
+   pasarla por alto, que es exactamente lo que se le pide al último botón de una
+   página larga —y no hace falta ningún color para conseguirlo—.
+
+   Dentro se invierte todo: el rótulo, el titular con su remate y el botón, que
+   pasa a hierro sobre tiza. */
+
+.lp-slab {
+  padding: clamp(44px, 7vw, 96px) clamp(24px, 5vw, 72px);
+  background: var(--accent); color: var(--accent-on);
+  border-radius: var(--lp-r-xl);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: var(--s4);
+}
+.lp-slab > .lp-kicker { color: var(--accent-on); opacity: 0.6; }
+.lp-slab h2 { max-width: 20ch; }
+.lp-slab h2, .lp-slab h2 em { color: var(--accent-on); }
+.lp-slab > p {
+  font-size: var(--fs-md); line-height: 1.5; max-width: 52ch;
+  color: var(--accent-on); opacity: 0.75;
+}
+.lp-slab > .lp-btn { margin-top: var(--s2); }
+.lp-slab-note {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--accent-on); opacity: 0.55;
+}
+
+/* ── El pie ──────────────────────────────────────────────────────────────────
+   Con columnas, y no con tres enlaces en una línea. Un pie con columnas dice
+   «esto es un producto con secciones»; una línea suelta dice «esto es una página
+   de aterrizaje». Además es donde va a mirar quien busca las condiciones. */
+
+.lp-foot { border-top: 1px solid var(--hairline); }
+.lp-foot-grid {
+  display: grid; gap: var(--s6) var(--s4);
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 0.8fr));
+}
+.lp-foot-brand { display: flex; flex-direction: column; gap: var(--s3); max-width: 34ch; }
+.lp-foot-brand > p { font-size: var(--fs-sm); color: var(--text-tertiary); line-height: var(--lh-base); }
+.lp-foot-col { display: flex; flex-direction: column; gap: var(--s2); align-items: flex-start; }
+.lp-foot-col > h3 {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-tertiary); margin-bottom: var(--s1);
+}
+.lp-foot-col > a {
+  font-size: var(--fs-sm); color: var(--text-secondary); text-decoration: none;
+  transition: color var(--fast);
+}
+.lp-foot-col > a:hover { color: var(--text); }
+.lp-foot-end {
+  display: block; margin-top: var(--s6); padding-top: var(--s4);
+  border-top: 1px solid var(--hairline);
   font-size: var(--fs-xs); color: var(--text-tertiary);
 }
 
+/* ── Y en pantallas estrechas ────────────────────────────────────────────── */
+
+@media (max-width: 1040px) {
+  /* La captura pasa DEBAJO del discurso, no al lado. Y la vuelta se deshace: en
+     una columna, «primero lo que se cuenta» es siempre el orden bueno.
+
+     Aquí la captura gana ancho en vez de perderlo, que es lo que hay que
+     conseguir: es lo único que hay que poder mirar de cerca. */
+  .lp-feat-in { grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+
+  .lp-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 1000px) {
+  /* Las notas de los lados se van. Se apoyan en el canto de dos piezas que a
+     este ancho ya se están encogiendo, y lo que hacen a partir de aquí es taparlas
+     en vez de señalarlas. La escena sigue entera: es lo que tiene que aguantar. */
+  .lp-nota.is-uno, .lp-nota.is-dos { display: none; }
+}
+
 @media (max-width: 860px) {
-  /* La prueba pasa DEBAJO del titular, no al lado: en vertical, una columna de
-     0.85fr deja la tabla de series con casillas de 40 px. */
-  .lp-hero { grid-template-columns: 1fr; gap: var(--s5); padding-top: var(--s4); }
-  .lp { gap: var(--s6); }
+  /* Tres anclas no caben al lado de dos botones, y de las tres cosas que hay en
+     la barra la que no puede faltar es la de empezar. */
+  .lp-nav { display: none; }
+}
+
+@media (max-width: 700px) {
+  /* El móvil se va del héroe. Enseñar un móvil dentro de un móvil no dice nada
+     —quien mira ya está sujetando uno— y a este ancho son doscientos píxeles de
+     altura robados al ordenador, que es la pieza que hay que ver. La captura del
+     portal del cliente vuelve en la sección de la rutina, a ancho completo. */
+  .lp-hero-phone { display: none; }
+
+  /* Y la barra de la ventana se estrecha con la pantalla: a 360 px, 36 px de
+     barra sobre una captura de 200 px de alto son marco comiéndose la pieza. */
+  .lp-shot-bar { height: 30px; padding-inline: 10px; }
+
+  .lp-btn { width: 100%; }
+  .lp-cta { width: 100%; }
+  /* Menos el de las tarjetas de plan, que va dentro de una caja estrecha y a
+     ancho completo se comería la tarjeta entera. */
+  .lp-plan > .lp-btn { width: auto; }
+}
+
+@media (max-width: 560px) {
+  /* «Entrar» se va de la barra: con el logotipo y el botón de alta no caben tres
+     cosas sin que la marca parta en dos líneas, y de las dos la que no puede
+     faltar es la de empezar. Quien ya tiene cuenta la encuentra en el pie, y el
+     propio botón de alta lleva a la misma pantalla. */
+  .lp-nav-link.is-plain { display: none; }
+
+  .lp-faq-q { gap: var(--s3); font-size: var(--fs-base); }
+  .lp-faq-n { width: 1.9em; }
+  .lp-faq-a { padding-left: calc(1.9em + var(--s3)); }
+  .lp-foot-grid { grid-template-columns: 1fr; }
 }
 
 /* ==========================================================================
-   Acceso
+   La tarjeta sola en la pantalla
    --------------------------------------------------------------------------
-   Una sola tarjeta centrada, encabezada por la marca. Aquí ya no hay nada que
-   vender —eso lo hace la portada— así que la pantalla hace una sola cosa: dejar
-   entrar rápido y decir con claridad qué ha fallado cuando falla.
-   ========================================================================== */
+   Una tarjeta centrada sobre el lienzo, con la marca encima. Fue durante mucho
+   tiempo la forma de entrar y de recuperar la contraseña; esas dos se han ido a
+   `.acceso`, aquí abajo, porque tienen que parecerse a la portada.
+
+   Lo que queda usándola es la pantalla de consentimiento del cliente
+   (`ConsentGate`), y ahí sigue siendo lo correcto: quien la ve YA tiene sesión,
+   está dentro de la aplicación y con su tema puesto, y lo único que tiene que
+   hacer es leer un texto y decir que sí. Un escaparate de dos columnas alrededor
+   solo le añadiría discurso a un consentimiento, que es justo lo que no puede
+   llevar. */
 
 .login { min-height: 100vh; display: grid; place-items: center; padding: var(--s4); }
 
@@ -1442,7 +2015,90 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   text-align: center; padding-bottom: var(--s2);
 }
 .login-title { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.022em; }
+/* El enlace discreto centrado bajo un botón. Lo usa también `GettingStarted`
+   dentro de la aplicación: es la forma que tiene el proyecto de decir «y si no,
+   esto otro» sin poner un segundo botón que compita con el primero. */
 .login-alt { align-self: center; color: var(--text-secondary); }
+
+/* ==========================================================================
+   Acceso
+   --------------------------------------------------------------------------
+   La pantalla que va justo detrás de la portada, y por eso va del mismo color:
+   `useNoche` pone aquí el mismo lienzo de `.lp-noche`, y el botón de envío es
+   el mismo `.lp-btn` que se acaba de pulsar para llegar.
+
+   Aquí hubo una tarjeta de 392 px centrada en mitad de la pantalla, sobre el
+   tema del usuario, con el logotipo grande encima. Funcionaba, pero después de
+   una portada negra con titulares de ochenta píxeles se leía como el formulario
+   de otra aplicación: la costura entre las dos pantallas se veía.
+
+   Dos columnas: a la izquierda lo que se está a punto de conseguir —una frase y
+   tres hechos— y a la derecha el formulario. La de la izquierda no es adorno:
+   es lo que sostiene el momento entre «me interesa» y «escribo mi correo», que
+   es donde se pierde a la gente.
+   ========================================================================== */
+
+.acceso {
+  min-height: 100vh;
+  display: grid; place-items: center;
+  padding: clamp(20px, 4vw, 48px);
+  background: var(--canvas);
+}
+
+.acceso-in {
+  width: 100%; max-width: 940px;
+  display: grid;
+  /* La tarjeta no crece con la pantalla: un formulario de dos campos a 600 px
+     de ancho no se lee mejor, se lee peor. Lo que crece es la columna que
+     habla. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  gap: clamp(32px, 6vw, 72px);
+  align-items: center;
+}
+
+.acceso-say { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s5); }
+
+.acceso-lema {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  line-height: 1.03; letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+/* El mismo remate en cursiva que la portada. Es lo que la ata a ella sin repetir
+   ni el titular ni ninguna tinta. */
+.acceso-lema em { font-style: italic; }
+
+.acceso-puntos { list-style: none; display: flex; flex-direction: column; gap: var(--s3); }
+.acceso-puntos > li {
+  position: relative; padding-left: var(--s5); max-width: 40ch;
+  font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base);
+}
+.acceso-puntos > li::before {
+  content: ''; position: absolute; left: 0; top: 0.52em;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--fill-strong);
+}
+
+.acceso-form { display: flex; justify-content: center; }
+.acceso-card { position: relative; width: 100%; max-width: 400px; }
+.acceso-card-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: var(--s1); }
+.acceso-title {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700;
+  letter-spacing: -0.022em;
+}
+.acceso-go { width: 100%; margin-top: var(--s1); }
+.acceso-alt { align-self: center; color: var(--text-secondary); }
+.acceso-fine { text-align: center; }
+
+@media (max-width: 860px) {
+  /* Una columna, y la que habla se queda en la marca y la frase. Los tres
+     hechos se van: en vertical empujan el formulario fuera de la pantalla, y lo
+     que hay que ver al abrir esto en un móvil es dónde se escribe el email. */
+  .acceso-in { grid-template-columns: minmax(0, 1fr); gap: var(--s6); justify-items: center; }
+  .acceso-say { align-items: center; text-align: center; }
+  .acceso-puntos { display: none; }
+  .acceso-lema { font-size: clamp(1.6rem, 7vw, 2.2rem); }
+}
 
 /* ==========================================================================
    Tablas
@@ -1458,6 +2114,12 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .table td { padding: 9px 10px; border-top: 1px solid var(--hairline); }
 .table .num { text-align: center; }
 .table .right { text-align: right; }
+/* Tres papeles de celda que se repetían escritos a mano en el JSX del historial
+   de antropometría. Aquí el color sí es del dato: el peso y el % graso son dos
+   series distintas y se leen con la tinta con la que se dibujan en la analítica. */
+.cell-strong { font-weight: 700; }
+.cell-weight { font-weight: 800; color: var(--data-amber); }
+.cell-pct { font-weight: 700; color: var(--data-blue); }
 .table-compact td, .table-compact th { padding: 6px 9px; }
 .table tfoot td { border-top: 1px solid var(--hairline-strong); font-weight: 650; color: var(--text); }
 
@@ -3119,6 +3781,11 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   background: var(--surface); box-shadow: var(--shadow-sm);
 }
 
+/* La zona de soltar archivos, cuando todavía no hay ninguno. Alta y en columna:
+   es el único destino de la pantalla y tiene que verse como tal desde el otro
+   lado del vestuario. */
+.photo-drop { flex-direction: column; height: auto; padding: 30px; }
+
 /* ── Tabla de la comparativa ────────────────────────────────────────────────
    Antes / después / cambio, con las columnas alineadas y cifras tabulares: es
    lo que convierte «se ve mejor» en «cintura −5 cm». */
@@ -4062,6 +4729,85 @@ span.scale-step.is-on { opacity: 1; }
      parten en dos filas de cuatro y tres, que sigue leyéndose como una semana
      porque el orden se conserva. */
   .checkin-week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ==========================================================================
+   El asistente de revisión
+   --------------------------------------------------------------------------
+   Entregar la semana son tres cosas seguidas y de distinta naturaleza:
+   confirmar el peso, medirse si el entrenador lo pide, y hacerse las fotos.
+   Todo junto eran veinte campos y un diálogo dentro de otro.
+
+   Aquí cada paso hace UNA pregunta. Lo único que hay que añadir de cromo es lo
+   que dice cuántos quedan: sin eso, «Siguiente» es una puerta a un número
+   desconocido de pantallas, que es lo que hace abandonar un formulario partido.
+   ========================================================================== */
+
+.wiz { display: flex; flex-direction: column; gap: var(--s4); }
+
+/* El carril de pasos, con la cinta de medir debajo: aquí SÍ hay una escala —el
+   avance— y es la misma firma que marca el eje de días de «Hoy». */
+.wiz-rail {
+  list-style: none; margin: 0; padding: 0 0 var(--s3);
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+  position: relative;
+}
+.wiz-rail::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 7px;
+  background-image: var(--rule); opacity: 0.5;
+}
+.wiz-mark { display: flex; align-items: center; gap: var(--s2); color: var(--text-tertiary); }
+.wiz-mark-n {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--fill); color: var(--text-tertiary);
+  transition: background var(--fast), color var(--fast);
+}
+.wiz-mark-k { font-size: var(--fs-sm); font-weight: 550; }
+/* El paso actual, en tiza. Los ya hechos con su visto y en texto normal: siguen
+   contando —dicen cuánto se lleva— pero no compiten con el que toca. */
+.wiz-mark.is-on { color: var(--text); }
+.wiz-mark.is-on > .wiz-mark-n { background: var(--accent); color: var(--accent-on); }
+.wiz-mark.is-on > .wiz-mark-k { font-weight: 700; }
+.wiz-mark.is-done { color: var(--text-secondary); }
+.wiz-mark.is-done > .wiz-mark-n { background: var(--positive-soft); color: var(--positive); }
+
+/* El panel se remonta al cambiar de paso (`key`), así que esta animación se
+   reproduce sola y da la dirección del movimiento. */
+.wiz-panel { display: flex; flex-direction: column; gap: var(--s4); animation: wiz-entra 0.22s var(--ease) both; }
+@keyframes wiz-entra {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.wiz-foot { display: flex; justify-content: flex-end; }
+.wiz-badge { margin-left: var(--s2); }
+
+/* El peso es la cifra del paso, así que se escribe en grande. */
+.input-hero { font-size: 1.1rem; }
+/* La semana es un número de dos dígitos: una caja del ancho del contenido, no
+   una que ocupe media fila. */
+.input-week { width: 92px; }
+.input-measure { width: 58px; }
+
+.measure-grid { display: grid; gap: var(--s2); grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+.measure-cell { padding: 8px 12px; }
+
+/* La suma de pliegues y el % que sale de ella. Va tintada porque es un
+   resultado calculado, no un campo más. */
+.folds-sum {
+  background: var(--info-soft); border: 1px solid var(--info);
+  border-radius: var(--r-md); padding: 12px 16px;
+}
+.folds-sum-k { color: var(--data-blue); font-weight: 700; }
+.folds-sum-v { font-size: 1.25rem; }
+
+@media (max-width: 560px) {
+  /* En vertical, cinco pasos con su nombre no caben en una línea; con el nombre
+     fuera, los números solos siguen diciendo por dónde vas. */
+  .wiz-rail { gap: var(--s2) var(--s3); }
+  .wiz-mark:not(.is-on) > .wiz-mark-k { display: none; }
 }
 
 /* ── Avisos del cliente ────────────────────────────────────────────────────

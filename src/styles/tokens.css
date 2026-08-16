@@ -260,6 +260,14 @@
     var(--hairline-strong) 0 1px,
     transparent 1px 45px
   );
+  /* La misma cinta, de pie. Hace falta cuando lo que se mide es una ALTURA y no
+     un eje de tiempo: hoy, el canto del lienzo donde se encuadran dos fotos de
+     progreso, que es donde importa que las dos queden a la misma altura. */
+  --rule-vertical: repeating-linear-gradient(
+    180deg,
+    var(--hairline-strong) 0 1px,
+    transparent 1px 9px
+  );
 
   --header-h: 58px;
   --max-w: 1320px;
@@ -281,9 +289,21 @@
    blanco de la tarjeta; sobre hierro la dan el CANTO y un escalón de luz muy
    corto entre superficies, porque una sombra sobre grafito no existe y un
    escalón largo convierte cada tarjeta en un parche gris claro.
+
+   ── Y `.lp-noche`, que se cuela en el mismo selector ────────────────────────
+   La portada pública es SIEMPRE oscura, elija lo que elija el visitante: es una
+   pieza de escaparate y su contundencia depende de que las demostraciones
+   brillen sobre un fondo apagado. La clase la pone y la quita `LandingPage` en
+   el elemento raíz mientras está montada.
+
+   Va aquí y no en una copia propia porque el hierro de la portada ES el hierro
+   del producto: duplicar la paleta garantizaría que dentro de tres meses una de
+   las dos se quedara atrás. Lo único que la portada cambia son las superficies,
+   un punto más de noche, y eso son las seis líneas del bloque siguiente.
    ========================================================================== */
 
-[data-theme='dark'] {
+[data-theme='dark'],
+.lp-noche {
   --canvas: #101317;
   --canvas-alt: #161a1f;
   --surface: #1a1f25;
@@ -346,3 +366,46 @@
   --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
   --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.65);
 }
+
+/* ==========================================================================
+   La noche de la portada
+   --------------------------------------------------------------------------
+   El mismo hierro, bajado un punto. Un lienzo casi negro es lo que convierte
+   una pantalla de producto en una pieza iluminada, y en una página que se ve
+   una vez eso vale más que la comodidad de lectura de una jornada de trabajo
+   —que es lo que optimiza el hierro de dentro, y por eso no baja tanto—.
+
+   Solo se tocan las superficies. El texto, los cantos, los discos y las sombras
+   son EXACTAMENTE los del tema oscuro: si el contraste está resuelto ahí, aquí
+   no hay nada que volver a comprobar.
+   ========================================================================== */
+
+.lp-noche {
+  /* Los controles nativos —la barra de desplazamiento, cualquier campo— tienen
+     que saberlo o salen en su versión clara sobre un fondo negro. */
+  color-scheme: dark;
+
+  --canvas: #090b0d;
+  --canvas-alt: #0e1115;
+  --surface: #14181d;
+  --surface-raised: #1b2028;
+  --surface-sunken: #0c0f12;
+  --surface-glass: rgba(9, 11, 13, 0.72);
+}
+
+/* ── Y ninguna tinta de marca ────────────────────────────────────────────────
+   Aquí vivió un amarillo de alta visibilidad —el del disco de 15— que pintaba
+   los remates de los titulares, los rótulos, los botones y la losa del cierre.
+   Era la única tinta de marca del proyecto y sobraba.
+
+   El argumento para tenerlo era que la portada compite por seis segundos de
+   atención y la tiza sola la dejaba elegante y muda. No se sostuvo al verlo
+   montado: lo que hace que un titular de 84 px tenga acento es dónde está
+   partida la frase y que el remate vaya en cursiva de verdad, no que lleve
+   color; y sobre un lienzo casi negro, un rectángulo de tiza ya es el máximo
+   contraste que da la pantalla. Un botón amarillo no se ve más, se ve distinto.
+
+   Lo que queda es la regla del producto, aplicada también fuera: el cromo no
+   tiene color y el color es del dato. En la portada eso significa que lo único
+   con tinta son los puntos de las actividades y las series de los gráficos, que
+   salen de `domain/` y significan algo. */

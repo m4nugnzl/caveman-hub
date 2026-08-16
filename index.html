@@ -22,7 +22,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Caveman" />
-    <title>Caveman Hub — el entrenamiento de tus clientes, en un sitio</title>
+    <!--
+      El título dice la CATEGORÍA, no una frase de campaña.
+
+      Quien busca esto no escribe «el entrenamiento de tus clientes en un sitio»:
+      escribe «software para entrenadores online», y ese era el término que no
+      aparecía en ninguna parte del documento. La portada lo repite como rótulo
+      sobre el titular, que es donde se comprueba que la página trata de lo que
+      el título promete.
+
+      Y sirve además como nombre de pestaña estando dentro, que es el otro uso
+      que tiene: corto, sin adjetivos y reconocible entre veinte pestañas.
+    -->
+    <title>Caveman Hub — software para entrenadores online</title>
 
     <!--
       ══ Lo que hacía falta para poder instalarla y para poder compartirla ═══
@@ -56,12 +68,12 @@
     -->
     <meta
       name="description"
-      content="Caveman Hub es donde un entrenador programa, revisa y sigue a sus clientes: rutinas, nutrición, medidas y fotos de progreso. Tus clientes apuntan lo que levantan desde el móvil."
+      content="Programa rutinas y dietas, compara fotos de progreso a la misma escala y contesta el check-in de cada semana. Tus clientes apuntan lo que levantan desde el móvil, sin descargar ninguna app. Prueba 14 días sin tarjeta."
     />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Caveman Hub" />
     <meta property="og:locale" content="es_ES" />
-    <meta property="og:title" content="Caveman Hub — el entrenamiento de tus clientes, en un sitio" />
+    <meta property="og:title" content="Caveman Hub — software para entrenadores online" />
     <meta
       property="og:description"
       content="Programa rutinas y dietas, sigue medidas y fotos de progreso, y contesta el check-in de cada semana. Tus clientes lo llevan en el móvil."
@@ -71,6 +83,31 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Caveman Hub" />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!--
+      ══ Datos estructurados, y solo los que no viven en otro sitio ═════════
+
+      Le dice al buscador QUÉ es esto —una aplicación de negocio, en castellano,
+      que se usa en el navegador—, que es justo lo que no se puede deducir de una
+      página que se pinta con JavaScript.
+
+      No lleva precios NI las preguntas frecuentes, y es deliberado: los precios
+      son de `plan_limits` y las preguntas son del componente de la portada.
+      Copiarlos aquí sería tenerlos en dos sitios, o sea tenerlos mal en uno de
+      los dos el día que cambien — y un dato estructurado que contradice a la
+      página es peor que no tenerlo, porque el buscador se queda con el viejo.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Caveman Hub",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "es-ES",
+        "description": "Software para entrenadores personales online: programación de rutinas, nutrición, antropometría, comparación de fotos de progreso y revisión semanal."
+      }
+    </script>
     <!--
       La tipografía de titulares y cifras (Archivo) va AUTOALOJADA, no en Google
       Fonts: sin petición a terceros, sin dependencia de que nadie mueva un
