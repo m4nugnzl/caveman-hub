@@ -96,6 +96,15 @@ export const InvitePage = () => {
     return (
       <Login
         notice="Estás aceptando la invitación de tu entrenador. Crea tu cuenta o entra con la que ya tengas: al terminar, tu ficha quedará enlazada."
+        /*
+          Volver AQUÍ, con el token puesto. Entrar con Google se va a otra página
+          y vuelve a donde se le diga; si se le dijera la raíz, esta persona
+          acabaría dentro de la aplicación con una cuenta nueva y sin enlazar a
+          su ficha, y el enlace de invitación ya estaría gastado en la barra de
+          direcciones de nadie. Con el formulario de correo no hace falta porque
+          nunca se sale de la página.
+        */
+        destino={window.location.href}
       />
     );
   }

@@ -1,5 +1,14 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  CalendarDays,
+  Camera,
+  Check,
+  CreditCard,
+  MessageSquareQuote,
+  NotebookPen,
+  Video,
+} from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { planPrice } from '@/lib/num';
@@ -25,32 +34,101 @@ import { LogoMark } from '@/components/ui/Logo';
  * cinco líneas, es material de las dudas o de la ayuda, no del escaparate.
  *
  * ── El orden ────────────────────────────────────────────────────────────────
- * Promesa (la escena: tu rutina y su móvil) → lo que ve tu cliente → lo que te
- * devuelve el lunes → cuánto vale → cinco dudas → cierre.
+ * Promesa (una pantalla) → el cliente entero, de los dos lados → el plan y el
+ * progreso → lo que además trae → cuánto vale → cinco dudas → cierre.
  *
- * ══ Y las capturas van RECORTADAS ═══════════════════════════════════════════
+ * ══ EL PAR: la unidad de esta página ════════════════════════════════════════
  *
- * Esto es lo que separa esta versión de la anterior. Una captura de la pantalla
- * entera no vende: la mitad de lo que sale es cromo —la cabecera con la marca,
- * el buscador, el avatar, las pestañas— y el cromo es exactamente lo que tiene
- * igual cualquier aplicación del mundo. Lo que distingue a esta son la tabla de
- * series, los anillos de calorías y las cifras de la semana.
+ * Aquí hubo un anillo: cinco pantallas girando en 3D —una rutina, un móvil, un
+ * check-in, otro móvil, una semana— y cada cuatro segundos y medio aparecía la
+ * siguiente. Enseñaba mucho y contaba poco, por dos motivos que no se arreglan
+ * ajustando el giro:
  *
- * Así que `scripts/recortar-capturas.ps1` deja en `public/capturas/` una
- * pieza por sección con eso y solo eso. Es un recorte, no un montaje: los datos,
- * la tipografía y los colores son los que salen de la aplicación. Lo único que
- * se quita es el aire —en la rutina, la caja de indicación vacía que hay entre
- * la cabecera del día y los ejercicios— para que la pieza sea todo producto.
+ *   · **Eran cinco cosas sueltas.** Rutina, móvil, check-in, móvil, semana. El
+ *     orden era el de un catálogo, no el de un argumento, y una pantalla de
+ *     escritorio seguida del móvil de otra sección no dice nada de las dos.
+ *   · **Y estaban encima unas de otras.** Cinco láminas superpuestas en el
+ *     hueco de una: la del centro con dos rebanadas giradas pisándole los
+ *     cantos. Se atora la vista antes de leer una cifra.
+ *
+ * Lo que hay ahora es el PAR: la misma cosa en tu pantalla y en la suya, juntas
+ * y con el discurso al lado. Dos pares y nada más —la sesión y la dieta—, que
+ * son los dos únicos trabajos que se hacen todas las semanas.
+ *
+ * Un par dice de un vistazo lo que cinco pantallas en fila no decían: que
+ * programar y entrenar son el MISMO objeto visto desde los dos extremos. Y deja
+ * sitio de verdad alrededor de cada captura, que es lo que el anillo no tenía.
+ *
+ * ── Y la conversación vive en el par de la sesión ───────────────────────────
+ * La nota que él escribe al acabar y lo que tú le contestas. Estaban flotando
+ * en el héroe, encima de una pantalla de cifras con la que no tenían nada que
+ * ver. Su sitio es este: entre la sesión que le mandas y la sesión que hace,
+ * porque es literalmente lo que pasa entre esas dos pantallas — y es lo único
+ * de toda la página que no cabe en una hoja de cálculo.
+ *
+ * ── Y cada sección se presenta DISTINTO ────────────────────────────────────
+ * A propósito, y es lo que hace que una página larga se recorra: seis bloques
+ * con la misma forma —rótulo, titular, imagen centrada— se leen como una lista,
+ * por buena que sea cada imagen. Aquí no hay dos iguales:
+ *
+ *   · el héroe, UNA pantalla grande y sola;
+ *   · el cliente, dos pares de aparatos con el discurso al lado y alternando;
+ *   · el plan y el progreso, dos ventanas en escalón;
+ *   · lo que además trae, una rejilla de cuatro fichas;
+ *   · los precios, tres tarjetas;
+ *   · las dudas, una lista numerada;
+ *   · y el cierre, una losa de tiza.
+ *
+ * ══ Las capturas van RECORTADAS y de NOCHE ══════════════════════════════════
+ *
+ * Recortadas porque una captura de la pantalla entera no vende: la mitad de lo
+ * que sale es cromo —la cabecera con la marca, el buscador, el avatar— y el
+ * cromo es exactamente lo que tiene igual cualquier aplicación del mundo. Lo que
+ * distingue a esta son la tabla de series, los anillos de calorías y las cifras
+ * de la semana.
+ *
+ * Y de noche porque la portada lo es. Aquí estuvieron las piezas de escritorio
+ * en tema CLARO y las de móvil en oscuro, en la misma escena: una ventana blanca
+ * con un teléfono negro apoyado encima. Cada pieza estaba bien y el conjunto
+ * estaba roto — se veía la costura sin buscarla. Ahora todo sale del mismo tema
+ * que la página, así que el marco ya no está tapando un problema: está diciendo
+ * «esto es una pantalla».
+ *
+ * `scripts/recortar-capturas.ps1` deja en `public/capturas/` una pieza por
+ * sección. Es un recorte, no un montaje: los datos, la tipografía y los colores
+ * son los que salen de la aplicación. Lo único que se quita es el aire, y lo
+ * único que se ajusta es la ESCALA —las capturas crudas vienen con zooms
+ * distintos y sin igualarlas la letra cambia de tamaño de una pieza a otra—.
  *
  * ══ La forma: escaparate de noche ═══════════════════════════════════════════
  *
  *   1. **Negro fijo.** `.lp-noche` mientras la página está montada, vía
  *      `lib/useNoche.js` —el mismo gancho que usa el acceso—.
- *   2. **Sin tinta de marca.** Tiza sobre hierro. Lo que separa un titular de su
- *      remate es la CURSIVA; el único color de la página es el que traen dentro
- *      las capturas.
+ *   2. **Una sola tinta: la brasa.** El rojo del disco de 25 kg del logotipo
+ *      (`--brasa`, en `styles/tokens.css`). Pinta lo que SEÑALA y nada más.
+ *
+ *      Y no aparece igual en todas las secciones, que es lo que la convertía en
+ *      un tic: estaba la misma lumbre detrás del mismo remate en cursiva, siete
+ *      veces seguidas y con la misma intensidad. Un acento que se repite idéntico
+ *      deja de ser un acento a la tercera vez.
+ *
+ *      Ahora cada sección lo lleva de una manera y solo una:
+ *
+ *        · el héroe, la lumbre a plena potencia detrás del remate;
+ *        · los pares, el número que los ordena —01, 02— y el icono de la chapa;
+ *        · el plan y el progreso, la lumbre a media luz;
+ *        · lo que además trae, los azulejos de los iconos;
+ *        · los precios, las palomas y el encendido de la tarjeta gratuita;
+ *        · las dudas, la cifra de la que está abierta;
+ *        · y el cierre, que no lleva ninguna porque es de tiza entera.
+ *
+ *      La intensidad se gradúa desde `--lumbre`, una variable por sección (ver
+ *      `index.css`): no hay dos secciones seguidas con la misma temperatura.
  *   3. **Franjas, no huecos.** Las secciones alternan entre el lienzo y un
  *      escalón más claro a sangre (`.is-band`).
+ *   4. **Todo entra al llegar.** Cada sección aparece cuando se alcanza, y su
+ *      contenido en cascada (`.lp-tanda`). Es lo que hace que una página larga
+ *      se recorra en vez de leerse.
  *
  * ══ Los precios salen de la base de datos ══════════════════════════════════
  *
@@ -66,43 +144,354 @@ import { LogoMark } from '@/components/ui/Logo';
  * imágenes, justo mientras se lee el primer titular. Y tienen que ser las
  * REALES del archivo, así que si se cambia un recorte en el script hay que
  * traer aquí las medidas que imprime.
+ *
+ * ══ Y `css`, que es lo que arregla la letra sucia ═══════════════════════════
+ *
+ * `ancho`/`alto` son los píxeles que TRAE el archivo; `css` es el ancho máximo
+ * al que se PINTA. Y los dos hacen falta porque no son lo mismo:
+ *
+ *   · La pieza de la dieta sale de una captura de 1032 px. Antes se guardaba
+ *     reducida a 770 y la ventana la estiraba hasta 858: reducir un tercio y
+ *     volver a ampliar es exactamente por lo que esa sección se veía pixelada.
+ *   · Ahora el archivo llega entero y **se pinta más pequeño que sus píxeles**.
+ *
+ * ── Y ya están sacadas al DOBLE de densidad ────────────────────────────────
+ *
+ * Que es lo único que arregla esto del todo. En un portátil de Windows al 125 %
+ * —el ajuste de fábrica de casi cualquiera de los últimos años— un píxel de CSS
+ * son 1,25 píxeles de pantalla, así que una captura pintada a su tamaño exacto
+ * la AMPLÍA el sistema operativo antes de enseñarla: eso es lo que se veía
+ * pixelado por mucho que el archivo estuviera intacto.
+ *
+ * Las capturas nuevas vienen del navegador con el DPR a 2 (`F12` → el icono de
+ * móvil/tableta → «Dimensions: Responsive» → DPR 2 → «Capture screenshot»), o
+ * sea con dos píxeles de archivo por cada píxel de la pantalla que se
+ * fotografió. Pintadas al mismo tamaño de siempre, el navegador REDUCE cuatro
+ * veces los píxeles que necesita — y reducir siempre sale limpio, al 100 % y al
+ * 125 %.
+ *
+ * Por eso `ancho` es ahora más o menos el cuádruple que `css` y no hay que
+ * asustarse: `css` no ha cambiado, y es lo que decide la maqueta.
+ *
+ * La única que sigue sin volver a tomarse es el check-in, y se nota si se busca.
+ *
+ * ── Y en el móvil se PASEAN ────────────────────────────────────────────────
+ * Una captura de escritorio metida en 390 px de ancho tiene la letra a un tercio
+ * de su tamaño: no se lee, y la mitad de la gente que llega aquí llega así. Así
+ * que por debajo de 700 px la ventana deja de encoger la imagen y la deja
+ * DESLIZARSE dentro de su marco, a los mismos `css` píxeles a los que se pinta
+ * en un ordenador. Ver `.lp-shot-vista` en `index.css`.
  */
-const RUTINA = {
-  src: '/capturas/rutina.jpg',
-  ancho: 2017,
-  alto: 820,
-  alt: 'La rutina de un cliente: ocho semanas en el carril de arriba, tres días —Empuje, Tirón y Pierna—, y el día abierto con seis ejercicios y veinte series, con el press de banca a 97,5 kg por 8 repeticiones y RIR 2.',
-};
+/**
+ * ══ EL HÉROE SE QUEDÓ SIN CAPTURA ═══════════════════════════════════════════
+ *
+ * Y no por falta de sitio: por falta de argumento. Aquí hubo, en este orden, una
+ * escena de dos aparatos enseñando la misma pantalla dos veces, y después una
+ * sola ventana grande con el resumen de un cliente. La segunda estaba mejor
+ * hecha y tenía el mismo problema de fondo: **un panel de cifras en la primera
+ * pantalla no dice nada**. Lo tiene igual cualquier producto del mundo, se mira
+ * seis segundos y no se saca de ahí ni qué hace esto ni para quién es.
+ *
+ * Lo que de verdad cuenta este producto es lo de abajo —la misma sesión en tu
+ * pantalla y en la suya, la misma comida en las dos— y eso necesita dos aparatos
+ * y una explicación al lado. No cabe arriba, y arriba no hace falta.
+ *
+ * ══ Lo que sí dice, y en la primera línea: QUÉ ES ESTO ══════════════════════
+ *
+ * Aquí puso «Entrena a más. Gestiona menos.», que es una promesa de resultado.
+ * Suena bien y tiene un problema: se la puede poner encima cualquier producto
+ * —una aplicación de rutinas, un CRM, una agenda— y quien llega sigue sin saber
+ * qué se está mirando. En una portada de software, la primera frase tiene que
+ * decir la CATEGORÍA; el beneficio se cuenta después, y aquí lo cuentan las
+ * pantallas.
+ *
+ * Así que el titular nombra el producto —todos tus clientes en un sitio— y la
+ * frase de debajo lo abre: qué se lleva dentro y qué es lo que sustituye, que es
+ * la hoja de cálculo, la aplicación de rutinas y la cadena de WhatsApp.
+ *
+ * ── Y aquí se fue EL HILO ──────────────────────────────────────────────────
+ * Una línea que cerraba el héroe con quién era la persona de todas las capturas:
+ * «Javier López · Cut Phase, semana 3 · 80,1 kg…». Explicaba que los números
+ * encadenaban de una pantalla a otra, y a cambio ponía el nombre propio de un
+ * cliente de mentira como última cosa de la primera pantalla — justo donde tiene
+ * que estar el precio y el botón. Un caso se lee dentro de las capturas o no se
+ * lee; no hace falta presentarlo con ficha.
+ */
 
-const PROGRESO = {
-  src: '/capturas/progreso.jpg',
-  ancho: 2017,
-  alto: 635,
-  alt: 'El progreso de una clienta: 56,6 kg de peso, el check-in de la semana, 20.093 kg de tonelaje y 1.800 kcal de objetivo, con los gráficos de peso y de tonelaje por semana.',
-};
-
-/** Y los móviles del cliente, del portal de verdad. */
-const MOVILES = [
+/**
+ * LOS DOS PARES: la misma cosa en tu pantalla y en la suya.
+ *
+ * ══ Qué es un par ══════════════════════════════════════════════════════════
+ *
+ * Una ventana de escritorio y el teléfono del cliente enseñando LO MISMO desde
+ * el otro extremo, con el discurso al lado. No son dos capturas puestas juntas:
+ * son las dos mitades de un trabajo, y por eso el teléfono pisa el canto de la
+ * ventana en vez de estar en su propia fila.
+ *
+ * Son dos y no cinco a propósito. La sesión y la dieta son los dos únicos
+ * trabajos que un entrenador hace TODAS las semanas con TODOS sus clientes; lo
+ * demás —el check-in, el plan por fases— o se consulta o se toca de vez en
+ * cuando, y tiene su sitio en la secuencia de más abajo.
+ *
+ * ══ Y las dos mitades son la MISMA pantalla ════════════════════════════════
+ *
+ * Esto costó dos intentos. El par de la sesión enseñaba un día de «Push» en la
+ * ventana y uno de «Legs» en el teléfono: dos pantallas puestas juntas para
+ * decir «esto es lo mismo visto desde los dos lados» y contando dos días
+ * distintos. Se le ve la costura a la primera, y a quien se la ve es justo a
+ * quien está comparando las dos porque está a punto de darse de alta.
+ *
+ * Ahora las dos son «Legs A» del mismo cliente y del MISMO momento: seis series
+ * de veintiuna. En la ventana se ven las seis hechas con sus kilos; en el
+ * teléfono, esas mismas seis y las que le quedan por delante en blanco. O sea la
+ * misma sesión a mitad, vista desde los dos extremos — que es exactamente lo que
+ * el par existe para enseñar.
+ *
+ * ── El número, y por qué está ──────────────────────────────────────────────
+ * `01` y `02`, en brasa. Es lo único de color de esta sección y hace dos cosas a
+ * la vez: dice que hay un orden —esto no es una rejilla de funciones— y le da a
+ * la sección su propia manera de llevar la tinta, distinta de la lumbre de los
+ * titulares y de los azulejos de las fichas.
+ *
+ * ── Y alternan de lado ─────────────────────────────────────────────────────
+ * El primero con los aparatos a la derecha y el segundo a la izquierda, aparatos
+ * incluidos. Dos pares idénticos uno debajo de otro son una lista; alternados,
+ * el ojo cruza la página y sabe que ha cambiado de tema sin leer el titular.
+ */
+const PARES = [
   {
-    src: '/capturas/m-dieta.jpg',
-    ancho: 392,
-    alto: 672,
-    alt: 'La dieta en el móvil del cliente: objetivo de 3.100 kcal con sus macros, 10.000 pasos diarios y el menú cerrado con cinco opciones por comida y su anillo de calorías.',
+    id: 'sesion',
+    n: '01',
+    rotulo: 'Rutinas',
+    titulo: 'Le montas la semana,',
+    remate: 'y él la registra',
+    texto:
+      'El editor de rutinas: montas cada día ejercicio por ejercicio, con sus series, sus objetivos y su vídeo. Él abre esa misma sesión en el gimnasio y la va rellenando mientras entrena, así que no tienes que pedirle nada para saber qué ha levantado.',
+    ventana: {
+      src: '/capturas/p-sesion.jpg',
+      ancho: 1916,
+      alto: 1128,
+      css: 770,
+      /* El rótulo es el que lleva la sesión DENTRO de la aplicación. Traducir el
+         nombre de un día de entreno en la portada y dejarlo en inglés en la
+         captura de debajo es la clase de costura que quien mira de cerca ve. */
+      titulo: 'Rutina · Legs A',
+      alt: 'La sesión de Legs A de un cliente a mitad: seis de veintiuna series hechas, con el abdominal colgado a 40, 35 y 35 kg y el aductor a 55, 45 y 45, cada serie con sus repeticiones y su RIR.',
+    },
+    movil: {
+      src: '/capturas/m-rutina.jpg',
+      ancho: 430,
+      alto: 700,
+      alt: 'La misma sesión en el móvil del cliente: los dos primeros ejercicios ya marcados con sus kilos y el tercero todavía en blanco, esperando kilos, repeticiones y RIR.',
+    },
+    /*
+      ══ LA CHAPA, y por qué es UNA ════════════════════════════════════════════
+
+      Aquí hubo dos flotando sobre cada par: una tarjeta grande con la nota del
+      cliente —avatar, nombre, hora y un filete separador— y otra con la
+      respuesta del entrenador. Tres problemas, y los tres del mismo tamaño:
+
+        · **Eran enormes.** La del cliente medía 300 px de ancho y cinco líneas
+          de alto, con su avatar redondo. Una tarjeta de ese tamaño encima de una
+          captura no es una nota flotando: es un cartel tapando el producto.
+        · **Se comían el contenido**, y sobre todo el del teléfono: la de arriba
+          caía justo en la cabecera de la aplicación del móvil.
+        · **Y una de las dos no tenía sentido.** Decía «Le contestas · Press
+          militar en máquina · Hasta que el hombro afloje» sobre una sesión donde
+          nadie había dicho nada de un hombro, y encima el press militar no
+          aparecía en ninguna de las dos pantallas.
+
+      Queda UNA por par, pequeña, y dice algo que se puede comprobar mirando la
+      captura de al lado. En la sesión, el ejercicio 2 —el aductor— empieza a 55
+      y se queda en 6 repeticiones, y las dos series siguientes bajan a 45: eso
+      está en la tabla, se ve, y es exactamente lo que un cliente te escribe al
+      acabar.
+
+      ── Y el rótulo es SOLO el nombre ────────────────────────────────────────
+      «Javier», y no «Javier anota». El verbo lo hacen ya las comillas y la
+      forma de la chapa; escrito, convertía un rótulo de dos caracteres en una
+      frasecita, y encima obligaba a repetir la misma construcción en la otra
+      —«Tú le dejas dicho»—, que es como dos notas pasan a leerse como una
+      plantilla rellenada dos veces.
+
+      Y alterna de dirección entre los dos pares —aquí habla él, en la dieta
+      hablas tú— que es como se dice que esto va en los dos sentidos sin tener
+      que poner dos tarjetas en cada sitio.
+    */
+    chapa: {
+      icono: MessageSquareQuote,
+      rotulo: 'Javier',
+      dice: '«El aductor a 55 no me salía, he bajado a 45»',
+    },
   },
   {
-    src: '/capturas/m-progreso.jpg',
-    ancho: 392,
-    alto: 730,
-    alt: 'El progreso en el móvil del cliente: peso, check-in de la semana, tonelaje y calorías objetivo, con el gráfico de peso corporal debajo.',
+    id: 'dieta',
+    n: '02',
+    rotulo: 'Dietas',
+    titulo: 'Le cuadras la dieta,',
+    remate: 'y él elige',
+    texto:
+      'El editor de dietas: montas cada comida con sus alimentos y sus cantidades, y la propia pantalla te va diciendo si cuadra con el objetivo que le pusiste. Y no le mandas un único menú: le dejas varias opciones por comida y él abre la que le encaje ese día.',
+    ventana: {
+      src: '/capturas/p-comidas.jpg',
+      ancho: 1920,
+      alto: 872,
+      css: 770,
+      titulo: 'Nutrición · Comida 1',
+      alt: 'El editor de una comida: el campo de la nota que verá el cliente, cinco opciones para elegir, el objetivo de la comida contra lo que suman los alimentos de verdad y la lista de alimentos con sus cantidades.',
+    },
+    movil: {
+      src: '/capturas/m-dieta.jpg',
+      ancho: 768,
+      alto: 1250,
+      alt: 'La dieta en el móvil del cliente: su objetivo del día con los macros repartidos, los pasos diarios y el menú, con las opciones de la primera comida y los alimentos de la que ha elegido.',
+    },
+    /*
+      La del entrenador, y sale del campo que se ve en la captura: «Cómo
+      cocinarlo, marcas, sustituciones… lo verá tal cual».
+
+      ── Y es una INDICACIÓN, no una receta ───────────────────────────────────
+      Aquí puso «Los copos con la leche caliente y el cacao dentro», que es una
+      instrucción de cocina. Sonaba a receta de blog y contaba lo que menos
+      importa: nadie contrata a un entrenador para que le diga cómo se calienta
+      la leche. Lo que de verdad se escribe en ese campo es la regla que evita
+      la pregunta de después —cómo se pesa, qué hacer el día que no encaja— y
+      eso sí es la diferencia entre mandar una tabla de macros y mandar una
+      comida.
+    */
+    chapa: {
+      icono: NotebookPen,
+      rotulo: 'Tu nota',
+      dice: 'Pésalo en crudo, y cambia de opción si no encaja',
+    },
   },
 ];
 
-const MOVIL_HERO = {
-  src: '/capturas/m-rutina.jpg',
-  ancho: 392,
-  alto: 730,
-  alt: 'La sesión del día en el móvil del cliente: el calentamiento en vídeo y la tabla de series con sus casillas de kilos, repeticiones y RIR.',
-};
+/**
+ * LA SECUENCIA: las tres herramientas con las que se cierra una semana.
+ *
+ * ══ Qué sustituye ══════════════════════════════════════════════════════════
+ *
+ * A dos ventanas puestas en escalón, una un poco más abajo que la otra. El
+ * escalón decía que había un orden y ahí se acababa: eran dos capturas quietas,
+ * cada una con su pie, sin nada que dijera qué tiene que ver la primera con la
+ * segunda. Se leían como dos funciones que resulta que van juntas.
+ *
+ * ══ Y qué dice cada paso, que es lo que estaba mal ═════════════════════════
+ *
+ * Aquí los tres textos NARRABAN la captura: «va a −0,44», «1.010 kg esta semana,
+ * un 3,1 % más». O sea que se gastaban las tres líneas que tiene un paso en
+ * leerle a alguien en voz alta unos números de mentira que ya está viendo, y no
+ * decían en ningún momento qué herramienta es esa ni para qué sirve. Quien mira
+ * esto no está siguiendo el caso de Javier: está decidiendo si esto le sirve.
+ *
+ * Así que cada paso nombra la HERRAMIENTA —el roadmap, el check-in, el
+ * resumen—, dice qué se hace con ella y qué te ahorra. Las cifras se quedan
+ * donde valen algo, que es dentro de la captura: ahí no son un argumento, son
+ * la prueba de que la pantalla existe.
+ *
+ * ── Y por eso son tres y no dos ────────────────────────────────────────────
+ * Porque medir no es el final. Con el ritmo real delante hay que DECIDIR la
+ * semana siguiente, y eso se hace con la ficha entera a la vista — que es la
+ * tercera pantalla y la que cierra el bucle.
+ *
+ * ── El raíl, y que se DIBUJA al bajar ──────────────────────────────────────
+ * Una línea vertical con tres paradas numeradas. Es la misma forma que tiene el
+ * roadmap DENTRO de la aplicación, y no es un guiño: en los dos sitios dice lo
+ * mismo —esto va en este orden— y ya está resuelto.
+ *
+ * Y cada parada se enciende cuando se llega a ella, con el tramo de línea
+ * creciendo desde la anterior. Ver `Paso` y `.lp-ruta` en `index.css`: es lo que
+ * convierte tres capturas apiladas en algo que AVANZA mientras se baja, que es
+ * justo lo que la sección dice con palabras.
+ */
+const SECUENCIA = [
+  {
+    n: '01',
+    titulo: 'El roadmap',
+    texto:
+      'Donde marcas a dónde va cada cliente y en cuánto tiempo: las fases, sus fechas y el ritmo que buscas en cada una. Se monta una vez y desde entonces sabes en qué punto del plan está cada persona sin tener que reconstruirlo de memoria.',
+    pieza: {
+      src: '/capturas/p-roadmap.jpg',
+      ancho: 1920,
+      alto: 419,
+      css: 770,
+      titulo: 'Progreso · Roadmap',
+      alt: 'El roadmap de un cliente con dos fases: Cut Phase en curso, del 14 de agosto al 10 de septiembre, cuatro semanas de definición a -0,47 kg por semana, y después Bulking Phase, doce semanas de volumen a +0,08.',
+    },
+  },
+  {
+    n: '02',
+    titulo: 'El check-in',
+    texto:
+      'La revisión semanal que rellena el cliente: sus pesajes, sus medidas y las preguntas que tú hayas escrito. Te devuelve el ritmo real de la semana calculado, así que decides con lo que ha pasado los siete días y no con lo que marque la báscula el lunes.',
+    pieza: {
+      src: '/capturas/p-checkin.jpg',
+      ancho: 774,
+      alto: 450,
+      css: 770,
+      titulo: 'Revisión · Check-in',
+      alt: 'El check-in semanal: el último pesaje, la media de las últimas semanas, la variación total y el ritmo por semana, con los pesajes de cada día y el gráfico de tendencia.',
+    },
+  },
+  {
+    n: '03',
+    titulo: 'El resumen',
+    texto:
+      'Todo lo del cliente en una pantalla: peso, check-ins, carga levantada y objetivo de calorías, cada uno con su tendencia. Es lo que abres antes de tocar nada, y lo que te dice si hay que cambiar algo o dejarlo correr una semana más.',
+    pieza: {
+      src: '/capturas/p-ficha.jpg',
+      ancho: 1277,
+      alto: 432,
+      css: 770,
+      titulo: 'Progreso · Resumen',
+      alt: 'El resumen de un cliente: peso con su tendencia, check-ins de la semana, kilos totales levantados y objetivo de calorías con el reparto de macros, y debajo las gráficas de peso corporal y de tonelaje por semana.',
+    },
+  },
+];
+
+/**
+ * Y las cuatro fichas de «lo que además trae».
+ *
+ * ══ Por qué existe esa sección ══════════════════════════════════════════════
+ *
+ * Porque todo esto estaba metido en una respuesta de las dudas —«¿qué más
+ * trae?»— dentro de un desplegable cerrado, al final de la página y en un solo
+ * párrafo de sesenta palabras. O sea: la mitad del producto, escondida en el
+ * único sitio de la portada al que hay que hacer clic para llegar.
+ *
+ * Aquí no se explican, se ENSEÑAN QUE EXISTEN, que es distinto: cuatro fichas
+ * con su icono y una línea. Quien busca eso lo encuentra en cuatro segundos;
+ * quien no, ve una rejilla y sigue bajando.
+ *
+ * ── Y por qué en rejilla ───────────────────────────────────────────────────
+ * Porque es la única forma de la página que dice «hay MÁS»: una fila de cosas
+ * pequeñas y equivalentes. Las secciones grandes dicen «esto es importante» y
+ * son cuatro; si estas cuatro tuvieran su propia sección grande, la página
+ * duplicaría su largo para decir lo que aquí cabe en una pantalla.
+ */
+const EXTRAS = [
+  {
+    icono: Camera,
+    titulo: 'Fotos de progreso',
+    texto: 'Por semana y por ángulo, con montajes de antes y después.',
+  },
+  {
+    icono: Video,
+    titulo: 'Revisiones en vídeo',
+    texto: 'Grabadas desde el navegador. Ni Drive ni enlaces sueltos.',
+  },
+  {
+    icono: CalendarDays,
+    titulo: 'Calendario y equipo',
+    texto: 'Tus sesiones, y la cartera repartida entre varios entrenadores.',
+  },
+  {
+    icono: CreditCard,
+    titulo: 'Quién te ha pagado',
+    texto: 'Lee tu Stripe y tu Notion y te lo pone al lado de cada cliente.',
+  },
+];
 
 /** Las dudas que llegan siempre, contestadas en corto. */
 const DUDAS = [
@@ -115,8 +504,8 @@ const DUDAS = [
     a: 'No. Se abre en el navegador del móvil y se añade a la pantalla de inicio, con su icono y a pantalla completa. Ni tienda ni actualizaciones.',
   },
   {
-    q: '¿Qué más trae?',
-    a: 'Fotos de progreso por semana y por ángulo con montajes de antes y después, revisiones semanales con vídeo grabado desde el propio navegador, check-in con las preguntas que tú escribas, antropometría con pliegues, calendario, roadmap del objetivo por fases, equipos con varios entrenadores y reparto de clientes, y lectura de tu Stripe y de tu Notion para saber quién te ha pagado.',
+    q: '¿Qué más trae, además de lo de arriba?',
+    a: 'Check-in semanal con las preguntas que tú escribas, antropometría con pliegues y sus fórmulas, roadmap del objetivo por fases, biblioteca de ejercicios con vídeo, y exportación de todo lo de un cliente cuando la pidas. Nada de esto se cobra aparte: no hay módulos.',
   },
   {
     q: '¿Qué pasa con las fotos y los datos de salud?',
@@ -133,6 +522,10 @@ const DUDAS = [
  *
  * Envuelve en lugar de repetir el gancho en cada sección: son siete, y siete
  * `useReveal()` escritos a mano es donde se olvida uno.
+ *
+ * Lo que entra en cascada no es esto, es `.lp-tanda`: una caja con esa clase
+ * dentro de un bloque reparte el retraso entre sus hijos desde la hoja de
+ * estilos, sin un solo estado más en JavaScript.
  */
 const Entra = ({ as: Etiqueta = 'div', className = '', retraso = 0, children, ...resto }) => {
   const [ref, dentro] = useReveal();
@@ -151,43 +544,123 @@ const Entra = ({ as: Etiqueta = 'div', className = '', retraso = 0, children, ..
 /**
  * Una captura de escritorio dentro de una ventana.
  *
- * ══ Por qué el marco ════════════════════════════════════════════════════════
+ * ══ Por qué el marco, ahora que las capturas son de noche ═══════════════════
  *
- * Porque las capturas son CLARAS y la portada es de noche. Una imagen clara
- * pegada sobre negro se lee como un agujero en la página; metida en una ventana
- * con su canto y su sombra se lee como lo que es: una pantalla encendida. El
- * marco además convierte el corte de arriba —todo recorte está cortado por algún
- * sitio— en el borde de una ventana.
+ * El motivo original era otro: las capturas eran claras y sobre un lienzo negro
+ * una imagen clara sin canto se lee como un agujero en la página. Eso ya no
+ * pasa. Y el marco se queda igualmente, por lo que hace ahora:
+ *
+ *   · **Separa la pieza del lienzo.** Una captura oscura sobre un fondo oscuro
+ *     tiene el problema contrario: se funde. El canto y la sombra son lo que
+ *     dicen dónde acaba la página y empieza la pantalla.
+ *   · **Explica el corte.** Todo recorte está cortado por algún sitio. Con una
+ *     barra arriba, el corte deja de ser un recorte y pasa a ser el borde de una
+ *     ventana, que es algo que se entiende sin pensar.
  *
  * La barra lleva el nombre de la SECCIÓN de la aplicación y no una dirección
  * inventada: una URL falsa en una portada es una promesa sobre algo que todavía
  * no existe.
  */
-const Ventana = ({ pieza, titulo, prioridad = false }) => (
-  <figure className="lp-shot">
-    <span className="lp-shot-bar" aria-hidden="true">
-      <span className="lp-shot-dots">
-        <i /> <i /> <i />
+const Ventana = ({ pieza, titulo, prioridad = false, plana = false, className = '' }) => (
+  <figure
+    className={`${plana ? 'lp-plana' : 'lp-portatil'} ${className}`}
+    /* Hasta dónde puede crecer la captura. Ver el bloque de las piezas: es el
+       ancho al que la imagen se pinta 1:1 o por debajo, nunca por encima. */
+    style={{ '--nat': `${pieza.css || pieza.ancho}px` }}
+  >
+    <span className="lp-portatil-tapa">
+      <span className="lp-shot">
+        {/* La barra del navegador. Los tres puntos a la izquierda y el nombre de
+            la sección en una pastilla centrada, que es donde va la dirección en
+            cualquier navegador de los últimos quince años. Alineado a la
+            izquierda y sin pastilla parecía el título de una tarjeta; centrado y
+            en su chip se lee como lo que imita. */}
+        <span className="lp-shot-bar" aria-hidden="true">
+          <span className="lp-shot-dots">
+            <i /> <i /> <i />
+          </span>
+          <span className="lp-shot-tab">{titulo}</span>
+          {/* El aviso de que esto se puede arrastrar, y SOLO en pantallas
+              estrechas —la hoja de estilos lo esconde en el resto—. Va en el
+              cromo de la ventana y no debajo de ella a propósito: debajo serían
+              cinco pies de foto repetidos bajando por la página, y aquí es una
+              etiqueta más de la barra, en el hueco que dejaba libre la pastilla
+              del centro. */}
+          <span className="lp-shot-desliza">Desliza →</span>
+        </span>
+
+        {/* ── Y la imagen va dentro de su propia caja ────────────────────────
+            Que en un ordenador no hace nada —es un bloque del ancho de la
+            ventana— y en un móvil lo es todo: es la caja que DESLIZA. Una
+            captura de escritorio metida en 390 px tiene la letra a un tercio de
+            su tamaño y no se lee, así que por debajo de 700 px la imagen se
+            queda a su ancho de pintado y se pasea dentro de este hueco.
+
+            Va aquí dentro y no en `.lp-shot` a propósito: si el que desliza
+            fuera el marco entero, la barra del navegador se iría con la imagen y
+            al arrastrar quedaría media ventana sin cromo arriba. Con la barra
+            fuera, lo único que se mueve es la pantalla. */}
+        <span className="lp-shot-vista">
+          {/* `corte`, cuando lo trae la pieza, es hasta qué altura del ARCHIVO se
+              enseña: la proporción la manda el corte y la imagen se ancla
+              arriba. Es para las capturas que acaban a media tarjeta. Sin él, la
+              caja sigue siendo la del archivo entero. */}
+          <img
+            className={`lp-shot-img${pieza.corte ? ' is-cortada' : ''}`}
+            style={pieza.corte ? { '--corte': `${pieza.ancho} / ${pieza.corte}` } : undefined}
+            src={pieza.src}
+            alt={pieza.alt}
+            width={pieza.ancho}
+            height={pieza.alto}
+            decoding="async"
+            /* La del héroe se pide ya; las de abajo, al acercarse. */
+            loading={prioridad ? 'eager' : 'lazy'}
+          />
+        </span>
       </span>
-      <span className="lp-shot-tab">{titulo}</span>
     </span>
-    <img
-      className="lp-shot-img"
-      src={pieza.src}
-      alt={pieza.alt}
-      width={pieza.ancho}
-      height={pieza.alto}
-      decoding="async"
-      /* La del héroe se pide ya; las de abajo, al acercarse. */
-      loading={prioridad ? 'eager' : 'lazy'}
-    />
+
+    <span className="lp-portatil-base" aria-hidden="true" />
   </figure>
 );
 
 /**
- * El móvil del cliente, con su captura dentro.
+ * El móvil del cliente: un teléfono de verdad, no un rectángulo redondeado.
  *
- * ══ Por qué desaparece si la imagen falla ═══════════════════════════════════
+ * ══ Por qué merece la pena dibujar el aparato ═══════════════════════════════
+ *
+ * Aquí había un bisel genérico —siete píxeles de relleno y una esquina de 30— y
+ * el resultado no se leía como un teléfono, se leía como una captura con el
+ * borde redondeado. Y eso importa más de lo que parece: la promesa de esta
+ * página es que el cliente lleva el plan ENCIMA, y esa promesa la hace el
+ * aparato, no la pantalla.
+ *
+ * Lo que lo convierte en un iPhone son cuatro cosas, y ninguna es un adorno:
+ *
+ *   · **La proporción.** Un teléfono actual es casi dos veces más alto que
+ *     ancho. Por eso las tres capturas de móvil salen del script con la misma
+ *     altura: dos piezas de distinta proporción dentro del mismo bisel se leen
+ *     como dos teléfonos distintos.
+ *   · **El canto metálico.** Un degradado de tres paradas en el borde. Es lo que
+ *     hace que el marco tenga volumen en vez de ser una línea gris.
+ *   · **La ISLA y la barra de estado.** Lo que dice «esto es la pantalla de un
+ *     teléfono» sin que haya que mirar dos veces. La barra va DELANTE de la
+ *     captura y no encima: si la isla se pusiera sobre la cabecera de la
+ *     aplicación taparía el buscador, y una pastilla negra tapando un control
+ *     se lee como un fallo de maquetación.
+ *
+ *     Y es una isla FLOTANDO, no una muesca colgada del canto. Aquí hubo lo
+ *     segundo, que es lo que llevaba un teléfono de 2019: una pestaña negra
+ *     pegada al borde de arriba. La pastilla despegada es lo único que
+ *     distingue de un vistazo un teléfono actual de uno viejo, y en una portada
+ *     que vende una aplicación de móvil enseñar el aparato de hace seis años
+ *     dice justo lo que no hay que decir.
+ *   · **Los botones del canto.** Dos marcas de nada en los laterales. Se notan
+ *     solo si faltan.
+ *
+ * Todo con CSS: ni una imagen que descargar, y se ve nítido a cualquier tamaño.
+ *
+ * ══ Y por qué desaparece si la captura falla ════════════════════════════════
  *
  * Porque el icono de imagen rota en una portada dice, en el peor sitio posible,
  * que esto está a medio hacer. Si no carga, se va entero y la escena se queda
@@ -195,52 +668,286 @@ const Ventana = ({ pieza, titulo, prioridad = false }) => (
  * consola del navegador registra la petición fallida igual— es no enseñárselo a
  * un visitante que no puede hacer nada con él.
  */
+/**
+ * Los tres iconos de la derecha de la barra de estado: cobertura, wifi y
+ * batería.
+ *
+ * ══ Por qué un SVG y no tres cajas ══════════════════════════════════════════
+ *
+ * Estaban dibujados con `div`s: cuatro barritas para la cobertura, media elipse
+ * con borde para el wifi y un rectángulo con un relleno dentro para la batería.
+ * De cerca eran tres apaños, y el del wifi el peor de todos — una cúpula con el
+ * borde del mismo grosor arriba que en los lados, que es justo lo que un arco de
+ * wifi no es.
+ *
+ * El problema de fondo es que un icono de 10 px hecho con cajas depende de que
+ * los píxeles caigan enteros, y aquí no caen: todo se mide en proporciones de
+ * `--tel`, que es un `clamp()`. Medio píxel de más en un borde de uno y medio se
+ * ve como suciedad.
+ *
+ * Un SVG con su `viewBox` se dibuja con las curvas de verdad y el navegador lo
+ * escala como quiera sin romper nada. Los tres van en el MISMO dibujo para que
+ * la separación entre ellos no dependa de tres cajas que se alinean a ojo.
+ *
+ * ── Las formas son las de iOS ──────────────────────────────────────────────
+ * Cuatro barras de esquina redondeada que crecen; tres arcos concéntricos y un
+ * punto; y una pila con su morro. No es un homenaje: es que son las que el ojo
+ * reconoce sin mirar, y cualquier variación —barras rectas, un wifi de dos
+ * arcos— se lee como que el teléfono está mal dibujado.
+ */
+const BarraEstado = () => (
+  <svg
+    className="lp-iphone-estado"
+    viewBox="0 0 64 14"
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    {/* Cobertura. Las cuatro llenas: un teléfono de escaparate tiene señal. */}
+    <g fill="currentColor">
+      <rect x="0" y="8.6" width="2.6" height="5.4" rx="0.9" />
+      <rect x="4.4" y="6.4" width="2.6" height="7.6" rx="0.9" />
+      <rect x="8.8" y="4.2" width="2.6" height="9.8" rx="0.9" />
+      <rect x="13.2" y="2" width="2.6" height="12" rx="0.9" />
+    </g>
+
+    {/* Wifi: tres arcos y el punto. Los arcos van con `stroke` y remate
+        redondo, que es lo que hace que se afinen en las puntas. */}
+    <g
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      transform="translate(21.5 2)"
+    >
+      <path d="M0.6 3.6a10 10 0 0 1 12.8 0" />
+      <path d="M3.3 6.7a6 6 0 0 1 7.4 0" />
+    </g>
+    <circle cx="28.5" cy="12.1" r="1.5" fill="currentColor" />
+
+    {/* Batería: el casco, el morro y la carga. */}
+    <rect
+      x="41.5"
+      y="2.6"
+      width="20"
+      height="10.4"
+      rx="3.2"
+      stroke="currentColor"
+      strokeOpacity="0.45"
+      strokeWidth="1.3"
+    />
+    <path
+      d="M62.8 6.4v2.8a2.6 2.6 0 0 0 0-2.8Z"
+      fill="currentColor"
+      fillOpacity="0.45"
+    />
+    <rect x="43.3" y="4.4" width="12.6" height="6.8" rx="1.9" fill="currentColor" />
+  </svg>
+);
+
 const Movil = ({ pieza, className = '' }) => {
   const [roto, setRoto] = useState(false);
   if (roto) return null;
 
   return (
-    <div className={`lp-movil ${className}`}>
-      <img
-        className="lp-movil-img"
-        src={pieza.src}
-        alt={pieza.alt}
-        width={pieza.ancho}
-        height={pieza.alto}
-        decoding="async"
-        loading="lazy"
-        onError={() => setRoto(true)}
-      />
+    <div className={`lp-iphone ${className}`}>
+      {/* Silencio, subir, bajar y encendido, en el orden y el sitio en que
+          están de verdad. Cuatro marcas de nada que solo se notan si faltan. */}
+      <span className="lp-iphone-botones" aria-hidden="true">
+        <i /> <i /> <i /> <i />
+      </span>
+
+      <div className="lp-iphone-pantalla">
+        {/* La isla: una pastilla negra DESPEGADA del canto de arriba, con la
+            cámara dentro. No es un adorno, es la diferencia entre un teléfono
+            actual y uno de hace seis años. */}
+        <span className="lp-iphone-isla" aria-hidden="true">
+          <i />
+        </span>
+
+        {/* La barra de estado, entera: la hora a un lado y cobertura, wifi y
+            batería al otro. Con la batería sola parecía una franja con la hora;
+            los tres iconos juntos son lo que el ojo reconoce sin leer. */}
+        <span className="lp-iphone-barra" aria-hidden="true">
+          <span className="lp-iphone-hora">9:41</span>
+          <BarraEstado />
+        </span>
+
+        <img
+          className="lp-iphone-img"
+          src={pieza.src}
+          alt={pieza.alt}
+          width={pieza.ancho}
+          height={pieza.alto}
+          decoding="async"
+          loading="lazy"
+          onError={() => setRoto(true)}
+        />
+
+        {/* ── Y aquí NO va la rayita de inicio ──────────────────────────────
+            Había una, y de dos maneras seguidas. Primero como FRANJA: un bloque
+            de veinte píxeles de negro entre el final de la aplicación y el canto
+            del aparato, que no existe en ningún teléfono. Y luego flotando
+            encima de la captura, que es donde va de verdad — pero justo encima
+            de la barra de secciones del portal, tapándole las etiquetas.
+
+            El segundo problema no tiene arreglo desde aquí: la captura llega
+            recortada por debajo de esa barra, sin el hueco que el sistema
+            reserva para la rayita. Dibujarla sobre las etiquetas cambia un
+            detalle que sobra por un defecto que se ve.
+
+            Así que no se dibuja. La aplicación llega al canto redondeado y ahí
+            se acaba, que es exactamente lo que se ve en las maquetas que
+            sirvieron de referencia. */}
+
+        {/* El cristal. Una diagonal de luz del 4 % sobre TODA la pantalla, isla
+            incluida: un reflejo que se parase antes de la isla diría que la isla
+            está por delante del cristal, que es justo lo que no es. */}
+        <span className="lp-iphone-brillo" aria-hidden="true" />
+      </div>
     </div>
   );
 };
 
 /**
- * Una sección: el rótulo, el titular, una frase y la pantalla debajo, a todo
- * lo ancho.
+ * LA CHAPA: una nota de cristal posada en el canto de la ventana.
  *
- * ── Por qué a lo ancho y no a un lado ──────────────────────────────────────
- * Porque las piezas son RECORTES, y un recorte es apaisado: la tabla de series
- * son cuatro columnas de datos y las cifras de la semana son cuatro tarjetas en
- * fila. Metida en media columna, una pieza así se queda a 500 px y hay que
- * acercarse a la pantalla para leer un número, que es justo lo contrario de lo
- * que se le pide a la única imagen de la sección.
+ * ══ Dónde va, que es lo que se había hecho mal ══════════════════════════════
+ *
+ * En el canto de ABAJO de la ventana y saliéndose por él: la mitad de la chapa
+ * queda por debajo de la captura y la otra mitad pisa su esquina inferior. Es la
+ * única posición que cumple las tres cosas que se le piden:
+ *
+ *   · Se lee como una CAPA y no como parte de la imagen — para eso hay que
+ *     cruzar un borde; una tarjeta contenida dentro de la pantalla se lee como
+ *     un elemento más de la aplicación.
+ *   · No toca el teléfono. Aquí hubo una arriba a la derecha, sobre la cabecera
+ *     de la aplicación del móvil, tapando justo lo que el móvil venía a enseñar.
+ *   · Y de la ventana solo pisa la esquina de abajo a la izquierda, que en las
+ *     dos capturas de esta sección es la fila menos informativa que hay.
+ *
+ * ── Y por eso lleva `--alto` ───────────────────────────────────────────────
+ * Para saber cuánto sobresale hace falta saber cuánto mide, y una caja de texto
+ * no lo dice hasta que está pintada. Se declara: dos líneas es todo lo que cabe
+ * escribir aquí, y con la altura declarada el margen negativo la deja siempre
+ * medio dentro y medio fuera.
  */
-const Bloque = ({ id, franja, ancha, rotulo, titulo, remate, texto, children }) => (
-  <Entra as="section" className={`lp-sec${franja ? ' is-band' : ''}`} id={id}>
-    <div className={`lp-in${ancha ? ' is-ancha' : ''}`}>
-      <div className="lp-sec-head is-center">
-        <span className="lp-kicker">{rotulo}</span>
-        <h2>
-          {titulo} <em>{remate}</em>
-        </h2>
-        <p className="lp-lede-sm">{texto}</p>
+const Chapa = ({ chapa }) => (
+  <figure className="lp-chapa">
+    <figcaption className="lp-chapa-rotulo">
+      <chapa.icono size={13} strokeWidth={2.5} aria-hidden="true" />
+      {chapa.rotulo}
+    </figcaption>
+    <p className="lp-chapa-dice">{chapa.dice}</p>
+  </figure>
+);
+
+/**
+ * UN PAR: el discurso a un lado y los dos aparatos al otro.
+ *
+ * ══ La composición ═════════════════════════════════════════════════════════
+ *
+ * Los dos aparatos NO están en fila: el teléfono pisa el canto de la ventana y
+ * cae por debajo de su base. Dos capturas separadas por un hueco son dos
+ * pantallas; solapadas son la misma cosa vista dos veces.
+ *
+ * ── Y con aire alrededor, que es lo que faltaba ────────────────────────────
+ * El anillo que había aquí ponía cinco láminas en el hueco de una y la vista se
+ * atoraba: la del centro llegaba pisada por dos rebanadas giradas. Un par usa el
+ * ancho entero de su columna para dos piezas, así que entre la ventana y el
+ * canto de la sección hay sitio de verdad. Se enseña menos y se ve más.
+ *
+ * ── El teléfono se ata al ALTO de la ventana ───────────────────────────────
+ * Con `--tel` en `vw` y no en un porcentaje de su hermano: son dos piezas de
+ * proporción opuesta —una apaisada y una vertical— y lo que tiene que parecer
+ * creíble entre ellas es la relación de TAMAÑOS, que es lo que dice cuál es la
+ * pantalla grande.
+ *
+ * ── Y la chapa cuelga de la VENTANA, no del par ────────────────────────────
+ * Va dentro de `.lp-par-desk`, que es la caja de la captura. Estuvo suelta en el
+ * par, o sea posicionada contra una caja cuyo alto lo decide la pieza más alta
+ * de las dos; así, un porcentaje que caía bien con la sesión caía en el vacío
+ * con la comida, que es más baja. Colgada de la ventana, cae donde tiene que
+ * caer en las dos sin tocar un número.
+ *
+ * @param vuelta  Los aparatos a la izquierda y el discurso a la derecha. Lo usa
+ *   el segundo par: dos idénticos uno debajo de otro se leen como una lista.
+ */
+const Par = ({ par, vuelta = false }) => (
+  <div className={`lp-par${vuelta ? ' is-vuelta' : ''}`}>
+    <div className="lp-par-say lp-tanda">
+      {/* El número es lo único de color de esta sección. Ver `PARES`. */}
+      <span className="lp-par-n">
+        <i aria-hidden="true">{par.n}</i>
+        {par.rotulo}
+      </span>
+
+      <h3 className="lp-par-h">
+        {par.titulo} <em>{par.remate}</em>
+      </h3>
+
+      <p className="lp-lede-sm">{par.texto}</p>
+    </div>
+
+    <div className="lp-par-art lp-feat-art">
+      {/* La luz detrás de los aparatos: no se pinta la letra, se calienta el
+          hueco donde está. Ver `.lp-fulgor` en `index.css`. */}
+      <span className="lp-fulgor" aria-hidden="true" />
+
+      <div className="lp-par-desk">
+        <Ventana pieza={par.ventana} titulo={par.ventana.titulo} plana />
+        {par.chapa && <Chapa chapa={par.chapa} />}
       </div>
 
-      <div className="lp-pieza">{children}</div>
+      <Movil pieza={par.movil} className="lp-par-movil" />
     </div>
-  </Entra>
+  </div>
 );
+
+/**
+ * UN PASO DE LA SECUENCIA: la parada del raíl, su discurso y su pantalla.
+ *
+ * La bolita numerada va posicionada sobre la línea que dibuja el raíl (ver
+ * `.lp-ruta` en `index.css`) y lleva fondo opaco: si fuera transparente, la
+ * línea se vería cruzándola por dentro y dejaría de ser una parada para pasar a
+ * ser un número puesto encima de una raya.
+ *
+ * ══ Y cada paso entra POR SU CUENTA ════════════════════════════════════════
+ *
+ * Con su propio `useReveal`, no con el de la sección. Aquí toda la secuencia
+ * colgaba del bloque de fuera: se cruzaba el titular, se encendía la sección
+ * entera y los tres pasos —que ocupan tres pantallas de alto— quedaban ya
+ * puestos mucho antes de llegar a ellos. O sea que la única sección de la página
+ * que habla de un ORDEN era la que se enseñaba de golpe.
+ *
+ * Ahora la parada se enciende, el tramo de línea crece hacia la siguiente y el
+ * discurso entra en cascada, cada uno cuando le toca. Es lo que hace que bajar
+ * por aquí se sienta como recorrer los tres pasos en vez de leer una lista, y no
+ * cuesta nada: el mismo gancho que ya usa cada sección, aplicado un nivel más
+ * abajo.
+ *
+ * `is-in` va en el `li` y no en un contenedor de dentro porque de él cuelgan las
+ * tres cosas que se mueven —la línea, la bolita y la cascada del texto—, y con
+ * la clase arriba las tres se disparan con la misma señal.
+ */
+const Paso = ({ paso }) => {
+  const [ref, dentro] = useReveal();
+
+  return (
+    <li ref={ref} className={`lp-ruta-paso${dentro ? ' is-in' : ''}`}>
+      <div className="lp-ruta-say lp-tanda">
+        <span className="lp-ruta-n" aria-hidden="true">
+          {paso.n}
+        </span>
+        <h3 className="lp-ruta-h">{paso.titulo}</h3>
+        <p className="lp-lede-sm">{paso.texto}</p>
+      </div>
+
+      <div className="lp-ruta-art lp-feat-art">
+        <Ventana pieza={paso.pieza} titulo={paso.pieza.titulo} plana />
+      </div>
+    </li>
+  );
+};
 
 export const LandingPage = () => {
   const [planes, setPlanes] = useState([]);
@@ -303,42 +1010,34 @@ export const LandingPage = () => {
         </div>
       </header>
 
-      {/* ══ EL HÉROE ═══════════════════════════════════════════════════════
-          Cuatro palabras de titular y LA ESCENA debajo.
-
-          ── Por qué la rutina y no la bandeja del día ──────────────────────
-          Aquí estuvo «Hoy», que es la pantalla con la que se empieza a trabajar
-          y que por eso parecía la portada natural. Y no funciona: es una lista
-          de nombres con cifras al lado. Dice lo que ha pasado, pero no enseña
-          NADA de lo que se hace con esta herramienta, y como primera imagen de
-          un producto de entrenamiento es un panel de administración.
-
-          La rutina sí: se ve el programa entero —ocho semanas, tres días— y la
-          tabla de series con sus kilos y su RIR. Eso es el oficio.
-
-          ── Y el móvil se apoya en el ordenador ────────────────────────────
-          Las dos piezas no están una al lado de la otra: el móvil PISA el canto
-          de la ventana y cae por debajo de su base. Separados son dos capturas
-          en la misma fila; solapados son una escena, y además dicen sin
-          palabras lo que hay que entender —que lo de la derecha sale de lo de la
-          izquierda—. Las dos enseñan la misma sesión a propósito. */}
+      {/* ══ EL HÉROE: qué es esto, dos botones y el precio ══════════════════
+          Sin captura, y es lo que más ha mejorado esta página: un panel de
+          cifras en la primera pantalla lo tiene igual cualquier producto del
+          mundo y no dice ni qué hace esto ni para quién es. Lo que sí lo dice
+          está veinte píxeles más abajo, a tamaño grande y con su explicación al
+          lado. */}
       <section className="lp-sec lp-hero" id="top">
         <div className="lp-in lp-hero-in">
-          <span className="lp-eyebrow">Software para entrenadores online</span>
+          <span className="lp-eyebrow">Gestión de clientes para entrenadores</span>
 
+          {/* La CATEGORÍA, no el beneficio. «Entrena a más, gestiona menos» se
+              lo puede poner encima cualquier producto —una app de rutinas, un
+              CRM, una agenda— y quien llega sigue sin saber qué está mirando. */}
           <h1 className="lp-h1">
-            Entrena a más.
+            Todos tus clientes,
             <br />
-            <em>Gestiona menos.</em>
+            <em>en un solo sitio</em>
           </h1>
 
-          {/* Una sola frase, y con los cuatro verbos del trabajo de la semana.
-              Aquí hubo tres frases explicando el reparto entre tú y tu cliente y
-              era una explicación, no una promesa: lo que reparte el trabajo se
-              ve solo en la escena de debajo. */}
+          {/* Y aquí, lo que sustituye. Un entrenador que llega a esto no está
+              comparando productos: está decidiendo si merece la pena mover lo
+              que ya tiene, que es una hoja de cálculo, una aplicación de
+              entreno y una conversación de WhatsApp por cliente. Nombrarlas es
+              lo que hace que se reconozca en la frase. */}
           <p className="lp-lede">
-            Monta rutinas y dietas, recibe los check-ins, sigue el progreso de cada cliente y ten a
-            la vista quién te ha pagado. Todo desde un sitio, y en el navegador.
+            La plataforma donde llevas tu cartera entera: rutinas, dietas, check-ins, progreso,
+            fotos y cobros de cada persona, en la misma ficha. Sin la hoja de cálculo, sin otra
+            aplicación aparte y sin ir a buscar nada al WhatsApp.
           </p>
 
           <div className="lp-cta">
@@ -357,82 +1056,116 @@ export const LandingPage = () => {
             Tres clientes gratis, sin límite de tiempo y sin tarjeta.
             {masBarato && <> Para crecer, desde {planPrice(masBarato)}.</>}
           </span>
-
-          <div className="lp-escena">
-            <div className="lp-escena-desk">
-              <Ventana pieza={RUTINA} titulo="Rutina · Semana 8" prioridad />
-            </div>
-
-            <Movil pieza={MOVIL_HERO} className="lp-escena-movil" />
-          </div>
-
-          {/* El pie de la escena. Dos líneas de nada que hacen el trabajo que
-              antes hacían dos recuadros flotando encima de las capturas: decir
-              cuál es tu pantalla y cuál la suya. Debajo y en pequeño, porque una
-              etiqueta que hay que leer no puede taparlo que viene a explicar. */}
-          <p className="lp-escena-pie">
-            <span>Tu pantalla: la semana que le programas</span>
-            <span>Su móvil: lo que abre en el gimnasio</span>
-          </p>
         </div>
       </section>
 
-      {/* ══ 1. LO QUE VE TU CLIENTE ═══════════════════════════════════════
-          Dos móviles, y montados como una pareja: el de la dieta delante, el del
-          progreso medio escondido detrás y un escalón más abajo. Uno al lado del
-          otro y a la misma altura serían la ficha de producto de una tienda de
-          fundas; encajados se leen como lo que son, la misma aplicación abierta
-          por dos sitios.
+      {/* ══ 1. EL CLIENTE, DE LOS DOS LADOS — los dos pares ═══════════════
+          Aquí hubo un anillo de cinco pantallas girando en tres dimensiones, y
+          lo que enseñaba estaba bien; lo que contaba, no. Cinco capturas en
+          orden de catálogo superpuestas en el hueco de una, con la del centro
+          pisada por dos rebanadas giradas.
 
-          Y son los dos del cliente a propósito: lo que hay que enseñar aquí no
-          es una pantalla, es que la persona lleva encima el plan ENTERO —lo que
-          come y cómo va— sin haberse instalado nada. */}
-      <Entra as="section" className="lp-sec lp-feat is-band" id="producto">
-        <div className="lp-in lp-feat-in">
-          <div className="lp-feat-say">
-            <span className="lp-kicker">La app de tu cliente</span>
+          Ahora son dos PARES: la sesión y la comida, cada una en tu pantalla y
+          en la suya, con el discurso al lado y sitio de sobra alrededor. */}
+      <Entra as="section" className="lp-sec is-band" id="producto">
+        <div className="lp-in is-ancha">
+          <div className="lp-sec-head is-center lp-tanda">
+            <span className="lp-kicker">Cómo funciona</span>
             <h2>
-              Tus clientes, con todo <em>en el bolsillo</em>
+              Tú lo montas aquí, él lo ve <em>en su móvil</em>
             </h2>
             <p className="lp-lede-sm">
-              Su rutina, su dieta con los anillos de calorías de cada comida y su progreso al día.
-              Se abre en el navegador y se añade a la pantalla de inicio: ni tienda, ni
-              instalación, ni una cuenta que pagar.
+              Las dos herramientas que se usan todas las semanas con todo el mundo. Trabajas desde
+              el ordenador y tu cliente entra a lo suyo desde el teléfono: no hay nada que exportar,
+              que reenviar ni que volver a escribir en otro sitio.
             </p>
           </div>
 
-          <div className="lp-feat-art lp-duo">
-            {MOVILES.map((pieza) => (
-              <Movil key={pieza.src} pieza={pieza} />
+          <div className="lp-pares">
+            {PARES.map((par, i) => (
+              <Par key={par.id} par={par} vuelta={i % 2 === 1} />
             ))}
           </div>
         </div>
       </Entra>
 
-      {/* ══ 2. LO QUE TE DEVUELVE ═════════════════════════════════════════
-          Esta pieza va MÁS ANCHA que el resto de la página (`is-ancha`), y es la
-          única. La hoja de progreso son cuatro cifras y dos gráficos, y un
-          gráfico es lo único de una portada que se puede quedar sin sitio: a
-          1200 px las etiquetas de los ejes se leen con esfuerzo y lo que hay que
-          poder decir aquí es «esto se entiende de un vistazo». */}
-      <Bloque
-        id="progreso"
-        ancha
-        rotulo="Progreso"
-        titulo="Su semana entera,"
-        remate="en una hoja"
-        texto="Peso, check-in, tonelaje y calorías sobre la misma línea de tiempo, con sus gráficos debajo. Cae solo de lo que registra tu cliente: nadie copia un dato a ninguna parte."
-      >
-        <Ventana pieza={PROGRESO} titulo="Progreso" />
-      </Bloque>
+      {/* ══ 2. LA SECUENCIA DE LA SEMANA ══════════════════════════════════
+          Tres herramientas encadenadas en un raíl: marcas el objetivo, mides lo
+          que sale y decides la semana siguiente. Ver `SECUENCIA`.
+
+          ── Y aquí la sección NO envuelve a los pasos ──────────────────────
+          Solo a su cabecera. Cada paso trae su propio `useReveal` (ver `Paso`) y
+          se enciende cuando se llega a él; si colgaran del bloque de fuera, los
+          tres —que ocupan tres pantallas de alto— quedarían puestos de golpe al
+          cruzar el titular, y la única sección de la página que habla de un
+          orden sería la que se enseña entera de una vez. */}
+      <section className="lp-sec" id="progreso">
+        <div className="lp-in">
+          <Entra>
+            <div className="lp-sec-head is-center lp-tanda">
+              <span className="lp-kicker">La semana se cierra</span>
+              <h2>
+                Tres herramientas para <em>cerrar cada semana</em>
+              </h2>
+              <p className="lp-lede-sm">
+                Marcar a dónde va, medir lo que está pasando y decidir qué toca ahora. Es el trabajo
+                que se repite con cada cliente cada siete días, y aquí va en este orden.
+              </p>
+            </div>
+          </Entra>
+
+          <ol className="lp-ruta">
+            {SECUENCIA.map((paso) => (
+              <Paso key={paso.n} paso={paso} />
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* ══ 4. Y LO QUE ADEMÁS TRAE ═══════════════════════════════════════
+          Cuatro fichas, y es la única forma de la página que dice «hay MÁS».
+          Todo esto vivía metido en una respuesta cerrada de las dudas: media
+          aplicación escondida en el único sitio de la portada al que hay que
+          hacer clic para llegar.
+
+          El discurso a la izquierda y la rejilla a la derecha, al revés que la
+          sección de la dieta —donde la pieza va a la izquierda—, para que dos
+          secciones seguidas no caigan del mismo lado. */}
+      <Entra as="section" className="lp-sec">
+        <div className="lp-in lp-mas-in">
+          <div className="lp-mas-say lp-tanda">
+            <span className="lp-kicker">Y además</span>
+            <h2>
+              Todo lo demás también <em>vive aquí dentro</em>
+            </h2>
+            <p className="lp-lede-sm">
+              Lo que hoy tienes repartido entre la galería del móvil, Drive, el calendario y la
+              pasarela de cobro. No son módulos que se contraten aparte: vienen dentro, también en
+              el plan gratuito.
+            </p>
+          </div>
+
+          <div className="lp-mas-grid lp-feat-art">
+            {EXTRAS.map(({ icono: Icono, titulo, texto }) => (
+              <article className="lp-ficha" key={titulo}>
+                <span className="lp-ficha-ico" aria-hidden="true">
+                  <Icono size={18} strokeWidth={2} />
+                </span>
+                <h3>{titulo}</h3>
+                <p>{texto}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </Entra>
 
       {/* ══ PRECIOS ═══════════════════════════════════════════════════════
           La sección existe siempre aunque `plan_limits` no conteste, porque el
           enlace «Precios» de la barra apunta aquí y un ancla que no lleva a
           ninguna parte es peor que una tarjeta menos. */}
-      <Entra as="section" className="lp-sec" id="precios">
+      <Entra as="section" className="lp-sec is-band" id="precios">
         <div className="lp-in">
-          <div className="lp-sec-head is-center">
+          <div className="lp-sec-head is-center lp-tanda">
             <span className="lp-kicker">Precios</span>
             <h2>
               Un plan solo cambia <em>a cuánta gente llevas</em>
@@ -457,6 +1190,7 @@ export const LandingPage = () => {
                   {!p.price_cents && <span className="lp-plan-tag">Empieza aquí</span>}
 
                   <span className="lp-plan-name">{p.label}</span>
+                  {p.blurb && <p className="lp-plan-blurb">{p.blurb}</p>}
 
                   {/*
                     El gratuito enseña «0 €» y no «Gratis», que es lo que
@@ -468,19 +1202,47 @@ export const LandingPage = () => {
                     `planPrice` no se toca: la usa también Ajustes → Plan, donde
                     «Gratis» es exactamente lo que hay que decir porque ahí no
                     hay ninguna escalera que leer.
+
+                    La cifra va en CURSIVA, que es el remate de los titulares de
+                    esta página traído al sitio donde de verdad se decide. Es lo
+                    único que la separa de un número de tabla.
                   */}
                   <span className="lp-plan-price">
-                    {p.price_cents
-                      ? planPrice(p, { conPeriodo: false })
-                      : localeNumber(0, {
-                          style: 'currency',
-                          currency: (p.currency || 'eur').toUpperCase(),
-                          minimumFractionDigits: 0,
-                        })}
+                    <em>
+                      {p.price_cents
+                        ? planPrice(p, { conPeriodo: false })
+                        : localeNumber(0, {
+                            style: 'currency',
+                            currency: (p.currency || 'eur').toUpperCase(),
+                            minimumFractionDigits: 0,
+                          })}
+                    </em>
                     <span className="per">/{p.interval === 'year' ? 'año' : 'mes'}</span>
                   </span>
 
-                  {p.blurb && <p className="lp-plan-blurb">{p.blurb}</p>}
+                  {/* La línea que contesta la pregunta que viene justo después de
+                      ver la cifra, y que si no está aquí manda a buscarla a las
+                      dudas: «¿y si luego me quiero salir?». */}
+                  <span className="lp-plan-nota">
+                    {p.price_cents ? 'Sin permanencia · baja cuando quieras' : 'Sin tarjeta · sin fecha'}
+                  </span>
+
+                  {/* El botón va ENCIMA de la lista, no al final de la tarjeta.
+                      Quien lee una tabla de precios decide con el nombre, la
+                      cifra y poco más; la lista de abajo la lee el que duda, y
+                      hacerle bajar hasta el final para encontrar el botón es
+                      poner el gesto al otro lado de la letra pequeña.
+
+                      El relleno se lo lleva el gratuito, que es la acción que se
+                      quiere: los de pago no se contratan desde aquí sin cuenta
+                      —hay que entrar y pasar por la pasarela—, así que un botón
+                      sólido en ellos prometería un atajo que no existe. */}
+                  <Link
+                    className={`lp-btn is-sm ${p.price_cents ? 'is-ghost' : 'is-fill'}`}
+                    to="/entrar?alta=1"
+                  >
+                    {p.price_cents ? `Empezar con ${p.label}` : 'Crear mi cuenta'}
+                  </Link>
 
                   {/*
                     Las dos únicas líneas que separan un plan de otro salen de las
@@ -491,28 +1253,22 @@ export const LandingPage = () => {
                   */}
                   <ul className="lp-plan-list">
                     <li>
+                      <Check size={15} strokeWidth={2.5} aria-hidden="true" />
                       {p.max_clients === null
                         ? 'Clientes sin límite'
                         : `Hasta ${p.max_clients} ${p.max_clients === 1 ? 'cliente' : 'clientes'}`}
                     </li>
                     <li>
+                      <Check size={15} strokeWidth={2.5} aria-hidden="true" />
                       {p.max_seats === null
                         ? 'Entrenadores sin límite'
                         : `${p.max_seats} ${p.max_seats === 1 ? 'entrenador' : 'entrenadores'}`}
                     </li>
-                    <li>La aplicación entera, sin nada bajo llave</li>
+                    <li>
+                      <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+                      La aplicación entera, sin nada bajo llave
+                    </li>
                   </ul>
-
-                  {/* El relleno se lo lleva el gratuito, que es la acción que se
-                      quiere: los de pago no se contratan desde aquí sin cuenta
-                      —hay que entrar y pasar por la pasarela—, así que un botón
-                      sólido en ellos prometería un atajo que no existe. */}
-                  <Link
-                    className={`lp-btn is-sm ${p.price_cents ? 'is-ghost' : 'is-fill'}`}
-                    to="/entrar?alta=1"
-                  >
-                    {p.price_cents ? `Empezar con ${p.label}` : 'Crear mi cuenta'}
-                  </Link>
                 </article>
               ))}
             </div>
@@ -532,9 +1288,9 @@ export const LandingPage = () => {
 
           `<details>` nativo: se abre sin JavaScript, el buscador lo indexa y el
           teclado lo recorre solo. */}
-      <Entra as="section" className="lp-sec is-band" id="preguntas">
+      <Entra as="section" className="lp-sec" id="preguntas">
         <div className="lp-in">
-          <div className="lp-sec-head">
+          <div className="lp-sec-head lp-tanda">
             <span className="lp-kicker">Dudas</span>
             <h2>
               Respuestas <em>rectas</em>
@@ -563,7 +1319,7 @@ export const LandingPage = () => {
           por alto. */}
       <Entra as="section" className="lp-sec">
         <div className="lp-in">
-          <div className="lp-slab">
+          <div className="lp-slab lp-tanda">
             <span className="lp-kicker">Empezar</span>
             <h2>
               Más clientes, <em>no más horas</em>
@@ -600,8 +1356,12 @@ export const LandingPage = () => {
                 columna vacía es peor que un pie con tres columnas. */}
             <div className="lp-foot-col">
               <h3>Producto</h3>
-              <a href="#producto">La app de tu cliente</a>
-              <a href="#progreso">Progreso</a>
+              {/* Uno por sección y todos existen. Aquí hubo un «Progreso» que
+                  apuntaba a un ancla que se había ido con la sección que la
+                  llevaba: un enlace del pie que no baja a ninguna parte se lee
+                  como una página a medio hacer. */}
+              <a href="#producto">La sesión y la dieta</a>
+              <a href="#progreso">Plan y progreso</a>
               <a href="#precios">Precios</a>
               <a href="#preguntas">Dudas</a>
             </div>

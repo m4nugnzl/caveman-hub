@@ -44,6 +44,51 @@ const recortar = (value) => {
   return texto.length > MAX_TEXTO ? `${texto.slice(0, MAX_TEXTO)}…` : texto;
 };
 
+/* ==========================================================================
+   El enganche
+   --------------------------------------------------------------------------
+   Desde la migración 0052 los fallos también se registran en el servidor, y eso
+   necesita el cliente de Supabase. Pero `lib/supabaseClient.js` ya importa este
+   archivo —engancha el `fetch` para que ninguna llamada se olvide de apuntar sus
+   errores—, así que importarlo de vuelta cerraría un círculo.
+
+   Con un enganche, las flechas van todas en el mismo sentido: este archivo no
+   sabe que existe ningún servidor, sigue sin tener una sola dependencia, y
+   `lib/analytics.js` —que sí las tiene— se suscribe y se ocupa de enviar.
+
+   El efecto secundario bueno es que las pruebas de este archivo no necesitan
+   simular nada.
+   ========================================================================== */
+
+const oyentes = new Set();
+
+/**
+ * Avisa de cada fallo apuntado, incluidos los repetidos.
+ *
+ * Los repetidos también avisan a propósito: quien envía necesita poder contar
+ * «esto ha pasado cuarenta veces», y si solo se avisara del primero, un fallo en
+ * bucle llegaría al servidor como si hubiera ocurrido una sola vez — que es
+ * justo lo contrario de lo que hay que saber.
+ *
+ * Devuelve la función para desengancharse.
+ */
+export const onIssue = (listener) => {
+  oyentes.add(listener);
+  return () => oyentes.delete(listener);
+};
+
+const avisar = (fallo) => {
+  for (const oyente of oyentes) {
+    try {
+      oyente(fallo);
+    } catch {
+      /* Un oyente roto no puede impedir que se apunte el fallo, que es lo que de
+         verdad importa aquí. Y menos aún puede propagar su error hacia arriba:
+         quien llama a `recordIssue` suele estar ya dentro de un `catch`. */
+    }
+  }
+};
+
 /**
  * Apunta un fallo.
  *
@@ -62,10 +107,11 @@ export const recordIssue = (source, error, extra = {}) => {
   if (ultimo && ultimo.source === source && ultimo.message === message) {
     ultimo.count += 1;
     ultimo.at = new Date().toISOString();
+    avisar(ultimo);
     return;
   }
 
-  buffer.push({
+  const fallo = {
     source,
     message,
     count: 1,
@@ -74,9 +120,12 @@ export const recordIssue = (source, error, extra = {}) => {
     // distintas en la rutina y en la dieta.
     path: typeof window === 'undefined' ? '' : window.location.pathname,
     ...extra,
-  });
+  };
 
+  buffer.push(fallo);
   if (buffer.length > MAX) buffer.shift();
+
+  avisar(fallo);
 };
 
 /** Los fallos apuntados, del más reciente al más antiguo. */

@@ -216,8 +216,19 @@ export const TextInput = ({ value, onChange, className = '', ...rest }) => (
 
 // ── Segmented control ──────────────────────────────────────────────────────
 
-export const SegmentedControl = ({ value, onChange, options, tone = '', label }) => (
-  <div className="segmented" role="group" aria-label={label}>
+/**
+ * @param ancho  A todo lo ancho del contenedor, con las opciones repartidas a
+ *   partes iguales. Por defecto NO: el carril mide lo que miden sus opciones,
+ *   porque colgando de una columna —dentro de un `.field`, de un `.col`— lo
+ *   estiraba el contenedor y las dos opciones se quedaban a la izquierda de un
+ *   rectángulo gris medio vacío.
+ *
+ *   Se pide cuando el control hace de cabecera de una tarjeta estrecha y las
+ *   opciones son las dos caras de lo mismo (entrar / crear cuenta): ahí, media
+ *   tarjeta hueca al lado de las pestañas también se lee mal.
+ */
+export const SegmentedControl = ({ value, onChange, options, tone = '', label, ancho = false }) => (
+  <div className={`segmented${ancho ? ' is-full' : ''}`} role="group" aria-label={label}>
     {options.map((opt) => (
       <button
         key={opt.id}

@@ -19,9 +19,31 @@
 # repositorio ni siendo de mentira.
 .env.test
 
+# Apunta la aplicación al proyecto de pruebas para ver la demostración con
+# datos (npm run demo). Lleva la anon key de ese proyecto, así que fuera.
+.env.demo
+
 # Las copias de seguridad: datos de salud de personas concretas y las fotos
 # originales. Aquí no entra nada de esto ni por error.
 /copias
+
+# Los informes de `npm run radiografia`. No llevan datos de nadie —son
+# recuentos y porcentajes— pero sí el estado de seguridad de la base de datos
+# junto a las cifras de negocio, y eso no se versiona ni se comparte.
+informes/*
+
+# CON UNA EXCEPCIÓN: el registro de qué hallazgos de seguridad se han dado por
+# buenos y por qué. Ese SÍ se versiona, y a propósito:
+#
+#   · Es una decisión, no un dato. «Esta política es pública porque los planes
+#     tienen que verse sin sesión» es exactamente la clase de cosa que hay que
+#     poder revisar en un diff, y que dentro de un año explica por qué algo está
+#     como está.
+#   · Sin versionar, cada máquina tendría su propia lista y el informe diría
+#     cosas distintas según quién lo generara.
+#
+# No contiene ningún secreto: nombres de objetos, motivos y fechas.
+!informes/estado.json
 
 # logs
 npm-debug.log*

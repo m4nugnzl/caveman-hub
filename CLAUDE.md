@@ -477,3 +477,18 @@ Prefer coherent evolution over unnecessary rewriting.
 Build for the long term.
 
 When uncertain, inspect first.
+
+
+# 24. DESIGN & CORE SKILLS
+
+### UI/UX & Refactor (`ui-ux-pro-max` + `refactoring-ui`)
+Reduce la carga cognitiva, establece jerarquías visuales claras y mantiene contraste accesible (WCAG AAA). Utiliza escalas de espaciado limpias (múltiples de 4px/8px) y tipografías legibles. Evita estéticas recargadas; prioriza interfaces pulidas, intuitivas y eficientes.
+
+### Clean HTML (`design-html`)
+Escribe maquetación HTML5 semántica y accesible. Minimiza el anidamiento innecesario de divs, utiliza etiquetas estructurales correctas e integra roles ARIA.
+
+### Taste & Anti-Slop (`taste-skill`)
+Elimina patrones genéricos de IA (degradados púrpura/azul trillados, bordes sin sentido o tarjetas repetitivas). Diseña con criterio editorial y acabados limpios.
+
+### Security Check (`security-review`)
+Garantiza la sanitización de entradas, previene fugas de memoria y evita exponer claves de API o credenciales de Supabase en el cliente.

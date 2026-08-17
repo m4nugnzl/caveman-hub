@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./supabaseClient', () => ({ supabase: { from: () => ({ insert: async () => ({}) }) } }));
 
-const { bucket, identify, track } = await import('./analytics');
+const { bucket, identify, rutaDe, saneaMensaje, track } = await import('./analytics');
 const { pantallaDe } = await import('../App.jsx');
-const { COACH_CLIENT } = await import('../routes.jsx');
+const { CLIENT_SECTIONS, COACH_CLIENT } = await import('../routes.jsx');
 
 /**
  * Que la instrumentación no pueda describir a nadie.
@@ -104,6 +104,128 @@ describe('bucket', () => {
     expect(bucket(undefined)).toBe('desconocido');
     expect(bucket('muchos')).toBe('desconocido');
     expect(bucket(-3)).toBe('desconocido');
+  });
+});
+
+/**
+ * Las dos funciones que preparan una fila de `app_errors` (migración 0052).
+ *
+ * ══ Por qué éstas merecen más pruebas que las de arriba ═════════════════════
+ *
+ * Porque el contenido de un fallo NO lo elige el programador: lo escribe
+ * Postgres, y un mensaje real puede llevar dentro el correo de alguien o el
+ * identificador de un cliente. La 0045 se protegía con un CHECK de forma sobre
+ * un texto que siempre es una constante del código; aquí eso no vale.
+ *
+ * La 0052 rechaza la fila si se le cuela un correo o un identificador, así que
+ * un fallo aquí no filtra nada — pero deja de registrarse TODO lo que pase por
+ * esa ruta, en silencio. Una instrumentación de fallos que deja de funcionar sin
+ * avisar es peor que no tenerla, porque el silencio se lee como «no falla nada».
+ */
+describe('rutaDe', () => {
+  it('nunca deja pasar el identificador del cliente, esté donde esté', () => {
+    const identificadores = ['8f3a1c22-0000-4444-8888-abcdefabcdef', 'ana@correo.com', 'Ana%20Perez'];
+    const secciones = COACH_CLIENT.flatMap((s) => [s.path, ...(s.also || [])]);
+    expect(secciones.length).toBeGreaterThan(4);
+
+    for (const quien of identificadores) {
+      for (const seccion of secciones) {
+        const salida = rutaDe(`/c/${quien}/${seccion}`);
+        expect(salida).not.toContain(quien);
+        expect(salida).toBe(`/c/:id/${seccion}`);
+      }
+    }
+  });
+
+  it('una ruta con tramos de más pierde la sección, no la privacidad', () => {
+    /* `/c/../../etc/rutina` no es una URL que la aplicación genere, pero sí una
+       que alguien puede escribir. Lo que importa no es conservar la etiqueta
+       —perderla es gratis— sino que nada de lo escrito llegue a la tabla. */
+    const salida = rutaDe('/c/../../etc/rutina');
+    expect(salida).toBe('/c/:id/otra');
+    expect(salida).not.toContain('etc');
+  });
+
+  it('el token de una revisión compartida no se guarda ni recortado', () => {
+    /* El token ES la credencial que abre la revisión de alguien sin sesión. Un
+       trozo suyo en una tabla de diagnóstico sigue siendo material que no tiene
+       por qué estar ahí. */
+    const token = 'a1b2c3d4-e5f6-4444-8888-999999999999';
+    expect(rutaDe(`/r/${token}`)).toBe('/r/:token');
+    expect(rutaDe(`/invitacion/${token}`)).toBe('/invitacion/:token');
+  });
+
+  it('las secciones declaradas salen con su nombre, en los dos portales', () => {
+    for (const seccion of CLIENT_SECTIONS.flatMap((s) => [s.path, ...(s.also || [])])) {
+      expect(rutaDe(`/mi/${seccion}`)).toBe(`/mi/${seccion}`);
+    }
+    expect(rutaDe('/ajustes/plan')).toBe('/ajustes/plan');
+    expect(rutaDe('/hoy')).toBe('/hoy');
+  });
+
+  it('lo que no reconoce no se copia', () => {
+    /* `/:documento` es un comodín en la raíz: cualquier palabra encaja ahí, así
+       que sin lista blanca acabaría guardándose lo que teclee alguien. */
+    for (const ruta of ['/loquesea', '/ana@correo.com', '/mi/inventada', '/ajustes/inventada']) {
+      expect(rutaDe(ruta)).toMatch(/otra$/);
+    }
+  });
+
+  it('la salida siempre pasa el CHECK de la 0052', () => {
+    /* Si no lo pasara, el servidor rechazaría la fila y esto dejaría de registrar
+       fallos sin que nadie se enterase. */
+    const rutas = [
+      '/hoy',
+      '/c/8f3a1c22-0000-4444-8888-abcdefabcdef/rutina',
+      '/mi/evolucion/fotos',
+      '/ajustes/equipo',
+      '/r/token-largo',
+      '/BASURA/RARA',
+      '/',
+      '',
+    ];
+    for (const ruta of rutas) expect(rutaDe(ruta)).toMatch(/^\/[a-z0-9/:_-]{0,60}$/);
+  });
+});
+
+describe('saneaMensaje', () => {
+  it('desactiva el mensaje de Postgres que lleva un correo dentro', () => {
+    /* El caso real que motiva las dos capas: la clave duplicada de un correo
+       imprime el correo entero en el DETAIL. */
+    const crudo =
+      'duplicate key value violates unique constraint "clients_email_key"\n' +
+      'DETAIL:  Key (email)=(ana@correo.com) already exists.';
+
+    const limpio = saneaMensaje(crudo);
+    expect(limpio).not.toContain('ana@correo.com');
+    expect(limpio).not.toContain('@');
+    /* Y sigue sirviendo para lo que existe: se reconoce el fallo. */
+    expect(limpio).toContain('clients_email_key');
+  });
+
+  it('quita los identificadores, que atan la fila a una persona', () => {
+    const limpio = saneaMensaje('no row found for 8f3a1c22-0000-4444-8888-abcdefabcdef');
+    expect(limpio).toBe('no row found for :id');
+  });
+
+  it('lo que sale siempre pasa los CHECK de la 0052', () => {
+    const crudos = [
+      'POST workout_data — 403 new row violates row-level security policy',
+      'DETAIL: Key (id)=(8f3a1c22-0000-4444-8888-abcdefabcdef) is not present',
+      'correo raro: "ANA.PEREZ+etiqueta@Correo.COM" no válido',
+      'x'.repeat(2000),
+    ];
+    for (const crudo of crudos) {
+      const limpio = saneaMensaje(crudo);
+      expect(limpio).not.toMatch(/@/);
+      expect(limpio).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}/i);
+      expect(limpio.length).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it('no inventa nada cuando no hay mensaje', () => {
+    expect(saneaMensaje('')).toBe('');
+    expect(saneaMensaje(undefined)).toBe('');
   });
 });
 

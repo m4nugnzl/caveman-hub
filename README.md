@@ -61,10 +61,29 @@ npm run test:db   # tests contra una base de datos (ver abajo) — NO entra en c
 npm run check     # todo lo anterior + build de producción
 npm run backup    # copia de seguridad completa (filas, cuentas y fotos)
 npm run restore   # y devolverla a una base vacía — ensayado, ver docs/copias.md
+npm run radiografia  # informe de uso, salud, seguridad y negocio (docs/observabilidad.md)
+npm run demo      # siembra una cuenta de demostración con cartera (ver abajo)
+npm run demo:limpiar
 ```
+
+`demo` da de alta un entrenador con seis clientes, diez semanas de programa,
+treinta pesajes, dieta y fotos **en el proyecto de usar y tirar de `.env.test`**,
+con la misma guarda que `test:db`: si esa URL coincide con la de la aplicación,
+no corre. Sirve para ver la aplicación llena —que es la única forma de juzgar
+una pantalla nueva— y para sacar las capturas de la portada
+(`public/capturas/`). Las credenciales las imprime al terminar.
+
+Para abrir la aplicación contra esos datos, un `.env.demo` con la URL y la
+`anon key` del proyecto de pruebas y `npx vite --mode demo`.
 
 `backup` no es parte de `check`: corre contra la base de datos real y necesita la
 `service_role key` en `.env.backup`. Ver **[`docs/copias.md`](docs/copias.md)**.
+
+`radiografia` tampoco, y usa esa misma clave. Genera en `informes/` un HTML
+autocontenido con lo que la aplicación no puede enseñar desde dentro: qué
+pantallas se abren y cuáles no, qué campos se rellenan de verdad, qué se rompe y
+a cuánta gente, y el estado real de RLS y los permisos leído del catálogo de
+Postgres. Ver **[`docs/observabilidad.md`](docs/observabilidad.md)**.
 
 ## Rutas
 

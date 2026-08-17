@@ -6,10 +6,18 @@
 # esté desplegada —con el fallo visible en solo uno de los dos sitios—.
 #
 # ── Sobre el CSP ────────────────────────────────────────────────────────────
-# Se puede ser estricto porque el build no genera NI UN script ni un estilo en
-# línea: comprobado sobre `dist/index.html`. Lo único que obliga a ceder es
-# `style-src 'unsafe-inline'`, por los `style={{…}}` de React — que son atributos
-# de estilo, no etiquetas `<style>`, así que el riesgo es mucho menor.
+# Se puede ser estricto porque el build no genera NI UN script EJECUTABLE ni un
+# estilo en línea: comprobado sobre `dist/index.html`. Lo único que obliga a
+# ceder es `style-src 'unsafe-inline'`, por los `style={{…}}` de React — que son
+# atributos de estilo, no etiquetas `<style>`, así que el riesgo es mucho menor.
+#
+# La palabra EJECUTABLE importa desde que `index.html` lleva un bloque de datos
+# estructurados (`<script type="application/ld+json">`). No hace falta abrir
+# `script-src` por él y no se debe: un `<script>` con un tipo que no es JavaScript
+# es un «bloque de datos», el navegador nunca lo prepara como script y por tanto
+# nunca pasa por la comprobación del CSP. Si algún día apareciera aquí un script
+# en línea DE VERDAD, la respuesta correcta sigue siendo sacarlo a un archivo, no
+# añadir 'unsafe-inline'.
 #
 # Cada permiso está por un motivo concreto:
 #

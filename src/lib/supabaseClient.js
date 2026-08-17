@@ -75,15 +75,25 @@ const fetchConRegistro = async (input, init) => {
       y muchísimo más difícil de encontrar.
     */
     let detalle = '';
+    /*
+      El código de Postgres (`42501` es RLS, `23505` clave duplicada) viaja en el
+      cuerpo y hasta ahora se tiraba. Vale más que el mensaje para agrupar fallos
+      —no cambia de idioma ni de redacción entre versiones— y es lo que convierte
+      «algo falló al guardar» en «la política de escritura está rechazando esto».
+      Lo aprovechan el ticket de soporte y la tabla `app_errors` de la 0052.
+    */
+    let codigo = '';
     try {
       const cuerpo = await response.clone().json();
       detalle = cuerpo?.message || cuerpo?.error_description || cuerpo?.error || '';
+      codigo = cuerpo?.code || '';
     } catch {
       detalle = '';
     }
     recordIssue(
       'servidor',
-      `${metodo} ${rutaLimpia(url)} — ${response.status}${detalle ? ` ${detalle}` : ''}`
+      `${metodo} ${rutaLimpia(url)} — ${response.status}${detalle ? ` ${detalle}` : ''}`,
+      { code: codigo || String(response.status) }
     );
   }
 

@@ -273,6 +273,96 @@ La lista, en orden:
 Comprobación: una compra real con tarjeta propia y su reembolso. En directo no
 funcionan las tarjetas de prueba.
 
+### 3.7 El corte del injerto, y cómo sacar a alguien de él
+
+El injerto de la 0019 —«todos los equipos existentes entran en `fundador`, activo
+y sin límites»— es correcto como decisión y tiene un efecto que no se ve al
+escribirlo: **quién entra en él lo decide el reloj**, no una conversación.
+
+Pasó de verdad. La facturación se activó el 13/08/2026 y el injerto corrió esa
+tarde:
+
+```
+13 ago 08:48  fundador · active   ← la cuenta del propio producto
+13 ago 12:05  fundador · active   ← un cliente, por veinte horas
+────────────  aquí corrió la 0019  ────────────
+14 ago 08:43  prueba · trialing   ← catorce días
+14 ago 10:42  prueba · trialing   ← catorce días
+```
+
+Veinte horas separaron «gratis, ilimitado y sin caducidad para siempre» de «te
+cobro en dos semanas». Y como `fundador` no tiene `trial_ends_at` ni
+`stripe_customer_id`, esa cuenta **no caduca ni factura nunca** mientras nadie lo
+cambie a mano.
+
+`npm run radiografia` lo detecta desde entonces, y lo hace por los datos y no por
+el nombre del plan: `status = 'active'` sin cliente de Stripe y sin periodo de
+cobro es, exactamente, barra libre indefinida. La cuenta propia se excluye por
+`platform_admins`.
+
+#### Sacar a alguien del injerto
+
+Es lo que la propia 0019 dice que hay que hacer —«un `UPDATE` hablado con cada
+uno»— y el orden importa, porque **no hay correo transaccional** (§4.3): nadie va
+a avisar a esa persona. Primero se habla, después se ejecuta.
+
+**Desde la migración 0056 esto duele mucho menos**: el destino ya no es una
+prueba de catorce días sino el plan gratuito permanente, que es el mismo que
+tiene cualquiera que se registre hoy. No se le quita el acceso, se le quita el
+«sin límite»: pasa a tres clientes, gratis y sin fecha. Lo único que hay que
+comprobar antes es que **no tenga ya más de tres**, porque entonces el tope le
+dejaría fuera de su propio trabajo y lo que toca es negociar un plan de pago.
+
+```sql
+-- 1. ANTES: cuántos clientes tiene y en qué plan está.
+--    Si tiene más de 3 activos, `prueba` le dejaría fuera de su propio trabajo:
+--    hay que negociar un plan de pago en lugar de esto.
+SELECT p.email, ts.plan, ts.status, ts.trial_ends_at, ts.stripe_customer_id,
+       (SELECT count(*) FROM public.clients c
+         WHERE c.team_id = t.id AND c.status <> 'archived') AS clientes_activos
+FROM public.teams t
+JOIN public.profiles p          ON p.id = t.owner_id
+JOIN public.team_subscriptions ts ON ts.team_id = t.id
+WHERE p.email = 'CORREO@EJEMPLO.COM';
+
+-- 2. EL CAMBIO: al plan gratuito permanente, el mismo que tiene quien se
+--    registra hoy. `status = 'active'` y SIN `trial_ends_at`, que es lo que hace
+--    que no caduque (0056). La guarda de `stripe_customer_id IS NULL` impide
+--    tocarle el plan a alguien que YA está pagando: sin ella, un correo mal
+--    copiado le cancela la suscripción a un cliente de verdad.
+UPDATE public.team_subscriptions ts
+SET plan          = 'prueba',   -- clave interna del plan «Gratis», ver 0056
+    status        = 'active',
+    trial_ends_at = NULL
+FROM public.teams t
+JOIN public.profiles p ON p.id = t.owner_id
+WHERE ts.team_id = t.id
+  AND p.email = 'CORREO@EJEMPLO.COM'
+  AND ts.stripe_customer_id IS NULL;
+
+-- 3. DESHACER, si hiciera falta. Devuelve el injerto tal y como estaba.
+UPDATE public.team_subscriptions ts
+SET plan = 'fundador', status = 'active', trial_ends_at = NULL
+FROM public.teams t
+JOIN public.profiles p ON p.id = t.owner_id
+WHERE ts.team_id = t.id AND p.email = 'CORREO@EJEMPLO.COM';
+```
+
+**Catorce días desde hoy y no la fecha que le habría tocado por paridad.** Quien
+lleva días creyendo que tenía barra libre no ha estado probando nada con la
+cabeza de quien está probando: darle la prueba entera desde el momento en que se
+le avisa es lo único que la convierte en una prueba de verdad.
+
+#### El nombre del plan, que confunde
+
+`fundador` se lee como «el fundador del producto» y significa «ya estaba dentro
+antes de que empezaras a cobrar». Confundió a quien lo escribió. Si se renombra
+—`heredado` dice lo que es—, hay que tocar `plan_limits.plan`, que es clave
+primaria referenciada por `team_subscriptions.plan`: se hace con un `INSERT` del
+nuevo, un `UPDATE` de las filas que lo usan y un `DELETE` del viejo, en una
+transacción. La etiqueta visible (`plan_limits.label`) se puede cambiar sola y
+sin tocar nada más, y arregla el 90 % de la confusión.
+
 ---
 
 ## 4. Lo que hace que valga la pena pagarlo
@@ -341,9 +431,25 @@ y no con cuarenta.
 
 | Plan | Precio | Límite duro (en la base de datos) |
 |---|---|---|
-| Prueba | 14 días, sin tarjeta | 3 clientes |
+| Gratis | 0 €, **sin plazo**, sin tarjeta | 3 clientes, 1 asiento |
 | Solo | 25 €/mes | 30 clientes activos, 1 asiento |
 | Equipo | 69 €/mes | Sin límite, asientos, pantalla Equipo, integraciones, registro de cambios |
+
+> **Era una prueba de 14 días y dejó de serlo** (migración 0056). Una prueba de
+> dos semanas le pide a alguien que decida sobre una herramienta de seguimiento
+> **antes de haber visto un solo ciclo de seguimiento**: el check-in es semanal y
+> el progreso de un cliente se mide en meses. Catorce días no enseñan lo que esto
+> hace.
+>
+> Con tres clientes y sin plazo, el entrenador se trae a los que lleva, trabaja
+> con ellos de verdad, y el día que quiere meter al cuarto ya tiene aquí dentro
+> meses de trabajo que no piensa rehacer en otro sitio. El límite deja de ser un
+> cronómetro y pasa a ser **el crecimiento de su negocio**, que es cuando pagar
+> tiene sentido para él y no solo para nosotros.
+>
+> La **clave interna del plan sigue siendo `prueba`** —está escrita en el webhook
+> de Stripe, que se despliega aparte— y solo cambió la etiqueta visible, que es
+> «Gratis». El porqué, en la cabecera de la 0056.
 
 Se factura por **cliente activo** —con actividad en los últimos 30 días—, no por
 ficha creada: se alinea con lo que el entrenador cobra y no penaliza conservar el

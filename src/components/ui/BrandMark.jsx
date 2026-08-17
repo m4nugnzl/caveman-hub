@@ -24,6 +24,7 @@ import { useState } from 'react';
 const FALLBACK_TINT = {
   notion: 'var(--text)',
   stripe: 'var(--data-violet)',
+  google: 'var(--text)',
 };
 
 export const BrandMark = ({ brand, name, size = 28, tile = true }) => {

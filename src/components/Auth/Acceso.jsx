@@ -31,22 +31,44 @@ import { useNoche } from '@/lib/useNoche';
  * En estrecho la columna de la izquierda no se esconde: se pone encima y se
  * queda en la frase y la marca. Es lo poco que hace falta para saber dónde se
  * está escribiendo la contraseña.
+ *
+ * ══ La marca sube a una barra, y con ella la salida ═════════════════════════
+ *
+ * El logotipo estaba dentro de la columna que habla, encabezándola. Ahí hacía
+ * dos trabajos a la vez y ninguno bien: era el principio del discurso y era la
+ * ÚNICA salida de la pantalla. Y una salida escondida en mitad de un párrafo no
+ * es una salida — quien mira el formulario, se lo piensa y quiere volver a leer
+ * la portada, no la busca ahí: la busca arriba, que es donde está en todas las
+ * páginas del mundo.
+ *
+ * Arriba están las dos cosas que se le piden a una cabecera —dónde estoy y cómo
+ * salgo— y la columna se queda con lo suyo: el rótulo, la frase y los hechos.
+ *
+ * Y abajo un pie de dos líneas con las condiciones y la privacidad. En una
+ * pantalla donde se está creando una cuenta, esos dos enlaces tienen que poder
+ * encontrarse sin leer la letra pequeña del botón.
  */
-export const Acceso = ({ lema, remate, puntos = [], children }) => {
+export const Acceso = ({ rotulo, lema, remate, puntos = [], children }) => {
   useNoche();
 
   return (
     <div className="acceso">
-      <div className="acceso-in">
-        <aside className="acceso-say">
-          {/* La marca es un enlace a la portada, y es la única salida de esta
-              pantalla: quien llega desde un anuncio, mira el formulario y decide
-              que quiere leer más, no tiene otra forma de volver que el botón del
-              navegador. */}
+      <header className="acceso-bar">
+        <div className="acceso-fila">
           <Link className="lp-brand" to="/">
-            <LogoMark size={28} />
+            <LogoMark size={26} />
             Caveman Hub
           </Link>
+
+          <Link className="lp-nav-link" to="/">
+            Volver al inicio
+          </Link>
+        </div>
+      </header>
+
+      <div className="acceso-in">
+        <aside className="acceso-say">
+          {rotulo && <span className="lp-kicker">{rotulo}</span>}
 
           <h2 className="acceso-lema">
             {lema} {remate && <em>{remate}</em>}
@@ -63,6 +85,17 @@ export const Acceso = ({ lema, remate, puntos = [], children }) => {
 
         <div className="acceso-form">{children}</div>
       </div>
+
+      <footer className="acceso-foot">
+        <div className="acceso-fila">
+          <span>© Caveman Hub</span>
+
+          <span className="acceso-foot-links">
+            <a href="/condiciones">Condiciones</a>
+            <a href="/privacidad">Privacidad</a>
+          </span>
+        </div>
+      </footer>
     </div>
   );
 };

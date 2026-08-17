@@ -1429,6 +1429,15 @@ export const AppProvider = ({ children }) => {
         .invoke('support-notify', { body: { ticketId: data.id } })
         .catch(() => {});
 
+      /*
+        Un ticket es fricción medida en la única unidad que no engaña: alguien se
+        ha parado a escribir. Cruzado con `app_errors` de la misma semana separa
+        las dos clases de problema que se confunden siempre — «esto está roto»
+        (habrá fallos registrados) de «esto no se entiende» (no habrá ninguno), y
+        la segunda no se arregla mirando el código.
+      */
+      track('soporte_abierto');
+
       return { ok: true, ticketId: data.id, aviso };
     },
     [session, team, uploadSupportAttachment]
@@ -1878,6 +1887,11 @@ export const AppProvider = ({ children }) => {
         ...m,
         sessions: [...sessionsOf(m), session],
       }));
+      /* El gesto de cada día que alguien entrena. Va aquí y no en `logSessionSet`
+         a propósito: registrar un kilo ocurre cien veces por sesión y mediría la
+         velocidad de tecleo, no el uso. La comprobación de más arriba —si ya hay
+         sesión de ese día, se devuelve— garantiza una por día entrenado. */
+      track('sesion_registrada');
       return session.id;
     },
     [applyMicrocycle, workoutRef]
@@ -2328,6 +2342,10 @@ export const AppProvider = ({ children }) => {
           }),
         ],
       }));
+      /* El gesto que se repite cada semana mientras un entrenador siga
+         trabajando. Es la mejor señal de retención que tiene el producto: quien
+         deja de programar semanas se ha ido, aunque siga entrando. */
+      track('microciclo_anadido');
       return weekNumber;
     },
     [applyWorkout, startProgram, workoutRef]
@@ -2645,6 +2663,18 @@ export const AppProvider = ({ children }) => {
           result.diet = true;
         }
       }
+
+      /*
+        Replicar es la función que convierte «un entrenador con veinte clientes»
+        en algo sostenible, y por eso es la que decide si esto escala o no. Si
+        nadie la usa, la cartera grande es un infierno manual y hay un problema de
+        producto que no se va a ver en ninguna otra métrica.
+
+        Solo se apunta si algo se copió de verdad: pulsar y que no hubiera nada
+        que traer no es haber usado la función, es haberla intentado.
+      */
+      const copiado = Object.keys(result).filter((k) => result[k]);
+      if (copiado.length > 0) track('plantilla_usada', { partes: copiado.join('_') });
 
       return result;
     },
@@ -3332,6 +3362,10 @@ export const AppProvider = ({ children }) => {
       const clientName = clientsRef.current.find((c) => c.id === clientId)?.name;
       const [withUrl] = await resolvePhotoUrls([mapPhotoFromDb(data, clientName)]);
       setProgressPhotos([withUrl, ...photosRef.current]);
+      /* Solo cuenta cuando la sube el ENTRENADOR: `track` no apunta nada desde el
+         portal, así que las del cliente no entran. Es intencionado y hay que
+         leerlo así — esta cifra mide uso del panel, no fotos subidas. */
+      track('foto_subida');
       return { ok: true, photo: withUrl };
     },
     [clientsRef, photosRef, resolvePhotoUrls, setProgressPhotos]
@@ -3505,9 +3539,22 @@ export const AppProvider = ({ children }) => {
       /* El recuento del plan lo lleva la base de datos, así que después de
          archivar hay que volver a preguntárselo: es justo la cifra que cambia. */
       await refreshPlan();
+
+      /*
+        La señal de abandono que no se puede sacar de ninguna otra parte.
+
+        Una cuenta que deja de entrar puede estar de vacaciones. Una cuenta que
+        archiva clientes uno detrás de otro está cerrando, y eso se ve semanas
+        antes de que deje de pagar. Va en tramos —`bucket`— porque el número
+        exacto de clientes de alguien señala a ese alguien.
+      */
+      track('cliente_archivado', {
+        archivado: archived ? 'si' : 'no',
+        cartera: bucket(clientsRef.current.filter((c) => c.status !== 'archived').length),
+      });
       return { ok: true };
     },
-    [refreshPlan, updateClient]
+    [clientsRef, refreshPlan, updateClient]
   );
 
   /**
@@ -3714,6 +3761,15 @@ export const AppProvider = ({ children }) => {
         signed = res.data || [];
       }
 
+      /*
+        Exportar los datos de UN cliente es casi siempre atender una petición del
+        RGPD, y eso hay que poder cuantificarlo: si esto se dispara, la pantalla
+        que lo hace deja de ser una casilla de cumplimiento y pasa a ser una
+        función que merece cuidado. También aparece —y esto es lo importante—
+        cuando alguien se está llevando su cartera antes de irse.
+      */
+      track('datos_exportados', { alcance: 'cliente' });
+
       return {
         ok: true,
         data: {
@@ -3806,6 +3862,11 @@ export const AppProvider = ({ children }) => {
 
     const failed = [wd, anthro, nutri, photos].find((r) => r.error);
     if (failed) return { ok: false, error: `No se pudo copiar: ${failed.error.message}` };
+
+    /* La cartera entera. Es la misma señal que la de un cliente suelto pero mucho
+       más fuerte: quien se descarga todo o está siendo prudente o se está yendo,
+       y las dos cosas merecen una conversación. */
+    track('datos_exportados', { alcance: 'todo', cartera: bucket(all.length) });
 
     return {
       ok: true,
@@ -4017,7 +4078,20 @@ export const AppProvider = ({ children }) => {
       integration: integrationId,
       token,
     });
-    return error ? { ok: false, error: error.message } : { ok: true };
+    if (error) return { ok: false, error: error.message };
+
+    /*
+      Sin decir CUÁL. El identificador de una integración es un UUID y no tiene
+      sitio aquí, y el proveedor tampoco viaja: cuál usa cada equipo se responde
+      mucho mejor contando filas de `integrations` desde la radiografía, que es
+      un dato que ya existe y no hay que instrumentar.
+
+      Lo que este evento aporta y esa cuenta no es el CUÁNDO: conectar una
+      integración es un hito de compromiso, y saber a qué distancia del alta
+      ocurre es lo que dice si merece la pena empujarlo en el primer día.
+    */
+    track('integracion_conectada');
+    return { ok: true };
   }, []);
 
   /**
@@ -4200,6 +4274,10 @@ export const AppProvider = ({ children }) => {
       link_notes: notes || null,
     });
     if (error) return { ok: false, error: error.message };
+    /* Grabar y mandar una revisión es la función más cara de construir y la que
+       más se usa para justificar el precio. Si nadie la usa, sobra; y eso hay que
+       poder saberlo antes de seguir invirtiendo en ella. */
+    track('revision_compartida', { origen: 'grabada' });
     return { ok: true, token: data, url: `${window.location.origin}/r/${data}` };
   }, []);
 
@@ -4222,6 +4300,9 @@ export const AppProvider = ({ children }) => {
       link_notes: notes || null,
     });
     if (error) return { ok: false, error: error.message };
+    /* El mismo evento con distinto origen, no un evento distinto: la pregunta es
+       «¿se comparten revisiones?», y separarlas obligaría a sumarlas siempre. */
+    track('revision_compartida', { origen: 'externa' });
     return { ok: true, token: data };
   }, []);
 
@@ -4492,6 +4573,10 @@ export const AppProvider = ({ children }) => {
          cliente tenía que adivinar que le habías contestado entrando a mirar. */
       if (dueño) stampNow(dueño, 'checkin');
 
+      /* Contestar un check-in es el momento en que el cliente recibe de verdad lo
+         que paga. Si esta cifra sube y las demás no, el producto funciona; si
+         baja, se está perdiendo a los clientes de alguien. */
+      track('revision_hecha');
       return { ok: true };
     },
     [stampNow]
@@ -4563,6 +4648,10 @@ export const AppProvider = ({ children }) => {
       if (error) return { ok: false, error: error.message };
 
       await reloadTeamMembers(team.id);
+      /* Un equipo que crece es una cuenta que crece, y es el único camino de este
+         producto hacia un contrato más grande que el de una persona. El rol va
+         entero porque es una categoría cerrada de la 0006, no un dato de nadie. */
+      track('equipo_invitado', { rol: role });
       return { ok: true };
     },
     [reloadTeamMembers, team]

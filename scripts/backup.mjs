@@ -54,6 +54,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
+import { resolverCredenciales } from './credenciales.mjs';
+
 /*
   Lo que se copia.
 
@@ -105,7 +107,6 @@ const TABLES = [
   'support_messages',
   'platform_admins',
   'audit_log',
-  'videos',
 ];
 
 /*
@@ -125,6 +126,16 @@ export const EXCLUIDAS = {
   product_events:
     'Instrumentación de uso (0045). Es desechable por diseño y se poda a los seis meses: ' +
     'restaurarla no devuelve nada que nadie vaya a echar de menos.',
+  app_errors:
+    'Registro de fallos (0052). La misma categoría que product_events y con un plazo aún más ' +
+    'corto —90 días—: un fallo de hace tres meses o está arreglado o sigue ocurriendo hoy, y en ' +
+    'los dos casos su copia no sirve para nada. Restaurar una instalación no necesita saber qué ' +
+    'se rompió en la anterior.',
+  videos:
+    'La corrección de vídeos se retiró del producto (auditoria.md §2) y la tabla la borra la ' +
+    'migración 0057, que se niega a hacerlo si tiene una sola fila. Se queda aquí y no en TABLES ' +
+    'para que la copia siga siendo correcta en las dos situaciones: antes de aplicar la 0057 la ' +
+    'tabla existe y está vacía, y después no existe.',
 };
 
 /*
@@ -200,26 +211,6 @@ const log = (...parts) => console.log(...parts);
 const fail = (message) => {
   console.error(`\n✗ ${message}`);
   process.exit(1);
-};
-
-// ── Comprobación de la clave ───────────────────────────────────────────────
-
-/**
- * ¿Es la clave que salta RLS?
- *
- * Las claves de Supabase son JWT: el cuerpo lleva `role`, y en la de servicio vale
- * `service_role`. Se mira sin verificar la firma, que aquí no hace falta —no se
- * está autenticando a nadie, se está evitando un error de copiar y pegar—.
- */
-const isServiceRole = (key) => {
-  try {
-    const body = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString());
-    return body.role === 'service_role';
-  } catch {
-    // Formato desconocido: puede ser una clave nueva de Supabase (`sb_secret_…`),
-    // que no es un JWT. No se puede afirmar que sea la equivocada, así que pasa.
-    return true;
-  }
 };
 
 // ── Volcado ────────────────────────────────────────────────────────────────
@@ -345,72 +336,12 @@ const main = async () => {
   const toVerify = value('--verificar');
   if (toVerify) return verify(resolve(toVerify));
 
-  /* La URL no es un secreto y ya está en `.env` como `VITE_SUPABASE_URL`: es el
-     mismo proyecto. Repetirla en `.env.backup` solo añadiría un sitio donde se
-     puede quedar desactualizada al cambiar de proyecto. Así lo único que hay que
-     poner aparte es la clave, que es lo único que de verdad va aparte. */
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url) {
-    fail(
-      'No hay ninguna URL de Supabase.\n' +
-        '  Se busca SUPABASE_URL y, si no está, VITE_SUPABASE_URL de tu .env.'
-    );
-  }
-
-  if (!key) {
-    fail(
-      'Falta SUPABASE_SERVICE_ROLE_KEY.\n' +
-        `  La URL sí está (${new URL(url).host}); solo falta la clave.\n\n` +
-        '  1. Supabase Dashboard → Settings → API → service_role, «Reveal».\n' +
-        '  2. Pégala en .env.backup, en la raíz del proyecto:\n\n' +
-        '       SUPABASE_SERVICE_ROLE_KEY=eyJ...\n\n' +
-        '  Ese archivo ya está en .gitignore. No es la anon key: esta salta todas\n' +
-        '  las políticas de seguridad, así que no va al navegador ni al repositorio.'
-    );
-  }
-
-  /*
-    Supabase tiene dos generaciones de claves conviviendo, y las que valen aquí son
-    las de servidor de cada una:
-
-      eyJ…              JWT heredada. La `anon` y la `service_role` tienen esta
-                        forma, y se distinguen por el `role` de dentro (más abajo).
-      sb_secret_…       La nueva de servidor. Sustituye a la `service_role`.
-      sb_publishable_…  La nueva de navegador. NO vale: es la que sustituye a la
-                        anon, y con ella la copia saldría vacía.
-
-    Comprobar la forma aquí evita recorrer las veinte tablas para terminar con
-    veinte líneas de «Invalid API key», que no dicen cuál es el problema.
-  */
-  if (key.startsWith('sb_publishable_')) {
-    fail(
-      'Esa es la clave publicable, no la secreta.\n' +
-        '  `sb_publishable_…` es la que sustituye a la anon: va en el navegador y\n' +
-        '  respeta las políticas de seguridad, así que la copia saldría vacía.\n\n' +
-        '  Necesitas la de al lado: Settings → API Keys → Secret keys → `sb_secret_…`.'
-    );
-  }
-
-  if (!/^eyJ[\w-]*\.[\w-]+\.[\w-]+$/.test(key) && !key.startsWith('sb_secret_')) {
-    fail(
-      'Eso no parece una clave de Supabase.\n' +
-        '  ¿Has dejado el marcador de .env.backup sin sustituir, o has pegado la URL?\n\n' +
-        '  Settings → API Keys. Vale cualquiera de las dos:\n' +
-        '    · pestaña «API keys» → Secret keys → `sb_secret_…`  (recomendada)\n' +
-        '    · pestaña «Legacy API keys» → `service_role` → «Reveal» → `eyJ…`'
-    );
-  }
-
-  if (!isServiceRole(key)) {
-    fail(
-      'Esa es la anon key, no la service_role.\n' +
-        '  Con ella la copia saldría VACÍA y sin ningún error: las políticas de\n' +
-        '  seguridad filtran todas las filas cuando no hay usuario. Es justo el\n' +
-        '  fallo que solo se descubre el día que hace falta la copia.'
-    );
-  }
+  /* Las comprobaciones viven en `scripts/credenciales.mjs` desde que las
+     necesitan dos scripts. Son exactamente las mismas: lo que se evita es que la
+     segunda copia se quede atrás cuando Supabase vuelva a cambiar el formato de
+     sus claves — que ya lo cambió una vez. */
+  const { url, key, error } = resolverCredenciales({ para: 'la copia' });
+  if (error) fail(error);
 
   const withPhotos = !flag('--sin-fotos');
   const stamp = new Date().toISOString().replace(/:/g, '-').slice(0, 19);
