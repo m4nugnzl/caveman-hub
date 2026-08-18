@@ -159,9 +159,17 @@ export const ReviewQueue = ({ rows, onReview }) => {
 
                       Nunca las tres cosas a la vez: la fila se lee de un vistazo
                       o no se lee.
+
+                      ── `.text`, y no el titular entero ──────────────────────
+                      `readingHeadline` devuelve `{ text, tone }`, no una cadena:
+                      el tono es para pintar el veredicto donde haya sitio, y
+                      aquí no lo hay —el color de la fila ya lo lleva la chapa
+                      del estado—. Puesto tal cual, React se encontraba un objeto
+                      donde espera un hijo y tiraba la pantalla entera al entrar
+                      al tablero.
                     */}
                     {resumen(row) ||
-                      row.headline ||
+                      row.headline?.text ||
                       [
                         `${row.checkIn.count}/${row.checkIn.target} pesajes`,
                         row.sinceTraining === null
