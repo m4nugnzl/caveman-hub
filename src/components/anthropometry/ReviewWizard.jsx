@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Camera, Check, Ruler, Save, Scale } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  Check,
+  MessageSquare,
+  Ruler,
+  Save,
+  Scale,
+} from 'lucide-react';
 
 import {
   FOLDS_LABELS,
@@ -12,13 +21,20 @@ import {
   weeklyCheckIn,
 } from '@/domain/anthropometry';
 import { ANGLE_IDS, angleLabel, photoWeek, weekFromStart } from '@/domain/photos';
-import { asksBlock, clientProtocol, requiredBlocks, requiresBlock } from '@/domain/protocol';
+import {
+  asksBlock,
+  checkinQuestions,
+  clientProtocol,
+  requiredBlocks,
+  requiresBlock,
+} from '@/domain/protocol';
 import { todayISO } from '@/lib/dates';
 import { toNum } from '@/lib/num';
 import { Field, Notice, SaveIndicator } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { PhotoPicker } from '@/components/photos/PhotoPicker';
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
+import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 
 /**
  * El asistente de revisión: la semana entregada, por pasos.
@@ -81,6 +97,18 @@ const MeasureGrid = ({ labels, values, unit, onChange }) => (
   </div>
 );
 
+/**
+ * @param onSubmitWeek  Entrega la semana al terminar. Solo lo pasa el portal del
+ *   CLIENTE: el entrenador usa este mismo asistente para anotar una medición
+ *   suya, y eso no puede entregar la semana de nadie ni marcarla como algo que
+ *   espera respuesta.
+ * @param weekStart  El lunes del periodo que se está entregando. Necesario
+ *   porque con cadencia quincenal no es el lunes de hoy.
+ * @param weeks  Cuántas semanas naturales abarca ese periodo. Es la ventana con
+ *   la que se promedian los pesajes para proponer el peso, y tiene que ser la
+ *   misma con la que se entrega: si no, se propone el promedio de una ventana y
+ *   se guarda el de otra.
+ */
 export const ReviewWizard = ({
   client,
   history,
@@ -92,6 +120,9 @@ export const ReviewWizard = ({
   photos = null,
   onUploadPhoto = null,
   onSetGender = null,
+  onSubmitWeek = null,
+  weekStart = null,
+  weeks = 1,
   onClose,
 }) => {
   const isClient = audience === 'client';
@@ -102,16 +133,34 @@ export const ReviewWizard = ({
   const obligatorios = useMemo(() => requiredBlocks(protocol), [protocol]);
   const puedeSubirFotos = Boolean(photos && onUploadPhoto);
 
-  /* Los pasos que de verdad tiene ESTE cliente. El peso siempre; los otros dos,
-     solo si hay algo que rellenar en ellos. */
+  /*
+    ══ El cuestionario, y solo cuando el entrenador lo ha montado ═════════════
+
+    Es la mitad de la información con la que se decide un ajuste y no había forma
+    de recogerla: la revisión entregaba peso, medidas y fotos —todo lo que se
+    MIDE— y ni una palabra de si el cliente ha podido seguir el plan.
+
+    Va de ÚLTIMO paso a propósito. El peso y las fotos son lo obligatorio y lo
+    que cuesta hacer; las preguntas se contestan sentado y con la tarea ya
+    prácticamente cerrada. Puestas al principio, alargan la parte que ya cuesta
+    que se haga cada semana.
+
+    Y solo se lo enseña al cliente: el entrenador que anota una medición no puede
+    contestar por él cómo ha dormido.
+  */
+  const preguntas = useMemo(() => (isClient ? checkinQuestions(protocol) : []), [isClient, protocol]);
+
+  /* Los pasos que de verdad tiene ESTE cliente. El peso siempre; los demás, solo
+     si hay algo que rellenar en ellos. */
   const pasos = useMemo(
     () =>
       [
         { id: 'peso', titulo: 'El peso', icono: Scale },
         (pideFolds || pidePerimetros) && { id: 'medidas', titulo: 'Las medidas', icono: Ruler },
         puedeSubirFotos && { id: 'fotos', titulo: 'Las fotos', icono: Camera },
+        preguntas.length > 0 && { id: 'cuestionario', titulo: 'Tu semana', icono: MessageSquare },
       ].filter(Boolean),
-    [pideFolds, pidePerimetros, puedeSubirFotos]
+    [pideFolds, pidePerimetros, puedeSubirFotos, preguntas.length]
   );
 
   const [indice, setIndice] = useState(0);
@@ -122,14 +171,40 @@ export const ReviewWizard = ({
   const [weight, setWeight] = useState('');
   const [folds, setFolds] = useState(emptyFolds);
   const [perimeters, setPerimeters] = useState(emptyPerimeters);
+  const [answers, setAnswers] = useState({});
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
   /* `touched` impide que el prellenado pise lo que se esté escribiendo: en
      cuanto se toca el campo, deja de proponerse. */
   const [touched, setTouched] = useState(false);
-  const weekCheckIn = useMemo(() => weeklyCheckIn(history, todayISO()), [history]);
+
+  /*
+    ══ El promedio del PERIODO que se entrega, no el de la semana de hoy ══════
+
+    Miraba `todayISO()` con la ventana de una semana natural, y eso es la ventana
+    equivocada en dos casos:
+
+      · Con cadencia quincenal el periodo empezó hace dos semanas. Quien se pesó
+        solo en la primera abría el asistente con la casilla VACÍA, aunque
+        tuviera tres pesajes registrados, y tenía que buscar el número a mano.
+      · Al entregar una semana atrasada, el peso que se propone tiene que ser el
+        de aquella semana y no el de esta.
+
+    Es el mismo fallo que ya se corrigió en `ClientWeek` —donde el contador decía
+    «3 de 3» mirando una ventana y el peso salía de otra— y que aquí seguía vivo.
+    Ahora la ventana del prellenado es LA MISMA con la que se entrega.
+  */
+  const weekCheckIn = useMemo(
+    () => weeklyCheckIn(history, weekStart || todayISO(), { weeks }),
+    [history, weekStart, weeks]
+  );
   const suggestedWeight = weekCheckIn.average;
+
+  /* Cómo se llama la ventana en la frase que explica de dónde sale el número.
+     «de esta semana» sería mentira con cadencia quincenal, y «del periodo» es
+     jerga cuando el periodo es una semana normal. */
+  const ventana = weeks > 1 ? `estas ${weeks} semanas` : 'esta semana';
 
   useEffect(() => {
     if (touched) return;
@@ -195,9 +270,13 @@ export const ReviewWizard = ({
       return null;
     }
 
-    /* Las fotos NO bloquean. Alguien puede estar entregando la semana desde el
-       vestuario y hacérselas en casa; obligar aquí solo consigue que se cierre
-       el asistente y no se registre ni el peso. */
+    /* Ni las fotos ni el cuestionario bloquean. Alguien puede estar entregando la
+       semana desde el vestuario y hacerse las fotos en casa; obligar aquí solo
+       consigue que se cierre el asistente y no se registre ni el peso.
+
+       Con las preguntas la razón es la misma y una más: una respuesta forzada
+       para poder cerrar es una respuesta inventada, y ensucia una serie que
+       después se lee como si significara algo. */
     return null;
   };
 
@@ -217,12 +296,31 @@ export const ReviewWizard = ({
   };
 
   /**
-   * Terminar: se guarda el registro y DESPUÉS se suben las fotos.
+   * Terminar: se guarda el registro, DESPUÉS se suben las fotos y por último se
+   * entrega la semana.
    *
-   * Ese orden importa. El registro es lo obligatorio y es instantáneo —va por la
-   * cola de guardado optimista—; las fotos pueden tardar y pueden fallar. Al
-   * revés, una subida que falla dejaría sin guardar un peso que ya estaba
-   * escrito, que es la peor forma de perder el trabajo de alguien.
+   * ══ Ese orden no es casual ═════════════════════════════════════════════════
+   *
+   * El registro es lo obligatorio y es instantáneo —va por la cola de guardado
+   * optimista—; las fotos pueden tardar y pueden fallar. Al revés, una subida
+   * que falla dejaría sin guardar un peso que ya estaba escrito, que es la peor
+   * forma de perder el trabajo de alguien.
+   *
+   * Y la entrega va la ÚLTIMA porque es lo que avisa al entrenador: entregar
+   * antes de que las fotos estén arriba le pondría en la cola una revisión que
+   * al abrirla no tiene fotos.
+   *
+   * ══ Terminar el asistente ES entregar la semana ════════════════════════════
+   *
+   * Antes eran dos gestos separados: este asistente guardaba el registro, y
+   * «entregar» era otro botón en otra tarjeta de la misma pantalla. O sea que un
+   * cliente podía confirmar su peso, medirse y subir sus tres fotos —todo lo que
+   * él entiende por «mandar mi semana»— y no enterarse de que aún le faltaba
+   * pulsar algo. Al entrenador no le llegaba nada, y la semana quedaba en la
+   * cola como «sin subir» con todos los datos dentro.
+   *
+   * Un fallo aquí NO deshace lo anterior, y se dice: el peso y las fotos están a
+   * salvo, lo único que no ha ocurrido es el aviso.
    */
   const terminar = async () => {
     for (const p of pasos) {
@@ -265,6 +363,29 @@ export const ReviewWizard = ({
       }
     }
 
+    if (onSubmitWeek) {
+      /* Solo las contestadas. Mandar las vacías guardaría una cadena en blanco
+         por pregunta, y al leerlas «no contestó» y «contestó vacío» se
+         parecerían demasiado. */
+      const dadas = Object.fromEntries(
+        Object.entries(answers).filter(([, v]) => String(v ?? '').trim() !== '')
+      );
+
+      const res = await onSubmitWeek({
+        weekStart,
+        weight: toNum(weight),
+        answers: Object.keys(dadas).length > 0 ? dadas : null,
+      });
+
+      if (res && res.ok === false) {
+        setGuardando(false);
+        setError(
+          `Tus datos están guardados, pero la semana no llegó a entregarse: ${res.error}. Vuelve a intentarlo.`
+        );
+        return;
+      }
+    }
+
     setGuardando(false);
     onClose();
   };
@@ -299,7 +420,14 @@ export const ReviewWizard = ({
               disabled={guardando || lote.busy}
             >
               <Save size={15} />
-              {guardando || lote.busy ? 'Guardando…' : 'Terminar y guardar'}
+              {/* «Entregar» y no «guardar» cuando de verdad se entrega: son dos
+                  cosas distintas y el cliente tiene que saber cuál está a punto
+                  de hacer. Guardar es para él; entregar te avisa a ti. */}
+              {guardando || lote.busy
+                ? 'Enviando…'
+                : onSubmitWeek
+                  ? 'Terminar y entregar'
+                  : 'Terminar y guardar'}
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={avanzar}>
@@ -339,7 +467,9 @@ export const ReviewWizard = ({
             <>
               <p className="t-sm t-secondary">
                 {isClient
-                  ? 'Confirma con qué peso cierras la semana. Viene puesto con el promedio de tus pesajes, que es la cifra que filtra el agua del día a día.'
+                  ? suggestedWeight !== null
+                    ? 'Confirma con qué peso cierras la semana. Viene puesto con el promedio de tus pesajes, que es la cifra que filtra el agua del día a día.'
+                    : 'Confirma con qué peso cierras la semana.'
                   : 'El peso es el único dato obligatorio de una revisión.'}
               </p>
 
@@ -365,7 +495,15 @@ export const ReviewWizard = ({
                       type="text"
                       inputMode="decimal"
                       className="input input-center input-hero"
-                      placeholder="81.5"
+                      /*
+                        El ejemplo era «81.5», que es un peso perfectamente
+                        creíble escrito en gris y en grande. Con la casilla vacía
+                        —cuando no hay pesajes que promediar— no había forma de
+                        distinguir a simple vista si eso era lo que se iba a
+                        guardar o un hueco por rellenar. Un marcador de posición
+                        no puede parecerse al dato.
+                      */
+                      placeholder="— kg —"
                       value={weight}
                       onChange={(e) => {
                         setTouched(true);
@@ -382,15 +520,17 @@ export const ReviewWizard = ({
               {suggestedWeight !== null && !touched && (
                 <p className="t-xs t-tertiary">
                   Propuesto: <strong>{suggestedWeight} kg</strong>, el promedio de{' '}
-                  {weekCheckIn.count === 1 ? 'tu pesaje' : `tus ${weekCheckIn.count} pesajes`} de
-                  esta semana. Escribe encima si quieres registrar otro valor.
+                  {weekCheckIn.count === 1 ? 'tu pesaje' : `tus ${weekCheckIn.count} pesajes`} de{' '}
+                  {ventana}. Escribe encima si quieres registrar otro valor.
                 </p>
               )}
               {suggestedWeight === null && (
                 <p className="t-xs t-tertiary">
                   {isClient
-                    ? 'Esta semana no has anotado ningún pesaje, así que no hay promedio que proponerte. Escríbelo a mano.'
-                    : 'Sin pesajes esta semana: no hay promedio que proponer.'}
+                    ? `No has anotado ningún pesaje ${
+                        weeks > 1 ? 'en este periodo' : 'esta semana'
+                      }, así que no hay promedio que proponerte. Escríbelo a mano.`
+                    : `Sin pesajes ${weeks > 1 ? 'en el periodo' : 'esta semana'}: no hay promedio que proponer.`}
                 </p>
               )}
             </>
@@ -536,6 +676,28 @@ export const ReviewWizard = ({
                 Hazlas siempre igual: misma luz, misma distancia, misma pose y a ser posible el
                 mismo día de la semana. Es lo que hace que la comparación signifique algo.
               </p>
+            </>
+          )}
+
+          {paso.id === 'cuestionario' && (
+            <>
+              <p className="t-sm t-secondary">
+                Lo que la báscula no cuenta. Contesta lo que quieras: ninguna es obligatoria, y en
+                blanco tu entrenador ve que no la has contestado en vez de un número inventado.
+              </p>
+
+              {/*
+                El MISMO componente con el que se contesta el feedback de una
+                sesión, y con el que tú lees las respuestas después. Que la
+                pregunta se dé y se lea con la misma forma es lo que evita que
+                las dos versiones diverjan (ver `SessionFeedback`).
+              */}
+              <SessionFeedback
+                questions={preguntas}
+                answers={answers}
+                title="Cómo ha ido tu semana"
+                onChange={(id, value) => setAnswers((prev) => ({ ...prev, [id]: value }))}
+              />
             </>
           )}
         </div>

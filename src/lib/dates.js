@@ -18,6 +18,30 @@ export const daysBetween = (from, to) => {
 };
 
 /**
+ * La misma fecha N meses después, en ISO.
+ *
+ * ── El día 31 no existe en todos los meses ──────────────────────────────────
+ * Y `setUTCMonth` lo resuelve desbordando: al 31 de enero le suma un mes y
+ * devuelve el 3 de marzo. Para un cobro eso es un desastre silencioso — quien
+ * renueva el 31 se le iría el día un poco más cada mes hasta perder la cuenta.
+ *
+ * Aquí se recorta al último día del mes de destino, que es lo que hace un banco:
+ * 31 de enero + 1 mes = 28 de febrero, y el mes siguiente vuelve a ser 31.
+ */
+export const addMonths = (date, months) => {
+  const iso = toISODate(date);
+  if (!iso || !Number.isFinite(months)) return null;
+
+  const [year, month, day] = iso.split('-').map(Number);
+  const d = new Date(Date.UTC(year, month - 1 + months, 1));
+  // Día 0 del mes siguiente = último día de este.
+  const ultimo = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, ultimo));
+
+  return d.toISOString().slice(0, 10);
+};
+
+/**
  * Lunes de la semana a la que pertenece una fecha, en ISO.
  *
  * Se usa para agrupar los pesajes por semana: el promedio semanal es lo que

@@ -7,11 +7,13 @@ import {
   CHECKIN_MODES,
   MAX_CUSTOM,
   MODULES,
+  CHECKIN_QUESTIONS,
   PROTOCOL_PRESETS,
   SESSION_QUESTIONS,
   activeQuestions,
   addCustomQuestion,
   checkinMode,
+  checkinQuestions,
   clientProtocol,
   isModuleOn,
   matchingPreset,
@@ -37,7 +39,14 @@ import {
   readLocalTemplate,
   templateFrom,
 } from '@/lib/protocolTemplate';
-import { Field, Notice, Panel, SegmentedControl, TextInput } from '@/components/ui/primitives';
+import {
+  Field,
+  Notice,
+  OptionCard,
+  Panel,
+  SegmentedControl,
+  TextInput,
+} from '@/components/ui/primitives';
 import { IntakeSteps } from './IntakeSteps';
 
 /**
@@ -109,6 +118,169 @@ const QuestionRow = ({ question, index, total, onMove, onRemove, canDelete, onDe
   </li>
 );
 
+/**
+ * El editor de UNA lista de preguntas: las activas en su orden, el catálogo del
+ * que añadir y el formulario de pregunta propia.
+ *
+ * ══ Por qué es un componente y no dos bloques de JSX ═══════════════════════
+ *
+ * Porque hay dos listas —lo que se pregunta al terminar de entrenar y lo que se
+ * pregunta al cerrar la semana— y son la MISMA operación sobre distinto destino,
+ * igual que la plantilla y el cliente en el selector de arriba. Copiadas serían
+ * sesenta líneas duplicadas donde solo cambian el título y el nombre de la clave,
+ * y en tres meses una de las dos tendría un arreglo que la otra no.
+ *
+ * Lo que cambia entra por propiedades. Lo que no cambia —el orden importa, las
+ * escalas se miden y las de texto no, el tope de seis preguntas propias— vive
+ * aquí una vez.
+ */
+const QuestionEditor = ({
+  title,
+  intro,
+  notice,
+  protocol,
+  list,
+  catalogo,
+  questions,
+  draft,
+  setDraft,
+  onSave,
+  emptyText,
+  addPlaceholder,
+}) => {
+  const disponibles = catalogo.filter((q) => !(protocol[list] || []).includes(q.id));
+  const propias = protocol.custom || [];
+
+  /* Las propias que NO están en esta lista se pueden añadir aquí también: se
+     escribieron una vez y valen para las dos. Sin esto, la única forma de usar
+     «Molestia en el hombro» en el check-in sería volver a escribirla, y acabarían
+     dos preguntas iguales con dos series distintas. */
+  const propiasFuera = propias.filter((q) => !(protocol[list] || []).includes(q.id));
+
+  const addCustom = () => {
+    const next = addCustomQuestion(
+      protocol,
+      { label: draft.label, max: Number(draft.max) || 10, lowerIsBetter: draft.lowerIsBetter },
+      list
+    );
+    if (next === protocol) return;
+    onSave(next);
+    setDraft({ label: '', max: '10', lowerIsBetter: false });
+  };
+
+  return (
+    <Panel className="col gap-4">
+      <div>
+        <span className="section-title">{title}</span>
+        <p className="t-sm t-secondary">{intro}</p>
+      </div>
+
+      {notice}
+
+      {questions.length === 0 ? (
+        <p className="t-sm t-secondary">{emptyText}</p>
+      ) : (
+        <ul className="proto-list">
+          {questions.map((question, index) => (
+            <QuestionRow
+              key={question.id}
+              question={question}
+              index={index}
+              total={questions.length}
+              onMove={(dir) => onSave(moveQuestion(protocol, question.id, dir, list))}
+              onRemove={() => onSave(toggleQuestion(protocol, question.id, list))}
+              /* Borrar de verdad solo se ofrece con las propias, y quitarlas las
+                 saca de LAS DOS listas: una pregunta que ya no existe no puede
+                 seguir haciéndose en la otra pantalla. */
+              canDelete={Boolean(propias.find((q) => q.id === question.id))}
+              onDelete={() => onSave(removeCustomQuestion(protocol, question.id))}
+            />
+          ))}
+        </ul>
+      )}
+
+      {(disponibles.length > 0 || propiasFuera.length > 0) && (
+        <div className="col gap-2">
+          <span className="section-label">Añadir del catálogo</span>
+          <div className="rail-wrap">
+            {[...disponibles, ...propiasFuera].map((question) => (
+              <button
+                key={question.id}
+                type="button"
+                className="chip chip-dashed"
+                onClick={() => onSave(toggleQuestion(protocol, question.id, list))}
+                title={question.hint}
+              >
+                <Plus size={12} /> {question.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Preguntas propias ──────────────────────────────────────────── */}
+      <div className="col gap-2">
+        <span className="section-label">
+          Tu propia pregunta ({propias.length}/{MAX_CUSTOM})
+        </span>
+
+        {propias.length >= MAX_CUSTOM ? (
+          <p className="t-xs t-tertiary">
+            Has llegado al máximo. El tope existe porque toda la configuración de un cliente comparte
+            una columna acotada a 8 KB.
+          </p>
+        ) : (
+          <div className="row-end wrap gap-2">
+            <Field label="Qué quieres preguntar" className="grow">
+              {(props) => (
+                <TextInput
+                  {...props}
+                  value={draft.label}
+                  onChange={(v) => setDraft({ ...draft, label: v })}
+                  placeholder={addPlaceholder}
+                />
+              )}
+            </Field>
+
+            <Field label="Escala de 1 a">
+              {(props) => (
+                <TextInput
+                  {...props}
+                  value={draft.max}
+                  onChange={(v) => setDraft({ ...draft, max: v })}
+                  className="input-center"
+                  style={{ width: 68 }}
+                />
+              )}
+            </Field>
+
+            <Field label="Dirección" hint="Qué significa que suba">
+              <SegmentedControl
+                label="Dirección de la escala"
+                value={draft.lowerIsBetter ? 'lower' : 'higher'}
+                onChange={(v) => setDraft({ ...draft, lowerIsBetter: v === 'lower' })}
+                options={[
+                  { id: 'higher', label: 'Mejor' },
+                  { id: 'lower', label: 'Peor' },
+                ]}
+              />
+            </Field>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={addCustom}
+              disabled={!draft.label.trim()}
+            >
+              <Plus size={15} /> Añadir
+            </button>
+          </div>
+        )}
+      </div>
+    </Panel>
+  );
+};
+
 export const ProtocolPanel = () => {
   const { session, clients, updateClientPreferences, coachPrefs, coachPrefsReady, updateCoachPreferences } =
     useApp();
@@ -117,7 +289,11 @@ export const ProtocolPanel = () => {
   /** `null` = la plantilla; si no, el id del cliente que se está editando. */
   const [target, setTarget] = useState(null);
   const [feedback, setFeedback] = useState(null);
+  /* Un borrador POR LISTA. Con uno solo, empezar a escribir una pregunta de
+     sesión y bajar a la del check-in la arrastraría medio tecleada al otro
+     formulario, y al pulsar «Añadir» se guardaría en la lista que no era. */
   const [draft, setDraft] = useState({ label: '', max: '10', lowerIsBetter: false });
+  const [checkinDraft, setCheckinDraft] = useState({ label: '', max: '10', lowerIsBetter: false });
 
   /*
     ══ Las plantillas ya no viven en el navegador ═════════════════════════════
@@ -205,10 +381,7 @@ export const ProtocolPanel = () => {
   };
 
   const questions = useMemo(() => activeQuestions(protocol), [protocol]);
-  const available = useMemo(
-    () => SESSION_QUESTIONS.filter((q) => !protocol.questions.includes(q.id)),
-    [protocol.questions]
-  );
+  const checkinList = useMemo(() => checkinQuestions(protocol), [protocol]);
 
   const preset = matchingPreset(protocol);
 
@@ -245,17 +418,6 @@ export const ProtocolPanel = () => {
       tone: 'success',
       text: `Aplicado a ${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}.`,
     });
-  };
-
-  const addCustom = () => {
-    const next = addCustomQuestion(protocol, {
-      label: draft.label,
-      max: Number(draft.max) || 10,
-      lowerIsBetter: draft.lowerIsBetter,
-    });
-    if (next === protocol) return;
-    save(next);
-    setDraft({ label: '', max: '10', lowerIsBetter: false });
   };
 
   return (
@@ -378,23 +540,21 @@ export const ProtocolPanel = () => {
           </p>
         </div>
 
+        {/* Una tarjeta por módulo. Antes era `.proto-module` —una caja que se
+            iluminaba al marcar— con una casilla del sistema dentro: dos formas
+            de decir lo mismo, y la de dentro pintada por el navegador. La
+            tarjeta ya es el control. */}
         <ul className="proto-modules">
-          {MODULES.map((mod) => {
-            const on = isModuleOn(protocol, mod.id);
-            return (
-              <li className={`proto-module${on ? ' is-on' : ''}`} key={mod.id}>
-                <label className="checkbox-row">
-                  <input type="checkbox" checked={on} onChange={() => save(toggleModule(protocol, mod.id))} />
-                  <span className="col" style={{ gap: 1 }}>
-                    <span className="t-sm" style={{ fontWeight: 600, color: 'var(--text)' }}>
-                      {mod.label}
-                    </span>
-                    <span className="t-xs t-tertiary">{mod.hint}</span>
-                  </span>
-                </label>
-              </li>
-            );
-          })}
+          {MODULES.map((mod) => (
+            <li key={mod.id}>
+              <OptionCard
+                label={mod.label}
+                hint={mod.hint}
+                checked={isModuleOn(protocol, mod.id)}
+                onChange={() => save(toggleModule(protocol, mod.id))}
+              />
+            </li>
+          ))}
         </ul>
       </Panel>
 
@@ -438,121 +598,56 @@ export const ProtocolPanel = () => {
         </div>
       </Panel>
 
-      {/* ── Preguntas ────────────────────────────────────────────────────── */}
-      <Panel className="col gap-4">
-        <div>
-          <span className="section-title">Qué le preguntas al terminar de entrenar</span>
-          <p className="t-sm t-secondary">
-            El orden es el orden en que las contesta. Cada pregunta de escala se convierte en una
-            serie que puedes seguir en su panel; las de texto no se pueden medir.
-          </p>
-        </div>
+      {/* ── Preguntas de la sesión ───────────────────────────────────────── */}
+      <QuestionEditor
+        title="Qué le preguntas al terminar de entrenar"
+        intro="El orden es el orden en que las contesta. Cada pregunta de escala se convierte en una serie que puedes seguir en su panel; las de texto no se pueden medir."
+        notice={
+          !isModuleOn(protocol, 'sessionFeedback') && (
+            <Notice tone="info">
+              El módulo de feedback está apagado, así que estas preguntas no se le harán. Enciéndelo
+              arriba para que aparezcan.
+            </Notice>
+          )
+        }
+        protocol={protocol}
+        list="questions"
+        catalogo={SESSION_QUESTIONS}
+        questions={questions}
+        draft={draft}
+        setDraft={setDraft}
+        onSave={save}
+        emptyText="No hay ninguna pregunta activa."
+        addPlaceholder="Molestia en el hombro"
+      />
 
-        {!isModuleOn(protocol, 'sessionFeedback') && (
-          <Notice tone="info">
-            El módulo de feedback está apagado, así que estas preguntas no se le harán. Enciéndelo
-            arriba para que aparezcan.
-          </Notice>
-        )}
-
-        {questions.length === 0 ? (
-          <p className="t-sm t-secondary">No hay ninguna pregunta activa.</p>
-        ) : (
-          <ul className="proto-list">
-            {questions.map((question, index) => (
-              <QuestionRow
-                key={question.id}
-                question={question}
-                index={index}
-                total={questions.length}
-                onMove={(dir) => save(moveQuestion(protocol, question.id, dir))}
-                onRemove={() => save(toggleQuestion(protocol, question.id))}
-                canDelete={Boolean((protocol.custom || []).find((q) => q.id === question.id))}
-                onDelete={() => save(removeCustomQuestion(protocol, question.id))}
-              />
-            ))}
-          </ul>
-        )}
-
-        {available.length > 0 && (
-          <div className="col gap-2">
-            <span className="section-label">Añadir del catálogo</span>
-            <div className="rail-wrap">
-              {available.map((question) => (
-                <button
-                  key={question.id}
-                  type="button"
-                  className="chip chip-dashed"
-                  onClick={() => save(toggleQuestion(protocol, question.id))}
-                  title={question.hint}
-                >
-                  <Plus size={12} /> {question.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── Preguntas propias ──────────────────────────────────────────── */}
-        <div className="col gap-2">
-          <span className="section-label">
-            Tu propia pregunta ({(protocol.custom || []).length}/{MAX_CUSTOM})
-          </span>
-
-          {(protocol.custom || []).length >= MAX_CUSTOM ? (
-            <p className="t-xs t-tertiary">
-              Has llegado al máximo. El tope existe porque toda la configuración de un cliente
-              comparte una columna acotada a 8 KB.
-            </p>
-          ) : (
-            <div className="row-end wrap gap-2">
-              <Field label="Qué quieres preguntar" className="grow">
-                {(props) => (
-                  <TextInput
-                    {...props}
-                    value={draft.label}
-                    onChange={(v) => setDraft({ ...draft, label: v })}
-                    placeholder="Molestia en el hombro"
-                  />
-                )}
-              </Field>
-
-              <Field label="Escala de 1 a">
-                {(props) => (
-                  <TextInput
-                    {...props}
-                    value={draft.max}
-                    onChange={(v) => setDraft({ ...draft, max: v })}
-                    className="input-center"
-                    style={{ width: 68 }}
-                  />
-                )}
-              </Field>
-
-              <Field label="Dirección" hint="Qué significa que suba">
-                <SegmentedControl
-                  label="Dirección de la escala"
-                  value={draft.lowerIsBetter ? 'lower' : 'higher'}
-                  onChange={(v) => setDraft({ ...draft, lowerIsBetter: v === 'lower' })}
-                  options={[
-                    { id: 'higher', label: 'Mejor' },
-                    { id: 'lower', label: 'Peor' },
-                  ]}
-                />
-              </Field>
-
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={addCustom}
-                disabled={!draft.label.trim()}
-              >
-                <Plus size={15} /> Añadir
-              </button>
-            </div>
-          )}
-        </div>
-      </Panel>
+      {/* ── Preguntas del check-in ───────────────────────────────────────────
+          Va justo detrás porque es lo mismo con otra frecuencia: una escala
+          contestada al bajar de la prensa y otra contestada el domingo. Lo que
+          cambia es de qué hablan —una sesión frente a siete días— y por eso el
+          catálogo es otro: el RPE de una serie no resume una semana, y «¿has
+          podido seguir la dieta?» no se pregunta al acabar de entrenar. */}
+      <QuestionEditor
+        title="Qué le preguntas en el check-in"
+        intro="Se contestan en el último paso de su revisión semanal, antes de entregarla. Es lo que la báscula no mide: si ha podido seguir el plan, si ha pasado hambre, si le siguen quedando ganas."
+        notice={
+          checkinList.length === 0 ? (
+            <Notice tone="info">
+              Sin ninguna pregunta puesta no hay cuestionario: su revisión termina en las fotos,
+              exactamente como hasta ahora. Añade las que quieras y aparecerá el paso.
+            </Notice>
+          ) : null
+        }
+        protocol={protocol}
+        list="checkinQuestions"
+        catalogo={CHECKIN_QUESTIONS}
+        questions={checkinList}
+        draft={checkinDraft}
+        setDraft={setCheckinDraft}
+        onSave={save}
+        emptyText="Todavía no le preguntas nada al cerrar la semana."
+        addPlaceholder="Cómo has llevado las comidas fuera"
+      />
 
       <p className="t-xs t-tertiary">
         Tu plantilla se guarda en este navegador, así que no te sigue a otro ordenador. Lo que sí

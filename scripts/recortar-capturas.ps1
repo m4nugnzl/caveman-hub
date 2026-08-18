@@ -144,33 +144,28 @@ $recortes = @(
   @{ nombre = 'p-roadmap'; archivo = 'pc\roadmap2x.png'; dpr = 2; escala = 0.6002; techo = 1920
      bandas = @(, @(88, 48, 2566, 560)) }
 
-  # ── Las dos que siguen sin volver a tomarse a densidad doble ──────────────
+  # El check-in entero: la semana con sus siete casillas, la tendencia y el
+  # promedio con su nota de fiabilidad.
   #
-  # Se pintan a los mismos 770 px que las demás, así que se ven del mismo tamaño
-  # y de la misma escala de letra; lo que no tienen es margen de píxeles para una
-  # pantalla al 125 % o para un teléfono de densidad triple.
-  @{ nombre = 'p-checkin'; archivo = 'pc\revisiones.png'; escala = 0.9948
-     bandas = @(, @(8, 8, 774, 450)) }
+  # Empieza en 292 porque por encima cruza la barra de búsqueda flotante, que en
+  # esta captura cae sobre los cuatro indicadores de arriba. Aquí sí hay dónde
+  # cortar —la tarjeta del check-in empieza limpia justo debajo— así que se
+  # aprovecha entera en vez de partirla.
+  @{ nombre = 'p-checkin'; archivo = 'pc\revisiones2x.png'; dpr = 2; escala = 0.6051; techo = 1920
+     bandas = @(, @(220, 292, 2545, 985)) }
 
-  # La ficha del cliente, ENTERA y por debajo del nombre.
+  # La ficha del cliente, y ahora ENTERA: los cuatro indicadores, las dos
+  # gráficas con sus ejes y la estructura de la semana.
   #
-  # ── Y por qué no sale de la captura de DPR 2 ──────────────────────────────
-  # Porque esa la cruza la barra de búsqueda flotante justo por encima de las
-  # gráficas, y ahí no hay recorte que salve: cualquier corte por encima de la
-  # barra parte las dos tarjetas por la mitad, que es exactamente lo que se veía
-  # —una imagen recortada—. Con la captura de siempre la ficha sale completa:
-  # los cuatro indicadores arriba y las dos gráficas debajo, con sus ejes y sus
-  # leyendas.
+  # Esta captura no la cruza nada —se tomó con la ventana más alta que la
+  # página, que es lo que manda la barra flotante al pie donde le toca— así que
+  # por fin sale completa y a densidad doble. La anterior había que cortarla por
+  # encima de la barra y partía las dos gráficas por la mitad.
   #
-  # Lo que sí se hereda de la otra es DÓNDE empieza: por debajo de «Javier
-  # López», porque un nombre propio en grande en mitad de una portada convierte
-  # una herramienta en la ficha de una persona concreta.
-  #
-  # Para pasarla a densidad doble hace falta volver a tomarla con la ventana más
-  # ALTA que la página, que es lo que manda la barra flotante al pie donde le
-  # toca en vez de a mitad del contenido.
-  @{ nombre = 'p-ficha'; archivo = 'pc\ficha.png'; escala = 0.603
-     bandas = @(, @(60, 66, 1277, 432)) }
+  # Empieza por debajo de «Javier López»: un nombre propio en grande en mitad de
+  # una portada convierte una herramienta en la ficha de una persona concreta.
+  @{ nombre = 'p-ficha'; archivo = 'pc\ficha2x.png'; dpr = 2; escala = 0.6044; techo = 1920
+     bandas = @(, @(244, 148, 2548, 1210)) }
 
   # ── LOS MÓVILES DEL CLIENTE ───────────────────────────────────────────────
   # SIN la cabecera de la aplicación. Aquí iba —el logotipo, la lupa y el avatar,

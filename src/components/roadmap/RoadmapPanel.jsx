@@ -16,7 +16,7 @@ import {
 } from '@/domain/roadmap';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt } from '@/lib/num';
-import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { EmptyState, Field, Notice, Panel, SectionTitle, Switch } from '@/components/ui/primitives';
 
 /**
  * El roadmap del cliente: el plan por tramos, con el de hoy destacado.
@@ -395,25 +395,23 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
 
             {/*
               La fase abierta es una decisión, no un campo en blanco: «todavía no
-              sé cuánto va a durar». Como casilla lo dice; como fecha vacía en un
+              sé cuánto va a durar». Dicho así lo dice; como fecha vacía en un
               calendario parecía que faltaba rellenar algo.
-            */}
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={abierta}
-                onChange={(e) =>
-                  set({ endsOn: e.target.checked ? null : endFromWeeks(value.startsOn, 12) })
-                }
-              />
-              Todavía no sé cuánto va a durar
-            </label>
 
-            <span className="t-xs t-tertiary">
-              {abierta
-                ? 'La fase se queda abierta hasta que le pongas un final.'
-                : `Termina el ${shortDate(value.endsOn)}.`}
-            </span>
+              Interruptor y no casilla: no es algo que se marque dentro de un
+              formulario que luego se envía, es el estado en el que queda la fase.
+              La consecuencia va en la pista, que es donde se estaba leyendo ya.
+            */}
+            <Switch
+              label="Todavía no sé cuánto va a durar"
+              hint={
+                abierta
+                  ? 'La fase se queda abierta hasta que le pongas un final.'
+                  : `Termina el ${shortDate(value.endsOn)}.`
+              }
+              checked={abierta}
+              onChange={(on) => set({ endsOn: on ? null : endFromWeeks(value.startsOn, 12) })}
+            />
           </div>
         </Field>
       )}

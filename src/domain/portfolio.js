@@ -30,6 +30,7 @@
  */
 
 import { clientIntake } from './intake';
+import { feeLabel, paymentState } from './billing';
 import { currentCheckInPeriod } from './calendar';
 import { clientProtocol, requiredBlocks } from './protocol';
 import { emptyTrainingSummary } from './sessions';
@@ -54,11 +55,16 @@ import { readingHeadline, weeklyReading } from './reading';
  */
 export const isArchived = (client) => client?.status === 'archived';
 
-/** Umbrales, en un solo sitio para poder discutirlos sin buscarlos. */
+/**
+ * Umbrales, en un solo sitio para poder discutirlos sin buscarlos.
+ *
+ * El de la renovación no está aquí: es `PAYMENT_SOON_DAYS` en `domain/billing.js`,
+ * junto al resto del criterio de cobro, porque lo usan también la cabecera del
+ * cliente y la bandeja de «Hoy».
+ */
 export const THRESHOLDS = {
   noTraining: 7, // días sin registrar un entreno
   noWeight: 10, // días sin registrar un peso
-  paymentSoon: 5, // días de antelación con los que avisar de una renovación
   noPhotos: 45, // días sin subir fotos de progreso
 };
 
@@ -233,30 +239,27 @@ export const clientStatus = (
     con eso, un aviso que se aprende a ignorar: cuando de verdad vence, ya no
     se distingue del ruido de las cuatro semanas anteriores.
 
-    Ahora solo se reclama lo que YA toca:
+    ── Por qué el criterio ya no se calcula aquí ──────────────────────────────
+    Porque esta regla la necesitan además la cabecera del cliente y la bandeja de
+    «Hoy», y cada una la tenía escrita a su manera: la cartera miraba la fecha, la
+    cabecera solo el estado —y por eso seguía saliendo en rojo el día 1— y la
+    bandeja mezclaba las dos. Tres respuestas a la misma pregunta.
 
-      · vencido            → la fecha pasó. Eso sí es una tarea.
-      · sin fecha          → no se puede saber cuándo toca, y eso es un dato que
-                             falta en la ficha, no una deuda del cliente.
-      · fecha en el futuro → no es nada. A lo sumo, «renueva en 3 días» cuando
-                             está a la vuelta de la esquina, que es un aviso de
-                             gravedad baja y no una tarea.
+    Vive en `domain/billing.js`. Aquí solo se traduce a alertas.
   */
-  const daysToPayment = client.nextPaymentDate ? daysBetween(today, client.nextPaymentDate) : null;
-  if (client.paymentStatus !== 'paid') {
-    if (daysToPayment !== null && daysToPayment < 0) {
-      add('payment_overdue', 'alta', `Pago vencido hace ${Math.abs(daysToPayment)} días`, client.nextPaymentDate);
-    } else if (daysToPayment === null) {
-      add(
-        'payment_no_date',
-        'baja',
-        'Sin fecha de renovación',
-        'No se sabe cuándo le toca renovar, así que no se puede avisar a tiempo.'
-      );
-    }
-  } else if (daysToPayment !== null && daysToPayment >= 0 && daysToPayment <= THRESHOLDS.paymentSoon) {
-    add('payment_soon', 'baja',
-      daysToPayment === 0 ? 'Renueva hoy' : `Renueva en ${daysToPayment} días`, client.nextPaymentDate);
+  const pago = paymentState(client, today);
+  const daysToPayment = pago.days;
+
+  if (pago.state === 'overdue') {
+    add('payment_overdue', 'alta', pago.label, client.nextPaymentDate);
+  } else if (pago.state === 'due') {
+    /* Vence HOY y sin cobrar. Es tarea del día, no del mes que viene, así que ya
+       no se disfraza de «renueva hoy» junto a los avisos de cortesía. */
+    add('payment_due', 'media', pago.label, client.nextPaymentDate);
+  } else if (pago.state === 'no_date' && client.paymentStatus !== 'paid') {
+    add('payment_no_date', 'baja', 'Sin fecha de renovación', pago.detail);
+  } else if (pago.state === 'soon') {
+    add('payment_soon', 'baja', pago.label, client.nextPaymentDate);
   }
 
   /*
@@ -295,6 +298,10 @@ export const clientStatus = (
         reviewedAt: submitted.reviewedAt,
         pending: Boolean(submitted.submittedAt) && !submitted.reviewedAt,
         id: submitted.id,
+        /* Lo que contestó al cuestionario de la semana (migración 0060). Viaja
+           con la fila porque es lo que la cola de revisiones enseña para que se
+           note, sin entrar, que esta semana trae algo nuevo. */
+        answers: submitted.answers || null,
       }
     : {
         exact: false,
@@ -302,6 +309,7 @@ export const clientStatus = (
         reviewedAt: null,
         pending: checkIn.complete && hasWeekPhoto,
         id: null,
+        answers: null,
       };
 
   if (review.pending && review.exact) {
@@ -559,6 +567,19 @@ const RISK_ALERTS = new Set([
   'payment_overdue',
 ]);
 
+/**
+ * Las alertas que son un cobro que hay que hacer HOY.
+ *
+ * En un solo sitio porque la lista se lee en tres —la bandeja, el filtro y las
+ * cifras de cabecera— y ya divergió una vez: dos de ellas seguían buscando un
+ * `payment_pending` que dejó de emitirse, así que el filtro «Cobros» enseñaba
+ * menos gente de la que la tarjeta contaba.
+ *
+ * «Renueva en 3 días» NO entra: es información, no trabajo.
+ */
+const COBRO_ALERTS = new Set(['payment_overdue', 'payment_due']);
+const esCobro = (row) => row.alerts.some((a) => COBRO_ALERTS.has(a.id));
+
 /** Columna de un cliente. La primera que encaja gana. */
 export const columnFor = (row) => {
   if (row.review?.pending) return 'to_review';
@@ -667,12 +688,17 @@ export const INBOX_TASKS = [
   {
     id: 'payment',
     label: 'Cobrar',
-    hint: 'Pago vencido o pendiente',
+    hint: 'Les ha vencido el cobro o les vence hoy',
     tone: 'warn',
-    match: (row) =>
-      row.alerts.some((a) => a.id === 'payment_overdue' || a.id === 'payment_pending'),
-    why: (row) =>
-      row.alerts.find((a) => a.id === 'payment_overdue' || a.id === 'payment_pending')?.label || '',
+    match: esCobro,
+    /* La tarifa, si está anotada: «Pago vencido hace 3 días · 60 € / mes». Sin
+       ella la tarea dice que hay que cobrar pero no cuánto, que es la mitad de
+       lo que hace falta para hacerlo. */
+    why: (row) => {
+      const alerta = row.alerts.find((a) => COBRO_ALERTS.has(a.id));
+      const tarifa = feeLabel(row.client);
+      return [alerta?.label, tarifa].filter(Boolean).join(' · ');
+    },
   },
   {
     id: 'intake',
@@ -725,11 +751,7 @@ export const PORTFOLIO_FILTERS = [
     test: (r) => r.alerts.some((a) => a.id === 'stale_training' || a.id === 'never_trained'),
   },
   { id: 'checkin', label: 'Check-in pendiente', test: (r) => !r.checkIn.complete },
-  {
-    id: 'payment',
-    label: 'Cobros',
-    test: (r) => r.alerts.some((a) => a.id === 'payment_overdue' || a.id === 'payment_pending'),
-  },
+  { id: 'payment', label: 'Cobros', test: esCobro },
   // «Al día» es no tener nada urgente, no tener cero avisos: un «renueva en 3
   // días» es información, no una tarea. Así atención + al día = la cartera
   // entera, y los dos números se pueden leer juntos.

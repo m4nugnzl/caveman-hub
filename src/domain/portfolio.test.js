@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 import {
   BOARD_COLUMNS,
   INBOX_TASKS,
+  PORTFOLIO_FILTERS,
   buildPortfolio,
   clientStatus,
   isArchived,
   reviewState,
   portfolioBoard,
   portfolioInbox,
+  portfolioSummary,
   reviewQueue,
 } from './portfolio';
 
@@ -253,6 +255,67 @@ describe('el cobro solo se reclama cuando toca', () => {
     );
     const aviso = rows[0].alerts.find((a) => a.id === 'payment_no_date');
     expect(aviso.severity).toBe('baja');
+  });
+
+  /* Lo que vence HOY y sin cobrar es tarea del día. Antes se colaba entre los
+     avisos de cortesía —«renueva hoy», gravedad baja, al lado de «renueva en 3
+     días»— y no llegaba a la bandeja. */
+  it('lo que vence hoy es una tarea, no un aviso de cortesía', () => {
+    const rows = buildPortfolio(
+      { clients: [client({ paymentStatus: 'pending', nextPaymentDate: '2026-08-11' })] },
+      '2026-08-11'
+    );
+    const alerta = rows[0].alerts.find((a) => a.id === 'payment_due');
+    expect(alerta.severity).toBe('media');
+    expect(portfolioInbox(rows).tasks.map((t) => t.id)).toContain('payment');
+  });
+
+  /* La tarea dice CUÁNTO. Cobrar sin saber el importe obliga a abrir la ficha,
+     que es justo lo que la bandeja existe para evitar. */
+  it('la tarea de cobrar lleva la tarifa cuando está anotada', () => {
+    const rows = buildPortfolio(
+      {
+        clients: [
+          client({
+            paymentStatus: 'pending',
+            nextPaymentDate: '2026-08-01',
+            feeAmount: 60,
+            billingPeriod: 'monthly',
+          }),
+        ],
+      },
+      '2026-08-11'
+    );
+    const tarea = portfolioInbox(rows).tasks.find((t) => t.id === 'payment');
+    expect(tarea.rows[0].why).toContain('60 € / mes');
+    expect(tarea.rows[0].why).toContain('vencido');
+  });
+
+  /*
+    El filtro «Cobros» y la tarea tienen que coincidir SIEMPRE. Se separaron una
+    vez —los dos buscaban un `payment_pending` que ya no emitía nadie— y una
+    tarjeta que dice «1» y al pulsarla enseña otra cosa destruye la confianza en
+    la pantalla entera.
+  */
+  it('el filtro de cobros y la tarea cuentan lo mismo', () => {
+    const rows = buildPortfolio(
+      {
+        clients: [
+          client({ id: 'a', paymentStatus: 'pending', nextPaymentDate: '2026-08-01' }),
+          client({ id: 'b', paymentStatus: 'pending', nextPaymentDate: '2026-08-11' }),
+          client({ id: 'c', paymentStatus: 'pending', nextPaymentDate: '2026-09-30' }),
+          client({ id: 'd', paymentStatus: 'paid', nextPaymentDate: '2026-08-13' }),
+        ],
+      },
+      '2026-08-11'
+    );
+
+    const tarea = portfolioInbox(rows).tasks.find((t) => t.id === 'payment');
+    const filtro = PORTFOLIO_FILTERS.find((f) => f.id === 'payment');
+
+    expect(tarea.rows.length).toBe(2);
+    expect(rows.filter(filtro.test).length).toBe(2);
+    expect(portfolioSummary(rows).paymentIssues).toBe(2);
   });
 });
 

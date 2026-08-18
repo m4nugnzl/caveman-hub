@@ -3,6 +3,7 @@ import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from '
 import { ArrowLeft, UserPlus } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { feeLabel, paymentState } from '@/domain/billing';
 import { dayMonthMaybeYear } from '@/lib/dates';
 import {
   COACH_CLIENT,
@@ -35,6 +36,42 @@ import { GettingStarted } from './GettingStarted';
  * El cliente activo lo manda la URL. El contexto lo sincroniza desde la ruta, no al
  * revés: una sola fuente de verdad, la de arriba.
  */
+/**
+ * El estado del cobro, en la cabecera de las siete secciones del cliente.
+ *
+ * ══ Por qué ya no hay un rojo por defecto ═══════════════════════════════════
+ *
+ * Decía «Pago pendiente» en rojo siempre que `payment_status` no fuera `paid`, y
+ * ese campo se pone en pendiente en cuanto empieza un ciclo nuevo. O sea: quien
+ * renueva el día 30 llevaba esta chapa en rojo desde el día 1, en las siete
+ * pantallas, veintinueve días seguidos.
+ *
+ * Un aviso que sale casi siempre no avisa de nada: se aprende a ignorarlo, y el
+ * día que de verdad vence no se distingue de las cuatro semanas anteriores.
+ *
+ * Ahora el criterio es el de `domain/billing.js`, el mismo que usan la cartera y
+ * la bandeja de «Hoy». Solo lo vencido va en rojo; una renovación futura es una
+ * chapa neutra que dice CUÁNDO, que es lo que se quería saber al mirar ahí; y sin
+ * fecha no se dice nada, porque no hay nada que decir.
+ */
+const ChapaDeCobro = ({ client }) => {
+  const pago = paymentState(client);
+  const tarifa = feeLabel(client);
+
+  /* Sin fecha la chapa desaparece. Poner «sin fecha de cobro» en la cabecera de
+     las siete secciones sería reprocharle al entrenador un campo vacío cada vez
+     que abre a un cliente; ese aviso vive en la ficha, que es donde se arregla. */
+  if (pago.state === 'no_date' && !tarifa) return null;
+
+  const clase = pago.tone === 'bad' ? 'badge badge-bad' : pago.tone === 'warn' ? 'badge badge-warn' : 'badge';
+
+  return (
+    <span className={clase} title={pago.detail}>
+      {pago.state === 'no_date' ? tarifa : [pago.label, tarifa].filter(Boolean).join(' · ')}
+    </span>
+  );
+};
+
 export const CoachLayout = () => {
   const { clients, loading, selectedClientId, setSelectedClientId, activeClient } = useApp();
   const { clientId } = useParams();
@@ -129,11 +166,7 @@ export const CoachLayout = () => {
             />
 
             <div className="row gap-2 wrap">
-              <span
-                className={`badge ${activeClient.paymentStatus === 'paid' ? 'badge-ok' : 'badge-bad'}`}
-              >
-                {activeClient.paymentStatus === 'paid' ? 'Pago al día' : 'Pago pendiente'}
-              </span>
+              <ChapaDeCobro client={activeClient} />
               {activeClient.startDate && (
                 <span className="badge">Desde {dayMonthMaybeYear(activeClient.startDate)}</span>
               )}

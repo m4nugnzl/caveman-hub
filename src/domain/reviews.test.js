@@ -32,6 +32,23 @@ describe('la foto del plan', () => {
   it('un plan vacío no deja foto con huecos', () => {
     expect(planSnapshot({})).toEqual({});
   });
+
+  /* El cardio entra en la foto igual que los pasos. Sin esto, cambiárselo en una
+     revisión no aparecería en el histórico y este diría «sin cambios» delante de
+     un cambio que sí se hizo. */
+  it('guarda el cardio, que es texto', () => {
+    const foto = planSnapshot({ nutrition: { stepsGoal: '10000', cardioGoal: '2 días 30/30' } });
+    expect(foto).toMatchObject({ steps: 10000, cardio: '2 días 30/30' });
+  });
+
+  it('recorta un cardio largo para que la foto quepa en su tope', () => {
+    const foto = planSnapshot({ nutrition: { cardioGoal: 'x'.repeat(400) } });
+    expect(foto.cardio).toHaveLength(120);
+  });
+
+  it('sin cardio no deja la clave puesta', () => {
+    expect(planSnapshot({ nutrition: { cardioGoal: '   ' } })).toEqual({});
+  });
 });
 
 describe('qué cambió entre dos revisiones', () => {
@@ -50,6 +67,21 @@ describe('qué cambió entre dos revisiones', () => {
 
   it('sin foto anterior no se compara nada', () => {
     expect(snapshotChanges(null, { kcals: 2400 })).toEqual([]);
+  });
+
+  /*
+    El cardio cambia como cualquier otro campo, pero NO tiene dirección: «2 días»
+    y «3 días de 15 min» no suben ni bajan. `up: null` es lo que impide que la
+    pantalla lo pinte como una bajada —que es lo que haría con `false`—.
+  */
+  it('el cardio cambia sin flecha de subida o bajada', () => {
+    const cambios = snapshotChanges({ cardio: '2 días 30/30' }, { cardio: '3 días 15 min' });
+    expect(cambios).toHaveLength(1);
+    expect(cambios[0]).toMatchObject({ key: 'cardio', text: true, up: null });
+  });
+
+  it('un cardio que no se ha tocado no genera línea', () => {
+    expect(snapshotChanges({ cardio: '2 días' }, { cardio: '2 días' })).toEqual([]);
   });
 });
 

@@ -18,6 +18,9 @@ import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
+import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '@/domain/billing';
+import { shortDate } from '@/lib/dates';
+import { toNum } from '@/lib/num';
 import {
   clientIntake,
   intakeProgress,
@@ -31,7 +34,15 @@ import {
   stepFile,
   stepLink,
 } from '@/domain/intake';
-import { Field, Notice, PageHead, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
+import {
+  Field,
+  Notice,
+  NumberInput,
+  PageHead,
+  Panel,
+  SectionTitle,
+  SegmentedControl,
+} from '@/components/ui/primitives';
 import { ClientDataPanel } from './ClientDataPanel';
 import { inviteMessage, useInvite } from './useInvite';
 
@@ -226,24 +237,69 @@ const Datos = ({ client, onUpdate }) => {
  * —que es casi todo el mundo al empezar— necesita poder ponerla; quien sí, verá
  * que la próxima sincronización manda sobre lo que escriba aquí, y se dice.
  */
-const Cobro = ({ client, onUpdate }) => {
+const Cobro = ({ client, onUpdate, onMarkPaid }) => {
   const alDia = client.paymentStatus === 'paid';
+  const pago = paymentState(client);
+  const periodo = billingPeriod(client.billingPeriod);
+  const siguiente = nextPaymentAfter(client.nextPaymentDate, client.billingPeriod);
 
   return (
     <Panel className="col gap-4">
       <SectionTitle icon={CreditCard}>Cobro</SectionTitle>
 
-      <div className="row between wrap gap-4">
-        <Field label="Estado">
-          <SegmentedControl
-            label="Estado del cobro"
-            value={alDia ? 'paid' : 'pending'}
-            onChange={(value) => onUpdate({ paymentStatus: value })}
-            options={[
-              { id: 'paid', label: 'Al día' },
-              { id: 'pending', label: 'Pendiente' },
-            ]}
-          />
+      {/*
+        ══ Cuánto, antes que cuándo ═══════════════════════════════════════════
+
+        La ficha sabía la fecha de renovación y el nombre del plan, pero no el
+        precio: la única pregunta económica que se hace un entrenador —«¿cuánto
+        me tiene que pagar?»— no tenía respuesta aquí, y acababa en una hoja de
+        cálculo aparte que se desincroniza a la tercera semana.
+
+        La periodicidad no es un adorno del importe: es lo que convierte «marcar
+        como pagado» en un gesto completo, porque adelanta la fecha sola. Sin
+        ella hay que acordarse de moverla a mano, y la ficha del mes que viene
+        miente.
+
+        ── Los cuatro campos en UNA fila que envuelve ─────────────────────────
+        Y no en dos filas de dos. Eran dos porque se añadieron en dos momentos, y
+        el resultado es que los cuatro controles del mismo bloque se alineaban de
+        dos maneras distintas —la de arriba por el borde inferior, la de abajo
+        por el centro— con las etiquetas a cuatro alturas. En una sola fila la
+        alineación es una, y al estrecharse la pantalla envuelven donde quepan en
+        vez de saltar de dos en dos.
+      */}
+      <div className="row-end wrap gap-4">
+        <Field label="Importe" hint="Lo que te paga cada ciclo" className="grow">
+          {(props) => (
+            <div className="input-suffix">
+              <NumberInput
+                {...props}
+                center={false}
+                placeholder="60"
+                value={client.feeAmount ?? ''}
+                onChange={(v) => onUpdate({ feeAmount: toNum(v) })}
+              />
+              <span aria-hidden="true">€</span>
+            </div>
+          )}
+        </Field>
+
+        <Field label="Cada cuánto" className="grow">
+          {(props) => (
+            <select
+              {...props}
+              className="select"
+              value={client.billingPeriod || ''}
+              onChange={(e) => onUpdate({ billingPeriod: e.target.value || null })}
+            >
+              <option value="">Sin definir</option>
+              {BILLING_PERIODS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          )}
         </Field>
 
         <Field label="Próximo cobro" className="grow">
@@ -257,13 +313,42 @@ const Cobro = ({ client, onUpdate }) => {
             />
           )}
         </Field>
+
+        <Field label="Estado">
+          <SegmentedControl
+            label="Estado del cobro"
+            value={alDia ? 'paid' : 'pending'}
+            /*
+              Marcar «Al día» adelanta además la fecha al ciclo siguiente, que es
+              lo que acaba de pasar de verdad. Volver a «Pendiente» NO la retrasa:
+              deshacer una fecha adivinando cuál era la anterior es cómo se
+              pierde el dato bueno.
+            */
+            onChange={(value) => (value === 'paid' ? onMarkPaid() : onUpdate({ paymentStatus: 'pending' }))}
+            options={[
+              { id: 'paid', label: 'Al día' },
+              { id: 'pending', label: 'Pendiente' },
+            ]}
+          />
+        </Field>
       </div>
+
+      {/* En qué punto está, dicho con las mismas palabras que la cabecera y la
+          bandeja de «Hoy». Si aquí dijera otra cosa, no habría forma de saber
+          cuál de las dos es la buena. */}
+      {pago.state !== 'no_date' && (
+        <Notice tone={pago.tone === 'bad' ? 'error' : pago.tone === 'warn' ? 'warn' : 'info'}>
+          {pago.label}. {pago.detail}
+          {siguiente && pago.state !== 'overdue' && ` Al cobrarlo pasará al ${shortDate(siguiente)}.`}
+        </Notice>
+      )}
 
       <p className="t-xs t-tertiary">
         {client.plan
           ? `Su plan es «${client.plan}». Se cambia arriba, en Datos.`
-          : 'No tiene plan escrito. Ponlo arriba, en Datos, para saber qué le cobras.'}{' '}
-        Si conectas Notion o Stripe, la sincronización actualiza esto sola.
+          : 'No tiene plan escrito. Ponlo arriba, en Datos, para saber qué le vendiste.'}{' '}
+        {!periodo && 'Sin periodicidad, la fecha del próximo cobro la llevas tú. '}
+        Si conectas Notion o Stripe, la sincronización actualiza el estado y la fecha sola.
       </p>
     </Panel>
   );
@@ -401,7 +486,11 @@ const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, on
   return (
     <div className="card-inset col gap-2">
       <div className="row between wrap gap-2">
-        <label className="row gap-2 grow" style={{ minWidth: 0, cursor: 'pointer' }}>
+        {/* Sigue siendo una casilla, y a propósito: un paso del alta es una
+            TAREA que se marca hecha, no una opción que se incluye ni un ajuste
+            que se enciende. Lo que cambia es que el cuadro ya no lo pinta el
+            sistema operativo. Ver `.checkbox-row` en el CSS. */}
+        <label className="checkbox-row grow" style={{ minWidth: 0, alignItems: 'flex-start' }}>
           <input type="checkbox" checked={hecho} onChange={() => onToggle(!hecho)} />
           <span className="col gap-1" style={{ minWidth: 0 }}>
             <span className="t-sm" style={{ fontWeight: 600 }}>
@@ -683,7 +772,7 @@ const Alta = ({ client, onUpdate, onPreferences }) => {
 };
 
 export const ClientFile = () => {
-  const { activeClient, updateClient, updateClientPreferences } = useApp();
+  const { activeClient, updateClient, updateClientPreferences, markClientPaid } = useApp();
 
   /* El marco ya redirige cuando el id no existe; esto solo cubre el instante
      entre montar la ruta y tener el cliente cargado. */
@@ -710,7 +799,11 @@ export const ClientFile = () => {
 
       {/* El cobro va justo detrás de los datos: las dos cosas son «quién es y qué
           me paga», y hasta ahora la segunda no tenía dónde vivir. */}
-      <Cobro client={activeClient} onUpdate={(fields) => updateClient(activeClient.id, fields)} />
+      <Cobro
+        client={activeClient}
+        onUpdate={(fields) => updateClient(activeClient.id, fields)}
+        onMarkPaid={() => markClientPaid(activeClient.id)}
+      />
 
       <Panel className="col gap-3">
         <SectionTitle icon={Send}>Acceso y baja</SectionTitle>

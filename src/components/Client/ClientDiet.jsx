@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Sparkles, Utensils } from 'lucide-react';
+import { Footprints, HeartPulse, Sparkles, Utensils } from 'lucide-react';
 
 import { dietNotes, mealsForVariant } from '@/domain/nutrition';
 import { Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
-import { StepsGoalCard } from '@/components/nutrition/StepsGoalCard';
+import { GoalCard } from '@/components/nutrition/GoalCard';
 
 const VARIANT_OPTIONS = [
   { id: 'training', label: 'Días de entreno' },
@@ -60,10 +60,12 @@ export const ClientDiet = ({ plan }) => {
         title={plan.hasDayVariants ? `Mi objetivo · ${variant === 'rest' ? 'descanso' : 'entreno'}` : 'Mi objetivo diario'}
       />
 
-      {/* Los pasos no cambian entre las dos dietas, así que van fuera de la
-          tarjeta de objetivo y no se mueven al cambiar de día. Sin objetivo
-          puesto, esta tarjeta no aparece. */}
-      <StepsGoalCard stepsGoal={plan.stepsGoal} />
+      {/* La actividad no cambia entre las dos dietas, así que va fuera de la
+          tarjeta de objetivo y no se mueve al cambiar de día. Sin objetivo
+          puesto, la tarjeta no aparece: un hueco vacío solo le haría preguntarse
+          si tiene que hacer algo. */}
+      <GoalCard icon={Footprints} label="Pasos diarios" value={plan.stepsGoal} unit="pasos" numeric />
+      <GoalCard icon={HeartPulse} label="Cardio de alta intensidad" value={plan.cardioGoal} />
 
       {plan.type === 'closed' && (
         <Panel className="col gap-4">

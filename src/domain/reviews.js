@@ -58,6 +58,10 @@ export const planSnapshot = ({ nutrition, program } = {}) => {
     carbs: toNum(nutrition?.carbsGrams),
     fats: toNum(nutrition?.fatsGrams),
     steps: toNum(nutrition?.stepsGoal),
+    /* El cardio es texto, así que se guarda tal cual y no pasa por `toNum`.
+       Recortado: la foto tiene un tope de 8 KB y una prescripción de tres
+       párrafos se comería el sitio de las semanas del programa. */
+    cardio: String(nutrition?.cardioGoal || '').trim().slice(0, 120) || null,
     weeks: (program?.microcycles || []).length || null,
   };
 
@@ -132,13 +136,21 @@ export const planSnapshot = ({ nutrition, program } = {}) => {
   return Object.fromEntries(Object.entries(foto).filter(([, v]) => v !== null && v !== undefined));
 };
 
-/** Lo que se compara, en el orden en que se lee. */
+/**
+ * Lo que se compara, en el orden en que se lee.
+ *
+ * `text: true` marca los que no son cifras. La diferencia importa en la pantalla:
+ * un cambio numérico tiene dirección —sube o baja, y se pinta con su flecha y su
+ * color— y «2 días de HIIT → 3 días de 15 min» no la tiene. Inventarle una flecha
+ * a un texto es afirmar algo que nadie ha calculado.
+ */
 const CAMPOS = [
   { key: 'kcals', label: 'Calorías', unit: ' kcal' },
   { key: 'protein', label: 'Proteína', unit: ' g' },
   { key: 'carbs', label: 'Hidratos', unit: ' g' },
   { key: 'fats', label: 'Grasas', unit: ' g' },
   { key: 'steps', label: 'Pasos', unit: '' },
+  { key: 'cardio', label: 'Cardio', unit: '', text: true },
   { key: 'weeks', label: 'Semanas programadas', unit: '' },
 ];
 
@@ -156,16 +168,20 @@ export const snapshotChanges = (antes, ahora) => {
     const a = antes[key];
     const b = ahora[key];
     return a !== null && a !== undefined && b !== null && b !== undefined && a !== b;
-  }).map(({ key, label, unit }) => ({
+  }).map(({ key, label, unit, text }) => ({
     key,
     label,
     unit,
+    text: Boolean(text),
     from: antes[key],
     to: ahora[key],
     /* La dirección se calcula aquí y no en la pantalla: es lo que decide el color
        y la flecha, y dos pantallas calculándolo por su cuenta acabarían pintando
-       una subida de calorías de dos colores distintos. */
-    up: ahora[key] > antes[key],
+       una subida de calorías de dos colores distintos.
+
+       `null` en los campos de texto: no es que no haya subido, es que la pregunta
+       no aplica. Con `false` la pantalla lo pintaría como una bajada. */
+    up: text ? null : ahora[key] > antes[key],
   }));
 };
 

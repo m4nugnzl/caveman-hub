@@ -26,6 +26,18 @@ export const mapClientFromDb = (row) => ({
   postureReviewed: row.posture_reviewed,
   paymentStatus: row.payment_status,
   nextPaymentDate: row.next_payment_date,
+  /*
+    Cuánto paga y cada cuánto (migración 0058). `plan` es el NOMBRE de lo que le
+    vendiste —texto libre— y esto es su precio: dos cosas distintas que antes
+    tenían que caber en la misma casilla.
+
+    Postgres devuelve `numeric` como cadena para no perder precisión, así que se
+    convierte aquí. Sin este Number, comparar la tarifa con un número —que es lo
+    que hace `feeLabel`— daría resultados absurdos. Es el mismo cuidado que ya se
+    tiene con `rate_pct` más abajo.
+  */
+  feeAmount: row.fee_amount === null || row.fee_amount === undefined ? null : Number(row.fee_amount),
+  billingPeriod: row.billing_period ?? null,
   youtubeExplanationUrl: row.youtube_explanation_url,
   avatar: row.avatar,
   startDate: row.start_date,
@@ -53,6 +65,8 @@ const CLIENT_COLUMNS = {
   postureReviewed: 'posture_reviewed',
   paymentStatus: 'payment_status',
   nextPaymentDate: 'next_payment_date',
+  feeAmount: 'fee_amount',
+  billingPeriod: 'billing_period',
   youtubeExplanationUrl: 'youtube_explanation_url',
   avatar: 'avatar',
   startDate: 'start_date',
@@ -97,6 +111,13 @@ export const mapCheckInFromDb = (row) => ({
   /* La foto del plan al cerrar la revisión (migración 0042). `null` en las
      anteriores: entonces no se guardaba, y no se puede reconstruir. */
   snapshot: row.snapshot || null,
+  /*
+    Lo que contestó al cuestionario de la semana (migración 0060): un mapa de
+    `id de pregunta → texto`, con la misma forma que `Session.feedback`. `null`
+    —y no `{}`— en los check-ins anteriores: entonces no se preguntaba nada, y un
+    objeto vacío se leería como «se le preguntó y no contestó», que es otra cosa.
+  */
+  answers: row.answers || null,
 });
 
 export const mapEventFromDb = (row) => ({
@@ -293,6 +314,10 @@ export const mapNutritionFromDb = (row) => ({
   carbsGrams: row.carbs_grams,
   fatsGrams: row.fats_grams,
   stepsGoal: row.steps_goal,
+  /* El cardio de alta intensidad (migración 0059). Texto libre igual que los
+     pasos, y por el mismo motivo: se prescribe de mil maneras y ninguna cabe en
+     dos números. */
+  cardioGoal: row.cardio_goal,
   habitsNotes: row.habits_notes || [],
   hasDayVariants: row.has_day_variants || false,
   restTargets: readRestTargets(row.meals),
@@ -309,6 +334,7 @@ export const mapNutritionToDb = (clientId, data) => ({
   carbs_grams: data.carbsGrams,
   fats_grams: data.fatsGrams,
   steps_goal: data.stepsGoal,
+  cardio_goal: data.cardioGoal,
   habits_notes: data.habitsNotes,
   has_day_variants: data.hasDayVariants,
   meals: data.restTargets ? { restTargets: data.restTargets } : [],

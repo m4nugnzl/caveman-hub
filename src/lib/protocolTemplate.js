@@ -72,12 +72,30 @@ export { defaultProtocol };
 /**
  * ¿El protocolo de este cliente coincide con la plantilla?
  *
- * Se comparan las CUATRO partes. Dejarse el check-in fuera haría que «aplicar a
- * todos» apareciera deshabilitado con la única diferencia siendo justo eso, y el
- * entrenador no tendría forma de propagar que ahora exige perímetros.
+ * ══ Se comparan TODAS las partes, y hay que acordarse al añadir una ═════════
+ *
+ * De esta función cuelga el botón «Aplicar a todos»: si dice que todo coincide,
+ * el botón se apaga. Así que una parte que se deje fuera no produce una
+ * comparación un poco peor — produce **una pantalla que afirma que tus clientes
+ * ya tienen algo que no tienen**, y sin forma de dárselo.
+ *
+ * Ya ha pasado dos veces. La primera con los bloques del check-in: cambiar «pide
+ * perímetros» dejaba el botón apagado. La segunda con el cuestionario del
+ * check-in, que se añadió al protocolo y no aquí: elegir las preguntas de la
+ * semana no llegaba a ningún cliente, y el paso no aparecía nunca en su revisión.
+ *
+ * Por eso ahora se recorre la lista de claves en vez de encadenar comparaciones
+ * a mano: `protocol.test.js` comprueba que esta lista cubre el protocolo entero,
+ * así que añadir una clave sin tocar esto rompe una prueba en vez de una pantalla.
  */
+
+/** Las listas ordenadas del protocolo. El orden cuenta: es el de la pantalla. */
+const LISTAS = ['modules', 'questions', 'checkinQuestions'];
+
 export const matchesTemplate = (template, protocol) =>
-  template.modules.join() === protocol.modules.join() &&
-  template.questions.join() === protocol.questions.join() &&
+  LISTAS.every((k) => (template[k] || []).join() === (protocol[k] || []).join()) &&
   JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
   CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id));
+
+/** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
+export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin'];

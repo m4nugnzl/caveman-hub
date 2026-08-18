@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react';
 
 /**
  * Primitivas de presentación compartidas.
@@ -212,6 +212,119 @@ export const TextInput = ({ value, onChange, className = '', ...rest }) => (
     onChange={(e) => onChange(e.target.value)}
     {...rest}
   />
+);
+
+/* ==========================================================================
+   Elegir cosas: la tarjeta y el interruptor
+   --------------------------------------------------------------------------
+   ══ Qué había antes ═════════════════════════════════════════════════════════
+
+   Un `<input type="checkbox">` con `accent-color` y una cadena de texto al lado,
+   repetido en diez sitios bajo la misma clase (`.checkbox-row`). Debajo de esa
+   única forma convivían tres gestos que no se parecen:
+
+     · ELEGIR QUÉ INCLUIR — «copiar entrenamiento, dieta y calentamiento», «qué
+       módulos existen para este cliente». Opciones con nombre, explicación y
+       consecuencias: una de ellas sustituye doce semanas de programa, y estaba
+       representada por un tic gris de 16 px.
+     · ENCENDER UNA OPCIÓN — «dos dietas distintas», «fase abierta». Un ajuste.
+     · MARCAR UNA TAREA — los pasos del alta, el consentimiento legal. Ahí una
+       casilla es lo correcto, y se queda.
+
+   Y el tic era el del sistema operativo, que no es del producto: cambia de forma
+   entre Windows, macOS y Android, no respeta el radio ni el color de nada, y con
+   `accent-color` lo único configurable es el relleno.
+
+   ══ Por qué las dos montan sobre un `<input>` de verdad ════════════════════
+
+   Porque es lo que da gratis el teclado (tabulador y espacio), el foco, el
+   `:checked` desde CSS y el anuncio correcto en un lector de pantalla. Un `<div
+   role="checkbox">` obliga a reimplementar las cuatro cosas y a acordarse de las
+   cuatro en cada sitio.
+
+   El input se esconde con `.pick-input` —posición absoluta y opacidad cero, NO
+   `display: none`, que lo sacaría del árbol de accesibilidad— y lo que se pinta
+   es un hermano suyo. El estado sale de `:has(.pick-input:checked)`.
+   ========================================================================== */
+
+/**
+ * Una opción que se incluye o no: icono, nombre y por qué importa.
+ *
+ * `hint` no es decorativo. Estas listas deciden cosas irreversibles —copiar
+ * SUSTITUYE lo que hubiera— y el nombre suelto no basta para saber qué se lleva
+ * por delante «Entrenamiento».
+ *
+ * @param inline  Para listas de opciones cortas y sin explicación, donde la
+ *   tarjeta a lo ancho sería una fila de rectángulos medio vacíos.
+ */
+export const OptionCard = ({
+  icon: Icon,
+  label,
+  hint,
+  checked,
+  onChange,
+  disabled = false,
+  inline = false,
+  name,
+}) => (
+  /* El estado marcado va en la clase y no en un `:has()` sobre el input. React ya
+     lo sabe, y si el selector no se resolviera el fallo no sería estético: una
+     opción marcada se vería igual que una sin marcar. Ver el bloque de CSS. */
+  <label
+    className={[
+      'opt-card',
+      inline && 'is-inline',
+      checked && 'is-on',
+      disabled && 'is-off',
+    ]
+      .filter(Boolean)
+      .join(' ')}
+  >
+    <input
+      type="checkbox"
+      className="pick-input"
+      name={name}
+      checked={Boolean(checked)}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+    <span className="mark" aria-hidden="true">
+      <Check size={13} strokeWidth={3} />
+    </span>
+    <span className="body">
+      <span className="nm">
+        {Icon && <Icon size={14} />}
+        {label}
+      </span>
+      {hint && <span className="hint">{hint}</span>}
+    </span>
+  </label>
+);
+
+/**
+ * Un ajuste con dos estados.
+ *
+ * La diferencia con `OptionCard` no es estética: una tarjeta dice «esto entra en
+ * la operación que estás a punto de lanzar» y un interruptor dice «esto queda
+ * así a partir de ahora». Usarlos al revés hace que una lista de opciones parezca
+ * un panel de preferencias, que es lo que pasaba.
+ */
+export const Switch = ({ label, hint, checked, onChange, disabled = false }) => (
+  <label className={['switch-row', checked && 'is-on', disabled && 'is-off'].filter(Boolean).join(' ')}>
+    <input
+      type="checkbox"
+      role="switch"
+      className="pick-input"
+      checked={Boolean(checked)}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.checked)}
+    />
+    <span className="track" aria-hidden="true" />
+    <span className="body">
+      <span className="nm">{label}</span>
+      {hint && <span className="hint">{hint}</span>}
+    </span>
+  </label>
 );
 
 // ── Segmented control ──────────────────────────────────────────────────────

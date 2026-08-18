@@ -28,7 +28,12 @@ import { ReviewHistory } from '@/components/ReviewHistory';
  * Lo urgente no se pierde por el camino: los avisos siguen saliendo en su inicio
  * y en la campana de la cabecera, que es donde se miran en un móvil.
  */
-export const ClientWeek = ({ client }) => {
+/**
+ * @param onDeliver  Abre el asistente de revisión para entregar la semana en
+ *   curso. Lo pasa la ruta, que es quien tiene al asistente como hermano de esta
+ *   tarjeta.
+ */
+export const ClientWeek = ({ client, onDeliver }) => {
   const { anthropometry, checkIns, submitCheckIn, loadCheckInHistory } = useApp();
   const [historial, setHistorial] = useState([]);
   const [enviando, setEnviando] = useState(false);
@@ -96,20 +101,23 @@ export const ClientWeek = ({ client }) => {
     [history, historial, desde]
   );
 
-  const entregar = async (inicio = desde) => {
+  /**
+   * Entregar una semana ATRASADA, y solo eso.
+   *
+   * La del periodo en curso pasa por el asistente (`onDeliver`), donde se
+   * confirma el peso y se suben las fotos. Una atrasada no: sus datos están
+   * registrados desde entonces y ya no hay nada que rellenar —las fotos de hace
+   * tres semanas no se pueden hacer hoy—. Mandarla es exactamente eso, mandar lo
+   * que ya hay.
+   *
+   * Por eso la ventana es siempre de UNA semana natural: las atrasadas se ofrecen
+   * sueltas (ver `deliverableWeeks`), nunca como periodo de dos.
+   */
+  const entregar = async (inicio) => {
     setEnviando(true);
-    /*
-      El promedio DE ESE PERIODO, no el de este.
-
-      Al entregar una atrasada, el peso tiene que ser el de aquella semana. Y una
-      atrasada siempre es una semana natural suelta, mientras que la del periodo
-      vigente puede abarcar varias — de ahí que la ventana solo sea la del periodo
-      cuando se entrega el periodo en curso.
-    */
-    const ventana = inicio === desde ? cadaSemanas : 1;
     const res = await submitCheckIn(client.id, {
       weekStart: inicio,
-      weight: weeklyCheckIn(history, inicio, { weeks: ventana }).average,
+      weight: weeklyCheckIn(history, inicio, { weeks: 1 }).average,
     });
     setEnviando(false);
     setError(res.ok ? '' : res.error);
@@ -173,20 +181,32 @@ export const ClientWeek = ({ client }) => {
               Se avisa de lo que falta y decide él: quien mira al otro lado es una
               persona, no una validación.
             */}
+            {/*
+              ══ Entregar ABRE LA REVISIÓN, ya no manda a ciegas ═══════════════
+
+              Eran dos gestos separados en la misma pantalla: este botón creaba
+              el check-in con el promedio de pesajes, y «Entregar mi revisión»
+              —debajo, en la otra tarjeta— era el asistente de peso, medidas y
+              fotos. Ninguno de los dos nombres decía que el otro existía.
+
+              El resultado: quien hacía el asistente entero creía haber mandado
+              su semana y no había mandado nada, y quien pulsaba este botón
+              entregaba sin fotos ni medidas. Dos formas de hacer mal la misma
+              tarea.
+
+              Ahora hay una: el asistente. Confirma el peso, se mide si su
+              entrenador lo pide, sube las fotos, contesta lo que le pregunten, y
+              al terminar la semana queda entregada.
+            */}
             <div className="row gap-2 wrap">
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={enviando}
-                onClick={() => entregar()}
-              >
-                <Send size={14} /> {enviando ? 'Entregando…' : 'Entregar mi semana'}
+              <button type="button" className="btn btn-primary btn-sm" onClick={onDeliver}>
+                <Send size={14} /> Entregar mi semana
               </button>
-              {!resumen.complete && (
-                <span className="t-xs t-tertiary">
-                  Puedes entregarla igualmente; se verá lo que hayas registrado.
-                </span>
-              )}
+              <span className="t-xs t-tertiary">
+                {resumen.complete
+                  ? 'Confirmas el peso, subes las fotos y ya está.'
+                  : 'Puedes entregarla igualmente; se verá lo que hayas registrado.'}
+              </span>
             </div>
           </>
         )}

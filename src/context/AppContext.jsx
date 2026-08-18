@@ -62,6 +62,7 @@ import {
 import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
 import { shrinkImage } from '@/lib/shrinkImage';
 import { isArchived } from '@/domain/portfolio';
+import { nextPaymentAfter } from '@/domain/billing';
 import { stampUpdate } from '@/domain/updates';
 import {
   buildSessionFromPlan,
@@ -3455,6 +3456,35 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * Marca un cobro como hecho y adelanta el ciclo.
+   *
+   * ══ Por qué es una acción y no dos campos sueltos ═══════════════════════════
+   *
+   * Marcar «pagado» sin mover la fecha deja la ficha mintiendo al día siguiente:
+   * el cobro consta cobrado y la fecha sigue siendo la del que ya entró, así que
+   * la cartera vuelve a reclamarlo. Son dos escrituras que solo tienen sentido
+   * juntas, y estaban repartidas entre la bandeja de «Hoy» y la ficha — dos
+   * sitios donde acordarse de la segunda.
+   *
+   * Sin periodicidad anotada solo cambia el estado, que es lo único que se puede
+   * saber: adivinar un mes por defecto pondría una fecha inventada en la ficha de
+   * alguien que cobra por trimestres.
+   */
+  const markClientPaid = useCallback(
+    (clientId) => {
+      const client = clientsRef.current.find((c) => c.id === clientId);
+      if (!client) return;
+
+      const siguiente = nextPaymentAfter(client.nextPaymentDate, client.billingPeriod);
+      updateClient(clientId, {
+        paymentStatus: 'paid',
+        ...(siguiente ? { nextPaymentDate: siguiente } : {}),
+      });
+    },
+    [clientsRef, updateClient]
+  );
+
+  /**
    * Convierte los registros heredados de TODA la cartera en sesiones con fecha.
    *
    * ── Por qué es una operación aparte y no algo que pase solo ─────────────────
@@ -4444,13 +4474,20 @@ export const AppProvider = ({ children }) => {
    * de escritura sobre su fila podría marcarse como revisado él solo.
    */
   const submitCheckIn = useCallback(
-    async (clientId, { weekStart: week, programWeek = null, weight = null, notes = null } = {}) => {
+    async (
+      clientId,
+      { weekStart: week, programWeek = null, weight = null, notes = null, answers = null } = {}
+    ) => {
       const { data, error } = await supabase.rpc('submit_check_in', {
         target: clientId,
         week,
         program_week: programWeek,
         weight_kg: weight,
         client_notes: notes,
+        /* Las respuestas del cuestionario de la semana (migración 0060). El
+           parámetro es opcional en la función, así que quien no pregunte nada
+           —la mayoría— manda `null` y la columna se queda como estaba. */
+        answers,
       });
 
       if (error) return { ok: false, error: error.message };
@@ -4481,6 +4518,10 @@ export const AppProvider = ({ children }) => {
             weekStart: week,
             weight,
             notes: notes || '',
+            /* `?? anterior?.answers` y no `answers` a secas: reentregar sin
+               cuestionario no puede borrar de la pantalla lo que ya se contestó,
+               porque en la base tampoco se borra (el UPDATE usa COALESCE). */
+            answers: answers ?? (anterior?.weekStart === week ? anterior.answers : null) ?? null,
             submittedAt: new Date().toISOString(),
             reviewedAt: null,
             coachNotes: '',
@@ -4939,6 +4980,7 @@ export const AppProvider = ({ children }) => {
     // Clientes
     addClient,
     updateClient,
+    markClientPaid,
     setClientArchived,
     updateClientPreferences,
     exportClientData,

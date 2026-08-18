@@ -32,6 +32,9 @@ export const emptyNutrition = () => ({
   carbsGrams: null,
   fatsGrams: null,
   stepsGoal: '',
+  /* La otra mitad del gasto. Del plan y no de la variante, igual que los pasos:
+     un cliente con dos dietas no tiene dos cardios. */
+  cardioGoal: '',
   habitsNotes: [],
   hasDayVariants: false,
   // Objetivo de los días de DESCANSO. Ver `targetsFor` más abajo.

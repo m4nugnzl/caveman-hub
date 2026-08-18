@@ -74,10 +74,25 @@ export const ChartSelect = ({ value, onChange, options, label, width = 190 }) =>
   </label>
 );
 
-/** Interruptor pequeño para variantes del propio gráfico (media móvil, etc.). */
+/**
+ * Interruptor pequeño para variantes del propio gráfico (media móvil, etc.).
+ *
+ * ── Por qué es un chip y no una casilla ─────────────────────────────────────
+ * Vive en la CABECERA del gráfico, al lado de los selectores de rango y de
+ * serie, que ya son chips. Con una casilla, el único control de esa fila que se
+ * pintaba distinto era este —y encima con el tic del sistema operativo, que no
+ * combina con nada—.
+ *
+ * `aria-pressed` es lo que lo mantiene anunciado como algo que se activa y se
+ * desactiva; un chip sin él sería un botón que no dice en qué estado está.
+ */
 export const ChartToggle = ({ checked, onChange, children }) => (
-  <label className="checkbox-row t-xs">
-    <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+  <button
+    type="button"
+    className="chip"
+    aria-pressed={Boolean(checked)}
+    onClick={() => onChange(!checked)}
+  >
     {children}
-  </label>
+  </button>
 );

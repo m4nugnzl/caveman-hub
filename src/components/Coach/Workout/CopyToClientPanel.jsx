@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Copy, Dumbbell, Salad, Waves } from 'lucide-react';
 
 import { unitLabelPlural } from '@/domain/training';
-import { Field, Notice, Panel } from '@/components/ui/primitives';
+import { Field, Notice, OptionCard, Panel } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 /**
@@ -136,21 +136,27 @@ export const CopyToClientPanel = ({
           )}
         </Field>
 
+        {/*
+          ══ Por qué esto ya no son tres tics ═══════════════════════════════════
+
+          Eran tres casillas del sistema operativo con una frase al lado, y la
+          primera sustituye doce semanas de programa de otra persona. Un control
+          de 16 px, idéntico al de «acepto las condiciones», para una operación
+          irreversible.
+
+          Ahora cada una es una tarjeta con su icono, su nombre y qué se lleva
+          exactamente. La consecuencia se lee antes de marcarla, no después en el
+          diálogo de confirmación.
+        */}
         <Field label="Qué se copia">
-          <div className="col gap-2">
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={training}
-                onChange={(e) => setTraining(e.target.checked)}
-              />
-              <Dumbbell size={13} />
-              Entrenamiento
-              <span className="t-xs t-tertiary">
-                (estructura semanal, {weekCount} {unitLabelPlural(cycleType)}, tipo de ciclo y su
-                calentamiento)
-              </span>
-            </label>
+          <div className="opt-group">
+            <OptionCard
+              icon={Dumbbell}
+              label="Entrenamiento"
+              hint={`Estructura semanal, ${weekCount} ${unitLabelPlural(cycleType)}, tipo de ciclo y su calentamiento.`}
+              checked={training}
+              onChange={setTraining}
+            />
             {/*
               ══ El calentamiento, suelto y SIEMPRE pulsable ══════════════════
 
@@ -164,24 +170,24 @@ export const CopyToClientPanel = ({
               serie—, así que en la práctica no se podía pulsar nunca. La
               redundancia se DICE, que es lo que hacía falta; no se prohíbe.
             */}
-            <label className="checkbox-row">
-              <input
-                type="checkbox"
-                checked={warmup || training}
-                onChange={(e) => setWarmup(e.target.checked)}
-              />
-              <Waves size={13} />
-              Calentamiento y movilidad
-              <span className="t-xs t-tertiary">
-                {training ? '(ya va con el entrenamiento)' : '(solo la pauta previa a entrenar)'}
-              </span>
-            </label>
-            <label className="checkbox-row">
-              <input type="checkbox" checked={diet} onChange={(e) => setDiet(e.target.checked)} />
-              <Salad size={13} />
-              Dieta
-              <span className="t-xs t-tertiary">(objetivo, macros, menú y hábitos)</span>
-            </label>
+            <OptionCard
+              icon={Waves}
+              label="Calentamiento y movilidad"
+              hint={
+                training
+                  ? 'Ya va incluido con el entrenamiento.'
+                  : 'Solo la pauta previa a entrenar, sin tocar su programa.'
+              }
+              checked={warmup || training}
+              onChange={setWarmup}
+            />
+            <OptionCard
+              icon={Salad}
+              label="Dieta"
+              hint="Objetivo, macros, menú cerrado y tus pautas."
+              checked={diet}
+              onChange={setDiet}
+            />
           </div>
         </Field>
 

@@ -31,6 +31,8 @@
  *      antes.
  */
 
+import { traduceDbError } from './dbErrors';
+
 const DEFAULT_DEBOUNCE_MS = 600;
 
 export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, store = null }) {
@@ -55,8 +57,16 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
         q.inFlight = false;
 
         if (error) {
-          // Se conserva `latest` para que retry(key) pueda reenviarlo.
-          emit(key, 'error', error.message || String(error));
+          /*
+            Se conserva `latest` para que retry(key) pueda reenviarlo.
+
+            Y el mensaje se traduce AQUÍ porque este es el único punto por el que
+            pasa toda la escritura de la aplicación. Sin esto, lo que llegaba a
+            la pantalla era el error del servidor en crudo: un cliente anotando
+            sus kilos en el gimnasio veía la firma de una función de Postgres.
+            Ver `lib/dbErrors.js`.
+          */
+          emit(key, 'error', traduceDbError(error));
           return;
         }
         if (q.latest !== payload) {
@@ -72,7 +82,7 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
       })
       .catch((e) => {
         q.inFlight = false;
-        emit(key, 'error', e?.message || 'Error de red al guardar');
+        emit(key, 'error', traduceDbError(e) || 'Error de red al guardar');
       });
   };
 

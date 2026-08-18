@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, History, Link2, MessageSquareQuote, Pencil, Trash2, Video } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
 import { groupChanges, reviewHistory } from '@/domain/reviews';
+import { checkinQuestions, clientProtocol } from '@/domain/protocol';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { shortDate } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 
 /**
  * Las revisiones anteriores de un cliente: qué se decidió cada semana.
@@ -64,6 +66,17 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
 
   const esEntrenador = audience === 'coach';
   const clientId = client?.id;
+
+  /* Las preguntas que se le hacen HOY, para resolver lo que contestó ENTONCES.
+
+     Si el entrenador quitó una pregunta después, su respuesta deja de pintarse:
+     no hay forma de saber cómo se llamaba ni de qué escala era, y enseñar
+     «hunger: 7» sin etiqueta ni rango es peor que no enseñar nada. Lo que se
+     guardó sigue en la base por si vuelve a activarla. */
+  const preguntasCheckIn = useMemo(
+    () => checkinQuestions(clientProtocol(client?.preferences)),
+    [client?.preferences]
+  );
 
   const recargar = useCallback(async () => {
     if (!clientId) return;
@@ -360,6 +373,26 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
                 Él anotó: {fila.notes}
               </p>
             )}
+
+            {/*
+              ══ Y lo que contestó al cuestionario de esa semana ════════════════
+
+              Aquí, dentro de su fila, y no en una pantalla aparte: la gracia de
+              tener las respuestas guardadas es poder leerlas AL LADO de lo que
+              se decidió esa semana. «Adherencia 4» junto a «te bajo los hidratos»
+              explica la decisión tres meses después, que es justo lo que este
+              histórico existe para contestar.
+
+              El mismo componente con el que se contestaron, en modo lectura: que
+              la respuesta se lea con la forma en que se dio es lo que evita que
+              las dos versiones acaben divergiendo. Sin respuestas no pinta nada.
+            */}
+            <SessionFeedback
+              readOnly
+              questions={preguntasCheckIn}
+              answers={fila.answers || {}}
+              title={esEntrenador ? 'Lo que contestó' : 'Lo que contestaste'}
+            />
 
             {/*
               ══ LA RESPUESTA: el texto y el vídeo son la misma cosa ═══════════

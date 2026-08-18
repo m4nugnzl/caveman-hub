@@ -24,10 +24,10 @@ const LABELS = {
  * comparar varias piezas pequeñas entre sí.
  *
  * ── Los pasos diarios ya no están aquí ──────────────────────────────────────
- * Se fueron a `StepsGoalCard`. Esta tarjeta es de UNA VARIANTE y los pasos son de
- * la persona: metidos aquí, el campo solo existía en la tarjeta de los días de
- * entreno —en la de descanso había que esconderlo a mano— y daban a entender que
- * eran los pasos de esos días.
+ * Se fueron a `GoalCard`, con el cardio. Esta tarjeta es de UNA VARIANTE y la
+ * actividad es de la persona: metida aquí, el campo solo existía en la tarjeta de
+ * los días de entreno —en la de descanso había que esconderlo a mano— y daba a
+ * entender que eran los pasos de esos días.
  */
 export const MacroTargetCard = ({ plan, variant = 'default', title, editable = false, onSave }) => {
   const targets = targetsFor(plan, variant);

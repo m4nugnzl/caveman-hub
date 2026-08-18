@@ -278,6 +278,145 @@ export const SESSION_QUESTIONS = [
   },
 ];
 
+/* ==========================================================================
+   El cuestionario del check-in
+   --------------------------------------------------------------------------
+   ══ Por qué un catálogo aparte y no las mismas preguntas ════════════════════
+
+   Las de arriba se contestan **al terminar de entrenar**, de pie en el gimnasio
+   y con el móvil en la mano: hablan de UNA sesión. «¿Cómo de duro ha sido?»,
+   «¿te ha dolido algo?». Son preguntas de dos segundos sobre lo que acaba de
+   pasar.
+
+   Las de aquí se contestan **el domingo**, sentado, cerrando la semana. Hablan de
+   siete días: si ha podido seguir la dieta, si ha pasado hambre, si ha dormido,
+   si le sigue apeteciendo. Nada de eso tiene sentido preguntarlo al bajar de la
+   prensa, y el RPE de una sesión concreta no significa nada como resumen de la
+   semana.
+
+   Mezclarlas en una lista obligaría a que cada pregunta llevara una marca de
+   dónde se hace, y a que el entrenador la leyera en cada una para no poner
+   «¿dónde te ha molestado?» en el check-in. Dos catálogos y dos listas: cada
+   pantalla ofrece lo que se contesta en ella.
+
+   ── Lo que sí se comparte ───────────────────────────────────────────────────
+   La FORMA (`kind`, `min`, `max`, `lowerIsBetter`, `color`), que es lo que hace
+   que `SessionFeedback` las pinte sin tocar una línea, y las preguntas PROPIAS
+   del entrenador: las suyas valen para las dos listas, porque las escribió él
+   sabiendo para qué.
+   ========================================================================== */
+
+/**
+ * Lo que se pregunta al cerrar una semana.
+ *
+ * Salen de lo que de verdad decide un ajuste en una revisión. La adherencia va
+ * primera porque es la que explica casi todos los resultados: un plan que no se
+ * ha seguido no es un plan que no funciona, y sin preguntarlo las dos cosas se
+ * parecen mucho desde fuera.
+ *
+ * `lowerIsBetter` en hambre y estrés: cuanto más bajo, mejor. Es lo que hace que
+ * una subida se pinte como un problema y no como un logro.
+ *
+ * El hambre empieza en CERO como el dolor de las sesiones: «no he pasado nada»
+ * es una respuesta real y frecuente, y forzar un mínimo de 1 ensuciaría la serie
+ * con un uno que significa cero.
+ */
+export const CHECKIN_QUESTIONS = [
+  {
+    id: 'adherence',
+    label: 'Adherencia a la dieta',
+    short: 'Dieta',
+    hint: 'De 1 (nada) a 10 (clavada toda la semana)',
+    kind: 'scale',
+    min: 1,
+    max: 10,
+    color: 'var(--data-lime)',
+  },
+  {
+    id: 'hunger',
+    label: 'Hambre',
+    short: 'Hambre',
+    hint: '0 si no has pasado nada',
+    kind: 'scale',
+    min: 0,
+    max: 10,
+    lowerIsBetter: true,
+    color: 'var(--data-orange)',
+  },
+  {
+    id: 'training_done',
+    label: 'Entrenamientos que has completado',
+    short: 'Entrenos',
+    hint: 'Cuántos de los que tocaban',
+    kind: 'scale',
+    min: 0,
+    max: 10,
+    color: 'var(--data-violet)',
+  },
+  {
+    id: 'week_sleep',
+    label: 'Cómo has dormido esta semana',
+    short: 'Sueño',
+    kind: 'scale',
+    min: 1,
+    max: 10,
+    color: 'var(--data-blue)',
+  },
+  {
+    id: 'week_energy',
+    label: 'Energía durante el día',
+    short: 'Energía',
+    kind: 'scale',
+    min: 1,
+    max: 10,
+    color: 'var(--data-teal)',
+  },
+  {
+    id: 'week_stress',
+    label: 'Estrés de la semana',
+    short: 'Estrés',
+    hint: 'Trabajo, familia, lo que sea',
+    kind: 'scale',
+    min: 1,
+    max: 10,
+    lowerIsBetter: true,
+    color: 'var(--data-pink)',
+  },
+  {
+    id: 'digestion',
+    label: 'Digestiones',
+    short: 'Digestión',
+    kind: 'scale',
+    min: 1,
+    max: 10,
+    color: 'var(--data-amber)',
+  },
+  {
+    id: 'motivation',
+    label: 'Ganas de seguir',
+    short: 'Ganas',
+    kind: 'scale',
+    min: 1,
+    max: 10,
+    color: 'var(--data-slate)',
+  },
+  {
+    id: 'obstacles',
+    label: '¿Qué se te ha hecho más cuesta arriba?',
+    short: 'Obstáculos',
+    kind: 'text',
+  },
+  {
+    id: 'week_note',
+    label: 'Algo que quieras contarme de esta semana',
+    short: 'Nota',
+    kind: 'text',
+  },
+];
+
+/** Todas las preguntas de catálogo, de los dos sitios. Para el saneado. */
+const CATALOGO = [...SESSION_QUESTIONS, ...CHECKIN_QUESTIONS];
+
 /**
  * Tope de preguntas propias.
  *
@@ -310,15 +449,19 @@ export const PROTOCOL_PRESETS = [
     id: 'off',
     label: 'Nada',
     hint: 'Solo la rutina y los kilos. Sin notas ni preguntas.',
-    protocol: { modules: [], questions: [] },
+    protocol: { modules: [], questions: [], checkinQuestions: [] },
   },
   {
     id: 'basic',
     label: 'Lo básico',
-    hint: 'Tus notas, el logbook del cliente y cómo de dura fue la sesión',
+    hint: 'Tus notas, el logbook del cliente, cómo fue la sesión y cómo fue la semana',
     protocol: {
       modules: ['coachNote', 'clientNote', 'sessionFeedback'],
       questions: ['rpe', 'note'],
+      /* Dos preguntas y ninguna más. La adherencia explica casi todos los
+         resultados, y la nota abierta recoge lo que no cabe en una escala. Con
+         seis, la entrega semanal se abandona a la tercera. */
+      checkinQuestions: ['adherence', 'week_note'],
     },
   },
   {
@@ -328,6 +471,7 @@ export const PROTOCOL_PRESETS = [
     protocol: {
       modules: ['warmup', 'coachNote', 'clientNote', 'sessionFeedback'],
       questions: ['rpe', 'fatigue', 'soreness', 'sleep', 'note'],
+      checkinQuestions: ['training_done', 'week_sleep', 'week_stress', 'motivation', 'week_note'],
     },
   },
   {
@@ -337,6 +481,7 @@ export const PROTOCOL_PRESETS = [
     protocol: {
       modules: ['warmup', 'coachNote', 'clientNote', 'sessionFeedback'],
       questions: ['pain', 'painZone', 'rpe', 'mood', 'note'],
+      checkinQuestions: ['week_sleep', 'week_energy', 'obstacles', 'week_note'],
     },
   },
 ];
@@ -352,6 +497,17 @@ export const PROTOCOL_PRESETS = [
 export const defaultProtocol = () => ({
   modules: ['coachNote', 'clientNote', 'sessionFeedback'],
   questions: ['rpe', 'note'],
+  /*
+    ── Y el cuestionario de la semana, por defecto vacío ─────────────────────
+    Sin interruptor propio: **la lista vacía ES el apagado**. Es la misma regla
+    que sostiene el resto del producto —lo que no está configurado no existe— y
+    ahorra un módulo más que encender antes de poder elegir preguntas.
+
+    Vacío y no con dos preguntas de cortesía porque este paso alarga la entrega
+    del cliente, que es el gesto que más cuesta que se haga cada semana. Lo
+    añade quien lo quiere.
+  */
+  checkinQuestions: [],
   custom: [],
   checkin: defaultCheckin(),
 });
@@ -367,10 +523,12 @@ const sanitizeCustom = (raw) => {
     if (!item || typeof item !== 'object') continue;
     const id = String(item.id || '');
     const label = String(item.label || '').trim().slice(0, 60);
-    // Un id que choque con una pregunta de serie rompería `questionById`, que
+    // Un id que choque con una pregunta de catálogo rompería `questionById`, que
     // resuelve primero el catálogo: la propia quedaría inalcanzable y el
-    // entrenador vería la de serie en su sitio sin entender por qué.
-    if (!id || !label || SESSION_QUESTIONS.some((q) => q.id === id)) continue;
+    // entrenador vería la de serie en su sitio sin entender por qué. Se
+    // comprueban LOS DOS catálogos —sesión y check-in—: con uno solo, una
+    // pregunta propia llamada `hunger` sería invisible en el cuestionario.
+    if (!id || !label || CATALOGO.some((q) => q.id === id)) continue;
     if (out.some((q) => q.id === id)) continue;
 
     const kind = QUESTION_KINDS.includes(item.kind) ? item.kind : 'scale';
@@ -406,7 +564,12 @@ export const clientProtocol = (preferences) => {
   if (!raw || typeof raw !== 'object') return defaultProtocol();
 
   const custom = sanitizeCustom(raw.custom);
-  const known = new Set([...SESSION_QUESTIONS.map((q) => q.id), ...custom.map((q) => q.id)]);
+  const customIds = custom.map((q) => q.id);
+  /* Cada lista solo acepta ids de SU catálogo, más los propios del entrenador.
+     Sin esto, `rpe` colado en el cuestionario del check-in pediría el esfuerzo
+     de «la sesión» el domingo, cuando no hay ninguna sesión de la que hablar. */
+  const deSesion = new Set([...SESSION_QUESTIONS.map((q) => q.id), ...customIds]);
+  const deCheckin = new Set([...CHECKIN_QUESTIONS.map((q) => q.id), ...customIds]);
   const moduleIds = new Set(MODULES.map((m) => m.id));
 
   const dedupe = (list, valid, fallback) => {
@@ -431,7 +594,11 @@ export const clientProtocol = (preferences) => {
 
   return {
     modules: dedupe(raw.modules, moduleIds, defaultProtocol().modules),
-    questions: dedupe(raw.questions, known, defaultProtocol().questions),
+    questions: dedupe(raw.questions, deSesion, defaultProtocol().questions),
+    /* Respaldo a lista VACÍA y no a la de por defecto —que también lo es—: aquí
+       «no configurado» y «configurado sin ninguna» significan lo mismo, que es
+       que no hay cuestionario. */
+    checkinQuestions: dedupe(raw.checkinQuestions, deCheckin, []),
     custom,
     checkin,
   };
@@ -441,9 +608,9 @@ export const clientProtocol = (preferences) => {
 
 export const isModuleOn = (protocol, id) => Boolean(protocol?.modules?.includes(id));
 
-/** Una pregunta por su id, sea de serie o propia del entrenador. */
+/** Una pregunta por su id, sea de cualquiera de los dos catálogos o propia. */
 export const questionById = (protocol, id) =>
-  SESSION_QUESTIONS.find((q) => q.id === id) ||
+  CATALOGO.find((q) => q.id === id) ||
   (protocol?.custom || []).find((q) => q.id === id) ||
   null;
 
@@ -463,6 +630,48 @@ export const scaleQuestions = (protocol) => activeQuestions(protocol).filter(isS
 /** ¿Hay algo que preguntar de verdad al acabar de entrenar? */
 export const asksFeedback = (protocol) =>
   isModuleOn(protocol, 'sessionFeedback') && activeQuestions(protocol).length > 0;
+
+/**
+ * Las preguntas del check-in, resueltas y en su orden.
+ *
+ * Sin módulo que las gobierne: la lista vacía ya significa que no hay
+ * cuestionario, y entonces el paso del asistente no existe —igual que no existe
+ * el de medidas cuando el entrenador apagó pliegues y perímetros—.
+ */
+export const checkinQuestions = (protocol) =>
+  (protocol?.checkinQuestions || []).map((id) => questionById(protocol, id)).filter(Boolean);
+
+/** ¿Se le pregunta algo al cerrar la semana? */
+export const asksCheckinQuestions = (protocol) => checkinQuestions(protocol).length > 0;
+
+/**
+ * Un resumen corto de lo contestado, para la cola de revisiones.
+ *
+ * ── Por qué solo las escalas y solo tres ────────────────────────────────────
+ * Porque es una sub-línea de una fila de lista, no un informe: lo que tiene que
+ * hacer es que la cola diga algo NUEVO antes de entrar. Tres cifras se leen de
+ * un vistazo; las diez se leen igual de mal que no ponerlas.
+ *
+ * Las de texto se cuentan pero no se citan: una respuesta de cuatro líneas
+ * cortada a treinta caracteres no informa, engaña sobre lo que pone.
+ */
+export const answersSummary = (protocol, answers) => {
+  if (!answers || typeof answers !== 'object') return '';
+
+  const dadas = checkinQuestions(protocol).filter(
+    (q) => String(answers[q.id] ?? '').trim() !== ''
+  );
+  if (dadas.length === 0) return '';
+
+  const escalas = dadas.filter((q) => q.kind === 'scale');
+  const textos = dadas.length - escalas.length;
+
+  const partes = escalas.slice(0, 3).map((q) => `${q.short || q.label} ${answers[q.id]}`);
+  if (escalas.length > 3) partes.push(`+${escalas.length - 3}`);
+  if (textos > 0) partes.push(textos === 1 ? '1 nota' : `${textos} notas`);
+
+  return partes.join(' · ');
+};
 
 /**
  * En qué estado está un bloque del check-in. Siempre uno de los tres, nunca
@@ -507,55 +716,88 @@ export const toggleModule = (protocol, id) => {
   return { ...protocol, modules };
 };
 
+/*
+  ── Las dos listas se manipulan con las mismas funciones ────────────────────
+  `list` dice sobre cuál se opera: `questions` (al terminar de entrenar) o
+  `checkinQuestions` (al cerrar la semana). Duplicar las cuatro funciones para la
+  lista nueva habría sido copiar cuarenta líneas para cambiar un nombre de clave,
+  y garantizar que dentro de tres meses una de las dos copias tenga un arreglo
+  que la otra no.
+
+  Por defecto `questions`, así que todo lo que ya llamaba a estas funciones sigue
+  llamándolas igual.
+*/
+const LISTS = ['questions', 'checkinQuestions'];
+const listOf = (protocol, list) => (LISTS.includes(list) ? protocol[list] || [] : protocol.questions || []);
+
 /**
  * Añade o quita una pregunta. Al añadir se pone AL FINAL, no en el orden del
  * catálogo: el entrenador la acaba de elegir y espera verla donde ha pulsado, y
  * además el orden de las preguntas es suyo (ver `activeQuestions`).
  */
-export const toggleQuestion = (protocol, id) => {
-  const has = protocol.questions.includes(id);
+export const toggleQuestion = (protocol, id, list = 'questions') => {
+  const actual = listOf(protocol, list);
+  const has = actual.includes(id);
   return {
     ...protocol,
-    questions: has ? protocol.questions.filter((q) => q !== id) : [...protocol.questions, id],
+    [list]: has ? actual.filter((q) => q !== id) : [...actual, id],
   };
 };
 
-export const moveQuestion = (protocol, id, direction) => {
-  const list = protocol.questions;
-  const index = list.indexOf(id);
+export const moveQuestion = (protocol, id, direction, list = 'questions') => {
+  const actual = listOf(protocol, list);
+  const index = actual.indexOf(id);
   const target = direction === 'up' ? index - 1 : index + 1;
-  if (index === -1 || target < 0 || target >= list.length) return protocol;
-  const next = [...list];
+  if (index === -1 || target < 0 || target >= actual.length) return protocol;
+  const next = [...actual];
   [next[index], next[target]] = [next[target], next[index]];
-  return { ...protocol, questions: next };
+  return { ...protocol, [list]: next };
 };
 
-/** Una pregunta propia del entrenador. Nace activa: se acaba de escribir. */
-export const addCustomQuestion = (protocol, { label, kind = 'scale', max = 10, lowerIsBetter = false }) => {
+/**
+ * Una pregunta propia del entrenador. Nace activa EN LA LISTA DESDE LA QUE SE
+ * escribió: se acaba de teclear en un sitio concreto y ahí es donde se espera
+ * verla. Sigue estando disponible para la otra, que es de lo que sirve que las
+ * propias se compartan.
+ */
+export const addCustomQuestion = (
+  protocol,
+  { label, kind = 'scale', max = 10, lowerIsBetter = false },
+  list = 'questions'
+) => {
   const clean = String(label || '').trim();
   if (!clean || (protocol.custom || []).length >= MAX_CUSTOM) return protocol;
 
   const question = { id: newId('q'), label: clean, kind, max, lowerIsBetter };
   const custom = sanitizeCustom([...(protocol.custom || []), question]);
   const added = custom[custom.length - 1];
+  if (!added) return { ...protocol, custom };
 
-  return {
-    ...protocol,
-    custom,
-    questions: added ? [...protocol.questions, added.id] : protocol.questions,
-  };
+  return { ...protocol, custom, [list]: [...listOf(protocol, list), added.id] };
 };
 
+/* Borrarla la quita de LAS DOS listas. Si solo saliera de una, la pregunta
+   seguiría haciéndose en la otra sin existir en ningún catálogo, y
+   `activeQuestions` la descartaría en silencio: un hueco que nadie sabría
+   explicar. */
 export const removeCustomQuestion = (protocol, id) => ({
   ...protocol,
   custom: (protocol.custom || []).filter((q) => q.id !== id),
-  questions: protocol.questions.filter((q) => q !== id),
+  questions: (protocol.questions || []).filter((q) => q !== id),
+  checkinQuestions: (protocol.checkinQuestions || []).filter((q) => q !== id),
 });
 
-/** El perfil que coincide exactamente con lo que hay puesto, si hay alguno. */
+/**
+ * El perfil que coincide exactamente con lo que hay puesto, si hay alguno.
+ *
+ * Compara también el cuestionario del check-in: sin eso, quitar las preguntas de
+ * la semana dejaba el perfil marcado como si nada hubiera cambiado, y volver a
+ * pulsarlo —creyendo que no hacía nada— las devolvía todas.
+ */
 export const matchingPreset = (protocol) =>
   PROTOCOL_PRESETS.find(
     (preset) =>
       preset.protocol.modules.join() === protocol.modules.join() &&
-      preset.protocol.questions.join() === protocol.questions.join()
+      preset.protocol.questions.join() === protocol.questions.join() &&
+      (preset.protocol.checkinQuestions || []).join() === (protocol.checkinQuestions || []).join()
   ) || null;

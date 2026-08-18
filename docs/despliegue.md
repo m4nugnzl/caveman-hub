@@ -107,6 +107,69 @@ De ahí cuelga también **la recuperación de contraseña**: el correo devuelve 
 *Authentication → Emails*, cuánto dura ese enlace: mientras esté vivo **vale como
 acceso a la cuenta**, así que una hora es razonable y un día no lo es.
 
+### Y el botón «Continuar con Google»
+
+El código ya está puesto —`Login.jsx` llama a `signInWithOAuth({ provider:
+'google' })` y el logotipo oficial está en `public/brands/google.svg`—, así que
+esto es **solo configuración**. Mientras no se haga, el botón sale en pantalla y
+al pulsarlo devuelve `Unsupported provider: provider is not enabled`.
+
+Son dos paneles y hay que ir en este orden, porque el segundo necesita lo que
+genera el primero.
+
+**1. En Google Cloud Console** (`console.cloud.google.com`), con tu proyecto
+seleccionado o uno nuevo:
+
+1. *Google Auth Platform → Branding*: nombre de la aplicación, correo de soporte
+   y el logotipo. Es lo que la persona ve en la pantalla de «Elige una cuenta»,
+   así que el nombre tiene que ser el del producto y no el del proyecto interno.
+2. *Audience*: **External**, y mientras esté en «Testing» solo entran las cuentas
+   que añadas a mano en *Test users*. Para abrirlo a cualquiera hay que darle a
+   **Publish app**.
+3. *Data access*: con los tres ámbitos básicos basta (`openid`, `email`,
+   `profile`). Ninguno de ellos es sensible, así que **no hay verificación de
+   Google que esperar**.
+4. *Clients → Create client → Web application*:
+   - **Authorized JavaScript origins**: `https://tu-dominio.com` y, para
+     desarrollo, `http://localhost:3000` (el puerto que fija `vite.config.js`).
+   - **Authorized redirect URIs**: una sola, y es la de **Supabase**, no la tuya:
+
+     ```
+     https://pscpermmojmircadirzk.supabase.co/auth/v1/callback
+     ```
+
+     Este es el paso que se hace mal. Google no vuelve a tu aplicación: vuelve a
+     Supabase, que valida el código, crea la sesión y **después** manda el
+     navegador a donde diga `redirectTo`. Poner aquí tu dominio da
+     `redirect_uri_mismatch`.
+
+Guarda el **Client ID** y el **Client Secret** que salen al crearlo.
+
+**2. En el panel de Supabase**, *Authentication → Sign In / Providers → Google*:
+
+1. Activa el proveedor.
+2. Pega el *Client ID* y el *Client Secret*.
+3. Guarda. El propio panel enseña ahí la *Callback URL* — compruébala contra la
+   que pusiste en Google, carácter a carácter.
+
+Y las URL de arriba tienen que estar bien, porque el `redirectTo` de la
+aplicación es `window.location.origin` (o la página de invitación, si se llega
+desde un enlace de un entrenador): si tu dominio no está en *Redirect URLs*,
+Supabase completa el acceso y luego se niega a volver.
+
+> **Lo que hay que mirar en la primera prueba de verdad.** El disparador
+> `handle_new_user` —que es quien pone el rol y el nombre al darse de alta— no
+> está en este repositorio: vive escrito a mano en el proyecto de Supabase. Por
+> correo, el nombre le llega en `raw_user_meta_data->>'name'`, que es lo que
+> manda `Login.jsx`; por Google llegan `name`, `full_name`, `avatar_url` y
+> `picture`. Si tras entrar con Google el perfil sale sin nombre, es que ese
+> disparador lee una clave que Google no manda, y se arregla ahí y no en el
+> cliente.
+
+El CSP no hay que tocarlo: `signInWithOAuth` sale con `location.assign`, que es
+una navegación y no un envío de formulario, así que `form-action 'self'` no la
+bloquea. Y el avatar de Google ya entra por `img-src https:`.
+
 Si usas las Edge Functions (Notion, Stripe, enlaces de revisión), despliégalas:
 
 ```bash

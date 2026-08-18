@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2, CircleDashed, RotateCw, Settings } from 'luci
 
 import { MODULES, isModuleOn, toggleModule } from '@/domain/protocol';
 import { clampInt } from '@/lib/num';
-import { Field, Panel, SegmentedControl } from '@/components/ui/primitives';
+import { Field, OptionCard, Panel, SegmentedControl } from '@/components/ui/primitives';
 
 const CYCLE_OPTIONS = [
   { id: 'weekly', label: 'Semanal', hint: 'Atada a lunes–domingo' },
@@ -106,15 +106,18 @@ export const CycleSettings = ({
           <fieldset className="col gap-2" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="section-label">Qué se usa con este cliente</legend>
             <div className="row wrap gap-4">
+              {/* En línea: aquí las opciones son solo nombres —la explicación
+                  está en Ajustes → Protocolo, que es la lista completa— y una
+                  tarjeta a lo ancho por cada una llenaría media pantalla de un
+                  panel que va de otra cosa. */}
               {MODULES.map((mod) => (
-                <label className="checkbox-row" key={mod.id} title={mod.hint}>
-                  <input
-                    type="checkbox"
-                    checked={isModuleOn(protocol, mod.id)}
-                    onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
-                  />
-                  {mod.label}
-                </label>
+                <OptionCard
+                  key={mod.id}
+                  inline
+                  label={mod.label}
+                  checked={isModuleOn(protocol, mod.id)}
+                  onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
+                />
               ))}
             </div>
             <span className="t-2xs t-tertiary">

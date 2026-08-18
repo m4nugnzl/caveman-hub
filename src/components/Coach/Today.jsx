@@ -69,7 +69,7 @@ export const Today = () => {
     checkIns,
     nutrition,
     workoutData,
-    updateClient,
+    markClientPaid,
     reviewCheckIn,
   } = useApp();
   const navigate = useNavigate();
@@ -255,7 +255,11 @@ export const Today = () => {
               tasks={inbox.tasks}
               onOpen={(clientId) => open(clientId, 'resumen')}
               handlers={{
-                paid: (clientId) => act(updateClient(clientId, { paymentStatus: 'paid' })),
+                /* Marcar cobrado adelanta también la fecha al ciclo siguiente.
+                   Antes solo cambiaba el estado, así que el cobro volvía a
+                   reclamarse al día siguiente con la fecha vieja puesta. Lo hace
+                   `markClientPaid`, que es la misma acción que usa la ficha. */
+                paid: (clientId) => act(markClientPaid(clientId)),
                 review: (reviewId, clientId) => cerrarRevision(reviewId, clientId),
                 invite: () => navigate('/clientes'),
               }}

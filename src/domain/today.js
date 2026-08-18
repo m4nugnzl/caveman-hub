@@ -42,6 +42,7 @@
  */
 
 import { daysBetween, localeNumber, toISODate, todayISO, weekdayName } from '@/lib/dates';
+import { feeLabel, needsCollecting, paymentState } from './billing';
 import { isSetLogged, sessionTonnage } from './sessions';
 
 /**
@@ -293,7 +294,7 @@ export const activityScale = (events, today = todayISO(), days = DEFAULT_WINDOW)
  * y la cartera lo ordena mejor de lo que lo haría una lista cronológica. Desde
  * aquí se enlaza a esa columna en vez de copiarla.
  */
-export const buildInbox = (rows = []) => {
+export const buildInbox = (rows = [], today = todayISO()) => {
   const items = [];
 
   for (const row of rows) {
@@ -305,25 +306,39 @@ export const buildInbox = (rows = []) => {
         kind: 'review',
         tone: 'info',
         title: 'Check-in entregado',
+        /* Que traiga cuestionario contestado se dice aquí: es lo que distingue
+           «tienes que mirar sus fotos» de «además te ha contado cómo le ha ido»,
+           y decide si esto se abre ahora o después de comer. */
         detail: row.review.exact
-          ? 'Esperando tu revisión'
+          ? row.review.answers
+            ? 'Con su cuestionario contestado, esperando tu revisión'
+            : 'Esperando tu revisión'
           : 'Ha hecho su parte de la semana (deducido de pesajes y fotos)',
         reviewId: row.review.id,
         section: 'revision',
       });
     }
 
-    const overdue = row.alerts.find((a) => a.id === 'payment_overdue');
-    const dueNow = row.alerts.find((a) => a.id === 'payment_soon' && row.daysToPayment === 0);
-    if (overdue || dueNow) {
+    /*
+      El cobro sale de `paymentState`, no de recomponer alertas.
+
+      Antes se buscaba `payment_overdue` o bien un `payment_soon` con cero días,
+      que es el mismo criterio dicho de una tercera manera — y por tanto una
+      tercera oportunidad de que discrepe de las otras dos. Ahora las tres
+      pantallas preguntan a la misma función.
+    */
+    const pago = paymentState(row.client, today);
+    if (needsCollecting(pago)) {
       items.push({
         id: `payment:${row.client.id}`,
         clientId: row.client.id,
         name: row.client.name,
         kind: 'payment',
-        tone: overdue ? 'bad' : 'warn',
-        title: overdue ? overdue.label : 'Renueva hoy',
-        detail: row.client.nextPaymentDate || 'sin fecha de renovación',
+        tone: pago.tone === 'bad' ? 'bad' : 'warn',
+        title: pago.label,
+        /* Cuánto, si está anotado. Cobrar sin saber el importe obliga a abrir la
+           ficha, que es justo lo que esta bandeja existe para evitar. */
+        detail: [feeLabel(row.client), pago.detail].filter(Boolean).join(' · '),
         section: 'resumen',
       });
     }

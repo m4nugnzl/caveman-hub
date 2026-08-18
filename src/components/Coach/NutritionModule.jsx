@@ -1,16 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Copy, Plus, Salad } from 'lucide-react';
+import { Copy, Footprints, HeartPulse, Plus, Salad } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant, targetsFor } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
-import { Notice, Panel, SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
+import { Notice, Panel, SaveIndicator, SegmentedControl, Switch } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { DietNotes } from '@/components/nutrition/DietNotes';
 import { MealStructure } from '@/components/nutrition/MealStructure';
-import { StepsGoalCard } from '@/components/nutrition/StepsGoalCard';
+import { GoalCard } from '@/components/nutrition/GoalCard';
 
 const DIET_TYPES = [
   { id: 'macros', label: 'Por macros' },
@@ -150,14 +150,16 @@ export const NutritionModule = () => {
           </div>
         </div>
 
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            checked={Boolean(plan.hasDayVariants)}
-            onChange={(e) => setHasDayVariants(activeClient.id, e.target.checked)}
-          />
-          Dos dietas distintas para días de entreno y de descanso
-        </label>
+        {/* Un interruptor y no una casilla: esto no es «incluir esto en una
+            operación», es un ajuste del plan que se queda puesto. Y encenderlo
+            cambia la pantalla entera —aparecen dos objetivos y dos menús—, así
+            que la pista dice qué va a pasar antes de tocarlo. */}
+        <Switch
+          label="Dos dietas distintas para días de entreno y de descanso"
+          hint="Aparecerán dos objetivos de calorías y dos menús, uno para cada tipo de día."
+          checked={Boolean(plan.hasDayVariants)}
+          onChange={(on) => setHasDayVariants(activeClient.id, on)}
+        />
 
         {/*
           Con variantes activas hay DOS objetivos, no uno: activar la opción
@@ -192,17 +194,37 @@ export const NutritionModule = () => {
         )}
 
         {/*
-          Los pasos, fuera de las tarjetas de objetivo y a lo ancho.
+          La actividad, fuera de las tarjetas de objetivo y a lo ancho.
 
-          Son del PLAN, no de una variante: con dos dietas vivían solo en la
-          tarjeta de entreno —en la de descanso se escondían a mano— y quien
-          empezara por el día de descanso no encontraba dónde ponerlos. Aquí
-          están una vez, valgan para los días que valgan.
+          Es del PLAN, no de una variante: con dos dietas vivía solo en la
+          tarjeta de entreno —en la de descanso se escondía a mano— y quien
+          empezara por el día de descanso no encontraba dónde ponerla. Aquí está
+          una vez, valga para los días que valga.
+
+          Y son DOS, porque el gasto tiene dos mitades que se prescriben por
+          separado: la actividad de base —los pasos— y el trabajo duro. El
+          segundo no existía en ningún campo, así que acababa escrito como una
+          pauta suelta entre «bebe 2 L de agua», o directamente en WhatsApp.
         */}
-        <StepsGoalCard
-          stepsGoal={plan.stepsGoal}
+        <GoalCard
+          icon={Footprints}
+          label="Pasos diarios"
+          value={plan.stepsGoal}
+          unit="pasos"
+          placeholder="10000"
+          numeric
           editable
           onSave={(stepsGoal) => updateNutrition(activeClient.id, { stepsGoal })}
+        />
+
+        <GoalCard
+          icon={HeartPulse}
+          label="Cardio de alta intensidad"
+          value={plan.cardioGoal}
+          placeholder="2 sesiones de 10 rondas 30/30 en bici"
+          hint="Sesiones, duración y protocolo. Lo escribes como se lo dirías."
+          editable
+          onSave={(cardioGoal) => updateNutrition(activeClient.id, { cardioGoal })}
         />
       </section>
 

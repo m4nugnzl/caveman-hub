@@ -416,7 +416,6 @@ const SECUENCIA = [
       ancho: 1920,
       alto: 419,
       css: 770,
-      titulo: 'Progreso · Roadmap',
       alt: 'El roadmap de un cliente con dos fases: Cut Phase en curso, del 14 de agosto al 10 de septiembre, cuatro semanas de definición a -0,47 kg por semana, y después Bulking Phase, doce semanas de volumen a +0,08.',
     },
   },
@@ -427,11 +426,10 @@ const SECUENCIA = [
       'La revisión semanal que rellena el cliente: sus pesajes, sus medidas y las preguntas que tú hayas escrito. Te devuelve el ritmo real de la semana calculado, así que decides con lo que ha pasado los siete días y no con lo que marque la báscula el lunes.',
     pieza: {
       src: '/capturas/p-checkin.jpg',
-      ancho: 774,
-      alto: 450,
+      ancho: 1920,
+      alto: 743,
       css: 770,
-      titulo: 'Revisión · Check-in',
-      alt: 'El check-in semanal: el último pesaje, la media de las últimas semanas, la variación total y el ritmo por semana, con los pesajes de cada día y el gráfico de tendencia.',
+      alt: 'El check-in de una semana: los pesajes de cada día de lunes a domingo, el gráfico de tendencia del promedio semanal y, debajo, la media de la semana con la variación respecto a la anterior.',
     },
   },
   {
@@ -441,11 +439,10 @@ const SECUENCIA = [
       'Todo lo del cliente en una pantalla: peso, check-ins, carga levantada y objetivo de calorías, cada uno con su tendencia. Es lo que abres antes de tocar nada, y lo que te dice si hay que cambiar algo o dejarlo correr una semana más.',
     pieza: {
       src: '/capturas/p-ficha.jpg',
-      ancho: 1277,
-      alto: 432,
+      ancho: 1920,
+      alto: 912,
       css: 770,
-      titulo: 'Progreso · Resumen',
-      alt: 'El resumen de un cliente: peso con su tendencia, check-ins de la semana, kilos totales levantados y objetivo de calorías con el reparto de macros, y debajo las gráficas de peso corporal y de tonelaje por semana.',
+      alt: 'El resumen de un cliente: peso con su tendencia, check-ins de la semana, kilos totales levantados y objetivo de calorías con el reparto de macros; debajo las gráficas de peso corporal y de tonelaje por semana, y la estructura de la semana día a día.',
     },
   },
 ];
@@ -560,34 +557,45 @@ const Entra = ({ as: Etiqueta = 'div', className = '', retraso = 0, children, ..
  * La barra lleva el nombre de la SECCIÓN de la aplicación y no una dirección
  * inventada: una URL falsa en una portada es una promesa sobre algo que todavía
  * no existe.
+ *
+ * ══ Y HAY VENTANAS SIN BARRA, que es lo que pide la secuencia ═══════════════
+ *
+ * La barra se dibuja solo si la pieza trae `titulo`, y las tres de la secuencia
+ * ya no lo traen. El motivo es que allí decía dos veces lo mismo: el paso se
+ * titula «El roadmap» y quince píxeles más allá la pastilla del navegador ponía
+ * «Progreso · Roadmap». Un rótulo repetido no refuerza, resta — y encima
+ * enmarcar cada paso en una ventana de ordenador convertía una secuencia de tres
+ * herramientas en tres pantallazos de escritorio, que es justo lo que la sección
+ * NO va a contar.
+ *
+ * Lo que hacía falta del marco se queda: el canto y la sombra de `.lp-plana`,
+ * que son los que separan una captura oscura de un lienzo oscuro. Lo que se va
+ * es el cromo — los tres puntos y la pastilla—, que solo tiene sentido donde
+ * está diciendo «esto es TU pantalla, y esa de al lado es la suya»: los pares.
  */
-const Ventana = ({ pieza, titulo, prioridad = false, plana = false, className = '' }) => (
+const Ventana = ({ pieza, titulo = null, prioridad = false, plana = false, className = '' }) => (
   <figure
-    className={`${plana ? 'lp-plana' : 'lp-portatil'} ${className}`}
+    className={`${plana ? 'lp-plana' : 'lp-portatil'}${titulo ? '' : ' is-desnuda'} ${className}`}
     /* Hasta dónde puede crecer la captura. Ver el bloque de las piezas: es el
        ancho al que la imagen se pinta 1:1 o por debajo, nunca por encima. */
     style={{ '--nat': `${pieza.css || pieza.ancho}px` }}
   >
     <span className="lp-portatil-tapa">
       <span className="lp-shot">
-        {/* La barra del navegador. Los tres puntos a la izquierda y el nombre de
-            la sección en una pastilla centrada, que es donde va la dirección en
-            cualquier navegador de los últimos quince años. Alineado a la
-            izquierda y sin pastilla parecía el título de una tarjeta; centrado y
-            en su chip se lee como lo que imita. */}
-        <span className="lp-shot-bar" aria-hidden="true">
-          <span className="lp-shot-dots">
-            <i /> <i /> <i />
+        {/* La barra del navegador, cuando la pieza se presenta como ventana. Los
+            tres puntos a la izquierda y el nombre de la sección en una pastilla
+            centrada, que es donde va la dirección en cualquier navegador de los
+            últimos quince años. Alineado a la izquierda y sin pastilla parecía el
+            título de una tarjeta; centrado y en su chip se lee como lo que
+            imita. */}
+        {titulo && (
+          <span className="lp-shot-bar" aria-hidden="true">
+            <span className="lp-shot-dots">
+              <i /> <i /> <i />
+            </span>
+            <span className="lp-shot-tab">{titulo}</span>
           </span>
-          <span className="lp-shot-tab">{titulo}</span>
-          {/* El aviso de que esto se puede arrastrar, y SOLO en pantallas
-              estrechas —la hoja de estilos lo esconde en el resto—. Va en el
-              cromo de la ventana y no debajo de ella a propósito: debajo serían
-              cinco pies de foto repetidos bajando por la página, y aquí es una
-              etiqueta más de la barra, en el hueco que dejaba libre la pastilla
-              del centro. */}
-          <span className="lp-shot-desliza">Desliza →</span>
-        </span>
+        )}
 
         {/* ── Y la imagen va dentro de su propia caja ────────────────────────
             Que en un ordenador no hace nada —es un bloque del ancho de la
@@ -616,6 +624,19 @@ const Ventana = ({ pieza, titulo, prioridad = false, plana = false, className = 
             /* La del héroe se pide ya; las de abajo, al acercarse. */
             loading={prioridad ? 'eager' : 'lazy'}
           />
+        </span>
+
+        {/* El aviso de que esto se puede arrastrar, y SOLO en pantallas
+            estrechas —la hoja de estilos lo esconde en el resto—. Va posado
+            sobre la captura y no debajo de ella: debajo serían cinco pies de
+            foto repetidos bajando por la página, y en los pares chocaría con la
+            chapa, que cuelga justo de ese canto.
+
+            Y va FUERA de la caja que desliza, o se iría con la imagen al
+            arrastrarla: la única pieza de la escena que no puede moverse es
+            precisamente la que dice que se mueve. */}
+        <span className="lp-shot-desliza" aria-hidden="true">
+          Desliza →
         </span>
       </span>
     </span>
@@ -942,8 +963,11 @@ const Paso = ({ paso }) => {
         <p className="lp-lede-sm">{paso.texto}</p>
       </div>
 
+      {/* Sin `titulo`, o sea sin barra de navegador: el paso ya se llama «El
+          roadmap» y la pastilla ponía «Progreso · Roadmap» a quince píxeles.
+          Ver `Ventana`. */}
       <div className="lp-ruta-art lp-feat-art">
-        <Ventana pieza={paso.pieza} titulo={paso.pieza.titulo} plana />
+        <Ventana pieza={paso.pieza} plana />
       </div>
     </li>
   );

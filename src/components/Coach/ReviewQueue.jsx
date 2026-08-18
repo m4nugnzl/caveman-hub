@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { reviewQueue } from '@/domain/portfolio';
+import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 import { useReviewSession } from './ReviewSession';
@@ -66,6 +67,16 @@ const ESTADOS = {
 /** Lo que se guarda al cerrar sin cambios. Es texto y no un booleano porque va a
     la misma nota que escribirías tú, y así el histórico se lee de corrido. */
 const SIN_CAMBIOS = 'Sin cambios: seguimos igual.';
+
+/**
+ * Un vistazo a lo que ha contestado esta semana.
+ *
+ * Cadena vacía si no contestó nada o si su entrenador no le pregunta: entonces la
+ * fila enseña lo de siempre. El criterio de qué cabe en la línea vive en
+ * `domain/protocol.js`, con las preguntas.
+ */
+const resumen = (row) =>
+  answersSummary(clientProtocol(row.client.preferences), row.review?.answers);
 
 export const ReviewQueue = ({ rows, onReview }) => {
   const navigate = useNavigate();
@@ -136,17 +147,27 @@ export const ReviewQueue = ({ rows, onReview }) => {
                     <span className={`badge ${estado.tone}`}>{estado.label}</span>
                   </span>
                   <span className="sub">
-                    {/* El titular ya calculado; si no hay, las dos cifras que
-                        siempre existen. Nunca las dos cosas: la fila tiene que
-                        leerse de un vistazo. */}
-                    {row.headline
-                      ? row.headline
-                      : [
-                          `${row.checkIn.count}/${row.checkIn.target} pesajes`,
-                          row.sinceTraining === null
-                            ? 'sin entrenos'
-                            : `entrenó hace ${row.sinceTraining} d`,
-                        ].join(' · ')}
+                    {/*
+                      Lo que ha CONTESTADO manda sobre todo lo demás.
+
+                      El titular («En rumbo: −0,4 kg/sem») y las cifras de
+                      pesajes salen de datos que ya estaban aquí y que se pueden
+                      mirar en cualquier momento. Sus respuestas son lo único de
+                      esta fila que ha llegado esta semana y que no está en
+                      ninguna otra pantalla, así que es lo que hace que valga la
+                      pena leerla.
+
+                      Nunca las tres cosas a la vez: la fila se lee de un vistazo
+                      o no se lee.
+                    */}
+                    {resumen(row) ||
+                      row.headline ||
+                      [
+                        `${row.checkIn.count}/${row.checkIn.target} pesajes`,
+                        row.sinceTraining === null
+                          ? 'sin entrenos'
+                          : `entrenó hace ${row.sinceTraining} d`,
+                      ].join(' · ')}
                   </span>
                 </span>
 

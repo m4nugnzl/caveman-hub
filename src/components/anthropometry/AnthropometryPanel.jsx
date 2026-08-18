@@ -57,6 +57,23 @@ export const AnthropometryPanel = ({
   // edita su propia ficha (ver 0006). Sin esta función, el aviso explica el
   // problema pero no ofrece arreglarlo.
   onSetGender = null,
+  /*
+    ══ El asistente se puede abrir DESDE FUERA ════════════════════════════════
+
+    Porque «Entregar mi semana» vive en `ClientWeek`, que es una tarjeta hermana
+    de esta en la misma pantalla, y ahora tiene que abrir este asistente en vez
+    de entregar a ciegas. Sin esto habría dos formas de entregar la semana en la
+    misma pantalla — que es exactamente el problema que se está arreglando.
+
+    Controlado solo si llegan las dos propiedades; si no, el panel se gobierna
+    solo como hasta ahora. Es lo que mantiene intacto el camino del ENTRENADOR,
+    que usa este mismo panel para anotar una medición y no entrega nada.
+  */
+  open = null,
+  onOpenChange = null,
+  onSubmitWeek = null,
+  weekStart = null,
+  weeks = 1,
 }) => {
   const confirm = useConfirm();
   // Memoizado: `|| []` crearía un array nuevo en cada render e invalidaría los
@@ -66,7 +83,10 @@ export const AnthropometryPanel = ({
     [anthropometry]
   );
 
-  const [asistente, setAsistente] = useState(false);
+  const [propio, setPropio] = useState(false);
+  const controlado = open !== null && typeof onOpenChange === 'function';
+  const asistente = controlado ? open : propio;
+  const setAsistente = controlado ? onOpenChange : setPropio;
 
   const isClient = audience === 'client';
 
@@ -159,6 +179,9 @@ export const AnthropometryPanel = ({
           photos={photos}
           onUploadPhoto={onUploadPhoto}
           onSetGender={onSetGender}
+          onSubmitWeek={onSubmitWeek}
+          weekStart={weekStart}
+          weeks={weeks}
           onClose={() => setAsistente(false)}
         />
       )}
