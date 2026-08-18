@@ -2758,35 +2758,30 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   color: var(--text-tertiary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* El aviso de arrastre. Solo existe en pantallas estrechas —ver el bloque de
-   móvil, al final—, y se posa sobre la captura: por debajo de la barra cuando la
-   hay, y en el canto de arriba cuando no. */
+/* El aviso de arrastre, apagado. Se encendía en pantallas estrechas, cuando la
+   captura se deslizaba dentro de su marco; ya no hay nada que deslizar. Se queda
+   aquí y no se va del marcado porque vuelve con una línea el día que las
+   capturas de móvil se saquen recortadas y quepa acercarlas otra vez. */
 .lp-shot-desliza { display: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   LA CAJA QUE DESLIZA
+   LA CAJA DE LA PANTALLA
    --------------------------------------------------------------------------
-   En un ordenador no hace nada: es un bloque del ancho de la ventana con la
-   captura dentro. En un móvil es lo que arregla la mitad de la página.
+   Un bloque del ancho de la ventana con la captura dentro. Hoy no hace nada por
+   sí sola, y aun así no sobra: es lo que separa la PANTALLA del cromo del marco.
 
-   Una captura de escritorio de 770 px metida en los 390 px de un teléfono lleva
-   la letra a un tercio de su tamaño, y la letra es lo único que hay que poder
-   leer: la tabla de series, las cifras de la semana, los gramos de un alimento.
-   Encogida así, la pieza deja de ser una demostración y pasa a ser una mancha
-   con forma de aplicación — que es exactamente como se veía esta página en el
-   sitio por donde llega la mayoría de la gente.
+   Aquí vivió el deslizado. Por debajo de 700 px la imagen no encogía —se pintaba
+   al doble del hueco y se arrastraba dentro de esta caja— para que la tabla de
+   series y las cifras de la semana siguieran leyéndose en un teléfono. Se quitó
+   porque enseñaba el 30 % de la captura y el corte se leía como un fallo; el
+   porqué entero está en el bloque de móvil, al final del archivo.
 
-   Así que por debajo de 700 px la imagen NO encoge: se queda a los mismos
-   píxeles a los que se pinta en un ordenador y se pasea dentro de este hueco.
-   Se lee igual de bien que en una pantalla grande, a cambio de un gesto que
-   cualquiera conoce.
-
-   ── Y por qué esta caja y no `.lp-shot` ────────────────────────────────────
-   Porque la barra del navegador tiene que quedarse quieta. Si el que desliza
-   fuera el marco entero, al arrastrar se irían con la imagen los tres puntos y
-   la pastilla de la sección, y media ventana se quedaría sin cromo arriba. Con
-   la barra fuera del hueco que desliza, lo único que se mueve es la pantalla —
-   que es lo que pasa en una ventana de verdad.
+   ── Y por qué la caja se queda ─────────────────────────────────────────────
+   Porque la barra del navegador tiene que poder quedarse quieta. Todo lo que se
+   le haga a la imagen —un tope de alto, un encuadre, un recorte, el deslizado si
+   algún día vuelve con recortes cerrados— se le pone a esta caja, y los tres
+   puntos y la pastilla de la sección no se enteran. Si el marco entero fuera el
+   que recorta, media ventana se quedaría sin cromo arriba.
    ══════════════════════════════════════════════════════════════════════════ */
 .lp-shot-vista { display: block; position: relative; }
 
@@ -3448,8 +3443,44 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      hueco solo enseñan cuarenta píxeles más de una imagen que hay que arrastrar
      igual. A cambio dejaba cinco tarjetas de esquina redondeada besando los dos
      biseles y la escena descuadrada del texto que la presenta.
+
+     ══ Y EL SEGUNDO PAR NO SE ESTABA ENTERANDO DE NADA ═══════════════════════
+
+     Esto de aquí decía `.lp-par-art`, a secas. Y el par vuelto lleva
+     `.lp-par.is-vuelta .lp-par-art { flex-direction: row-reverse }` escrito
+     arriba, que pesa más por especificidad — o sea que gana esté donde esté, y
+     ninguna regla de este bloque lo tocaba. Resultado en un teléfono de 390:
+
+       · la dieta se quedaba EN FILA, con la ventana encogida a 233 px de ancho
+         —una captura de 770 metida en 233— y el aparato al lado;
+       · y el teléfono, con el margen negativo que aquí se le pone para que suba
+         a apoyarse en la ventana, subía 161 px sobre una fila que ya no existía:
+         se plantaba ENCIMA DEL PÁRRAFO de la sección, tapando cuatro líneas de
+         texto;
+       · y la nota salía por el canto derecho a ocho píxeles del bisel.
+
+     Por eso todas las reglas de la escena nombran las dos formas del par. No es
+     repetir por gusto: es que la vuelta se declara con dos clases y aquí hay que
+     deshacerla con dos.
      ══════════════════════════════════════════════════════════════════════════ */
-  .lp-par-art {
+  .lp-par-art,
+  .lp-par.is-vuelta .lp-par-art {
+    /* ── Las dos medidas de las que cuelga toda la escena ──────────────────
+       `--tel-esc` es el ancho del teléfono, y manda porque es la pieza que no
+       puede encoger sin dejar de parecer un teléfono. El tope de 108 px no es
+       redondo: es lo que hace que el aparato mida ~0,78 del alto de la ventana
+       —la misma relación que en un monitor— en toda la franja, de 320 px a 700.
+       Sin él, a 700 el teléfono crecía con el `vw` mientras la ventana estaba
+       clavada por su tope de alto, y acababa siendo el objeto MÁS GRANDE de un
+       par que existe para enseñar una pantalla de ordenador.
+
+       `--asoma` es cuánto sobresalen por debajo de la ventana el teléfono y la
+       nota. Uno solo para los dos, y ese es el punto: con dos números la escena
+       terminaba en tres cantos escalonados y un hueco negro en medio —la nota
+       flotando en la nada, que es justo lo que se veía—. Con uno, la escena
+       tiene una línea de suelo. */
+    --tel-esc: min(24vw, 108px);
+    --asoma: 22px;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
@@ -3475,11 +3506,20 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
      Se pierde un poco de captura visible —del 45 % de la imagen al 36 %— y no
      importa: lo que hay que arrastrar se arrastra igual, y a cambio se entiende
-     de un vistazo que son dos pantallas de lo mismo y no dos secciones. */
-  .lp-par-desk {
-    width: 80%;
-    align-self: flex-start;
+     de un vistazo que son dos pantallas de lo mismo y no dos secciones.
+
+     ── Y el hueco que suelta se mide con el TELÉFONO, no con un 80 % ─────────
+     Un porcentaje fijo solo cuadra al ancho en el que se eligió. El teléfono
+     tiene tope (108 px), así que a 700 px de ventana ocupaba el 16 % y la
+     ventana el 80: sobraba un 4 % y los dos aparatos dejaban de tocarse, que es
+     lo único que el par no puede permitirse. Restando el ancho del propio
+     teléfono, el mordisco es SIEMPRE el 28 % de lo que mide — igual en un
+     teléfono de 320 que en una tableta de 700. */
+  .lp-par-desk,
+  .lp-par.is-vuelta .lp-par-desk {
+    width: calc(100% - var(--tel-esc) * 0.72);
   }
+  .lp-par-desk { align-self: flex-start; }
   .lp-par.is-vuelta .lp-par-desk { align-self: flex-end; }
 
   /* ── EL TELÉFONO, EN LA ESQUINA Y POR FUERA ──────────────────────────────
@@ -3493,42 +3533,75 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      Un teléfono mide 1,72 veces su ancho —el canto, la barra de estado y una
      captura de móvil, que las dos vienen del script con la misma proporción— y
      lo que hay que decidir es cuánto ASOMA por debajo de la ventana, no cuánto
-     sube. Cuarenta píxeles: los mismos que en un monitor, y lo único que hace
-     que la escena tenga altura de escena y no de lista. */
+     sube. Eso es `--asoma`, y lo comparte con la nota: las dos cosas que
+     sobresalen lo hacen por la misma línea.
+
+     El ancho ya no se decide aquí: lo pone `--tel-esc` en la escena, porque la
+     ventana también lo necesita para saber cuánto sitio soltar. Aquí solo se
+     recoge. */
   .lp-par-movil,
   .lp-par.is-vuelta .lp-par-movil {
-    --tel: min(30vw, 200px);
+    --tel: var(--tel-esc);
     align-self: flex-end;
-    margin: calc(40px - var(--tel) * 1.72) 0 0;
+    margin: calc(var(--asoma) - var(--tel) * 1.72) 0 0;
     z-index: 1;
   }
   .lp-par.is-vuelta .lp-par-movil { align-self: flex-start; }
 
-  /* ══ LA NOTA: LA DEL ESCRITORIO, MÁS PEQUEÑA ════════════════════════════
-     Sigue siendo la misma y aquí no hay ni una regla que la mueva de sitio:
-     absoluta, colgada del canto de abajo de la ventana, medio dentro y medio
-     fuera, y con su vaivén. Todo eso está escrito arriba.
+  /* ══ LA NOTA: PEGADA AL CANTO, NO FLOTANDO EN LA NADA ═══════════════════
+     Sigue siendo la misma pieza —absoluta, colgada del canto de abajo de la
+     ventana, medio dentro y medio fuera, y con su vaivén—. Lo que cambia es
+     cuánto sobresale y por dónde, que es de donde venía el agujero.
 
-     Lo de aquí es cuánto abulta. Con la cita a 13 px en una caja estrecha se
-     iba a tres líneas y noventa píxeles: el mismo peso que el aparato de
-     enfrente y un tercio del alto de la ventana de la que cuelga. Una nota al
-     pie no puede pesar como la pantalla que anota.
+     ── Sobresale lo mismo que el teléfono ────────────────────────────────────
+     Colgaba de su propio alto (`--alto / -2`, o sea 37 px) mientras el aparato
+     de enfrente asomaba 40, y la nota medía 74 px porque `--alto` se los
+     imponía aunque su texto ocupara menos. Entre las dos dejaban una franja
+     negra de sesenta píxeles bajo la ventana con la nota sola dentro y un
+     hueco vacío hasta el teléfono: exactamente «la tarjeta puesta ahí en la
+     nada». Ahora asoma `--asoma`, igual que el teléfono, y el alto lo decide su
+     texto.
 
-     El 56 % es del ancho de la VENTANA, no de la escena, así que se estrecha
-     con ella y nunca llega al teléfono — que vive en el 20 % de fuera. */
+     ── Y se alinea con la VENTANA, no con el bisel del móvil ─────────────────
+     Salía 12 px por fuera del canto de la ventana. En un monitor eso es una
+     nota despegándose de la pantalla; en un teléfono, donde la ventana ya está
+     pegada al gutter, es una tarjeta a ocho píxeles del bisel — y en el par
+     vuelto, saliéndose por el otro lado. A ras del canto: cruza el borde de
+     abajo, que es el que la hace capa, y no el de los lados, que es el que la
+     hace descuadre.
+
+     ── Y ABULTA MENOS, que es lo que seguía sin estar bien ──────────────────
+     Con la cita a 13 px seguía siendo una tarjeta de 175 × 66 sobre una ventana
+     de 283 × 227: una nota al pie ocupando el 25 % de la pantalla que anota, y
+     puesta encima de las dos primeras filas de la tabla. Baja al cuerpo más
+     pequeño de la escala y con él baja todo lo demás —dos líneas de 15 px en
+     vez de dos de 18—, así que la tarjeta pasa a medir unos 50 px de alto y
+     tapa una fila en vez de tres.
+
+     El 58 % es del ancho de la VENTANA, no de la escena, así que se estrecha
+     con ella y nunca llega al teléfono. Y el tope en píxeles evita lo
+     contrario: que en una tableta de 700 la nota se estire hasta parecer un
+     párrafo con marco. */
   .lp-par-art .lp-chapa,
   .lp-par.is-vuelta .lp-chapa {
-    left: calc(var(--s3) * -1); right: auto;
-    width: min(190px, 56%);
-    padding: var(--s2) var(--s3);
-    gap: 3px;
+    left: 0; right: auto;
+    bottom: calc(var(--asoma) * -1);
+    min-height: 0;
+    width: min(178px, 58%);
+    padding: var(--s2) 11px;
+    gap: 2px;
   }
   /* Y en el par vuelto sale por el canto de la derecha, o sea al lado contrario
      del teléfono, igual que en un monitor. */
   .lp-par.is-vuelta .lp-chapa {
-    left: auto; right: calc(var(--s3) * -1);
+    left: auto; right: 0;
   }
-  .lp-par-art .lp-chapa-dice { font-size: var(--fs-xs); line-height: 1.4; }
+  .lp-par-art .lp-chapa-dice { font-size: var(--fs-2xs); line-height: 1.38; }
+  /* El rótulo se queda con su icono pero pierde el aire: a este tamaño, seis
+     píxeles entre la chapa y el nombre son los mismos seis que separan las dos
+     líneas de la cita, y la nota deja de leerse como dos cosas. */
+  .lp-par-art .lp-chapa-rotulo { gap: 5px; }
+  .lp-par-art .lp-chapa-rotulo > svg { width: 11px; height: 11px; }
 
   /* El fulgor se estira con la escena: con la proporción fija se quedaba en una
      mancha apaisada flotando en el hueco entre la ventana y el teléfono, que es
@@ -3557,59 +3630,53 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .lp-ruta-art > .lp-plana { width: 100%; }
 
   /* ══════════════════════════════════════════════════════════════════════════
-     Y LAS CAPTURAS DEJAN DE ENCOGER — pero la ventana sigue siendo una ventana
+     LA CAPTURA SE VE ENTERA, Y AQUÍ SE ACABA EL ZOOM
      --------------------------------------------------------------------------
-     Lo primero es lo de siempre: una captura de escritorio dentro de 350 px
-     tiene la letra a un tercio, o sea que la tabla de series, los gramos de un
-     alimento y las cifras de la semana dejan de leerse y las cinco pantallas
-     del producto se quedan en cinco manchas grises. Así que la imagen no
-     encoge: se queda a su ancho de pintado y se pasea dentro del hueco.
+     Aquí hubo dos intentos de lo mismo y los dos fallaban por el mismo lado.
 
-     ── Y lo segundo es lo que faltaba: el ALTO ───────────────────────────────
-     Si solo se clava el ancho, el hueco se queda con la altura entera del
-     archivo: la sesión son 770 × 453, o sea una caja de 350 de ancho por 477 de
-     alto. Una ventana de navegador MÁS ALTA QUE ANCHA no existe, y por eso la
-     página se veía rota en un teléfono aunque no se saliera nada de sitio: cada
-     pieza era un rectángulo vertical con una captura apaisada dentro, y cinco
-     seguidas ocupando la pantalla entera de alto una detrás de otra.
+     El argumento era bueno: una captura de escritorio de 770 px metida en los
+     283 de la ventana de un par lleva la letra al 37 %, o sea que la tabla de
+     series y las cifras de la semana dejan de leerse. Así que la imagen no
+     encogía: se pintaba al DOBLE del hueco (`min(--nat, 200%)`) y se paseaba
+     dentro de una caja con `overflow-x: auto` y un tope de alto de 52 vw.
 
-     Con el tope de alto la ventana recupera su forma —siempre más ancha que
-     alta— y lo que sobra por abajo se corta, que es exactamente lo que hace una
-     ventana de verdad: enseña lo que cabe y lo demás sigue ahí. Y lo que cabe
-     es lo de arriba, que es donde está lo que cuenta cada captura.
+     ══ Y lo que se veía en un teléfono de 390 ════════════════════════════════
 
-     `overflow-y: hidden` va DECLARADO: con `overflow-x: auto` a secas el otro
-     eje pasa a `auto` él solo, y el hueco se quedaría deslizando también en
-     vertical — o sea con un gesto peleándose contra el de bajar por la página.
+     La mitad izquierda de la captura y poco más: 283 de 566 px de ancho y 203
+     de 333 de alto. O sea el 30 % de la imagen, cortada por el canto derecho a
+     media tabla y por abajo a media fila. La sesión de Legs A enseñaba el
+     título, un ejercicio y dos números.
 
-     Sin barra de desplazamiento visible: una barra gris cruzando el pie de la
-     pantalla de la aplicación se lee como parte de la captura, y en un móvil no
-     se ve nunca —la del sistema aparece y se va—. El aviso lo da la etiqueta.
+     El fallo no es el número —ni 200 % ni 150 %—, es la premisa: **una captura
+     que hay que arrastrar para ver no es una demostración**. En una portada
+     nadie arrastra nada, porque para querer arrastrar hay que haber visto antes
+     que merece la pena, y lo que se ve antes es un trozo. Y el corte tampoco se
+     lee como «esto sigue»: se lee como una imagen mal puesta, que es
+     exactamente lo que dijo el primero que la vio en un móvil.
+
+     ══ Lo que hay ahora: nada ════════════════════════════════════════════════
+
+     Sin regla. La imagen vuelve a la base (`width: 100 %`, `height: auto`) y la
+     ventana enseña la pantalla ENTERA, con su proporción: 283 × 166 en los
+     pares, 350 × 206 en la secuencia. Más pequeña de lo que se podía leer, y a
+     cambio se reconoce de un vistazo qué es cada una — que es lo único que una
+     portada tiene que conseguir en un teléfono.
+
+     Y el tope de alto se va con ello: existía para que una imagen clavada a 770
+     px no dejara la ventana más alta que ancha. Fijada al ancho del hueco, la
+     proporción la trae la propia captura y la ventana no puede perder la forma.
+
+     ── Lo que esto NO arregla ────────────────────────────────────────────────
+     Que la letra de dentro es pequeña. Eso no se arregla con CSS: se arregla en
+     `scripts/recortar-capturas.ps1`, sacando recortes más CERRADOS —media
+     pantalla en vez de la pantalla entera— para que lo que llegue al teléfono
+     ya venga con menos cosas dentro. Mientras tanto, entera y pequeña es mejor
+     que grande y a trozos.
+
+     El aviso de «Desliza →» se queda en `display: none` (regla base): ya no
+     hay nada que deslizar, y sacarlo del marcado es tocar el componente para
+     borrar una línea que no pinta.
      ══════════════════════════════════════════════════════════════════════════ */
-  .lp-shot-vista {
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    max-height: min(42vw, 200px);
-  }
-  .lp-shot-vista::-webkit-scrollbar { display: none; }
-  .lp-shot-vista > .lp-shot-img { width: max(100%, var(--nat, 0px)); }
-  /* ══ Y EL AVISO DE ARRASTRE SE APAGA ════════════════════════════════════
-     Era una pastilla de cristal con «DESLIZA →» en versalita, posada sobre la
-     captura. La prueba de que no funcionaba es que lo primero que preguntó
-     quien la vio fue qué era: un aviso que hay que explicar no es un aviso, es
-     una pegatina — y encima estampada sobre lo único que la sección viene a
-     enseñar.
-
-     Y no hace falta. Una imagen CORTADA por el canto derecho a media tabla ya
-     dice que sigue: es la misma señal que usa cualquier carrusel del mundo y no
-     necesita rótulo. Lo que hacía falta de verdad —que la ventana tuviera forma
-     de ventana y no de columna— lo arregla el tope de alto de aquí arriba.
-
-     Se queda en `display: none` (regla base, más arriba) en vez de irse del
-     marcado: si algún día la captura deja de sobrar por la derecha, esto vuelve
-     con una línea. */
 
   .lp-btn { width: 100%; }
   .lp-cta { width: 100%; }

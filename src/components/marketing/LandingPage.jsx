@@ -175,12 +175,16 @@ import { LogoMark } from '@/components/ui/Logo';
  *
  * La única que sigue sin volver a tomarse es el check-in, y se nota si se busca.
  *
- * ── Y en el móvil se PASEAN ────────────────────────────────────────────────
- * Una captura de escritorio metida en 390 px de ancho tiene la letra a un tercio
- * de su tamaño: no se lee, y la mitad de la gente que llega aquí llega así. Así
- * que por debajo de 700 px la ventana deja de encoger la imagen y la deja
- * DESLIZARSE dentro de su marco, a los mismos `css` píxeles a los que se pinta
- * en un ordenador. Ver `.lp-shot-vista` en `index.css`.
+ * ── Y en el móvil se ven ENTERAS ───────────────────────────────────────────
+ * Aquí las capturas se pintaban al doble del hueco y se deslizaban dentro del
+ * marco, para que la letra no se fuera a un tercio de su tamaño. Lo que salía
+ * en un teléfono de 390 era el 30 % de la imagen —cortada por el canto derecho
+ * a media tabla— y nadie arrastra un trozo de captura en una portada: se lee
+ * como una imagen mal puesta, no como que sigue.
+ *
+ * Así que se ven enteras, pequeñas y con su proporción. La letra pequeña no se
+ * arregla estirando la imagen: se arregla sacando recortes más CERRADOS en
+ * `scripts/recortar-capturas.ps1`. Ver `.lp-shot-vista` en `index.css`.
  */
 /**
  * ══ EL HÉROE SE QUEDÓ SIN CAPTURA ═══════════════════════════════════════════
@@ -598,16 +602,13 @@ const Ventana = ({ pieza, titulo = null, prioridad = false, plana = false, class
         )}
 
         {/* ── Y la imagen va dentro de su propia caja ────────────────────────
-            Que en un ordenador no hace nada —es un bloque del ancho de la
-            ventana— y en un móvil lo es todo: es la caja que DESLIZA. Una
-            captura de escritorio metida en 390 px tiene la letra a un tercio de
-            su tamaño y no se lee, así que por debajo de 700 px la imagen se
-            queda a su ancho de pintado y se pasea dentro de este hueco.
-
-            Va aquí dentro y no en `.lp-shot` a propósito: si el que desliza
-            fuera el marco entero, la barra del navegador se iría con la imagen y
-            al arrastrar quedaría media ventana sin cromo arriba. Con la barra
-            fuera, lo único que se mueve es la pantalla. */}
+            Aquí esta caja fue la que DESLIZABA en un móvil: la imagen se pintaba
+            al doble del hueco para que la letra se leyera y se arrastraba dentro
+            de ella. Se quitó —enseñaba un tercio de la captura y el corte se
+            leía como un fallo, ver `.lp-shot-vista` en `index.css`—, y la caja
+            se queda: es lo que separa la PANTALLA del cromo del marco, así que
+            un tope de alto, un encuadre o un recorte se le ponen a ella sin que
+            los tres puntos y la pastilla se enteren. */}
         <span className="lp-shot-vista">
           {/* `corte`, cuando lo trae la pieza, es hasta qué altura del ARCHIVO se
               enseña: la proporción la manda el corte y la imagen se ancla
