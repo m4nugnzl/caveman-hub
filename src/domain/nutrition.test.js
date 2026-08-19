@@ -13,6 +13,8 @@ import {
   foodUnits,
   gramsFromUnits,
   hasUnits,
+  emptyNutrition,
+  isEmptyDiet,
   MAX_NOTES,
   mealTarget,
   mealTargetsTotal,
@@ -488,5 +490,54 @@ describe('cada opción contra el objetivo de su comida', () => {
 
   it('sin objetivo no hay nada que comparar', () => {
     expect(optionGaps({ id: 'm1', target: null, options: [{ id: 'o1', foods: [] }] })).toEqual([]);
+  });
+});
+
+/*
+  ══ El plan en blanco ═══════════════════════════════════════════════════════
+
+  Existe para la copia entre clientes, que SUSTITUYE: traerse el plan de alguien
+  que no tiene dieta configurada le borra la suya al destino, y el único aviso
+  sería su pantalla de nutrición vacía. Por eso «no hay fila» y «hay fila sin
+  nada» tienen que dar la misma respuesta.
+*/
+describe('isEmptyDiet', () => {
+  it('sin plan, y con el plan recién nacido, es lo mismo', () => {
+    expect(isEmptyDiet(undefined)).toBe(true);
+    expect(isEmptyDiet(null)).toBe(true);
+    expect(isEmptyDiet(emptyNutrition())).toBe(true);
+  });
+
+  it('un objetivo puesto ya es una dieta, aunque no haya menú', () => {
+    expect(isEmptyDiet({ ...emptyNutrition(), targetKcals: 2400 })).toBe(false);
+    expect(isEmptyDiet({ ...emptyNutrition(), proteinGrams: 180 })).toBe(false);
+  });
+
+  it('el objetivo de los días de descanso cuenta igual', () => {
+    expect(isEmptyDiet({ ...emptyNutrition(), restTargets: { targetKcals: 2000 } })).toBe(false);
+    // Un `restTargets` con los cuatro a nulo es lo que deja `setHasDayVariants`
+    // partiendo de una dieta vacía: sigue sin haber nada configurado.
+    expect(
+      isEmptyDiet({
+        ...emptyNutrition(),
+        hasDayVariants: true,
+        restTargets: { targetKcals: null, proteinGrams: null, carbsGrams: null, fatsGrams: null },
+      })
+    ).toBe(true);
+  });
+
+  it('el menú cuenta en cualquiera de las tres variantes', () => {
+    const comida = { id: 'm1', name: 'Cena', options: [] };
+    expect(isEmptyDiet({ ...emptyNutrition(), closedMeals: [comida] })).toBe(false);
+    expect(isEmptyDiet({ ...emptyNutrition(), closedMealsTraining: [comida] })).toBe(false);
+    expect(isEmptyDiet({ ...emptyNutrition(), closedMealsRest: [comida] })).toBe(false);
+  });
+
+  it('los pasos, el cardio y las pautas también son trabajo hecho', () => {
+    expect(isEmptyDiet({ ...emptyNutrition(), stepsGoal: '10.000 al día' })).toBe(false);
+    expect(isEmptyDiet({ ...emptyNutrition(), cardioGoal: '2 sesiones' })).toBe(false);
+    expect(isEmptyDiet({ ...emptyNutrition(), habitsNotes: ['Bebe 2 L de agua'] })).toBe(false);
+    // Una cadena en blanco no es un objetivo: es el campo tocado y vaciado.
+    expect(isEmptyDiet({ ...emptyNutrition(), stepsGoal: '   ' })).toBe(true);
   });
 });

@@ -52,7 +52,15 @@ const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRo
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
-import { COACH_CLIENT, RESET_PATH, SETTINGS_SECTIONS, clientViewOf, coachViewOf } from '@/routes';
+import {
+  CLIENT_HOME,
+  COACH_CLIENT,
+  RESET_PATH,
+  SETTINGS_SECTIONS,
+  clientViewOf,
+  coachViewOf,
+} from '@/routes';
+import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
@@ -153,6 +161,29 @@ const OtherViewFallback = ({ view, clientId }) => {
   const { pathname } = useLocation();
   const destino = view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname);
   return <Navigate to={destino} replace />;
+};
+
+/**
+ * Una sección que solo existe si a este cliente le llevas ese servicio.
+ *
+ * ══ Por qué hace falta además de esconderla del menú ════════════════════════
+ *
+ * Porque la URL no pasa por el menú. `/mi/dieta` está en marcadores, en la
+ * pantalla de inicio del móvil y en los enlaces que se han mandado por WhatsApp;
+ * quitarla del carril no la cierra. Y lo que había detrás no es una pantalla
+ * vacía inofensiva: es el editor con sus botones de crear, así que se puede
+ * empezar a montar una dieta que su portal no va a enseñar nunca.
+ *
+ * Redirige en lugar de explicar porque no hay nada que decidir: la sección no
+ * existe para esta persona, y el sitio honesto es su resumen.
+ */
+const ConServicio = ({ servicio, to, children }) => {
+  const { activeClient } = useApp();
+  const protocol = clientProtocol(activeClient?.preferences);
+  /* Sin cliente resuelto todavía no se decide nada: expulsar durante la carga es
+     el mismo fallo que ya costó una vez en `CoachLayout`. */
+  if (!activeClient) return children;
+  return isServiceOn(protocol, servicio) ? children : <Navigate to={to} replace />;
 };
 
 export default function App() {
@@ -347,8 +378,24 @@ export default function App() {
                     <Route path="resumen" element={<Dashboard audience="coach" />} />
                     <Route path="analitica" element={<AnalyticsPanel audience="coach" />} />
                   </Route>
-                  <Route path="rutina" element={<WorkoutLogEditor />} />
-                  <Route path="nutricion" element={<NutritionModule />} />
+                  {/* Las dos secciones que pueden no existir para este cliente.
+                      Ver `ConServicio` y `domain/protocol.js`. */}
+                  <Route
+                    path="rutina"
+                    element={
+                      <ConServicio servicio="training" to="../resumen">
+                        <WorkoutLogEditor />
+                      </ConServicio>
+                    }
+                  />
+                  <Route
+                    path="nutricion"
+                    element={
+                      <ConServicio servicio="nutrition" to="../resumen">
+                        <NutritionModule />
+                      </ConServicio>
+                    }
+                  />
 
                   {/* Revisión: el check-in y las fotos son la misma tarea, y
                       estaban en dos secciones porque son dos tablas. Ver
@@ -398,8 +445,22 @@ export default function App() {
                     inicio y el check-in. La ruta sigue viva por los marcadores. */}
                 <Route path="hoy" element={<Navigate to="/mi/inicio" replace />} />
                 <Route path="panel" element={<Navigate to="/mi/inicio" replace />} />
-                <Route path="rutina" element={<ClientRoutineRoute />} />
-                <Route path="dieta" element={<ClientDietRoute />} />
+                <Route
+                  path="rutina"
+                  element={
+                    <ConServicio servicio="training" to={CLIENT_HOME}>
+                      <ClientRoutineRoute />
+                    </ConServicio>
+                  }
+                />
+                <Route
+                  path="dieta"
+                  element={
+                    <ConServicio servicio="nutrition" to={CLIENT_HOME}>
+                      <ClientDietRoute />
+                    </ConServicio>
+                  }
+                />
 
                 {/* Su check-in y sus fotos: el mismo gesto de la semana, y
                     además la única puerta para subirlas. */}

@@ -1,3 +1,4 @@
+import { Children } from 'react';
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import { round } from '@/lib/num';
 
@@ -90,6 +91,63 @@ export const StatWidget = ({ title, icon: Icon, timeframe, value, unit, color, d
     {children && <div className="widget-spark">{children}</div>}
   </article>
 );
+
+// ── La fila de métricas ────────────────────────────────────────────────────
+
+/**
+ * Una fila de tarjetas de métrica.
+ *
+ * ══ Por qué la fila es un componente y no una clase de rejilla ══════════════
+ *
+ * Porque hay dos reglas que una clase no puede hacer cumplir, y las dos se
+ * incumplían en la pantalla más vista del producto —la ficha de un cliente—.
+ *
+ * ── 1. Las cuatro piezas, en el mismo orden, SIEMPRE ────────────────────────
+ * `index.css` ya lo declara y dice por qué: «etiqueta, cifra grande, píldora de
+ * variación, gráfico ancho y bajo — porque esa repetición es lo que hace que
+ * veinte tarjetas distintas se lean como un solo producto». En la práctica, de
+ * cuatro tarjetas seguidas una llevaba una línea, otra nada, otra un borrón y
+ * otra una barra de macros: cuatro dibujos distintos en una fila que existe para
+ * poder compararse.
+ *
+ * Una métrica sin serie temporal **no inventa otro dibujo**: deja el hueco del
+ * gráfico vacío, y ese hueco ya informa —esta cifra todavía no tiene historia—.
+ *
+ * ── 2. Dos o cuatro, nunca tres ─────────────────────────────────────────────
+ * Tres tarjetas en una rejilla de cuatro dejan un hueco a la derecha que el ojo
+ * lee como un error de carga. Y no se puede resolver estirando la tercera,
+ * porque entonces la misma tarjeta mide distinto según cuántas hermanas tenga y
+ * deja de ser comparable con la de la pantalla de al lado.
+ *
+ * Lo que se hace es dibujar el hueco A PROPÓSITO: una casilla vacía con su canto
+ * punteado, que dice «aquí cabe otra» en vez de «aquí falta algo». Como los
+ * widgets del resumen los elige cada cliente (`domain/preferences.js`), tres es
+ * un estado real y frecuente, no una rareza.
+ *
+ * @param children  Las tarjetas. Se cuentan para decidir la rejilla.
+ * @param slotHint  Qué poner en la casilla vacía —normalmente el botón de
+ *   personalizar—. Sin ella, la casilla se pinta muda.
+ */
+export const MetricRow = ({ children, slotHint = null }) => {
+  const items = Children.toArray(children).filter(Boolean);
+  if (items.length === 0) return null;
+
+  /* Hasta dos, la fila mide lo que miden ellas. A partir de tres, cuatro
+     columnas y se completa la última con casillas vacías. */
+  const cols = items.length <= 2 ? items.length : 4;
+  const huecos = (cols - (items.length % cols)) % cols;
+
+  return (
+    <div className={`metric-row is-${cols}`}>
+      {items}
+      {Array.from({ length: huecos }, (_, i) => (
+        <div className="metric-slot" key={`hueco-${i}`} aria-hidden={!slotHint}>
+          {i === 0 && slotHint}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // ── Lista agrupada de métricas ─────────────────────────────────────────────
 

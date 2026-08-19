@@ -72,6 +72,36 @@ export const CARDS = [
   },
 ];
 
+/**
+ * De qué servicio depende cada pieza del resumen.
+ *
+ * ══ Por qué un mapa y no un campo en cada catálogo ══════════════════════════
+ *
+ * Porque los mismos identificadores los usan TRES listas: las cifras de arriba
+ * (`WIDGETS`), los gráficos (`CARDS`) y la lista agrupada de métricas del final,
+ * que no sale de ningún catálogo —se arma con lo que tiene dato—. Un campo en los
+ * dos catálogos dejaría la tercera fuera, que es justo donde el objetivo calórico
+ * volvería a aparecer en el panel de alguien a quien no le llevas la dieta.
+ *
+ * Lo que no está aquí existe siempre: el peso, las fotos y el check-in no
+ * dependen de si le programas o le pautas la comida.
+ */
+export const PIECE_SERVICE = {
+  tonnage: 'training',
+  sets: 'training',
+  adherence: 'training',
+  readiness: 'training',
+  tonnageTrend: 'training',
+  split: 'training',
+  volume: 'training',
+  feedbackTrend: 'training',
+  kcals: 'nutrition',
+  macros: 'nutrition',
+};
+
+/** El servicio que necesita una pieza, o `null` si no depende de ninguno. */
+export const pieceNeeds = (id) => PIECE_SERVICE[id] || null;
+
 const DEFAULTS = {
   dashboard: {
     widgets: ['weight', 'checkin', 'tonnage', 'kcals'],

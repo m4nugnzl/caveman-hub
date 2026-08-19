@@ -26,6 +26,7 @@ export const CopyToClientPanel = ({
   hasProgram,
   hasDiet,
   hasWarmup,
+  conNutricion = true,
   onReplicate,
   onClose,
 }) => {
@@ -88,11 +89,25 @@ export const CopyToClientPanel = ({
     if (!ok) return;
 
     const done = await onReplicate(sourceId, { training, diet, warmup });
-    const copied = [
-      done.training && 'entrenamiento',
-      done.warmup && 'calentamiento',
-      done.diet && 'dieta',
-    ].filter(Boolean);
+    const NOMBRES = { training: 'entrenamiento', warmup: 'calentamiento', diet: 'dieta' };
+    const copied = ['training', 'warmup', 'diet'].filter((k) => done[k]).map((k) => NOMBRES[k]);
+    const fallidos = (done.failed || []).map((k) => NOMBRES[k]);
+
+    /*
+      ── Tres finales, no dos ──────────────────────────────────────────────────
+      «No se pudo leer» era antes «no tiene datos», y son cosas opuestas: la
+      primera se arregla volviendo a pulsar y la segunda significa que ahí no hay
+      nada que traer. Confundirlas hacía que un fallo de red pareciera un cliente
+      sin dieta, y nadie reintenta lo que cree vacío.
+    */
+    if (fallidos.length > 0) {
+      const copiadoTambien = copied.length > 0 ? ` Sí se copió: ${copied.join(' y ')}.` : '';
+      setResult({
+        tone: 'error',
+        text: `No se pudo leer ${fallidos.join(' y ')} de ${source.name}. Inténtalo otra vez.${copiadoTambien}`,
+      });
+      return;
+    }
 
     setResult(
       copied.length > 0
@@ -181,13 +196,20 @@ export const CopyToClientPanel = ({
               checked={warmup || training}
               onChange={setWarmup}
             />
-            <OptionCard
-              icon={Salad}
-              label="Dieta"
-              hint="Objetivo, macros, menú cerrado y tus pautas."
-              checked={diet}
-              onChange={setDiet}
-            />
+            {/*
+              La dieta solo se ofrece si a esta persona se la llevas. Copiarle un
+              plan nutricional a un cliente de solo entrenamiento lo dejaría
+              guardado en una sección que ni él ni tú podéis abrir.
+            */}
+            {conNutricion && (
+              <OptionCard
+                icon={Salad}
+                label="Dieta"
+                hint="Objetivo, macros, menú cerrado y tus pautas."
+                checked={diet}
+                onChange={setDiet}
+              />
+            )}
           </div>
         </Field>
 

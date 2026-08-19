@@ -179,6 +179,30 @@ export const findMicrocycle = (microcycles, weekNumber) =>
 export const nextWeekNumber = (microcycles) =>
   microcycles.length === 0 ? 1 : Math.max(...microcycles.map((m) => m.weekNumber)) + 1;
 
+/**
+ * Dónde queda un elemento después de que OTRO se mueva por encima de él.
+ *
+ * ══ Para qué ═══════════════════════════════════════════════════════════════
+ *
+ * El carril de días se puede arrastrar, y el editor de abajo abre uno concreto
+ * POR ÍNDICE. Mover cualquier otro día corre ese índice: arrastrar el cuarto día
+ * delante del primero te dejaba, sin tocar nada más, editando el día de al lado
+ * del que tenías abierto. Con el nombre cambiado en la cabecera, que es la forma
+ * más rápida de escribirle series al día que no era.
+ *
+ * Es la aritmética del `splice`: quien se mueve va a `to`; quien queda dentro del
+ * tramo recorrido se desplaza un puesto en sentido contrario; el resto no se
+ * entera. Vive aquí y con prueba porque es exactamente donde se cuela un error de
+ * uno, y ese error no da un fallo visible sino datos escritos en el sitio
+ * equivocado.
+ */
+export const indexAfterMove = (index, from, to) => {
+  if (index === from) return to;
+  if (from < index && index <= to) return index - 1;
+  if (to <= index && index < from) return index + 1;
+  return index;
+};
+
 /** Nombre libre pero único dentro del microciclo: "Día 1 (copia)", "(copia 2)"… */
 export const uniqueDayName = (days, base) => {
   if (!days.some((d) => d.dayName === base)) return base;

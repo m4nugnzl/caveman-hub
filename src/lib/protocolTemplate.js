@@ -23,7 +23,14 @@
  * el mismo ordenador no se pisaran la suya; el rescate respeta esa misma clave.
  */
 
-import { CHECKIN_BLOCKS, checkinMode, clientProtocol, defaultProtocol } from '@/domain/protocol';
+import {
+  CHECKIN_BLOCKS,
+  SERVICES,
+  checkinMode,
+  clientProtocol,
+  defaultProtocol,
+  isServiceOn,
+} from '@/domain/protocol';
 
 const key = (userId) => `caveman-protocol:${userId || 'anon'}`;
 
@@ -95,7 +102,12 @@ const LISTAS = ['modules', 'questions', 'checkinQuestions'];
 export const matchesTemplate = (template, protocol) =>
   LISTAS.every((k) => (template[k] || []).join() === (protocol[k] || []).join()) &&
   JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
-  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id));
+  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id)) &&
+  /* Qué le llevas —entrenamiento, nutrición o las dos— también es desvío: es la
+     parte del protocolo que MÁS cambia lo que ve el cliente, y dejarla fuera
+     apagaría «Aplicar a todos» justo cuando lo que se acaba de cambiar es que
+     tus clientes nuevos son solo de entrenamiento. */
+  SERVICES.every((s) => isServiceOn(template, s.id) === isServiceOn(protocol, s.id));
 
 /** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
-export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin'];
+export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'services'];

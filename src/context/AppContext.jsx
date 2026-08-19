@@ -53,6 +53,7 @@ import {
   buildMeal,
   buildOption,
   emptyNutrition,
+  isEmptyDiet,
 } from '@/domain/nutrition';
 import {
   buildIntakePath,
@@ -1742,6 +1743,67 @@ export const AppProvider = ({ children }) => {
     [rememberVersion, setWorkoutData, workoutRef]
   );
 
+  /**
+   * Lo mismo para la DIETA: el plan de un cliente, traído si no está en memoria.
+   *
+   * ══ Por qué existe ══════════════════════════════════════════════════════════
+   *
+   * A diferencia del programa, la nutrición sí se pide entera en el arranque, así
+   * que en la vida normal esto no hace ninguna consulta. Existe por el caso que
+   * rompía la copia entre clientes: **el mapa de dietas puede quedarse vacío sin
+   * que nada lo diga**. Si la consulta de `nutrition_plans` del arranque falla, se
+   * apunta un aviso general y la aplicación sigue con `{}` — y a partir de ahí
+   * `nutritionRef.current[quien]` es `undefined` para todo el mundo.
+   *
+   * Copiar de otro cliente leía ese mapa directamente, así que en esa situación la
+   * dieta no se copiaba y no se decía por qué: el entrenamiento sí llegaba —ese
+   * camino se relee solo con `ensureProgram`— y la dieta se quedaba en blanco.
+   *
+   * Devuelve el plan (vacío si ese cliente no tiene fila) o `null` si la consulta
+   * falló, que es lo que permite distinguir «no tiene dieta» de «no se pudo leer».
+   */
+  const nutritionLoadsRef = useRef(new Map());
+
+  const ensureNutrition = useCallback(
+    async (clientId) => {
+      if (!clientId) return null;
+      if (nutritionRef.current[clientId]) return nutritionRef.current[clientId];
+
+      const enCurso = nutritionLoadsRef.current.get(clientId);
+      if (enCurso) return enCurso;
+
+      const peticion = (async () => {
+        const { data, error } = await supabase
+          .from('nutrition_plans')
+          .select('*')
+          .eq('client_id', clientId)
+          .maybeSingle();
+
+        if (error) return null;
+
+        // La versión leída, para que la primera escritura no vaya sin guardia.
+        if (data) rememberVersion('nutrition_plans', clientId, data.updated_at);
+
+        const mapped = data ? mapNutritionFromDb(data) : emptyNutrition();
+        /*
+          Solo se guarda en memoria lo que EXISTE. Cachear un plan vacío haría
+          que el cliente pasara a «tiene dieta» para todo lo que pregunta por el
+          mapa —empezando por el aviso de «esto sustituye su dieta actual»— sin
+          que nadie le haya configurado nada.
+        */
+        if (data) setNutrition({ ...nutritionRef.current, [clientId]: mapped });
+        return mapped;
+      })()
+        // No puede rechazar: quien espera esto lee `null` como «no se pudo».
+        .catch(() => null)
+        .finally(() => nutritionLoadsRef.current.delete(clientId));
+
+      nutritionLoadsRef.current.set(clientId, peticion);
+      return peticion;
+    },
+    [nutritionRef, rememberVersion, setNutrition]
+  );
+
   /*
     El programa del cliente que se está mirando.
 
@@ -2264,6 +2326,60 @@ export const AppProvider = ({ children }) => {
     [applyWorkout]
   );
 
+  /**
+   * Cambia un día de sitio dentro de su microciclo.
+   *
+   * ══ Por qué hacía falta ═════════════════════════════════════════════════════
+   *
+   * El orden de los días se podía elegir UNA vez —al crearlos— y nunca más.
+   * Añadir un día iba siempre al final (`addDay`), duplicar también, así que
+   * cualquier cambio de estructura a mitad de mesociclo dejaba el carril
+   * desordenado para siempre: la única salida era borrar el día y volver a
+   * escribirlo entero con sus ejercicios y sus series.
+   *
+   * Y el orden no es decorativo: es el orden en que el cliente ve su semana y en
+   * el que la ejecuta. Los ejercicios de un día y las comidas de una dieta ya se
+   * reordenaban por este mismo motivo; los días eran el hueco.
+   *
+   * ── Mueve solo ESTA semana ──────────────────────────────────────────────────
+   * Cada microciclo tiene sus propios días, y es lo mismo que hacen `renameDay` y
+   * `removeDay`: la semana 3 puede tener una estructura distinta de la 1 —de eso
+   * va programar— y propagar el movimiento a todas escribiría en semanas que ni
+   * se están mirando.
+   *
+   * Devuelve el índice donde ha quedado, o `-1` si no se ha movido nada, para que
+   * la pantalla pueda seguir al día en vez de quedarse sobre el que ocupe ahora
+   * esa posición.
+   */
+  const moveDay = useCallback(
+    (clientId, weekNumber, dayName, toIndex) => {
+      let destino = -1;
+
+      applyWorkout(clientId, (cd) => {
+        const micro = cd.microcycles.find((m) => m.weekNumber === weekNumber);
+        const days = micro?.days || [];
+        const from = days.findIndex((d) => d.dayName === dayName);
+        const to = Math.max(0, Math.min(days.length - 1, toIndex));
+
+        /* El MISMO objeto, no uno igual: `applyWorkout` compara por identidad
+           para no guardar cuando no ha cambiado nada, y un `{...cd}` de más sería
+           una escritura a la base de datos por pulsar una flecha desactivada. */
+        if (from === -1 || from === to) return cd;
+
+        destino = to;
+        return {
+          ...cd,
+          microcycles: cd.microcycles.map((m) =>
+            m.weekNumber === weekNumber ? { ...m, days: moveItem(days, from, to) } : m
+          ),
+        };
+      });
+
+      return destino;
+    },
+    [applyWorkout]
+  );
+
   const removeDay = useCallback(
     (clientId, weekNumber, dayName) =>
       applyWorkout(clientId, (cd) => ({
@@ -2567,7 +2683,14 @@ export const AppProvider = ({ children }) => {
    */
   const replicateClient = useCallback(
     async (sourceClientId, targetClientId, { training = false, diet = false, warmup = false } = {}) => {
-      const result = { training: false, diet: false, warmup: false };
+      /*
+        `failed` es la tercera respuesta que faltaba.
+
+        Antes solo había dos —copiado o «no tenía nada»— y con eso un fallo de red
+        al leer el origen se anunciaba como que el otro cliente no tiene dieta.
+        Son cosas distintas: una se arregla reintentando y la otra no.
+      */
+      const result = { training: false, diet: false, warmup: false, failed: [] };
       if (sourceClientId === targetClientId) return result;
 
       if (training) {
@@ -2579,9 +2702,11 @@ export const AppProvider = ({ children }) => {
           por el `if` de abajo y diría «no había nada que copiar» de alguien que
           tiene doce semanas programadas.
         */
-        await ensureProgram(sourceClientId);
-        const source = workoutRef.current[sourceClientId];
+        const source = await ensureProgram(sourceClientId);
         const sourceClient = clientsRef.current.find((c) => c.id === sourceClientId);
+
+        // `null` es «no se pudo leer». Se dice, en vez de pasar por «no tiene».
+        if (!source) result.failed.push('training');
 
         if (source && (source.microcycles.length > 0 || Object.keys(source.weeklySplit || {}).length > 0)) {
           applyWorkout(targetClientId, () => ({
@@ -2631,7 +2756,7 @@ export const AppProvider = ({ children }) => {
         objeto entero, así que hacerlo antes lo perdería.
       */
       if (warmup) {
-        await ensureProgram(sourceClientId);
+        const desdeOrigen = await ensureProgram(sourceClientId);
         /*
           Y el del DESTINO también, aunque parezca que no hace falta.
 
@@ -2644,25 +2769,49 @@ export const AppProvider = ({ children }) => {
           Con `training` no pasaba porque ese camino sustituye el objeto entero a
           conciencia y con confirmación previa.
         */
-        await ensureProgram(targetClientId);
+        const enDestino = await ensureProgram(targetClientId);
 
-        const source = workoutRef.current[sourceClientId];
-        const drills = source?.mobilityDrills || [];
+        /*
+          Y si CUALQUIERA de las dos lecturas falla, no se escribe.
 
-        if (drills.length > 0) {
-          applyWorkout(targetClientId, (cd) => ({ ...cd, mobilityDrills: deepClone(drills) }));
-          result.warmup = true;
+          La del destino es la delicada: sin su programa en memoria, la fusión de
+          abajo parte de un `emptyWorkoutData()` y le escribiría un programa vacío
+          encima del suyo. Un fallo de red al copiar cuatro estiramientos no puede
+          acabar en doce semanas borradas.
+        */
+        if (!desdeOrigen || !enDestino) {
+          result.failed.push('warmup');
+        } else {
+          const drills = desdeOrigen.mobilityDrills || [];
+          if (drills.length > 0) {
+            applyWorkout(targetClientId, (cd) => ({ ...cd, mobilityDrills: deepClone(drills) }));
+            result.warmup = true;
+          }
         }
       }
 
       if (diet) {
-        const source = nutritionRef.current[sourceClientId];
-        if (source) {
+        /*
+          El plan del ORIGEN, releído si no estaba — el mismo cuidado que el
+          programa. Ver `ensureNutrition`: leer el mapa a pelo hacía que la dieta
+          no se copiara, y sin decir nada, siempre que el arranque no hubiera
+          podido traerla.
+        */
+        const source = await ensureNutrition(sourceClientId);
+
+        if (!source) {
+          result.failed.push('diet');
+        } else if (!isEmptyDiet(source)) {
           const copy = deepClone(source);
           setNutrition({ ...nutritionRef.current, [targetClientId]: copy });
           persist('nutrition', targetClientId, copy, { immediate: true });
           result.diet = true;
         }
+        /*
+          Un plan en blanco NO se copia. Copiar sustituye, así que traerse la
+          "dieta" de un cliente que no la tiene configurada le borraría la suya al
+          destino — y el único aviso sería su pantalla de nutrición vacía.
+        */
       }
 
       /*
@@ -2674,12 +2823,22 @@ export const AppProvider = ({ children }) => {
         Solo se apunta si algo se copió de verdad: pulsar y que no hubiera nada
         que traer no es haber usado la función, es haberla intentado.
       */
-      const copiado = Object.keys(result).filter((k) => result[k]);
+      // Solo los BLOQUES: `failed` vive en el mismo objeto y no es una parte copiada.
+      const copiado = ['training', 'warmup', 'diet'].filter((k) => result[k]);
       if (copiado.length > 0) track('plantilla_usada', { partes: copiado.join('_') });
 
       return result;
     },
-    [applyWorkout, clientsRef, ensureProgram, nutritionRef, persist, setClients, setNutrition, workoutRef]
+    [
+      applyWorkout,
+      clientsRef,
+      ensureNutrition,
+      ensureProgram,
+      nutritionRef,
+      persist,
+      setClients,
+      setNutrition,
+    ]
   );
 
   // ── Nutrición ────────────────────────────────────────────────────────────
@@ -4918,6 +5077,7 @@ export const AppProvider = ({ children }) => {
     setDayNote,
     setDayDrills,
     duplicateDay,
+    moveDay,
     removeDay,
     updateWeeklySplit,
     startSession,

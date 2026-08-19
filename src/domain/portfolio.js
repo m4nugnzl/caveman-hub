@@ -32,7 +32,7 @@
 import { clientIntake } from './intake';
 import { feeLabel, paymentState } from './billing';
 import { currentCheckInPeriod } from './calendar';
-import { clientProtocol, requiredBlocks } from './protocol';
+import { clientProtocol, isServiceOn, requiredBlocks } from './protocol';
 import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
@@ -155,23 +155,41 @@ export const clientStatus = (
   */
   const sinceTraining = daysSince(lastTraining, today);
   const sinceWeight = daysSince(lastWeight, today);
-  const started = resumen.microcycleCount > 0 || sinceTraining !== null || sinceWeight !== null;
+
+  /*
+    ══ A quien no le llevas el entrenamiento no se le echa en falta ═══════════
+
+    «Sin rutina asignada», de gravedad ALTA, es correcto para el 99 % de los
+    clientes y es un reproche permanente para el cliente de solo nutrición: nunca
+    va a tener un microciclo, así que aparecería el primero de la cartera —en
+    rojo, para siempre— por hacer exactamente lo que se acordó con él.
+
+    Las tres alertas de entrenamiento cuelgan de esto. Las de peso, fotos y
+    check-in no: esas se le piden igual, lleve dieta, programa o las dos cosas.
+  */
+  const conEntreno = isServiceOn(clientProtocol(client.preferences), 'training');
+
+  const started = conEntreno
+    ? resumen.microcycleCount > 0 || sinceTraining !== null || sinceWeight !== null
+    : sinceWeight !== null;
 
   if (!started) {
     add(
       'not_started',
       'media',
       'Todavía no ha empezado',
-      'Sin rutina, sin entrenos y sin pesajes. Le falta la puesta en marcha, no es que se haya descolgado.'
+      conEntreno
+        ? 'Sin rutina, sin entrenos y sin pesajes. Le falta la puesta en marcha, no es que se haya descolgado.'
+        : 'Sin ningún pesaje todavía. Le falta la puesta en marcha, no es que se haya descolgado.'
     );
   } else {
     // ── Programa ────────────────────────────────────────────────────────────
-    if (resumen.microcycleCount === 0) {
+    if (conEntreno && resumen.microcycleCount === 0) {
       add('no_program', 'alta', 'Sin rutina asignada', 'No tiene ningún microciclo programado.');
     }
 
     // ── Entrenamiento ───────────────────────────────────────────────────────
-    if (resumen.microcycleCount > 0) {
+    if (conEntreno && resumen.microcycleCount > 0) {
       if (sinceTraining === null) {
         add('never_trained', 'alta', 'No ha registrado ningún entreno', 'Tiene rutina, pero ni una serie anotada.');
       } else if (sinceTraining >= THRESHOLDS.noTraining) {

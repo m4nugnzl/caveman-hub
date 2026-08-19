@@ -16,6 +16,8 @@ import {
   UsersRound,
 } from 'lucide-react';
 
+import { isServiceOn } from '@/domain/protocol';
+
 /**
  * Las rutas de la aplicación, en un solo sitio.
  *
@@ -105,8 +107,15 @@ export const COACH_CLIENT = [
     iba delante por ser lo más frecuente, pero la frecuencia no es el orden —
     para eso está «Hoy», que es por donde se entra a revisar de verdad.
   */
-  { path: 'rutina', label: 'Rutina', icon: Layers },
-  { path: 'nutricion', label: 'Nutrición', icon: Salad },
+  /*
+    ── `service`: las dos secciones que pueden no existir ────────────────────
+    Un entrenador puede llevarle a alguien solo el entrenamiento o solo la
+    nutrición (ver `domain/protocol.js`). La sección que no le llevas no se pinta
+    aquí ni en su portal, y su ruta manda al resumen. Sin marca no hay filtro: lo
+    que no lleva `service` existe siempre.
+  */
+  { path: 'rutina', label: 'Rutina', icon: Layers, service: 'training' },
+  { path: 'nutricion', label: 'Nutrición', icon: Salad, service: 'nutrition' },
   { path: 'revision', label: 'Revisión', icon: Ruler, also: ['revision/fotos'] },
   { path: 'calendario', label: 'Calendario', icon: CalendarDays },
   /*
@@ -211,8 +220,8 @@ export const CLIENT_SECTIONS = [
     condensado arriba y en la campana de la cabecera. Ver `ClientStart`.
   */
   { path: 'inicio', label: 'Mi progreso', short: 'Progreso', icon: Gauge, also: ['analitica'] },
-  { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers },
-  { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad },
+  { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers, service: 'training' },
+  { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad, service: 'nutrition' },
   /*
     «Mi evolución» era dos secciones —«Mis check-ins» y «Mis fotos»— y para el
     cliente son el mismo gesto de la semana: pesarse y hacerse las fotos, en las
@@ -247,6 +256,17 @@ export const SETTINGS_HOME = '/ajustes/protocolo';
 export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${section}`;
 
 /**
+ * Las secciones que existen para ESTE cliente.
+ *
+ * Filtra por `service`, así que sirve igual para el carril del entrenador y para
+ * las pestañas del portal: las dos listas marcan sus secciones con el mismo
+ * nombre de servicio y el filtro es uno solo. Un cliente al que no le llevas
+ * dieta no tiene «Nutrición» ni «Mi dieta».
+ */
+export const sectionsFor = (sections, protocol) =>
+  sections.filter((s) => !s.service || isServiceOn(protocol, s.service));
+
+/**
  * La sección que se está mirando, tal cual, con sus niveles.
  *
  * Devuelve `revision/fotos` y no solo `revision`: desde que una sección puede
@@ -264,10 +284,16 @@ const rutasDe = (seccion) => [seccion.path, ...(seccion.also || [])];
  *
  * Si estás mirando la nutrición de Marta y cambias a Luis, quieres la nutrición de
  * Luis, no su resumen. Sin esto, cada cambio de cliente te devolvía al inicio.
+ *
+ * `protocol` es el DEL DESTINO, y por eso es un parámetro y no algo que se lea
+ * aquí: si a Luis no le llevas dieta, su nutrición no existe y se cae al resumen
+ * en vez de aterrizar en una ruta que va a rebotar. Sin él se comporta como
+ * siempre, que es lo que hace falta donde no hay cliente que consultar.
  */
-export const sameSectionFor = (pathname, clientId) => {
+export const sameSectionFor = (pathname, clientId, protocol = null) => {
   const section = seccionDe(pathname, '/c/[^/]+');
-  const known = COACH_CLIENT.some((s) => rutasDe(s).includes(section));
+  const disponibles = protocol ? sectionsFor(COACH_CLIENT, protocol) : COACH_CLIENT;
+  const known = disponibles.some((s) => rutasDe(s).includes(section));
   return clientPath(clientId, known ? section : 'resumen');
 };
 

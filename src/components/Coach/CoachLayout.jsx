@@ -4,6 +4,7 @@ import { ArrowLeft, UserPlus } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { feeLabel, paymentState } from '@/domain/billing';
+import { clientProtocol } from '@/domain/protocol';
 import { dayMonthMaybeYear } from '@/lib/dates';
 import {
   COACH_CLIENT,
@@ -13,6 +14,7 @@ import {
   clientPath,
   isSectionActive,
   sameSectionFor,
+  sectionsFor,
 } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
@@ -161,8 +163,18 @@ export const CoachLayout = () => {
               }
               selectedClientId={selectedClientId}
               /* Cambiar de cliente conserva la sección: si estabas en su
-                 nutrición, pasas a la nutrición del otro. */
-              onSelect={(id) => navigate(sameSectionFor(location.pathname, id))}
+                 nutrición, pasas a la nutrición del otro. Salvo que al otro no le
+                 lleves dieta, y entonces se cae a su resumen: mandarle a una
+                 sección que no tiene sería un salto y un rebote. */
+              onSelect={(id) =>
+                navigate(
+                  sameSectionFor(
+                    location.pathname,
+                    id,
+                    clientProtocol(clients.find((c) => c.id === id)?.preferences)
+                  )
+                )
+              }
             />
 
             <div className="row gap-2 wrap">
@@ -180,8 +192,10 @@ export const CoachLayout = () => {
             bajar al segundo nivel dejaba el carril entero sin marcar. Los niveles
             se declaran en `also`, en `routes.jsx`.
           */}
+          {/* Solo las secciones que existen para él: a quien no le llevas dieta
+              no le sobra media pantalla, es que no la tiene. Ver `sectionsFor`. */}
           <nav className="rail" aria-label={`Secciones de ${activeClient.name}`}>
-            {COACH_CLIENT.map((seccion) => {
+            {sectionsFor(COACH_CLIENT, clientProtocol(activeClient.preferences)).map((seccion) => {
               const { path, label, icon: Icon } = seccion;
               const activa = isSectionActive(location.pathname, seccion, '/c/[^/]+');
               return (

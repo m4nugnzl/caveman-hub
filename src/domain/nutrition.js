@@ -47,6 +47,39 @@ export const emptyNutrition = () => ({
 export const TARGET_FIELDS = ['targetKcals', 'proteinGrams', 'carbsGrams', 'fatsGrams'];
 
 /**
+ * ¿Este plan está en blanco?
+ *
+ * ── Por qué hace falta distinguirlo de «no existe» ──────────────────────────
+ * Que haya fila en `nutrition_plans` no significa que haya dieta: la fila nace en
+ * cuanto se toca cualquier cosa de la pantalla, así que un cliente al que se le
+ * activó y se le desactivó una opción tiene fila con todo a nulo.
+ *
+ * Y la diferencia importa justo donde se COPIA de un cliente a otro: copiar
+ * SUSTITUYE, así que traerse un plan vacío no es una copia inocua, es borrarle la
+ * dieta al destino. Sin esta comprobación, la única señal de que ha pasado es que
+ * la pantalla del destino se queda en blanco.
+ */
+export const isEmptyDiet = (plan) => {
+  if (!plan) return true;
+
+  const sinObjetivo = TARGET_FIELDS.every((k) => plan[k] === null || plan[k] === undefined || plan[k] === '');
+  const sinDescanso =
+    !plan.restTargets ||
+    TARGET_FIELDS.every((k) => plan.restTargets[k] === null || plan.restTargets[k] === undefined);
+
+  return (
+    sinObjetivo &&
+    sinDescanso &&
+    String(plan.stepsGoal || '').trim() === '' &&
+    String(plan.cardioGoal || '').trim() === '' &&
+    (plan.habitsNotes || []).length === 0 &&
+    (plan.closedMeals || []).length === 0 &&
+    (plan.closedMealsTraining || []).length === 0 &&
+    (plan.closedMealsRest || []).length === 0
+  );
+};
+
+/**
  * Objetivo calórico y de macros de una variante.
  *
  * ── Por qué hay dos ─────────────────────────────────────────────────────────

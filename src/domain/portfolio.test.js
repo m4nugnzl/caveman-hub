@@ -395,3 +395,50 @@ describe('la cola de revisiones', () => {
     expect(reviewQueue([falta, espera], HOY).map((r) => r.client.name)).toEqual(['Espera', 'Falta']);
   });
 });
+
+/*
+  ══ El cliente al que no le llevas el entrenamiento ═════════════════════════
+
+  «Sin rutina asignada» es de gravedad ALTA, así que a un cliente de solo
+  nutrición lo dejaría el primero de la cartera, en rojo y para siempre, por
+  hacer exactamente lo que se acordó con él. Las alertas de entrenamiento cuelgan
+  del servicio; las de peso y check-in no, que esas se le piden igual.
+*/
+describe('clientStatus con un cliente de solo nutrición', () => {
+  const soloDieta = client({
+    preferences: { protocol: { services: { training: false } } },
+  });
+
+  it('no le reprocha no tener rutina', () => {
+    /*
+      Con un pesaje reciente, para que el cliente cuente como ARRANCADO. Sin él
+      caería en «todavía no ha empezado», que se lleva por delante el resto de
+      alertas — y esta prueba pasaría sin que el filtro existiera.
+    */
+    const row = clientStatus(
+      { client: soloDieta, anthro: { history: [{ date: '2026-08-10', weight: 70 }] } },
+      '2026-08-11'
+    );
+    const ids = row.alerts.map((a) => a.id);
+
+    expect(ids).not.toContain('no_program');
+    expect(ids).not.toContain('never_trained');
+    expect(ids).not.toContain('stale_training');
+  });
+
+  it('pero sí le sigue pidiendo su peso', () => {
+    const row = clientStatus(
+      { client: soloDieta, anthro: { history: [{ date: '2026-06-01', weight: 70 }] } },
+      '2026-08-11'
+    );
+    expect(row.alerts.map((a) => a.id)).toContain('stale_weight');
+  });
+
+  it('y a quien sí le llevas el entrenamiento le avisa como siempre', () => {
+    const row = clientStatus(
+      { client: client(), anthro: { history: [{ date: '2026-08-10', weight: 70 }] } },
+      '2026-08-11'
+    );
+    expect(row.alerts.map((a) => a.id)).toContain('no_program');
+  });
+});

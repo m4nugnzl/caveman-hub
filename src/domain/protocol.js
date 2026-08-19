@@ -88,6 +88,63 @@ export const MODULES = [
 
 export const moduleById = (id) => MODULES.find((m) => m.id === id) || null;
 
+// ── Qué le llevas a esta persona ───────────────────────────────────────────
+
+/**
+ * Entrenamiento, nutrición, o las dos cosas.
+ *
+ * ══ Por qué NO son dos módulos más de la lista de arriba ════════════════════
+ *
+ * Sería lo cómodo y rompería a todo el mundo. `clientProtocol` SANEA los módulos
+ * guardados contra el catálogo, así que un cliente configurado hoy tiene
+ * `modules: ['coachNote','clientNote','sessionFeedback']` y nada más. Añadir
+ * `training` y `nutrition` al catálogo haría que ese cliente —y todos los demás—
+ * apareciera de golpe sin las dos secciones principales de la aplicación.
+ *
+ * Y además no son la misma clase de cosa. Un módulo es una PIEZA dentro de una
+ * sección (el calentamiento, la nota del día); esto es si la sección existe. La
+ * diferencia se nota en el valor por defecto: los módulos nacen apagados —una
+ * aplicación que llega con todo encendido obliga a apagar— y esto nace
+ * ENCENDIDO, porque quitarle a alguien la mitad del producto no puede ser lo que
+ * pasa cuando nadie ha dicho nada.
+ *
+ * ── La regla de siempre ─────────────────────────────────────────────────────
+ * Lo que no está configurado son las dos. Es lo que hacía la aplicación antes de
+ * que esto se pudiera elegir, así que quien no toque nada no puede notar el
+ * cambio — ni él ni sus clientes.
+ */
+export const SERVICES = [
+  {
+    id: 'training',
+    label: 'Entrenamiento',
+    hint: 'Su programa, sus sesiones y todo lo que cuelga de ellas.',
+  },
+  {
+    id: 'nutrition',
+    label: 'Nutrición',
+    hint: 'Su objetivo de kcal y macros, el menú cerrado y tus pautas.',
+  },
+];
+
+const SERVICE_IDS = SERVICES.map((s) => s.id);
+
+export const defaultServices = () => ({ training: true, nutrition: true });
+
+/**
+ * Lo guardado, completado y acotado.
+ *
+ * Los dos apagados vuelven a los dos encendidos: es un estado que la pantalla no
+ * deja producir, y un cliente sin entrenamiento y sin nutrición no tiene
+ * aplicación —solo le quedarían pantallas que hablan de un trabajo que no
+ * existe—. Si llega desde una columna jsonb escrita a mano, se corrige aquí
+ * antes de que nadie se quede mirando un portal vacío.
+ */
+const sanitizeServices = (raw) => {
+  const out = {};
+  for (const id of SERVICE_IDS) out[id] = raw?.[id] === undefined ? true : Boolean(raw[id]);
+  return SERVICE_IDS.some((id) => out[id]) ? out : defaultServices();
+};
+
 // ── Lo que se mide en el check-in ──────────────────────────────────────────
 
 /**
@@ -495,6 +552,9 @@ export const PROTOCOL_PRESETS = [
  * se abandonan a la tercera sesión, y una serie con huecos no se puede leer.
  */
 export const defaultProtocol = () => ({
+  /* Las dos cosas, que es lo que hacía la aplicación cuando esto no se podía
+     elegir. Ver `SERVICES`. */
+  services: defaultServices(),
   modules: ['coachNote', 'clientNote', 'sessionFeedback'],
   questions: ['rpe', 'note'],
   /*
@@ -593,6 +653,7 @@ export const clientProtocol = (preferences) => {
   }
 
   return {
+    services: sanitizeServices(raw.services),
     modules: dedupe(raw.modules, moduleIds, defaultProtocol().modules),
     questions: dedupe(raw.questions, deSesion, defaultProtocol().questions),
     /* Respaldo a lista VACÍA y no a la de por defecto —que también lo es—: aquí
@@ -607,6 +668,38 @@ export const clientProtocol = (preferences) => {
 // ── Lectura ────────────────────────────────────────────────────────────────
 
 export const isModuleOn = (protocol, id) => Boolean(protocol?.modules?.includes(id));
+
+/**
+ * ¿Le llevas esto a esta persona?
+ *
+ * Ausente cuenta como SÍ. Quien pregunte por un protocolo a medio sanear —o por
+ * uno guardado antes de que esto existiera— tiene que recibir el comportamiento
+ * de siempre, no una sección que desaparece por un valor que nadie escribió.
+ */
+export const isServiceOn = (protocol, id) => protocol?.services?.[id] !== false;
+
+/** Los servicios activos, para contarlos o nombrarlos. */
+export const activeServices = (protocol) => SERVICES.filter((s) => isServiceOn(protocol, s.id));
+
+/**
+ * Enciende o apaga uno. **El último no se puede apagar**: sin ninguno de los dos
+ * no queda aplicación que enseñar, así que el gesto no hace nada y la pantalla lo
+ * dice desactivando el control (ver `ProtocolPanel`). Devolver el mismo objeto
+ * —y no uno nuevo igual— es lo que deja a quien llama saber que no ha cambiado
+ * nada, como en `toggleQuestion`.
+ */
+export const toggleService = (protocol, id) => {
+  if (!SERVICE_IDS.includes(id)) return protocol;
+
+  const services = {
+    ...defaultServices(),
+    ...protocol.services,
+    [id]: !isServiceOn(protocol, id),
+  };
+  if (!SERVICE_IDS.some((k) => services[k])) return protocol;
+
+  return { ...protocol, services };
+};
 
 /** Una pregunta por su id, sea de cualquiera de los dos catálogos o propia. */
 export const questionById = (protocol, id) =>

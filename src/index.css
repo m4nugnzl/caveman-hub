@@ -339,6 +339,31 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.018em; min-width: 0;
 }
 
+/* ── La cabecera de un BLOQUE ──────────────────────────────────────────────
+   No la de la pantalla —esa es `.section-head`, y hay una sola por pantalla—
+   sino la de cada pieza de dentro. Ver `Panel` en `ui/primitives.jsx`.
+
+   El título va en etiqueta troquelada y no en `<h2>`, y eso es lo que deja la
+   jerarquía en TRES niveles y no en seis: el `h1` de la pantalla, la troquelada
+   del bloque y el `h3` de un sub-bloque. Antes había cinco formas de titular un
+   bloque y ninguna era la de al lado.
+
+   El canto inferior separa la cabecera del contenido sin gastar espacio: con
+   solo aire, un bloque con cabecera y otro sin ella empezaban a alturas
+   distintas y la fila se descuadraba. */
+.panel-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  padding-bottom: var(--s3); margin-bottom: var(--s4);
+  border-bottom: 1px solid var(--hairline);
+}
+.panel-head-say { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.panel-head-sub { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* Un bloque sin relleno propio —una lista a sangre— necesita que su cabecera lo
+   tenga, o el título queda pegado al canto de la tarjeta. */
+.card-flush > .panel-head { padding: var(--s4) var(--s4) var(--s3); margin-bottom: 0; }
+
 /* ==========================================================================
    Superficies
    ========================================================================== */
@@ -757,6 +782,40 @@ button.task-head { cursor: pointer; }
 .metric-value.is-hero { font-size: var(--fs-2xl); }
 .metric-unit { font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); }
 .metric-foot { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── LA FILA de métricas ───────────────────────────────────────────────────
+   Dos o cuatro columnas, nunca tres. El porqué está en `MetricRow`
+   (`ui/metrics.jsx`); aquí solo está el reparto.
+
+   Columnas EXACTAS y no `auto-fit`: con `auto-fit`, la misma tarjeta mide una
+   cosa en la ficha y otra en el portal según cuántas hermanas tenga, y entonces
+   dos cifras del mismo producto dejan de poder compararse de un vistazo. */
+.metric-row { display: grid; gap: var(--s3); }
+.metric-row.is-1 { grid-template-columns: minmax(0, 1fr); }
+.metric-row.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.metric-row.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* La casilla vacía. Canto punteado y nada dentro: dice «aquí cabe otra», que es
+   distinto de «aquí falta algo». Sin ella, tres tarjetas dejaban un hueco mudo a
+   la derecha que se lee como un fallo de carga. */
+.metric-slot {
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--r-lg);
+  min-height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--s3);
+}
+
+/* En el móvil la fila de cuatro se parte en 2×2 y no en una columna de cuatro:
+   apiladas se pierde justo lo que la fila existe para dar, que es comparar dos
+   cifras sin desplazar. */
+@media (max-width: 720px) {
+  .metric-row.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 420px) {
+  .metric-row.is-2, .metric-row.is-4 { grid-template-columns: minmax(0, 1fr); }
+  .metric-slot { display: none; }
+}
 
 /* Widget compacto (las tarjetas flotantes "Sleep Time / Weight / Body Fat"). */
 .widget {
@@ -1190,6 +1249,21 @@ button.task-head { cursor: pointer; }
 .chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-on); }
 .chip-dashed { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); background: transparent; }
 .chip-dashed:hover { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
+
+/* ── El carril de días, que se arrastra ──────────────────────────────────────
+   El orden de estos chips es el orden de la semana del cliente, así que se
+   cambia aquí, donde se ve. `grab` es la única pista de que se puede: en un chip
+   no cabe un asa, y sin cursor nadie descubre el gesto.
+
+   Las dos marcas son las mismas que en la lista de ejercicios y en la tabla de
+   alimentos —el que viaja se atenúa, el destino se señala— para que arrastrar
+   sea el mismo gesto con el mismo aspecto en las tres pantallas.
+
+   El chip de «+ Día» no arrastra: no es un día, es un botón. */
+.day-rail .chip:not(.chip-dashed) { cursor: grab; }
+.day-rail .chip:not(.chip-dashed):active { cursor: grabbing; }
+.day-rail .chip.is-dragging { opacity: 0.4; }
+.day-rail .chip.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
 
 /* Cuántos clientes hay detrás de un filtro. Va dentro del chip, subordinado a
    su etiqueta: es un apoyo para elegir, no un dato que se lea por sí solo.

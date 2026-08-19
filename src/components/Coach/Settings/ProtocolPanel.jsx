@@ -9,8 +9,12 @@ import {
   MODULES,
   CHECKIN_QUESTIONS,
   PROTOCOL_PRESETS,
+  SERVICES,
   SESSION_QUESTIONS,
   activeQuestions,
+  activeServices,
+  isServiceOn,
+  toggleService,
   addCustomQuestion,
   checkinMode,
   checkinQuestions,
@@ -501,9 +505,53 @@ export const ProtocolPanel = () => {
         )}
       </Panel>
 
+      {/* ── Qué le llevas ────────────────────────────────────────────────────
+          Va delante de todo lo demás, incluso del alta, porque es la decisión de
+          la que cuelgan las otras: no tiene sentido elegir qué se pregunta al
+          terminar de entrenar si a esta persona no le llevas el entrenamiento. */}
+      <Panel className="col gap-3">
+        <div>
+          <span className="section-title">Qué le llevas</span>
+          <p className="t-sm t-secondary">
+            {client
+              ? `Las secciones que existen para ${client.name}. Lo que quites desaparece de su portal y de tu carril; lo que tenga montado se queda guardado por si vuelves a encenderlo.`
+              : 'Las secciones que existen para tus clientes. Puedes llevar solo el entrenamiento, solo la nutrición o las dos cosas, y cambiarlo cliente a cliente arriba.'}
+          </p>
+        </div>
+
+        <ul className="proto-modules">
+          {SERVICES.map((servicio) => {
+            const puesto = isServiceOn(protocol, servicio.id);
+            /*
+              El último encendido no se puede apagar: sin ninguno de los dos no
+              queda aplicación que enseñar. `toggleService` ya lo impide, pero un
+              control que se puede pulsar y no hace nada se lee como un fallo —así
+              que aquí se desactiva y se DICE por qué.
+            */
+            const ultimo = puesto && activeServices(protocol).length === 1;
+            return (
+              <li key={servicio.id}>
+                <OptionCard
+                  label={servicio.label}
+                  hint={
+                    ultimo
+                      ? 'Tiene que quedar al menos uno: sin entrenamiento y sin nutrición no queda nada que enseñarle.'
+                      : servicio.hint
+                  }
+                  checked={puesto}
+                  disabled={ultimo}
+                  onChange={() => save(toggleService(protocol, servicio.id))}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
+
       {/* ── El alta ──────────────────────────────────────────────────────────
-          Va la primera porque es lo primero que pasa: los pasos del alta se dan
-          antes de que exista una sesión que puntuar. */}
+          Va la primera de las que configuran el seguimiento porque es lo primero
+          que pasa: los pasos del alta se dan antes de que exista una sesión que
+          puntuar. */}
       <IntakeSteps intake={intake} onChange={saveIntake} forClient={Boolean(client)} />
 
       {/* ── Perfiles ─────────────────────────────────────────────────────── */}

@@ -60,7 +60,6 @@ const COLOR_EXCEPTIONS = [
   // y además el vídeo tiene que verse igual en tema claro y oscuro.
   'lib/useReviewRecorder.js',
   'domain/training.js',
-  'domain/analytics.js',
   'domain/nutrition.js',
 ];
 

@@ -25,6 +25,9 @@ import {
   scaleQuestions,
   toggleModule,
   toggleQuestion,
+  toggleService,
+  activeServices,
+  isServiceOn,
 } from './protocol';
 import { COMPARED_KEYS, matchesTemplate } from '@/lib/protocolTemplate';
 
@@ -406,5 +409,71 @@ describe('answersSummary', () => {
      forma de saber cómo se llamaba ni de qué escala era. */
   it('ignora respuestas de preguntas que ya no se hacen', () => {
     expect(answersSummary(protocol, { digestion: '7' })).toBe('');
+  });
+});
+
+/*
+  ══ Qué le llevas a cada persona ════════════════════════════════════════════
+
+  Entrenamiento, nutrición o las dos. Lo que se protege aquí es sobre todo el
+  valor por defecto: esto se añadió con clientes ya configurados y guardados, y
+  un saneado que se equivoque no da una pantalla rara — le quita a alguien la
+  mitad de la aplicación sin que nadie lo haya pedido.
+*/
+describe('los servicios', () => {
+  it('quien no ha configurado nada tiene las dos cosas', () => {
+    expect(clientProtocol(undefined).services).toEqual({ training: true, nutrition: true });
+    /* El caso de verdad: un protocolo guardado ANTES de que esto existiera. No
+       lleva `services` por ninguna parte y no puede perder nada. */
+    const antiguo = clientProtocol({ protocol: { modules: ['warmup'], questions: ['rpe'] } });
+    expect(isServiceOn(antiguo, 'training')).toBe(true);
+    expect(isServiceOn(antiguo, 'nutrition')).toBe(true);
+  });
+
+  it('se puede llevar solo el entrenamiento', () => {
+    const solo = clientProtocol({ protocol: { services: { nutrition: false } } });
+    expect(isServiceOn(solo, 'training')).toBe(true);
+    expect(isServiceOn(solo, 'nutrition')).toBe(false);
+    expect(activeServices(solo).map((s) => s.id)).toEqual(['training']);
+  });
+
+  it('y solo la nutrición', () => {
+    const solo = clientProtocol({ protocol: { services: { training: false } } });
+    expect(isServiceOn(solo, 'nutrition')).toBe(true);
+    expect(isServiceOn(solo, 'training')).toBe(false);
+  });
+
+  it('los dos apagados vuelven a los dos encendidos', () => {
+    /* No es un estado que la pantalla deje producir, pero la columna es jsonb
+       abierto: un cliente sin ninguno de los dos no tendría aplicación. */
+    const roto = clientProtocol({ protocol: { services: { training: false, nutrition: false } } });
+    expect(roto.services).toEqual({ training: true, nutrition: true });
+  });
+
+  it('apagar el último no hace nada', () => {
+    const solo = clientProtocol({ protocol: { services: { nutrition: false } } });
+    expect(toggleService(solo, 'training')).toBe(solo);
+  });
+
+  it('encender y apagar es reversible', () => {
+    const base = clientProtocol({});
+    const sinDieta = toggleService(base, 'nutrition');
+    expect(isServiceOn(sinDieta, 'nutrition')).toBe(false);
+    expect(isServiceOn(toggleService(sinDieta, 'nutrition'), 'nutrition')).toBe(true);
+  });
+
+  it('un servicio que no existe se ignora', () => {
+    const base = clientProtocol({});
+    expect(toggleService(base, 'telepatia')).toBe(base);
+  });
+
+  /* De esta comparación cuelga «Aplicar a todos». Ver el comentario largo de
+     `lib/protocolTemplate.js`: una parte fuera apaga el botón y deja la pantalla
+     afirmando que tus clientes tienen algo que no tienen. */
+  it('llevar cosas distintas cuenta como desvío de la plantilla', () => {
+    const plantilla = clientProtocol({ protocol: { services: { nutrition: false } } });
+    const suyo = clientProtocol({});
+    expect(matchesTemplate(plantilla, suyo)).toBe(false);
+    expect(matchesTemplate(plantilla, plantilla)).toBe(true);
   });
 });

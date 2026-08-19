@@ -771,7 +771,28 @@ export const MealCard = ({
             </button>
           ))}
           {editable && (
-            <button type="button" className="chip chip-dashed" onClick={onAddOption}>
+            /*
+              ══ Crear una alternativa te DEJA en ella ══════════════════════════
+
+              Antes no: la pestaña nueva aparecía al final del carril y tú seguías
+              en la de antes, mirando los alimentos de la opción que ya tenías
+              montada. El gesto no tenía ninguna consecuencia visible salvo un
+              chip más, así que se lee como que no ha funcionado — y eso lleva a
+              pulsarlo dos o tres veces y acabar con alternativas vacías de más.
+
+              La nueva se añade AL FINAL (ver `addMealOption`), así que su índice
+              es el número de opciones que había. Si por lo que sea no llegara a
+              crearse, el índice se recorta solo unas líneas más arriba y esto no
+              deja la comida en una pestaña que no existe.
+            */
+            <button
+              type="button"
+              className="chip chip-dashed"
+              onClick={() => {
+                onAddOption();
+                setActiveOption(options.length);
+              }}
+            >
               <Plus size={13} /> Alternativa
             </button>
           )}
@@ -814,6 +835,12 @@ export const MealCard = ({
                       className="menu-item"
                       onClick={() => {
                         onDuplicateOption(index);
+                        /* La copia se inserta DETRÁS de la original (ver
+                           `duplicateOption`), y se abre por lo mismo que la
+                           alternativa nueva: duplicas para cambiarle algo, y
+                           quedarte en el original es quedarte en lo que no vas a
+                           tocar. */
+                        setActiveOption(index + 1);
                         setOpcionMenu(false);
                       }}
                     >

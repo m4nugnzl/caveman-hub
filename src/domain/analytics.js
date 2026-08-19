@@ -17,6 +17,7 @@ import { weekStart, shortDate } from '@/lib/dates';
 import { fatPercent } from './anthropometry';
 import { countSets, findMicrocycle, weekMuscleVolume, weekTonnage } from './training';
 import { executedSessions, sessionSetCount } from './sessions';
+import { metricColor } from './metrics';
 
 /**
  * Adherencia: qué porcentaje de las series programadas tienen repeticiones
@@ -51,17 +52,25 @@ export const weekAdherence = (microcycles, weekNumber) => {
   return { planned, logged, pct: Math.min(100, round((logged / planned) * 100)) };
 };
 
-/** Métricas disponibles para los ejes de los gráficos. */
+/**
+ * Métricas disponibles para los ejes de los gráficos.
+ *
+ * El COLOR no se declara aquí: sale de `metricColor` (`domain/metrics.js`), que
+ * es el único sitio donde vive. Antes se elegía en esta lista y otra vez en cada
+ * pantalla, con el resultado de que el peso era de tres colores distintos según
+ * dónde se mirara y tres métricas llevaban un hex literal —fuera de los tokens y
+ * por tanto fuera del tema oscuro—.
+ */
 export const METRICS = [
-  { id: 'weight', label: 'Peso corporal', unit: ' kg', color: 'var(--accent)', decimals: 1 },
-  { id: 'fat', label: '% graso', unit: '%', color: 'var(--data-rose)', decimals: 1 },
-  { id: 'kcals', label: 'Kcal objetivo', unit: ' kcal', color: 'var(--data-amber)', decimals: 0 },
-  { id: 'tonnage', label: 'Tonelaje', unit: ' kg', color: 'var(--data-violet)', decimals: 0 },
-  { id: 'sets', label: 'Series efectivas', unit: '', color: 'var(--data-violet)', decimals: 0 },
-  { id: 'adherence', label: 'Adherencia', unit: '%', color: '#a3e635', decimals: 0 },
-  { id: 'waist', label: 'Cintura', unit: ' cm', color: '#fb923c', decimals: 1 },
-  { id: 'proteinShare', label: '% de kcal en proteína', unit: '%', color: '#ec4899', decimals: 0 },
-];
+  { id: 'weight', label: 'Peso corporal', unit: ' kg', decimals: 1 },
+  { id: 'fat', label: '% graso', unit: '%', decimals: 1 },
+  { id: 'kcals', label: 'Kcal objetivo', unit: ' kcal', decimals: 0 },
+  { id: 'tonnage', label: 'Tonelaje', unit: ' kg', decimals: 0 },
+  { id: 'sets', label: 'Series efectivas', unit: '', decimals: 0 },
+  { id: 'adherence', label: 'Adherencia', unit: '%', decimals: 0 },
+  { id: 'waist', label: 'Cintura', unit: ' cm', decimals: 1 },
+  { id: 'proteinShare', label: '% de kcal en proteína', unit: '%', decimals: 0 },
+].map((m) => ({ ...m, color: metricColor(m.id) }));
 
 export const metricById = (id) => METRICS.find((m) => m.id === id) || METRICS[0];
 

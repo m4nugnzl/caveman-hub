@@ -13,13 +13,62 @@ import { Check, CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react'
 
 // ── Panel ──────────────────────────────────────────────────────────────────
 
-export const Panel = ({ as: Tag = 'section', tight, plain, className = '', children, ...rest }) => (
+/**
+ * Un bloque.
+ *
+ * ══ Por qué la cabecera va DENTRO del bloque ════════════════════════════════
+ *
+ * Porque un `<h2>` suelto flotando sobre una rejilla no es un bloque: es texto
+ * encima de otra cosa, y el ojo tiene que deducir dónde empieza y dónde acaba lo
+ * que ese título nombra. La aplicación estaba llena de eso —«Menú estructurado»
+ * sobre una rejilla de tarjetas, «Tu resumen» sobre otra— y es una de las dos
+ * razones por las que las pantallas se leían como una pila y no como una
+ * estructura. La otra es que no todas tenían cabecera (ver `PageHead`).
+ *
+ * ── El título va en ETIQUETA TROQUELADA, no en `<h2>` ────────────────────────
+ * Los tokens ya dicen que la troquelada «es lo que ordena la pantalla ahora que
+ * el cromo no puede usar color para hacerlo», y sin embargo se usaba de adorno
+ * en cuatro sitios mientras los bloques se titulaban de cinco formas distintas
+ * —`<h2>`, `<h2 class="section-title">`, `<span class="section-title">`, un
+ * `<h2>` con `style` inline—. Aquí se cierra: **el título de un bloque es una
+ * etiqueta troquelada**, y `SectionTitle` (`h3`) queda para los sub-bloques.
+ *
+ * ── Y la acción, en la cabecera ─────────────────────────────────────────────
+ * Nunca suelta entre el título y el contenido, que es donde estaba en Nutrición
+ * —un «Copiar desde días de descanso» flotando al lado de unas pestañas—. Si el
+ * bloque tiene algo que hacer, se hace desde su cabecera.
+ *
+ * @param title   La etiqueta troquelada. Sin ella no se pinta cabecera, que es
+ *   el caso legítimo de una tarjeta que ya se explica por su contenido.
+ * @param sub     Una línea, opcional, debajo del título.
+ * @param action  Lo que se puede hacer con este bloque. A la derecha.
+ */
+export const Panel = ({
+  as: Tag = 'section',
+  tight,
+  plain,
+  title,
+  sub,
+  action,
+  className = '',
+  children,
+  ...rest
+}) => (
   <Tag
     className={[plain ? 'card-inset' : 'card', tight && !plain ? 'card-tight' : '', className]
       .filter(Boolean)
       .join(' ')}
     {...rest}
   >
+    {(title || action) && (
+      <header className="panel-head">
+        <div className="panel-head-say">
+          {title && <span className="section-label">{title}</span>}
+          {sub && <p className="panel-head-sub">{sub}</p>}
+        </div>
+        {action}
+      </header>
+    )}
     {children}
   </Tag>
 );

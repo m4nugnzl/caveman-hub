@@ -1,5 +1,15 @@
 import { useRef, useState } from 'react';
-import { Copy, Dumbbell, Edit2, MoreVertical, Save, Trash2, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Copy,
+  Dumbbell,
+  Edit2,
+  MoreVertical,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react';
 
 import { MUSCLE_COLORS, countSets, weekdayForDay } from '@/domain/training';
 import { useClickOutside } from '@/lib/useClickOutside';
@@ -11,6 +21,9 @@ export const DayHeader = ({
   onRename,
   onDuplicate,
   onRemove,
+  onMove,
+  firstDay = false,
+  lastDay = false,
   canRemove,
   volume = {},
   doneSets = 0,
@@ -162,6 +175,43 @@ export const DayHeader = ({
             {doneSets > 0 && <span className="t-2xs t-tertiary">{doneSets} hechas</span>}
           </div>
         </div>
+
+        {/*
+          ══ Mover el día, fuera del menú ═══════════════════════════════════════
+
+          Por lo mismo que subir y bajar una comida están fuera del suyo: es un
+          gesto de MONTAR, y montar la semana es reordenar. Escondido detrás de
+          tres puntos serían dos clics cada vez que se cambia una posición, y una
+          reordenación son varias seguidas.
+
+          Van en horizontal —antes y después— porque el carril de días es
+          horizontal: el orden que estas dos flechas cambian es exactamente el que
+          se está viendo ahí arriba.
+        */}
+        {onMove && (
+          <div className="row gap-1">
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={() => onMove(-1)}
+              disabled={firstDay}
+              aria-label={`Mover ${day.dayName} antes`}
+              title="Mover antes"
+            >
+              <ArrowLeft size={16} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={() => onMove(1)}
+              disabled={lastDay}
+              aria-label={`Mover ${day.dayName} después`}
+              title="Mover después"
+            >
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
 
         <div ref={menuRef} style={{ position: 'relative' }}>
           <button

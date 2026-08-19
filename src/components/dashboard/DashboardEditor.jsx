@@ -219,11 +219,28 @@ export const DashboardEditBar = ({
   );
 };
 
-/** Las dos bandejas de piezas ocultas, bajo el panel. */
-export const DashboardTrays = ({ prefs, onAddWidget, onAddCard }) => (
+/**
+ * Las dos bandejas de piezas ocultas, bajo el panel.
+ *
+ * `visible` filtra el catálogo por lo que le llevas a este cliente: ofrecer «Kcal
+ * objetivo» a quien no tiene nutrición sería un botón que añade una pieza que no
+ * se va a pintar, y de las que no se entiende por qué. Por defecto entra todo, que
+ * es lo que hacía antes de que las secciones se pudieran quitar.
+ */
+export const DashboardTrays = ({ prefs, onAddWidget, onAddCard, visible = () => true }) => (
   <>
-    <Tray title="Cifras que puedes añadir" catalogue={WIDGETS} chosen={prefs.widgets} onAdd={onAddWidget} />
-    <Tray title="Gráficos que puedes añadir" catalogue={CARDS} chosen={prefs.cards} onAdd={onAddCard} />
+    <Tray
+      title="Cifras que puedes añadir"
+      catalogue={WIDGETS.filter((w) => visible(w.id))}
+      chosen={prefs.widgets}
+      onAdd={onAddWidget}
+    />
+    <Tray
+      title="Gráficos que puedes añadir"
+      catalogue={CARDS.filter((c) => visible(c.id))}
+      chosen={prefs.cards}
+      onAdd={onAddCard}
+    />
   </>
 );
 

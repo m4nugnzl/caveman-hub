@@ -12,11 +12,13 @@ import {
   dayHasOwnDrills,
   dayMuscleVolume,
   dayPlannedVolume,
+  indexAfterMove,
   unitLabel,
 } from '@/domain/training';
 import { sessionMuscleVolume } from '@/domain/sessions';
+import { isEmptyDiet } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
-import { activeQuestions, clientProtocol, isModuleOn } from '@/domain/protocol';
+import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
 import { EmptyState, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { SessionFeedback } from './SessionFeedback';
 import { WarmupEditor } from './WarmupBlock';
@@ -65,6 +67,7 @@ export const WorkoutLogEditor = () => {
     addDay,
     renameDay,
     duplicateDay,
+    moveDay,
     removeDay,
     addExercise,
     removeExercise,
@@ -83,6 +86,10 @@ export const WorkoutLogEditor = () => {
   const [copyOpen, setCopyOpen] = useState(false);
   const [newDayName, setNewDayName] = useState('');
   const [addingDay, setAddingDay] = useState(false);
+  /* Quién se arrastra y sobre quién se está soltando, para poder pintar los dos
+     de forma distinta. Mismo par de estados que en `ExerciseList`. */
+  const [dragDay, setDragDay] = useState(null);
+  const [overDay, setOverDay] = useState(null);
 
   const [warmupOpen, setWarmupOpen] = useState(false);
 
@@ -130,6 +137,22 @@ export const WorkoutLogEditor = () => {
   const protocol = clientProtocol(activeClient.preferences);
 
   const nav = useProgramNavigation(activeClient.id, microcycles);
+
+  /**
+   * Cambia un día de sitio y deja abierto EL MISMO que estabas editando.
+   *
+   * Las dos entradas —arrastrar un chip y las flechas de la cabecera— pasan por
+   * aquí, porque el cuidado es el mismo y el error también: `selectDay` guarda un
+   * ÍNDICE, así que mover cualquier día corre el del que tienes abierto. Ver
+   * `indexAfterMove`.
+   */
+  const moverDia = (from, to) => {
+    const nombre = nav.days[from]?.dayName;
+    if (!nombre) return;
+    const destino = moveDay(activeClient.id, nav.week, nombre, to);
+    if (destino < 0) return;
+    nav.selectDay(indexAfterMove(nav.dayIndex, from, destino));
+  };
   const save = saveStatus('workout', activeClient.id);
 
   const daySession = useDaySession(nav.microcycle, nav.day);
@@ -291,7 +314,13 @@ export const WorkoutLogEditor = () => {
           cycleType={cycleType}
           weekCount={microcycles.length}
           hasProgram={microcycles.length > 0}
-          hasDiet={Boolean(nutrition[activeClient.id])}
+          hasDiet={
+            /* Tener fila en `nutrition_plans` no es tener dieta: la fila nace al
+               tocar cualquier cosa. Avisar de que «esto SUSTITUYE su dieta
+               actual» por un plan en blanco es asustar por nada. */
+            !isEmptyDiet(nutrition[activeClient.id])
+          }
+          conNutricion={isServiceOn(protocol, 'nutrition')}
           hasWarmup={(program?.mobilityDrills || []).length > 0}
           onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
           onClose={() => setCopyOpen(false)}
@@ -327,21 +356,76 @@ export const WorkoutLogEditor = () => {
         </Panel>
       )}
 
+      {/*
+        ══ El carril de días se arrastra ══════════════════════════════════════
+
+        El orden de estos chips ES el orden de la semana, así que cambiarlo aquí
+        —donde se ve— es más directo que cualquier control en otro sitio.
+
+        ── Por qué el chip entero y no un asa ──────────────────────────────────
+        En la lista de ejercicios se arrastra solo desde el asa, porque la fila
+        lleva casillas dentro y el gesto competía con escribir. Un chip no tiene
+        nada dentro con lo que competir: arrastrar exige movimiento y el clic
+        sigue seleccionando el día como siempre. Y un asa dentro de una pastilla
+        de 5 px de alto sería más difícil de acertar que la pastilla entera.
+
+        ── Y por qué siguen estando las flechas de la cabecera ─────────────────
+        Porque esto es `draggable` de HTML5 y en una pantalla táctil no existe.
+        Sin ellas, reordenar la semana desde el móvil sería imposible. Es el mismo
+        reparto que en los ejercicios: arrastre para quien pueda, teclado (Alt y
+        flechas, aquí mismo) y botones para todos los demás.
+      */}
       <div className="row wrap gap-2" role="tablist" aria-label="Días del microciclo">
         {nav.days.map((day, index) => (
           <button
             key={day.dayName}
             type="button"
             role="tab"
-            className="chip"
-            style={
-              index === nav.dayIndex
-                ? { background: 'var(--accent)', color: 'var(--accent-on)', borderColor: 'transparent' }
-                : undefined
-            }
+            className={[
+              'chip',
+              overDay === index && dragDay !== index ? 'is-drop-target' : '',
+              dragDay === index ? 'is-dragging' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            draggable
+            onDragStart={(e) => {
+              setDragDay(index);
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragEnd={() => {
+              setDragDay(null);
+              setOverDay(null);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOverDay(index);
+            }}
+            onDragLeave={() => setOverDay((i) => (i === index ? null : i))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragDay !== null && dragDay !== index) moverDia(dragDay, index);
+              setDragDay(null);
+              setOverDay(null);
+            }}
+            /* Alt + flechas, como en la lista de ejercicios. El foco se queda en
+               el día movido —React reordena el nodo, no lo vuelve a crear, porque
+               la `key` es su nombre— así que se puede repetir para llevarlo varios
+               puestos sin volver a buscarlo. */
+            onKeyDown={(e) => {
+              if (!e.altKey) return;
+              if (e.key === 'ArrowLeft' && index > 0) {
+                e.preventDefault();
+                moverDia(index, index - 1);
+              } else if (e.key === 'ArrowRight' && index < nav.days.length - 1) {
+                e.preventDefault();
+                moverDia(index, index + 1);
+              }
+            }}
             aria-pressed={index === nav.dayIndex}
             aria-selected={index === nav.dayIndex}
             onClick={() => nav.selectDay(index)}
+            title="Arrástralo para cambiarlo de sitio (o Alt + ←/→)"
           >
             {day.dayName}
           </button>
@@ -381,6 +465,11 @@ export const WorkoutLogEditor = () => {
             onRename={(name) => renameDay(activeClient.id, nav.week, nav.day.dayName, name)}
             onDuplicate={() => duplicateDay(activeClient.id, nav.week, nav.day.dayName)}
             onRemove={() => removeDay(activeClient.id, nav.week, nav.day.dayName)}
+            firstDay={nav.dayIndex === 0}
+            lastDay={nav.dayIndex === nav.days.length - 1}
+            /* La otra puerta a lo mismo: el carril de arriba se arrastra, y estas
+               dos flechas son lo que queda cuando no hay ratón. Ver `moverDia`. */
+            onMove={(delta) => moverDia(nav.dayIndex, nav.dayIndex + delta)}
           />
 
           <SessionBar

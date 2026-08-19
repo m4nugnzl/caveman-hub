@@ -17,7 +17,7 @@ import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/
 import { MRV_GOALS, MUSCLE_COLORS, WEEK_DAYS, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
 import { MACROS, macroSplit } from '@/domain/nutrition';
 import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
-import { clientProtocol, scaleQuestions } from '@/domain/protocol';
+import { clientProtocol, isServiceOn, scaleQuestions } from '@/domain/protocol';
 import {
   buildFeedbackSeries,
   feedbackAdherence,
@@ -32,6 +32,7 @@ import {
   isCustomized,
   layoutCards,
   movePref,
+  pieceNeeds,
   toggleSpan,
   togglePref,
   widgetById,
@@ -180,6 +181,23 @@ export const Dashboard = ({ audience = 'coach' }) => {
     el panel filtra los nulos.
   */
   const protocol = useMemo(() => clientProtocol(activeClient.preferences), [activeClient.preferences]);
+
+  /*
+    ── Las piezas que hablan de lo que NO le llevas ───────────────────────────
+
+    A quien solo le llevas el entrenamiento no le sobra el «Kcal objetivo» del
+    resumen: es que no tiene nutrición. Sin este filtro, quitarle la sección le
+    dejaría igualmente la cifra en el panel —vacía, con «sin plan» debajo—, en la
+    lista de métricas del final y en la bandeja de «añadir», que es prometer una
+    pantalla que ya no existe.
+
+    La correspondencia pieza → servicio vive en `domain/preferences.js`, al lado
+    de los catálogos, porque la usan las tres listas y la bandeja.
+  */
+  const piezaVisible = (id) => {
+    const necesita = pieceNeeds(id);
+    return !necesita || isServiceOn(protocol, necesita);
+  };
   const feedbackSeries = useMemo(
     () => buildFeedbackSeries(microcycles, scaleQuestions(protocol)),
     [microcycles, protocol]
@@ -579,10 +597,15 @@ export const Dashboard = ({ audience = 'coach' }) => {
       value: photos.length,
       updated: photos[0] ? shortDate(photos[0].date) : '—',
     },
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .filter((fila) => piezaVisible(fila.id));
 
-  const visibleWidgets = prefs.widgets.filter((id) => widgetNodes[id]);
-  const cardLayout = layoutCards(prefs, prefs.cards.filter((id) => cardNodes[id]));
+  const visibleWidgets = prefs.widgets.filter((id) => widgetNodes[id] && piezaVisible(id));
+  const cardLayout = layoutCards(
+    prefs,
+    prefs.cards.filter((id) => cardNodes[id] && piezaVisible(id))
+  );
 
   /**
    * Un hueco del panel. Fuera del modo edición no añade nada más que su ancho;
@@ -718,6 +741,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
           prefs={prefs}
           onAddWidget={(id) => savePrefs({ widgets: togglePref(prefs.widgets, id, WIDGETS) })}
           onAddCard={(id) => savePrefs({ cards: togglePref(prefs.cards, id, CARDS) })}
+          visible={piezaVisible}
         />
       )}
 

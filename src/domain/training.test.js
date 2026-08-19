@@ -10,6 +10,7 @@ import {
   drillsForDay,
   dayPlannedVolume,
   exerciseProgression,
+  indexAfterMove,
   trainedMuscles,
   weekMuscleVolume,
   weekTonnage,
@@ -295,5 +296,49 @@ describe('drillsForDay — el calentamiento del programa o el del día', () => {
     expect(dayHasOwnDrills({ mobilityDrills: null })).toBe(false);
     expect(dayHasOwnDrills({ mobilityDrills: [] })).toBe(true);
     expect(dayHasOwnDrills({ mobilityDrills: [{ id: 'a' }] })).toBe(true);
+  });
+});
+
+/*
+  ══ Reordenar días sin perder de vista el que estás editando ════════════════
+
+  El carril de días se arrastra y el editor de abajo abre uno POR ÍNDICE, así que
+  mover cualquier otro día corre ese índice. El fallo que esto impide no se ve:
+  no rompe la pantalla, te deja escribiendo series en el día de al lado.
+
+  Se prueba con la lista real —mover de verdad y buscar dónde acabó cada uno—
+  para que la aritmética no se compruebe contra sí misma.
+*/
+describe('indexAfterMove', () => {
+  const dias = ['Upper A', 'Lower A', 'Upper B', 'Lower B'];
+
+  /** Dónde acaba cada día moviendo `from` a `to`, moviéndolo de verdad. */
+  const deVerdad = (from, to) => {
+    const next = [...dias];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    return dias.map((nombre) => next.indexOf(nombre));
+  };
+
+  it.each([
+    [3, 2, 'Lower B una posición a la izquierda'],
+    [0, 3, 'el primero al final'],
+    [3, 0, 'el último al principio'],
+    [1, 2, 'un salto corto hacia la derecha'],
+    [2, 1, 'un salto corto hacia la izquierda'],
+    [2, 2, 'soltarlo donde estaba'],
+  ])('%s → %s: %s', (from, to) => {
+    const esperado = deVerdad(from, to);
+    expect(dias.map((_, i) => indexAfterMove(i, from, to))).toEqual(esperado);
+  });
+
+  it('el que se mueve acaba justo en el destino', () => {
+    expect(indexAfterMove(3, 3, 1)).toBe(1);
+  });
+
+  it('los que quedan fuera del tramo no se enteran', () => {
+    // Mover el 2 al 3 no toca al 0 ni al 1.
+    expect(indexAfterMove(0, 2, 3)).toBe(0);
+    expect(indexAfterMove(1, 2, 3)).toBe(1);
   });
 });

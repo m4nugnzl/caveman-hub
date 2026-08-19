@@ -3,7 +3,8 @@ import { UserX } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
-import { CLIENT_SECTIONS, isSectionActive } from '@/routes';
+import { clientProtocol } from '@/domain/protocol';
+import { CLIENT_SECTIONS, isSectionActive, sectionsFor } from '@/routes';
 import { EmptyState, Panel } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientPrivacy } from './ClientPrivacy';
@@ -48,6 +49,14 @@ export const ClientLayout = () => {
 
   const microcycles = workoutData[activeClient.id]?.microcycles || [];
   const lastWeek = microcycles.length > 0 ? microcycles[microcycles.length - 1].weekNumber : null;
+
+  /*
+    Sus secciones, no todas. A quien solo le llevas la dieta no le aparece «Mi
+    rutina» —ni arriba ni en la barra del pulgar—: una pestaña que solo puede
+    decir «tu entrenador no te ha puesto rutina» no informa, promete algo que no
+    va a llegar. Ver `domain/protocol.js`.
+  */
+  const secciones = sectionsFor(CLIENT_SECTIONS, clientProtocol(activeClient.preferences));
 
   return (
     <div className="layout layout-narrow">
@@ -112,7 +121,7 @@ export const ClientLayout = () => {
           progreso» tienen dos niveles cada una y bajar al segundo dejaba las
           pestañas sin marcar. */}
       <nav className="tabs" aria-label="Secciones de mi portal">
-        {CLIENT_SECTIONS.map((seccion) => {
+        {secciones.map((seccion) => {
           const { path, label, icon: Icon } = seccion;
           const activa = isSectionActive(pathname, seccion, '/mi');
           return (
@@ -143,7 +152,7 @@ export const ClientLayout = () => {
       */}
       <BottomNav
         label="Secciones de mi portal"
-        items={CLIENT_SECTIONS.map((seccion) => ({
+        items={secciones.map((seccion) => ({
           to: `/mi/${seccion.path}`,
           label: seccion.short || seccion.label,
           icon: seccion.icon,

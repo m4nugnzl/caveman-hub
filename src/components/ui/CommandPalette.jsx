@@ -27,7 +27,9 @@ import {
   COACH_PRIMARY,
   SETTINGS_SECTIONS,
   clientPath,
+  sectionsFor,
 } from '@/routes';
+import { clientProtocol } from '@/domain/protocol';
 
 /**
  * Paleta de comandos.
@@ -115,7 +117,7 @@ const GROUP_ORDER = ['Cliente', 'Clientes', 'Ir a', 'Ajustes', 'Acciones'];
 
 export const CommandPalette = () => {
   const { open, setOpen } = useCommandPalette();
-  const { clients, isCoach, view, setViewMode, signOut } = useApp();
+  const { activeClient, clients, isCoach, view, setViewMode, signOut } = useApp();
   const { isDark, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -167,7 +169,9 @@ export const CommandPalette = () => {
   const items = useMemo(() => {
     // ── Segundo nivel: dentro de un cliente ────────────────────────────────
     if (scope) {
-      return COACH_CLIENT.map(({ path, label, icon }) => ({
+      /* Las suyas, no todas: la paleta es otra forma de enseñar el carril, y
+         ofrecer «Nutrición» de quien no la tiene lleva a una ruta que rebota. */
+      return sectionsFor(COACH_CLIENT, clientProtocol(scope.preferences)).map(({ path, label, icon }) => ({
         id: `section:${path}`,
         group: 'Cliente',
         label,
@@ -198,7 +202,10 @@ export const CommandPalette = () => {
     const sections =
       view === 'coach'
         ? COACH_PRIMARY.map((s) => ({ ...s, to: s.path }))
-        : CLIENT_SECTIONS.map((s) => ({ ...s, to: `/mi/${s.path}` }));
+        : sectionsFor(CLIENT_SECTIONS, clientProtocol(activeClient?.preferences)).map((s) => ({
+            ...s,
+            to: `/mi/${s.path}`,
+          }));
 
     for (const { to, label, icon } of sections) {
       out.push({ id: `nav:${to}`, group: 'Ir a', label, icon, run: () => go(to) });
@@ -261,7 +268,21 @@ export const CommandPalette = () => {
     });
 
     return out;
-  }, [scope, clients, isCoach, view, isDark, go, close, setViewMode, signOut, toggleTheme]);
+  }, [
+    scope,
+    clients,
+    /* Sus preferencias y no el cliente entero: dentro está el protocolo, que es
+       lo que decide qué secciones se ofrecen. */
+    activeClient?.preferences,
+    isCoach,
+    view,
+    isDark,
+    go,
+    close,
+    setViewMode,
+    signOut,
+    toggleTheme,
+  ]);
 
   const results = useMemo(() => {
     const tokens = norm(query).split(/\s+/).filter(Boolean);
