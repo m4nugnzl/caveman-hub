@@ -5,9 +5,9 @@ import { useApp } from '@/context/AppContext';
 import { traeALaVista } from '@/lib/motion';
 import {
   MRV_GOALS,
-  MUSCLE_COLORS,
   exerciseNames,
   exerciseProgression,
+  muscleColor,
   muscleFrequency,
   muscleVolumeOverTime,
   trainedMuscles,
@@ -15,6 +15,7 @@ import {
   weekMuscleVolume,
 } from '@/domain/training';
 import { buildWeeklySeries, lastWeeks, macroShareBands, metricPoints, weekOverWeek } from '@/domain/analytics';
+import { metricColor } from '@/domain/metrics';
 import { goalFromDirection, targetRateKg } from '@/domain/goals';
 import { effectiveGoal } from '@/domain/roadmap';
 import { EVIDENCE_GROUPS, weeklyReading, weightTrend } from '@/domain/reading';
@@ -27,7 +28,7 @@ import { fmt } from '@/lib/num';
 import { BandChart, BarBandChart, MeterList, StackedShareChart } from '@/components/ui/charts';
 import { RangeChips } from '@/components/ui/ChartCard';
 import { Delta, MetricCard } from '@/components/ui/metrics';
-import { EmptyState, Panel } from '@/components/ui/primitives';
+import { EmptyState, PageHead, Panel } from '@/components/ui/primitives';
 import { AnalyticsReading } from './AnalyticsReading';
 
 /**
@@ -38,10 +39,10 @@ import { AnalyticsReading } from './AnalyticsReading';
  * comparan nada — 100×3 y 100×10 salían iguales.
  */
 const EXERCISE_METRICS = [
-  { value: 'tonnage', label: 'Tonelaje', unit: ' kg', color: 'var(--data-violet)', decimals: 0 },
-  { value: 'sets', label: 'Volumen (series)', unit: '', color: 'var(--data-teal)', decimals: 0 },
-  { value: 'e1rm', label: '1RM estimado', unit: ' kg', color: 'var(--accent)', decimals: 0 },
-];
+  { value: 'tonnage', label: 'Tonelaje', unit: ' kg', decimals: 0 },
+  { value: 'sets', label: 'Volumen (series)', unit: '', decimals: 0 },
+  { value: 'e1rm', label: '1RM estimado', unit: ' kg', decimals: 0 },
+].map((m) => ({ ...m, color: metricColor(m.value) }));
 
 const VOLUME_SCOPES = [
   { value: 'total', label: 'Todos los músculos' },
@@ -292,7 +293,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
   }, [volumeScope, activeMuscle, microcycles, unit]);
 
   const volumeColor =
-    volumeScope === 'muscle' ? MUSCLE_COLORS[activeMuscle] || 'var(--data-violet)' : 'var(--data-violet)';
+    volumeScope === 'muscle' ? muscleColor(activeMuscle) : metricColor('tonnage');
 
   const hasProgram = microcycles.length > 0;
   const hasBody = history.length > 0;
@@ -318,6 +319,15 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
 
   return (
     <div className="stack">
+      <PageHead
+        title="Análisis"
+        sub={
+          isClient
+            ? 'Tu progreso a fondo: qué se mueve, cuánto y desde cuándo.'
+            : `La revisión a fondo de ${activeClient.name}: qué se mueve, cuánto y desde cuándo.`
+        }
+      />
+
       {/* La conclusión antes de la prueba. Ver AnalyticsReading. */}
       <AnalyticsReading
         findings={findings}
@@ -470,7 +480,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                   {
                     id: 'weight',
                     label: 'Peso',
-                    color: 'var(--data-blue)',
+                    color: metricColor('weight'),
                     unit: ' kg',
                     decimals: 1,
                     points: weightPts,
@@ -505,7 +515,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                     {
                       id: 'fat',
                       label: '% graso',
-                      color: 'var(--data-rose)',
+                      color: metricColor('fat'),
                       unit: '%',
                       decimals: 1,
                       points: fatPts,
@@ -544,7 +554,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                     {
                       id: perimeter,
                       label: PERIMETER_LABELS[perimeter],
-                      color: 'var(--data-orange)',
+                      color: metricColor('waist'),
                       unit: ' cm',
                       decimals: 1,
                       points: perimeterPts,
@@ -585,7 +595,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                 adherencePts.length > 0 ? fmt(adherencePts[adherencePts.length - 1].value, { decimals: 0 }) : '—'
               }
               unit="%"
-              color="var(--data-teal)"
+              color={metricColor('adherence')}
               foot="Una semana al 60 % no significa que el plan no funcione: significa que no se ha hecho el plan. Es lo primero que conviene resolver antes de cambiar nada."
             >
               <BandChart
@@ -594,7 +604,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                   {
                     id: 'adherence',
                     label: 'Adherencia',
-                    color: 'var(--data-teal)',
+                    color: metricColor('adherence'),
                     unit: '%',
                     decimals: 0,
                     points: adherencePts,
@@ -611,7 +621,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
               subtitle={`${unit} ${activeVolumeWeek ?? ''} · solo series con repeticiones registradas`}
               value={volumeEntries.reduce((acc, [, v]) => acc + v, 0)}
               unit="series"
-              color="var(--data-rose)"
+              color={metricColor('sets')}
               action={
                 <Picker
                   value={String(activeVolumeWeek ?? '')}
@@ -633,7 +643,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                       label: name,
                       value: count,
                       pct: (count / maxVolume) * 100,
-                      color: MUSCLE_COLORS[name] || 'var(--data-slate)',
+                      color: muscleColor(name),
                       markerPct: goals ? (goals.mrv / maxVolume) * 100 : null,
                       markerTitle: goals ? `MRV: ${goals.mrv} series` : undefined,
                     };
@@ -661,7 +671,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                         <span className="stat-label">{name}</span>
                         <span
                           className="stat-value"
-                          style={{ color: MUSCLE_COLORS[name] || 'var(--data-slate)' }}
+                          style={{ color: muscleColor(name) }}
                         >
                           {days}
                           <span className="metric-unit"> {days === 1 ? 'día' : 'días'}</span>
@@ -816,7 +826,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                     {
                       id: 'kcals',
                       label: 'Kcal',
-                      color: 'var(--data-amber)',
+                      color: metricColor('kcals'),
                       unit: ' kcal',
                       decimals: 0,
                       points: kcalPts,
@@ -874,7 +884,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                       {
                         id: 'kcals-paired',
                         label: 'Kcal',
-                        color: 'var(--data-amber)',
+                        color: metricColor('kcals'),
                         unit: ' kcal',
                         decimals: 0,
                         points: kcalPts,
@@ -893,7 +903,7 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
                       {
                         id: 'weight-paired',
                         label: 'Peso',
-                        color: 'var(--data-blue)',
+                        color: metricColor('weight'),
                         unit: ' kg',
                         decimals: 1,
                         points: weightPts,

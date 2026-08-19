@@ -98,6 +98,7 @@ pantalla concreta de un cliente.
 | `/hoy` | La jornada: qué ha pasado en la cartera y qué espera respuesta (entrada del entrenador) |
 | `/clientes` | La cartera: alta, estado de cada uno y entrada a la persona |
 | `/ajustes/…` | Lo que se configura una vez: protocolo, equipo, integraciones, plan, copia y ayuda |
+| `/c/:clientId/semana` | **Su semana**: lo que hizo, lo que entregó y tu respuesta. Es por donde se entra a un cliente |
 | `/c/:clientId/resumen` · `analitica` | **Progreso**: el resumen y la revisión a fondo |
 | `/c/:clientId/revision` · `revision/fotos` | **Revisión**: su check-in y sus fotos. Una tarea, una sección |
 | `/c/:clientId/rutina` · `nutricion` · `calendario` · `ficha` | Sus demás secciones |
@@ -117,6 +118,17 @@ el segundo nivel aparece únicamente cuando estás dentro de algo —las seccion
 un cliente, o las de ajustes—, nunca los dos a la vez. Antes esto eran once
 pestañas seguidas mezclando planos distintos. La configuración cuelga del avatar,
 que es donde la busca todo el mundo.
+
+**«Su semana» es la sección donde se cierra el bucle.** Mirar lo que le
+programaste a alguien, lo que ha hecho con ello, lo que ha entregado y
+contestarle cruzaba **cuatro** secciones —Rutina, Revisión, Nutrición y
+Progreso—, cada una con su propio selector de semana y ninguna sabiendo en qué
+semana estaba la de al lado. Es el mismo argumento que fusionó «Fotos» y
+«Check-ins» un piso más abajo, aplicado donde de verdad dolía: la única tarea que
+la portada llama «el producto» era la única sin pantalla. Sale entera de
+`domain/week.js`, que reúne lo que ya calculaban `training.js`, `analytics.js` y
+`anthropometry.js` — no hay ni una consulta nueva. El razonamiento completo, en
+[`docs/producto.md`](docs/producto.md).
 
 **Las secciones se llaman como el TRABAJO, no como la tabla.** «Fotos» y
 «Check-ins» eran dos entradas y son la misma tarea —mirar lo que ha subido esta
@@ -452,6 +464,35 @@ el razonamiento entero. Lo mínimo para no romperlo:
   ser adorno.
 - **La etiqueta troquelada** (versalita, peso 700, `--tracking-stencil`) es lo que
   ordena la pantalla ahora que el cromo no puede usar color para hacerlo.
+- **El color de una métrica se decide UNA vez**, en `domain/metrics.js`. Ninguna
+  pantalla elige el color de una cifra: lo pide por el identificador de lo que
+  está enseñando. Antes lo elegía cada una, y por eso el peso era de tres colores
+  distintos según dónde se mirara y la adherencia de tres en el mismo archivo.
+  Una métrica sin serie temporal —un recuento de fotos, «4 de 3 pesajes»— **no
+  lleva color**: va en tinta plena.
+
+### La gramática de una pantalla
+
+**Toda pantalla de ruta se abre con `PageHead`**, sin excepciones: título, una
+línea de contexto y como mucho UNA acción primaria. Antes solo lo hacían tres de
+veinticuatro y el resto entraba directamente en barras de herramientas y
+selectores, que es lo que hacía que cambiar de sección se sintiera como cambiar
+de aplicación.
+
+Cuatro niveles y ni uno más. Están en `components/ui/primitives.jsx` y el porqué
+de cada uno, en [`docs/producto.md`](docs/producto.md) §5.
+
+| Pieza | Etiqueta | Qué nombra | Cuántas por pantalla |
+|---|---|---|---|
+| `PageHead` | `h1` | cómo se llama esta pantalla | exactamente 1 |
+| `GroupHead` | `h2`, en troquelada | de qué va esta tanda de bloques | 0, 1 o 2 |
+| `Panel title` | troquelada | qué es este bloque | las que hagan falta |
+| `SectionTitle` | `h3` | una pieza dentro de un bloque | ídem |
+
+Y tres reglas que se revisan en el diff: una tarjeta **nunca** navega (si lleva a
+otro sitio es un chip, una pestaña o un enlace), una fila de métricas tiene **dos
+o cuatro** tarjetas —nunca tres, que deja un hueco que se lee como un error de
+carga— y un `<h2>` **no va suelto** fuera de un bloque.
 
 `npm run verify` falla si una clase o un token no existen, y avisa si aparece un
 color literal fuera de las excepciones declaradas.

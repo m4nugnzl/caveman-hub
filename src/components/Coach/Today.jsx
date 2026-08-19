@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Inbox, Waves } from 'lucide-react';
+import { Inbox } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
@@ -14,7 +14,7 @@ import {
 } from '@/domain/today';
 import { clientPath } from '@/routes';
 import { shortDate, todayISO, weekdayName } from '@/lib/dates';
-import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { TaskInbox } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
 import { ReviewQueue } from './ReviewQueue';
@@ -139,19 +139,16 @@ export const Today = () => {
 
   return (
     <div className="stack">
-      <div className="section-head">
-        <div>
-          <h2>Hoy</h2>
-          <p>
-            {weekdayName(`${today}T00:00:00Z`, { conFecha: true }).replace(/^./, (c) =>
-              c.toUpperCase()
-            )}
-            {activeToday > 0
-              ? ` · ${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'}`
-              : ' · sin movimiento todavía'}
-          </p>
-        </div>
-      </div>
+      <PageHead
+        title="Hoy"
+        sub={`${weekdayName(`${today}T00:00:00Z`, { conFecha: true }).replace(/^./, (c) =>
+          c.toUpperCase()
+        )}${
+          activeToday > 0
+            ? ` · ${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'}`
+            : ' · sin movimiento todavía'
+        }`}
+      />
 
       {error && <Notice tone="error">{error}</Notice>}
 
@@ -182,8 +179,7 @@ export const Today = () => {
           Catorce días, uno por marca. La barra es cuántas cosas pasaron; la
           marca de abajo existe aunque el día esté vacío, porque una escala a la
           que le faltan las marcas vacías deja de ser una escala. */}
-      <section className="scale-card">
-        <span className="section-label">Últimas dos semanas</span>
+      <Panel tight title="Últimas dos semanas" className="scale-card">
         <div
           className="scale"
           role="img"
@@ -209,16 +205,13 @@ export const Today = () => {
           <span>{shortDate(scale[0]?.date)}</span>
           <span>hoy</span>
         </div>
-      </section>
+      </Panel>
 
       <div className="today">
         {/* ── EL HILO ──────────────────────────────────────────────────── */}
         <section className="col gap-5">
           {days.length === 0 ? (
-            <Panel className="col gap-2">
-              <span className="section-title">
-                <Waves size={17} /> Dos semanas en silencio
-              </span>
+            <Panel title="Dos semanas en silencio" className="col gap-2">
               <p className="t-sm t-secondary">
                 Nadie ha registrado un entreno, un pesaje ni una foto en catorce días. Si tus
                 clientes entrenan pero no lo anotan, revisa que tengan acceso a su portal desde
@@ -245,12 +238,11 @@ export const Today = () => {
 
         {/* ── LA BANDEJA ───────────────────────────────────────────────── */}
         <aside className="today-side">
-          <section className="card col gap-3">
-            <div className="row between gap-2">
-              <span className="section-label">Te esperan</span>
-              <span className="badge">{inbox.tasks.reduce((n, t) => n + t.rows.length, 0)}</span>
-            </div>
-
+          <Panel
+            title="Te esperan"
+            action={<span className="badge">{inbox.tasks.reduce((n, t) => n + t.rows.length, 0)}</span>}
+            className="col gap-3"
+          >
             <TaskInbox
               tasks={inbox.tasks}
               onOpen={(clientId) => open(clientId, 'resumen')}
@@ -265,7 +257,7 @@ export const Today = () => {
               }}
               emptyMessage="Nada pendiente por tu parte. Cuando alguien entregue su check-in o venza un cobro, aparecerá aquí."
             />
-          </section>
+          </Panel>
 
         </aside>
       </div>

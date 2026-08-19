@@ -10,7 +10,7 @@ import {
   validateAttachment,
 } from '@/domain/attachments';
 import { recentIssues } from '@/lib/diagnostics';
-import { EmptyState, Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { EmptyState, Field, Notice, PageHead } from '@/components/ui/primitives';
 
 /**
  * Ayuda: escribir a soporte y seguir el hilo.
@@ -78,18 +78,14 @@ export const SupportPanel = () => {
   const huecoVacio = estado === 'listo' && lista.length === 0 && !redactando;
 
   return (
-    /*
-      `col gap-4`, no `Panel` a secas.
-
-      `Panel` pinta una tarjeta con relleno pero NO es contenedor flexible ni
-      tiene separación propia: sus hijos se apilan pegados unos a otros. Por eso
-      el botón de la cabecera quedaba tocando el primer ticket. La convención del
-      proyecto es pasarle la separación —así lo hacen los paneles del resumen— y
-      en los dos paneles nuevos se me olvidó.
-    */
-    <Panel className="col gap-4">
-      <SectionTitle
-        icon={LifeBuoy}
+    <div className="stack">
+      <PageHead
+        title={isSupport ? `Soporte${pendientes ? ` · ${pendientes} sin contestar` : ''}` : 'Ayuda'}
+        sub={
+          isSupport
+            ? 'Lo que ha escrito la gente que usa esto.'
+            : 'Escríbenos y sigue tus conversaciones.'
+        }
         action={
           /*
             El botón sale SIEMPRE para quien pueda escribir —también para quien
@@ -111,9 +107,7 @@ export const SupportPanel = () => {
             </button>
           ) : null
         }
-      >
-        {isSupport ? `Soporte${pendientes ? ` · ${pendientes} sin contestar` : ''}` : 'Ayuda'}
-      </SectionTitle>
+      />
 
       {estado === 'error' && (
         <Notice tone="error">
@@ -204,7 +198,7 @@ export const SupportPanel = () => {
           ))}
         </div>
       )}
-    </Panel>
+    </div>
   );
 };
 

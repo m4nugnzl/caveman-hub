@@ -1,7 +1,7 @@
-import { Moon, Palette, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 
 import { useTheme } from '@/lib/useTheme.jsx';
-import { Panel, SectionTitle } from '@/components/ui/primitives';
+import { PageHead, Panel } from '@/components/ui/primitives';
 
 const OPTIONS = [
   { id: 'light', label: 'Claro', icon: Sun, hint: 'Para trabajar de día y para imprimir' },
@@ -24,13 +24,10 @@ export const AppearancePanel = () => {
   const { theme, setTheme } = useTheme();
 
   return (
-    <Panel className="col gap-4">
-      <SectionTitle icon={Palette}>
-        Apariencia
-      </SectionTitle>
+    <div className="stack">
+      <PageHead title="Apariencia" sub="Cómo se ve la aplicación en este dispositivo." />
 
-      <div className="col gap-2">
-        <span className="section-label">Tema</span>
+      <Panel title="Tema" className="col gap-2">
         <div className="theme-choice">
           {OPTIONS.map(({ id, label, icon: Icon, hint }) => (
             <button
@@ -59,7 +56,7 @@ export const AppearancePanel = () => {
           El tema se guarda en este dispositivo. Sigue estando también en el icono de la cabecera,
           para cambiarlo al vuelo sin entrar aquí.
         </p>
-      </div>
-    </Panel>
+      </Panel>
+    </div>
   );
 };

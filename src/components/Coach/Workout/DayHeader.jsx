@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { MUSCLE_COLORS, countSets, weekdayForDay } from '@/domain/training';
+import { countSets, muscleColor, weekdayForDay } from '@/domain/training';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
@@ -110,7 +110,7 @@ export const DayHeader = ({
               </button>
             </div>
           ) : (
-            <h2 style={{ fontSize: 'var(--fs-lg)' }}>{day.dayName}</h2>
+            <h3 className="day-name">{day.dayName}</h3>
           )}
 
           {/*
@@ -138,7 +138,7 @@ export const DayHeader = ({
                     key={muscle}
                     style={{
                       width: `${(count / setCount) * 100}%`,
-                      background: MUSCLE_COLORS[muscle] || 'var(--data-slate)',
+                      background: muscleColor(muscle),
                     }}
                   />
                 ))}
@@ -149,7 +149,7 @@ export const DayHeader = ({
                   <span className="day-vol-item" key={muscle}>
                     <span
                       className="dot"
-                      style={{ background: MUSCLE_COLORS[muscle] || 'var(--data-slate)' }}
+                      style={{ background: muscleColor(muscle) }}
                     />
                     {muscle}
                     <strong>{count}</strong>

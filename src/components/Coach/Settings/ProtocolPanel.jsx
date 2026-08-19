@@ -47,6 +47,7 @@ import {
   Field,
   Notice,
   OptionCard,
+  PageHead,
   Panel,
   SegmentedControl,
   TextInput,
@@ -426,12 +427,7 @@ export const ProtocolPanel = () => {
 
   return (
     <div className="stack">
-      <div className="section-head">
-        <div>
-          <h2>Protocolo</h2>
-          <p>Qué le pides a tus clientes y qué ve cada uno en su aplicación.</p>
-        </div>
-      </div>
+      <PageHead title="Protocolo" sub="Qué le pides a tus clientes y qué ve cada uno en su aplicación." />
 
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
 

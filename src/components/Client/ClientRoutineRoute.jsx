@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { useApp } from '@/context/AppContext';
+import { PageHead } from '@/components/ui/primitives';
 import { ClientRoutine } from './ClientRoutine';
 
 /**
@@ -44,7 +45,9 @@ export const ClientRoutineRoute = () => {
   const activeWeek = weeks.includes(preferredWeek) ? preferredWeek : weeks[weeks.length - 1] ?? null;
 
   return (
-    <ClientRoutine
+    <div className="stack">
+      <PageHead title="Mi rutina" sub="Lo que toca esta semana, y dónde apuntas lo que levantas." />
+      <ClientRoutine
       client={activeClient}
       program={program}
       weeks={weeks}
@@ -63,8 +66,9 @@ export const ClientRoutineRoute = () => {
         const week = continueProgram(activeClient.id);
         if (week) setPreferredWeek(week);
       }}
-      save={saveStatus('workout', activeClient.id)}
-      onRetry={() => retrySave('workout', activeClient.id)}
-    />
+        save={saveStatus('workout', activeClient.id)}
+        onRetry={() => retrySave('workout', activeClient.id)}
+      />
+    </div>
   );
 };

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ArrowLeft, Check, Plug } from 'lucide-react';
+import { ArrowLeft, Check } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
 import { PROVIDERS, providerById } from '@/domain/integrations';
 import { BrandMark } from '@/components/ui/BrandMark';
-import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { NotionSettings } from './NotionSettings';
 import { StripeSettings } from './StripeSettings';
 
@@ -99,14 +99,13 @@ export const IntegrationsCatalogue = () => {
   const detail = open ? providerById(open) : null;
 
   return (
-    <div className="col gap-4">
+    <div className="stack">
+      <PageHead
+        title="Integraciones"
+        sub="Conecta lo que ya usas para no llevar la misma información en dos sitios."
+      />
+
       <Panel className="col gap-4">
-        <SectionTitle icon={Plug}>
-          Integraciones
-        </SectionTitle>
-        <p className="t-sm t-secondary">
-          Conecta lo que ya usas para no llevar la misma información en dos sitios.
-        </p>
 
         {unavailable && ready && (
           <Notice tone="info">

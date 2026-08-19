@@ -4,7 +4,15 @@ import { Copy, Footprints, HeartPulse, Plus, Salad } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant, targetsFor } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
-import { Notice, Panel, SaveIndicator, SegmentedControl, Switch } from '@/components/ui/primitives';
+import {
+  GroupHead,
+  Notice,
+  PageHead,
+  Panel,
+  SaveIndicator,
+  SegmentedControl,
+  Switch,
+} from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
@@ -130,25 +138,25 @@ export const NutritionModule = () => {
   return (
     <div className="stack">
       <section className="col gap-4">
-        <div className="section-head">
-          <div>
-            <h2>Plan nutricional</h2>
-            <p>Objetivo, menú cerrado por alimentos y tus pautas para {activeClient.name}.</p>
-          </div>
-          <div className="row gap-3 wrap">
-            <SaveIndicator
-              status={save.status}
-              error={save.error}
-              onRetry={() => retrySave('nutrition', activeClient.id)}
-            />
-            <SegmentedControl
-              value={plan.type}
-              onChange={(type) => updateNutrition(activeClient.id, { type })}
-              options={DIET_TYPES}
-              label="Tipo de dieta"
-            />
-          </div>
-        </div>
+        <PageHead
+          title="Plan nutricional"
+          sub={`Objetivo, menú cerrado por alimentos y tus pautas para ${activeClient.name}.`}
+          action={
+            <div className="row gap-3 wrap">
+              <SaveIndicator
+                status={save.status}
+                error={save.error}
+                onRetry={() => retrySave('nutrition', activeClient.id)}
+              />
+              <SegmentedControl
+                value={plan.type}
+                onChange={(type) => updateNutrition(activeClient.id, { type })}
+                options={DIET_TYPES}
+                label="Tipo de dieta"
+              />
+            </div>
+          }
+        />
 
         {/* Un interruptor y no una casilla: esto no es «incluir esto en una
             operación», es un ajuste del plan que se queda puesto. Y encenderlo
@@ -230,19 +238,19 @@ export const NutritionModule = () => {
 
       {plan.type === 'closed' && (
         <section className="col gap-4">
-          <div className="section-head">
-            <div>
-              <h2>Menú estructurado</h2>
-              <p>
-                {meals.length === 0
-                  ? 'Sin comidas todavía.'
-                  : `${Math.round(dayTotal)} kcal/día con la primera opción de cada comida` +
-                    (dayRange.min !== dayRange.max
-                      ? ` · entre ${Math.round(dayRange.min)} y ${Math.round(dayRange.max)} según las opciones`
-                      : '')}
-              </p>
-            </div>
-          </div>
+          {/* Una TANDA de bloques, no otra pantalla: antes esto era un segundo
+              `h2` idéntico al de arriba. Ver `GroupHead`. */}
+          <GroupHead
+            title="Menú estructurado"
+            sub={
+              meals.length === 0
+                ? 'Sin comidas todavía.'
+                : `${Math.round(dayTotal)} kcal/día con la primera opción de cada comida` +
+                  (dayRange.min !== dayRange.max
+                    ? ` · entre ${Math.round(dayRange.min)} y ${Math.round(dayRange.max)} según las opciones`
+                    : '')
+            }
+          />
 
           {plan.hasDayVariants && (
             <div className="row gap-3 wrap">

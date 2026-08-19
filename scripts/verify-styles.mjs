@@ -75,22 +75,26 @@ const COLOR_EXCEPTIONS = [
  * `domain/` entra entero: ahí es donde se declaran los mapas de color de las
  * series (grupos musculares, macros, tipos de actividad), que es la definición
  * misma de «el color es del dato».
+ *
+ * ── Por qué esta lista tenía trece entradas y ahora tiene tres ──────────────
+ * Porque la regla estaba a medio cumplir: el color era del dato, sí, pero **lo
+ * elegía cada pantalla**, y por eso la misma métrica salía de colores distintos
+ * según dónde se mirara — la adherencia era verde en el resumen, teal en la
+ * lista de al lado y lima en la analítica—. Cada pantalla que pintaba una cifra
+ * necesitaba entrar aquí, y la lista crecía con el producto.
+ *
+ * Ahora el color de una métrica sale de `domain/metrics.js` y el de un músculo
+ * de `muscleColor`, así que una pantalla ya no tiene por qué nombrar un color:
+ * lo pide por el identificador de lo que está enseñando. Lo que queda son los
+ * tres sitios donde el color NO es de una métrica —las primitivas de gráfico,
+ * los logotipos ajenos y la marca del cliente activo—.
+ *
+ * Si esta lista vuelve a crecer, la pregunta correcta no es «¿le añado este
+ * archivo?» sino «¿por qué esta pantalla está eligiendo un color?».
  */
 const DATA_COLOR_ALLOWED = [
+  // Las primitivas de gráfico: rejilla, ejes y respaldos de serie.
   'components/ui/charts.jsx',
-  'components/ui/metrics.jsx',
-  'components/nutrition/macros.jsx',
-  'components/dashboard/Dashboard.jsx',
-  'components/analytics/AnalyticsPanel.jsx',
-  'components/anthropometry/AnthropometryPanel.jsx',
-  // La tendencia de peso se mudó aquí, con los pesajes de los que sale: el color
-  // es el de su serie.
-  'components/anthropometry/WeeklyCheckIn.jsx',
-  // Cifras de comparación: las semanas entre fotos y el delta de peso.
-  'components/Coach/PhotoStudio/PhotoStudio.jsx',
-  'components/Client/ClientPhotos.jsx',
-  // Barras de volumen por grupo muscular.
-  'components/Coach/Workout/DayHeader.jsx',
   // Logotipos de terceros: su color es su marca, no nuestra paleta.
   'components/ui/BrandMark.jsx',
   // La marca del cliente activo. Es identidad, no decoración de una sección.

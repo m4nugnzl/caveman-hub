@@ -34,6 +34,7 @@ import { ReviewLayout } from '@/components/review/ReviewLayout';
   diferido solo añadiría un parpadeo a lo primero que ve el usuario.
 */
 const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then((m) => ({ default: m.ClientFile })));
+const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
 const TeamPanel = lazyRoute(() => import('@/components/Coach/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
 const AppearancePanel = lazyRoute(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
@@ -370,7 +371,12 @@ export default function App() {
                 </Route>
 
                 <Route path="c/:clientId">
-                  <Route index element={<Navigate to="resumen" replace />} />
+                  {/* Se entra por la SEMANA y ya no por el resumen: es lo que se
+                      viene a hacer. El resumen contesta «¿esto funciona?», que es
+                      una pregunta de meses; la semana contesta «¿qué le digo?»,
+                      que es la de cada lunes. */}
+                  <Route index element={<Navigate to="semana" replace />} />
+                  <Route path="semana" element={<WeekReview />} />
                   {/* Resumen y análisis son dos profundidades de la misma sección:
                       una sola entrada en el carril, dos rutas debajo para que el
                       enlace directo y el botón atrás sigan funcionando. */}

@@ -47,17 +47,17 @@ export const ReviewLayout = ({ audience = 'coach' }) => {
 
   return (
     <div className="stack">
-      <nav className="progress-switch" aria-label="Qué parte de la revisión">
-        <NavLink to={to()} className="progress-level" end>
-          <Ruler size={15} />
-          <span className="l">Check-in</span>
-          <span className="h">{isClient ? 'Tu peso de la semana' : 'Peso, medidas y entrega'}</span>
+      {/* Chips, como el segundo nivel de cualquier otra sección. Eran dos
+          fichas con canto y explicación: ver `analytics/ProgressLayout.jsx`. */}
+      <nav className="rail" aria-label="Qué parte de la revisión">
+        <NavLink to={to()} className="chip" end>
+          <Ruler size={13} />
+          Check-in
         </NavLink>
 
-        <NavLink to={to('fotos')} className="progress-level" end>
-          <Camera size={15} />
-          <span className="l">Fotos</span>
-          <span className="h">{isClient ? 'Cómo vas por fuera' : 'Comparar y montar'}</span>
+        <NavLink to={to('fotos')} className="chip" end>
+          <Camera size={13} />
+          Fotos
         </NavLink>
       </nav>
 

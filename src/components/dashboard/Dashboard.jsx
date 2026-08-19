@@ -14,7 +14,7 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/domain/analytics';
-import { MRV_GOALS, MUSCLE_COLORS, WEEK_DAYS, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
+import { MRV_GOALS, WEEK_DAYS, muscleColor, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
 import { MACROS, macroSplit } from '@/domain/nutrition';
 import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
 import { clientProtocol, isServiceOn, scaleQuestions } from '@/domain/protocol';
@@ -37,11 +37,12 @@ import {
   togglePref,
   widgetById,
 } from '@/domain/preferences';
+import { metricColor } from '@/domain/metrics';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { BandChart, BarBandChart, MeterList, Sparkline } from '@/components/ui/charts';
 import { Delta, MetricCard, MetricList, StatWidget } from '@/components/ui/metrics';
-import { Notice, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { GroupHead, Notice, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroBar } from '@/components/nutrition/macros';
 import { RoadmapPanel } from '@/components/roadmap/RoadmapPanel';
@@ -91,6 +92,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const plan = nutrition[activeClient.id];
   const unit = unitLabel(activeClient.cycleType);
   const isClient = audience === 'client';
+  /* Ver el comentario de la cabecera, más abajo. */
+  const Cabecera = isClient ? GroupHead : PageHead;
   const confirm = useConfirm();
   const [aviso, setAviso] = useState(null);
 
@@ -228,10 +231,10 @@ export const Dashboard = ({ audience = 'coach' }) => {
         timeframe={labels.length > 0 ? `${labels.length} semanas` : 'sin registros'}
         value={fmt(weightPts[weightPts.length - 1]?.value, { decimals: 1 })}
         unit="kg"
-        color="var(--data-blue)"
+        color={metricColor('weight')}
         delta={<Delta value={weightWow?.delta} unit=" kg" lowerIsBetter />}
       >
-        <Sparkline points={weightPts.slice(-10)} color="var(--data-blue)" />
+        <Sparkline points={weightPts.slice(-10)} color={metricColor('weight')} />
       </StatWidget>
     ),
 
@@ -242,7 +245,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
         timeframe="promedio semanal"
         value={rate === null ? '—' : `${rate > 0 ? '+' : ''}${rate}`}
         unit="kg"
-        color="var(--data-blue)"
+        color={metricColor('rate')}
       />
     ),
 
@@ -253,10 +256,10 @@ export const Dashboard = ({ audience = 'coach' }) => {
         timeframe={latestWeek ? `${unit} ${latestWeek}` : 'sin programa'}
         value={fmt(tonnagePts[tonnagePts.length - 1]?.value)}
         unit="kg"
-        color="var(--data-violet)"
+        color={metricColor('tonnage')}
         delta={<Delta value={tonnageWow?.delta} percent={tonnageWow?.pct} />}
       >
-        <Sparkline points={tonnagePts.slice(-10)} color="var(--data-violet)" bars />
+        <Sparkline points={tonnagePts.slice(-10)} color={metricColor('tonnage')} bars />
       </StatWidget>
     ),
 
@@ -266,10 +269,10 @@ export const Dashboard = ({ audience = 'coach' }) => {
         icon={Activity}
         timeframe={latestWeek ? `${unit} ${latestWeek}` : 'sin programa'}
         value={fmt(setsPts[setsPts.length - 1]?.value)}
-        color="var(--data-teal)"
+        color={metricColor('sets')}
         delta={<Delta value={setsWow?.delta} />}
       >
-        <Sparkline points={setsPts.slice(-10)} color="var(--data-teal)" bars />
+        <Sparkline points={setsPts.slice(-10)} color={metricColor('sets')} bars />
       </StatWidget>
     ),
 
@@ -284,7 +287,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
         }
         value={fmt(plan?.targetKcals)}
         unit="kcal"
-        color="var(--data-amber)"
+        color={metricColor('kcals')}
       >
         {macros.total > 0 && (
           <div className="macro-bar">
@@ -303,7 +306,16 @@ export const Dashboard = ({ audience = 'coach' }) => {
         timeframe={adherence ? `${adherence.logged} de ${adherence.planned} series` : 'sin programa'}
         value={adherence ? adherence.pct : '—'}
         unit={adherence ? '%' : ''}
-        color={!adherence || adherence.pct >= 85 ? 'var(--positive)' : 'var(--warning)'}
+        /*
+          Su color, no un semáforo. Aquí era verde por encima del 85 % y naranja
+          por debajo, mientras la MISMA métrica salía en lima en la analítica: dos
+          colores para una cosa, que es justo lo que la regla viene a cerrar.
+
+          No se pierde nada al quitarlo: el umbral no era el dato, el dato es
+          «12 de 20 series», y eso lo sigue diciendo la línea de debajo — con los
+          dos números en vez de con un color que hay que traducir.
+        */
+        color={metricColor('adherence')}
       />
     ),
 
@@ -319,7 +331,9 @@ export const Dashboard = ({ audience = 'coach' }) => {
             : 'sin pesajes esta semana'
         }
         value={`${checkIn.count}/${checkIn.target}`}
-        color={checkIn.complete ? 'var(--positive)' : 'var(--data-blue)'}
+        /* Sin color: «4 de 3 pesajes» no es una serie de la que distinguirse, es
+           un recuento. Iba en verde al completarse y en azul si no, o sea usando
+           la tinta del peso para hablar de otra cosa. La píldora ya dice cómo va. */
         delta={<Delta value={checkIn.delta} unit=" kg" lowerIsBetter />}
       />
     ),
@@ -330,7 +344,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
         icon={Camera}
         timeframe={photos[0] ? `última el ${shortDate(photos[0].date)}` : 'ninguna todavía'}
         value={photos.length}
-        color="var(--data-pink)"
       />
     ),
 
@@ -385,7 +398,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             {
               id: 'weight',
               label: 'Peso',
-              color: 'var(--data-blue)',
+              color: metricColor('weight'),
               unit: ' kg',
               decimals: 1,
               points: weightPts,
@@ -411,7 +424,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             value: t.tonnage,
             highlight: t.week === latestWeek,
           }))}
-          color="var(--data-violet)"
+          color={metricColor('tonnage')}
           unit=" kg"
           height={128}
           emptyMessage="Sin series registradas todavía."
@@ -524,7 +537,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
               label: name,
               value: count,
               pct: (count / maxVolume) * 100,
-              color: MUSCLE_COLORS[name] || 'var(--data-slate)',
+              color: muscleColor(name),
               markerPct: MRV_GOALS[name] ? (MRV_GOALS[name].mrv / maxVolume) * 100 : null,
               markerTitle: MRV_GOALS[name] ? `MRV: ${MRV_GOALS[name].mrv} series` : undefined,
             }))}
@@ -540,7 +553,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'weight',
       label: 'Peso corporal',
       icon: Scale,
-      color: 'var(--data-blue)',
+      color: metricColor('weight'),
       value: fmt(lastLog.weight, { decimals: 1, unit: ' kg' }),
       updated: shortDate(lastLog.date),
     },
@@ -548,7 +561,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'fat',
       label: '% graso',
       icon: Percent,
-      color: 'var(--data-rose)',
+      color: metricColor('fat'),
       value: `${lastFat}%`,
       updated: shortDate(lastFatLog.date),
     },
@@ -556,7 +569,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'waist',
       label: 'Cintura',
       icon: Ruler,
-      color: 'var(--data-orange)',
+      color: metricColor('waist'),
       value: `${lastLog.perimeters.ombligo} cm`,
       updated: shortDate(lastLog.date),
     },
@@ -564,7 +577,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'kcals',
       label: 'Objetivo calórico',
       icon: Flame,
-      color: 'var(--data-amber)',
+      color: metricColor('kcals'),
       value: `${plan.targetKcals} kcal`,
       sub:
         macros.total > 0
@@ -576,7 +589,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'tonnage',
       label: 'Tonelaje',
       icon: Dumbbell,
-      color: 'var(--data-violet)',
+      color: metricColor('tonnage'),
       value: `${tonnagePts[tonnagePts.length - 1]?.value ?? 0} kg`,
       updated: `${unit} ${latestWeek}`,
     },
@@ -584,7 +597,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'adherence',
       label: 'Adherencia',
       icon: Target,
-      color: 'var(--data-teal)',
+      color: metricColor('adherence'),
       value: `${adherence.pct}%`,
       sub: `${adherence.logged} de ${adherence.planned} series`,
       updated: `${unit} ${latestWeek}`,
@@ -593,7 +606,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
       id: 'photos',
       label: 'Fotos de progreso',
       icon: Camera,
-      color: 'var(--data-pink)',
       value: photos.length,
       updated: photos[0] ? shortDate(photos[0].date) : '—',
     },
@@ -625,16 +637,27 @@ export const Dashboard = ({ audience = 'coach' }) => {
   return (
     <div className="stack">
       <section className="col gap-3">
-        <div className="section-head">
-          <div>
-            <h2>{isClient ? 'Tu resumen' : activeClient.name}</h2>
-            <p>
-              {[activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`]
-                .filter(Boolean)
-                .join(' · ') || 'Sin plan asignado'}
-            </p>
-          </div>
+        {/*
+          Dos cabeceras distintas porque son dos cosas distintas.
 
+          Para el ENTRENADOR esto es la pantalla entera —`/c/:id/resumen`— así que
+          le toca la cabecera de pantalla. Y se titula «Progreso», que es como se
+          llama la sección en el carril: ponía el NOMBRE del cliente, que ya está
+          dos veces encima —en el selector y en la propia URL— y así ninguna de
+          sus siete secciones decía en cuál estabas.
+
+          Para el CLIENTE esto es una tanda de bloques dentro de su inicio, que ya
+          se titula «Hola, X» (`ClientStart`). Dos cabeceras de pantalla seguidas
+          eran, para un lector de pantalla, dos pantallas pegadas.
+        */}
+        <Cabecera
+          title={isClient ? 'Tu resumen' : 'Progreso'}
+          sub={
+            [activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`]
+              .filter(Boolean)
+              .join(' · ') || 'Sin plan asignado'
+          }
+          action={
           <div className="row gap-3 wrap">
             {/* Guardar las preferencias puede fallar (falta la función 0008, o RLS
                 no lo permite). Sin este indicador el fallo sería invisible: los
@@ -655,7 +678,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
               </button>
             )}
           </div>
-        </div>
+          }
+        />
 
         {/* El resultado de las dos acciones de plantilla. Sin esto, «Aplicar a
             todos» no daría ninguna señal de haber hecho nada: los cambios están

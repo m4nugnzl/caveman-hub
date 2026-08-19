@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, HardDriveDownload, ShieldAlert, Wand2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { Notice, Panel } from '@/components/ui/primitives';
+import { Notice, PageHead, Panel } from '@/components/ui/primitives';
 
 /**
  * Copia de seguridad de la cartera.
@@ -63,12 +63,7 @@ export const BackupPanel = () => {
 
   return (
     <div className="stack">
-      <div className="section-head">
-        <div>
-          <h2>Copia de seguridad</h2>
-          <p>Llévate todo lo que guarda la aplicación, por si acaso.</p>
-        </div>
-      </div>
+      <PageHead title="Copia de seguridad" sub="Llévate todo lo que guarda la aplicación, por si acaso." />
 
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
 

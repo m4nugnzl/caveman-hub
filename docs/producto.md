@@ -1,6 +1,7 @@
 ﻿# Replanteamiento del producto
 
-> **Estado: PROPUESTA. Nada de esto está implementado.**
+> **Estado: FASES 1 a 4 CONSTRUIDAS.** La 5 sigue siendo propuesta y está sin
+> hacer a propósito (ver §7 y §8).
 >
 > Fecha: agosto de 2026.
 >
@@ -291,6 +292,26 @@ PageHead → título (h1) · subtítulo (una línea, opcional) · UNA acción pr
   Ficha entran directamente en barras de herramientas, y por eso cambiar de
   sección se siente como cambiar de aplicación.
 
+### 5.1 bis · El nivel que faltaba: el grupo
+
+Al montar la gramática apareció un caso que §5.1 y §5.2 no cubrían: pantallas que
+no son una lista de bloques sino **dos tandas de bloques con asuntos distintos**.
+La nutrición es el ejemplo: abría con «Plan nutricional» y a media pantalla ponía
+«Menú estructurado» con exactamente el mismo peso —dos `h2` idénticos, o sea dos
+pantallas pegadas para un lector de pantalla—.
+
+La jerarquía definitiva son **cuatro niveles y ni uno más**:
+
+| Pieza | Etiqueta | Qué nombra | Cuántas por pantalla |
+|---|---|---|---|
+| `PageHead` | `h1` | cómo se llama esta pantalla | exactamente 1 |
+| `GroupHead` | `h2`, en troquelada | de qué va esta tanda de bloques | 0, 1 o 2 |
+| `Panel title` | troquelada | qué es este bloque | las que hagan falta |
+| `SectionTitle` | `h3` | una pieza dentro de un bloque | ídem |
+
+El grupo va en troquelada y no a tamaño de titular porque **no compite con la
+pantalla: la ordena por dentro**.
+
 ### 5.2 Un bloque
 
 **Todo bloque es un `Panel` con cabecera.** Un `<h2>` suelto flotando sobre una
@@ -309,9 +330,12 @@ Panel
 - Las acciones del bloque viven **en su cabecera**, alineadas a la derecha.
   Nunca sueltas entre el título y el contenido, que es donde están hoy en
   Nutrición («Copiar desde días de descanso» flotando al lado de unas pestañas).
-- Jerarquía completa y no hay más: `PageHead` (h1) → bloque (troquelada) →
-  sub-bloque (h3). Tres niveles. Si hace falta un cuarto, la pantalla está mal
-  partida.
+- **Sin filete debajo.** Se probó con uno y convierte la pantalla en una rejilla
+  de tabla: seis bloques son seis líneas horizontales más. Tampoco lleva la
+  regla, que es lo primero que uno piensa: los tokens dicen que solo sale donde
+  de verdad hay una escala, y repetirla en cada bloque la haría textura.
+- Jerarquía completa, la de §5.1 bis. Si hace falta un quinto nivel, la pantalla
+  está mal partida.
 
 ### 5.3 El dato, y quién puede tener color
 
@@ -440,21 +464,70 @@ Lo que hay que fijarse en validar:
 Con la regla de siempre: nada entra sin `npm run check` en verde, y cada fase se
 puede parar sin dejar la aplicación a medias entre dos modelos.
 
-| # | Fase | Qué incluye | Riesgo |
+| # | Fase | Qué incluye | Estado |
 |---|---|---|---|
-| 0 | **Correo transaccional** | `monetizacion.md` 4.3. No es de este documento, pero va antes que todo esto | Bajo |
-| 1 | **La gramática, en primitivas** | `PageHead` obligatorio, `Panel` con cabecera, `MetricRow` con orden fijo, mapa métrica→color en `domain/` | Bajo — no cambia ninguna ruta |
-| 2 | **Migrar pantallas a la gramática** | Una por commit, empezando por «Hoy» y «Clientes». Borrar la familia de CSS que quede huérfana en cada una | Bajo, y reversible pantalla a pantalla |
-| 3 | **Quitar los planos de navegación de más** | Las tarjetas-pestaña del portal, el saludo, las pestañas dobles | Medio |
-| 4 | **«Su semana»** | La pantalla de §6. Convive con las secciones actuales sin sustituirlas todavía | Medio |
-| 5 | **Reagrupar las secciones** | §4.1 y §4.2, con toda la tabla de redirecciones de §4.3 | **Alto** — es el único punto sin vuelta atrás barata |
+| 0 | **Correo transaccional** | `monetizacion.md` 4.3. No es de este documento, pero sigue siendo lo más rentable que se puede hacer | **PENDIENTE** |
+| 1 | **La gramática, en primitivas** | `Panel` con cabecera, `GroupHead`, `MetricRow`, y `domain/metrics.js` con el color de cada métrica | **HECHA** |
+| 2 | **Migrar pantallas** | **Las 24 pantallas de ruta** con `PageHead`, y el color en las nueve que lo elegían a mano | **HECHA** |
+| 3 | **Quitar los planos de más** | Las tarjetas-pestaña de Progreso y de Revisión → chips; el saludo deja de ser una tarjeta | **HECHA** |
+| 4 | **«Su semana»** | La pantalla de §6, en `/c/:id/semana`, con `domain/week.js` y once pruebas. Convive con las secciones actuales sin sustituir ninguna | **HECHA** |
+| 5 | **Reagrupar las secciones** | §4.1 y §4.2, con toda la tabla de redirecciones de §4.3 | **NO EMPEZADA, y a propósito** |
 
-Las fases 1 y 2 arreglan la observación que abre este documento —la sensación de
-«cosas juntas»— **sin tocar una sola ruta**. Si el replanteamiento de §4 no
-convence, se hacen igual y el producto mejora.
+### Lo que la fase 2 cerró
 
-La fase 5 no se empieza sin haber usado la 4 durante un ciclo real de varias
-semanas con clientes de verdad.
+**Ninguna pantalla de ruta entra ya directamente en controles.** Eran once las
+que lo hacían —Apariencia, Integraciones, Equipo, Ayuda, Calendario, Análisis, el
+estudio de fotos y las cuatro del portal—, es decir más de la mitad, y es la
+razón concreta de que cambiar de sección se sintiera como cambiar de aplicación.
+
+Y con ellas cayeron los últimos restos del inventario de §2:
+
+- **Los dos `<h2 style={{ fontSize: 'var(--fs-lg)' }}>`** con el nombre del día,
+  escritos idénticos en el editor del entrenador y en la rutina del cliente. Son
+  una clase, `.day-name`, declarada una vez.
+- **El tercer `h2` de nivel pantalla de la nutrición** («Tus pautas»), que con
+  «Plan nutricional» y «Menú estructurado» hacían tres títulos de pantalla en una
+  sola página.
+- **La pantalla de Ayuda metida entera en un `Panel`**: una tarjeta envolviendo
+  una lista que ya tenía superficie propia, o sea una tarjeta dentro de otra.
+- **El campo de renombrar el equipo sustituía al titular**, así que al escribir
+  la pantalla se quedaba sin nombre — y metía un `<input>` dentro de un
+  encabezado, que para un lector de pantalla no es un encabezado.
+
+Y la regla 6 de §5.6, que era lo más visible de todo: la bandeja de «Hoy»
+enseñaba «Franco Es…» y «Sin cuenta enlaz…» porque su columna medía 332 px
+repartidos entre una inicial, un nombre, un botón y una flecha, con el nombre
+siendo el único de los cuatro que cedía. Una bandeja que existe para decir a
+quién le debes algo no puede quedarse sin sitio para el nombre.
+
+### Lo que la fase 1 dejó medible
+
+La lista blanca de `verify-styles.mjs` —los archivos a los que se les permite
+nombrar un color de la paleta de datos— **baja de trece a tres**, y los tres que
+quedan no pintan métricas: son las primitivas de gráfico, los logotipos de
+terceros y la marca del cliente activo. Eso no es una opinión sobre si la regla
+se cumple: es el script fallando si deja de cumplirse.
+
+De paso salieron tres cosas que estaban rotas y nadie veía:
+
+- `npm run verify` **ya fallaba antes de empezar**: `.day-rail` se usaba en el
+  editor de rutina y no existía en el CSS, así que ese elemento salía sin estilo.
+- La adherencia tenía **tres colores en el mismo archivo** —verde en la cifra,
+  teal en la lista de al lado, lima en la analítica—.
+- Tres métricas llevaban un hex literal, o sea fuera de los tokens y por tanto
+  con el mismo color en tema claro y en oscuro.
+
+**La fase 5 no se empieza sin haber usado la 4 durante un ciclo real de varias
+semanas con clientes de verdad**, y esa condición se puso antes de construir
+nada, no después. Es la única fase sin vuelta atrás barata: duplica la tabla de
+redirecciones para siempre y mueve de sitio URLs que están pegadas en
+conversaciones de WhatsApp.
+
+Lo que sí se ha hecho es dejar la fase 4 **conviviendo** con lo de antes: «Su
+semana» es una sección más del carril y no ha sustituido a ninguna. Rutina,
+Nutrición, Revisión, Progreso, Calendario y Ficha siguen exactamente donde
+estaban. Lo único que cambia es por dónde se entra a un cliente —`/c/:id` lleva
+ahora a su semana en lugar de a su resumen— y eso es una línea.
 
 ---
 

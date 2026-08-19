@@ -47,6 +47,16 @@ export const MUSCLE_COLORS = {
   Otros: '#94a3b8',
 };
 
+/**
+ * El color de un grupo muscular.
+ *
+ * Existe por el respaldo, que estaba copiado en tres sitios de dos archivos
+ * —`MUSCLE_COLORS[name] || 'var(--data-slate)'`— y en uno de ellos el respaldo
+ * era otro (violeta). Un músculo que no está en el mapa salía de un color en el
+ * resumen y de otro en la analítica.
+ */
+export const muscleColor = (name) => MUSCLE_COLORS[name] || 'var(--data-slate)';
+
 /** MEV = volumen mínimo efectivo · MRV = volumen máximo recuperable (series/semana). */
 export const MRV_GOALS = {
   Pecho: { mev: 8, mrv: 20 },

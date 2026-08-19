@@ -9,7 +9,7 @@ import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { todayISO } from '@/lib/dates';
 import { initials } from '@/lib/initials';
-import { EmptyState, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
 import { ArchivedClients } from './ArchivedClients';
 import { NewClientForm } from './NewClientForm';
 import { inviteMessage, useInvite } from './useInvite';
@@ -220,35 +220,35 @@ export const ClientPortfolio = () => {
 
   return (
     <div className="stack">
-      <div className="section-head">
-        <div>
-          <h2>Clientes</h2>
-          <p>
-            {clients.length} {clients.length === 1 ? 'cliente' : 'clientes'} ·{' '}
-            {tareas === 0
-              ? 'nada pendiente'
-              : `${tareas} ${tareas === 1 ? 'cosa por hacer' : 'cosas por hacer'}`}
-          </p>
-        </div>
+      <PageHead
+        title="Clientes"
+        sub={`${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'} · ${
+          tareas === 0
+            ? 'nada pendiente'
+            : `${tareas} ${tareas === 1 ? 'cosa por hacer' : 'cosas por hacer'}`
+        }`}
+        action={
+          <div className="row wrap gap-3">
+            <div className="searchbox">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                className="input"
+                placeholder="Buscar cliente…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Buscar cliente"
+              />
+            </div>
 
-        <div className="row wrap gap-3">
-          <div className="searchbox">
-            <Search size={15} aria-hidden="true" />
-            <input
-              type="search"
-              className="input"
-              placeholder="Buscar cliente…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Buscar cliente"
-            />
+            {/* UNA acción primaria por pantalla. La búsqueda no compite: es un
+                campo, no un botón. */}
+            <button type="button" className="btn btn-primary" onClick={() => setAlta((v) => !v)}>
+              <Plus size={15} /> Nuevo cliente
+            </button>
           </div>
-
-          <button type="button" className="btn btn-primary" onClick={() => setAlta((v) => !v)}>
-            <Plus size={15} /> Nuevo cliente
-          </button>
-        </div>
-      </div>
+        }
+      />
 
       {alta && <NewClientForm onCreate={crear} onCancel={() => setAlta(false)} />}
 

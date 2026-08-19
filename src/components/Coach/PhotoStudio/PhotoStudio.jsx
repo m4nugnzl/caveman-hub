@@ -3,8 +3,9 @@ import { Camera } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { canvasSize, isDerivedLayout } from '@/domain/photoLayout';
+import { metricColor } from '@/domain/metrics';
 import { photoWeight, weekSpan, weightDelta } from '@/domain/photos';
-import { EmptyState, Notice, Panel, StatCard } from '@/components/ui/primitives';
+import { EmptyState, Notice, PageHead, Panel, StatCard } from '@/components/ui/primitives';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { usePhotoStudio } from './usePhotoStudio';
 import { useImageCache } from './useImageCache';
@@ -186,6 +187,11 @@ export const PhotoStudio = () => {
 
   return (
     <div className="col gap-4">
+      <PageHead
+        title="Fotos"
+        sub="Compara dos semanas, encuadra para que coincidan y monta el antes y después."
+      />
+
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
 
       {images.failed.length > 0 && (
@@ -267,12 +273,12 @@ export const PhotoStudio = () => {
 
           {(delta !== null || span !== null) && (
             <div className="grid-auto">
-              {span !== null && <StatCard label="Semanas entre fotos" value={span} color="var(--data-blue)" />}
+              {span !== null && <StatCard label="Semanas entre fotos" value={span} />}
               {delta !== null && (
                 <StatCard
                   label="Variación de peso"
                   value={`${delta > 0 ? '+' : ''}${delta} kg`}
-                  color={delta <= 0 ? 'var(--accent)' : 'var(--data-amber)'}
+                  color={metricColor('weight')}
                   sub={`De ${first.derivedWeight} kg a ${second.derivedWeight} kg · según el check-in de cada semana`}
                 />
               )}

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { todayISO, weekStart } from '@/lib/dates';
+import { PageHead } from '@/components/ui/primitives';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 import { ClientWeek } from './ClientWeek';
 
@@ -72,6 +73,8 @@ export const ClientCheckInsRoute = () => {
 
   return (
     <div className="stack">
+      <PageHead title="Mi check-in" sub="Tu peso de la semana, y lo que te contesta tu entrenador." />
+
       {/* Entregar la semana y leer lo que te ha contestado tu entrenador: el
           mismo gesto que pesarse, así que el mismo sitio. Ver `ClientWeek`. */}
       <ClientWeek client={activeClient} onDeliver={() => setAsistente(true)} />

@@ -58,6 +58,11 @@ export const METRIC_COLORS = {
      del mismo color en un gráfico son una sola serie mal dibujada. */
   sets: 'var(--data-teal)',
   adherence: 'var(--data-lime)',
+  /* El 1RM estimado iba en `--accent`, o sea pintado con la tinta del CROMO. Es
+     una serie con su propio gráfico y le toca color de dato como a las demás;
+     además comparte selector con el tonelaje y el volumen, y desde el pizarrón
+     no se distinguía de la interfaz que lo rodea. */
+  e1rm: 'var(--data-slate)',
 
   /* ── La comida ──
      El ámbar de la kcal es el mismo que el de los carbohidratos, y es correcto:

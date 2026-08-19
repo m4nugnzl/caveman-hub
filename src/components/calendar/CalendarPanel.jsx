@@ -17,7 +17,7 @@ import {
   weekdayIndex,
 } from '@/domain/calendar';
 import { shortDate, todayISO } from '@/lib/dates';
-import { Notice, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
+import { Notice, PageHead, Panel, SectionTitle, SegmentedControl } from '@/components/ui/primitives';
 
 /** Formulario de evento para un día concreto. Aparece al pulsar el día. */
 const DayForm = ({ date, onAdd, onClose }) => {
@@ -170,9 +170,17 @@ export const CalendarPanel = ({ audience = 'client' }) => {
 
   return (
     <div className="stack">
+      <PageHead
+        title={isClient ? 'Mi calendario' : 'Calendario'}
+        sub="Citas, competiciones, descansos y las fechas a las que llegar."
+      />
+
       <Panel className="col gap-4">
         <div className="row between wrap gap-3">
-          <SectionTitle icon={CalendarDays} color="var(--accent)">
+          {/* El MES es el título del bloque, no el de la pantalla: cambia al
+              pasar página y un título de pantalla que cambia al navegar dentro
+              de ella deja de decir dónde estás. */}
+          <SectionTitle icon={CalendarDays}>
             {monthLabel(cursor.year, cursor.month)}
           </SectionTitle>
 

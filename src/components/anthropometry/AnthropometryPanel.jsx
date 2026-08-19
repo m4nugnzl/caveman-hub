@@ -15,7 +15,9 @@ import {
 } from '@/domain/anthropometry';
 import { shortDate } from '@/lib/dates';
 import { fmt } from '@/lib/num';
-import { Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
+import { metricColor } from '@/domain/metrics';
+import { Panel, SectionTitle } from '@/components/ui/primitives';
+import { MetricCard, MetricRow } from '@/components/ui/metrics';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { ReviewWizard } from './ReviewWizard';
 import { WeeklyCheckIn } from './WeeklyCheckIn';
@@ -109,37 +111,58 @@ export const AnthropometryPanel = ({
 
   return (
     <div className="stack">
+      {/*
+        ══ Las cuatro cifras del peso ═════════════════════════════════════════
+
+        Las CUATRO hablan del mismo dato —el peso— y salían de cuatro colores
+        distintos: tiza, ámbar, rosa y azul. Eso no distingue nada, porque no hay
+        nada de lo que distinguirse: no son cuatro series, son cuatro lecturas de
+        una. Lo único que conseguía el reparto era que la pantalla pareciera tener
+        cuatro asuntos.
+
+        Ahora las cuatro van en el azul del peso, que es el mismo que tienen en el
+        resumen y en la analítica, y lo que las diferencia es lo que siempre
+        debió diferenciarlas: su etiqueta.
+
+        Y van en `MetricRow` para que la fila no se quede en tres: con datos a
+        medias —hay pesajes pero todavía no hay ritmo— esto pintaba tres tarjetas
+        y un hueco mudo a la derecha.
+      */}
       {weights.length > 0 && (
-        <div className="grid-auto">
-          <StatCard
-            label="Último peso"
-            value={fmt(weights[weights.length - 1].value, { decimals: 1, unit: ' kg' })}
-            color="var(--accent)"
-            sub={weights[weights.length - 1].date}
+        <MetricRow>
+          <MetricCard
+            title="Último peso"
+            subtitle={weights[weights.length - 1].date}
+            value={fmt(weights[weights.length - 1].value, { decimals: 1 })}
+            unit="kg"
+            color={metricColor('weight')}
           />
-          <StatCard
-            label="Media últimos 3"
-            value={rolling ? `${rolling.average} kg` : '—'}
-            color="var(--data-amber)"
-            sub={rolling ? `${rolling.count} ${rolling.count === 1 ? 'pesaje' : 'pesajes'}` : 'sin datos'}
+          <MetricCard
+            title="Media últimos 3"
+            subtitle={rolling ? `${rolling.count} ${rolling.count === 1 ? 'pesaje' : 'pesajes'}` : 'sin datos'}
+            value={rolling ? rolling.average : '—'}
+            unit={rolling ? 'kg' : ''}
+            color={metricColor('weight')}
           />
           {delta && (
-            <StatCard
-              label="Variación total"
-              value={`${delta.delta > 0 ? '+' : ''}${delta.delta} kg`}
-              color={delta.delta <= 0 ? 'var(--accent)' : 'var(--data-rose)'}
-              sub={`de ${delta.from} a ${delta.to} kg`}
+            <MetricCard
+              title="Variación total"
+              subtitle={`de ${delta.from} a ${delta.to} kg`}
+              value={`${delta.delta > 0 ? '+' : ''}${delta.delta}`}
+              unit="kg"
+              color={metricColor('weight')}
             />
           )}
           {rate !== null && (
-            <StatCard
-              label="Ritmo semanal"
-              value={`${rate > 0 ? '+' : ''}${rate} kg`}
-              color="var(--data-blue)"
-              sub="promedio por semana"
+            <MetricCard
+              title="Ritmo semanal"
+              subtitle="promedio por semana"
+              value={`${rate > 0 ? '+' : ''}${rate}`}
+              unit="kg"
+              color={metricColor('rate')}
             />
           )}
-        </div>
+        </MetricRow>
       )}
 
       {/* El check-in semanal va PRIMERO: es la acción de cada semana. Entregar la

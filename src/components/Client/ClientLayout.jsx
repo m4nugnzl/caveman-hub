@@ -2,7 +2,6 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { UserX } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { latestWeight } from '@/domain/anthropometry';
 import { clientProtocol } from '@/domain/protocol';
 import { CLIENT_SECTIONS, isSectionActive, sectionsFor } from '@/routes';
 import { EmptyState, Panel } from '@/components/ui/primitives';
@@ -19,15 +18,11 @@ import { ClientPrivacy } from './ClientPrivacy';
  * atrás no cierra la aplicación.
  */
 export const ClientLayout = () => {
-  const { activeClient, workoutData, anthropometry, isCoach } = useApp();
+  const { activeClient, isCoach } = useApp();
   const { pathname } = useLocation();
 
   /* El saludo y la privacidad son de la PORTADA, no del marco. Ver abajo. */
   const esInicio = pathname === '/mi' || pathname.startsWith('/mi/inicio');
-
-  /* Del histórico de pesajes, no de `clients.current_weight`: esa columna no la
-     escribía nadie y enseñaba un peso congelado como si fuera el de hoy. */
-  const pesoActual = latestWeight(anthropometry[activeClient?.id]?.history);
 
   // Un perfil de cliente sin ficha vinculada no tiene datos que mostrar. Antes
   // esto tumbaba la app entera al leer `activeClient.id` sobre undefined.
@@ -46,9 +41,6 @@ export const ClientLayout = () => {
       </div>
     );
   }
-
-  const microcycles = workoutData[activeClient.id]?.microcycles || [];
-  const lastWeek = microcycles.length > 0 ? microcycles[microcycles.length - 1].weekNumber : null;
 
   /*
     Sus secciones, no todas. A quien solo le llevas la dieta no le aparece «Mi
@@ -81,40 +73,22 @@ export const ClientLayout = () => {
       */}
 
       {/*
-        ══ El saludo, solo en el inicio ═══════════════════════════════════════
+        ══ Aquí vivió el saludo, y ya no es una tarjeta ═══════════════════════
 
-        Se pintaba en las SIETE secciones. En un móvil de 390 px, un cliente que
-        abre su rutina en el gimnasio atravesaba el saludo, su avatar y su peso
-        antes de llegar a la primera serie: la pantalla entera para una
-        bienvenida, y una bienvenida se da una vez.
+        Fue mejorando por partes y se quedó a un paso. Primero se pintaba en las
+        SIETE secciones —un móvil de 390 px gastaba la pantalla entera en dar la
+        bienvenida antes de la primera serie—, y se acotó al inicio. Pero seguía
+        siendo una TARJETA cuyo trabajo es titular la pantalla, y encima repetía
+        dos datos que estaban justo debajo: la semana activa y el peso actual, que
+        es literalmente la primera cifra del resumen.
 
-        Y era además el único `h1` del portal, repetido idéntico en las siete —
-        para un lector de pantalla, siete pantallas con el mismo nombre—.
+        El resultado eran cuatro planos seguidos antes del primer dato: saludo,
+        pestañas, las dos fichas de «Progreso / Análisis» y la cabecera de «Tu
+        resumen». El saludo se queda —es lo único cálido del portal— pero como
+        TÍTULO de la pantalla de inicio, que es lo que siempre fue. Va en
+        `ClientStart`, con la misma `PageHead` que abre cualquier otra pantalla
+        del producto.
       */}
-      {esInicio && (
-      <Panel className="client-hero row between wrap gap-4">
-        <div className="row gap-4">
-          {activeClient.avatar && (
-            <img src={activeClient.avatar} alt="" width={58} height={58} className="client-hero-avatar" />
-          )}
-          <div>
-            <h1 className="client-hero-name">Hola, {activeClient.name}</h1>
-            <p className="t-sm t-secondary">
-              {[activeClient.plan, lastWeek ? `Semana ${lastWeek} activa` : null]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
-          </div>
-        </div>
-
-        {pesoActual !== null && (
-          <div className="client-hero-figure">
-            <span className="stat-label">Peso actual</span>
-            <span className="v">{pesoActual} kg</span>
-          </div>
-        )}
-      </Panel>
-      )}
 
       {/* Igual que en el carril del entrenador: la marca de «estás aquí» sale de
           `isSectionActive` y no del prefijo de URL, porque «Mi evolución» y «Mi

@@ -10,7 +10,7 @@ import {
   moveItem,
   notesToStorage,
 } from '@/domain/nutrition';
-import { Panel } from '@/components/ui/primitives';
+import { GroupHead, Panel } from '@/components/ui/primitives';
 
 /**
  * Las pautas que el entrenador le escribe a ESTE cliente sobre su dieta.
@@ -108,15 +108,12 @@ export const DietNotes = ({ notes: raw, onChange }) => {
 
   return (
     <section className="col gap-4">
-      <div className="section-head">
-        <div>
-          <h2>Tus pautas</h2>
-          <p>
-            Lo que le explicas a esta persona sobre su plan. Lo ve en su dieta, tal cual lo
-            escribes.
-          </p>
-        </div>
-      </div>
+      {/* Una tanda de bloques dentro de «Plan nutricional», no otra pantalla:
+          era el TERCER `h2` de nivel pantalla de la misma página. */}
+      <GroupHead
+        title="Tus pautas"
+        sub="Lo que le explicas a esta persona sobre su plan. Lo ve en su dieta, tal cual lo escribes."
+      />
 
       <Panel tight className="col gap-3">
         {notes.length === 0 && (

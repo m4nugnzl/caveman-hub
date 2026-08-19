@@ -39,9 +39,9 @@ export const AnalyticsReading = ({
   return (
     <Panel className="col gap-4">
       <div className="row between wrap gap-3">
-        <h2 className="section-title">
+        <h3 className="section-title">
           <TrendingUp size={17} /> Lectura de la semana
-        </h2>
+        </h3>
 
         {/*
           El objetivo, aquí arriba y no en una pantalla de ajustes.

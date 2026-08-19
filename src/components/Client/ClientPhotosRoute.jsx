@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
+import { PageHead } from '@/components/ui/primitives';
 import { ClientPhotos } from './ClientPhotos';
 
 /** Nivel «Fotos» de `/mi/evolucion`: su galería de progreso. */
@@ -21,13 +22,16 @@ export const ClientPhotosRoute = () => {
   );
 
   return (
-    <ClientPhotos
-      client={activeClient}
-      photos={photos}
-      history={anthropometry[activeClient.id]?.history || []}
-      /* Subir vive en el nivel de al lado, que es donde toca hacerlo: con el
-         peso de la semana y la misma fecha. Aquí solo se mira. */
-      onGoToCheckIn={() => navigate('/mi/evolucion')}
-    />
+    <div className="stack">
+      <PageHead title="Mis fotos" sub="Semana a semana, y el antes y después." />
+      <ClientPhotos
+        client={activeClient}
+        photos={photos}
+        history={anthropometry[activeClient.id]?.history || []}
+        /* Subir vive en el nivel de al lado, que es donde toca hacerlo: con el
+           peso de la semana y la misma fecha. Aquí solo se mira. */
+        onGoToCheckIn={() => navigate('/mi/evolucion')}
+      />
+    </div>
   );
 };

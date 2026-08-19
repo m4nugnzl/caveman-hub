@@ -323,6 +323,16 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   color: var(--text-tertiary);
 }
 
+/* La misma troquelada, un punto más grande y en tinta plena: es el nombre de una
+   TANDA de bloques, no el de uno. Ver `GroupHead` en `ui/primitives.jsx`. */
+.section-label.is-group { font-size: var(--fs-xs); color: var(--text); }
+
+.group-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.group-head p { font-size: var(--fs-sm); color: var(--text-secondary); margin-top: 3px; }
+
 /* ── La cabecera de una pantalla ───────────────────────────────────────────
    Cómo se llama esto y qué se hace aquí. El `h1` es el título de la pantalla:
    antes ninguna del panel tenía uno y la jerarquía empezaba en `h2`, colgando de
@@ -339,6 +349,12 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.018em; min-width: 0;
 }
 
+/* El nombre de un día del microciclo. Vivía como `style={{ fontSize:
+   'var(--fs-lg)' }}` escrito a mano en DOS archivos —el editor del entrenador y
+   la rutina del cliente—, que es la forma más barata de que dentro de un mes
+   midan cosas distintas. */
+.day-name { font-size: var(--fs-lg); }
+
 /* ── La cabecera de un BLOQUE ──────────────────────────────────────────────
    No la de la pantalla —esa es `.section-head`, y hay una sola por pantalla—
    sino la de cada pieza de dentro. Ver `Panel` en `ui/primitives.jsx`.
@@ -348,21 +364,27 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
    del bloque y el `h3` de un sub-bloque. Antes había cinco formas de titular un
    bloque y ninguna era la de al lado.
 
-   El canto inferior separa la cabecera del contenido sin gastar espacio: con
-   solo aire, un bloque con cabecera y otro sin ella empezaban a alturas
-   distintas y la fila se descuadraba. */
+   ── Y NO lleva filete debajo ────────────────────────────────────────────
+   Se probó con uno y convierte la pantalla en una rejilla de tabla: seis bloques
+   son seis líneas horizontales más, y en el tema claro eso ya es una hoja de
+   cálculo. La troquelada separa por sí sola —es diminuta, en versalita y en
+   tinta terciaria— y lo único que necesita es aire.
+
+   Tampoco lleva la REGLA, que sería lo primero que uno piensa: los tokens dicen
+   que solo aparece donde de verdad hay una escala, y repetirla en la cabecera de
+   cada bloque la convertiría en textura. Un adorno que sale siempre deja de
+   significar «aquí se mide». */
 .panel-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: var(--s3); flex-wrap: wrap;
-  padding-bottom: var(--s3); margin-bottom: var(--s4);
-  border-bottom: 1px solid var(--hairline);
+  margin-bottom: var(--s3);
 }
 .panel-head-say { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .panel-head-sub { font-size: var(--fs-sm); color: var(--text-secondary); }
 
 /* Un bloque sin relleno propio —una lista a sangre— necesita que su cabecera lo
    tenga, o el título queda pegado al canto de la tarjeta. */
-.card-flush > .panel-head { padding: var(--s4) var(--s4) var(--s3); margin-bottom: 0; }
+.card-flush > .panel-head { padding: var(--s4) var(--s4) 0; margin-bottom: var(--s3); }
 
 /* ==========================================================================
    Superficies
@@ -566,8 +588,21 @@ button.task-head { cursor: pointer; }
 
 .task-rows { display: flex; flex-direction: column; gap: 2px; }
 
+/* ── Por qué esta fila SE PARTE en dos líneas ──────────────────────────────
+   En la bandeja de «Hoy» se leía «Franco Es…» y «Sin cuenta enlaz…». Eso no es
+   un nombre largo: es una columna de 332 px repartida entre una inicial, el
+   nombre, un botón y una flecha, con el nombre siendo el único de los cuatro que
+   cede. La bandeja acababa enseñando a diez personas sin decir quiénes son, que
+   es exactamente lo contrario de lo que hace una bandeja.
+
+   El nombre reclama 132 px antes de ceder (`flex-basis`), y cuando no los hay el
+   botón baja a su propia línea en vez de comerse el nombre. No se corta nada, no
+   se desplaza nada en horizontal y en el móvil se comporta igual sin una regla
+   aparte. La flecha se queda arriba, alineada con el nombre, porque señala a la
+   fila entera. */
 .task-row {
-  position: relative; display: flex; align-items: center; gap: var(--s3);
+  position: relative; display: flex; align-items: center; gap: var(--s2) var(--s3);
+  flex-wrap: wrap;
   padding: var(--s2) var(--s3); min-width: 0;
   background: var(--surface); border-radius: var(--r-md);
   transition: background-color var(--fast);
@@ -588,7 +623,10 @@ button.task-head { cursor: pointer; }
   font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.02em;
   pointer-events: none;
 }
-.task-row > .who { position: relative; flex: 1; min-width: 0; pointer-events: none; }
+.task-row > .who { position: relative; flex: 1 1 132px; min-width: 0; pointer-events: none; }
+
+/* Pegado a la derecha, comparta línea con el nombre o baje a la suya. */
+.task-row > .chip { margin-left: auto; }
 .task-row > .who > .name {
   display: block; font-size: var(--fs-base); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -782,6 +820,60 @@ button.task-head { cursor: pointer; }
 .metric-value.is-hero { font-size: var(--fs-2xl); }
 .metric-unit { font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); }
 .metric-foot { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ==========================================================================
+   Su semana — lo que hizo, lo que entregó, tu respuesta
+   --------------------------------------------------------------------------
+   Ver `Coach/WeekReview.jsx`. Aquí solo hay tres piezas, y a propósito: la
+   pantalla se compone con `Panel`, `MetricRow` y `MetricCard`, que ya existen.
+   Una pantalla nueva que trae veinte clases nuevas es exactamente cómo se llegó
+   a tener cincuenta familias.
+   ========================================================================== */
+
+/* El carril de días. Una rejilla y no una tabla: en el móvil las tres columnas
+   se apilan sin que haya que decidir cuál se corta. */
+.week-days { display: flex; flex-direction: column; }
+.week-day {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) 1fr auto;
+  align-items: baseline; gap: var(--s2) var(--s3);
+  padding: var(--s3) 0;
+  border-top: 1px solid var(--hairline);
+}
+.week-day:first-child { border-top: 0; padding-top: 0; }
+
+.week-day-name { font-family: var(--font-display); font-weight: 650; }
+.week-day-facts { font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0; }
+.week-day-when { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; }
+
+/* El día que no se entrenó. En tinta terciaria y NO en el rojo de aviso: que
+   alguien se salte un día es información, no una alarma — y en cuanto se pinta
+   de rojo, una semana con dos descansos parece una urgencia. */
+.week-day.is-missing > .week-day-name { color: var(--text-tertiary); font-weight: 500; }
+.week-day.is-missing > .week-day-facts { color: var(--text-tertiary); font-style: italic; }
+
+/* Lo que escribió, debajo de su día y ocupando la fila entera. */
+.week-day-note,
+.week-quote {
+  grid-column: 1 / -1;
+  font-size: var(--fs-sm); color: var(--text-secondary);
+  padding-left: var(--s3);
+  border-left: 2px solid var(--hairline-strong);
+}
+.week-quote > strong { font-family: var(--font-display); color: var(--text); margin-right: var(--s2); }
+
+/* Las fotos de la semana, dentro de su tarjeta de métrica. Cuadradas y
+   pequeñas: aquí solo dicen «las hay y son éstas»; compararlas es en Revisión. */
+.week-photos { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.week-photos img {
+  width: 54px; height: 72px; object-fit: cover;
+  border-radius: var(--r-sm); border: 1px solid var(--edge);
+}
+
+@media (max-width: 560px) {
+  .week-day { grid-template-columns: 1fr auto; }
+  .week-day-facts { grid-column: 1 / -1; }
+}
 
 /* ── LA FILA de métricas ───────────────────────────────────────────────────
    Dos o cuatro columnas, nunca tres. El porqué está en `MetricRow`
@@ -1501,32 +1593,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
 .tab:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* ── Saludo del portal del cliente ─────────────────────────────────────────
-   Antes era un degradado de verde pastel a azul pastel —dos tintas que no se
-   usan juntas en ningún otro sitio— y el nombre iba con estilos en línea:
-   `fontSize: '1.3rem', fontWeight: 900`. Era el único 900 de la aplicación, en
-   la primera línea que lee el cliente, y no salía de ningún token.
-
-   Ahora la superficie es sobria, la jerarquía es
-   explícita: a la izquierda quién eres y en qué semana vas; a la derecha el
-   peso, que es el dato que el cliente entra a mirar. */
-.client-hero {
-  position: relative;
-  margin-bottom: var(--s5);
-}
-
-.client-hero-avatar {
-  width: 58px; height: 58px; flex-shrink: 0;
-  border-radius: var(--r-md); object-fit: cover;
-  box-shadow: 0 0 0 2px var(--accent);
-}
-.client-hero-name { font-size: var(--fs-lg); font-weight: 700; }
-.client-hero-figure { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-.client-hero-figure > .v {
-  font-family: var(--font-display);
-  font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.02em;
-  line-height: 1.1; color: var(--accent); font-variant-numeric: tabular-nums;
-}
+/* Aquí vivió el SALUDO del portal, que era una tarjeta con el avatar, la semana
+   activa y el peso actual. Se ha ido con sus cuatro clases: el saludo sigue
+   estando, pero como título de la pantalla de inicio (`PageHead` en
+   `Client/ClientStart.jsx`), no como una pieza con superficie propia. Lo que
+   contaba a su derecha —el peso— es la primera cifra del resumen de debajo. */
 
 /* Aviso de previsualización: el entrenador tiene que saber en todo momento que
    lo que ve no es suyo. Va en tono neutro y no como `Notice`, porque no ha
@@ -5602,29 +5673,15 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    fichas con su explicación debajo y no como dos pestañas a secas, porque lo que
    hay que comunicar no es «hay dos vistas» sino CUÁNDO usar cada una: nadie sabe
    si quiere «análisis» hasta que le dicen que ahí está la revisión a fondo. */
-.progress-switch {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: var(--s2);
-  /* Con tope. Son dos fichas de una línea y media, y a lo ancho de la pantalla
-     cada una se queda con quinientos píxeles para un rótulo de ochenta: el
-     mismo rectángulo vacío que había en el carril segmentado, en grande. Un
-     selector de dos opciones ocupa lo que ocupan sus dos opciones. */
-  max-width: 640px;
-}
-.progress-level {
-  display: grid; grid-template-columns: auto 1fr; align-items: center;
-  gap: 2px var(--s2); padding: var(--s3) var(--s4);
-  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md);
-  color: var(--text-secondary); text-decoration: none;
-  transition: border-color var(--fast), color var(--fast);
-}
-.progress-level:hover { border-color: var(--hairline-strong); color: var(--text); }
-.progress-level > .l { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; }
-.progress-level > .h { grid-column: 2; font-size: var(--fs-2xs); color: var(--text-tertiary); }
-.progress-level.active {
-  border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text);
-}
+/* Aquí vivió el conmutador de Progreso: dos FICHAS con canto, rótulo y una
+   explicación debajo, para elegir entre el resumen y el análisis.
 
+   Se ha ido entero, y no por tamaño. Una tarjeta que navega es el único elemento
+   del producto que lleva a otro sitio sin parecerse a nada de lo que lleva a otro
+   sitio, y en el portal del cliente se apilaba con las pestañas de arriba y con
+   el saludo: cuatro planos de navegación antes del primer dato. Ahora son dos
+   chips en un carril, que es como se dibuja el segundo nivel de una sección en
+   todo lo demás. Ver `analytics/ProgressLayout.jsx`. */
 .ev-tabs {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
   gap: var(--s2);
@@ -6525,9 +6582,18 @@ span.scale-step.is-on { opacity: 1; }
    `domain/today.js` y en `components/Coach/Today.jsx`.
    ========================================================================== */
 
+/* ── El ancho de la bandeja ────────────────────────────────────────────────
+   332 px, y de ahí salía el «Franco Es…». Una bandeja cuyo trabajo es decir a
+   QUIÉN le debes algo no puede quedarse sin sitio para el nombre: es el único
+   dato de la fila que no se puede resumir —«Invitar» y la flecha significan lo
+   mismo cortados o enteros, un nombre no—.
+
+   368 le da al nombre unos 190 px, que son catorce caracteres largos a 15 px, y
+   le quita 36 al hilo, que tiene de sobra. El envoltorio de la fila sigue estando
+   como red para los nombres de verdad largos. */
 .today {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 332px;
+  grid-template-columns: minmax(0, 1fr) 368px;
   gap: var(--s5);
   align-items: start;
 }
@@ -6540,12 +6606,11 @@ span.scale-step.is-on { opacity: 1; }
    Es el único adorno de la aplicación que además es información, y por eso se
    le deja tanto sitio. Las marcas van SIEMPRE, también en los días de cero: una
    escala sin sus marcas vacías no es una escala, es un gráfico de barras. */
-.scale-card {
-  display: flex; flex-direction: column; gap: var(--s2);
-  background: var(--surface); border: 1px solid var(--edge);
-  border-radius: var(--r-lg); padding: var(--s4) var(--s5) var(--s3);
-  box-shadow: var(--shadow-sm);
-}
+/* Solo el reparto vertical: la superficie —canto, radio, sombra y relleno— la
+   pone `.card`, que es de donde cuelga desde que esto es un `Panel`. Antes la
+   copiaba entera, que es como se llega a cincuenta familias de clases donde
+   debería haber una. */
+.scale-card { display: flex; flex-direction: column; gap: var(--s2); }
 
 .scale { display: flex; align-items: flex-end; gap: 3px; height: 62px; }
 .scale-day { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; height: 100%; }

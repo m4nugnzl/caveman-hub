@@ -1,4 +1,5 @@
 import {
+  CalendarCheck,
   CalendarDays,
   ClipboardList,
   CreditCard,
@@ -83,6 +84,22 @@ export const COACH_PRIMARY = [
 
 /** Nivel 2: las secciones de UN cliente. Cuelgan de `/c/:clientId/`. */
 export const COACH_CLIENT = [
+  /*
+    ══ «Su semana» va la primera, y es nueva ═════════════════════════════════
+
+    Es lo que la portada vende —«la semana se cierra»— y era lo único que no
+    tenía pantalla: mirar lo que le pusiste, lo que ha hecho, lo que ha entregado
+    y contestarle cruzaba CUATRO secciones de este mismo carril, cada una con su
+    propio selector de semana.
+
+    Va delante de todas porque el orden del carril es el del trabajo y esto es lo
+    que se hace más veces: programar se toca cada varias semanas, revisar es cada
+    lunes con todo el mundo. Las demás no se tocan —la rutina completa, la dieta
+    y el análisis siguen donde estaban— porque son otro horizonte de tiempo, y
+    reagruparlas de verdad es un paso que no se da sin haber usado esto un ciclo
+    entero (ver `docs/producto.md`, fase 5).
+  */
+  { path: 'semana', label: 'Su semana', icon: CalendarCheck },
   /*
     «Progreso» era dos entradas —Resumen y Analítica— y las dos contestan la misma
     pregunta con distinto detalle. Eso obligaba a elegir cuál abrir antes de saber
@@ -348,6 +365,15 @@ const EQUIVALENTES = [
   ['revision', 'evolucion'],
   ['revision/fotos', 'evolucion/fotos'],
   ['calendario', 'calendario'],
+  /*
+    «Su semana» ⇄ «Mi evolución». Son los dos lados del mismo gesto: donde el
+    entrenador lee la semana y contesta es donde el cliente la entrega.
+
+    Va la ÚLTIMA a propósito. `coachViewOf` busca por la sección del cliente y se
+    queda con el primer par, así que `evolucion` sigue devolviendo `revision` —el
+    camino de vuelta no cambia— y lo único que añade esta línea es la ida.
+  */
+  ['semana', 'evolucion'],
 ];
 
 /** La misma sección, vista desde el portal del cliente. */

@@ -28,6 +28,17 @@ import { clientPath } from '@/routes';
  *
  * Por eso este componente es una ruta de layout sin path propio: envuelve a las
  * dos y solo aporta la barra.
+ *
+ * ── Y la barra son CHIPS, no dos tarjetas ───────────────────────────────────
+ * Aquí hubo dos fichas grandes con su canto, su rótulo y su explicación debajo, y
+ * el problema no era que fueran feas: era que **una tarjeta que navega es una
+ * tarjeta que miente**. Todo lo demás del producto que lleva a otro sitio es un
+ * chip o una pestaña, así que en el portal se acababan apilando cuatro planos de
+ * navegación seguidos —saludo, pestañas, estas dos fichas y la cabecera del
+ * primer bloque— antes del primer dato.
+ *
+ * Un plano se dibuja de una sola forma. Este es el segundo nivel de una sección,
+ * y el segundo nivel de una sección son chips en un carril, como en «Revisión».
  */
 export const ProgressLayout = ({ audience = 'coach' }) => {
   const { clientId } = useParams();
@@ -39,17 +50,15 @@ export const ProgressLayout = ({ audience = 'coach' }) => {
 
   return (
     <div className="stack">
-      <nav className="progress-switch" aria-label="Nivel de detalle">
-        <NavLink to={to(isClient ? 'inicio' : 'resumen')} className="progress-level" end>
-          <Gauge size={15} />
-          <span className="l">{isClient ? 'Mi progreso' : 'Resumen'}</span>
-          <span className="h">{isClient ? 'Cómo vas' : 'Las cifras de un vistazo'}</span>
+      <nav className="rail" aria-label="Nivel de detalle">
+        <NavLink to={to(isClient ? 'inicio' : 'resumen')} className="chip" end>
+          <Gauge size={13} />
+          {isClient ? 'Mi progreso' : 'Resumen'}
         </NavLink>
 
-        <NavLink to={to('analitica')} className="progress-level" end>
-          <TrendingUp size={15} />
-          <span className="l">Análisis</span>
-          <span className="h">La revisión a fondo</span>
+        <NavLink to={to('analitica')} className="chip" end>
+          <TrendingUp size={13} />
+          Análisis
         </NavLink>
       </nav>
 

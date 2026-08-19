@@ -5,7 +5,7 @@ import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 import { useActions, useSession } from '@/context/AppContext';
 import { planPrice } from '@/lib/num';
 import { supabase } from '@/lib/supabaseClient';
-import { Notice, Panel } from '@/components/ui/primitives';
+import { Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
 
 /**
@@ -276,12 +276,7 @@ export const PlanPanel = () => {
 /** La cabecera es la misma en los tres estados de la pantalla. */
 const Header = ({ children }) => (
   <div className="stack">
-    <div className="section-head">
-      <div>
-        <h2>Plan</h2>
-        <p>Cuántos clientes llevas y hasta dónde llega tu plan.</p>
-      </div>
-    </div>
+    <PageHead title="Plan" sub="Cuántos clientes llevas y hasta dónde llega tu plan." />
     {children}
   </div>
 );

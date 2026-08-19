@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Camera } from 'lucide-react';
 
 import { ANGLES, angleLabel, groupByWeek, photoWeight, suggestPair, weightDelta } from '@/domain/photos';
+import { metricColor } from '@/domain/metrics';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
 import { Thumb } from '@/components/photos/Thumb';
 
@@ -65,9 +66,9 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
     <div className="stack">
       <Panel tight className="row between wrap gap-3">
         <div>
-          <h2 className="section-title">
+          <h3 className="section-title">
             <Camera size={18} /> Mis fotos de progreso
-          </h2>
+          </h3>
           <p className="t-sm t-secondary">
             {photos.length} {photos.length === 1 ? 'foto' : 'fotos'} en {groups.length}{' '}
             {groups.length === 1 ? 'semana' : 'semanas'}
@@ -109,7 +110,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
               <StatCard
                 label="Variación de peso"
                 value={`${delta > 0 ? '+' : ''}${delta} kg`}
-                color={delta <= 0 ? 'var(--accent)' : 'var(--data-amber)'}
+                color={metricColor('weight')}
               />
               <StatCard label="Ángulo comparado" value={angleLabel(pair.after.angle)} />
             </div>

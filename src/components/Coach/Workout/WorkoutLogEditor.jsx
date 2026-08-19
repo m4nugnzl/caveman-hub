@@ -375,7 +375,9 @@ export const WorkoutLogEditor = () => {
         reparto que en los ejercicios: arrastre para quien pueda, teclado (Alt y
         flechas, aquí mismo) y botones para todos los demás.
       */}
-      <div className="row wrap gap-2" role="tablist" aria-label="Días del microciclo">
+      {/* `day-rail` no es decorativa: de ella cuelgan el cursor de agarre, la
+          opacidad del día que se arrastra y el canto del destino. */}
+      <div className="row wrap gap-2 day-rail" role="tablist" aria-label="Días del microciclo">
         {nav.days.map((day, index) => (
           <button
             key={day.dayName}

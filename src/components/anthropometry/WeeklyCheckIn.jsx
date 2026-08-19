@@ -7,6 +7,7 @@ import {
   weeklyCheckIn,
   weeklyWeightAverages,
 } from '@/domain/anthropometry';
+import { metricColor } from '@/domain/metrics';
 import { BandChart } from '@/components/ui/charts';
 import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
@@ -198,7 +199,7 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
               {
                 id: 'w',
                 label: 'Peso',
-                color: 'var(--data-blue)',
+                color: metricColor('weight'),
                 unit: ' kg',
                 decimals: 1,
                 points: tendencia.map((w) => ({ label: w.date, value: w.value })),

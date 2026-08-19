@@ -240,7 +240,7 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
               <Dumbbell size={18} />
             </span>
             <div className="col">
-              <h2 style={{ fontSize: 'var(--fs-lg)' }}>{day.dayName}</h2>
+              <h3 className="day-name">{day.dayName}</h3>
               <span className="t-xs t-tertiary">
                 {[
                   weekday,

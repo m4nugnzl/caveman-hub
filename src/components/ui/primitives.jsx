@@ -104,6 +104,41 @@ export const PageHead = ({ title, sub, action }) => (
   </div>
 );
 
+/**
+ * El nombre de un GRUPO de bloques.
+ *
+ * ══ Por qué hace falta un nivel más ═════════════════════════════════════════
+ *
+ * Porque hay pantallas que no son una lista de bloques sino dos tandas de
+ * bloques con asuntos distintos, y sin un nivel para nombrar la tanda acababan
+ * teniendo **dos cabeceras de pantalla**: la nutrición abría con «Plan
+ * nutricional» en `h2` y a media pantalla ponía «Menú estructurado» en otro
+ * `h2` idéntico, así que para un lector de pantalla eran dos pantallas pegadas y
+ * para el ojo eran dos productos.
+ *
+ * La jerarquía completa, y no hay más:
+ *
+ *   `PageHead`     h1  · cómo se llama esta pantalla        — una por pantalla
+ *   `GroupHead`    h2  · de qué va esta tanda de bloques    — cero, una o dos
+ *   `Panel title`  —   · qué es este bloque, en troquelada
+ *   `SectionTitle` h3  · una pieza dentro de un bloque
+ *
+ * ── Por qué en troquelada y no a tamaño de titular ──────────────────────────
+ * Porque un grupo no compite con la pantalla: la ordena por dentro. A tamaño de
+ * titular, «Menú estructurado» pesaba lo mismo que «Plan nutricional» y la
+ * pantalla parecía partirse en dos. En troquelada —más grande que la de un
+ * bloque, pero troquelada— se lee como un rótulo de tramo.
+ */
+export const GroupHead = ({ title, sub, action }) => (
+  <div className="group-head">
+    <div>
+      <h2 className="section-label is-group">{title}</h2>
+      {sub && <p>{sub}</p>}
+    </div>
+    {action}
+  </div>
+);
+
 export const SectionTitle = ({ icon: Icon, color, children, action }) => (
   <div className="row between wrap gap-2">
     <h3 className="section-title" style={color ? { color } : undefined}>

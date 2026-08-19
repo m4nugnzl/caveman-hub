@@ -1,4 +1,5 @@
 import { useApp } from '@/context/AppContext';
+import { PageHead } from '@/components/ui/primitives';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ClientUpdates } from './ClientUpdates';
 import { IntakeDeliverables } from './IntakeDeliverables';
@@ -34,6 +35,16 @@ import { IntakeDeliverables } from './IntakeDeliverables';
  * Porque el orden importa: primero lo que ha cambiado —que es lo urgente y lo
  * corto—, y debajo cómo va —que es lo que se mira con calma—. Al revés, la
  * pantalla se abre con un gráfico y el aviso queda por debajo del pliegue.
+ *
+ * ── Y el saludo vive AQUÍ, como título ──────────────────────────────────────
+ * Era una tarjeta del marco (`ClientLayout`) con el avatar, la semana activa y
+ * el peso actual dentro. Como tarjeta ocupaba un plano entero para no decir nada
+ * que no estuviera veinte píxeles más abajo —la semana, en el carril; el peso,
+ * en la primera cifra del resumen— y empujaba el contenido por debajo del
+ * pliegue en un móvil.
+ *
+ * Como `PageHead` sigue siendo el saludo, sigue siendo el `h1`, y ahora además
+ * es lo que ninguna pantalla del portal tenía: un título que dice en cuál estás.
  */
 export const ClientStart = () => {
   const { activeClient } = useApp();
@@ -41,6 +52,8 @@ export const ClientStart = () => {
 
   return (
     <div className="stack">
+      <PageHead title={`Hola, ${activeClient.name}`} sub="Tu progreso, semana a semana." />
+
       <ClientUpdates client={activeClient} />
       <Dashboard audience="client" />
       <IntakeDeliverables client={activeClient} />

@@ -10,7 +10,7 @@ import {
   roleLabel,
 } from '@/domain/team';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { EmptyState, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
 
 const initials = (text) =>
   (text || '?')
@@ -211,9 +211,20 @@ export const TeamPanel = () => {
 
   return (
     <div className="stack">
-      <div className="section-head">
-        <div>
-          {renaming ? (
+      {/*
+        El nombre del equipo se queda SIEMPRE en el título y el renombrado ocurre
+        en la acción, a su lado. Antes el campo sustituía al titular, así que al
+        empezar a escribir la pantalla se quedaba sin nombre y no se sabía qué se
+        estaba renombrando —y de paso metía un `<input>` dentro de un
+        encabezado, que para un lector de pantalla no es un encabezado—.
+      */}
+      <PageHead
+        title={team.name}
+        sub={`${rows.length} ${rows.length === 1 ? 'persona' : 'personas'} · ${clients.length} ${
+          clients.length === 1 ? 'cliente' : 'clientes'
+        } · entras como ${roleLabel(team.myRole).toLowerCase()}`}
+        action={
+          renaming ? (
             <div className="row gap-2">
               <input
                 autoFocus
@@ -236,29 +247,21 @@ export const TeamPanel = () => {
               </button>
             </div>
           ) : (
-            <h2 className="row gap-2">
-              {team.name}
-              {canManage && (
-                <button
-                  type="button"
-                  className="btn btn-icon"
-                  onClick={() => {
-                    setDraftName(team.name);
-                    setRenaming(true);
-                  }}
-                  aria-label="Cambiar el nombre del equipo"
-                >
-                  <Pencil size={14} />
-                </button>
-              )}
-            </h2>
-          )}
-          <p>
-            {rows.length} {rows.length === 1 ? 'persona' : 'personas'} · {clients.length}{' '}
-            {clients.length === 1 ? 'cliente' : 'clientes'} · entras como {roleLabel(team.myRole).toLowerCase()}
-          </p>
-        </div>
-      </div>
+            canManage && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setDraftName(team.name);
+                  setRenaming(true);
+                }}
+              >
+                <Pencil size={14} /> Cambiar el nombre
+              </button>
+            )
+          )
+        }
+      />
 
       {error && <Notice tone="error">{error}</Notice>}
 
