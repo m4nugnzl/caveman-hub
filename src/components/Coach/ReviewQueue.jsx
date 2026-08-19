@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Check, ChevronDown, ChevronRight, ClipboardCheck, Images, MessageSquare } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  ClipboardCheck,
+  Images,
+  MessageCircle,
+  MessageSquare,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { currentCheckInPeriod } from '@/domain/calendar';
@@ -32,11 +40,17 @@ import { useReviewSession } from './ReviewSession';
  * ══ Y qué se hace con cada uno ═════════════════════════════════════════════
  *
  *   · «Revisar» abre lo que ha subido —sus fotos contra las de la vez anterior,
- *     con el peso al lado—, que es lo único que hace falta para decidir.
+ *     con el peso al lado—, que es lo único que hace falta para decidir. Es el
+ *     ÚNICO botón primario de la fila: el gesto del lunes es entrar a mirar, y
+ *     desde dentro se llega también al plan si hay que tocarlo.
  *   · «Seguimos igual» cierra sin cambios, en un toque. Es la mayoría de las
  *     veces, y durante meses.
  *   · «Contestar» escribe la respuesta, que él lee en su «Hoy».
- *   · «Ajustar» abre su plan cuando sí hay que tocar algo.
+ *   · En los «Sin subir», «Recordar» abre WhatsApp con el mensaje puesto —lo
+ *     único que se puede hacer con quien no ha subido nada es recordárselo— y
+ *     «Ajustar» entra a su plan a media espera. «Ajustar» ya no sale en los que
+ *     SÍ han subido: cuatro botones idénticos por fila obligaban a leerlos todos
+ *     antes de pulsar, y ese camino ya lo cubre la propia revisión.
  *
  * ── Por qué el «seguimos igual» deja rastro ─────────────────────────────────
  * Porque es información: dentro de tres meses permite contestar «llevas nueve
@@ -67,6 +81,22 @@ const ESTADOS = {
 /** Lo que se guarda al cerrar sin cambios. Es texto y no un booleano porque va a
     la misma nota que escribirías tú, y así el histórico se lee de corrido. */
 const SIN_CAMBIOS = 'Sin cambios: seguimos igual.';
+
+/**
+ * Recordarle el check-in a quien no lo ha subido, por WhatsApp y con el mensaje
+ * puesto. El mismo camino que ya usa la bandeja con los inactivos: no se guarda
+ * nada aquí — el recordatorio ES el mensaje, y se manda desde su conversación de
+ * siempre, no desde un sistema de avisos que el cliente no mira.
+ */
+const recordarCheckIn = (client) => {
+  const nombre = (client.name || '').trim().split(/\s+/)[0];
+  const texto = `Hola${nombre ? ` ${nombre}` : ''}, te toca el check-in de esta semana: pésate, hazte las fotos y entrégalo desde tu portal cuando puedas.`;
+  window.open(
+    `https://wa.me/${client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(texto)}`,
+    '_blank',
+    'noopener,noreferrer'
+  );
+};
 
 /**
  * Un vistazo a lo que ha contestado esta semana.
@@ -106,7 +136,9 @@ export const ReviewQueue = ({ rows, onReview }) => {
   const pendientes = lista.filter((r) => r.review_state === 'ready').length;
 
   return (
-    <Panel className="col gap-3">
+    /* La lumbre: la única tarjeta encendida de la pantalla, porque es la única
+       que contiene una decisión de hoy. Ver `.card-lumbre` en `index.css`. */
+    <Panel className="col gap-3 card-lumbre">
       <div className="row between wrap gap-2">
         <SectionTitle icon={ClipboardCheck}>Revisiones</SectionTitle>
 
@@ -221,11 +253,14 @@ export const ReviewQueue = ({ rows, onReview }) => {
 
                   Y aterriza en las fotos porque es lo primero que se mira: las
                   suyas contra las de la vez anterior, con el peso al lado.
+
+                  Es EL botón primario de la fila —el único—: mirar lo que ha
+                  subido es el trabajo; cerrar y contestar son sus remates.
                 */}
                 {row.review_state === 'ready' && (
                   <button
                     type="button"
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-primary btn-sm"
                     onClick={() => {
                       start(abrir(row));
                       navigate(clientPath(id, 'revision/fotos'));
@@ -235,19 +270,34 @@ export const ReviewQueue = ({ rows, onReview }) => {
                   </button>
                 )}
 
-                {/* Ajustar entra por el plan, pero también dentro de la revisión:
-                    lo que toques ahí le llegará como cambio, y al terminar puedes
-                    cerrarla sin volver aquí. */}
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    start(abrir(row));
-                    navigate(clientPath(id, 'rutina'));
-                  }}
-                >
-                  Ajustar
-                </button>
+                {/* Con quien no ha subido nada solo caben dos gestos: recordárselo
+                    —si hay teléfono— y tocarle el plan a media espera. «Ajustar»
+                    ya no sale en las filas que SÍ han subido: ese camino lo cubre
+                    la propia revisión, y el cuarto botón idéntico era ruido. */}
+                {row.review_state === 'missing' && (
+                  <>
+                    {row.client.phone && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        title="Abrir WhatsApp con el recordatorio escrito"
+                        onClick={() => recordarCheckIn(row.client)}
+                      >
+                        <MessageCircle size={12} /> Recordar
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        start(abrir(row));
+                        navigate(clientPath(id, 'rutina'));
+                      }}
+                    >
+                      Ajustar
+                    </button>
+                  </>
+                )}
 
                 {escribiendo === id && (
                   <form

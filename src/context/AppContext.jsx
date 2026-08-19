@@ -3632,13 +3632,26 @@ export const AppProvider = ({ children }) => {
   const markClientPaid = useCallback(
     (clientId) => {
       const client = clientsRef.current.find((c) => c.id === clientId);
-      if (!client) return;
+      if (!client) return { ok: false, error: 'Ese cliente ya no está en la cartera.' };
 
       const siguiente = nextPaymentAfter(client.nextPaymentDate, client.billingPeriod);
+
+      /*
+        Lo que había ANTES, devuelto para el «Deshacer» del aviso: marcar cobrado
+        es un toque sin confirmación, y su pareja honesta es poder volver atrás.
+        El inverso es `updateClient` con estos mismos campos — no hace falta una
+        acción nueva porque esta escritura no pasa por ninguna función de la base.
+      */
+      const prev = {
+        paymentStatus: client.paymentStatus ?? 'pending',
+        ...(siguiente ? { nextPaymentDate: client.nextPaymentDate ?? null } : {}),
+      };
+
       updateClient(clientId, {
         paymentStatus: 'paid',
         ...(siguiente ? { nextPaymentDate: siguiente } : {}),
       });
+      return { ok: true, prev };
     },
     [clientsRef, updateClient]
   );
@@ -4783,6 +4796,33 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * Deshacer una revisión recién cerrada (migración 0063): la fila vuelve a
+   * estar pendiente, sin sello, sin nota y sin foto del plan.
+   *
+   * Existe para el «Deshacer» del aviso que sale al cerrar: «Seguimos igual» y
+   * «Contestar» son un toque sin confirmación —así debe ser—, y un toque en la
+   * fila equivocada cerraba la semana de otra persona sin vuelta atrás.
+   *
+   * La novedad que se le publicó al cliente no se retracta (ver la migración):
+   * el aviso le lleva a su semana, que vuelve a decir la verdad — pendiente.
+   */
+  const unreviewCheckIn = useCallback(async (checkInId) => {
+    const { error } = await supabase.rpc('unreview_check_in', { check_in: checkInId });
+    if (error) return { ok: false, error: error.message };
+
+    /* El espejo local de lo que hace `reviewCheckIn` al cerrar. */
+    setCheckIns((prev) => {
+      const entry = Object.values(prev).find((c) => c.id === checkInId);
+      if (!entry) return prev;
+      return {
+        ...prev,
+        [entry.clientId]: { ...entry, reviewedAt: null, coachNotes: null, snapshot: null },
+      };
+    });
+    return { ok: true };
+  }, []);
+
+  /**
    * Corregir el texto de una revisión ya cerrada. NO es volver a revisarla.
    *
    * ── Qué NO hace, y ese es el punto ──────────────────────────────────────────
@@ -5187,6 +5227,7 @@ export const AppProvider = ({ children }) => {
 
     // Check-ins y calendario
     reviewCheckIn,
+    unreviewCheckIn,
     updateCheckInNotes,
     submitCheckIn,
     loadCheckInHistory,

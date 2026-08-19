@@ -322,7 +322,7 @@ export const NotionSettings = ({ onChanged }) => {
               </a>
             </div>
             <p className="t-xs t-tertiary">
-              <KeyRound size={11} style={{ display: 'inline', verticalAlign: -1 }} /> El token se
+              <KeyRound size={11} className="icon-inline" /> El token se
               guarda donde no lo puede leer ni la propia aplicación: solo el servidor. Después de
               crearlo, <strong>comparte tu base con la integración</strong> desde el botón Compartir
               de Notion — sin ese paso el token existe pero no ve nada.
@@ -353,7 +353,7 @@ export const NotionSettings = ({ onChanged }) => {
             />
             {resolvedId && (
               <p className="t-xs t-tertiary">
-                <Table2 size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Id de la base:{' '}
+                <Table2 size={11} className="icon-inline" /> Id de la base:{' '}
                 <code>{resolvedId}</code>
               </p>
             )}
@@ -434,7 +434,7 @@ export const NotionSettings = ({ onChanged }) => {
           <div className="integration-notes">
             {issues.map((issue) => (
               <p key={issue} className="t-xs">
-                <ChevronRight size={11} style={{ display: 'inline', verticalAlign: -1 }} /> {issue}
+                <ChevronRight size={11} className="icon-inline" /> {issue}
               </p>
             ))}
           </div>
@@ -509,7 +509,7 @@ export const NotionSettings = ({ onChanged }) => {
             <>
               <div className="col gap-1">
                 <span className="section-label">
-                  <Users size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Nombres sin
+                  <Users size={11} className="icon-inline" /> Nombres sin
                   conciliar
                 </span>
                 <p className="t-xs t-tertiary">

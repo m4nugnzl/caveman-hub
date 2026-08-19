@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AppProvider } from './context/AppContext.jsx';
 import { ConfirmProvider } from './components/ui/ConfirmProvider.jsx';
+import { ToastProvider } from './components/ui/ToastProvider.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { ThemeProvider } from './lib/useTheme.jsx';
 import { installGlobalHandlers } from './lib/diagnostics';
@@ -28,9 +29,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ThemeProvider>
       <ErrorBoundary>
         <ConfirmProvider>
-          <AppProvider>
-            <App />
-          </AppProvider>
+          {/* Al lado del de confirmación porque son las dos caras de lo mismo:
+              confirmar lo destructivo sin inverso, deshacer lo frecuente con
+              inverso. Ver `ui/ToastProvider`. */}
+          <ToastProvider>
+            <AppProvider>
+              <App />
+            </AppProvider>
+          </ToastProvider>
         </ConfirmProvider>
       </ErrorBoundary>
       </ThemeProvider>

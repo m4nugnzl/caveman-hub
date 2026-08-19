@@ -51,6 +51,11 @@
    ========================================================================== */
 
 :root {
+  /* Los controles nativos —barra de scroll, desplegables, campos de fecha—
+     tienen que saber de qué tema son o salen del contrario. Cada bloque de tema
+     declara el suyo; el meta de `index.html` solo anuncia que existen los dos. */
+  color-scheme: light;
+
   /* ── Superficies · PAPEL ─────────────────────────────────────────────────
      `canvas` es el fondo de la página; `surface` las tarjetas, en blanco puro.
      El salto entre el gris del lienzo y el blanco de la tarjeta es lo que separa
@@ -99,6 +104,39 @@
   --accent-hover: #000000;
   --accent-soft: rgba(20, 24, 28, 0.06);
   --accent-on: #ffffff;
+
+  /* ── LA BRASA: la marca de «aquí» ────────────────────────────────────────
+     El rojo del disco de 25 kg del logotipo. Nació en la portada como su única
+     tinta y ahora es de todo el producto, con UN trabajo: señalar dónde estás y
+     qué te espera — la sección activa, el día de hoy, lo que aguarda respuesta.
+
+     Dos reglas que no se negocian:
+
+       · ES ESTRUCTURAL, NUNCA UN ESTADO. `--negative` sigue siendo «mal,
+         vencido»; la brasa dice «aquí». Las dos son rojas y por eso no pueden
+         compartir pieza: si una fila lleva un aviso negativo, su marca de brasa
+         se retira antes que convivir con él.
+       · ES PEQUEÑA. Un punto, una regleta de tres milímetros, la cifra de un
+         paso. En cuanto pinta una superficie deja de ser una marca y pasa a ser
+         un tema — y el cromo sigue sin tener color.
+
+     Sobre papel va oscurecida hasta pasar 4,5:1 como texto pequeño (5,4:1 sobre
+     blanco, 4,7:1 sobre el lienzo); `--brasa-on` es lo que se escribe encima.
+     `--brasa-luz` es la lumbre: la misma temperatura como LUZ, no como tinta,
+     detrás de los momentos que la merecen (una bienvenida, un vacío, la única
+     decisión del día). */
+  --brasa: #b8432f;
+  --brasa-soft: rgba(184, 67, 47, 0.1);
+  --brasa-on: #ffffff;
+  --brasa-luz: rgba(184, 67, 47, 0.12);
+
+  /* El AIRE: la iluminación de dos fuentes de la portada —una cálida que manda
+     y una fría que rellena—, en versión de trabajo, sobre el lienzo del panel.
+     Sobre papel no existe (alfa cero, y el degradado se disuelve): una hoja
+     impresa no lleva focos. En la noche, dos grados de temperatura son lo que
+     separa un lienzo con profundidad de un gris plano. */
+  --brasa-aire: rgba(184, 67, 47, 0);
+  --acero-aire: rgba(111, 165, 238, 0);
 
   /* ── Colores de dato: LOS DISCOS ─────────────────────────────────────────
      Uno por serie, nunca decorativos. Los nombres se conservan —medio proyecto
@@ -209,8 +247,12 @@
   --r-xs: 3px;
   --r-sm: 5px;
   --r-md: 8px;
-  --r-lg: 10px;
-  --r-xl: 14px;
+  /* La tarjeta a 14 y lo flotante a 18: un paso hacia los radios del
+     escaparate, sin llegar a ellos. La tarjeta deja de leerse recortada al lado
+     de la portada, y los controles pequeños (chips, campos, botones) se quedan
+     en sus radios cerrados: siguen siendo instrumento. */
+  --r-lg: 14px;
+  --r-xl: 18px;
   --r-pill: 999px;
 
   /* ── Y los del ESCAPARATE, mucho más abiertos ──────────────────────────────
@@ -252,6 +294,9 @@
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --fast: 0.16s var(--ease);
   --normal: 0.26s var(--ease);
+  /* Para las entradas de pantalla: la cascada con la que se monta una vista.
+     Más lento que `--normal` porque no responde a un gesto — presenta. */
+  --slow: 0.5s var(--ease);
 
   /* ── LA REGLA: la firma visual ───────────────────────────────────────────
      Marcas de graduación de una cinta métrica. Sustituye a la «veta» —una línea
@@ -320,12 +365,18 @@
 
 [data-theme='dark'],
 .lp-noche {
-  --canvas: #101317;
-  --canvas-alt: #161a1f;
-  --surface: #1a1f25;
-  --surface-raised: #222831;
-  --surface-sunken: #15191e;
-  --surface-glass: rgba(16, 19, 23, 0.82);
+  color-scheme: dark;
+
+  /* Un punto más profundo que el hierro original: el producto heredó de la
+     portada su atmósfera de noche. No llega al negro del escaparate —esto se
+     mira una jornada entera, aquello seis segundos— pero sale del mismo sitio,
+     y entrar de la portada a la aplicación ya no es cambiar de material. */
+  --canvas: #0d1014;
+  --canvas-alt: #12161b;
+  --surface: #171c22;
+  --surface-raised: #1f252d;
+  --surface-sunken: #101419;
+  --surface-glass: rgba(13, 16, 20, 0.82);
 
   --hairline: rgba(226, 233, 241, 0.09);
   --hairline-strong: rgba(226, 233, 241, 0.2);
@@ -347,6 +398,19 @@
   --accent-hover: #ffffff;
   --accent-soft: rgba(232, 236, 241, 0.1);
   --accent-on: #14181c;
+
+  /* La brasa de la portada, literal: sobre la noche no hace falta oscurecerla
+     (5,1:1 como texto sobre el lienzo). `--brasa-on` es hierro y no blanco: el
+     blanco sobre este rojo se queda en 3,7:1. */
+  --brasa: #e2564a;
+  --brasa-soft: rgba(226, 86, 74, 0.14);
+  --brasa-on: #14181c;
+  --brasa-luz: rgba(226, 86, 74, 0.16);
+
+  /* El aire de la noche: apenas se distingue, y es justo lo que se pide de una
+     luz bien puesta (ver la portada). */
+  --brasa-aire: rgba(226, 86, 74, 0.055);
+  --acero-aire: rgba(111, 165, 238, 0.045);
 
   /* Los mismos discos, subidos de luz para mantener el contraste sobre hierro
      sin volverse fosforitos. */
@@ -445,15 +509,15 @@
      tienen que verse.
 
      El valor no está elegido por bonito: es el rojo del disco de 25 kg que lleva
-     la barra más alta del logotipo (`components/ui/Logo.jsx`). Desde que el
-     cromo se quedó sin color, ese disco es el único sitio del producto que se
-     permite una tinta, y significa algo — hasta dónde ha llegado esto.
+     la barra más alta del logotipo (`components/ui/Logo.jsx`).
 
-     `--brasa-on` es hierro y no blanco: sobre este rojo, el blanco se queda en
-     3,9:1 y no pasa el contraste de un texto pequeño; el hierro llega a 5:1. */
-  --brasa: #e2564a;
-  --brasa-soft: rgba(226, 86, 74, 0.16);
-  --brasa-on: #14181c;
+     ── La brasa ya no vive aquí ─────────────────────────────────────────────
+     `--brasa`, `--brasa-soft` y `--brasa-on` son ahora del PRODUCTO (ver los
+     bloques de arriba): la portada los hereda del tema oscuro, del que este
+     selector forma parte. Lo único que la portada conserva en propiedad son sus
+     LUCES —la lumbre a varias intensidades y el relleno frío—, que son cosa de
+     escaparate: dentro de la aplicación la lumbre existe en una sola
+     temperatura (`--brasa-luz`) y aquí sube un punto. */
   --brasa-luz: rgba(226, 86, 74, 0.2);
   /* ── Y la lumbre a dos intensidades más ───────────────────────────────────
      Porque una portada con la MISMA lumbre detrás del mismo remate en cursiva,

@@ -7,54 +7,68 @@ import { ClientBell } from '@/components/Client/ClientBell';
 import { useCommandPalette } from '@/components/ui/CommandPalette';
 
 /**
- * Cabecera.
+ * La cabecera y sus dos piezas de trabajo.
  *
- * ── Qué hay y qué se ha ido ─────────────────────────────────────────────────
- * Tres cosas: la marca, la búsqueda y la cuenta. Han salido dos:
+ * ── Una cabecera, dos monturas ──────────────────────────────────────────────
+ * La franja clásica (`<Header/>`) navega el móvil, el portal del cliente y el
+ * modo preview. En el escritorio del entrenador NO hay franja: el chasis con
+ * barra lateral monta sus dos piezas útiles —la búsqueda y la cuenta— en su
+ * propia barra de herramientas (`.shell-top`, ver `CoachLayout`), un objeto de
+ * cristal a juego con la barra lateral, no una franja de borde a borde. Una
+ * franja entera para un buscador y un avatar era cromo vacío.
  *
- * · **El recuento de clientes.** «12 clientes» es un dato de la cartera, y en la
- *   cartera está, con su desglose. En una barra pegajosa que acompaña toda la
- *   jornada era una cifra que nunca cambia y que no lleva a ninguna parte.
+ * Por eso este archivo exporta las piezas por separado: `Omnibox` y
+ * `HeaderActions` se pintan en las dos monturas y no pueden divergir. Y el
+ * avatar queda SIEMPRE arriba a la derecha, en cualquier modo y tamaño.
  *
- * · **El conmutador Entrenador/Cliente.** Ocupaba el centro de la cabecera para
- *   una función de PREVISUALIZACIÓN, que es algo que se usa un minuto al mes.
- *   Se ha ido al menú de cuenta —junto al tema y a la configuración, que son las
- *   otras cosas que se dejan puestas y no se tocan— y además está en la paleta.
+ * ── Qué se ha ido de la cabecera ────────────────────────────────────────────
+ * · **El recuento de clientes.** «12 clientes» es un dato de la cartera, y en
+ *   la cartera está, con su desglose.
+ * · **El conmutador Entrenador/Cliente.** Pasó por el centro de la cabecera y
+ *   por el menú de cuenta —donde no lo imaginaba nadie— y hoy vive con el
+ *   cliente al que pertenece (`CoachLayout`, «Ver su portal»), además de en la
+ *   paleta; la vuelta la lleva la barra del modo (`PreviewBar`).
  *
- * Lo que ocupa ese hueco ahora es la búsqueda, que es lo contrario: se usa
- * decenas de veces al día. El botón existe además del atajo `⌘K` porque un atajo
- * que no se anuncia no lo descubre nadie; el propio botón lleva la tecla escrita
- * para enseñarlo.
- *
- * El aviso de cambios sin confirmar sí se queda: es lo único de la cabecera que
- * habla de algo que puede perderse.
+ * El botón de búsqueda existe además del atajo `⌘K` porque un atajo que no se
+ * anuncia no lo descubre nadie; el propio botón lleva la tecla escrita.
  */
-export const Header = () => {
-  const { hasUnsavedChanges } = useData();
+export const Omnibox = () => {
   const palette = useCommandPalette();
 
   return (
-    <header className="app-header">
-      <Logo subtitle={null} />
-
-      <button type="button" className="omnibox" onClick={() => palette.setOpen(true)}>
-        <Search size={15} aria-hidden="true" />
-        <span className="omnibox-label">Busca un cliente o una sección</span>
-        {/* `⌘` en Apple y `Ctrl` en el resto: ver `lib/platform.js`. */}
-        <kbd className="kbd">{paletteShortcut()}</kbd>
-      </button>
-
-      <div className="row gap-2 shrink-0">
-        {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
-            a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
-        <ClientBell />
-        {hasUnsavedChanges && (
-          <span className="badge badge-warn" role="status">
-            Cambios sin confirmar
-          </span>
-        )}
-        <AccountMenu />
-      </div>
-    </header>
+    <button type="button" className="omnibox" onClick={() => palette.setOpen(true)}>
+      <Search size={15} aria-hidden="true" />
+      <span className="omnibox-label">Busca un cliente o una sección</span>
+      {/* `⌘` en Apple y `Ctrl` en el resto: ver `lib/platform.js`. */}
+      <kbd className="kbd">{paletteShortcut()}</kbd>
+    </button>
   );
 };
+
+export const HeaderActions = () => {
+  const { hasUnsavedChanges } = useData();
+
+  return (
+    <div className="row gap-2 shrink-0">
+      {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
+          a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
+      <ClientBell />
+      {/* El aviso de cambios sin confirmar: lo único de esta esquina que habla
+          de algo que puede perderse. */}
+      {hasUnsavedChanges && (
+        <span className="badge badge-warn" role="status">
+          Cambios sin confirmar
+        </span>
+      )}
+      <AccountMenu />
+    </div>
+  );
+};
+
+export const Header = () => (
+  <header className="app-header">
+    <Logo subtitle={null} />
+    <Omnibox />
+    <HeaderActions />
+  </header>
+);

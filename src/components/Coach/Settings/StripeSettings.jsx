@@ -257,7 +257,7 @@ export const StripeSettings = ({ onChanged }) => {
             </Notice>
 
             <p className="t-xs t-tertiary">
-              <KeyRound size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Se guarda donde
+              <KeyRound size={11} className="icon-inline" /> Se guarda donde
               no la puede leer ni la aplicación: solo el servidor.
             </p>
           </Step>
@@ -336,7 +336,7 @@ export const StripeSettings = ({ onChanged }) => {
                   como pagado enviando un JSON.
                 */}
                 <p className="t-xs t-tertiary">
-                  <KeyRound size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Es distinto
+                  <KeyRound size={11} className="icon-inline" /> Es distinto
                   de la clave de API. Con él se comprueba la firma de cada aviso: sin firma válida,
                   no se procesa nada.
                 </p>
@@ -432,7 +432,7 @@ export const StripeSettings = ({ onChanged }) => {
 
           {result.failing > 0 && (
             <Notice tone="warn">
-              <AlertTriangle size={13} style={{ display: 'inline', verticalAlign: -2 }} /> Hay{' '}
+              <AlertTriangle size={13} className="icon-inline" /> Hay{' '}
               {result.failing} {result.failing === 1 ? 'suscripción' : 'suscripciones'} con el último
               cobro rechazado. Esos clientes aparecen ya como pendientes en la cartera.
             </Notice>

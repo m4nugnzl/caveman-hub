@@ -737,22 +737,20 @@ export const MealCard = ({
         </label>
       ) : (
         meal.note?.trim() && (
-          <p className="t-sm t-secondary" style={{ whiteSpace: 'pre-wrap' }}>
+          <p className="t-sm t-secondary pre-wrap">
             {meal.note}
           </p>
         )
       )}
 
       {(options.length > 1 || editable) && (
-        <div className="rail" role="tablist" aria-label={`Opciones de ${meal.name}`}>
+        <div className="rail" role="group" aria-label={`Opciones de ${meal.name}`}>
           {options.map((opt, i) => (
             <button
               key={opt.id}
               type="button"
-              role="tab"
               className="chip"
               aria-pressed={i === index}
-              aria-selected={i === index}
               onClick={() => setActiveOption(i)}
             >
               Opción {i + 1}

@@ -154,7 +154,7 @@ export const ClientReviews = ({ client }) => {
               )}
 
               {link.notes && (
-                <p className="t-sm t-secondary" style={{ whiteSpace: 'pre-wrap' }}>
+                <p className="t-sm t-secondary pre-wrap">
                   {link.notes}
                 </p>
               )}

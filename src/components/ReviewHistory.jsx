@@ -369,9 +369,7 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
             {/* Lo que escribió él al entregar. Solo al entrenador: el cliente ya
                 sabe lo que puso. */}
             {esEntrenador && fila.notes && (
-              <p className="t-xs t-secondary" style={{ whiteSpace: 'pre-wrap' }}>
-                Él anotó: {fila.notes}
-              </p>
+              <p className="t-xs t-secondary pre-wrap">Él anotó: {fila.notes}</p>
             )}
 
             {/*
@@ -439,10 +437,11 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
                   </form>
                 ) : (
                   <div className="row between wrap gap-2">
-                    <p className="t-sm grow" style={{ whiteSpace: 'pre-wrap', minWidth: 0 }}>
+                    <p className="t-sm grow pre-wrap">
                       <MessageSquareQuote
                         size={12}
-                        style={{ display: 'inline', verticalAlign: -1, marginRight: 5, color: 'var(--text-tertiary)' }}
+                        className="icon-inline"
+                        style={{ color: 'var(--text-tertiary)' }}
                       />
                       {fila.coachNotes || (
                         <span className="t-tertiary">

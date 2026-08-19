@@ -70,7 +70,7 @@ export const GoalCard = ({
 
   const Etiqueta = (
     <span className="section-label">
-      <Icon size={12} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} />
+      <Icon size={12} className="icon-inline" />
       {label}
     </span>
   );
@@ -87,7 +87,7 @@ export const GoalCard = ({
       >
         <label className="field grow" style={{ minWidth: 180 }}>
           <span className="field-label">
-            <Icon size={12} style={{ display: 'inline', verticalAlign: -2, marginRight: 4 }} />
+            <Icon size={12} className="icon-inline" />
             {label}
           </span>
           <input
@@ -130,7 +130,7 @@ export const GoalCard = ({
             qué se puede poner ahí. */}
         {!puesto && <span className="t-sm t-secondary">Sin definir.</span>}
         {puesto && !numeric && (
-          <span className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
+          <span className="t-sm pre-wrap">
             {puesto}
           </span>
         )}

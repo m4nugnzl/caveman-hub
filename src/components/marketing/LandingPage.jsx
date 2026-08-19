@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
-import { planPrice } from '@/lib/num';
+import { planAhorroPct, planPrice } from '@/lib/num';
 import { localeNumber } from '@/lib/dates';
 import { useReveal } from '@/lib/useReveal';
 import { useNoche } from '@/lib/useNoche';
@@ -1040,6 +1040,14 @@ const Paso = ({ paso }) => {
 
 export const LandingPage = () => {
   const [planes, setPlanes] = useState([]);
+  /*
+    Mensual por defecto, y no anual con el descuento puesto. Enseñar primero la
+    cifra pequeña y que al tocar el interruptor suba es la versión de esto que
+    deja mal sabor: el precio que se recuerda es el primero que se leyó, y si el
+    segundo es mayor, la sensación es que había letra pequeña. Aquí el anual
+    BAJA la cifra, que es lo que un descuento tiene que hacer al pulsarlo.
+  */
+  const [anual, setAnual] = useState(false);
 
   useNoche();
 
@@ -1047,7 +1055,9 @@ export const LandingPage = () => {
     let vivo = true;
     supabase
       .from('plan_limits')
-      .select('plan, label, max_clients, max_seats, price_cents, currency, interval, blurb, purchasable')
+      .select(
+        'plan, label, max_clients, max_seats, price_cents, price_cents_year, currency, interval, blurb, purchasable, has_integrations'
+      )
       .order('sort')
       .then(({ data }) => {
         if (vivo) setPlanes(data || []);
@@ -1063,6 +1073,11 @@ export const LandingPage = () => {
   const masBarato = planes
     .filter((p) => p.price_cents > 0)
     .sort((a, b) => a.price_cents - b.price_cents)[0];
+
+  /* Lo mismo para el anual: existe si alguna fila lo tiene, y el ahorro sale de
+     los dos precios de esa fila. Ver el interruptor, más abajo. */
+  const hayAnual = planes.some((p) => p.price_cents_year);
+  const ahorroPct = planAhorroPct(planes.find((p) => p.price_cents_year));
 
   return (
     <div className="lp">
@@ -1286,12 +1301,57 @@ export const LandingPage = () => {
             <h2>
               Un plan solo cambia <em>a cuánta gente llevas</em>
             </h2>
+            {/* «Nada bajo llave en ningún plan» estuvo aquí y dejó de ser cierto
+                con la 0065. La frase que la sustituye dice lo mismo de lo que de
+                verdad importa y **es verdad antes y después** de capar nada: el
+                bucle está entero en los cuatro planes. */}
             <p className="lp-lede-sm">
               Tres clientes gratis, para siempre y sin tarjeta.
-              {masBarato && <> Para crecer, desde {planPrice(masBarato)}.</>} Nada bajo llave en
-              ningún plan.
+              {masBarato && <> Para crecer, desde {planPrice(masBarato)}.</>} El bucle entero en
+              todos, también en el gratuito.
             </p>
           </div>
+
+          {/* ── Mensual o anual ──────────────────────────────────────────────
+              Solo aparece cuando hay algún plan con precio anual (0062). Hasta
+              que se encienda en Stripe, esta sección es exactamente la de antes.
+
+              El ahorro se calcula del plan más barato que lo tenga en vez de
+              escribirlo: si algún día un plan lleva otro descuento, la etiqueta
+              no miente sola. Y va en porcentaje porque tiene que caber DENTRO
+              del botón sin ensancharlo — el porqué largo, en `planAhorroPct`. */}
+          {hayAnual && (
+            <div
+              className={`lp-switch${anual ? ' is-anual' : ''}`}
+              role="group"
+              aria-label="Cada cuánto pagas"
+            >
+              {/* La brasa que se desliza. Es un elemento y no el fondo del botón
+                  activo porque un color que aparece y desaparece en dos sitios
+                  se lee como dos cosas encendiéndose; uno que se mueve se lee
+                  como UNA elección cambiando de sitio, que es lo que es. Va
+                  detrás por `z-index` y lo deja pasar `isolation: isolate`, el
+                  mismo recurso que ya usa la tarjeta de plan. */}
+              <span className="lp-switch-marca" aria-hidden="true" />
+              <button
+                type="button"
+                className="lp-switch-item"
+                aria-pressed={!anual}
+                onClick={() => setAnual(false)}
+              >
+                Al mes
+              </button>
+              <button
+                type="button"
+                className="lp-switch-item"
+                aria-pressed={anual}
+                onClick={() => setAnual(true)}
+              >
+                Al año
+                {ahorroPct && <span className="lp-switch-ahorro">−{ahorroPct}&nbsp;%</span>}
+              </button>
+            </div>
+          )}
 
           {planes.length > 0 && (
             <div className="lp-plan-grid">
@@ -1322,26 +1382,69 @@ export const LandingPage = () => {
                     La cifra va en CURSIVA, que es el remate de los titulares de
                     esta página traído al sitio donde de verdad se decide. Es lo
                     único que la separa de un número de tabla.
+
+                    ── Y en anual, la cifra SIGUE SIENDO MENSUAL ──────────────
+                    390 € al año y 39 € al mes no se comparan de cabeza; 32,50 y
+                    39 sí. Así que al pulsar «Al año» lo que cambia es la misma
+                    cifra —baja—, y el total del cargo va justo debajo. Enseñar
+                    ahí un 390 € obligaría a dividir para saber si sale a cuenta,
+                    que es exactamente el trabajo que una tabla de precios tiene
+                    que ahorrar. El importe real nunca se esconde: está en la
+                    línea de abajo y con la palabra «facturado».
                   */}
                   <span className="lp-plan-price">
                     <em>
                       {p.price_cents
-                        ? planPrice(p, { conPeriodo: false })
+                        ? planPrice(p, {
+                            conPeriodo: false,
+                            anual: anual && Boolean(p.price_cents_year),
+                            mensualizado: true,
+                          })
                         : localeNumber(0, {
                             style: 'currency',
                             currency: (p.currency || 'eur').toUpperCase(),
                             minimumFractionDigits: 0,
                           })}
                     </em>
-                    <span className="per">/{p.interval === 'year' ? 'año' : 'mes'}</span>
+                    <span className="per">/mes</span>
                   </span>
 
-                  {/* La línea que contesta la pregunta que viene justo después de
-                      ver la cifra, y que si no está aquí manda a buscarla a las
-                      dudas: «¿y si luego me quiero salir?». */}
-                  <span className="lp-plan-nota">
-                    {p.price_cents ? 'Sin permanencia · baja cuando quieras' : 'Sin tarjeta · sin fecha'}
-                  </span>
+                  {/* Debajo de la cifra, lo que hay que saber en cada modo.
+
+                      En mensual: qué pasa si te quieres salir, que es la duda
+                      que viene justo después de ver el precio y que si no está
+                      aquí manda a buscarla a las preguntas.
+
+                      En anual: cuánto se cobra de verdad y cuándo. Es la
+                      contrapartida de enseñar la cifra mensualizada arriba, y por
+                      eso no es opcional ni va en letra más pequeña que el resto.
+
+                      Y en un plan sin anual, con el interruptor en «Al año», se
+                      dice que ese solo va por meses en vez de callarse: la
+                      alternativa es una tarjeta que no reacciona al interruptor
+                      y parece rota. */}
+                  {p.price_cents ? (
+                    <span className="lp-plan-nota">
+                      {!anual && 'Sin permanencia · baja cuando quieras'}
+                      {anual && p.price_cents_year && (
+                        <>Facturado anual · {planPrice(p, { anual: true, conPeriodo: false })}</>
+                      )}
+                      {anual && !p.price_cents_year && 'Este plan solo va al mes'}
+                    </span>
+                  ) : (
+                    <span className="lp-plan-nota">Sin tarjeta · sin fecha</span>
+                  )}
+
+                  {/* El anual como reclamo, solo cuando se está mirando el
+                      mensual: es ahí donde es una novedad. Con el interruptor ya
+                      en «Al año», repetirlo sería decir dos veces lo mismo en dos
+                      líneas seguidas. */}
+                  {!anual && p.price_cents_year && (
+                    <span className="lp-plan-nota is-anual">
+                      o {planPrice(p, { anual: true, conPeriodo: false })} al año
+                      {planAhorroPct(p) && <> · −{planAhorroPct(p)}&nbsp;%</>}
+                    </span>
+                  )}
 
                   {/* El botón va ENCIMA de la lista, no al final de la tarjeta.
                       Quien lee una tabla de precios decide con el nombre, la
@@ -1361,11 +1464,19 @@ export const LandingPage = () => {
                   </Link>
 
                   {/*
-                    Las dos únicas líneas que separan un plan de otro salen de las
-                    dos únicas columnas que los separan en la tabla
-                    (`max_clients` y `max_seats`). Escribir aquí una lista de
-                    funciones por plan sería inventarse un producto: aquí no hay
-                    nada bajo llave, y la tercera línea lo dice en voz alta.
+                    Cada línea sale de una COLUMNA de `plan_limits`, ninguna está
+                    escrita a mano por plan. Es lo que impide que esta lista y lo
+                    que de verdad aplica la base de datos se separen: si mañana
+                    Solo lleva integraciones, es un `UPDATE` y la portada se
+                    entera sola.
+
+                    ── La línea que había que cambiar ────────────────────────
+                    Aquí ponía «la aplicación entera, sin nada bajo llave», y era
+                    verdad hasta que la 0065 capó las integraciones. Se sustituye
+                    por lo que SIGUE siendo cierto y además es lo que se quería
+                    decir: el bucle —programar, comer, registrar, revisar— está
+                    entero en los cuatro planes, también en el gratuito. Lo que
+                    se capa cuelga de él, no es él.
                   */}
                   <ul className="lp-plan-list">
                     <li>
@@ -1382,8 +1493,14 @@ export const LandingPage = () => {
                     </li>
                     <li>
                       <Check size={15} strokeWidth={2.5} aria-hidden="true" />
-                      La aplicación entera, sin nada bajo llave
+                      El bucle entero: programar, comer, registrar y revisar
                     </li>
+                    {p.has_integrations && (
+                      <li>
+                        <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+                        Integraciones
+                      </li>
+                    )}
                   </ul>
                 </article>
               ))}
@@ -1394,6 +1511,23 @@ export const LandingPage = () => {
             Archivar a quien lo ha dejado no ocupa sitio en tu plan y conserva entero su historial
             para cuando vuelva. Y el día que dejes de pagar, la cuenta pasa a solo lectura: leer,
             exportar y borrar no se bloquean nunca.
+          </p>
+
+          {/* Lo que la tabla no puede contestar. El tope de entrenadores del plan
+              más alto son tres (`max_seats`), y un centro con seis no cabe en
+              ninguna fila: en vez de dejarle deducir que esto no es para él, se
+              le dice que eso se habla. Va como texto y no como una cuarta
+              tarjeta con «consultar» dentro, que es la forma de estropear una
+              tabla en la que todas las demás cifras son cifras. */}
+          {/* Sin correo: la aplicación NO tiene una dirección pública de contacto
+              —los datos del titular siguen siendo huecos en las páginas legales—,
+              así que poner un `mailto:` aquí sería inventarse una. El camino que
+              sí existe hoy es la cuenta gratuita y Ajustes → Ayuda, que escribe
+              en `support` y avisa por `support-notify`. */}
+          <p className="lp-plan-foot">
+            ¿Un centro con más de tres entrenadores? Esos no salen en la tabla:{' '}
+            <Link to="/entrar?alta=1">abre una cuenta gratis</Link> y escríbenos desde Ajustes →
+            Ayuda.
           </p>
         </div>
       </Entra>

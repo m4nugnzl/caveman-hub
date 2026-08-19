@@ -423,23 +423,6 @@ export const ClientRoutine = ({
 
   return (
     <div className="stack">
-      {client.youtubeExplanationUrl && (
-        <Panel tight className="row between wrap gap-3">
-          <div>
-            <strong>Vídeo explicativo de tu rutina</strong>
-            <p className="t-sm t-secondary">Grabado por tu entrenador para ti</p>
-          </div>
-          <a
-            href={client.youtubeExplanationUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="btn btn-secondary"
-          >
-            <Play size={15} /> Ver en YouTube
-          </a>
-        </Panel>
-      )}
-
       <div className="col gap-3">
         <div className="row between wrap gap-2">
           <span className="section-label">Tu {unit.toLowerCase()}</span>
@@ -471,6 +454,30 @@ export const ClientRoutine = ({
 
         {rest.length > 0 && (
           <p className="t-xs t-tertiary">Descansas {joinDays(rest)}.</p>
+        )}
+
+        {/*
+          El vídeo explicativo, en UNA línea y no en un panel.
+
+          Era una tarjeta entera ENCIMA de la tira, en el sitio de honor, todas
+          las visitas e indefinidamente — y se mira las dos primeras semanas.
+          Esta pantalla se abre en el gimnasio para registrar la sesión de hoy;
+          el vídeo tiene que estar (quien lo necesita, lo necesita de verdad),
+          pero como referencia al pie de la semana, no como portada perpetua.
+        */}
+        {client.youtubeExplanationUrl && (
+          <p className="t-xs t-tertiary">
+            <a
+              className="link"
+              href={client.youtubeExplanationUrl}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <Play size={12} className="icon-inline" />
+              Vídeo explicativo de tu rutina
+            </a>{' '}
+            · grabado por tu entrenador
+          </p>
         )}
       </div>
 

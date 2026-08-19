@@ -104,7 +104,7 @@ Deno.serve(async (request) => {
     const user = userData?.user;
     if (userError || !user) return json({ error: 'Sesión no válida.' }, 401);
 
-    const { action, plan: planName } = await request.json();
+    const { action, plan: planName, periodo } = await request.json();
 
     const { data: membership } = await service
       .from('team_members')
@@ -147,9 +147,27 @@ Deno.serve(async (request) => {
       return json({ error: 'Falta el plan.' }, 400);
     }
 
+    /*
+      Cada cuánto se paga. Del navegador viaja una PALABRA de dos posibles, nunca
+      un `price_…`, que es la misma regla que ya gobierna el plan y por el mismo
+      motivo: lo que decide cuánto se cobra se lee en el servidor. Aquí además la
+      palabra ni siquiera llega a Stripe — solo elige de qué columna sale el
+      precio—, así que un valor inventado no puede acabar en ningún sitio.
+
+      Sin `periodo` es mensual. Es lo que manda la aplicación que había antes de
+      esta línea, y una versión vieja de la interfaz tiene que seguir contratando
+      lo que contrataba.
+    */
+    const anual = periodo === 'year';
+    if (periodo !== undefined && periodo !== 'month' && periodo !== 'year') {
+      return json({ error: 'Ese periodo de pago no existe.' }, 400);
+    }
+
     const { data: planRow } = await service
       .from('plan_limits')
-      .select('plan, label, stripe_price_id, stripe_product_id, purchasable')
+      .select(
+        'plan, label, stripe_price_id, stripe_price_id_year, stripe_product_id, purchasable'
+      )
       .eq('plan', planName)
       .maybeSingle();
 
@@ -166,7 +184,21 @@ Deno.serve(async (request) => {
       el precio guardado habría que acordarse de venir a cambiarlo, y si se olvida
       se sigue cobrando el viejo sin que nada avise.
     */
-    let priceId = planRow.stripe_price_id;
+    let priceId = anual ? planRow.stripe_price_id_year : planRow.stripe_price_id;
+
+    /*
+      El anual NO cae al precio predeterminado del producto, y eso es a propósito:
+      el predeterminado es el mensual (0062), así que la red de seguridad de abajo
+      cobraría 39 € al mes a quien pulsó «pagar por años». Un plan sin precio anual
+      no se puede pagar por años y punto — que es, además, lo que la pantalla ya
+      cree, porque solo ofrece el anual cuando hay `price_cents_year`.
+    */
+    if (anual && !priceId) {
+      return json(
+        { error: `El plan ${planRow.label} no se puede pagar por años todavía.` },
+        400
+      );
+    }
 
     if (!priceId && planRow.stripe_product_id) {
       const response = await fetch(

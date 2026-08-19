@@ -84,7 +84,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
 
       {pair.before && pair.after && (
         <Panel tight className="col gap-4">
-          <SectionTitle color="var(--accent)">Tu evolución</SectionTitle>
+          <SectionTitle>Tu evolución</SectionTitle>
 
           <div className="comparison-grid">
             {[pair.before, pair.after].map((photo, index) => (

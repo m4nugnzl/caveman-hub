@@ -70,9 +70,10 @@ export const ClientDiet = ({ plan }) => {
       {plan.type === 'closed' && (
         <Panel className="col gap-4">
           <div className="row between wrap gap-3">
-            <SectionTitle icon={Utensils} color="var(--accent)">
-              Mi menú
-            </SectionTitle>
+            {/* Sin `color`: el acento ES la tinta del texto, así que pintarlo era
+                un no-op — y el prop de color en un título queda para el DATO
+                (ver `ChartCard`), nunca para decorar el cromo. */}
+            <SectionTitle icon={Utensils}>Mi menú</SectionTitle>
             {/*
               ── Aquí ya no va ninguna cifra ────────────────────────────────
               Había un «~3072 kcal/día (2081–3203)»: un total aproximado, porque
@@ -124,14 +125,8 @@ export const ClientDiet = ({ plan }) => {
           </SectionTitle>
           {notas.map((note) => (
             <div className="card-inset col gap-1" key={note.id}>
-              {note.title && (
-                <span className="t-sm" style={{ fontWeight: 700 }}>
-                  {note.title}
-                </span>
-              )}
-              <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
-                {note.body}
-              </p>
+              {note.title && <span className="t-sm t-strong">{note.title}</span>}
+              <p className="t-sm pre-wrap">{note.body}</p>
             </div>
           ))}
         </Panel>

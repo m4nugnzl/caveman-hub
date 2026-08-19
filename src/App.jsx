@@ -6,6 +6,7 @@ import { track } from '@/lib/analytics';
 import { useApp } from '@/context/AppContext';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { Header } from '@/components/Header';
+import { PreviewBar } from '@/components/PreviewBar';
 import { Login } from '@/components/Auth/Login';
 import { PasswordResetPage } from '@/components/Auth/PasswordResetPage';
 import { LegalPage } from '@/components/legal/LegalPage';
@@ -65,6 +66,7 @@ import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
+import { AppSkeleton } from '@/components/ui/AppSkeleton';
 import { PlanNotice } from '@/components/PlanNotice';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
@@ -190,7 +192,7 @@ const ConServicio = ({ servicio, to, children }) => {
 export default function App() {
   /* `activeClient` solo se usa para volver del portal del cliente: su ruta no
      lleva el id dentro, así que sin él no se puede componer la del entrenador. */
-  const { session, loading, loadError, conflict, resolveConflict, view, activeClient } = useApp();
+  const { session, loading, loadError, conflict, resolveConflict, view, isCoach, activeClient } = useApp();
 
   /*
     La revisión compartida se ve SIN sesión, y por eso va antes de todo lo demás:
@@ -243,12 +245,16 @@ export default function App() {
     );
   }
 
+  /*
+    El arranque enseña el esqueleto, no un «Cargando…» en texto plano: es lo
+    primero que ve todo usuario en todas las sesiones, y una línea gris sobre el
+    lienzo vacío se siente frágil. El esqueleto pinta la marca real y la promesa
+    de la estructura (ver `ui/AppSkeleton`). El respaldo de Suspense de abajo, en
+    cambio, SIGUE siendo texto sobrio a propósito: cubre fragmentos que tardan
+    ~80 ms, donde cualquier animación llama más que la espera.
+  */
   if (loading) {
-    return (
-      <div className="row center" style={{ minHeight: '100vh' }}>
-        <span className="t-secondary">Cargando…</span>
-      </div>
-    );
+    return <AppSkeleton />;
   }
 
   /*
@@ -283,6 +289,10 @@ export default function App() {
       <TourProvider>
       <ReviewSessionProvider>
       <Header />
+      {/* La barra del modo preview cuelga del MODO, no de una pantalla: tiene
+          que ofrecer la salida también cuando el portal no puede pintarse
+          (coach en preview sin cliente activo). Ver `PreviewBar.jsx`. */}
+      {isCoach && view === 'client' && <PreviewBar />}
       <main>
         {loadError && (
           <div className="layout" style={{ paddingBottom: 0 }}>

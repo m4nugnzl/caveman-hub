@@ -4,7 +4,7 @@ import { UserX } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
 import { CLIENT_SECTIONS, isSectionActive, sectionsFor } from '@/routes';
-import { EmptyState, Panel } from '@/components/ui/primitives';
+import { EmptyState } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientPrivacy } from './ClientPrivacy';
 
@@ -52,12 +52,14 @@ export const ClientLayout = () => {
 
   return (
     <div className="layout layout-narrow">
-      {isCoach && (
-        <Panel tight className="client-preview">
-          Estás previsualizando el portal de <strong>{activeClient.name}</strong> tal y como lo ve tu
-          cliente.
-        </Panel>
-      )}
+      {/*
+        ══ Aquí vivió la banda de «estás previsualizando» ═════════════════════
+
+        Era un `Panel` pasivo dentro del marco, así que no aparecía cuando el
+        marco no se pintaba (coach sin cliente activo) y no ofrecía la salida.
+        Ahora es `PreviewBar`, montada en `App.jsx` junto a la cabecera: cuelga
+        del modo, no de esta pantalla, y lleva el botón de volver.
+      */}
 
       {/*
         ══ El consentimiento ya no se pide DOS veces ══════════════════════════

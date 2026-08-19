@@ -82,9 +82,10 @@ const CLIENT_STEPS = [
     title: 'Y una vez por semana, el check-in',
     body: (
       <>
-        Tu peso y tus medidas en <strong>Mis check-ins</strong>, y tus fotos en{' '}
-        <strong>Mis fotos</strong>. Es lo que convierte sensaciones sueltas en una evolución que se
-        puede mirar.
+        {/* La sección se llama como en la barra: las dos que nombraba este paso
+            se fusionaron en «Mi evolución» y el texto se había quedado viejo. */}
+        Tu peso, tus medidas y tus fotos, en <strong>Mi evolución</strong>. Es lo que convierte
+        sensaciones sueltas en una evolución que se puede mirar.
       </>
     ),
   },

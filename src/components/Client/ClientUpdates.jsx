@@ -98,7 +98,7 @@ export const ClientUpdates = ({ client }) => {
       {hayNovedades && (
         <div className="col gap-2">
           <span className="section-label">
-            <BellRing size={12} style={{ display: 'inline', verticalAlign: -2, marginRight: 5 }} />
+            <BellRing size={12} className="icon-inline" />
             Novedades
           </span>
 
@@ -139,7 +139,7 @@ export const ClientUpdates = ({ client }) => {
             después qué se espera de él. Al revés, la pantalla se abre riñendo.
           */}
           <span className="section-label">
-            <CircleAlert size={12} style={{ display: 'inline', verticalAlign: -2, marginRight: 5 }} />
+            <CircleAlert size={12} className="icon-inline" />
             Te falta esta semana
           </span>
 

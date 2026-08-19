@@ -43,6 +43,7 @@ import {
   SectionTitle,
   SegmentedControl,
 } from '@/components/ui/primitives';
+import { useToast } from '@/components/ui/ToastProvider';
 import { ClientDataPanel } from './ClientDataPanel';
 import { inviteMessage, useInvite } from './useInvite';
 
@@ -773,10 +774,22 @@ const Alta = ({ client, onUpdate, onPreferences }) => {
 
 export const ClientFile = () => {
   const { activeClient, updateClient, updateClientPreferences, markClientPaid } = useApp();
+  const toast = useToast();
 
   /* El marco ya redirige cuando el id no existe; esto solo cubre el instante
      entre montar la ruta y tener el cliente cargado. */
   if (!activeClient) return null;
+
+  /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
+     y tiene que dejar la misma señal, se pulse donde se pulse. */
+  const marcarCobrado = () => {
+    const res = markClientPaid(activeClient.id);
+    if (res?.ok === false) return;
+    toast({
+      text: `Cobro de ${activeClient.name} anotado y fecha adelantada.`,
+      action: { label: 'Deshacer', onClick: () => updateClient(activeClient.id, res.prev) },
+    });
+  };
 
   return (
     <div className="stack">
@@ -802,7 +815,7 @@ export const ClientFile = () => {
       <Cobro
         client={activeClient}
         onUpdate={(fields) => updateClient(activeClient.id, fields)}
-        onMarkPaid={() => markClientPaid(activeClient.id)}
+        onMarkPaid={marcarCobrado}
       />
 
       <Panel className="col gap-3">

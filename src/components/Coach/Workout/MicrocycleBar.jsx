@@ -125,15 +125,16 @@ export const MicrocycleBar = ({
         </div>
       </div>
 
-      <div className="rail" role="tablist" aria-label={`${unit}s del programa`}>
+      {/* `group` + `aria-pressed`, no `tablist`: sin flechas ni `tabpanel` el
+          patrón de tabs queda a medias, y los dos estados a la vez confundían
+          al lector de pantalla. Mismo contrato que `WeekPicker`. */}
+      <div className="rail" role="group" aria-label={`${unit}s del programa`}>
         {weeks.map((week) => (
           <button
             key={week}
             type="button"
-            role="tab"
             className="chip"
             aria-pressed={week === activeWeek}
-            aria-selected={week === activeWeek}
             onClick={() => onSelect(week)}
           >
             {unit.charAt(0)}

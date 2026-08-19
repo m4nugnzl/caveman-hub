@@ -401,7 +401,7 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
                 {/* `white-space: pre-wrap` conserva los saltos de línea: la gente
                     escribe listas y pasos numerados, y sin esto llegan en un
                     párrafo corrido que no se entiende. */}
-                <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
+                <p className="t-sm pre-wrap">
                   {msg.body}
                 </p>
                 <AdjuntoMensaje path={msg.attachmentPath} url={msg.attachmentUrl} />

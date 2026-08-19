@@ -93,11 +93,21 @@ export const Panel = ({
  * colgaba de la nada. El único `h1` del portal era «Hola, Marta», repetido
  * idéntico en las siete secciones — para un lector de pantalla, siete pantallas
  * con el mismo nombre. El saludo es cortesía; el título es estructura.
+ *
+ * ── `remate`: la parte humana del título, en cursiva ────────────────────────
+ * La misma forma que los titulares de la portada: «Le montas la semana, *y él
+ * la registra*». Dentro del producto es para la frase que acompaña al nombre de
+ * la pantalla —el saludo del portal del cliente, sobre todo— y va en un `em` de
+ * verdad: énfasis para el lector de pantalla, cursiva de Archivo para el ojo.
+ * No es un segundo título: si hacen falta dos frases, la segunda es `sub`.
  */
-export const PageHead = ({ title, sub, action }) => (
+export const PageHead = ({ title, remate, sub, action }) => (
   <div className="section-head">
     <div>
-      <h1>{title}</h1>
+      <h1>
+        {title}
+        {remate && <> <em>{remate}</em></>}
+      </h1>
       {sub && <p>{sub}</p>}
     </div>
     {action}
@@ -184,7 +194,9 @@ export const Notice = ({ tone = 'info', children, action }) => {
 // ── Estado vacío ───────────────────────────────────────────────────────────
 
 export const EmptyState = ({ icon: Icon, title, message, action }) => (
-  <Panel>
+  /* La lumbre: un vacío suele ser lo único que hay en pantalla, así que puede
+     llevar el momento cálido sin pelearse con nadie. Ver `.card-lumbre`. */
+  <Panel className="card-lumbre">
     <div className="empty">
       {Icon && (
         <span className="empty-icon">
@@ -449,15 +461,20 @@ export const SegmentedControl = ({ value, onChange, options, tone = '', label, a
  * habían divergido entre sí.
  */
 export const WeekPicker = ({ weeks, value, onChange, prefix = 'Sem', onAdd, addLabel = 'Nueva' }) => (
-  <div className="rail" role="tablist" aria-label="Semanas del programa">
+  /*
+    `group` + `aria-pressed`, NO `tablist`/`tab`. El patrón de tabs exige un
+    contrato completo —flechas para moverse, `tabpanel` asociado— que esto no
+    tiene ni necesita; y llevaba `aria-pressed` Y `aria-selected` a la vez, así
+    que un lector de pantalla anunciaba dos estados. Es el mismo contrato que ya
+    usa `SegmentedControl`.
+  */
+  <div className="rail" role="group" aria-label="Semanas del programa">
     {weeks.map((week) => (
       <button
         key={week}
         type="button"
-        role="tab"
         className="chip"
         aria-pressed={week === value}
-        aria-selected={week === value}
         onClick={() => onChange(week)}
       >
         {prefix} {week}

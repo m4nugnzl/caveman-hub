@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import { ArrowLeft, Eye, Settings, UserPlus } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useApp } from '@/context/AppContext';
 import { feeLabel, paymentState } from '@/domain/billing';
 import { clientProtocol } from '@/domain/protocol';
 import { dayMonthMaybeYear } from '@/lib/dates';
@@ -10,7 +10,6 @@ import {
   COACH_CLIENT,
   COACH_HOME,
   COACH_PRIMARY,
-  SETTINGS_SECTIONS,
   clientPath,
   isSectionActive,
   sameSectionFor,
@@ -18,22 +17,34 @@ import {
 } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
+import { Logo } from '@/components/ui/Logo';
+import { HeaderActions, Omnibox } from '@/components/Header';
 import { ClientSwitcher } from './ClientSwitcher';
 import { GettingStarted } from './GettingStarted';
 
 /**
- * Marco del panel del entrenador: navegación de dos niveles y contenido.
+ * Marco del panel del entrenador: el chasis con barra lateral.
  *
- * ── El problema que resuelve la estructura ──────────────────────────────────
- * Antes había once pestañas en una sola fila, mezclando planos distintos:
- * «Cartera» habla de todos los clientes, «Rutina» de uno, e «Integraciones» de
- * ninguno. Once opciones planas obligan a leerlas todas cada vez y en el móvil se
- * salían de la pantalla.
+ * ── De dónde viene la estructura ────────────────────────────────────────────
+ * Primero fueron once pestañas en una fila, mezclando planos: «Cartera» habla de
+ * todos los clientes, «Rutina» de uno, e «Integraciones» de ninguno. Se ordenó
+ * en dos niveles horizontales, luego en una barra lateral que APILABA los dos
+ * planos —Hoy/Clientes arriba y, debajo, el cliente abierto con sus secciones,
+ * con la cuenta y la búsqueda también dentro—. Ese apilamiento era el problema:
+ * tres asuntos distintos (quién soy, a dónde voy, en quién estoy) compartiendo
+ * columna.
  *
- * Ahora la barra de arriba tiene DOS entradas —«Hoy» y «Clientes»— y el segundo
- * nivel aparece solo cuando estás dentro de algo: las secciones del cliente, o las
- * de ajustes. Nunca los dos a la vez. La configuración cuelga del avatar, que es
- * donde la busca todo el mundo (ver `AccountMenu`).
+ * Ahora la barra hace UNA cosa —navegar— y CAMBIA DE PLANO en vez de apilarlos,
+ * igual que ya hacía el subnivel del móvil: fuera de un cliente enseña el nivel
+ * primario; dentro, el cliente entero con su vuelta a la lista. La cuenta y la
+ * búsqueda viven en la barra de herramientas (`.shell-top`), un objeto de
+ * cristal a juego con la barra y alineado con el contenido — no una franja de
+ * borde a borde—, montando las MISMAS piezas que la cabecera del móvil
+ * (`Header.jsx`): el avatar arriba a la derecha en todos los modos, sin saltar
+ * de sitio al previsualizar el portal. En móvil y tableta ni barra ni
+ * herramientas: navegan la cabecera, la barra del pulgar y el subnivel de
+ * siempre. Las DOS geometrías montan aquí, y la hoja de estilos decide cuál se
+ * ve.
  *
  * El cliente activo lo manda la URL. El contexto lo sincroniza desde la ruta, no al
  * revés: una sola fuente de verdad, la de arriba.
@@ -76,13 +87,13 @@ const ChapaDeCobro = ({ client }) => {
 
 export const CoachLayout = () => {
   const { clients, loading, selectedClientId, setSelectedClientId, activeClient } = useApp();
+  const { setViewMode } = useActions();
   const { clientId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
 
   const hasClients = clients.length > 0;
   const onClient = Boolean(clientId);
-  const onSettings = location.pathname.startsWith('/ajustes');
 
   /*
     La ruta manda sobre el contexto. `clientId` puede venir de una URL pegada, de un
@@ -115,157 +126,269 @@ export const CoachLayout = () => {
     return <Navigate to="/clientes" replace />;
   }
 
-  return (
-    <div className="layout">
-      {/* ── Nivel 1: dos entradas, siempre ──────────────────────────────── */}
-      <nav className="tabs" aria-label="Secciones principales">
-        {COACH_PRIMARY.map(({ path, label, icon: Icon }) => (
-          <NavLink
-            key={path}
-            to={path}
-            className="tab"
-            /* «Clientes» no debe marcarse por estar dentro de un cliente. */
-            end
-          >
-            <Icon size={16} />
-            {label}
-          </NavLink>
-        ))}
-      </nav>
+  /*
+    ── Las piezas que se ven en las DOS geometrías ─────────────────────────────
+    El selector de cliente y sus chapas aparecen en la barra lateral (escritorio)
+    y en el subnivel (móvil). Se declaran UNA vez y se rinden en los dos huecos:
+    un elemento de React es un descriptor y puede pintarse en dos sitios, así que
+    la lista de clientes del selector —con su caso del archivado— no puede
+    divergir entre geometrías.
+  */
+  const selector = onClient && activeClient && (
+    <ClientSwitcher
+      /*
+        La cartera viva, más el cliente abierto si resulta estar archivado. Sin
+        ese añadido, entrar por enlace directo a la ficha de alguien archivado
+        enseñaría en el selector el nombre de OTRA persona —el primero de la
+        lista— mientras debajo se ve la ficha del archivado. Aparecer no le
+        desarchiva: sigue fuera de la cartera en cuanto se sale de su ficha.
+      */
+      clients={
+        activeClient && !clients.some((c) => c.id === activeClient.id)
+          ? [activeClient, ...clients]
+          : clients
+      }
+      selectedClientId={selectedClientId}
+      /* Cambiar de cliente conserva la sección: si estabas en su nutrición,
+         pasas a la nutrición del otro. Salvo que al otro no le lleves dieta, y
+         entonces se cae a su resumen: mandarle a una sección que no tiene sería
+         un salto y un rebote. */
+      onSelect={(id) =>
+        navigate(
+          sameSectionFor(
+            location.pathname,
+            id,
+            clientProtocol(clients.find((c) => c.id === id)?.preferences)
+          )
+        )
+      }
+    />
+  );
 
-      {/* ── Nivel 2a: dentro de un cliente ──────────────────────────────── */}
-      {onClient && activeClient && (
-        <div className="subnav">
-          <div className="subnav-head">
+  const chapas = onClient && activeClient && (
+    <>
+      <ChapaDeCobro client={activeClient} />
+      {activeClient.startDate && (
+        <span className="badge">Desde {dayMonthMaybeYear(activeClient.startDate)}</span>
+      )}
+    </>
+  );
+
+  /*
+    La marca de «estás aquí» NO la decide `NavLink` por prefijo de URL. Desde que
+    una sección tiene dos niveles —`revision` y `revision/fotos`, `resumen` y
+    `analitica`— el prefijo se queda corto y bajar al segundo nivel dejaba la
+    navegación entera sin marcar. Los niveles se declaran en `also`, en
+    `routes.jsx`. Y solo las secciones que existen para él: a quien no le llevas
+    dieta no le sobra media pantalla, es que no la tiene (`sectionsFor`).
+  */
+  const seccionesDeCliente =
+    onClient && activeClient
+      ? sectionsFor(COACH_CLIENT, clientProtocol(activeClient.preferences)).map((seccion) => ({
+          seccion,
+          activa: isSectionActive(location.pathname, seccion, '/c/[^/]+'),
+        }))
+      : [];
+
+  return (
+    <div className="shell">
+      {/* ══ La barra lateral: solo existe en escritorio (ver EL CHASIS) ═══ */}
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <Logo subtitle={null} />
+        </div>
+
+        {/*
+          ── El panel intercambiable ─────────────────────────────────────────
+          La barra no apila planos: CAMBIA de plano, como el subnivel del móvil.
+          Fuera de un cliente, el nivel primario; dentro, el cliente entero con
+          su vuelta a la lista. La `key` fuerza el remontaje para que el cambio
+          se anuncie con el fundido corto de `.sidebar-pane`.
+        */}
+        {onClient && activeClient ? (
+          <div className="sidebar-pane" key="cliente">
+            <NavLink to="/clientes" className="side-link side-back">
+              <ArrowLeft size={15} />
+              Clientes
+            </NavLink>
+
+            {selector}
+            <div className="sidebar-meta">{chapas}</div>
+
+            <nav className="sidebar-nav" aria-label={`Secciones de ${activeClient.name}`}>
+              {seccionesDeCliente.map(({ seccion, activa }) => {
+                const { path, label, icon: Icon } = seccion;
+                return (
+                  <NavLink
+                    key={path}
+                    to={clientPath(clientId, path)}
+                    className={`side-link${activa ? ' active' : ''}`}
+                    aria-current={activa ? 'page' : undefined}
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+
+            {/*
+              Ver el portal de ESTE cliente. Vivió dentro del menú de cuenta y
+              ahí no lo imaginaba nadie; pertenece al cliente, así que va con él.
+
+              Aquí SOLO se cambia el modo. La ruta la traduce el comodín del
+              árbol de destino (`OtherViewFallback`, en `App.jsx`): navegar
+              también desde aquí pierde la carrera contra ese comodín, porque
+              React Router navega en una transición de prioridad baja y el
+              cambio de modo es una actualización normal.
+            */}
             <button
               type="button"
-              className="btn btn-icon"
-              onClick={() => navigate('/clientes')}
-              aria-label="Volver a la lista de clientes"
-              title="Volver a la lista de clientes"
+              className="side-link side-action"
+              onClick={() => setViewMode('client')}
             >
-              <ArrowLeft size={16} />
+              <Eye size={15} />
+              Ver su portal
             </button>
-
-            <ClientSwitcher
-              /*
-                La cartera viva, más el cliente abierto si resulta estar
-                archivado. Sin ese añadido, entrar por enlace directo a la ficha
-                de alguien archivado enseñaría en el selector el nombre de OTRA
-                persona —el primero de la lista— mientras debajo se ve la ficha
-                del archivado. Aparecer no le desarchiva: sigue fuera de la
-                cartera en cuanto se sale de su ficha.
-              */
-              clients={
-                activeClient && !clients.some((c) => c.id === activeClient.id)
-                  ? [activeClient, ...clients]
-                  : clients
-              }
-              selectedClientId={selectedClientId}
-              /* Cambiar de cliente conserva la sección: si estabas en su
-                 nutrición, pasas a la nutrición del otro. Salvo que al otro no le
-                 lleves dieta, y entonces se cae a su resumen: mandarle a una
-                 sección que no tiene sería un salto y un rebote. */
-              onSelect={(id) =>
-                navigate(
-                  sameSectionFor(
-                    location.pathname,
-                    id,
-                    clientProtocol(clients.find((c) => c.id === id)?.preferences)
-                  )
-                )
-              }
-            />
-
-            <div className="row gap-2 wrap">
-              <ChapaDeCobro client={activeClient} />
-              {activeClient.startDate && (
-                <span className="badge">Desde {dayMonthMaybeYear(activeClient.startDate)}</span>
-              )}
-            </div>
           </div>
-
-          {/*
-            La marca de «estás aquí» NO la decide `NavLink` por prefijo de URL.
-            Desde que una sección tiene dos niveles —`revision` y
-            `revision/fotos`, `resumen` y `analitica`— el prefijo se queda corto y
-            bajar al segundo nivel dejaba el carril entero sin marcar. Los niveles
-            se declaran en `also`, en `routes.jsx`.
-          */}
-          {/* Solo las secciones que existen para él: a quien no le llevas dieta
-              no le sobra media pantalla, es que no la tiene. Ver `sectionsFor`. */}
-          <nav className="rail" aria-label={`Secciones de ${activeClient.name}`}>
-            {sectionsFor(COACH_CLIENT, clientProtocol(activeClient.preferences)).map((seccion) => {
-              const { path, label, icon: Icon } = seccion;
-              const activa = isSectionActive(location.pathname, seccion, '/c/[^/]+');
-              return (
+        ) : (
+          <div className="sidebar-pane" key="primario">
+            <nav className="sidebar-nav" aria-label="Secciones principales">
+              {COACH_PRIMARY.map(({ path, label, icon: Icon }) => (
                 <NavLink
                   key={path}
-                  to={clientPath(clientId, path)}
-                  className={`chip${activa ? ' active' : ''}`}
-                  aria-current={activa ? 'page' : undefined}
+                  to={path}
+                  className="side-link"
+                  /* «Clientes» no debe marcarse por estar dentro de un cliente. */
+                  end
                 >
-                  <Icon size={13} />
+                  <Icon size={15} />
                   {label}
                 </NavLink>
-              );
-            })}
-          </nav>
+              ))}
+            </nav>
+          </div>
+        )}
+
+        {/*
+          ── El pie: ajustes, siempre a la vista ─────────────────────────────
+          Un solo enlace, anclado abajo como en cualquier aplicación con barra
+          (el engranaje de Slack o de Linear). La navegación INTERNA de ajustes
+          sigue siendo de `SettingsLayout`, que ya la resuelve en las dos
+          geometrías y lleva el contador de la ayuda; aquí solo está la puerta,
+          que metida en el menú de cuenta no la encontraba nadie.
+        */}
+        <div className="sidebar-foot">
+          <NavLink to="/ajustes" className="side-link">
+            <Settings size={15} />
+            Ajustes
+          </NavLink>
         </div>
-      )}
+      </aside>
 
-      {/* ── Nivel 2b: dentro de ajustes ─────────────────────────────────── */}
-      {onSettings && (
-        <div className="subnav">
-          <nav className="rail" aria-label="Secciones de ajustes">
-            {SETTINGS_SECTIONS.map(({ path, label, icon: Icon, hint }) => (
-              <NavLink key={path} to={`/ajustes/${path}`} className="chip" title={hint}>
-                <Icon size={13} />
-                {label}
-              </NavLink>
-            ))}
-          </nav>
+      <div className="shell-main">
+        {/*
+          ── La barra de herramientas del escritorio ─────────────────────────
+          En el chasis no hay franja de cabecera: sus dos piezas útiles —la
+          búsqueda y la cuenta— van en este objeto de cristal, a juego con la
+          barra lateral y alineado con la columna de contenido. Son las MISMAS
+          piezas que monta la cabecera del móvil (`Header.jsx`): el avatar está
+          siempre arriba a la derecha, en cualquier modo y tamaño.
+        */}
+        <div className="shell-top">
+          <Omnibox />
+          <HeaderActions />
         </div>
-      )}
 
-      {/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
-          entrenador recién registrado y no puede limitarse a estar vacía.
-          «Clientes» ya trae su propio vacío —con el formulario de alta dentro—,
-          por eso aquí solo se cubre la de inicio.
+        <div className="layout">
+          {/* ── El subnivel del móvil: el mismo contexto, en horizontal ──── */}
+          {onClient && activeClient && (
+            <div className="subnav">
+              <div className="subnav-head">
+                <button
+                  type="button"
+                  className="btn btn-icon"
+                  onClick={() => navigate('/clientes')}
+                  aria-label="Volver a la lista de clientes"
+                  title="Volver a la lista de clientes"
+                >
+                  <ArrowLeft size={16} />
+                </button>
 
-          La guía va delante del vacío y no dentro: sin clientes explica por dónde
-          se empieza, y con clientes sigue contestando la pregunta que la trajo
-          —dónde se hace la rutina— hasta que se cierra. */}
-      {!hasClients && location.pathname === COACH_HOME ? (
-        <div className="stack">
-          <GettingStarted />
-          <EmptyState
-            icon={UserPlus}
-            title="Todavía no tienes clientes"
-            message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
-            action={
-              <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
-                <UserPlus size={17} /> Dar de alta un cliente
-              </button>
-            }
-          />
+                {selector}
+
+                <div className="row gap-2 wrap">{chapas}</div>
+
+                {/* La misma puerta al portal que en la barra lateral: solo
+                    cambia el modo, la ruta la traduce `OtherViewFallback`. */}
+                <button
+                  type="button"
+                  className="btn btn-sm subnav-view"
+                  onClick={() => setViewMode('client')}
+                >
+                  <Eye size={14} />
+                  Ver su portal
+                </button>
+              </div>
+
+              <nav className="rail" aria-label={`Secciones de ${activeClient.name}`}>
+                {seccionesDeCliente.map(({ seccion, activa }) => {
+                  const { path, label, icon: Icon } = seccion;
+                  return (
+                    <NavLink
+                      key={path}
+                      to={clientPath(clientId, path)}
+                      className={`chip${activa ? ' active' : ''}`}
+                      aria-current={activa ? 'page' : undefined}
+                    >
+                      <Icon size={13} />
+                      {label}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+
+          {/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
+              entrenador recién registrado y no puede limitarse a estar vacía.
+              «Clientes» ya trae su propio vacío —con el formulario de alta
+              dentro—, por eso aquí solo se cubre la de inicio.
+
+              La guía va delante del vacío y no dentro: sin clientes explica por
+              dónde se empieza, y con clientes sigue contestando la pregunta que
+              la trajo —dónde se hace la rutina— hasta que se cierra. */}
+          {!hasClients && location.pathname === COACH_HOME ? (
+            <div className="stack">
+              <GettingStarted />
+              <EmptyState
+                icon={UserPlus}
+                title="Todavía no tienes clientes"
+                message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
+                action={
+                  <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
+                    <UserPlus size={17} /> Dar de alta un cliente
+                  </button>
+                }
+              />
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </div>
-      ) : (
-        <Outlet />
-      )}
 
-      {/*
-        En móvil, la barra inferior lleva el PRIMER nivel —Hoy, Cartera,
-        Clientes—, que es el que las pestañas de arriba dejan de mostrar en cuanto
-        la pantalla es estrecha. El segundo nivel (las secciones del cliente, las
-        de ajustes) se queda en su carril: son dos planos distintos y ponerlos los
-        dos abajo volvería a mezclarlos, que es justo lo que esta navegación vino
-        a arreglar.
-      */}
-      <BottomNav
-        label="Secciones principales"
-        items={COACH_PRIMARY.map(({ path, label, icon }) => ({ to: path, label, icon }))}
-      />
+        {/*
+          Por debajo del corte del chasis, la barra inferior lleva el PRIMER
+          nivel —Hoy, Clientes—. El segundo nivel (las secciones del cliente,
+          las de ajustes) se queda en su carril: son dos planos distintos y
+          ponerlos los dos abajo volvería a mezclarlos, que es justo lo que esta
+          navegación vino a arreglar.
+        */}
+        <BottomNav
+          label="Secciones principales"
+          items={COACH_PRIMARY.map(({ path, label, icon }) => ({ to: path, label, icon }))}
+        />
+      </div>
     </div>
   );
 };

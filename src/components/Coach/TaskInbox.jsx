@@ -49,8 +49,17 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
         </span>
       </span>
 
+      {/* Un botón, no un chip: estas acciones ESCRIBEN (cobrar, invitar, cerrar
+          una revisión). En el resto del producto el chip significa «estar en un
+          sitio» —la semana elegida, el filtro activo—, y es la misma regla por
+          la que la cola de revisiones dejó de usarlos (ver `ReviewQueue`). */}
       {action && (
-        <button type="button" className="chip" onClick={action.onClick} title={action.title}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={action.onClick}
+          title={action.title}
+        >
           <action.icon size={12} /> {action.label}
         </button>
       )}

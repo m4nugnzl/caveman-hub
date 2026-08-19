@@ -48,7 +48,7 @@ export const fmt = (v, { decimals = 0, unit = '', dash = '—' } = {}) => {
   return `${round(n, decimals)}${unit}`;
 };
 /**
- * El precio de un plan: «25 € al mes», «Incluido».
+ * El precio de un plan: «39 € al mes», «390 € al año», «Gratis».
  *
  * ── Por qué está aquí y no en la pantalla del plan ──────────────────────────
  * Porque desde que hay página pública lo escriben DOS sitios —Ajustes → Plan y
@@ -57,16 +57,62 @@ export const fmt = (v, { decimals = 0, unit = '', dash = '—' } = {}) => {
  *
  * Los céntimos solo se escriben si los hay: «25,00 €» en una lista de precios
  * redondos es ruido, y lo único que se compara aquí es la cifra.
+ *
+ * ── `anual` ─────────────────────────────────────────────────────────────────
+ * Lee `price_cents_year` (0062). Devuelve `null` —y no «Gratis»— cuando ese plan
+ * no tiene precio anual: son dos cosas distintas y quien llama tiene que poder
+ * distinguirlas para NO ofrecer un botón que no lleva a ninguna parte.
  */
-export const planPrice = (plan, { conPeriodo = true } = {}) => {
-  if (!plan?.price_cents) return 'Gratis';
+export const planPrice = (plan, { conPeriodo = true, anual = false, mensualizado = false } = {}) => {
+  const base = anual ? plan?.price_cents_year : plan?.price_cents;
 
-  const importe = localeNumber(plan.price_cents / 100, {
+  if (anual && !base) return null;
+  if (!base) return 'Gratis';
+
+  /*
+    `mensualizado` enseña el anual dividido entre doce, que es como se comparan
+    dos tarifas: nadie tiene en la cabeza cuánto son 390 € al año frente a 39 al
+    mes, y sí sabe si 32,50 es menos que 39. No es un precio inventado —es el
+    mismo dinero repartido— pero **exige que el total esté a la vista al lado**,
+    y por eso `conPeriodo` sigue diciendo «al mes»: el importe anual completo lo
+    escribe quien llama, en su propia línea.
+  */
+  const cents = anual && mensualizado ? Math.round(base / 12) : base;
+
+  const importe = localeNumber(cents / 100, {
     style: 'currency',
     currency: (plan.currency || 'eur').toUpperCase(),
-    minimumFractionDigits: plan.price_cents % 100 === 0 ? 0 : 2,
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
   });
 
   if (!conPeriodo) return importe;
+  // Con `anual` el periodo lo decide la llamada, no la fila: `interval` describe
+  // a `price_cents`, que es el mensual (ver la cabecera de la 0062).
+  if (anual) return `${importe} al ${mensualizado ? 'mes' : 'año'}`;
   return `${importe} al ${plan.interval === 'year' ? 'año' : 'mes'}`;
+};
+
+/**
+ * Cuánto se ahorra pagando por años, en porcentaje entero: 17.
+ *
+ * ── Por qué en porcentaje y no en meses ─────────────────────────────────────
+ * «Dos meses gratis» se entiende sin traducir y es mejor frase, pero **no cabe**
+ * donde tiene que ir: dentro del botón de un interruptor, al lado de la palabra
+ * «Al año». Una etiqueta que obliga a ensanchar el control que la contiene está
+ * mandando ella sobre el diseño, y aquí lo que manda es que las dos mitades del
+ * carril midan lo mismo. `−17 %` ocupa un tercio y dice lo mismo.
+ *
+ * Se redondea al entero: el 16,67 % exacto es una precisión que nadie usa para
+ * decidir y que ensucia una cifra que se lee de pasada.
+ *
+ * Devuelve `null` si no hay anual o si no sale a cuenta. Esto último no debería
+ * pasar nunca y pasó: con los precios a medio migrar, el «anual» de Solo salía
+ * un 30 % más caro que pagar por meses, y esta guarda es lo único que impidió
+ * que la portada lo anunciara como un ahorro.
+ */
+export const planAhorroPct = (plan) => {
+  if (!plan?.price_cents || !plan?.price_cents_year) return null;
+  const anualSinDescuento = plan.price_cents * 12;
+  const pct = Math.round(((anualSinDescuento - plan.price_cents_year) / anualSinDescuento) * 100);
+  return pct > 0 ? pct : null;
 };

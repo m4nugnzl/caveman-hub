@@ -3,6 +3,7 @@ import { Check, MessageSquare, Video, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
+import { useToast } from '@/components/ui/ToastProvider';
 import { planSnapshot } from '@/domain/reviews';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { clientPath } from '@/routes';
@@ -62,9 +63,18 @@ const SIN_CAMBIOS = 'Sin cambios: seguimos igual.';
  */
 export const ReviewBar = () => {
   const { session, end } = useReviewSession();
-  const { reviewCheckIn, submitCheckIn, createReviewUrl, publishUpdate, nutrition, workoutData } =
-    useApp();
+  const {
+    reviewCheckIn,
+    unreviewCheckIn,
+    deleteCheckIn,
+    submitCheckIn,
+    createReviewUrl,
+    publishUpdate,
+    nutrition,
+    workoutData,
+  } = useApp();
   const navigate = useNavigate();
+  const toast = useToast();
   const [modo, setModo] = useState(null); // null | 'texto' | 'video'
   const [texto, setTexto] = useState('');
   const [enCurso, setEnCurso] = useState(false);
@@ -133,6 +143,22 @@ export const ReviewBar = () => {
       setError(res.error);
       return;
     }
+
+    /*
+      El aviso con su «Deshacer». El inverso depende de cómo llegó la fila:
+      si existía —el cliente entregó—, se le quita el sello (0063) y vuelve a
+      la cola; si la acabamos de CREAR aquí para poder cerrar a quien no
+      entregó, deshacer es borrarla entera (0044) — dejarla sin sello sería
+      inventarle una entrega que él nunca hizo.
+    */
+    const creada = !session.checkInId;
+    toast({
+      text: `Semana de ${session.name} cerrada.`,
+      action: {
+        label: 'Deshacer',
+        onClick: () => (creada ? deleteCheckIn(id) : unreviewCheckIn(id)),
+      },
+    });
 
     limpiar();
     end();

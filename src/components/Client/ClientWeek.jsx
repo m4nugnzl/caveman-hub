@@ -128,9 +128,15 @@ export const ClientWeek = ({ client, onDeliver }) => {
 
   if (!client) return null;
 
+  const sinEntregar = !deEstaSemana?.submittedAt && !deEstaSemana?.reviewedAt;
+
   return (
     <div className="stack">
-      <Panel className="col gap-3">
+      {/* La lumbre solo mientras la semana está POR entregar: es la única
+          decisión de esta pantalla y el uso exacto que los tokens le reservan a
+          esa luz. Entregada, la tarjeta vuelve a ser una más — lo que queda es
+          leer, no decidir. */}
+      <Panel className={`col gap-3${sinEntregar ? ' card-lumbre' : ''}`}>
         <SectionTitle icon={Sunrise}>Tu semana</SectionTitle>
 
         {error && <Notice tone="error">{error}</Notice>}
@@ -138,10 +144,7 @@ export const ClientWeek = ({ client, onDeliver }) => {
         {deEstaSemana?.reviewedAt ? (
           <>
             <p className="t-sm">
-              <Check
-                size={14}
-                style={{ display: 'inline', verticalAlign: -2, marginRight: 4, color: 'var(--positive)' }}
-              />
+              <Check size={14} className="icon-inline" style={{ color: 'var(--positive)' }} />
               Tu entrenador ha revisado tu semana.
             </p>
 
@@ -150,15 +153,10 @@ export const ClientWeek = ({ client, onDeliver }) => {
             {deEstaSemana.coachNotes && (
               <div className="card-inset col gap-1">
                 <span className="t-2xs t-tertiary">
-                  <MessageSquareQuote
-                    size={11}
-                    style={{ display: 'inline', verticalAlign: -1, marginRight: 4 }}
-                  />
+                  <MessageSquareQuote size={11} className="icon-inline" />
                   Lo que te dice
                 </span>
-                <p className="t-sm" style={{ whiteSpace: 'pre-wrap' }}>
-                  {deEstaSemana.coachNotes}
-                </p>
+                <p className="t-sm pre-wrap">{deEstaSemana.coachNotes}</p>
               </div>
             )}
           </>
@@ -198,9 +196,12 @@ export const ClientWeek = ({ client, onDeliver }) => {
               entrenador lo pide, sube las fotos, contesta lo que le pregunten, y
               al terminar la semana queda entregada.
             */}
-            <div className="row gap-2 wrap">
-              <button type="button" className="btn btn-primary btn-sm" onClick={onDeliver}>
-                <Send size={14} /> Entregar mi semana
+            {/* A tamaño completo: es LA acción de la semana —el gesto que cierra
+                el círculo del producto— y estaba en un botón pequeño, con el
+                mismo peso que un «Cancelar» cualquiera. */}
+            <div className="row gap-3 wrap">
+              <button type="button" className="btn btn-primary btn-lg" onClick={onDeliver}>
+                <Send size={16} /> Entregar mi semana
               </button>
               <span className="t-xs t-tertiary">
                 {resumen.complete

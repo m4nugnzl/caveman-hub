@@ -19,6 +19,11 @@
 >   recuperarme» no son lo mismo hasta que se prueba una vez.
 > - **Revisión legal** de privacidad y condiciones (§2.2).
 > - **Tres a cinco entrenadores** como socios de diseño antes de publicar precios.
+>
+> **Y una cosa más, añadida el 19 de agosto de 2026: la tarifa de la §5 no da de
+> sí.** Dos peldaños hacen que el precio no crezca con el cliente, así que todo el
+> crecimiento tiene que venir de cuentas nuevas. La §7 lo desmonta y propone la
+> tarifa que lo sustituye.
 
 ---
 
@@ -429,6 +434,11 @@ y no con cuarenta.
 
 ## 5. Empaquetado
 
+> **Esta es la tarifa que está cobrando hoy, y la §7 explica por qué se queda
+> corta y con qué se sustituye.** Se deja escrita tal cual: es lo que hay en
+> producción mientras la §7 no se ejecute, y el porqué de la fila «Gratis» —el
+> recuadro de abajo— sigue siendo válido y la §7 no lo toca.
+
 | Plan | Precio | Límite duro (en la base de datos) |
 |---|---|---|
 | Gratis | 0 €, **sin plazo**, sin tarjeta | 3 clientes, 1 asiento |
@@ -471,3 +481,379 @@ que empieza.
 4. Carga perezosa por cliente (§4.2)
 5. Tres a cinco entrenadores como socios de diseño, con onboarding manual, antes
    de publicar precios
+
+---
+
+## 7. La tarifa se queda corta: por qué y con qué se sustituye
+
+> Fecha: 19 de agosto de 2026. **Propuesta, sin ejecutar.** Sustituye la tabla de
+> la §5 cuando se ejecute; no toca nada de la §3 —la columna vertebral de cobro
+> vale igual— ni el porqué del plan gratuito.
+>
+> Sale de una observación del autor: *«25 € como primer pago es poco porque solo
+> existen dos pagos, y la mayoría va a coger el primero»*. Es correcta, y las
+> causas son cuatro y ninguna es «el precio está bajo».
+
+### 7.1 Las cuatro fugas
+
+**1. El techo está al revés.** `Equipo` es ilimitado en clientes **y en
+asientos**. Un gimnasio con seis entrenadores y trescientos clientes paga 69 €.
+Es el cliente que más almacenamiento, más soporte y más carga de arranque
+consume (§4.2), y el que menos margen deja. Y el mecanismo ni siquiera existe:
+`billing-checkout` manda `line_items[0][quantity] = '1'` fijo, así que
+`max_seats` limita pero no factura.
+
+**2. El acantilado del cliente 31.** De 30 a 31 clientes son +176 % (25 → 69 €).
+Un solo cliente más, y casi el triple de factura. Da igual lo que valga el plan
+de arriba: nadie lee eso como un precio, lo lee como una multa.
+
+> Aquí hay una trampa de razonamiento que conviene dejar escrita, porque la
+> primera versión de esta sección cayó en ella. Parecía que, como archivar no
+> cuenta para el límite (0020, §3.3), la jugada racional de quien llega a 31
+> fuese archivar a uno en vez de pagar. **No lo es:** si los 31 le están pagando,
+> archivar a uno significa perder al cliente, no la cuota. El archivo solo sirve
+> para los que ya se fueron, que es exactamente para lo que se construyó.
+>
+> Importa porque cambia una decisión: el tamaño del peldaño **no está limitado
+> por el fraude**, está limitado por lo que parece justo. Y lo que decide si
+> parece justo no es cuánto sube, es **cuántos clientes más te llevas por esa
+> subida**. Doblar el precio por triplicar el cupo se lee como un descuento;
+> triplicarlo por un cliente más se lee como una multa.
+
+**3. Se captura el 1 % del valor.** Un entrenador con treinta clientes a 60–100 €
+factura entre 1.800 y 3.000 € al mes y paga 25 €. Entre el 0,8 % y el 1,4 %. La
+referencia del software vertical es el 2–5 % de lo que sostiene.
+
+**4. No hay expansión, que es la fuga que de verdad decide el negocio.** Solo hay
+un escalón. Un entrenador que triplica su cartera paga lo mismo el tercer año que
+el primero, así que **todo el crecimiento tiene que venir de cuentas nuevas**:
+justo el motor más lento y más caro, y el que peor le sienta a un producto sin
+canal de adquisición. La escalera no está para exprimir a nadie; está para que
+crecer con el cliente no exija encontrar otro.
+
+**Y una fuga de caja que se arregla sin código:** `automatic_tax` está activado en
+`billing-checkout`, pero quien decide si los 25 € llevan el IVA dentro o fuera es
+el `tax_behavior` del *Price* en Stripe. Si está en `inclusive`, de cada 25 € se
+ingresan 20,66 €. Los clientes son autónomos y **se lo deducen**: el precio se
+anuncia «+ IVA» y el `Price` va en `exclusive`. Es un 21 % neto por comprobar una
+casilla, y hay que comprobarla antes que ninguna otra cosa de esta sección.
+
+### 7.2 Lo que hace el mercado, que resulta ser lo mismo
+
+Consultado en agosto de 2026:
+
+| Producto | Entrada | Escalones | Techo |
+|---|---|---|---|
+| TrueCoach | 20 $ (5 clientes) | 5 → 20 → 50 | 107 $ |
+| Everfit | Gratis 5, desde 19 $ | 10 → 20 | + módulos |
+| Trainerize | Gratis 1, desde 22 $ | 15 → 30 | + módulos |
+| Hexfit | 29 € | por clientes | — |
+| Trainingym | — | por gimnasio | 99,99 € |
+
+Dos cosas, y la segunda importa más que la primera:
+
+- **Todo el sector cobra por clientes activos, en cuatro o cinco peldaños.**
+  Nadie tiene dos. La escalera no es una ocurrencia: es la norma de la categoría,
+  y el entrenador que viene de otra herramienta ya la entiende sin que se la
+  expliquen.
+- **La mitad de su ingreso sale de módulos aparte.** Trainerize vende la
+  nutrición por 33–45 $ al mes; Everfit vende el plan de comidas (33–39 $), la
+  automatización (24–29 $) y los cobros (8–9 $). Aquí la nutrición está dentro,
+  entera, por 25 €. **Eso no hay que cambiarlo** —integrada es la tesis del
+  producto, §1 de `producto.md`: el bucle es programar, comer, registrar y
+  revisar, y partirlo en módulos sería vender medio bucle—, pero **el nivel de
+  precio tiene que reflejar que está dentro**. Se cobra por tamaño, no por
+  trozos.
+
+Conviene mirar esa tabla dos veces, porque la primera lectura engaña. Las
+entradas visibles están entre 14 y 29 €, y la §7.3 pone la suya en 39: parece que
+se sale por arriba. **No se sale, porque no se está comparando lo mismo.** Los
+19 $ de Everfit no incluyen el plan de comidas ni la automatización ni los
+cobros; los 22 $ de Trainerize no incluyen la nutrición. Sumando lo que aquí va
+dentro, la comparación honesta de esa columna no es 19 $, es 19 + 33 + 24. **El
+precio de entrada de este producto no es alto: es sincero**, que es una posición
+peor para el escaparate y mejor para todo lo demás.
+
+### 7.3 La tarifa
+
+| Plan | Precio (+ IVA) | Clientes activos | Asientos | Integraciones | Almacenamiento |
+|---|---|---|---|---|---|
+| **Gratis** | 0 €, sin plazo | 3 | 1 | No | 1 GB |
+| **Solo** | 39 €/mes | 10 | 1 | No | 5 GB |
+| **Pro** | 79 €/mes | 30 | 1 | Sí | 25 GB |
+| **Equipo** | 149 €/mes | Sin límite | 3 · +19 €/asiento | Sí | 100 GB |
+
+Y **anual con dos meses de regalo** (paga diez, usa doce) en todos los de pago.
+
+La lógica, que sobrevive aunque las cifras cambien:
+
+- **El plan gratuito permanente es lo que permite que el primer plan de pago no
+  sea barato.** Es la consecuencia de la 0056 que no estaba escrita en ningún
+  sitio, y es la que decide toda la columna de precios. Con una prueba de catorce
+  días, quien no paga se va, y entonces el primer precio tiene que ser lo más
+  bajo que se pueda tragar. **Con un gratuito sin plazo, quien no paga no se va:
+  se queda en tres clientes, sigue metiendo a tres personas dentro de la
+  aplicación y paga el día que crece.** El 0 € ya hace el trabajo de la entrada
+  barata; el primer plan de pago hace otro, que es **ser el precio al que paga
+  alguien que vive de esto**. Poner 29 € era desaprovechar la 0056.
+- **El precio por cliente baja según se sube**: 3,90 € en Solo y 2,63 € en Pro.
+  Es lo que espera quien crece, y es lo que hace que el peldaño siguiente se lea
+  como un descuento y no como un castigo.
+- **Se factura entre el 3 % y el 6 % de lo que él factura** (a 70 € por cliente).
+  Es la banda sana del software vertical, un poco arriba en el escalón de entrada
+  —que es lo normal— y estable de ahí hacia arriba. Compárese con el 1 % de la
+  fuga 3.
+- **Los saltos son de +40 € y +70 €, y multiplican el cupo por tres o lo quitan.**
+  Eso es lo que los hace legibles: de Solo a Pro se paga el doble por tres veces
+  los clientes. Nada que ver con el +176 % por un cliente más de la tarifa
+  actual.
+- **Diez en Solo, no treinta.** Es el cambio que más ingreso mueve y también el
+  más agresivo: el entrenador profesional medio lleva entre veinte y cuarenta
+  clientes, así que el plan de entrada actual **se come el mercado entero**. Con
+  diez, el que vive de esto empieza en Pro, que es donde debe estar.
+- **Tres nombres y no cinco.** Gratis · Solo · Pro · Equipo se lee de un vistazo,
+  que es todo lo que se le pide a una tabla de precios: se mira una vez y se
+  decide en esa. La escalera de cinco peldaños que llegó a estar escrita aquí
+  —con un Estudio de 50 clientes y un Gimnasio de 229— sacaba un 15 % más de ARPU
+  y costaba una tabla que hay que estudiar. **Se eligió la que se entiende**, y
+  hay que saber lo que se dejó encima de la mesa: está en la §7.5.
+- **En Equipo el eje deja de ser el cliente y pasa a ser el asiento.** Es la
+  consecuencia de tener un solo peldaño arriba, y hay que mirarla de frente:
+  «sin tope de clientes por 149 €» es, otra vez, la fuga 1 en pequeño. **Lo que
+  la contiene son los tres asientos**, porque un negocio con entrenadores dentro
+  crece en gente antes que en fichas. Mientras el cuarto asiento sea un acuerdo y
+  no un botón, ese tope hay que vigilarlo: un centro con seis entrenadores y
+  cuatrocientos clientes pagando 149 € es exactamente lo que esta sección vino a
+  arreglar.
+
+> **El riesgo real de esta tabla no es que sea cara: es el salto de 0 a 39 €**, y
+> ocurre en el peor momento posible —el cliente número cuatro, cuando el
+> entrenador factura 280 € y se le piden 39—. No tiene arreglo de precio, y no
+> hace falta que lo tenga: quien no da ese paso **se queda en el plan gratuito**,
+> que cuesta casi nada de sostener, sigue trayendo clientes a la aplicación y
+> convierte cuando llega al octavo. Es una conversión aplazada y no una pérdida.
+> Otra vez la 0056 pagando.
+>
+> **Y si hay que equivocarse, que sea por arriba.** Bajar un precio se anuncia
+> como una promoción y se hace en una tarde; subirlo obliga a respetárselo a todo
+> el que ya estaba (§3.1) y se arrastra durante años. Con cinco cuentas no hay
+> señal de mercado que diga cuál es el techo: el número correcto es el que se
+> pueda defender en voz alta, y luego se corrige con datos.
+
+### 7.4 Lo que se limita por funciones, y por qué son tres y no diez
+
+La pregunta era si Gratis y Solo deberían tener menos funciones, además de menos
+clientes. Sí, pero **con muy pocas**, y por un motivo de arquitectura, no de
+marketing: aquí los límites los impone Postgres y no React (§3.3). Cada función
+capada es una política de RLS o un disparador más, o sea código de seguridad
+permanente y una superficie más donde equivocarse. Una tabla con ocho cruces por
+columna se paga en migraciones y en fallos, no en el diseño de la tabla.
+
+El criterio para elegir cuáles: **se capa lo que se impone en un solo punto de la
+base y le importa al profesional y no al que empieza.** Con eso salen tres.
+
+**1. Asientos — HECHO en la `0064`, y aquí ponía que ya estaba.** Decía «ya
+existe (`plan_limits.max_seats`, 0019), coste cero», y era falso: la columna
+existía, la pantalla la enseñaba y **la portada la anunciaba** —«1 entrenador» en
+Gratis y en Solo—, pero `invite_team_member` no la miraba. Cualquier cuenta
+gratuita podía invitar a diez personas.
+
+Importa más de lo que parece para la tarifa: **los asientos son la única
+diferencia real entre Pro y Equipo** —los dos llevan integraciones, los dos
+llevan todo—, así que mientras no se aplicaran, los 70 € que separan uno de otro
+no compraban nada que no se pudiera tener gratis. Se cerró con un disparador
+`BEFORE INSERT` y no con un `IF` en la función; el porqué, en la cabecera de la
+migración.
+
+La lección, que es la de la §3.3 otra vez: **un límite que solo está en una
+columna no es un límite, es una nota.** Antes de dar por bueno cualquiera de los
+tres de esta lista, hay que poder señalar la línea que lo aplica.
+
+**2. Integraciones** (`0010`–`0013`). Una tabla, una política. Es exactamente lo
+que la §5 ya decía —«son lo que quiere un entrenador con un negocio detrás y le
+da igual a uno que empieza»— y sigue siendo verdad. De **Pro** para arriba.
+
+**3. Almacenamiento de fotos y vídeo** (bucket de la 0038, políticas de la 0007).
+Es la única de las tres que **protege margen de verdad**: es coste real por
+gigabyte y crece solo, sin que nadie pulse nada. También es la más cara de
+construir de las tres —la cuota se impone en las políticas de Storage, no en una
+tabla—, así que va la última, y hasta entonces es un límite escrito y no
+aplicado. Escribirlo antes de aplicarlo es correcto: fija la expectativa desde el
+primer día en vez de recortársela a alguien dos años después.
+
+Opcional, cuando haya equipos de verdad: el **registro de cambios** (`audit_log`,
+0017) en Equipo. Una política de lectura, y a un entrenador solo no
+le dice nada.
+
+**Y lo que NO se capa nunca**, que importa más que la lista de arriba:
+
+- **La nutrición, el bucle semanal, el roadmap, las plantillas.** Son el producto.
+  Un plan barato al que le falta el bucle no es un plan barato: es una demo, y las
+  demos las cuenta el usuario a los demás tal y como son.
+- **Leer, exportar y borrar.** Ya está decidido en la §3.4 y por los motivos de
+  siempre: los datos son del entrenador y de sus clientes, y el borrado es una
+  obligación legal suya. Que eso no dependa nunca del plan.
+- **Nada del lado del cliente.** El cliente no ha contratado nada y no puede
+  notar en qué plan está su entrenador. Además es el canal de distribución: cada
+  cuenta gratuita mete a tres personas dentro de la aplicación, y capar lo que
+  ellas ven es estropear lo único que trae usuarios sin pagar por ellos.
+
+### 7.5 Qué cambia en el ingreso
+
+Con **cuarenta entrenadores de pago**, que es el orden de magnitud del primer
+objetivo real:
+
+| | Mezcla (Solo/Pro/Equipo) | ARPU | MRR | ARR |
+|---|---|---|---|---|
+| Tarifa actual | 70 % Solo / 30 % Equipo | 38 € | 1.528 € | 18.300 € |
+| Propuesta, mezcla prudente | 40/40/20 | 77 € | 3.080 € | 37.000 € |
+| Propuesta, mezcla esperada | 30/50/20 | 81 € | 3.240 € | 38.900 € |
+
+**El doble, con la misma cartera y sin vender a nadie nuevo.** La diferencia
+entre las dos mezclas propuestas es exactamente el efecto de bajar Solo a diez
+clientes: empuja gente a Pro, que es para lo que está.
+
+Dicho en el sentido que de verdad se decide: **3.000 € al mes son 79 entrenadores
+con la tarifa actual y 37 con la nueva.** Esos 42 entrenadores que no hay que
+encontrar, convencer ni sostener son el argumento entero de esta sección — y son
+también, por si hace falta decirlo, 42 conversaciones de soporte que no ocurren.
+
+(Y si el `tax_behavior` estaba en `inclusive`, el ARPU actual real no es 38 € sino
+31,6 €, y el múltiplo no es 2,1× sino 2,6×.)
+
+**Lo que costó tener tres nombres en vez de cinco.** La escalera de cinco
+peldaños —con Estudio a 119 € por 50 clientes y Gimnasio desde 229 €— daba 96 €
+de ARPU y 3.840 € con los mismos cuarenta entrenadores: **un 15 % más**, unos
+7.000 € al año. Se cambiaron por una tabla de precios que se lee de un vistazo.
+Es una decisión defendible y no es gratis, y queda anotada aquí para poder
+revisarla con datos: **el sitio natural de recuperar ese 15 % no es subir Solo ni
+Pro, es partir Equipo** el día que haya un centro de verdad dentro y se sepa cómo
+es.
+
+### 7.6 Las otras vías, y por qué no
+
+**Cobros — la palanca grande, y está medio construida.** La 0058 guarda
+`fee_amount` y `billing_period`; ya estaban `next_payment_date` y
+`payment_status`; la 0012 y la 0013 concilian el Stripe del entrenador; hay
+`notion-payments`. **La aplicación ya sabe cuánto le debe cada cliente y cuándo.**
+Faltan dos piezas para que eso sea algo por lo que se paga: el recordatorio
+automático de cobro —que necesita el correo transaccional de la §4.3, que ya
+estaba en la lista por otro motivo— y un enlace de pago del Stripe **del propio
+entrenador**. Eso da el ochenta por ciento del valor del modelo B **sin Connect,
+sin KYC y sin mover dinero propio**. Es la vía que la §1 no consideró: descartó el
+modelo B entero y con él este camino intermedio, que no tiene su riesgo.
+
+**Comisión sobre lo que cobra (modelo B, Connect).** Descartarlo sigue siendo
+correcto, pero **por volumen y no por principio**: el KYC y la responsabilidad
+fiscal son coste fijo, y un 2 % de casi nada es nada. Se vuelve a mirar a partir
+de unos cincuenta entrenadores de pago, cuando ese mismo trabajo se reparte entre
+una base que ya factura.
+
+**Instalación para gimnasios (modelo C).** Sí, y ahora. Con cinco cuentas, mil o
+dos mil euros de una migración valen más que cuarenta suscripciones que todavía
+no existen, y financian el desarrollo, que es literalmente lo que la §1 dijo que
+servía para hacer. Con fecha de caducidad: es un puente, no un negocio.
+
+**Cobrarle al cliente final.** No. Rompe la propuesta —«tu entrenador te da la
+app»— y el cliente final no elige la herramienta. El único hueco real, alguien
+sin entrenador, es otro producto y no un plan de este.
+
+### 7.7 Orden, por euros entre esfuerzo
+
+1. **Comprobar el `tax_behavior` del `Price` en Stripe.** Cinco minutos. Es la
+   única línea de esta sección que puede subir el ingreso un 21 % hoy.
+2. ~~**Los peldaños nuevos.**~~ **HECHO: `0061_escalera_de_planes.sql`**, sin
+   aplicar. Salió tal y como se preveía —datos y no código: el disparador
+   `enforce_client_limit` ya lee `max_clients` y las dos pantallas ya leen
+   `plan_limits` (0049)—, pero con **una trampa que no estaba prevista y que se
+   lleva la decisión más importante de la migración**: ver 7.9.
+3. **Injerto para los que ya pagan — y son DOS sitios, no uno.** La migración
+   mueve su fila a `solo_2026` / `equipo_2026`, copia exacta de lo que
+   contrataron. Pero eso solo dura hasta su siguiente renovación si no se hace
+   además el segundo paso, que está **en Stripe y a mano**: editar
+   `metadata.plan` de su suscripción. El porqué, en la 7.9. Los dos pasos van
+   seguidos: entre uno y otro hay una ventana, corta pero real.
+4. ~~**Anual.**~~ **HECHO: `0062_pago_anual.sql`** más `billing-checkout`,
+   `lib/num.js`, Ajustes → Plan y la portada. Falta crear los tres precios
+   anuales en Stripe y encenderlos. **Dos precios en la misma fila y no una fila
+   por periodo**, que es lo que mantiene el límite en un solo sitio y deja el
+   webhook sin tocar: quien paga por años sigue estando en `solo`. El interruptor
+   es por plan y no hace falta bandera: si no hay `price_cents_year`, no se
+   ofrece.
+5. ~~**Asientos de verdad.**~~ **No es de lanzamiento, y la lista se equivocaba
+   al ponerlo aquí.** Se creía la única pieza de código pendiente; mirándolo de
+   cerca no bloquea nada: Equipo se vende con sus tres asientos exactos y el
+   cuarto es un acuerdo, así que `max_seats` dice la verdad. Y el sitio de
+   comprar un asiento **no es la pasarela**: nadie sabe cuántos va a necesitar el
+   día que se da de alta. Es una función del portal, y es una función, no un
+   `quantity`. Ojo con dejarlo dormido demasiado tiempo, eso sí: es el único eje
+   por el que Equipo crece (§7.3).
+6. **Integraciones por plan**, una política. (El **tope de asientos** que iba
+   aquí implícito está hecho: `0064_tope_de_asientos.sql`, ver §7.4.)
+7. **Correo transaccional → módulo de cobros** (§7.6). Ya era el siguiente
+   bloqueante de la §4.3; ahora además es la siguiente vía de ingreso.
+8. **Cuota de almacenamiento**, la última y la más cara.
+
+**La portada hay que rehacerla, y son cuatro tarjetas y no tres.** La sección de
+precios de `LandingPage.jsx` está construida sobre tres y sobre la escalera
+«0 → 25 → 69», que está escrita en sus comentarios como argumento de diseño —tres
+precios en el mismo formato que se leen de un vistazo—. Con la tarifa nueva lo
+que ve alguien sin cuenta es **Gratis · Solo · Pro · Equipo**: las filas
+retiradas no salen, porque la política de la 0049 solo enseña lo que se vende
+(`purchasable`) y el plan de partida. La rejilla (`lp-plan-grid`, `auto-fit` con
+mínimo de 250 px sobre 1080 px
+de ancho) mete las cuatro en una fila por 14 píxeles, así que técnicamente no se
+rompe; que 253 px de tarjeta sigan siendo legibles hay que **mirarlo**, no
+deducirlo. Los precios ya salen de la base, así que lo que se rehace es la
+composición y no el dato.
+
+### 7.9 La trampa de la 0061: el plan de un cliente vive en dos sitios
+
+Se deja escrita aquí y no solo en la cabecera de la migración, porque es de las
+que vuelven, y porque **no falla el día que se ejecuta: falla semanas después**.
+
+`solo` y `equipo` mantienen su nombre y cambian lo que significan —Solo pasa de
+30 clientes por 25 € a 10 por 39—. Lo evidente es entonces mover a quien ya paga
+a una fila retirada, `solo_2026`, copia exacta de lo que contrató. La migración lo
+hace y parece completo.
+
+**No lo está.** `billing-webhook` escribe `patch.plan = object.metadata.plan` en
+cada `customer.subscription.updated`, y la suscripción de quien ya paga lleva
+`metadata.plan = 'solo'` grabado **en Stripe** desde el día que la contrató. En su
+siguiente renovación el webhook le devuelve a `solo`, que para entonces significa
+diez clientes, y un entrenador con veinte se encuentra sin poder dar de alta al
+siguiente. Sin aviso, sin error, y con el `UPDATE` del injerto pareciendo
+correcto en la base — porque lo era: **el otro sitio no es la base**.
+
+La regla, que es más general que esta migración:
+
+> El plan de un equipo está escrito en dos sitios —`team_subscriptions.plan` y el
+> `metadata.plan` de su suscripción en Stripe—, y **el segundo gana en cada
+> renovación**. Cualquier cambio de plan hecho a mano dura hasta la siguiente
+> factura si no se toca también Stripe.
+
+Es la misma advertencia de la 0056 —«la clave sigue siendo `prueba` porque está
+escrita en el webhook»— vista desde el otro lado. Allí se resolvió congelando el
+nombre; aquí se resuelve moviéndolo en los dos sitios, que cuesta un gesto manual
+por cliente de pago y a cambio deja la escalera con los nombres que se venden.
+Con la base de clientes de hoy —una compra real— es un minuto; el día que sean
+cincuenta, la respuesta correcta ya no es esta, sino no volver a redefinir un
+nombre en uso.
+
+La consulta que dice a quién afecta, y el gesto exacto en Stripe, están en el
+bloque «DESPUÉS DE STRIPE» de `0061_escalera_de_planes.sql`. **Los dos pasos van
+seguidos**: entre uno y otro hay una ventana en la que una renovación se lleva esa
+cuenta al plan nuevo. Si pasa, se arregla repitiendo el `UPDATE`; pero es mejor no
+tener que enterarse.
+
+### 7.10 Dos discrepancias entre este documento y el código
+
+- **La §5 dice que se factura por cliente activo —con actividad en los últimos 30
+  días— y el código no hace eso.** `enforce_client_limit` cuenta las fichas no
+  archivadas, sin mirar actividad. Con dos peldaños importaba poco; con cinco es
+  la definición sobre la que se apoya toda la tabla, y hay que decidirla a
+  propósito: contar por actividad es más justo y más difícil de esquivar, pero es
+  una vista nueva y un disparador que la consulta.
+- **El plan `fundador` sigue siendo barra libre indefinida** (§3.7). `npm run
+  radiografia` ya lo detecta. Publicar tarifa nueva es el momento natural de
+  tener esas conversaciones, y la §3.7 ya deja escrito el `UPDATE`.

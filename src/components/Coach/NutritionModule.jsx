@@ -380,7 +380,7 @@ export const NutritionModule = () => {
       {plan.type === 'macros' && (
         <Panel tight>
           <p className="t-sm t-secondary">
-            <Salad size={14} style={{ display: 'inline', verticalAlign: -2, marginRight: 6 }} />
+            <Salad size={14} className="icon-inline" />
             Plan por macros: el cliente reparte los alimentos como quiera mientras cuadre las cifras del
             objetivo. Cambia a «Menú cerrado» si prefieres detallar las comidas.
           </p>

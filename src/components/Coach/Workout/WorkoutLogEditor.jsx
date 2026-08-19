@@ -377,12 +377,11 @@ export const WorkoutLogEditor = () => {
       */}
       {/* `day-rail` no es decorativa: de ella cuelgan el cursor de agarre, la
           opacidad del día que se arrastra y el canto del destino. */}
-      <div className="row wrap gap-2 day-rail" role="tablist" aria-label="Días del microciclo">
+      <div className="row wrap gap-2 day-rail" role="group" aria-label="Días del microciclo">
         {nav.days.map((day, index) => (
           <button
             key={day.dayName}
             type="button"
-            role="tab"
             className={[
               'chip',
               overDay === index && dragDay !== index ? 'is-drop-target' : '',
@@ -425,7 +424,6 @@ export const WorkoutLogEditor = () => {
               }
             }}
             aria-pressed={index === nav.dayIndex}
-            aria-selected={index === nav.dayIndex}
             onClick={() => nav.selectDay(index)}
             title="Arrástralo para cambiarlo de sitio (o Alt + ←/→)"
           >

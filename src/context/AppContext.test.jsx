@@ -111,10 +111,10 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 158 claves', () => {
+  it('el reparto conserva las 159 claves', () => {
     montar();
-    // 158 desde `moveDay`, que cambia un día de sitio dentro de su microciclo.
-    expect(Object.keys(visto.app).length).toBe(158);
+    // 159 desde `unreviewCheckIn`, el inverso de cerrar una revisión (0063).
+    expect(Object.keys(visto.app).length).toBe(159);
   });
 
   it('toda acción es una función', () => {

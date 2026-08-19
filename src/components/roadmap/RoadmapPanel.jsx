@@ -53,6 +53,16 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
 
   if (!activeClient) return null;
 
+  /*
+    Al cliente sin fases no se le pinta nada. Un panel fijo en su portada que
+    dice «tu entrenador todavía no ha dividido tu proceso en fases» promete algo
+    que puede no llegar nunca — la misma regla por la que una sección apagada no
+    existe (`domain/protocol.js`). El vacío explicativo es para el ENTRENADOR,
+    que sí puede crear la primera fase; al cliente el roadmap le aparece solo en
+    cuanto exista.
+  */
+  if (isClient && state.all.length === 0) return null;
+
   const abrirNuevo = () => {
     const draft = nextPhaseDraft(phases, 'cut', 12, hoy);
     setError(

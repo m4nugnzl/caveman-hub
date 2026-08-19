@@ -43,14 +43,17 @@ const TABS = [
 
 export const StudioPanel = ({ tab, onTab, layout, annotationCount, children }) => (
   <Panel tight className="col gap-4">
-    <div className="studio-tabs" role="tablist" aria-label="Panel del estudio">
+    {/* `group` + `aria-pressed`, no `tablist`: el patrón de tabs exige flechas,
+        tabindex rotatorio y `tabpanel` (lo implementa entero `AnalyticsPanel`,
+        que es la referencia); a medias, el lector de pantalla promete una
+        navegación que no existe. */}
+    <div className="studio-tabs" role="group" aria-label="Panel del estudio">
       {TABS.map(({ id, label, icon: Icon, hint }) => (
         <button
           key={id}
           type="button"
-          role="tab"
           className="studio-tab"
-          aria-selected={tab === id}
+          aria-pressed={tab === id}
           onClick={() => onTab(id)}
           title={hint}
         >

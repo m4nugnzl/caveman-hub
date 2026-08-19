@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html lang="es">
+<!--
+  `data-theme="dark"` escrito aquí, antes de que arranque nada: la NOCHE es el
+  tema por defecto del producto y este atributo es lo que evita el destello
+  claro del primer pintado. `ThemeProvider` lo reescribe en cuanto monta —y lo
+  cambia a claro si el usuario lo eligió— pero entre el HTML y ese momento la
+  página ya se pinta del tema correcto.
+-->
+<html lang="es" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!--
-      El tema por defecto es CLARO y `ThemeProvider` escribe `data-theme` en
-      cuanto arranca. Declarar aquí `color-scheme: dark` —como estaba— pintaba de
-      oscuro los controles nativos, los desplegables y la barra de scroll sobre
-      una interfaz clara. `light dark` deja que el navegador siga al tema real.
-    -->
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#eceef1" />
+    <meta name="theme-color" content="#0d1014" />
     <!--
       Las dos: `mobile-web-app-capable` es la estándar y la que piden ahora los
       navegadores —Chrome avisa por consola de que la de Apple está obsoleta— y la

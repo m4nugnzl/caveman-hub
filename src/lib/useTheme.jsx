@@ -5,9 +5,6 @@ const THEMES = ['light', 'dark'];
 
 const ThemeContext = createContext(null);
 
-const systemTheme = () =>
-  window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-
 const stored = () => {
   try {
     const value = localStorage.getItem(KEY);
@@ -32,13 +29,18 @@ const stored = () => {
  * tema oscuro viven en una sola regla en vez de duplicarse dentro de un
  * `@media (prefers-color-scheme)`.
  *
- * Orden de decisión: lo que el usuario eligió → preferencia del sistema → claro.
- * Si el sistema cambia con la app abierta se sigue ese cambio, salvo que el
- * usuario ya haya elegido a mano.
+ * Orden de decisión: lo que el usuario eligió → NOCHE.
+ *
+ * ── Por qué la noche es el defecto y el sistema ya no decide ────────────────
+ * La noche es la identidad del producto —es lo que enseña la portada y de donde
+ * sale su atmósfera— y «papel» es una elección de quien prefiere trabajar en
+ * claro, disponible en Ajustes → Apariencia. Seguir la preferencia del sistema
+ * hacía que la primera impresión dependiera de un ajuste del sistema operativo
+ * que la mayoría no ha tocado: quien llegaba desde una portada de noche podía
+ * aterrizar en una aplicación blanca, que se lee como cambiar de producto.
  */
 export const ThemeProvider = ({ children }) => {
-  const [theme, setThemeState] = useState(() => stored() || systemTheme());
-  const [isExplicit, setIsExplicit] = useState(() => stored() !== null);
+  const [theme, setThemeState] = useState(() => stored() || 'dark');
 
   useEffect(() => {
     const root = document.documentElement;
@@ -57,20 +59,9 @@ export const ThemeProvider = ({ children }) => {
     }
   }, [theme]);
 
-  useEffect(() => {
-    if (isExplicit) return undefined;
-    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
-    if (!media) return undefined;
-
-    const onChange = (event) => setThemeState(event.matches ? 'dark' : 'light');
-    media.addEventListener('change', onChange);
-    return () => media.removeEventListener('change', onChange);
-  }, [isExplicit]);
-
   const setTheme = useCallback((next) => {
     if (!THEMES.includes(next)) return;
     setThemeState(next);
-    setIsExplicit(true);
     try {
       localStorage.setItem(KEY, next);
     } catch {

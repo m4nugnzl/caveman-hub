@@ -52,7 +52,9 @@ export const ClientStart = () => {
 
   return (
     <div className="stack">
-      <PageHead title={`Hola, ${activeClient.name}`} sub="Tu progreso, semana a semana." />
+      {/* El nombre en cursiva es el REMATE, como en los titulares de la
+          portada: la parte humana del título. Ver `PageHead`. */}
+      <PageHead title="Hola," remate={activeClient.name} sub="Tu progreso, semana a semana." />
 
       <ClientUpdates client={activeClient} />
       <Dashboard audience="client" />

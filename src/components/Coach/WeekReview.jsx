@@ -9,6 +9,7 @@ import { shortDate } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { Delta, MetricCard, MetricRow } from '@/components/ui/metrics';
 import { EmptyState, Notice, PageHead, Panel, WeekPicker } from '@/components/ui/primitives';
+import { useToast } from '@/components/ui/ToastProvider';
 import { Thumb } from '@/components/photos/Thumb';
 import { ReviewHistory } from '@/components/ReviewHistory';
 
@@ -81,7 +82,9 @@ export const WeekReview = () => {
     checkIns,
     nutrition,
     reviewCheckIn,
+    unreviewCheckIn,
   } = useApp();
+  const toast = useToast();
 
   /* Los `|| []` van dentro de un `useMemo`: un literal nuevo en cada render
      invalidaría todas las memorias de abajo y esta pantalla recalcularía la
@@ -193,8 +196,25 @@ export const WeekReview = () => {
     );
 
     setEnviando(false);
-    if (res?.ok === false) setError(res.error);
-    else setTexto('');
+    if (res?.ok === false) {
+      setError(res.error);
+      return;
+    }
+    setTexto('');
+
+    /* La confirmación con su vuelta atrás, como en la cola de «Hoy»: deshacer
+       quita el sello y la nota (0063) y la entrega vuelve a quedar pendiente. */
+    const reviewId = pendiente.id;
+    toast({
+      text: `Respuesta enviada a ${activeClient.name}.`,
+      action: {
+        label: 'Deshacer',
+        onClick: async () => {
+          const undo = await unreviewCheckIn(reviewId);
+          if (undo?.ok === false) setError(undo.error);
+        },
+      },
+    });
   };
 
   return (

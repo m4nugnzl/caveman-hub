@@ -54,7 +54,13 @@ export const useBilling = () => {
   return {
     busy,
     error,
-    contratar: (plan) => call({ action: 'checkout', plan }, plan),
+    /*
+      `periodo` es 'month' o 'year' y no viaja ningún precio: el servidor elige
+      la columna. Se manda siempre, también en mensual, para que la petición diga
+      lo que el usuario eligió en vez de depender de un valor por defecto que
+      podría cambiar al otro lado.
+    */
+    contratar: (plan, periodo = 'month') => call({ action: 'checkout', plan, periodo }, plan),
     abrirPortal: () => call({ action: 'portal' }, 'portal'),
   };
 };

@@ -31,6 +31,11 @@ import { inviteMessage, useInvite } from './useInvite';
  */
 const TaskRow = ({ row, trainer, onOpen, action }) => {
   const { client } = row;
+  /* El punto de brasa: «esta persona espera algo de ti». Es la marca
+     estructural del producto —la misma tinta que señala la sección activa y el
+     día de hoy— y NO un estado: qué es lo que espera lo dice el texto de al
+     lado, en tinta. Quien está al día no lleva nada. */
+  const espera = row.alerts.length > 0;
 
   return (
     <div className="task-row">
@@ -46,7 +51,10 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
       </span>
 
       <span className="who">
-        <span className="name">{client.name}</span>
+        <span className="name">
+          {client.name}
+          {espera && <span className="task-wait" aria-hidden="true" />}
+        </span>
         <span className="sub">
           {[
             row.why,
@@ -60,9 +68,15 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
       </span>
 
       {/* La acción que cierra ESTA tarea. Va por encima de la capa de clic, así
-          que pulsarla no abre al cliente. */}
+          que pulsarla no abre al cliente. Botón y no chip: hace algo, no marca
+          dónde estás (la misma regla que en `TaskInbox` y `ReviewQueue`). */}
       {action && (
-        <button type="button" className="chip" onClick={action.onClick} title={action.title}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={action.onClick}
+          title={action.title}
+        >
           <action.icon size={12} /> {action.label}
         </button>
       )}
@@ -379,7 +393,10 @@ export const ClientPortfolio = () => {
         su nombre dice: tus clientes, en orden de urgencia, con lo que le pasa a
         cada uno escrito al lado. Se busca a alguien y se entra.
       */}
-      <div className="task-rows">
+      {/* El ROSTER: una tarjeta corrida con una fila por persona, separadas por
+          filetes. Sueltas sobre el lienzo eran tiras flotando; juntas son la
+          plantilla del equipo, que es lo que esta pantalla es. */}
+      <div className="task-rows roster">
         {visible.map((row) => (
           <TaskRow
             key={row.client.id}

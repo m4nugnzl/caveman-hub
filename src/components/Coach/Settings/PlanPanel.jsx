@@ -3,9 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
-import { planPrice } from '@/lib/num';
+import { planAhorroPct, planPrice } from '@/lib/num';
 import { supabase } from '@/lib/supabaseClient';
-import { Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
 
 /**
@@ -34,6 +34,7 @@ export const PlanPanel = () => {
   const { refreshPlan } = useActions();
   const { busy, error, contratar, abrirPortal } = useBilling();
   const [tiers, setTiers] = useState([]);
+  const [anual, setAnual] = useState(false);
   const [params, setParams] = useSearchParams();
 
   const pago = params.get('pago');
@@ -42,7 +43,9 @@ export const PlanPanel = () => {
     let alive = true;
     supabase
       .from('plan_limits')
-      .select('plan, label, max_clients, price_cents, currency, interval, blurb, purchasable, sort')
+      .select(
+        'plan, label, max_clients, price_cents, price_cents_year, currency, interval, blurb, purchasable, sort'
+      )
       .order('sort')
       .then(({ data }) => {
         if (alive) setTiers(data || []);
@@ -105,6 +108,21 @@ export const PlanPanel = () => {
   const pct = maxClients ? Math.min(100, Math.round((clients / maxClients) * 100)) : 100;
   const dias = trialEndsAt ? Math.ceil((new Date(trialEndsAt) - Date.now()) / 86400000) : null;
   const esDueno = myTeamRole === 'owner' || !myTeamRole;
+
+  /*
+    El ahorro se saca del plan más barato que lo tenga y se enseña una vez, junto
+    al interruptor. Es el mismo en los tres —diez meses por doce—, así que
+    repetirlo en cada tarjeta sería decir tres veces lo mismo; y calcularlo en
+    vez de escribirlo hace que si algún día un plan lleva otro descuento, la
+    frase no mienta: sale de los dos precios que hay en la fila.
+  */
+  const hayAnual = tiers.some((tier) => tier.price_cents_year);
+  /* `ahorroPct` y no `pct` a secas: ese nombre ya es el del relleno de la barra
+     de clientes, unas líneas más arriba. */
+  const ahorroPct = planAhorroPct(tiers.find((tier) => tier.price_cents_year));
+  /* Aquí sí cabe la frase entera: es una insignia al lado del carril y no una
+     etiqueta dentro de un botón, que es lo que obliga a abreviar en la portada. */
+  const ahorro = ahorroPct ? `Ahorra un ${ahorroPct} %` : null;
 
   return (
     <Header>
@@ -184,6 +202,32 @@ export const PlanPanel = () => {
       </Panel>
 
       {/* ── La escala ────────────────────────────────────────────────────── */}
+      {/*
+        El interruptor solo aparece si HAY algo que pagar por años. Mientras la
+        0062 esté sin encender, `price_cents_year` es NULL en todas las filas y
+        esta pantalla es exactamente la de antes: un control que ofrece una
+        opción que no existe es peor que no tenerlo.
+
+        Va encima de la escala y no dentro de cada plan porque la pregunta se
+        contesta una vez —«¿pago por meses o por años?»— y luego se comparan los
+        peldaños ya en esa moneda. Repetirlo por tarjeta obligaría a decidir tres
+        veces lo mismo.
+      */}
+      {hayAnual && (
+        <div className="row gap-2 wrap">
+          <SegmentedControl
+            label="Cada cuánto pagas"
+            value={anual ? 'year' : 'month'}
+            onChange={(v) => setAnual(v === 'year')}
+            options={[
+              { id: 'month', label: 'Al mes' },
+              { id: 'year', label: 'Al año' },
+            ]}
+          />
+          {ahorro && <span className="badge badge-ok">{ahorro}</span>}
+        </div>
+      )}
+
       <div className="col gap-2">
         {tiers
           // Los planes que no se venden solo se enseñan si es el tuyo: la escala es
@@ -210,13 +254,21 @@ export const PlanPanel = () => {
                 </div>
 
                 <div className="plan-tier-buy">
-                  <span className="plan-price tnum">{precio(tier)}</span>
+                  <span className="plan-price tnum">{precio(tier, anual)}</span>
                   {!actual && tier.purchasable && esDueno && (
                     <button
                       type="button"
                       className="btn btn-primary btn-sm"
                       disabled={Boolean(busy)}
-                      onClick={() => contratar(tier.plan)}
+                      /*
+                        Se contrata lo que la tarjeta está enseñando: si este plan
+                        no tiene anual, `precio` ya se cayó al mensual y el botón
+                        tiene que hacer lo mismo o cobraría algo distinto de lo
+                        que se acaba de leer.
+                      */
+                      onClick={() =>
+                        contratar(tier.plan, anual && tier.price_cents_year ? 'year' : 'month')
+                      }
                     >
                       {busy === tier.plan ? 'Abriendo…' : 'Contratar'}
                       <ArrowUpRight size={14} />
@@ -288,5 +340,12 @@ const Header = ({ children }) => (
 
   Aquí «sin precio» se dice «Incluido» —estás dentro, mirando tu plan— y en la
   portada «Gratis», que es lo que significa desde fuera.
+
+  En anual, `planPrice` devuelve `null` si ese plan no tiene precio por años, y
+  entonces se cae al mensual en vez de dejar el hueco: el interruptor de arriba
+  es una preferencia de lectura, no una promesa de que todo se pueda pagar así.
 */
-const precio = (tier) => (tier.price_cents ? planPrice(tier) : 'Incluido');
+const precio = (tier, anual) => {
+  if (!tier.price_cents) return 'Incluido';
+  return (anual && planPrice(tier, { anual: true })) || planPrice(tier);
+};

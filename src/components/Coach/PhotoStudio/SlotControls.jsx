@@ -112,7 +112,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
 
           <div className="col gap-2">
             <span className="section-label">
-              <ZoomIn size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Encuadre
+              <ZoomIn size={11} className="icon-inline" /> Encuadre
             </span>
             <SliderRow label="Zoom" value={t.zoom} min={0.4} max={3} step={0.02} decimals={2} suffix="×" onChange={(v) => setTransform({ zoom: v })} />
             <SliderRow label="Horizontal" value={t.offsetX * 100} min={-60} max={60} step={0.5} suffix="%" onChange={(v) => setTransform({ offsetX: v / 100 })} />
@@ -142,7 +142,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
 
           <div className="col gap-2">
             <span className="section-label">
-              <Sparkles size={11} style={{ display: 'inline', verticalAlign: -1 }} /> Ajustes de imagen
+              <Sparkles size={11} className="icon-inline" /> Ajustes de imagen
             </span>
             <SliderRow label="Brillo" value={a.brightness} min={40} max={180} suffix="%" onChange={(v) => setAdjust({ brightness: v })} />
             <SliderRow label="Contraste" value={a.contrast} min={40} max={180} suffix="%" onChange={(v) => setAdjust({ contrast: v })} />

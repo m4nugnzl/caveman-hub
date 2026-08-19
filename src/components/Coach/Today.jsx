@@ -13,8 +13,10 @@ import {
   activityScale,
 } from '@/domain/today';
 import { clientPath } from '@/routes';
+import { traeALaVista } from '@/lib/motion';
 import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { useToast } from '@/components/ui/ToastProvider';
 import { TaskInbox } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
 import { ReviewQueue } from './ReviewQueue';
@@ -71,8 +73,11 @@ export const Today = () => {
     workoutData,
     markClientPaid,
     reviewCheckIn,
+    unreviewCheckIn,
+    updateClient,
   } = useApp();
   const navigate = useNavigate();
+  const toast = useToast();
   const [error, setError] = useState(null);
 
   const today = todayISO();
@@ -97,11 +102,6 @@ export const Today = () => {
   const maxCount = Math.max(1, ...scale.map((d) => d.count));
   const activeToday = scale[scale.length - 1]?.count || 0;
 
-  const act = async (promise) => {
-    const result = await promise;
-    setError(result?.ok === false ? result.error : null);
-  };
-
   const open = (clientId, section) => navigate(clientPath(clientId, section));
 
   /*
@@ -118,14 +118,33 @@ export const Today = () => {
     EN EL MOMENTO de revisar. Ahora las dos piezas llaman aquí, y no hay ninguna
     forma de cerrar una revisión sin ella.
   */
-  const cerrarRevision = (reviewId, clientId, notas = null) =>
-    act(
-      reviewCheckIn(
-        reviewId,
-        notas,
-        planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId] })
-      )
+  const cerrarRevision = async (reviewId, clientId, notas = null) => {
+    const res = await reviewCheckIn(
+      reviewId,
+      notas,
+      planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId] })
     );
+    setError(res?.ok === false ? res.error : null);
+    if (res?.ok === false) return;
+
+    /*
+      El aviso con su «Deshacer»: cerrar es un toque sin confirmación —así debe
+      ser, es el gesto de cada lunes— y su pareja honesta es la vuelta atrás.
+      El inverso limpia sello, nota y foto (migración 0063) y la fila vuelve a
+      la cola.
+    */
+    const nombre = clients.find((c) => c.id === clientId)?.name || 'el cliente';
+    toast({
+      text: `Semana de ${nombre} cerrada.`,
+      action: {
+        label: 'Deshacer',
+        onClick: async () => {
+          const undo = await unreviewCheckIn(reviewId);
+          if (undo?.ok === false) setError(undo.error);
+        },
+      },
+    });
+  };
 
   if (clients.length === 0) {
     return (
@@ -139,15 +158,17 @@ export const Today = () => {
 
   return (
     <div className="stack">
+      {/* La fecha es el REMATE del título, en cursiva y en minúscula, como los
+          titulares de la portada: «Hoy, martes 19 de agosto». La línea de abajo
+          se queda con lo único que cambia a lo largo del día. */}
       <PageHead
-        title="Hoy"
-        sub={`${weekdayName(`${today}T00:00:00Z`, { conFecha: true }).replace(/^./, (c) =>
-          c.toUpperCase()
-        )}${
+        title="Hoy,"
+        remate={weekdayName(`${today}T00:00:00Z`, { conFecha: true })}
+        sub={
           activeToday > 0
-            ? ` · ${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'}`
-            : ' · sin movimiento todavía'
-        }`}
+            ? `${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'} de tu cartera`
+            : 'Sin movimiento todavía'
+        }
       />
 
       {error && <Notice tone="error">{error}</Notice>}
@@ -175,37 +196,87 @@ export const Today = () => {
         onReview={(id, notas, clientId) => cerrarRevision(id, clientId, notas)}
       />
 
-      {/* ── LA REGLA ────────────────────────────────────────────────────────
+      {/* ── EL PULSO ────────────────────────────────────────────────────────
           Catorce días, uno por marca. La barra es cuántas cosas pasaron; la
           marca de abajo existe aunque el día esté vacío, porque una escala a la
-          que le faltan las marcas vacías deja de ser una escala. */}
-      <Panel tight title="Últimas dos semanas" className="scale-card">
+          que le faltan las marcas vacías deja de ser una escala.
+
+          Ya no es una tarjeta: es una FRANJA del lienzo, entre dos filetes,
+          como las bandas de la portada. Un instrumento de medida no va dentro
+          de una caja con título — la escala ES la pieza, y encajonarla la
+          convertía en un panel más de la pila. */}
+      <section className="pulso" aria-label="El pulso de la cartera">
+        <div className="pulso-head">
+          <span className="section-label">El pulso de la cartera</span>
+          <span className="pulso-hint">
+            {DEFAULT_WINDOW} días · {events.length} {events.length === 1 ? 'registro' : 'registros'}
+          </span>
+        </div>
+        {/*
+          ══ La escala también es el ÍNDICE del hilo ════════════════════════════
+
+          La información de cada día vivía solo en `title`, que en una pantalla
+          táctil no existe — y el panel se usa también desde el móvil—. Ahora un
+          día con actividad es un botón que lleva a ese día en el hilo de abajo:
+          el instrumento que mide la quincena sirve además para recorrerla.
+
+          Los días vacíos siguen siendo marcas mudas: no hay nada a lo que ir, y
+          un botón que no lleva a ninguna parte es un control falso. Por lo
+          mismo, el contenedor ya no es `role="img"` —eso volvería presentacional
+          todo lo de dentro, botones incluidos— sino un grupo con nombre.
+        */}
         <div
           className="scale"
-          role="img"
+          role="group"
           aria-label={`Actividad de los últimos ${DEFAULT_WINDOW} días: ${events.length} registros en total.`}
         >
-          {scale.map((day) => (
-            <div
-              key={day.date}
-              className={`scale-day${day.isToday ? ' is-today' : ''}`}
-              title={`${shortDate(day.date)}: ${day.count} ${day.count === 1 ? 'registro' : 'registros'}`}
-            >
-              <span className="scale-track">
-                <span
-                  className="scale-bar"
-                  style={{ height: `${day.count === 0 ? 0 : Math.max(9, (day.count / maxCount) * 100)}%` }}
-                />
-              </span>
-              <span className="scale-tick" aria-hidden="true" />
-            </div>
-          ))}
+          {scale.map((day) => {
+            const etiqueta = `${shortDate(day.date)}: ${day.count} ${day.count === 1 ? 'registro' : 'registros'}`;
+            const dentro = (
+              <>
+                <span className="scale-track">
+                  <span
+                    className="scale-bar"
+                    style={{ height: `${day.count === 0 ? 0 : Math.max(9, (day.count / maxCount) * 100)}%` }}
+                  />
+                </span>
+                <span className="scale-tick" aria-hidden="true" />
+              </>
+            );
+
+            return day.count > 0 ? (
+              <button
+                key={day.date}
+                type="button"
+                className={`scale-day${day.isToday ? ' is-today' : ''}`}
+                title={`${etiqueta} · ver ese día en el hilo`}
+                aria-label={`${etiqueta}. Ver ese día en el hilo.`}
+                onClick={() =>
+                  traeALaVista(document.getElementById(`dia-${day.date}`), {
+                    block: 'center',
+                    behavior: 'smooth',
+                  })
+                }
+              >
+                {dentro}
+              </button>
+            ) : (
+              <div
+                key={day.date}
+                className={`scale-day${day.isToday ? ' is-today' : ''}`}
+                title={etiqueta}
+                aria-hidden="true"
+              >
+                {dentro}
+              </div>
+            );
+          })}
         </div>
         <div className="scale-legend">
           <span>{shortDate(scale[0]?.date)}</span>
-          <span>hoy</span>
+          <span className="is-hoy">hoy</span>
         </div>
-      </Panel>
+      </section>
 
       <div className="today">
         {/* ── EL HILO ──────────────────────────────────────────────────── */}
@@ -220,7 +291,8 @@ export const Today = () => {
             </Panel>
           ) : (
             days.map((day) => (
-              <section className="feed-day" key={day.date}>
+              /* El `id` es el ancla a la que saltan las barras del pulso. */
+              <section className="feed-day" id={`dia-${day.date}`} key={day.date}>
                 <DayHead label={day.label} count={day.events.length} />
                 <div className="feed-rows">
                   {day.events.map((event) => (
@@ -250,8 +322,24 @@ export const Today = () => {
                 /* Marcar cobrado adelanta también la fecha al ciclo siguiente.
                    Antes solo cambiaba el estado, así que el cobro volvía a
                    reclamarse al día siguiente con la fecha vieja puesta. Lo hace
-                   `markClientPaid`, que es la misma acción que usa la ficha. */
-                paid: (clientId) => act(markClientPaid(clientId)),
+                   `markClientPaid`, que es la misma acción que usa la ficha.
+
+                   Devuelve lo que había antes, y con eso el aviso ofrece el
+                   «Deshacer»: el inverso es `updateClient` con esos campos. */
+                paid: (clientId) => {
+                  const res = markClientPaid(clientId);
+                  setError(res?.ok === false ? res.error : null);
+                  if (res?.ok === false) return;
+
+                  const nombre = clients.find((c) => c.id === clientId)?.name || 'el cliente';
+                  toast({
+                    text: `Cobro de ${nombre} anotado y fecha adelantada.`,
+                    action: {
+                      label: 'Deshacer',
+                      onClick: () => updateClient(clientId, res.prev),
+                    },
+                  });
+                },
                 review: (reviewId, clientId) => cerrarRevision(reviewId, clientId),
                 invite: () => navigate('/clientes'),
               }}
