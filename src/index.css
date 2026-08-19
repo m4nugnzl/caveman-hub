@@ -1576,11 +1576,17 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   padding-inline: var(--lp-pad);
 }
 
-/* La excepción, y hay una sola en la página: la hoja de progreso. Un gráfico es
-   lo único que se puede quedar sin sitio —las etiquetas de los ejes tienen un
-   tamaño mínimo por debajo del cual no se leen— así que esa sección se sale del
-   ancho de lectura. El titular de dentro no la sigue: se queda centrado y con su
-   tope de caracteres, que una línea de texto de 1440 px no se lee. */
+/* Las excepciones, y son dos: la hoja de progreso y la escena del héroe. En las
+   dos por lo mismo —una pieza que no puede encoger— y por motivos distintos.
+
+   En el progreso es un gráfico: las etiquetas de los ejes tienen un tamaño
+   mínimo por debajo del cual no se leen. En el héroe son dos aparatos que tienen
+   que caber uno al lado del otro sin pisarse, y en 1200 px no caben: el teléfono
+   acaba mordiendo setenta y cinco píxeles de la ventana, o sea tapando una
+   columna entera de la captura. Ver `.lp-hero-escena`.
+
+   El titular no las sigue: se queda centrado y con su tope de caracteres, que
+   una línea de texto de 1440 px no se lee. */
 .lp-in.is-ancha { max-width: calc(1440px + var(--lp-pad) * 2); }
 
 .lp-sec { padding-block: var(--lp-air); }
@@ -1740,6 +1746,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   /* Y el raíl, entero desde el principio: es una línea, no una animación. */
   .lp-ruta-paso::before { scale: 1 1; }
   .lp-hero-in > *,
+  .lp-hero-escena,
   .lp-par-art .lp-chapa,
   /* El acceso usa los mismos fotogramas: si se desconectan aquí y allí no, la
      pantalla que va justo detrás de la portada se movería igual. */
@@ -1985,26 +1992,108 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* ==========================================================================
    EL HÉROE
    --------------------------------------------------------------------------
-   Centrado, a una columna y con la ilustración DEBAJO, no al lado. Partirlo en
-   dos columnas obliga a leer y mirar a la vez y deja el titular a la mitad de su
+   Centrado, a una columna y con la escena DEBAJO, no al lado. Partirlo en dos
+   columnas obliga a leer y mirar a la vez y deja el titular a la mitad de su
    tamaño posible; así el titular ocupa lo que puede ocupar y el producto llega
-   entero justo después.
+   entero justo después — y cortado en el canto donde la sección acaba, que es lo
+   que hace que se siga bajando.
 
-   Y la ilustración son dos piezas, no una: el hilo de «Hoy» a un lado y el móvil
-   del cliente al otro. Juntas dicen lo mismo que el titular —tus clientes
-   entrenan, tú lo ves todo— en otro idioma.
+   El texto es corto a propósito: cuatro cosas —rótulo, titular, una frase y el
+   precio— y ni una más. Cada línea que se añade aquí empuja la escena fuera del
+   pliegue, y una escena que empieza por debajo del canto es una escena que no
+   existe. Los dos botones que hubo aquí se fueron por eso, y porque el de
+   empezar está ya en la barra, que va pegajosa.
 
-   Las dos son COMPONENTES, no capturas. Aquí hubo una fotografía de la pantalla
-   de escritorio recortada con un desvanecido, y tenía dos problemas que no se
-   arreglan retocándola: envejece con la primera pantalla que se toque, y en una
-   portada se nota que es una foto —justo donde hay que demostrar que hay algo
-   detrás—. Lo que se pinta con reglas no se puede quedar viejo.
+   Ver `.lp-hero-escena`, más abajo, y `HERO` en `LandingPage.jsx`.
    ========================================================================== */
 
-.lp-hero { position: relative; padding-top: clamp(44px, 8vh, 92px); }
+/* ══ EL HÉROE MIDE UNA PANTALLA, Y ACABA EN UN CANTO ═══════════════════════
+   Aquí el héroe no medía nada: era texto y una escena, y lo que la cortaba era
+   el canto del navegador. O sea que el corte lo decidía la ventana de cada uno,
+   y al desplazar la imagen iba asomando poco a poco hasta salir entera. Eso no
+   es un corte, es una imagen que tarda en verse.
+
+   Lo que hace falta es lo contrario: que la primera pantalla TERMINE en un sitio
+   —el mismo para todo el mundo— y que la escena se corte ahí de golpe, con la
+   franja siguiente empezando justo debajo. El canto es lo que dice «hasta aquí
+   la portada» y lo que convierte la imagen cortada en una promesa en vez de en
+   una imagen a medio cargar.
+
+   ── La cuenta del alto ────────────────────────────────────────────────────
+   Una pantalla, menos la barra —que va pegajosa pero ocupa sitio en el flujo—,
+   menos un dedo. Ese dedo es a propósito: si el héroe midiera la pantalla
+   entera, el canto caería justo en el borde y no se vería NADA de lo que hay
+   detrás. Dejando cuarenta y pico píxeles, asoma una banda de la sección
+   siguiente, y una banda que asoma es lo único que hace que se siga bajando.
+
+   `svh` y no `vh`: en un teléfono, `vh` mide la pantalla con la barra del
+   navegador escondida, así que al abrir la página —con la barra puesta— el
+   héroe mide más que el hueco y la banda no asoma, que es justo lo que esto
+   existe para conseguir. La línea de `vh` de encima es para el navegador que no
+   entienda `svh`; ahí se queda como estaba.
+
+   ── Y es `height`, no `min-height`. Esto costó un intento ──────────────────
+   Con `min-height` no pasaba absolutamente nada: es un SUELO, así que la sección
+   seguía creciendo con su contenido hasta los mil y pico píxeles que ocupan el
+   texto y la escena juntos. Y una caja que ya cabe entera no tiene sobrante que
+   repartir, así que la caja de recorte no recortaba nada — el canto no aparecía
+   por ningún lado y todo quedaba igual que antes.
+
+   El corte necesita un alto DEFINIDO: solo con él la caja de dentro sabe cuánto
+   sitio le queda, y solo entonces hay algo que se salga y que recortar.
+
+   Y el alto solo se pone donde hay escena que recortar. En un teléfono y en una
+   ventana baja se quita —ver `@media (max-width: 700px), (max-height: 640px)` al
+   final del archivo—: allí la escena ya cabe o el texto se comería el hueco, y
+   un canto que no corta nada es un agujero.
+   ══════════════════════════════════════════════════════════════════════════ */
+.lp-hero {
+  position: relative;
+  padding-top: clamp(44px, 8vh, 92px);
+  /* El aire de abajo se va entero: aquí no separa nada, porque lo que hay
+     debajo del canto es la franja siguiente pegada a él. */
+  padding-bottom: 0;
+  height: calc(100vh - var(--header-h) - clamp(28px, 5vh, 56px));
+  height: calc(100svh - var(--header-h) - clamp(28px, 5vh, 56px));
+  display: flex;
+  flex-direction: column;
+}
 .lp-hero-in {
   display: flex; flex-direction: column; align-items: center;
   text-align: center; gap: var(--s4);
+}
+
+/* ── LA CAJA QUE CORTA ───────────────────────────────────────────────────────
+   Se come todo el hueco que deja el texto (`flex: 1`) y recorta lo que se salga
+   por abajo. Las tres declaraciones hacen falta y ninguna sobra:
+
+     · `flex: 1 1 auto` para que llegue hasta el canto del héroe;
+     · `min-height: 0` porque un elemento flexible no baja de su contenido a
+       menos que se le diga, y sin esto la escena EMPUJA la sección hacia abajo
+       en vez de dejarse cortar — o sea, no pasa nada de nada;
+     · `overflow: clip` para el corte. `clip` y no `hidden`: `hidden` crea un
+       contenedor de desplazamiento y eso rompería la barra pegajosa de arriba.
+
+   Y va en los dos ejes aunque solo haga falta el vertical: un `overflow-y`
+   solo, con el horizontal en `visible`, obliga al navegador a convertir el otro
+   en `auto` — que es exactamente el contenedor de desplazamiento que no puede
+   haber.
+
+   ══ Y por qué es una caja APARTE y no la propia escena ═════════════════════
+
+   Porque la escena alinea sus dos aparatos por ABAJO (`align-items: flex-end`),
+   que es lo que hace que el teléfono se apoye en la base de la ventana. Si el
+   recorte se le pusiera a ella, su caja pasaría a medir menos que su contenido
+   y el `flex-end` empujaría los dos aparatos hacia ARRIBA para pegar sus pies a
+   un suelo que ya no está donde estaba: la escena se saldría por el techo y lo
+   que se vería sería su mitad de abajo. Al revés de lo que se busca.
+
+   Con la caja aparte, la escena conserva su alto de siempre, se ancla arriba y
+   lo que sobra se va por el canto de abajo. */
+.lp-hero-corte {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: clip;
 }
 
 /* ══ LA LUZ DEL HÉROE: dos fuentes, cálida y fría ═══════════════════════════
@@ -2039,9 +2128,94 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .lp-hero-in > * { position: relative; }
 
-.lp-cta { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s3); }
 /* Aquí vive el precio, y por eso no es texto terciario diminuto: se lee. */
 .lp-cta-note { font-size: var(--fs-sm); color: var(--text-tertiary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA ESCENA DEL HÉROE: la pantalla del entrenador y el móvil del cliente
+   --------------------------------------------------------------------------
+   Lo que el héroe no tenía. Aquí la primera pantalla era texto de arriba abajo
+   —rótulo, titular, párrafo, dos botones y una nota— y cinco bloques de texto
+   apilados no tienen jerarquía: todos piden lo mismo, que es que los leas. Una
+   portada tiene que dar algo que MIRAR antes de dar algo que leer.
+
+   Los dos aparatos son los mismos que los de un par y se montan igual —el
+   teléfono muerde el canto derecho de la ventana y cae por debajo de su base—,
+   así que lo que hay aquí son cuatro medidas y ni una técnica nueva. Lo que
+   cambia es la ESCALA: esta ventana se pinta a 980 px y las de las secciones a
+   770, porque una primera pantalla con una imagen del tamaño de las de abajo no
+   es un impacto, es la primera de una lista de seis.
+
+   ══ Y SE CORTA EN UN CANTO, que es la mitad del efecto ═════════════════════
+
+   Aquí el corte lo hacía el canto del NAVEGADOR: la escena se iba por debajo de
+   la ventana y al desplazar salía entera, poco a poco. Eso no es un corte —el
+   sitio donde ocurre lo decide la pantalla de cada uno, y lo que se ve mientras
+   tanto es una imagen que tarda en aparecer—.
+
+   Ahora lo corta la página, en un canto duro y con la franja siguiente pegada
+   debajo. Ver `.lp-hero` y `.lp-hero-corte`, más arriba: el héroe mide una
+   pantalla menos un dedo, y ese dedo es la banda que asoma y que dice que hay
+   más. Una imagen cortada por un canto que se ve es una promesa; cortada por el
+   borde del monitor es una imagen mal puesta.
+
+   El aire de encima va en `vh` y no en píxeles por lo mismo: en una pantalla
+   baja se aprieta para que la escena llegue a asomar antes del canto, y en una
+   alta se abre para que no quede pegada a la frase.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-hero-escena {
+  display: flex; align-items: flex-end; justify-content: center;
+  margin-top: clamp(32px, 5vh, 68px);
+  /* Posicionada y aislada, que es de lo que vive el fulgor: va con `z-index: -1`
+     y sin contexto de apilado propio se iría detrás del fondo de la sección.
+     `position` además la sube por encima del halo de `.lp-hero::before`, igual
+     que hace `.lp-hero-in > *`. */
+  position: relative;
+  isolation: isolate;
+  /* Entra la última, después de la cascada de la columna de texto: la escena es
+     la recompensa de haber leído el titular, no algo que aparezca antes que él. */
+  animation: lp-entra 0.9s var(--ease) 400ms both;
+}
+
+/* Ajustada al contenido y no al 100 %, igual que `.lp-par-desk`: con el ancho
+   entero de la fila la ventana se queda centrada con aire a los lados, el margen
+   negativo del teléfono se come ese aire y los dos aparatos acaban separados por
+   un hueco. */
+.lp-hero-desk { flex: 0 1 auto; min-width: 0; }
+
+/* El tope de `.lp-plana` son 880 px y esta pieza se pinta a 980. Se levanta
+   nombrando `--nat`, que es justo el ancho al que la pieza declara que se puede
+   pintar sin ampliarse: la regla de «una captura no se amplía nunca» la sigue
+   garantizando la pieza, no un número escrito aquí. */
+.lp-hero-desk > .lp-plana { max-width: var(--nat, 880px); }
+
+/* El MORDISCO es corto: el teléfono se apoya en el canto derecho de la ventana y
+   casi todo él queda por fuera. Aquí estuvo en −75 px, que es lo que hacía falta
+   para que los dos aparatos cupieran en el ancho de lectura, y con ese mordisco
+   tapaba entera la columna de «Te esperan» — o sea, media captura. La escena se
+   fue a la caja ancha y el mordisco pudo bajar a lo que tiene que ser: el canto,
+   y nada más.
+
+   ── Y por qué no baja más de aquí ─────────────────────────────────────────
+   Porque la tarjeta de «Revisiones» lleva sus dos botones pegados al canto
+   derecho de la ventana, así que cualquier mordisco que se note tapa el final de
+   uno. Se probó a quitarlo casi del todo —veinte píxeles— para librarlos, y lo
+   que salía era peor: el teléfono dejaba de morder y se quedaba PUESTO AL LADO
+   de la ventana, o sea dos objetos en vez de una escena, que es justo lo que el
+   solape existe para evitar.
+
+   Un aparato delante de una pantalla tapa parte de la pantalla. Eso no se lee
+   como un fallo; dos aparatos que se rozan sin tocarse, sí.
+
+   El ANCHO del aparato no está aquí: vive detrás del bloque `.lp-iphone`, que es
+   el único sitio donde gana. Ver allí. */
+.lp-hero-movil {
+  flex-shrink: 0;
+  margin-left: clamp(-48px, -3vw, -24px);
+  margin-bottom: clamp(-64px, -4vw, -32px);
+  z-index: 1;
+}
 
 /* ── Y aquí vivió EL HILO ────────────────────────────────────────────────────
    Una línea colgada de un filete que cerraba el héroe diciendo de quién eran
@@ -3070,6 +3244,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
    Así que la aplicación llega hasta la esquina redondeada y ahí se acaba. */
 
+/* ── EL ANCHO DEL TELÉFONO DEL HÉROE, Y POR QUÉ ESTÁ AQUÍ ────────────────────
+   Porque `.lp-iphone` declara `--tel: 250px` unas líneas más arriba, y quien lo
+   quiera cambiar tiene que escribirlo DESPUÉS: las dos reglas apuntan al mismo
+   elemento con la misma especificidad —una clase—, así que no decide el peso,
+   decide el orden. Puesta junto a `.lp-hero-escena`, novecientas líneas antes,
+   esta declaración no hacía absolutamente nada y el aparato salía siempre a 250,
+   que en una ventana de 720 px era más ancho que un tercio de la pantalla que
+   venía a acompañar.
+
+   El aparato crece con la ventana porque lo que tiene que ser creíble entre las
+   dos piezas es la RELACIÓN de tamaños, que es lo que dice cuál de las dos es la
+   pantalla grande. Un cuarto del ancho de la ventana, de un monitor a una
+   tableta.
+
+   (`.lp-par-movil` tiene el mismo problema y no se toca aquí: su declaración
+   también queda por delante, así que los pares llevan el teléfono a 250 px desde
+   siempre y la sección está ajustada a ojo con esa medida puesta. Cambiarlo es
+   retocar dos secciones que hoy se ven bien, y eso no es parte de esto.) */
+.lp-hero-movil { --tel: clamp(150px, 17.5vw, 252px); }
+
 /* ══════════════════════════════════════════════════════════════════════════
    LOS PLANES
    --------------------------------------------------------------------------
@@ -3462,9 +3656,23 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      Por eso todas las reglas de la escena nombran las dos formas del par. No es
      repetir por gusto: es que la vuelta se declara con dos clases y aquí hay que
      deshacerla con dos.
+
+     ══ Y LA ESCENA DEL HÉROE ENTRA POR AQUÍ ══════════════════════════════════
+
+     Porque es la MISMA escena: una ventana de escritorio con el teléfono del
+     cliente mordiéndole un canto. Lo único que la distingue en un monitor es la
+     escala —980 px de ventana en vez de 770— y en un teléfono de 390 esa
+     diferencia no existe: las dos se resuelven con el mismo problema delante,
+     que es meter dos aparatos de proporción opuesta en una columna sin que se
+     lean como dos bloques apilados.
+
+     Así que las reglas se comparten en vez de escribirse otra vez. Si mañana la
+     escena vertical se ajusta, se ajusta en las dos a la vez — que es justo lo
+     que no pasa cuando se duplica un bloque de maqueta.
      ══════════════════════════════════════════════════════════════════════════ */
   .lp-par-art,
-  .lp-par.is-vuelta .lp-par-art {
+  .lp-par.is-vuelta .lp-par-art,
+  .lp-hero-escena {
     /* ── Las dos medidas de las que cuelga toda la escena ──────────────────
        `--tel-esc` es el ancho del teléfono, y manda porque es la pieza que no
        puede encoger sin dejar de parecer un teléfono. El tope de 108 px no es
@@ -3516,10 +3724,12 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      teléfono, el mordisco es SIEMPRE el 28 % de lo que mide — igual en un
      teléfono de 320 que en una tableta de 700. */
   .lp-par-desk,
-  .lp-par.is-vuelta .lp-par-desk {
+  .lp-par.is-vuelta .lp-par-desk,
+  .lp-hero-desk {
     width: calc(100% - var(--tel-esc) * 0.72);
   }
-  .lp-par-desk { align-self: flex-start; }
+  .lp-par-desk,
+  .lp-hero-desk { align-self: flex-start; }
   .lp-par.is-vuelta .lp-par-desk { align-self: flex-end; }
 
   /* ── EL TELÉFONO, EN LA ESQUINA Y POR FUERA ──────────────────────────────
@@ -3540,7 +3750,8 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      ventana también lo necesita para saber cuánto sitio soltar. Aquí solo se
      recoge. */
   .lp-par-movil,
-  .lp-par.is-vuelta .lp-par-movil {
+  .lp-par.is-vuelta .lp-par-movil,
+  .lp-hero-movil {
     --tel: var(--tel-esc);
     align-self: flex-end;
     margin: calc(var(--asoma) - var(--tel) * 1.72) 0 0;
@@ -3606,7 +3817,8 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   /* El fulgor se estira con la escena: con la proporción fija se quedaba en una
      mancha apaisada flotando en el hueco entre la ventana y el teléfono, que es
      justo donde no hay nada que iluminar. */
-  .lp-par-art > .lp-fulgor {
+  .lp-par-art > .lp-fulgor,
+  .lp-hero-escena > .lp-fulgor {
     width: 124%; height: 92%;
     aspect-ratio: auto;
   }
@@ -3678,8 +3890,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      borrar una línea que no pinta.
      ══════════════════════════════════════════════════════════════════════════ */
 
+  /* El único botón que queda en el cuerpo de la página es el del cierre, y ahí
+     ancho completo es lo que toca. (El de la barra no se entera: es hijo de un
+     `span` que ya se ajusta a su contenido, así que su 100 % es su propio
+     ancho.) El del héroe se fue — ver `HERO` en `LandingPage.jsx`. */
   .lp-btn { width: 100%; }
-  .lp-cta { width: 100%; }
 
   /* ── El héroe deja de empezar a media pantalla ───────────────────────────
      El aire de arriba se mide en `8vh`, o sea que cuanto más alto es el
@@ -3688,6 +3903,36 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      sección. Ciento noventa píxeles —un cuarto de la pantalla— antes de la
      primera letra de la página. */
   .lp-hero { padding-top: var(--s6); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DONDE NO HAY NADA QUE CORTAR, EL CANTO SE VA
+   --------------------------------------------------------------------------
+   El héroe mide una pantalla y recorta lo que se salga por abajo. Eso vale
+   mientras haya escena de sobra que recortar, y hay dos sitios donde no la hay:
+
+     · **En un teléfono**, porque la escena ya no es la de un monitor: la ventana
+       se encoge y el aparato se le pone debajo, así que las dos piezas juntas
+       miden un tercio de lo que medían y CABEN. Forzando la pantalla entera,
+       lo que quedaba debajo de la escena eran doscientos y pico píxeles de nada
+       antes de la franja siguiente — un canto que no corta nada no es un canto,
+       es un agujero.
+     · **En una ventana baja** —media pantalla de un portátil, un monitor
+       apaisado—, porque ahí el titular a dos líneas, la frase y el precio ya se
+       comen el hueco entero y el recorte pasaría de morder la escena a morder
+       la letra. Cortar una imagen es el efecto; cortar un titular es un fallo.
+
+   En los dos casos el héroe vuelve a crecer con su contenido, la caja de recorte
+   deja de recortar y el aire de abajo se pone otra vez — si no, la franja
+   siguiente quedaría pegada a una escena que ya no acaba en ningún sitio.
+
+   Los dos van en la MISMA regla y con una coma: es la misma decisión —«aquí no
+   hay pantalla que cortar»— tomada por dos motivos, y separarlas en dos bloques
+   solo conseguiría que dentro de un año se ajuste uno y no el otro.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 700px), (max-height: 640px) {
+  .lp-hero { height: auto; padding-bottom: var(--lp-air); }
+  .lp-hero-corte { overflow: visible; }
 }
 
 @media (max-width: 560px) {

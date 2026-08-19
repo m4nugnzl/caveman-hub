@@ -71,7 +71,7 @@ import { LogoMark } from '@/components/ui/Logo';
  * con la misma forma —rótulo, titular, imagen centrada— se leen como una lista,
  * por buena que sea cada imagen. Aquí no hay dos iguales:
  *
- *   · el héroe, UNA pantalla grande y sola;
+ *   · el héroe, una escena centrada y cortada por el canto de la pantalla;
  *   · el cliente, dos pares de aparatos con el discurso al lado y alternando;
  *   · el plan y el progreso, dos ventanas en escalón;
  *   · lo que además trae, una rejilla de cuatro fichas;
@@ -187,20 +187,61 @@ import { LogoMark } from '@/components/ui/Logo';
  * `scripts/recortar-capturas.ps1`. Ver `.lp-shot-vista` en `index.css`.
  */
 /**
- * ══ EL HÉROE SE QUEDÓ SIN CAPTURA ═══════════════════════════════════════════
+ * EL HÉROE: qué es esto, y una pantalla que lo enseña.
  *
- * Y no por falta de sitio: por falta de argumento. Aquí hubo, en este orden, una
- * escena de dos aparatos enseñando la misma pantalla dos veces, y después una
- * sola ventana grande con el resumen de un cliente. La segunda estaba mejor
- * hecha y tenía el mismo problema de fondo: **un panel de cifras en la primera
- * pantalla no dice nada**. Lo tiene igual cualquier producto del mundo, se mira
- * seis segundos y no se saca de ahí ni qué hace esto ni para quién es.
+ * ══ Por qué el héroe volvió a tener imagen ══════════════════════════════════
  *
- * Lo que de verdad cuenta este producto es lo de abajo —la misma sesión en tu
- * pantalla y en la suya, la misma comida en las dos— y eso necesita dos aparatos
- * y una explicación al lado. No cabe arriba, y arriba no hace falta.
+ * Aquí estuvo, en este orden: una escena de dos aparatos enseñando la misma
+ * pantalla dos veces, después una ventana con el resumen de UN cliente, y
+ * después nada. La primera pantalla entera pasó a ser texto —rótulo, titular,
+ * párrafo, dos botones y una nota—, con el argumento de que un panel de cifras
+ * no dice nada.
  *
- * ══ Lo que sí dice, y en la primera línea: QUÉ ES ESTO ══════════════════════
+ * Y ese argumento seguía siendo bueno; lo que estaba mal era la conclusión. El
+ * problema de aquella ventana no era que fuera una imagen: era QUÉ imagen. El
+ * resumen de un cliente es un panel de indicadores, y un panel de indicadores lo
+ * tiene igual cualquier producto del mundo. Quitarlo dejó la portada sin lo
+ * único que un escaparate no puede no tener: algo que mirar antes de leer.
+ *
+ * Cinco bloques de texto apilados no tienen jerarquía —todos piden lo mismo, que
+ * es que los leas— así que la primera pantalla no tenía nada que hacer de golpe.
+ *
+ * ══ Y por qué es ESTA pantalla y no otra ════════════════════════════════════
+ *
+ * Porque es la única de la aplicación donde salen VARIOS clientes a la vez. El
+ * titular dice «todos tus clientes en un solo sitio», y esta es la pantalla
+ * donde eso se ve sin que haya que explicarlo: dos nombres distintos bajando por
+ * la misma columna, cada uno con lo que hizo y cuándo —un pesaje, cuatro fotos,
+ * dos sesiones registradas— y al lado la lista de los que están esperando, con
+ * un check-in entregado esperando respuesta.
+ *
+ * Y arriba del todo, la revisión que hay pendiente: quién va en dirección
+ * contraria a su objetivo, cuánto, y el botón de ajustárselo. Es lo único de la
+ * captura que no es un registro de algo que ya pasó sino una DECISIÓN que hay
+ * que tomar hoy — que es exactamente el trabajo que esta herramienta hace y que
+ * una hoja de cálculo no hace.
+ *
+ * Ahí estuvo la gráfica de las dos semanas y se cambió por esto. Ver `p-hoy` en
+ * `scripts/recortar-capturas.ps1`: miden casi lo mismo, así que la ventana no
+ * creció y el feed no se cayó por debajo del corte.
+ *
+ * Las otras cinco capturas de escritorio de la página son de UNA persona. Por
+ * buenas que sean, ninguna puede sostener esa frase, y además todas tienen ya su
+ * sitio más abajo: repetir aquí una de ellas es gastar la primera pantalla en
+ * enseñar algo que se va a volver a ver a dos pantallazos de distancia.
+ *
+ * ── Y el teléfono, que es la otra mitad ────────────────────────────────────
+ * La ventana dice lo que ves TÚ. El teléfono dice que el cliente lo lleva
+ * encima, y sin él la portada vende un panel de control. Es la misma sesión que
+ * aparece en el par 01 —el aductor a 55 que se queda en seis repeticiones— y ahí
+ * se lee de cerca; aquí no hay que leerla, hay que reconocer que es una
+ * aplicación de entrenar en el móvil de alguien.
+ *
+ * Que la captura se repita a dos secciones de distancia es la única costura de
+ * esta escena, y es de material, no de maqueta: hace falta una pantalla de
+ * cliente más para quitarla.
+ *
+ * ══ Lo que dice la letra, y en la primera línea: QUÉ ES ESTO ════════════════
  *
  * Aquí puso «Entrena a más. Gestiona menos.», que es una promesa de resultado.
  * Suena bien y tiene un problema: se la puede poner encima cualquier producto
@@ -209,18 +250,41 @@ import { LogoMark } from '@/components/ui/Logo';
  * decir la CATEGORÍA; el beneficio se cuenta después, y aquí lo cuentan las
  * pantallas.
  *
- * Así que el titular nombra el producto —todos tus clientes en un sitio— y la
- * frase de debajo lo abre: qué se lleva dentro y qué es lo que sustituye, que es
- * la hoja de cálculo, la aplicación de rutinas y la cadena de WhatsApp.
+ * ── Y la frase se quedó en UNA línea de argumento ──────────────────────────
+ * Eran tres líneas que enumeraban seis funciones y tres cosas que sustituye. Con
+ * la escena debajo, ese párrafo hacía dos daños a la vez: se llevaba el sitio que
+ * necesita la imagen para entrar en el pliegue, y contaba con palabras lo que la
+ * imagen cuenta mejor. Se queda lo que la imagen NO puede decir: qué se sustituye
+ * —la hoja de cálculo y la cadena de WhatsApp—, que es lo que hace que un
+ * entrenador se reconozca en la frase.
  *
- * ── Y aquí se fue EL HILO ──────────────────────────────────────────────────
- * Una línea que cerraba el héroe con quién era la persona de todas las capturas:
- * «Javier López · Cut Phase, semana 3 · 80,1 kg…». Explicaba que los números
- * encadenaban de una pantalla a otra, y a cambio ponía el nombre propio de un
- * cliente de mentira como última cosa de la primera pantalla — justo donde tiene
- * que estar el precio y el botón. Un caso se lee dentro de las capturas o no se
- * lee; no hace falta presentarlo con ficha.
+ * ── Y aquí se fueron LOS BOTONES ───────────────────────────────────────────
+ * «Empezar gratis» y «Ver cómo funciona». El primero está ya en la barra, que va
+ * pegajosa y se ve en toda la página, y otra vez en el cierre; el segundo era un
+ * botón para hacer lo que se hace igual bajando. Dos pastillas entre el titular y
+ * la escena eran una barrera en mitad del único sitio de la portada donde no
+ * puede haber ninguna.
+ *
+ * Lo que sí se queda es el precio: es la pregunta que se hace inmediatamente
+ * después de «¿qué es esto?», y esconderla hasta el final solo consigue que se
+ * busque en otra pestaña.
  */
+const HERO = {
+  ventana: {
+    src: '/capturas/p-hoy.jpg',
+    ancho: 2450,
+    alto: 982,
+    css: 980,
+    titulo: 'Hoy',
+    alt: 'El inicio del entrenador: arriba, la revisión pendiente de Javier López, que va en dirección contraria a su objetivo a +0,26 kg por semana, con el botón de ajustarlo. Debajo, lo que ha hecho cada cliente día a día —Víctor Gómez con sus pesajes y dos sesiones registradas, Javier López con su pesaje y cuatro fotos de progreso— y al lado la lista de los que esperan: un check-in entregado por contestar y diez clientes por invitar.',
+  },
+  movil: {
+    src: '/capturas/m-rutina.jpg',
+    ancho: 430,
+    alto: 700,
+    alt: 'La sesión del día en el móvil de un cliente: los dos primeros ejercicios ya marcados con sus kilos, sus repeticiones y su RIR, y el tercero todavía en blanco.',
+  },
+};
 
 /**
  * LOS DOS PARES: la misma cosa en tu pantalla y en la suya.
@@ -1035,12 +1099,14 @@ export const LandingPage = () => {
         </div>
       </header>
 
-      {/* ══ EL HÉROE: qué es esto, dos botones y el precio ══════════════════
-          Sin captura, y es lo que más ha mejorado esta página: un panel de
-          cifras en la primera pantalla lo tiene igual cualquier producto del
-          mundo y no dice ni qué hace esto ni para quién es. Lo que sí lo dice
-          está veinte píxeles más abajo, a tamaño grande y con su explicación al
-          lado. */}
+      {/* ══ EL HÉROE: qué es esto, el precio, y la pantalla ═════════════════
+          Cuatro cosas y en este orden: el rótulo que dice la categoría, el
+          titular, la frase que dice qué sustituye y el precio. Y debajo, la
+          escena — a la que se llega justo cuando se ha acabado de leer, y que
+          se corta por el canto de la pantalla para que se siga bajando.
+
+          Ver `HERO`, arriba: por qué esta captura y no otra, y por qué los dos
+          botones que había aquí se fueron. */}
       <section className="lp-sec lp-hero" id="top">
         <div className="lp-in lp-hero-in">
           <span className="lp-eyebrow">Gestión de clientes para entrenadores</span>
@@ -1054,25 +1120,16 @@ export const LandingPage = () => {
             <em>en un solo sitio</em>
           </h1>
 
-          {/* Y aquí, lo que sustituye. Un entrenador que llega a esto no está
-              comparando productos: está decidiendo si merece la pena mover lo
-              que ya tiene, que es una hoja de cálculo, una aplicación de
-              entreno y una conversación de WhatsApp por cliente. Nombrarlas es
-              lo que hace que se reconozca en la frase. */}
+          {/* Una línea, y solo lo que la imagen no puede decir. Un entrenador
+              que llega a esto no está comparando productos: está decidiendo si
+              merece la pena mover lo que ya tiene, que es una hoja de cálculo y
+              una conversación de WhatsApp por cliente. Nombrarlas es lo que
+              hace que se reconozca en la frase; lo que hay dentro ya lo enseña
+              la pantalla de aquí abajo. */}
           <p className="lp-lede">
-            La plataforma donde llevas tu cartera entera: rutinas, dietas, check-ins, progreso,
-            fotos y cobros de cada persona, en la misma ficha. Sin la hoja de cálculo, sin otra
-            aplicación aparte y sin ir a buscar nada al WhatsApp.
+            Rutinas, dietas, check-ins, progreso y cobros en la misma ficha. Sin hoja de cálculo
+            y sin buscar nada en el WhatsApp.
           </p>
-
-          <div className="lp-cta">
-            <Link className="lp-btn is-fill" to="/entrar?alta=1">
-              Empezar gratis
-            </Link>
-            <a className="lp-btn is-ghost" href="#producto">
-              Ver cómo funciona
-            </a>
-          </div>
 
           {/* El precio, en la primera pantalla. Es la pregunta que se hace
               inmediatamente después de «¿qué es esto?», y esconderla hasta el
@@ -1081,6 +1138,40 @@ export const LandingPage = () => {
             Tres clientes gratis, sin límite de tiempo y sin tarjeta.
             {masBarato && <> Para crecer, desde {planPrice(masBarato)}.</>}
           </span>
+        </div>
+
+        {/* ── LA ESCENA ────────────────────────────────────────────────────
+            Fuera de `.lp-hero-in` y con su propia caja, y no es un capricho de
+            marcado: la de arriba es una columna de TEXTO centrada, con su tope
+            de caracteres y su cascada de entrada por hijos; esta es una escena
+            de dos aparatos que necesita todo el ancho y entra de una pieza.
+
+            Y va en la caja ANCHA —1440 en vez de 1200—, que es la segunda de las
+            dos excepciones de la página. Con el ancho de lectura, la ventana de
+            980 px y el teléfono no cabían juntos y el aparato tenía que morder
+            setenta y cinco píxeles de la ventana para entrar: o sea, tapar
+            entera la columna de «Te esperan», que es la mitad de lo que esta
+            captura viene a enseñar. Con sitio, el teléfono se apoya en el canto
+            y no se come nada.
+
+            Y va a pelo en la sección, sin `Entra`: es lo que se ve al llegar,
+            así que aparecer «al alcanzarla» significaría no aparecer nunca. */}
+        {/* La caja que CORTA. Es la que le da al héroe su alto de pantalla y la
+            que recorta la escena por abajo con un canto duro, en vez de dejar
+            que se vaya asomando poco a poco al desplazar. Ver `.lp-hero-corte`
+            en `index.css`: el canto no es del navegador, es de la página. */}
+        <div className="lp-hero-corte">
+          <div className="lp-in is-ancha lp-hero-escena">
+            {/* La luz de detrás: no se pinta la letra, se calienta el hueco
+                donde está. La misma pieza que llevan los pares. */}
+            <span className="lp-fulgor" aria-hidden="true" />
+
+            <div className="lp-hero-desk">
+              <Ventana pieza={HERO.ventana} titulo={HERO.ventana.titulo} plana prioridad />
+            </div>
+
+            <Movil pieza={HERO.movil} className="lp-hero-movil" />
+          </div>
         </div>
       </section>
 

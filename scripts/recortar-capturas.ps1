@@ -99,6 +99,75 @@ if (-not (Test-Path $destino)) { New-Item -ItemType Directory -Path $destino | O
 # La coma delante de la primera banda no es un descuido: sin ella PowerShell
 # aplana el array de arrays y una banda suelta llega como cuatro números.
 $recortes = @(
+  # ══ EL HÉROE: EL INICIO DEL ENTRENADOR ════════════════════════════════════
+  #
+  # La única pantalla de la portada que enseña a VARIOS clientes a la vez, y por
+  # eso es la del héroe: el titular dice «todos tus clientes en un solo sitio» y
+  # esta es la pantalla donde eso se ve —dos nombres distintos en la misma
+  # columna, cada uno con lo que ha hecho y cuándo, y la lista de los que
+  # esperan al lado—. Las otras cinco capturas de escritorio son de UN cliente,
+  # así que ninguna podía sostener esa frase.
+  #
+  # ── LAS TRES COSAS QUE SE ENSEÑAN, y la que se cambió por otra ────────────
+  #
+  # La tarjeta de «Revisiones», el feed de los días y la lista de los que
+  # esperan. Fuera quedan las pestañas de «Hoy / Clientes» y el título de la
+  # página, que son cromo: la navegación la tiene igual cualquier producto.
+  #
+  # Y fuera queda también la gráfica de las últimas dos semanas, que SÍ estuvo
+  # aquí. Se cambió por «Revisiones» y el cambio es exactamente eso, un cambio:
+  # las dos cosas miden casi lo mismo —292 px de archivo contra 272— así que la
+  # ventana no crece y el feed de clientes no se cae por debajo del corte, que es
+  # lo que decidía si esto se podía hacer o no.
+  #
+  # Lo que se gana en la permuta: la gráfica son barras grises sin una sola cifra
+  # legible al tamaño al que se pinta esto — da textura y no dice nada—, mientras
+  # que «Revisiones» es una herramienta con su contenido dentro: quién tiene
+  # revisión pendiente, que va en dirección contraria a su objetivo, cuánto, y el
+  # botón de ajustarlo. En la primera imagen de la portada, eso vale más que una
+  # gráfica que no se lee.
+  #
+  # ── Y la frase de ayuda se quita CON DOS BANDAS ───────────────────────────
+  # La tarjeta acaba en un párrafo que explica a quién le sale revisión. Es letra
+  # pequeña y gris, o sea justo lo que el ojo se salta en una portada, y ocupa un
+  # quinto de la tarjeta. Pero cortando por encima de él la tarjeta se queda sin
+  # su canto de abajo y se lee como si se derramara sobre lo siguiente.
+  #
+  # Así que van dos bandas: la primera acaba debajo de la fila de Javier López y
+  # la segunda arranca por debajo del párrafo, o sea trayéndose el canto de la
+  # tarjeta y todo lo que viene después. Se quita el párrafo y la tarjeta cierra.
+  # Es para lo que están las bandas: se quita el aire, no se monta nada.
+  #
+  # ── Y dónde acaba, que es lo único que tiene truco ────────────────────────
+  #
+  # Hay que cortar limpio en DOS columnas a la vez y no coinciden. La izquierda
+  # cierra el bloque de «Ayer» en 1155 y el rótulo de «Lunes» empieza en 1188,
+  # así que el hueco está entre esos dos. La derecha, a esa altura, va por la
+  # mitad de una fila de la lista de invitaciones.
+  #
+  # Se corta por el hueco de la izquierda y la fila de la derecha se parte. Es lo
+  # correcto de las dos: una lista cortada por el canto de la ventana se lee como
+  # una lista que SIGUE, que es lo que es; una etiqueta de día suelta bajo una
+  # tarjeta cerrada se lee como un recorte mal medido.
+  #
+  # El canto izquierdo va con diez píxeles de aire porque los rótulos de los días
+  # —«HOY», «AYER»— salen por fuera de las tarjetas, y cortando a ras de tarjeta
+  # se quedan sin su primera letra.
+  #
+  # ── Y se pinta a 980, que es más que ninguna otra ─────────────────────────
+  # Las cinco de las secciones van a 770. Esta es la primera pantalla y tiene que
+  # ser la pieza más grande de la página: si el héroe enseña una ventana del
+  # mismo tamaño que las de abajo, deja de ser un impacto y pasa a ser la primera
+  # de una lista de seis.
+  #
+  # ── Y el techo, con la misma cuenta que las demás ─────────────────────────
+  # Las de las secciones se pintan a 770 y se guardan a 1920, o sea 2,5 veces.
+  # Esta se pinta a 980, así que le tocan 2450: sigue habiendo dos píxeles de
+  # archivo por píxel de pantalla al 200 % de zoom, y se ahorran los que no llega
+  # a ver nadie en la imagen más pesada de la portada.
+  @{ nombre = 'p-hoy'; archivo = 'pc\hoy_revision.png'; dpr = 2; escala = 0.7612; techo = 2450
+     bandas = @(@(258, 302, 2575, 290), @(258, 1060, 2575, 742)) }
+
   # ══ EL PAR 01: LA SESIÓN ══════════════════════════════════════════════════
   #
   # Y es la MISMA sesión que enseña el móvil de al lado: «Legs A», del mismo
