@@ -233,6 +233,25 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 }
 .row-end:has(> .field > .field-hint),
 .row-end:has(> .field > .field-error) { margin-bottom: 20px; }
+
+/* ── En estrecho, la fila de campos ENVUELVE de verdad ──────────────────────
+   `.grow` es `flex: 1 1 0%`, y el salto de línea se decide con la base: con
+   base 0 nunca salta, así que `.wrap` en estas filas era decorativo y los
+   cuatro campos del alta compartían 366 px a ~65 px cada uno. El suelo de
+   `flex-basis` es el que GoalCard ya ponía a mano (`minWidth: 180`), hecho
+   sistema: por debajo de 150 px un campo con etiqueta no se puede leer ni
+   tocar, así que ahí salta a la línea siguiente.
+
+   Y la ayuda vuelve al flujo: colgada en absoluto con 20 px reservados (una
+   línea) se montaba sobre la segunda fila de campos al envolver. */
+@media (max-width: 640px) {
+  .row-end { flex-wrap: wrap; }
+  .row-end > .grow, .row-end > .field { flex-basis: min(150px, 100%); }
+  .row-end > .field > .field-hint,
+  .row-end > .field > .field-error { position: static; }
+  .row-end:has(> .field > .field-hint),
+  .row-end:has(> .field > .field-error) { margin-bottom: 0; }
+}
 .col { display: flex; flex-direction: column; gap: var(--s3); }
 .wrap { flex-wrap: wrap; }
 .between { justify-content: space-between; }
@@ -609,6 +628,18 @@ button.list-row:hover { background: var(--fill-subtle); }
 .list-row-label { flex: 1; min-width: 0; }
 .list-row-label > .title { font-size: var(--fs-base); font-weight: 550; }
 .list-row-label > .sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── En estrecho, la fila envuelve en vez de recortarse ─────────────────────
+   Los botones no encogen (`white-space: nowrap`) y `.list` recorta lo que se
+   sale (`overflow: hidden`): en 390 px la cola de revisión perdía justo el
+   botón «Revisar», que es a lo que se venía. `.task-row` ya envolvía por este
+   mismo motivo; esta es la misma decisión para la lista agrupada. La base
+   porcentual de la etiqueta —el idioma de `.exercise-name`— hace que el nombre
+   reclame la primera línea y las acciones bajen juntas a la segunda. */
+@media (max-width: 640px) {
+  .list-row { flex-wrap: wrap; row-gap: var(--s2); }
+  .list-row-label { flex: 1 1 55%; }
+}
 .row-value { font-size: var(--fs-base); font-weight: 600; white-space: nowrap; }
 .row-meta { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; min-width: 84px; text-align: right; }
 
@@ -1116,7 +1147,10 @@ button.task-head { cursor: pointer; }
    Gráficos
    ========================================================================== */
 
-.chart { display: block; width: 100%; overflow: visible; }
+/* `pan-y`: el gráfico lee el dedo (ver charts.jsx) pero el scroll vertical de
+   la página sigue siendo del navegador — sin esto, tocar la curva atascaba el
+   desplazamiento. */
+.chart { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
 .chart-grid line { stroke: var(--hairline); stroke-width: 1; }
 /* El eje NO usa `--tracking-stencil` aunque sea una escala: sus etiquetas van una
    al lado de otra en un ancho fijo, y el interletraje del rótulo troquelado las
@@ -1232,6 +1266,24 @@ button.task-head { cursor: pointer; }
 .btn-icon:hover:not(:disabled) { background: var(--fill); color: var(--text); }
 .btn-icon-danger:hover:not(:disabled) { background: var(--negative-soft); color: var(--negative); }
 .btn-icon-round { border-radius: 50%; }
+/* La variante compacta: equis y lápices que viven DENTRO de una fila o sobre
+   una miniatura, donde la caja de 32 px desplazaba el contenido. Iban con
+   `width/height` en línea, y un estilo en línea le gana a cualquier media
+   query: el bloque de ergonomía táctil no podía agrandarlos. Como clase, en
+   táctil crecen a 36 (ver Ergonomía táctil). */
+.btn-icon-compact { width: 26px; height: 26px; }
+
+/* El desplegable de serie de un gráfico: ancho de diseño, pero nunca más que
+   su tarjeta — fijado en línea a 190 px forzaba el envoltorio en 390 px. */
+.chart-select { width: 190px; max-width: 100%; }
+
+/* Las fotos del cliente, en rejilla fluida. `min()` por lo de siempre: ver
+   «minmax(min(Npx, 100%), 1fr)» arriba. */
+.client-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+  gap: var(--s2);
+}
 
 /* ==========================================================================
    Formularios
@@ -1612,10 +1664,16 @@ button.task-head { cursor: pointer; }
   animation: sheet 0.3s var(--ease);
 }
 @keyframes sheet { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+/* La entrada de la hoja móvil: sube desde abajo, sin escala — una hoja anclada
+   al borde no «aparece», llega. */
+@keyframes modal-sube { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .modal-lg { max-width: 880px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4) var(--s5); }
 .modal-title { font-size: var(--fs-md); font-weight: 650; }
-.modal-body { padding: 0 var(--s5) var(--s5); overflow-y: auto; }
+/* `overscroll-behavior`: al llegar al final del cuerpo, el gesto de scroll no
+   se encadena al fondo bloqueado — sin él, iOS «rebota» la página de detrás y
+   al cerrar aparece desplazada. */
+.modal-body { padding: 0 var(--s5) var(--s5); overflow-y: auto; overscroll-behavior: contain; }
 .modal-footer {
   display: flex; justify-content: flex-end; gap: var(--s2);
   padding: var(--s4) var(--s5); border-top: 1px solid var(--hairline); flex-wrap: wrap;
@@ -4856,7 +4914,9 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    solo le añadiría discurso a un consentimiento, que es justo lo que no puede
    llevar. */
 
-.login { min-height: 100vh; display: grid; place-items: center; padding: var(--s4); }
+/* La pareja vh/svh, como en la portada: con la barra de Safari desplegada,
+   `100vh` mide más que la pantalla visible y la tarjeta quedaba baja. */
+.login { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: var(--s4); }
 
 .login-card { position: relative; width: 100%; max-width: 392px; }
 
@@ -6390,6 +6450,10 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   align-self: center; opacity: 0; transition: opacity var(--fast);
 }
 .read.is-link:hover .read-go, .read.is-link:focus-visible .read-go { opacity: 1; }
+/* Sin ratón no hay hover: el «ver la prueba →» era invisible en el móvil y el
+   mecanismo entero de cada conclusión enlazando a su gráfico no existía. El
+   mismo escape que `.slot-tools` en el mapa de fases. */
+@media (hover: none) { .read-go { opacity: 1; } }
 .read-mark {
   width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
   display: grid; place-items: center; margin-top: 1px;
@@ -6538,7 +6602,8 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    La abre el cliente desde WhatsApp, normalmente en el móvil y sin sesión. Una
    sola tarjeta centrada, sin barras ni menús: no hay nada más que hacer aquí. */
 .review-page {
-  min-height: 100vh; display: grid; place-items: start center;
+  min-height: 100vh; min-height: 100svh; /* pareja vh/svh, ver `.login` */
+  display: grid; place-items: start center;
   padding: var(--s5) var(--s4) var(--s7);
 }
 .review-card {
@@ -7643,16 +7708,55 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   /* Ya ni dos columnas: apiladas, cada una es una sección con su título y su
      recuento, y se recorren con el gesto que ya se está haciendo, que es bajar. */
   .board { grid-template-columns: minmax(0, 1fr); }
+}
 
-  /* ── Ergonomía táctil ──────────────────────────────────────────────────
-     Un chip mide 28 px de alto, que con ratón es cómodo y con el pulgar es un
-     blanco que se falla. El mínimo que recomiendan Apple y Google es 44; aquí se
-     sube a 38 en los controles de lista —que van en fila y se tocan de uno en
-     uno— y a 44 en los botones, que son los que ejecutan algo. */
+/* ── Ergonomía táctil ────────────────────────────────────────────────────────
+   Un chip mide 28 px de alto, que con ratón es cómodo y con el pulgar es un
+   blanco que se falla. El mínimo que recomiendan Apple y Google es 44; aquí se
+   sube a 38 en los controles de lista —que van en fila y se tocan de uno en
+   uno— y a 44 en los botones, que son los que ejecutan algo.
+
+   El corte es el del CHASIS (1024, como .review-bar en su bloque): esto estuvo
+   en 760 y entre un ancho y otro había barra del pulgar con objetivos de ratón
+   — una tableta navegaba con el dedo y apuntaba a chips de 28 px. */
+@media (max-width: 1023.98px) {
   .chip, .segmented-item { min-height: 38px; padding-left: var(--s4); padding-right: var(--s4); }
   .btn { min-height: 44px; }
   .btn-sm { min-height: 36px; }
   .btn-icon { width: 40px; height: 40px; }
+  .btn-icon-compact { width: 36px; height: 36px; min-height: 36px; }
+  /* Los que no son `.btn` y también se tocan: las filas de menú, las equis de
+     cerrar avisos, el asa de arrastre y los botones del editor del panel. */
+  .menu-item { min-height: 44px; }
+  .table td { padding-top: 12px; padding-bottom: 12px; }
+  .toast-x, .alert-x { width: 36px; height: 36px; }
+  .drag-handle { min-width: 36px; min-height: 44px; }
+  .account-btn { min-height: 44px; }
+  .slot-btn { width: 36px; height: 36px; }
+  .unit-select { min-height: 34px; }
+}
+
+/* ── Los campos, a 16 px donde se toca ──────────────────────────────────────
+   Safari en iOS hace ZOOM a la página entera al enfocar cualquier campo con
+   letra menor de 16 px, y no lo deshace al salir. Con la base a 15 y las
+   variantes pequeñas a 13, cada kilo apuntado en el gimnasio dejaba la
+   pantalla ampliada — unas doce veces por sesión.
+
+   `hover: none` y no un ancho: el zoom es cosa del dedo, no del tamaño de la
+   ventana, y así un portátil estrecho conserva su tipografía. El padding se
+   recorta para que la altura de los controles no crezca con la letra.
+
+   Va aquí, al final, a propósito: comparte especificidad con las reglas base
+   de `Formularios` y en un empate gana el último. Los selectores compuestos
+   (`.set-cell-target .input`, 0-2-0) pesan más que `.input` a secas, así que
+   se repiten a mano. */
+@media (hover: none) {
+  .input, .select, .textarea { font-size: 16px; padding-top: 8px; padding-bottom: 8px; }
+  .input-sm, .select-sm { font-size: 16px; padding-top: 4px; padding-bottom: 4px; }
+  .set-cell-target .input, .set-cell-col .input { font-size: 16px; }
+  /* El conmutador g/ud de la dieta: a 10 px no se leía. El ancho no se toca:
+     su celda en la rejilla de la comida es fija y «g»/«ud» caben a 16 px. */
+  .unit-select { font-size: 16px; font-weight: 550; }
 }
 
 /* ==========================================================================
@@ -7688,6 +7792,24 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   .layout { padding: var(--s3) var(--s3) var(--s6); }
   .modal-body, .modal-header, .modal-footer { padding-left: var(--s4); padding-right: var(--s4); }
   .modal-footer .btn { flex: 1; }
+
+  /* ── El diálogo se ancla abajo: es una hoja ────────────────────────────────
+     Centrado era una tarjeta flotando con 16 px de fondo a cada lado y el botón
+     primario a media pantalla; con el teclado abierto, directamente fuera del
+     alcance. Anclado al borde inferior el pie queda a la altura del pulgar y el
+     teclado empuja la hoja hacia arriba en vez de taparla.
+
+     La pareja `vh`/`svh` es la de la portada (ver EL ALTO DE VERDAD): con la
+     barra de Safari desplegada, `92vh` mide más que la pantalla visible y el
+     pie caía detrás de ella. `--safe-b` por la raya del gesto del iPhone. */
+  .modal-backdrop { place-items: end center; padding: 0; }
+  .modal {
+    max-width: none;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    max-height: 92vh; max-height: 92svh;
+    padding-bottom: var(--safe-b);
+    animation: modal-sube 0.28s var(--ease);
+  }
 
   .exercise { flex-wrap: wrap; row-gap: var(--s2); }
   .exercise-name { width: auto; flex: 1; }

@@ -261,8 +261,7 @@ const FoodRow = ({
       {editable && (
         <button
           type="button"
-          className="btn btn-icon btn-icon-danger del"
-          style={{ width: 26, height: 26 }}
+          className="btn btn-icon btn-icon-compact btn-icon-danger del"
           onClick={onRemove}
           aria-label={`Quitar ${food.name}`}
         >
@@ -562,8 +561,7 @@ export const MealCard = ({
             {editable && (
               <button
                 type="button"
-                className="btn btn-icon"
-                style={{ width: 24, height: 24 }}
+                className="btn btn-icon btn-icon-compact"
                 onClick={() => setEditingName(true)}
                 aria-label={`Renombrar ${meal.name}`}
               >

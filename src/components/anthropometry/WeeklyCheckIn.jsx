@@ -127,10 +127,12 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
                   <span className="metric-value" style={{ fontSize: 'var(--fs-md)' }}>
                     {fmt(entry.weight, { decimals: 1, unit: ' kg' })}
                   </span>
+                  {/* Compacto por CLASE, no por estilo en línea: el tamaño en
+                      línea le ganaba a la regla táctil y en el móvil seguía
+                      siendo un blanco de 24 px. */}
                   <button
                     type="button"
-                    className="btn btn-icon btn-icon-danger"
-                    style={{ width: 24, height: 24 }}
+                    className="btn btn-icon btn-icon-compact btn-icon-danger"
                     onClick={() => onRemoveEntry(entry.id)}
                     aria-label={`Borrar el pesaje del ${date}`}
                   >

@@ -137,8 +137,8 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
 
                         <button
                           type="button"
-                          className="btn btn-icon btn-icon-danger"
-                          style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22 }}
+                          className="btn btn-icon btn-icon-compact btn-icon-danger"
+                          style={{ position: 'absolute', top: 4, right: 4 }}
                           onClick={(e) => askDelete(photo, e)}
                           aria-label={`Eliminar foto del ${photo.date}`}
                         >

@@ -53,13 +53,15 @@ export const RangeChips = ({ value, onChange, options, label = 'Periodo' }) => (
   </div>
 );
 
-/** Desplegable compacto para elegir qué se dibuja (ejercicio, músculo, semana…). */
-export const ChartSelect = ({ value, onChange, options, label, width = 190 }) => (
+/** Desplegable compacto para elegir qué se dibuja (ejercicio, músculo, semana…).
+    El ancho por defecto vive en `.chart-select` con un `max-width` que lo frena
+    dentro de su tarjeta; fijado aquí en línea desbordaba en 390 px. */
+export const ChartSelect = ({ value, onChange, options, label, width }) => (
   <label className="row gap-2">
     <span className="sr-only">{label}</span>
     <select
-      className="select input-sm"
-      style={{ width }}
+      className="select input-sm chart-select"
+      style={width ? { width } : undefined}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}

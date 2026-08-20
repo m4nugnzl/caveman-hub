@@ -152,6 +152,14 @@ export const BandChart = ({
 
   const xAt = (i) =>
     prepared.total <= 1 ? PAD.left + innerW / 2 : PAD.left + (i / (prepared.total - 1)) * innerW;
+
+  /* El punto bajo el puntero — la misma cuenta sirve para ratón y para dedo. */
+  const leerPunto = (event) => {
+    const r = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - r.left;
+    const i = Math.round(((x - PAD.left) / innerW) * (prepared.total - 1));
+    setHover(i >= 0 && i < prepared.total ? i : null);
+  };
   const yAt = (value) =>
     PAD.top + innerH - ((value - prepared.scale.min) / (prepared.scale.max - prepared.scale.min || 1)) * innerH;
 
@@ -175,13 +183,17 @@ export const BandChart = ({
             viewBox={`0 0 ${W} ${H}`}
             role="img"
             aria-label={series.map((s) => s.label).join(' y ')}
-            onMouseLeave={() => setHover(null)}
-            onMouseMove={(event) => {
-              const r = event.currentTarget.getBoundingClientRect();
-              const x = event.clientX - r.left;
-              const i = Math.round(((x - PAD.left) / innerW) * (prepared.total - 1));
-              setHover(i >= 0 && i < prepared.total ? i : null);
-            }}
+            /* Eventos de PUNTERO, no de ratón: con `onMouseMove` el gráfico era
+               mudo en el móvil — se veía la forma de la curva pero no había
+               manera de leer el valor de un punto. Tocar o arrastrar el dedo
+               mueve el cursor igual que el ratón; la diferencia está en el
+               «leave»: con dedo no existe un «salir» útil (dispara al levantar),
+               así que solo el ratón limpia y en táctil la lectura queda fijada
+               donde se tocó. `touch-action: pan-y` (en `.chart`) deja el scroll
+               vertical de la página en manos del navegador. */
+            onPointerLeave={(event) => event.pointerType === 'mouse' && setHover(null)}
+            onPointerDown={leerPunto}
+            onPointerMove={leerPunto}
           >
             <defs>
               {prepared.series.map((s) => (
@@ -348,7 +360,9 @@ export const BarBandChart = ({
             viewBox={`0 0 ${W} ${H}`}
             role="img"
             aria-label="Valores por periodo"
-            onMouseLeave={() => setHover(null)}
+            /* Mismo criterio que el gráfico de líneas: el ratón limpia al
+               salir, el dedo deja la lectura fijada. */
+            onPointerLeave={(event) => event.pointerType === 'mouse' && setHover(null)}
           >
             <g className="chart-grid">
               {[0, 0.5, 1].map((f) => (
@@ -364,7 +378,7 @@ export const BarBandChart = ({
             </g>
 
             {data.map((bar, i) => (
-              <g key={`${bar.label}-${i}`} onMouseEnter={() => setHover(i)}>
+              <g key={`${bar.label}-${i}`} onPointerEnter={() => setHover(i)} onPointerDown={() => setHover(i)}>
                 <rect
                   x={xC(i) - barW / 2}
                   y={yAt(Number(bar.value))}

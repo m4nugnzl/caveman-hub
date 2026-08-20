@@ -20,8 +20,14 @@ export const Modal = ({ title, onClose, children, footer, size = 'md', labelledB
     const { overflow } = document.body.style;
     document.body.style.overflow = 'hidden';
 
-    // El primer control del diálogo recibe el foco al abrirse.
-    const first = dialogRef.current?.querySelector(FOCUSABLE);
+    // El primer control del diálogo recibe el foco al abrirse — solo donde hay
+    // teclado físico. En táctil, enfocar un campo abre el teclado en pantalla
+    // (o la rueda de fecha) encima de la hoja recién abierta, antes de que se
+    // haya podido leer qué pide; ahí el foco va al propio diálogo, que es lo
+    // que anuncia el lector de pantalla, y el primer toque ya es del usuario.
+    const first = window.matchMedia('(hover: hover)').matches
+      ? dialogRef.current?.querySelector(FOCUSABLE)
+      : null;
     (first || dialogRef.current)?.focus();
 
     const onKeyDown = (event) => {

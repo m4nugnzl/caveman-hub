@@ -129,13 +129,10 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
             </span>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-              gap: 'var(--s2)',
-            }}
-          >
+          {/* Rejilla por clase: escrita en línea se saltaba el idioma
+              `minmax(min(...))` de la hoja de estilos y nadie que la buscara
+              allí la encontraba. */}
+          <div className="client-photo-grid">
             {group.photos.map((photo) => (
               <figure className="photo-card" key={photo.id}>
                 {photo.url ? (
@@ -145,7 +142,9 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
                     sin vista previa
                   </span>
                 )}
-                <figcaption className="photo-label" style={{ fontSize: '0.68rem', padding: '4px 8px' }}>
+                {/* `--fs-xs` y no 0.68rem: por debajo de 11 px el gris deja de
+                    leerse en un móvil con el brillo bajo. */}
+                <figcaption className="photo-label" style={{ fontSize: 'var(--fs-xs)', padding: '4px 8px' }}>
                   {angleLabel(photo.angle)}
                   {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
                 </figcaption>
