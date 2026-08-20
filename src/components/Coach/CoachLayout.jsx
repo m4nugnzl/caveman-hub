@@ -317,17 +317,25 @@ export const CoachLayout = () => {
 
                 {selector}
 
-                <div className="row gap-2 wrap">{chapas}</div>
+                {/* Las chapas se esconden en el móvil (`.subnav-chapas`): el
+                    estado del cobro y la antigüedad viven en la ficha, y aquí
+                    costaban una segunda línea de cabecera en las SIETE
+                    secciones del cliente. */}
+                <div className="row gap-2 wrap subnav-chapas">{chapas}</div>
 
                 {/* La misma puerta al portal que en la barra lateral: solo
-                    cambia el modo, la ruta la traduce `OtherViewFallback`. */}
+                    cambia el modo, la ruta la traduce `OtherViewFallback`.
+                    En el móvil queda el ojo solo: el texto es lo que obligaba
+                    a la cabecera a partirse en dos líneas. */}
                 <button
                   type="button"
                   className="btn btn-sm subnav-view"
                   onClick={() => setViewMode('client')}
+                  aria-label="Ver su portal"
+                  title="Ver su portal"
                 >
                   <Eye size={14} />
-                  Ver su portal
+                  <span className="subnav-view-label">Ver su portal</span>
                 </button>
               </div>
 

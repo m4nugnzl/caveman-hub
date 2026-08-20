@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
 
@@ -98,6 +98,43 @@ export const Today = () => {
   const inbox = useMemo(() => portfolioInbox(rows), [rows]);
   const days = useMemo(() => groupByDay(events, today), [events, today]);
   const scale = useMemo(() => activityScale(events, today, DEFAULT_WINDOW), [events, today]);
+
+  /*
+    ══ En el móvil, el hilo empieza por lo reciente y el resto se pide ═════════
+    Recorriendo esta pantalla a 390 px, la quincena entera eran ~60 filas y
+    cinco pantallas de scroll para llegar al final. Lo que se viene a mirar por
+    la mañana son los últimos días; los once anteriores siguen ahí, detrás de un
+    botón que dice cuántos son. En escritorio no se acota: allí el hilo comparte
+    fila con la bandeja y la quincena entera es la gracia del panel.
+
+    Igual que en la bandeja (`TaskInbox`), el estado inicial se decide al montar.
+  */
+  const [hiloEntero, setHiloEntero] = useState(
+    () => typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches
+  );
+  const DIAS_VISIBLES = 3;
+  const diasVisibles = hiloEntero ? days : days.slice(0, DIAS_VISIBLES);
+
+  /* El salto desde el pulso a un día todavía plegado: primero se despliega el
+     hilo y, cuando el día existe en el DOM, se baja hasta él. */
+  const [saltoPendiente, setSaltoPendiente] = useState(null);
+  useEffect(() => {
+    if (!saltoPendiente || !hiloEntero) return;
+    traeALaVista(document.getElementById(`dia-${saltoPendiente}`), {
+      block: 'center',
+      behavior: 'smooth',
+    });
+    setSaltoPendiente(null);
+  }, [saltoPendiente, hiloEntero]);
+
+  const irAlDia = (date) => {
+    if (!hiloEntero && days.findIndex((d) => d.date === date) >= DIAS_VISIBLES) {
+      setHiloEntero(true);
+      setSaltoPendiente(date);
+      return;
+    }
+    traeALaVista(document.getElementById(`dia-${date}`), { block: 'center', behavior: 'smooth' });
+  };
 
   const maxCount = Math.max(1, ...scale.map((d) => d.count));
   const activeToday = scale[scale.length - 1]?.count || 0;
@@ -251,12 +288,7 @@ export const Today = () => {
                 className={`scale-day${day.isToday ? ' is-today' : ''}`}
                 title={`${etiqueta} · ver ese día en el hilo`}
                 aria-label={`${etiqueta}. Ver ese día en el hilo.`}
-                onClick={() =>
-                  traeALaVista(document.getElementById(`dia-${day.date}`), {
-                    block: 'center',
-                    behavior: 'smooth',
-                  })
-                }
+                onClick={() => irAlDia(day.date)}
               >
                 {dentro}
               </button>
@@ -290,7 +322,7 @@ export const Today = () => {
               </p>
             </Panel>
           ) : (
-            days.map((day) => (
+            diasVisibles.map((day) => (
               /* El `id` es el ancla a la que saltan las barras del pulso. */
               <section className="feed-day" id={`dia-${day.date}`} key={day.date}>
                 <DayHead label={day.label} count={day.events.length} />
@@ -305,6 +337,14 @@ export const Today = () => {
                 </div>
               </section>
             ))
+          )}
+
+          {/* El resto de la quincena, con la cuenta delante: un «ver más» sin
+              número no dice si esconde dos días o doce. */}
+          {!hiloEntero && days.length > DIAS_VISIBLES && (
+            <button type="button" className="btn btn-secondary" onClick={() => setHiloEntero(true)}>
+              Ver los {days.length - DIAS_VISIBLES} días anteriores
+            </button>
           )}
         </section>
 

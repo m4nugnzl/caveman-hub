@@ -1110,12 +1110,15 @@ button.task-head { cursor: pointer; }
 
 /* En el móvil la fila de cuatro se parte en 2×2 y no en una columna de cuatro:
    apiladas se pierde justo lo que la fila existe para dar, que es comparar dos
-   cifras sin desplazar. */
+   cifras sin desplazar. Y a 390 px TAMBIÉN es 2×2: hubo un corte a 420 que las
+   apilaba en una columna, y cuatro cifras cortas («2 sesiones», «40 series»)
+   pasaban a gastar pantalla y media — se vio recorriendo el panel del
+   entrenador a 390 px, donde «Su semana» era más ficha de métrica que semana.
+   Una etiqueta larga envuelve dentro de su media celda, que es más barato. */
 @media (max-width: 720px) {
   .metric-row.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 420px) {
-  .metric-row.is-2, .metric-row.is-4 { grid-template-columns: minmax(0, 1fr); }
   .metric-slot { display: none; }
 }
 
@@ -6455,6 +6458,17 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .subnav-head { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
 
+/* ── La cabecera del cliente, a UNA línea en el móvil ───────────────────────
+   Con las chapas y el texto de «Ver su portal», la cabecera se partía en dos
+   líneas en las SIETE secciones del cliente: ~130 px de chasis antes del
+   carril, en la pantalla donde menos sobra. Las chapas viven en la ficha (y
+   en escritorio siguen aquí); del botón queda el ojo, con su `aria-label`. */
+.subnav-chapas { min-width: 0; }
+@media (max-width: 640px) {
+  .subnav-chapas { display: none; }
+  .subnav-view-label { display: none; }
+}
+
 /* Los enlaces del subnivel son chips. El estado activo lo marca react-router con
    la clase `active`, igual que `aria-pressed` marca los chips que son botones. */
 a.chip { text-decoration: none; }
@@ -7907,6 +7921,12 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
      Ahora envuelven de dos en dos. `min-width` deja que caigan a una por línea en
      pantallas muy estrechas en vez de estrangular los tres campos. */
   .set-lane { flex-basis: 100%; order: 10; }
+  /* Y de dos en dos, no de una en una: con la base de diseño (168 px) en un
+     carril de ~330 caía una tarjeta por fila, y un día de 6 ejercicios × 4
+     series eran cinco pantallas y media de scroll — medido a 390 px. A 132 px
+     de base caben dos por fila (~160 al crecer) y el día ocupa la mitad; la
+     cabecera de la tarjeta ya sabe envolver cuando el RIR pide sitio (5542). */
+  .set-cell { flex-basis: 132px; }
   /* Con una serie por fila, el botón de añadir compartía línea con la última y la
      dejaba visiblemente más estrecha que las demás: cuatro series iguales y una
      recortada. En su propia fila, a lo ancho, además dice mejor lo que hace. */
