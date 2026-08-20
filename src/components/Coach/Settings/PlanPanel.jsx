@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
-import { fmt, planAhorroPct, planPrice } from '@/lib/num';
+import { fmt, planAhorroPct, planPrice, storageLabel } from '@/lib/num';
 import { supabase } from '@/lib/supabaseClient';
 import { Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
@@ -145,7 +145,7 @@ export const PlanPanel = () => {
     );
   }
 
-  const { label, status, clients, maxClients, trialEndsAt, maxStorageGb, storageBytes } = plan;
+  const { label, status, clients, maxClients, trialEndsAt, maxStorageMb, storageBytes } = plan;
   const quedan = maxClients === null ? null : Math.max(0, maxClients - clients);
   const pct = maxClients ? Math.min(100, Math.round((clients / maxClients) * 100)) : 100;
   const dias = trialEndsAt ? Math.ceil((new Date(trialEndsAt) - Date.now()) / 86400000) : null;
@@ -292,10 +292,18 @@ export const PlanPanel = () => {
         {storageBytes != null && (
           <p className="t-sm t-secondary row gap-2">
             <span>
-              Fotos y vídeo: <span className="tnum">{fmt(storageBytes / GB, { decimals: 1 })}</span>
-              {maxStorageGb ? ` de ${maxStorageGb} GB` : ' GB, sin tope'}
+              {/* Lo usado, en la unidad del TOPE: «120 de 512 MB», «1,2 de 10 GB».
+                  Mezclar unidades en la misma frase obligaría a convertir de
+                  cabeza justo cuando se está decidiendo si borrar o pagar. */}
+              Fotos y vídeo:{' '}
+              <span className="tnum">
+                {maxStorageMb === null || maxStorageMb >= 1024
+                  ? fmt(storageBytes / GB, { decimals: 1 })
+                  : fmt(storageBytes / MB)}
+              </span>
+              {maxStorageMb ? ` de ${storageLabel(maxStorageMb)}` : ' GB, sin tope'}
             </span>
-            {cercaDelTope(storageBytes, maxStorageGb) && (
+            {cercaDelTope(storageBytes, maxStorageMb) && (
               <span className="badge badge-warn">Casi lleno</span>
             )}
           </p>
@@ -451,12 +459,13 @@ const precio = (tier, anual) => {
   return (anual && planPrice(tier, { anual: true })) || planPrice(tier);
 };
 
+const MB = 1048576;
 const GB = 1073741824;
 
 /*
   «Casi lleno» al 85 %: por debajo la cifra informa, por encima ya es cuestión
   de días —las fotos las suben los clientes solos— y conviene decirlo aquí,
   porque el mensaje del choque (0067) al cliente no le cuenta el porqué a
-  propósito. Sin tope (`maxGb` nulo) nunca avisa: no hay nada que llenar.
+  propósito. Sin tope (`maxMb` nulo) nunca avisa: no hay nada que llenar.
 */
-const cercaDelTope = (bytes, maxGb) => Boolean(maxGb) && bytes >= maxGb * GB * 0.85;
+const cercaDelTope = (bytes, maxMb) => Boolean(maxMb) && bytes >= maxMb * MB * 0.85;

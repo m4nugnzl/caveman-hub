@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { traduceDbError } from './dbErrors';
+import { traduceDbError, traduceStorageError } from './dbErrors';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -71,5 +71,35 @@ describe('traduceDbError', () => {
       'numeric field overflow'
     );
     expect(traduceDbError(null)).toBe('No se pudo guardar');
+  });
+});
+
+/**
+ * La cuota de almacenamiento (0067) llega desde la API de Storage como
+ * «database error, code: 23514»: el texto del disparador se pierde por el
+ * camino, así que la frase vive aquí — y habla distinto a cada lado del
+ * archivo, a propósito (`monetizacion.md` §7.4).
+ */
+describe('traduceStorageError', () => {
+  const cuotaLlena = { message: 'database error, code: 23514' };
+
+  it('al entrenador le dice qué pasa y qué hacer', () => {
+    const texto = traduceStorageError(cuotaLlena);
+    expect(texto).toMatch(/espacio de fotos y vídeo/i);
+    expect(texto).toMatch(/cambia de plan/i);
+  });
+
+  /* El cliente no ha contratado nada: ni plan ni tarifa en su mensaje. */
+  it('al cliente no le nombra el plan', () => {
+    const texto = traduceStorageError(cuotaLlena, { cliente: true });
+    expect(texto).toMatch(/díselo a tu entrenador/i);
+    expect(texto).not.toMatch(/plan/i);
+  });
+
+  /* Cualquier otro fallo de Storage no es suyo: devuelve `null` y quien llama
+     enseña el mensaje original, que al menos se puede buscar. */
+  it('lo que no es la cuota se queda como estaba', () => {
+    expect(traduceStorageError({ message: 'mime type video/webm is not supported' })).toBeNull();
+    expect(traduceStorageError(null)).toBeNull();
   });
 });

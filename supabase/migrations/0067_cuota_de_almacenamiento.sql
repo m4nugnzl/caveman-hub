@@ -4,7 +4,7 @@
 -- El único capado de `docs/monetizacion.md` §7.4 que protege margen de verdad:
 -- los gigabytes son coste real y crecen solos, sin que nadie pulse nada.
 --
---      Gratis    1 GB      Solo   15 GB      Pro   50 GB      Equipo   250 GB
+--      Gratis    512 MB      Solo   10 GB      Pro   50 GB      Equipo   250 GB
 --      Las tarifas retiradas y `fundador`: sin tope (contrataron sin él)
 --
 -- ══ 0. De dónde salen los números ═══════════════════════════════════════════
@@ -13,16 +13,28 @@
 -- Una foto reducida son ~0,3 MB (`shrinkImage`, 1600 px, webp 0.82) y el
 -- grabador escribe a ~7,5 MB por minuto (`useReviewRecorder`: 900+96 kbps).
 --
--- La regla de dimensionado, en una frase: **el comportamiento previsto de cada
--- plan tiene que caber MÁS DE UN AÑO sin borrar nada** —las fotos semanales de
--- toda la cartera y las correcciones cortas en vídeo que el grabador existe
--- para hacer—. Lo único que el tope debe morder es alojar dentro la revisión
--- larga semanal, que es exactamente lo que la 0040 mandó a YouTube/Loom.
+-- La regla tiene dos mitades, una por lado del muro de pago:
 --
---      Gratis  3 clientes · fotos + un vídeo corto/mes  ≈  81 MB/mes → 12 meses
---      Solo   10 clientes · fotos + vídeo corto semanal ≈ 0,95 GB/mes → 16 meses
+--   · **En los de pago, el uso previsto cabe alrededor de un año o más sin
+--     borrar nada** —fotos semanales de toda la cartera y las correcciones
+--     cortas en vídeo que el grabador existe para hacer—. Lo único que muerde
+--     el tope es alojar dentro la revisión larga semanal, que es exactamente
+--     lo que la 0040 mandó a YouTube/Loom.
+--   · **En Gratis el tope es más corto a propósito.** Quien prueba manda fotos
+--     y algún vídeo suelto, no una revisión semanal; con ese uso, medio giga da
+--     meses de sobra. Lo que NO da es un año de vídeo regular gratis — grabar
+--     en serio es comportamiento de quien vive de esto, y ese convierte.
+--
+--      Gratis  3 clientes · fotos + un vídeo corto/mes  ≈  81 MB/mes →  6 meses
+--              (solo fotos ≈ 15 MB/mes → años: probar nunca se corta)
+--      Solo   10 clientes · fotos + vídeo corto semanal ≈ 0,95 GB/mes → 11 meses
+--              (con vídeo quincenal, el caso común          → ~21 meses)
 --      Pro    30 clientes · fotos + vídeo corto semanal ≈ 2,9 GB/mes → 17 meses
 --      Equipo ~90 clientes · lo mismo                   ≈ 8,6 GB/mes → 29 meses
+--
+-- La columna va en MEGABYTES y no en gigas por el peldaño de abajo: el tope de
+-- Gratis es medio giga, y un `integer` de gigas no sabe contar hasta ahí. Las
+-- pantallas lo pintan como «512 MB» o «10 GB» según el tamaño (`storageLabel`).
 --
 -- El coste no es el motivo del tope, y conviene dejarlo escrito: con el
 -- gigabyte a ~0,021 $/mes (Supabase, agosto 2026, tras los 100 GB incluidos en
@@ -106,25 +118,25 @@ $$;
 BEGIN;
 
 ALTER TABLE public.plan_limits
-  -- En gigabytes enteros porque así se anuncia y así se compara. NULL = sin
+  -- En MEGABYTES (ver la cabecera: el tope de Gratis es medio giga). NULL = sin
   -- tope, igual que en `max_clients` y `max_seats`: la ausencia de límite tiene
   -- que escribirse igual en las tres columnas o alguna acabará leyéndose mal.
-  ADD COLUMN IF NOT EXISTS max_storage_gb integer
-    CHECK (max_storage_gb IS NULL OR max_storage_gb > 0);
+  ADD COLUMN IF NOT EXISTS max_storage_mb integer
+    CHECK (max_storage_mb IS NULL OR max_storage_mb > 0);
 
-COMMENT ON COLUMN public.plan_limits.max_storage_gb IS
-  'Tope de fotos y vídeo del equipo, en GB. NULL = sin tope. Lo aplica '
+COMMENT ON COLUMN public.plan_limits.max_storage_mb IS
+  'Tope de fotos y vídeo del equipo, en MB. NULL = sin tope. Lo aplica '
   '`enforce_storage_limit` sobre el bucket `client-media`.';
 
-UPDATE public.plan_limits SET max_storage_gb = 1   WHERE plan = 'prueba';
-UPDATE public.plan_limits SET max_storage_gb = 15  WHERE plan = 'solo';
-UPDATE public.plan_limits SET max_storage_gb = 50  WHERE plan = 'pro';
-UPDATE public.plan_limits SET max_storage_gb = 250 WHERE plan = 'equipo';
+UPDATE public.plan_limits SET max_storage_mb = 512    WHERE plan = 'prueba';
+UPDATE public.plan_limits SET max_storage_mb = 10240  WHERE plan = 'solo';
+UPDATE public.plan_limits SET max_storage_mb = 51200  WHERE plan = 'pro';
+UPDATE public.plan_limits SET max_storage_mb = 256000 WHERE plan = 'equipo';
 -- `solo_2026`, `equipo_2026` y `fundador` se quedan en NULL: punto 3 de la 0065.
 
 -- La portada, como siempre desde la 0062: columna nueva, GRANT nuevo o llega
 -- vacía sin dar error.
-GRANT SELECT (max_storage_gb) ON public.plan_limits TO anon;
+GRANT SELECT (max_storage_mb) ON public.plan_limits TO anon;
 
 /**
  * Cuántos bytes ocupa un equipo en `client-media`.
@@ -154,7 +166,7 @@ RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_client public.clients%ROWTYPE;
-  v_max_gb integer;
+  v_max_mb integer;
   v_label  text;
 BEGIN
   IF NEW.bucket_id <> 'client-media' THEN
@@ -172,7 +184,7 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT l.max_storage_gb, l.label INTO v_max_gb, v_label
+  SELECT l.max_storage_mb, l.label INTO v_max_mb, v_label
     FROM public.plan_limits l
    WHERE l.plan = COALESCE(
            (SELECT s.plan FROM public.team_subscriptions s
@@ -180,12 +192,12 @@ BEGIN
            'prueba'
          );
 
-  IF v_max_gb IS NULL THEN
+  IF v_max_mb IS NULL THEN
     RETURN NEW;
   END IF;
 
   IF public.team_storage_bytes(v_client.team_id)
-       < v_max_gb::bigint * 1024 * 1024 * 1024 THEN
+       < v_max_mb::bigint * 1024 * 1024 THEN
     RETURN NEW;
   END IF;
 
@@ -199,8 +211,17 @@ BEGIN
       USING ERRCODE = 'check_violation';
   END IF;
 
-  RAISE EXCEPTION 'El plan % ha llenado sus % GB de fotos y vídeo. Borra archivos que ya no necesites o cambia de plan.',
-    COALESCE(v_label, 'actual'), v_max_gb
+  /*
+    El tope, dicho en la unidad en que se anuncia: «512 MB» en el plan de
+    partida y «10 GB» hacia arriba. Los topes de pago son múltiplos exactos de
+    1024, así que la división entera no miente.
+  */
+  RAISE EXCEPTION 'El plan % ha llenado sus % de fotos y vídeo. Borra archivos que ya no necesites o cambia de plan.',
+    COALESCE(v_label, 'actual'),
+    CASE WHEN v_max_mb >= 1024
+         THEN (v_max_mb / 1024)::text || ' GB'
+         ELSE v_max_mb::text || ' MB'
+    END
     USING ERRCODE = 'check_violation';
 END;
 $$;
@@ -263,8 +284,8 @@ RETURNS TABLE (
   con_facturacion    boolean,
   -- Si el plan incluye LEER el registro de cambios (0066).
   con_registro       boolean,
-  -- El tope (NULL = sin tope) y lo que ya ocupa el equipo en `client-media`.
-  max_almacen_gb     integer,
+  -- El tope en MB (NULL = sin tope) y lo que ya ocupa el equipo en `client-media`.
+  max_almacen_mb     integer,
   almacen_bytes      bigint
 )
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
@@ -286,7 +307,7 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public AS $$
     s.current_period_end,
     s.stripe_customer_id IS NOT NULL,
     l.has_audit_log,
-    l.max_storage_gb,
+    l.max_storage_mb,
     public.team_storage_bytes(s.team_id)
   FROM public.team_subscriptions s
   JOIN public.plan_limits l ON l.plan = s.plan
@@ -305,20 +326,20 @@ COMMIT;
 -- ----------------------------------------------------------------------------
 -- La escalera con sus tres topes:
 --
---   SELECT sort, plan, label, max_clients, max_seats, max_storage_gb,
+--   SELECT sort, plan, label, max_clients, max_seats, max_storage_mb,
 --          has_integrations, has_audit_log
 --     FROM public.plan_limits ORDER BY sort;
 --
 -- Quién se pasa YA de su tope (a nadie se le borra nada; no podrán subir más):
 --
---   SELECT p.email, l.label, l.max_storage_gb,
---          round(public.team_storage_bytes(t.id) / 1073741824.0, 2) AS gb_usados
+--   SELECT p.email, l.label, l.max_storage_mb,
+--          round(public.team_storage_bytes(t.id) / 1048576.0) AS mb_usados
 --     FROM public.teams t
 --     JOIN public.profiles p ON p.id = t.owner_id
 --     LEFT JOIN public.team_subscriptions s ON s.team_id = t.id
 --     JOIN public.plan_limits l ON l.plan = COALESCE(s.plan, 'prueba')
---    WHERE l.max_storage_gb IS NOT NULL
---      AND public.team_storage_bytes(t.id) > l.max_storage_gb::bigint * 1073741824;
+--    WHERE l.max_storage_mb IS NOT NULL
+--      AND public.team_storage_bytes(t.id) > l.max_storage_mb::bigint * 1048576;
 --
 -- Y desde la aplicación, las dos caras del punto 3: con una cuenta gratuita
 -- llena, una foto desde «Fotos & Evolución» tiene que contestar con el plan y

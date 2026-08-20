@@ -588,19 +588,24 @@ peor para el escaparate y mejor para todo lo demás.
 
 | Plan | Precio (+ IVA) | Clientes activos | Asientos | Integraciones | Almacenamiento |
 |---|---|---|---|---|---|
-| **Gratis** | 0 €, sin plazo | 3 | 1 | No | 1 GB |
-| **Solo** | 39 €/mes | 10 | 1 | No | 15 GB |
+| **Gratis** | 0 €, sin plazo | 3 | 1 | No | 512 MB |
+| **Solo** | 39 €/mes | 10 | 1 | No | 10 GB |
 | **Pro** | 79 €/mes | 30 | 1 | Sí | 50 GB |
 | **Equipo** | 149 €/mes | Sin límite | 3 · +19 €/asiento | Sí | 250 GB |
 
-> **Los GB se dimensionaron midiendo, no redondeando** (agosto de 2026, con la
-> 0067): una foto reducida son ~0,3 MB y el grabador escribe a ~7,5 MB/min, así
-> que la regla fue que **el uso previsto de cada plan quepa más de un año sin
-> borrar nada** —fotos semanales de toda la cartera más correcciones cortas en
-> vídeo—. El tope solo muerde a quien aloja dentro la revisión larga semanal,
-> que la 0040 ya manda a YouTube/Loom. El coste no es el motivo: el gigabyte
-> cuesta ~0,021 $/mes y el tope lleno de Equipo son ~5 $ contra 149 €; la cuota
-> existe contra el disco-duro-gratis y contra el egress del vídeo alojado.
+> **El almacenamiento se dimensionó midiendo, no redondeando** (agosto de 2026,
+> con la 0067): una foto reducida son ~0,3 MB y el grabador escribe a
+> ~7,5 MB/min. La regla tiene dos mitades. En los **de pago**, el uso previsto
+> cabe alrededor de un año o más sin borrar nada —fotos semanales de toda la
+> cartera más correcciones cortas en vídeo: Solo ~11 meses con vídeo semanal y
+> ~21 con quincenal, Pro ~17, Equipo ~29— y el tope solo muerde a quien aloja
+> dentro la revisión larga semanal, que la 0040 ya manda a YouTube/Loom. En
+> **Gratis** el tope es corto a propósito: con fotos y algún vídeo suelto dura
+> ~6 meses (solo fotos, años), pero un año de vídeo regular gratis no —grabar
+> en serio es comportamiento de quien vive de esto, y ese convierte—. El coste
+> no es el motivo: el gigabyte cuesta ~0,021 $/mes y el tope lleno de Equipo
+> son ~5 $ contra 149 €; la cuota existe contra el disco-duro-gratis y contra
+> el egress del vídeo alojado.
 
 Y **anual con dos meses de regalo** (paga diez, usa doce) en todos los de pago.
 

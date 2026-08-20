@@ -12,7 +12,7 @@ import {
 
 import { supabase } from '@/lib/supabaseClient';
 import { guardarIntencion } from '@/lib/intencionDePlan';
-import { planAhorroPct, planPrice } from '@/lib/num';
+import { planAhorroPct, planPrice, storageLabel } from '@/lib/num';
 import { localeNumber } from '@/lib/dates';
 import { useReveal } from '@/lib/useReveal';
 import { useNoche } from '@/lib/useNoche';
@@ -1129,7 +1129,7 @@ export const LandingPage = () => {
       'plan, label, max_clients, max_seats, price_cents, currency, interval, blurb, purchasable';
 
     const INTENTOS = [
-      `${BASE}, price_cents_year, has_integrations, has_audit_log, max_storage_gb`, // + 0066 y 0067
+      `${BASE}, price_cents_year, has_integrations, has_audit_log, max_storage_mb`, // + 0066 y 0067
       `${BASE}, price_cents_year, has_integrations`, // 0062 + 0065
       `${BASE}, price_cents_year`, //                   0062
       BASE, //                                          0049
@@ -1642,15 +1642,15 @@ export const LandingPage = () => {
                     </li>
                     {/*
                       El tope de disco se dice SIEMPRE que exista, no solo en los
-                      planes grandes: anunciar «1 GB» en Gratis es lo que hace que
-                      el tope no sea una sorpresa el día que se llena (0067). Si
-                      la columna aún no está en la base, no sale la línea y la
+                      planes grandes: anunciar «512 MB» en Gratis es lo que hace
+                      que el tope no sea una sorpresa el día que se llena (0067).
+                      Si la columna aún no está en la base, no sale la línea y la
                       tarjeta es la de antes.
                     */}
-                    {p.max_storage_gb != null && (
+                    {p.max_storage_mb != null && (
                       <li>
                         <Check size={15} strokeWidth={2.5} aria-hidden="true" />
-                        {p.max_storage_gb} GB de fotos y vídeo
+                        {storageLabel(p.max_storage_mb)} de fotos y vídeo
                       </li>
                     )}
                     {p.has_integrations && (

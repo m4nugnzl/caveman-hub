@@ -93,3 +93,33 @@ export const traduceDbError = (error) => {
 
   return message || 'No se pudo guardar';
 };
+
+/**
+ * Traduce el error de una SUBIDA a Storage. Devuelve la frase, o `null` si no
+ * lo reconoce — entonces quien llama enseña el mensaje original, como siempre.
+ *
+ * ══ Por qué existe aparte de `traduceDbError` ═══════════════════════════════
+ *
+ * Porque la API de Storage NO reenvía el texto de un `RAISE EXCEPTION`: cuando
+ * el disparador de la cuota (migración 0067) corta una subida, lo que llega
+ * aquí es literalmente «database error, code: 23514». El mensaje que la 0067
+ * redactó con cuidado se queda dentro de Postgres, así que la frase que ve una
+ * persona tiene que ponerse aquí — que además es donde se sabe QUIÉN sube, y
+ * el capado habla distinto a cada lado a propósito:
+ *
+ *   · al ENTRENADOR se le dice qué pasa y qué hacer: es quien puede pagar;
+ *   · al CLIENTE no se le nombra ni el plan ni la tarifa — en qué plan está su
+ *     entrenador no es asunto de la aplicación (`monetizacion.md` §7.4).
+ */
+export const traduceStorageError = (error, { cliente = false } = {}) => {
+  const message = typeof error === 'string' ? error : error?.message || '';
+
+  // 23514 = check_violation: el único origen en Storage es la cuota de la 0067.
+  if (/23514/.test(message)) {
+    return cliente
+      ? 'No queda espacio para archivos en esta cuenta. Díselo a tu entrenador: puede liberar espacio o ampliarlo.'
+      : 'Has llenado el espacio de fotos y vídeo de tu plan. Borra archivos que ya no necesites o cambia de plan en Ajustes → Plan.';
+  }
+
+  return null;
+};

@@ -475,13 +475,13 @@ export const mapPlanFromDb = (row) =>
           que cada pantalla distingue de `false` para no anunciar un capado que
           la base todavía no impone.
 
-          `maxStorageGb` en `null` significa DOS cosas —migración pendiente o
+          `maxStorageMb` en `null` significa DOS cosas —migración pendiente o
           plan sin tope— y da igual: en ambas la pantalla no pinta tope. La
           señal de «la migración está» es `storageBytes`, que con la 0067
           aplicada siempre trae un número.
         */
         hasAuditLog: row.con_registro ?? null,
-        maxStorageGb: row.max_almacen_gb ?? null,
+        maxStorageMb: row.max_almacen_mb ?? null,
         storageBytes: row.almacen_bytes ?? null,
       }
     : null;

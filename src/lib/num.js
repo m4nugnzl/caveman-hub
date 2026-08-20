@@ -47,6 +47,23 @@ export const fmt = (v, { decimals = 0, unit = '', dash = '—' } = {}) => {
   if (n === null) return dash;
   return `${round(n, decimals)}${unit}`;
 };
+
+/**
+ * Un tamaño de almacenamiento en la unidad en que se lee: «512 MB», «10 GB».
+ *
+ * Recibe MEGABYTES porque esa es la unidad de `plan_limits.max_storage_mb`
+ * (0067) — el tope del plan de partida es medio giga y una columna de gigas
+ * enteros no sabe contar hasta ahí. Está aquí y no en una pantalla por lo mismo
+ * que `planPrice`: lo escriben la portada y Ajustes → Plan, y dos formatos del
+ * mismo tope es la clase de incoherencia que solo acaba viendo el cliente.
+ *
+ * `decimals` solo afecta a los GB: los MB con decimales son falsa precisión.
+ */
+export const storageLabel = (mb, { decimals = 0 } = {}) => {
+  const n = toNum(mb);
+  if (n === null) return null;
+  return n >= 1024 ? `${round(n / 1024, decimals)} GB` : `${round(n, 0)} MB`;
+};
 /**
  * El precio de un plan: «39 € al mes», «390 € al año», «Gratis».
  *

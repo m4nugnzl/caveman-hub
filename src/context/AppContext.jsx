@@ -62,6 +62,7 @@ import {
 } from '@/domain/attachments';
 import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
 import { shrinkImage } from '@/lib/shrinkImage';
+import { traduceStorageError } from '@/lib/dbErrors';
 import { isArchived } from '@/domain/portfolio';
 import { nextPaymentAfter } from '@/domain/billing';
 import { stampUpdate } from '@/domain/updates';
@@ -1061,6 +1062,9 @@ export const AppProvider = ({ children }) => {
    * Refrescar datos a propósito sigue teniendo su camino: `refreshClients`.
    */
   const loadedUserRef = useRef(null);
+  /* La promesa de la carga en marcha. Existe para que el camino de arranque que
+     NO la lanzó pueda esperarla en vez de saltársela (ver `loadOnce`). */
+  const cargaEnVueloRef = useRef(null);
 
   useEffect(() => {
     let active = true;
@@ -1072,12 +1076,31 @@ export const AppProvider = ({ children }) => {
         clearAll();
         return;
       }
-      if (loadedUserRef.current === user.id) return;
+      if (loadedUserRef.current === user.id) {
+        /*
+          La carga de este usuario ya está en marcha por el otro camino de
+          arranque (`getSession()` e `INITIAL_SESSION` llegan a la vez). Se
+          ESPERA, no se salta: quien llama sostiene `loading`, y soltarlo antes
+          de que la cartera llegue expulsaba los enlaces profundos — quien abría
+          `/c/<id>/rutina` desde un marcador aterrizaba en «Clientes», porque
+          CoachLayout veía `loading` apagado con cero clientes y no puede
+          distinguir «no cargó todavía» de «ese cliente no existe».
+
+          El error, si lo hay, ya lo registró y anunció quien lanzó la carga.
+        */
+        try {
+          await cargaEnVueloRef.current;
+        } catch {
+          /* ya contado por el camino que la lanzó */
+        }
+        return;
+      }
       // Se marca ANTES de esperar: los dos caminos de arranque corren en el mismo
       // hilo y, sin esto, ambos verían el ref vacío y cargarían por duplicado.
       loadedUserRef.current = user.id;
       try {
-        await loadForUser(user);
+        cargaEnVueloRef.current = loadForUser(user);
+        await cargaEnVueloRef.current;
       } catch (e) {
         // Una carga que revienta no puede dejar la marca puesta: sin esto, la
         // aplicación se quedaría vacía hasta cerrar sesión, porque ya nadie
@@ -1493,7 +1516,12 @@ export const AppProvider = ({ children }) => {
       .from(BUCKET)
       .upload(path, file, { contentType: file.type || undefined, upsert: false });
 
-    if (error) return { ok: false, error: `No se pudo subir el archivo: ${error.message}` };
+    if (error) {
+      // Los archivos del alta cuelgan del cliente, así que la cuota (0067)
+      // también los cuenta y también puede cortarlos.
+      const capado = traduceStorageError(error, { cliente: !isCoachRef.current });
+      return { ok: false, error: capado || `No se pudo subir el archivo: ${error.message}` };
+    }
     return { ok: true, path };
   }, []);
 
@@ -3504,7 +3532,13 @@ export const AppProvider = ({ children }) => {
         .upload(path, subida, { contentType: subida.type || undefined, upsert: false });
 
       if (uploadErr) {
-        return { ok: false, error: `No se pudo subir la imagen: ${uploadErr.message}` };
+        /*
+          La cuota de la 0067 llega como «database error, code: 23514»: la API de
+          Storage no reenvía el texto del disparador, así que la frase la pone
+          `traduceStorageError` — distinta según quién sube, que aquí se sabe.
+        */
+        const capado = traduceStorageError(uploadErr, { cliente: !isCoachRef.current });
+        return { ok: false, error: capado || `No se pudo subir la imagen: ${uploadErr.message}` };
       }
 
       const { data, error } = await supabase
@@ -4423,7 +4457,10 @@ export const AppProvider = ({ children }) => {
         .from(BUCKET)
         .upload(path, blob, { contentType: mimeType || 'video/webm', upsert: false });
 
-      if (error) return { ok: false, error: error.message };
+      // El grabador es del entrenador, pero la cuota (0067) también corta aquí y
+      // su error llega como un código pelado: se traduce antes de enseñarlo.
+      if (error)
+        return { ok: false, error: traduceStorageError(error, { cliente: !isCoachRef.current }) || error.message };
 
       // Se firma más largo que las fotos: un vídeo se manda por WhatsApp y el
       // cliente lo abre cuando puede, no en los siguientes minutos.
