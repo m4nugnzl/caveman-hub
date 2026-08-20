@@ -53,9 +53,12 @@ export const SlotTools = ({ label, index, total, span, onMove, onToggleSpan, onH
     </button>
 
     {onToggleSpan && (
+      /* `slot-span`: por debajo de 900 px el panel es una sola columna y
+         «media fila / fila completa» no distingue nada — el botón se esconde
+         en la hoja de estilos, junto a la regla que colapsa la rejilla. */
       <button
         type="button"
-        className="slot-btn"
+        className="slot-btn slot-span"
         onClick={onToggleSpan}
         aria-label={span === 'full' ? `Poner ${label} a media fila` : `Poner ${label} a fila completa`}
         title={span === 'full' ? 'Media fila' : 'Fila completa'}

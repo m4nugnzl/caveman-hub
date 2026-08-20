@@ -215,7 +215,11 @@ export const ReviewBar = () => {
 
         {modo ? (
           <form
-            className="row gap-2 grow"
+            /* `wrap` + base real en el campo: con base 0 el envoltorio nunca
+               dispara y en 390 px los tres botones estrangulaban el campo de
+               texto a casi nada. Con 200 px de suelo, el campo se queda la
+               primera línea y los botones bajan juntos. */
+            className="row gap-2 grow wrap"
             style={{ minWidth: 0 }}
             onSubmit={(e) => {
               e.preventDefault();
@@ -226,6 +230,7 @@ export const ReviewBar = () => {
             <input
               autoFocus
               className="input grow"
+              style={{ flexBasis: 'min(200px, 100%)' }}
               value={texto}
               placeholder={
                 modo === 'video'

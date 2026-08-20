@@ -403,9 +403,15 @@ export const CommandPalette = () => {
                   const Icon = item.icon;
                   const isActive = item.id === active?.id;
                   return (
-                    <button
+                    /*
+                      Es un `div` y no un `<button>` porque dentro va OTRO botón
+                      —el de entrar a las secciones del cliente— y un botón no
+                      puede anidar botones. La navegación por teclado no pasa
+                      por aquí (vive en el campo de arriba), así que la fila no
+                      pierde nada al dejar de ser tabulable.
+                    */
+                    <div
                       key={item.id}
-                      type="button"
                       role="option"
                       aria-selected={isActive}
                       data-active={isActive}
@@ -416,11 +422,32 @@ export const CommandPalette = () => {
                       {Icon && <Icon size={15} aria-hidden="true" />}
                       <span className="label">{item.label}</span>
                       {item.hint && <span className="hint">{item.hint}</span>}
-                      {item.enter && <kbd className="kbd">tab</kbd>}
+                      {/*
+                        Entrar al segundo nivel («Marta → sus secciones») era
+                        SOLO de teclado: Tab o →, con un `kbd` decorativo que en
+                        táctil no existía — desde el móvil nunca se llegaba.
+                        Ahora el atajo es un botón de verdad; el `kbd` de dentro
+                        se esconde en táctil, donde no significa nada.
+                      */}
+                      {item.enter && (
+                        <button
+                          type="button"
+                          className="palette-into"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setScope(item.enter);
+                            setQuery('');
+                          }}
+                          aria-label={`Secciones de ${item.label}`}
+                        >
+                          <ChevronRight size={14} aria-hidden="true" />
+                          <kbd className="kbd">tab</kbd>
+                        </button>
+                      )}
                       {isActive && !item.enter && (
                         <CornerDownLeft size={13} className="palette-enter" aria-hidden="true" />
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>

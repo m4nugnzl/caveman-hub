@@ -180,12 +180,13 @@ export const SetCell = ({
           </span>
         )}
 
+        {/* La equis por clase (`.set-x`): con el tamaño en línea medía ~12 px
+            de ancho y en táctil era imposible de acertar sin darle a un campo. */}
         {canRemove && (
           <button
             type="button"
             onClick={onRemove}
-            className="btn"
-            style={{ padding: 0, minWidth: 0, color: 'var(--text-tertiary)', flexShrink: 0 }}
+            className="btn set-x"
             aria-label={`Quitar ${label}`}
             title="Quitar serie"
           >

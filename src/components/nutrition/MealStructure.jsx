@@ -95,8 +95,12 @@ export const MealStructure = ({ meals, dayTarget, onChange }) => {
           const faltaCarbs = !toNum0(meal.target?.carbs);
 
           return (
-            <div className="card-inset row gap-2" key={meal.id}>
-              <span className="grow t-sm" style={{ fontWeight: 600, minWidth: 0 }}>
+            /* `wrap` + base de 132 px en el nombre: sin ellos, los cuatro
+               campos fijos (200 px) estrangulaban el nombre a ~45 px en un
+               móvil. Con base real, el nombre reclama la primera línea y las
+               casillas bajan juntas. */
+            <div className="card-inset row gap-2 wrap" key={meal.id}>
+              <span className="grow t-sm" style={{ fontWeight: 600, minWidth: 0, flexBasis: 132 }}>
                 {meal.name}
               </span>
               {CAMPOS.map((campo) => {

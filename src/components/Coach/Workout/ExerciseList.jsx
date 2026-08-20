@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
 import { previousSetKey } from '@/domain/sessions';
@@ -126,24 +126,50 @@ export const ExerciseList = ({
             onDrop={(e) => handleDrop(e, index)}
           >
             {canEditStructure && (
-              <button
-                type="button"
-                className="drag-handle"
-                draggable
-                onDragStart={(e) => {
-                  setDragIndex(index);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragEnd={() => {
-                  setDragIndex(null);
-                  setOverIndex(null);
-                }}
-                onKeyDown={(e) => handleKeyDown(e, index)}
-                aria-label={`Reordenar ${exercise.name}. Alt y flechas para mover.`}
-                title="Arrastra para reordenar (o Alt + ↑/↓)"
-              >
-                <GripVertical size={16} />
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="drag-handle"
+                  draggable
+                  onDragStart={(e) => {
+                    setDragIndex(index);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragEnd={() => {
+                    setDragIndex(null);
+                    setOverIndex(null);
+                  }}
+                  onKeyDown={(e) => handleKeyDown(e, index)}
+                  aria-label={`Reordenar ${exercise.name}. Alt y flechas para mover.`}
+                  title="Arrastra para reordenar (o Alt + ↑/↓)"
+                >
+                  <GripVertical size={16} />
+                </button>
+
+                {/* En táctil el arrastre de HTML5 no dispara: estas flechas son
+                    EL camino para reordenar, no una alternativa. Solo se pintan
+                    ahí (ver `.touch-reorder`), donde además el asa se esconde. */}
+                <span className="touch-reorder">
+                  <button
+                    type="button"
+                    className="btn btn-icon btn-icon-compact"
+                    disabled={index === 0}
+                    onClick={() => onMove(index, index - 1)}
+                    aria-label={`Subir ${exercise.name}`}
+                  >
+                    <ArrowUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-icon btn-icon-compact"
+                    disabled={index === exercises.length - 1}
+                    onClick={() => onMove(index, index + 1)}
+                    aria-label={`Bajar ${exercise.name}`}
+                  >
+                    <ArrowDown size={14} />
+                  </button>
+                </span>
+              </>
             )}
 
             <span

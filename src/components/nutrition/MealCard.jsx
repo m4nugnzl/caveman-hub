@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import {
+  ArrowDown,
   ArrowRightLeft,
+  ArrowUp,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -167,6 +169,31 @@ const FoodRow = ({
         >
           <GripVertical size={14} />
         </button>
+      )}
+
+      {/* En táctil el arrastre no dispara: las flechas son EL camino (ver
+          `.touch-reorder`). Reclaman su propia fila en el reflujo del móvil. */}
+      {editable && onMove && (
+        <span className="touch-reorder">
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-compact"
+            disabled={first}
+            onClick={() => onMove(-1)}
+            aria-label={`Subir ${food.name}`}
+          >
+            <ArrowUp size={14} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-compact"
+            disabled={last}
+            onClick={() => onMove(1)}
+            aria-label={`Bajar ${food.name}`}
+          >
+            <ArrowDown size={14} />
+          </button>
+        </span>
       )}
 
       {/*
