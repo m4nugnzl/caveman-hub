@@ -2269,16 +2269,40 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .lp-hero-in > *:nth-child(4) { animation-delay: 240ms; }
 .lp-hero-in > *:nth-child(5) { animation-delay: 320ms; }
 
-/* La chapa no necesita entrada propia: llega con el bloque de aparatos, que ya
-   entra con `.lp-feat-art` al alcanzar la sección. Lo que sí necesita es no
-   quedarse quieta después — una tarjeta que se sale del canto de una pantalla
-   está diciendo que es una capa por encima, o sea que está en el aire, y si
-   luego no se mueve pasa a ser parte de la imagen.
+/* ── LA CHAPA CAE ENCIMA, después de que la escena se pose ───────────────────
+   Aquí decía «la chapa no necesita entrada propia: llega con el bloque de
+   aparatos». Y llegando así era invisible COMO OBJETO: pegada a la captura
+   desde el primer fotograma, entraba como un píxel más de la imagen — nadie la
+   veía aparecer, que es justo lo que el dueño señaló. Una nota que dice ser
+   una capa tiene que llegar DESPUÉS de aquello sobre lo que se posa.
+
+   Así que ahora la escena aterriza primero (los aparatos acaban su entrada
+   hacia el segundo) y la chapa cae encima con su rebote: crece desde pequeña,
+   se pasa un pelo y asienta. Y desde entonces flota — `lp-flota` va sobre
+   `translate`, que se COMPONE con el `transform` del rebote, así que las dos
+   animaciones conviven sin pisarse (el porqué largo, encima de `lp-flota`).
+
+   El rebote lleva la opacidad dentro y rellena hacia atrás (`both`): antes de
+   su retraso la chapa está en su fotograma inicial, o sea invisible, sin
+   necesitar una regla aparte de «escondida hasta que llegues».
 
    Con ritmos distintos en cada par: dos que suben y bajan a la vez a dos
    pantallas de distancia se leen como un banner. */
-.lp-par-art .lp-chapa { animation: lp-flota 6.4s ease-in-out 1.5s infinite; }
-.lp-par.is-vuelta .lp-chapa { animation-duration: 7.6s; animation-delay: 2.1s; }
+@keyframes lp-chapa-cae {
+  from { opacity: 0; transform: translateY(12px) scale(0.72); }
+  72% { opacity: 1; transform: translateY(-2px) scale(1.035); }
+  to { opacity: 1; transform: none; }
+}
+.lp-par-art .lp-chapa { opacity: 0; }
+.lp-par.lp-reveal.is-in .lp-chapa {
+  animation:
+    lp-chapa-cae 0.5s var(--ease) 1.05s both,
+    lp-flota 6.4s ease-in-out 2.6s infinite;
+}
+.lp-par.is-vuelta.lp-reveal.is-in .lp-chapa {
+  animation-delay: 1.05s, 3.2s;
+  animation-duration: 0.5s, 7.6s;
+}
 
 /* El segundo cinturón. `useReveal` ya devuelve «visible» a quien pidió menos
    movimiento, pero si ese gancho no llegara a ejecutarse —JavaScript que falla,
@@ -2296,9 +2320,15 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .lp-hero-in > *,
   .lp-hero-escena,
   .lp-par-art .lp-chapa,
+  /* La chapa encendida pesa cuatro clases y ganaría al apagado genérico. Y su
+     opacidad de partida es 0 —la entrada la trae el rebote—, así que aquí se
+     enciende a mano o se quedaría invisible sin animación que la trajera. */
+  .lp-par.lp-reveal.is-in .lp-chapa,
   /* El acceso usa los mismos fotogramas: si se desconectan aquí y allí no, la
      pantalla que va justo detrás de la portada se movería igual. */
   .acceso-in > * { animation: none; }
+  /* Y sin el rebote que la traía, la chapa se enciende desde aquí. */
+  .lp-par-art .lp-chapa { opacity: 1; }
 }
 
 /* ==========================================================================
