@@ -2288,6 +2288,9 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .lp-reveal,
   .lp-tanda > *,
   .lp-feat-art { opacity: 1; transform: none; transition: none; }
+  /* La entrada de las tarjetas de plan, con su especificidad de tres clases:
+     la lista de arriba no llega a pisarla. */
+  .lp-plan.lp-reveal:not(.is-in) { transform: none; }
   /* Y el raíl, entero desde el principio: es una línea, no una animación. */
   .lp-ruta-paso::before { scale: 1 1; }
   .lp-hero-in > *,
@@ -3967,13 +3970,33 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      de las versales separa LETRAS, y aquí dentro no hay ninguna. Aplicado a
      «−17 %» solo abre huecos entre las cifras y las desune. */
   letter-spacing: 0;
-  /* Mientras el anual NO está elegido, la etiqueta se posa sobre el carril y no
-     sobre la brasa: ahí los colores de arriba se invertirían mal. */
   transition: background var(--fast), color var(--fast);
 }
+/* Mientras el anual NO está elegido, la etiqueta se posa sobre el carril negro.
+   Aquí era brasa maciza con el texto oscuro dentro —un botón rojo en mitad de
+   un carril apagado, que pedía un clic que no era— y el propio dueño lo señaló.
+   Pasa a los DOS TONOS de la brasa, como en la referencia: tinte de fondo y la
+   cifra en brasa. Se lee como información, no como otro botón. */
 .lp-switch:not(.is-anual) .lp-switch-ahorro {
-  background: var(--brasa); color: var(--brasa-on);
+  background: var(--brasa-soft); color: var(--brasa);
 }
+
+/* ── La entrada de una tarjeta ───────────────────────────────────────────────
+   Cada tarjeta lleva su propio `Entra` con un retraso por columna (ver el
+   mapa de planes en `LandingPage.jsx`). El movimiento no es el fundido genérico
+   de `.lp-reveal`: sube Y ASIENTA —una pizca de escala— para que se lea como
+   una carta que aterriza en su sitio. En fila entran una detrás de otra; en la
+   columna de un teléfono, cada una al llegar a ella.
+
+   `:not(.is-in)` y no la clase a secas: la regla encendida de `.lp-reveal`
+   tiene su misma especificidad y quedaría por delante o por detrás según el
+   orden del archivo — así el estado apagado no puede pisar al encendido. */
+.lp-plan.lp-reveal:not(.is-in) { transform: translateY(34px) scale(0.94); }
+/* Más lenta que el fundido de serie (0,7 s): el disparo llega tarde a
+   propósito —ver `OBSERVA_TARDE`—, así que el recorrido se ve entero y a
+   este tamaño 0,7 s parecería un parpadeo. El retraso por columna llega en
+   línea desde `Entra` y no se toca aquí. */
+.lp-plan.lp-reveal { transition-duration: 0.85s; }
 
 .lp-plan-grid {
   margin-top: clamp(32px, 4.5vw, 58px);
@@ -4615,9 +4638,29 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
      El héroe mide la pantalla como MÍNIMO, no exacto: en un teléfono corto o
      apaisado donde el titular y la escena no caben, crece con su contenido en
-     vez de recortar la letra. Y la escena baja un tercio del ancho del
-     teléfono más allá del canto, para que el corte muerda el aparato y el filo
-     de la ventana — no sus cifras: la tarjeta de la revisión va arriba. */
+     vez de recortar la letra.
+
+     ══ 4. Y LA ESCENA SE DA LA VUELTA: el TELÉFONO manda ════════════════════
+
+     La versión 3 seguía sin convencer, y el motivo era de composición, no de
+     medidas: la escena del héroe en un teléfono era la del monitor encogida —
+     una ventana apaisada con un teléfono de 124 px apoyado en el canto. Dos
+     piezas pequeñas en la parte de abajo de una pantalla VERTICAL, o sea aire
+     por todas partes.
+
+     Quien mira esto lo mira DESDE un teléfono, y la mitad de la promesa que le
+     toca de cerca es la del suyo: la escena se invierte. El aparato pasa a ser
+     la pieza grande (47 vw, el doble que antes) y sube desde el canto de abajo
+     con dos tercios a la vista; la ventana del entrenador se queda detrás, a
+     la izquierda y más baja — presente, porque la promesa son las DOS
+     pantallas, pero de fondo. Es la misma jerarquía que el titular: primero el
+     que entrena, después el panel.
+
+     La maqueta es una rejilla de una celda con las dos piezas superpuestas
+     (los `grid-area`), que es lo que permite que cada una se ancle a su
+     esquina sin márgenes negativos encadenados. El fulgor es absoluto y ni se
+     entera. Los pares NO cambian: su escena en columna cuenta otra cosa —la
+     ventana con el detalle— y está ajustada a su sitio. */
   .lp-hero {
     padding-top: var(--s6);
     height: auto;
@@ -4630,9 +4673,35 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     justify-content: flex-end;
   }
   .lp-hero-escena {
-    --tel-esc: min(28vw, 124px);
-    margin-bottom: calc(var(--tel-esc) * -0.33);
+    --tel-esc: min(47vw, 200px);
+    display: grid;
+    /* Un tercio del aparato se va por detrás de la franja siguiente: es lo que
+       hace que suba DESDE el canto en vez de estar posado encima. */
+    margin-bottom: calc(var(--tel-esc) * -0.65);
   }
+  .lp-hero-escena > .lp-hero-desk,
+  .lp-hero-escena > .lp-hero-movil {
+    grid-area: 1 / 1;
+  }
+  .lp-hero-desk {
+    width: min(92%, 340px);
+    justify-self: start;
+    align-self: end;
+    /* Por encima de la línea del corte (el 0.65 de arriba) con un poco de
+       aire: la ventana se ve entera; el que se corta es el aparato. */
+    margin-bottom: calc(var(--tel-esc) * 0.75);
+  }
+  .lp-hero-movil {
+    justify-self: end;
+    align-self: end;
+    margin: 0 2% 0 0;
+  }
+  /* La pastilla de la barra se centra en la parte VISIBLE de la ventana, no en
+     la ventana entera: centrada de verdad caía justo debajo del aparato y
+     quedaba cortada a media palabra — «HO» se lee como un recorte mal hecho,
+     no como una oclusión. El aparato arranca a media ventana, así que el
+     centro del trozo visible anda por el cuarto. */
+  .lp-hero-desk .lp-shot-tab { left: 26%; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

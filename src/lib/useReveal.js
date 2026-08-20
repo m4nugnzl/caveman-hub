@@ -31,9 +31,20 @@ import { prefiereMenosMovimiento } from '@/lib/motion';
  * NUNCA se queda invisible. Una animación de entrada que falla no puede costar
  * la página: es la única de la portada que puede esconder texto.
  */
-export const useReveal = () => {
+/**
+ * @param observa  Opciones del `IntersectionObserver`, para quien necesite
+ *   disparar MÁS TARDE que el resto. El caso que lo trajo: las tarjetas de
+ *   plan entran con su asentamiento y con el margen de siempre la animación
+ *   ocurría pegada al canto de abajo de la pantalla —donde nadie está
+ *   mirando— y al llegar a ellas ya estaban puestas. Se pasa el objeto entero
+ *   y no un «modo»: es la firma del observador, no un vocabulario nuevo.
+ *   OJO: tiene que ser un valor estable (un literal fuera del componente o
+ *   memoizado); el efecto no lo vigila, lee el del primer render.
+ */
+export const useReveal = (observa) => {
   const ref = useRef(null);
   const [dentro, setDentro] = useState(() => prefiereMenosMovimiento());
+  const opciones = useRef(observa);
 
   useEffect(() => {
     if (prefiereMenosMovimiento() || typeof IntersectionObserver !== 'function') {
@@ -56,7 +67,7 @@ export const useReveal = () => {
         como visible cuando asoma un píxel y la animación termina antes de que se
         vea nada.
       */
-      { rootMargin: '0px 0px -12% 0px', threshold: 0.08 }
+      opciones.current ?? { rootMargin: '0px 0px -12% 0px', threshold: 0.08 }
     );
 
     observador.observe(nodo);

@@ -276,9 +276,10 @@ import { LogoMark } from '@/components/ui/Logo';
  * la escena eran una barrera en mitad del único sitio de la portada donde no
  * puede haber ninguna.
  *
- * Lo que sí se queda es el precio: es la pregunta que se hace inmediatamente
- * después de «¿qué es esto?», y esconderla hasta el final solo consigue que se
- * busque en otra pestaña.
+ * Y el precio («desde 39 €») también se fue, más tarde: una cifra de pago en la
+ * primera pantalla le pone precio a la promesa antes de haberla enseñado. La
+ * nota se queda con lo que NO cuesta, y el «desde» vive en la sección de
+ * precios. Ver la nota junto a `lp-cta-note`.
  */
 const HERO = {
   ventana: {
@@ -603,8 +604,17 @@ const DUDAS = [
  * dentro de un bloque reparte el retraso entre sus hijos desde la hoja de
  * estilos, sin un solo estado más en JavaScript.
  */
-const Entra = ({ as: Etiqueta = 'div', className = '', retraso = 0, children, ...resto }) => {
-  const [ref, dentro] = useReveal();
+/* Las opciones del observador de las piezas que entran TARDE —las tarjetas de
+   plan y los dos pares—: disparan cuando la pieza ya está un cuarto de pantalla
+   dentro, no cuando asoma. Con el margen de serie, una pieza alta se enciende
+   pegada al canto de abajo —donde nadie está mirando— y al llegar a ella «ya
+   estaba». Vive FUERA del componente porque `useReveal` lee las opciones del
+   primer render: un literal escrito en el JSX sería un objeto nuevo en cada
+   render sin aportar nada. */
+const OBSERVA_TARDE = { rootMargin: '0px 0px -26% 0px', threshold: 0.1 };
+
+const Entra = ({ as: Etiqueta = 'div', className = '', retraso = 0, observa, children, ...resto }) => {
+  const [ref, dentro] = useReveal(observa);
   return (
     <Etiqueta
       ref={ref}
@@ -974,11 +984,19 @@ const Chapa = ({ chapa }) => (
  * con la comida, que es más baja. Colgada de la ventana, cae donde tiene que
  * caer en las dos sin tocar un número.
  *
+ * ── Y cada par entra POR SU CUENTA ─────────────────────────────────────────
+ * Con su propio `Entra` y el disparo tardío de `OBSERVA_TARDE`, igual que los
+ * pasos de la secuencia y por lo mismo: los dos pares ocupan dos pantallas de
+ * alto, y colgados del revelado de la sección se encendían los dos a la vez al
+ * cruzar el titular — o sea que al llegar al segundo ya estaba puesto. Siendo
+ * el par el `.lp-reveal`, su texto entra en cascada y sus aparatos con su
+ * asentamiento cuando el par se alcanza, no antes.
+ *
  * @param vuelta  Los aparatos a la izquierda y el discurso a la derecha. Lo usa
  *   el segundo par: dos idénticos uno debajo de otro se leen como una lista.
  */
 const Par = ({ par, vuelta = false }) => (
-  <div className={`lp-par${vuelta ? ' is-vuelta' : ''}`}>
+  <Entra className={`lp-par${vuelta ? ' is-vuelta' : ''}`} observa={OBSERVA_TARDE}>
     <div className="lp-par-say lp-tanda">
       {/* El número es lo único de color de esta sección. Ver `PARES`. */}
       <span className="lp-par-n">
@@ -1005,7 +1023,7 @@ const Par = ({ par, vuelta = false }) => (
 
       <Movil pieza={par.movil} className="lp-par-movil" />
     </div>
-  </div>
+  </Entra>
 );
 
 /**
@@ -1060,13 +1078,19 @@ const Paso = ({ paso }) => {
 export const LandingPage = () => {
   const [planes, setPlanes] = useState([]);
   /*
-    Mensual por defecto, y no anual con el descuento puesto. Enseñar primero la
-    cifra pequeña y que al tocar el interruptor suba es la versión de esto que
-    deja mal sabor: el precio que se recuerda es el primero que se leyó, y si el
-    segundo es mayor, la sensación es que había letra pequeña. Aquí el anual
-    BAJA la cifra, que es lo que un descuento tiene que hacer al pulsarlo.
+    Aquí estuvo «mensual por defecto», con el argumento de que enseñar primero
+    la cifra con descuento y que suba al cambiar deja sabor a letra pequeña. Se
+    le dio la vuelta a petición del dueño (la referencia es ProCoach, que abre
+    en anual), y el argumento aguanta el cambio por cómo se enseña la cifra:
+    va MENSUALIZADA con el cargo real impreso justo debajo («Facturado anual ·
+    351 €»), así que no hay nada que descubrir después — cambiar a mensual no
+    destapa un precio escondido, renuncia a un descuento que está a la vista.
+
+    `null` significa «todavía no ha tocado el interruptor»: la posición de
+    partida la decide la base (anual si existe alguna fila anual), no un
+    booleano escrito aquí.
   */
-  const [anual, setAnual] = useState(false);
+  const [anualElegido, setAnualElegido] = useState(null);
 
   useNoche();
 
@@ -1143,6 +1167,7 @@ export const LandingPage = () => {
      los dos precios de esa fila. Ver el interruptor, más abajo. */
   const hayAnual = planes.some((p) => p.price_cents_year);
   const ahorroPct = planAhorroPct(planes.find((p) => p.price_cents_year));
+  const anual = anualElegido ?? hayAnual;
 
   return (
     <div className="lp">
@@ -1179,11 +1204,12 @@ export const LandingPage = () => {
         </div>
       </header>
 
-      {/* ══ EL HÉROE: qué es esto, el precio, y la pantalla ═════════════════
+      {/* ══ EL HÉROE: qué es esto, el gratis, y la pantalla ═════════════════
           Cuatro cosas y en este orden: el rótulo que dice la categoría, el
-          titular, la frase que dice qué sustituye y el precio. Y debajo, la
-          escena — a la que se llega justo cuando se ha acabado de leer, y que
-          se corta por el canto de la pantalla para que se siga bajando.
+          titular, la frase que dice qué sustituye y la nota del gratis. Y
+          debajo, la escena — a la que se llega justo cuando se ha acabado de
+          leer, y que se corta por el canto de la pantalla para que se siga
+          bajando.
 
           Ver `HERO`, arriba: por qué esta captura y no otra, y por qué los dos
           botones que había aquí se fueron. */}
@@ -1215,13 +1241,14 @@ export const LandingPage = () => {
             Se acabaron el Excel y el copia-pega.
           </p>
 
-          {/* El precio, en la primera pantalla. Es la pregunta que se hace
-              inmediatamente después de «¿qué es esto?», y esconderla hasta el
-              final solo consigue que se busque en otra pestaña. */}
-          <span className="lp-cta-note">
-            Tres clientes gratis, sin límite de tiempo y sin tarjeta.
-            {masBarato && <> Para crecer, desde {planPrice(masBarato)}.</>}
-          </span>
+          {/* Aquí estuvo también el «desde 39 €», con el argumento de que el
+              precio es la segunda pregunta y esconderlo manda a buscarlo. Se
+              quitó a petición del dueño, y con razón: una cifra de pago en la
+              primera pantalla le pone precio a la promesa antes de haberla
+              enseñado. Lo que se queda es lo que NO cuesta —el gratis sin
+              trampa—, y el «desde» vive en la sección de precios, que para eso
+              está en la barra. */}
+          <span className="lp-cta-note">Tres clientes gratis, sin límite de tiempo y sin tarjeta.</span>
         </div>
 
         {/* ── LA ESCENA ────────────────────────────────────────────────────
@@ -1267,21 +1294,27 @@ export const LandingPage = () => {
 
           Ahora son dos PARES: la sesión y la comida, cada una en tu pantalla y
           en la suya, con el discurso al lado y sitio de sobra alrededor. */}
-      <Entra as="section" className="lp-sec is-band" id="producto">
+      {/* La sección NO envuelve a los pares, solo a su cabecera — el mismo
+          reparto que la secuencia y por lo mismo: los dos pares miden dos
+          pantallas, y colgados del revelado de la sección se encendían los dos
+          a la vez al cruzar el titular. Cada `Par` trae su propio `Entra`. */}
+      <section className="lp-sec is-band" id="producto">
         <div className="lp-in is-ancha">
-          <div className="lp-sec-head is-center lp-tanda">
-            <span className="lp-kicker">Cómo funciona</span>
-            <h2>
-              Tú lo montas aquí, él lo ve <em>en su móvil</em>
-            </h2>
-            {/* La frase que separa esto de una churrera de rutinas, dicha donde
-                se demuestra: en las dos herramientas de todas las semanas. */}
-            <p className="lp-lede-sm">
-              Esto no es un generador de rutinas: es la asesoría entera. Trabajas desde el
-              ordenador, tu cliente entra a lo suyo desde el móvil, y no hay nada que exportar ni
-              reenviar.
-            </p>
-          </div>
+          <Entra>
+            <div className="lp-sec-head is-center lp-tanda">
+              <span className="lp-kicker">Cómo funciona</span>
+              <h2>
+                Tú lo montas aquí, él lo ve <em>en su móvil</em>
+              </h2>
+              {/* La frase que separa esto de una churrera de rutinas, dicha donde
+                  se demuestra: en las dos herramientas de todas las semanas. */}
+              <p className="lp-lede-sm">
+                Esto no es un generador de rutinas: es la asesoría entera. Trabajas desde el
+                ordenador, tu cliente entra a lo suyo desde el móvil, y no hay nada que exportar ni
+                reenviar.
+              </p>
+            </div>
+          </Entra>
 
           <div className="lp-pares">
             {PARES.map((par, i) => (
@@ -1289,7 +1322,7 @@ export const LandingPage = () => {
             ))}
           </div>
         </div>
-      </Entra>
+      </section>
 
       {/* ══ 2. LA SECUENCIA DE LA SEMANA ══════════════════════════════════
           Tres herramientas encadenadas en un raíl: marcas el objetivo, mides lo
@@ -1407,7 +1440,7 @@ export const LandingPage = () => {
                 type="button"
                 className="lp-switch-item"
                 aria-pressed={!anual}
-                onClick={() => setAnual(false)}
+                onClick={() => setAnualElegido(false)}
               >
                 Al mes
               </button>
@@ -1415,24 +1448,46 @@ export const LandingPage = () => {
                 type="button"
                 className="lp-switch-item"
                 aria-pressed={anual}
-                onClick={() => setAnual(true)}
+                onClick={() => setAnualElegido(true)}
               >
                 Al año
-                {ahorroPct && <span className="lp-switch-ahorro">−{ahorroPct}&nbsp;%</span>}
+                {/* «Ahorra 25 %» y no «−25 %»: el signo solo es más corto, pero
+                    leído de pasada un «−» junto a la cifra del plan se puede
+                    entender al revés. La palabra dice qué GANAS pulsando. */}
+                {ahorroPct && <span className="lp-switch-ahorro">Ahorra {ahorroPct}&nbsp;%</span>}
               </button>
             </div>
           )}
 
           {planes.length > 0 && (
             <div className="lp-plan-grid">
-              {planes.map((p) => (
+              {planes.map((p, i) => (
                 /*
                   El gratuito va marcado, y la etiqueta dice «empieza aquí» y no
                   «el más popular». Lo segundo es un dato que no existe —no hay
                   todavía una base de usuarios que lo sostenga— y una portada que
                   se inventa la prueba social se paga entera.
+
+                  ── Y cada tarjeta ENTRA por su cuenta ──────────────────────
+                  Con su propio `Entra` y un retraso que crece con la columna,
+                  en vez de aparecer las cuatro con la sección. En una fila de
+                  escritorio entran una detrás de otra —el gesto de repartir
+                  cartas—; en la columna de un teléfono cada una aparece al
+                  llegar a ella. El asentamiento (sube y encaja con una pizca
+                  de escala) vive en `.lp-plan.lp-reveal`, en `index.css`.
+
+                  `OBSERVA_TARDE` retrasa el disparo hasta que la tarjeta
+                  está un cuarto de pantalla DENTRO: con el margen de serie la
+                  entrada ocurría pegada al canto de abajo, donde nadie mira, y
+                  al llegar a ellas «ya estaban».
                 */
-                <article className={`lp-plan${p.price_cents ? '' : ' is-primero'}`} key={p.plan}>
+                <Entra
+                  as="article"
+                  className={`lp-plan${p.price_cents ? '' : ' is-primero'}`}
+                  retraso={i * 110}
+                  observa={OBSERVA_TARDE}
+                  key={p.plan}
+                >
                   {!p.price_cents && <span className="lp-plan-tag">Empieza aquí</span>}
 
                   <span className="lp-plan-name">{p.label}</span>
@@ -1611,7 +1666,7 @@ export const LandingPage = () => {
                       </li>
                     )}
                   </ul>
-                </article>
+                </Entra>
               ))}
             </div>
           )}
