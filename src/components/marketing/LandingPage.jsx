@@ -209,9 +209,9 @@ import { LogoMark } from '@/components/ui/Logo';
  *
  * ══ Y por qué es ESTA pantalla y no otra ════════════════════════════════════
  *
- * Porque es la única de la aplicación donde salen VARIOS clientes a la vez. El
- * titular dice «todos tus clientes en un solo sitio», y esta es la pantalla
- * donde eso se ve sin que haya que explicarlo: dos nombres distintos bajando por
+ * Porque es la única de la aplicación donde salen VARIOS clientes a la vez. La
+ * frase del héroe dice «toda tu asesoría en un solo sitio», y esta es la
+ * pantalla donde eso se ve sin que haya que explicarlo: dos nombres distintos bajando por
  * la misma columna, cada uno con lo que hizo y cuándo —un pesaje, cuatro fotos,
  * dos sesiones registradas— y al lado la lista de los que están esperando, con
  * un check-in entregado esperando respuesta.
@@ -242,14 +242,24 @@ import { LogoMark } from '@/components/ui/Logo';
  * esta escena, y es de material, no de maqueta: hace falta una pantalla de
  * cliente más para quitarla.
  *
- * ══ Lo que dice la letra, y en la primera línea: QUÉ ES ESTO ════════════════
+ * ══ Lo que dice la letra: la categoría en el rótulo, la POSTURA en el titular ═
  *
- * Aquí puso «Entrena a más. Gestiona menos.», que es una promesa de resultado.
- * Suena bien y tiene un problema: se la puede poner encima cualquier producto
- * —una aplicación de rutinas, un CRM, una agenda— y quien llega sigue sin saber
- * qué se está mirando. En una portada de software, la primera frase tiene que
- * decir la CATEGORÍA; el beneficio se cuenta después, y aquí lo cuentan las
- * pantallas.
+ * Esto lleva tres versiones y cada una arregló algo:
+ *
+ *   · «Entrena a más. Gestiona menos.» — promesa de resultado. Se la puede
+ *     poner encima cualquier producto y quien llega sigue sin saber qué mira.
+ *   · «Todos tus clientes, en un solo sitio» — la categoría. Correcta y muda:
+ *     no dice por qué ESTA y no cualquier CRM con la palabra «fitness» encima.
+ *   · Lo de ahora: la categoría baja al rótulo («Plataforma de gestión de
+ *     clientes») y el titular toma partido — «La primera app para entrenadores
+ *     de verdad». Es la frase del dueño del producto, y hace lo que un titular
+ *     tiene que hacer: decir contra qué se planta. Las apps de entrenamiento
+ *     que existen son churreras de rutinas con el cliente de adorno; esta está
+ *     pensada desde el trabajo real de llevar gente. «En un solo sitio» no se
+ *     pierde: se va a la frase, pegado a la pantalla que lo demuestra.
+ *
+ * Y el enemigo se nombra en la frase, no en el titular: el Excel y el
+ * copia-pega, que es lo que de verdad se sustituye.
  *
  * ── Y la frase se quedó en UNA línea de argumento ──────────────────────────
  * Eran tres líneas que enumeraban seis funciones y tres cosas que sustituye. Con
@@ -335,7 +345,7 @@ const PARES = [
     titulo: 'Le montas la semana,',
     remate: 'y él la registra',
     texto:
-      'El editor de rutinas: montas cada día ejercicio por ejercicio, con sus series, sus objetivos y su vídeo. Él abre esa misma sesión en el gimnasio y la va rellenando mientras entrena, así que no tienes que pedirle nada para saber qué ha levantado.',
+      'Montas la sesión ejercicio a ejercicio, con series, objetivos y vídeo. Él la abre en el gimnasio y la rellena mientras entrena: sabes qué ha levantado sin pedírselo.',
     ventana: {
       src: '/capturas/p-sesion.jpg',
       ancho: 1916,
@@ -400,7 +410,7 @@ const PARES = [
     titulo: 'Le cuadras la dieta,',
     remate: 'y él elige',
     texto:
-      'El editor de dietas: montas cada comida con sus alimentos y sus cantidades, y la propia pantalla te va diciendo si cuadra con el objetivo que le pusiste. Y no le mandas un único menú: le dejas varias opciones por comida y él abre la que le encaje ese día.',
+      'Montas cada comida y la pantalla te dice si cuadra con su objetivo. Y no es un único menú: le dejas varias opciones por comida y él abre la que le encaje ese día.',
     ventana: {
       src: '/capturas/p-comidas.jpg',
       ancho: 1920,
@@ -479,7 +489,7 @@ const SECUENCIA = [
     n: '01',
     titulo: 'El roadmap',
     texto:
-      'Donde marcas a dónde va cada cliente y en cuánto tiempo: las fases, sus fechas y el ritmo que buscas en cada una. Se monta una vez y desde entonces sabes en qué punto del plan está cada persona sin tener que reconstruirlo de memoria.',
+      'Las fases del objetivo, sus fechas y el ritmo que buscas en cada una. Se monta una vez y desde entonces sabes en qué punto está cada persona sin reconstruirlo de memoria.',
     pieza: {
       src: '/capturas/p-roadmap.jpg',
       ancho: 1920,
@@ -492,7 +502,7 @@ const SECUENCIA = [
     n: '02',
     titulo: 'El check-in',
     texto:
-      'La revisión semanal que rellena el cliente: sus pesajes, sus medidas y las preguntas que tú hayas escrito. Te devuelve el ritmo real de la semana calculado, así que decides con lo que ha pasado los siete días y no con lo que marque la báscula el lunes.',
+      'La revisión semanal que rellena el cliente: pesajes, medidas y tus preguntas. Te devuelve el ritmo real de la semana, no lo que marque la báscula el lunes.',
     pieza: {
       src: '/capturas/p-checkin.jpg',
       ancho: 1920,
@@ -505,7 +515,7 @@ const SECUENCIA = [
     n: '03',
     titulo: 'El resumen',
     texto:
-      'Todo lo del cliente en una pantalla: peso, check-ins, carga levantada y objetivo de calorías, cada uno con su tendencia. Es lo que abres antes de tocar nada, y lo que te dice si hay que cambiar algo o dejarlo correr una semana más.',
+      'Peso, check-ins, carga y calorías en una pantalla, cada uno con su tendencia. Lo que abres antes de decidir si cambias algo o lo dejas correr una semana más.',
     pieza: {
       src: '/capturas/p-ficha.jpg',
       ancho: 1920,
@@ -1179,26 +1189,30 @@ export const LandingPage = () => {
           botones que había aquí se fueron. */}
       <section className="lp-sec lp-hero" id="top">
         <div className="lp-in lp-hero-in">
-          <span className="lp-eyebrow">Gestión de clientes para entrenadores</span>
+          <span className="lp-eyebrow">Plataforma de gestión de clientes</span>
 
-          {/* La CATEGORÍA, no el beneficio. «Entrena a más, gestiona menos» se
-              lo puede poner encima cualquier producto —una app de rutinas, un
-              CRM, una agenda— y quien llega sigue sin saber qué está mirando. */}
+          {/* La POSTURA, con la categoría ya dicha en el rótulo de arriba. Ver
+              el bloque «Lo que dice la letra» en `HERO`: el titular dice contra
+              qué se planta esto, y el remate en cursiva —«de verdad»— es donde
+              está la diferencia con una churrera de rutinas. */}
+          {/* El espacio irrompible del remate evita que «verdad» se quede solo
+              en su propia línea en un teléfono: si el remate no cabe entero,
+              parte por «entrenadores / de verdad», que se lee. */}
           <h1 className="lp-h1">
-            Todos tus clientes,
+            La primera app para
             <br />
-            <em>en un solo sitio</em>
+            <em>entrenadores de&nbsp;verdad</em>
           </h1>
 
-          {/* Una línea, y solo lo que la imagen no puede decir. Un entrenador
-              que llega a esto no está comparando productos: está decidiendo si
-              merece la pena mover lo que ya tiene, que es una hoja de cálculo y
-              una conversación de WhatsApp por cliente. Nombrarlas es lo que
-              hace que se reconozca en la frase; lo que hay dentro ya lo enseña
-              la pantalla de aquí abajo. */}
+          {/* Una línea, y solo lo que la imagen no puede decir: que aquí está
+              TODO el trabajo —no solo la rutina— y que el enemigo es el Excel.
+              Un entrenador que llega a esto no está comparando productos: está
+              decidiendo si merece la pena mover lo que ya tiene, que es una
+              hoja de cálculo y un WhatsApp por cliente. Lo que hay dentro ya lo
+              enseña la pantalla de aquí abajo. */}
           <p className="lp-lede">
-            Rutinas, dietas, check-ins, progreso y cobros en la misma ficha. Sin hoja de cálculo
-            y sin buscar nada en el WhatsApp.
+            Toda tu asesoría —rutinas, dietas, check-ins, progreso y cobros— en un solo sitio.
+            Se acabaron el Excel y el copia-pega.
           </p>
 
           {/* El precio, en la primera pantalla. Es la pregunta que se hace
@@ -1260,10 +1274,12 @@ export const LandingPage = () => {
             <h2>
               Tú lo montas aquí, él lo ve <em>en su móvil</em>
             </h2>
+            {/* La frase que separa esto de una churrera de rutinas, dicha donde
+                se demuestra: en las dos herramientas de todas las semanas. */}
             <p className="lp-lede-sm">
-              Las dos herramientas que se usan todas las semanas con todo el mundo. Trabajas desde
-              el ordenador y tu cliente entra a lo suyo desde el teléfono: no hay nada que exportar,
-              que reenviar ni que volver a escribir en otro sitio.
+              Esto no es un generador de rutinas: es la asesoría entera. Trabajas desde el
+              ordenador, tu cliente entra a lo suyo desde el móvil, y no hay nada que exportar ni
+              reenviar.
             </p>
           </div>
 
@@ -1294,8 +1310,8 @@ export const LandingPage = () => {
                 Tres herramientas para <em>cerrar cada semana</em>
               </h2>
               <p className="lp-lede-sm">
-                Marcar a dónde va, medir lo que está pasando y decidir qué toca ahora. Es el trabajo
-                que se repite con cada cliente cada siete días, y aquí va en este orden.
+                Marcar a dónde va, medir lo que pasa y decidir qué toca. El trabajo de cada semana
+                con cada cliente, en este orden.
               </p>
             </div>
           </Entra>
@@ -1326,8 +1342,7 @@ export const LandingPage = () => {
             </h2>
             <p className="lp-lede-sm">
               Lo que hoy tienes repartido entre la galería del móvil, Drive, el calendario y la
-              pasarela de cobro. No son módulos que se contraten aparte: vienen dentro, también en
-              el plan gratuito.
+              pasarela de cobro. Sin módulos aparte: viene dentro, también en el plan gratuito.
             </p>
           </div>
 
@@ -1464,40 +1479,29 @@ export const LandingPage = () => {
                     <span className="per">/mes</span>
                   </span>
 
-                  {/* Debajo de la cifra, lo que hay que saber en cada modo.
+                  {/* ── La letra pequeña se fue de las tarjetas ──────────────
+                      Aquí hubo tres notas bajo la cifra: «Sin permanencia ·
+                      baja cuando quieras», «Sin tarjeta · sin fecha» en la
+                      gratuita, y el anual como reclamo («o 32,50 € al año ·
+                      −17 %»). Cada una era defendible por separado y las tres
+                      juntas eran ruido justo donde se decide con el nombre y
+                      la cifra — y todas repetían algo que ya está dicho: la
+                      permanencia en las dudas, lo de sin tarjeta en la frase
+                      de la sección, y el ahorro anual en el propio
+                      interruptor.
 
-                      En mensual: qué pasa si te quieres salir, que es la duda
-                      que viene justo después de ver el precio y que si no está
-                      aquí manda a buscarla a las preguntas.
-
-                      En anual: cuánto se cobra de verdad y cuándo. Es la
-                      contrapartida de enseñar la cifra mensualizada arriba, y por
-                      eso no es opcional ni va en letra más pequeña que el resto.
-
-                      Y en un plan sin anual, con el interruptor en «Al año», se
-                      dice que ese solo va por meses en vez de callarse: la
-                      alternativa es una tarjeta que no reacciona al interruptor
-                      y parece rota. */}
-                  {p.price_cents ? (
+                      La única que se queda es la del modo anual: enseñar una
+                      cifra mensualizada sin el cargo real al lado sí sería
+                      esconder algo. Y el plan sin precio anual lo dice en vez
+                      de callarse — una tarjeta que no reacciona al interruptor
+                      parece rota. */}
+                  {anual && p.price_cents && (
                     <span className="lp-plan-nota">
-                      {!anual && 'Sin permanencia · baja cuando quieras'}
-                      {anual && p.price_cents_year && (
+                      {p.price_cents_year ? (
                         <>Facturado anual · {planPrice(p, { anual: true, conPeriodo: false })}</>
+                      ) : (
+                        'Este plan solo va al mes'
                       )}
-                      {anual && !p.price_cents_year && 'Este plan solo va al mes'}
-                    </span>
-                  ) : (
-                    <span className="lp-plan-nota">Sin tarjeta · sin fecha</span>
-                  )}
-
-                  {/* El anual como reclamo, solo cuando se está mirando el
-                      mensual: es ahí donde es una novedad. Con el interruptor ya
-                      en «Al año», repetirlo sería decir dos veces lo mismo en dos
-                      líneas seguidas. */}
-                  {!anual && p.price_cents_year && (
-                    <span className="lp-plan-nota is-anual">
-                      o {planPrice(p, { anual: true, conPeriodo: false })} al año
-                      {planAhorroPct(p) && <> · −{planAhorroPct(p)}&nbsp;%</>}
                     </span>
                   )}
 
@@ -1680,8 +1684,8 @@ export const LandingPage = () => {
               Más clientes, <em>no más horas</em>
             </h2>
             <p>
-              Empieza por el que tengas más a mano: se da de alta en diez segundos —solo hace falta
-              su nombre— y desde ahí le programas la semana y le mandas su acceso.
+              Da de alta al que tengas más a mano —solo hace falta su nombre—, prográmale la semana
+              y mándale su acceso.
             </p>
             <Link className="lp-btn is-dark" to="/entrar?alta=1">
               Crear mi cuenta

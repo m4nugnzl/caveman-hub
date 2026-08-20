@@ -4095,17 +4095,15 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   font-weight: 500; color: var(--text-tertiary); letter-spacing: 0;
 }
 /* La línea de debajo de la cifra. Va en la voz troquelada y no en cuerpo de
-   texto: es una condición de la compra, no una frase. */
+   texto: es una condición de la compra, no una frase. Solo existe en el modo
+   anual —el cargo real junto a la cifra mensualizada—; el resto de letra
+   pequeña que hubo aquí se fue, ver el comentario en `LandingPage.jsx`. */
 .lp-plan-nota {
   margin-top: var(--s3);
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: var(--tracking-stencil);
   color: var(--text-tertiary);
 }
-/* La segunda línea —el precio anual— se pega a la primera en vez de abrir otro
-   hueco de `--s3`: son dos frases de lo mismo, y separadas por la misma
-   distancia que las separa del precio se leen como dos apartados distintos. */
-.lp-plan-nota.is-anual { margin-top: var(--s1); }
 
 /* El botón, a todo el ancho de la tarjeta y encima de la lista. Un botón
    pequeño alineado a la izquierda dentro de una tarjeta de plan se lee como un
@@ -4593,28 +4591,48 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      sección. Ciento noventa píxeles —un cuarto de la pantalla— antes de la
      primera letra de la página.
 
-     ══ Y EL CANTO MUERDE TAMBIÉN AQUÍ, pero el héroe NO mide una pantalla ═══
+     ══ Y EL HÉROE VUELVE A MEDIR UNA PANTALLA, con la escena clavada al canto ══
 
-     El corte del héroe estaba QUITADO en los teléfonos, con el argumento de
-     que la escena en columna cabía entera y el canto se quedaba cortando aire.
-     El primer arreglo fue clavar la escena al canto de abajo de una pantalla
-     entera, y cambió un agujero por otro: en un teléfono la escena mide un
-     tercio de la de un monitor, así que estirar el héroe a la pantalla
-     aparcaba trescientos píxeles de nada ENTRE el texto y la escena. Se vio a
-     la primera: «un poco raro».
+     Esto lleva tres versiones en una semana y la historia importa para no
+     volver atrás:
 
-     Lo que se queda es la mordida sin el estirón. El héroe crece con su
-     contenido —texto, su aire, escena— y la escena baja un tercio del ancho
-     del teléfono más allá del canto de la caja de recorte, así que el aparato
-     y el filo de abajo de la ventana se van por detrás de la franja siguiente,
-     igual que en un monitor. La franja llega antes del pliegue y eso aquí es
-     una virtud: en un teléfono, lo que sigue asomando pronto invita a bajar
-     más que una primera pantalla que se guarda todo el sitio para sí.
+       1. Sin corte (el original): el héroe crecía con su contenido y la
+          sección siguiente entraba ENTERA en la primera pantalla — «de
+          primeras se ve demasiado».
+       2. Pantalla entera con la escena suelta: el aire sobrante se aparcaba
+          entre el texto y la escena. Trescientos píxeles de nada — «un poco
+          raro».
+       3. Lo de ahora, que es la 2 con sus dos fallos arreglados:
 
-     Muerde sobre el filo de la captura y el pie del aparato, no sobre sus
-     cifras: la tarjeta de la revisión, que es la que argumenta, va arriba. */
-  .lp-hero { padding-top: var(--s6); height: auto; }
-  .lp-hero-escena { margin-bottom: calc(var(--tel-esc) * -0.33); }
+          · La escena va CLAVADA al canto de abajo (la caja del corte la
+            empuja), así que del pliegue para abajo solo asoma la franja
+            VACÍA de la banda siguiente — se ve que hay más sin ver el qué,
+            que es exactamente lo que hace el héroe en un monitor.
+          · Y el teléfono crece (28 vw contra los 24 del resto de escenas),
+            porque el hueco de la versión 2 no era solo del estirón: era de
+            una escena pequeña en una pantalla grande. Solo aquí — los pares
+            se quedan con su medida, que está ajustada a su columna.
+
+     El héroe mide la pantalla como MÍNIMO, no exacto: en un teléfono corto o
+     apaisado donde el titular y la escena no caben, crece con su contenido en
+     vez de recortar la letra. Y la escena baja un tercio del ancho del
+     teléfono más allá del canto, para que el corte muerda el aparato y el filo
+     de la ventana — no sus cifras: la tarjeta de la revisión va arriba. */
+  .lp-hero {
+    padding-top: var(--s6);
+    height: auto;
+    min-height: calc(100vh - var(--header-h) - clamp(28px, 5vh, 56px));
+    min-height: calc(100svh - var(--header-h) - clamp(28px, 5vh, 56px));
+  }
+  .lp-hero-corte {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .lp-hero-escena {
+    --tel-esc: min(28vw, 124px);
+    margin-bottom: calc(var(--tel-esc) * -0.33);
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
