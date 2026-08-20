@@ -191,6 +191,16 @@ export const AppProvider = ({ children }) => {
 
   /** Último check-in por cliente. Vacío si la migración 0009 no está aplicada. */
   const [checkIns, setCheckIns] = useState({});
+  /*
+    Si la ENTREGA de check-ins existe en esta base (la 0009 está aplicada).
+
+    Es distinto de «checkIns está vacío»: una cuenta recién creada no tiene
+    ninguno y la función está perfectamente activa. Confundir los dos casos hacía
+    que la cartera le dijera a cada cuenta nueva «los check-ins no están activos,
+    escríbenos» — una avería inventada y un ticket de soporte por estreno.
+    `null` = todavía no se ha cargado nada.
+  */
+  const [checkInsActivos, setCheckInsActivos] = useState(null);
 
   const [saveState, setSaveState] = useState({});
 
@@ -976,6 +986,16 @@ export const AppProvider = ({ children }) => {
         .order('week_start', { ascending: false });
 
       if (isStale()) return;
+      /*
+        «No existe la tabla» significa función sin activar; cualquier otro error
+        —red, permisos— no autoriza a decir eso: se deja el dato como esté. El
+        patrón del texto es el mismo que usa `loadAuditLog` con la 0017.
+      */
+      if (checkInRes.error) {
+        if (/does not exist|schema cache/i.test(checkInRes.error.message)) setCheckInsActivos(false);
+      } else {
+        setCheckInsActivos(true);
+      }
       setCheckIns(
         checkInRes.error
           ? {}
@@ -5096,6 +5116,7 @@ export const AppProvider = ({ children }) => {
       catalogFoods,
       catalogExercises,
       checkIns,
+      checkInsActivos,
       phases,
       saveStatus,
       hasUnsavedChanges,
@@ -5103,8 +5124,8 @@ export const AppProvider = ({ children }) => {
     [
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
       workoutData, training, legacyPending, anthropometry, nutrition, progressPhotos,
-      exerciseLibrary, foodLibrary, catalogFoods, catalogExercises, checkIns, phases,
-      saveStatus, hasUnsavedChanges,
+      exerciseLibrary, foodLibrary, catalogFoods, catalogExercises, checkIns, checkInsActivos,
+      phases, saveStatus, hasUnsavedChanges,
     ]
   );
 

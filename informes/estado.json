@@ -2,11 +2,13 @@
   "version": 2,
   "aceptados": {},
   "ultimo": {
-    "generado": "2026-08-16T12:15:13.523Z",
+    "generado": "2026-08-20T09:09:23.211Z",
     "claves": [
       "rls|integration_secrets|aviso",
       "rls|platform_admins|aviso",
       "anon|plan_limits · plans_read_anon|aviso",
+      "anon|audit_visible_for(p_client uuid)|critico",
+      "anon|team_storage_bytes(p_team uuid)|critico",
       "anon|app_can_read_client(target uuid)|aviso",
       "anon|app_can_write_client(target uuid)|aviso",
       "anon|app_is_client(target uuid)|aviso",
@@ -17,6 +19,7 @@
       "anon|can_write_client_active(target uuid)|aviso",
       "anon|claim_client_invite(p_token text, p_consent_version text)|aviso",
       "anon|claim_client_invite(p_token text)|aviso",
+      "anon|continue_program(p_client uuid)|aviso",
       "anon|create_client(p_name text, p_fields jsonb)|aviso",
       "anon|create_client_invite(target uuid)|aviso",
       "anon|create_review_link(target uuid, path text, link_title text, week date, link_notes text)|aviso",
@@ -26,11 +29,13 @@
       "anon|folder_is_me(folder text)|aviso",
       "anon|folder_is_my_client(folder text)|aviso",
       "anon|integration_has_token(integration uuid)|aviso",
+      "anon|integration_has_webhook(integration uuid)|aviso",
       "anon|invite_team_member(target_team uuid, member_email text, member_role text)|aviso",
       "anon|is_me(target uuid)|aviso",
       "anon|is_my_client(target uuid)|aviso",
       "anon|is_platform_admin()|aviso",
       "anon|log_session_feedback(p_client uuid, p_week integer, p_session_id text, p_note text, p_feedback jsonb)|aviso",
+      "anon|log_session_set(p_client uuid, p_week integer, p_session_id text, p_date date, p_day_name text, p_exercise_id text, p_set_index integer, p_field text, p_value text)|aviso",
       "anon|mark_review_viewed(link uuid)|aviso",
       "anon|my_access_check()|aviso",
       "anon|my_team_ids()|aviso",
@@ -41,30 +46,32 @@
       "anon|record_my_consent(p_version text)|aviso",
       "anon|review_check_in(check_in uuid, notes text, snapshot jsonb)|aviso",
       "anon|revoke_client_invite(target uuid)|aviso",
+      "anon|save_workout_data(p_client uuid, p_microcycles jsonb, p_seen timestamp with time zone)|aviso",
       "anon|set_client_preferences(target uuid, prefs jsonb)|aviso",
       "anon|set_integration_token(integration uuid, token text)|aviso",
+      "anon|set_integration_webhook_secret(integration uuid, secret text)|aviso",
       "anon|shares_team_with(other uuid)|aviso",
-      "anon|submit_check_in(target uuid, week date, program_week integer, weight_kg numeric, client_notes text)|aviso",
       "anon|ticket_is_mine(ticket text)|aviso",
-      "anon|training_summaries(p_days integer)|aviso"
+      "anon|training_summaries(p_days integer)|aviso",
+      "anon|unreview_check_in(check_in uuid)|aviso"
     ],
     "metricas": {
-      "seguridad · críticos": 0,
-      "seguridad · avisos": 43,
-      "actividad · cuentas esta semana": 5,
+      "seguridad · críticos": 2,
+      "seguridad · avisos": 48,
+      "actividad · cuentas esta semana": 17,
       "fallos · distintos": 0,
-      "embudo · se registró": 4,
-      "embudo · dio de alta un cliente": 3,
-      "embudo · le programó algo": 3,
-      "embudo · le dio acceso al portal": 1,
+      "embudo · se registró": 12,
+      "embudo · dio de alta un cliente": 5,
+      "embudo · le programó algo": 4,
+      "embudo · le dio acceso al portal": 5,
       "embudo · revisó un check-in": 1,
-      "clientes · total": 15,
-      "clientes · con portal (%)": 13.3,
-      "clientes · con sexo (%)": 40,
-      "programas · clientes con programa (%)": 46.7,
+      "clientes · total": 22,
+      "clientes · con portal (%)": 36.4,
+      "clientes · con sexo (%)": 50,
+      "programas · clientes con programa (%)": 50,
       "revisión · entregados sin contestar +7d": 0,
-      "antropometría · registros": 9,
-      "workout_data · KB por fila": 67
+      "antropometría · registros": 19,
+      "workout_data · KB por fila": 45
     }
   },
   "historico": [
@@ -87,6 +94,27 @@
         "revisión · entregados sin contestar +7d": 0,
         "antropometría · registros": 9,
         "workout_data · KB por fila": 67
+      }
+    },
+    {
+      "generado": "2026-08-20T09:09:23.211Z",
+      "metricas": {
+        "seguridad · críticos": 2,
+        "seguridad · avisos": 48,
+        "actividad · cuentas esta semana": 17,
+        "fallos · distintos": 0,
+        "embudo · se registró": 12,
+        "embudo · dio de alta un cliente": 5,
+        "embudo · le programó algo": 4,
+        "embudo · le dio acceso al portal": 5,
+        "embudo · revisó un check-in": 1,
+        "clientes · total": 22,
+        "clientes · con portal (%)": 36.4,
+        "clientes · con sexo (%)": 50,
+        "programas · clientes con programa (%)": 50,
+        "revisión · entregados sin contestar +7d": 0,
+        "antropometría · registros": 19,
+        "workout_data · KB por fila": 45
       }
     }
   ]

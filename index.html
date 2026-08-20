@@ -66,6 +66,12 @@
       `og:url` se deja fuera a propósito: es absoluta por definición y aquí el
       dominio no se conoce en tiempo de build. Sin ella, los rastreadores usan la
       URL que están leyendo, que es la correcta.
+
+      La imagen la compone `scripts/generar-og.mjs` —titular, rótulo y las dos
+      pantallas del héroe, con la Archivo y las capturas del propio proyecto—.
+      Si cambia el titular de la portada, ese script cambia con él: son la misma
+      promesa a dos tamaños. Las medidas de aquí abajo tienen que ser las que
+      imprime al terminar.
     -->
     <meta
       name="description"
@@ -82,7 +88,10 @@
     <meta property="og:image" content="/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Caveman Hub" />
+    <meta
+      property="og:image:alt"
+      content="Caveman Hub: la primera app para entrenadores de verdad. El inicio del entrenador en el ordenador, con las revisiones pendientes y lo que ha hecho cada cliente, y al lado la sesión del día en el móvil de uno de ellos."
+    />
     <meta name="twitter:card" content="summary_large_image" />
 
     <!--

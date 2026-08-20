@@ -111,10 +111,12 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 159 claves', () => {
+  it('el reparto conserva las 160 claves', () => {
     montar();
-    // 159 desde `unreviewCheckIn`, el inverso de cerrar una revisión (0063).
-    expect(Object.keys(visto.app).length).toBe(159);
+    // 160 desde `checkInsActivos`, que distingue «la 0009 no está aplicada» de
+    // «todavía nadie entregó un check-in» para que la cartera no anuncie una
+    // avería inventada a cada cuenta nueva.
+    expect(Object.keys(visto.app).length).toBe(160);
   });
 
   it('toda acción es una función', () => {

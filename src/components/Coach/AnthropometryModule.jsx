@@ -34,9 +34,12 @@ export const AnthropometryModule = () => {
 
   return (
     <div className="stack">
+      {/* El subtítulo va sin pronombre: la ficha no sabe el género de esta
+          persona, y un «él» fijo debajo del nombre de una clienta se lee como
+          un descuido. */}
       <PageHead
         title="Check-in"
-        sub={`El peso de la semana de ${activeClient.name} y sus medidas. Lo normal es que lo entregue él desde su portal.`}
+        sub={`El peso de la semana de ${activeClient.name} y sus medidas. Lo normal es que lo entregue desde su portal.`}
       />
 
       {/* Lo que se decidió en las revisiones anteriores, antes que el formulario:

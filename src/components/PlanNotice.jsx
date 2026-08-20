@@ -62,7 +62,10 @@ export const PlanNotice = () => {
           </span>
         }
       >
-        {aviso.texto}
+        {/* La versión corta existe solo donde hace falta: si un aviso no la
+            trae, el texto completo vale en los dos anchos. */}
+        <span className="solo-escritorio">{aviso.texto}</span>
+        <span className="solo-movil">{aviso.textoCorto || aviso.texto}</span>
       </Notice>
     </div>
   );
@@ -119,6 +122,12 @@ const avisoDe = ({ status, activo, clients, maxClients, trialEndsAt }) => {
     return {
       tono: 'warn',
       texto: `Has llegado al tope de tu plan: ${clients} de ${maxClients} clientes. Para dar de alta a otro, cambia de plan o archiva a alguien que haya terminado.`,
+      /*
+        En móvil la frase entera se envuelve en seis líneas y, como este aviso
+        sale en todas las pantallas, se comía un tercio de cada una. La cifra es
+        el aviso; el qué hacer ya lo dice el botón de al lado.
+      */
+      textoCorto: `Tope del plan: ${clients} de ${maxClients} clientes.`,
       accion: 'Ver planes',
       sePuedeCerrar: true,
     };

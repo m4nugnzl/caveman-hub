@@ -227,6 +227,15 @@ export const Login = ({ notice = null, destino = null }) => {
     El aviso de contexto es lo que distingue un caso del otro: solo lo manda la
     página de invitación.
   */
+  /*
+    Y sin invitación entran otros dos, no uno: el entrenador que viene de la
+    portada y el CLIENTE que vuelve un martes cualquiera a anotar su sesión. El
+    discurso del entrenador —«tus clientes entrenan», «tres clientes gratis»—
+    solo es verdad para el primero, así que se reserva para la pestaña de crear
+    cuenta, que sí es territorio suyo (las cuentas de cliente nacen por
+    invitación, no por este formulario). En «Entrar» la columna les habla a los
+    dos con lo único que comparten: aquí está tu trabajo, tal y como lo dejaste.
+  */
   const aparte = notice
     ? {
         rotulo: 'Invitación de tu entrenador',
@@ -238,16 +247,27 @@ export const Login = ({ notice = null, destino = null }) => {
           'Tú no pagas nada: la cuenta la lleva quien te entrena.',
         ],
       }
-    : {
-        rotulo: 'Panel del entrenador',
-        lema: 'Tus clientes entrenan.',
-        remate: 'Tú lo ves todo.',
-        puntos: [
-          'Tres clientes gratis, para siempre y sin tarjeta.',
-          'En el navegador: no hay nada que instalar, ni tú ni ellos.',
-          'Tus datos se exportan o se borran cuando lo pidas.',
-        ],
-      };
+    : mode === 'signup'
+      ? {
+          rotulo: 'Panel del entrenador',
+          lema: 'Tus clientes entrenan.',
+          remate: 'Tú lo ves todo.',
+          puntos: [
+            'Tres clientes gratis, para siempre y sin tarjeta.',
+            'En el navegador: no hay nada que instalar, ni tú ni ellos.',
+            'Tus datos se exportan o se borran cuando lo pidas.',
+          ],
+        }
+      : {
+          rotulo: 'Caveman Hub',
+          lema: 'Sigue donde',
+          remate: 'lo dejaste.',
+          puntos: [
+            'La sesión, la dieta y el progreso, tal y como se quedaron.',
+            'En el navegador: no hay nada que instalar.',
+            'Tus datos se exportan o se borran cuando lo pidas.',
+          ],
+        };
 
   return (
     <Acceso {...aparte}>

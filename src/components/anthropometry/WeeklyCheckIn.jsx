@@ -209,7 +209,12 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
             emptyMessage={
               tendencia.length === 1
                 ? 'Con una semana más de pesajes ya se ve la tendencia.'
-                : 'Aquí verás cómo evoluciona tu peso, semana a semana.'
+                : // El hueco habla con quien mira: al cliente de «tu peso» y al
+                  // entrenador del peso de SU cliente. Con el posesivo fijo, la
+                  // pantalla del entrenador le hablaba al que no estaba.
+                  isClient
+                  ? 'Aquí verás cómo evoluciona tu peso, semana a semana.'
+                  : 'Aquí verás cómo evoluciona su peso, semana a semana.'
             }
           />
         </div>

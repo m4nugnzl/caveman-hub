@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, Check } from 'lucide-react';
 
-import { useActions } from '@/context/AppContext';
+import { useActions, useSession } from '@/context/AppContext';
+import { supabase } from '@/lib/supabaseClient';
 import { PROVIDERS, providerById } from '@/domain/integrations';
 import { BrandMark } from '@/components/ui/BrandMark';
 import { Notice, PageHead, Panel } from '@/components/ui/primitives';
@@ -57,10 +59,40 @@ const ProviderCard = ({ provider, connected, onOpen }) => (
  */
 export const IntegrationsCatalogue = () => {
   const { loadIntegration } = useActions();
+  const { plan } = useSession();
   const [open, setOpen] = useState(null);
   const [connected, setConnected] = useState({});
   const [unavailable, setUnavailable] = useState(false);
   const [ready, setReady] = useState(false);
+
+  /*
+    ¿El plan incluye integraciones? (migración 0065)
+    --------------------------------------------------------------------------
+    Quien lo IMPONE es un disparador de Postgres; lo que hace esta consulta es
+    que la pantalla lo EXPLIQUE antes de que alguien haga el trabajo — sin esto,
+    una cuenta Gratis rellenaba el formulario entero de Notion, token incluido,
+    y se enteraba del capado al pulsar guardar, que es el peor momento.
+
+    `null` significa «sin dato» —columna sin migrar, cuenta sin plan— y entonces
+    no se capa nada desde aquí: la última palabra la tiene la base, como siempre.
+  */
+  const [conIntegraciones, setConIntegraciones] = useState(null);
+  useEffect(() => {
+    if (!plan?.plan) return;
+    let alive = true;
+    supabase
+      .from('plan_limits')
+      .select('has_integrations')
+      .eq('plan', plan.plan)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (alive && !error) setConIntegraciones(data?.has_integrations ?? null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [plan?.plan]);
+  const capado = conIntegraciones === false;
 
   /** Qué proveedores están conectados. Se pregunta por todos, no solo por Notion. */
   const loadConnected = useCallback(async () => {
@@ -81,6 +113,13 @@ export const IntegrationsCatalogue = () => {
   const Detail = DETAIL[open];
 
   if (Detail) {
+    /*
+      Una integración YA conectada se abre siempre: el capado de la 0065 solo
+      bloquea crear una nueva, y a quien la tenía de antes no se le quita ni el
+      uso ni la configuración. Lo que no se enseña es el formulario de conectar
+      a quien su plan no le va a dejar guardarlo.
+    */
+    const bloqueado = capado && !connected[open];
     return (
       <div className="col gap-4">
         <button
@@ -91,7 +130,26 @@ export const IntegrationsCatalogue = () => {
         >
           <ArrowLeft size={14} /> Integraciones
         </button>
-        <Detail onChanged={loadConnected} />
+        {bloqueado ? (
+          <Panel className="col gap-3">
+            <div className="row gap-3">
+              <BrandMark brand={open} name={providerById(open)?.name || open} size={26} />
+              <div>
+                <span className="section-title">{providerById(open)?.name}</span>
+                <p className="t-sm t-secondary">{providerById(open)?.tagline}</p>
+              </div>
+            </div>
+            <p className="t-sm">
+              El plan {plan?.label || 'actual'} no incluye integraciones, así que conectarla no se
+              podría guardar. Antes de crear el token, amplía tu plan: un minuto y vuelves aquí.
+            </p>
+            <Link className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }} to="/ajustes/plan">
+              Ver planes
+            </Link>
+          </Panel>
+        ) : (
+          <Detail onChanged={loadConnected} />
+        )}
       </div>
     );
   }
@@ -110,6 +168,15 @@ export const IntegrationsCatalogue = () => {
         {unavailable && ready && (
           <Notice tone="info">
             Las integraciones todavía no están activas en tu cuenta: puedes ver qué hay, pero no conectar nada. Escríbenos desde Ajustes → Ayuda y las activamos.
+          </Notice>
+        )}
+
+        {/* El capado del plan, dicho AQUÍ y no al final del formulario (0065):
+            quien va a chocar con él debe saberlo antes de crear ningún token. */}
+        {capado && !unavailable && (
+          <Notice tone="info">
+            El plan {plan?.label || 'actual'} no incluye integraciones. Puedes ver qué hay; para
+            conectarlas, <Link to="/ajustes/plan">cambia de plan</Link>.
           </Notice>
         )}
 

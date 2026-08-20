@@ -125,6 +125,7 @@ export const ClientPortfolio = () => {
     anthropometry,
     progressPhotos,
     checkIns,
+    checkInsActivos,
     addClient,
     team,
     teamMembers,
@@ -329,14 +330,29 @@ export const ClientPortfolio = () => {
         </div>
       )}
 
-      {/* Se dice que la cifra es aproximada, no CÓMO se arregla: quien lee esto
-          ha pagado por la aplicación y no puede aplicar nada en su base de
-          datos. El detalle técnico va al registro del navegador y a soporte. */}
+      {/* Se dice que la cifra es aproximada, y solo si es verdad se dice POR QUÉ.
+
+          «La entrega no está activa» era el texto ÚNICO, y su condición —nadie
+          tiene un check-in cerrado— la cumple toda cuenta recién creada: cada
+          entrenador nuevo leía una avería inventada y un «escríbenos» el primer
+          día. Ahora esa frase solo sale cuando la tabla de verdad falta
+          (`checkInsActivos === false`, con la 0009 sin aplicar); si la función
+          está activa y simplemente no hay entregas, se dice eso — y de paso el
+          camino: sus clientes entregan desde el portal. */}
       {approximate && (
         <Notice tone="info">
-          «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana, así que es una
-          aproximación. La entrega de check-ins todavía no está activa en tu cuenta; escríbenos desde
-          Ajustes → Ayuda y la activamos.
+          {checkInsActivos === false ? (
+            <>
+              «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana, así que es
+              una aproximación. La entrega de check-ins todavía no está activa en tu cuenta;
+              escríbenos desde Ajustes → Ayuda y la activamos.
+            </>
+          ) : (
+            <>
+              «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana. Pasará a
+              ser exacto en cuanto tus clientes entreguen su primer check-in desde su portal.
+            </>
+          )}
         </Notice>
       )}
 

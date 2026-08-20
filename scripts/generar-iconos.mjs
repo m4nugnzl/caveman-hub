@@ -22,6 +22,12 @@
  *   · `icon.svg` — el vectorial, que es lo que usan los navegadores modernos
  *     cuando pueden.
  *
+ * ── Lo que ya NO genera: `og.png` ───────────────────────────────────────────
+ * La imagen de compartir se escribía aquí, y por eso no llevaba texto: con
+ * `zlib` y cuatro bucles no se rasteriza tipografía. Ahora es un cartel con
+ * titular y capturas, y vive en `scripts/generar-og.mjs`, que lo compone con un
+ * navegador. Aquí se queda lo que de verdad son cuatro rectángulos.
+ *
  * Uso:  node scripts/generar-iconos.mjs
  */
 import { deflateSync } from 'node:zlib';
@@ -163,96 +169,6 @@ const svg = () =>
   ).join('\n') +
   `\n</svg>\n`;
 
-/**
- * La imagen que sale al pegar un enlace (Open Graph), 1200×630.
- *
- * ── Por qué importa aquí más que en otros productos ─────────────────────────
- * Porque WhatsApp es EL canal de este producto: por ahí va la invitación que le
- * llega al cliente y por ahí se comparte la revisión en vídeo. Sin esto, esos
- * enlaces se pegan como una línea de texto azul, que es como se ve un enlace en
- * el que no se pincha.
- *
- * ── Lo que lleva, y lo que no ───────────────────────────────────────────────
- * La marca centrada sobre hierro y la REGLA —las marcas de cinta métrica que son
- * la firma del producto— en el canto inferior, que es justo donde vive en la
- * cabecera de la aplicación.
- *
- * NO lleva texto, y no por olvido: rasterizar tipografía aquí exigiría una
- * dependencia de imagen entera para escribir dos palabras. Cuando haya un
- * reclamo comercial decidido, esta imagen es el sitio, y entonces sí conviene
- * exportarla desde una herramienta de diseño.
- */
-const ogImage = () => {
-  const W = 1200;
-  const H = 630;
-  const px = Buffer.alloc(W * H * 4);
-
-  // El hierro, a sangre.
-  for (let i = 0; i < W * H; i++) {
-    px[i * 4] = HIERRO[0];
-    px[i * 4 + 1] = HIERRO[1];
-    px[i * 4 + 2] = HIERRO[2];
-    px[i * 4 + 3] = 255;
-  }
-
-  /* La marca, centrada y a 260 px. Se pinta encima con su propio fondo, así que
-     el redondeo se ve como una pieza apoyada sobre el hierro. */
-  const size = 260;
-  const marca = pintar(size);
-  const ox = Math.round((W - size) / 2);
-  const oy = Math.round((H - size) / 2) - 24;
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const s = (y * size + x) * 4;
-      if (marca[s + 3] === 0) continue; // fuera del redondeo: se ve el hierro
-      const d = ((oy + y) * W + ox + x) * 4;
-      px[d] = marca[s];
-      px[d + 1] = marca[s + 1];
-      px[d + 2] = marca[s + 2];
-      px[d + 3] = 255;
-    }
-  }
-
-  /* LA REGLA: una marca cada 18 px y una alta cada cinco, como una cinta de
-     verdad. Va abajo porque es el canto, no un adorno centrado. */
-  const baseY = H - 74;
-  for (let x = 90; x < W - 90; x += 18) {
-    const alta = ((x - 90) / 18) % 5 === 0;
-    for (let y = baseY; y < baseY + (alta ? 22 : 12); y++) {
-      const d = (y * W + x) * 4;
-      px[d] = TIZA[0];
-      px[d + 1] = TIZA[1];
-      px[d + 2] = TIZA[2];
-      px[d + 3] = alta ? 150 : 90;
-    }
-  }
-
-  return pngNoCuadrado(W, H, px);
-};
-
-/** El mismo PNG, sin dar por hecho que la imagen es cuadrada. */
-const pngNoCuadrado = (w, h, px) => {
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 6;
-
-  const crudo = Buffer.alloc(h * (w * 4 + 1));
-  for (let y = 0; y < h; y++) {
-    crudo[y * (w * 4 + 1)] = 0;
-    px.copy(crudo, y * (w * 4 + 1) + 1, y * w * 4, (y + 1) * w * 4);
-  }
-
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    trozo('IHDR', ihdr),
-    trozo('IDAT', deflateSync(crudo, { level: 9 })),
-    trozo('IEND', Buffer.alloc(0)),
-  ]);
-};
-
 mkdirSync(PUBLIC, { recursive: true });
 
 for (const size of [180, 512]) {
@@ -263,6 +179,3 @@ for (const size of [180, 512]) {
 
 writeFileSync(join(PUBLIC, 'icon.svg'), svg());
 console.log('OK   icon.svg');
-
-writeFileSync(join(PUBLIC, 'og.png'), ogImage());
-console.log('OK   og.png (1200×630)');
