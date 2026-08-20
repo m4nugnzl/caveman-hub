@@ -7745,6 +7745,16 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
      dos navegaciones idénticas en la misma pantalla es peor que ninguna. */
   nav.tabs { display: none; }
 
+  /* ── Dentro de un cliente, la cabecera de la app sobra ───────────────────
+     El logo, el buscador y la cuenta son el techo del NIVEL PRIMARIO; abierto
+     un cliente, el contexto lo da su propia cabecera (flecha, nombre, ojo) y
+     encima de ella la de la app eran 58 px pegajosos de marca en la pantalla
+     donde menos sitio hay. Se vuelve al salir con la flecha, donde el buscador
+     y la cuenta vuelven a tener sentido. El mecanismo es el gemelo del
+     `body:has(.sidebar)` del chasis de escritorio (ver EL CHASIS): el subnivel
+     solo se monta con un cliente abierto, así que su presencia ES el estado. */
+  body:has(.subnav) .app-header { display: none; }
+
   .layout { padding-bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s5)); }
 
   /* El aviso efímero, por encima de la barra del pulgar: debajo quedaría
