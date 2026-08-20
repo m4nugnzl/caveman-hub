@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 import {
   buildWeightLog,
@@ -140,31 +140,26 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
                   </button>
                 </div>
               ) : (
-                <div className="row gap-1">
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="input input-sm input-center"
-                    placeholder="—"
-                    disabled={future}
-                    value={drafts[date] ?? ''}
-                    onChange={(e) => setDrafts((d) => ({ ...d, [date]: e.target.value }))}
-                    onKeyDown={(e) => e.key === 'Enter' && commit(date)}
-                    onBlur={() => commit(date)}
-                    aria-label={`Peso del ${date}`}
-                  />
-                  {toNum(drafts[date]) !== null && (
-                    <button
-                      type="button"
-                      className="btn btn-icon"
-                      style={{ width: 26, height: 26, color: 'var(--accent)' }}
-                      onClick={() => commit(date)}
-                      aria-label="Guardar"
-                    >
-                      <Check size={13} />
-                    </button>
-                  )}
-                </div>
+                /*
+                  Sin botón de confirmar: guardar ya dispara al salir del campo
+                  y con Enter, así que el tick solo confirmaba lo confirmado — y
+                  de paso le robaba la mitad del ancho al campo en una celda que
+                  a 390 px mide ~80 px. `enterKeyHint` pone «Listo» en la tecla
+                  de enviar del teclado del móvil, que es el gesto que queda.
+                */
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  enterKeyHint="done"
+                  className="input input-sm input-center"
+                  placeholder="—"
+                  disabled={future}
+                  value={drafts[date] ?? ''}
+                  onChange={(e) => setDrafts((d) => ({ ...d, [date]: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && commit(date)}
+                  onBlur={() => commit(date)}
+                  aria-label={`Peso del ${date}`}
+                />
               )}
             </div>
           );

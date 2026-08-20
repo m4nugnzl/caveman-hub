@@ -55,9 +55,11 @@ const DayForm = ({ date, onAdd, onClose }) => {
         ))}
       </div>
 
+      {/* Sin `autoFocus`: en el móvil, enfocar al abrir levantaba el teclado
+          encima del propio formulario antes de poder leer qué pide. El campo
+          es el siguiente toque obvio. */}
       <div className="row gap-2">
         <input
-          autoFocus
           className="input grow"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -322,6 +324,37 @@ export const CalendarPanel = ({ audience = 'client' }) => {
             );
           })}
         </div>
+
+        {/* Solo en el móvil, donde la píldora de check-in pierde su texto
+            (`.cal-checkin` a font-size 0) y queda una marca de color muda. */}
+        <p className="cal-legend">
+          La marca de color es el día de check-in; los puntos, eventos — toca un día para verlos.
+        </p>
+
+        {/*
+          Los eventos del día abierto, CON NOMBRE. En la rejilla son puntos de
+          color, y su título vivía solo en `title` — un canal que en táctil no
+          existe: desde el móvil un punto era un misterio hasta bajar a la
+          lista de próximos. Tocar el día ya era el gesto de abrir su
+          formulario; ahora también cuenta qué hay.
+        */}
+        {openDay && (byDate.get(openDay) || []).length > 0 && (
+          <div className="card-inset col gap-2">
+            <span className="section-label">El {shortDate(openDay)}</span>
+            {(byDate.get(openDay) || []).map((event) => (
+              <span className="row gap-2 t-sm" key={event.id}>
+                <span
+                  className="cal-dot"
+                  style={{ background: kindMeta(event.kind).color, width: 10, height: 10 }}
+                />
+                <span className={event.done ? 't-tertiary' : undefined}>
+                  {event.title}
+                  <span className="t-xs t-tertiary"> · {kindMeta(event.kind).label}</span>
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
 
         {openDay && !unavailable && (
           <DayForm

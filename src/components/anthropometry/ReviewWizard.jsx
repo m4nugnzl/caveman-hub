@@ -458,6 +458,12 @@ export const ReviewWizard = ({
           ))}
         </ol>
 
+        {/* En estrecho los nombres de los pasos se esconden (ver `.wiz-count`):
+            esta línea mantiene dicho el total. */}
+        <p className="wiz-count">
+          Paso {indice + 1} de {pasos.length}
+        </p>
+
         {error && <Notice tone="error">{error}</Notice>}
 
         {/* La `key` remonta el panel al cambiar de paso, así que la animación de

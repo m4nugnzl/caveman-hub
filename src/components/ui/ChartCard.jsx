@@ -38,7 +38,10 @@ export const ChartCard = ({ icon, color, title, subtitle, controls, children, no
  * nula deja a React sin forma de identificar ese hijo.
  */
 export const RangeChips = ({ value, onChange, options, label = 'Periodo' }) => (
-  <div className="rail" role="group" aria-label={label}>
+  /* `rail-wrap`, no `rail`: son opciones EXCLUYENTES que hay que ver todas
+     (la regla está escrita junto a `.rail`). Con el carril que se desplaza,
+     «Todo» quedaba medio escondido bajo el degradado en 390 px. */
+  <div className="rail-wrap" role="group" aria-label={label}>
     {options.map((option) => (
       <button
         key={String(option.id)}

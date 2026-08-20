@@ -5218,6 +5218,16 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    ========================================================================== */
 
 .table-scroll { overflow-x: auto; }
+/* En el chasis móvil, una tabla de siete columnas SIEMPRE desborda, y sin
+   ninguna señal las columnas de más allá no existen para quien no descubra
+   que aquello se desplaza — la misma trampa que ya resolvió `.rail` con su
+   degradado de canto, así que es el mismo degradado. */
+@media (max-width: 1023.98px) {
+  .table-scroll {
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  }
+}
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .table th {
   color: var(--text-tertiary); font-weight: 650; font-size: var(--fs-2xs);
@@ -6791,11 +6801,16 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .cal-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .cal-dot.is-done { opacity: 0.35; }
 
+/* La leyenda de la rejilla: solo existe en el móvil, que es donde la píldora
+   de check-in pierde su palabra (abajo) y las marcas se quedan sin explicar. */
+.cal-legend { display: none; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
 @media (max-width: 640px) {
   .cal { gap: 3px; }
   .cal-day { min-height: 52px; padding: 4px 2px; }
   /* A 390 px no cabe la palabra: el punto de color basta para saber que toca. */
   .cal-checkin { font-size: 0; padding: 3px; }
+  .cal-legend { display: block; }
 }
 
 /* ==========================================================================
@@ -7225,6 +7240,13 @@ span.scale-step.is-on { opacity: 1; }
   font-size: var(--fs-xs); color: var(--text-secondary);
   border-radius: var(--r-sm); padding: 3px 8px; max-width: 100%;
 }
+/* La píldora de escala es un BOTÓN: su pregunta entera vivía solo en `title`,
+   que en una pantalla táctil no existe — «FAT 7» era indescifrable desde el
+   móvil. Tocarla despliega la leyenda en su propia línea (base 100% dentro
+   del flex con envoltorio); una hoja modal para una frase sería ceremonia. */
+button.log-answer { border: 0; cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent; }
+button.log-answer:hover { background: var(--fill); }
+.log-q { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 .log-note {
   display: flex; align-items: flex-start; gap: 5px;
@@ -7909,6 +7931,31 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   .review-bar-hint { display: none; }
 }
 
+/* ── La barra de la sesión en curso (portal del cliente) ───────────────────
+   El estado del guardado y el «X de Y series» vivían arriba del todo de la
+   rutina: por el cuarto ejercicio ya habían salido de pantalla, y un «No se
+   guardó» a mitad de entreno era invisible — el cliente seguía apuntando kilos
+   que no llegaban a ninguna parte. Fija abajo, donde está el pulgar y donde
+   se mira entre serie y serie.
+
+   Solo existe en el chasis móvil: en escritorio la cabecera se ve sin scroll.
+   La mecánica es la de `.review-bar`, apoyada sobre la barra del pulgar. */
+.session-bar { display: none; }
+@media (max-width: 1023.98px) {
+  .session-bar {
+    position: fixed; left: 0; right: 0; z-index: 60;
+    bottom: calc(var(--bottombar-h) + var(--safe-b));
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+    padding: 8px var(--s4);
+    background: var(--surface-glass);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--edge);
+    box-shadow: 0 -4px 20px rgba(20, 24, 28, 0.1);
+  }
+  /* El hueco para que la última fila de la sesión no quede debajo de la barra. */
+  .session-pad { padding-bottom: 64px; }
+}
+
 
 /* ── El antes y el después de una revisión ─────────────────────────────────
    Lo retirado tachado y en rojo, lo nuevo en verde. El color NO dice si el
@@ -8024,6 +8071,9 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .checkin-week .badge { display: none; }
 .checkin-week .metric-value { font-size: var(--fs-sm); }
 .checkin-week .input { padding-left: 2px; padding-right: 2px; }
+/* Con el pulgar, la casilla del día necesita alto de verdad; la letra a 16 px
+   ya la pone el bloque de campos táctiles (ver Ergonomía táctil). */
+@media (hover: none) { .checkin-week .input { min-height: 40px; } }
 
 /* «Hoy» sin píldora: un canto de BRASA, la marca de «aquí estás» que comparte
    todo el producto —la sección activa, el día de hoy en la regla—. */
@@ -8101,6 +8151,13 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 
 .measure-grid { display: grid; gap: var(--s2); grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
 .measure-cell { padding: 8px 12px; }
+/* Con el dedo, 58 px de caja y 38 de alto son un blanco que se falla trece
+   veces seguidas —seis pliegues y siete perímetros—. Más ancha (la letra ya
+   va a 16 px en táctil) y con la celda más alta, cada fila pasa de 44. */
+@media (hover: none) {
+  .input-measure { width: 76px; }
+  .measure-cell { padding-top: 10px; padding-bottom: 10px; }
+}
 
 /* La suma de pliegues y el % que sale de ella. Va tintada porque es un
    resultado calculado, no un campo más. */
@@ -8111,11 +8168,17 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .folds-sum-k { color: var(--data-blue); font-weight: 700; }
 .folds-sum-v { font-size: 1.25rem; }
 
+/* «Paso 2 de 4», solo donde los nombres de los pasos se esconden: con círculos
+   numerados a secas, el total deja de decirse y «Siguiente» vuelve a ser una
+   puerta a un número desconocido de pantallas. */
+.wiz-count { display: none; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
 @media (max-width: 560px) {
   /* En vertical, cinco pasos con su nombre no caben en una línea; con el nombre
      fuera, los números solos siguen diciendo por dónde vas. */
   .wiz-rail { gap: var(--s2) var(--s3); }
   .wiz-mark:not(.is-on) > .wiz-mark-k { display: none; }
+  .wiz-count { display: block; }
 }
 
 /* ── Avisos del cliente ────────────────────────────────────────────────────

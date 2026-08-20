@@ -37,6 +37,7 @@ import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 
 const AnswerPill = ({ row }) => {
   const { question, value } = row;
+  const [open, setOpen] = useState(false);
 
   if (question.kind === 'text') {
     return (
@@ -46,13 +47,30 @@ const AnswerPill = ({ row }) => {
     );
   }
 
+  /*
+    La abreviatura sola («FAT 7») exige saberse el protocolo de memoria, y la
+    pregunta entera iba en `title` — un canal que en táctil no existe. La
+    píldora es un botón: tocarla despliega la leyenda debajo, en su línea.
+    El `title` se queda para quien pasa el ratón, que es más rápido que el clic.
+  */
+  const legend = `${question.label}: ${value} sobre ${question.max ?? 10}`;
+
   return (
-    <span className="log-answer" title={`${question.label}: ${value} sobre ${question.max ?? 10}`}>
-      <span className="k">{question.short || question.label}</span>
-      <span className="v" style={{ color: question.color }}>
-        {value}
-      </span>
-    </span>
+    <>
+      <button
+        type="button"
+        className="log-answer"
+        title={legend}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="k">{question.short || question.label}</span>
+        <span className="v" style={{ color: question.color }}>
+          {value}
+        </span>
+      </button>
+      {open && <span className="log-q">{legend}</span>}
+    </>
   );
 };
 
