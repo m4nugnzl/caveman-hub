@@ -95,7 +95,17 @@ volver a desplegar.
 En *Authentication → URL Configuration*:
 
 - **Site URL**: `https://tu-dominio.com`
-- **Redirect URLs**: añade `https://tu-dominio.com/**`
+- **Redirect URLs**: añade `https://tu-dominio.com/**` **y también
+  `http://localhost:3000/**`**
+
+> **Lo de `localhost` no es un extra de comodidad: sin ello no se puede probar
+> nada que salga de la aplicación y vuelva.** Cuando el destino no está en esa
+> lista, Supabase **no da ningún error**: devuelve al «Site URL», o sea al
+> dominio desplegado. Desde local eso se ve como que entrar con Google te saca de
+> la aplicación que estabas probando y te deja en la versión publicada, con otra
+> sesión, otro `localStorage` y —si el despliegue va por detrás— otro código.
+>
+> Costó una tarde entenderlo persiguiendo un fallo de rutas que no existía.
 
 Si no lo haces, el enlace de invitación que le mandas a un cliente por WhatsApp le
 devuelve a `localhost` o directamente falla. La aplicación construye esos enlaces

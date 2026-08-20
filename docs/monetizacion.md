@@ -83,7 +83,17 @@ había forma de resolverlo sin entrar en el panel de Supabase.
 Resuelto: el acceso tiene un tercer modo que pide el enlace, y
 `components/Auth/PasswordResetPage.jsx` (`/nueva-contrasena`) lo recibe. Queda una
 comprobación de configuración, no de código: **cuánto dura ese enlace** —mientras
-vive, vale como acceso a la cuenta—, en *Authentication → Emails* de Supabase.
+vive, vale como acceso a la cuenta—.
+
+Está en *Authentication → **Sign In / Providers** → Email*, desplegando el
+proveedor: el campo **«Email OTP Expiration»**, en segundos. **No está en
+*Authentication → Emails***, que es donde este documento decía y donde ya no hay
+más que las plantillas y el SMTP. El panel lo movió y buscarlo donde no está
+cuesta un rato.
+
+Ese mismo número gobierna los dos correos, el de confirmar registro y el de
+recuperar contraseña, y **la plantilla de `supabase/templates/` dice «caduca en
+una hora»**: si se cambia aquí, hay que cambiarlo allí o el correo miente.
 
 ### 2.2 Consentimiento y finalidad — **HECHO**
 
@@ -579,9 +589,18 @@ peor para el escaparate y mejor para todo lo demás.
 | Plan | Precio (+ IVA) | Clientes activos | Asientos | Integraciones | Almacenamiento |
 |---|---|---|---|---|---|
 | **Gratis** | 0 €, sin plazo | 3 | 1 | No | 1 GB |
-| **Solo** | 39 €/mes | 10 | 1 | No | 5 GB |
-| **Pro** | 79 €/mes | 30 | 1 | Sí | 25 GB |
-| **Equipo** | 149 €/mes | Sin límite | 3 · +19 €/asiento | Sí | 100 GB |
+| **Solo** | 39 €/mes | 10 | 1 | No | 15 GB |
+| **Pro** | 79 €/mes | 30 | 1 | Sí | 50 GB |
+| **Equipo** | 149 €/mes | Sin límite | 3 · +19 €/asiento | Sí | 250 GB |
+
+> **Los GB se dimensionaron midiendo, no redondeando** (agosto de 2026, con la
+> 0067): una foto reducida son ~0,3 MB y el grabador escribe a ~7,5 MB/min, así
+> que la regla fue que **el uso previsto de cada plan quepa más de un año sin
+> borrar nada** —fotos semanales de toda la cartera más correcciones cortas en
+> vídeo—. El tope solo muerde a quien aloja dentro la revisión larga semanal,
+> que la 0040 ya manda a YouTube/Loom. El coste no es el motivo: el gigabyte
+> cuesta ~0,021 $/mes y el tope lleno de Equipo son ~5 $ contra 149 €; la cuota
+> existe contra el disco-duro-gratis y contra el egress del vídeo alojado.
 
 Y **anual con dos meses de regalo** (paga diez, usa doce) en todos los de pago.
 
@@ -669,21 +688,37 @@ La lección, que es la de la §3.3 otra vez: **un límite que solo está en una
 columna no es un límite, es una nota.** Antes de dar por bueno cualquiera de los
 tres de esta lista, hay que poder señalar la línea que lo aplica.
 
-**2. Integraciones** (`0010`–`0013`). Una tabla, una política. Es exactamente lo
-que la §5 ya decía —«son lo que quiere un entrenador con un negocio detrás y le
-da igual a uno que empieza»— y sigue siendo verdad. De **Pro** para arriba.
+**2. Integraciones — HECHO en la `0065`.** Es exactamente lo que la §5 ya decía
+—«son lo que quiere un entrenador con un negocio detrás y le da igual a uno que
+empieza»— y sigue siendo verdad. De **Pro** para arriba, las tarifas retiradas
+incluidas (contrataron cuando no había nada capado). Salió disparador y no
+política, y a propósito: RLS rechaza sin decir por qué, y un capado comercial
+tiene que explicarse solo — quien se topa con él es exactamente quien podría
+pagar por quitarlo. Y a quien ya tenía una integración no se le quita: solo se
+bloquea crear otra.
 
-**3. Almacenamiento de fotos y vídeo** (bucket de la 0038, políticas de la 0007).
-Es la única de las tres que **protege margen de verdad**: es coste real por
-gigabyte y crece solo, sin que nadie pulse nada. También es la más cara de
-construir de las tres —la cuota se impone en las políticas de Storage, no en una
-tabla—, así que va la última, y hasta entonces es un límite escrito y no
-aplicado. Escribirlo antes de aplicarlo es correcto: fija la expectativa desde el
-primer día en vez de recortársela a alguien dos años después.
+**3. Almacenamiento de fotos y vídeo — HECHO en la `0067`.** La única de las
+tres que **protege margen de verdad**: es coste real por gigabyte y crece solo,
+sin que nadie pulse nada. Un disparador sobre `storage.objects` que suma lo que
+cuelga de los clientes del equipo (los adjuntos de soporte quedan fuera: pedir
+ayuda no es una función del plan). Dos decisiones que hay que conocer para no
+sorprenderse:
 
-Opcional, cuando haya equipos de verdad: el **registro de cambios** (`audit_log`,
-0017) en Equipo. Una política de lectura, y a un entrenador solo no
-le dice nada.
+- **El tope se comprueba antes de contar el archivo que entra** —en un `BEFORE
+  INSERT` de Storage el tamaño aún no es fiable—, así que el desborde posible es
+  un archivo: como mucho 120 MB.
+- **El cliente también choca con el tope**, porque las fotos las sube él y una
+  cuota que solo frene al entrenador no es una cuota. La regla de «nada del lado
+  del cliente» se protege en el mensaje: a él no se le nombra ni el plan ni la
+  tarifa, solo «no queda espacio, díselo a tu entrenador». Y el entrenador tiene
+  la cifra antes del choque: `my_team_plan()` devuelve el uso y Ajustes → Plan
+  lo enseña, con aviso desde el 85 %.
+
+Y el **registro de cambios** (`audit_log`, 0017) en Equipo — **HECHO en la
+`0066`**, la más barata: una columna y una condición en la política de lectura.
+Se capa la **lectura**, nunca la escritura: la traza se sigue anotando en todos
+los planes, así que subir a Equipo enseña el historial entero, no uno que
+empieza hoy. Las tarifas retiradas y `fundador` lo conservan, como siempre.
 
 **Y lo que NO se capa nunca**, que importa más que la lista de arriba:
 
@@ -788,11 +823,14 @@ sin entrenador, es otro producto y no un plan de este.
    día que se da de alta. Es una función del portal, y es una función, no un
    `quantity`. Ojo con dejarlo dormido demasiado tiempo, eso sí: es el único eje
    por el que Equipo crece (§7.3).
-6. **Integraciones por plan**, una política. (El **tope de asientos** que iba
+6. ~~**Integraciones por plan.**~~ **HECHO: `0065_integraciones_por_plan.sql`**,
+   disparador y no política, por el mensaje. (El **tope de asientos** que iba
    aquí implícito está hecho: `0064_tope_de_asientos.sql`, ver §7.4.)
 7. **Correo transaccional → módulo de cobros** (§7.6). Ya era el siguiente
    bloqueante de la §4.3; ahora además es la siguiente vía de ingreso.
-8. **Cuota de almacenamiento**, la última y la más cara.
+8. ~~**Cuota de almacenamiento.**~~ **HECHO: `0066` (registro de cambios) y
+   `0067` (almacenamiento)**, con lo que los capados por función de la §7.4
+   están completos: la tabla entera de la §7.3 la impone Postgres.
 
 **La portada hay que rehacerla, y son cuatro tarjetas y no tres.** La sección de
 precios de `LandingPage.jsx` está construida sobre tres y sobre la escalera

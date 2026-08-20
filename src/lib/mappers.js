@@ -469,6 +469,20 @@ export const mapPlanFromDb = (row) =>
           migración pendiente es la regla del proyecto.
         */
         conFacturacion: row.con_facturacion ?? null,
+        /*
+          Los tres de la 0067, con el mismo trato que `conFacturacion`: llegan
+          `undefined` mientras la migración no esté aplicada y se dejan en `null`,
+          que cada pantalla distingue de `false` para no anunciar un capado que
+          la base todavía no impone.
+
+          `maxStorageGb` en `null` significa DOS cosas —migración pendiente o
+          plan sin tope— y da igual: en ambas la pantalla no pinta tope. La
+          señal de «la migración está» es `storageBytes`, que con la 0067
+          aplicada siempre trae un número.
+        */
+        hasAuditLog: row.con_registro ?? null,
+        maxStorageGb: row.max_almacen_gb ?? null,
+        storageBytes: row.almacen_bytes ?? null,
       }
     : null;
 

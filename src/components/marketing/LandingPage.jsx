@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { guardarIntencion } from '@/lib/intencionDePlan';
 import { planAhorroPct, planPrice } from '@/lib/num';
 import { localeNumber } from '@/lib/dates';
 import { useReveal } from '@/lib/useReveal';
@@ -281,7 +282,7 @@ const HERO = {
   movil: {
     src: '/capturas/m-rutina.jpg',
     ancho: 430,
-    alto: 700,
+    alto: 744,
     alt: 'La sesión del día en el móvil de un cliente: los dos primeros ejercicios ya marcados con sus kilos, sus repeticiones y su RIR, y el tercero todavía en blanco.',
   },
 };
@@ -349,7 +350,7 @@ const PARES = [
     movil: {
       src: '/capturas/m-rutina.jpg',
       ancho: 430,
-      alto: 700,
+      alto: 744,
       alt: 'La misma sesión en el móvil del cliente: los dos primeros ejercicios ya marcados con sus kilos y el tercero todavía en blanco, esperando kilos, repeticiones y RIR.',
     },
     /*
@@ -411,7 +412,7 @@ const PARES = [
     movil: {
       src: '/capturas/m-dieta.jpg',
       ancho: 768,
-      alto: 1250,
+      alto: 1328,
       alt: 'La dieta en el móvil del cliente: su objetivo del día con los macros repartidos, los pasos diarios y el menú, con las opciones de la primera comida y los alimentos de la que ha elegido.',
     },
     /*
@@ -721,14 +722,20 @@ const Ventana = ({ pieza, titulo = null, prioridad = false, plana = false, class
  * página es que el cliente lleva el plan ENCIMA, y esa promesa la hace el
  * aparato, no la pantalla.
  *
- * Lo que lo convierte en un iPhone son cuatro cosas, y ninguna es un adorno:
+ * Lo que lo convierte en un iPhone son seis cosas, y ninguna es un adorno:
  *
- *   · **La proporción.** Un teléfono actual es casi dos veces más alto que
- *     ancho. Por eso las tres capturas de móvil salen del script con la misma
- *     altura: dos piezas de distinta proporción dentro del mismo bisel se leen
- *     como dos teléfonos distintos.
+ *   · **La proporción.** Un teléfono actual es el doble de alto que ancho, y
+ *     aquí salía a 1,72: ancho, achatado, más tableta pequeña que teléfono. El
+ *     alto lo dicta la captura, así que el arreglo empieza en el script — las
+ *     dos capturas de móvil vienen ahora más altas (1,73, el tope que da el
+ *     material crudo) y con la misma proporción entre ellas: dos piezas de
+ *     distinta proporción dentro del mismo bisel se leen como dos teléfonos
+ *     distintos. La cuenta entera está en `.lp-iphone`, en `index.css`.
  *   · **El canto metálico.** Un degradado de tres paradas en el borde. Es lo que
  *     hace que el marco tenga volumen en vez de ser una línea gris.
+ *   · **El bisel negro.** Un anillo fino entre el metal y el panel encendido
+ *     (`.lp-iphone-lcd`). La captura tocaba el metal directamente, y esa junta
+ *     no existe en ningún teléfono.
  *   · **La ISLA y la barra de estado.** Lo que dice «esto es la pantalla de un
  *     teléfono» sin que haya que mirar dos veces. La barra va DELANTE de la
  *     captura y no encima: si la isla se pusiera sobre la cabecera de la
@@ -741,6 +748,12 @@ const Ventana = ({ pieza, titulo = null, prioridad = false, plana = false, class
  *     distingue de un vistazo un teléfono actual de uno viejo, y en una portada
  *     que vende una aplicación de móvil enseñar el aparato de hace seis años
  *     dice justo lo que no hay que decir.
+ *   · **La zona de la rayita.** Una franja bajo la barra de pestañas de la
+ *     captura, de su mismo color y con la rayita de inicio dentro. Aquí estuvo
+ *     escrito que la rayita no iba —la captura llegaba cortada a ras de esa
+ *     barra y dibujarla encima tapaba las etiquetas—; el recorte nuevo acaba EN
+ *     la barra, así que el hueco que iOS reserva debajo por fin tiene dónde
+ *     existir. Ver `.lp-iphone-inicio`.
  *   · **Los botones del canto.** Dos marcas de nada en los laterales. Se notan
  *     solo si faltan.
  *
@@ -842,48 +855,44 @@ const Movil = ({ pieza, className = '' }) => {
         <i /> <i /> <i /> <i />
       </span>
 
+      {/* El bisel negro por fuera y el panel encendido por dentro. Dos cajas
+          porque un borde no redondea su cara interior: con una sola, la esquina
+          de la captura se quedaba sin su radio concéntrico. Ver `.lp-iphone-lcd`
+          en `index.css`. */}
       <div className="lp-iphone-pantalla">
-        {/* La isla: una pastilla negra DESPEGADA del canto de arriba, con la
-            cámara dentro. No es un adorno, es la diferencia entre un teléfono
-            actual y uno de hace seis años. */}
-        <span className="lp-iphone-isla" aria-hidden="true">
-          <i />
-        </span>
+        <div className="lp-iphone-lcd">
+          {/* La isla: una pastilla negra DESPEGADA del canto de arriba, con la
+              cámara dentro. No es un adorno, es la diferencia entre un teléfono
+              actual y uno de hace seis años. */}
+          <span className="lp-iphone-isla" aria-hidden="true">
+            <i />
+          </span>
 
-        {/* La barra de estado, entera: la hora a un lado y cobertura, wifi y
-            batería al otro. Con la batería sola parecía una franja con la hora;
-            los tres iconos juntos son lo que el ojo reconoce sin leer. */}
-        <span className="lp-iphone-barra" aria-hidden="true">
-          <span className="lp-iphone-hora">9:41</span>
-          <BarraEstado />
-        </span>
+          {/* La barra de estado, entera: la hora a un lado y cobertura, wifi y
+              batería al otro. Con la batería sola parecía una franja con la hora;
+              los tres iconos juntos son lo que el ojo reconoce sin leer. */}
+          <span className="lp-iphone-barra" aria-hidden="true">
+            <span className="lp-iphone-hora">9:41</span>
+            <BarraEstado />
+          </span>
 
-        <img
-          className="lp-iphone-img"
-          src={pieza.src}
-          alt={pieza.alt}
-          width={pieza.ancho}
-          height={pieza.alto}
-          decoding="async"
-          loading="lazy"
-          onError={() => setRoto(true)}
-        />
+          <img
+            className="lp-iphone-img"
+            src={pieza.src}
+            alt={pieza.alt}
+            width={pieza.ancho}
+            height={pieza.alto}
+            decoding="async"
+            loading="lazy"
+            onError={() => setRoto(true)}
+          />
 
-        {/* ── Y aquí NO va la rayita de inicio ──────────────────────────────
-            Había una, y de dos maneras seguidas. Primero como FRANJA: un bloque
-            de veinte píxeles de negro entre el final de la aplicación y el canto
-            del aparato, que no existe en ningún teléfono. Y luego flotando
-            encima de la captura, que es donde va de verdad — pero justo encima
-            de la barra de secciones del portal, tapándole las etiquetas.
-
-            El segundo problema no tiene arreglo desde aquí: la captura llega
-            recortada por debajo de esa barra, sin el hueco que el sistema
-            reserva para la rayita. Dibujarla sobre las etiquetas cambia un
-            detalle que sobra por un defecto que se ve.
-
-            Así que no se dibuja. La aplicación llega al canto redondeado y ahí
-            se acaba, que es exactamente lo que se ve en las maquetas que
-            sirvieron de referencia. */}
+          {/* La zona de la rayita de inicio, bajo la barra de pestañas con la
+              que acaba la captura y de su mismo color. Es el hueco que iOS
+              reserva de verdad, y aquí además es parte de la proporción del
+              aparato. Ver `.lp-iphone-inicio` en `index.css`. */}
+          <span className="lp-iphone-inicio" aria-hidden="true" />
+        </div>
 
         {/* El cristal. Una diagonal de luz del 4 % sobre TODA la pantalla, isla
             incluida: un reflejo que se parase antes de la isla diría que la isla
@@ -1051,17 +1060,63 @@ export const LandingPage = () => {
 
   useNoche();
 
+  /*
+    ══ Por qué esta consulta se pide dos veces ═══════════════════════════════
+
+    Porque **la página pública no puede depender de qué migraciones estén
+    aplicadas**, y aquí ya se rompió una vez: al pedir `has_integrations` —una
+    columna que crea la 0065— contra una base sin esa migración, PostgREST
+    contesta 42703, `data` llega `null`, `planes` se queda vacío y **la sección
+    de precios desaparece de la portada**. Sin error en pantalla y sin nada roto
+    a la vista: simplemente no hay precios.
+
+    Es el mismo fallo que la 0025 —una columna que el código daba por hecha— y
+    ahí costó una tarde. La diferencia es que esto lo ve un desconocido que venía
+    a ver cuánto cuesta.
+
+    Así que se pide de más a menos: primero todo, y cada intento quita la columna
+    de la migración más reciente. Se para en el primero que conteste, así que en
+    una base al día son **una sola consulta** y los intentos de abajo no llegan a
+    salir nunca.
+
+    El orden de la lista es el de las migraciones, de la más nueva a la más
+    vieja, y ese es el único mantenimiento que pide: una columna nueva se añade
+    ARRIBA. La última fila son las columnas que la 0049 concedió a `anon`, o sea
+    las que existen desde que hay precios públicos; si eso falla, es que no hay
+    precios que enseñar y el problema es otro.
+
+    Un plan sin su línea de integraciones es un desperfecto. Una tabla de precios
+    en blanco es una venta perdida.
+  */
   useEffect(() => {
     let vivo = true;
-    supabase
-      .from('plan_limits')
-      .select(
-        'plan, label, max_clients, max_seats, price_cents, price_cents_year, currency, interval, blurb, purchasable, has_integrations'
-      )
-      .order('sort')
-      .then(({ data }) => {
-        if (vivo) setPlanes(data || []);
-      });
+
+    const BASE =
+      'plan, label, max_clients, max_seats, price_cents, currency, interval, blurb, purchasable';
+
+    const INTENTOS = [
+      `${BASE}, price_cents_year, has_integrations, has_audit_log, max_storage_gb`, // + 0066 y 0067
+      `${BASE}, price_cents_year, has_integrations`, // 0062 + 0065
+      `${BASE}, price_cents_year`, //                   0062
+      BASE, //                                          0049
+    ];
+
+    (async () => {
+      for (const columnas of INTENTOS) {
+        const { data, error } = await supabase
+          .from('plan_limits')
+          .select(columnas)
+          .order('sort');
+
+        if (!vivo) return;
+        if (!error) {
+          setPlanes(data || []);
+          return;
+        }
+      }
+      if (vivo) setPlanes([]);
+    })();
+
     return () => {
       vivo = false;
     };
@@ -1456,9 +1511,40 @@ export const LandingPage = () => {
                       quiere: los de pago no se contratan desde aquí sin cuenta
                       —hay que entrar y pasar por la pasarela—, así que un botón
                       sólido en ellos prometería un atajo que no existe. */}
+                  {/*
+                    ══ El plan elegido viaja con el enlace ═══════════════════
+                    Los cuatro botones iban al mismo `/entrar?alta=1`, así que
+                    quien pulsaba «Empezar con Pro» salía con una cuenta gratis y
+                    tenía que ir a buscar Ajustes → Plan y volver a elegir. La
+                    intención se perdía justo en el paso donde se decide.
+
+                    Viaja por DOS caminos, y no es redundancia:
+
+                    · En la URL, que es lo que hace que funcione de una pieza para
+                      quien ya tiene cuenta y solo tiene que entrar.
+                    · En `localStorage` (`lib/intencionDePlan`), porque la URL no
+                      sobrevive al montaje de la aplicación tras crear la cuenta:
+                      entre que aparece la sesión y que la aplicación sabe quién
+                      eres, la ruta deja de casar con el árbol y el comodín de
+                      `App` la traduce a «Hoy». Comprobado, no supuesto.
+
+                    `periodo` va también: si estás mirando la columna del año, es
+                    el precio del año el que has elegido.
+                  */}
                   <Link
                     className={`lp-btn is-sm ${p.price_cents ? 'is-ghost' : 'is-fill'}`}
-                    to="/entrar?alta=1"
+                    onClick={() => {
+                      if (p.price_cents) {
+                        guardarIntencion(p.plan, anual && p.price_cents_year ? 'year' : 'month');
+                      }
+                    }}
+                    to={
+                      p.price_cents
+                        ? `/ajustes/plan?alta=1&contratar=${p.plan}${
+                            anual && p.price_cents_year ? '&periodo=year' : ''
+                          }`
+                        : '/entrar?alta=1'
+                    }
                   >
                     {p.price_cents ? `Empezar con ${p.label}` : 'Crear mi cuenta'}
                   </Link>
@@ -1495,10 +1581,29 @@ export const LandingPage = () => {
                       <Check size={15} strokeWidth={2.5} aria-hidden="true" />
                       El bucle entero: programar, comer, registrar y revisar
                     </li>
+                    {/*
+                      El tope de disco se dice SIEMPRE que exista, no solo en los
+                      planes grandes: anunciar «1 GB» en Gratis es lo que hace que
+                      el tope no sea una sorpresa el día que se llena (0067). Si
+                      la columna aún no está en la base, no sale la línea y la
+                      tarjeta es la de antes.
+                    */}
+                    {p.max_storage_gb != null && (
+                      <li>
+                        <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+                        {p.max_storage_gb} GB de fotos y vídeo
+                      </li>
+                    )}
                     {p.has_integrations && (
                       <li>
                         <Check size={15} strokeWidth={2.5} aria-hidden="true" />
                         Integraciones
+                      </li>
+                    )}
+                    {p.has_audit_log && (
+                      <li>
+                        <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+                        Registro de cambios
                       </li>
                     )}
                   </ul>

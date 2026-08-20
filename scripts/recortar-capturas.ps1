@@ -256,13 +256,38 @@ $recortes = @(
   # tomó desde la vista previa del entrenador, que es una columna de 390 px— y
   # eso no se arregla desde aquí: hace falta volver a tomarla con el navegador en
   # DPR 2 sobre la aplicación del cliente.
+  #
+  # ── Y esa proporción es 1,73, que es de donde sale la FORMA del iPhone ──────
+  # El marco de la portada no tiene alto propio: mide lo que mida la captura más
+  # la barra de estado y la zona de la rayita que le pinta el CSS. Con las bandas
+  # de antes (proporción 1,63) el aparato entero salía a 1,80 de alto por ancho —
+  # y un iPhone de verdad anda por 2,06, así que se veía ancho y achatado, más
+  # tableta pequeña que teléfono.
+  #
+  # 1,73 es el TOPE que dan las capturas crudas de hoy, y lo fija la de la dieta:
+  # su contenido se acaba donde empieza la barra de pestañas (y=2096) y por debajo
+  # de la barra ya no hay archivo. Con eso el aparato se queda en ~1,92 — cerca
+  # del de verdad, y donde ya se lee como un teléfono. Para llegar al 2,06 exacto
+  # hay que volver a tomar la captura de la dieta con la ventana MÁS ALTA (más
+  # contenido antes de la barra); el día que exista, esto es subir dos números.
+  #
+  # Cortar el contenido A RAS de la barra de pestañas no deja costura: en la
+  # aplicación de verdad el contenido pasa POR DEBAJO de esa barra al desplazar,
+  # así que una fila partida justo encima de ella es exactamente lo que se ve en
+  # un teléfono encendido.
   @{ nombre = 'm-rutina'; archivo = 'movil\rutina2x.png'
-     bandas = @(@(0, 156, 430, 642), @(0, 900, 430, 58)) }
+     bandas = @(@(0, 156, 430, 686), @(0, 900, 430, 58)) }
   # Y esta con el techo bajo: el teléfono de la portada mide 250 px como mucho,
   # así que 1317 px de archivo son cinco veces lo que se llega a pintar — 218 kB
   # de los que se ven cuarenta.
+  #
+  # Los 16 px que pierde por cada lado no son un descuido: son lo que le falta de
+  # alto comprado en ancho. El contenido llega como mucho a 2221 px y eso sobre
+  # los 1317 enteros es 1,69, no 1,73; recortando lienzo —las tarjetas empiezan
+  # en x=42, así que se va aire y no contenido— las dos piezas quedan a la misma
+  # proporción dentro del mismo bisel.
   @{ nombre = 'm-dieta'; archivo = 'movil\dieta2x.png'; dpr = 2; techo = 768
-     bandas = @(@(0, 25, 1317, 1994), @(0, 2096, 1317, 150)) }
+     bandas = @(@(16, 25, 1284, 2071), @(16, 2096, 1284, 150)) }
 )
 
 $codec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }

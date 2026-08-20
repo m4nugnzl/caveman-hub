@@ -97,7 +97,27 @@ export const Login = ({ notice = null, destino = null }) => {
     try {
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: destino || window.location.origin },
+        /*
+          `href` y no `origin`: la dirección ENTERA, con su ruta y sus
+          parámetros.
+
+          Con `origin` se volvía siempre a la raíz, así que quien salía de
+          `/ajustes/plan?contratar=pro` para entrar con Google volvía a la
+          portada y perdía por el camino lo que venía a hacer. Y no solo eso:
+          también perdía la pantalla concreta que estaba mirando cuando le
+          caducó la sesión, que es el caso que `App` se toma la molestia de
+          preservar para el acceso con contraseña.
+
+          `destino` sigue mandando cuando lo hay: la invitación de un cliente
+          lleva su token dentro y esa sí es una dirección distinta de esta.
+
+          Requiere que el origen esté en *Authentication → URL Configuration →
+          Redirect URLs* de Supabase, con `/**` al final para que acepte rutas.
+          Si no está, Supabase no falla: **devuelve al «Site URL» del proyecto**,
+          que es el dominio desplegado. Desde local, eso se ve como que entrar
+          con Google te saca de la aplicación que estabas probando.
+        */
+        options: { redirectTo: destino || window.location.href },
       });
       if (err) {
         setError(traduceAuthError(err.message));
@@ -147,13 +167,45 @@ export const Login = ({ notice = null, destino = null }) => {
       } else {
         // Alta de un ENTRENADOR. El rol 'coach' lo asigna el trigger
         // handle_new_user en la base de datos, no el cliente.
-        const { error: err } = await supabase.auth.signUp({
+        const { data, error: err } = await supabase.auth.signUp({
           email: form.email.trim(),
           password: form.password,
-          options: { data: { name: form.name.trim() } },
+          options: {
+            data: { name: form.name.trim() },
+            /*
+              Sin esto, el enlace de confirmación apunta a la «Site URL» del panel
+              de Supabase, que es una configuración que nadie recuerda haber
+              puesto y que en un despliegue nuevo apunta a `localhost`. Con la
+              dirección desde la que se está registrando, el enlace siempre vuelve
+              a donde estaba la persona.
+            */
+            emailRedirectTo: window.location.origin,
+          },
         });
+
         if (err) setError(traduceAuthError(err.message));
-        else setInfo('Cuenta creada. Revisa tu correo para confirmar el registro.');
+        /*
+          ══ Qué pasó de verdad, en vez de dar por hecho que hay correo ═══════
+
+          Esto decía siempre «revisa tu correo para confirmar el registro», y era
+          mentira la mitad de las veces: **si la confirmación por email está
+          desactivada en Supabase, `signUp` devuelve SESIÓN y no se envía ningún
+          correo**. La cuenta queda lista y la persona se va a mirar una bandeja
+          donde no va a llegar nada. Pasó de verdad, y el rato que se pierde
+          esperando ese correo es justo el rato en el que se decide no volver.
+
+          `data.session` distingue los dos casos sin preguntarle nada a nadie:
+
+            · con sesión  → la cuenta ya está dentro, no hay correo que esperar.
+            · sin sesión  → Supabase ha mandado el enlace y hay que confirmarlo.
+
+          En el primer caso no hace falta ni enseñar un aviso: el cambio de sesión
+          entra solo y la aplicación se monta encima de esta pantalla.
+        */
+        else if (!data?.session)
+          setInfo(
+            'Cuenta creada. Te hemos enviado un enlace para confirmar el registro; revisa también la carpeta de spam.'
+          );
       }
     } catch (e) {
       setError(e?.message || 'No se pudo conectar. Comprueba tu conexión.');

@@ -1,0 +1,125 @@
+<!--
+  ============================================================================
+  Confirmar la dirección al registrarse  ·  Supabase → Authentication → Emails
+  ----------------------------------------------------------------------------
+  Se pega en la plantilla «Confirm signup». El original de Supabase llega en
+  inglés, firmado por `noreply@mail.app.supabase.io` y sin decir de qué producto
+  es: quien se acaba de registrar recibe un correo que parece de otra cosa, y el
+  primer gesto que le pedimos es hacer clic en un enlace de un desconocido.
+
+  ══ Por qué el HTML está escrito así y no como el resto del proyecto ═══════
+
+  Nada de esto es cómo se escribe una página en 2026, y es a propósito:
+
+  · TABLAS para maquetar. Outlook usa el motor de Word y no entiende `flex` ni
+    `grid`. Una tabla se lleva bien con todos.
+  · ESTILOS EN LÍNEA. Gmail descarta buena parte de lo que va en `<style>`, y en
+    el correo reenviado o citado se pierde más. Lo que va en el atributo `style`
+    del elemento sobrevive.
+  · SIN TIPOGRAFÍA WEB. Archivo no se puede cargar aquí; se declara la pila del
+    sistema, que es lo que de verdad se va a ver.
+  · SIN IMÁGENES. La mayoría de los clientes no las descarga hasta que se lo
+    pides, así que un logotipo en imagen es, de entrada, un hueco. La marca la
+    lleva el color y el nombre escrito.
+  · FONDO CLARO, aunque la aplicación sea oscura. El modo oscuro de cada cliente
+    reescribe los colores por su cuenta y con reglas distintas; partir de claro
+    es lo que sobrevive mejor a ese trato.
+
+  ══ El único dato que pone Supabase ════════════════════════════════════════
+
+  `{{ .ConfirmationURL }}` — el enlace de confirmación, ya con el `redirectTo`
+  que manda `Login.jsx`. No hay que construirlo ni añadirle nada.
+
+  ══ Y el enlace va DOS veces ═══════════════════════════════════════════════
+
+  Como botón y como texto copiable debajo. El botón es una tabla con fondo, no
+  un `<a>` con relleno, porque hay clientes que le quitan el fondo a los enlaces;
+  y el texto de abajo es para cuando el correo se lee donde no se puede pulsar
+  —o cuando el cliente lo enseña en texto plano—.
+  ============================================================================
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#eceef1;margin:0;padding:32px 12px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:520px;background:#ffffff;border-radius:14px;
+                    border:1px solid #dcdfe4;overflow:hidden;">
+
+        <!-- El filo de brasa. Cuatro píxeles de color de marca: es lo único que
+             se ve antes de leer nada y lo que hace que el correo no parezca de
+             un banco. -->
+        <tr><td style="height:4px;background:#b8432f;line-height:4px;font-size:0;">&nbsp;</td></tr>
+
+        <tr>
+          <td style="padding:36px 36px 8px 36px;
+                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+            <!-- Quién escribe, antes que nada. Era exactamente lo que faltaba. -->
+            <div style="font-size:12px;font-weight:700;letter-spacing:0.12em;
+                        text-transform:uppercase;color:#b8432f;">
+              Caveman Hub
+            </div>
+
+            <h1 style="margin:14px 0 0 0;font-size:24px;line-height:1.25;
+                       font-weight:700;color:#14181c;">
+              Confirma tu correo y entra
+            </h1>
+
+            <p style="margin:14px 0 0 0;font-size:15px;line-height:1.6;color:#40474f;">
+              Has creado una cuenta de entrenador en Caveman Hub. Solo queda
+              comprobar que esta dirección es tuya.
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 36px 0 36px;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" style="background:#b8432f;border-radius:9px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:14px 28px;
+                            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+                            font-size:15px;font-weight:700;color:#ffffff;
+                            text-decoration:none;">
+                    Confirmar mi correo
+                  </a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:22px 36px 0 36px;
+                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <p style="margin:0;font-size:13px;line-height:1.6;color:#6b727a;">
+              Si el botón no funciona, copia esta dirección en tu navegador:
+            </p>
+            <p style="margin:8px 0 0 0;font-size:12px;line-height:1.5;
+                      word-break:break-all;color:#b8432f;">
+              {{ .ConfirmationURL }}
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:26px 36px 34px 36px;
+                     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+            <div style="border-top:1px solid #e4e7ea;padding-top:18px;">
+              <!-- La salida para quien no se ha registrado. Un correo de
+                   confirmación sin esta línea deja a quien lo recibe por error
+                   sin saber si le han abierto una cuenta a su nombre. -->
+              <p style="margin:0;font-size:13px;line-height:1.6;color:#6b727a;">
+                Si no has sido tú, ignora este mensaje: sin confirmar, la cuenta
+                no llega a activarse.
+              </p>
+            </div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>

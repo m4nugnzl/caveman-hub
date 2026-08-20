@@ -12,6 +12,7 @@ import { PasswordResetPage } from '@/components/Auth/PasswordResetPage';
 import { LegalPage } from '@/components/legal/LegalPage';
 import { LandingPage } from '@/components/marketing/LandingPage';
 import { CoachLayout } from '@/components/Coach/CoachLayout';
+import { IntencionDePlan } from '@/components/Coach/IntencionDePlan';
 import { ClientLayout } from '@/components/Client/ClientLayout';
 import { ConsentGate } from '@/components/Client/ConsentGate';
 import { Today } from '@/components/Coach/Today';
@@ -356,6 +357,12 @@ export default function App() {
             </div>
           }
         >
+        {/* Repone la ruta de quien venía a contratar un plan desde la portada y
+            la perdió por el camino. ENVUELVE al árbol —no va a su lado— para
+            poder tapar la pantalla por defecto durante el instante que tarda en
+            redirigir: si no, se ve la cartera vacía de alguien que acaba de
+            registrarse antes de saltar al pago. */}
+        <IntencionDePlan>
         <Routes>
           {view === 'coach' ? (
             <>
@@ -493,6 +500,7 @@ export default function App() {
             </>
           )}
         </Routes>
+        </IntencionDePlan>
         </Suspense>
       </main>
 

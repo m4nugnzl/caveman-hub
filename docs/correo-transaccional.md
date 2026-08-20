@@ -202,12 +202,50 @@ apartado **Logs** de Resend. Ahí se ve si el correo salió, y si rebotó, por q
 
 Si sale pero no llega, casi siempre es DKIM sin verificar todavía.
 
-### Y los textos
+### Y los textos — **ESCRITOS, en `supabase/templates/`**
 
-Mientras estás ahí, en **Authentication → Emails → Templates** están las
-plantillas. Las que vienen por defecto son en inglés y dicen «Supabase». Merece
-la pena traducir al menos la de restablecer contraseña y la de invitación: es el
-primer correo que recibe un entrenador y ahora mismo parece de otro producto.
+Las que vienen por defecto son en inglés, firman «Supabase» y no dicen de qué
+producto son. Esto es lo que recibe hoy un entrenador que se registra:
+
+> **Confirm your email address**
+> Follow the link below to confirm this email address and finish signing up.
+
+El primer gesto que le pedimos a alguien que acaba de dejarnos su dirección es
+hacer clic en un enlace de un remitente que no reconoce. En *Authentication →
+Emails → Templates* se sustituyen, y están escritas en el repositorio para que no
+vivan solo dentro de un panel:
+
+| Plantilla de Supabase | Archivo | Asunto |
+|---|---|---|
+| Confirm signup | `supabase/templates/confirmar-registro.html` | `Confirma tu correo · Caveman Hub` |
+| Reset password | `supabase/templates/restablecer-contrasena.html` | `Recupera el acceso · Caveman Hub` |
+
+Se pega el contenido del archivo en el cuadro «Message body» y se cambia el
+asunto. Las demás plantillas —Magic Link, Invite, Change Email— **no se usan**:
+el acceso es contraseña o Google, y las invitaciones de cliente van por el
+sistema de tokens de la `0015`, no por Supabase Auth.
+
+**Y no se pueden pegar hasta tener el SMTP.** No es una recomendación de orden:
+es un candado del panel. La pantalla de plantillas lo dice encima de todo —*«Set
+up custom SMTP to edit templates. Emails will be sent using the default
+templates»*— y mientras no haya SMTP propio, Supabase manda las suyas y **ni el
+asunto ni el cuerpo se pueden tocar**.
+
+Así que el orden es forzoso: §1 → §2 → §3, y los textos después. Lo cual, por
+otra parte, es el orden que convenía igualmente: una plantilla impecable enviada
+desde `noreply@mail.app.supabase.io` sigue pareciendo un intento de suplantación,
+sigue cayendo en spam y sigue chocando con el límite de envíos.
+
+Dos avisos sobre lo que hay dentro de esas plantillas:
+
+- La de contraseña **dice que el enlace caduca en una hora**. Esa duración se
+  configura en esta misma pantalla de Supabase: si la cambias ahí y no aquí, el
+  correo pasa a mentir sobre cuánto vale un enlace que **es un acceso a la
+  cuenta** mientras vive (§2.1 de `monetizacion.md`).
+- El HTML está escrito con tablas y estilos en línea, que no es como se escribe
+  nada más en este proyecto. El porqué está en la cabecera del propio archivo:
+  Outlook maqueta con el motor de Word y Gmail descarta buena parte de lo que va
+  en `<style>`.
 
 ---
 

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
-import { planAhorroPct, planPrice } from '@/lib/num';
+import { fmt, planAhorroPct, planPrice } from '@/lib/num';
 import { supabase } from '@/lib/supabaseClient';
 import { Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
@@ -36,8 +36,27 @@ export const PlanPanel = () => {
   const [tiers, setTiers] = useState([]);
   const [anual, setAnual] = useState(false);
   const [params, setParams] = useSearchParams();
+  /* Que la pasarela se abra sola UNA vez y no en cada render. Un `ref` y no
+     estado: cambiarlo no tiene que repintar nada. */
+  const yaLanzado = useRef(false);
 
   const pago = params.get('pago');
+  /*
+    ══ El plan que venía eligiendo desde la portada ═══════════════════════════
+
+    Las tarjetas de pago de la página pública apuntan aquí con
+    `?alta=1&contratar=pro`. Sin sesión, `App` enseña el formulario de acceso y
+    **deja la ruta en la barra**; en cuanto la cuenta existe, la aplicación se
+    monta sobre esa misma dirección y esta pantalla recibe el parámetro. No hace
+    falta ninguna navegación después del alta: ya estaba escrita en el enlace.
+
+    Por qué el destino es esta pantalla y no la pasarela directamente: cobrar
+    exige que el EQUIPO exista —lo crea `ensure_my_team()` al arrancar la
+    aplicación— y que quien llama sea su dueño. Mandando a Stripe antes de eso,
+    lo que contesta es «no perteneces a ningún equipo». Aquí ya hay equipo, y si
+    algo falta se ve un aviso en vez de un error.
+  */
+  const contratando = params.get('contratar');
 
   useEffect(() => {
     let alive = true;
@@ -78,6 +97,29 @@ export const PlanPanel = () => {
     else refreshPlan();
   }, [team, pago, poll, refreshPlan]);
 
+  /*
+    Y aquí se recoge esa intención. Todas las condiciones son «espera», no
+    «cancela»: los planes y el equipo llegan por su cuenta y en el orden que
+    quieran, así que este efecto se ejecuta varias veces y solo la última hace
+    algo. Lo que NO puede pasar es que se ejecute dos veces la que hace algo,
+    y de eso se encarga `yaLanzado`.
+
+    Si el plan pedido no se puede contratar —no eres el dueño del equipo, ya lo
+    tienes, o no existe— no salta nada y el aviso de abajo lo explica. Un enlace
+    viejo con un plan retirado no puede acabar en un error de Stripe.
+  */
+  useEffect(() => {
+    if (yaLanzado.current || !contratando || busy) return;
+    if (!team || !plan) return;
+    if (!(myTeamRole === 'owner' || !myTeamRole)) return;
+
+    const tier = tiers.find((t) => t.plan === contratando);
+    if (!tier || !tier.purchasable || tier.plan === plan.plan) return;
+
+    yaLanzado.current = true;
+    contratar(tier.plan, params.get('periodo') === 'year' ? 'year' : 'month');
+  }, [contratando, busy, team, plan, tiers, myTeamRole, contratar, params]);
+
   if (!team) {
     return (
       <Header>
@@ -103,7 +145,7 @@ export const PlanPanel = () => {
     );
   }
 
-  const { label, status, clients, maxClients, trialEndsAt } = plan;
+  const { label, status, clients, maxClients, trialEndsAt, maxStorageGb, storageBytes } = plan;
   const quedan = maxClients === null ? null : Math.max(0, maxClients - clients);
   const pct = maxClients ? Math.min(100, Math.round((clients / maxClients) * 100)) : 100;
   const dias = trialEndsAt ? Math.ceil((new Date(trialEndsAt) - Date.now()) / 86400000) : null;
@@ -123,6 +165,42 @@ export const PlanPanel = () => {
   /* Aquí sí cabe la frase entera: es una insignia al lado del carril y no una
      etiqueta dentro de un botón, que es lo que obliga a abreviar en la portada. */
   const ahorro = ahorroPct ? `Ahorra un ${ahorroPct} %` : null;
+
+  /*
+    Por qué venías, cuando no se puede hacer lo que venías a hacer. Solo se
+    calcula con los planes ya cargados: mientras la lista está vacía, «ese plan
+    no existe» sería verdad durante un instante y mentira después.
+  */
+  const avisoContratar = (() => {
+    if (!contratando || yaLanzado.current || tiers.length === 0) return null;
+    if (!esDueno) return 'La suscripción la gestiona quien creó el equipo: pídele que lo contrate.';
+
+    const pedido = tiers.find((t) => t.plan === contratando);
+    if (pedido && pedido.plan === plan.plan) return `Ya tienes el plan ${pedido.label}.`;
+    if (!pedido || !pedido.purchasable)
+      return 'Ese plan ya no se puede contratar. Elige uno de la lista de abajo.';
+    return null; // Está todo en orden: la pasarela se abre sola.
+  })();
+
+  /*
+    Quien viene a contratar algo no viene a mirar la escala de planes: viene a
+    pagar. Enseñarle la lista entera durante el segundo que tarda la pasarela en
+    contestar le pone delante justo la decisión que ya había tomado.
+
+    Se sale de aquí por tres sitios y los tres están cubiertos: la pasarela se
+    abre y esta pantalla desaparece con ella; falla, y entonces `busy` se suelta
+    y abajo espera el aviso de error; o el plan pedido no se puede contratar, y
+    `avisoContratar` lo dice en la pantalla normal.
+  */
+  if (contratando && !avisoContratar && (busy || !yaLanzado.current)) {
+    return (
+      <Header>
+        <Panel>
+          <p className="t-sm t-secondary">Abriendo el pago…</p>
+        </Panel>
+      </Header>
+    );
+  }
 
   return (
     <Header>
@@ -164,6 +242,8 @@ export const PlanPanel = () => {
 
       {error && <Notice tone="error">{error}</Notice>}
 
+      {avisoContratar && <Notice tone="info">{avisoContratar}</Notice>}
+
       {/* ── Tu número ────────────────────────────────────────────────────── */}
       <Panel className="plan-hero">
         <div className="plan-hero-head">
@@ -199,6 +279,27 @@ export const PlanPanel = () => {
             style={{ width: `${pct}%` }}
           />
         </div>
+
+        {/*
+          El disco, en una línea y no en otra barra: la cifra que decide un
+          cambio de plan sigue siendo la de clientes, y dos barras en el mismo
+          panel pelearían por ser la importante. Solo aparece con la 0067
+          aplicada —`storageBytes` trae número— y avisa cuando el tope está
+          cerca, que es ANTES de que una foto de un cliente choque con él: el
+          mensaje de ese choque no le dice al cliente por qué (a propósito), así
+          que el único aviso con contexto es este.
+        */}
+        {storageBytes != null && (
+          <p className="t-sm t-secondary row gap-2">
+            <span>
+              Fotos y vídeo: <span className="tnum">{fmt(storageBytes / GB, { decimals: 1 })}</span>
+              {maxStorageGb ? ` de ${maxStorageGb} GB` : ' GB, sin tope'}
+            </span>
+            {cercaDelTope(storageBytes, maxStorageGb) && (
+              <span className="badge badge-warn">Casi lleno</span>
+            )}
+          </p>
+        )}
       </Panel>
 
       {/* ── La escala ────────────────────────────────────────────────────── */}
@@ -349,3 +450,13 @@ const precio = (tier, anual) => {
   if (!tier.price_cents) return 'Incluido';
   return (anual && planPrice(tier, { anual: true })) || planPrice(tier);
 };
+
+const GB = 1073741824;
+
+/*
+  «Casi lleno» al 85 %: por debajo la cifra informa, por encima ya es cuestión
+  de días —las fotos las suben los clientes solos— y conviene decirlo aquí,
+  porque el mensaje del choque (0067) al cliente no le cuenta el porqué a
+  propósito. Sin tope (`maxGb` nulo) nunca avisa: no hay nada que llenar.
+*/
+const cercaDelTope = (bytes, maxGb) => Boolean(maxGb) && bytes >= maxGb * GB * 0.85;

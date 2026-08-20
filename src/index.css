@@ -3576,28 +3576,48 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    esta página es que el cliente lleva el plan ENCIMA, y esa promesa la hace el
    aparato, no lo que se ve dentro.
 
-   Lo que lo convierte en un teléfono son cuatro cosas y ninguna es adorno:
+   Lo que lo convierte en un teléfono son seis cosas y ninguna es adorno:
 
      · **El canto metálico.** Un degradado en diagonal con las paradas de un
        perfil torneado: claro donde le da la luz, casi negro en las caras. Es lo
        que le da VOLUMEN. Un borde de un color plano es una línea, no un canto.
+     · **El bisel negro.** Entre el metal y la pantalla encendida hay un anillo
+       de negro, en cualquier teléfono del mundo. Aquí la captura tocaba el
+       metal directamente, y esa junta imposible es una de las cosas que hacían
+       que el aparato se leyera como dibujado.
      · **La barra de estado.** Va DELANTE de la captura, no encima. Si la isla
        se pusiera sobre la cabecera de la aplicación taparía el buscador, y una
        pastilla negra tapando un control se lee como un fallo de maquetación.
      · **La isla.** Lo que dice «esto es un teléfono actual» sin mirar dos
        veces.
+     · **La zona de la rayita.** Debajo de la barra de pestañas de la captura,
+       una franja del MISMO color que ella con la rayita de inicio dentro — el
+       hueco que iOS reserva de verdad bajo cualquier barra de pestañas. Ver
+       `.lp-iphone-inicio`.
      · **Los botones del canto.** Dos marcas de nada que asoman por los
        laterales. Solo se notan si faltan.
 
    Todo con reglas: ni una imagen que descargar y nítido a cualquier tamaño.
+
+   ── LA PROPORCIÓN, que es lo que estaba mal ─────────────────────────────────
+   El aparato no tiene alto propio: mide lo que suman el canto, la barra de
+   estado, la captura y la zona de la rayita. Con las capturas de antes
+   (proporción 1,63) el total salía a 1,72 de alto por ancho — y un iPhone de
+   verdad anda por 2,06. Ese 17 % de menos es exactamente «demasiado ancho»: el
+   aparato se leía como una tableta pequeña, no como un teléfono.
+
+   Las capturas vienen ahora del script a 1,73 —el tope que da el material
+   crudo de hoy, ver `recortar-capturas.ps1`— y con la barra y la rayita el
+   aparato queda en 1,925. No es el 2,06 exacto: para eso hay que volver a
+   tomar la captura de la dieta con la ventana más alta, y ese día esto sube
+   solo, porque el alto sigue saliendo del contenido.
 
    ── UNA medida, y de ella salen las diez ────────────────────────────────────
    Un teléfono no se escala como una caja: si el de 200 px y el de 250 px llevan
    el mismo radio de 36, el pequeño parece una pastilla y el grande una tarjeta.
    Todo —el canto, el radio, la muesca, la barra de estado, los botones— es una
    PROPORCIÓN del ancho del aparato, y las proporciones son las de un iPhone de
-   verdad: cuerpo 2,06 veces más alto que ancho, esquina al 14,5 % del ancho,
-   muesca al 42 %.
+   verdad: esquina al 15,5 % del ancho, isla al 30 %.
 
    Así que cada sitio que pone un teléfono declara UNA variable, `--tel`, que es
    lo que mide de ancho. Lo demás sale solo. (Con consultas de contenedor esto
@@ -3618,11 +3638,18 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      a 200 px de ancho un canto de dos píxeles y medio desaparece, y con él la
      sensación de que hay un aparato. */
   --canto: calc(var(--tel) * 0.026);
+  /* El bisel negro entre el metal y la pantalla encendida. Fino de verdad: a
+     190 px de aparato son dos píxeles, que es justo lo que se ve en el de
+     verdad — y lo que faltaba para que la captura no tocara el metal. */
+  --bisel: calc(var(--tel) * 0.012);
   /* La esquina, más abierta que antes (14,5 % → 15,5 %). Es la proporción de un
      teléfono actual, y es lo primero que delata a un marco dibujado: con la
      esquina corta el aparato se lee como una tableta pequeña. */
   --radio: calc(var(--tel) * 0.155);
-  --barra: calc(var(--tel) * 0.125);
+  /* Al 13,5 % y no al 12,5: en un iPhone real la zona de estado —con la isla
+     dentro— se lleva ~15 % del ancho, y la barra corta dejaba la isla besando
+     la captura. */
+  --barra: calc(var(--tel) * 0.135);
   /* La isla: 30 % de ancho por 8,5 % de alto, despegada un 2,8 % del canto de
      arriba. Son las proporciones del aparato de verdad. */
   --isla-w: calc(var(--tel) * 0.3);
@@ -3680,16 +3707,30 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   background: linear-gradient(270deg, #191d23, #6e7885);
 }
 
+/* La pantalla es ahora DOS cajas, y no es un capricho de marcado: la de fuera
+   es el bisel negro —el anillo que en cualquier teléfono separa el metal del
+   panel encendido— y la de dentro (`.lp-iphone-lcd`) es el panel. Con una sola
+   caja el bisel solo podía ser un borde, y un borde no redondea su cara de
+   dentro: la esquina de la captura quedaba sin su radio concéntrico. */
 .lp-iphone-pantalla {
   position: relative;
   overflow: hidden;
+  padding: var(--bisel);
   /* El radio de dentro es el de fuera menos el canto. Cualquier otra cosa deja
      una esquina que no es concéntrica con la de fuera, y eso se ve. */
   border-radius: calc(var(--radio) - var(--canto));
-  /* El mismo tono que la cabecera de la aplicación en la captura: si no
-     coincide, entre la barra y la imagen aparece una raya y el teléfono se
-     parte en dos. */
-  background: #0f1216;
+  background: #000;
+}
+
+.lp-iphone-lcd {
+  position: relative;
+  overflow: hidden;
+  /* Y otro escalón del radio, por lo mismo de siempre: concéntrico o se ve. */
+  border-radius: calc(var(--radio) - var(--canto) - var(--bisel));
+  /* El mismo tono que el lienzo de la aplicación en la captura (#101318 medido
+     del archivo): si no coincide, entre la barra de estado y la imagen aparece
+     una raya y el teléfono se parte en dos. */
+  background: #101318;
 }
 
 /* ── La isla ─────────────────────────────────────────────────────────────────
@@ -3760,6 +3801,35 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
 .lp-iphone-img { display: block; width: 100%; height: auto; }
 
+/* ── LA ZONA DE LA RAYITA ────────────────────────────────────────────────────
+   Aquí estuvo escrito, con razón, que la rayita de inicio NO iba: la captura
+   llegaba recortada a ras de la barra de pestañas, sin el hueco que el sistema
+   reserva debajo, y dibujarla encima de las etiquetas era tapar contenido.
+
+   El hueco existe ahora, y se dibuja aquí en vez de venir en el archivo: una
+   franja del MISMO color que la barra de pestañas de la captura (#10151b,
+   medido del archivo — si baila un tono, se ve la costura), con la rayita
+   dentro. Es exactamente lo que hay bajo la barra de pestañas de cualquier
+   aplicación de iOS, y es además parte de la PROPORCIÓN: sin esta franja el
+   aparato vuelve a quedarse corto. */
+.lp-iphone-inicio {
+  display: block;
+  position: relative;
+  height: calc(var(--tel) * 0.115);
+  background: #10151b;
+}
+.lp-iphone-inicio::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--tel) * 0.034);
+  translate: -50% 0;
+  width: calc(var(--tel) * 0.34);
+  height: max(3px, calc(var(--tel) * 0.014));
+  border-radius: var(--r-pill);
+  background: rgba(232, 236, 241, 0.38);
+}
+
 /* El cristal. La misma diagonal de luz que la ventana del portátil y por el
    mismo motivo: un panel de verdad no devuelve la misma luz en las dos
    esquinas. Va por encima de todo —isla incluida— porque el reflejo está en el
@@ -3774,20 +3844,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     rgba(255, 255, 255, 0) 52%
   );
 }
-
-/* ── Y aquí NO va la rayita de inicio ────────────────────────────────────────
-   Estuvo de dos maneras y las dos estaban mal. Primero como FRANJA: un bloque
-   con altura propia debajo de la captura, o sea veinte píxeles de negro entre
-   el final de la aplicación y el canto del aparato — una banda que no existe en
-   ningún teléfono. Y después flotando por encima, que es donde va de verdad;
-   pero justo encima de la barra de secciones del portal del cliente, tapándole
-   las etiquetas.
-
-   Lo segundo no se arregla desde aquí: la captura viene recortada por debajo de
-   esa barra y sin el hueco que el sistema reserva para la rayita. Cambiar un
-   detalle que sobra por un defecto que se ve no es un cambio.
-
-   Así que la aplicación llega hasta la esquina redondeada y ahí se acaba. */
 
 /* ── EL ANCHO DEL TELÉFONO DEL HÉROE, Y POR QUÉ ESTÁ AQUÍ ────────────────────
    Porque `.lp-iphone` declara `--tel: 250px` unas líneas más arriba, y quien lo
@@ -4373,11 +4429,12 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      igual en un teléfono de 320 que en una tableta de 700.
 
      ── Y el margen negativo se calcula con el ALTO ──────────────────────────
-     Un teléfono mide 1,72 veces su ancho —el canto, la barra de estado y una
-     captura de móvil, que las dos vienen del script con la misma proporción— y
-     lo que hay que decidir es cuánto ASOMA por debajo de la ventana, no cuánto
-     sube. Eso es `--asoma`, y lo comparte con la nota: las dos cosas que
-     sobresalen lo hacen por la misma línea.
+     Un teléfono mide 1,925 veces su ancho —el canto, el bisel, la barra de
+     estado, una captura del script (que las dos vienen con la misma proporción)
+     y la zona de la rayita; la cuenta está en `.lp-iphone`— y lo que hay que
+     decidir es cuánto ASOMA por debajo de la ventana, no cuánto sube. Eso es
+     `--asoma`, y lo comparte con la nota: las dos cosas que sobresalen lo hacen
+     por la misma línea.
 
      El ancho ya no se decide aquí: lo pone `--tel-esc` en la escena, porque la
      ventana también lo necesita para saber cuánto sitio soltar. Aquí solo se
@@ -4387,7 +4444,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .lp-hero-movil {
     --tel: var(--tel-esc);
     align-self: flex-end;
-    margin: calc(var(--asoma) - var(--tel) * 1.72) 0 0;
+    margin: calc(var(--asoma) - var(--tel) * 1.925) 0 0;
     z-index: 1;
   }
   .lp-par.is-vuelta .lp-par-movil { align-self: flex-start; }
@@ -4534,37 +4591,57 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      teléfono más sitio se gasta en no enseñar nada: en un móvil corriente eran
      67 px de hueco encima del rótulo, más los 58 de la barra y los 64 de la
      sección. Ciento noventa píxeles —un cuarto de la pantalla— antes de la
-     primera letra de la página. */
-  .lp-hero { padding-top: var(--s6); }
+     primera letra de la página.
+
+     ══ Y EL CANTO MUERDE TAMBIÉN AQUÍ, pero el héroe NO mide una pantalla ═══
+
+     El corte del héroe estaba QUITADO en los teléfonos, con el argumento de
+     que la escena en columna cabía entera y el canto se quedaba cortando aire.
+     El primer arreglo fue clavar la escena al canto de abajo de una pantalla
+     entera, y cambió un agujero por otro: en un teléfono la escena mide un
+     tercio de la de un monitor, así que estirar el héroe a la pantalla
+     aparcaba trescientos píxeles de nada ENTRE el texto y la escena. Se vio a
+     la primera: «un poco raro».
+
+     Lo que se queda es la mordida sin el estirón. El héroe crece con su
+     contenido —texto, su aire, escena— y la escena baja un tercio del ancho
+     del teléfono más allá del canto de la caja de recorte, así que el aparato
+     y el filo de abajo de la ventana se van por detrás de la franja siguiente,
+     igual que en un monitor. La franja llega antes del pliegue y eso aquí es
+     una virtud: en un teléfono, lo que sigue asomando pronto invita a bajar
+     más que una primera pantalla que se guarda todo el sitio para sí.
+
+     Muerde sobre el filo de la captura y el pie del aparato, no sobre sus
+     cifras: la tarjeta de la revisión, que es la que argumenta, va arriba. */
+  .lp-hero { padding-top: var(--s6); height: auto; }
+  .lp-hero-escena { margin-bottom: calc(var(--tel-esc) * -0.33); }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
    DONDE NO HAY NADA QUE CORTAR, EL CANTO SE VA
    --------------------------------------------------------------------------
    El héroe mide una pantalla y recorta lo que se salga por abajo. Eso vale
-   mientras haya escena de sobra que recortar, y hay dos sitios donde no la hay:
+   mientras haya escena de sobra que recortar, y en una ventana ANCHA Y BAJA
+   —media pantalla de un portátil, un monitor apaisado— no la hay: el titular a
+   dos líneas, la frase y el precio ya se comen el hueco entero y el recorte
+   pasaría de morder la escena a morder la letra. Cortar una imagen es el
+   efecto; cortar un titular es un fallo.
 
-     · **En un teléfono**, porque la escena ya no es la de un monitor: la ventana
-       se encoge y el aparato se le pone debajo, así que las dos piezas juntas
-       miden un tercio de lo que medían y CABEN. Forzando la pantalla entera,
-       lo que quedaba debajo de la escena eran doscientos y pico píxeles de nada
-       antes de la franja siguiente — un canto que no corta nada no es un canto,
-       es un agujero.
-     · **En una ventana baja** —media pantalla de un portátil, un monitor
-       apaisado—, porque ahí el titular a dos líneas, la frase y el precio ya se
-       comen el hueco entero y el recorte pasaría de morder la escena a morder
-       la letra. Cortar una imagen es el efecto; cortar un titular es un fallo.
-
-   En los dos casos el héroe vuelve a crecer con su contenido, la caja de recorte
+   Así que aquí el héroe vuelve a crecer con su contenido, la caja de recorte
    deja de recortar y el aire de abajo se pone otra vez — si no, la franja
    siguiente quedaría pegada a una escena que ya no acaba en ningún sitio.
 
-   Los dos van en la MISMA regla y con una coma: es la misma decisión —«aquí no
-   hay pantalla que cortar»— tomada por dos motivos, y separarlas en dos bloques
-   solo conseguiría que dentro de un año se ajuste uno y no el otro.
+   Aquí estuvo también el teléfono (`max-width: 700px`, con una coma), con el
+   argumento de que la escena en columna cabía entera y el canto cortaba aire.
+   Ya no: la portada se abre sobre todo desde un teléfono, y el corte es
+   justamente lo que le da al héroe su forma. La escena se clava ahora al canto
+   y el canto muerde — ver el bloque de 700 px, donde vive con el resto de la
+   escena vertical. El `min-width` de aquí es lo que evita que las dos reglas
+   se pisen: un teléfono APAISADO (ancho y bajo) cae en esta, que es la que le
+   toca, porque en apaisado la letra tampoco deja nada que cortar.
    ══════════════════════════════════════════════════════════════════════════ */
-@media (max-width: 700px), (max-height: 640px) {
-  .lp-hero { height: auto; padding-bottom: var(--lp-air); }
+@media (min-width: 701px) and (max-height: 640px) {
+  .lp-hero { height: auto; min-height: 0; padding-bottom: var(--lp-air); }
   .lp-hero-corte { overflow: visible; }
 }
 

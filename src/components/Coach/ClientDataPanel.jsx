@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Download, History, ShieldAlert, Trash2 } from 'lucide-react';
 
-import { useActions } from '@/context/AppContext';
+import { useActions, useSession } from '@/context/AppContext';
 import { consentFromRow } from '@/domain/privacy';
 import { supabase } from '@/lib/supabaseClient';
 import { shortDate, timeOfDay } from '@/lib/dates';
@@ -41,6 +41,7 @@ const AUDIT_ACTION = { INSERT: 'creado', UPDATE: 'modificado', DELETE: 'borrado'
 
 export const ClientDataPanel = ({ client }) => {
   const { exportClientData, deleteClientCompletely, loadAuditLog } = useActions();
+  const { plan } = useSession();
   const confirm = useConfirm();
   const [audit, setAudit] = useState(null);
 
@@ -170,7 +171,23 @@ export const ClientDataPanel = ({ client }) => {
         puntual —se mira cuando hay una duda— y pedirla siempre para veinte
         clientes sería repetir el problema que tiene la carga inicial.
       */}
-      {audit === null ? (
+      {plan?.hasAuditLog === false ? (
+        /*
+          El capado de la 0066. RLS filtra un SELECT sin decir nada, así que si
+          aquí se dejara el botón, quien no lo tiene vería «todavía no consta
+          ningún cambio» — mentira, y de las caras: la traza SÍ se está
+          escribiendo. Se dice lo que pasa, sin nombrar el plan que lo lleva:
+          qué plan lo incluye lo decide una columna de la base y esta frase no
+          puede quedarse anticuada mirándola desde aquí.
+
+          Solo con `false` explícito: `null` es «migración pendiente» y entonces
+          la política antigua sigue enseñándolo a todos, como siempre.
+        */
+        <p className="t-xs t-tertiary">
+          El registro de quién cambia los datos no entra en tu plan. Puedes ampliarlo en Ajustes →
+          Plan.
+        </p>
+      ) : audit === null ? (
         <button type="button" className="btn btn-plain btn-sm" onClick={showAudit} disabled={busy !== null}>
           <History size={14} /> Ver quién ha cambiado sus datos
         </button>
