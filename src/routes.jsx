@@ -99,7 +99,13 @@ export const COACH_CLIENT = [
     reagruparlas de verdad es un paso que no se da sin haber usado esto un ciclo
     entero (ver `docs/producto.md`, fase 5).
   */
-  { path: 'semana', label: 'Su semana', icon: CalendarCheck },
+  /*
+    `short` es la etiqueta de la barra del pulgar, igual que en las secciones
+    del cliente: «Su semana» no cabe en un destino de 78 px sin cortarse por
+    caracteres. Desde que la barra inferior del entrenador cambia de plano al
+    entrar en un cliente (ver CoachLayout), estas etiquetas también viven ahí.
+  */
+  { path: 'semana', label: 'Su semana', short: 'Semana', icon: CalendarCheck },
   /*
     «Progreso» era dos entradas —Resumen y Analítica— y las dos contestan la misma
     pregunta con distinto detalle. Eso obligaba a elegir cuál abrir antes de saber

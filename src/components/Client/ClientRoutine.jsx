@@ -428,7 +428,7 @@ export const ClientRoutine = ({
   const activeEntry = entries.find((entry) => entry.day.dayName === activeName);
 
   return (
-    <div className="stack session-pad">
+    <div className="stack save-pad">
       <div className="col gap-3">
         <div className="row between wrap gap-2">
           <span className="section-label">Tu {unit.toLowerCase()}</span>
@@ -512,10 +512,10 @@ export const ClientRoutine = ({
         el indicador de la cabecera (arriba) se pierde por el segundo ejercicio,
         y esta pantalla se usa apuntando una serie cada dos minutos. La barra es
         la que grita «No se guardó · Reintentar» cuando la red del gimnasio
-        falla. Solo se pinta en el chasis móvil (ver `.session-bar`).
+        falla. Solo se pinta en el chasis móvil (ver `.save-bar`).
       */}
       {activeDay && (
-        <div className="session-bar">
+        <div className="save-bar">
           <span className="t-sm t-secondary">
             {activeEntry && activeEntry.planned > 0
               ? `${activeEntry.logged} de ${activeEntry.planned} series`

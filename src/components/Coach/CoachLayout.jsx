@@ -339,22 +339,16 @@ export const CoachLayout = () => {
                 </button>
               </div>
 
-              <nav className="rail" aria-label={`Secciones de ${activeClient.name}`}>
-                {seccionesDeCliente.map(({ seccion, activa }) => {
-                  const { path, label, icon: Icon } = seccion;
-                  return (
-                    <NavLink
-                      key={path}
-                      to={clientPath(clientId, path)}
-                      className={`chip${activa ? ' active' : ''}`}
-                      aria-current={activa ? 'page' : undefined}
-                    >
-                      <Icon size={13} />
-                      {label}
-                    </NavLink>
-                  );
-                })}
-              </nav>
+              {/*
+                ══ Aquí vivió el carril de chips con las secciones ═══════════════
+                Era la única navegación del cliente en el móvil, arriba del todo:
+                la zona que el pulgar no alcanza, y otra fila más de chasis antes
+                del contenido. Desde que la barra del pulgar cambia de plano al
+                entrar en un cliente (ver abajo), esas mismas secciones están
+                fijas y visibles donde está el dedo, y el carril sobraba: dos
+                navegaciones para lo mismo son una pregunta («¿cuál uso?») que
+                nadie tiene por qué contestar.
+              */}
             </div>
           )}
 
@@ -386,15 +380,38 @@ export const CoachLayout = () => {
         </div>
 
         {/*
-          Por debajo del corte del chasis, la barra inferior lleva el PRIMER
-          nivel —Hoy, Clientes—. El segundo nivel (las secciones del cliente,
-          las de ajustes) se queda en su carril: son dos planos distintos y
-          ponerlos los dos abajo volvería a mezclarlos, que es justo lo que esta
-          navegación vino a arreglar.
+          ══ La barra del pulgar CAMBIA de plano, como la barra lateral ═════════
+
+          Llevaba siempre el primer nivel —Hoy, Clientes— y las secciones del
+          cliente iban en un carril de chips arriba, en la zona que el pulgar no
+          alcanza. Es decir: la navegación que se usa DECENAS de veces al día
+          (moverse por un cliente) estaba en el sitio malo, y la que se usa dos
+          veces (volver a Hoy) ocupaba el bueno.
+
+          La barra lateral de escritorio ya había resuelto esto mismo: no apila
+          planos, CAMBIA de plano — fuera de un cliente el nivel primario, dentro
+          el cliente entero. La barra del pulgar hace ahora exactamente eso. No
+          es mezclar niveles: en pantalla nunca hay más de un plano, y la vuelta
+          al primario es la flecha de la cabecera, igual que en la barra lateral.
+
+          Con más de cinco secciones, BottomNav enseña cuatro y guarda el resto
+          en su hoja de «Más» — la misma mecánica que el portal del cliente.
         */}
         <BottomNav
-          label="Secciones principales"
-          items={COACH_PRIMARY.map(({ path, label, icon }) => ({ to: path, label, icon }))}
+          key={onClient && activeClient ? 'cliente' : 'primario'}
+          label={onClient && activeClient ? `Secciones de ${activeClient.name}` : 'Secciones principales'}
+          items={
+            onClient && activeClient
+              ? seccionesDeCliente.map(({ seccion }) => ({
+                  to: clientPath(clientId, seccion.path),
+                  label: seccion.short || seccion.label,
+                  icon: seccion.icon,
+                  /* Sus niveles cuentan como la misma sección: en las fotos de
+                     la revisión, «Revisión» tiene que seguir encendida. */
+                  isActive: (ruta) => isSectionActive(ruta, seccion, '/c/[^/]+'),
+                }))
+              : COACH_PRIMARY.map(({ path, label, icon }) => ({ to: path, label, icon }))
+          }
         />
       </div>
     </div>

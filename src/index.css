@@ -755,6 +755,18 @@ button.task-head { cursor: pointer; }
 .task-head > .chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform var(--fast); }
 .task-head[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
 
+/* La cabecera de un panel plegable — el mismo idioma que `.task-head`, para
+   paneles cuyo título es un `SectionTitle` (la planificación semanal). El
+   resumen del medio se queda el hueco sobrante; el chevron dice el estado. */
+.panel-toggle {
+  display: flex; align-items: center; gap: var(--s3); width: 100%;
+  background: none; border: 0; padding: 0; color: inherit; font: inherit;
+  text-align: left; cursor: pointer; min-height: 28px;
+}
+.panel-toggle > .t-xs { flex: 1; min-width: 0; text-align: right; }
+.panel-toggle > .chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform var(--fast); }
+.panel-toggle[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
+
 .task.is-info { box-shadow: inset 2px 0 0 var(--info); }
 .task.is-bad { box-shadow: inset 2px 0 0 var(--negative); }
 .task.is-warn { box-shadow: inset 2px 0 0 var(--warning); }
@@ -8013,18 +8025,23 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   .review-bar-hint { display: none; }
 }
 
-/* ── La barra de la sesión en curso (portal del cliente) ───────────────────
+/* ── La barra del guardado al entrenar (portal del cliente) ─────────────────
    El estado del guardado y el «X de Y series» vivían arriba del todo de la
    rutina: por el cuarto ejercicio ya habían salido de pantalla, y un «No se
    guardó» a mitad de entreno era invisible — el cliente seguía apuntando kilos
    que no llegaban a ninguna parte. Fija abajo, donde está el pulgar y donde
    se mira entre serie y serie.
 
+   Se llama `.save-bar` y no «session bar» a propósito: el editor de rutina del
+   entrenador YA tiene una `.session-bar` (el selector de sesiones del día), y
+   la primera versión de esta barra usó ese nombre — la redefinición dejó
+   aquella invisible en escritorio y clavada abajo en el móvil.
+
    Solo existe en el chasis móvil: en escritorio la cabecera se ve sin scroll.
    La mecánica es la de `.review-bar`, apoyada sobre la barra del pulgar. */
-.session-bar { display: none; }
+.save-bar { display: none; }
 @media (max-width: 1023.98px) {
-  .session-bar {
+  .save-bar {
     position: fixed; left: 0; right: 0; z-index: 60;
     bottom: calc(var(--bottombar-h) + var(--safe-b));
     display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
@@ -8035,7 +8052,7 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
     box-shadow: 0 -4px 20px rgba(20, 24, 28, 0.1);
   }
   /* El hueco para que la última fila de la sesión no quede debajo de la barra. */
-  .session-pad { padding-bottom: 64px; }
+  .save-pad { padding-bottom: 64px; }
 }
 
 
