@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GripVertical, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
 import { previousSetKey } from '@/domain/sessions';
@@ -21,6 +21,11 @@ import { SetCell, SetRow, SetRowHead } from './SetCell';
  * @param previousSets  Mapa de `domain/sessions.previousSetsBefore`: lo que se
  *   levantó en cada serie la vez anterior. Solo se usa registrando — programando
  *   estorbaría, porque ahí las cifras son el plan y no la ejecución.
+ * @param showNotes  Si el módulo de indicaciones está encendido para este
+ *   cliente. Con él, el entrenador puede dejar una nota en un ejercicio suelto y
+ *   quien entrena la lee ahí mismo. Es el MISMO interruptor que la indicación del
+ *   día (`coachNote` del protocolo): las dos son lo mismo a distinta altura, y
+ *   dos casillas para lo mismo solo harían pensar que son cosas distintas.
  */
 
 export const ExerciseList = ({
@@ -32,12 +37,23 @@ export const ExerciseList = ({
   onSetChange,
   onAddSet,
   onRemoveSet,
+  onNoteChange,
   showRir = false,
+  showNotes = false,
   previousSets = null,
 }) => {
   const confirm = useConfirm();
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
+  /*
+    Qué ejercicio tiene el campo de nota abierto SIN tener nota todavía.
+
+    Es lo único que hace falta guardar aquí: un ejercicio con nota escrita la
+    enseña siempre —no se esconde lo que ya has dicho— y uno sin nota no ocupa
+    una sola línea hasta que se pide. Así la nota es de verdad opcional: quien no
+    las use no ve nada de más, y quien las use tiene el campo a un clic.
+  */
+  const [notaAbierta, setNotaAbierta] = useState(null);
 
   const handleDrop = (event, index) => {
     event.preventDefault();
@@ -82,6 +98,9 @@ export const ExerciseList = ({
         /* La referencia de la primera serie sirve para saber SI hay vez
            anterior y de qué semana. Las cifras de cada serie van en su campo. */
         const antes = previousSets?.get(previousSetKey(exercise.name, 0)) || null;
+        const nota = exercise.coachNote ?? '';
+        /* Con texto se enseña siempre; vacía, solo si acaban de pedirla. */
+        const editandoNota = notaAbierta === exercise.id || nota.length > 0;
         return (
           <li
             key={exercise.id}
@@ -160,6 +179,26 @@ export const ExerciseList = ({
                     la vez anterior · semana {antes.weekNumber}
                   </span>
                 )}
+                {/*
+                  Pedir la nota vive AQUÍ, con el nombre, y no entre los botones
+                  de la derecha: esos son acciones sobre la estructura —reordenar,
+                  borrar— y esto es decir algo sobre este ejercicio. Además así no
+                  hay un icono más compitiendo con la papelera en cada fila.
+
+                  Desaparece en cuanto hay nota, porque entonces el campo ya está
+                  abierto debajo: un botón que no puede hacer nada es peor que no
+                  tenerlo.
+                */}
+                {showNotes && canEditStructure && !editandoNota && (
+                  <button
+                    type="button"
+                    className="note-add"
+                    onClick={() => setNotaAbierta(exercise.id)}
+                    aria-label={`Añadir una nota a ${exercise.name}`}
+                  >
+                    + nota
+                  </button>
+                )}
               </div>
             </div>
 
@@ -224,6 +263,41 @@ export const ExerciseList = ({
               >
                 <Trash2 size={15} />
               </button>
+            )}
+
+            {/*
+              ══ La nota, a lo ancho y DEBAJO ═══════════════════════════════
+
+              Es texto para leer, y el hueco que queda en la fila —entre el
+              nombre y las series— da para tres palabras. Ocupando la línea
+              entera se lee de un vistazo y no le quita ancho a las celdas, que
+              es lo que de verdad se usa aquí.
+
+              Se guarda mientras se escribe, como la indicación del día: no hay
+              botón de guardar en ningún sitio de esta pantalla.
+            */}
+            {showNotes && canEditStructure && editandoNota && (
+              <label className="exercise-note">
+                <span className="section-label">
+                  <Quote size={12} /> Nota de {exercise.name}
+                </span>
+                <textarea
+                  className="textarea"
+                  rows={2}
+                  autoFocus={notaAbierta === exercise.id}
+                  placeholder="La verá tu cliente junto al ejercicio. Ej: el codo pegado al cuerpo."
+                  value={nota}
+                  onChange={(event) => onNoteChange(exercise.id, event.target.value)}
+                />
+              </label>
+            )}
+
+            {/* Registrando no hay campo: se lee lo que te han dicho. */}
+            {showNotes && !canEditStructure && nota.trim() && (
+              <div className="exercise-note is-read">
+                <Quote size={12} />
+                <p>{nota}</p>
+              </div>
             )}
           </li>
         );

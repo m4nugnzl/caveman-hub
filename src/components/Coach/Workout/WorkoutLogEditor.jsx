@@ -64,6 +64,7 @@ export const WorkoutLogEditor = () => {
     appendMicrocycle,
     cloneMicrocycle,
     removeMicrocycle,
+    setMicrocycleDate,
     addDay,
     renameDay,
     duplicateDay,
@@ -72,6 +73,7 @@ export const WorkoutLogEditor = () => {
     addExercise,
     removeExercise,
     moveExercise,
+    setExerciseNote,
     updateExerciseSet,
     updateExerciseTarget,
     addExerciseSetSlot,
@@ -282,6 +284,7 @@ export const WorkoutLogEditor = () => {
         weeks={nav.weeks}
         activeWeek={nav.week}
         microcycleDate={nav.microcycle?.date}
+        onChangeDate={(date) => setMicrocycleDate(activeClient.id, nav.week, date)}
         canGoPrev={nav.canGoPrev}
         canGoNext={nav.canGoNext}
         onPrev={nav.goPrevWeek}
@@ -580,6 +583,12 @@ export const WorkoutLogEditor = () => {
           <ExerciseList
             exercises={daySession.exercises}
             showRir={isModuleOn(protocol, 'rir')}
+            /* El mismo interruptor que la indicación del día, arriba: son la
+               misma cosa a distinta altura. */
+            showNotes={isModuleOn(protocol, 'coachNote')}
+            onNoteChange={(exId, note) =>
+              setExerciseNote(activeClient.id, nav.week, nav.day.dayName, exId, note)
+            }
             onMove={(from, to) => moveExercise(activeClient.id, nav.week, nav.day.dayName, from, to)}
             onRemove={(exId) => removeExercise(activeClient.id, nav.week, nav.day.dayName, exId)}
             onSetChange={(exId, setIdx, field, value) => {

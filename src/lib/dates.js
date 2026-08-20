@@ -10,6 +10,19 @@ export const toISODate = (value) => {
   return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
 };
 
+/**
+ * La misma fecha N días después, en ISO. Admite negativos.
+ *
+ * En UTC y a partir de la fecha ISO, como todo lo de este archivo: sumar días
+ * con `setDate` sobre una fecha local cruza mal el cambio de hora —hay días de
+ * 23 y de 25 horas— y devuelve el día de al lado dos veces al año.
+ */
+export const addDays = (date, days) => {
+  const iso = toISODate(date);
+  if (!iso || !Number.isFinite(days)) return null;
+  return new Date(Date.parse(`${iso}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+};
+
 export const daysBetween = (from, to) => {
   const a = Date.parse(from);
   const b = Date.parse(to);

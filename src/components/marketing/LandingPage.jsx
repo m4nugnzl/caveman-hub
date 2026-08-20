@@ -1078,19 +1078,31 @@ const Paso = ({ paso }) => {
 export const LandingPage = () => {
   const [planes, setPlanes] = useState([]);
   /*
-    Aquí estuvo «mensual por defecto», con el argumento de que enseñar primero
-    la cifra con descuento y que suba al cambiar deja sabor a letra pequeña. Se
-    le dio la vuelta a petición del dueño (la referencia es ProCoach, que abre
-    en anual), y el argumento aguanta el cambio por cómo se enseña la cifra:
-    va MENSUALIZADA con el cargo real impreso justo debajo («Facturado anual ·
-    351 €»), así que no hay nada que descubrir después — cambiar a mensual no
-    destapa un precio escondido, renuncia a un descuento que está a la vista.
+    ══ Abre en MENSUAL ════════════════════════════════════════════════════════
 
-    `null` significa «todavía no ha tocado el interruptor»: la posición de
-    partida la decide la base (anual si existe alguna fila anual), no un
-    booleano escrito aquí.
+    Estuvo abriendo en anual una temporada, copiando a ProCoach y apoyado en que
+    la cifra se enseña mensualizada con el cargo real justo debajo. El argumento
+    era defendible y la posición sigue siendo mala por dos motivos:
+
+      · El compromiso por defecto no es el que uno elige por defecto. Quien llega
+        a la portada no ha decidido todavía si esto le sirve, y la primera cifra
+        que ve viene atada a un cargo de 351 € que no ha pedido. Enseñar primero
+        lo que se paga sin comprometerse a nada, y el descuento como una mejora
+        que se puede pulsar, es el orden en el que de verdad se decide.
+      · Y dentro de la aplicación, Ajustes → Plan abre en mensual
+        (`PlanPanel`). Las dos pantallas de precios del producto no pueden
+        arrancar en periodicidades distintas: el precio de la portada y el del
+        panel parecían no cuadrar sin que nada estuviera mal.
+
+    El interruptor sigue estando y el ahorro sigue escrito en él, así que el
+    anual no se esconde: se ofrece.
+
+    Un booleano y no el tri-estado que hubo aquí: mientras la posición de partida
+    la decidía la base —anual si alguna fila tenía precio por años— hacía falta
+    distinguir «no ha elegido» de «ha elegido mensual». Con una posición de
+    partida fija, esa tercera opción no significa nada.
   */
-  const [anualElegido, setAnualElegido] = useState(null);
+  const [anual, setAnual] = useState(false);
 
   useNoche();
 
@@ -1167,7 +1179,6 @@ export const LandingPage = () => {
      los dos precios de esa fila. Ver el interruptor, más abajo. */
   const hayAnual = planes.some((p) => p.price_cents_year);
   const ahorroPct = planAhorroPct(planes.find((p) => p.price_cents_year));
-  const anual = anualElegido ?? hayAnual;
 
   return (
     <div className="lp">
@@ -1440,7 +1451,7 @@ export const LandingPage = () => {
                 type="button"
                 className="lp-switch-item"
                 aria-pressed={!anual}
-                onClick={() => setAnualElegido(false)}
+                onClick={() => setAnual(false)}
               >
                 Al mes
               </button>
@@ -1448,7 +1459,7 @@ export const LandingPage = () => {
                 type="button"
                 className="lp-switch-item"
                 aria-pressed={anual}
-                onClick={() => setAnualElegido(true)}
+                onClick={() => setAnual(true)}
               >
                 Al año
                 {/* «Ahorra 25 %» y no «−25 %»: el signo solo es más corto, pero

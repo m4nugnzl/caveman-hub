@@ -60,6 +60,16 @@ export interface Exercise {
   name: string;
   muscle?: string;
   sets?: SetEntry[];
+  /**
+   * La indicación del entrenador para ESTE ejercicio. La ve el cliente al lado
+   * del ejercicio, no al principio del día.
+   *
+   * Es opcional de verdad: sin ella no hay campo, ni hueco, ni fila vacía. La
+   * del día (`Day.coachNote`) enmarca la sesión; esta corrige un movimiento
+   * concreto, y dicha en la del día habría que nombrar el ejercicio dentro del
+   * texto y recordarla cuatro ejercicios después.
+   */
+  coachNote?: string;
 }
 
 /** Un día del PLAN: qué hay programado. */

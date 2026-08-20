@@ -333,6 +333,9 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
         emptyMessage="Tu entrenador no ha programado ejercicios en este día."
         onSetChange={logSet}
         showRir={isModuleOn(protocol, 'rir')}
+        /* Las notas que tu entrenador haya dejado en un ejercicio suelto, en
+           modo lectura: el mismo interruptor que su indicación del día. */
+        showNotes={isModuleOn(protocol, 'coachNote')}
         previousSets={previousSets}
       />
 

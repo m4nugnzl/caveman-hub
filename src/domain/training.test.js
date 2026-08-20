@@ -4,13 +4,17 @@ import {
   blankDays,
   buildMicrocycle,
   cloneDays,
+  cycleLengthDays,
   dayHasOwnDrills,
   dayMuscleVolume,
   dayPlannedSets,
   drillsForDay,
   dayPlannedVolume,
   exerciseProgression,
+  firstCycleDate,
   indexAfterMove,
+  nextCycleDate,
+  today,
   trainedMuscles,
   weekMuscleVolume,
   weekTonnage,
@@ -340,5 +344,83 @@ describe('indexAfterMove', () => {
     // Mover el 2 al 3 no toca al 0 ni al 1.
     expect(indexAfterMove(0, 2, 3)).toBe(0);
     expect(indexAfterMove(1, 2, 3)).toBe(1);
+  });
+});
+
+/*
+  ══ Cuándo empieza cada ciclo ═══════════════════════════════════════════════
+
+  Todos los microciclos nacían con la fecha de HOY, la de crearlos. Se veía en
+  dos sitios: la rutina que se monta en agosto para quien empieza en septiembre
+  quedaba fechada en agosto, y programar cuatro semanas de una sentada las fechaba
+  las cuatro el mismo día —con lo que la analítica, que agrupa por `micro.date`,
+  las metía todas en el mismo cubo—.
+
+  Se prueban aquí porque son la regla, no la pantalla: la casilla de la fecha se
+  puede rediseñar sin que esto cambie.
+*/
+describe('fechas de los ciclos', () => {
+  const hoy = today();
+
+  describe('cycleLengthDays', () => {
+    it('el semanal dura siete días, tenga el patrón que tenga', () => {
+      expect(cycleLengthDays('weekly', { train: 3, rest: 1 })).toBe(7);
+      expect(cycleLengthDays(undefined, undefined)).toBe(7);
+    });
+
+    it('el rotativo dura lo que suma su patrón', () => {
+      expect(cycleLengthDays('rotating', { train: 2, rest: 1 })).toBe(3);
+      expect(cycleLengthDays('rotating', { train: 3, rest: 1 })).toBe(4);
+      // Sin descanso es un patrón válido: se entrena todos los días.
+      expect(cycleLengthDays('rotating', { train: 1, rest: 0 })).toBe(1);
+    });
+
+    it('un patrón corrupto no devuelve un ciclo de cero días', () => {
+      // Cero días de ciclo dejaría todas las semanas en la misma fecha, que es
+      // justo el fallo que esto viene a arreglar.
+      expect(cycleLengthDays('rotating', { train: 0, rest: 0 })).toBe(1);
+      expect(cycleLengthDays('rotating', {})).toBe(3);
+      expect(cycleLengthDays('rotating', { train: 'x', rest: null })).toBe(3);
+    });
+  });
+
+  describe('firstCycleDate', () => {
+    it('respeta una fecha de inicio que todavía está por llegar', () => {
+      expect(firstCycleDate('2099-09-01')).toBe('2099-09-01');
+    });
+
+    it('con una fecha de inicio pasada empieza hoy', () => {
+      // Un programa nuevo en el mes seis de una asesoría empieza hoy: fecharlo
+      // el día que esa persona entró desordenaría toda la analítica.
+      expect(firstCycleDate('2020-01-01')).toBe(hoy);
+    });
+
+    it('sin fecha de inicio, hoy', () => {
+      expect(firstCycleDate(null)).toBe(hoy);
+      expect(firstCycleDate(undefined)).toBe(hoy);
+      expect(firstCycleDate('')).toBe(hoy);
+    });
+  });
+
+  describe('nextCycleDate', () => {
+    it('el siguiente semanal cae siete días después del anterior', () => {
+      expect(nextCycleDate({ date: '2026-09-07' }, 'weekly')).toBe('2026-09-14');
+    });
+
+    it('el siguiente rotativo cae al acabar el patrón', () => {
+      expect(nextCycleDate({ date: '2026-09-07' }, 'rotating', { train: 3, rest: 1 })).toBe(
+        '2026-09-11'
+      );
+    });
+
+    it('cruza el fin de mes y el cambio de hora sin desviarse un día', () => {
+      expect(nextCycleDate({ date: '2026-10-25' }, 'weekly')).toBe('2026-11-01');
+    });
+
+    it('sin fecha anterior de la que partir, hoy', () => {
+      // Microciclos de antes de que la fecha se heredara.
+      expect(nextCycleDate({}, 'weekly')).toBe(hoy);
+      expect(nextCycleDate(null, 'weekly')).toBe(hoy);
+    });
   });
 });

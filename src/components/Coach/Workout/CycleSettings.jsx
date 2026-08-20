@@ -127,6 +127,38 @@ export const CycleSettings = ({
 
           <hr className="divider" />
           <div className="row-end wrap gap-5">
+            {/*
+              ══ Cuándo empieza esta persona ═════════════════════════════════
+
+              La fecha existía desde el principio en la ficha, pero **no había
+              ningún sitio donde escribirla**: se ponía sola el día que se creaba
+              el cliente y ahí se quedaba. Y no es un dato decorativo — es el
+              ancla de la que sale la «semana N» de las fotos, de los check-ins y
+              de la revisión semanal (`domain/photos.js`, `domain/calendar.js`).
+              Con alguien dado de alta dos semanas antes de empezar, todo ese eje
+              iba corrido dos semanas y no había forma de corregirlo.
+
+              Va aquí, en la estructura del programa, porque es la misma
+              pregunta: cómo está montado el programa de este cliente y desde
+              cuándo corre.
+            */}
+            <Field
+              label="Empieza el"
+              className="shrink-0"
+              hint="De aquí sale la «semana 1» de fotos y check-ins"
+            >
+              {(props) => (
+                <input
+                  {...props}
+                  type="date"
+                  className="input"
+                  style={{ width: 168 }}
+                  value={client.startDate || ''}
+                  onChange={(e) => onChange({ startDate: e.target.value || null })}
+                />
+              )}
+            </Field>
+
             <Field label="Tipo de estructura">
               <SegmentedControl
                 value={cycleType}

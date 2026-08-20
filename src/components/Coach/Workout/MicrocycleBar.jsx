@@ -17,6 +17,7 @@ export const MicrocycleBar = ({
   weeks,
   activeWeek,
   microcycleDate,
+  onChangeDate,
   canGoPrev,
   canGoNext,
   onPrev,
@@ -63,13 +64,37 @@ export const MicrocycleBar = ({
             <ChevronLeft size={17} />
           </button>
 
-          <div style={{ textAlign: 'center', minWidth: 96 }}>
+          {/*
+            ══ La fecha se escribe, no se informa ══════════════════════════════
+
+            Era un rótulo gris con la fecha de creación, y de ahí venía «la rutina
+            empieza cuando la creo»: quien monta en agosto lo que arranca en
+            septiembre no tenía forma de decirlo. Ahora las fechas se heredan de un
+            ciclo al siguiente y esta casilla es donde se corrige la primera —o
+            cualquiera detrás de unas vacaciones—.
+
+            No es cosmética: la analítica agrupa por esta fecha, así que es lo que
+            coloca el tonelaje y la adherencia en su semana.
+          */}
+          <div className="col gap-1" style={{ alignItems: 'center', minWidth: 150 }}>
             <h3 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
               {unit} {activeWeek}
             </h3>
-            <span className="t-xs t-secondary" style={{ fontWeight: 600 }}>
-              {microcycleDate || 'Fecha por definir'}
-            </span>
+            {/* El título va FUERA de la etiqueta: un `label` solo admite
+                contenido de frase, y un encabezado dentro no es HTML válido. */}
+            <label className="col gap-1" style={{ alignItems: 'center' }}>
+              <span className="section-label">Empieza el</span>
+              {/* Sin `max`, al revés que la fecha de una sesión: ahí se registra
+                  algo que ya ocurrió y aquí se planifica algo que aún no. */}
+              <input
+                type="date"
+                className="input input-sm input-center"
+                style={{ width: 150 }}
+                value={microcycleDate || ''}
+                onChange={(e) => onChangeDate(e.target.value)}
+                title={`Cuándo empieza ${unit.toLowerCase()} ${activeWeek} para tu cliente.`}
+              />
+            </label>
           </div>
 
           <button

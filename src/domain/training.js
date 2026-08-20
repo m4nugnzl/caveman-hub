@@ -8,6 +8,7 @@
 
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
+import { addDays, toISODate } from '@/lib/dates';
 // `sessions` no importa de aquí, así que no hay ciclo: es la capa de debajo.
 import { executedSessions, sessionMuscleVolume, sessionTonnage } from './sessions';
 
@@ -86,6 +87,20 @@ export const setColor = (i) => SET_COLORS[i % SET_COLORS.length];
 export const unitLabel = (cycleType) => (cycleType === 'rotating' ? 'Sesión' : 'Semana');
 export const unitLabelPlural = (cycleType) => (cycleType === 'rotating' ? 'sesiones' : 'semanas');
 
+/**
+ * Cuántos días dura un ciclo del programa.
+ *
+ * Siete en el semanal, y en el rotativo lo que sume su patrón: un 3/1 dura
+ * cuatro días, no siete. Es lo que permite fechar la siguiente sesión de un
+ * programa rotativo sin inventarse una semana que ahí no existe.
+ */
+export const cycleLengthDays = (cycleType, pattern) => {
+  if (cycleType !== 'rotating') return 7;
+  const train = Math.max(1, Math.round(toNum(pattern?.train) ?? 2));
+  const rest = Math.max(0, Math.round(toNum(pattern?.rest) ?? 1));
+  return train + rest;
+};
+
 // ── Constructores ──────────────────────────────────────────────────────────
 
 /**
@@ -138,6 +153,46 @@ export const buildMicrocycle = ({ weekNumber, days = [], date = today() }) => ({
 });
 
 export const today = () => new Date().toISOString().slice(0, 10);
+
+/*
+  ══ Cuándo empieza cada ciclo ═══════════════════════════════════════════════
+
+  Todos los microciclos nacían con la fecha de HOY, que es la de cuando el
+  entrenador los crea y casi nunca la de cuando se entrenan. Dos consecuencias
+  reales:
+
+    · Quien monta la rutina en agosto para una asesoría que arranca en
+      septiembre tiene la semana 1 fechada dos semanas antes de existir.
+    · Y quien programa cuatro semanas de golpe —el gesto normal— las tiene las
+      cuatro el mismo día, así que la analítica, que agrupa por `micro.date`,
+      las mete todas en el mismo cubo.
+
+  Las dos funciones de aquí abajo son la respuesta: de dónde sale la fecha de la
+  PRIMERA (la de empezar, que la decide el entrenador) y de dónde la de cada
+  siguiente (la anterior más lo que dura un ciclo). La fecha sigue siendo
+  editable microciclo a microciclo: esto es de dónde parte, no una atadura.
+*/
+
+/**
+ * Cuándo empieza el primer ciclo de un cliente.
+ *
+ * Su fecha de inicio si todavía está por llegar, y hoy en cualquier otro caso.
+ * No se usa una fecha de inicio pasada porque un programa nuevo montado en el
+ * mes seis de una asesoría empieza hoy, no el día que esa persona entró: fechar
+ * su semana 1 medio año atrás desordenaría toda la analítica.
+ */
+export const firstCycleDate = (startDate) => {
+  const hoy = today();
+  const inicio = toISODate(startDate);
+  return inicio && inicio > hoy ? inicio : hoy;
+};
+
+/**
+ * Cuándo empieza el ciclo siguiente a `previous`: su fecha más lo que dura un
+ * ciclo. Sin fecha anterior de la que partir —datos viejos—, hoy.
+ */
+export const nextCycleDate = (previous, cycleType, pattern) =>
+  addDays(previous?.date, cycleLengthDays(cycleType, pattern)) || today();
 
 /** Reasigna ids a un subárbol clonado para que no colisione con el original. */
 export const reidExercises = (exercises) =>

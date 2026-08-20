@@ -387,6 +387,17 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 .t-md { font-size: var(--fs-md); }
 .t-strong { font-weight: 650; }
 
+/* ── Una frase por ancho ───────────────────────────────────────────────────
+   Para textos que tienen versión completa y versión de bolsillo (el aviso del
+   plan fue el primero: seis líneas en móvil, en todas las pantallas). El corte
+   es el del armazón, 720 px. Son para TEXTO en línea; una caja que cambie por
+   ancho tiene su sitio en la media query de su componente, no aquí. */
+.solo-movil { display: none; }
+@media (max-width: 720px) {
+  .solo-escritorio { display: none; }
+  .solo-movil { display: inline; }
+}
+
 /* ── Icono dentro de una frase ─────────────────────────────────────────────
    Para un icono de lucide que va EN LÍNEA con texto (una etiqueta, una nota).
    Estaba copiado a mano como `style` en una veintena de sitios, con el ajuste
@@ -5249,10 +5260,14 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
 /* Fila de ejercicio: superficie propia con sombra, no un relleno plano. Con
    ocho ejercicios seguidos, el relleno plano los fundía en un bloque. */
+/* `flex-wrap` en la base y no solo en el móvil: la nota del ejercicio ocupa la
+   línea entera (`.exercise-note`), así que necesita poder bajar de fila en
+   cualquier ancho. No cambia nada mientras no haya nota — el nombre tiene ancho
+   fijo y el carril de series encoge (`min-width: 0`) en vez de envolver. */
 .exercise {
   background: var(--surface); border-radius: var(--r-md);
   box-shadow: var(--shadow-xs);
-  display: flex; align-items: center; gap: var(--s3); padding: var(--s3);
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); padding: var(--s3);
   transition: box-shadow var(--fast), transform var(--fast);
 }
 .exercise:hover { box-shadow: var(--shadow-sm); }
@@ -5407,6 +5422,41 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   text-overflow: ellipsis;
 }
 .exercise-meta > .prev-hint::before { content: '· '; }
+
+/* ── La nota de UN ejercicio ───────────────────────────────────────────────
+   La indicación del día enmarca la sesión entera; esto es la corrección de un
+   movimiento concreto, y por eso se lee pegada a él.
+
+   Ocupa la línea entera de la ficha en vez del hueco que queda en la fila: entre
+   el nombre y las series caben tres palabras, y quitarle ancho a las celdas
+   —donde se teclea— para meter texto sería cambiar lo que más se usa por lo que
+   menos.
+
+   Programando es un campo; entrenando es una cita, con el mismo canto de color
+   que `.coach-note` para que se reconozca como «esto lo dice tu entrenador». */
+.exercise-note { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.exercise-note.is-read {
+  flex-direction: row; align-items: flex-start; gap: 7px;
+  padding: var(--s2) var(--s3);
+  background: var(--surface-sunken); border-radius: var(--r-sm);
+  border-left: 3px solid var(--info); color: var(--info);
+}
+.exercise-note.is-read > p {
+  font-size: var(--fs-sm); color: var(--text); white-space: pre-wrap; min-width: 0;
+}
+.exercise-note.is-read > svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Pedir la nota: un texto pequeño dentro de la línea del músculo, no un icono
+   más en la fila. Aparece solo mientras no hay nota. */
+.note-add {
+  border: 0; background: transparent; cursor: pointer; font: inherit;
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  padding: 1px 5px; border-radius: var(--r-sm); white-space: nowrap;
+  transition: color var(--fast), background var(--fast);
+}
+.note-add::before { content: '· '; }
+.note-add:hover { color: var(--accent); background: var(--accent-soft); }
 .exercise-meta .target-summary { font-weight: 650; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
 /* Botón de igualar objetivos. Discreto y con el valor escrito dentro: un atajo que
@@ -5457,7 +5507,9 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    el ancho y las series ocupan la línea siguiente. Es el ancho al que el nombre
    fijo de 208 px empieza a estrangular las celdas. */
 @media (max-width: 760px) {
-  .exercise { flex-wrap: wrap; }
+  /* `flex-wrap` ya está en la base, por la nota del ejercicio. Aquí lo que
+     cambia es que el nombre suelte su ancho fijo, que es lo que hace bajar de
+     línea a las series. */
   .exercise-name { width: auto; flex: 1 1 60%; }
   .set-lane.is-log { flex: 1 1 100%; }
 }

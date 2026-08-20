@@ -36,6 +36,8 @@ import {
   cloneDays,
   emptyWorkoutData,
   findMicrocycle,
+  firstCycleDate,
+  nextCycleDate,
   nextWeekNumber,
   reidExercises,
   restWeekSplit,
@@ -2316,6 +2318,35 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * La indicación del entrenador para UN ejercicio.
+   *
+   * ── Por qué no basta con la del día ─────────────────────────────────────────
+   * La del día es el marco («hoy vamos suaves de espalda»); esto es la corrección
+   * técnica de un movimiento concreto («en el remo, el codo pegado»). Metida en
+   * la nota del día habría que nombrar el ejercicio dentro del texto y quien
+   * entrena tendría que acordarse de ella cuatro ejercicios después, en vez de
+   * leerla justo donde está el ejercicio.
+   *
+   * Mismo campo y mismas reglas que la del día —`coachNote`, dentro del PLAN, la
+   * escribe solo el entrenador y la ve el cliente— porque es la misma cosa a otra
+   * altura. Vacía es no tener nota: no ocupa sitio y no se pide.
+   */
+  const setExerciseNote = useCallback(
+    (clientId, weekNumber, dayName, exId, note) =>
+      applyDay(
+        clientId,
+        weekNumber,
+        dayName,
+        (d) => ({
+          ...d,
+          exercises: d.exercises.map((ex) => (ex.id !== exId ? ex : { ...ex, coachNote: note })),
+        }),
+        { immediate: false }
+      ),
+    [applyDay]
+  );
+
+  /**
    * El calentamiento propio de un día, o quitárselo para que herede el del
    * programa.
    *
@@ -2452,6 +2483,21 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * Con qué fecha nace el ciclo que va después de `previous`.
+   *
+   * El tipo de ciclo y el patrón son del CLIENTE, no del programa, así que se
+   * leen aquí: en el semanal son siete días y en el rotativo lo que sume su
+   * patrón —un 3/1 dura cuatro—. Ver `nextCycleDate`.
+   */
+  const fechaSiguienteCiclo = useCallback(
+    (clientId, previous) => {
+      const client = clientsRef.current.find((c) => c.id === clientId);
+      return nextCycleDate(previous, client?.cycleType, client?.cyclePattern);
+    },
+    [clientsRef]
+  );
+
+  /**
    * Arranca el programa de un cliente que todavía no tiene ninguno.
    *
    * *** Aquí estaba el bug más grave del proyecto. ***
@@ -2468,10 +2514,21 @@ export const AppProvider = ({ children }) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       if (current.microcycles.length > 0) return current.microcycles[0].weekNumber;
 
+      /* La semana 1 empieza cuando empieza la asesoría, no cuando se monta la
+         rutina: montarla en agosto para un cliente que arranca en septiembre es
+         lo normal, no la excepción. Ver `firstCycleDate`. */
+      const inicio = clientsRef.current.find((c) => c.id === clientId)?.startDate;
+
       applyWorkout(clientId, (cd) => ({
         ...cd,
         weeklySplit: Object.keys(cd.weeklySplit || {}).length > 0 ? cd.weeklySplit : restWeekSplit(),
-        microcycles: [buildMicrocycle({ weekNumber: 1, days: [{ dayName: 'Día 1', exercises: [] }] })],
+        microcycles: [
+          buildMicrocycle({
+            weekNumber: 1,
+            days: [{ dayName: 'Día 1', exercises: [] }],
+            date: firstCycleDate(inicio),
+          }),
+        ],
       }));
       /* El tercer hito: ya hay un cliente con programa empezado. La comprobación
          de arriba garantiza que esto solo se apunta la PRIMERA vez de cada
@@ -2479,7 +2536,7 @@ export const AppProvider = ({ children }) => {
       track('programa_iniciado');
       return 1;
     },
-    [applyWorkout, workoutRef]
+    [applyWorkout, clientsRef, workoutRef]
   );
 
   /**
@@ -2504,6 +2561,10 @@ export const AppProvider = ({ children }) => {
           buildMicrocycle({
             weekNumber,
             days: days.length > 0 ? days : [{ dayName: 'Día 1', exercises: [] }],
+            /* Va DETRÁS de la anterior, no en la fecha de hoy: programar cuatro
+               semanas de una sentada es el gesto normal, y con la fecha de hoy
+               las cuatro nacían el mismo día. Ver `nextCycleDate`. */
+            date: fechaSiguienteCiclo(clientId, last),
           }),
         ],
       }));
@@ -2513,7 +2574,7 @@ export const AppProvider = ({ children }) => {
       track('microciclo_anadido');
       return weekNumber;
     },
-    [applyWorkout, startProgram, workoutRef]
+    [applyWorkout, fechaSiguienteCiclo, startProgram, workoutRef]
   );
 
   /**
@@ -2553,19 +2614,53 @@ export const AppProvider = ({ children }) => {
       if (!source) return null;
 
       const newWeek = nextWeekNumber(current.microcycles);
+      /* La copia se coloca al final, así que su fecha sale de la ÚLTIMA y no de
+         la copiada: duplicar la semana 2 estando por la 6 crea la 7, que empieza
+         después de la 6. */
+      const last = current.microcycles[current.microcycles.length - 1];
+
       applyWorkout(clientId, (cd) => ({
         ...cd,
         microcycles: [
           ...cd.microcycles,
           {
-            ...buildMicrocycle({ weekNumber: newWeek, days: cloneDays(source.days || []) }),
+            ...buildMicrocycle({
+              weekNumber: newWeek,
+              days: cloneDays(source.days || []),
+              date: fechaSiguienteCiclo(clientId, last),
+            }),
             sessionNumber: newWeek,
           },
         ],
       }));
       return newWeek;
     },
-    [applyWorkout, workoutRef]
+    [applyWorkout, fechaSiguienteCiclo, workoutRef]
+  );
+
+  /**
+   * Cuándo empieza un microciclo concreto.
+   *
+   * ── Por qué se puede editar y no basta con derivarla ────────────────────────
+   * La fecha se hereda del ciclo anterior, que es lo correcto mientras el
+   * programa corra seguido. Pero la vida se mete por medio: una semana de
+   * vacaciones, una lesión, un cliente que empieza el día 1 y no hoy. Sin poder
+   * moverla, la única salida era borrar el microciclo y volver a crearlo el día
+   * bueno —perdiendo lo que tuviera dentro—.
+   *
+   * No es solo una etiqueta: la analítica agrupa por esta fecha (`analytics.js`),
+   * así que moverla es lo que coloca el tonelaje y la adherencia en la semana en
+   * la que de verdad ocurrieron.
+   *
+   * Solo el entrenador: vive en `microcycles`, y el cliente no tiene UPDATE
+   * sobre esa columna (escribe por sus RPC, que no tocan la fecha del plan).
+   */
+  const setMicrocycleDate = useCallback(
+    (clientId, weekNumber, date) =>
+      applyMicrocycle(clientId, weekNumber, (m) => ({ ...m, date: date || null }), {
+        immediate: false,
+      }),
+    [applyMicrocycle]
   );
 
   /**
@@ -5170,6 +5265,7 @@ export const AppProvider = ({ children }) => {
     addExerciseSetSlot,
     removeExerciseSetSlot,
     moveExercise,
+    setExerciseNote,
     addDay,
     renameDay,
     setDayNote,
@@ -5189,6 +5285,7 @@ export const AppProvider = ({ children }) => {
     cloneMicrocycle,
     continueProgram,
     removeMicrocycle,
+    setMicrocycleDate,
     copyDayToClient,
     copyMicrocycleToClient,
     copyProgramToClient,
