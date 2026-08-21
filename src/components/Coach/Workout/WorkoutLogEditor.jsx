@@ -99,6 +99,11 @@ export const WorkoutLogEditor = () => {
   /* El alta de ejercicio del teléfono: la abre el botón flotante como hoja. */
   const esTelefono = useEsTelefono();
   const [altaAbierta, setAltaAbierta] = useState(false);
+  /* Qué día tiene abierto el campo de indicación SIN texto todavía (teléfono).
+     Se guarda el nombre del día, no un booleano: al cambiar de día, el campo
+     vacío de aquel no debe aparecer abierto en este. Mismo patrón que la nota
+     de un ejercicio en ExerciseList. */
+  const [notaDiaAbierta, setNotaDiaAbierta] = useState(null);
 
   const program = workoutData[activeClient.id];
 
@@ -260,13 +265,17 @@ export const WorkoutLogEditor = () => {
     setAddingDay(false);
   };
 
-  return (
-    <div className="stack">
-      <PageHead
-        title="Rutina"
-        sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
-      />
-
+  /*
+    ══ La configuración del programa: arriba en escritorio, al FINAL en el
+    teléfono ══════════════════════════════════════════════════════════════════
+    El ciclo y la planificación semanal se tocan cada varias semanas, y en el
+    móvil eran dos tarjetas de preámbulo entre la cabecera y el día — «qué le
+    pongo hoy a este día» es a lo que se viene, y estaba siempre detrás de lo
+    que casi nunca se toca. En escritorio el orden documento (contexto primero)
+    funciona porque todo cabe de un vistazo; en el teléfono manda el trabajo.
+  */
+  const configDelPrograma = (
+    <>
       <CycleSettings
         client={activeClient}
         open={cycleOpen}
@@ -283,6 +292,17 @@ export const WorkoutLogEditor = () => {
           onChange={(day, value) => updateWeeklySplit(activeClient.id, day, value)}
         />
       )}
+    </>
+  );
+
+  return (
+    <div className="stack">
+      <PageHead
+        title="Rutina"
+        sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
+      />
+
+      {!esTelefono && configDelPrograma}
 
       <MicrocycleBar
         cycleType={cycleType}
@@ -511,20 +531,33 @@ export const WorkoutLogEditor = () => {
             Vive en el día del plan, así que se escribe al programar la semana,
             que es cuando el entrenador la está pensando.
           */}
-          {isModuleOn(protocol, 'coachNote') && (
-            <label className="feedback-q">
-              <span className="k">
-                <Quote size={12} /> Tu indicación para este día
-              </span>
-              <textarea
-                className="textarea"
-                rows={2}
-                placeholder="La verá tu cliente al abrir el día, antes de empezar."
-                value={nav.day.coachNote ?? ''}
-                onChange={(e) => setDayNote(activeClient.id, nav.week, nav.day.dayName, e.target.value)}
-              />
-            </label>
-          )}
+          {/* En el teléfono, un campo vacío no gasta cuatro líneas: se pide,
+              como la nota de un ejercicio. Con texto se enseña siempre —no se
+              esconde lo que ya has dicho— y en escritorio no cambia nada. */}
+          {isModuleOn(protocol, 'coachNote') &&
+            (!esTelefono || nav.day.coachNote?.trim() || notaDiaAbierta === nav.day.dayName ? (
+              <label className="feedback-q">
+                <span className="k">
+                  <Quote size={12} /> Tu indicación para este día
+                </span>
+                <textarea
+                  className="textarea"
+                  rows={2}
+                  autoFocus={notaDiaAbierta === nav.day.dayName && !nav.day.coachNote?.trim()}
+                  placeholder="La verá tu cliente al abrir el día, antes de empezar."
+                  value={nav.day.coachNote ?? ''}
+                  onChange={(e) => setDayNote(activeClient.id, nav.week, nav.day.dayName, e.target.value)}
+                />
+              </label>
+            ) : (
+              <button
+                type="button"
+                className="note-add self-start"
+                onClick={() => setNotaDiaAbierta(nav.day.dayName)}
+              >
+                + tu indicación para este día
+              </button>
+            ))}
 
           {/*
             ══ El calentamiento de ESTE día ═══════════════════════════════════
@@ -702,6 +735,9 @@ export const WorkoutLogEditor = () => {
           message="Añade un día con el botón «+ Día» para empezar a programar ejercicios."
         />
       )}
+
+      {/* En el teléfono, la configuración cierra la página (ver arriba). */}
+      {esTelefono && configDelPrograma}
     </div>
   );
 };

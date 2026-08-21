@@ -85,24 +85,6 @@ const ChapaDeCobro = ({ client }) => {
   );
 };
 
-/*
-  ══ El orden de la barra del pulgar NO es el del carril ═══════════════════════
-  El carril (y la barra lateral) van en el orden del TRABAJO: programar antes
-  que revisar, porque no se revisa lo que no se ha programado. Pero la barra
-  enseña CUATRO y esconde el resto tras «Más», y ahí manda la FRECUENCIA:
-  revisar es cada lunes con todo el mundo; la dieta se toca cada varias
-  semanas. Con el orden del carril, «Revisión» —lo que más se hace desde el
-  móvil— quedaba detrás de «Más».
-
-  Solo reordena lo que entra en el cuarteto; el resto conserva su orden. Y solo
-  afecta a la barra: la lateral y el trabajo de escritorio no cambian.
-*/
-const ORDEN_PULGAR = ['semana', 'resumen', 'rutina', 'revision'];
-const ordenDelPulgar = (secciones) => [
-  ...ORDEN_PULGAR.map((path) => secciones.find(({ seccion }) => seccion.path === path)).filter(Boolean),
-  ...secciones.filter(({ seccion }) => !ORDEN_PULGAR.includes(seccion.path)),
-];
-
 export const CoachLayout = () => {
   const { clients, loading, selectedClientId, setSelectedClientId, activeClient } = useApp();
   const { setViewMode } = useActions();
@@ -420,7 +402,13 @@ export const CoachLayout = () => {
           label={onClient && activeClient ? `Secciones de ${activeClient.name}` : 'Secciones principales'}
           items={
             onClient && activeClient
-              ? ordenDelPulgar(seccionesDeCliente).map(({ seccion }) => ({
+              /* En el MISMO orden que el carril de escritorio y que el portal
+                 del cliente. Hubo una versión que reordenaba el cuarteto por
+                 frecuencia de uso (revisión delante de nutrición) y se
+                 deshizo: tres órdenes distintos para las mismas secciones
+                 —barra lateral, portal, pulgar— cuestan más de memorizar que
+                 lo que ahorra un toque en «Más». */
+              ? seccionesDeCliente.map(({ seccion }) => ({
                   to: clientPath(clientId, seccion.path),
                   label: seccion.short || seccion.label,
                   icon: seccion.icon,

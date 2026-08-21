@@ -5371,6 +5371,14 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    mentalmente para saber si el día estaba equilibrado. La barra contesta eso sin
    leer nada, y la leyenda da la cifra exacta a quien la necesite. */
 .day-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; max-width: 420px; }
+/* En el teléfono la cabecera del día se queda con lo que se decide ahí —el
+   nombre, moverlo, su menú—. El reparto por músculo y los contadores son
+   lectura de programación fina: en 390 px eran media pantalla de cifras antes
+   del primer ejercicio, y el índice ya dice el músculo de cada uno. */
+@media (max-width: 640px) {
+  .day-head .day-icon { display: none; }
+  .day-volume { display: none; }
+}
 .day-volume > .bar {
   display: flex; height: 6px; border-radius: var(--r-pill); overflow: hidden;
   background: var(--fill-subtle);
@@ -5393,6 +5401,10 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .day-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .day-stat > .v { font-size: var(--fs-md); font-weight: 680; line-height: 1.1; }
+/* En el teléfono los contadores sobran (ver el bloque de `.day-volume`): el
+   completado ya lo dice la franja de la sesión, justo debajo. DESPUÉS de la
+   base a propósito — antes perdía el empate de cascada y no escondía nada. */
+@media (max-width: 640px) { .day-stats { display: none; } }
 
 /* Fila de ejercicio: superficie propia con sombra, no un relleno plano. Con
    ocho ejercicios seguidos, el relleno plano los fundía en un bloque. */
