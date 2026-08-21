@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
    nuevos, para que editarlo aquí no toque el del programa. */
 const deepCopyDrills = (drills) =>
   (drills || []).map((d) => ({ ...d, id: `${d.id}-dia-${Math.random().toString(36).slice(2, 8)}` }));
-import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } from 'lucide-react';
+import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Users, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { useEsTelefono } from '@/lib/useMediaQuery';
@@ -22,6 +22,7 @@ import { isEmptyDiet } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
 import { EmptyState, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { useToast } from '@/components/ui/ToastProvider';
 import { SessionFeedback } from './SessionFeedback';
 import { WarmupEditor } from './WarmupBlock';
 import { useProgramNavigation } from './useProgramNavigation';
@@ -32,6 +33,7 @@ import { WeeklySplitEditor } from './WeeklySplitEditor';
 import { MicrocycleBar } from './MicrocycleBar';
 import { CopyToClientPanel } from './CopyToClientPanel';
 import { DayHeader } from './DayHeader';
+import { ImportDayDialog } from './ImportDayDialog';
 import { ExerciseList } from './ExerciseList';
 import { AddExerciseForm } from './AddExerciseForm';
 
@@ -66,14 +68,17 @@ export const WorkoutLogEditor = () => {
     appendMicrocycle,
     cloneMicrocycle,
     removeMicrocycle,
+    restoreMicrocycle,
     setMicrocycleDate,
     addDay,
     renameDay,
     duplicateDay,
     moveDay,
     removeDay,
+    restoreDay,
     addExercise,
     removeExercise,
+    restoreExercise,
     moveExercise,
     setExerciseNote,
     updateExerciseSet,
@@ -99,6 +104,8 @@ export const WorkoutLogEditor = () => {
   /* El alta de ejercicio del teléfono: la abre el botón flotante como hoja. */
   const esTelefono = useEsTelefono();
   const [altaAbierta, setAltaAbierta] = useState(false);
+  /* «Copiar un día de otro cliente»: la hoja se abre desde el menú del día. */
+  const [importAbierto, setImportAbierto] = useState(false);
   /* Qué día tiene abierto el campo de indicación SIN texto todavía (teléfono).
      Se guarda el nombre del día, no un booleano: al cambiar de día, el campo
      vacío de aquel no debe aparecer abierto en este. Mismo patrón que la nota
@@ -149,6 +156,7 @@ export const WorkoutLogEditor = () => {
   const protocol = clientProtocol(activeClient.preferences);
 
   const nav = useProgramNavigation(activeClient.id, microcycles);
+  const toast = useToast();
 
   /**
    * Cambia un día de sitio y deja abierto EL MISMO que estabas editando.
@@ -328,11 +336,27 @@ export const WorkoutLogEditor = () => {
           const created = cloneMicrocycle(activeClient.id, nav.week);
           if (created) nav.selectWeek(created);
         }}
-        onRemove={() => nav.selectWeek(removeMicrocycle(activeClient.id, nav.week))}
-        exerciseCount={(nav.microcycle?.days || []).reduce(
-          (acc, d) => acc + (d.exercises?.length || 0),
-          0
-        )}
+        onRemove={() => {
+          /* El aviso con su «Deshacer»: la semana entera —días, ejercicios y
+             sesiones registradas— se captura antes de borrar, y el inverso la
+             devuelve a su posición renumerando como estaba. Más tiempo en
+             pantalla que el aviso normal: es la pérdida más grande que se puede
+             deshacer. */
+          const cycle = nav.microcycle;
+          nav.selectWeek(removeMicrocycle(activeClient.id, nav.week));
+          if (!cycle) return;
+          toast({
+            text: `${unitLabel(cycleType)} ${cycle.weekNumber} eliminada.`,
+            duration: 10000,
+            action: {
+              label: 'Deshacer',
+              onClick: () => {
+                restoreMicrocycle(activeClient.id, cycle);
+                nav.selectWeek(cycle.weekNumber);
+              },
+            },
+          });
+        }}
       />
 
       {copyOpen && (
@@ -492,7 +516,23 @@ export const WorkoutLogEditor = () => {
             canRemove={nav.days.length > 1}
             onRename={(name) => renameDay(activeClient.id, nav.week, nav.day.dayName, name)}
             onDuplicate={() => duplicateDay(activeClient.id, nav.week, nav.day.dayName)}
-            onRemove={() => removeDay(activeClient.id, nav.week, nav.day.dayName)}
+            onImportDay={() => setImportAbierto(true)}
+            onRemove={() => {
+              /* El aviso con su «Deshacer»: el día entero, en su posición. Las
+                 sesiones registradas viven en el microciclo, no en el día, así
+                 que borrar y deshacer no las toca. */
+              const day = nav.day;
+              const index = nav.dayIndex;
+              const { week } = nav;
+              removeDay(activeClient.id, week, day.dayName);
+              toast({
+                text: `«${day.dayName}» eliminado.`,
+                action: {
+                  label: 'Deshacer',
+                  onClick: () => restoreDay(activeClient.id, week, day, index),
+                },
+              });
+            }}
             firstDay={nav.dayIndex === 0}
             lastDay={nav.dayIndex === nav.days.length - 1}
             /* La otra puerta a lo mismo: el carril de arriba se arrastra, y estas
@@ -628,7 +668,24 @@ export const WorkoutLogEditor = () => {
               setExerciseNote(activeClient.id, nav.week, nav.day.dayName, exId, note)
             }
             onMove={(from, to) => moveExercise(activeClient.id, nav.week, nav.day.dayName, from, to)}
-            onRemove={(exId) => removeExercise(activeClient.id, nav.week, nav.day.dayName, exId)}
+            onRemove={(exId) => {
+              /* El aviso con su «Deshacer»: se captura el ejercicio y su sitio
+                 ANTES de borrarlo, y el inverso lo devuelve tal cual — con el
+                 mismo id, así que sus series registradas vuelven a casar. */
+              const index = nav.day.exercises.findIndex((ex) => ex.id === exId);
+              const exercise = nav.day.exercises[index];
+              removeExercise(activeClient.id, nav.week, nav.day.dayName, exId);
+              if (!exercise) return;
+              const { week } = nav;
+              const { dayName } = nav.day;
+              toast({
+                text: `«${exercise.name}» eliminado.`,
+                action: {
+                  label: 'Deshacer',
+                  onClick: () => restoreExercise(activeClient.id, week, dayName, exercise, index),
+                },
+              });
+            }}
             onSetChange={(exId, setIdx, field, value) => {
               /* Los dos objetivos son PLAN y van a `updateExerciseSet`; los kg,
                  reps y RIR reales son EJECUCIÓN y van a la sesión. Mandar el
@@ -690,6 +747,36 @@ export const WorkoutLogEditor = () => {
             elegir uno del catálogo, `onRememberExercise` lo copia a la tuya —el
             mismo camino que ya seguía un ejercicio escrito a mano—.
           */}
+          {/*
+            La otra puerta al copiar, VISIBLE cuando más falta hace: un día
+            recién creado y vacío es exactamente el momento de «tráeme el Legs
+            de Marta como base». Con ejercicios ya puestos, la puerta vive solo
+            en el menú del día — aquí sería ruido.
+          */}
+          {(nav.day.exercises || []).length === 0 && (
+            <button
+              type="button"
+              className="btn btn-secondary self-start"
+              onClick={() => setImportAbierto(true)}
+            >
+              <Users size={15} /> Copiar un día de otro cliente
+            </button>
+          )}
+
+          {importAbierto && (
+            <ImportDayDialog
+              clients={clients}
+              activeClient={activeClient}
+              targetDayName={nav.day.dayName}
+              onImport={(exercises) =>
+                exercises.forEach((exercise) =>
+                  addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)
+                )
+              }
+              onClose={() => setImportAbierto(false)}
+            />
+          )}
+
           {esTelefono ? (
             <>
               {/*

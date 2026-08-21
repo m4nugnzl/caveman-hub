@@ -531,8 +531,16 @@ export const AppProvider = ({ children }) => {
       setClients(clientsRef.current.map((c) => (c.id === clientId ? { ...c, preferences: prefs } : c)));
 
       /* Su fallo no se propaga: no haber podido dejar el aviso no puede
-         estropear el guardado del trabajo, que es lo que importa. */
-      supabase.rpc('set_client_preferences', { target: clientId, prefs }).catch(() => {});
+         estropear el guardado del trabajo, que es lo que importa.
+
+         `Promise.resolve` en medio porque lo que devuelve `rpc()` es un
+         thenable SIN `.catch`: llamarlo directo lanzaba un TypeError síncrono
+         dentro del guardado — el aviso que no podía estropear nada rompía el
+         `submit` entero, y era la causa de que el formulario de ejercicio o
+         alimento se quedara con el texto anterior (el reset venía después). */
+      Promise.resolve(supabase.rpc('set_client_preferences', { target: clientId, prefs })).catch(
+        () => {}
+      );
     },
     [clientsRef, setClients]
   );
@@ -2244,6 +2252,24 @@ export const AppProvider = ({ children }) => {
     [applyDay]
   );
 
+  /**
+   * El inverso de `removeExercise`, para el «Deshacer» del aviso.
+   *
+   * Borrar un ejercicio dejó de pedir confirmación: es lo frecuente, y lo
+   * frecuente se deshace con inverso en vez de confirmarse (la regla, en
+   * `ui/ToastProvider`). Esto es lo que hace posible el inverso: vuelve a
+   * ponerlo donde estaba, con sus series y su nota tal cual.
+   */
+  const restoreExercise = useCallback(
+    (clientId, weekNumber, dayName, exercise, index) =>
+      applyDay(clientId, weekNumber, dayName, (d) => {
+        const exercises = [...d.exercises];
+        exercises.splice(Math.max(0, Math.min(index, exercises.length)), 0, exercise);
+        return { ...d, exercises };
+      }),
+    [applyDay]
+  );
+
   const addExerciseSetSlot = useCallback(
     (clientId, weekNumber, dayName, exId) =>
       applyDay(clientId, weekNumber, dayName, (d) => ({
@@ -2472,6 +2498,22 @@ export const AppProvider = ({ children }) => {
     [applyWorkout]
   );
 
+  /** El inverso de `removeDay`, para el «Deshacer» del aviso: el día entero,
+      con sus ejercicios y su calentamiento propio, de vuelta en su sitio. */
+  const restoreDay = useCallback(
+    (clientId, weekNumber, day, index) =>
+      applyWorkout(clientId, (cd) => ({
+        ...cd,
+        microcycles: cd.microcycles.map((m) => {
+          if (m.weekNumber !== weekNumber) return m;
+          const days = [...m.days];
+          days.splice(Math.max(0, Math.min(index, days.length)), 0, day);
+          return { ...m, days };
+        }),
+      })),
+    [applyWorkout]
+  );
+
   const updateWeeklySplit = useCallback(
     (clientId, day, value) =>
       applyWorkout(
@@ -2604,6 +2646,31 @@ export const AppProvider = ({ children }) => {
       return Math.min(weekNumber, renumbered.length);
     },
     [applyWorkout, workoutRef]
+  );
+
+  /**
+   * El inverso de `removeMicrocycle`, para el «Deshacer» del aviso.
+   *
+   * No basta con reinsertarla: borrar RENUMERA las restantes para que la
+   * secuencia siga siendo continua, así que deshacer es volver a colocarla en
+   * su posición (su `weekNumber` de antes) y renumerar otra vez. Con eso las
+   * demás recuperan exactamente el número que tenían.
+   */
+  const restoreMicrocycle = useCallback(
+    (clientId, microcycle) =>
+      applyWorkout(clientId, (cd) => {
+        const sorted = [...cd.microcycles].sort((a, b) => a.weekNumber - b.weekNumber);
+        sorted.splice(Math.max(0, Math.min(microcycle.weekNumber - 1, sorted.length)), 0, microcycle);
+        return {
+          ...cd,
+          microcycles: sorted.map((m, index) => ({
+            ...m,
+            weekNumber: index + 1,
+            sessionNumber: index + 1,
+          })),
+        };
+      }),
+    [applyWorkout]
   );
 
   /** Duplica una semana con todos sus ejercicios y series. */
@@ -3175,6 +3242,18 @@ export const AppProvider = ({ children }) => {
     [applyMeals]
   );
 
+  /** El inverso de `removeMeal`, para el «Deshacer» del aviso (ver
+      `restoreExercise`: misma regla, mismo motivo). */
+  const restoreMeal = useCallback(
+    (clientId, variant, mealIdx, meal) =>
+      applyMeals(clientId, variant, (meals) => {
+        const next = [...meals];
+        next.splice(Math.max(0, Math.min(mealIdx, next.length)), 0, meal);
+        return next;
+      }),
+    [applyMeals]
+  );
+
   const updateMealName = useCallback(
     (clientId, variant, mealIdx, name) =>
       applyMeals(
@@ -3340,6 +3419,27 @@ export const AppProvider = ({ children }) => {
                 options: m.options.map((o, oi) =>
                   oi !== optIdx ? o : { ...o, foods: (o.foods || []).filter((f) => f.id !== foodId) }
                 ),
+              }
+        )
+      ),
+    [applyMeals]
+  );
+
+  /** El inverso de `removeFoodFromOption`, para el «Deshacer» del aviso. */
+  const restoreFoodInOption = useCallback(
+    (clientId, variant, mealIdx, optIdx, food, foodIdx) =>
+      applyMeals(clientId, variant, (meals) =>
+        meals.map((m, i) =>
+          i !== mealIdx
+            ? m
+            : {
+                ...m,
+                options: m.options.map((o, oi) => {
+                  if (oi !== optIdx) return o;
+                  const foods = [...(o.foods || [])];
+                  foods.splice(Math.max(0, Math.min(foodIdx, foods.length)), 0, food);
+                  return { ...o, foods };
+                }),
               }
         )
       ),
@@ -4672,7 +4772,8 @@ export const AppProvider = ({ children }) => {
    * estropearle el vídeo a nadie.
    */
   const markReviewViewed = useCallback(async (linkId) => {
-    await supabase.rpc('mark_review_viewed', { link: linkId }).catch(() => {});
+    /* Mismo caso que `stampNow`: `rpc()` no trae `.catch`. */
+    await Promise.resolve(supabase.rpc('mark_review_viewed', { link: linkId })).catch(() => {});
   }, []);
 
   /** Enlaces ya creados de un cliente, con sus visitas. */
@@ -5262,6 +5363,7 @@ export const AppProvider = ({ children }) => {
     updateExerciseTarget,
     addExercise,
     removeExercise,
+    restoreExercise,
     addExerciseSetSlot,
     removeExerciseSetSlot,
     moveExercise,
@@ -5273,6 +5375,7 @@ export const AppProvider = ({ children }) => {
     duplicateDay,
     moveDay,
     removeDay,
+    restoreDay,
     updateWeeklySplit,
     startSession,
     logSessionSet,
@@ -5285,6 +5388,7 @@ export const AppProvider = ({ children }) => {
     cloneMicrocycle,
     continueProgram,
     removeMicrocycle,
+    restoreMicrocycle,
     setMicrocycleDate,
     copyDayToClient,
     copyMicrocycleToClient,
@@ -5298,6 +5402,7 @@ export const AppProvider = ({ children }) => {
     setHasDayVariants,
     addMeal,
     removeMeal,
+    restoreMeal,
     updateMealName,
     updateMealNote,
     updateMealTarget,
@@ -5312,6 +5417,7 @@ export const AppProvider = ({ children }) => {
     removeMealOption,
     addFoodToOption,
     removeFoodFromOption,
+    restoreFoodInOption,
     updateFoodGrams,
     setFoodDisplay,
     defineFoodUnit,

@@ -111,12 +111,12 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 162 claves', () => {
+  it('el reparto conserva las 167 claves', () => {
     montar();
-    // 162 desde `setExerciseNote` y `setMicrocycleDate`: la nota de un ejercicio
-    // suelto y la fecha en la que empieza un microciclo, que hasta entonces era
-    // la de crearlo.
-    expect(Object.keys(visto.app).length).toBe(162);
+    // 167 desde los cinco inversos del «Deshacer» (`restoreExercise`,
+    // `restoreMeal`, `restoreFoodInOption`, `restoreDay`, `restoreMicrocycle`):
+    // borrar dejó de confirmarse y pasó a deshacerse.
+    expect(Object.keys(visto.app).length).toBe(167);
   });
 
   it('toda acción es una función', () => {

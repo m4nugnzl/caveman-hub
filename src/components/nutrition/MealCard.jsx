@@ -545,15 +545,10 @@ export const MealCard = ({
     ? { protein: totals.protein, carbs: totals.carbs, fats: totals.fats, kcals: totals.kcal }
     : objetivo;
 
-  const askRemoveMeal = async () => {
-    const ok = await confirm({
-      title: `¿Eliminar «${meal.name}»?`,
-      message: `Se borrarán sus ${options.length} ${options.length === 1 ? 'opción' : 'opciones'} y todos sus alimentos.`,
-      confirmLabel: 'Eliminar comida',
-      tone: 'danger',
-    });
-    if (ok) onRemoveMeal();
-  };
+  /* Sin confirmación: borrar una comida tiene ahora inverso —el aviso con
+     «Deshacer» que enseña `NutritionModule`— y lo que se puede deshacer no se
+     confirma (la regla, en `ui/ToastProvider`). */
+  const askRemoveMeal = () => onRemoveMeal();
 
   const askRemoveOption = async () => {
     const ok = await confirm({

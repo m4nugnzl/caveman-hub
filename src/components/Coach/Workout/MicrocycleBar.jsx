@@ -6,7 +6,6 @@ import { shortDate } from '@/lib/dates';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Panel } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 /**
  * Navegación entre semanas/sesiones.
@@ -32,30 +31,16 @@ export const MicrocycleBar = ({
   onRemove,
   onToggleCopy,
   copyOpen,
-  exerciseCount,
 }) => {
-  const confirm = useConfirm();
   const esTelefono = useEsTelefono();
   /* La hoja de gestión del teléfono: fecha, lista de semanas y acciones. */
   const [gestion, setGestion] = useState(false);
   const unit = unitLabel(cycleType);
 
-  const askRemove = async () => {
-    const ok = await confirm({
-      title: `¿Eliminar ${unit.toLowerCase()} ${activeWeek}?`,
-      message:
-        exerciseCount > 0
-          ? `Se borrarán sus ${exerciseCount} ejercicios con todas sus series registradas.`
-          : `Se eliminará esta ${unit.toLowerCase()}, que está vacía.`,
-      detail:
-        weeks.length > 1
-          ? `Las ${unitLabel(cycleType).toLowerCase()}s restantes se renumeran para que la secuencia siga siendo continua.`
-          : 'Es la única que existe: el cliente se quedará sin programa.',
-      confirmLabel: `Eliminar ${unit.toLowerCase()}`,
-      tone: 'danger',
-    });
-    if (ok) onRemove();
-  };
+  /* Sin confirmación: borrar una semana tiene ahora inverso —el aviso con
+     «Deshacer» que enseña el editor, con la semana entera y sus sesiones— y lo
+     que se puede deshacer no se confirma (la regla, en `ui/ToastProvider`). */
+  const askRemove = () => onRemove();
 
   /*
     ══ En el teléfono, la semana es UNA línea ═════════════════════════════════

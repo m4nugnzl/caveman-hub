@@ -14,6 +14,7 @@ import {
   Switch,
 } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { DietNotes } from '@/components/nutrition/DietNotes';
@@ -43,6 +44,8 @@ export const NutritionModule = () => {
     setHasDayVariants,
     addMeal,
     removeMeal,
+    restoreMeal,
+    restoreFoodInOption,
     updateMealName,
     updateMealNote,
     updateMealTarget,
@@ -64,6 +67,7 @@ export const NutritionModule = () => {
   } = useApp();
 
   const confirm = useConfirm();
+  const toast = useToast();
   const plan = nutrition[activeClient.id] || emptyNutrition();
   const save = saveStatus('nutrition', activeClient.id);
 
@@ -346,13 +350,36 @@ export const NutritionModule = () => {
                 }
                 onRenameMeal={(name) => updateMealName(activeClient.id, variant, mealIndex, name)}
                 onNote={(note) => updateMealNote(activeClient.id, variant, mealIndex, note)}
-                onRemoveMeal={() => removeMeal(activeClient.id, variant, mealIndex)}
+                onRemoveMeal={() => {
+                  /* El aviso con su «Deshacer»: la comida se captura entera
+                     antes de borrarla y el inverso la devuelve donde estaba. */
+                  removeMeal(activeClient.id, variant, mealIndex);
+                  toast({
+                    text: `«${meal.name}» eliminada.`,
+                    action: {
+                      label: 'Deshacer',
+                      onClick: () => restoreMeal(activeClient.id, variant, mealIndex, meal),
+                    },
+                  });
+                }}
                 onAddOption={() => addMealOption(activeClient.id, variant, mealIndex)}
                 onRemoveOption={(optIndex) => removeMealOption(activeClient.id, variant, mealIndex, optIndex)}
                 onAddFood={(optIndex, food) => handleAddFood(mealIndex, optIndex, food)}
-                onRemoveFood={(optIndex, foodId) =>
-                  removeFoodFromOption(activeClient.id, variant, mealIndex, optIndex, foodId)
-                }
+                onRemoveFood={(optIndex, foodId) => {
+                  const foods = meal.options?.[optIndex]?.foods || [];
+                  const foodIdx = foods.findIndex((f) => f.id === foodId);
+                  const food = foods[foodIdx];
+                  removeFoodFromOption(activeClient.id, variant, mealIndex, optIndex, foodId);
+                  if (!food) return;
+                  toast({
+                    text: `«${food.name}» quitado de ${meal.name}.`,
+                    action: {
+                      label: 'Deshacer',
+                      onClick: () =>
+                        restoreFoodInOption(activeClient.id, variant, mealIndex, optIndex, food, foodIdx),
+                    },
+                  });
+                }}
                 onGrams={(optIndex, foodId, grams) =>
                   updateFoodGrams(activeClient.id, variant, mealIndex, optIndex, foodId, grams)
                 }

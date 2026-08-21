@@ -4,7 +4,6 @@ import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Plus, Quote, Trash2 } f
 import { setColor } from '@/domain/training';
 import { previousSetKey } from '@/domain/sessions';
 import { useEsTelefono } from '@/lib/useMediaQuery';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Modal } from '@/components/ui/Modal';
 import { SetCell, SetRow, SetRowHead } from './SetCell';
 
@@ -62,7 +61,6 @@ export const ExerciseList = ({
   showNotes = false,
   previousSets = null,
 }) => {
-  const confirm = useConfirm();
   const esTelefono = useEsTelefono();
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
@@ -97,15 +95,10 @@ export const ExerciseList = ({
     }
   };
 
-  const askRemove = async (exercise) => {
-    const ok = await confirm({
-      title: `¿Eliminar «${exercise.name}»?`,
-      message: 'Se borrarán también todas sus series registradas.',
-      confirmLabel: 'Eliminar ejercicio',
-      tone: 'danger',
-    });
-    if (ok) onRemove(exercise.id);
-  };
+  /* Sin confirmación: borrar un ejercicio tiene ahora inverso —el aviso con
+     «Deshacer» que enseña quien nos pasa `onRemove`— y lo frecuente se deshace,
+     no se confirma (la regla, en `ui/ToastProvider`). */
+  const askRemove = (exercise) => onRemove(exercise.id);
 
   if (exercises.length === 0) {
     return (
@@ -185,22 +178,15 @@ export const ExerciseList = ({
                 >
                   <ArrowDown size={15} /> Bajar
                 </button>
-                {/* La hoja se cierra ANTES de preguntar: dos diálogos apilados
-                    pelean por el foco y por Escape (ver Modal.jsx). Cancelar
-                    deja la hoja cerrada, que es un precio menor. */}
+                {/* La hoja se cierra al borrar, y sin preguntar: el aviso con
+                    «Deshacer» cubre la equivocación mejor que un diálogo. */}
                 <button
                   type="button"
                   className="btn btn-danger"
-                  onClick={async () => {
-                    const { id, name } = abiertoEx;
+                  onClick={() => {
+                    const { id } = abiertoEx;
                     setAbierto(null);
-                    const ok = await confirm({
-                      title: `¿Eliminar «${name}»?`,
-                      message: 'Se borrarán también todas sus series registradas.',
-                      confirmLabel: 'Eliminar ejercicio',
-                      tone: 'danger',
-                    });
-                    if (ok) onRemove(id);
+                    onRemove(id);
                   }}
                 >
                   <Trash2 size={15} /> Eliminar

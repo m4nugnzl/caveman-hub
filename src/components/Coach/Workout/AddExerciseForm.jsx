@@ -6,7 +6,9 @@ import { clampInt } from '@/lib/num';
 import { Field } from '@/components/ui/primitives';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 
-const EMPTY = { name: '', muscle: 'Pecho', targetReps: '8-10', numSets: '4' };
+/* 3 series por defecto: es lo que más se programa (decisión del autor, 21/08).
+   Cambiarlas en el formulario sigue costando un toque. */
+const EMPTY = { name: '', muscle: 'Pecho', targetReps: '8-10', numSets: '3' };
 
 /**
  * @param enHoja  El formulario vive dentro de una hoja (el FAB del teléfono):
@@ -28,7 +30,7 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = f
       buildExercise({
         name,
         muscle: form.muscle,
-        numSets: clampInt(form.numSets, 1, 12, 4),
+        numSets: clampInt(form.numSets, 1, 12, 3),
         targetReps: form.targetReps.trim(),
       })
     );
