@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Check, CheckCircle2, Info, TriangleAlert, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, Info, Plus, TriangleAlert, XCircle } from 'lucide-react';
 
 /**
  * Primitivas de presentación compartidas.
@@ -456,34 +456,65 @@ export const SegmentedControl = ({ value, onChange, options, tone = '', label, a
 // ── Selector de semana / sesión ────────────────────────────────────────────
 
 /**
- * Carril horizontal de semanas. Había tres copias de este componente (editor
- * de rutina, analítica de volumen y portal del cliente), con estilos que ya
- * habían divergido entre sí.
+ * EL carril de semanas. Uno, para todo el producto (la prohibición 7 de la
+ * gramática: había cinco selectores de semana y el objetivo es uno).
+ *
+ * Había tres copias de este componente (editor de rutina, analítica de volumen
+ * y portal del cliente), con estilos que ya habían divergido; y aun después de
+ * la primitiva, el editor de rutina y el estudio de fotos seguían escribiendo
+ * el mismo `weeks.map(...)` a mano. Lo que necesitaban eran cuatro grados de
+ * libertad, no otro componente:
+ *
+ *   · `chipLabel` — el editor pinta `S4`/`M4` porque su carril convive con diez
+ *     semanas y tres botones; el resto pinta `Sem 4`. Es la etiqueta, no el
+ *     comportamiento.
+ *   · `wrap` — en un panel el carril se desplaza (`.rail`); dentro de una hoja
+ *     o de un formulario, envuelve (`.rail-wrap`). Las dos clases ya existían.
+ *   · `multiple` — el estudio de fotos ELIGE VARIAS semanas para compararlas:
+ *     `value` es un array y `onChange` recibe la semana a conmutar.
+ *   · `label` — lo que anuncia el lector de pantalla («Semanas del programa»,
+ *     «Semanas a comparar»…).
  */
-export const WeekPicker = ({ weeks, value, onChange, prefix = 'Sem', onAdd, addLabel = 'Nueva' }) => (
-  /*
-    `group` + `aria-pressed`, NO `tablist`/`tab`. El patrón de tabs exige un
-    contrato completo —flechas para moverse, `tabpanel` asociado— que esto no
-    tiene ni necesita; y llevaba `aria-pressed` Y `aria-selected` a la vez, así
-    que un lector de pantalla anunciaba dos estados. Es el mismo contrato que ya
-    usa `SegmentedControl`.
-  */
-  <div className="rail" role="group" aria-label="Semanas del programa">
-    {weeks.map((week) => (
-      <button
-        key={week}
-        type="button"
-        className="chip"
-        aria-pressed={week === value}
-        onClick={() => onChange(week)}
-      >
-        {prefix} {week}
-      </button>
-    ))}
-    {onAdd && (
-      <button type="button" className="chip chip-dashed" onClick={onAdd}>
-        + {addLabel}
-      </button>
-    )}
-  </div>
-);
+export const WeekPicker = ({
+  weeks,
+  value,
+  onChange,
+  prefix = 'Sem',
+  chipLabel,
+  label = 'Semanas del programa',
+  wrap = false,
+  multiple = false,
+  onAdd,
+  addLabel = 'Nueva',
+}) => {
+  const texto = chipLabel || ((week) => `${prefix} ${week}`);
+  const activa = (week) => (multiple ? value.includes(week) : week === value);
+
+  return (
+    /*
+      `group` + `aria-pressed`, NO `tablist`/`tab`. El patrón de tabs exige un
+      contrato completo —flechas para moverse, `tabpanel` asociado— que esto no
+      tiene ni necesita; y llevaba `aria-pressed` Y `aria-selected` a la vez, así
+      que un lector de pantalla anunciaba dos estados. Es el mismo contrato que ya
+      usa `SegmentedControl`, y `aria-pressed` cubre igual la selección múltiple.
+    */
+    <div className={wrap ? 'rail-wrap' : 'rail'} role="group" aria-label={label}>
+      {weeks.map((week) => (
+        <button
+          key={week}
+          type="button"
+          className="chip"
+          aria-pressed={activa(week)}
+          onClick={() => onChange(week)}
+        >
+          {texto(week)}
+        </button>
+      ))}
+      {onAdd && (
+        <button type="button" className="chip chip-dashed" onClick={onAdd}>
+          <Plus size={13} /> {addLabel}
+        </button>
+      )}
+    </div>
+  );
+};

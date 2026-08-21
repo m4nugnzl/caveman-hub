@@ -1,7 +1,7 @@
 import { CalendarRange } from 'lucide-react';
 
 import { ANGLES } from '@/domain/photos';
-import { Field, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Field, Panel, SectionTitle, WeekPicker } from '@/components/ui/primitives';
 
 /**
  * Selección del montaje en matriz: qué semanas y qué ángulos entran.
@@ -35,19 +35,16 @@ export const WeekAnglePicker = ({
       </SectionTitle>
 
       <Field label={`Semanas (${pickedWeeks.length} de ${weeks.length})`}>
-        <div className="rail-wrap" role="group" aria-label="Semanas a comparar">
-          {weeks.map((week) => (
-            <button
-              key={week}
-              type="button"
-              className="chip"
-              aria-pressed={pickedWeeks.includes(week)}
-              onClick={() => onToggleWeek(week)}
-            >
-              Sem {week}
-            </button>
-          ))}
-        </div>
+        {/* El carril compartido, en modo múltiple: aquí no se navega a una
+            semana, se marcan las que entran en la comparativa. */}
+        <WeekPicker
+          weeks={weeks}
+          multiple
+          value={pickedWeeks}
+          onChange={onToggleWeek}
+          wrap
+          label="Semanas a comparar"
+        />
       </Field>
 
       {/*

@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Copy, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Trash2 } from 'lucide-react';
 
 import { unitLabel } from '@/domain/training';
 import { shortDate } from '@/lib/dates';
 import { useEsTelefono } from '@/lib/useMediaQuery';
-import { Panel } from '@/components/ui/primitives';
+import { Panel, WeekPicker } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 
 /**
@@ -100,33 +100,21 @@ export const MicrocycleBar = ({
 
               <div className="col gap-2">
                 <span className="section-label">Ir a otra</span>
-                <div className="rail-wrap" role="group" aria-label={`${unit}s del programa`}>
-                  {weeks.map((week) => (
-                    <button
-                      key={week}
-                      type="button"
-                      className="chip"
-                      aria-pressed={week === activeWeek}
-                      onClick={() => {
-                        onSelect(week);
-                        setGestion(false);
-                      }}
-                    >
-                      {unit.charAt(0)}
-                      {week}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    className="chip chip-dashed"
-                    onClick={() => {
-                      onAppend();
-                      setGestion(false);
-                    }}
-                  >
-                    <Plus size={13} /> Nueva
-                  </button>
-                </div>
+                <WeekPicker
+                  weeks={weeks}
+                  value={activeWeek}
+                  wrap
+                  chipLabel={(week) => `${unit.charAt(0)}${week}`}
+                  label={`${unit}s del programa`}
+                  onChange={(week) => {
+                    onSelect(week);
+                    setGestion(false);
+                  }}
+                  onAdd={() => {
+                    onAppend();
+                    setGestion(false);
+                  }}
+                />
               </div>
 
               <div className="col gap-2">
@@ -274,26 +262,16 @@ export const MicrocycleBar = ({
         </div>
       </div>
 
-      {/* `group` + `aria-pressed`, no `tablist`: sin flechas ni `tabpanel` el
-          patrón de tabs queda a medias, y los dos estados a la vez confundían
-          al lector de pantalla. Mismo contrato que `WeekPicker`. */}
-      <div className="rail" role="group" aria-label={`${unit}s del programa`}>
-        {weeks.map((week) => (
-          <button
-            key={week}
-            type="button"
-            className="chip"
-            aria-pressed={week === activeWeek}
-            onClick={() => onSelect(week)}
-          >
-            {unit.charAt(0)}
-            {week}
-          </button>
-        ))}
-        <button type="button" className="chip chip-dashed" onClick={onAppend}>
-          <Plus size={13} /> Nueva
-        </button>
-      </div>
+      {/* EL carril compartido. Aquí compacto (`S4`) porque convive con diez
+          semanas y tres botones en la misma barra. */}
+      <WeekPicker
+        weeks={weeks}
+        value={activeWeek}
+        onChange={onSelect}
+        chipLabel={(week) => `${unit.charAt(0)}${week}`}
+        label={`${unit}s del programa`}
+        onAdd={onAppend}
+      />
     </Panel>
   );
 };
