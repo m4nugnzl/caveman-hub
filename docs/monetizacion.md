@@ -496,9 +496,16 @@ que empieza.
 
 ## 7. La tarifa se queda corta: por qué y con qué se sustituye
 
-> Fecha: 19 de agosto de 2026. **Propuesta, sin ejecutar.** Sustituye la tabla de
-> la §5 cuando se ejecute; no toca nada de la §3 —la columna vertebral de cobro
-> vale igual— ni el porqué del plan gratuito.
+> Fecha: 19 de agosto de 2026. **EJECUTADA en lo esencial** (21/08/2026): la
+> escalera y la periodicidad son las migraciones 0058–0062, y los tres límites
+> por funciones son la 0064 (asientos), la 0065 (integraciones), la 0066
+> (registro de cambios) y la 0067 (almacenamiento). La tabla de la §7.3
+> sustituye a la de la §5, que se conserva como historia. No toca nada de la §3
+> —la columna vertebral de cobro vale igual— ni el porqué del plan gratuito.
+>
+> **Lo que queda abierto está en la §7.10**: la cuenta por cliente *activo* (el
+> código sigue contando fichas no archivadas) y el plan `fundador` con barra
+> libre indefinida.
 >
 > Sale de una observación del autor: *«25 € como primer pago es poco porque solo
 > existen dos pagos, y la mayoría va a coger el primero»*. Es correcta, y las
