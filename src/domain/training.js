@@ -144,6 +144,27 @@ export const buildExercise = ({ name, muscle, numSets, targetReps }) => ({
   sets: buildSets(numSets, targetReps),
 });
 
+/**
+ * Un ejercicio de otra persona, convertido en PLANTILLA para esta.
+ *
+ * Conserva lo que es programa —nombre, músculo, número de series y el objetivo
+ * de cada una— y deja fuera lo que es de la otra persona: sus kilos y reps
+ * anotados en series heredadas, su nota de entrenador. El id es nuevo porque el
+ * ejercicio es nuevo; reutilizarlo cruzaría los registros de dos clientes.
+ *
+ * Es lo que usa «Traer un día de otro cliente»: el Legs de Marta como base del
+ * de Luis, sin arrastrar lo que Marta levantó.
+ */
+export const cloneExerciseAsTemplate = (exercise) => ({
+  id: newId('ex'),
+  name: exercise.name,
+  muscle: exercise.muscle,
+  sets: (exercise.sets || []).map((set) => ({
+    ...emptySet(set?.targetReps ?? ''),
+    targetRir: set?.targetRir ?? '',
+  })),
+});
+
 export const buildMicrocycle = ({ weekNumber, days = [], date = today() }) => ({
   id: newId('mc'),
   weekNumber,

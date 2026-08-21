@@ -5,6 +5,7 @@ import {
   Copy,
   Dumbbell,
   Edit2,
+  Users,
   MoreVertical,
   Save,
   Trash2,
@@ -13,13 +14,13 @@ import {
 
 import { countSets, muscleColor, weekdayForDay } from '@/domain/training';
 import { useClickOutside } from '@/lib/useClickOutside';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 export const DayHeader = ({
   day,
   weeklySplit,
   onRename,
   onDuplicate,
+  onImportDay,
   onRemove,
   onMove,
   firstDay = false,
@@ -28,7 +29,6 @@ export const DayHeader = ({
   volume = {},
   doneSets = 0,
 }) => {
-  const confirm = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(day.dayName);
@@ -56,15 +56,12 @@ export const DayHeader = ({
     setEditing(false);
   };
 
-  const askRemove = async () => {
+  /* Sin confirmación: borrar un día tiene ahora inverso —el aviso con
+     «Deshacer» que enseña el editor— y lo que se puede deshacer no se confirma
+     (la regla, en `ui/ToastProvider`). */
+  const askRemove = () => {
     setMenuOpen(false);
-    const ok = await confirm({
-      title: `¿Eliminar «${day.dayName}»?`,
-      message: `Se borrarán sus ${exerciseCount} ejercicios y ${setCount} series.`,
-      confirmLabel: 'Eliminar día',
-      tone: 'danger',
-    });
-    if (ok) onRemove();
+    onRemove();
   };
 
   return (
@@ -241,6 +238,22 @@ export const DayHeader = ({
               >
                 <Copy size={15} /> Duplicar día
               </button>
+              {/* El gesto pequeño que faltaba: el Legs de otra persona como
+                  base de este, sin traerse su programa entero. Ver
+                  `ImportDayDialog`. */}
+              {onImportDay && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="menu-item"
+                  onClick={() => {
+                    onImportDay();
+                    setMenuOpen(false);
+                  }}
+                >
+                  <Users size={15} /> Copiar un día de otro cliente
+                </button>
+              )}
               <hr className="divider" />
               <button
                 type="button"

@@ -4,6 +4,7 @@ import {
   blankDays,
   buildMicrocycle,
   cloneDays,
+  cloneExerciseAsTemplate,
   cycleLengthDays,
   dayHasOwnDrills,
   dayMuscleVolume,
@@ -422,5 +423,35 @@ describe('fechas de los ciclos', () => {
       expect(nextCycleDate({}, 'weekly')).toBe(hoy);
       expect(nextCycleDate(null, 'weekly')).toBe(hoy);
     });
+  });
+});
+
+describe('cloneExerciseAsTemplate', () => {
+  const original = {
+    id: 'ex_ajeno',
+    name: 'Sentadilla',
+    muscle: 'Pierna',
+    coachNote: 'nota para OTRA persona',
+    sets: [
+      { kg: '120', reps: '5', rir: '2', targetReps: '4-6', targetRir: '2' },
+      { kg: '125', reps: '4', rir: '1', targetReps: '4-6', targetRir: '' },
+    ],
+  };
+
+  it('conserva el programa: series, objetivos y músculo', () => {
+    const copia = cloneExerciseAsTemplate(original);
+    expect(copia.name).toBe('Sentadilla');
+    expect(copia.muscle).toBe('Pierna');
+    expect(copia.sets).toHaveLength(2);
+    expect(copia.sets.map((s) => s.targetReps)).toEqual(['4-6', '4-6']);
+    expect(copia.sets.map((s) => s.targetRir)).toEqual(['2', '']);
+  });
+
+  it('deja fuera lo que era de la otra persona', () => {
+    const copia = cloneExerciseAsTemplate(original);
+    expect(copia.id).not.toBe('ex_ajeno');
+    expect(copia.coachNote).toBeUndefined();
+    // Sus kilos y repeticiones no viajan: esto es una plantilla, no un registro.
+    expect(copia.sets.every((s) => s.kg === '' && s.reps === '' && s.rir === '')).toBe(true);
   });
 });
