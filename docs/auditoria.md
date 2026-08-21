@@ -157,16 +157,25 @@ lienzo.
 
 ---
 
-## 2. Cosas que sobran
+## 2. Cosas que sobran — **RESUELTO (migración 0048), con sorpresa**
 
-| Qué | Por qué sobra |
+Al ir a hacerlo, la lista no coincidía con la realidad: de las seis, **solo tres
+estaban muertas de verdad**. La 0048 las borró y dejó escrito por qué las otras
+tres se quedan — conviene no volver a intentarlo sin leer su cabecera.
+
+| Qué | Qué pasó |
 |---|---|
-| Tabla `videos` | La corrección de vídeos se retiró del producto. |
-| `clients.posture_reviewed` | Resto de otra versión, con un interruptor a medias en el listado. |
-| `clients.youtube_explanation_url` | Un enlace suelto a YouTube dentro de la rutina, sin sitio en el producto actual. |
-| `clients.gym_equipment_link` | Enlace a una carpeta de Drive, del flujo anterior. |
-| `clients.coach_id` | Duplica `assigned_to` desde la migración de equipos. Retirada pendiente (es `NOT NULL`). |
-| `clients.current_weight` | El peso vive en `anthropometry.history`; esta columna es una copia que puede quedar desfasada. |
+| Tabla `videos` | **BORRADA** (0048). La sustituyen los enlaces de revisión (0011, 0040). |
+| `clients.gym_equipment_link` | **BORRADA** (0048). No la leía nadie. |
+| `clients.current_weight` | **BORRADA** (0048). Nadie la escribía: enseñaba un valor congelado con etiqueta de «actual». Las pantallas leen ya `latestWeight(history)`. |
+| `clients.posture_reviewed` | **SE QUEDA.** La usa `domain/intake.js` como paso del alta: está viva. |
+| `clients.youtube_explanation_url` | **SE QUEDA.** El portal la pinta en la rutina (`ClientRoutine`). Retirarla es decisión de producto, no limpieza. |
+| `clients.coach_id` | **SE QUEDA.** La nombran diez migraciones y quince sitios del código, incluidas políticas RLS y `create_client`. Retirarla es un proyecto con su propio plan. |
+
+La lección que la 0048 dejó apuntada: `create_client` (una función de Postgres)
+insertaba en dos de las columnas borradas, y ninguna búsqueda por el código lo
+habría encontrado — lo cazó `npm run test:db`. Las limpiezas de esquema se
+ensayan contra la base local, siempre.
 
 **Tres columnas que no dicen lo que guardan** (deuda consciente y documentada,
 pero deuda): `progress_photos.photo_url` guarda una **ruta**, no una URL;
