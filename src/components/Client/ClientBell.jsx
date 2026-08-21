@@ -7,6 +7,8 @@ import { clientProtocol } from '@/domain/protocol';
 import { pendingTasks, unseenUpdates } from '@/domain/updates';
 import { todayISO } from '@/lib/dates';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useEsTelefono } from '@/lib/useMediaQuery';
+import { Modal } from '@/components/ui/Modal';
 
 /**
  * La campana: lo que ha cambiado y lo que te falta, sin ir a ninguna parte.
@@ -36,9 +38,10 @@ export const ClientBell = () => {
   const { profileRole } = useSession();
   const { clients, anthropometry, activeClient } = useData();
   const [open, setOpen] = useState(false);
+  const esTelefono = useEsTelefono();
   const ref = useRef(null);
 
-  useClickOutside(ref, () => setOpen(false), open);
+  useClickOutside(ref, () => setOpen(false), open && !esTelefono);
 
   const preferences = activeClient?.preferences;
   const history = useMemo(
@@ -79,7 +82,40 @@ export const ClientBell = () => {
         </span>
       </button>
 
-      {open && (
+      {/*
+        En el teléfono los avisos son una HOJA, no un menú colgado de la
+        esquina: el menú de cuenta es geometría de ratón —columna estrecha
+        anclada arriba— y esta es la superficie de notificaciones que un
+        cliente abre con el pulgar. El mismo reparto que el selector de
+        cliente del entrenador.
+      */}
+      {open && esTelefono && (
+        <Modal title="Avisos" onClose={() => setOpen(false)}>
+          <div className="col gap-2">
+            <span className="t-xs t-tertiary">
+              {novedades.length > 0 &&
+                `${novedades.length} ${novedades.length === 1 ? 'novedad' : 'novedades'}`}
+              {novedades.length > 0 && pendientes.length > 0 && ' · '}
+              {pendientes.length > 0 && `${pendientes.length} por hacer`}
+            </span>
+            {todo.map((item) => (
+              <Link
+                key={item.id}
+                to={item.href}
+                className="account-item"
+                onClick={() => setOpen(false)}
+              >
+                <span className="col" style={{ gap: 1, minWidth: 0 }}>
+                  <span>{item.label}</span>
+                  <span className="t-2xs t-tertiary">{item.hint}</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {open && !esTelefono && (
         <div className="account-menu" role="menu">
           <div className="account-head">
             <span className="name">Avisos</span>

@@ -103,6 +103,25 @@ export const SetRow = ({ index, set, onChange, exerciseName, showRir = false, pr
             placeholder={antes || '—'}
             value={set[field.key] ?? ''}
             onChange={(e) => onChange(field.key, e.target.value)}
+            /*
+              ══ El teclado no se suelta entre campo y campo ══════════════════
+              Registrar una serie son tres números seguidos, y en el móvil cada
+              uno exigía re-apuntar con el dedo: campo, teclado, campo, teclado.
+              «Siguiente» (enterKeyHint) salta al campo que viene —kg → reps →
+              rir → la serie de abajo— recorriendo los inputs de la tabla del
+              ejercicio; en el último, cierra el teclado. El dato ya está
+              guardado: `onChange` escribe con cada tecla.
+            */
+            enterKeyHint="next"
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
+              e.preventDefault();
+              const tabla = e.currentTarget.closest('.set-table');
+              const campos = [...(tabla?.querySelectorAll('input') || [])];
+              const siguiente = campos[campos.indexOf(e.currentTarget) + 1];
+              if (siguiente) siguiente.focus();
+              else e.currentTarget.blur();
+            }}
             aria-label={
               antes
                 ? `${label}: ${field.label}. La vez anterior, ${antes}`
