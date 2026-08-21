@@ -5809,6 +5809,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .exercise.is-log > .exercise-name { width: auto; flex: none; }
 .exercise.is-log > .set-table { grid-column: 1 / -1; }
+/* La nota también cruza la ficha entera. Su `flex-basis: 100%` no significa
+   nada dentro de un grid: sin esta línea caía en la columna del número, la
+   ensanchaba hasta el ancho de la cita y el título quedaba despegado del
+   número en cuanto el ejercicio llevaba nota. */
+.exercise.is-log > .exercise-note { grid-column: 1 / -1; }
 
 .set-table { display: flex; flex-direction: column; gap: 2px; width: 100%; }
 
@@ -6960,12 +6965,79 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    de check-in pierde su palabra (abajo) y las marcas se quedan sin explicar. */
 .cal-legend { display: none; font-size: var(--fs-xs); color: var(--text-tertiary); }
 
+/* Qué significa cada color, en fila. El color viene del dato (domain/calendar)
+   por style, como en las celdas: aquí solo hay forma. */
+.cal-key { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); }
+.cal-key-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-tertiary);
+}
+
+/* ── Esta semana ───────────────────────────────────────────────────────────
+   La semana en curso con los eventos CON NOMBRE: tarjetas con el canto
+   izquierdo del color de su tipo. En el mes son puntos; aquí, que hay sitio,
+   se lee qué son sin tocar nada. */
+.wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s2); }
+
+.wk-day {
+  display: flex; flex-direction: column; gap: var(--s2);
+  min-height: 96px; min-width: 0; padding: var(--s2);
+  background: var(--surface-sunken); border: 0; border-radius: var(--r-sm);
+  cursor: pointer; font: inherit; color: inherit; text-align: left;
+  transition: background-color var(--fast), box-shadow var(--fast);
+}
+.wk-day:hover { background: var(--fill); }
+.wk-day.is-today { box-shadow: inset 0 0 0 1.5px var(--brasa); }
+
+.wk-dow {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
+}
+.wk-dow > b { color: var(--text); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.wk-day.is-today .wk-dow > b { color: var(--brasa); }
+
+.wk-cards { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+
+.wk-card {
+  display: block; min-width: 0;
+  font-size: var(--fs-2xs); font-weight: 650; line-height: 1.25;
+  padding: 4px 6px; border-radius: var(--r-xs);
+  background: var(--fill);
+  border-left: 3px solid transparent; /* el color lo pone el dato, por style */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.wk-card.is-done { opacity: 0.45; text-decoration: line-through; }
+
+/* La hoja del día reutiliza la tarjeta a tamaño de lectura. */
+.wk-card.is-sheet {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: var(--fs-sm); white-space: normal; padding: var(--s2) var(--s3);
+}
+
+/* El hueco de un día sin nada: invitación a añadir, no un vacío. */
+.wk-add {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 26px; border-radius: var(--r-xs);
+  border: 1px dashed var(--hairline-strong); color: var(--text-tertiary);
+  opacity: 0.65;
+}
+.wk-day:hover .wk-add { opacity: 1; }
+
 @media (max-width: 640px) {
   .cal { gap: 3px; }
   .cal-day { min-height: 52px; padding: 4px 2px; }
   /* A 390 px no cabe la palabra: el punto de color basta para saber que toca. */
   .cal-checkin { font-size: 0; padding: 3px; }
   .cal-legend { display: block; }
+
+  /* En el teléfono la semana no cabe en columnas: se vuelve agenda, un día por
+     fila, con el rótulo a la izquierda y sus tarjetas al lado. */
+  .wk { display: flex; flex-direction: column; gap: var(--s1); }
+  .wk-day { flex-direction: row; align-items: center; min-height: 0; padding: var(--s2) var(--s3); }
+  .wk-dow { flex: 0 0 58px; }
+  .wk-cards { flex: 1; flex-direction: row; flex-wrap: wrap; }
+  .wk-card { max-width: 100%; }
+  .wk-add { min-height: 0; padding: 2px 8px; border: 0; opacity: 0.5; justify-content: flex-start; }
 }
 
 /* ==========================================================================

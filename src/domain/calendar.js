@@ -17,7 +17,7 @@
  * domingo y los años bisiestos son donde fallan estas cosas.
  */
 
-import { daysBetween, toISODate, todayISO, weekStart } from '@/lib/dates';
+import { addDays, daysBetween, toISODate, todayISO, weekStart } from '@/lib/dates';
 
 const DAY_MS = 86400000;
 
@@ -67,6 +67,29 @@ export const monthGrid = (year, month) => {
       inMonth: d.getUTCMonth() === month && d.getUTCFullYear() === year,
       isToday: iso === todayISO(),
       weekStart: weekStart(iso),
+    };
+  });
+};
+
+/**
+ * Los 7 días de la semana de una fecha, de lunes a domingo, con la MISMA forma
+ * que las celdas del mes: lo que sabe leer una celda del mes (`checkInDates`,
+ * `eventsByDate`) sabe leer una de estas sin enterarse de dónde viene.
+ *
+ * Es lo que pinta el bloque «Esta semana» del calendario: la semana en curso
+ * con sus eventos con nombre, sin tener que buscarlos entre treinta y cinco
+ * celdas de mes.
+ */
+export const weekCells = (date = todayISO()) => {
+  const lunes = weekStart(toISODate(date) || todayISO());
+  return Array.from({ length: 7 }, (_, i) => {
+    const iso = addDays(lunes, i);
+    return {
+      date: iso,
+      day: new Date(`${iso}T00:00:00Z`).getUTCDate(),
+      inMonth: true,
+      isToday: iso === todayISO(),
+      weekStart: lunes,
     };
   });
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { currentCheckInPeriod, nextCheckIn } from './calendar';
+import { checkInDates, currentCheckInPeriod, nextCheckIn, weekCells } from './calendar';
 
 /**
  * Las dos preguntas del check-in.
@@ -107,5 +107,27 @@ describe('nextCheckIn', () => {
       const periodo = currentCheckInPeriod(QUINCENAL_JUEVES, '2026-08-03', dia);
       expect(nextCheckIn(QUINCENAL_JUEVES, '2026-08-03', dia)).toBe(periodo.dueOn);
     }
+  });
+});
+
+describe('weekCells', () => {
+  /* La forma es la de una celda de mes A PROPÓSITO: lo que consume celdas de
+     mes (checkInDates, eventsByDate) tiene que poder consumir estas. */
+  it('siempre son 7, de lunes a domingo, con el mismo weekStart', () => {
+    const cells = weekCells('2026-08-19'); // un miércoles
+    expect(cells).toHaveLength(7);
+    expect(cells[0].date).toBe('2026-08-17'); // el lunes de esa semana
+    expect(cells[6].date).toBe('2026-08-23'); // su domingo
+    expect(new Set(cells.map((c) => c.weekStart))).toEqual(new Set(['2026-08-17']));
+  });
+
+  it('el lunes es su propia semana, no la anterior', () => {
+    expect(weekCells('2026-08-17')[0].date).toBe('2026-08-17');
+  });
+
+  it('checkInDates las entiende igual que a las celdas del mes', () => {
+    // Jueves semanal: en la semana del 17-ago cae el 20.
+    const marcados = checkInDates(weekCells('2026-08-19'), 3, 1, '2026-08-03');
+    expect([...marcados]).toEqual(['2026-08-20']);
   });
 });
