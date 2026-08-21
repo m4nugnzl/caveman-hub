@@ -8,12 +8,26 @@
  * encuentra la suya y acaba intentando leer `vite.config.js`, que no es lo que
  * busca: «Error parsing file: vite.config.js».
  *
- * ══ Aquí no hay ningún Worker, y es correcto ═══════════════════════════════
+ * ══ El worker de seis líneas, y por qué dejó de bastar con `assets` ═════════
  *
- * Esta aplicación es una SPA estática: el build produce archivos y nada más. No
- * hay código de servidor que ejecutar —todo el backend está en Supabase— así que
- * no se declara ningún `main`. Un Worker con `assets` y sin script sirve los
- * archivos y ya está.
+ * Hasta el prerender de la portada aquí no había ningún script: `index.html` era
+ * el shell vacío y `not_found_handling: "single-page-application"` lo servía
+ * para toda ruta sin archivo. Correcto entonces.
+ *
+ * Desde `scripts/prerender.mjs`, `index.html` lleva la PORTADA dentro y el
+ * shell vacío es `app.html` — y ese fallback ya no se puede declarar por
+ * configuración: `single-page-application` solo sabe servir `index.html` (que
+ * ahora pintaría marketing un instante en cada apertura), y la regla de
+ * `_redirects` (`/*  /app.html  200`) en un Worker no es un rewrite: produjo el
+ * bucle de redirecciones que tumbó el sitio entero el 21/08/2026 — todas las
+ * rutas, incluida la portada, contestando `307 → /app` en círculo.
+ *
+ * `worker.mjs` dice lo mismo en la forma que Workers entiende: los archivos
+ * reales se sirven solos (assets primero), y lo que no tiene archivo recibe el
+ * shell con un 200 y sin tocar la URL.
+ *
+ * Si algún día se vuelve a Netlify o a Pages: fuera `main` y `binding`, y se
+ * recrea `public/_redirects` con la línea `/*  /app.html  200`.
  *
  * ══ Las cabeceras siguen viniendo de `public/_headers` ═════════════════════
  *
@@ -24,6 +38,10 @@
  * Después de desplegar conviene comprobarlo, porque un fallo aquí es silencioso:
  *
  *     curl -I https://tu-dominio.com | grep -i content-security-policy
+ *
+ * Y desde el bucle del 21/08, también el comodín:
+ *
+ *     curl -sI https://tu-dominio.com/hoy | head -1     ← tiene que ser 200
  */
 {
   "name": "caveman-hub",
@@ -35,35 +53,14 @@
   */
   "compatibility_date": "2026-08-13",
 
+  "main": "worker.mjs",
+
   "assets": {
     "directory": "./dist/",
 
-    /*
-      El fallback de la aplicación de una sola página.
-
-      Con rutas reales, entrar directo en `/c/<id>/rutina` —desde un marcador, un
-      enlace compartido o al recargar— hace que el servidor busque un archivo en
-      esa ruta. Sin esto devolvería un 404 y la aplicación no llegaría a arrancar.
-
-      `single-page-application` sirve `index.html` con un **200** para lo que no
-      sea un archivo, y deja que el router decida. El 200 importa: con un 301 la
-      URL cambiaría y se perdería a dónde iba el usuario.
-
-      ── Por qué ya no hay `public/_redirects` ─────────────────────────────
-      Ese archivo hacía lo mismo con la regla `/*  /index.html  200`, que es como
-      se escribe en Netlify y en Cloudflare Pages. Pero Workers **valida** el
-      archivo al desplegar y rechaza esa regla:
-
-        Invalid _redirects configuration:
-        Line 14: Infinite loop detected in this rule.
-
-      Y tiene razón: reescribir CUALQUIER ruta a `/index.html` incluye a
-      `/index.html`, así que la regla se dispara a sí misma. En Pages eso se
-      resuelve por convención; aquí es un error de despliegue.
-
-      Si algún día se vuelve a Netlify o a Pages, hay que recrear
-      `public/_redirects` con esa única línea.
-    */
-    "not_found_handling": "single-page-application"
+    /* El nombre con el que `worker.mjs` pide el shell. Los archivos que existen
+       se sirven ANTES de invocar al worker; a él solo llegan las rutas de la
+       aplicación. */
+    "binding": "ASSETS"
   }
 }

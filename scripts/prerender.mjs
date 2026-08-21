@@ -16,12 +16,13 @@
  *   dist/privacidad.html las dos legales, igual (Stripe las pide públicas y
  *   dist/condiciones.html  conviene que se lean sin ejecutar nada).
  *   dist/app.html        el shell VACÍO de siempre, y el destino del comodín
- *                        de `_redirects`: las rutas de la aplicación
- *                        (`/hoy`, `/mi/rutina`…) siguen arrancando sobre un
- *                        root vacío. Sin esta separación, cada apertura de la
- *                        aplicación pintaría la portada un instante antes de
- *                        montar React — un destello de marketing en una
- *                        herramienta que se abre veinte veces al día.
+ *                        (`worker.mjs`; en Pages/Netlify sería `_redirects`):
+ *                        las rutas de la aplicación (`/hoy`, `/mi/rutina`…)
+ *                        siguen arrancando sobre un root vacío. Sin esta
+ *                        separación, cada apertura de la aplicación pintaría
+ *                        la portada un instante antes de montar React — un
+ *                        destello de marketing en una herramienta que se abre
+ *                        veinte veces al día.
  *
  * React monta encima con `createRoot().render()`, que sustituye el contenido
  * del root: en la portada el resultado es visualmente idéntico, así que la
@@ -63,7 +64,7 @@ if (!shell.includes(HUECO)) {
 }
 
 /* El shell vacío se guarda ANTES de tocar el index: es lo que sirve el comodín
-   de `_redirects` para todas las rutas de la aplicación. */
+   (`worker.mjs`) para todas las rutas de la aplicación. */
 escribir('app.html', shell);
 
 const vite = await createServer({
