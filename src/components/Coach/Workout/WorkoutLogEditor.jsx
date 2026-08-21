@@ -8,6 +8,8 @@ const deepCopyDrills = (drills) =>
 import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { useEsTelefono } from '@/lib/useMediaQuery';
+import { Modal } from '@/components/ui/Modal';
 import {
   dayHasOwnDrills,
   dayMuscleVolume,
@@ -94,6 +96,9 @@ export const WorkoutLogEditor = () => {
   const [overDay, setOverDay] = useState(null);
 
   const [warmupOpen, setWarmupOpen] = useState(false);
+  /* El alta de ejercicio del teléfono: la abre el botón flotante como hoja. */
+  const esTelefono = useEsTelefono();
+  const [altaAbierta, setAltaAbierta] = useState(false);
 
   const program = workoutData[activeClient.id];
 
@@ -652,11 +657,43 @@ export const WorkoutLogEditor = () => {
             elegir uno del catálogo, `onRememberExercise` lo copia a la tuya —el
             mismo camino que ya seguía un ejercicio escrito a mano—.
           */}
-          <AddExerciseForm
-            library={ejerciciosDisponibles}
-            onAdd={(exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)}
-            onRememberExercise={upsertLibraryExercise}
-          />
+          {esTelefono ? (
+            <>
+              {/*
+                «+ ejercicio» vivía aquí, al FINAL de un día de varias
+                pantallas. En el teléfono es el botón flotante sobre la barra
+                del pulgar, y el alta se rellena en una hoja — con el
+                formulario abierto de entrada, que a eso se vino.
+              */}
+              <button
+                type="button"
+                className="fab"
+                onClick={() => setAltaAbierta(true)}
+                aria-label={`Añadir un ejercicio a ${nav.day.dayName}`}
+                title="Añadir ejercicio"
+              >
+                <Plus size={22} />
+              </button>
+
+              {altaAbierta && (
+                <Modal title={`Ejercicio para ${nav.day.dayName}`} onClose={() => setAltaAbierta(false)}>
+                  <AddExerciseForm
+                    enHoja
+                    library={ejerciciosDisponibles}
+                    onAdd={(exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)}
+                    onRememberExercise={upsertLibraryExercise}
+                    onClose={() => setAltaAbierta(false)}
+                  />
+                </Modal>
+              )}
+            </>
+          ) : (
+            <AddExerciseForm
+              library={ejerciciosDisponibles}
+              onAdd={(exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)}
+              onRememberExercise={upsertLibraryExercise}
+            />
+          )}
         </Panel>
       ) : (
         <EmptyState

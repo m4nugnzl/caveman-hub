@@ -8,8 +8,13 @@ import { Autocomplete } from '@/components/ui/Autocomplete';
 
 const EMPTY = { name: '', muscle: 'Pecho', targetReps: '8-10', numSets: '4' };
 
-export const AddExerciseForm = ({ library, onAdd, onRememberExercise }) => {
-  const [open, setOpen] = useState(false);
+/**
+ * @param enHoja  El formulario vive dentro de una hoja (el FAB del teléfono):
+ *   nace abierto, tras añadir SIGUE abierto —lo normal es meter varios
+ *   seguidos— y «Cancelar» cierra la hoja entera vía `onClose`.
+ */
+export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = false, onClose }) => {
+  const [open, setOpen] = useState(enHoja);
   const [form, setForm] = useState(EMPTY);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -32,7 +37,7 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise }) => {
     onRememberExercise(name, form.muscle);
 
     setForm(EMPTY);
-    setOpen(false);
+    if (!enHoja) setOpen(false);
   };
 
   if (!open) {
@@ -109,7 +114,11 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise }) => {
         <button type="submit" className="btn btn-primary" disabled={!form.name.trim()}>
           Añadir ejercicio
         </button>
-        <button type="button" className="btn btn-secondary" onClick={() => setOpen(false)}>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => (enHoja ? onClose?.() : setOpen(false))}
+        >
           Cancelar
         </button>
       </div>

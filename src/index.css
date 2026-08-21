@@ -755,6 +755,37 @@ button.task-head { cursor: pointer; }
 .task-head > .chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform var(--fast); }
 .task-head[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
 
+/* ── El botón flotante de añadir ────────────────────────────────────────────
+   Solo en el teléfono, y solo lo usa el editor de rutina: «+ ejercicio» vivía
+   al FINAL de un día de cuatro pantallas. Flota sobre la barra del pulgar,
+   donde el dedo ya está, y abre el alta como hoja. */
+.fab { display: none; }
+@media (max-width: 640px) {
+  .fab {
+    position: fixed; right: var(--s4); z-index: 60;
+    bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s4));
+    width: 52px; height: 52px; border-radius: 50%; border: 0;
+    display: grid; place-items: center;
+    background: var(--accent); color: var(--accent-on);
+    box-shadow: var(--shadow-lg); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .fab:active { transform: scale(0.94); }
+}
+
+/* La semana como UNA línea en el teléfono (ver MicrocycleBar): el nombre y la
+   fecha son el botón que abre su hoja de gestión; las flechas siguen al lado. */
+.week-line {
+  flex: 1; min-width: 0; min-height: 44px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  background: none; border: 0; padding: var(--s1); color: inherit; font: inherit;
+  cursor: pointer; border-radius: var(--r-md);
+  -webkit-tap-highlight-color: transparent;
+}
+.week-line:active { background: var(--fill-subtle); }
+.week-line > strong { font-size: 1.02rem; font-weight: 800; }
+.week-line > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
 /* La cabecera de un panel plegable — el mismo idioma que `.task-head`, para
    paneles cuyo título es un `SectionTitle` (la planificación semanal). El
    resumen del medio se queda el hueco sobrante; el chevron dice el estado. */
@@ -1602,6 +1633,23 @@ button.task-head { cursor: pointer; }
 .day-rail .chip:not(.chip-dashed):active { cursor: grabbing; }
 .day-rail .chip.is-dragging { opacity: 0.4; }
 .day-rail .chip.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* En el teléfono, los días se quedan PEGADOS arriba al bajar por el que está
+   abierto: cambiar de Empuje a Pierna no debería exigir volver a subir cuatro
+   pantallas. Sangra hasta los cantos (el negativo deshace el padding del
+   layout) y lleva el cristal de las barras para que el contenido se lea
+   pasando por debajo. Solo en el teléfono: en escritorio la página es corta
+   y una fila pegajosa sería una barra más. */
+@media (max-width: 640px) {
+  .day-rail {
+    position: sticky; top: 0; z-index: 40;
+    margin: 0 calc(-1 * var(--s3));
+    padding: var(--s2) var(--s3);
+    background: var(--surface-glass);
+    backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border-bottom: 1px solid var(--hairline);
+  }
+}
 
 /* Cuántos clientes hay detrás de un filtro. Va dentro del chip, subordinado a
    su etiqueta: es un apoyo para elegir, no un dato que se lea por sí solo.
@@ -5603,6 +5651,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    El ancho no lo decide una fracción de la pantalla, lo decide el dato que hay
    que poder leer. */
 .set-lane { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--s2); padding: 2px 0; }
+
+/* ── El índice del teléfono: una fila por ejercicio ─────────────────────────
+   El modo de programar en pantalla pequeña (ver ExerciseList): la fila enseña
+   lo que hay que poder LEER —nombre, músculo, «4 series × 8-10»— y tocarla
+   abre la hoja donde se toca. Objetivo táctil completo: la fila entera. */
+.exercise-row {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; min-height: 58px; padding: var(--s2) var(--s3);
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); box-shadow: var(--shadow-xs);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.exercise-row:active { background: var(--fill-subtle); }
+.exercise-row-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.exercise-row-name > .name {
+  font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.exercise-row-name > .sum { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.exercise-row > .chevron { color: var(--text-tertiary); flex-shrink: 0; }
 
 /* Carril de REGISTRO (cliente): rejilla que reparte el ancho, no carril que se
    desliza. Cuatro celdas de 168 px desbordaban y salía una barra de scroll

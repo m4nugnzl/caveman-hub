@@ -1,10 +1,30 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
 import { previousSetKey } from '@/domain/sessions';
+import { useEsTelefono } from '@/lib/useMediaQuery';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { Modal } from '@/components/ui/Modal';
 import { SetCell, SetRow, SetRowHead } from './SetCell';
+
+/**
+ * El resumen de un ejercicio para el índice del teléfono: «4 series × 8-10 ·
+ * RIR 2». Los objetivos distintos se enumeran (una pirámide es «6-8 / 8-10»).
+ */
+const resumenSeries = (exercise, showRir) => {
+  const sets = exercise.sets || [];
+  const objetivos = [...new Set(sets.map((s) => String(s.targetReps ?? '').trim()).filter(Boolean))];
+  const rirs = showRir
+    ? [...new Set(sets.map((s) => String(s.targetRir ?? '').trim()).filter(Boolean))]
+    : [];
+  return [
+    `${sets.length} ${sets.length === 1 ? 'serie' : 'series'}${objetivos.length > 0 ? ` × ${objetivos.join(' / ')}` : ''}`,
+    rirs.length > 0 ? `RIR ${rirs.join(' / ')}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+};
 
 /**
  * Lista de ejercicios del día, reordenable.
@@ -43,8 +63,12 @@ export const ExerciseList = ({
   previousSets = null,
 }) => {
   const confirm = useConfirm();
+  const esTelefono = useEsTelefono();
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
+  /* Qué ejercicio tiene su hoja abierta (modo índice del teléfono). Se guarda
+     el id y no el objeto: los datos frescos llegan por props en cada render. */
+  const [abierto, setAbierto] = useState(null);
   /*
     Qué ejercicio tiene el campo de nota abierto SIN tener nota todavía.
 
@@ -88,6 +112,148 @@ export const ExerciseList = ({
       <p className="t-sm t-secondary" style={{ padding: 'var(--s4) 0' }}>
         {emptyMessage}
       </p>
+    );
+  }
+
+  /*
+    ══ En el teléfono, programar es ÍNDICE + FICHA ═══════════════════════════
+    El carril con todo abierto son ~30 casillas editables a la vez: en 390 px
+    cada ejercicio ocupaba media pantalla y el día entero no se podía LEER.
+    Aquí el día es una fila por ejercicio —nombre, músculo, «4 series × 8-10»—
+    y tocar una abre su hoja con las series en grande, la nota y las acciones.
+    Es el reparto de cualquier editor móvil que funciona: la lista para ver,
+    la hoja para tocar.
+
+    Solo programando y solo en el teléfono: el registro del cliente ya es una
+    tabla pensada para el gimnasio, y en escritorio el carril completo es
+    justo lo que permite comparar estructuras entre ejercicios.
+  */
+  if (canEditStructure && esTelefono) {
+    const idx = exercises.findIndex((e) => e.id === abierto);
+    const abiertoEx = idx >= 0 ? exercises[idx] : null;
+
+    return (
+      <>
+        <ul className="col gap-2" style={{ listStyle: 'none' }}>
+          {exercises.map((exercise, index) => {
+            const accent = setColor(index);
+            return (
+              <li key={exercise.id}>
+                <button type="button" className="exercise-row" onClick={() => setAbierto(exercise.id)}>
+                  <span
+                    className="exercise-index"
+                    style={{
+                      background: `linear-gradient(135deg, ${accent}30, ${accent}10)`,
+                      border: `1px solid ${accent}40`,
+                      color: accent,
+                    }}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="exercise-row-name">
+                    <span className="name">{exercise.name}</span>
+                    <span className="sum">
+                      {[exercise.muscle, resumenSeries(exercise, showRir)].filter(Boolean).join(' · ')}
+                    </span>
+                  </span>
+                  <ChevronRight size={15} className="chevron" aria-hidden="true" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+
+        {abiertoEx && (
+          <Modal
+            title={abiertoEx.name}
+            onClose={() => setAbierto(null)}
+            footer={
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={idx === 0}
+                  onClick={() => onMove(idx, idx - 1)}
+                >
+                  <ArrowUp size={15} /> Subir
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={idx === exercises.length - 1}
+                  onClick={() => onMove(idx, idx + 1)}
+                >
+                  <ArrowDown size={15} /> Bajar
+                </button>
+                {/* La hoja se cierra ANTES de preguntar: dos diálogos apilados
+                    pelean por el foco y por Escape (ver Modal.jsx). Cancelar
+                    deja la hoja cerrada, que es un precio menor. */}
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    const { id, name } = abiertoEx;
+                    setAbierto(null);
+                    const ok = await confirm({
+                      title: `¿Eliminar «${name}»?`,
+                      message: 'Se borrarán también todas sus series registradas.',
+                      confirmLabel: 'Eliminar ejercicio',
+                      tone: 'danger',
+                    });
+                    if (ok) onRemove(id);
+                  }}
+                >
+                  <Trash2 size={15} /> Eliminar
+                </button>
+              </>
+            }
+          >
+            <div className="col gap-4">
+              {/* `order: 0` en línea: la regla móvil de `.set-lane` (order 10,
+                  pensada para la fila del escritorio que envuelve) la mandaba
+                  detrás de la nota; en la ficha las series van primero. */}
+              <div className="set-lane" style={{ order: 0, flexBasis: 'auto' }}>
+                {(abiertoEx.sets || []).map((set, setIndex) => (
+                  <SetCell
+                    key={setIndex}
+                    index={setIndex}
+                    set={set}
+                    exerciseName={abiertoEx.name}
+                    canRemove={abiertoEx.sets.length > 1}
+                    onChange={(field, value) => onSetChange(abiertoEx.id, setIndex, field, value)}
+                    onRemove={() => onRemoveSet(abiertoEx.id, setIndex)}
+                    showRir={showRir}
+                  />
+                ))}
+                <button
+                  type="button"
+                  className="set-add"
+                  onClick={() => onAddSet(abiertoEx.id)}
+                  aria-label={`Añadir una serie a ${abiertoEx.name}`}
+                  title="Añadir serie"
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              {showNotes && (
+                <label className="exercise-note">
+                  <span className="section-label">
+                    <Quote size={12} /> Nota de {abiertoEx.name}
+                  </span>
+                  <textarea
+                    className="textarea"
+                    rows={2}
+                    placeholder="La verá tu cliente junto al ejercicio. Ej: el codo pegado al cuerpo."
+                    value={abiertoEx.coachNote ?? ''}
+                    onChange={(event) => onNoteChange(abiertoEx.id, event.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+          </Modal>
+        )}
+      </>
     );
   }
 

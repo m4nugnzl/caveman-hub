@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Copy, Plus, Trash2 } from 'lucide-react';
 
 import { unitLabel } from '@/domain/training';
+import { shortDate } from '@/lib/dates';
+import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Panel } from '@/components/ui/primitives';
+import { Modal } from '@/components/ui/Modal';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 /**
@@ -31,6 +35,9 @@ export const MicrocycleBar = ({
   exerciseCount,
 }) => {
   const confirm = useConfirm();
+  const esTelefono = useEsTelefono();
+  /* La hoja de gestión del teléfono: fecha, lista de semanas y acciones. */
+  const [gestion, setGestion] = useState(false);
   const unit = unitLabel(cycleType);
 
   const askRemove = async () => {
@@ -49,6 +56,138 @@ export const MicrocycleBar = ({
     });
     if (ok) onRemove();
   };
+
+  /*
+    ══ En el teléfono, la semana es UNA línea ═════════════════════════════════
+    El panel completo —fecha, tres acciones, carril de semanas— son ~340 px de
+    gestión que no se toca a diario, delante del día que sí. La línea deja lo
+    que se usa siempre (las flechas y saber dónde estás) y el resto vive en su
+    hoja: tocar el nombre la abre. Escritorio conserva el panel entero.
+  */
+  if (esTelefono) {
+    return (
+      <>
+        <Panel tight className="row gap-2">
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-round"
+            onClick={onPrev}
+            disabled={!canGoPrev}
+            aria-label={`${unit} anterior`}
+          >
+            <ChevronLeft size={17} />
+          </button>
+
+          <button type="button" className="week-line" onClick={() => setGestion(true)} aria-haspopup="dialog">
+            <strong>
+              {unit} {activeWeek}
+            </strong>
+            <span>
+              {microcycleDate ? `empieza el ${shortDate(microcycleDate)}` : 'sin fecha de inicio'}
+              {` · ${weeks.length} en total`}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-round"
+            onClick={onNext}
+            disabled={!canGoNext}
+            aria-label={`${unit} siguiente`}
+          >
+            <ChevronRight size={17} />
+          </button>
+        </Panel>
+
+        {gestion && (
+          <Modal title={`${unit} ${activeWeek}`} onClose={() => setGestion(false)}>
+            <div className="col gap-5">
+              <label className="field">
+                <span className="field-label">Empieza el</span>
+                <input
+                  type="date"
+                  className="input"
+                  value={microcycleDate || ''}
+                  onChange={(e) => onChangeDate(e.target.value)}
+                  title={`Cuándo empieza ${unit.toLowerCase()} ${activeWeek} para tu cliente.`}
+                />
+              </label>
+
+              <div className="col gap-2">
+                <span className="section-label">Ir a otra</span>
+                <div className="rail-wrap" role="group" aria-label={`${unit}s del programa`}>
+                  {weeks.map((week) => (
+                    <button
+                      key={week}
+                      type="button"
+                      className="chip"
+                      aria-pressed={week === activeWeek}
+                      onClick={() => {
+                        onSelect(week);
+                        setGestion(false);
+                      }}
+                    >
+                      {unit.charAt(0)}
+                      {week}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="chip chip-dashed"
+                    onClick={() => {
+                      onAppend();
+                      setGestion(false);
+                    }}
+                  >
+                    <Plus size={13} /> Nueva
+                  </button>
+                </div>
+              </div>
+
+              <div className="col gap-2">
+                <span className="section-label">Acciones</span>
+                <div className="row gap-2 wrap">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm btn-pill"
+                    onClick={() => {
+                      onClone();
+                      setGestion(false);
+                    }}
+                  >
+                    <Copy size={15} /> Duplicar {unit.toLowerCase()}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm btn-pill"
+                    onClick={() => {
+                      onToggleCopy();
+                      setGestion(false);
+                    }}
+                    aria-expanded={copyOpen}
+                  >
+                    <Copy size={15} /> Traer de otro cliente
+                  </button>
+                  {/* La hoja se cierra antes de preguntar, como en la ficha de
+                      ejercicio: dos diálogos apilados pelean por el foco. */}
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm btn-pill"
+                    onClick={() => {
+                      setGestion(false);
+                      askRemove();
+                    }}
+                  >
+                    <Trash2 size={15} /> Eliminar {unit.toLowerCase()}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </>
+    );
+  }
 
   return (
     <Panel tight className="col gap-4">
