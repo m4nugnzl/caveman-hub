@@ -2,7 +2,9 @@ import { ArrowRight, CheckCircle2, CircleDashed, RotateCw, Settings } from 'luci
 
 import { MODULES, isModuleOn, toggleModule } from '@/domain/protocol';
 import { clampInt } from '@/lib/num';
-import { Field, OptionCard, Panel, SegmentedControl } from '@/components/ui/primitives';
+import { dayMonthMaybeYear } from '@/lib/dates';
+import { Field, OptionCard, SegmentedControl } from '@/components/ui/primitives';
+import { Modal } from '@/components/ui/Modal';
 
 const CYCLE_OPTIONS = [
   { id: 'weekly', label: 'Semanal', hint: 'Atada a lunes–domingo' },
@@ -41,6 +43,22 @@ const PatternChain = ({ pattern }) => {
   );
 };
 
+/**
+ * La estructura del programa: UNA LÍNEA, y la configuración en su hoja.
+ *
+ * ══ Por qué dejó de ser un panel ════════════════════════════════════════════
+ *
+ * Era la primera tarjeta de la pantalla —icono en caja, titular, cadena del
+ * patrón, botón— para algo que se configura una vez por cliente y no se vuelve
+ * a tocar. El orden de una pantalla es el del trabajo: lo que se usa a diario
+ * (la sesión, los días) arriba; lo que se decide una vez, en una línea de voz
+ * baja al final, que se despliega en una hoja cuando de verdad se viene a
+ * cambiar. Es la misma regla que sacó los ajustes del menú de cuenta.
+ *
+ * La hoja recibe por `children` lo que cada estructura añade (la planificación
+ * semanal cuando el ciclo es semanal): así el editor no tiene que saber qué
+ * hay dentro de la configuración.
+ */
 export const CycleSettings = ({
   client,
   open,
@@ -49,166 +67,153 @@ export const CycleSettings = ({
   saveIndicator,
   protocol,
   onProtocolChange,
+  children,
 }) => {
   const cycleType = client.cycleType || 'weekly';
   const pattern = client.cyclePattern || { train: 2, rest: 1 };
 
-  return (
-    <Panel tight className="col gap-4">
-      <div className="row between wrap gap-3">
-        <div className="row gap-3">
-          <span
-            style={{
-              background: 'var(--info-soft)',
-              padding: 8,
-              borderRadius: 10,
-              display: 'grid',
-              placeItems: 'center',
-            }}
-          >
-            <RotateCw size={19} />
-          </span>
-          <div>
-            <span className="section-label">Estructura del programa</span>
-            <h4 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
-              {cycleType === 'weekly' ? 'Semana natural (lunes–domingo)' : 'Ciclo rotativo ininterrumpido'}
-            </h4>
-          </div>
-        </div>
+  const resumen = [
+    cycleType === 'weekly' ? 'Semana natural' : 'Ciclo rotativo',
+    cycleType === 'rotating' &&
+      `${pattern.train} entreno · ${pattern.rest} descanso`,
+    client.startDate && `empieza el ${dayMonthMaybeYear(client.startDate)}`,
+  ]
+    .filter(Boolean)
+    .join('  ·  ');
 
-        <div className="row gap-3 wrap">
-          {saveIndicator}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onToggle} aria-expanded={open}>
-            <Settings size={15} /> Configurar
-          </button>
-        </div>
+  return (
+    <>
+      <div className="config-line">
+        <RotateCw size={14} aria-hidden="true" />
+        <span className="config-line-text">
+          <span className="section-label">Estructura</span>
+          {resumen}
+        </span>
+        {saveIndicator}
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onToggle} aria-expanded={open}>
+          <Settings size={14} /> Configurar
+        </button>
       </div>
 
-      {cycleType === 'rotating' && !open && <PatternChain pattern={pattern} />}
-
       {open && (
-        <>
-          {/*
-            ══ Los módulos, AQUÍ y no solo en Ajustes ═════════════════════════
+        <Modal title="Estructura del programa" onClose={onToggle}>
+          <div className="col gap-5">
+            {cycleType === 'rotating' && <PatternChain pattern={pattern} />}
 
-            Vivían únicamente en Ajustes → Protocolo. Como concepto está bien —el
-            entrenador decide qué existe en su app— pero como sitio era invisible:
-            nadie va a una pantalla de ajustes a buscar una casilla que no sabe
-            que existe. El síntoma exacto fue «das la opción de pautar RIR pero
-            no veo dónde se hace en la rutina».
+            <div className="row wrap gap-5">
+              {/*
+                ══ Cuándo empieza esta persona ═════════════════════════════════
 
-            Así que la decisión se toma donde se nota. Ajustes → Protocolo sigue
-            siendo la lista completa y el sitio para dejarlo puesto de una vez
-            para todos; esto es el interruptor a mano, para ESTE cliente, en la
-            pantalla donde acabas de echarlo en falta.
-          */}
-          <hr className="divider" />
-          <fieldset className="col gap-2" style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="section-label">Qué se usa con este cliente</legend>
-            <div className="row wrap gap-4">
-              {/* En línea: aquí las opciones son solo nombres —la explicación
-                  está en Ajustes → Protocolo, que es la lista completa— y una
-                  tarjeta a lo ancho por cada una llenaría media pantalla de un
-                  panel que va de otra cosa. */}
-              {MODULES.map((mod) => (
-                <OptionCard
-                  key={mod.id}
-                  inline
-                  label={mod.label}
-                  checked={isModuleOn(protocol, mod.id)}
-                  onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
+                La fecha existía desde el principio en la ficha, pero **no había
+                ningún sitio donde escribirla**: se ponía sola el día que se creaba
+                el cliente y ahí se quedaba. Y no es un dato decorativo — es el
+                ancla de la que sale la «semana N» de las fotos, de los check-ins y
+                de la revisión semanal (`domain/photos.js`, `domain/calendar.js`).
+                Con alguien dado de alta dos semanas antes de empezar, todo ese eje
+                iba corrido dos semanas y no había forma de corregirlo.
+              */}
+              <Field
+                label="Empieza el"
+                className="shrink-0"
+                hint="De aquí sale la «semana 1» de fotos y check-ins"
+              >
+                {(props) => (
+                  <input
+                    {...props}
+                    type="date"
+                    className="input"
+                    style={{ width: 168 }}
+                    value={client.startDate || ''}
+                    onChange={(e) => onChange({ startDate: e.target.value || null })}
+                  />
+                )}
+              </Field>
+
+              <Field label="Tipo de estructura">
+                <SegmentedControl
+                  value={cycleType}
+                  onChange={(value) => onChange({ cycleType: value })}
+                  options={CYCLE_OPTIONS}
+                  label="Tipo de estructura"
                 />
-              ))}
-            </div>
-            <span className="t-2xs t-tertiary">
-              Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
-            </span>
-          </fieldset>
+              </Field>
 
-          <hr className="divider" />
-          <div className="row-end wrap gap-5">
-            {/*
-              ══ Cuándo empieza esta persona ═════════════════════════════════
-
-              La fecha existía desde el principio en la ficha, pero **no había
-              ningún sitio donde escribirla**: se ponía sola el día que se creaba
-              el cliente y ahí se quedaba. Y no es un dato decorativo — es el
-              ancla de la que sale la «semana N» de las fotos, de los check-ins y
-              de la revisión semanal (`domain/photos.js`, `domain/calendar.js`).
-              Con alguien dado de alta dos semanas antes de empezar, todo ese eje
-              iba corrido dos semanas y no había forma de corregirlo.
-
-              Va aquí, en la estructura del programa, porque es la misma
-              pregunta: cómo está montado el programa de este cliente y desde
-              cuándo corre.
-            */}
-            <Field
-              label="Empieza el"
-              className="shrink-0"
-              hint="De aquí sale la «semana 1» de fotos y check-ins"
-            >
-              {(props) => (
-                <input
-                  {...props}
-                  type="date"
-                  className="input"
-                  style={{ width: 168 }}
-                  value={client.startDate || ''}
-                  onChange={(e) => onChange({ startDate: e.target.value || null })}
-                />
+              {cycleType === 'rotating' && (
+                <>
+                  <Field label="Días de entreno" className="shrink-0">
+                    {(props) => (
+                      <input
+                        {...props}
+                        type="text"
+                        inputMode="numeric"
+                        className="input input-center"
+                        style={{ width: 84 }}
+                        value={pattern.train}
+                        onChange={(e) =>
+                          onChange({
+                            cyclePattern: { ...pattern, train: clampInt(e.target.value, 1, 14, 1) },
+                          })
+                        }
+                      />
+                    )}
+                  </Field>
+                  <Field label="Días de descanso" className="shrink-0">
+                    {(props) => (
+                      <input
+                        {...props}
+                        type="text"
+                        inputMode="numeric"
+                        className="input input-center"
+                        style={{ width: 84 }}
+                        value={pattern.rest}
+                        onChange={(e) =>
+                          onChange({
+                            cyclePattern: { ...pattern, rest: clampInt(e.target.value, 0, 14, 0) },
+                          })
+                        }
+                      />
+                    )}
+                  </Field>
+                </>
               )}
-            </Field>
+            </div>
 
-            <Field label="Tipo de estructura">
-              <SegmentedControl
-                value={cycleType}
-                onChange={(value) => onChange({ cycleType: value })}
-                options={CYCLE_OPTIONS}
-                label="Tipo de estructura"
-              />
-            </Field>
+            {children}
 
-            {cycleType === 'rotating' && (
-              <>
-                <Field label="Días de entreno" className="shrink-0">
-                  {(props) => (
-                    <input
-                      {...props}
-                      type="text"
-                      inputMode="numeric"
-                      className="input input-center"
-                      style={{ width: 84 }}
-                      value={pattern.train}
-                      onChange={(e) =>
-                        onChange({
-                          cyclePattern: { ...pattern, train: clampInt(e.target.value, 1, 14, 1) },
-                        })
-                      }
-                    />
-                  )}
-                </Field>
-                <Field label="Días de descanso" className="shrink-0">
-                  {(props) => (
-                    <input
-                      {...props}
-                      type="text"
-                      inputMode="numeric"
-                      className="input input-center"
-                      style={{ width: 84 }}
-                      value={pattern.rest}
-                      onChange={(e) =>
-                        onChange({
-                          cyclePattern: { ...pattern, rest: clampInt(e.target.value, 0, 14, 0) },
-                        })
-                      }
-                    />
-                  )}
-                </Field>
-              </>
-            )}
+            {/*
+              ══ Los módulos, AQUÍ y no solo en Ajustes ═════════════════════════
+
+              Vivían únicamente en Ajustes → Protocolo. Como concepto está bien —el
+              entrenador decide qué existe en su app— pero como sitio era invisible:
+              nadie va a una pantalla de ajustes a buscar una casilla que no sabe
+              que existe. El síntoma exacto fue «das la opción de pautar RIR pero
+              no veo dónde se hace en la rutina».
+
+              Así que la decisión se toma donde se nota. Ajustes → Protocolo sigue
+              siendo la lista completa y el sitio para dejarlo puesto de una vez
+              para todos; esto es el interruptor a mano, para ESTE cliente, en la
+              pantalla donde acabas de echarlo en falta.
+            */}
+            <fieldset className="col gap-2" style={{ border: 0, padding: 0, margin: 0 }}>
+              <legend className="section-label">Qué se usa con este cliente</legend>
+              <div className="row wrap gap-4">
+                {MODULES.map((mod) => (
+                  <OptionCard
+                    key={mod.id}
+                    inline
+                    label={mod.label}
+                    checked={isModuleOn(protocol, mod.id)}
+                    onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
+                  />
+                ))}
+              </div>
+              <span className="t-2xs t-tertiary">
+                Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
+              </span>
+            </fieldset>
           </div>
-        </>
+        </Modal>
       )}
-    </Panel>
+    </>
   );
 };

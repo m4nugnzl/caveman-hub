@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Copy, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Copy, MoreVertical, Trash2, Users } from 'lucide-react';
 
 import { unitLabel } from '@/domain/training';
 import { shortDate } from '@/lib/dates';
+import { useClickOutside } from '@/lib/useClickOutside';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Panel, WeekPicker } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
@@ -35,6 +36,10 @@ export const MicrocycleBar = ({
   const esTelefono = useEsTelefono();
   /* La hoja de gestión del teléfono: fecha, lista de semanas y acciones. */
   const [gestion, setGestion] = useState(false);
+  /* El menú ⋯ del escritorio: lo que no se hace a diario. */
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const menuRef = useRef(null);
+  useClickOutside(menuRef, () => setMenuAbierto(false), menuAbierto);
   const unit = unitLabel(cycleType);
 
   /* Sin confirmación: borrar una semana tiene ahora inverso —el aviso con
@@ -186,7 +191,9 @@ export const MicrocycleBar = ({
             cualquiera detrás de unas vacaciones—.
 
             No es cosmética: la analítica agrupa por esta fecha, así que es lo que
-            coloca el tonelaje y la adherencia en su semana.
+            coloca el tonelaje y la adherencia en su semana. Va EN LÍNEA con el
+            título y en voz baja —sin caja hasta que se toca—: es un dato que se
+            corrige de vez en cuando, no un formulario permanente.
           */}
           <div className="col gap-1" style={{ alignItems: 'center', minWidth: 150 }}>
             <h3 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
@@ -194,14 +201,14 @@ export const MicrocycleBar = ({
             </h3>
             {/* El título va FUERA de la etiqueta: un `label` solo admite
                 contenido de frase, y un encabezado dentro no es HTML válido. */}
-            <label className="col gap-1" style={{ alignItems: 'center' }}>
-              <span className="section-label">Empieza el</span>
+            <label className="row gap-2 mcb-fecha">
+              <span className="t-2xs t-tertiary" style={{ fontWeight: 650 }}>empieza el</span>
               {/* Sin `max`, al revés que la fecha de una sesión: ahí se registra
                   algo que ya ocurrió y aquí se planifica algo que aún no. */}
               <input
                 type="date"
                 className="input input-sm input-center"
-                style={{ width: 150 }}
+                style={{ width: 140 }}
                 value={microcycleDate || ''}
                 onChange={(e) => onChangeDate(e.target.value)}
                 title={`Cuándo empieza ${unit.toLowerCase()} ${activeWeek} para tu cliente.`}
@@ -220,45 +227,70 @@ export const MicrocycleBar = ({
           </button>
         </div>
 
+        {/*
+          ══ Una acción visible, el resto en su menú ══════════════════════════
+          Duplicar es lo que se hace cada semana y se queda a la vista. Traer de
+          otro cliente y eliminar son ocasionales — y un botón ROJO residente a
+          la altura de los ojos es un aviso que no avisa: el rojo solo debe
+          aparecer cuando ya has abierto el menú con intención. Además, eliminar
+          tiene «Deshacer»: no necesita gritar.
+        */}
         <div className="row gap-2 wrap">
           <button type="button" className="btn btn-secondary btn-sm btn-pill" onClick={onClone}>
             <Copy size={15} /> Duplicar {unit.toLowerCase()}
           </button>
-          {/*
-            ══ Decía «Copiar A otro cliente» y hace lo contrario ═══════════════
 
-            Lo que abre este botón trae el entrenamiento —y la dieta, y el
-            calentamiento— DEL cliente que elijas AL que tienes abierto,
-            sustituyendo lo suyo. El nombre prometía justo lo contrario en una
-            acción destructiva y sin deshacer: quien estuviera en Marta queriendo
-            pasarle su rutina a Luis, le borraba la rutina a Marta.
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="btn btn-icon"
+              onClick={() => setMenuAbierto((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuAbierto}
+              aria-label={`Más acciones de ${unit.toLowerCase()} ${activeWeek}`}
+            >
+              <MoreVertical size={17} />
+            </button>
 
-            Y «traer» es además el gesto real: se usa al montar a alguien nuevo
-            copiando a otro que ya funciona, no al revés.
-
-            El verbo importa en toda la aplicación: DUPLICAR es dentro de lo
-            mismo, TRAER DE viene de fuera hacia aquí, ENVIAR A va de aquí hacia
-            fuera. Con tres botones que ponían «copiar» no había forma de saber la
-            dirección sin abrirlos.
-          */}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm btn-pill"
-            onClick={onToggleCopy}
-            aria-expanded={copyOpen}
-          >
-            <Copy size={15} /> Traer de otro cliente
-          </button>
-          {/* Faltaba por completo: una semana creada por error no se podía
-              eliminar de ninguna forma. */}
-          <button
-            type="button"
-            className="btn btn-danger btn-sm btn-pill"
-            onClick={askRemove}
-            title={`Eliminar ${unit.toLowerCase()} ${activeWeek}`}
-          >
-            <Trash2 size={15} /> Eliminar {unit.toLowerCase()}
-          </button>
+            {menuAbierto && (
+              <div className="popover popover-right" style={{ top: '120%' }} role="menu">
+                {/*
+                  ══ Decía «Copiar A otro cliente» y hace lo contrario ═════════
+                  Lo que abre trae el entrenamiento —y la dieta, y el
+                  calentamiento— DEL cliente que elijas AL que tienes abierto,
+                  sustituyendo lo suyo. «Traer» es además el gesto real: se usa
+                  al montar a alguien nuevo copiando a otro que ya funciona.
+                  DUPLICAR es dentro de lo mismo, TRAER DE viene de fuera hacia
+                  aquí, ENVIAR A va de aquí hacia fuera.
+                */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="menu-item"
+                  onClick={() => {
+                    onToggleCopy();
+                    setMenuAbierto(false);
+                  }}
+                >
+                  <Users size={15} /> Traer de otro cliente
+                </button>
+                <hr className="divider" />
+                {/* Faltaba por completo: una semana creada por error no se podía
+                    eliminar de ninguna forma. */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="menu-item menu-item-danger"
+                  onClick={() => {
+                    setMenuAbierto(false);
+                    askRemove();
+                  }}
+                >
+                  <Trash2 size={15} /> Eliminar {unit.toLowerCase()}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -274,33 +274,31 @@ export const WorkoutLogEditor = () => {
   };
 
   /*
-    ══ La configuración del programa: arriba en escritorio, al FINAL en el
-    teléfono ══════════════════════════════════════════════════════════════════
-    El ciclo y la planificación semanal se tocan cada varias semanas, y en el
-    móvil eran dos tarjetas de preámbulo entre la cabecera y el día — «qué le
-    pongo hoy a este día» es a lo que se viene, y estaba siempre detrás de lo
-    que casi nunca se toca. En escritorio el orden documento (contexto primero)
-    funciona porque todo cabe de un vistazo; en el teléfono manda el trabajo.
+    ══ La configuración del programa: una línea al FINAL, en las dos geometrías
+    ═══════════════════════════════════════════════════════════════════════════
+    El ciclo y la planificación semanal se tocan una vez por cliente, y eran la
+    primera tarjeta de la pantalla — el orden de una pantalla es el del trabajo,
+    y «qué le pongo hoy a este día» es a lo que se viene. Ahora es una línea de
+    voz baja que cierra la página y abre su hoja (ver `CycleSettings`); la
+    planificación semanal viaja dentro de esa hoja.
   */
   const configDelPrograma = (
-    <>
-      <CycleSettings
-        client={activeClient}
-        open={cycleOpen}
-        onToggle={() => setCycleOpen((v) => !v)}
-        onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
-        saveIndicator={indicator}
-        protocol={protocol}
-        onProtocolChange={(next) => updateClientPreferences(activeClient.id, 'protocol', next)}
-      />
-
+    <CycleSettings
+      client={activeClient}
+      open={cycleOpen}
+      onToggle={() => setCycleOpen((v) => !v)}
+      onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
+      saveIndicator={indicator}
+      protocol={protocol}
+      onProtocolChange={(next) => updateClientPreferences(activeClient.id, 'protocol', next)}
+    >
       {cycleType === 'weekly' && (
         <WeeklySplitEditor
           split={program.weeklySplit}
           onChange={(day, value) => updateWeeklySplit(activeClient.id, day, value)}
         />
       )}
-    </>
+    </CycleSettings>
   );
 
   return (
@@ -309,8 +307,6 @@ export const WorkoutLogEditor = () => {
         title="Rutina"
         sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
       />
-
-      {!esTelefono && configDelPrograma}
 
       <MicrocycleBar
         cycleType={cycleType}
@@ -377,35 +373,6 @@ export const WorkoutLogEditor = () => {
           onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
           onClose={() => setCopyOpen(false)}
         />
-      )}
-
-      {/*
-        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad de
-        este cliente y se repite. Por eso vive aquí arriba y no dentro de cada día
-        —que obligaría a mantener cinco copias— y por eso va plegado: se monta una
-        vez y después se consulta poco.
-      */}
-      {isModuleOn(protocol, 'warmup') && (
-        <Panel tight className="col gap-3">
-          <button
-            type="button"
-            className="proto-toggle"
-            aria-expanded={warmupOpen}
-            onClick={() => setWarmupOpen((v) => !v)}
-          >
-            {warmupOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <Waves size={15} />
-            <span className="grow">Calentamiento y movilidad</span>
-            <span className="badge">{(program?.mobilityDrills || []).length}</span>
-          </button>
-
-          {warmupOpen && (
-            <WarmupEditor
-              drills={program?.mobilityDrills || []}
-              onChange={(drills) => updateMobilityDrills(activeClient.id, drills)}
-            />
-          )}
-        </Panel>
       )}
 
       {/*
@@ -823,8 +790,38 @@ export const WorkoutLogEditor = () => {
         />
       )}
 
-      {/* En el teléfono, la configuración cierra la página (ver arriba). */}
-      {esTelefono && configDelPrograma}
+      {/*
+        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad de
+        este cliente y se repite. Por eso no vive dentro de cada día —obligaría a
+        mantener cinco copias— y por eso baja aquí, con lo que se monta una vez y
+        después se consulta poco. El del DÍA, cuando lo tiene, sigue en el día.
+      */}
+      {isModuleOn(protocol, 'warmup') && (
+        <Panel tight className="col gap-3">
+          <button
+            type="button"
+            className="proto-toggle"
+            aria-expanded={warmupOpen}
+            onClick={() => setWarmupOpen((v) => !v)}
+          >
+            {warmupOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <Waves size={15} />
+            <span className="grow">Calentamiento y movilidad</span>
+            <span className="badge">{(program?.mobilityDrills || []).length}</span>
+          </button>
+
+          {warmupOpen && (
+            <WarmupEditor
+              drills={program?.mobilityDrills || []}
+              onChange={(drills) => updateMobilityDrills(activeClient.id, drills)}
+            />
+          )}
+        </Panel>
+      )}
+
+      {/* La configuración cierra la página: lo que se decide una vez, al final
+          y en una línea (ver el razonamiento arriba, donde se compone). */}
+      {configDelPrograma}
     </div>
   );
 };

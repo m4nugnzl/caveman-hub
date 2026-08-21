@@ -5396,22 +5396,47 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    Editor de rutina
    ========================================================================== */
 
+/* ── La línea de configuración ─────────────────────────────────────────────
+   Cierra la página: lo que se decide una vez por cliente (estructura, fecha
+   de inicio, módulos) resumido en una frase de voz baja con su puerta. Sin
+   superficie: no compite con el trabajo, se encuentra cuando se busca. */
+.config-line {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s2);
+  color: var(--text-tertiary); font-size: var(--fs-sm);
+}
+.config-line > svg { flex-shrink: 0; }
+.config-line-text {
+  flex: 1; min-width: 0;
+  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
+  color: var(--text-secondary);
+}
+
+/* La fecha del microciclo, en voz baja: sin caja hasta que se toca. Es un dato
+   que se corrige de vez en cuando, no un formulario permanente. */
+.mcb-fecha { align-items: center; }
+.mcb-fecha .input {
+  background: transparent; border-color: transparent;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.mcb-fecha .input:hover { border-color: var(--edge); }
+.mcb-fecha .input:focus { background: var(--surface-sunken); border-color: var(--hairline-strong); }
+
+/* La barra de la sesión: una FILA del panel, no una caja hundida dentro de la
+   tarjeta del día. La regla es la misma que en la barra lateral: dentro de una
+   superficie, las zonas las separa el espacio — cada caja de más se lee como
+   una caja dentro de una caja. */
 .session-bar {
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--s3); flex-wrap: wrap;
-  background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--s3) var(--s4);
 }
 
-/* Cabecera del día: tarjeta con presencia propia, con una línea de acento
-   arriba y las métricas agrupadas a la derecha. Aplanarla a un simple borde
-   inferior le quitaba jerarquía al elemento más importante de la pantalla. */
-/* Cabecera del día.
-   --------------------------------------------------------------------------
-   OJO con `overflow`: aquí dentro vive el menú de acciones (⋮), que es un
-   `position: absolute`. Con `overflow: hidden` —que estaba puesto para recortar
-   las esquinas de la línea de acento— el desplegable se cortaba y no se veía.
-   La línea lleva ahora sus propias esquinas redondeadas, así que no hace falta
-   recortar nada. */
+/* Cabecera del día: ZONA del panel, no tarjeta dentro de la tarjeta. Llevó
+   superficie y borde propios con el argumento de que aplanarla le quitaba
+   jerarquía; la jerarquía la dan ahora el cuerpo del nombre, la barra de
+   reparto muscular y las métricas — tinta y dato, no cromo. (El `overflow`
+   tiene que quedarse visible: aquí dentro vive el menú ⋮, que es un
+   `position: absolute` y se cortaría.) */
 /* ── Dónde estaba la veta ──────────────────────────────────────────────────
    Aquí vivía una tira de 3 px con el degradado del color de marca, encabezando
    la cabecera del día, el saludo del cliente y la tarjeta de acceso. Se ha
@@ -5430,18 +5455,14 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .day-head {
   display: flex; justify-content: space-between; align-items: center;
   flex-wrap: wrap; gap: var(--s4);
-  background: var(--surface);
-  border: 1px solid var(--hairline-strong);
-  border-radius: var(--r-lg);
-  padding: var(--s4) var(--s5);
   position: relative;
 }
 
+/* El icono, sin caja: una pastilla con sombra dentro del panel era la tercera
+   superficie apilada de la misma cabecera. */
 .day-icon {
-  width: 44px; height: 44px; border-radius: var(--r-md);
   display: grid; place-items: center; flex-shrink: 0;
-  background: var(--surface); color: var(--accent);
-  box-shadow: var(--shadow-xs);
+  color: var(--accent);
 }
 
 /* Grupo de métricas del día (ejercicios / series / tonelaje). */
