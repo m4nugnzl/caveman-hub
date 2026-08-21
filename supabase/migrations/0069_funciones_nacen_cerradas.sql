@@ -1,0 +1,104 @@
+-- ============================================================================
+-- Las funciones nuevas nacen cerradas
+-- ----------------------------------------------------------------------------
+-- ⚠️  No toca ninguna función que ya exista, ninguna tabla y ningún dato. Solo
+--     cambia qué permisos recibe una función RECIÉN CREADA a partir de ahora.
+--
+-- ══ El defecto de fábrica, y por qué persigue a este proyecto ═══════════════
+--
+-- La 0047 lo dejó medido: Supabase declara
+--
+--     ALTER DEFAULT PRIVILEGES ... GRANT ALL ON FUNCTIONS
+--       TO anon, authenticated, service_role;
+--
+-- así que **toda función nueva de `public` nace con EXECUTE concedido a `anon`
+-- de forma explícita**, y el `REVOKE ALL ... FROM public` que escriben casi
+-- todas las migraciones no retira ese permiso: solo el del pseudo-rol PUBLIC.
+--
+-- De ese defecto de fábrica salen las tres migraciones que han tenido que
+-- volver sobre lo mismo:
+--
+--   · 0046 — el REVOKE de la 0002 no protegía nada.
+--   · 0057 — dos funciones repegadas desde el panel, otra vez abiertas.
+--   · 0068 — `audit_visible_for` y `team_storage_bytes`, críticas en la
+--     radiografía, abiertas EN PRODUCCIÓN aunque el repositorio estuviera bien.
+--
+-- El patrón es siempre el mismo: una función se crea o se repega —desde el
+-- panel o desde una migración que olvidó su REVOKE— y queda ejecutable por
+-- alguien sin sesión hasta que la radiografía la señala. Esta migración cambia
+-- el defecto en lugar de seguir persiguiendo sus consecuencias.
+--
+-- ══ Qué hace ════════════════════════════════════════════════════════════════
+--
+-- A partir de aquí, una función nueva de `public` no la ejecuta nadie —ni
+-- `anon` ni `authenticated`— hasta que su migración lo diga con un GRANT. El
+-- patrón que ya escriben todas las migraciones
+--
+--     REVOKE ALL ON FUNCTION public.loquesea(...) FROM public;
+--     GRANT EXECUTE ON FUNCTION public.loquesea(...) TO authenticated;
+--
+-- pasa de ser decorativo (0047: «no es lo que ocurre») a ser el que manda.
+--
+-- `FOR ROLE postgres` porque los permisos por defecto son DEL ROL QUE CREA:
+-- tanto las migraciones del CLI como lo que se pega en el editor SQL del panel
+-- corren como `postgres`, así que este es el rol que cubre los dos caminos por
+-- los que han entrado funciones abiertas.
+--
+-- ══ Qué NO hace, a propósito ════════════════════════════════════════════════
+--
+--   · **No toca las funciones existentes.** Los 48 avisos de la radiografía
+--     (funciones que `anon` puede ejecutar y se defienden solas comprobando
+--     `auth.uid()`) se quedan como están. Cerrarlos en bloque es una migración
+--     aparte, con la lista de la radiografía delante y `test:db` en verde: hay
+--     funciones que las políticas de RLS invocan como el usuario que consulta,
+--     y revocarlas a ciegas rompería lecturas que hoy funcionan.
+--   · **No toca a `service_role`.** Lo usan los scripts de copia y de
+--     radiografía, y no pasa por el muro de RLS de todos modos.
+--   · **`CREATE OR REPLACE` de una función que ya existe CONSERVA sus permisos
+--     viejos.** Esto solo cubre a las funciones nuevas de verdad; repegar una
+--     antigua desde el panel la deja como estaba, ni mejor ni peor.
+--
+-- ══ La excepción que confirma el punto ══════════════════════════════════════
+--
+-- La única función que HOY necesita `anon` es `claim_client_invite`: la
+-- pantalla de invitación CREA la cuenta, así que no puede exigir sesión. La
+-- revisión compartida (`/r/<token>`) no cuenta: va por la edge function
+-- `review-link`, con service_role, sin tocar funciones de `public`.
+--
+-- Si mañana otra pantalla sin sesión necesita una función, su migración
+-- escribirá `GRANT EXECUTE ... TO anon` y quedará dicho a propósito — que es
+-- exactamente lo que este cambio consigue: que abrir algo a `anon` sea una
+-- frase escrita, no un olvido.
+-- ============================================================================
+
+BEGIN;
+
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM public, anon, authenticated;
+
+COMMIT;
+
+-- ============================================================================
+-- Comprobarlo
+-- ----------------------------------------------------------------------------
+-- 1. El defecto ha cambiado — la fila de `public` en pg_default_acl ya no debe
+--    nombrar ni a `anon` ni a `authenticated` para funciones:
+--
+--      SELECT pg_get_userbyid(defaclrole) AS creador, defaclacl
+--      FROM pg_default_acl d JOIN pg_namespace n ON n.oid = d.defaclnamespace
+--      WHERE n.nspname = 'public' AND d.defaclobjtype = 'f';
+--
+-- 2. Una función recién creada nace sin permisos:
+--
+--      CREATE FUNCTION public._prueba_0069() RETURNS int
+--        LANGUAGE sql AS 'SELECT 1';
+--
+--      SELECT has_function_privilege('anon',          'public._prueba_0069()', 'execute'),
+--             has_function_privilege('authenticated', 'public._prueba_0069()', 'execute');
+--      -- → f | f  (antes de esta migración: t | t)
+--
+--      DROP FUNCTION public._prueba_0069();
+--
+-- 3. Y lo de siempre: `npm run radiografia` no debe subir ningún crítico nuevo
+--    — esta migración no abre nada; solo impide que se abra solo.
+-- ============================================================================
