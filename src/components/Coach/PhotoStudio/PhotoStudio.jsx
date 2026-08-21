@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Video } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { canvasSize, isDerivedLayout } from '@/domain/photoLayout';
 import { metricColor } from '@/domain/metrics';
 import { photoWeight, weekSpan, weightDelta } from '@/domain/photos';
 import { EmptyState, Notice, PageHead, Panel, StatCard } from '@/components/ui/primitives';
+import { useEsTelefono } from '@/lib/useMediaQuery';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { usePhotoStudio } from './usePhotoStudio';
 import { useImageCache } from './useImageCache';
@@ -83,6 +84,14 @@ export const PhotoStudio = () => {
   // «Ajustar» por defecto: encuadrar es lo que se hace sin parar, y las otras dos
   // pestañas se visitan una vez.
   const [panelTab, setPanelTab] = useState('adjust');
+  /*
+    El grabador empieza RECOGIDO. Sus dos tarjetas de origen, los permisos y la
+    lista de revisiones medían media pantalla en cada visita, y grabar es el
+    remate ocasional de una revisión, no parte de mirar las fotos. Quien viene a
+    grabar lo abre con un botón; quien viene a comparar no carga con él.
+  */
+  const [grabarAbierto, setGrabarAbierto] = useState(false);
+  const esTelefono = useEsTelefono();
 
   const urls = useMemo(
     () => state.slots.map((s) => (s.photoId ? photoOf(s.photoId)?.url : null)).filter(Boolean),
@@ -220,22 +229,29 @@ export const PhotoStudio = () => {
 
       {/* Las decisiones sobre EL DOCUMENTO —composición, proporción, descargar—
           van arriba y en horizontal. Las que se tocan sin parar mientras trabajas
-          se quedan junto al lienzo. */}
-      <StudioBar
-        state={state}
-        onLayout={studio.setLayout}
-        onRatio={studio.setRatio}
-        onCaptions={studio.setShowCaptions}
-        onExport={handleExport}
-        exportDisabled={!images.isReady}
-        exportHint={
-          !images.isReady
-            ? 'Esperando a que carguen las fotos…'
-            : images.anyTainted
-              ? 'Una foto se cargó sin permisos de origen cruzado; la descarga puede fallar.'
-              : null
-        }
-      />
+          se quedan junto al lienzo.
+
+          EN EL TELÉFONO la barra baja: ahí no hay «arriba y a un lado», hay un
+          rollo vertical, y lo primero del rollo tiene que ser la comparación —a
+          eso se viene—, no un panel de composición y descarga. La misma barra se
+          pinta después del estudio (abajo). */}
+      {!esTelefono && (
+        <StudioBar
+          state={state}
+          onLayout={studio.setLayout}
+          onRatio={studio.setRatio}
+          onCaptions={studio.setShowCaptions}
+          onExport={handleExport}
+          exportDisabled={!images.isReady}
+          exportHint={
+            !images.isReady
+              ? 'Esperando a que carguen las fotos…'
+              : images.anyTainted
+                ? 'Una foto se cargó sin permisos de origen cruzado; la descarga puede fallar.'
+                : null
+          }
+        />
+      )}
 
       <div className="studio">
         <div className="studio-col studio-side">
@@ -271,23 +287,22 @@ export const PhotoStudio = () => {
             }}
           />
 
+          {/* Fila de DOS, con la forma canónica (§5.4): tres tarjetas de formas
+              distintas dejaban un hueco que el ojo lee como error. Las notas de
+              la foto se leen con los números, que es su conversación. */}
           {(delta !== null || span !== null) && (
             <div className="grid-auto">
-              {span !== null && <StatCard label="Semanas entre fotos" value={span} />}
-              {delta !== null && (
-                <StatCard
-                  label="Variación de peso"
-                  value={`${delta > 0 ? '+' : ''}${delta} kg`}
-                  color={metricColor('weight')}
-                  sub={`De ${first.derivedWeight} kg a ${second.derivedWeight} kg · según el check-in de cada semana`}
-                />
-              )}
-              {second?.notes && (
-                <Panel plain className="col gap-1">
-                  <span className="stat-label">Notas</span>
-                  <span className="t-sm t-secondary">{second.notes}</span>
-                </Panel>
-              )}
+              <StatCard label="Semanas entre fotos" value={span ?? '—'} />
+              <StatCard
+                label="Variación de peso"
+                value={delta !== null ? `${delta > 0 ? '+' : ''}${delta} kg` : '—'}
+                color={delta !== null ? metricColor('weight') : undefined}
+                sub={
+                  delta !== null
+                    ? `De ${first.derivedWeight} kg a ${second.derivedWeight} kg · según el check-in de cada semana`
+                    : undefined
+                }
+              />
             </div>
           )}
 
@@ -299,6 +314,7 @@ export const PhotoStudio = () => {
             after={second}
             history={history}
             gender={activeClient.gender}
+            notes={second?.notes || null}
           />
         </div>
 
@@ -375,10 +391,53 @@ export const PhotoStudio = () => {
         </div>
       </div>
 
+      {/* La barra del documento, en su sitio del teléfono: después de mirar. */}
+      {esTelefono && (
+        <StudioBar
+          state={state}
+          onLayout={studio.setLayout}
+          onRatio={studio.setRatio}
+          onCaptions={studio.setShowCaptions}
+          onExport={handleExport}
+          exportDisabled={!images.isReady}
+          exportHint={
+            !images.isReady
+              ? 'Esperando a que carguen las fotos…'
+              : images.anyTainted
+                ? 'Una foto se cargó sin permisos de origen cruzado; la descarga puede fallar.'
+                : null
+          }
+        />
+      )}
+
       {/* Grabar es una tarea distinta de montar, con su propio principio y fin, y
           en una columna de 290 px no cabía ni la vista previa. A ancho completo y
-          al final, que es cuando se hace: primero se prepara el montaje. */}
-      <ReviewRecorder client={activeClient} canvasRef={canvasRef} />
+          al final, que es cuando se hace: primero se prepara el montaje.
+
+          Y RECOGIDO hasta que se pide: sus dos tarjetas de origen, los permisos
+          y la lista de revisiones medían media pantalla en cada visita, y quien
+          entra aquí viene casi siempre a MIRAR. */}
+      {grabarAbierto ? (
+        <ReviewRecorder client={activeClient} canvasRef={canvasRef} />
+      ) : (
+        <Panel
+          title="Grabar la revisión"
+          action={
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setGrabarAbierto(true)}
+            >
+              <Video size={15} /> Abrir el grabador
+            </button>
+          }
+        >
+          <p className="t-sm t-secondary">
+            Ponle voz al montaje o graba la pantalla y compártelo con {activeClient.name}. Las
+            revisiones ya grabadas y sus enlaces también viven aquí.
+          </p>
+        </Panel>
+      )}
     </div>
   );
 };

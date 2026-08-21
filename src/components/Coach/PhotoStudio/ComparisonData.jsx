@@ -66,7 +66,7 @@ const Row = ({ label, before, after, unit, decimals = 1, lowerIsBetter = false }
  * Las filas sin dato en ninguna de las dos fechas no se pintan — una tabla con
  * ocho guiones no informa de nada.
  */
-export const ComparisonData = ({ before, after, history, gender }) => {
+export const ComparisonData = ({ before, after, history, gender, notes = null }) => {
   const data = useMemo(() => {
     if (!before || !after) return null;
 
@@ -98,7 +98,12 @@ export const ComparisonData = ({ before, after, history, gender }) => {
 
   if (!hasAnything) {
     return (
-      <Panel tight>
+      <Panel tight className="col gap-2">
+        {notes && (
+          <p className="t-sm t-secondary">
+            <span className="t-strong">Sus notas:</span> {notes}
+          </p>
+        )}
         <p className="t-sm t-secondary">
           Sin medidas registradas cerca de estas dos fechas. En «Check-ins» puedes añadir una
           revisión con pliegues y perímetros para que aquí salga la comparación numérica.
@@ -137,6 +142,15 @@ export const ComparisonData = ({ before, after, history, gender }) => {
           />
         ))}
       </div>
+
+      {/* Lo que el cliente escribió al subir la foto reciente. Se lee aquí, con
+          los números, porque es su contexto: «esa semana comí fuera» explica una
+          fila de esta tabla, no el encuadre del lienzo. */}
+      {notes && (
+        <p className="t-sm t-secondary">
+          <span className="t-strong">Sus notas:</span> {notes}
+        </p>
+      )}
 
       <p className="t-xs t-tertiary">
         El peso es el promedio del check-in de cada semana. Las medidas son la revisión más cercana a
