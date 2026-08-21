@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { norm } from '@/lib/texto';
 
 /**
  * Buscador con sugerencias y opción de crear una entrada nueva.
@@ -33,15 +34,17 @@ export const Autocomplete = ({
 
   useClickOutside(wrapRef, () => setOpen(false), open);
 
-  const query = String(value || '').trim().toLowerCase();
+  /* `norm` y no `toLowerCase`: buscar «platano» tiene que encontrar «Plátano»
+     y «prension» la «Prensión». La tilde no puede ser la llave (lib/texto). */
+  const query = norm(String(value || '').trim());
   const matches = useMemo(() => {
     if (!query) return [];
     return (items || [])
-      .filter((item) => getLabel(item).toLowerCase().includes(query))
+      .filter((item) => norm(getLabel(item)).includes(query))
       .slice(0, maxSuggestions);
   }, [items, query, getLabel, maxSuggestions]);
 
-  const exactExists = matches.some((m) => getLabel(m).toLowerCase() === query);
+  const exactExists = matches.some((m) => norm(getLabel(m)) === query);
   const canCreate = Boolean(onCreate) && query.length > 0 && !exactExists;
   const rowCount = matches.length + (canCreate ? 1 : 0);
   const showList = open && rowCount > 0;

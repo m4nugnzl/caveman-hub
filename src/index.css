@@ -1845,28 +1845,35 @@ button.task-head { cursor: pointer; }
 
    La tecla escrita al final no es decoración. Un atajo que no se anuncia no lo
    descubre nadie, y este es el que ahorra más tiempo de toda la aplicación. */
+/* El botón de buscar: compacto y en voz baja, con las demás acciones de la
+   esquina. Fue un falso campo ancho (ver `Header.jsx`); ahora dice lo que es. */
 .omnibox {
-  flex: 1; min-width: 0; max-width: 440px;
+  flex-shrink: 0;
   display: flex; align-items: center; gap: var(--s2);
-  height: 34px; padding: 0 var(--s2) 0 var(--s3);
-  font: inherit; font-size: var(--fs-sm); text-align: left;
+  height: 32px; padding: 0 var(--s2) 0 var(--s3);
+  font: inherit; font-size: var(--fs-sm); font-weight: 550; text-align: left;
   color: var(--text-tertiary); cursor: pointer;
-  background: var(--surface-sunken);
+  background: transparent;
   border: 1px solid var(--edge); border-radius: var(--r-md);
-  transition: border-color var(--fast), color var(--fast);
+  transition: border-color var(--fast), color var(--fast), background-color var(--fast);
 }
-.omnibox:hover { border-color: var(--hairline-strong); color: var(--text-secondary); }
-.omnibox-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.omnibox:hover {
+  border-color: var(--hairline-strong); color: var(--text-secondary);
+  background: var(--fill-subtle);
+}
 
-/* En el móvil la caja se encoge a su icono: en 390 px, la marca, un campo de
-   texto y el avatar no caben en una línea, y la cabecera se partía en dos. La
-   tecla también se va —no hay teclado que pulsar— y con ella el único motivo por
-   el que el botón necesitaba ser ancho. */
+/* En el móvil el botón se encoge a su icono: en 390 px, la marca, la búsqueda
+   y el avatar no caben en una línea. La tecla también se va — no hay teclado
+   que pulsar. */
 @media (max-width: 640px) {
-  .omnibox { flex: 0 0 auto; width: 36px; padding: 0; justify-content: center; }
+  .omnibox { width: 36px; padding: 0; justify-content: center; }
   .omnibox-label, .omnibox > .kbd { display: none; }
   .brand > div { display: none; }
 }
+
+/* En la cabecera del móvil/tableta el buscador se arrima a la esquina de las
+   acciones: la marca a un lado, el trabajo al otro. */
+.app-header .omnibox { margin-left: auto; }
 
 /* ── Tecla ─────────────────────────────────────────────────────────────────
    Monoespaciada a propósito: es un valor que se teclea literalmente, que es el
@@ -2031,10 +2038,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     box-shadow: var(--shadow-sm);
   }
 
-  /* Dentro de la barra, la búsqueda cede el sitio a la miga: ancho propio en
-     vez del `flex: 1` de la cabecera del móvil, para que el hueco flexible sea
-     el del nombre de la hoja y no un campo estirado sobre vacío. */
-  .shell-top .omnibox { flex: 0 1 320px; }
 
   /* El subnivel es el segundo plano del MÓVIL: en escritorio su contenido
      entero —selector, cobro, secciones— vive en la barra. */
@@ -2127,18 +2130,22 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    contar no se pinta: un cero permanente es cromo. */
 .side-count {
   margin-left: auto; flex-shrink: 0;
-  /* Caja propia con la cifra centrada y `line-height: 1`: heredando la altura
-     de línea del destino, el número flotaba un pelo alto dentro de su pastilla
-     y desalineado respecto a la etiqueta. Con caja, las dos variantes —pastilla
-     y cifra desnuda— comparten el mismo centro óptico. */
+  /* Las DOS variantes —pastilla y cifra desnuda— comparten caja exacta:
+     mismo alto, mismo ancho mínimo, mismo padding. Antes cada una medía lo
+     suyo y los números de filas vecinas no compartían centro. La cifra se
+     centra por línea (`line-height` = alto de la caja), que es lo que ancla
+     el ojo digital al medio con más fiabilidad que el centrado geométrico
+     del flex — los dígitos no tienen descendentes y el flex los dejaba un
+     pelo bajos. */
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 20px; height: 18px; line-height: 1;
+  min-width: 24px; height: 18px; padding: 0 7px;
+  line-height: 18px;
   font-size: var(--fs-xs); font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
 .side-count.is-warn {
-  padding: 0 6px; border-radius: var(--r-pill);
+  border-radius: var(--r-pill);
   background: var(--warning-soft); color: var(--warning);
   font-weight: 700;
 }
@@ -2152,15 +2159,28 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .side-back { color: var(--text-tertiary); }
 .sidebar-foot .side-link:not(.active) { color: var(--text-tertiary); }
 
-/* «Ver su portal»: un botón vestido de destino, porque en la barra todo se
-   coge igual. Hace falta desvestir el `<button>` del agente de usuario. El
-   `margin-top: auto` lo baja al pie del panel: no es una sección más, es la
-   salida hacia el otro lado, y abajo no compite con ellas. */
-.side-action {
-  width: 100%; border: 0; background: transparent; cursor: pointer;
-  font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
-  margin-top: auto;
-  color: var(--text-tertiary);
+/* «Ver su portal»: la otra cara del cliente, con el cliente. Vive en la zona
+   de identidad —selector, chapas, esto— y viste de botón fantasma discreto,
+   no de destino: cambia de MODO, no de sección, y un contorno fino es la
+   diferencia justa. */
+.side-portal {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  margin: 0 var(--s2); padding: 5px 10px;
+  font: inherit; font-size: var(--fs-xs); font-weight: 650;
+  color: var(--text-secondary); cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
+}
+.side-portal > svg { color: var(--text-tertiary); transition: color var(--fast); }
+.side-portal:hover { background: var(--fill-subtle); color: var(--text); border-color: var(--hairline-strong); }
+.side-portal:hover > svg { color: var(--text-secondary); }
+
+/* El filete que separa la identidad de las secciones: la zona de arriba dice
+   QUIÉN es, la de abajo A DÓNDE ir dentro de él. */
+.sidebar-pane.is-cliente .sidebar-nav {
+  border-top: 1px solid var(--hairline);
+  padding-top: var(--s3);
 }
 
 /* ── El selector de cliente, cuando vive en la barra ───────────────────────
@@ -7668,24 +7688,20 @@ button.log-answer:hover { background: var(--fill); }
   background: var(--surface-raised);
   border: 1px solid var(--hairline-strong); border-radius: var(--r-xl);
   box-shadow: var(--shadow-lg);
-}
-
-/* ── Anclada al buscador ───────────────────────────────────────────────────
-   Con una caja de búsqueda visible, la paleta no aparece en medio de la
-   pantalla: cae DESDE esa caja, en su misma columna y al menos con su ancho
-   (la posición la mide `CommandPalette` al abrir). El salto de «pulso una
-   caja arriba y se abre otra en el centro» era la fricción exacta: así la
-   caja que promete buscar es la que busca. El fondo se queda —sigue siendo un
-   plano modal y el clic fuera lo cierra—; solo cambia dónde nace la caja. En
-   el móvil no hay caja ancha que continuar y se conserva el plano centrado. */
-.palette-backdrop.is-anchored { display: block; padding: 0; }
-.palette-backdrop.is-anchored .palette {
-  position: absolute;
+  /*
+    La entrada es lo que hacía brusca a la paleta, no su posición: aparecía de
+    golpe, sin fondo previo ni origen. Se probó anclarla a la caja que la abre
+    y el centro seguía siendo mejor sitio —es un plano modal, no un menú—; lo
+    que faltaba era esto: el fondo funde y la caja cae un paso corto desde
+    arriba, apenas más lenta que el fondo para que se lea «primero el plano,
+    luego la caja». El bloque global de `prefers-reduced-motion` lo apaga.
+  */
   transform-origin: top center;
-  animation: palette-drop var(--fast) var(--ease);
+  animation: palette-entra 0.22s var(--ease) both;
 }
-@keyframes palette-drop {
-  from { opacity: 0; transform: translateY(-6px); }
+.palette-backdrop { animation: fade var(--fast) both; }
+@keyframes palette-entra {
+  from { opacity: 0; transform: translateY(-10px) scale(0.985); }
 }
 
 .palette-input {

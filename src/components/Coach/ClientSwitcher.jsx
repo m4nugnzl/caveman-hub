@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { norm } from '@/lib/texto';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 
@@ -87,8 +88,9 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
     setOpen((v) => !v);
   };
 
+  /* Sin tildes por los dos lados: «nunez» encuentra a Núñez (lib/texto). */
   const filtrados = filtro.trim()
-    ? clients.filter((c) => c.name.toLowerCase().includes(filtro.trim().toLowerCase()))
+    ? clients.filter((c) => norm(c.name).includes(norm(filtro.trim())))
     : clients;
 
   return (

@@ -3,7 +3,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,6 +21,7 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme.jsx';
+import { norm } from '@/lib/texto';
 import {
   CLIENT_SECTIONS,
   COACH_CLIENT,
@@ -74,15 +74,8 @@ const PaletteContext = createContext(null);
 
 export const CommandPaletteProvider = ({ children }) => {
   const [open, setOpen] = useState(false);
-  /*
-    Las cajas de búsqueda que pueden ANCLAR la paleta. Es un conjunto y no una
-    referencia suelta porque hay dos Omnibox montados a la vez —el de la
-    cabecera del móvil y el de la barra de herramientas del escritorio; el CSS
-    esconde uno según el ancho— y solo el visible puede decir dónde abrirse.
-  */
-  const anchors = useRef(new Set());
   const value = useMemo(
-    () => ({ open, setOpen, toggle: () => setOpen((v) => !v), anchors }),
+    () => ({ open, setOpen, toggle: () => setOpen((v) => !v) }),
     [open]
   );
   return <PaletteContext.Provider value={value}>{children}</PaletteContext.Provider>;
@@ -96,22 +89,6 @@ export const useCommandPalette = () => {
 
 // ── Búsqueda ───────────────────────────────────────────────────────────────
 
-/**
- * Normaliza para comparar: sin mayúsculas y sin tildes.
- *
- * Lo segundo no es un detalle: media cartera se llama Martínez, Núñez o Peña, y
- * sin esto hay que teclear la tilde para encontrarlos. Nadie lo hace.
- */
-const norm = (value) =>
-  String(value || '')
-    .normalize('NFD')
-    // Se quitan las marcas diacríticas con la propiedad Unicode y la bandera
-    // `u`, en vez de con un rango de caracteres combinantes escrito a mano: esos
-    // caracteres son INVISIBLES en el editor, y una expresión que no se puede leer
-    // es una expresión que nadie puede revisar.
-    .replace(/\p{Diacritic}/gu, '')
-    .toLowerCase();
-
 /** Todas las palabras de la consulta tienen que aparecer en la etiqueta. */
 const matches = (item, tokens) => {
   if (tokens.length === 0) return true;
@@ -124,7 +101,7 @@ const matches = (item, tokens) => {
 const GROUP_ORDER = ['Cliente', 'Clientes', 'Ir a', 'Ajustes', 'Acciones'];
 
 export const CommandPalette = () => {
-  const { open, setOpen, anchors } = useCommandPalette();
+  const { open, setOpen } = useCommandPalette();
   const { activeClient, clients, isCoach, view, setViewMode, signOut } = useApp();
   const { isDark, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -136,41 +113,6 @@ export const CommandPalette = () => {
 
   const inputRef = useRef(null);
   const listRef = useRef(null);
-
-  /*
-    ══ Anclada al buscador, no en medio de la nada ════════════════════════════
-
-    La queja que cierra: pulsabas una caja de búsqueda arriba y «de repente» se
-    abría OTRA caja en el centro de la pantalla — dos piezas que prometen ser la
-    misma y no se tocan. Ahora, si hay una caja visible que la abrió (o que la
-    habría abierto: el atajo también ancla), la paleta cae DESDE ella: su misma
-    columna, al menos su ancho, como si la caja se desplegara.
-
-    Se mide al abrir y al redimensionar, nada más: la barra de herramientas es
-    pegajosa, así que la caja no se mueve con el desplazamiento. En el móvil el
-    Omnibox es un icono de 36 px y no hay caja que continuar: se conserva el
-    plano centrado de siempre (`rect` a `null`).
-  */
-  const [anchorRect, setAnchorRect] = useState(null);
-  useLayoutEffect(() => {
-    if (!open) return undefined;
-
-    const medir = () => {
-      const caja = [...anchors.current].find((el) => el && el.offsetWidth > 60);
-      if (!caja || window.innerWidth < 641) {
-        setAnchorRect(null);
-        return;
-      }
-      const r = caja.getBoundingClientRect();
-      const width = Math.min(Math.max(r.width, 520), window.innerWidth - 32);
-      const left = Math.min(r.left, window.innerWidth - width - 16);
-      setAnchorRect({ top: Math.round(r.bottom + 8), left: Math.round(left), width: Math.round(width) });
-    };
-
-    medir();
-    window.addEventListener('resize', medir);
-    return () => window.removeEventListener('resize', medir);
-  }, [open, anchors]);
 
   // ── El atajo global ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -401,20 +343,10 @@ export const CommandPalette = () => {
 
   return (
     <div
-      className={`palette-backdrop${anchorRect ? ' is-anchored' : ''}`}
+      className="palette-backdrop"
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
-      <div
-        className="palette"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Buscar y ejecutar"
-        style={
-          anchorRect
-            ? { top: anchorRect.top, left: anchorRect.left, width: anchorRect.width, maxWidth: 'none' }
-            : undefined
-        }
-      >
+      <div className="palette" role="dialog" aria-modal="true" aria-label="Buscar y ejecutar">
         <div className="palette-input">
           <Search size={17} aria-hidden="true" />
 

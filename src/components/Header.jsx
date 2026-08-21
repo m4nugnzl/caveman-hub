@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { useData } from '@/context/AppContext';
 import { paletteShortcut } from '@/lib/platform';
@@ -33,30 +32,28 @@ import { useCommandPalette } from '@/components/ui/CommandPalette';
  * El botón de búsqueda existe además del atajo `⌘K` porque un atajo que no se
  * anuncia no lo descubre nadie; el propio botón lleva la tecla escrita.
  */
+/*
+  ── Un botón, no un falso campo ─────────────────────────────────────────────
+  La búsqueda fue una caja ancha con pinta de input, y esa promesa era mentira:
+  al pulsarla no se escribía AHÍ, se abría la paleta en el centro. Un campo que
+  abre otro campo se siente como un salto; un BOTÓN que abre un diálogo es lo
+  normal desde hace treinta años. Compacto, vive con las demás acciones de la
+  esquina —buscar, avisos, cuenta— y le devuelve a la miga el sitio que el
+  campo estirado ocupaba sobre vacío.
+*/
 export const Omnibox = () => {
   const palette = useCommandPalette();
 
-  /* La caja se registra como ANCLA de la paleta: al abrirse, la paleta cae
-     desde aquí en vez de aparecer en el centro (ver `CommandPalette`). Hay dos
-     Omnibox montados —cabecera del móvil y barra del escritorio— y por eso es
-     un registro con baja, no una referencia suelta: la paleta elige el visible. */
-  const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    palette.anchors.current.add(el);
-    return () => palette.anchors.current.delete(el);
-  }, [palette]);
-
   return (
     <button
-      ref={ref}
       type="button"
       className="omnibox"
       aria-expanded={palette.open}
+      title="Busca un cliente, una sección o una acción"
       onClick={() => palette.setOpen(true)}
     >
       <Search size={15} aria-hidden="true" />
-      <span className="omnibox-label">Busca un cliente o una sección</span>
+      <span className="omnibox-label">Buscar</span>
       {/* `⌘` en Apple y `Ctrl` en el resto: ver `lib/platform.js`. */}
       <kbd className="kbd">{paletteShortcut()}</kbd>
     </button>

@@ -265,14 +265,32 @@ export const CoachLayout = () => {
           se anuncie con el fundido corto de `.sidebar-pane`.
         */}
         {onClient && activeClient ? (
-          <div className="sidebar-pane" key="cliente">
+          <div className="sidebar-pane is-cliente" key="cliente">
             <NavLink to="/clientes" className="side-link side-back">
               <ArrowLeft size={15} />
               Clientes
             </NavLink>
 
+            {/*
+              ── La zona de identidad, junta ───────────────────────────────────
+              Quién es (el selector), qué estado tiene (las chapas) y su otra
+              cara (ver su portal): las tres cosas hablan del CLIENTE y van
+              juntas arriba, separadas de las secciones por un filete. «Ver su
+              portal» vivió anclado abajo del todo y allí parecía un ajuste
+              más; pertenece a la persona, no al pie.
+
+              Aquí SOLO se cambia el modo. La ruta la traduce el comodín del
+              árbol de destino (`OtherViewFallback`, en `App.jsx`): navegar
+              también desde aquí pierde la carrera contra ese comodín, porque
+              React Router navega en una transición de prioridad baja y el
+              cambio de modo es una actualización normal.
+            */}
             {selector}
             <div className="sidebar-meta">{chapas}</div>
+            <button type="button" className="side-portal" onClick={() => setViewMode('client')}>
+              <Eye size={14} />
+              Ver su portal
+            </button>
 
             <nav className="sidebar-nav" aria-label={`Secciones de ${activeClient.name}`}>
               {seccionesDeCliente.map(({ seccion, activa }) => {
@@ -291,24 +309,6 @@ export const CoachLayout = () => {
               })}
             </nav>
 
-            {/*
-              Ver el portal de ESTE cliente. Vivió dentro del menú de cuenta y
-              ahí no lo imaginaba nadie; pertenece al cliente, así que va con él.
-
-              Aquí SOLO se cambia el modo. La ruta la traduce el comodín del
-              árbol de destino (`OtherViewFallback`, en `App.jsx`): navegar
-              también desde aquí pierde la carrera contra ese comodín, porque
-              React Router navega en una transición de prioridad baja y el
-              cambio de modo es una actualización normal.
-            */}
-            <button
-              type="button"
-              className="side-link side-action"
-              onClick={() => setViewMode('client')}
-            >
-              <Eye size={15} />
-              Ver su portal
-            </button>
           </div>
         ) : (
           <div className="sidebar-pane" key="primario">
