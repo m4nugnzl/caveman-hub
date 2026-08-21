@@ -65,3 +65,6 @@ supabase/.temp
 # La misma categoría: a qué rama apunta el CLI en ESTA máquina. Versionado hacía
 # que dos personas con el CLI abierto en ramas distintas chocaran en cada pull.
 supabase/.branches
+# Estado local de `wrangler dev` (cachés y temporales del emulador). Se
+# regenera solo; commitearlo meteria binarios de una maquina concreta.
+/.wrangler
