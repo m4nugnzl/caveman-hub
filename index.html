@@ -11,7 +11,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#0d1014" />
+    <!--
+      Dos, con media query, y no una: el color de la barra del navegador debe
+      seguir al tema del sistema. Con uno solo (el lienzo oscuro), quien usaba
+      el tema claro veía una franja negra sobre una app blanca — y además
+      discrepaba del `theme_color` del manifest.
+    -->
+    <meta name="theme-color" content="#eceef1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d1014" media="(prefers-color-scheme: dark)" />
     <!--
       Las dos: `mobile-web-app-capable` es la estándar y la que piden ahora los
       navegadores —Chrome avisa por consola de que la de Apple está obsoleta— y la

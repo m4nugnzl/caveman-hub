@@ -2,7 +2,7 @@
   "version": 2,
   "aceptados": {},
   "ultimo": {
-    "generado": "2026-08-20T09:09:23.211Z",
+    "generado": "2026-08-21T07:05:06.132Z",
     "claves": [
       "rls|integration_secrets|aviso",
       "rls|platform_admins|aviso",
@@ -58,20 +58,20 @@
     "metricas": {
       "seguridad · críticos": 2,
       "seguridad · avisos": 48,
-      "actividad · cuentas esta semana": 17,
+      "actividad · cuentas esta semana": 15,
       "fallos · distintos": 0,
-      "embudo · se registró": 12,
-      "embudo · dio de alta un cliente": 5,
+      "embudo · se registró": 11,
+      "embudo · dio de alta un cliente": 4,
       "embudo · le programó algo": 4,
-      "embudo · le dio acceso al portal": 5,
+      "embudo · le dio acceso al portal": 4,
       "embudo · revisó un check-in": 1,
-      "clientes · total": 22,
-      "clientes · con portal (%)": 36.4,
-      "clientes · con sexo (%)": 50,
-      "programas · clientes con programa (%)": 50,
+      "clientes · total": 19,
+      "clientes · con portal (%)": 36.8,
+      "clientes · con sexo (%)": 57.9,
+      "programas · clientes con programa (%)": 57.9,
       "revisión · entregados sin contestar +7d": 0,
-      "antropometría · registros": 19,
-      "workout_data · KB por fila": 45
+      "antropometría · registros": 20,
+      "workout_data · KB por fila": 43
     }
   },
   "historico": [
@@ -115,6 +115,27 @@
         "revisión · entregados sin contestar +7d": 0,
         "antropometría · registros": 19,
         "workout_data · KB por fila": 45
+      }
+    },
+    {
+      "generado": "2026-08-21T07:05:06.132Z",
+      "metricas": {
+        "seguridad · críticos": 2,
+        "seguridad · avisos": 48,
+        "actividad · cuentas esta semana": 15,
+        "fallos · distintos": 0,
+        "embudo · se registró": 11,
+        "embudo · dio de alta un cliente": 4,
+        "embudo · le programó algo": 4,
+        "embudo · le dio acceso al portal": 4,
+        "embudo · revisó un check-in": 1,
+        "clientes · total": 19,
+        "clientes · con portal (%)": 36.8,
+        "clientes · con sexo (%)": 57.9,
+        "programas · clientes con programa (%)": 57.9,
+        "revisión · entregados sin contestar +7d": 0,
+        "antropometría · registros": 20,
+        "workout_data · KB por fila": 43
       }
     }
   ]

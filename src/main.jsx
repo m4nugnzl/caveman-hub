@@ -21,6 +21,22 @@ import './index.css';
 */
 installGlobalHandlers();
 
+/*
+  El service worker que hace que la app SIEMPRE abra (ver `public/sw.js`).
+
+  Solo en producción: en desarrollo cachearía las respuestas del dev server y
+  Vite y la caché se pelearían por quién sirve el módulo recién editado. Y sin
+  bloquear nada: si el registro falla (navegador raro, permisos), la app
+  funciona exactamente igual que antes de existir esto.
+*/
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      /* Sin red o sin soporte: la app sigue; el worker se registrará otro día. */
+    });
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     {/* El tema va por encima de todo: la pantalla de login se pinta antes que
