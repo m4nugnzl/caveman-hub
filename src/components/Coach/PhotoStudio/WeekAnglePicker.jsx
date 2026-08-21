@@ -69,11 +69,7 @@ export const WeekAnglePicker = ({
                 title={has ? angle.hint : `${angle.hint} — todavía sin fotos`}
               >
                 {angle.label}
-                {!has && (
-                  <span className="t-xs" style={{ opacity: 0.6 }}>
-                    sin fotos
-                  </span>
-                )}
+                {!has && <span className="chip-note">sin fotos</span>}
               </button>
             );
           })}

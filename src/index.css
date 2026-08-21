@@ -1660,6 +1660,11 @@ button.task-head { cursor: pointer; }
   font-variant-numeric: tabular-nums; opacity: 0.72;
 }
 
+/* Una aclaración dentro del chip, subordinada a su etiqueta — «Espalda · sin
+   fotos»—. En opacidad y no en un gris fijo para que funcione igual con el chip
+   en reposo y marcado, que invierten la tinta. */
+.chip-note { font-size: var(--fs-xs); font-weight: 500; opacity: 0.6; }
+
 .badge {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 3px 9px; border-radius: var(--r-pill);
@@ -2026,6 +2031,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     box-shadow: var(--shadow-sm);
   }
 
+  /* Dentro de la barra, la búsqueda cede el sitio a la miga: ancho propio en
+     vez del `flex: 1` de la cabecera del móvil, para que el hueco flexible sea
+     el del nombre de la hoja y no un campo estirado sobre vacío. */
+  .shell-top .omnibox { flex: 0 1 320px; }
+
   /* El subnivel es el segundo plano del MÓVIL: en escritorio su contenido
      entero —selector, cobro, secciones— vive en la barra. */
   .shell .subnav { display: none; }
@@ -2033,6 +2043,24 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   /* Con la barra de herramientas encima, menos aire propio. */
   .shell .layout { padding-top: var(--s5); }
 }
+
+/* ── La miga: dónde estás, retenido por la barra pegajosa ──────────────────
+   La cabecera de la pantalla se va al bajar; esto se queda. La hoja abierta va
+   en tinta plena y su contexto —el nombre del cliente, «Ajustes»— en
+   secundaria: se lee el final primero, que es lo que se quiere saber. No son
+   enlaces: nombran, no navegan. Vive dentro de `.shell-top`, así que fuera del
+   escritorio no existe. */
+.crumb {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s2);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary);
+}
+.crumb-part { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-part:last-child { color: var(--text); flex-shrink: 0; }
+/* Con una sola parte no hay contexto delante: la hoja no debe encogerse. Con
+   dos, lo que cede es el contexto (el nombre largo), nunca la hoja. */
+.crumb-part:only-child { flex-shrink: 1; }
+.crumb-sep { color: var(--text-tertiary); flex-shrink: 0; font-weight: 500; }
 
 .sidebar-brand {
   display: flex; align-items: center;
@@ -2089,6 +2117,24 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 15px; border-radius: var(--r-pill);
   background: var(--brasa);
+}
+
+/* ── El recuento de una puerta ─────────────────────────────────────────────
+   «Hoy» lleva la bandeja —lo que espera respuesta, la MISMA cuenta que calcula
+   el dominio para la pantalla y la cartera— y «Clientes» el tamaño de la
+   cartera. El pendiente va en ámbar porque es trabajo, no un dato; el neutro,
+   en voz baja y tabular, como cualquier cifra del producto. Sin nada que
+   contar no se pinta: un cero permanente es cromo. */
+.side-count {
+  margin-left: auto; flex-shrink: 0;
+  font-size: var(--fs-xs); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.side-count.is-warn {
+  padding: 1px 7px; border-radius: var(--r-pill);
+  background: var(--warning-soft); color: var(--warning);
+  font-weight: 700;
 }
 
 /* ── Los destinos especiales del panel de cliente ──────────────────────────
@@ -6310,6 +6356,21 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .settings-nav { display: flex; flex-direction: column; gap: var(--s1); }
 .settings-body { min-width: 0; }
 
+/* ── Las tandas de la lista ────────────────────────────────────────────────
+   Los apartados van agrupados por asunto (`group`, en `routes.jsx`) bajo un
+   rótulo troquelado — la voz de etiqueta de todo el producto—. Ayuda no es un
+   apartado más: va como pie con su filete, la misma gramática que el pie de la
+   barra lateral. */
+.settings-group { display: flex; flex-direction: column; gap: var(--s1); }
+.settings-group + .settings-group { margin-top: var(--s3); }
+.settings-group > .k {
+  font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+  padding: 0 var(--s3) 2px;
+}
+.settings-group.is-foot { border-top: 1px solid var(--hairline); padding-top: var(--s2); }
+
 /* El activo lleva LA REGLETA de brasa en el canto izquierdo: la misma marca de
    «aquí estás» que la barra lateral y las pestañas. La tinta se queda en tinta. */
 .settings-link {
@@ -6337,6 +6398,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .settings { grid-template-columns: minmax(0, 1fr); }
   .settings-nav { flex-direction: row; overflow-x: auto; gap: var(--s2); }
   .settings-nav::-webkit-scrollbar { display: none; }
+  /* En el carril horizontal las tandas se disuelven: los rótulos no caben y
+     una fila que se desplaza ya no se lee por grupos. `display: contents`
+     deja los enlaces como hijos directos del carril. */
+  .settings-group { display: contents; }
+  .settings-group > .k { display: none; }
   .settings-link { flex-direction: column; align-items: center; text-align: center; min-width: 96px; }
   .settings-link > .who > .sub { display: none; }
   /* En fila, la regleta pasa al canto de ARRIBA: en el izquierdo se leería

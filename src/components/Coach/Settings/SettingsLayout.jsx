@@ -16,34 +16,69 @@ import { useActions, useSession } from '@/context/AppContext';
  * izquierda y el contenido a la derecha. En móvil la lista pasa arriba en
  * horizontal, porque una columna de 200 px a 390 px de ancho no deja sitio para el
  * contenido.
+ *
+ * ── La lista va en TANDAS, no de corrido ────────────────────────────────────
+ * Siete apartados planos obligaban a leerlos todos para encontrar uno, y no son
+ * del mismo asunto: el protocolo y el equipo hablan del servicio que das; las
+ * integraciones y la copia, de lo que hay conectado; la apariencia y el plan, de
+ * tu cuenta. Los rótulos (`group`, en `routes.jsx`) nombran esas tandas y Ayuda
+ * queda como pie con su filete — la misma gramática que el pie de la barra
+ * lateral. En el carril horizontal del móvil los rótulos no caben y la lista
+ * vuelve a ser plana: ahí ordena el pulgar, no el ojo.
  */
+
+/** Los apartados, en tandas: los consecutivos con el mismo `group` van juntos. */
+const TANDAS = SETTINGS_SECTIONS.reduce((tandas, section) => {
+  const ultima = tandas[tandas.length - 1];
+  if (ultima && ultima.rotulo === (section.group || null)) ultima.sections.push(section);
+  else tandas.push({ rotulo: section.group || null, sections: [section] });
+  return tandas;
+}, []);
+
 export const SettingsLayout = () => {
   const pendientes = useTicketsPendientes();
 
+  /* Sin cabecera propia a propósito: cada apartado trae la suya («Protocolo»,
+     «Plan»…) y un «Ajustes» encima sería la doble cabecera que `GroupHead`
+     existe para evitar. El nombre del área lo dicen la barra y la miga. */
   return (
     <div className="settings">
       <nav className="settings-nav" aria-label="Apartados de configuración">
-        {SETTINGS_SECTIONS.map(({ path, label, icon: Icon, hint }) => (
-          <NavLink key={path} to={`/ajustes/${path}`} className="settings-link">
-            <Icon size={17} />
-            <span className="who">
-              <span className="name">
-                {label}
-                {/*
-                  El contador de lo que espera respuesta.
-
-                  Es la única notificación que NO depende de nada externo: sin
-                  correo configurado, sin dominio y sin conexión a terceros, aquí
-                  se ve que hay algo pendiente. El correo avisa cuando no estás
-                  mirando; esto, cuando sí.
-                */}
-                {path === 'ayuda' && pendientes > 0 && (
-                  <span className="badge badge-warn">{pendientes}</span>
-                )}
+        {TANDAS.map(({ rotulo, sections }) => (
+          <div
+            key={rotulo || 'pie'}
+            className={`settings-group${rotulo ? '' : ' is-foot'}`}
+            role="group"
+            aria-label={rotulo || undefined}
+          >
+            {rotulo && (
+              <span className="k" aria-hidden="true">
+                {rotulo}
               </span>
-              <span className="sub">{hint}</span>
-            </span>
-          </NavLink>
+            )}
+            {sections.map(({ path, label, icon: Icon, hint }) => (
+              <NavLink key={path} to={`/ajustes/${path}`} className="settings-link">
+                <Icon size={17} />
+                <span className="who">
+                  <span className="name">
+                    {label}
+                    {/*
+                      El contador de lo que espera respuesta.
+
+                      Es la única notificación que NO depende de nada externo: sin
+                      correo configurado, sin dominio y sin conexión a terceros, aquí
+                      se ve que hay algo pendiente. El correo avisa cuando no estás
+                      mirando; esto, cuando sí.
+                    */}
+                    {path === 'ayuda' && pendientes > 0 && (
+                      <span className="badge badge-warn">{pendientes}</span>
+                    )}
+                  </span>
+                  <span className="sub">{hint}</span>
+                </span>
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 

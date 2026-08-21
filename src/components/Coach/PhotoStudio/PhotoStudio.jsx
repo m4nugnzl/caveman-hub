@@ -3,9 +3,8 @@ import { Camera, Video } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { canvasSize, isDerivedLayout } from '@/domain/photoLayout';
-import { metricColor } from '@/domain/metrics';
-import { photoWeight, weekSpan, weightDelta } from '@/domain/photos';
-import { EmptyState, Notice, PageHead, Panel, StatCard } from '@/components/ui/primitives';
+import { photoWeight, weekSpan } from '@/domain/photos';
+import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { usePhotoStudio } from './usePhotoStudio';
@@ -191,7 +190,6 @@ export const PhotoStudio = () => {
   const first = filled[0] || null;
   const second = filled.length > 1 ? filled[filled.length - 1] : null;
 
-  const delta = weightDelta(first, second, history);
   const span = weekSpan(first, second, activeClient.startDate);
 
   return (
@@ -287,31 +285,19 @@ export const PhotoStudio = () => {
             }}
           />
 
-          {/* Fila de DOS, con la forma canónica (§5.4): tres tarjetas de formas
-              distintas dejaban un hueco que el ojo lee como error. Las notas de
-              la foto se leen con los números, que es su conversación. */}
-          {(delta !== null || span !== null) && (
-            <div className="grid-auto">
-              <StatCard label="Semanas entre fotos" value={span ?? '—'} />
-              <StatCard
-                label="Variación de peso"
-                value={delta !== null ? `${delta > 0 ? '+' : ''}${delta} kg` : '—'}
-                color={delta !== null ? metricColor('weight') : undefined}
-                sub={
-                  delta !== null
-                    ? `De ${first.derivedWeight} kg a ${second.derivedWeight} kg · según el check-in de cada semana`
-                    : undefined
-                }
-              />
-            </div>
-          )}
-
           {/* Dos fotos lado a lado son una impresión; «cintura −5 cm» es la
               prueba. Va justo debajo del lienzo, no en la barra lateral, porque
-              se lee A LA VEZ que las fotos. */}
+              se lee A LA VEZ que las fotos.
+
+              Aquí hubo además dos tarjetas —semanas entre fotos y variación de
+              peso— y se fundieron en el panel: el peso ES la primera fila de la
+              tabla, y decirlo dos veces a cinco centímetros era la misma cifra
+              compitiendo consigo misma. El intervalo vive ahora en la cabecera
+              del panel (`span`). */}
           <ComparisonData
             before={first}
             after={second}
+            span={span}
             history={history}
             gender={activeClient.gender}
             notes={second?.notes || null}

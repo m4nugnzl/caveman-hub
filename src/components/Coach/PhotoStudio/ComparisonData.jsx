@@ -66,7 +66,16 @@ const Row = ({ label, before, after, unit, decimals = 1, lowerIsBetter = false }
  * Las filas sin dato en ninguna de las dos fechas no se pintan — una tabla con
  * ocho guiones no informa de nada.
  */
-export const ComparisonData = ({ before, after, history, gender, notes = null }) => {
+export const ComparisonData = ({ before, after, span = null, history, gender, notes = null }) => {
+  /*
+    El intervalo, en la cabecera del panel. Vivía en una tarjeta aparte junto a
+    otra con la variación de peso; el peso ya es la primera fila de esta tabla,
+    así que la tarjeta duplicada se fue y el intervalo —que la tabla NO dice—
+    se quedó aquí, como remate del título.
+  */
+  const intervalo =
+    span !== null ? `${span} ${span === 1 ? 'semana' : 'semanas'} entre fotos` : null;
+
   const data = useMemo(() => {
     if (!before || !after) return null;
 
@@ -105,6 +114,7 @@ export const ComparisonData = ({ before, after, history, gender, notes = null })
           </p>
         )}
         <p className="t-sm t-secondary">
+          {intervalo && <>Hay {intervalo}. </>}
           Sin medidas registradas cerca de estas dos fechas. En «Check-ins» puedes añadir una
           revisión con pliegues y perímetros para que aquí salga la comparación numérica.
         </p>
@@ -114,7 +124,10 @@ export const ComparisonData = ({ before, after, history, gender, notes = null })
 
   return (
     <Panel className="col gap-3">
-      <SectionTitle icon={Ruler}>
+      <SectionTitle
+        icon={Ruler}
+        action={intervalo && <span className="t-xs t-tertiary">{intervalo}</span>}
+      >
         Qué dicen los números
       </SectionTitle>
 

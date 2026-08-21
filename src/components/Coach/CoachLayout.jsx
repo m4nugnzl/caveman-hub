@@ -1,15 +1,17 @@
-import { useEffect } from 'react';
+import { Fragment, useEffect, useMemo } from 'react';
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, Settings, UserPlus } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
 import { feeLabel, paymentState } from '@/domain/billing';
+import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
 import { clientProtocol } from '@/domain/protocol';
 import { dayMonthMaybeYear } from '@/lib/dates';
 import {
   COACH_CLIENT,
   COACH_HOME,
   COACH_PRIMARY,
+  SETTINGS_SECTIONS,
   clientPath,
   isSectionActive,
   sameSectionFor,
@@ -86,7 +88,17 @@ const ChapaDeCobro = ({ client }) => {
 };
 
 export const CoachLayout = () => {
-  const { clients, loading, selectedClientId, setSelectedClientId, activeClient } = useApp();
+  const {
+    clients,
+    loading,
+    selectedClientId,
+    setSelectedClientId,
+    activeClient,
+    training,
+    anthropometry,
+    progressPhotos,
+    checkIns,
+  } = useApp();
   const { setViewMode } = useActions();
   const { clientId } = useParams();
   const location = useLocation();
@@ -94,6 +106,29 @@ export const CoachLayout = () => {
 
   const hasClients = clients.length > 0;
   const onClient = Boolean(clientId);
+
+  /*
+    ── El recuento de la bandeja, en la puerta de «Hoy» ────────────────────────
+    La MISMA bandeja que calculan «Hoy» y la cartera (`portfolioInbox`), contada
+    aquí para que la barra lo diga desde cualquier pantalla: lo que espera
+    respuesta no debería descubrirse solo al pasar por la bandeja. Una tercera
+    cuenta propia divergiría; por eso se suman sus filas y no se inventa nada.
+  */
+  const pendientes = useMemo(() => {
+    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns });
+    return portfolioInbox(rows).tasks.reduce((n, task) => n + task.rows.length, 0);
+  }, [clients, training, anthropometry, progressPhotos, checkIns]);
+
+  /*
+    Qué número acompaña a cada puerta del nivel primario. «Hoy» lleva el trabajo
+    que espera —en ámbar, porque es un pendiente, no un dato—; «Clientes», el
+    tamaño de la cartera, en voz baja. Sin nada que contar no se pinta un cero:
+    un cero permanente es cromo.
+  */
+  const cuentaDe = {
+    '/hoy': pendientes > 0 ? { n: pendientes, warn: true, detalle: 'Esperan respuesta tuya' } : null,
+    '/clientes': hasClients ? { n: clients.length, warn: false, detalle: 'Clientes en la cartera' } : null,
+  };
 
   /*
     La ruta manda sobre el contexto. `clientId` puede venir de una URL pegada, de un
@@ -190,6 +225,30 @@ export const CoachLayout = () => {
         }))
       : [];
 
+  /*
+    ── La miga: dónde estás, dicho por la barra de herramientas ───────────────
+    La barra de herramientas es pegajosa y la cabecera de la pantalla no: en
+    cuanto se baja, el nombre de lo que se está mirando desaparecía con ella.
+    La miga lo retiene —«Marta García › Nutrición», «Ajustes › Equipo»— y le da
+    a la barra su gramática completa: dónde estoy (esto), a dónde voy (la
+    búsqueda), quién soy (la cuenta). No son enlaces: para moverse ya están la
+    barra lateral y la paleta; esto solo nombra la hoja abierta.
+  */
+  const miga = (() => {
+    if (location.pathname.startsWith('/ajustes')) {
+      const seccion = SETTINGS_SECTIONS.find((s) =>
+        location.pathname.startsWith(`/ajustes/${s.path}`)
+      );
+      return ['Ajustes', seccion?.label].filter(Boolean);
+    }
+    if (onClient && activeClient) {
+      const activa = seccionesDeCliente.find((s) => s.activa)?.seccion;
+      return [activeClient.name, activa?.label].filter(Boolean);
+    }
+    const primaria = COACH_PRIMARY.find((p) => location.pathname.startsWith(p.path));
+    return primaria ? [primaria.label] : [];
+  })();
+
   return (
     <div className="shell">
       {/* ══ La barra lateral: solo existe en escritorio (ver EL CHASIS) ═══ */}
@@ -254,18 +313,29 @@ export const CoachLayout = () => {
         ) : (
           <div className="sidebar-pane" key="primario">
             <nav className="sidebar-nav" aria-label="Secciones principales">
-              {COACH_PRIMARY.map(({ path, label, icon: Icon }) => (
-                <NavLink
-                  key={path}
-                  to={path}
-                  className="side-link"
-                  /* «Clientes» no debe marcarse por estar dentro de un cliente. */
-                  end
-                >
-                  <Icon size={15} />
-                  {label}
-                </NavLink>
-              ))}
+              {COACH_PRIMARY.map(({ path, label, icon: Icon }) => {
+                const cuenta = cuentaDe[path];
+                return (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    className="side-link"
+                    /* «Clientes» no debe marcarse por estar dentro de un cliente. */
+                    end
+                  >
+                    <Icon size={15} />
+                    {label}
+                    {cuenta && (
+                      <span
+                        className={`side-count${cuenta.warn ? ' is-warn' : ''}`}
+                        title={cuenta.detalle}
+                      >
+                        {cuenta.n}
+                      </span>
+                    )}
+                  </NavLink>
+                );
+              })}
             </nav>
           </div>
         )}
@@ -289,13 +359,28 @@ export const CoachLayout = () => {
       <div className="shell-main">
         {/*
           ── La barra de herramientas del escritorio ─────────────────────────
-          En el chasis no hay franja de cabecera: sus dos piezas útiles —la
-          búsqueda y la cuenta— van en este objeto de cristal, a juego con la
-          barra lateral y alineado con la columna de contenido. Son las MISMAS
-          piezas que monta la cabecera del móvil (`Header.jsx`): el avatar está
-          siempre arriba a la derecha, en cualquier modo y tamaño.
+          En el chasis no hay franja de cabecera: sus piezas van en este objeto
+          de cristal, a juego con la barra lateral y alineado con la columna de
+          contenido. Tres voces, de izquierda a derecha: dónde estás (la miga),
+          a dónde vas (la búsqueda) y quién eres (la cuenta). La búsqueda y la
+          cuenta son las MISMAS piezas que monta la cabecera del móvil
+          (`Header.jsx`): el avatar está siempre arriba a la derecha, en
+          cualquier modo y tamaño. La miga es solo del escritorio — en el móvil
+          la cabecera lleva la marca y el contexto ya lo da el subnivel.
         */}
         <div className="shell-top">
+          <div className="crumb">
+            {miga.map((parte, i) => (
+              <Fragment key={i}>
+                {i > 0 && (
+                  <span className="crumb-sep" aria-hidden="true">
+                    ›
+                  </span>
+                )}
+                <span className="crumb-part">{parte}</span>
+              </Fragment>
+            ))}
+          </div>
           <Omnibox />
           <HeaderActions />
         </div>

@@ -158,37 +158,50 @@ export const COACH_CLIENT = [
  * primario es lo que permite que ese tenga tres entradas: el equipo y las
  * integraciones no son sitios donde trabajar, son sitios donde dejar algo puesto.
  */
+/*
+  ── `group` es el rótulo de su tanda en la lista de Ajustes ──────────────────
+  Siete apartados planos se leían de corrido, y no son del mismo asunto: dos
+  hablan del servicio que das, dos de lo que la aplicación tiene conectado y dos
+  de tu propia cuenta. El rótulo nombra la tanda; los apartados consecutivos con
+  el mismo `group` se pintan juntos (ver `SettingsLayout`). Es presentación:
+  las rutas no cambian, solo el orden y la lectura de la lista.
+*/
 export const SETTINGS_SECTIONS = [
   {
     path: 'protocolo',
     label: 'Protocolo',
     icon: ClipboardList,
     hint: 'Qué le pides a tus clientes y qué ve cada uno',
-  },
-  { path: 'apariencia', label: 'Apariencia', icon: Palette, hint: 'Tema claro u oscuro' },
-  {
-    path: 'integraciones',
-    label: 'Integraciones',
-    icon: Plug,
-    hint: 'Conecta Notion, Stripe y lo que venga',
-  },
-  {
-    path: 'copia',
-    label: 'Copia de seguridad',
-    icon: HardDriveDownload,
-    hint: 'Llévate todo lo que guarda la aplicación',
+    group: 'Tu asesoría',
   },
   {
     path: 'equipo',
     label: 'Equipo',
     icon: UsersRound,
     hint: 'Entrenadores, roles y reparto de clientes',
+    group: 'Tu asesoría',
   },
+  {
+    path: 'integraciones',
+    label: 'Integraciones',
+    icon: Plug,
+    hint: 'Conecta Notion, Stripe y lo que venga',
+    group: 'Conexiones',
+  },
+  {
+    path: 'copia',
+    label: 'Copia de seguridad',
+    icon: HardDriveDownload,
+    hint: 'Llévate todo lo que guarda la aplicación',
+    group: 'Conexiones',
+  },
+  { path: 'apariencia', label: 'Apariencia', icon: Palette, hint: 'Tema claro u oscuro', group: 'Tu cuenta' },
   {
     path: 'plan',
     label: 'Plan',
     icon: CreditCard,
     hint: 'Tu suscripción y hasta dónde llega',
+    group: 'Tu cuenta',
   },
   /*
     Ayuda va la última y dentro de Ajustes, no en el nivel primario.
@@ -197,6 +210,10 @@ export const SETTINGS_SECTIONS = [
     porque se busca cuando hace falta y no se visita a diario. El nivel primario
     son tres entradas a propósito (Hoy, Cartera, Clientes) y meter aquí una cuarta
     que se usa una vez al mes le quitaría sitio a las que se usan cada día.
+
+    Sin `group`: no es un apartado de configuración, es la puerta de socorro. En
+    la lista va como pie, separada por su filete — la misma gramática que el pie
+    de la barra lateral.
   */
   {
     path: 'ayuda',
