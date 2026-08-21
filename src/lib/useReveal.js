@@ -43,7 +43,12 @@ import { prefiereMenosMovimiento } from '@/lib/motion';
  */
 export const useReveal = (observa) => {
   const ref = useRef(null);
-  const [dentro, setDentro] = useState(() => prefiereMenosMovimiento());
+  /* Sin ventana no hay animación posible, así que se empieza visible. Es lo que
+     hace que el prerender de la portada (`scripts/prerender.mjs`) saque el
+     contenido puesto y no quince secciones en opacidad cero. */
+  const [dentro, setDentro] = useState(
+    () => typeof window === 'undefined' || prefiereMenosMovimiento()
+  );
   const opciones = useRef(observa);
 
   useEffect(() => {

@@ -22,7 +22,9 @@ import './index.css';
 installGlobalHandlers();
 
 /*
-  El service worker que hace que la app SIEMPRE abra (ver `public/sw.js`).
+  El service worker que hace que la app SIEMPRE abra. Lo genera el build con la
+  lista de archivos de esta versión (ver `scripts/sw.mjs`); en desarrollo no
+  existe y el registro falla en silencio, que es lo correcto.
 
   Solo en producción: en desarrollo cachearía las respuestas del dev server y
   Vite y la caché se pelearían por quién sirve el módulo recién editado. Y sin

@@ -63,3 +63,9 @@
 # existen y ve una pantalla en blanco.
 /index.html
   Cache-Control: no-cache
+
+# El service worker tampoco: es el que decide qué versión de la aplicación se
+# sirve, y un worker cacheado retrasaría cada despliegue hasta 24 horas (el tope
+# que aplican los navegadores). Lo genera el build (`scripts/sw.mjs`).
+/sw.js
+  Cache-Control: no-cache
