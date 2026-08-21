@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Search } from 'lucide-react';
 import { useData } from '@/context/AppContext';
 import { paletteShortcut } from '@/lib/platform';
@@ -35,8 +36,25 @@ import { useCommandPalette } from '@/components/ui/CommandPalette';
 export const Omnibox = () => {
   const palette = useCommandPalette();
 
+  /* La caja se registra como ANCLA de la paleta: al abrirse, la paleta cae
+     desde aquí en vez de aparecer en el centro (ver `CommandPalette`). Hay dos
+     Omnibox montados —cabecera del móvil y barra del escritorio— y por eso es
+     un registro con baja, no una referencia suelta: la paleta elige el visible. */
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    palette.anchors.current.add(el);
+    return () => palette.anchors.current.delete(el);
+  }, [palette]);
+
   return (
-    <button type="button" className="omnibox" onClick={() => palette.setOpen(true)}>
+    <button
+      ref={ref}
+      type="button"
+      className="omnibox"
+      aria-expanded={palette.open}
+      onClick={() => palette.setOpen(true)}
+    >
       <Search size={15} aria-hidden="true" />
       <span className="omnibox-label">Busca un cliente o una sección</span>
       {/* `⌘` en Apple y `Ctrl` en el resto: ver `lib/platform.js`. */}

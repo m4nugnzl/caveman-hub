@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -73,8 +74,15 @@ const PaletteContext = createContext(null);
 
 export const CommandPaletteProvider = ({ children }) => {
   const [open, setOpen] = useState(false);
+  /*
+    Las cajas de búsqueda que pueden ANCLAR la paleta. Es un conjunto y no una
+    referencia suelta porque hay dos Omnibox montados a la vez —el de la
+    cabecera del móvil y el de la barra de herramientas del escritorio; el CSS
+    esconde uno según el ancho— y solo el visible puede decir dónde abrirse.
+  */
+  const anchors = useRef(new Set());
   const value = useMemo(
-    () => ({ open, setOpen, toggle: () => setOpen((v) => !v) }),
+    () => ({ open, setOpen, toggle: () => setOpen((v) => !v), anchors }),
     [open]
   );
   return <PaletteContext.Provider value={value}>{children}</PaletteContext.Provider>;
@@ -116,7 +124,7 @@ const matches = (item, tokens) => {
 const GROUP_ORDER = ['Cliente', 'Clientes', 'Ir a', 'Ajustes', 'Acciones'];
 
 export const CommandPalette = () => {
-  const { open, setOpen } = useCommandPalette();
+  const { open, setOpen, anchors } = useCommandPalette();
   const { activeClient, clients, isCoach, view, setViewMode, signOut } = useApp();
   const { isDark, toggle: toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -128,6 +136,41 @@ export const CommandPalette = () => {
 
   const inputRef = useRef(null);
   const listRef = useRef(null);
+
+  /*
+    ══ Anclada al buscador, no en medio de la nada ════════════════════════════
+
+    La queja que cierra: pulsabas una caja de búsqueda arriba y «de repente» se
+    abría OTRA caja en el centro de la pantalla — dos piezas que prometen ser la
+    misma y no se tocan. Ahora, si hay una caja visible que la abrió (o que la
+    habría abierto: el atajo también ancla), la paleta cae DESDE ella: su misma
+    columna, al menos su ancho, como si la caja se desplegara.
+
+    Se mide al abrir y al redimensionar, nada más: la barra de herramientas es
+    pegajosa, así que la caja no se mueve con el desplazamiento. En el móvil el
+    Omnibox es un icono de 36 px y no hay caja que continuar: se conserva el
+    plano centrado de siempre (`rect` a `null`).
+  */
+  const [anchorRect, setAnchorRect] = useState(null);
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+
+    const medir = () => {
+      const caja = [...anchors.current].find((el) => el && el.offsetWidth > 60);
+      if (!caja || window.innerWidth < 641) {
+        setAnchorRect(null);
+        return;
+      }
+      const r = caja.getBoundingClientRect();
+      const width = Math.min(Math.max(r.width, 520), window.innerWidth - 32);
+      const left = Math.min(r.left, window.innerWidth - width - 16);
+      setAnchorRect({ top: Math.round(r.bottom + 8), left: Math.round(left), width: Math.round(width) });
+    };
+
+    medir();
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
+  }, [open, anchors]);
 
   // ── El atajo global ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -358,10 +401,20 @@ export const CommandPalette = () => {
 
   return (
     <div
-      className="palette-backdrop"
+      className={`palette-backdrop${anchorRect ? ' is-anchored' : ''}`}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
-      <div className="palette" role="dialog" aria-modal="true" aria-label="Buscar y ejecutar">
+      <div
+        className="palette"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Buscar y ejecutar"
+        style={
+          anchorRect
+            ? { top: anchorRect.top, left: anchorRect.left, width: anchorRect.width, maxWidth: 'none' }
+            : undefined
+        }
+      >
         <div className="palette-input">
           <Search size={17} aria-hidden="true" />
 

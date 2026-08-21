@@ -2127,20 +2127,30 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    contar no se pinta: un cero permanente es cromo. */
 .side-count {
   margin-left: auto; flex-shrink: 0;
+  /* Caja propia con la cifra centrada y `line-height: 1`: heredando la altura
+     de línea del destino, el número flotaba un pelo alto dentro de su pastilla
+     y desalineado respecto a la etiqueta. Con caja, las dos variantes —pastilla
+     y cifra desnuda— comparten el mismo centro óptico. */
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 20px; height: 18px; line-height: 1;
   font-size: var(--fs-xs); font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
 .side-count.is-warn {
-  padding: 1px 7px; border-radius: var(--r-pill);
+  padding: 0 6px; border-radius: var(--r-pill);
   background: var(--warning-soft); color: var(--warning);
   font-weight: 700;
 }
 
-/* ── Los destinos especiales del panel de cliente ──────────────────────────
-   La vuelta a la lista, en tinta terciaria: es una salida, no una sección, y
-   no debe pesar lo que pesan los destinos. */
+/* ── Las PUERTAS de la barra ───────────────────────────────────────────────
+   Volver a la lista, ver su portal, ajustes: salidas, no secciones. Hablan en
+   tinta terciaria para no pesar lo que pesan los destinos —vestidas igual que
+   ellos se confundían con ellos— y recuperan la tinta al pasar por encima,
+   como todo. La de Ajustes, cuando está DENTRO de Ajustes, es un destino
+   activo normal y se marca como tal (brasa incluida). */
 .side-back { color: var(--text-tertiary); }
+.sidebar-foot .side-link:not(.active) { color: var(--text-tertiary); }
 
 /* «Ver su portal»: un botón vestido de destino, porque en la barra todo se
    coge igual. Hace falta desvestir el `<button>` del agente de usuario. El
@@ -2150,7 +2160,22 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   width: 100%; border: 0; background: transparent; cursor: pointer;
   font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
   margin-top: auto;
+  color: var(--text-tertiary);
 }
+
+/* ── El selector de cliente, cuando vive en la barra ───────────────────────
+   En la barra el cliente ES el plano entero: su selector ocupa el ancho, como
+   lo ocupa la marca arriba, y no una pastilla flotando a la izquierda. Se le
+   quita el cromo de botón —la barra ya es superficie; dentro de ella un botón
+   con borde es una caja dentro de una caja— y el galón se va al canto
+   derecho. La lista desplegada hereda el mismo ancho: columna con columna. */
+.sidebar-pane .switcher { width: 100%; }
+.sidebar-pane .switcher-btn {
+  width: 100%;
+  background: transparent; border-color: transparent; box-shadow: none;
+}
+.sidebar-pane .switcher-btn:hover { background: var(--fill-subtle); border-color: transparent; }
+.sidebar-pane .switcher .popover { left: 0; right: 0; }
 
 /* La misma puerta, en el subnivel del móvil: a la derecha de las chapas. */
 .subnav-view { margin-left: auto; }
@@ -7643,6 +7668,24 @@ button.log-answer:hover { background: var(--fill); }
   background: var(--surface-raised);
   border: 1px solid var(--hairline-strong); border-radius: var(--r-xl);
   box-shadow: var(--shadow-lg);
+}
+
+/* ── Anclada al buscador ───────────────────────────────────────────────────
+   Con una caja de búsqueda visible, la paleta no aparece en medio de la
+   pantalla: cae DESDE esa caja, en su misma columna y al menos con su ancho
+   (la posición la mide `CommandPalette` al abrir). El salto de «pulso una
+   caja arriba y se abre otra en el centro» era la fricción exacta: así la
+   caja que promete buscar es la que busca. El fondo se queda —sigue siendo un
+   plano modal y el clic fuera lo cierra—; solo cambia dónde nace la caja. En
+   el móvil no hay caja ancha que continuar y se conserva el plano centrado. */
+.palette-backdrop.is-anchored { display: block; padding: 0; }
+.palette-backdrop.is-anchored .palette {
+  position: absolute;
+  transform-origin: top center;
+  animation: palette-drop var(--fast) var(--ease);
+}
+@keyframes palette-drop {
+  from { opacity: 0; transform: translateY(-6px); }
 }
 
 .palette-input {

@@ -92,18 +92,32 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
     : clients;
 
   return (
-    <div ref={wrapRef} style={{ position: 'relative' }}>
+    <div ref={wrapRef} className="switcher" style={{ position: 'relative' }}>
       <button
         type="button"
-        className="btn btn-secondary"
+        className="btn btn-secondary switcher-btn"
         style={{ padding: '6px 14px 6px 6px', borderRadius: 14 }}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={abrir}
       >
         <Avatar name={current.name} active />
-        <span style={{ textAlign: 'left' }}>
-          <span style={{ display: 'block', fontSize: '0.9rem', fontWeight: 800, lineHeight: 1.15 }}>
+        {/* `flex: 1` para que en la barra lateral —donde el botón ocupa el
+            ancho— el galón se vaya al canto derecho, como en cualquier
+            selector de espacio de trabajo. En el subnivel del móvil el botón
+            mide lo que su contenido y el `flex` no cambia nada. */}
+        <span style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
+          <span
+            style={{
+              display: 'block',
+              fontSize: '0.9rem',
+              fontWeight: 800,
+              lineHeight: 1.15,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
             {current.name}
           </span>
           <span className="t-xs t-secondary" style={{ fontWeight: 600 }}>
@@ -112,7 +126,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
         </span>
         <ChevronDown
           size={16}
-          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }}
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }}
         />
       </button>
 

@@ -4,7 +4,9 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**'] },
+  /* `.wrangler/` son artefactos temporales de `wrangler dev` (ya en el
+     gitignore): lintear bundles generados solo produce ruido ajeno. */
+  { ignores: ['dist/**', 'node_modules/**', '.wrangler/**'] },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],
@@ -54,6 +56,9 @@ export default [
       'scripts/**/*.mjs',
       'scripts/**/*.js',
       '*.config.js',
+      /* El worker de Cloudflare no corre en el navegador pero comparte sus
+         globales de plataforma (`URL`, `fetch`, `Request`): los de Node valen. */
+      'worker.mjs',
       'supabase/tests/**/*.js',
       'supabase/tests/**/*.mjs',
     ],
