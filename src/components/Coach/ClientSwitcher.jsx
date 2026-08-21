@@ -71,7 +71,7 @@ const ClientOption = ({ client, selected, onPick }) => (
   </button>
 );
 
-export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
+export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }) => {
   const [open, setOpen] = useState(false);
   /* El filtro de la hoja del teléfono. Se limpia al abrir, no al cerrar: así
      un cierre con el gesto de atrás no deja la búsqueda anterior puesta. */
@@ -122,8 +122,19 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect }) => {
           >
             {current.name}
           </span>
-          <span className="t-xs t-secondary" style={{ fontWeight: 600 }}>
-            {current.plan || 'Sin plan'}
+          {/* El subtítulo lo compone quien monta el selector (plan, antigüedad…);
+              sin él, el plan a secas, como en la lista. */}
+          <span
+            className="t-xs t-secondary"
+            style={{
+              fontWeight: 600,
+              display: 'block',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {subtitle || current.plan || 'Sin plan'}
           </span>
         </span>
         <ChevronDown

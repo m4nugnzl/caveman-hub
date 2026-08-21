@@ -1845,22 +1845,26 @@ button.task-head { cursor: pointer; }
 
    La tecla escrita al final no es decoración. Un atajo que no se anuncia no lo
    descubre nadie, y este es el que ahorra más tiempo de toda la aplicación. */
-/* El botón de buscar: compacto y en voz baja, con las demás acciones de la
-   esquina. Fue un falso campo ancho (ver `Header.jsx`); ahora dice lo que es. */
+/* El botón de buscar: con las demás acciones de la esquina, no un falso campo
+   ancho (ver `Header.jsx`). Con cuerpo de control —altura de la fila, fondo
+   hundido— para que se encuentre sin buscarlo: la primera versión compacta se
+   quedaba en una etiqueta suelta. */
 .omnibox {
   flex-shrink: 0;
   display: flex; align-items: center; gap: var(--s2);
-  height: 32px; padding: 0 var(--s2) 0 var(--s3);
+  height: 36px; padding: 0 var(--s2) 0 12px;
   font: inherit; font-size: var(--fs-sm); font-weight: 550; text-align: left;
-  color: var(--text-tertiary); cursor: pointer;
-  background: transparent;
+  color: var(--text-secondary); cursor: pointer;
+  background: var(--surface-sunken);
   border: 1px solid var(--edge); border-radius: var(--r-md);
   transition: border-color var(--fast), color var(--fast), background-color var(--fast);
 }
+.omnibox > svg { color: var(--text-tertiary); transition: color var(--fast); }
 .omnibox:hover {
-  border-color: var(--hairline-strong); color: var(--text-secondary);
+  border-color: var(--hairline-strong); color: var(--text);
   background: var(--fill-subtle);
 }
+.omnibox:hover > svg { color: var(--text-secondary); }
 
 /* En el móvil el botón se encoge a su icono: en 390 px, la marca, la búsqueda
    y el avatar no caben en una línea. La tecla también se va — no hay teclado
@@ -2084,11 +2088,10 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   from { opacity: 0; transform: translateY(4px); }
 }
 
-/* El pie: la puerta de ajustes, anclada abajo y separada por su filete. */
-.sidebar-foot {
-  border-top: 1px solid var(--hairline);
-  padding-top: var(--s2);
-}
+/* El pie: la puerta de ajustes, anclada abajo. Sin filete: dentro de un panel
+   de cristal, las zonas las separa el ESPACIO — cada línea de más convierte la
+   barra en una rejilla. */
+.sidebar-foot { padding-top: var(--s2); }
 
 /* Las chapas del cliente —cobro y antigüedad—, bajo su selector. */
 .sidebar-meta { display: flex; flex-wrap: wrap; gap: var(--s1); padding: 0 var(--s2); }
@@ -2159,28 +2162,14 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .side-back { color: var(--text-tertiary); }
 .sidebar-foot .side-link:not(.active) { color: var(--text-tertiary); }
 
-/* «Ver su portal»: la otra cara del cliente, con el cliente. Vive en la zona
-   de identidad —selector, chapas, esto— y viste de botón fantasma discreto,
-   no de destino: cambia de MODO, no de sección, y un contorno fino es la
-   diferencia justa. */
-.side-portal {
-  display: flex; align-items: center; justify-content: center; gap: var(--s2);
-  margin: 0 var(--s2); padding: 5px 10px;
-  font: inherit; font-size: var(--fs-xs); font-weight: 650;
-  color: var(--text-secondary); cursor: pointer;
-  background: transparent;
-  border: 1px solid var(--edge); border-radius: var(--r-md);
-  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
-}
-.side-portal > svg { color: var(--text-tertiary); transition: color var(--fast); }
-.side-portal:hover { background: var(--fill-subtle); color: var(--text); border-color: var(--hairline-strong); }
-.side-portal:hover > svg { color: var(--text-secondary); }
-
-/* El filete que separa la identidad de las secciones: la zona de arriba dice
-   QUIÉN es, la de abajo A DÓNDE ir dentro de él. */
-.sidebar-pane.is-cliente .sidebar-nav {
-  border-top: 1px solid var(--hairline);
-  padding-top: var(--s3);
+/* «Ver su portal»: un botón vestido de fila, porque en la barra todo se coge
+   igual y una caja con borde era una caja dentro del cristal. Es la última
+   fila del plano del cliente —su otra cara— y habla en voz de puerta. Hace
+   falta desvestir el `<button>` del agente de usuario. */
+.side-action {
+  width: 100%; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
+  color: var(--text-tertiary);
 }
 
 /* ── El selector de cliente, cuando vive en la barra ───────────────────────
