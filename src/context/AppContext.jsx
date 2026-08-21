@@ -8,24 +8,29 @@ import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
 import { recordIssue } from '@/lib/diagnostics';
 import { bucket, flushEvents, forgetActor, identify, track } from '@/lib/analytics';
+import { useRoadmap } from '@/context/useRoadmap';
+import { useSupport } from '@/context/useSupport';
+import { useReviews } from '@/context/useReviews';
+import { useCalendar } from '@/context/useCalendar';
+import { useCheckIns } from '@/context/useCheckIns';
+import { useTeam } from '@/context/useTeam';
+import { useIntegrations } from '@/context/useIntegrations';
+import { useProgressPhotos } from '@/context/useProgressPhotos';
+import { useCoachPrefs } from '@/context/useCoachPrefs';
+import { BUCKET, SIGNED_URL_TTL_SECONDS } from '@/context/media';
 import {
   mapAnthroFromDb,
   mapAnthroToDb,
   mapCatalogFoodFromDb,
   mapCheckInFromDb,
-  mapEventFromDb,
   mapClientFromDb,
   mapClientToDb,
   mapLibraryExerciseFromDb,
   mapLibraryFoodFromDb,
   mapNutritionFromDb,
   mapNutritionToDb,
-  mapPhaseFromDb,
-  mapPhaseToDb,
   mapPhotoFromDb,
-  mapPhotoToDb,
   mapPlanFromDb,
-  mapTicketFromDb,
   mapTrainingSummaryFromDb,
   mapWorkoutFromDb,
   mapWorkoutToDb,
@@ -59,11 +64,8 @@ import {
 } from '@/domain/nutrition';
 import {
   buildIntakePath,
-  buildSupportPath,
   validateAttachment,
 } from '@/domain/attachments';
-import { buildPhotoPath, slug as slugify, validatePhotoFile } from '@/domain/photos';
-import { shrinkImage } from '@/lib/shrinkImage';
 import { traduceStorageError } from '@/lib/dbErrors';
 import { isArchived } from '@/domain/portfolio';
 import { nextPaymentAfter } from '@/domain/billing';
@@ -97,20 +99,8 @@ const QUEUE_OF_TABLE = {
   nutrition_plans: 'nutrition',
 };
 
-const BUCKET = 'client-media';
-
 /** Destinos válidos de un guardado recuperado. Ver el efecto de recuperación. */
 const DOMINIOS = ['workout', 'anthro', 'nutrition', 'client', 'preferences'];
-
-/**
- * Duración de las URLs firmadas de Storage.
- *
- * Antes se firmaban a UN AÑO y la URL se guardaba en la base de datos, así que
- * todo el material multimedia caducaba de golpe en la fecha de aniversario.
- * Ahora se guarda la ruta y se firma en cada carga: 8 horas cubren una jornada
- * de trabajo y `refreshPhotoUrls()` vuelve a firmar si algo expira.
- */
-const SIGNED_URL_TTL_SECONDS = 60 * 60 * 8;
 
 const EMPTY_SAVE_STATE = { status: 'idle', error: null };
 
@@ -137,7 +127,6 @@ export const AppProvider = ({ children }) => {
   const [workoutData, setWorkoutData, workoutRef] = useMirroredState({});
   const [anthropometry, setAnthropometry, anthroRef] = useMirroredState({});
   const [nutrition, setNutrition, nutritionRef] = useMirroredState({});
-  const [progressPhotos, setProgressPhotos, photosRef] = useMirroredState([]);
 
   /*
     El catálogo común (migración 0033): alimentos y ejercicios de referencia que
@@ -150,26 +139,21 @@ export const AppProvider = ({ children }) => {
   const [catalogFoods, setCatalogFoods] = useState([]);
   const [catalogExercises, setCatalogExercises] = useState([]);
 
-  /*
-    Las fases del roadmap DEL CLIENTE ABIERTO (migración 0028).
-
-    Un array y no un mapa por cliente, a diferencia de las rutinas: son cuatro o
-    cinco filas diminutas y solo hacen falta en la ficha que se está mirando. Un
-    mapa aquí sería una caché con invalidación que resolvería un problema que
-    todavía no existe.
-
-    La contrapartida está anotada donde toca: `portfolio.js` llama a
-    `weeklyReading` para toda la cartera sin fases, así que los titulares de la
-    lista se siguen leyendo contra `preferences.goal`. Se nota poco —son una
-    frase por cliente— y arreglarlo bien es una consulta de fases en bloque, no
-    un mapa en memoria.
-  */
-  const [phases, setPhases] = useState([]);
-
-  /** Equipo del entrenador. `null` mientras la migración 0006 no esté aplicada. */
-  const [team, setTeam] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [plan, setPlan] = useState(null);
+  /** Equipo del entrenador y plan contratado, en su gancho (`useTeam.js`).
+      `loadForUser` siembra los tres estados con los setters que devuelve. */
+  const {
+    team,
+    setTeam,
+    teamMembers,
+    setTeamMembers,
+    plan,
+    setPlan,
+    inviteTeamMember,
+    updateTeamMemberRole,
+    removeTeamMember,
+    renameTeam,
+    refreshPlan,
+  } = useTeam({ clientsRef, setClients });
 
   /*
     El resumen de entrenamiento que calcula el servidor (migración 0024), por
@@ -190,19 +174,6 @@ export const AppProvider = ({ children }) => {
   */
   const planRef = useRef(null);
   planRef.current = plan;
-
-  /** Último check-in por cliente. Vacío si la migración 0009 no está aplicada. */
-  const [checkIns, setCheckIns] = useState({});
-  /*
-    Si la ENTREGA de check-ins existe en esta base (la 0009 está aplicada).
-
-    Es distinto de «checkIns está vacío»: una cuenta recién creada no tiene
-    ninguno y la función está perfectamente activa. Confundir los dos casos hacía
-    que la cartera le dijera a cada cuenta nueva «los check-ins no están activos,
-    escríbenos» — una avería inventada y un ticket de soporte por estreno.
-    `null` = todavía no se ha cargado nada.
-  */
-  const [checkInsActivos, setCheckInsActivos] = useState(null);
 
   const [saveState, setSaveState] = useState({});
 
@@ -545,6 +516,22 @@ export const AppProvider = ({ children }) => {
     [clientsRef, setClients]
   );
 
+  /* Los check-ins: estado y acciones en su gancho (`useCheckIns.js`). Va aquí y
+     no con los demás dominios extraídos porque `loadForUser`, más abajo, siembra
+     su estado con los setters que devuelve. */
+  const {
+    checkIns,
+    setCheckIns,
+    checkInsActivos,
+    setCheckInsActivos,
+    submitCheckIn,
+    loadCheckInHistory,
+    deleteCheckIn,
+    reviewCheckIn,
+    unreviewCheckIn,
+    updateCheckInNotes,
+  } = useCheckIns({ stampNow });
+
   const persist = useCallback(
     (domain, clientId, payload, { immediate = false } = {}) => {
       const senders = {
@@ -690,43 +677,18 @@ export const AppProvider = ({ children }) => {
   /** Descarta respuestas de una carga anterior si el usuario cambia rápido. */
   const loadTokenRef = useRef(0);
 
-  const resolvePhotoUrls = useCallback(async (photos) => {
-    const paths = photos.filter((p) => p.path && !p.url).map((p) => p.path);
-    if (paths.length === 0) return photos;
-
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
-
-    if (error) {
-      console.error('No se pudieron firmar las URLs de las fotos:', error.message);
-      return photos;
-    }
-
-    const byPath = new Map((data || []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
-    return photos.map((p) => (p.path && byPath.has(p.path) ? { ...p, url: byPath.get(p.path) } : p));
-  }, []);
-
-  /**
-   * Firma las fotos de UN cliente que todavía no tengan enlace.
-   *
-   * Lo llama la pantalla que va a enseñarlas. Si ya están firmadas no hace nada,
-   * así que se puede llamar en cada render sin pensarlo.
-   */
-  const ensurePhotoUrls = useCallback(
-    async (clientId) => {
-      const pending = photosRef.current.filter((p) => p.clientId === clientId && p.path && !p.url);
-      if (pending.length === 0) return;
-
-      const resolved = await resolvePhotoUrls(pending);
-      const byId = new Map(resolved.map((p) => [p.id, p.url]));
-
-      setProgressPhotos((prev) =>
-        prev.map((p) => (byId.has(p.id) && byId.get(p.id) ? { ...p, url: byId.get(p.id) } : p))
-      );
-    },
-    [photosRef, resolvePhotoUrls, setProgressPhotos]
-  );
+  /* Las fotos de progreso: estado espejado y acciones en su gancho
+     (`useProgressPhotos.js`). `loadForUser` siembra las filas —sin firmar— con
+     el setter que devuelve. */
+  const {
+    progressPhotos,
+    setProgressPhotos,
+    ensurePhotoUrls,
+    uploadProgressPhoto,
+    deleteProgressPhoto,
+    updateProgressPhoto,
+    refreshPhotoUrls,
+  } = useProgressPhotos({ clientsRef, isCoachRef });
 
   const loadForUser = useCallback(
     async (user) => {
@@ -1036,9 +998,14 @@ export const AppProvider = ({ children }) => {
     },
     [
       setAnthropometry,
+      setCheckIns,
+      setCheckInsActivos,
       setClients,
       setNutrition,
+      setPlan,
       setProgressPhotos,
+      setTeam,
+      setTeamMembers,
       setWorkoutData,
     ]
   );
@@ -1057,7 +1024,7 @@ export const AppProvider = ({ children }) => {
     setTeam(null);
     setTeamMembers([]);
     setCheckIns({});
-  }, [queue, setAnthropometry, setClients, setNutrition, setProgressPhotos, setWorkoutData]);
+  }, [queue, setAnthropometry, setCheckIns, setClients, setNutrition, setProgressPhotos, setTeam, setTeamMembers, setWorkoutData]);
 
   /**
    * Quién está cargado ahora mismo. Es la guardia de la recarga completa.
@@ -1239,293 +1206,19 @@ export const AppProvider = ({ children }) => {
 
   // ── Preferencias del entrenador ──────────────────────────────────────────
 
-  /*
-    Cómo mira ESTE entrenador a sus clientes (migración 0035).
-
-    Son dos preguntas distintas y hasta ahora solo existía la segunda: «¿cómo
-    miro yo a mis clientes?» —que se repite— y «¿qué necesita ver Marta?» —que es
-    la excepción—. Sin la primera, configurar el panel había que repetirlo tantas
-    veces como clientes, y el resultado real era que nadie lo configuraba.
-  */
-  const [coachPrefs, setCoachPrefs] = useState({});
-  /*
-    Si ya se han LEÍDO, que no es lo mismo que si están vacías.
-
-    Hace falta desde que las plantillas viven aquí: «este entrenador no tiene
-    plantilla guardada» es la condición que dispara la subida de la que tenga en
-    el navegador, y confundirla con «todavía no han llegado» significa subir la
-    plantilla por defecto encima de la suya en cada arranque.
-  */
-  const [coachPrefsReady, setCoachPrefsReady] = useState(false);
-
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId) {
-      setCoachPrefs({});
-      setCoachPrefsReady(false);
-      return undefined;
-    }
-
-    let cancelado = false;
-    (async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('preferences')
-        .eq('id', userId)
-        .single();
-
-      // Sin la 0035 la columna no existe. Vacío = «no hay plantilla», que es
-      // exactamente como se comportaba la aplicación antes.
-      if (cancelado) return;
-      setCoachPrefs(error ? {} : data?.preferences || {});
-      setCoachPrefsReady(true);
-    })();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [session]);
-
-  /**
-   * Guarda una sección de las preferencias del entrenador.
-   *
-   * Fusiona por sección, igual que `updateClientPreferences`: escribir el objeto
-   * entero desde el navegador borraría lo que otra pantalla hubiera guardado
-   * mientras tanto.
-   */
-  const updateCoachPreferences = useCallback(
-    async (section, patch) => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      const next = {
-        ...coachPrefs,
-        [section]: { ...(coachPrefs[section] || {}), ...patch },
-      };
-
-      setCoachPrefs(next); // optimista: el cambio se ve al instante
-      const { error } = await supabase
-        .from('profiles')
-        .update({ preferences: next })
-        .eq('id', userId);
-
-      return error ? { ok: false, error: error.message } : { ok: true };
-    },
-    [coachPrefs, session]
-  );
+  /* En su gancho (`useCoachPrefs.js`). `applyDashboardToAll` no está allí: es
+     una escritura masiva de la cartera y vive con `reloadClients`. */
+  const { coachPrefs, coachPrefsReady, updateCoachPreferences } = useCoachPrefs({ session });
 
   // ── Soporte ──────────────────────────────────────────────────────────────
 
-  /*
-    ¿Atiendo yo la plataforma? Se pregunta a la base y no se deduce de nada del
-    navegador.
-
-    Este valor solo decide QUÉ SE PINTA —la bandeja de todos, o solo mis hilos—.
-    Quién puede leer qué lo sigue decidiendo RLS, así que si esto se pusiera a
-    `true` desde la consola del navegador lo único que pasaría es que se vería una
-    bandeja vacía.
-  */
-  const [isSupport, setIsSupport] = useState(false);
-
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setIsSupport(false);
-      return undefined;
-    }
-
-    let cancelado = false;
-    (async () => {
-      const { data, error } = await supabase.rpc('is_platform_admin');
-      // Sin la 0034 la función no existe: nadie es soporte, que es el lado
-      // correcto por el que equivocarse.
-      if (!cancelado) setIsSupport(!error && data === true);
-    })();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [session]);
-
-  /**
-   * Los tickets que puedo ver: los míos, o TODOS si atiendo la plataforma.
-   *
-   * La consulta es la misma en los dos casos y quien decide es RLS (migración
-   * 0034). Es lo que evita el error clásico de esto: un `if (soyAdmin)` en el
-   * navegador que elige entre dos consultas y que, mal puesto, enseña la bandeja
-   * entera a quien no debe. Aquí la aplicación no tiene forma de pedir de más.
-   */
-  const loadTickets = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('support_tickets')
-      .select('*, profiles(full_name, email), support_messages(*)')
-      .order('updated_at', { ascending: false });
-
-    if (error) return { ok: false, error: error.message, tickets: [] };
-
-    const tickets = (data || []).map(mapTicketFromDb).map((ticket) => ({
-      ...ticket,
-      // PostgREST no garantiza el orden de lo embebido; un hilo desordenado se
-      // lee como una conversación en la que nadie contesta a lo anterior.
-      messages: [...ticket.messages].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    }));
-
-    /*
-      Los adjuntos se firman TODOS DE UNA VEZ, no uno por mensaje.
-
-      Una bandeja de soporte con veinte hilos abiertos son veinte peticiones de
-      firma en cascada nada más entrar. `createSignedUrls` acepta la lista entera
-      y devuelve lo que puede firmar; lo que no —un archivo borrado a mano, una
-      ruta de un ticket ajeno— se queda sin URL y el mensaje lo dice, en vez de
-      dejar un enlace roto.
-    */
-    const paths = tickets.flatMap((t) => t.messages.map((m) => m.attachmentPath).filter(Boolean));
-
-    if (paths.length > 0) {
-      const { data: firmadas } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
-
-      const porRuta = new Map(
-        (firmadas || []).filter((f) => f.signedUrl).map((f) => [f.path, f.signedUrl])
-      );
-
-      for (const ticket of tickets) {
-        ticket.messages = ticket.messages.map((m) =>
-          m.attachmentPath ? { ...m, attachmentUrl: porRuta.get(m.attachmentPath) || null } : m
-        );
-      }
-    }
-
-    return { ok: true, tickets };
-  }, []);
-
-  /**
-   * Sube el adjunto de un mensaje de soporte y devuelve su ruta.
-   *
-   * La ruta lleva el id del ticket dentro (`support/<ticketId>/…`) y eso es lo
-   * que la política de la 0039 comprueba: no hay forma de dejar un archivo en el
-   * hilo de otro, ni siquiera llamando a Storage directamente.
-   */
-  const uploadSupportAttachment = useCallback(async ({ ticketId, file }) => {
-    const invalido = validateAttachment(file);
-    if (invalido) return { ok: false, error: invalido };
-
-    const path = buildSupportPath({ ticketId, fileName: file.name });
-    const { error } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, file, { contentType: file.type || undefined, upsert: false });
-
-    return error ? { ok: false, error: error.message } : { ok: true, path };
-  }, []);
-
-  const createTicket = useCallback(
-    async ({ subject, body, context = {}, attachment = null }) => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      const { data, error } = await supabase
-        .from('support_tickets')
-        .insert({
-          profile_id: userId,
-          team_id: team?.id ?? null,
-          subject: String(subject || '').trim(),
-          context,
-        })
-        .select()
-        .single();
-
-      if (error) return { ok: false, error: error.message };
-
-      /*
-        La captura, si la hay, se sube DESPUÉS de crear el ticket: su ruta lleva
-        el id dentro y hasta aquí no existe.
-
-        Y si la subida falla, el mensaje se manda igual. El texto es lo que se
-        puede contestar; perder el ticket entero porque la imagen pesaba de más
-        —justo cuando la persona está escribiendo porque algo no le funciona— es
-        la peor respuesta posible. Se avisa y se sigue.
-      */
-      let adjunto = null;
-      let aviso = null;
-      if (attachment) {
-        const subida = await uploadSupportAttachment({ ticketId: data.id, file: attachment });
-        if (subida.ok) adjunto = subida.path;
-        else aviso = `El ticket se ha enviado, pero el archivo no: ${subida.error}`;
-      }
-
-      /*
-        El primer mensaje va aparte y no en una columna del ticket. Así el hilo es
-        homogéneo desde el principio: la pantalla pinta una lista de mensajes y no
-        «el texto original, y además los mensajes», que es la variante que obliga
-        a tratar el primero como un caso especial en cada sitio.
-      */
-      const primero = await supabase.from('support_messages').insert({
-        ticket_id: data.id,
-        author_id: userId,
-        from_support: false,
-        body: String(body || '').trim(),
-        attachment_path: adjunto,
-      });
-
-      if (primero.error) return { ok: false, error: primero.error.message };
-
-      /*
-        El aviso por correo, y su fallo NO se propaga.
-
-        El ticket ya está guardado y se puede leer en la bandeja: si el correo no
-        sale —porque no hay clave configurada, porque Resend está caído— sería
-        mentira decirle al entrenador que no se ha podido crear su ticket. Se
-        traga a propósito.
-
-        Va después del INSERT y no dentro de la función: así el ticket existe
-        aunque el aviso falle, en vez de al revés.
-      */
-      supabase.functions
-        .invoke('support-notify', { body: { ticketId: data.id } })
-        .catch(() => {});
-
-      /*
-        Un ticket es fricción medida en la única unidad que no engaña: alguien se
-        ha parado a escribir. Cruzado con `app_errors` de la misma semana separa
-        las dos clases de problema que se confunden siempre — «esto está roto»
-        (habrá fallos registrados) de «esto no se entiende» (no habrá ninguno), y
-        la segunda no se arregla mirando el código.
-      */
-      track('soporte_abierto');
-
-      return { ok: true, ticketId: data.id, aviso };
-    },
-    [session, team, uploadSupportAttachment]
-  );
-
-  const replyTicket = useCallback(
-    async (ticketId, body, fromSupport = false, attachment = null) => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      /* Aquí el ticket ya existe, así que la subida va PRIMERO: si falla, no se
-         ha escrito nada y el fallo se puede contar entero. */
-      let adjunto = null;
-      if (attachment) {
-        const subida = await uploadSupportAttachment({ ticketId, file: attachment });
-        if (!subida.ok) return { ok: false, error: `No se pudo subir el archivo: ${subida.error}` };
-        adjunto = subida.path;
-      }
-
-      const { error } = await supabase.from('support_messages').insert({
-        ticket_id: ticketId,
-        author_id: userId,
-        // La política comprueba que esto coincida con si eres soporte de verdad
-        // (0034), así que mentir aquí no cuela: la fila se rechaza.
-        from_support: fromSupport,
-        body: String(body || '').trim(),
-        attachment_path: adjunto,
-      });
-
-      return error ? { ok: false, error: error.message } : { ok: true };
-    },
-    [session, uploadSupportAttachment]
-  );
+  /* Segundo dominio extraído: estado (`isSupport`), bandeja y acciones de
+     tickets viven en su gancho. `uploadIntakeFile` y `signPaths` se quedan
+     aquí porque no son de soporte (ver `useSupport.js`). */
+  const { isSupport, loadTickets, createTicket, replyTicket, setTicketStatus } = useSupport({
+    session,
+    team,
+  });
 
   // ── Archivos de los pasos del alta ───────────────────────────────────────
   //
@@ -1574,15 +1267,6 @@ export const AppProvider = ({ children }) => {
     return new Map((data || []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
   }, []);
 
-  const setTicketStatus = useCallback(async (ticketId, status) => {
-    const { error } = await supabase
-      .from('support_tickets')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', ticketId);
-
-    return error ? { ok: false, error: error.message } : { ok: true };
-  }, []);
-
   // ── Catálogo común ───────────────────────────────────────────────────────
 
   /*
@@ -1626,90 +1310,12 @@ export const AppProvider = ({ children }) => {
 
   const activeClientId = activeClient?.id || null;
 
-  /*
-    Las fases se recargan al cambiar de cliente.
-
-    `cancelado` es lo que evita el fallo clásico de este patrón: al pasar rápido de
-    una ficha a otra, la respuesta de la primera puede llegar DESPUÉS que la de la
-    segunda y dejar en pantalla el roadmap del cliente anterior. Con clientes
-    distintos en definición y en volumen, eso no es un parpadeo raro: es la
-    analítica juzgando a alguien contra el objetivo de otra persona.
-  */
-  useEffect(() => {
-    if (!activeClientId) {
-      setPhases([]);
-      return undefined;
-    }
-
-    let cancelado = false;
-    setPhases([]);
-
-    (async () => {
-      const { data, error } = await supabase
-        .from('client_phases')
-        .select('*')
-        .eq('client_id', activeClientId)
-        .order('starts_on');
-
-      if (cancelado) return;
-      /*
-        Sin la migración 0028 la tabla no existe y esto falla. Se traga: un
-        roadmap vacío deja la aplicación exactamente como estaba antes de que
-        existiera esta función, y `effectiveGoal` cae solo al objetivo declarado.
-        Un `loadError` aquí rompería la ficha entera por una función opcional.
-      */
-      setPhases(error ? [] : (data || []).map(mapPhaseFromDb));
-    })();
-
-    return () => {
-      cancelado = true;
-    };
-  }, [activeClientId]);
-
-  const addPhase = useCallback(
-    async (clientId, fields) => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      const { data, error } = await supabase
-        .from('client_phases')
-        .insert({ client_id: clientId, created_by: userId, ...mapPhaseToDb(fields) })
-        .select()
-        .single();
-
-      if (error) return { ok: false, error: explicarErrorDeFase(error) };
-
-      const fase = mapPhaseFromDb(data);
-      if (clientId === activeClientId) setPhases((prev) => [...prev, fase]);
-      return { ok: true, phase: fase };
-    },
-    [activeClientId, session]
-  );
-
-  const updatePhase = useCallback(
-    async (phaseId, fields) => {
-      const { data, error } = await supabase
-        .from('client_phases')
-        .update({ ...mapPhaseToDb(fields), updated_at: new Date().toISOString() })
-        .eq('id', phaseId)
-        .select()
-        .single();
-
-      if (error) return { ok: false, error: explicarErrorDeFase(error) };
-
-      const fase = mapPhaseFromDb(data);
-      setPhases((prev) => prev.map((p) => (p.id === phaseId ? fase : p)));
-      return { ok: true, phase: fase };
-    },
-    []
-  );
-
-  const removePhase = useCallback(async (phaseId) => {
-    const { error } = await supabase.from('client_phases').delete().eq('id', phaseId);
-    if (error) return { ok: false, error: error.message };
-    setPhases((prev) => prev.filter((p) => p.id !== phaseId));
-    return { ok: true };
-  }, []);
+  /* El primer dominio extraído del proveedor: estado, carga y acciones viven
+     en su gancho. La convención está escrita en `useRoadmap.js`. */
+  const { phases, addPhase, updatePhase, removePhase } = useRoadmap({
+    session,
+    activeClientId,
+  });
 
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
 
@@ -3718,121 +3324,6 @@ export const AppProvider = ({ children }) => {
     [patchFood, upsertLibraryFood]
   );
 
-  // ── Fotos de progreso ────────────────────────────────────────────────────
-
-  /**
-   * Sube una foto real a Storage y crea su fila. Devuelve `{ ok, error }` en
-   * vez de tragarse el fallo: quien llama tiene que poder informar al usuario.
-   */
-  const uploadProgressPhoto = useCallback(
-    async ({ clientId, file, week, angle, weight, notes }) => {
-      const invalid = validatePhotoFile(file);
-      if (invalid) return { ok: false, error: invalid };
-
-      /*
-        Se reduce ANTES de subir, y se valida antes de reducir.
-
-        El orden importa: validar el original es lo que deja rechazar un archivo
-        que no es una foto sin haber gastado nada, y reducir después es lo que
-        evita subir doce megas de los que se ven trescientos kilos.
-
-        `shrinkImage` devuelve el mismo archivo si no puede con él, así que aquí
-        no hay caso de error que atender: o llega reducido o llega tal cual.
-      */
-      const subida = await shrinkImage(file);
-      const path = buildPhotoPath({ clientId, week, angle, fileName: subida.name });
-
-      const { error: uploadErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, subida, { contentType: subida.type || undefined, upsert: false });
-
-      if (uploadErr) {
-        /*
-          La cuota de la 0067 llega como «database error, code: 23514»: la API de
-          Storage no reenvía el texto del disparador, así que la frase la pone
-          `traduceStorageError` — distinta según quién sube, que aquí se sabe.
-        */
-        const capado = traduceStorageError(uploadErr, { cliente: !isCoachRef.current });
-        return { ok: false, error: capado || `No se pudo subir la imagen: ${uploadErr.message}` };
-      }
-
-      const { data, error } = await supabase
-        .from('progress_photos')
-        .insert(mapPhotoToDb({ clientId, path, angle, weight: toNum(weight), notes }))
-        .select()
-        .single();
-
-      if (error) {
-        // La fila no se creó: se limpia el objeto huérfano para no dejar basura.
-        await supabase.storage.from(BUCKET).remove([path]);
-        return { ok: false, error: `No se pudo registrar la foto: ${error.message}` };
-      }
-
-      const clientName = clientsRef.current.find((c) => c.id === clientId)?.name;
-      const [withUrl] = await resolvePhotoUrls([mapPhotoFromDb(data, clientName)]);
-      setProgressPhotos([withUrl, ...photosRef.current]);
-      /* Solo cuenta cuando la sube el ENTRENADOR: `track` no apunta nada desde el
-         portal, así que las del cliente no entran. Es intencionado y hay que
-         leerlo así — esta cifra mide uso del panel, no fotos subidas. */
-      track('foto_subida');
-      return { ok: true, photo: withUrl };
-    },
-    [clientsRef, photosRef, resolvePhotoUrls, setProgressPhotos]
-  );
-
-  const deleteProgressPhoto = useCallback(
-    async (photo) => {
-      const { error } = await supabase.from('progress_photos').delete().eq('id', photo.id);
-      if (error) return { ok: false, error: error.message };
-
-      if (photo.path) {
-        const { error: storageErr } = await supabase.storage.from(BUCKET).remove([photo.path]);
-        // La fila ya no existe: un objeto huérfano es molesto, no grave.
-        if (storageErr) console.warn('No se pudo borrar el archivo:', storageErr.message);
-      }
-
-      setProgressPhotos(photosRef.current.filter((p) => p.id !== photo.id));
-      return { ok: true };
-    },
-    [photosRef, setProgressPhotos]
-  );
-
-  /**
-   * Edita los metadatos de una foto. Ángulo, peso y notas viven juntos dentro de
-   * `tag`, así que hay que reescribirlo completo a partir del estado ya
-   * fusionado (no se puede actualizar un campo suelto).
-   */
-  const updateProgressPhoto = useCallback(
-    async (photoId, fields) => {
-      const current = photosRef.current.find((p) => p.id === photoId);
-      if (!current) return { ok: false, error: 'La foto ya no existe.' };
-
-      const merged = {
-        ...current,
-        ...fields,
-        weight: 'weight' in fields ? toNum(fields.weight) : current.weight,
-      };
-
-      const { error } = await supabase
-        .from('progress_photos')
-        .update({ tag: mapPhotoToDb(merged).tag })
-        .eq('id', photoId);
-
-      if (error) return { ok: false, error: error.message };
-
-      setProgressPhotos(photosRef.current.map((p) => (p.id === photoId ? merged : p)));
-      return { ok: true };
-    },
-    [photosRef, setProgressPhotos]
-  );
-
-  /** Vuelve a firmar las URLs (por si alguna expiró durante la sesión). */
-  const refreshPhotoUrls = useCallback(async () => {
-    const cleared = photosRef.current.map((p) => (p.path ? { ...p, url: null } : p));
-    const refreshed = await resolvePhotoUrls(cleared);
-    setProgressPhotos(refreshed);
-  }, [photosRef, resolvePhotoUrls, setProgressPhotos]);
-
   // ── Clientes ─────────────────────────────────────────────────────────────
 
   /**
@@ -3951,22 +3442,6 @@ export const AppProvider = ({ children }) => {
     },
     [clientsRef, setWorkoutData, upsertClientRow, workoutRef]
   );
-
-  /**
-   * Vuelve a leer el plan.
-   *
-   * Hace falta cuando cambia el recuento de clientes —alta, archivo, borrado— y
-   * al volver de pagar. La cifra sale de la base y no de `clients.length` a
-   * propósito: quien impone el límite es el disparador de Postgres, y una segunda
-   * cuenta hecha en el navegador acabaría discrepando el día que dos pestañas den
-   * de alta a la vez. Se enseña la misma que manda.
-   */
-  const refreshPlan = useCallback(async () => {
-    const { data, error } = await supabase.rpc('my_team_plan');
-    if (error) return { ok: false, error: error.message };
-    setPlan(mapPlanFromDb(data?.[0]));
-    return { ok: true };
-  }, []);
 
   /**
    * Archiva o recupera un cliente.
@@ -4446,784 +3921,45 @@ export const AppProvider = ({ children }) => {
     [reloadClients]
   );
 
-  // ── Integraciones ────────────────────────────────────────────────────────
-  //
-  // Se cargan a demanda desde su pantalla: son una o dos filas que no hacen falta
-  // para nada más. Si las tablas no existen (migración 0010 sin aplicar), la
-  // pantalla lo dice.
-
-  const loadIntegration = useCallback(
-    async (provider = 'notion') => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('*')
-        .eq('provider', provider)
-        .maybeSingle();
-
-      if (error) return { ok: false, error: error.message, integration: null };
-      if (!data) return { ok: true, integration: null, hasToken: false };
-
-      // Del token solo se puede saber SI existe: no hay forma de leerlo desde el
-      // cliente, y eso es deliberado (ver migración 0010).
-      const { data: hasToken } = await supabase.rpc('integration_has_token', {
-        integration: data.id,
-      });
-
-      // Lo mismo con el secreto de firma del webhook. Falla en silencio si la
-      // migración 0013 no está aplicada: entonces simplemente no hay webhook.
-      const { data: webhook } = await supabase
-        .rpc('integration_has_webhook', { integration: data.id })
-        .then((r) => r, () => ({ data: false }));
-
-      return {
-        ok: true,
-        hasToken: Boolean(hasToken),
-        hasWebhook: Boolean(webhook),
-        integration: {
-          id: data.id,
-          provider: data.provider,
-          label: data.label,
-          config: data.config || {},
-          status: data.status,
-          lastSyncAt: data.last_sync_at,
-          lastError: data.last_error,
-          // Sin 0013 estas columnas no existen y llegan como undefined: la
-          // pantalla lo lee como «todavía no ha llegado ningún evento».
-          lastEventAt: data.last_event_at || null,
-          eventCount: data.event_count || 0,
-        },
-      };
-    },
-    [session]
-  );
-
-  const saveIntegration = useCallback(
-    async ({ id, provider = 'notion', config, label }) => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      const row = {
-        owner_id: userId,
-        provider,
-        config,
-        label,
-        team_id: team?.id ?? null,
-        updated_at: new Date().toISOString(),
-      };
-
-      const query = id
-        ? supabase.from('integrations').update(row).eq('id', id).select().single()
-        : supabase.from('integrations').insert(row).select().single();
-
-      const { data, error } = await query;
-      return error ? { ok: false, error: error.message } : { ok: true, id: data.id };
-    },
-    [session, team]
-  );
-
-  const setIntegrationToken = useCallback(async (integrationId, token) => {
-    const { error } = await supabase.rpc('set_integration_token', {
-      integration: integrationId,
-      token,
-    });
-    if (error) return { ok: false, error: error.message };
-
-    /*
-      Sin decir CUÁL. El identificador de una integración es un UUID y no tiene
-      sitio aquí, y el proveedor tampoco viaja: cuál usa cada equipo se responde
-      mucho mejor contando filas de `integrations` desde la radiografía, que es
-      un dato que ya existe y no hay que instrumentar.
-
-      Lo que este evento aporta y esa cuenta no es el CUÁNDO: conectar una
-      integración es un hito de compromiso, y saber a qué distancia del alta
-      ocurre es lo que dice si merece la pena empujarlo en el primer día.
-    */
-    track('integracion_conectada');
-    return { ok: true };
-  }, []);
-
-  /**
-   * Llama a la Edge Function.
-   *
-   * `functions.invoke` manda el JWT de la sesión automáticamente, que es lo que la
-   * función usa para comprobar —vía RLS— que la integración es del que llama. El
-   * token de Notion no pasa por aquí en ningún momento.
-   */
-  const runIntegration = useCallback(async (integrationId, action) => {
-    const { data, error } = await supabase.functions.invoke('notion-payments', {
-      body: { integrationId, action },
-    });
-
-    if (error) {
-      // El cuerpo del error trae el mensaje útil; `error.message` a secas suele ser
-      // un genérico «non-2xx status code» que no ayuda a nadie.
-      const detail = await error.context?.json?.().catch(() => null);
-      return { ok: false, error: detail?.error || error.message };
-    }
-    return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
-  }, []);
-
-  /**
-   * Da de alta un cliente A PARTIR de un nombre de Notion y lo vincula.
-   *
-   * ── Por qué esto es lo que faltaba ──────────────────────────────────────────
-   * La conciliación solo sabía emparejar con clientes que YA existían. Pero el caso
-   * real es el contrario: el entrenador lleva años cobrando en Notion y su cartera
-   * entera está ahí, mientras que en la aplicación no hay nadie. Sin esto la
-   * integración enseñaba catorce nombres seguidos con «¿Está dado de alta en
-   * Clientes?» y no ofrecía ninguna forma de darlos de alta — que es exactamente lo
-   * que hacía que no sirviera de nada.
-   *
-   * Con esto, la tabla de pagos se convierte en el alta masiva de la cartera: un
-   * toque por persona y el pago queda ya asignado.
-   */
-  const createClientFromExternal = useCallback(
-    async ({ integrationId, externalKey, externalLabel }) => {
-      const created = await addClient({ name: String(externalLabel || '').trim() });
-      if (!created.ok) return created;
-
-      // Vincular a la vez que se crea: si no, el siguiente sincronizado volvería a
-      // preguntar por el mismo nombre.
-      const linked = await supabase.from('client_external_refs').upsert(
-        {
-          integration_id: integrationId,
-          external_key: externalKey,
-          external_label: externalLabel,
-          client_id: created.client.id,
-          linked_by: session?.user?.id,
-        },
-        { onConflict: 'integration_id,external_key' }
-      );
-
-      if (linked.error) return { ok: false, error: linked.error.message };
-      return { ok: true, client: created.client };
-    },
-    [addClient, session]
-  );
-
-  /**
-   * Guarda el secreto de firma del webhook de Stripe.
-   *
-   * Va por su propia función (migración 0013) y no por un UPDATE: la tabla de
-   * secretos no tiene políticas, así que ni el dueño puede escribirla desde el
-   * navegador. La función comprueba además que empiece por «whsec_», que es el
-   * error más común: pegar la clave de API en el hueco del secreto de firma.
-   */
-  const setWebhookSecret = useCallback(async (integrationId, secret) => {
-    const { error } = await supabase.rpc('set_integration_webhook_secret', {
-      integration: integrationId,
-      secret,
-    });
-    return error ? { ok: false, error: error.message } : { ok: true };
-  }, []);
-
-  /** Lo mismo para Stripe, que tiene su propia función. */
-  const runStripe = useCallback(async (integrationId, action) => {
-    const { data, error } = await supabase.functions.invoke('stripe-payments', {
-      body: { integrationId, action },
-    });
-    if (error) {
-      const detail = await error.context?.json?.().catch(() => null);
-      return { ok: false, error: detail?.error || error.message };
-    }
-    return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
-  }, []);
-
-  /** Confirma que una cadena de Notion corresponde a un cliente, para siempre. */
-  const linkExternalName = useCallback(
-    async ({ integrationId, externalKey, externalLabel, clientId }) => {
-      const userId = session?.user?.id;
-      const { error } = await supabase.from('client_external_refs').upsert(
-        {
-          integration_id: integrationId,
-          external_key: externalKey,
-          external_label: externalLabel,
-          client_id: clientId,
-          linked_by: userId,
-        },
-        { onConflict: 'integration_id,external_key' }
-      );
-      return error ? { ok: false, error: error.message } : { ok: true };
-    },
-    [session]
-  );
-
-  // ── Vídeos de revisión ───────────────────────────────────────────────────
-  //
-  // Se guardan en el MISMO bucket y con el mismo esquema de rutas que las fotos
-  // (`<clientId>/…`), así que las políticas de Storage de la migración 0007 ya los
-  // cubren sin tocar nada: acotan por el primer segmento de la ruta.
-  //
-  // Y no hacen falta filas en ninguna tabla: se listan directamente de Storage. Un
-  // registro en base de datos solo añadiría algo si hubiera que guardar metadatos
-  // (visto por el cliente, comentarios), y eso todavía no existe.
-
-  const uploadReview = useCallback(
-    async ({ clientId, blob, mimeType, label }) => {
-      if (!blob || blob.size === 0) return { ok: false, error: 'La grabación está vacía.' };
-
-      const extension = mimeType?.includes('mp4') ? 'mp4' : 'webm';
-      const path = `${clientId}/reviews/${Date.now()}-${slugify(label || 'revision')}.${extension}`;
-
-      const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, blob, { contentType: mimeType || 'video/webm', upsert: false });
-
-      // El grabador es del entrenador, pero la cuota (0067) también corta aquí y
-      // su error llega como un código pelado: se traduce antes de enseñarlo.
-      if (error)
-        return { ok: false, error: traduceStorageError(error, { cliente: !isCoachRef.current }) || error.message };
-
-      // Se firma más largo que las fotos: un vídeo se manda por WhatsApp y el
-      // cliente lo abre cuando puede, no en los siguientes minutos.
-      const signed = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7);
-      return { ok: true, path, url: signed.data?.signedUrl || null };
-    },
-    []
-  );
-
-  const listReviews = useCallback(async (clientId) => {
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .list(`${clientId}/reviews`, { sortBy: { column: 'name', order: 'desc' } });
-
-    if (error) return { ok: false, error: error.message, reviews: [] };
-
-    const paths = (data || []).filter((f) => f.id).map((f) => `${clientId}/reviews/${f.name}`);
-    if (paths.length === 0) return { ok: true, reviews: [] };
-
-    const signed = await supabase.storage.from(BUCKET).createSignedUrls(paths, 60 * 60 * 24 * 7);
-    const urlByPath = new Map((signed.data || []).map((s) => [s.path, s.signedUrl]));
-
-    return {
-      ok: true,
-      reviews: paths.map((path, index) => ({
-        path,
-        url: urlByPath.get(path) || null,
-        name: data[index].name,
-        // El nombre empieza por el timestamp de la subida: es la fecha sin
-        // necesitar una tabla.
-        createdAt: Number(data[index].name.split('-')[0]) || null,
-        size: data[index].metadata?.size ?? null,
-      })),
-    };
-  }, []);
-
-  /**
-   * Crea el enlace permanente de un vídeo y devuelve su URL pública.
-   *
-   * El token lo genera la base de datos (migración 0011), no el navegador: así no
-   * depende de la calidad de su generador aleatorio y no se puede forzar uno
-   * elegido a mano.
-   */
-  const createReviewLink = useCallback(async ({ clientId, path, title, weekStart, notes }) => {
-    const { data, error } = await supabase.rpc('create_review_link', {
-      target: clientId,
-      path,
-      link_title: title || null,
-      week: weekStart || null,
-      link_notes: notes || null,
-    });
-    if (error) return { ok: false, error: error.message };
-    /* Grabar y mandar una revisión es la función más cara de construir y la que
-       más se usa para justificar el precio. Si nadie la usa, sobra; y eso hay que
-       poder saberlo antes de seguir invirtiendo en ella. */
-    track('revision_compartida', { origen: 'grabada' });
-    return { ok: true, token: data, url: `${window.location.origin}/r/${data}` };
-  }, []);
-
-  /**
-   * Una revisión que vive fuera: YouTube oculto o Loom (migración 0040).
-   *
-   * Entra en la MISMA lista que las grabadas aquí, y esa es toda la gracia: para
-   * el cliente «la revisión de la semana 7» es una sola cosa, y dónde esté
-   * alojado el vídeo es un detalle de infraestructura que no le toca conocer.
-   *
-   * El dominio lo comprueba la base de datos además de la interfaz: esa URL acaba
-   * dentro de un `<iframe>` en la pantalla del cliente.
-   */
-  const createReviewUrl = useCallback(async ({ clientId, url, title, weekStart, notes }) => {
-    const { data, error } = await supabase.rpc('create_review_url', {
-      target: clientId,
-      url,
-      link_title: title || null,
-      week: weekStart || null,
-      link_notes: notes || null,
-    });
-    if (error) return { ok: false, error: error.message };
-    /* El mismo evento con distinto origen, no un evento distinto: la pregunta es
-       «¿se comparten revisiones?», y separarlas obligaría a sumarlas siempre. */
-    track('revision_compartida', { origen: 'externa' });
-    return { ok: true, token: data };
-  }, []);
-
-  /**
-   * «Visto», desde el portal del cliente.
-   *
-   * Las visitas las contaba la función de `/r/<token>`, por donde pasa quien abre
-   * el enlace compartido sin sesión. Viendo la revisión DENTRO de su portal ese
-   * camino no se usa, así que sin esto el contador del entrenador se quedaría a
-   * cero justo cuando el cliente sí la está viendo.
-   *
-   * Su fallo no se propaga: no haber podido contar una visita no es motivo para
-   * estropearle el vídeo a nadie.
-   */
-  const markReviewViewed = useCallback(async (linkId) => {
-    /* Mismo caso que `stampNow`: `rpc()` no trae `.catch`. */
-    await Promise.resolve(supabase.rpc('mark_review_viewed', { link: linkId })).catch(() => {});
-  }, []);
-
-  /** Enlaces ya creados de un cliente, con sus visitas. */
-  const listReviewLinks = useCallback(async (clientId) => {
-    const { data, error } = await supabase
-      .from('review_links')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
-
-    if (error) return { ok: false, error: error.message, links: [] };
-    return {
-      ok: true,
-      links: (data || []).map((row) => ({
-        id: row.id,
-        token: row.token,
-        path: row.storage_path,
-        // `null` si la revisión se grabó aquí; la dirección de YouTube o Loom si
-        // vive fuera (migración 0040). Nunca las dos: lo impide un CHECK.
-        externalUrl: row.external_url ?? null,
-        title: row.title,
-        weekStart: row.week_start,
-        createdAt: row.created_at,
-        revokedAt: row.revoked_at,
-        firstViewedAt: row.first_viewed_at,
-        lastViewedAt: row.last_viewed_at,
-        viewCount: row.view_count,
-        url: `${window.location.origin}/r/${row.token}`,
-      })),
-    };
-  }, []);
-
-  /** Revocar: el enlace deja de servir sin borrar que existió ni sus visitas. */
-  const revokeReviewLink = useCallback(async (id) => {
-    const { error } = await supabase
-      .from('review_links')
-      .update({ revoked_at: new Date().toISOString() })
-      .eq('id', id);
-    return error ? { ok: false, error: error.message } : { ok: true };
-  }, []);
-
-  const deleteReview = useCallback(async (path) => {
-    const { error } = await supabase.storage.from(BUCKET).remove([path]);
-    return error ? { ok: false, error: error.message } : { ok: true };
-  }, []);
-
-  // ── Calendario ───────────────────────────────────────────────────────────
-  //
-  // Los eventos se cargan por cliente y a demanda, no todos al arrancar: son la
-  // única cosa del proyecto que crece sin techo con el tiempo, y nadie mira el
-  // calendario de veinte clientes a la vez.
-
-  const loadEvents = useCallback(async (clientId) => {
-    const { data, error } = await supabase
-      .from('client_events')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('date');
-
-    // Sin la migración 0009 la tabla no existe: se devuelve vacío y la pantalla
-    // avisa, en lugar de tratarlo como un fallo de carga.
-    if (error) return { ok: false, error: error.message, events: [] };
-    return { ok: true, events: (data || []).map(mapEventFromDb) };
-  }, []);
-
-  const addClientEvent = useCallback(
-    async ({ clientId, date, kind, title }) => {
-      const userId = session?.user?.id;
-      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-
-      const { data, error } = await supabase
-        .from('client_events')
-        // `created_by` lo exige la política: cada uno crea lo suyo, y así se sabe
-        // quién puso cada cosa cuando el entrenador y el cliente comparten el mes.
-        .insert({ client_id: clientId, date, kind, title, created_by: userId })
-        .select()
-        .single();
-
-      if (error) return { ok: false, error: error.message };
-      return { ok: true, event: mapEventFromDb(data) };
-    },
-    [session]
-  );
-
-  const setEventDone = useCallback(async (eventId, done) => {
-    const { error } = await supabase.from('client_events').update({ done }).eq('id', eventId);
-    return error ? { ok: false, error: error.message } : { ok: true };
-  }, []);
-
-  const removeClientEvent = useCallback(async (eventId) => {
-    const { error } = await supabase.from('client_events').delete().eq('id', eventId);
-    return error ? { ok: false, error: error.message } : { ok: true };
-  }, []);
-
-  // ── Check-ins ────────────────────────────────────────────────────────────
-
-  /**
-   * Marca un check-in como revisado.
-   *
-   * Va por la función `review_check_in` (migración 0009) y no por un UPDATE, para
-   * que quede registrado QUIÉN lo revisó sin que la aplicación tenga que acordarse
-   * de mandarlo — que es justo el dato que se olvida y luego se echa en falta con
-   * un equipo de varios entrenadores.
-   */
-  /**
-   * El cliente entrega su semana.
-   *
-   * ══ Era el eslabón que faltaba ═════════════════════════════════════════════
-   *
-   * La función existe en la base desde la migración 0009 y **no la llamaba
-   * nadie**. Sin ella, la fila de `check_ins` solo aparecía si la creaba el
-   * entrenador, así que el estado «entregado, esperando respuesta» —que es
-   * exactamente lo que la aplicación tenía que saber— no se daba nunca, y todo el
-   * seguimiento funcionaba con la aproximación de «parece que ha hecho su parte».
-   *
-   * Entregar es un ACTO del cliente, y por eso hace falta: pesarse tres veces no
-   * significa «ya está, mírame». Lo primero lo hace él para él; lo segundo es
-   * pedirle a alguien que mire.
-   *
-   * ── Por qué por función y no con un INSERT ──────────────────────────────────
-   * Porque `submitted_at` lo tiene que poner el servidor y `reviewed_at` no lo
-   * puede tocar el cliente. RLS filtra filas y no columnas, así que con permiso
-   * de escritura sobre su fila podría marcarse como revisado él solo.
-   */
-  const submitCheckIn = useCallback(
-    async (
-      clientId,
-      { weekStart: week, programWeek = null, weight = null, notes = null, answers = null } = {}
-    ) => {
-      const { data, error } = await supabase.rpc('submit_check_in', {
-        target: clientId,
-        week,
-        program_week: programWeek,
-        weight_kg: weight,
-        client_notes: notes,
-        /* Las respuestas del cuestionario de la semana (migración 0060). El
-           parámetro es opcional en la función, así que quien no pregunte nada
-           —la mayoría— manda `null` y la columna se queda como estaba. */
-        answers,
-      });
-
-      if (error) return { ok: false, error: error.message };
-
-      /* Se refleja al instante: entregar es un gesto y la pantalla tiene que
-         cambiar de estado sin esperar a una recarga que quizá no llega.
-
-         ── Pero solo si es MÁS RECIENTE que lo que ya había ─────────────────
-         `checkIns` guarda una sola entrega por cliente, la última: así la carga
-         inicial y todo lo que la lee —«Hoy», la cartera, el portal— hablan de la
-         semana en curso.
-
-         Entregar una ATRASADA rompía ese invariante. El cliente que ya entregó
-         esta semana, ya recibió respuesta, y luego pulsa el chip de la semana que
-         se le quedó sin mandar, se encontraba con que su pantalla volvía a
-         ofrecerle «Entregar mi semana» y la respuesta de su entrenador
-         desaparecía: la fila vieja había sustituido a la nueva. */
-      setCheckIns((prev) => {
-        const anterior = prev[clientId];
-        if (anterior && anterior.weekStart > week) return prev;
-
-        return {
-          ...prev,
-          [clientId]: {
-            ...(anterior?.weekStart === week ? anterior : {}),
-            id: data,
-            clientId,
-            weekStart: week,
-            weight,
-            notes: notes || '',
-            /* `?? anterior?.answers` y no `answers` a secas: reentregar sin
-               cuestionario no puede borrar de la pantalla lo que ya se contestó,
-               porque en la base tampoco se borra (el UPDATE usa COALESCE). */
-            answers: answers ?? (anterior?.weekStart === week ? anterior.answers : null) ?? null,
-            submittedAt: new Date().toISOString(),
-            reviewedAt: null,
-            coachNotes: '',
-          },
-        };
-      });
-
-      return { ok: true, id: data };
-    },
-    []
-  );
-
-  /**
-   * Todas las revisiones de un cliente, para su histórico.
-   *
-   * A demanda y no en la carga inicial: `checkIns` guarda solo la última de cada
-   * uno porque es lo que necesitan la cartera y la cola, y traer el historial
-   * completo de veinte clientes al arrancar sería descargar años de filas para
-   * una pantalla que se abre de vez en cuando.
-   */
-  const loadCheckInHistory = useCallback(async (clientId) => {
-    const { data, error } = await supabase
-      .from('check_ins')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('week_start', { ascending: false });
-
-    if (error) return { ok: false, error: error.message, checkIns: [] };
-    return { ok: true, checkIns: (data || []).map(mapCheckInFromDb) };
-  }, []);
-
-  /**
-   * Borra un check-in (migración 0044).
-   *
-   * Quita la revisión y su respuesta; el plan se queda como esté. Volver atrás la
-   * dieta o la rutina es otra cosa: haría falta guardar el contenido anterior
-   * entero, no el resumen de `snapshot`.
-   */
-  const deleteCheckIn = useCallback(async (checkInId) => {
-    const { error } = await supabase.rpc('delete_check_in', { check_in: checkInId });
-    if (error) return { ok: false, error: error.message };
-
-    /* Fuera del estado también: si era el de la semana en curso, el cliente
-       vuelve a poder entregar y el entrenador a verlo pendiente. */
-    setCheckIns((prev) => {
-      const entry = Object.values(prev).find((c) => c.id === checkInId);
-      if (!entry) return prev;
-      const next = { ...prev };
-      delete next[entry.clientId];
-      return next;
-    });
-    return { ok: true };
-  }, []);
-
-  const reviewCheckIn = useCallback(
-    async (checkInId, notes = null, snapshot = null) => {
-      const { error } = await supabase.rpc('review_check_in', {
-        check_in: checkInId,
-        notes,
-        snapshot,
-      });
-      if (error) return { ok: false, error: error.message };
-
-      /*
-        Se refleja en local sin recargar: la revisión es un gesto y tiene que
-        desaparecer de la cola al instante.
-
-        Y se guarda TAMBIÉN la nota. Antes solo se marcaba la fecha, así que el
-        cliente —que lee esa misma nota en su «Hoy»— veía «revisada» y ningún
-        texto hasta recargar la página. Escribir la respuesta y que no aparezca es
-        exactamente el fallo que hacía inútil todo esto.
-      */
-      let dueño = null;
-      setCheckIns((prev) => {
-        const entry = Object.values(prev).find((c) => c.id === checkInId);
-        if (!entry) return prev;
-        dueño = entry.clientId;
-        return {
-          ...prev,
-          [entry.clientId]: {
-            ...entry,
-            reviewedAt: new Date().toISOString(),
-            coachNotes: notes ?? entry.coachNotes,
-            snapshot: snapshot ?? entry.snapshot,
-          },
-        };
-      });
-
-      /* Y le sale como novedad, igual que un cambio de dieta. Sin esto, el
-         cliente tenía que adivinar que le habías contestado entrando a mirar. */
-      if (dueño) stampNow(dueño, 'checkin');
-
-      /* Contestar un check-in es el momento en que el cliente recibe de verdad lo
-         que paga. Si esta cifra sube y las demás no, el producto funciona; si
-         baja, se está perdiendo a los clientes de alguien. */
-      track('revision_hecha');
-      return { ok: true };
-    },
-    [stampNow]
-  );
-
-  /**
-   * Deshacer una revisión recién cerrada (migración 0063): la fila vuelve a
-   * estar pendiente, sin sello, sin nota y sin foto del plan.
-   *
-   * Existe para el «Deshacer» del aviso que sale al cerrar: «Seguimos igual» y
-   * «Contestar» son un toque sin confirmación —así debe ser—, y un toque en la
-   * fila equivocada cerraba la semana de otra persona sin vuelta atrás.
-   *
-   * La novedad que se le publicó al cliente no se retracta (ver la migración):
-   * el aviso le lleva a su semana, que vuelve a decir la verdad — pendiente.
-   */
-  const unreviewCheckIn = useCallback(async (checkInId) => {
-    const { error } = await supabase.rpc('unreview_check_in', { check_in: checkInId });
-    if (error) return { ok: false, error: error.message };
-
-    /* El espejo local de lo que hace `reviewCheckIn` al cerrar. */
-    setCheckIns((prev) => {
-      const entry = Object.values(prev).find((c) => c.id === checkInId);
-      if (!entry) return prev;
-      return {
-        ...prev,
-        [entry.clientId]: { ...entry, reviewedAt: null, coachNotes: null, snapshot: null },
-      };
-    });
-    return { ok: true };
-  }, []);
-
-  /**
-   * Corregir el texto de una revisión ya cerrada. NO es volver a revisarla.
-   *
-   * ── Qué NO hace, y ese es el punto ──────────────────────────────────────────
-   * No sella `reviewed_at` ni `reviewed_by`, y **no llama a `stampNow`**. Antes
-   * el histórico reutilizaba `reviewCheckIn` para esto, así que arreglar una
-   * errata movía la fecha de la revisión a hoy, ponía como autor a quien
-   * corregía —perdiendo quién la hizo de verdad— y le volvía a saltar la novedad
-   * al cliente por un texto que ya había leído.
-   *
-   * La función de la base (migración 0051) solo escribe `coach_notes`, y solo
-   * sobre filas que ya estaban revisadas.
-   */
-  const updateCheckInNotes = useCallback(async (checkInId, notes) => {
-    const { error } = await supabase.rpc('update_check_in_notes', {
-      check_in: checkInId,
-      notes,
-    });
-    if (error) return { ok: false, error: error.message };
-
-    /* Solo el texto: lo demás de esa fila no ha cambiado. */
-    setCheckIns((prev) => {
-      const entry = Object.values(prev).find((c) => c.id === checkInId);
-      if (!entry) return prev;
-      return { ...prev, [entry.clientId]: { ...entry, coachNotes: notes } };
-    });
-
-    return { ok: true };
-  }, []);
+  /* Integraciones (Notion, Stripe): sin estado propio, extraídas con la
+     convención de useRoadmap.js. */
+  const {
+    loadIntegration,
+    saveIntegration,
+    setIntegrationToken,
+    runIntegration,
+    createClientFromExternal,
+    setWebhookSecret,
+    runStripe,
+    linkExternalName,
+  } = useIntegrations({ session, team, addClient });
+
+  /* Revisiones y calendario: dos dominios sin estado propio, extraídos con la
+     convención de `useRoadmap.js`. */
+  const {
+    uploadReview,
+    listReviews,
+    createReviewLink,
+    createReviewUrl,
+    markReviewViewed,
+    listReviewLinks,
+    revokeReviewLink,
+    deleteReview,
+  } = useReviews({ isCoachRef });
+
+  const { loadEvents, addClientEvent, setEventDone, removeClientEvent } = useCalendar({
+    session,
+  });
 
   // ── Equipo ───────────────────────────────────────────────────────────────
   //
-  // Estas cuatro operaciones son puntuales y no van por la cola de guardado: la
-  // cola existe para escrituras repetidas de un mismo bloque (los kilos de una
-  // serie, el historial de peso). Aquí cada acción es un acto deliberado del
-  // usuario y devuelve su resultado para que la vista lo muestre.
-
-  const reloadTeamMembers = useCallback(async (teamId) => {
-    const { data, error } = await supabase
-      .from('team_members')
-      .select('profile_id, role, profiles(full_name, email)')
-      .eq('team_id', teamId);
-
-    if (error) return;
-    setTeamMembers(
-      (data || []).map((row) => ({
-        profileId: row.profile_id,
-        role: row.role,
-        name: row.profiles?.full_name || '',
-        email: row.profiles?.email || '',
-      }))
-    );
-  }, []);
-
-  const inviteTeamMember = useCallback(
-    async (email, role = 'trainer') => {
-      if (!team) return { ok: false, error: 'Todavía no hay ningún equipo.' };
-
-      const { error } = await supabase.rpc('invite_team_member', {
-        target_team: team.id,
-        member_email: email,
-        member_role: role,
-      });
-      if (error) return { ok: false, error: error.message };
-
-      await reloadTeamMembers(team.id);
-      /* Un equipo que crece es una cuenta que crece, y es el único camino de este
-         producto hacia un contrato más grande que el de una persona. El rol va
-         entero porque es una categoría cerrada de la 0006, no un dato de nadie. */
-      track('equipo_invitado', { rol: role });
-      return { ok: true };
-    },
-    [reloadTeamMembers, team]
-  );
-
-  const updateTeamMemberRole = useCallback(
-    async (profileId, role) => {
-      if (!team) return { ok: false, error: 'Todavía no hay ningún equipo.' };
-      if (profileId === team.ownerId) {
-        return { ok: false, error: 'El dueño del equipo no puede cambiar de rol.' };
-      }
-
-      const { error } = await supabase
-        .from('team_members')
-        .update({ role })
-        .eq('team_id', team.id)
-        .eq('profile_id', profileId);
-      if (error) return { ok: false, error: error.message };
-
-      await reloadTeamMembers(team.id);
-      return { ok: true };
-    },
-    [reloadTeamMembers, team]
-  );
-
-  const removeTeamMember = useCallback(
-    async (profileId) => {
-      if (!team) return { ok: false, error: 'Todavía no hay ningún equipo.' };
-      if (profileId === team.ownerId) {
-        return { ok: false, error: 'No se puede sacar del equipo a quien lo creó.' };
-      }
-
-      const { error } = await supabase
-        .from('team_members')
-        .delete()
-        .eq('team_id', team.id)
-        .eq('profile_id', profileId);
-      if (error) return { ok: false, error: error.message };
-
-      /*
-        Sus clientes quedan sin asignar, no se borran ni se reparten solos: quién
-        se hace cargo de cada uno es una decisión del entrenador jefe, y adivinarla
-        sería peor que preguntarla. La cartera los muestra como «sin asignar».
-      */
-      const orphans = clientsRef.current.filter((c) => c.assignedTo === profileId);
-      if (orphans.length > 0) {
-        await supabase
-          .from('clients')
-          .update({ assigned_to: null })
-          .in('id', orphans.map((c) => c.id));
-        setClients(
-          clientsRef.current.map((c) => (c.assignedTo === profileId ? { ...c, assignedTo: null } : c))
-        );
-      }
-
-      await reloadTeamMembers(team.id);
-      return { ok: true, unassigned: orphans.length };
-    },
-    [clientsRef, reloadTeamMembers, setClients, team]
-  );
+  // Las acciones del equipo viven en su gancho (useTeam.js). Aquí queda solo
+  // assignClient, que es un delegado de updateClient — dominio de clientes.
 
   /** Cambia el entrenador responsable de un cliente. */
   const assignClient = useCallback(
     (clientId, profileId) => updateClient(clientId, { assignedTo: profileId || null }),
     [updateClient]
-  );
-
-  const renameTeam = useCallback(
-    async (name) => {
-      const clean = String(name || '').trim();
-      if (!team || !clean) return { ok: false, error: 'El nombre no puede estar vacío.' };
-
-      const { error } = await supabase.from('teams').update({ name: clean }).eq('id', team.id);
-      if (error) return { ok: false, error: error.message };
-
-      setTeam({ ...team, name: clean });
-      return { ok: true };
-    },
-    [team]
   );
 
   // ── Vista activa ─────────────────────────────────────────────────────────
@@ -5539,29 +4275,18 @@ export const AppProvider = ({ children }) => {
   "clients"» es correcto, describe lo ocurrido y no dice ni qué ha pasado ni qué
   hacer — quien lo lee entiende que algo va mal y nada más.
 
-  Estas dos funciones traducen los códigos que de verdad pueden salir aquí. Solo
-  esos: un catálogo de veinte códigos sería adivinar, y el `error.message` de
-  respaldo es mejor que una traducción inventada.
+  Se traducen los códigos que de verdad pueden salir aquí. Solo esos: un
+  catálogo de veinte códigos sería adivinar, y el `error.message` de respaldo es
+  mejor que una traducción inventada. (El del roadmap vive con su dominio, en
+  `useRoadmap.js`.)
 
   Los mensajes del trigger `enforce_client_limit` (0019) NO se tocan: ya vienen
   escritos para leerse y además dicen el número exacto de clientes y el plan.
 */
 
-/** Códigos de Postgres que aparecen al escribir una ficha o una fase. */
+/** Códigos de Postgres que aparecen al escribir una ficha. */
 const PG = {
   RLS: '42501', // insufficient_privilege — una política ha rechazado la fila
-  EXCLUSION: '23P01', // exclusion_violation — el solape de fases
-  CHECK: '23514', // check_violation — el trigger del límite de plan
-};
-
-const explicarErrorDeFase = (error) => {
-  if (error?.code === PG.EXCLUSION) {
-    return 'Esa fase se pisa con otra del mismo cliente. Una fase empieza el día siguiente al final de la anterior.';
-  }
-  if (error?.code === PG.RLS) {
-    return 'No se ha podido guardar el roadmap. Si tu suscripción no está activa, la planificación queda en solo lectura.';
-  }
-  return error?.message || 'No se ha podido guardar la fase.';
 };
 
 /**
