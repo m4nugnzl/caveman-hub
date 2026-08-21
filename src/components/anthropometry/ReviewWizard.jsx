@@ -5,6 +5,7 @@ import {
   Camera,
   Check,
   MessageSquare,
+  Plus,
   Ruler,
   Save,
   Scale,
@@ -171,6 +172,13 @@ export const ReviewWizard = ({
   const [weight, setWeight] = useState('');
   const [folds, setFolds] = useState(emptyFolds);
   const [perimeters, setPerimeters] = useState(emptyPerimeters);
+  /*
+    Los bloques OPCIONALES empiezan recogidos. Quince campos de medidas que casi
+    nunca se rellenan alargaban el paso para todo el mundo, y un formulario largo
+    se entrega menos (es el hallazgo del informe de estado: 0 % de uso). Quien sí
+    mide, lo abre con un toque; lo obligatorio sale siempre abierto.
+  */
+  const [abiertos, setAbiertos] = useState({ folds: false, perimeters: false });
   const [answers, setAnswers] = useState({});
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -594,45 +602,65 @@ export const ReviewWizard = ({
                   </Notice>
                 ))}
 
-              {pideFolds && (
-                <div className="col gap-3">
-                  <h4 className="section-label">
-                    Pliegues cutáneos (mm)
-                    {requiresBlock(protocol, 'folds') && (
-                      <span className="badge badge-warn wiz-badge">Obligatorio</span>
+              {pideFolds &&
+                (requiresBlock(protocol, 'folds') || abiertos.folds || sum > 0 ? (
+                  <div className="col gap-3">
+                    <h4 className="section-label">
+                      Pliegues cutáneos (mm)
+                      {requiresBlock(protocol, 'folds') && (
+                        <span className="badge badge-warn wiz-badge">Obligatorio</span>
+                      )}
+                    </h4>
+                    <MeasureGrid
+                      labels={FOLDS_LABELS}
+                      values={folds}
+                      unit="milímetros"
+                      onChange={(k, v) => setFolds((f) => ({ ...f, [k]: v }))}
+                    />
+                    {sum > 0 && (
+                      <div className="row between wrap gap-3 folds-sum">
+                        <span className="t-sm folds-sum-k">Suma: {sum} mm</span>
+                        <strong className="folds-sum-v">% graso: {pct ?? '—'}%</strong>
+                      </div>
                     )}
-                  </h4>
-                  <MeasureGrid
-                    labels={FOLDS_LABELS}
-                    values={folds}
-                    unit="milímetros"
-                    onChange={(k, v) => setFolds((f) => ({ ...f, [k]: v }))}
-                  />
-                  {sum > 0 && (
-                    <div className="row between wrap gap-3 folds-sum">
-                      <span className="t-sm folds-sum-k">Suma: {sum} mm</span>
-                      <strong className="folds-sum-v">% graso: {pct ?? '—'}%</strong>
-                    </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm self-start"
+                    onClick={() => setAbiertos((a) => ({ ...a, folds: true }))}
+                  >
+                    <Plus size={14} /> Añadir pliegues cutáneos
+                  </button>
+                ))}
 
-              {pidePerimetros && (
-                <div className="col gap-3">
-                  <h4 className="section-label">
-                    Perímetros corporales (cm)
-                    {requiresBlock(protocol, 'perimeters') && (
-                      <span className="badge badge-warn wiz-badge">Obligatorio</span>
-                    )}
-                  </h4>
-                  <MeasureGrid
-                    labels={PERIMETER_LABELS}
-                    values={perimeters}
-                    unit="centímetros"
-                    onChange={(k, v) => setPerimeters((p) => ({ ...p, [k]: v }))}
-                  />
-                </div>
-              )}
+              {pidePerimetros &&
+                (requiresBlock(protocol, 'perimeters') ||
+                abiertos.perimeters ||
+                Object.values(perimeters).some((v) => v !== '' && v != null) ? (
+                  <div className="col gap-3">
+                    <h4 className="section-label">
+                      Perímetros corporales (cm)
+                      {requiresBlock(protocol, 'perimeters') && (
+                        <span className="badge badge-warn wiz-badge">Obligatorio</span>
+                      )}
+                    </h4>
+                    <MeasureGrid
+                      labels={PERIMETER_LABELS}
+                      values={perimeters}
+                      unit="centímetros"
+                      onChange={(k, v) => setPerimeters((p) => ({ ...p, [k]: v }))}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm self-start"
+                    onClick={() => setAbiertos((a) => ({ ...a, perimeters: true }))}
+                  >
+                    <Plus size={14} /> Añadir perímetros
+                  </button>
+                ))}
             </>
           )}
 
