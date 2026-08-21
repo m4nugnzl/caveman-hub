@@ -274,13 +274,11 @@ export const WorkoutLogEditor = () => {
   };
 
   /*
-    ══ La configuración del programa: una línea al FINAL, en las dos geometrías
-    ═══════════════════════════════════════════════════════════════════════════
-    El ciclo y la planificación semanal se tocan una vez por cliente, y eran la
-    primera tarjeta de la pantalla — el orden de una pantalla es el del trabajo,
-    y «qué le pongo hoy a este día» es a lo que se viene. Ahora es una línea de
-    voz baja que cierra la página y abre su hoja (ver `CycleSettings`); la
-    planificación semanal viaja dentro de esa hoja.
+    ══ La configuración del programa: arriba, pero en UNA LÍNEA ═══════════════
+    Se toca una vez por cliente y era la primera TARJETA de la pantalla — eso
+    era lo que estorbaba, no su posición: el contexto del programa se quiere
+    ver antes de la sesión, solo que en voz baja. Ahora es una línea que abre
+    su hoja (ver `CycleSettings`); la planificación semanal viaja dentro.
   */
   const configDelPrograma = (
     <CycleSettings
@@ -307,6 +305,8 @@ export const WorkoutLogEditor = () => {
         title="Rutina"
         sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
       />
+
+      {configDelPrograma}
 
       <MicrocycleBar
         cycleType={cycleType}
@@ -373,6 +373,35 @@ export const WorkoutLogEditor = () => {
           onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
           onClose={() => setCopyOpen(false)}
         />
+      )}
+
+      {/*
+        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad de
+        este cliente y se repite. Por eso vive aquí y no dentro de cada día —que
+        obligaría a mantener cinco copias— y por eso va PLEGADO: se monta una vez
+        y después se consulta poco. El del DÍA, cuando lo tiene, sigue en el día.
+      */}
+      {isModuleOn(protocol, 'warmup') && (
+        <Panel tight className="col gap-3">
+          <button
+            type="button"
+            className="proto-toggle"
+            aria-expanded={warmupOpen}
+            onClick={() => setWarmupOpen((v) => !v)}
+          >
+            {warmupOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            <Waves size={15} />
+            <span className="grow">Calentamiento y movilidad</span>
+            <span className="badge">{(program?.mobilityDrills || []).length}</span>
+          </button>
+
+          {warmupOpen && (
+            <WarmupEditor
+              drills={program?.mobilityDrills || []}
+              onChange={(drills) => updateMobilityDrills(activeClient.id, drills)}
+            />
+          )}
+        </Panel>
       )}
 
       {/*
@@ -790,38 +819,6 @@ export const WorkoutLogEditor = () => {
         />
       )}
 
-      {/*
-        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad de
-        este cliente y se repite. Por eso no vive dentro de cada día —obligaría a
-        mantener cinco copias— y por eso baja aquí, con lo que se monta una vez y
-        después se consulta poco. El del DÍA, cuando lo tiene, sigue en el día.
-      */}
-      {isModuleOn(protocol, 'warmup') && (
-        <Panel tight className="col gap-3">
-          <button
-            type="button"
-            className="proto-toggle"
-            aria-expanded={warmupOpen}
-            onClick={() => setWarmupOpen((v) => !v)}
-          >
-            {warmupOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <Waves size={15} />
-            <span className="grow">Calentamiento y movilidad</span>
-            <span className="badge">{(program?.mobilityDrills || []).length}</span>
-          </button>
-
-          {warmupOpen && (
-            <WarmupEditor
-              drills={program?.mobilityDrills || []}
-              onChange={(drills) => updateMobilityDrills(activeClient.id, drills)}
-            />
-          )}
-        </Panel>
-      )}
-
-      {/* La configuración cierra la página: lo que se decide una vez, al final
-          y en una línea (ver el razonamiento arriba, donde se compone). */}
-      {configDelPrograma}
     </div>
   );
 };

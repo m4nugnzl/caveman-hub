@@ -169,62 +169,47 @@ export const MicrocycleBar = ({
 
   return (
     <Panel tight className="col gap-4">
+      {/*
+        ── La cabecera de la sesión, como cualquier cabecera ──────────────────
+        Título y fecha a la izquierda, controles a la derecha. Las flechas
+        FLANQUEABAN el título —una a cada lado— y con la fecha debajo el bloque
+        central quedaba apretado y descolgado; emparejadas junto a las acciones
+        son el mismo par ‹ › de cualquier calendario, y el título respira.
+      */}
       <div className="row between wrap gap-3">
-        <div className="row gap-2">
-          <button
-            type="button"
-            className="btn btn-icon btn-icon-round"
-            onClick={onPrev}
-            disabled={!canGoPrev}
-            aria-label={`${unit} anterior`}
-          >
-            <ChevronLeft size={17} />
-          </button>
+        {/*
+          ══ La fecha se escribe, no se informa ══════════════════════════════
 
-          {/*
-            ══ La fecha se escribe, no se informa ══════════════════════════════
+          Era un rótulo gris con la fecha de creación, y de ahí venía «la rutina
+          empieza cuando la creo»: quien monta en agosto lo que arranca en
+          septiembre no tenía forma de decirlo. Ahora las fechas se heredan de un
+          ciclo al siguiente y esta casilla es donde se corrige la primera —o
+          cualquiera detrás de unas vacaciones—.
 
-            Era un rótulo gris con la fecha de creación, y de ahí venía «la rutina
-            empieza cuando la creo»: quien monta en agosto lo que arranca en
-            septiembre no tenía forma de decirlo. Ahora las fechas se heredan de un
-            ciclo al siguiente y esta casilla es donde se corrige la primera —o
-            cualquiera detrás de unas vacaciones—.
-
-            No es cosmética: la analítica agrupa por esta fecha, así que es lo que
-            coloca el tonelaje y la adherencia en su semana. Va EN LÍNEA con el
-            título y en voz baja —sin caja hasta que se toca—: es un dato que se
-            corrige de vez en cuando, no un formulario permanente.
-          */}
-          <div className="col gap-1" style={{ alignItems: 'center', minWidth: 150 }}>
-            <h3 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
-              {unit} {activeWeek}
-            </h3>
-            {/* El título va FUERA de la etiqueta: un `label` solo admite
-                contenido de frase, y un encabezado dentro no es HTML válido. */}
-            <label className="row gap-2 mcb-fecha">
-              <span className="t-2xs t-tertiary" style={{ fontWeight: 650 }}>empieza el</span>
-              {/* Sin `max`, al revés que la fecha de una sesión: ahí se registra
-                  algo que ya ocurrió y aquí se planifica algo que aún no. */}
-              <input
-                type="date"
-                className="input input-sm input-center"
-                style={{ width: 140 }}
-                value={microcycleDate || ''}
-                onChange={(e) => onChangeDate(e.target.value)}
-                title={`Cuándo empieza ${unit.toLowerCase()} ${activeWeek} para tu cliente.`}
-              />
-            </label>
-          </div>
-
-          <button
-            type="button"
-            className="btn btn-icon btn-icon-round"
-            onClick={onNext}
-            disabled={!canGoNext}
-            aria-label={`${unit} siguiente`}
-          >
-            <ChevronRight size={17} />
-          </button>
+          No es cosmética: la analítica agrupa por esta fecha, así que es lo que
+          coloca el tonelaje y la adherencia en su semana. Va como subtítulo, en
+          voz baja y sin caja hasta que se toca: es un dato que se corrige de
+          vez en cuando, no un formulario permanente.
+        */}
+        <div className="col gap-1">
+          <h3 style={{ fontSize: '1.02rem', fontWeight: 800 }}>
+            {unit} {activeWeek}
+          </h3>
+          {/* El título va FUERA de la etiqueta: un `label` solo admite
+              contenido de frase, y un encabezado dentro no es HTML válido. */}
+          <label className="row gap-2 mcb-fecha">
+            <span className="t-xs t-tertiary" style={{ fontWeight: 600 }}>Empieza el</span>
+            {/* Sin `max`, al revés que la fecha de una sesión: ahí se registra
+                algo que ya ocurrió y aquí se planifica algo que aún no. */}
+            <input
+              type="date"
+              className="input input-sm"
+              style={{ width: 140 }}
+              value={microcycleDate || ''}
+              onChange={(e) => onChangeDate(e.target.value)}
+              title={`Cuándo empieza ${unit.toLowerCase()} ${activeWeek} para tu cliente.`}
+            />
+          </label>
         </div>
 
         {/*
@@ -236,6 +221,27 @@ export const MicrocycleBar = ({
           tiene «Deshacer»: no necesita gritar.
         */}
         <div className="row gap-2 wrap">
+          <div className="row gap-1">
+            <button
+              type="button"
+              className="btn btn-icon btn-icon-round"
+              onClick={onPrev}
+              disabled={!canGoPrev}
+              aria-label={`${unit} anterior`}
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-icon btn-icon-round"
+              onClick={onNext}
+              disabled={!canGoNext}
+              aria-label={`${unit} siguiente`}
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
+
           <button type="button" className="btn btn-secondary btn-sm btn-pill" onClick={onClone}>
             <Copy size={15} /> Duplicar {unit.toLowerCase()}
           </button>
