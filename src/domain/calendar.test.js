@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { checkInDates, currentCheckInPeriod, nextCheckIn, weekCells } from './calendar';
+import {
+  checkInDates,
+  checkInSchedule,
+  currentCheckInPeriod,
+  moveCheckIn,
+  monthGrid,
+  nextCheckIn,
+  weekCells,
+} from './calendar';
 
 /**
  * Las dos preguntas del check-in.
@@ -127,7 +135,110 @@ describe('weekCells', () => {
 
   it('checkInDates las entiende igual que a las celdas del mes', () => {
     // Jueves semanal: en la semana del 17-ago cae el 20.
-    const marcados = checkInDates(weekCells('2026-08-19'), 3, 1, '2026-08-03');
+    const marcados = checkInDates(weekCells('2026-08-19'), checkInSchedule(SEMANAL_JUEVES), '2026-08-03');
     expect([...marcados]).toEqual(['2026-08-20']);
+  });
+});
+
+/* ==========================================================================
+   Las fechas movidas
+   --------------------------------------------------------------------------
+   Una fecha movida SUSTITUYE a la de su periodo. Lo que se protege aquí es esa
+   frase: si además de mover marcara el día de la pauta, el cliente vería dos
+   citas donde la aplicación reclama una, que es la clase de desacuerdo que este
+   archivo lleva dos rondas cerrando.
+   ========================================================================== */
+
+/** Jueves, cada dos semanas, con la entrega del periodo del 17-ago movida al martes 18. */
+const MOVIDA = { checkin: { weekday: 3, everyWeeks: 2, dates: ['2026-08-18'] } };
+
+describe('fechas movidas', () => {
+  it('la fecha movida manda sobre el día de la pauta', () => {
+    const periodo = currentCheckInPeriod(MOVIDA, '2026-08-03', '2026-08-19');
+    expect(periodo.start).toBe('2026-08-17');
+    expect(periodo.dueOn).toBe('2026-08-18'); // el martes, no el jueves 20
+    expect(periodo.moved).toBe(true);
+  });
+
+  it('no toca a los demás periodos', () => {
+    const periodo = currentCheckInPeriod(MOVIDA, '2026-08-03', '2026-09-02');
+    expect(periodo.start).toBe('2026-08-31');
+    expect(periodo.dueOn).toBe('2026-09-03');
+    expect(periodo.moved).toBe(false);
+  });
+
+  /* El caso que hace falta que no se rompa: mover al martes hace que la entrega
+     VENZA dos días antes, y eso tiene que notarse en `isDue`. */
+  it('adelantar la fecha adelanta el vencimiento', () => {
+    expect(currentCheckInPeriod(MOVIDA, '2026-08-03', '2026-08-18').isDue).toBe(true);
+    expect(currentCheckInPeriod(QUINCENAL_JUEVES, '2026-08-03', '2026-08-18').isDue).toBe(false);
+  });
+
+  it('el calendario marca la movida y NO el día de la pauta', () => {
+    const marcados = checkInDates(weekCells('2026-08-19'), checkInSchedule(MOVIDA), '2026-08-03');
+    expect([...marcados]).toEqual(['2026-08-18']);
+  });
+
+  it('nextCheckIn devuelve la movida', () => {
+    expect(nextCheckIn(MOVIDA, '2026-08-03', '2026-08-17')).toBe('2026-08-18');
+  });
+
+  /* La invariante de siempre, ahora con las fechas movidas dentro. */
+  it('sigue coincidiendo con el periodo vigente', () => {
+    for (const dia of ['2026-08-17', '2026-08-18']) {
+      const periodo = currentCheckInPeriod(MOVIDA, '2026-08-03', dia);
+      expect(nextCheckIn(MOVIDA, '2026-08-03', dia)).toBe(periodo.dueOn);
+    }
+  });
+
+  /* Y la que de verdad importa en pantalla: lo que marca el mes y lo que se
+     reclama son la MISMA fecha, día a día, con y sin fechas movidas. */
+  it('el mes y la reclamación no pueden discrepar', () => {
+    const celdas = monthGrid(2026, 7); // agosto de 2026
+    for (const prefs of [SEMANAL_JUEVES, QUINCENAL_JUEVES, MOVIDA]) {
+      const marcados = checkInDates(celdas, checkInSchedule(prefs), '2026-08-03');
+      for (const celda of celdas) {
+        const periodo = currentCheckInPeriod(prefs, '2026-08-03', celda.date);
+        if (periodo?.dueOn === celda.date) expect(marcados.has(celda.date)).toBe(true);
+      }
+    }
+  });
+});
+
+describe('moveCheckIn', () => {
+  it('sin pauta no se puede mover nada', () => {
+    expect(moveCheckIn({}, '2026-08-03', '2026-08-18')).toBeNull();
+  });
+
+  it('mueve la entrega de su periodo', () => {
+    expect(moveCheckIn(QUINCENAL_JUEVES, '2026-08-03', '2026-08-18')).toEqual(['2026-08-18']);
+  });
+
+  /* Una por periodo. Sin esto, dos fechas en la misma quincena y `dueOnOf` se
+     quedaría con la primera sin que nadie lo hubiera decidido. */
+  it('la segunda fecha del mismo periodo sustituye a la primera', () => {
+    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-21')).toEqual(['2026-08-21']);
+  });
+
+  it('volver a pulsar la misma fecha la quita', () => {
+    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-18')).toEqual([]);
+  });
+
+  it('mover al propio día de la pauta no guarda nada', () => {
+    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-20')).toEqual([]);
+  });
+
+  it('respeta el tope', () => {
+    // Doce martes seguidos: una fecha movida en cada uno de doce periodos semanales.
+    const doce = [
+      '2026-09-01', '2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29', '2026-10-06',
+      '2026-10-13', '2026-10-20', '2026-10-27', '2026-11-03', '2026-11-10', '2026-11-17',
+    ];
+    const llena = { checkin: { weekday: 3, everyWeeks: 1, dates: doce } };
+
+    expect(checkInSchedule(llena).dates).toHaveLength(12);
+    // Un periodo nuevo ya no cabe; uno que ya tenía fecha sí, porque la sustituye.
+    expect(moveCheckIn(llena, '2026-08-03', '2027-01-05')).toBeNull();
+    expect(moveCheckIn(llena, '2026-08-03', '2026-09-02')).toHaveLength(12);
   });
 });

@@ -5,7 +5,7 @@ import { ArrowUpRight, Check, ExternalLink, Receipt } from 'lucide-react';
 import { useActions, useSession } from '@/context/AppContext';
 import { fmt, planAhorroPct, planPrice, storageLabel } from '@/lib/num';
 import { supabase } from '@/lib/supabaseClient';
-import { Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
+import { Loading, Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
 import { useBilling } from './useBilling';
 
 /**
@@ -30,8 +30,18 @@ import { useBilling } from './useBilling';
  * bastaría con abrir la pasarela y cerrar la pestaña.
  */
 export const PlanPanel = () => {
-  const { plan, team, myTeamRole } = useSession();
+  const { plan, team, teamMembers, myTeamRole, session } = useSession();
   const { refreshPlan } = useActions();
+
+  /*
+    Dueño de verdad, no dueño por defecto. Antes «sin rol» contaba como dueño
+    para que las cuentas anteriores a la 0029 —sin fila de membresía— pudieran
+    contratar; pero eso enseñaba el botón de pago a cualquiera cuyo rol aún no
+    hubiera cargado (el servidor lo rechaza con un 403, que es peor sitio para
+    enterarse). Sin rol, ahora decide `team.ownerId`: la cuenta legada sigue
+    pudiendo, y el que no es dueño no ve un botón que no le funciona.
+  */
+  const esDueno = myTeamRole === 'owner' || (!myTeamRole && team?.ownerId === session?.user?.id);
   const { busy, error, contratar, abrirPortal } = useBilling();
   const [tiers, setTiers] = useState([]);
   const [anual, setAnual] = useState(false);
@@ -60,15 +70,26 @@ export const PlanPanel = () => {
 
   useEffect(() => {
     let alive = true;
-    supabase
-      .from('plan_limits')
-      .select(
-        'plan, label, max_clients, price_cents, price_cents_year, currency, interval, blurb, purchasable, sort'
-      )
-      .order('sort')
-      .then(({ data }) => {
-        if (alive) setTiers(data || []);
-      });
+    /*
+      Lista explícita y NUNCA `select('*')`: desde la 0065 los permisos de
+      `plan_limits` van POR COLUMNA (`GRANT SELECT (has_integrations)…`), y con
+      privilegios por columna un `*` falla entero en cuanto el rol no puede leer
+      una. Las cuatro últimas columnas llegan con 0064–0067; si alguna falta
+      —migración sin aplicar— se reintenta con la lista de siempre y la pantalla
+      se queda exactamente como estaba: cada rasgo solo se pinta si su columna
+      trae dato.
+    */
+    const BASE =
+      'plan, label, max_clients, price_cents, price_cents_year, currency, interval, blurb, purchasable, sort';
+    (async () => {
+      const ampliada = await supabase
+        .from('plan_limits')
+        .select(`${BASE}, max_seats, has_integrations, has_audit_log, max_storage_mb`)
+        .order('sort');
+      let { data } = ampliada;
+      if (ampliada.error) ({ data } = await supabase.from('plan_limits').select(BASE).order('sort'));
+      if (alive) setTiers(data || []);
+    })();
     return () => {
       alive = false;
     };
@@ -111,14 +132,14 @@ export const PlanPanel = () => {
   useEffect(() => {
     if (yaLanzado.current || !contratando || busy) return;
     if (!team || !plan) return;
-    if (!(myTeamRole === 'owner' || !myTeamRole)) return;
+    if (!esDueno) return;
 
     const tier = tiers.find((t) => t.plan === contratando);
     if (!tier || !tier.purchasable || tier.plan === plan.plan) return;
 
     yaLanzado.current = true;
     contratar(tier.plan, params.get('periodo') === 'year' ? 'year' : 'month');
-  }, [contratando, busy, team, plan, tiers, myTeamRole, contratar, params]);
+  }, [contratando, busy, team, plan, tiers, esDueno, contratar, params]);
 
   if (!team) {
     return (
@@ -149,7 +170,44 @@ export const PlanPanel = () => {
   const quedan = maxClients === null ? null : Math.max(0, maxClients - clients);
   const pct = maxClients ? Math.min(100, Math.round((clients / maxClients) * 100)) : 100;
   const dias = trialEndsAt ? Math.ceil((new Date(trialEndsAt) - Date.now()) / 86400000) : null;
-  const esDueno = myTeamRole === 'owner' || !myTeamRole;
+
+  /*
+    Asientos: usados = miembros del equipo (SessionContext); tope = la fila del
+    plan actual en la escala (0064, `max_seats` existe desde la 0019). Solo se
+    enseña en planes con más de un asiento: en un plan individual «1 de 1,
+    completo» sería ruido permanente sin decisión detrás.
+  */
+  const asientos = teamMembers?.length || 0;
+  /** La fila del plan que tienes puesto: la referencia de toda la escala. */
+  const miTier = tiers.find((t) => t.plan === plan.plan) || null;
+  const maxSeats = miTier?.max_seats ?? null;
+  const conAsientos = maxSeats != null && maxSeats > 1 && asientos > 0;
+
+  /*
+    ══ El peldaño que se señala, y por qué ═════════════════════════════════════
+
+    El siguiente que se puede comprar hacia arriba. `tiers` llega ordenado por
+    `sort`, así que «hacia arriba» es «después que el mío» y no hay que
+    comparar precios —que no ordenarían bien un plan gratuito—.
+
+    Solo se señala si de verdad AÑADE algo (`ventajasSobre`) y solo a quien
+    puede contratarlo: recomendarle un cambio a quien no es dueño del equipo es
+    mandarle a un botón que no existe.
+  */
+  const miIndice = tiers.findIndex((t) => t.plan === plan.plan);
+  const candidato =
+    esDueno && miIndice >= 0 ? tiers.find((t, i) => i > miIndice && t.purchasable) : null;
+  const recomendado = candidato && ventajasSobre(candidato, miTier).length > 0 ? candidato : null;
+
+  const aprieta = loQueAprieta({
+    clients,
+    maxClients,
+    storageBytes,
+    maxStorageMb,
+    asientos,
+    maxSeats,
+    actual: miTier,
+  });
 
   /*
     El ahorro se saca del plan más barato que lo tenga y se enseña una vez, junto
@@ -196,7 +254,10 @@ export const PlanPanel = () => {
     return (
       <Header>
         <Panel>
-          <p className="t-sm t-secondary">Abriendo el pago…</p>
+          {/* La carga en línea del producto, con sus tres puntos, en vez de una
+              frase quieta: aquí se está esperando a un tercero y hay que verse
+              que algo pasa. */}
+          <Loading label="Abriendo el pago…" />
         </Panel>
       </Header>
     );
@@ -245,25 +306,42 @@ export const PlanPanel = () => {
       {avisoContratar && <Notice tone="info">{avisoContratar}</Notice>}
 
       {/* ── Tu número ────────────────────────────────────────────────────── */}
-      <Panel className="plan-hero">
+      <Panel className="plan-hero card-lumbre">
+        {/*
+          El rótulo del plan sube a cabecera del bloque. Estaba a la derecha en
+          troquelada diminuta, compitiendo con la cifra por el mismo renglón: la
+          identidad de la pantalla susurrada y el dato gritando. Arriba manda
+          sobre lo que hay debajo, que es lo que es.
+
+          Y al lado, el estado — cuando es uno que cambia lo que puedes hacer.
+          Estaba solo en el aviso de arriba, y los avisos se cierran o se pasan
+          por alto; el peldaño en el que estás tiene que decir también en qué
+          situación está.
+        */}
         <div className="plan-hero-head">
-          <div className="col gap-1">
-            <span className="plan-count tnum">{clients}</span>
-            <span className="t-sm t-secondary">
+          <span className="section-label">Plan {label}</span>
+          {ESTADOS[status] && (
+            <span className={`badge ${ESTADOS[status].tone}`}>{ESTADOS[status].label}</span>
+          )}
+        </div>
+
+        {/* La cifra y su unidad en la misma línea de base: el número solo, con
+            la unidad debajo, dejaba una columna estrecha y medio bloque vacío a
+            la derecha. */}
+        <div className="plan-count-row">
+          <span className="plan-count tnum">{clients}</span>
+          <span className="plan-count-say">
+            <span className="t-sm">
               {clients === 1 ? 'cliente en tu cartera' : 'clientes en tu cartera'}
             </span>
-          </div>
-
-          <div className="plan-hero-side">
-            <span className="section-label">Plan {label}</span>
-            <span className="t-sm t-secondary">
+            <span className="t-xs t-tertiary">
               {quedan === null
                 ? 'Sin tope de clientes'
                 : quedan === 0
                   ? 'Has llegado al tope'
                   : `Te ${quedan === 1 ? 'queda' : 'quedan'} ${quedan} por dar de alta`}
             </span>
-          </div>
+          </span>
         </div>
 
         <div
@@ -281,81 +359,167 @@ export const PlanPanel = () => {
         </div>
 
         {/*
-          El disco, en una línea y no en otra barra: la cifra que decide un
-          cambio de plan sigue siendo la de clientes, y dos barras en el mismo
-          panel pelearían por ser la importante. Solo aparece con la 0067
-          aplicada —`storageBytes` trae número— y avisa cuando el tope está
-          cerca, que es ANTES de que una foto de un cliente choque con él: el
-          mensaje de ese choque no le dice al cliente por qué (a propósito), así
-          que el único aviso con contexto es este.
+          Los otros dos topes del plan, en voz más baja: la cifra que decide un
+          cambio de plan sigue siendo la de clientes, con su barra grande, y
+          asientos y disco informan sin competir con ella. Cada medidor solo
+          aparece cuando su dato existe —sin la 0067 no hay `storageBytes`, y el
+          de asientos solo interesa en planes con más de uno—.
+
+          El del disco avisa cuando el tope está cerca, que es ANTES de que una
+          foto de un cliente choque con él: el mensaje de ese choque no le dice
+          al cliente por qué (a propósito), así que el único aviso con contexto
+          es este. Lo usado va en la unidad del TOPE: «120 de 512 MB», «1,2 de
+          10 GB» — mezclar unidades obligaría a convertir de cabeza justo cuando
+          se está decidiendo si borrar o pagar.
         */}
-        {storageBytes != null && (
-          <p className="t-sm t-secondary row gap-2">
-            <span>
-              {/* Lo usado, en la unidad del TOPE: «120 de 512 MB», «1,2 de 10 GB».
-                  Mezclar unidades en la misma frase obligaría a convertir de
-                  cabeza justo cuando se está decidiendo si borrar o pagar. */}
-              Fotos y vídeo:{' '}
-              <span className="tnum">
-                {maxStorageMb === null || maxStorageMb >= 1024
-                  ? fmt(storageBytes / GB, { decimals: 1 })
-                  : fmt(storageBytes / MB)}
-              </span>
-              {maxStorageMb ? ` de ${storageLabel(maxStorageMb)}` : ' GB, sin tope'}
-            </span>
-            {cercaDelTope(storageBytes, maxStorageMb) && (
-              <span className="badge badge-warn">Casi lleno</span>
+        {(conAsientos || storageBytes != null) && (
+          <div className="plan-meters">
+            {conAsientos && (
+              <div className="plan-meter">
+                <span className="t-sm t-secondary row gap-2">
+                  <span>
+                    Equipo: <span className="tnum">{asientos}</span> de {maxSeats} asientos
+                  </span>
+                  {asientos >= maxSeats && <span className="badge badge-warn">Completo</span>}
+                </span>
+                <div
+                  className="plan-bar"
+                  role="progressbar"
+                  aria-valuenow={asientos}
+                  aria-valuemin={0}
+                  aria-valuemax={maxSeats}
+                  aria-label="Asientos usados de tu equipo"
+                >
+                  <span
+                    className={`plan-bar-fill${asientos >= maxSeats ? ' is-full' : ''}`}
+                    style={{ width: `${Math.min(100, Math.round((asientos / maxSeats) * 100))}%` }}
+                  />
+                </div>
+              </div>
             )}
-          </p>
+
+            {storageBytes != null && (
+              <div className="plan-meter">
+                <span className="t-sm t-secondary row gap-2">
+                  <span>
+                    Fotos y vídeo:{' '}
+                    <span className="tnum">
+                      {maxStorageMb === null || maxStorageMb >= 1024
+                        ? fmt(storageBytes / GB, { decimals: 1 })
+                        : fmt(storageBytes / MB)}
+                    </span>
+                    {maxStorageMb ? ` de ${storageLabel(maxStorageMb)}` : ' GB, sin tope'}
+                  </span>
+                  {cercaDelTope(storageBytes, maxStorageMb) && (
+                    <span className="badge badge-warn">Casi lleno</span>
+                  )}
+                </span>
+                {maxStorageMb != null && (
+                  <div
+                    className="plan-bar"
+                    role="progressbar"
+                    aria-valuenow={Math.round(storageBytes / MB)}
+                    aria-valuemin={0}
+                    aria-valuemax={maxStorageMb}
+                    aria-label="Espacio usado de fotos y vídeo"
+                  >
+                    <span
+                      className={`plan-bar-fill${cercaDelTope(storageBytes, maxStorageMb) ? ' is-full' : ''}`}
+                      style={{
+                        width: `${Math.min(100, Math.round((storageBytes / (maxStorageMb * MB)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </Panel>
 
       {/* ── La escala ────────────────────────────────────────────────────── */}
       {/*
-        El interruptor solo aparece si HAY algo que pagar por años. Mientras la
-        0062 esté sin encender, `price_cents_year` es NULL en todas las filas y
-        esta pantalla es exactamente la de antes: un control que ofrece una
-        opción que no existe es peor que no tenerlo.
+        Un solo bloque con peldaños, no una tarjeta por plan. Eran tres tarjetas
+        sueltas separadas por 8 px, que es la forma de «tres productos
+        compitiendo» que esta pantalla dice expresamente no querer: en columnas o
+        en tarjetas, el ojo compara cajas: en una lista agrupada compara
+        RENGLONES, que es lo que hace una escala.
 
-        Va encima de la escala y no dentro de cada plan porque la pregunta se
-        contesta una vez —«¿pago por meses o por años?»— y luego se comparan los
-        peldaños ya en esa moneda. Repetirlo por tarjeta obligaría a decidir tres
-        veces lo mismo.
+        El interruptor de mes/año pasa a ser la cabecera de esa lista. Flotaba
+        suelto entre el héroe y las tarjetas, sin bloque al que pertenecer, y lo
+        que hace es cambiar la moneda de lo que viene debajo. Solo aparece si HAY
+        algo que pagar por años: mientras la 0062 esté sin encender,
+        `price_cents_year` es NULL en todas las filas y esta pantalla es la de
+        siempre —un control que ofrece una opción que no existe es peor que no
+        tenerlo—. Y va aquí y no dentro de cada plan porque la pregunta se
+        contesta una vez y luego se comparan los peldaños ya en esa moneda.
       */}
-      {hayAnual && (
-        <div className="row gap-2 wrap">
-          <SegmentedControl
-            label="Cada cuánto pagas"
-            value={anual ? 'year' : 'month'}
-            onChange={(v) => setAnual(v === 'year')}
-            options={[
-              { id: 'month', label: 'Al mes' },
-              { id: 'year', label: 'Al año' },
-            ]}
-          />
-          {ahorro && <span className="badge badge-ok">{ahorro}</span>}
+      <div className="list">
+        <div className="list-head">
+          <span className="section-label">Tu escala</span>
+          {hayAnual && (
+            <div className="row gap-2 wrap">
+              {ahorro && <span className="badge badge-ok">{ahorro}</span>}
+              <SegmentedControl
+                label="Cada cuánto pagas"
+                value={anual ? 'year' : 'month'}
+                onChange={(v) => setAnual(v === 'year')}
+                options={[
+                  { id: 'month', label: 'Al mes' },
+                  { id: 'year', label: 'Al año' },
+                ]}
+              />
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="col gap-2">
         {tiers
           // Los planes que no se venden solo se enseñan si es el tuyo: la escala es
           // para decidir, y un plan que nadie puede contratar no es una opción.
           .filter((tier) => tier.purchasable || tier.plan === plan.plan)
           .map((tier) => {
             const actual = tier.plan === plan.plan;
+            const elegido = recomendado?.plan === tier.plan;
+            /* En el tuyo no hay delta que contar: los rasgos absolutos ya los
+               llevas puestos y los mide el héroe de arriba. */
+            const gana = actual ? [] : ventajasSobre(tier, miTier);
+            const nota = anual ? notaAnual(tier) : null;
+
             return (
-              <Panel key={tier.plan} className={`plan-tier${actual ? ' is-current' : ''}`}>
+              <div
+                key={tier.plan}
+                className={`plan-tier${actual ? ' is-current' : ''}${elegido ? ' is-pick' : ''}`}
+              >
                 <div className="plan-tier-main">
-                  <div className="row gap-2">
+                  <div className="row gap-2 wrap">
                     <strong className="plan-tier-name">{tier.label}</strong>
                     {actual && (
                       <span className="badge badge-ok">
                         <Check size={11} /> Tu plan
                       </span>
                     )}
+                    {elegido && <span className="plan-tag">Tu siguiente paso</span>}
                   </div>
                   <span className="t-sm t-secondary">{tier.blurb}</span>
+
+                  {/*
+                    Lo que este peldaño AÑADE sobre el tuyo, con palomas — la voz
+                    de la tabla de precios de la portada, traída adentro. Antes
+                    era la lista absoluta de sus rasgos separada por puntos, en
+                    tinta terciaria: los tres peldaños repetían casi lo mismo y
+                    había que cruzarlos a ojo para encontrar la única línea que
+                    cambiaba, que es justo lo que se venía a saber.
+                  */}
+                  {gana.length > 0 && (
+                    <ul className="plan-gain">
+                      {gana.map((ventaja) => (
+                        <li key={ventaja}>
+                          <Check size={12} strokeWidth={2.5} aria-hidden="true" />
+                          {ventaja}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
 
                 <div className="plan-tier-cap t-sm">
@@ -363,11 +527,26 @@ export const PlanPanel = () => {
                 </div>
 
                 <div className="plan-tier-buy">
-                  <span className="plan-price tnum">{precio(tier, anual)}</span>
+                  <span className="plan-tier-money">
+                    {/*
+                      El `key` es el que hace que el precio se mueva al cambiar de
+                      mes a año: React remonta el elemento y la animación del CSS
+                      vuelve a correr. Sin él, tocar el interruptor repinta tres
+                      cifras en silencio y hay que compararlas de memoria.
+                    */}
+                    <span className="plan-price tnum" key={anual ? 'year' : 'month'}>
+                      {precio(tier, anual)}
+                    </span>
+                    {nota && <span className="plan-price-note">{nota}</span>}
+                  </span>
+
                   {!actual && tier.purchasable && esDueno && (
                     <button
                       type="button"
-                      className="btn btn-primary btn-sm"
+                      /* El recomendado se lleva el botón sólido y de tamaño
+                         entero. Todos iguales, la recomendación era una pastilla
+                         de texto sin ninguna consecuencia en el gesto. */
+                      className={elegido ? 'btn btn-primary' : 'btn btn-secondary btn-sm'}
                       disabled={Boolean(busy)}
                       /*
                         Se contrata lo que la tarjeta está enseñando: si este plan
@@ -379,20 +558,41 @@ export const PlanPanel = () => {
                         contratar(tier.plan, anual && tier.price_cents_year ? 'year' : 'month')
                       }
                     >
-                      {busy === tier.plan ? 'Abriendo…' : 'Contratar'}
+                      {busy === tier.plan
+                        ? 'Abriendo…'
+                        : elegido
+                          ? `Pasar a ${tier.label}`
+                          : 'Contratar'}
                       <ArrowUpRight size={14} />
                     </button>
                   )}
                 </div>
-              </Panel>
+
+                {/* Y por qué se te señala ESTE. Con algo que aprieta de verdad se
+                    dice; sin nada que apriete no se inventa urgencia y la fila se
+                    queda con su delta, que ya es el argumento. */}
+                {elegido && aprieta && <p className="plan-tier-why">{aprieta}</p>}
+              </div>
             );
           })}
       </div>
 
+      {/*
+        Lo que quita el miedo, que en una pantalla de pago pesa más que cualquier
+        ventaja. Estaba al pie de la tabla de la portada —donde lo lee quien aún
+        no ha pagado nada— y faltaba aquí, que es donde se pulsa el botón.
+      */}
+      <p className="plan-foot">
+        Sin permanencia: se cambia y se cancela desde aquí, cuando quieras. Archivar a quien lo ha
+        dejado no ocupa sitio en tu plan y conserva su historial entero. Y si algún día dejas de
+        pagar, la cuenta pasa a solo lectura — leer, exportar y borrar no se bloquean nunca.
+      </p>
+
+      {/* Por qué no hay ningún botón de contratar. Era un párrafo en tinta
+          terciaria debajo de la escala, o sea justo la voz que se salta quien
+          está buscando el botón que no encuentra. */}
       {!esDueno && (
-        <p className="t-sm t-tertiary">
-          La suscripción la gestiona quien creó el equipo.
-        </p>
+        <Notice tone="info">La suscripción la gestiona quien creó el equipo.</Notice>
       )}
 
       {/*
@@ -456,11 +656,153 @@ const Header = ({ children }) => (
 */
 const precio = (tier, anual) => {
   if (!tier.price_cents) return 'Incluido';
-  return (anual && planPrice(tier, { anual: true })) || planPrice(tier);
+  /*
+    En anual se enseña MENSUALIZADO, que es la técnica de la portada y está
+    razonada en `planPrice`: nadie tiene en la cabeza si 390 € al año son más o
+    menos que 39 al mes, y sí sabe que 32,50 es menos que 39. El cargo real va
+    debajo, en su línea, que es lo que esa función exige a cambio.
+  */
+  return (anual && planPrice(tier, { anual: true, mensualizado: true })) || planPrice(tier);
+};
+
+/** El cargo de verdad y lo que te ahorras. Solo en anual, y solo si lo tiene. */
+const notaAnual = (tier) => {
+  const total = planPrice(tier, { anual: true });
+  if (!total) return null;
+  const ahorro = ahorroEnDinero(tier);
+  return ahorro ? `${total} · te ahorras ${ahorro}` : total;
 };
 
 const MB = 1048576;
 const GB = 1073741824;
+
+/*
+  El estado de la suscripción, dicho en el propio peldaño.
+
+  Solo los dos que CAMBIAN lo que puedes hacer. «Activo» no entra: es lo normal,
+  y una insignia que sale siempre deja de significar nada —el nombre del plan ya
+  dice que estás dentro—. Un estado desconocido tampoco pinta insignia: mejor
+  nada que una palabra de Stripe sin traducir.
+*/
+const ESTADOS = {
+  trialing: { label: 'En prueba', tone: 'badge-info' },
+  past_due: { label: 'Recibo pendiente', tone: 'badge-bad' },
+  canceled: { label: 'Cancelado', tone: 'badge-bad' },
+  unpaid: { label: 'Sin pagar', tone: 'badge-bad' },
+};
+
+/*
+  Los rasgos que separan un peldaño de otro, además del tope de clientes (que
+  tiene su propia columna en la tarjeta). Cada uno solo existe si su columna
+  trae dato, así que la escala funciona igual con la tarifa vieja y con la
+  nueva. `false` no se enumera: la ausencia ya lo dice, y una lista de «esto
+  no» convertiría la escala en un reproche.
+*/
+const rasgosDeTier = (tier) => {
+  const rasgos = [];
+  if (tier.max_seats != null && tier.max_seats > 1) rasgos.push(`${tier.max_seats} asientos`);
+  if (tier.has_integrations) rasgos.push('Integraciones');
+  if (tier.has_audit_log) rasgos.push('Registro de cambios');
+  if (tier.max_storage_mb != null)
+    rasgos.push(`${storageLabel(tier.max_storage_mb)} de fotos y vídeo`);
+  return rasgos;
+};
+
+/**
+ * Lo que un peldaño AÑADE sobre el que ya tienes.
+ *
+ * ══ Por qué el delta y no la lista entera ═══════════════════════════════════
+ *
+ * Porque la portada y esta pantalla no le hablan a la misma persona. Allí no se
+ * sabe quién eres, así que cada tarjeta tiene que describirse entera; aquí se
+ * sabe exactamente en qué peldaño estás, y repetir en los tres lo mismo obliga a
+ * leer tres listas casi idénticas para encontrar la única línea que cambia.
+ *
+ * «Integraciones · 10 GB · 30 clientes más» ES el argumento. La lista completa
+ * es el catálogo del que hay que extraerlo a mano.
+ *
+ * Sin plan actual conocido (una cuenta sin fila, la tarifa vieja) se cae a los
+ * rasgos absolutos: sin referencia no hay diferencia que contar.
+ */
+const ventajasSobre = (tier, actual) => {
+  if (!actual) return rasgosDeTier(tier);
+
+  const gana = [];
+  const sube = (valor, tope, sinTope, mas) => {
+    if (valor === null && tope !== null) gana.push(sinTope);
+    else if (valor != null && tope != null && valor > tope) gana.push(mas);
+  };
+
+  sube(
+    tier.max_clients,
+    actual.max_clients,
+    'Clientes sin límite',
+    `${tier.max_clients - actual.max_clients} clientes más`
+  );
+  sube(
+    tier.max_seats,
+    actual.max_seats,
+    'Entrenadores sin límite',
+    `${tier.max_seats} asientos de equipo`
+  );
+  if (tier.has_integrations && !actual.has_integrations) gana.push('Integraciones');
+  if (tier.has_audit_log && !actual.has_audit_log) gana.push('Registro de cambios');
+  sube(
+    tier.max_storage_mb,
+    actual.max_storage_mb,
+    'Espacio sin límite',
+    `${storageLabel(tier.max_storage_mb)} de fotos y vídeo`
+  );
+
+  return gana;
+};
+
+/**
+ * Qué te está apretando AHORA, si es que algo lo hace.
+ *
+ * Es la única razón honesta para recomendar un cambio de plan desde dentro del
+ * producto: no «mira lo bonito que es el de arriba», sino «esto que estás
+ * usando se te queda corto, y lo sabes». Ordenada por urgencia real — el tope
+ * de clientes rompe el siguiente alta; los demás avisan.
+ *
+ * Devuelve `null` cuando no aprieta nada, y entonces no se inventa urgencia: el
+ * peldaño recomendado sigue señalado, pero argumentando lo que da en vez de lo
+ * que falta.
+ */
+const loQueAprieta = ({ clients, maxClients, storageBytes, maxStorageMb, asientos, maxSeats, actual }) => {
+  if (maxClients != null && clients >= maxClients) {
+    return `Estás en el tope de ${maxClients} clientes: el siguiente alta no entra.`;
+  }
+  if (maxClients != null && clients / maxClients >= 0.8) {
+    return `Vas por ${clients} de ${maxClients} clientes.`;
+  }
+  if (cercaDelTope(storageBytes, maxStorageMb)) {
+    return 'Las fotos y el vídeo de tus clientes casi llenan tu espacio.';
+  }
+  if (maxSeats != null && maxSeats > 1 && asientos >= maxSeats) {
+    return 'Tu equipo no tiene ningún asiento libre.';
+  }
+  /* `=== false` y no `!`: sin la 0065 la columna llega `undefined`, y eso es
+     «no se sabe», no «no las tienes». */
+  if (actual?.has_integrations === false) return 'Tu plan no incluye integraciones.';
+  return null;
+};
+
+/**
+ * Cuánto dinero te ahorras pagando por años, en euros y de este plan.
+ *
+ * El porcentaje ya estaba y es abstracto: «un 17 %» no se compara con nada que
+ * uno tenga en la cabeza. «Te ahorras 78 €» sí. Se formatea con `planPrice`
+ * —montando una fila de mentira con la diferencia— y no con un formateador
+ * propio, porque dos formatos del mismo dinero es exactamente lo que ese
+ * archivo existe para impedir.
+ */
+const ahorroEnDinero = (tier) => {
+  if (!tier?.price_cents || !tier?.price_cents_year) return null;
+  const diferencia = tier.price_cents * 12 - tier.price_cents_year;
+  if (diferencia <= 0) return null;
+  return planPrice({ price_cents: diferencia, currency: tier.currency }, { conPeriodo: false });
+};
 
 /*
   «Casi lleno» al 85 %: por debajo la cifra informa, por encima ya es cuestión

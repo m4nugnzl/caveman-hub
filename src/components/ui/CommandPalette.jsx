@@ -21,6 +21,7 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme.jsx';
+import { useDismissable } from '@/lib/useDismissable';
 import { norm } from '@/lib/texto';
 import {
   CLIENT_SECTIONS,
@@ -113,6 +114,10 @@ export const CommandPalette = () => {
 
   const inputRef = useRef(null);
   const listRef = useRef(null);
+  /* El cierre animado. El reset de cada apertura (query, cursor, ámbito) sigue
+     colgando de `open`, no de `mounted`: una paleta reabierta en plena salida
+     también tiene que empezar limpia. */
+  const salida = useDismissable(open);
 
   // ── El atajo global ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -311,7 +316,7 @@ export const CommandPalette = () => {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [cursor, results]);
 
-  if (!open) return null;
+  if (!salida.mounted) return null;
 
   const active = flat[Math.min(cursor, flat.length - 1)];
 
@@ -343,7 +348,9 @@ export const CommandPalette = () => {
 
   return (
     <div
+      ref={salida.ref}
       className="palette-backdrop"
+      data-state={salida.closing ? 'closing' : 'open'}
       onMouseDown={(e) => e.target === e.currentTarget && close()}
     >
       <div className="palette" role="dialog" aria-modal="true" aria-label="Buscar y ejecutar">

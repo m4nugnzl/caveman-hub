@@ -88,6 +88,16 @@ export const unitLabel = (cycleType) => (cycleType === 'rotating' ? 'Sesión' : 
 export const unitLabelPlural = (cycleType) => (cycleType === 'rotating' ? 'sesiones' : 'semanas');
 
 /**
+ * El patrón rotativo, saneado. Un patrón corrupto —texto, nulo, un cero— no
+ * puede devolver un ciclo de cero días: dejaría todos los microciclos en la
+ * misma fecha.
+ */
+export const normalizePattern = (pattern) => ({
+  train: Math.max(1, Math.round(toNum(pattern?.train) ?? 2)),
+  rest: Math.max(0, Math.round(toNum(pattern?.rest) ?? 1)),
+});
+
+/**
  * Cuántos días dura un ciclo del programa.
  *
  * Siete en el semanal, y en el rotativo lo que sume su patrón: un 3/1 dura
@@ -96,9 +106,73 @@ export const unitLabelPlural = (cycleType) => (cycleType === 'rotating' ? 'sesio
  */
 export const cycleLengthDays = (cycleType, pattern) => {
   if (cycleType !== 'rotating') return 7;
-  const train = Math.max(1, Math.round(toNum(pattern?.train) ?? 2));
-  const rest = Math.max(0, Math.round(toNum(pattern?.rest) ?? 1));
+  const { train, rest } = normalizePattern(pattern);
   return train + rest;
+};
+
+/**
+ * El ciclo rotativo, casilla a casilla: qué se entrena y cuándo se descansa.
+ *
+ * ══ Por qué existe ══════════════════════════════════════════════════════════
+ *
+ * Un cliente de semana natural ve su estructura —lunes empuje, martes tirón…—
+ * en su panel de progreso. Uno de ciclo rotativo no la veía en NINGÚN sitio: ni
+ * en progreso, donde la tarjeta se escondía por no haber semana a la que
+ * atarse, ni en su rutina, donde las sesiones salen en fila pero los descansos
+ * no aparecen. Su estructura existía solo en la cabeza del entrenador.
+ *
+ * ── Los entrenos salen de los DÍAS, el descanso del patrón ──────────────────
+ * Nada obliga a que el número de días del microciclo case con el `train` del
+ * patrón: el entrenador añade y quita días cuando quiere. Si se pintaran las
+ * casillas del patrón, un ciclo con seis días programados y un patrón de dos
+ * enseñaría dos sesiones al cliente mientras su rutina le enseña seis.
+ *
+ * Así que las sesiones son las que hay, con su nombre, y el descanso es lo que
+ * dice el patrón — que es lo único que el patrón sabe de verdad. Sin días
+ * todavía (el entrenador está montando) se cae a casillas genéricas, para que
+ * la forma del ciclo se vea antes de tener nombres que poner.
+ *
+ * ── El descanso va INTERCALADO, que es lo que significa «2 y 1» ─────────────
+ * «Dos de entreno y uno de descanso» no quiere decir «todos los entrenos y
+ * luego un descanso»: quiere decir que se descansa CADA DOS sesiones. Con seis
+ * días programados y un patrón 2/1, el ciclo son nueve días
+ *
+ *     Legs A · Push A · descanso · Pull A · Legs B · descanso · Push B · Pull B · descanso
+ *
+ * y no siete con el descanso al final. Ponerlo todo junto al final describía un
+ * programa que nadie entrena — y era además el único sitio donde el cliente
+ * podía leer su ritmo, así que se lo describía mal.
+ *
+ * El ciclo CIERRA descansando aunque la última tanda esté a medias: el descanso
+ * separa tandas, y al volver a empezar hay una tanda nueva detrás.
+ */
+export const rotatingSlots = (pattern, days = []) => {
+  const { train, rest } = normalizePattern(pattern);
+
+  const sesiones =
+    days.length > 0 ? days.map((day) => day.dayName) : Array.from({ length: train }, () => 'Entreno');
+
+  const slots = [];
+  let dia = 0;
+
+  sesiones.forEach((name, i) => {
+    dia += 1;
+    slots.push({ key: `t${i}`, lead: `Día ${dia}`, name, rest: false });
+
+    /* Se descansa al completar una tanda de `train`, y también al terminar la
+       última aunque se haya quedado corta. Las dos condiciones en la misma
+       comprobación: con un número de sesiones múltiplo del patrón, las dos son
+       ciertas a la vez y por separado meterían el descanso dos veces. */
+    const cierraTanda = (i + 1) % train === 0 || i === sesiones.length - 1;
+    if (!cierraTanda) return;
+
+    for (let r = 0; r < rest; r += 1) {
+      dia += 1;
+      slots.push({ key: `r${i}-${r}`, lead: `Día ${dia}`, name: 'Descanso', rest: true });
+    }
+  });
+
+  return slots;
 };
 
 // ── Constructores ──────────────────────────────────────────────────────────
@@ -136,6 +210,24 @@ export const emptyWorkoutData = () => ({
 });
 
 export const restWeekSplit = () => Object.fromEntries(WEEK_DAYS.map((d) => [d, 'Descanso']));
+
+/**
+ * ¿Esta casilla de la semana es descanso?
+ *
+ * La regla estaba escrita a mano en el editor de la estructura y otra vez en el
+ * tablero, y ya habían divergido en el caso que más se da: **la casilla vacía**.
+ * Al borrar el texto de un día, el editor lo seguía pintando como entreno (en
+ * tinta de acento) y el contador lo sumaba, así que la semana decía «5 días de
+ * entreno» con cuatro puestos. Vacío es descanso: no hay nada programado ahí.
+ */
+export const isRestDay = (value) => {
+  const v = (value ?? '').trim().toLowerCase();
+  return v === '' || v === 'descanso';
+};
+
+/** Cuántos días de la semana natural son de entreno. */
+export const trainingDayCount = (weeklySplit) =>
+  WEEK_DAYS.filter((day) => !isRestDay(weeklySplit?.[day])).length;
 
 export const buildExercise = ({ name, muscle, numSets, targetReps }) => ({
   id: newId('ex'),
@@ -209,11 +301,33 @@ export const firstCycleDate = (startDate) => {
 };
 
 /**
- * Cuándo empieza el ciclo siguiente a `previous`: su fecha más lo que dura un
- * ciclo. Sin fecha anterior de la que partir —datos viejos—, hoy.
+ * Cuánto dura un ciclo CONTANDO las sesiones que tiene dentro.
+ *
+ * ══ Por qué no basta con el patrón ══════════════════════════════════════════
+ *
+ * `cycleLengthDays` mide una tanda —«2 entreno + 1 descanso» son tres días— y
+ * eso solo es el ciclo entero cuando el microciclo tiene exactamente `train`
+ * sesiones. Con seis sesiones y un patrón 2/1, el ciclo son NUEVE días: tres
+ * tandas con su descanso cada una.
+ *
+ * Fechando por la tanda, el ciclo siguiente nacía tres días después del
+ * anterior cuando el cliente todavía tenía seis sesiones por delante. Y no es
+ * cosmético: la analítica agrupa por `micro.date`, así que el tonelaje y la
+ * adherencia de tres ciclos caían en la misma semana.
+ */
+export const cycleSpanDays = (cycleType, pattern, days = []) => {
+  if (cycleType !== 'rotating') return 7;
+  if (!days || days.length === 0) return cycleLengthDays(cycleType, pattern);
+  return rotatingSlots(pattern, days).length;
+};
+
+/**
+ * Cuándo empieza el ciclo siguiente a `previous`: su fecha más lo que dura ese
+ * ciclo, sesiones incluidas. Sin fecha anterior de la que partir —datos
+ * viejos—, hoy.
  */
 export const nextCycleDate = (previous, cycleType, pattern) =>
-  addDays(previous?.date, cycleLengthDays(cycleType, pattern)) || today();
+  addDays(previous?.date, cycleSpanDays(cycleType, pattern, previous?.days)) || today();
 
 /** Reasigna ids a un subárbol clonado para que no colisione con el original. */
 export const reidExercises = (exercises) =>

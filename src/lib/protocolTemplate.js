@@ -31,6 +31,7 @@ import {
   defaultProtocol,
   isServiceOn,
 } from '@/domain/protocol';
+import { clientIntake } from '@/domain/intake';
 
 const key = (userId) => `caveman-protocol:${userId || 'anon'}`;
 
@@ -47,9 +48,6 @@ export const templateFrom = (coachPrefs) => {
   // Mismo saneado que lo de cada cliente: viene de una columna jsonb abierta.
   return clientProtocol({ protocol: raw });
 };
-
-/** Lo que se guarda. Es el protocolo entero, que ya está saneado. */
-export const templateToPreferences = (protocol) => protocol;
 
 /** La que quedara en el navegador, para subirla una vez. `null` si no hay. */
 export const readLocalTemplate = (userId) => {
@@ -111,3 +109,20 @@ export const matchesTemplate = (template, protocol) =>
 
 /** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
 export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'services'];
+
+/**
+ * ¿Este cliente se desvía de la plantilla?
+ *
+ * Es `matchesTemplate` más los pasos del alta: cambiar solo los pasos dejaba
+ * «Aplicar a todos» apagado y no había forma de empujarlos. Vive aquí —y no
+ * inline en la pantalla— porque lo usan dos sitios que no pueden discrepar: el
+ * recuento del botón y la marca «propia» de cada cliente en el selector.
+ */
+export const clientDrifts = (template, intakeTemplate, client) => {
+  if (!matchesTemplate(template, clientProtocol(client.preferences))) return true;
+  const suyo = clientIntake(client.preferences);
+  return (
+    suyo.steps.join() !== intakeTemplate.steps.join() ||
+    JSON.stringify(suyo.custom) !== JSON.stringify(intakeTemplate.custom)
+  );
+};

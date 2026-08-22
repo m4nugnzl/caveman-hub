@@ -5,9 +5,10 @@ import { useEffect, useMemo, useState } from 'react';
    nuevos, para que editarlo aquí no toque el del programa. */
 const deepCopyDrills = (drills) =>
   (drills || []).map((d) => ({ ...d, id: `${d.id}-dia-${Math.random().toString(36).slice(2, 8)}` }));
-import { ChevronDown, ChevronRight, Dumbbell, NotebookPen, Plus, Quote, Users, Waves } from 'lucide-react';
+import { Dumbbell, GripVertical, NotebookPen, Plus, Quote, Users, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { useArrastreOrden } from '@/lib/useArrastreOrden';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 import {
@@ -15,13 +16,15 @@ import {
   dayMuscleVolume,
   dayPlannedVolume,
   indexAfterMove,
+  rotatingSlots,
+  trainingDayCount,
   unitLabel,
 } from '@/domain/training';
 import { sessionMuscleVolume } from '@/domain/sessions';
 import { isEmptyDiet } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
-import { EmptyState, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { EmptyState, Fold, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
 import { SessionFeedback } from './SessionFeedback';
 import { WarmupEditor } from './WarmupBlock';
@@ -91,16 +94,10 @@ export const WorkoutLogEditor = () => {
     ensureProgram,
   } = useApp();
 
-  const [cycleOpen, setCycleOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [newDayName, setNewDayName] = useState('');
   const [addingDay, setAddingDay] = useState(false);
-  /* Quién se arrastra y sobre quién se está soltando, para poder pintar los dos
-     de forma distinta. Mismo par de estados que en `ExerciseList`. */
-  const [dragDay, setDragDay] = useState(null);
-  const [overDay, setOverDay] = useState(null);
 
-  const [warmupOpen, setWarmupOpen] = useState(false);
   /* El alta de ejercicio del teléfono: la abre el botón flotante como hoja. */
   const esTelefono = useEsTelefono();
   const [altaAbierta, setAltaAbierta] = useState(false);
@@ -150,6 +147,9 @@ export const WorkoutLogEditor = () => {
     };
   }, [program, activeClient.id, ensureProgram, intento]);
   const microcycles = program?.microcycles || [];
+  /* El calentamiento del PROGRAMA. Se lee en tres sitios —su pliegue, el aviso
+     de lo que se copia y el día que hereda—, así que se nombra una vez. */
+  const drills = program?.mobilityDrills || [];
   const cycleType = activeClient.cycleType || 'weekly';
   /* Qué módulos existen para este cliente. Se configura en Ajustes → Protocolo y
      decide qué piezas de esta pantalla se pintan siquiera. */
@@ -161,8 +161,8 @@ export const WorkoutLogEditor = () => {
   /**
    * Cambia un día de sitio y deja abierto EL MISMO que estabas editando.
    *
-   * Las dos entradas —arrastrar un chip y las flechas de la cabecera— pasan por
-   * aquí, porque el cuidado es el mismo y el error también: `selectDay` guarda un
+   * Las dos entradas —arrastrar un chip y Alt + ←/→ sobre él— pasan por aquí,
+   * porque el cuidado es el mismo y el error también: `selectDay` guarda un
    * ÍNDICE, así que mover cualquier día corre el del que tienes abierto. Ver
    * `indexAfterMove`.
    */
@@ -173,6 +173,12 @@ export const WorkoutLogEditor = () => {
     if (destino < 0) return;
     nav.selectDay(indexAfterMove(nav.dayIndex, from, destino));
   };
+
+  /* Las dos entradas al mismo sitio: el arrastre del carril y Alt + ←/→ pasan
+     por `moverDia`. El hook se llama aquí arriba, antes de los retornos
+     tempranos de «cargando» y «sin programa» — un hook no puede quedar detrás
+     de un `return`. */
+  const ordenDias = useArrastreOrden({ onMove: moverDia });
   const save = saveStatus('workout', activeClient.id);
 
   const daySession = useDaySession(nav.microcycle, nav.day);
@@ -245,22 +251,83 @@ export const WorkoutLogEditor = () => {
     );
   }
 
+  /*
+    ══ Traer de otro cliente, en un sitio y no en tres ════════════════════════
+
+    El panel se pinta igual en el vacío que con programa, así que se monta una
+    vez: lo abren el botón de la barra de microciclos y el del estado vacío.
+
+    Y solo existe si hay de quién traer. Ofrecer «traer de otro cliente» al que
+    solo tiene uno lleva a un aviso que dice que hacen falta dos: una puerta que
+    solo sirve para decirte que no puedes pasar.
+  */
+  const hayDeQuienTraer = clients.length > 1;
+  const panelDeCopia = copyOpen && (
+    <CopyToClientPanel
+      clients={clients}
+      activeClient={activeClient}
+      cycleType={cycleType}
+      weekCount={microcycles.length}
+      hasProgram={microcycles.length > 0}
+      hasDiet={
+        /* Tener fila en `nutrition_plans` no es tener dieta: la fila nace al
+           tocar cualquier cosa. Avisar de que «esto SUSTITUYE su dieta actual»
+           por un plan en blanco es asustar por nada. */
+        !isEmptyDiet(nutrition[activeClient.id])
+      }
+      conNutricion={isServiceOn(protocol, 'nutrition')}
+      hasWarmup={drills.length > 0}
+      onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
+      onClose={() => setCopyOpen(false)}
+    />
+  );
+
+  /*
+    ══ El vacío ofrece las DOS rutas ══════════════════════════════════════════
+
+    Enseñaba un solo botón, «Crear primer microciclo», y ese es justo el momento
+    en el que copiar vale más que en ningún otro: das de alta a alguien y lo
+    normal es montarlo como a otro que ya funciona. La otra ruta existía —dentro
+    del menú ⋯ de una barra de microciclos que aquí ni siquiera se pinta—, así
+    que en la práctica no existía. Quien no la conocía, montaba doce semanas a
+    mano.
+  */
   if (microcycles.length === 0) {
     return (
-      <EmptyState
-        icon={Dumbbell}
-        title="Este cliente no tiene programa todavía"
-        message="Crea el primer microciclo para empezar a programar días y ejercicios."
-        action={
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={() => nav.selectWeek(startProgram(activeClient.id))}
-          >
-            <Plus size={17} /> Crear primer microciclo
-          </button>
-        }
-      />
+      <div className="stack">
+        <EmptyState
+          icon={Dumbbell}
+          title="Este cliente no tiene programa todavía"
+          message={
+            hayDeQuienTraer
+              ? 'Empieza de cero, o trae el programa de alguien a quien ya se lo tengas montado y retócalo.'
+              : 'Crea el primer microciclo para empezar a programar días y ejercicios.'
+          }
+          action={
+            <div className="row wrap gap-2">
+              <button
+                type="button"
+                className="btn btn-primary btn-lg"
+                onClick={() => nav.selectWeek(startProgram(activeClient.id))}
+              >
+                <Plus size={17} /> Crear primer microciclo
+              </button>
+              {hayDeQuienTraer && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-lg"
+                  onClick={() => setCopyOpen(true)}
+                  aria-expanded={copyOpen}
+                >
+                  <Users size={17} /> Traer de otro cliente
+                </button>
+              )}
+            </div>
+          }
+        />
+
+        {panelDeCopia}
+      </div>
     );
   }
 
@@ -274,39 +341,88 @@ export const WorkoutLogEditor = () => {
   };
 
   /*
-    ══ La configuración del programa: arriba, pero en UNA LÍNEA ═══════════════
-    Se toca una vez por cliente y era la primera TARJETA de la pantalla — eso
-    era lo que estorbaba, no su posición: el contexto del programa se quiere
-    ver antes de la sesión, solo que en voz baja. Ahora es una línea que abre
-    su hoja (ver `CycleSettings`); la planificación semanal viaja dentro.
+    ══ El bloque del programa: dos filas que se abren EN SU SITIO ═════════════
+
+    Cómo está montado el programa y cómo se calienta se deciden una vez por
+    cliente, pero son el contexto de todo lo que hay debajo: por eso abren la
+    pantalla, y por eso lo hacen en voz baja. Cerradas dicen lo que hay —«Semana
+    natural · empieza el 12 sept · 4 días de entreno»—, así que plegarlas no es
+    esconderlas.
+
+    Antes eran dos cosas distintas pegadas: una línea sin superficie que abría
+    una VENTANA modal y, justo debajo, un panel con otro chevron que se abría en
+    su sitio. Mismo gesto, dos formas y dos comportamientos. Ahora son dos
+    pliegues (`Fold`) del mismo bloque; una ventana es para lo que viene de
+    fuera —traer de otro cliente—, no para lo que ya estás mirando.
   */
-  const configDelPrograma = (
-    <CycleSettings
-      client={activeClient}
-      open={cycleOpen}
-      onToggle={() => setCycleOpen((v) => !v)}
-      onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
-      saveIndicator={indicator}
-      protocol={protocol}
-      onProtocolChange={(next) => updateClientPreferences(activeClient.id, 'protocol', next)}
-    >
-      {cycleType === 'weekly' && (
-        <WeeklySplitEditor
-          split={program.weeklySplit}
-          onChange={(day, value) => updateWeeklySplit(activeClient.id, day, value)}
-        />
+  /* Solo la semana natural tiene «días de entreno» que contar: en el ciclo
+     rotativo el reparto lo dice el patrón, que ya está en el resumen. */
+  const diasDeEntreno = cycleType === 'weekly' ? trainingDayCount(program.weeklySplit) : null;
+  /* Las casillas del ciclo rotativo, con los días de ESTE microciclo puestos.
+     Es la misma cadena que el cliente ve en su progreso. */
+  const cicloSlots =
+    cycleType === 'rotating' ? rotatingSlots(activeClient.cyclePattern, nav.days) : [];
+
+  const bloqueDelPrograma = (
+    <Panel tight className="col">
+      <CycleSettings
+        client={activeClient}
+        onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
+        protocol={protocol}
+        onProtocolChange={(next) => updateClientPreferences(activeClient.id, 'protocol', next)}
+        cicloSlots={cicloSlots}
+        resumenExtra={
+          diasDeEntreno === null
+            ? null
+            : `${diasDeEntreno} ${diasDeEntreno === 1 ? 'día' : 'días'} de entreno`
+        }
+      >
+        {cycleType === 'weekly' && (
+          <WeeklySplitEditor
+            split={program.weeklySplit}
+            onChange={(day, value) => updateWeeklySplit(activeClient.id, day, value)}
+          />
+        )}
+      </CycleSettings>
+
+      {/*
+        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad
+        de este cliente y se repite. Por eso vive aquí y no dentro de cada día
+        —que obligaría a mantener cinco copias— y por eso va PLEGADO: se monta
+        una vez y después se consulta poco. El del DÍA, cuando lo tiene, sigue
+        en el día.
+      */}
+      {isModuleOn(protocol, 'warmup') && (
+        <Fold
+          icon={Waves}
+          title="Calentamiento y movilidad"
+          summary={
+            drills.length === 0
+              ? 'todavía sin ejercicios'
+              : `${drills.length} ${drills.length === 1 ? 'ejercicio' : 'ejercicios'}`
+          }
+        >
+          <WarmupEditor
+            drills={drills}
+            onChange={(nuevos) => updateMobilityDrills(activeClient.id, nuevos)}
+          />
+        </Fold>
       )}
-    </CycleSettings>
+    </Panel>
   );
 
   return (
     <div className="stack">
+      {/* El estado de guardado es de la PANTALLA, no de la estructura: vivía
+          dentro de la línea de configuración, que ahora se pliega — y un aviso
+          de «no se guardó» no puede quedarse doblado dentro de nada. */}
       <PageHead
         title="Rutina"
         sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
+        action={indicator}
       />
 
-      {configDelPrograma}
+      {bloqueDelPrograma}
 
       <MicrocycleBar
         cycleType={cycleType}
@@ -320,7 +436,7 @@ export const WorkoutLogEditor = () => {
         onNext={nav.goNextWeek}
         onSelect={nav.selectWeek}
         copyOpen={copyOpen}
-        onToggleCopy={() => setCopyOpen((v) => !v)}
+        onToggleCopy={hayDeQuienTraer ? () => setCopyOpen((v) => !v) : null}
         /*
          * Estas dos acciones devuelven el número de la semana creada, así que la
          * navegación es inmediata. Antes se usaba `setTimeout(..., 50)` para
@@ -355,54 +471,7 @@ export const WorkoutLogEditor = () => {
         }}
       />
 
-      {copyOpen && (
-        <CopyToClientPanel
-          clients={clients}
-          activeClient={activeClient}
-          cycleType={cycleType}
-          weekCount={microcycles.length}
-          hasProgram={microcycles.length > 0}
-          hasDiet={
-            /* Tener fila en `nutrition_plans` no es tener dieta: la fila nace al
-               tocar cualquier cosa. Avisar de que «esto SUSTITUYE su dieta
-               actual» por un plan en blanco es asustar por nada. */
-            !isEmptyDiet(nutrition[activeClient.id])
-          }
-          conNutricion={isServiceOn(protocol, 'nutrition')}
-          hasWarmup={(program?.mobilityDrills || []).length > 0}
-          onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
-          onClose={() => setCopyOpen(false)}
-        />
-      )}
-
-      {/*
-        El calentamiento es del PROGRAMA, no del día: es la rutina de movilidad de
-        este cliente y se repite. Por eso vive aquí y no dentro de cada día —que
-        obligaría a mantener cinco copias— y por eso va PLEGADO: se monta una vez
-        y después se consulta poco. El del DÍA, cuando lo tiene, sigue en el día.
-      */}
-      {isModuleOn(protocol, 'warmup') && (
-        <Panel tight className="col gap-3">
-          <button
-            type="button"
-            className="proto-toggle"
-            aria-expanded={warmupOpen}
-            onClick={() => setWarmupOpen((v) => !v)}
-          >
-            {warmupOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            <Waves size={15} />
-            <span className="grow">Calentamiento y movilidad</span>
-            <span className="badge">{(program?.mobilityDrills || []).length}</span>
-          </button>
-
-          {warmupOpen && (
-            <WarmupEditor
-              drills={program?.mobilityDrills || []}
-              onChange={(drills) => updateMobilityDrills(activeClient.id, drills)}
-            />
-          )}
-        </Panel>
-      )}
+      {panelDeCopia}
 
       {/*
         ══ El carril de días se arrastra ══════════════════════════════════════
@@ -413,50 +482,38 @@ export const WorkoutLogEditor = () => {
         ── Por qué el chip entero y no un asa ──────────────────────────────────
         En la lista de ejercicios se arrastra solo desde el asa, porque la fila
         lleva casillas dentro y el gesto competía con escribir. Un chip no tiene
-        nada dentro con lo que competir: arrastrar exige movimiento y el clic
-        sigue seleccionando el día como siempre. Y un asa dentro de una pastilla
-        de 5 px de alto sería más difícil de acertar que la pastilla entera.
+        nada dentro con lo que competir: arrastrar exige movimiento (o mantener
+        pulsado, en táctil) y el clic sigue seleccionando el día como siempre. El
+        asa que lleva dentro NO es la zona de agarre, es el cartel que dice que
+        esto se coge: en una pastilla de 28 px, un asa que hubiera que acertar
+        sería más difícil de dar que la pastilla entera.
 
-        ── Y por qué siguen estando las flechas de la cabecera ─────────────────
-        Porque esto es `draggable` de HTML5 y en una pantalla táctil no existe.
-        Sin ellas, reordenar la semana desde el móvil sería imposible. Es el mismo
-        reparto que en los ejercicios: arrastre para quien pueda, teclado (Alt y
-        flechas, aquí mismo) y botones para todos los demás.
+        ── Y por qué ya no están las flechas de la cabecera ────────────────────
+        Porque el gesto ya funciona con el dedo (ver `useArrastreOrden`). Eran la
+        única forma de reordenar sin ratón, no una comodidad, y cuando dejaron de
+        serlo se convirtieron en dos botones que hacían lo que ya hace el sitio
+        donde se ve el orden. Para teclado siguen Alt + ←/→, aquí mismo.
       */}
-      {/* `day-rail` no es decorativa: de ella cuelgan el cursor de agarre, la
-          opacidad del día que se arrastra y el canto del destino. */}
-      <div className="row wrap gap-2 day-rail" role="group" aria-label="Días del microciclo">
+      {/* `day-rail` no es decorativa: de ella cuelgan el asa, el día levantado,
+          el canto del destino y el hueco que se abre al pasar por encima. */}
+      <div
+        className="row wrap gap-2 day-rail"
+        role="group"
+        aria-label="Días del microciclo"
+        ref={ordenDias.carrilRef}
+      >
         {nav.days.map((day, index) => (
           <button
             key={day.dayName}
             type="button"
             className={[
               'chip',
-              overDay === index && dragDay !== index ? 'is-drop-target' : '',
-              dragDay === index ? 'is-dragging' : '',
+              ordenDias.destino === index && ordenDias.arrastrando !== index ? 'is-drop-target' : '',
+              ordenDias.arrastrando === index ? 'is-dragging' : '',
             ]
               .filter(Boolean)
               .join(' ')}
-            draggable
-            onDragStart={(e) => {
-              setDragDay(index);
-              e.dataTransfer.effectAllowed = 'move';
-            }}
-            onDragEnd={() => {
-              setDragDay(null);
-              setOverDay(null);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOverDay(index);
-            }}
-            onDragLeave={() => setOverDay((i) => (i === index ? null : i))}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragDay !== null && dragDay !== index) moverDia(dragDay, index);
-              setDragDay(null);
-              setOverDay(null);
-            }}
+            {...ordenDias.props(index)}
             /* Alt + flechas, como en la lista de ejercicios. El foco se queda en
                el día movido —React reordena el nodo, no lo vuelve a crear, porque
                la `key` es su nombre— así que se puede repetir para llevarlo varios
@@ -472,10 +529,19 @@ export const WorkoutLogEditor = () => {
               }
             }}
             aria-pressed={index === nav.dayIndex}
+            aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
             onClick={() => nav.selectDay(index)}
             title="Arrástralo para cambiarlo de sitio (o Alt + ←/→)"
           >
+            <GripVertical size={12} className="chip-grip" aria-hidden="true" />
             {day.dayName}
+            {/* Cuántos ejercicios lleva puestos: elegir entre «Empuje / Tirón /
+                Pierna» no debería obligar a abrirlos uno a uno para ver cuál
+                está a medias. Subordinado al nombre, como el contador de la
+                cartera. */}
+            {(day.exercises?.length || 0) > 0 && (
+              <span className="chip-count">{day.exercises.length}</span>
+            )}
           </button>
         ))}
         <button type="button" className="chip chip-dashed" onClick={() => setAddingDay((v) => !v)}>
@@ -529,11 +595,6 @@ export const WorkoutLogEditor = () => {
                 },
               });
             }}
-            firstDay={nav.dayIndex === 0}
-            lastDay={nav.dayIndex === nav.days.length - 1}
-            /* La otra puerta a lo mismo: el carril de arriba se arrastra, y estas
-               dos flechas son lo que queda cuando no hay ratón. Ver `moverDia`. */
-            onMove={(delta) => moverDia(nav.dayIndex, nav.dayIndex + delta)}
           />
 
           <SessionBar
@@ -619,7 +680,7 @@ export const WorkoutLogEditor = () => {
                       activeClient.id,
                       nav.week,
                       nav.day.dayName,
-                      dayHasOwnDrills(nav.day) ? null : deepCopyDrills(program?.mobilityDrills)
+                      dayHasOwnDrills(nav.day) ? null : deepCopyDrills(drills)
                     )
                   }
                 >
@@ -630,17 +691,15 @@ export const WorkoutLogEditor = () => {
               {dayHasOwnDrills(nav.day) ? (
                 <WarmupEditor
                   drills={nav.day.mobilityDrills}
-                  onChange={(drills) =>
-                    setDayDrills(activeClient.id, nav.week, nav.day.dayName, drills)
+                  onChange={(nuevos) =>
+                    setDayDrills(activeClient.id, nav.week, nav.day.dayName, nuevos)
                   }
                 />
               ) : (
                 <p className="t-xs t-tertiary">
                   Usa el del programa
-                  {(program?.mobilityDrills || []).length > 0
-                    ? ` (${program.mobilityDrills.length} ${
-                        program.mobilityDrills.length === 1 ? 'ejercicio' : 'ejercicios'
-                      }).`
+                  {drills.length > 0
+                    ? ` (${drills.length} ${drills.length === 1 ? 'ejercicio' : 'ejercicios'}).`
                     : ', que todavía está vacío.'}{' '}
                   Hazlo propio si este día necesita otra cosa.
                 </p>
@@ -755,7 +814,7 @@ export const WorkoutLogEditor = () => {
               className="btn btn-secondary self-start"
               onClick={() => setImportAbierto(true)}
             >
-              <Users size={15} /> Copiar un día de otro cliente
+              <Users size={15} /> Traer un día de otro cliente
             </button>
           )}
 
@@ -791,17 +850,19 @@ export const WorkoutLogEditor = () => {
                 <Plus size={22} />
               </button>
 
-              {altaAbierta && (
-                <Modal title={`Ejercicio para ${nav.day.dayName}`} onClose={() => setAltaAbierta(false)}>
-                  <AddExerciseForm
-                    enHoja
-                    library={ejerciciosDisponibles}
-                    onAdd={(exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)}
-                    onRememberExercise={upsertLibraryExercise}
-                    onClose={() => setAltaAbierta(false)}
-                  />
-                </Modal>
-              )}
+              <Modal
+                open={altaAbierta}
+                title={`Ejercicio para ${nav.day.dayName}`}
+                onClose={() => setAltaAbierta(false)}
+              >
+                <AddExerciseForm
+                  enHoja
+                  library={ejerciciosDisponibles}
+                  onAdd={(exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise)}
+                  onRememberExercise={upsertLibraryExercise}
+                  onClose={() => setAltaAbierta(false)}
+                />
+              </Modal>
             </>
           ) : (
             <AddExerciseForm

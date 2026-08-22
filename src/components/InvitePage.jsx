@@ -4,6 +4,7 @@ import { CheckCircle2, XCircle } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { Logo } from '@/components/ui/Logo';
+import { Loading } from '@/components/ui/primitives';
 import { Login } from '@/components/Auth/Login';
 import { CONSENT_VERSION, ConsentNotice } from '@/components/Auth/ConsentNotice';
 
@@ -86,7 +87,7 @@ export const InvitePage = () => {
     return (
       <div className="review-page">
         <div className="review-card">
-          <p className="t-sm t-secondary">Cargando…</p>
+          <Loading />
         </div>
       </div>
     );

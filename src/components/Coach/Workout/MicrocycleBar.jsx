@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Copy, MoreVertical, Trash2, Users } from 'lu
 import { unitLabel } from '@/domain/training';
 import { shortDate } from '@/lib/dates';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useDismissable } from '@/lib/useDismissable';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Panel, WeekPicker } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
@@ -40,6 +41,7 @@ export const MicrocycleBar = ({
   const [menuAbierto, setMenuAbierto] = useState(false);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setMenuAbierto(false), menuAbierto);
+  const menu = useDismissable(menuAbierto);
   const unit = unitLabel(cycleType);
 
   /* Sin confirmación: borrar una semana tiene ahora inverso —el aviso con
@@ -89,8 +91,7 @@ export const MicrocycleBar = ({
           </button>
         </Panel>
 
-        {gestion && (
-          <Modal title={`${unit} ${activeWeek}`} onClose={() => setGestion(false)}>
+        <Modal open={gestion} title={`${unit} ${activeWeek}`} onClose={() => setGestion(false)}>
             <div className="col gap-5">
               <label className="field">
                 <span className="field-label">Empieza el</span>
@@ -135,17 +136,22 @@ export const MicrocycleBar = ({
                   >
                     <Copy size={15} /> Duplicar {unit.toLowerCase()}
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm btn-pill"
-                    onClick={() => {
-                      onToggleCopy();
-                      setGestion(false);
-                    }}
-                    aria-expanded={copyOpen}
-                  >
-                    <Copy size={15} /> Traer de otro cliente
-                  </button>
+                  {/* El mismo icono que en escritorio: traer de otro cliente es
+                      «personas», no «copiar» — al lado de «Duplicar», dos
+                      iconos idénticos hacían dudar de si eran lo mismo. */}
+                  {onToggleCopy && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm btn-pill"
+                      onClick={() => {
+                        onToggleCopy();
+                        setGestion(false);
+                      }}
+                      aria-expanded={copyOpen}
+                    >
+                      <Users size={15} /> Traer de otro cliente
+                    </button>
+                  )}
                   {/* La hoja se cierra antes de preguntar, como en la ficha de
                       ejercicio: dos diálogos apilados pelean por el foco. */}
                   <button
@@ -162,7 +168,6 @@ export const MicrocycleBar = ({
               </div>
             </div>
           </Modal>
-        )}
       </>
     );
   }
@@ -213,12 +218,18 @@ export const MicrocycleBar = ({
         </div>
 
         {/*
-          ══ Una acción visible, el resto en su menú ══════════════════════════
-          Duplicar es lo que se hace cada semana y se queda a la vista. Traer de
-          otro cliente y eliminar son ocasionales — y un botón ROJO residente a
-          la altura de los ojos es un aviso que no avisa: el rojo solo debe
-          aparecer cuando ya has abierto el menú con intención. Además, eliminar
-          tiene «Deshacer»: no necesita gritar.
+          ══ Lo que se hace, a la vista; lo que se destruye, en su menú ═══════
+
+          Duplicar es lo de cada semana. TRAER DE OTRO CLIENTE estaba dentro del
+          ⋯, y ahí no lo encontraba nadie: es la clase de función que no se busca
+          porque no se sospecha que exista —«si no sabes, ni te imaginas que
+          está»—, así que esconderla equivale a no tenerla. Sale a la barra.
+
+          En el menú se queda solo eliminar, y eso no es un menú desaprovechado:
+          es exactamente su trabajo. Un botón ROJO residente a la altura de los
+          ojos es un aviso que no avisa; el rojo debe aparecer cuando ya has
+          abierto el menú con intención. Y eliminar tiene «Deshacer», así que
+          tampoco necesita gritar.
         */}
         <div className="row gap-2 wrap">
           <div className="row gap-1">
@@ -246,6 +257,27 @@ export const MicrocycleBar = ({
             <Copy size={15} /> Duplicar {unit.toLowerCase()}
           </button>
 
+          {/*
+            «Traer» y no «copiar»: esto trae el entrenamiento —y la dieta, y el
+            calentamiento— DEL cliente que elijas AL que tienes abierto,
+            sustituyendo lo suyo. DUPLICAR es dentro de lo mismo, TRAER DE viene
+            de fuera hacia aquí, ENVIAR A iría de aquí hacia fuera.
+
+            Sin `onToggleCopy` no hay de quién traer: con un solo cliente en la
+            cartera, el botón solo llevaría a un aviso diciendo que hacen falta
+            dos.
+          */}
+          {onToggleCopy && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm btn-pill"
+              onClick={onToggleCopy}
+              aria-expanded={copyOpen}
+            >
+              <Users size={15} /> Traer de otro cliente
+            </button>
+          )}
+
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               type="button"
@@ -258,29 +290,14 @@ export const MicrocycleBar = ({
               <MoreVertical size={17} />
             </button>
 
-            {menuAbierto && (
-              <div className="popover popover-right" style={{ top: '120%' }} role="menu">
-                {/*
-                  ══ Decía «Copiar A otro cliente» y hace lo contrario ═════════
-                  Lo que abre trae el entrenamiento —y la dieta, y el
-                  calentamiento— DEL cliente que elijas AL que tienes abierto,
-                  sustituyendo lo suyo. «Traer» es además el gesto real: se usa
-                  al montar a alguien nuevo copiando a otro que ya funciona.
-                  DUPLICAR es dentro de lo mismo, TRAER DE viene de fuera hacia
-                  aquí, ENVIAR A va de aquí hacia fuera.
-                */}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="menu-item"
-                  onClick={() => {
-                    onToggleCopy();
-                    setMenuAbierto(false);
-                  }}
-                >
-                  <Users size={15} /> Traer de otro cliente
-                </button>
-                <hr className="divider" />
+            {menu.mounted && (
+              <div
+                ref={menu.ref}
+                className="popover popover-right"
+                data-state={menu.closing ? 'closing' : 'open'}
+                style={{ top: '120%' }}
+                role="menu"
+              >
                 {/* Faltaba por completo: una semana creada por error no se podía
                     eliminar de ninguna forma. */}
                 <button

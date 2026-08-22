@@ -3,7 +3,7 @@ import { Copy } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { cloneExerciseAsTemplate, countSets, unitLabel } from '@/domain/training';
-import { Field, Notice } from '@/components/ui/primitives';
+import { Field, Loading, Notice } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 
 /**
@@ -61,7 +61,7 @@ export const ImportDayDialog = ({ clients, activeClient, targetDayName, onImport
   const unidad = unitLabel(program?.cycleType);
 
   return (
-    <Modal title={`Copiar un día a ${targetDayName}`} onClose={onClose}>
+    <Modal title={`Traer un día a ${targetDayName}`} onClose={onClose}>
       <div className="col gap-4">
         <p className="t-sm t-secondary">
           Los ejercicios del día que elijas se añadirán a {targetDayName} como plantilla: series y
@@ -92,7 +92,7 @@ export const ImportDayDialog = ({ clients, activeClient, targetDayName, onImport
         {fallo && (
           <Notice tone="error">No se pudo cargar su programa. Inténtalo otra vez.</Notice>
         )}
-        {cargando && <p className="t-sm t-tertiary">Cargando su programa…</p>}
+        {cargando && <Loading label="Cargando su programa…" />}
 
         {sourceId && !cargando && !fallo && cycles.length === 0 && (
           <p className="t-sm t-secondary">Este cliente todavía no tiene programa.</p>

@@ -163,20 +163,25 @@
      Tres tintas que NO se solapan con ninguna de dato:
 
      · positivo = el verde del disco de 10, oscurecido.
-     · negativo = el rojo del de 25.
+     · negativo = el rojo del de 25, un punto más apagado que la serie.
      · aviso    = naranja quemado, claramente más rojo que `--data-amber`.
 
      El aviso y el ámbar de dato valieron lo mismo una vez, y la consecuencia fue
      que la píldora de kcal de una comida se leía como una advertencia: el
      entrenador veía problemas donde solo había calorías. Están separados a
-     propósito y conviene que sigan estándolo. */
+     propósito y conviene que sigan estándolo.
+
+     Y NINGUNA puede valer byte a byte lo mismo que una serie: `--info` fue
+     idéntico a `--data-blue` (y en hierro también negativo y aviso a sus
+     series) y una línea de gráfica era indistinguible de un aviso. La familia
+     de matiz se conserva —un error sigue siendo rojo— pero el valor se separa. */
   --positive: #10774c;
   --positive-soft: #e3f1ea;
   --negative: #b93429;
   --negative-soft: #fbe9e7;
   --warning: #a4530e;
   --warning-soft: #fbeee1;
-  --info: #2a66c4;
+  --info: #1f5ab8;
   --info-soft: #e8effa;
 
   /* Versión tenue del ámbar de dato, para las píldoras de kcal. */
@@ -297,6 +302,16 @@
   /* Para las entradas de pantalla: la cascada con la que se monta una vista.
      Más lento que `--normal` porque no responde a un gesto — presenta. */
   --slow: 0.5s var(--ease);
+
+  /* ── El velo ─────────────────────────────────────────────────────────────
+     Lo que se pone detrás de un overlay para decir «todo lo de atrás está
+     inerte». Había TRES recetas distintas —modal .32 con blur 14, paleta .55
+     con blur 3, hoja móvil .45 sin blur— para la misma idea, así que abrir un
+     modal y luego la paleta enseñaba dos oscuridades diferentes. Una tinta y
+     un desenfoque, para todos. El color no cambia con el tema: oscurecer es
+     oscurecer, también en tema claro (así lo hacían ya las tres recetas). */
+  --scrim: rgba(10, 12, 15, 0.45);
+  --scrim-blur: 8px;
 
   /* ── LA REGLA: la firma visual ───────────────────────────────────────────
      Marcas de graduación de una cinta métrica. Sustituye a la «veta» —una línea
@@ -426,14 +441,20 @@
 
   --area-opacity: 0.16;
 
+  /* Separados de sus series también aquí (ver el bloque de estado en papel):
+     eran byte a byte `--data-rose`, `--data-orange` y `--data-blue`, y en el
+     tema por defecto una serie de gráfica se leía como estado. El negativo va
+     más rojo que el salmón del disco de 25, el aviso más quemado que el
+     naranja de dato, y el informativo se corre hacia el cielo, lejos del azul
+     de serie y del teal. Los tres pasan de 4,5:1 como texto sobre el lienzo. */
   --positive: #45c98c;
   --positive-soft: rgba(69, 201, 140, 0.15);
-  --negative: #ee7368;
-  --negative-soft: rgba(238, 115, 104, 0.15);
-  --warning: #f2a362;
-  --warning-soft: rgba(242, 163, 98, 0.16);
-  --info: #6fa5ee;
-  --info-soft: rgba(111, 165, 238, 0.15);
+  --negative: #ec6156;
+  --negative-soft: rgba(236, 97, 86, 0.15);
+  --warning: #f28d4a;
+  --warning-soft: rgba(242, 141, 74, 0.16);
+  --info: #6fc0e8;
+  --info-soft: rgba(111, 192, 232, 0.15);
 
   --data-amber-soft: rgba(232, 188, 85, 0.16);
 

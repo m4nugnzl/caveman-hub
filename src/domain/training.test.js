@@ -14,9 +14,12 @@ import {
   exerciseProgression,
   firstCycleDate,
   indexAfterMove,
+  isRestDay,
   nextCycleDate,
+  rotatingSlots,
   today,
   trainedMuscles,
+  trainingDayCount,
   weekMuscleVolume,
   weekTonnage,
 } from './training';
@@ -349,6 +352,121 @@ describe('indexAfterMove', () => {
 });
 
 /*
+  ══ El ciclo rotativo, para quien lo entrena ════════════════════════════════
+
+  Esto lo lee el CLIENTE en su panel: es la única forma que tiene de saber
+  cuándo descansa, porque su ciclo no está atado a la semana. Que las casillas
+  salgan mal no rompe nada — enseña una estructura que no es la suya.
+*/
+describe('rotatingSlots', () => {
+  const dias = (...nombres) => nombres.map((dayName) => ({ dayName }));
+
+  it('la tanda del patrón y su descanso', () => {
+    expect(rotatingSlots({ train: 2, rest: 1 }, dias('Empuje', 'Tirón'))).toEqual([
+      { key: 't0', lead: 'Día 1', name: 'Empuje', rest: false },
+      { key: 't1', lead: 'Día 2', name: 'Tirón', rest: false },
+      { key: 'r1-0', lead: 'Día 3', name: 'Descanso', rest: true },
+    ]);
+  });
+
+  /* El caso que obliga a que los entrenos salgan de los días y no del patrón:
+     si mandara el patrón, el cliente vería dos sesiones en su panel y seis en
+     su rutina. */
+  it('con más días que `train`, se enseñan TODOS: son los que va a entrenar', () => {
+    const slots = rotatingSlots({ train: 2, rest: 1 }, dias('A', 'B', 'C', 'D', 'E', 'F'));
+    expect(slots.map((s) => s.name)).toEqual([
+      'A',
+      'B',
+      'Descanso',
+      'C',
+      'D',
+      'Descanso',
+      'E',
+      'F',
+      'Descanso',
+    ]);
+  });
+
+  /* «2 y 1» significa descansar CADA DOS sesiones, no juntar los entrenos y
+     descansar al final. Es el ritmo que el cliente lee para saber qué día le
+     toca qué. */
+  it('el descanso va intercalado, y los días se numeran de corrido', () => {
+    const slots = rotatingSlots({ train: 2, rest: 1 }, dias('A', 'B', 'C', 'D'));
+    expect(slots.map((s) => s.lead)).toEqual([
+      'Día 1',
+      'Día 2',
+      'Día 3',
+      'Día 4',
+      'Día 5',
+      'Día 6',
+    ]);
+    expect(slots.filter((s) => s.rest).map((s) => s.lead)).toEqual(['Día 3', 'Día 6']);
+  });
+
+  /* Una tanda a medias también cierra descansando: el descanso separa tandas, y
+     al repetirse el ciclo detrás viene una tanda nueva. */
+  it('la última tanda, aunque quede corta, cierra con su descanso', () => {
+    expect(rotatingSlots({ train: 3, rest: 1 }, dias('A', 'B', 'C', 'D')).map((s) => s.name)).toEqual(
+      ['A', 'B', 'C', 'Descanso', 'D', 'Descanso']
+    );
+  });
+
+  it('con un número de sesiones múltiplo del patrón, el descanso no se duplica', () => {
+    const slots = rotatingSlots({ train: 2, rest: 1 }, dias('A', 'B'));
+    expect(slots.filter((s) => s.rest)).toHaveLength(1);
+  });
+
+  it('sin días todavía, la forma del ciclo se ve igual', () => {
+    expect(rotatingSlots({ train: 3, rest: 1 }, []).map((s) => s.name)).toEqual([
+      'Entreno',
+      'Entreno',
+      'Entreno',
+      'Descanso',
+    ]);
+  });
+
+  it('sin descanso es un patrón válido: se entrena todos los días', () => {
+    expect(rotatingSlots({ train: 1, rest: 0 }, dias('Full body'))).toEqual([
+      { key: 't0', lead: 'Día 1', name: 'Full body', rest: false },
+    ]);
+  });
+
+  it('con dos días de descanso seguidos, los dos se pintan', () => {
+    expect(rotatingSlots({ train: 2, rest: 2 }, dias('A', 'B')).map((s) => s.name)).toEqual([
+      'A',
+      'B',
+      'Descanso',
+      'Descanso',
+    ]);
+  });
+
+  it('un patrón corrupto no deja el ciclo vacío', () => {
+    expect(rotatingSlots(null, []).map((s) => s.name)).toEqual(['Entreno', 'Entreno', 'Descanso']);
+  });
+});
+
+describe('la semana natural: qué cuenta como día de entreno', () => {
+  it('descanso es descanso, se escriba como se escriba', () => {
+    expect(isRestDay('Descanso')).toBe(true);
+    expect(isRestDay('  descanso ')).toBe(true);
+    expect(isRestDay(undefined)).toBe(true);
+  });
+
+  /* El caso que tenían distinto el editor y el tablero: al borrar el texto de un
+     día, uno lo pintaba de entreno y el otro lo sumaba. Vacío es descanso. */
+  it('una casilla vacía es descanso, no un entreno sin nombre', () => {
+    expect(isRestDay('')).toBe(true);
+    expect(isRestDay('   ')).toBe(true);
+  });
+
+  it('cuenta los días con algo programado', () => {
+    expect(trainingDayCount({ Lunes: 'Empuje', Martes: '', Miércoles: 'Tirón' })).toBe(2);
+    expect(trainingDayCount({})).toBe(0);
+    expect(trainingDayCount(null)).toBe(0);
+  });
+});
+
+/*
   ══ Cuándo empieza cada ciclo ═══════════════════════════════════════════════
 
   Todos los microciclos nacían con la fecha de HOY, la de crearlos. Se veía en
@@ -412,6 +530,32 @@ describe('fechas de los ciclos', () => {
       expect(nextCycleDate({ date: '2026-09-07' }, 'rotating', { train: 3, rest: 1 })).toBe(
         '2026-09-11'
       );
+    });
+
+    /*
+      El fallo que se veía en la ficha de un cliente real: seis sesiones con un
+      patrón 2/1 son tres tandas —NUEVE días—, y el ciclo siguiente nacía tres
+      días después del anterior, con el cliente a mitad del primero. Como la
+      analítica agrupa por `micro.date`, tres ciclos acababan en el mismo cubo.
+    */
+    it('cuenta las sesiones que tiene el ciclo, no solo una tanda del patrón', () => {
+      const previo = {
+        date: '2026-09-07',
+        days: ['Legs A', 'Push A', 'Pull A', 'Legs B', 'Push B', 'Pull B'].map((dayName) => ({
+          dayName,
+        })),
+      };
+      expect(nextCycleDate(previo, 'rotating', { train: 2, rest: 1 })).toBe('2026-09-16');
+    });
+
+    it('con las sesiones justas del patrón, la fecha no cambia', () => {
+      const previo = { date: '2026-09-07', days: [{ dayName: 'A' }, { dayName: 'B' }] };
+      expect(nextCycleDate(previo, 'rotating', { train: 2, rest: 1 })).toBe('2026-09-10');
+    });
+
+    it('el semanal no lo tocan las sesiones: siete días', () => {
+      const previo = { date: '2026-09-07', days: [{ dayName: 'A' }, { dayName: 'B' }] };
+      expect(nextCycleDate(previo, 'weekly', { train: 2, rest: 1 })).toBe('2026-09-14');
     });
 
     it('cruza el fin de mes y el cambio de hora sin desviarse un día', () => {

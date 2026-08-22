@@ -7,18 +7,40 @@ import { mapEventFromDb } from '@/lib/mappers';
   ══ El calendario, fuera de AppContext ═══════════════════════════════════════
 
   Con la convención de `useRoadmap.js`. Sin estado propio: los eventos se cargan
-  por cliente y a demanda, no todos al arrancar — son la única cosa del proyecto
-  que crece sin techo con el tiempo, y nadie mira el calendario de veinte
-  clientes a la vez.
+  a demanda y no todos al arrancar — son la única cosa del proyecto que crece sin
+  techo con el tiempo.
 */
 
+/**
+ * Los eventos de un cliente, o los de TODA la cartera si no se dice cuál.
+ *
+ * ══ Por qué el filtro es opcional y no hay una segunda función ══════════════
+ *
+ * Porque quien decide qué eventos se ven no es esta consulta, es RLS: la
+ * política `events_read` (migración 0009) ya limita las filas a
+ * `app_can_read_client(client_id) OR app_is_client(client_id)`. Quitar el `.eq()`
+ * no abre nada — devuelve exactamente los clientes que quien pregunta puede leer,
+ * y a un cliente le devuelve los suyos y nada más.
+ *
+ * Escribir una función aparte para «los de todos» habría significado un segundo
+ * sitio donde equivocarse con el filtro, que es justo la clase de duplicado que
+ * convierte una frontera de autorización en dos.
+ *
+ * ── Lo que esto revisa de la nota anterior ─────────────────────────────────
+ * Decía que «nadie mira el calendario de veinte clientes a la vez». Era verdad
+ * mientras el calendario fuera una sección DE un cliente. Con la agenda del
+ * entrenador es exactamente lo que se mira, y por eso se pide por rango de
+ * fechas: el mes que hay en pantalla, no la historia entera.
+ */
 export const useCalendar = ({ session }) => {
-  const loadEvents = useCallback(async (clientId) => {
-    const { data, error } = await supabase
-      .from('client_events')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('date');
+  const loadEvents = useCallback(async (clientId = null, { from = null, to = null } = {}) => {
+    let query = supabase.from('client_events').select('*').order('date');
+
+    if (clientId) query = query.eq('client_id', clientId);
+    if (from) query = query.gte('date', from);
+    if (to) query = query.lte('date', to);
+
+    const { data, error } = await query;
 
     // Sin la migración 0009 la tabla no existe: se devuelve vacío y la pantalla
     // avisa, en lugar de tratarlo como un fallo de carga.

@@ -91,6 +91,22 @@ verify_jwt = false
 [functions.billing-checkout]
 verify_jwt = false
 
+# ── El calendario del cliente ───────────────────────────────────────────────
+#
+# Aquí `verify_jwt = false` es el REQUISITO, como en `review-link`, y no el apaño
+# del preflight que explican las demás.
+#
+# Quien pide este feed no es el navegador del cliente: son los servidores de
+# Google, Apple u Outlook, que consultan la URL suscrita por su cuenta y **no
+# pueden añadir ninguna cabecera**. Ni sesión, ni `apikey`. Con la pasarela
+# exigiendo un JWT, suscribir el calendario sería imposible.
+#
+# Lo que concede sin autenticar está acotado igual que en `review-link`: un token
+# opaco de la URL da los eventos de UN cliente dentro de una ventana de fechas, y
+# solo si no está revocado. Ni su email, ni sus pesos, ni nada más de su ficha.
+[functions.client-calendar]
+verify_jwt = false
+
 # ── Entorno local ───────────────────────────────────────────────────────────
 #
 # El `seed` apunta a `bootstrap.sql`, que no es una semilla de datos sino el

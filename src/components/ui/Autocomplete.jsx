@@ -15,6 +15,15 @@ import { norm } from '@/lib/texto';
  *    propio, independiente del texto.
  * 2. Las sugerencias eran `<div onClick>`: invisibles al teclado. Ahora son
  *    botones y se pueden recorrer con flechas y Enter.
+ *
+ * ── `abreVacio`: buscar y OJEAR no son lo mismo ─────────────────────────────
+ * Sin texto escrito no había sugerencias, así que el `onFocus` que abre el
+ * desplegable no abría nada: solo se podía encontrar algo cuyo nombre ya se
+ * supiera. Eso está bien con un catálogo de mil alimentos —volcarlo entero al
+ * pinchar es ruido— y está mal con una lista corta y propia, como la cartera de
+ * clientes, donde la pregunta que se trae no es «¿está Marta?» sino «¿quiénes
+ * hay?». Va por propiedad y apagado por defecto: lo pide quien tiene una lista
+ * que se puede ojear.
  */
 export const Autocomplete = ({
   value,
@@ -26,6 +35,7 @@ export const Autocomplete = ({
   onCreate,
   placeholder,
   maxSuggestions = 6,
+  abreVacio = false,
   inputProps = {},
 }) => {
   const [open, setOpen] = useState(false);
@@ -38,11 +48,11 @@ export const Autocomplete = ({
      y «prension» la «Prensión». La tilde no puede ser la llave (lib/texto). */
   const query = norm(String(value || '').trim());
   const matches = useMemo(() => {
-    if (!query) return [];
+    if (!query) return abreVacio ? (items || []).slice(0, maxSuggestions) : [];
     return (items || [])
       .filter((item) => norm(getLabel(item)).includes(query))
       .slice(0, maxSuggestions);
-  }, [items, query, getLabel, maxSuggestions]);
+  }, [items, query, getLabel, maxSuggestions, abreVacio]);
 
   const exactExists = matches.some((m) => norm(getLabel(m)) === query);
   const canCreate = Boolean(onCreate) && query.length > 0 && !exactExists;

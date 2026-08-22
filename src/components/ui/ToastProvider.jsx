@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 
+import { useDismissable } from '@/lib/useDismissable';
+
 const ToastContext = createContext(null);
 
 /**
@@ -82,29 +84,40 @@ export const ToastProvider = ({ children }) => {
 
   const value = useMemo(() => ({ toast: show }), [show]);
 
+  /* La salida animada. El contenido se retiene en un ref mientras se va: al
+     descartar, `toast` ya es null y sin la copia el aviso se vaciaría a mitad
+     de salida. «El último gana» sigue igual: un aviso nuevo en plena salida
+     reabre con su texto (el ref se pisa en este mismo render). */
+  const salida = useDismissable(Boolean(toast));
+  const ultimoRef = useRef(null);
+  if (toast) ultimoRef.current = toast;
+  const visto = toast || ultimoRef.current;
+
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {toast && (
+      {salida.mounted && visto && (
         <div
+          ref={salida.ref}
           className="toast"
+          data-state={salida.closing ? 'closing' : 'open'}
           role="status"
           onMouseEnter={pause}
           onMouseLeave={resume}
           onFocus={pause}
           onBlur={resume}
         >
-          <span className="toast-text">{toast.text}</span>
-          {toast.action && (
+          <span className="toast-text">{visto.text}</span>
+          {visto.action && (
             <button
               type="button"
               className="btn btn-secondary btn-sm"
               onClick={async () => {
                 dismiss();
-                await toast.action.onClick();
+                await visto.action.onClick();
               }}
             >
-              {toast.action.label}
+              {visto.action.label}
             </button>
           )}
           <button type="button" className="toast-x" aria-label="Cerrar el aviso" onClick={dismiss}>

@@ -25,13 +25,7 @@ export const TEAM_ROLES = [
 
 export const roleLabel = (id) => TEAM_ROLES.find((r) => r.id === id)?.label || 'Sin rol';
 
-/** Roles que pueden trabajar con cualquier cliente del equipo. */
-const FULL_ACCESS = new Set(['owner', 'admin']);
-
 export const canManageMembers = (role) => role === 'owner';
-export const canSeeWholeTeam = (role) => FULL_ACCESS.has(role) || role === 'viewer';
-export const canAssignClients = (role) => FULL_ACCESS.has(role);
-export const isReadOnly = (role) => role === 'viewer';
 
 /**
  * Miembros con su carga de trabajo.

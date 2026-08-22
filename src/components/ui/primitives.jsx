@@ -1,5 +1,5 @@
-import { useId } from 'react';
-import { Check, CheckCircle2, Info, Plus, TriangleAlert, XCircle } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Check, CheckCircle2, ChevronRight, Info, Plus, TriangleAlert, XCircle } from 'lucide-react';
 
 /**
  * Primitivas de presentación compartidas.
@@ -149,6 +149,62 @@ export const GroupHead = ({ title, sub, action }) => (
   </div>
 );
 
+/**
+ * Una fila que se despliega EN SU SITIO.
+ *
+ * ══ Por qué una primitiva y no otra ventana ═════════════════════════════════
+ *
+ * Había tres formas para el mismo gesto —«esto está plegado, ábrelo»— y las tres
+ * en la misma pantalla: la estructura del programa era una línea de voz baja que
+ * abría un **modal**, el calentamiento un panel con `.proto-toggle` que se abría
+ * en su sitio, y la planificación semanal otro panel con `.panel-toggle`. Tres
+ * aspectos, dos comportamientos y una ventana de por medio para algo que ES el
+ * contexto de la página que estás mirando.
+ *
+ * Una ventana modal interrumpe: tapa la pantalla, se lleva el foco y hay que
+ * cerrarla para volver a ver lo que estabas montando. Eso está bien para lo que
+ * viene de FUERA —traer de otro cliente, elegir un día ajeno— y está mal para lo
+ * que ya está aquí. La configuración del programa se toca mirando el programa.
+ *
+ * ── Lo que el pliegue enseña estando cerrado ────────────────────────────────
+ * `summary` no es decorativo: es la razón de que plegar no sea esconder. «Semana
+ * natural · empieza el 12 sept · 4 días de entreno» contesta la pregunta sin
+ * abrir nada, y quien la abre es porque viene a cambiarla.
+ *
+ * Controlado (`open` + `onToggle`) cuando alguien de fuera necesita abrirlo —una
+ * acción que lleva ahí—; con su propio estado (`defaultOpen`) en el caso normal.
+ */
+export const Fold = ({
+  icon: Icon,
+  title,
+  summary,
+  defaultOpen = false,
+  open: openProp,
+  onToggle,
+  children,
+}) => {
+  const [interno, setInterno] = useState(defaultOpen);
+  const controlado = openProp !== undefined;
+  const open = controlado ? openProp : interno;
+
+  return (
+    <div className="fold">
+      <button
+        type="button"
+        className="fold-head"
+        aria-expanded={open}
+        onClick={() => (controlado ? onToggle() : setInterno((v) => !v))}
+      >
+        {Icon && <Icon size={15} aria-hidden="true" />}
+        <span className="fold-title">{title}</span>
+        {summary && <span className="fold-sum">{summary}</span>}
+        <ChevronRight size={15} className="chevron" aria-hidden="true" />
+      </button>
+      {open && <div className="fold-body">{children}</div>}
+    </div>
+  );
+};
+
 export const SectionTitle = ({ icon: Icon, color, children, action }) => (
   <div className="row between wrap gap-2">
     <h3 className="section-title" style={color ? { color } : undefined}>
@@ -252,6 +308,27 @@ export const SaveIndicator = ({ status, error, onRetry }) => {
 
   return null;
 };
+
+/**
+ * Carga en línea: tres puntos que laten y una frase.
+ *
+ * Había cinco «Cargando…» escritos a mano —cada uno con sus clases— y el
+ * fallback de Suspense era otro. Uno solo, con `role="status"` para que el
+ * lector de pantalla lo anuncie sin robar el foco, y deliberadamente SOBRIO:
+ * un texto pequeño en tinta terciaria, no un spinner a pantalla completa. La
+ * regla global de menos movimiento para los puntos tras un ciclo
+ * (`animation-iteration-count: 1`), igual que hace con el punto de «Guardando…».
+ */
+export const Loading = ({ label = 'Cargando…' }) => (
+  <p className="loading" role="status">
+    <span className="loading-dots" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+    </span>
+    {label}
+  </p>
+);
 
 // ── Controles de formulario ────────────────────────────────────────────────
 

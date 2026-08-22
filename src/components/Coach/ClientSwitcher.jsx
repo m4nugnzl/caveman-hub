@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useDismissable } from '@/lib/useDismissable';
 import { norm } from '@/lib/texto';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
@@ -79,6 +80,9 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
   const esTelefono = useEsTelefono();
   const wrapRef = useRef(null);
   useClickOutside(wrapRef, () => setOpen(false), open && !esTelefono);
+  /* El cierre animado del desplegable de escritorio; la hoja del teléfono ya lo
+     trae de serie con la prop `open` del Modal. */
+  const pop = useDismissable(open && !esTelefono);
 
   const current = clients.find((c) => c.id === selectedClientId) || clients[0];
   if (!current) return null;
@@ -98,7 +102,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
       <button
         type="button"
         className="btn btn-secondary switcher-btn"
-        style={{ padding: '6px 14px 6px 6px', borderRadius: 14 }}
+        style={{ padding: '6px 14px 6px 6px', borderRadius: 'var(--r-lg)' }}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={abrir}
@@ -139,7 +143,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
         </span>
         <ChevronDown
           size={16}
-          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease', flexShrink: 0 }}
+          style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform var(--fast)', flexShrink: 0 }}
         />
       </button>
 
@@ -151,8 +155,8 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
         pulgar y el buscador corta la lista en dos toques. En escritorio, el
         desplegable de siempre.
       */}
-      {open && esTelefono && (
-        <Modal title="Cambiar de cliente" onClose={() => setOpen(false)}>
+      {esTelefono && (
+        <Modal open={open} title="Cambiar de cliente" onClose={() => setOpen(false)}>
           <div className="col gap-3">
             {clients.length > 6 && (
               <input
@@ -185,8 +189,14 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
         </Modal>
       )}
 
-      {open && !esTelefono && (
-        <div className="popover" style={{ top: 'calc(100% + 8px)', left: 0, maxHeight: 340, overflowY: 'auto' }} role="menu">
+      {pop.mounted && !esTelefono && (
+        <div
+          ref={pop.ref}
+          className="popover"
+          data-state={pop.closing ? 'closing' : 'open'}
+          style={{ top: 'calc(100% + 8px)', left: 0, maxHeight: 340, overflowY: 'auto' }}
+          role="menu"
+        >
           {clients.map((client) => (
             <ClientOption
               key={client.id}

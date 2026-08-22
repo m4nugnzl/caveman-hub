@@ -6,6 +6,7 @@ import { clientProtocol } from '@/domain/protocol';
 import { CLIENT_SECTIONS, isSectionActive, sectionsFor } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
 import { BottomNav } from '@/components/ui/BottomNav';
+import { ClientCalendarFeed } from './ClientCalendarFeed';
 import { ClientPrivacy } from './ClientPrivacy';
 
 /**
@@ -119,6 +120,11 @@ export const ClientLayout = () => {
           SOLO en su inicio: estaba al pie de las siete secciones, así que quien
           bajaba del todo en su rutina se encontraba con la privacidad. No es a lo
           que viene, pero tiene que estar en un sitio, y ese es su portada. */}
+      {/* Lo suyo en su calendario (0071). Va justo encima de la privacidad y por
+          el mismo criterio: no es a lo que viene, pero tiene que estar en un
+          sitio, y ese es el pie de su portada. */}
+      {!isCoach && esInicio && <ClientCalendarFeed client={activeClient} />}
+
       {!isCoach && esInicio && <ClientPrivacy client={activeClient} />}
 
       {/*

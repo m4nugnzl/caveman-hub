@@ -96,9 +96,40 @@ export const PROVIDERS = [
     status: 'available',
     category: 'Cobros',
     what: 'Es la integración que de verdad cambia el trabajo: en lugar de leer una tabla que alguien mantiene a mano, el estado de pago viene de quien cobra. Detecta la tarjeta rechazada el día que pasa y la baja en cuanto ocurre.',
-    why: 'Ya lee suscripciones, bajas y cobros fallidos. Para que los avisos lleguen SOLOS en lugar de tener que pedirlos falta registrar un webhook en Stripe.',
   },
 ];
+
+/*
+  ══ Por qué aquí no hay ningún calendario ═══════════════════════════════════
+
+  Llegó a estar, como «Pronto», y se quitó al decidir de quién es el calendario
+  que importa: **el del cliente, no el del entrenador**. Y eso lo saca de este
+  catálogo, que es del entrenador y va de traer datos DE FUERA hacia aquí.
+
+  Lo que se construyó en su lugar es un feed suscribible en el portal del
+  cliente (migración 0071, `ClientCalendarFeed`): una URL que él pega en su
+  calendario —Google, Apple, Outlook— y que le enseña lo suyo. No necesita
+  OAuth, ni la verificación de Google, ni guardar el token de nadie.
+
+  Si algún día se quiere además la versión del entrenador —tu semana en tu
+  calendario—, entonces sí es una entrada de esta lista, y `docs/google-calendar.md`
+  tiene los pasos de la consola ya hechos. Hasta entonces no se anuncia: una
+  tarjeta «Pronto» es una promesa, y esta no está prometida.
+*/
+
+/**
+ * Qué resuelve cada tanda del catálogo.
+ *
+ * Va aquí y no en la pantalla porque es propiedad del catálogo: la tanda existe
+ * porque existe la `category` de un proveedor, y quien añada uno nuevo con una
+ * categoría nueva tiene que escribir su frase en el mismo sitio o el encabezado
+ * saldrá pelado. Sin entrada, el encabezado sale solo con el nombre — que es
+ * degradar, no romper.
+ */
+export const CATEGORIAS = {
+  Cobros:
+    'De dónde sale quién ha pagado y quién no. Conectando uno, el estado de pago de tus clientes deja de mantenerse a mano.',
+};
 
 export const providerById = (id) => PROVIDERS.find((p) => p.id === id) || null;
 
@@ -183,13 +214,4 @@ export const matchCandidates = (label, clients) => {
     .filter((match) => match && match.score >= 0.3)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
-};
-
-/** Resumen legible del último resultado de sincronización. */
-export const syncSummary = (result) => {
-  if (!result) return null;
-  const parts = [`${result.matched} de ${result.total} pagos asignados`];
-  if (result.clientsUpdated != null) parts.push(`${result.clientsUpdated} clientes actualizados`);
-  if (result.unmatched?.length > 0) parts.push(`${result.unmatched.length} nombres sin conciliar`);
-  return parts.join(' · ');
 };

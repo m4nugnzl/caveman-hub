@@ -24,6 +24,9 @@ import { Field, Panel, TextInput } from '@/components/ui/primitives';
  *
  * Es la misma división que tienen las preguntas justo encima: la forma de
  * trabajar se piensa una vez, las respuestas son de cada uno.
+ *
+ * Sin cabecera ni pie propios: los dice el `GroupHead` del apartado. Dentro de
+ * la tarjeta solo va lo que se toca.
  */
 const StepRow = ({ step, index, total, propio, onMove, onRemove }) => (
   <li className="proto-q">
@@ -71,7 +74,7 @@ const StepRow = ({ step, index, total, propio, onMove, onRemove }) => (
   </li>
 );
 
-export const IntakeSteps = ({ intake, onChange, forClient }) => {
+export const IntakeSteps = ({ intake, onChange }) => {
   const [draft, setDraft] = useState('');
 
   const activos = intakeSteps(intake);
@@ -86,15 +89,7 @@ export const IntakeSteps = ({ intake, onChange, forClient }) => {
   };
 
   return (
-    <Panel className="col gap-3">
-      <div>
-        <span className="section-title">Al dar de alta a un cliente</span>
-        <p className="t-sm t-secondary">
-          Los pasos que das tú al empezar con alguien. Esto era fijo para todo el mundo —«onboarding»
-          y «revisión postural»— y era la forma de trabajar de una persona, no la del oficio.
-        </p>
-      </div>
-
+    <Panel className="col gap-4">
       {activos.length === 0 ? (
         <p className="t-sm t-tertiary">
           Sin pasos: al dar de alta a un cliente no se te pedirá nada y no aparecerá ningún aviso.
@@ -149,7 +144,7 @@ export const IntakeSteps = ({ intake, onChange, forClient }) => {
                 {...props}
                 className="grow"
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
                 placeholder="Ej: Prueba de fuerza inicial"
                 maxLength={60}
                 onKeyDown={(e) => {
@@ -170,12 +165,6 @@ export const IntakeSteps = ({ intake, onChange, forClient }) => {
           )}
         </Field>
       )}
-
-      <p className="t-xs t-tertiary">
-        {forClient
-          ? 'El vídeo o el documento de cada paso se enlaza en la ficha de este cliente, no aquí: el contenido es suyo.'
-          : 'El contenido de cada paso —un vídeo, un documento— se enlaza cliente a cliente, en su ficha.'}
-      </p>
     </Panel>
   );
 };

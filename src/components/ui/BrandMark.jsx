@@ -20,7 +20,26 @@ import { useState } from 'react';
  * Notion sobre fondo oscuro se pierde, y teñirlo para que «encaje» deja de ser su
  * logotipo. Van sobre su propio fondo claro, como una pegatina, y así se reconocen
  * igual en tema claro y en oscuro.
+ *
+ * ══ Dos clases de logotipo, y no se colocan igual ═══════════════════════════
+ *
+ * Al traer los archivos oficiales se vio que no son la misma pieza:
+ *
+ *   · Notion y Google publican un GLIFO sobre transparente. Necesitan el fondo
+ *     claro debajo —el negro de Notion sobre hierro no se ve— y aire alrededor,
+ *     que es el azulejo de siempre.
+ *   · Stripe publica un ICONO DE APLICACIÓN: la ese blanca sobre su cuadrado
+ *     morado, con sus propias esquinas redondeadas. Metido en el azulejo con su
+ *     margen quedaba un cuadrado redondeado dentro de otro cuadrado redondeado
+ *     —dos radios distintos a 42 px, que es el aspecto de un logotipo pegado en
+ *     vez de puesto—.
+ *
+ * Los que traen su fondo llenan el azulejo hasta el canto y el azulejo se limita
+ * a recortarlos con SU radio. Va por lista y no por detección: no se puede
+ * adivinar desde un `<img>` si el archivo tiene fondo propio.
  */
+const CON_FONDO_PROPIO = new Set(['stripe']);
+
 const FALLBACK_TINT = {
   notion: 'var(--text)',
   stripe: 'var(--data-violet)',
@@ -29,6 +48,9 @@ const FALLBACK_TINT = {
 
 export const BrandMark = ({ brand, name, size = 28, tile = true }) => {
   const [missing, setMissing] = useState(false);
+  /* Si el archivo falta, el monograma es un glifo y quiere su azulejo con aire,
+     tenga o no fondo propio el logotipo que debería estar ahí. */
+  const bleed = !missing && CON_FONDO_PROPIO.has(brand);
 
   const art = missing ? (
     <span
@@ -39,20 +61,31 @@ export const BrandMark = ({ brand, name, size = 28, tile = true }) => {
       {String(name || brand || '?')[0]?.toUpperCase()}
     </span>
   ) : (
+    /* Con fondo propio el logotipo mide el azulejo ENTERO (el lado más sus dos
+       márgenes) en vez de medir el hueco de dentro; sin azulejo, mide lo que le
+       pidan y no hay nada que llenar. */
     <img
       src={`/brands/${brand}.svg`}
       alt=""
-      width={size}
-      height={size}
+      width={bleed && tile ? size + 16 : size}
+      height={bleed && tile ? size + 16 : size}
       onError={() => setMissing(true)}
-      style={{ display: 'block', width: size, height: size, objectFit: 'contain' }}
+      style={{
+        display: 'block',
+        width: bleed && tile ? '100%' : size,
+        height: bleed && tile ? '100%' : size,
+        objectFit: bleed ? 'cover' : 'contain',
+      }}
     />
   );
 
   if (!tile) return art;
 
   return (
-    <span className="brand-tile" style={{ width: size + 16, height: size + 16 }}>
+    <span
+      className={`brand-tile${bleed ? ' is-bleed' : ''}`}
+      style={{ width: size + 16, height: size + 16 }}
+    >
       {art}
     </span>
   );

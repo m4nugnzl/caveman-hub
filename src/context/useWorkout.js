@@ -698,8 +698,9 @@ export const useWorkout = ({
    * Con qué fecha nace el ciclo que va después de `previous`.
    *
    * El tipo de ciclo y el patrón son del CLIENTE, no del programa, así que se
-   * leen aquí: en el semanal son siete días y en el rotativo lo que sume su
-   * patrón —un 3/1 dura cuatro—. Ver `nextCycleDate`.
+   * leen aquí: en el semanal son siete días y en el rotativo lo que dure el
+   * ciclo anterior con sus sesiones dentro —seis sesiones a 2/1 son nueve días,
+   * no tres—. Ver `cycleSpanDays`.
    */
   const fechaSiguienteCiclo = useCallback(
     (clientId, previous) => {

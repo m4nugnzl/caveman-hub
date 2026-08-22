@@ -10,7 +10,7 @@ import {
   validateAttachment,
 } from '@/domain/attachments';
 import { recentIssues } from '@/lib/diagnostics';
-import { EmptyState, Field, Notice, PageHead } from '@/components/ui/primitives';
+import { EmptyState, Field, Loading, Notice, PageHead } from '@/components/ui/primitives';
 
 /**
  * Ayuda: escribir a soporte y seguir el hilo.
@@ -142,11 +142,7 @@ export const SupportPanel = () => {
 
       {/* `SaveIndicator` diría «Guardando…», que aquí es mentira: se está
           leyendo, no escribiendo. */}
-      {estado === 'cargando' && (
-        <p className="t-sm t-tertiary" role="status">
-          Cargando tus conversaciones…
-        </p>
-      )}
+      {estado === 'cargando' && <Loading label="Cargando tus conversaciones…" />}
 
       {huecoVacio && (
         <EmptyState

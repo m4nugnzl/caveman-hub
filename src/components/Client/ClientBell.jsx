@@ -7,6 +7,7 @@ import { clientProtocol } from '@/domain/protocol';
 import { pendingTasks, unseenUpdates } from '@/domain/updates';
 import { todayISO } from '@/lib/dates';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useDismissable } from '@/lib/useDismissable';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 
@@ -42,6 +43,7 @@ export const ClientBell = () => {
   const ref = useRef(null);
 
   useClickOutside(ref, () => setOpen(false), open && !esTelefono);
+  const menu = useDismissable(open && !esTelefono);
 
   const preferences = activeClient?.preferences;
   const history = useMemo(
@@ -89,8 +91,8 @@ export const ClientBell = () => {
         cliente abre con el pulgar. El mismo reparto que el selector de
         cliente del entrenador.
       */}
-      {open && esTelefono && (
-        <Modal title="Avisos" onClose={() => setOpen(false)}>
+      {esTelefono && (
+        <Modal open={open} title="Avisos" onClose={() => setOpen(false)}>
           <div className="col gap-2">
             <span className="t-xs t-tertiary">
               {novedades.length > 0 &&
@@ -115,8 +117,13 @@ export const ClientBell = () => {
         </Modal>
       )}
 
-      {open && !esTelefono && (
-        <div className="account-menu" role="menu">
+      {menu.mounted && !esTelefono && (
+        <div
+          ref={menu.ref}
+          className="account-menu"
+          data-state={menu.closing ? 'closing' : 'open'}
+          role="menu"
+        >
           <div className="account-head">
             <span className="name">Avisos</span>
             <span className="sub">

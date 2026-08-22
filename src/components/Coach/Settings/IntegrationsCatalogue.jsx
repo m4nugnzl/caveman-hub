@@ -1,47 +1,132 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, RefreshCw } from 'lucide-react';
 
 import { useActions, useSession } from '@/context/AppContext';
 import { supabase } from '@/lib/supabaseClient';
-import { PROVIDERS, providerById } from '@/domain/integrations';
+import { CATEGORIAS, PROVIDERS, providerById } from '@/domain/integrations';
+import { shortDate } from '@/lib/dates';
 import { BrandMark } from '@/components/ui/BrandMark';
-import { Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { GroupHead, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { NotionSettings } from './NotionSettings';
 import { StripeSettings } from './StripeSettings';
 
-/** Una tarjeta del catálogo. */
-const ProviderCard = ({ provider, connected, onOpen }) => (
-  <article className={`provider${provider.status === 'planned' ? ' is-planned' : ''}`}>
-    {provider.status !== 'planned' && (
-      <button
-        type="button"
-        className="provider-hit"
-        onClick={onOpen}
-        aria-label={`Configurar ${provider.name}`}
-      />
-    )}
+/**
+ * Las que se pueden conectar HOY.
+ *
+ * ── El fallo que esto evita ─────────────────────────────────────────────────
+ * El estado se pedía para todo `PROVIDERS`, incluidos los `planned`. Un
+ * proveedor anunciado como «Pronto» no existe en el servidor, así que su
+ * consulta contesta que no —y `unavailable` es `results.some((r) => !r.ok)`—:
+ * la primera entrada «Pronto» habría encendido el aviso de «las integraciones
+ * todavía no están activas en tu cuenta» para TODO el mundo, incluido quien las
+ * tiene funcionando. La rama existía desde el principio y nunca se había
+ * ejercitado, que es exactamente cuando pasan estas cosas.
+ */
+const CONECTABLES = PROVIDERS.filter((p) => p.status !== 'planned');
 
-    <header className="provider-head">
-      <BrandMark brand={provider.id} name={provider.name} size={26} />
-      <span className="who">
-        <span className="name">{provider.name}</span>
-        <span className="sub">{provider.category}</span>
-      </span>
-      {provider.status === 'planned' ? (
-        <span className="badge">Pronto</span>
-      ) : connected ? (
-        <span className="badge badge-ok">
-          <Check size={11} /> Conectado
-        </span>
-      ) : (
-        <span className="badge badge-info">Disponible</span>
+/** La línea de estado de una tarjeta conectada: qué pasó la última vez. */
+const metaDeEstado = (estado) => {
+  const { integration } = estado || {};
+  if (!integration) return null;
+  if (integration.lastError) return null; // lo dice el badge, no la letra pequeña
+  if (!integration.lastSyncAt) return 'Conectado, sin sincronizar todavía';
+  const eventos =
+    integration.eventCount > 0 ? ` · ${integration.eventCount} avisos recibidos` : '';
+  return `Sincronizado ${shortDate(integration.lastSyncAt)}${eventos}`;
+};
+
+/**
+ * Una tarjeta del catálogo.
+ *
+ * Conectada, deja de ser un enlace mudo: dice cuándo sincronizó por última vez
+ * y trae el botón de sincronizar AQUÍ — la operación de cada lunes no debería
+ * exigir entrar a la pantalla de configuración, que es de un solo día.
+ */
+const ProviderCard = ({ provider, estado, ready, busy, onOpen, onSync }) => {
+  const connected = Boolean(estado?.hasToken);
+  const conError = Boolean(estado?.integration?.lastError);
+  const meta = metaDeEstado(estado);
+  const planned = provider.status === 'planned';
+
+  return (
+    <article className={`provider${planned ? ' is-planned' : ''}`}>
+      {!planned && (
+        <button
+          type="button"
+          className="provider-hit"
+          onClick={onOpen}
+          aria-label={`Configurar ${provider.name}`}
+        />
       )}
-    </header>
 
-    <p className="provider-what">{provider.tagline}</p>
-  </article>
-);
+      <header className="provider-head">
+        <BrandMark brand={provider.id} name={provider.name} size={26} />
+        <span className="who">
+          <span className="name">{provider.name}</span>
+          <span className="sub">{provider.category}</span>
+        </span>
+        {/*
+          Mientras no se sabe, no se dice. `estados` empieza vacío, así que una
+          integración YA conectada se anunciaba «Disponible» durante el viaje de
+          ida y vuelta y luego cambiaba a «Conectado»: un parpadeo que dice justo
+          lo contrario de la verdad, en la línea que se mira primero.
+        */}
+        {planned ? (
+          <span className="badge">Pronto</span>
+        ) : !ready ? (
+          <span className="badge-hueco" aria-hidden="true" />
+        ) : conError ? (
+          <span className="badge badge-warn">Con un fallo</span>
+        ) : connected ? (
+          <span className="badge badge-ok">
+            <Check size={11} /> Conectado
+          </span>
+        ) : (
+          <span className="badge badge-info">Disponible</span>
+        )}
+      </header>
+
+      <p className="provider-what">{provider.tagline}</p>
+
+      {/*
+        El pie ya no es solo de las conectadas. Una tarjeta «Disponible»
+        terminaba en su frase y no decía en ninguna parte que se pudiera pulsar
+        —la tarjeta entera es un botón, pero eso solo se descubre pasando por
+        encima—. «Conectar →» lo dice; es un `span` inerte a propósito
+        (`.provider > *` no recibe puntero) para que el clic siga siendo el de la
+        tarjeta y no haya dos destinos donde hay uno.
+      */}
+      {!planned && ready && (
+        <div className="provider-foot">
+          {connected ? (
+            <>
+              <span className="provider-meta">{meta}</span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={busy}
+                onClick={(e) => {
+                  /* Que sincronizar no abra además la pantalla de configuración: el
+                     `provider-hit` cubre la tarjeta entera. */
+                  e.stopPropagation();
+                  onSync();
+                }}
+              >
+                <RefreshCw size={13} className={busy ? 'is-girando' : undefined} />
+                {busy ? 'Sincronizando…' : 'Sincronizar'}
+              </button>
+            </>
+          ) : (
+            <span className="provider-cta">
+              Conectar <ChevronRight size={13} />
+            </span>
+          )}
+        </div>
+      )}
+    </article>
+  );
+};
 
 /**
  * Catálogo de integraciones.
@@ -53,15 +138,21 @@ const ProviderCard = ({ provider, connected, onOpen }) => (
  * configuración DENTRO de cada una. Añadir un servicio pasa a ser una entrada en
  * `PROVIDERS`.
  *
- * Lo que todavía no está se muestra igualmente, marcado como «Pronto» y diciendo
- * qué le falta. Es más honesto que aparecer de la nada un día, y de paso el
- * entrenador sabe si merece la pena esperar o montar lo que hay.
+ * Lo que todavía no está se muestra igualmente, marcado como «Pronto». Es más
+ * honesto que aparecer de la nada un día, y de paso el entrenador sabe si merece
+ * la pena esperar o montar lo que hay. (Hoy no hay ninguno «Pronto»: la rama
+ * existe para el siguiente proveedor, no para el aire.)
  */
 export const IntegrationsCatalogue = () => {
-  const { loadIntegration } = useActions();
+  const { loadIntegration, runIntegration, runStripe } = useActions();
   const { plan } = useSession();
   const [open, setOpen] = useState(null);
-  const [connected, setConnected] = useState({});
+  /* El resultado ENTERO de `loadIntegration` por proveedor, no solo si hay
+     token: la fecha de la última sincronización y el contador de eventos ya
+     venían en la respuesta y se tiraban. */
+  const [estados, setEstados] = useState({});
+  const [syncing, setSyncing] = useState(null);
+  const [aviso, setAviso] = useState(null);
   const [unavailable, setUnavailable] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -94,19 +185,43 @@ export const IntegrationsCatalogue = () => {
   }, [plan?.plan]);
   const capado = conIntegraciones === false;
 
-  /** Qué proveedores están conectados. Se pregunta por todos, no solo por Notion. */
+  /** El estado de cada proveedor conectable. Se pregunta por todos, no solo por Notion. */
   const loadConnected = useCallback(async () => {
-    const results = await Promise.all(PROVIDERS.map((p) => loadIntegration(p.id)));
+    const results = await Promise.all(CONECTABLES.map((p) => loadIntegration(p.id)));
     setUnavailable(results.some((r) => !r.ok));
-    setConnected(
-      Object.fromEntries(PROVIDERS.map((p, i) => [p.id, Boolean(results[i].hasToken)]))
-    );
+    setEstados(Object.fromEntries(CONECTABLES.map((p, i) => [p.id, results[i]])));
     setReady(true);
   }, [loadIntegration]);
 
   useEffect(() => {
     loadConnected();
   }, [loadConnected]);
+
+  /*
+    Sincronizar desde la tarjeta: la operación de cada lunes, sin pasar por la
+    pantalla de configuración. El resumen se dice aquí arriba con las mismas
+    cifras que daría la pantalla del proveedor.
+  */
+  const sincronizar = async (provider) => {
+    const integrationId = estados[provider.id]?.integration?.id;
+    if (!integrationId || syncing) return;
+
+    setSyncing(provider.id);
+    setAviso(null);
+    const run = provider.id === 'stripe' ? runStripe : runIntegration;
+    const res = await run(integrationId, 'sync');
+    setSyncing(null);
+
+    if (!res.ok) {
+      setAviso({ tone: 'error', text: `${provider.name}: ${res.error}` });
+    } else {
+      const partes = [`${res.matched ?? 0} de ${res.total ?? 0} pagos asignados`];
+      if (res.clientsUpdated != null) partes.push(`${res.clientsUpdated} clientes al día`);
+      if (res.unmatched?.length > 0) partes.push(`${res.unmatched.length} nombres sin conciliar`);
+      setAviso({ tone: 'success', text: `${provider.name}: ${partes.join(' · ')}.` });
+    }
+    loadConnected();
+  };
 
   // Cada proveedor tiene su pantalla; el catálogo solo decide cuál abre.
   const DETAIL = { notion: NotionSettings, stripe: StripeSettings };
@@ -119,7 +234,7 @@ export const IntegrationsCatalogue = () => {
       uso ni la configuración. Lo que no se enseña es el formulario de conectar
       a quien su plan no le va a dejar guardarlo.
     */
-    const bloqueado = capado && !connected[open];
+    const bloqueado = capado && !estados[open]?.hasToken;
     return (
       <div className="col gap-4">
         <button
@@ -154,8 +269,6 @@ export const IntegrationsCatalogue = () => {
     );
   }
 
-  const detail = open ? providerById(open) : null;
-
   return (
     <div className="stack">
       <PageHead
@@ -163,62 +276,50 @@ export const IntegrationsCatalogue = () => {
         sub="Conecta lo que ya usas para no llevar la misma información en dos sitios."
       />
 
-      <Panel className="col gap-4">
-
-        {unavailable && ready && (
-          <Notice tone="info">
-            Las integraciones todavía no están activas en tu cuenta: puedes ver qué hay, pero no conectar nada. Escríbenos desde Ajustes → Ayuda y las activamos.
-          </Notice>
-        )}
-
-        {/* El capado del plan, dicho AQUÍ y no al final del formulario (0065):
-            quien va a chocar con él debe saberlo antes de crear ningún token. */}
-        {capado && !unavailable && (
-          <Notice tone="info">
-            El plan {plan?.label || 'actual'} no incluye integraciones. Puedes ver qué hay; para
-            conectarlas, <Link to="/ajustes/plan">cambia de plan</Link>.
-          </Notice>
-        )}
-
-        <div className="provider-grid">
-          {PROVIDERS.map((provider) => (
-            <ProviderCard
-              key={provider.id}
-              provider={provider}
-              connected={connected[provider.id]}
-              onOpen={() => setOpen(provider.id)}
-            />
-          ))}
-        </div>
-      </Panel>
-
-      {/* El detalle de lo que aún no está: qué haría y qué le falta. Prometer una
-          fecha sería peor que explicar el trabajo pendiente. */}
-      {detail?.status === 'planned' && (
-        <Panel className="col gap-3">
-          <div className="row gap-3">
-            <BrandMark brand={detail.id} name={detail.name} size={26} />
-            <div>
-              <span className="section-title">{detail.name}</span>
-              <p className="t-sm t-secondary">{detail.tagline}</p>
-            </div>
-          </div>
-          <p className="t-sm">{detail.what}</p>
-          {detail.why && (
-            <p className="t-sm t-secondary">
-              <strong>Qué falta:</strong> {detail.why}
-            </p>
-          )}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => setOpen(null)}
-          >
-            <ArrowLeft size={14} /> Volver
-          </button>
-        </Panel>
+      {unavailable && ready && (
+        <Notice tone="info">
+          Las integraciones todavía no están activas en tu cuenta: puedes ver qué hay, pero no
+          conectar nada. Escríbenos desde Ajustes → Ayuda y las activamos.
+        </Notice>
       )}
+
+      {/* El capado del plan, dicho AQUÍ y no al final del formulario (0065):
+          quien va a chocar con él debe saberlo antes de crear ningún token. */}
+      {capado && !unavailable && (
+        <Notice tone="info">
+          El plan {plan?.label || 'actual'} no incluye integraciones. Puedes ver qué hay; para
+          conectarlas, <Link to="/ajustes/plan">cambia de plan</Link>.
+        </Notice>
+      )}
+
+      {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
+
+      {/*
+        Por categoría (`category` en PROVIDERS), y cada tanda con su encabezado de
+        verdad. Estaba todo dentro de UNA tarjeta con rótulos sueltos por dentro:
+        una tarjeta que contiene tarjetas no separa nada, solo mete un marco de
+        más, y los avisos quedaban encerrados en él en vez de encabezar la
+        pantalla. Es la misma gramática que Protocolo — el encabezado explica, la
+        tarjeta se toca.
+      */}
+      {[...new Set(PROVIDERS.map((p) => p.category))].map((categoria) => (
+        <section className="col gap-3" key={categoria}>
+          <GroupHead title={categoria} sub={CATEGORIAS[categoria]} />
+          <div className="provider-grid">
+            {PROVIDERS.filter((p) => p.category === categoria).map((provider) => (
+              <ProviderCard
+                key={provider.id}
+                provider={provider}
+                estado={estados[provider.id]}
+                ready={ready}
+                busy={syncing === provider.id}
+                onOpen={() => setOpen(provider.id)}
+                onSync={() => sincronizar(provider)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 };

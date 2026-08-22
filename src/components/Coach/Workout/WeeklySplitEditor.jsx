@@ -1,68 +1,48 @@
-import { useState } from 'react';
-import { Calendar, ChevronRight } from 'lucide-react';
-import { WEEK_DAYS } from '@/domain/training';
-import { Panel, SectionTitle } from '@/components/ui/primitives';
+import { Calendar } from 'lucide-react';
+import { WEEK_DAYS, isRestDay } from '@/domain/training';
+import { SectionTitle } from '@/components/ui/primitives';
 
 /**
  * Qué se entrena cada día de la semana natural. Solo tiene sentido con
  * `cycleType: 'weekly'`; en ciclo rotativo no hay semana a la que atarse.
  *
- * ══ Plegable, y en el móvil empieza plegado ═════════════════════════════════
- * Es configuración que se toca cada varias semanas, y en un móvil sus siete
- * filas eran una pantalla entera ANTES del primer ejercicio — recorriendo la
- * rutina a 390 px, el preámbulo medía más que el día. La cabecera resume lo que
- * el editor diría («4 días de entreno») y se abre cuando toca cambiarlo. En
- * escritorio empieza abierto: allí cabe en una fila y plegarlo sería esconderlo.
- * El estado inicial se decide una vez al montar, como la bandeja de «Hoy».
+ * ══ Ni caja ni pliegue propio ═══════════════════════════════════════════════
+ *
+ * Era un `Panel` con su propio desplegable, y vivía dentro de la ventana de la
+ * estructura: una caja dentro de una caja dentro de una ventana, y dos chevrones
+ * seguidos que hacían cosas distintas. Ahora la estructura entera es un pliegue
+ * (`CycleSettings`) y esto es una zona suya: si has abierto la estructura, ya
+ * has dicho que vienes a cambiarla — plegar otra vez lo de dentro solo añade un
+ * clic. Dentro de una superficie, las zonas las separa el espacio.
+ *
+ * El contador de días de entreno no desaparece: se lee en el resumen del
+ * pliegue, que es donde sirve — estando CERRADO.
  */
-export const WeeklySplitEditor = ({ split, onChange }) => {
-  const [open, setOpen] = useState(
-    () => typeof window === 'undefined' || !window.matchMedia('(max-width: 1023.98px)').matches
-  );
+export const WeeklySplitEditor = ({ split, onChange }) => (
+  <div className="col gap-3">
+    <SectionTitle icon={Calendar}>Planificación semanal</SectionTitle>
 
-  const dias = WEEK_DAYS.filter(
-    (day) => (split?.[day] ?? 'Descanso').trim().toLowerCase() !== 'descanso'
-  ).length;
-
-  return (
-    <Panel tight className="col gap-4">
-      <button type="button" className="panel-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        <SectionTitle icon={Calendar}>
-          Planificación semanal
-        </SectionTitle>
-        <span className="t-xs t-tertiary">
-          {dias === 0 ? 'sin días de entreno' : `${dias} ${dias === 1 ? 'día' : 'días'} de entreno`}
-        </span>
-        <ChevronRight size={15} className="chevron" aria-hidden="true" />
-      </button>
-
-      {open && (
-        <div className="split-grid">
-          {WEEK_DAYS.map((day) => {
-            const value = split?.[day] ?? 'Descanso';
-            const isRest = value.trim().toLowerCase() === 'descanso';
-            return (
-              <div className="col gap-1" key={day}>
-                <label className="section-label" style={{ textAlign: 'center' }} htmlFor={`split-${day}`}>
-                  {day}
-                </label>
-                <input
-                  id={`split-${day}`}
-                  className="input input-center"
-                  style={{
-                    background: isRest ? 'var(--surface-sunken)' : 'var(--accent-soft)',
-                    borderColor: isRest ? 'var(--hairline)' : 'var(--accent)',
-                    color: isRest ? 'var(--text-secondary)' : 'var(--accent)',
-                    fontSize: 'var(--fs-sm)',
-                  }}
-                  value={value}
-                  onChange={(e) => onChange(day, e.target.value)}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </Panel>
-  );
-};
+    <div className="split-grid">
+      {WEEK_DAYS.map((day) => {
+        const value = split?.[day] ?? 'Descanso';
+        const descanso = isRestDay(value);
+        return (
+          <div className="split-day" key={day}>
+            <label className="name" htmlFor={`split-${day}`}>
+              {day}
+            </label>
+            {/* La misma tinta que el tablero: el día con algo programado en
+                acento, el de descanso apagado. Antes esto lo decidía un `style`
+                escrito a mano aquí, con su propia idea de qué es descanso. */}
+            <input
+              id={`split-${day}`}
+              className={`input input-center split-value${descanso ? '' : ' is-training'}`}
+              value={value}
+              onChange={(e) => onChange(day, e.target.value)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  </div>
+);

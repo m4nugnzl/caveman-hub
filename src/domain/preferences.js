@@ -48,8 +48,10 @@ export const CARDS = [
   { id: 'macros', label: 'Reparto de macros', hint: 'Kcal objetivo y reparto por macro', span: 'half' },
   {
     id: 'split',
-    label: 'Estructura semanal',
-    hint: 'Qué toca cada día — necesita la fila entera',
+    /* Ni «semanal» ni «ciclo»: la misma tarjeta enseña las dos estructuras según
+       cómo entrene cada cliente, y en esta lista se elige para cualquiera. */
+    label: 'Estructura del programa',
+    hint: 'Qué toca cada día y cuándo se descansa — necesita la fila entera',
     span: 'full',
     fixed: true,
   },

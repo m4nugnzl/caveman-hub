@@ -89,7 +89,10 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { -webkit-text-size-adjust: 100%; }
+/* `scroll-behavior` en la RAÍZ: es lo que hace suaves los saltos de ancla (el
+   índice del protocolo). El bloque de menos movimiento lo devuelve a `auto`
+   con !important, así que quien pidió poco movimiento salta en vez de viajar. */
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 
 body {
   font-family: var(--font);
@@ -346,12 +349,24 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 @keyframes pantalla-entra {
   from { opacity: 0; transform: translateY(10px); }
 }
+/* ── Y también dentro de Ajustes ─────────────────────────────────────────────
+   El selector pedía que el `.stack` colgara DIRECTAMENTE del lienzo, y en
+   Ajustes cuelga de `.settings-body` (la lista de apartados va al lado). Así
+   que el área entera —Plan, Protocolo, Equipo, Integraciones…— era la única
+   del producto que aparecía de golpe: cambiar de apartado se sentía distinto a
+   cambiar de pantalla, sin ninguna razón de diseño detrás. Es el mismo tramo
+   del árbol un nivel más adentro, así que va la misma cascada. */
 @media (prefers-reduced-motion: no-preference) {
-  .layout > .stack > * { animation: pantalla-entra 0.4s var(--ease) backwards; }
-  .layout > .stack > *:nth-child(2) { animation-delay: 50ms; }
-  .layout > .stack > *:nth-child(3) { animation-delay: 100ms; }
-  .layout > .stack > *:nth-child(4) { animation-delay: 150ms; }
-  .layout > .stack > *:nth-child(n + 5) { animation-delay: 190ms; }
+  .layout > .stack > *,
+  .settings-body > .stack > * { animation: pantalla-entra 0.4s var(--ease) backwards; }
+  .layout > .stack > *:nth-child(2),
+  .settings-body > .stack > *:nth-child(2) { animation-delay: 50ms; }
+  .layout > .stack > *:nth-child(3),
+  .settings-body > .stack > *:nth-child(3) { animation-delay: 100ms; }
+  .layout > .stack > *:nth-child(4),
+  .settings-body > .stack > *:nth-child(4) { animation-delay: 150ms; }
+  .layout > .stack > *:nth-child(n + 5),
+  .settings-body > .stack > *:nth-child(n + 5) { animation-delay: 190ms; }
 }
 
 /* ══ EL ESQUELETO DE ARRANQUE ════════════════════════════════════════════════
@@ -735,6 +750,10 @@ button.list-row:hover { background: var(--fill-subtle); }
   background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left;
 }
 button.task-head { cursor: pointer; }
+/* Plegable sin caja: la respuesta al puntero va en sus tintas, no en un fondo
+   que no tiene. */
+button.task-head:hover > .k,
+button.task-head:hover > .chevron { color: var(--text); }
 .task-head > .k {
   font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
   letter-spacing: var(--tracking-stencil); color: var(--text-secondary);
@@ -786,17 +805,40 @@ button.task-head { cursor: pointer; }
 .week-line > strong { font-size: 1.02rem; font-weight: 800; }
 .week-line > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
-/* La cabecera de un panel plegable — el mismo idioma que `.task-head`, para
-   paneles cuyo título es un `SectionTitle` (la planificación semanal). El
-   resumen del medio se queda el hueco sobrante; el chevron dice el estado. */
-.panel-toggle {
+/* ── El pliegue ─────────────────────────────────────────────────────────────
+   Una fila que se abre EN SU SITIO. El mismo idioma que `.task-head`, y el
+   único que queda: antes había tres formas para este gesto —una línea que abría
+   un modal, un panel con chevron y otro panel con chevron distinto— conviviendo
+   en la misma pantalla. El porqué, en `ui/primitives.jsx`.
+
+   El resumen se queda el hueco sobrante y se recorta con puntos suspensivos
+   antes que empujar al chevron fuera de la fila; el chevron dice el estado.
+
+   Varios pliegues seguidos son UN bloque con filetes, no una pila de tarjetas:
+   dentro de una superficie, las zonas las separa el espacio. */
+.fold { display: flex; flex-direction: column; gap: var(--s3); }
+.fold + .fold { margin-top: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+
+.fold-head {
   display: flex; align-items: center; gap: var(--s3); width: 100%;
-  background: none; border: 0; padding: 0; color: inherit; font: inherit;
-  text-align: left; cursor: pointer; min-height: 28px;
+  background: none; border: 0; padding: 0; color: var(--text);
+  font: inherit; font-size: var(--fs-sm); font-weight: 650;
+  text-align: left; cursor: pointer; min-height: 34px;
 }
-.panel-toggle > .t-xs { flex: 1; min-width: 0; text-align: right; }
-.panel-toggle > .chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform var(--fast); }
-.panel-toggle[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
+.fold-head > svg { flex-shrink: 0; color: var(--text-tertiary); }
+.fold-title { flex-shrink: 0; }
+.fold-sum {
+  flex: 1; min-width: 0;
+  font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fold-head > .chevron { transition: transform var(--fast); }
+.fold-head[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
+.fold-head:hover > svg, .fold-head:hover > .fold-sum { color: var(--text-secondary); }
+
+/* El cuerpo respira por el `gap` del pliegue; abajo, lo justo para que no quede
+   pegado al filete del siguiente. */
+.fold-body { padding-bottom: var(--s1); }
 
 .task.is-info { box-shadow: inset 2px 0 0 var(--info); }
 .task.is-bad { box-shadow: inset 2px 0 0 var(--negative); }
@@ -908,7 +950,7 @@ button.task-head { cursor: pointer; }
 .folio {
   position: relative; isolation: isolate;
   display: flex; flex-direction: column; gap: var(--s3);
-  background: var(--surface); border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg);
   padding: var(--s4) var(--s4) var(--s4) calc(var(--s4) + 3px);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -1502,6 +1544,9 @@ button.task-head { cursor: pointer; }
   cursor: pointer; user-select: none;
 }
 .switch-row.is-off { opacity: 0.45; cursor: not-allowed; }
+/* Encendido no cambia (el acento ya dice «activo»); apagado se oscurece un
+   punto para responder al puntero. */
+.switch-row:hover:not(.is-off):not(.is-on) > .track { background: var(--hairline-strong); }
 
 .switch-row > .track {
   flex-shrink: 0;
@@ -1562,6 +1607,7 @@ button.task-head { cursor: pointer; }
 .checkbox-row input[type='checkbox']:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .range { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.range:hover { accent-color: var(--accent-hover); }
 
 /* ══ EL RECTÁNGULO VACÍO, que estaba en toda la aplicación ═══════════════════
    El carril es `inline-flex`, o sea que mide lo que miden sus opciones… salvo
@@ -1621,18 +1667,38 @@ button.task-head { cursor: pointer; }
 
 /* ── El carril de días, que se arrastra ──────────────────────────────────────
    El orden de estos chips es el orden de la semana del cliente, así que se
-   cambia aquí, donde se ve. `grab` es la única pista de que se puede: en un chip
-   no cabe un asa, y sin cursor nadie descubre el gesto.
+   cambia aquí, donde se ve.
 
-   Las dos marcas son las mismas que en la lista de ejercicios y en la tabla de
-   alimentos —el que viaja se atenúa, el destino se señala— para que arrastrar
-   sea el mismo gesto con el mismo aspecto en las tres pantallas.
+   ══ El asa no es la zona de agarre, es el cartel ═══════════════════════════
+   Se arrastra la pastilla ENTERA — un asa que hubiera que acertar dentro de 28
+   px de alto sería más difícil de dar que la pastilla—. El asa está porque el
+   cursor de agarre no lo descubre nadie: hay que pasar por encima para verlo, y
+   en un teléfono no hay «por encima». Un gesto que no se sospecha no existe.
+
+   ══ Lo que se ve al arrastrar ══════════════════════════════════════════════
+   El que viaja se LEVANTA (sombra y por encima del resto) en vez de atenuarse:
+   sigue al puntero, así que es la pieza que se está mirando. Los de en medio se
+   apartan dejando el hueco — y esa es la explicación del gesto: al ver el sitio
+   abrirse ya sabes qué pasa al soltar. La transición es de ellos; el que viaja
+   no la lleva, porque tiene que ir pegado al dedo.
 
    El chip de «+ Día» no arrastra: no es un día, es un botón. */
-.day-rail .chip:not(.chip-dashed) { cursor: grab; }
+.day-rail .chip:not(.chip-dashed) {
+  cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: background-color var(--fast), color var(--fast), transform var(--normal);
+}
 .day-rail .chip:not(.chip-dashed):active { cursor: grabbing; }
-.day-rail .chip.is-dragging { opacity: 0.4; }
+.day-rail .chip.is-dragging {
+  position: relative; z-index: 2;
+  cursor: grabbing; box-shadow: var(--shadow-md);
+  transition: none;
+}
 .day-rail .chip.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* El asa: presente siempre —es lo que anuncia el gesto— pero en voz baja, para
+   que el nombre del día siga siendo lo que se lee. */
+.chip-grip { opacity: 0.4; transition: opacity var(--fast); }
+.chip:hover > .chip-grip { opacity: 0.75; }
 
 /* En el teléfono, los días se quedan PEGADOS arriba al bajar por el que está
    abierto: cambiar de Empuje a Pierna no debería exigir volver a subir cuatro
@@ -1712,14 +1778,28 @@ button.task-head { cursor: pointer; }
 .save-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 
+/* La carga en línea (`<Loading/>`, ui/primitives). Sobria a propósito: texto
+   pequeño y tres puntos que laten en cascada, nada que compita con el
+   esqueleto del arranque. Bajo menos movimiento, la regla global los deja en
+   un ciclo. */
+.loading { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); color: var(--text-tertiary); }
+.loading-dots { display: inline-flex; gap: 4px; }
+.loading-dots > span {
+  width: 4px; height: 4px; border-radius: 50%; background: currentColor;
+  animation: loading-late 1.2s ease-in-out infinite;
+}
+.loading-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes loading-late { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
 /* ==========================================================================
    Modal y menús
    ========================================================================== */
 
 .modal-backdrop {
   position: fixed; inset: 0; z-index: 200;
-  background: rgba(10, 12, 15, 0.32);
-  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  background: var(--scrim);
+  backdrop-filter: blur(var(--scrim-blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--scrim-blur)) saturate(1.3);
   display: grid; place-items: center; padding: var(--s4);
   animation: fade 0.2s var(--ease);
 }
@@ -1727,6 +1807,9 @@ button.task-head { cursor: pointer; }
 
 .modal {
   background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-lg);
+  /* El canto obligatorio de toda superficie (tokens.css): en hierro la sombra
+     sobre grafito es invisible y sin borde el modal flotaba sin contorno. */
+  border: 1px solid var(--edge);
   width: 100%; max-width: 440px; max-height: min(86vh, 880px);
   display: flex; flex-direction: column; overflow: hidden;
   animation: sheet 0.3s var(--ease);
@@ -1770,6 +1853,7 @@ button.task-head { cursor: pointer; }
 
 .popover {
   position: absolute; z-index: 60; background: var(--surface);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md); padding: 5px; min-width: 208px;
   /* El mínimo de 208 px cuelga a veces de un campo estrecho (el autocompletar
      del alta de ejercicio): sin tope, en 390 px se salía de la pantalla. */
@@ -1778,6 +1862,26 @@ button.task-head { cursor: pointer; }
 }
 @keyframes pop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
 .popover-right { right: 0; }
+
+/* ── La salida ─────────────────────────────────────────────────────────────
+   Cada overlay entra con cuidado y hasta ahora desaparecía de un corte: React
+   no puede animar lo que desmonta. `useDismissable` (lib/useDismissable.js)
+   retrasa el desmonte y marca la raíz con `data-state="closing"`; estas reglas
+   son la otra mitad. Selectores de ATRIBUTO y no clases nuevas: el estado de un
+   ciclo de vida no es una clase de la pieza.
+
+   La salida dura `--fast` aunque la entrada fuera más lenta: abrir presenta y
+   puede recrearse; cerrar es obedecer, y se obedece rápido. `both` retiene el
+   último fotograma para que no haya un parpadeo entre el fin de la animación y
+   el desmonte real. */
+@keyframes fade-sale { to { opacity: 0; } }
+@keyframes modal-sale { to { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes modal-baja { to { opacity: 0; transform: translateY(24px); } }
+@keyframes pop-sale { to { opacity: 0; transform: scale(0.97); } }
+
+.modal-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
+.modal-backdrop[data-state='closing'] > .modal { animation: modal-sale var(--fast) both; }
+.popover[data-state='closing'] { animation: pop-sale var(--fast) both; }
 
 .menu-item {
   font-family: inherit; width: 100%;
@@ -1913,7 +2017,14 @@ button.task-head { cursor: pointer; }
 .tab[aria-selected='true']::after, .tab.active::after {
   content: ''; position: absolute; left: 9px; right: 9px; bottom: -1px;
   height: 2px; border-radius: 2px; background: var(--brasa);
+  animation: marca-entra var(--fast) both;
 }
+/* La marca de «aquí estás» FUNDE al aparecer en vez de teletransportarse.
+   Solo opacidad: varios de estos pseudos llevan un transform de centrado que
+   una animación de transform pisaría. Deslizarla entre destinos exigiría
+   medir cajas desde JS (FLIP); no lo vale para una raya de 3 px. Y no hay
+   salida: el pseudo muere con la clase, no hay a qué colgarla. */
+@keyframes marca-entra { from { opacity: 0; } }
 /* Los NavLink son enlaces: hay que quitarles el subrayado y heredar el tamaño. */
 a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
@@ -2123,6 +2234,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
   width: 3px; height: 15px; border-radius: var(--r-pill);
   background: var(--brasa);
+  animation: marca-entra var(--fast) both;
 }
 
 /* ── El recuento de una puerta ─────────────────────────────────────────────
@@ -2170,7 +2282,9 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   width: 100%; border: 0; background: transparent; cursor: pointer;
   font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
   color: var(--text-tertiary);
+  transition: color var(--fast);
 }
+.side-action:hover { color: var(--text); }
 
 /* ── El selector de cliente, cuando vive en la barra ───────────────────────
    En la barra el cliente ES el plano entero: su selector ocupa el ancho, como
@@ -4424,12 +4538,18 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.012em;
   transition: color var(--fast);
 }
+/* La respuesta al puntero: el número y el galón se encienden a tinta plena.
+   (La transición de color del bloque existía sin ningún :hover que la
+   disparase — una pregunta clicable que no respondía al puntero.) */
+.lp-faq-q:hover > .lp-faq-n { color: var(--text); }
+.lp-faq-q:hover::after { border-color: var(--text); }
 .lp-faq-q::-webkit-details-marker { display: none; }
 .lp-faq-n {
   flex-shrink: 0; width: 2.4em;
   font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
   letter-spacing: 0.1em; font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
+  transition: color var(--fast);
 }
 /* La cifra de la que está abierta se enciende, y es la única brasa de esta
    sección: aquí no hay ni una captura ni un icono al que dársela, y una lista de
@@ -4447,7 +4567,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   border-right: 1.5px solid var(--text-tertiary);
   border-bottom: 1.5px solid var(--text-tertiary);
   transform: rotate(45deg);
-  transition: transform var(--fast);
+  transition: transform var(--fast), border-color var(--fast);
 }
 .lp-faq-item[open] > .lp-faq-q::after { transform: rotate(225deg); margin-top: -2px; }
 .lp-faq-a {
@@ -5396,22 +5516,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    Editor de rutina
    ========================================================================== */
 
-/* ── La línea de configuración ─────────────────────────────────────────────
-   Cierra la página: lo que se decide una vez por cliente (estructura, fecha
-   de inicio, módulos) resumido en una frase de voz baja con su puerta. Sin
-   superficie: no compite con el trabajo, se encuentra cuando se busca. */
-.config-line {
-  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
-  padding: var(--s2) var(--s2);
-  color: var(--text-tertiary); font-size: var(--fs-sm);
-}
-.config-line > svg { flex-shrink: 0; }
-.config-line-text {
-  flex: 1; min-width: 0;
-  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
-  color: var(--text-secondary);
-}
-
 /* La fecha del microciclo, en voz baja: sin caja hasta que se toca. Es un dato
    que se corrige de vez en cuando, no un formulario permanente. */
 .mcb-fecha { align-items: center; }
@@ -6025,6 +6129,51 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .split-day > .value.is-training { background: var(--accent-soft); color: var(--accent); }
 
+/* ── La cadena de un ciclo rotativo ─────────────────────────────────────────
+   Empuje → Tirón → Descanso ↺. No es una rejilla de siete columnas porque un
+   ciclo rotativo no tiene casillas fijas: tiene un orden que se repite. El
+   porqué entero, en `ui/CycleChain.jsx`.
+
+   Envuelve en varias líneas —un 5/1 son seis casillas— y las flechas viajan con
+   su casilla, así que al envolver no queda ninguna flecha huérfana al principio
+   de una fila. */
+.cycle-chain { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); list-style: none; }
+.cycle-step { display: flex; align-items: center; gap: var(--s2); }
+.cycle-step > .link { color: var(--text-tertiary); flex-shrink: 0; }
+/* El remate del bucle, más apagado que las flechas: dice «vuelta a empezar», no
+   «y ahora esto». */
+.cycle-step > .link.is-loop { opacity: 0.55; }
+
+.cycle-slot {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 92px; padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--accent-soft); color: var(--accent);
+}
+.cycle-slot > .lead {
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  opacity: 0.75;
+}
+.cycle-slot > .nm {
+  font-size: var(--fs-sm); font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El descanso, apagado y sin tinta de acento: es parte de la estructura, pero no
+   es a lo que se viene. */
+.cycle-slot.is-rest { background: var(--fill-subtle); color: var(--text-tertiary); }
+
+/* La misma rejilla cuando se EDITA: el código de color no cambia porque no es
+   decoración —dice qué días tienen algo programado—, solo cambia el soporte, de
+   un rótulo a una casilla. Estaba resuelto con un `style` escrito a mano en el
+   editor, que además tenía su propia idea de qué es descanso. */
+.split-value {
+  font-size: var(--fs-sm);
+  background: var(--surface-sunken); border-color: var(--hairline); color: var(--text-secondary);
+}
+.split-value.is-training { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
 /* ── Franja de resumen nutricional ──────────────────────────────────────────
    Anillo con las kcal en el centro y, al lado, una barra por macro con sus
    gramos y su porcentaje. Sale de la referencia: en una sola fila se ve el
@@ -6372,10 +6521,13 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
   min-width: 232px;
   display: flex; flex-direction: column; gap: 1px;
-  background: var(--surface); border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md);
   box-shadow: var(--shadow-float);
   padding: var(--s2);
+  /* El mismo gesto que `.popover`: es la misma pieza con otro traje. */
+  animation: pop 0.16s var(--ease);
 }
+.account-menu[data-state='closing'] { animation: pop-sale var(--fast) both; }
 
 .account-head { padding: var(--s2) var(--s3) var(--s3); }
 .account-head > .name {
@@ -6443,6 +6595,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   width: 3px; height: 17px; border-radius: var(--r-pill);
   background: var(--brasa);
+  animation: marca-entra var(--fast) both;
 }
 .settings-link > svg { color: var(--text-tertiary); flex-shrink: 0; margin-top: 1px; }
 .settings-link > .who { min-width: 0; }
@@ -6489,13 +6642,19 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   display: flex; flex-direction: column; gap: 5px; justify-content: center;
   height: 54px; padding: var(--s3); border-radius: var(--r-sm);
 }
-.theme-preview.is-light { background: #f4f2ee; }
-.theme-preview.is-dark { background: #191b1a; }
+/* Los valores son los de tokens.css copiados a mano (--canvas, --hairline-strong
+   y --brasa de cada tema): si la paleta cambia, esto se actualiza con ella. Los
+   anteriores eran de una paleta que ya no existe — crema en vez de papel, y el
+   punto con el verde de marca que tokens.css explica por qué se eliminó. */
+.theme-preview.is-light { background: #eceef1; }
+.theme-preview.is-dark { background: #0d1014; }
 .theme-preview > .bar { height: 6px; border-radius: 3px; width: 100%; }
 .theme-preview > .bar.is-short { width: 58%; }
-.theme-preview.is-light > .bar { background: #cfcbc2; }
-.theme-preview.is-dark > .bar { background: #3d413f; }
-.theme-preview > .dot { width: 14px; height: 6px; border-radius: 3px; background: #35b98d; }
+.theme-preview.is-light > .bar { background: #c6ccd4; }
+.theme-preview.is-dark > .bar { background: rgba(226, 233, 241, 0.2); }
+.theme-preview > .dot { width: 14px; height: 6px; border-radius: 3px; }
+.theme-preview.is-light > .dot { background: #b8432f; }
+.theme-preview.is-dark > .dot { background: #e2564a; }
 
 /* ==========================================================================
    Catálogo de integraciones
@@ -6515,6 +6674,17 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   background: #ffffff;
   box-shadow: var(--shadow-xs), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
+
+/* El logotipo que YA TRAE su fondo (el icono morado de Stripe) llena el azulejo
+   hasta el canto: con el margen claro alrededor quedaba un cuadrado redondeado
+   dentro de otro, con dos radios distintos a 42 px. El azulejo pasa a ser solo
+   el recorte —de ahí `overflow: hidden`— y el canto interior se queda para que
+   el morado no flote sin borde sobre el hierro. Ver `ui/BrandMark.jsx`. */
+.brand-tile.is-bleed {
+  background: transparent;
+  overflow: hidden;
+}
+.brand-tile.is-bleed > img { border-radius: inherit; }
 
 .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: var(--s3); }
 
@@ -6544,6 +6714,44 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   text-transform: uppercase; letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
 }
 .provider-what { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.45; }
+
+/* El pie de una tarjeta conectada: cuándo sincronizó y el botón de volver a
+   hacerlo. El botón recupera el puntero por encima del `provider-hit` — la
+   regla de arriba se lo quita a todo lo que no sea el propio overlay. */
+.provider-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-top: var(--s1); }
+.provider-meta { font-size: var(--fs-2xs); color: var(--text-tertiary); min-width: 0; }
+.provider-foot > .btn { pointer-events: auto; }
+
+/* «Conectar →» en la tarjeta que aún no lo está. No es un botón —la tarjeta
+   entera ya lo es— sino el cartel de lo que pasa al pulsarla: sin él, una
+   tarjeta «Disponible» terminaba en su frase y nada decía que hiciera algo.
+
+   La flecha se adelanta al pasar por encima. Es el único movimiento de la
+   rejilla y dura lo que un parpadeo: no adorna, confirma que eso lleva a otro
+   sitio antes de pulsarlo. */
+.provider-cta {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: auto;
+  font-size: var(--fs-xs); font-weight: 650; color: var(--text-secondary);
+  transition: color var(--fast);
+}
+.provider-cta > svg { transition: transform var(--fast); }
+.provider:hover .provider-cta { color: var(--text); }
+.provider:hover .provider-cta > svg { transform: translateX(2px); }
+
+/* El hueco de la insignia mientras se pregunta el estado. Reserva su alto para
+   que la cabecera no dé un salto al llegar la respuesta, y no dibuja nada: una
+   insignia gris de relleno se leería como un estado más. */
+.badge-hueco { display: block; height: 22px; flex-shrink: 0; }
+
+/* La rejilla las estira a la misma altura (`align-items: stretch` por defecto),
+   así que el pie de todas cae a la misma línea aunque una frase ocupe dos
+   renglones y otra uno. Es lo que hace que la tanda se lea como una tanda y no
+   como cuatro tarjetas de alturas distintas. */
+.provider > .provider-what { flex: 1; }
+
+.is-girando { animation: girar 1s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
 
 /* ==========================================================================
    Integraciones
@@ -6935,36 +7143,121 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    Los planes van debajo como una escala de peldaños, no como tres tarjetas
    compitiendo: solo cambia una cosa entre ellos y ponerlos en columnas obligaría
    a leer tres veces lo mismo para encontrarla. */
+/* ── El héroe: quién eres y cuánto te queda ────────────────────────────────
+   Rótulo del plan y estado arriba, la cifra con su unidad EN LÍNEA —el número
+   solo, con la unidad debajo, dejaba una columna estrecha y un hueco a la
+   derecha— y la barra a todo lo ancho cerrando el bloque.
+
+   Lleva la lumbre. La doctrina dice que es para «la tarjeta que contiene la
+   decisión» y como mucho una por pantalla: aquí no compite con nadie y esta ES
+   la pantalla de una decisión —seguir o cambiar de peldaño—. */
 .plan-hero { display: flex; flex-direction: column; gap: var(--s4); }
 .plan-hero-head {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: var(--s4); flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
 }
+.plan-count-row { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .plan-count {
   font-family: var(--font-display); font-size: var(--fs-2xl);
   font-weight: 700; line-height: 1; letter-spacing: -0.03em;
 }
-.plan-hero-side { display: flex; flex-direction: column; gap: var(--s1); align-items: flex-end; text-align: right; }
+.plan-count-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
-/* Cada plan: nombre y para quién · tope · precio y acción. Tres columnas que se
-   apilan en móvil, donde el precio pasa a la izquierda con el resto. */
+/* ── La escala: UN bloque con peldaños, no N tarjetas ──────────────────────
+   Eran tres tarjetas sueltas con 8 px entre ellas, que es exactamente la forma
+   de «tres productos compitiendo» que esta pantalla dice no querer. Una lista
+   agrupada —la misma que el resto del producto (`.list`)— las convierte en lo
+   que son: los peldaños de una misma escala, y estás en uno.
+
+   Cada peldaño: nombre y para quién · tope · precio y acción. Tres columnas que
+   se apilan en móvil, donde el precio pasa a la izquierda con el resto. */
 .plan-tier {
-  display: grid; align-items: center; gap: var(--s3);
+  position: relative;
+  display: grid; align-items: center; gap: var(--s2) var(--s4);
   grid-template-columns: minmax(min(220px, 100%), 2fr) auto auto;
+  padding: var(--s4);
 }
-.plan-tier.is-current { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.list-head + .plan-tier::before,
+.plan-tier + .plan-tier::before {
+  content: ''; position: absolute; top: 0; left: var(--s4); right: var(--s4);
+  height: 1px; background: var(--hairline);
+}
+/* El tuyo, marcado como se marca lo elegido en una lista agrupada
+   (`.list-row.is-active`): relleno, no un anillo. El anillo de antes se comía
+   los separadores de las filas de al lado. */
+.plan-tier.is-current { background: var(--accent-soft); }
 .plan-tier-main { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
 .plan-tier-name { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650; }
 .plan-tier-cap { color: var(--text-secondary); white-space: nowrap; }
 .plan-tier-buy { display: flex; align-items: center; gap: var(--s3); justify-content: flex-end; }
+.plan-tier-money { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .plan-price { font-family: var(--font-display); font-weight: 650; white-space: nowrap; }
+/* El cargo real y el ahorro, debajo de la cifra mensualizada. `planPrice` exige
+   que el total esté a la vista al lado del importe por mes, y esta es esa línea. */
+.plan-price-note { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; }
+
+/* ── EL PELDAÑO QUE SE TE SEÑALA ───────────────────────────────────────────
+   La única superficie encendida de la pantalla, y por eso la brasa: es el mismo
+   recurso con el que la portada distingue una tarjeta de plan de las demás, y
+   aquí hace exactamente el mismo trabajo. Una sola por pantalla, como la lumbre
+   — dos peldaños encendidos no señalan ninguno.
+
+   No es una decoración a la que le tocara el turno: solo se enciende el
+   siguiente que se puede comprar, solo si añade algo, y solo a quien puede
+   contratarlo (ver `PlanPanel.jsx`). */
+.plan-tier.is-pick {
+  background-image: radial-gradient(120% 140% at 100% 0%, var(--brasa-luz), transparent 60%);
+  box-shadow: inset 0 0 0 1.5px var(--brasa);
+  border-radius: var(--r-md);
+}
+/* Sin filete encima: el canto de brasa ya cierra la fila por arriba, y la línea
+   de la lista cruzándolo lo parte en dos. */
+.plan-tier.is-pick::before,
+.plan-tier.is-pick + .plan-tier::before { display: none; }
+
+/* La chapa. La misma que marca la tarjeta destacada de la portada, en pequeño:
+   troquelada, brasa y su tinta. */
+.plan-tag {
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--brasa); color: var(--brasa-on);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil); white-space: nowrap;
+}
+
+/* Y el motivo, cruzando la fila entera por debajo: es lo que convierte la chapa
+   en un argumento en vez de en un cartel. */
+.plan-tier-why {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text);
+}
+
+/* Lo que este peldaño AÑADE sobre el tuyo. Palomas y no puntos, que es la
+   distinción de la portada: un punto enumera, una paloma afirma. En fila y
+   envolviendo —no en columna— porque son tres o cuatro cosas cortas y una
+   columna de cuatro renglones dentro de una fila de lista la convierte en una
+   tarjeta. */
+.plan-gain {
+  list-style: none; display: flex; flex-wrap: wrap;
+  gap: 2px var(--s3); margin-top: 3px;
+}
+.plan-gain > li {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.plan-gain > li > svg { color: var(--brasa); flex-shrink: 0; }
+
+/* El pie de la escala: lo que quita el miedo. En tinta terciaria y con el ancho
+   tasado — es una condición de la compra, no una sección. */
+.plan-foot { max-width: 62ch; font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
 
 @media (max-width: 700px) {
   /* Una sola columna: el precio debajo del nombre, y el botón a lo ancho, que es
      donde llega el pulgar. */
   .plan-tier { grid-template-columns: 1fr; }
   .plan-tier-buy { justify-content: space-between; }
-  .plan-hero-side { align-items: flex-start; text-align: left; }
+  /* Con la fila en una columna, la cifra deja de tener un canto derecho al que
+     alinearse: el bloque de dinero abre por la izquierda como todo lo demás. */
+  .plan-tier-money { align-items: flex-start; }
 }
 
 /* La barra: lo que se lee es «cuánto me queda», y una longitud se compara de un
@@ -6974,11 +7267,59 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   height: 6px; border-radius: var(--r-pill); background: var(--fill);
   overflow: hidden; width: 100%;
 }
+
+/* Los topes secundarios del héroe (asientos, disco): mismos materiales que la
+   barra de clientes pero en fila propia y más finos — informan sin competir
+   con la cifra grande, que es la que decide el cambio de plan.
+
+   El filete de arriba es el único de la tarjeta y está ganado: separa lo que
+   DECIDE (la cifra y su barra) de lo que solo informa. Sin él, tres barras
+   seguidas se leen como tres datos del mismo peso. */
+.plan-meters {
+  display: grid; gap: var(--s3) var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+}
+.plan-meter { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.plan-meter .plan-bar { height: 4px; }
 .plan-bar-fill {
   display: block; height: 100%; border-radius: var(--r-pill);
   background: var(--accent); transition: width var(--fast);
 }
 .plan-bar-fill.is-full { background: var(--negative); }
+
+/* ══ EL MOVIMIENTO DE ESTA PANTALLA ══════════════════════════════════════════
+   Dos, y las dos por el mismo motivo: el movimiento cuenta algo que el estado
+   final ya no puede contar.
+
+   · La barra CRECE hasta donde estás. Una barra pintada de golpe es una forma;
+     una barra que se llena es un recorrido, y el recorrido es justo el dato
+     («voy por aquí de lo que me cabe»). Nace en el momento de llegar y termina
+     antes de que la mano llegue a ningún control, que es la única ventana que
+     la doctrina de arriba concede dentro del producto.
+
+   · El PRECIO cambia al cambiar de mes a año. Ahí el movimiento no adorna: es
+     el acuse de recibo del interruptor. Sin él, tocar «Al año» repinta tres
+     cifras en silencio y hay que compararlas con las que uno recordaba.
+     Se dispara con un `key` en el JSX —React remonta el elemento y la animación
+     vuelve a correr—, no con una clase que haya que quitar y poner.
+
+   Ninguna se repite ni late: pasan una vez y se acaban. Y las dos desaparecen
+   enteras para quien pide menos movimiento. */
+@keyframes plan-bar-crece { from { width: 0; } }
+@keyframes plan-precio-cambia { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* `backwards` para que la barra esté a cero durante el retraso en vez de
+     aparecer llena y encogerse. El retraso la deja entrar después de que su
+     tarjeta haya aterrizado. */
+  .plan-bar-fill { animation: plan-bar-crece 0.65s var(--ease) 0.2s backwards; }
+  /* `--normal` ya trae su curva dentro (`0.26s var(--ease)`), así que añadir
+     `var(--ease)` detrás mete DOS funciones de tiempo en el atajo y el
+     navegador tira la declaración entera — la animación no correría y nada lo
+     diría. Es el mismo uso que hacen los cierres de modal y popover. */
+  .plan-price { animation: plan-precio-cambia var(--normal); }
+}
 
 /* ── Lo que se guarda de ti, en la invitación ──────────────────────────────
    Cuatro puntos con icono, no un párrafo legal. La diferencia importa: el texto
@@ -7094,53 +7435,83 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   font-size: var(--fs-2xs); font-weight: 650; color: var(--text-tertiary);
 }
 
-/* ── Esta semana ───────────────────────────────────────────────────────────
-   La semana en curso con los eventos CON NOMBRE: tarjetas con el canto
-   izquierdo del color de su tipo. En el mes son puntos; aquí, que hay sitio,
-   se lee qué son sin tocar nada. */
+/* ── El tablero de la semana ───────────────────────────────────────────────
+   Siete columnas, y en cada una las tarjetas del día con el canto izquierdo del
+   color de su tipo. En el mes los eventos son puntos; aquí, que hay sitio, se
+   lee de quién son y qué son sin tocar nada.
+
+   La tarjeta tiene DOS líneas y el orden importa: arriba de quién es —en el
+   color del tipo, que es lo que se busca— y debajo qué es, en tinta plena. Ver
+   `components/calendar/WeekBoard.jsx`. */
 .wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s2); }
 
+/* La columna NO tiene fondo, y es la decisión que ordena el tablero.
+   Con él eran siete cajas hundidas con tarjetas dentro —cajas dentro de cajas—
+   y el ojo contaba catorce objetos donde hay cuatro citas. Sin él, lo único que
+   se dibuja es lo que existe: la tarjeta. El día se toca igual, y al pasar por
+   encima aparece la superficie para decir que la columna entera es el botón. */
 .wk-day {
-  display: flex; flex-direction: column; gap: var(--s2);
-  min-height: 96px; min-width: 0; padding: var(--s2);
-  background: var(--surface-sunken); border: 0; border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: var(--s3);
+  min-height: 118px; min-width: 0; padding: var(--s2) 6px var(--s3);
+  background: transparent; border: 0; border-radius: var(--r-md);
   cursor: pointer; font: inherit; color: inherit; text-align: left;
   transition: background-color var(--fast), box-shadow var(--fast);
 }
-.wk-day:hover { background: var(--fill); }
+.wk-day:hover { background: var(--surface-sunken); }
 .wk-day.is-today { box-shadow: inset 0 0 0 1.5px var(--brasa); }
 
 .wk-dow {
   font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
   letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
+  padding-inline: 2px;
 }
-.wk-dow > b { color: var(--text); font-variant-numeric: tabular-nums; margin-left: 2px; }
+.wk-dow > b {
+  color: var(--text); font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums; margin-left: 4px;
+}
 .wk-day.is-today .wk-dow > b { color: var(--brasa); }
 
-.wk-cards { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.wk-cards { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
 
 .wk-card {
-  display: block; min-width: 0;
-  font-size: var(--fs-2xs); font-weight: 650; line-height: 1.25;
-  padding: 4px 6px; border-radius: var(--r-xs);
-  background: var(--fill);
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  padding: 6px var(--s2) 7px 8px; border-radius: var(--r-sm);
+  background: var(--surface-sunken);
   border-left: 3px solid transparent; /* el color lo pone el dato, por style */
+  overflow: hidden;
+}
+/* Con la columna en hover, la tarjeta sube un escalón para no fundirse con ella. */
+.wk-day:hover .wk-card { background: var(--fill); }
+.wk-card.is-done { opacity: 0.45; }
+.wk-card.is-done .wk-card-what { text-decoration: line-through; }
+
+/* La línea de arriba: de quién, o de qué tipo. Lleva el color porque es la que
+   distingue una tarjeta de la de al lado. */
+.wk-card-when {
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 1.2;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.wk-card.is-done { opacity: 0.45; text-decoration: line-through; }
+/* Y la de abajo: qué es. En tinta plena, que es la que se lee despacio. */
+.wk-card-what {
+  font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* La hoja del día reutiliza la tarjeta a tamaño de lectura. */
 .wk-card.is-sheet {
-  display: flex; flex-direction: column; gap: 2px;
-  font-size: var(--fs-sm); white-space: normal; padding: var(--s2) var(--s3);
+  gap: 2px; font-size: var(--fs-sm); padding: var(--s2) var(--s3);
 }
 
-/* El hueco de un día sin nada: invitación a añadir, no un vacío. */
+/* El hueco de un día sin nada.
+   Se dibuja SIEMPRE, no al pasar el ratón: en táctil el hover no existe, y un
+   día libre es información —es donde cabe una cita—, no un vacío. */
 .wk-add {
   display: flex; align-items: center; justify-content: center;
-  min-height: 26px; border-radius: var(--r-xs);
+  min-height: 44px; border-radius: var(--r-sm);
   border: 1px dashed var(--hairline-strong); color: var(--text-tertiary);
-  opacity: 0.65;
+  font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  opacity: 0.5; transition: opacity var(--fast);
 }
 .wk-day:hover .wk-add { opacity: 1; }
 
@@ -7154,10 +7525,13 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   /* En el teléfono la semana no cabe en columnas: se vuelve agenda, un día por
      fila, con el rótulo a la izquierda y sus tarjetas al lado. */
   .wk { display: flex; flex-direction: column; gap: var(--s1); }
-  .wk-day { flex-direction: row; align-items: center; min-height: 0; padding: var(--s2) var(--s3); }
+  .wk-day { flex-direction: row; align-items: center; gap: var(--s3); min-height: 0; padding: var(--s2) var(--s3); }
   .wk-dow { flex: 0 0 58px; }
-  .wk-cards { flex: 1; flex-direction: row; flex-wrap: wrap; }
-  .wk-card { max-width: 100%; }
+  .wk-cards { flex: 1; flex-direction: row; flex-wrap: wrap; gap: var(--s1); }
+  /* Apaisada: de quién y qué, en la misma línea. Apilar dos renglones por cada
+     tarjeta convertiría un lunes con tres citas en media pantalla. */
+  .wk-card { flex-direction: row; align-items: baseline; gap: 6px; max-width: 100%; padding: 4px var(--s2) 4px 7px; }
+  .wk-card-when { flex: 0 0 auto; }
   .wk-add { min-height: 0; padding: 2px 8px; border: 0; opacity: 0.5; justify-content: flex-start; }
 }
 
@@ -7344,6 +7718,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 
 .swatches { display: flex; gap: 6px; flex-wrap: wrap; }
 .swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; transition: transform var(--fast); }
+.swatch:hover { transform: scale(1.12); }
 .swatch[aria-pressed='true'] { transform: scale(1.2); border-color: var(--text); }
 
 .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
@@ -7618,21 +7993,126 @@ button.log-answer:hover { background: var(--fill); }
 }
 
 /* ── Ajustes → Protocolo ───────────────────────────────────────────────── */
+
+/* ── El índice (ProtoNav) ──────────────────────────────────────────────────
+   Cinco anclas pegajosas que dan mapa a un panel que antes eran ocho bloques
+   apilados sin uno, con la cuenta de lo que hay puesto en cada apartado.
+
+   ── Es un OBJETO, no una franja ─────────────────────────────────────────────
+   La misma factura que la barra lateral y la de herramientas: cristal, canto y
+   radio. Era una franja del color del lienzo con un filete abajo, que sobre una
+   columna de tarjetas se lee como una costura suelta; y el cristal de la familia
+   ya resuelve lo que aquel fondo opaco venía a resolver —que el contenido no se
+   transparente— sin fingir que el índice es parte del papel.
+
+   ── El `top`, que estaba mal ────────────────────────────────────────────────
+   Iba pegado a `top: 0` con `z-index: 40`, y encima hay una cabecera pegajosa
+   (`.app-header`, z-index 100, 58 px) en móvil y la barra de herramientas
+   (`.shell-top`, z-index 80) en escritorio: el índice se metía DEBAJO de ellas y
+   desaparecía justo al desplazar, que es cuando servía. Baja lo que mide la
+   cabecera, que es la referencia que ya usan el estudio de fotos y el subnivel. */
+.proto-nav {
+  position: sticky; top: calc(var(--header-h) + var(--s2)); z-index: 40;
+  display: flex; align-items: center; gap: var(--s1);
+  padding: var(--s1);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+}
+.proto-nav::-webkit-scrollbar { display: none; }
+
+.proto-nav-link {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  /* A partes iguales: cinco apartados que son cinco decisiones del mismo peso,
+     y repartidos no hay que apuntar a una pastilla de ancho variable. */
+  flex: 1 1 0; min-width: 0;
+  padding: 7px var(--s3); border-radius: var(--r-md);
+  font-size: var(--fs-xs); font-weight: 650; text-decoration: none;
+  color: var(--text-tertiary); white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast);
+}
+.proto-nav-link:hover { background: var(--fill-subtle); color: var(--text); }
+/* El apartado en el que se está. Tinta plena sobre relleno, que es la forma que
+   ya tiene lo seleccionado en el resto del producto (`.chip[aria-pressed]`). */
+.proto-nav-link.is-here { background: var(--accent); color: var(--accent-on); }
+
+/* La cuenta de lo que hay puesto ahí. En monoespaciada porque es una cifra que
+   se compara con las de al lado, y a esa comparación le estorba que el «1» mida
+   menos que el «4». */
+.proto-nav-link > .n {
+  flex-shrink: 0;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
+}
+.proto-nav-link.is-here > .n { background: transparent; color: var(--accent-on); opacity: 0.75; }
+
+/* ── Cada tanda del protocolo ──────────────────────────────────────────────
+   Encabezado y tarjetas más juntos entre sí (`--s4`) de lo que están las tandas
+   entre ellas (el `--s6` del `.stack` que las contiene): es lo que hace que un
+   apartado se lea como un grupo y no como cuatro tarjetas seguidas.
+
+   El `scroll-margin-top` deja sitio a la cabecera Y al índice pegajoso al llegar
+   por ancla — antes eran 64 px planos, que es menos de lo que miden las dos, así
+   que el ancla dejaba el encabezado tapado. El mismo número que la constante
+   `LINEA` de `ProtoNav.jsx`, que decide qué apartado va marcado. */
+.proto-section {
+  display: flex; flex-direction: column; gap: var(--s4);
+  scroll-margin-top: calc(var(--header-h) + 78px);
+}
+/* Y un respiro más entre apartados que dentro de uno: 44 px contra 16 dejan el
+   grupo hecho sin gastar un filete. La doctrina de los bloques ya dice por qué
+   no se separa con líneas —cinco apartados serían cinco costuras, y en el tema
+   claro eso es una hoja de cálculo—; aquí separa el aire. */
+.proto-section + .proto-section { margin-top: var(--s3); }
+
 .proto-presets {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
   gap: var(--s2);
 }
 .proto-preset {
-  display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left;
-  padding: var(--s3); border-radius: var(--r-md);
-  background: var(--surface-sunken); border: 1px solid var(--edge);
+  position: relative;
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start; text-align: left;
+  padding: var(--s3) var(--s5) var(--s3) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1.5px solid transparent;
   font: inherit; color: var(--text); cursor: pointer;
-  transition: border-color var(--fast);
+  transition: border-color var(--fast), background var(--fast);
 }
 .proto-preset:hover { border-color: var(--hairline-strong); }
-.proto-preset[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.proto-preset[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
 .proto-preset > .nm { font-size: var(--fs-sm); font-weight: 650; }
 .proto-preset > .hint { font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; }
+
+/* El tic del perfil elegido. El estado lo llevaba solo el canto, y un gris
+   contra otro en una rejilla de cuatro cajas iguales es la diferencia más fácil
+   de no ver; con marca es el mismo gesto que el de las opciones (`.opt-card`). */
+.proto-preset > .mark {
+  position: absolute; top: var(--s2); right: var(--s2);
+  width: 18px; height: 18px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent); color: var(--accent-on);
+  opacity: 0; transform: scale(0.7);
+  transition: opacity var(--fast), transform var(--fast);
+}
+.proto-preset[aria-pressed='true'] > .mark { opacity: 1; transform: scale(1); }
+
+/* ── Los bloques del check-in ──────────────────────────────────────────────
+   Nombre a la izquierda, las tres posiciones a la derecha y lo que significa la
+   elegida debajo, cruzando las dos columnas. Era una columna apilada dentro de
+   un `.card-inset`, y con dos bloques iguales eso son seis líneas de texto
+   seguidas antes de llegar al primer mando. */
+.proto-blocks { display: flex; flex-direction: column; gap: var(--s2); }
+.proto-block {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2) var(--s4);
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.proto-block > .say { grid-column: 1 / -1; }
 
 /* `.proto-module` ya no existe: era una caja que se iluminaba al marcar, con una
    casilla del sistema operativo dentro. Dos formas de decir lo mismo, y la de
@@ -7659,6 +8139,7 @@ button.log-answer:hover { background: var(--fill); }
   font: inherit; font-size: var(--fs-sm); font-weight: 650; color: var(--text);
   cursor: pointer; text-align: left;
 }
+.proto-toggle:hover { color: var(--text-secondary); }
 
 @media (max-width: 640px) {
   .warmup-edit { flex-direction: column; }
@@ -7670,6 +8151,16 @@ button.log-answer:hover { background: var(--fill); }
   .proto-q { flex-wrap: wrap; }
   .proto-q > .col { flex-basis: calc(100% - 34px); }
   .proto-q > .row { margin-left: auto; }
+
+  /* Cinco apartados a partes iguales en 366 px salen a 60 px, donde no cabe «La
+     aplicación» ni recortada. Cada pastilla mide lo suyo y el índice se
+     desplaza, que es la regla del `.rail`: si la lista es larga y se recorre, se
+     recorre. */
+  .proto-nav-link { flex: 0 0 auto; }
+
+  /* Nombre y mandos, uno debajo del otro: el carril de tres posiciones mide
+     unos 200 px y al lado no queda ancho para leer «Perímetros corporales». */
+  .proto-block { grid-template-columns: minmax(0, 1fr); }
   /* Diez pasos en 366 px salen a 33 px: se dejan caer a dos filas antes que
      estrangularlos hasta que el número no se lea. */
   .scale-picker { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(min(38px, 100%), 1fr)); }
@@ -7684,8 +8175,8 @@ button.log-answer:hover { background: var(--fill); }
 
 .palette-backdrop {
   position: fixed; inset: 0; z-index: 300;
-  background: rgba(10, 12, 15, 0.55);
-  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  background: var(--scrim);
+  backdrop-filter: blur(var(--scrim-blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--scrim-blur)) saturate(1.3);
   display: flex; justify-content: center;
   /* Arriba y no centrada: al escribir, la lista crece hacia abajo. Centrada, la
      caja se movería con cada tecla y el ojo tendría que perseguirla. */
@@ -7713,6 +8204,13 @@ button.log-answer:hover { background: var(--fill); }
 @keyframes palette-entra {
   from { opacity: 0; transform: translateY(-10px) scale(0.985); }
 }
+/* La salida deshace la entrada por el mismo camino (ver «La salida», junto al
+   modal). */
+@keyframes palette-sale {
+  to { opacity: 0; transform: translateY(-10px) scale(0.985); }
+}
+.palette-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
+.palette-backdrop[data-state='closing'] > .palette { animation: palette-sale var(--fast) both; }
 
 .palette-input {
   display: flex; align-items: center; gap: var(--s2);
@@ -8004,9 +8502,14 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 
 @media (prefers-reduced-motion: no-preference) {
   .toast { animation: toast-entra 0.26s var(--ease); }
+  .toast[data-state='closing'] { animation: toast-sale var(--fast) both; }
 }
 @keyframes toast-entra {
   from { opacity: 0; transform: translate(-50%, 8px); }
+}
+/* Se va por donde vino. `both` retiene el fotograma final hasta el desmonte. */
+@keyframes toast-sale {
+  to { opacity: 0; transform: translate(-50%, 8px); }
 }
 
 /* ==========================================================================
@@ -8073,17 +8576,20 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   /* Tinta plena y LA REGLETA de brasa en el canto de arriba: la misma marca de
      «aquí estás» que llevan la barra lateral y las pestañas, en el borde por el
      que la barra toca al contenido. La letra sigue en tinta. */
+  .bottombar-item:hover { color: var(--text-secondary); }
   .bottombar-item.active { color: var(--text); }
   .bottombar-item.active::before {
     content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
     width: 18px; height: 3px; border-radius: 0 0 3px 3px;
     background: var(--brasa);
+    animation: marca-entra var(--fast) both;
   }
 
   /* ── La hoja de «Más» ────────────────────────────────────────────────── */
   .sheet-backdrop {
     position: fixed; inset: 0; z-index: 95;
-    display: block; background: rgba(10, 12, 15, 0.45);
+    display: block; background: var(--scrim);
+    backdrop-filter: blur(var(--scrim-blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--scrim-blur)) saturate(1.3);
     animation: fade 0.2s var(--ease);
   }
   .sheet {
@@ -8095,7 +8601,18 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
     border-top: 1px solid var(--hairline-strong);
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     box-shadow: var(--shadow-lg);
+    /* Era el único overlay SIN entrada: el velo fundía y la hoja aparecía de
+       golpe, justo donde más se espera que algo suba desde el borde. */
+    animation: hoja-entra var(--normal) both;
   }
+  @keyframes hoja-entra {
+    from { transform: translateY(110%); }
+  }
+  @keyframes hoja-sale {
+    to { transform: translateY(110%); }
+  }
+  .sheet-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
+  .sheet-backdrop[data-state='closing'] > .sheet { animation: hoja-sale var(--fast) both; }
   .sheet-grip {
     width: 34px; height: 4px; border-radius: var(--r-pill);
     background: var(--hairline-strong); align-self: center; margin-bottom: var(--s2);
@@ -8217,6 +8734,9 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
     padding-bottom: var(--safe-b);
     animation: modal-sube 0.28s var(--ease);
   }
+  /* La hoja anclada se va por abajo, no encogiendo: `modal-baja` deshace a
+     `modal-sube` igual que `modal-sale` deshace a `sheet` en escritorio. */
+  .modal-backdrop[data-state='closing'] > .modal { animation: modal-baja var(--fast) both; }
 
   .exercise { flex-wrap: wrap; row-gap: var(--s2); }
   .exercise-name { width: auto; flex: 1; }
@@ -8248,7 +8768,8 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   .split-grid { grid-template-columns: minmax(0, 1fr); gap: var(--s1); }
   .split-day { flex-direction: row; align-items: center; gap: var(--s3); }
   .split-day > .name { width: 34px; flex-shrink: 0; text-align: left; }
-  .split-day > .value { flex: 1; min-width: 0; text-align: left; padding: 8px var(--s3); }
+  .split-day > .value,
+  .split-day > .split-value { flex: 1; min-width: 0; text-align: left; padding: 8px var(--s3); }
 
   .meter-row { flex-wrap: wrap; }
   .meter-label { width: 100%; text-align: left; }

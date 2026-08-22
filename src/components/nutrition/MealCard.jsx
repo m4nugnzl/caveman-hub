@@ -26,6 +26,7 @@ import {
   unitsLabel,
 } from '@/domain/nutrition';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useDismissable } from '@/lib/useDismissable';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Notice, SegmentedControl } from '@/components/ui/primitives';
@@ -505,12 +506,14 @@ export const MealCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
+  const menu = useDismissable(menuOpen);
 
   /* El de la OPCIÓN abierta, que es otro plano: la cabecera actúa sobre la
      comida entera y esto sobre una de sus alternativas. */
   const [opcionMenu, setOpcionMenu] = useState(false);
   const opcionMenuRef = useRef(null);
   useClickOutside(opcionMenuRef, () => setOpcionMenu(false), opcionMenu);
+  const opcion = useDismissable(opcionMenu);
   // Estado del arrastre, igual que en `ExerciseList`: quién se arrastra y sobre
   // quién se está soltando, para poder pintar las dos filas de forma distinta.
   const [dragIndex, setDragIndex] = useState(null);
@@ -661,8 +664,14 @@ export const MealCard = ({
                   <MoreVertical size={16} />
                 </button>
 
-                {menuOpen && (
-                  <div className="popover popover-right" style={{ top: '120%' }} role="menu">
+                {menu.mounted && (
+                  <div
+                    ref={menu.ref}
+                    className="popover popover-right"
+                    data-state={menu.closing ? 'closing' : 'open'}
+                    style={{ top: '120%' }}
+                    role="menu"
+                  >
                     <button
                       type="button"
                       role="menuitem"
@@ -842,8 +851,14 @@ export const MealCard = ({
                 <MoreVertical size={16} />
               </button>
 
-              {opcionMenu && (
-                <div className="popover popover-right" style={{ top: '120%' }} role="menu">
+              {opcion.mounted && (
+                <div
+                  ref={opcion.ref}
+                  className="popover popover-right"
+                  data-state={opcion.closing ? 'closing' : 'open'}
+                  style={{ top: '120%' }}
+                  role="menu"
+                >
                   {/* Solo con alimentos dentro: duplicar una opción vacía crea
                       otra vacía, que es lo mismo que «Alternativa». */}
                   {foods.length > 0 && (

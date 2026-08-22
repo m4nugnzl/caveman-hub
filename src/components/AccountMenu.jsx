@@ -7,6 +7,7 @@ import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
 import { initials } from '@/lib/initials';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useDismissable } from '@/lib/useDismissable';
 
 /**
  * Menú de cuenta: quién eres, la puerta de ajustes, el tema y salir.
@@ -35,6 +36,7 @@ export const AccountMenu = () => {
   const ref = useRef(null);
 
   useClickOutside(ref, () => setOpen(false), open);
+  const menu = useDismissable(open);
 
   const email = session?.user?.email || '';
 
@@ -53,8 +55,13 @@ export const AccountMenu = () => {
         </span>
       </button>
 
-      {open && (
-        <div className="account-menu" role="menu">
+      {menu.mounted && (
+        <div
+          ref={menu.ref}
+          className="account-menu"
+          data-state={menu.closing ? 'closing' : 'open'}
+          role="menu"
+        >
           <div className="account-head">
             <span className="name">{email || 'Sesión activa'}</span>
             <span className="sub">{profileRole === 'coach' ? 'Entrenador' : 'Cliente'}</span>

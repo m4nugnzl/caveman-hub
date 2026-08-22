@@ -6,6 +6,7 @@ import {
   countSets,
   dayMuscleVolume,
   drillsForDay,
+  normalizePattern,
   unitLabel,
   weekdayForDay,
 } from '@/domain/training';
@@ -76,25 +77,45 @@ const todayWeekday = () => WEEK_DAYS[(new Date().getDay() + 6) % 7];
  * que la tira son las sesiones del ciclo en orden. Ese mismo camino es la red de
  * seguridad: si el split está vacío o nombra días que no existen en el
  * microciclo, la tira se quedaría sin una sola entrada y la pantalla sin salida.
+ *
+ * ── El descanso del rotativo también se dice ────────────────────────────────
+ * La línea existía solo para el semanal, así que quien entrena por ciclos veía
+ * sus sesiones en fila y NADA sobre sus descansos: ni aquí ni en ninguna otra
+ * pantalla. Y el descanso es la mitad del patrón que le han puesto.
  */
-const buildStrip = ({ days, weeklySplit, cycleType, microcycle, unit }) => {
+const buildStrip = ({ days, weeklySplit, cycleType, microcycle, unit, pattern }) => {
   const progressOf = (day) => {
     const sessions = allSessionsOfDay(microcycle, day.dayName);
     const logged = sessions.length > 0 ? Math.max(...sessions.map(sessionSetCount)) : 0;
     return { logged, planned: countSets(day) };
   };
 
-  const asSessions = () => ({
-    entries: days.map((day, index) => ({
-      key: day.dayName,
-      lead: `${unit} ${index + 1}`,
-      name: day.dayName,
-      day,
-      isToday: false,
-      ...progressOf(day),
-    })),
-    rest: [],
-  });
+  const asSessions = () => {
+    /* El ritmo, no el total: «2 y 1» significa descansar cada dos sesiones, no
+       entrenarlo todo y descansar al final. El descanso sale del patrón, que es
+       lo único que lo sabe — los días del microciclo son las sesiones, no los
+       huecos entre ellas. */
+    const { train, rest: descanso } = cycleType === 'rotating'
+      ? normalizePattern(pattern)
+      : { train: 0, rest: 0 };
+
+    return {
+      entries: days.map((day, index) => ({
+        key: day.dayName,
+        lead: `${unit} ${index + 1}`,
+        name: day.dayName,
+        day,
+        isToday: false,
+        ...progressOf(day),
+      })),
+      restNote:
+        descanso > 0
+          ? `Descansas ${descanso} ${descanso === 1 ? 'día' : 'días'} cada ${train} ${
+              train === 1 ? 'sesión' : 'sesiones'
+            }.`
+          : null,
+    };
+  };
 
   if (cycleType !== 'weekly') return asSessions();
 
@@ -123,7 +144,9 @@ const buildStrip = ({ days, weeklySplit, cycleType, microcycle, unit }) => {
     });
   }
 
-  return entries.length > 0 ? { entries, rest } : asSessions();
+  return entries.length > 0
+    ? { entries, restNote: rest.length > 0 ? `Descansas ${joinDays(rest)}.` : null }
+    : asSessions();
 };
 
 const DayPill = ({ entry, active, onOpen }) => {
@@ -411,12 +434,13 @@ export const ClientRoutine = ({
     );
   }
 
-  const { entries, rest } = buildStrip({
+  const { entries, restNote } = buildStrip({
     days,
     weeklySplit: program?.weeklySplit,
     cycleType,
     microcycle: micro,
     unit,
+    pattern: client.cyclePattern,
   });
 
   const suggested = entries.find((entry) => entry.isToday) || entries[0];
@@ -458,9 +482,7 @@ export const ClientRoutine = ({
           ))}
         </div>
 
-        {rest.length > 0 && (
-          <p className="t-xs t-tertiary">Descansas {joinDays(rest)}.</p>
-        )}
+        {restNote && <p className="t-xs t-tertiary">{restNote}</p>}
 
         {/*
           El vídeo explicativo, en UNA línea y no en un panel.

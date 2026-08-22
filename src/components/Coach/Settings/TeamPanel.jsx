@@ -1,16 +1,47 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Check, Pencil, UserMinus, UserPlus, Users, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { supabase } from '@/lib/supabaseClient';
 import {
   TEAM_ROLES,
+  assignableMembers,
   canManageMembers,
   memberName,
   membersWithLoad,
   roleLabel,
 } from '@/domain/team';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
+
+/**
+ * El tope de asientos del plan actual (0064; la columna existe desde la 0019).
+ *
+ * Mismo patrón que `has_integrations` en el catálogo: quien lo IMPONE es un
+ * disparador de Postgres; esta consulta hace que la pantalla lo EXPLIQUE antes
+ * de chocar con él. `null` = sin dato (columna sin migrar, cuenta sin plan) y
+ * entonces no se capa nada desde aquí — la última palabra la tiene la base.
+ */
+const useMaxSeats = (planId) => {
+  const [maxSeats, setMaxSeats] = useState(null);
+  useEffect(() => {
+    if (!planId) return undefined;
+    let alive = true;
+    supabase
+      .from('plan_limits')
+      .select('max_seats')
+      .eq('plan', planId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (alive && !error) setMaxSeats(data?.max_seats ?? null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [planId]);
+  return maxSeats;
+};
 
 const initials = (text) =>
   (text || '?')
@@ -21,7 +52,7 @@ const initials = (text) =>
     .join('');
 
 /** Formulario de invitación. Falla de forma explicativa, que es lo que importa. */
-const InviteForm = ({ onInvite }) => {
+const InviteForm = ({ onInvite, cupoLleno }) => {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('trainer');
   const [busy, setBusy] = useState(false);
@@ -54,6 +85,16 @@ const InviteForm = ({ onInvite }) => {
       {error && <Notice tone="error">{error}</Notice>}
       {done && <Notice tone="info">{done} ya forma parte del equipo.</Notice>}
 
+      {/* El cupo, dicho ANTES de rellenar el formulario y no al pulsar: quien
+          va a chocar con el tope debe saberlo antes de escribir el email. El
+          disparador de la 0064 lo impone igualmente en el servidor. */}
+      {cupoLleno && (
+        <Notice tone="info">
+          Tu plan no tiene asientos libres. Para añadir a alguien más,{' '}
+          <Link to="/ajustes/plan">amplía tu plan</Link> o saca antes a un miembro.
+        </Notice>
+      )}
+
       <div className="row-end wrap gap-3">
         <label className="field grow">
           <span className="field-label">Email de su cuenta</span>
@@ -77,7 +118,7 @@ const InviteForm = ({ onInvite }) => {
           </select>
         </label>
 
-        <button type="submit" className="btn btn-primary" disabled={busy || !email.trim()}>
+        <button type="submit" className="btn btn-primary" disabled={busy || !email.trim() || cupoLleno}>
           {busy ? 'Añadiendo…' : 'Añadir'}
         </button>
       </div>
@@ -106,20 +147,38 @@ const MemberRow = ({ member, isOwner, canManage, onRole, onRemove }) => (
     </span>
 
     {canManage && !isOwner ? (
-      <select
-        className="select select-sm"
-        value={member.role}
-        onChange={(e) => onRole(e.target.value)}
-        aria-label={`Rol de ${memberName(member)}`}
-      >
-        {TEAM_ROLES.filter((r) => r.id !== 'owner').map((r) => (
-          <option key={r.id} value={r.id}>
-            {r.label}
-          </option>
-        ))}
-      </select>
+      /* El significado del rol elegido, debajo del selector: la tabla aparte de
+         «qué puede hacer cada rol» obligaba a mirar dos sitios para una
+         decisión; aquí la explicación acompaña a la elección. */
+      <span className="col" style={{ gap: 2, alignItems: 'flex-end', maxWidth: 260 }}>
+        <select
+          className="select select-sm"
+          value={member.role}
+          onChange={(e) => onRole(e.target.value)}
+          aria-label={`Rol de ${memberName(member)}`}
+          aria-describedby={`rol-hint-${member.profileId}`}
+        >
+          {TEAM_ROLES.filter((r) => r.id !== 'owner').map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        <span
+          id={`rol-hint-${member.profileId}`}
+          className="t-2xs t-tertiary"
+          style={{ textAlign: 'right' }}
+        >
+          {TEAM_ROLES.find((r) => r.id === member.role)?.hint}
+        </span>
+      </span>
     ) : (
-      <span className="badge badge-info">{roleLabel(member.role)}</span>
+      <span
+        className="badge badge-info"
+        title={TEAM_ROLES.find((r) => r.id === member.role)?.hint}
+      >
+        {roleLabel(member.role)}
+      </span>
     )}
 
     {canManage && !isOwner && (
@@ -156,6 +215,7 @@ export const TeamPanel = () => {
     team,
     teamMembers,
     clients,
+    plan,
     inviteTeamMember,
     updateTeamMemberRole,
     removeTeamMember,
@@ -172,18 +232,14 @@ export const TeamPanel = () => {
     () => membersWithLoad(teamMembers, clients),
     [teamMembers, clients]
   );
+  const maxSeats = useMaxSeats(plan?.plan);
 
-  if (!team) {
-    return (
-      <EmptyState
-        icon={Users}
-        title="Los equipos todavía no están activados"
-        message="Trabajas como entrenador único: tus clientes son tuyos y nadie más los ve. Trabajar en equipo —repartir la cartera entre varios entrenadores, con sus permisos— todavía no está activo en tu cuenta. Escríbenos desde Ajustes → Ayuda si lo necesitas."
-      />
-    );
-  }
+  /* `ensure_my_team()` crea el equipo al arrancar, así que esto solo es cierto
+     durante el primer tick de carga: no hay nada que explicar, solo esperar. */
+  if (!team) return null;
 
   const canManage = canManageMembers(team.myRole);
+  const cupoLleno = maxSeats != null && rows.length >= maxSeats;
 
   const commitName = async () => {
     const result = await renameTeam(draftName);
@@ -222,6 +278,10 @@ export const TeamPanel = () => {
         title={team.name}
         sub={`${rows.length} ${rows.length === 1 ? 'persona' : 'personas'} · ${clients.length} ${
           clients.length === 1 ? 'cliente' : 'clientes'
+        }${
+          /* Los asientos del plan, donde ya se cuentan personas. Sin la 0064 no
+             hay dato y la frase se queda como estaba. */
+          maxSeats != null ? ` · ${rows.length} de ${maxSeats} asientos` : ''
         } · entras como ${roleLabel(team.myRole).toLowerCase()}`}
         action={
           renaming ? (
@@ -281,7 +341,30 @@ export const TeamPanel = () => {
         ))}
       </div>
 
-      {canManage && <InviteForm onInvite={inviteTeamMember} />}
+      {/*
+        El estado «solo»: la pantalla existía sin explicar para qué sirve un
+        equipo a quien todavía no lo tiene. Es la única sección de Ajustes cuyo
+        valor no se ve hasta ser dos, así que se dice qué da —reparto y roles—
+        y, si el plan trae un solo asiento, qué hace falta para ser más.
+      */}
+      {rows.length === 1 && (
+        <Panel className="col gap-2">
+          <SectionTitle icon={Users}>Trabajar en equipo</SectionTitle>
+          <p className="t-sm t-secondary">
+            Invita a otro entrenador y reparte la cartera: quién lleva a cada cliente se decide
+            aquí, cada rol ve solo lo suyo, y las bibliotecas de ejercicios y alimentos son del
+            equipo — lo que uno crea le sirve a todos.
+          </p>
+          {maxSeats === 1 && (
+            <p className="t-sm t-secondary">
+              Tu plan incluye un asiento. Para añadir entrenadores,{' '}
+              <Link to="/ajustes/plan">mira los planes con equipo</Link>.
+            </p>
+          )}
+        </Panel>
+      )}
+
+      {canManage && <InviteForm onInvite={inviteTeamMember} cupoLleno={cupoLleno} />}
 
       {/* El reparto. Solo tiene sentido con más de una persona: con una sola,
           todos los clientes son suyos por definición. */}
@@ -310,32 +393,20 @@ export const TeamPanel = () => {
                 aria-label={`Entrenador de ${client.name}`}
               >
                 <option value="">Sin asignar</option>
-                {rows
-                  .filter((m) => m.role !== 'viewer')
-                  .map((m) => (
-                    <option key={m.profileId} value={m.profileId}>
-                      {memberName(m)}
-                    </option>
-                  ))}
+                {assignableMembers(rows).map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
               </select>
             </div>
           ))}
         </div>
       )}
 
-      <div className="list">
-        <div className="list-head">
-          <span className="section-label">Qué puede hacer cada rol</span>
-        </div>
-        {TEAM_ROLES.map((role) => (
-          <div className="list-row" key={role.id}>
-            <span className="list-row-label">
-              <span className="title">{role.label}</span>
-              <span className="sub">{role.hint}</span>
-            </span>
-          </div>
-        ))}
-      </div>
+      {/* La tabla estática de «qué puede hacer cada rol» se fue: la explicación
+          del rol vive ahora pegada al selector de cada miembro, que es donde se
+          decide. Una lista de referencia aparte obligaba a mirar dos sitios. */}
     </div>
   );
 };

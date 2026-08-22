@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
 
+import { useDismissable } from '@/lib/useDismissable';
+
 /**
  * Barra de navegación inferior. Solo en móvil.
  *
@@ -54,8 +56,10 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
   }, [more]);
 
   /* Cambiar de sección cierra la hoja. Sin esto, volver atrás con el gesto del
-     navegador deja la hoja abierta sobre una pantalla que ya no es la suya. */
+     navegador deja la hoja abierta sobre una pantalla que ya no es la suya.
+     Con el cierre animado, además, la hoja se despide en vez de esfumarse. */
   useEffect(() => setMore(false), [location.pathname]);
+  const hoja = useDismissable(more);
 
   const overflows = items.length > 5;
   const primary = overflows ? items.slice(0, 4) : items;
@@ -70,9 +74,11 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
 
   return (
     <>
-      {more && (
+      {hoja.mounted && (
         <div
+          ref={hoja.ref}
           className="sheet-backdrop"
+          data-state={hoja.closing ? 'closing' : 'open'}
           onMouseDown={(e) => e.target === e.currentTarget && setMore(false)}
         >
           <div className="sheet" role="menu" aria-label="Más secciones">

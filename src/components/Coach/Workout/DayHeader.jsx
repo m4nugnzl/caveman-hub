@@ -1,19 +1,9 @@
 import { useRef, useState } from 'react';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Copy,
-  Dumbbell,
-  Edit2,
-  Users,
-  MoreVertical,
-  Save,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { Copy, Dumbbell, Edit2, Users, MoreVertical, Save, Trash2, X } from 'lucide-react';
 
 import { countSets, muscleColor, weekdayForDay } from '@/domain/training';
 import { useClickOutside } from '@/lib/useClickOutside';
+import { useDismissable } from '@/lib/useDismissable';
 
 export const DayHeader = ({
   day,
@@ -22,9 +12,6 @@ export const DayHeader = ({
   onDuplicate,
   onImportDay,
   onRemove,
-  onMove,
-  firstDay = false,
-  lastDay = false,
   canRemove,
   volume = {},
   doneSets = 0,
@@ -35,6 +22,7 @@ export const DayHeader = ({
   const menuRef = useRef(null);
 
   useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
+  const menu = useDismissable(menuOpen);
 
   const weekday = weekdayForDay(weeklySplit, day.dayName);
   const exerciseCount = day.exercises?.length || 0;
@@ -174,42 +162,18 @@ export const DayHeader = ({
         </div>
 
         {/*
-          ══ Mover el día, fuera del menú ═══════════════════════════════════════
+          ══ Aquí había dos flechas para reordenar ══════════════════════════════
 
-          Por lo mismo que subir y bajar una comida están fuera del suyo: es un
-          gesto de MONTAR, y montar la semana es reordenar. Escondido detrás de
-          tres puntos serían dos clics cada vez que se cambia una posición, y una
-          reordenación son varias seguidas.
+          Cambiaban de sitio el día en el carril de arriba, y estaban porque el
+          arrastre de aquel carril era `draggable` de HTML5: en táctil, no existe.
+          Eran la única forma de reordenar sin ratón.
 
-          Van en horizontal —antes y después— porque el carril de días es
-          horizontal: el orden que estas dos flechas cambian es exactamente el que
-          se está viendo ahí arriba.
+          Ahora el carril se arrastra con el dedo (`lib/useArrastreOrden`), así que
+          estos dos botones hacían, dos zonas más abajo, lo que ya hace el sitio
+          donde se ve el orden — y cargaban la cabecera con un tercer grupo de
+          controles. El orden se cambia donde se ve; con teclado, Alt + ←/→ sobre
+          el propio carril.
         */}
-        {onMove && (
-          <div className="row gap-1">
-            <button
-              type="button"
-              className="btn btn-icon"
-              onClick={() => onMove(-1)}
-              disabled={firstDay}
-              aria-label={`Mover ${day.dayName} antes`}
-              title="Mover antes"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            <button
-              type="button"
-              className="btn btn-icon"
-              onClick={() => onMove(1)}
-              disabled={lastDay}
-              aria-label={`Mover ${day.dayName} después`}
-              title="Mover después"
-            >
-              <ArrowRight size={16} />
-            </button>
-          </div>
-        )}
-
         <div ref={menuRef} style={{ position: 'relative' }}>
           <button
             type="button"
@@ -222,8 +186,14 @@ export const DayHeader = ({
             <MoreVertical size={18} />
           </button>
 
-          {menuOpen && (
-            <div className="popover popover-right" style={{ top: '120%' }} role="menu">
+          {menu.mounted && (
+            <div
+              ref={menu.ref}
+              className="popover popover-right"
+              data-state={menu.closing ? 'closing' : 'open'}
+              style={{ top: '120%' }}
+              role="menu"
+            >
               <button type="button" role="menuitem" className="menu-item" onClick={startEditing}>
                 <Edit2 size={15} /> Editar nombre
               </button>
@@ -240,7 +210,11 @@ export const DayHeader = ({
               </button>
               {/* El gesto pequeño que faltaba: el Legs de otra persona como
                   base de este, sin traerse su programa entero. Ver
-                  `ImportDayDialog`. */}
+                  `ImportDayDialog`.
+
+                  «Traer», igual que en la barra de microciclos: un verbo por
+                  dirección. Se llamaba «copiar» aquí y «traer» ahí arriba para
+                  el mismo gesto a dos alturas. */}
               {onImportDay && (
                 <button
                   type="button"
@@ -251,7 +225,7 @@ export const DayHeader = ({
                     setMenuOpen(false);
                   }}
                 >
-                  <Users size={15} /> Copiar un día de otro cliente
+                  <Users size={15} /> Traer un día de otro cliente
                 </button>
               )}
               <hr className="divider" />

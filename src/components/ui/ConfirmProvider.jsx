@@ -16,6 +16,11 @@ const ConfirmContext = createContext(null);
  */
 export const ConfirmProvider = ({ children }) => {
   const [request, setRequest] = useState(null);
+  /* Abierto aparte del contenido: al resolver NO se borra `request`, solo se
+     cierra. Así el diálogo conserva su texto durante la salida animada — si el
+     contenido se vaciara con la respuesta, la animación enseñaría un modal
+     hueco yéndose. */
+  const [abierto, setAbierto] = useState(false);
   const resolverRef = useRef(null);
 
   const confirm = useCallback((options) => {
@@ -27,6 +32,7 @@ export const ConfirmProvider = ({ children }) => {
       tone: 'default',
       ...options,
     });
+    setAbierto(true);
     return new Promise((resolve) => {
       resolverRef.current = resolve;
     });
@@ -35,7 +41,7 @@ export const ConfirmProvider = ({ children }) => {
   const settle = useCallback((result) => {
     resolverRef.current?.(result);
     resolverRef.current = null;
-    setRequest(null);
+    setAbierto(false);
   }, []);
 
   const value = useMemo(() => ({ confirm }), [confirm]);
@@ -45,6 +51,7 @@ export const ConfirmProvider = ({ children }) => {
       {children}
       {request && (
         <Modal
+          open={abierto}
           title={request.title}
           onClose={() => settle(false)}
           footer={

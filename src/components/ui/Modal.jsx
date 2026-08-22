@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
+import { useDismissable } from '@/lib/useDismissable';
+
 const FOCUSABLE =
   'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -10,12 +12,29 @@ const FOCUSABLE =
  *
  * Sustituye a `alert()` / `window.prompt()`, que se usaban como interfaz en
  * cuatro sitios (subir foto pedía ángulo y peso con dos prompts seguidos).
+ *
+ * ── La prop `open` y el cierre animado ──────────────────────────────────────
+ * Con `open`, el Modal se monta SIEMPRE y decide él si renderiza:
+ *
+ *     <Modal open={editando} onClose={…}>          ← entra y SALE animado
+ *
+ * El desmonte lo retrasa `useDismissable` lo que dura la salida, así que el
+ * foco vuelve a su dueño justo cuando el diálogo termina de irse, y el scroll
+ * del fondo sigue bloqueado mientras tanto — los dos viven en el efecto de
+ * abajo, que cuelga de `mounted`.
+ *
+ * Sin `open`, el comportamiento es el de siempre (`{editando && <Modal>}`):
+ * montado es abierto y el cierre es un corte. Es la puerta de atrás que permite
+ * migrar los sitios de llamada uno a uno en vez de todos en la misma tarde.
  */
-export const Modal = ({ title, onClose, children, footer, size = 'md', labelledBy }) => {
+export const Modal = ({ open, title, onClose, children, footer, size = 'md', labelledBy }) => {
   const dialogRef = useRef(null);
   const titleId = useId();
+  const { mounted, closing, ref } = useDismissable(open === undefined ? true : open);
 
   useEffect(() => {
+    if (!mounted) return undefined;
+
     const previouslyFocused = document.activeElement;
     const { overflow } = document.body.style;
     document.body.style.overflow = 'hidden';
@@ -58,11 +77,15 @@ export const Modal = ({ title, onClose, children, footer, size = 'md', labelledB
       document.body.style.overflow = overflow;
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [onClose]);
+  }, [mounted, onClose]);
+
+  if (!mounted) return null;
 
   return (
     <div
+      ref={ref}
       className="modal-backdrop"
+      data-state={closing ? 'closing' : 'open'}
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <div

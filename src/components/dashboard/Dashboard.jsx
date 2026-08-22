@@ -14,7 +14,18 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/domain/analytics';
-import { MRV_GOALS, WEEK_DAYS, muscleColor, tonnageByWeek, unitLabel, weekMuscleVolume } from '@/domain/training';
+import {
+  MRV_GOALS,
+  WEEK_DAYS,
+  findMicrocycle,
+  isRestDay,
+  muscleColor,
+  rotatingSlots,
+  tonnageByWeek,
+  trainingDayCount,
+  unitLabel,
+  weekMuscleVolume,
+} from '@/domain/training';
 import { MACROS, macroSplit } from '@/domain/nutrition';
 import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
 import { clientProtocol, isServiceOn, scaleQuestions } from '@/domain/protocol';
@@ -42,6 +53,7 @@ import { shortDate, todayISO } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { BandChart, BarBandChart, MeterList, Sparkline } from '@/components/ui/charts';
 import { Delta, MetricCard, MetricList, StatWidget } from '@/components/ui/metrics';
+import { CycleChain } from '@/components/ui/CycleChain';
 import { GroupHead, Notice, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MacroBar } from '@/components/nutrition/macros';
@@ -375,7 +387,27 @@ export const Dashboard = ({ audience = 'coach' }) => {
     ),
   };
 
-  const hasSplit = Boolean(program && activeClient.cycleType !== 'rotating' && program.weeklySplit);
+  /*
+    ══ La estructura, también para quien no entrena por semanas ═══════════════
+
+    Esta tarjeta se escondía en cuanto el ciclo era rotativo —`cycleType !==
+    'rotating'`—, y no había ninguna otra que la sustituyera: un cliente de «2
+    entreno / 1 descanso» no podía ver su estructura en NINGUNA pantalla. Ni
+    aquí, ni en su rutina, donde salen las sesiones en fila pero los descansos
+    no aparecen por ningún lado. Su ciclo vivía solo en la cabeza del entrenador.
+
+    Son dos formas porque son dos cosas distintas —siete casillas fijas contra
+    un orden que se repite, ver `ui/CycleChain`—, pero es una sola tarjeta: para
+    quien la mira es la misma pregunta, «¿qué toca y cuándo descanso?».
+  */
+  const rotativo = activeClient.cycleType === 'rotating';
+  /* Las sesiones del ciclo EN CURSO, que es el que se está entrenando. Sin
+     ellas la tarjeta no se pinta: `rotatingSlots` sabe caer a casillas
+     genéricas para el entrenador que está montando el programa, pero al cliente
+     no se le enseña un «Entreno → Entreno» sin nombres como si fuera lo suyo. */
+  const diasDelCiclo = rotativo ? findMicrocycle(microcycles, latestWeek)?.days || [] : [];
+  const cicloSlots = rotativo ? rotatingSlots(activeClient.cyclePattern, diasDelCiclo) : [];
+  const hasSplit = Boolean(program && (rotativo ? diasDelCiclo.length > 0 : program.weeklySplit));
 
   /** Los gráficos, por identificador. `null` = no aplica a este cliente. */
   const cardNodes = {
@@ -465,29 +497,40 @@ export const Dashboard = ({ audience = 'coach' }) => {
       </MetricCard>
     ),
 
-    split: hasSplit ? (
+    split: !hasSplit ? null : rotativo ? (
+      <MetricCard
+        title={isClient ? 'Tu ciclo' : 'Estructura del ciclo'}
+        subtitle="El orden que se repite"
+        value={cicloSlots.filter((slot) => !slot.rest).length}
+        unit="días de entreno"
+        foot={
+          isClient
+            ? 'Tu programa no va por semanas: al terminar el ciclo, vuelve a empezar por el día 1.'
+            : 'No va por semanas: al terminar el ciclo vuelve a empezar por el día 1.'
+        }
+      >
+        <CycleChain slots={cicloSlots} />
+      </MetricCard>
+    ) : (
       <MetricCard
         title={isClient ? 'Tu estructura semanal' : 'Estructura semanal'}
         subtitle="Qué toca cada día"
-        value={WEEK_DAYS.filter(
-          (d) => (program.weeklySplit[d] ?? 'Descanso').trim().toLowerCase() !== 'descanso'
-        ).length}
+        value={trainingDayCount(program.weeklySplit)}
         unit="días"
       >
         <div className="split-grid">
           {WEEK_DAYS.map((day) => {
             const value = program.weeklySplit[day] ?? 'Descanso';
-            const isRest = value.trim().toLowerCase() === 'descanso';
             return (
               <div className="split-day" key={day}>
                 <span className="name">{day.slice(0, 3)}</span>
-                <span className={`value${isRest ? '' : ' is-training'}`}>{value}</span>
+                <span className={`value${isRestDay(value) ? '' : ' is-training'}`}>{value}</span>
               </div>
             );
           })}
         </div>
       </MetricCard>
-    ) : null,
+    ),
 
     /*
       Una línea por pregunta de escala, semana a semana. Es la pieza que convierte

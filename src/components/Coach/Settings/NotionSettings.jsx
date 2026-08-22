@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useData } from '@/context/AppContext';
 import { dateOnly } from '@/lib/dates';
 import {
   NOTION_FIELDS,
@@ -23,7 +23,7 @@ import {
   notionDatabaseId,
 } from '@/domain/integrations';
 import { BrandMark } from '@/components/ui/BrandMark';
-import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { EmptyState, Loading, Notice, Panel } from '@/components/ui/primitives';
 
 /**
  * Un paso del proceso, con su estado.
@@ -135,8 +135,11 @@ const UnmatchedRow = ({ label, clients, onLink, onCreate }) => {
  * se sabía por dónde empezar ni si faltaba algo.
  */
 export const NotionSettings = ({ onChanged }) => {
+  /* Acciones y datos por sus contextos finos, como StripeSettings y el
+     catálogo: `useApp()` re-renderizaba esta pantalla con CADA escritura de la
+     aplicación. `clients` sigue viniendo de DataContext —la conciliación lo
+     necesita— así que la ganancia grande es la consistencia. */
   const {
-    clients,
     loadIntegration,
     saveIntegration,
     setIntegrationToken,
@@ -144,7 +147,8 @@ export const NotionSettings = ({ onChanged }) => {
     linkExternalName,
     createClientFromExternal,
     reloadClients,
-  } = useApp();
+  } = useActions();
+  const { clients } = useData();
 
   const [ready, setReady] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
@@ -233,7 +237,7 @@ export const NotionSettings = ({ onChanged }) => {
   if (!ready) {
     return (
       <Panel tight>
-        <p className="t-sm t-secondary">Cargando…</p>
+        <Loading />
       </Panel>
     );
   }

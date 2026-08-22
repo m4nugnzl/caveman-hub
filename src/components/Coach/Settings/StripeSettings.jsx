@@ -14,7 +14,7 @@ import {
 import { useActions } from '@/context/AppContext';
 import { dateOnly, dateTime } from '@/lib/dates';
 import { BrandMark } from '@/components/ui/BrandMark';
-import { Notice, Panel } from '@/components/ui/primitives';
+import { Loading, Notice, Panel } from '@/components/ui/primitives';
 
 /** Un paso con su estado, igual que en Notion: el orden aquí es obligado. */
 const Step = ({ index, title, hint, done, children }) => (
@@ -178,7 +178,7 @@ export const StripeSettings = ({ onChanged }) => {
   if (!ready) {
     return (
       <Panel tight>
-        <p className="t-sm t-secondary">Cargando…</p>
+        <Loading />
       </Panel>
     );
   }

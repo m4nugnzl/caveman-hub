@@ -111,12 +111,13 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 167 claves', () => {
+  it('el reparto conserva las 171 claves', () => {
     montar();
-    // 167 desde los cinco inversos del «Deshacer» (`restoreExercise`,
-    // `restoreMeal`, `restoreFoodInOption`, `restoreDay`, `restoreMicrocycle`):
-    // borrar dejó de confirmarse y pasó a deshacerse.
-    expect(Object.keys(visto.app).length).toBe(167);
+    // 171 desde el calendario suscribible del cliente (0071): `loadCalendarFeed`,
+    // `createCalendarFeed` y `revokeCalendarFeed`. Antes 168, desde
+    // `applyProtocolToClient` — «Aplicar a todos» dejó de escribir a ciegas por
+    // la cola y pasó a esperar cada respuesta para contarla.
+    expect(Object.keys(visto.app).length).toBe(171);
   });
 
   it('toda acción es una función', () => {

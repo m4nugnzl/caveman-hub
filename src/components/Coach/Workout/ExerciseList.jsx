@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
@@ -67,6 +67,10 @@ export const ExerciseList = ({
   /* Qué ejercicio tiene su hoja abierta (modo índice del teléfono). Se guarda
      el id y no el objeto: los datos frescos llegan por props en cada render. */
   const [abierto, setAbierto] = useState(null);
+  /* Lo último que enseñó la hoja, retenido para su salida animada: al cerrar
+     (o al eliminar el ejercicio) el dato vivo ya no está, y sin esta copia la
+     hoja se iría vacía a mitad de animación. */
+  const ultimaFicha = useRef(null);
   /*
     Qué ejercicio tiene el campo de nota abierto SIN tener nota todavía.
 
@@ -122,8 +126,12 @@ export const ExerciseList = ({
     justo lo que permite comparar estructuras entre ejercicios.
   */
   if (canEditStructure && esTelefono) {
-    const idx = exercises.findIndex((e) => e.id === abierto);
-    const abiertoEx = idx >= 0 ? exercises[idx] : null;
+    const idxVivo = exercises.findIndex((e) => e.id === abierto);
+    const vivo = idxVivo >= 0 ? exercises[idxVivo] : null;
+    if (vivo) ultimaFicha.current = { ex: vivo, idx: idxVivo };
+    /* Con la hoja abierta, el dato vivo; cerrándose, la copia retenida. */
+    const abiertoEx = vivo || ultimaFicha.current?.ex || null;
+    const idx = vivo ? idxVivo : (ultimaFicha.current?.idx ?? -1);
 
     return (
       <>
@@ -158,6 +166,7 @@ export const ExerciseList = ({
 
         {abiertoEx && (
           <Modal
+            open={Boolean(vivo)}
             title={abiertoEx.name}
             onClose={() => setAbierto(null)}
             footer={
