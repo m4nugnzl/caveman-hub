@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activityScale, buildActivity, buildInbox, dayLabel, groupByDay } from './today';
+import { activityScale, agenda, buildActivity, buildInbox, dayLabel, groupByDay } from './today';
 import { trainingSummary } from './sessions';
 
 const TODAY = '2026-08-12';
@@ -177,5 +177,90 @@ describe('buildInbox', () => {
 
     expect(inbox.map((i) => i.kind)).toEqual(['payment', 'review']);
     expect(inbox.some((i) => i.title.includes('sin entrenar'))).toBe(false);
+  });
+});
+
+describe('agenda', () => {
+  const evento = (over = {}) => ({
+    id: 'e1',
+    clientId: 'c1',
+    date: TODAY,
+    kind: 'appointment',
+    title: 'Sesión presencial',
+    done: false,
+    ...over,
+  });
+
+  const cartera = [client({ id: 'c1', name: 'Ana Pérez' }), client({ id: 'c2', name: 'Beto Ruiz' })];
+
+  it('separa lo de hoy de lo que se pasó sin marcar', () => {
+    const { today, overdue } = agenda(
+      [
+        evento({ id: 'a', date: TODAY }),
+        evento({ id: 'b', date: '2026-08-10' }),
+        evento({ id: 'c', date: '2026-08-20' }),
+      ],
+      cartera,
+      TODAY
+    );
+
+    expect(today.map((e) => e.id)).toEqual(['a']);
+    expect(overdue.map((e) => e.id)).toEqual(['b']);
+  });
+
+  /* Lo de mañana no es de hoy. Adelantarlo convertiría «Hoy» en «esta semana». */
+  it('no adelanta lo que todavía no toca', () => {
+    const { today, overdue } = agenda([evento({ date: '2026-08-13' })], cartera, TODAY);
+    expect(today).toHaveLength(0);
+    expect(overdue).toHaveLength(0);
+  });
+
+  it('lo vencido y ya marcado hecho no se reclama', () => {
+    const { overdue } = agenda([evento({ date: '2026-08-01', done: true })], cartera, TODAY);
+    expect(overdue).toHaveLength(0);
+  });
+
+  /* Un evento de hoy ya hecho sigue enseñándose —es la agenda del día— pero no
+     cuenta como pendiente. */
+  it('lo de hoy se enseña esté hecho o no, y solo cuenta lo que falta', () => {
+    const r = agenda(
+      [evento({ id: 'a', done: true }), evento({ id: 'b', clientId: 'c2', done: false })],
+      cartera,
+      TODAY
+    );
+    expect(r.today).toHaveLength(2);
+    expect(r.count).toBe(1);
+  });
+
+  /* Las revisiones las entrega el cliente y ya las reclama `buildInbox`. Dos
+     avisos de la misma cosa en la misma columna es peor que uno. */
+  it('deja fuera las revisiones, que ya las cuenta la bandeja', () => {
+    const r = agenda([evento({ kind: 'checkin' }), evento({ id: 'x', kind: 'checkin', date: '2026-08-01' })], cartera, TODAY);
+    expect(r.today).toHaveLength(0);
+    expect(r.overdue).toHaveLength(0);
+  });
+
+  it('pone el nombre del cliente en cada fila', () => {
+    const { today } = agenda([evento({ clientId: 'c2' })], cartera, TODAY);
+    expect(today[0].clientName).toBe('Beto Ruiz');
+  });
+
+  it('nombra al que ya no está en la cartera en vez de dejarlo en blanco', () => {
+    const { today } = agenda([evento({ clientId: 'zz' })], cartera, TODAY);
+    expect(today[0].clientName).toBe('Cliente dado de baja');
+  });
+
+  /* Lo más viejo arriba: es por donde se empieza. */
+  it('ordena lo vencido de más antiguo a más reciente', () => {
+    const { overdue } = agenda(
+      [evento({ id: 'a', date: '2026-08-10' }), evento({ id: 'b', date: '2026-08-02' })],
+      cartera,
+      TODAY
+    );
+    expect(overdue.map((e) => e.id)).toEqual(['b', 'a']);
+  });
+
+  it('sin eventos no inventa nada', () => {
+    expect(agenda([], cartera, TODAY)).toEqual({ today: [], overdue: [], count: 0 });
   });
 });

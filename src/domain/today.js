@@ -31,9 +31,9 @@
  * `anthropometry`, `progressPhotos` y `checkIns` se cargan al arrancar para toda
  * la cartera. Nada de esto añade tráfico.
  *
- * Los eventos de calendario NO entran, y es a propósito: se cargan por cliente y
- * bajo demanda (`loadEvents`), así que traerlos aquí significaría una consulta por
- * cliente al abrir la aplicación. La agenda vive en el calendario de cada uno.
+ * Los eventos de calendario son la excepción, y su nota anterior está revisada al
+ * final de este archivo (`agenda`): decía que traerlos costaría una consulta por
+ * cliente, y desde que existe la agenda del entrenador eso ya no es verdad.
  *
  * ── Funciones puras ─────────────────────────────────────────────────────────
  * Como todo `domain/`: sin React, sin Supabase, sin `Date.now()` escondido —el
@@ -347,4 +347,73 @@ export const buildInbox = (rows = [], today = todayISO()) => {
   /* Los cobros vencidos primero: es lo único de la bandeja que cuesta dinero. */
   const WEIGHT = { bad: 0, warn: 1, info: 2 };
   return items.sort((a, b) => WEIGHT[a.tone] - WEIGHT[b.tone] || a.name.localeCompare(b.name));
+};
+
+/**
+ * La agenda del día: lo que hay apuntado para hoy, y lo que se pasó sin marcar.
+ *
+ * ══ Por qué esto entra en «Hoy», y por qué la nota de arriba decía que no ═══
+ *
+ * La cabecera de este archivo sostenía que los eventos de calendario no cabían
+ * aquí porque «se cargan por cliente y bajo demanda, así que traerlos
+ * significaría una consulta por cliente al abrir la aplicación». Era cierto
+ * mientras el calendario fue una sección DE un cliente.
+ *
+ * Ya no lo es: `loadEvents(null, { from, to })` trae los de TODA la cartera en
+ * una sola consulta acotada por fechas —es lo que hace la agenda del entrenador—
+ * y RLS decide qué filas salen, no el filtro. El coste real de esto es UNA
+ * consulta de dos semanas, no veinte.
+ *
+ * Y sin ellos «Hoy» estaba mintiendo por omisión. Una pantalla que se llama así
+ * y no sabe que hoy tienes una cita a las siete no es la primera pantalla de la
+ * mañana: es media pantalla, y obliga a abrir el calendario para fiarse de ella.
+ *
+ * ── Por qué NO va al hilo, que era la otra opción ───────────────────────────
+ * Porque el hilo cuenta lo que HA OCURRIDO y esto es lo que TOCA. Un evento
+ * apuntado no es actividad del cliente: es trabajo tuyo con fecha. Mezclarlos
+ * pondría «Cita con Marta» entre dos entrenos registrados, y a partir de ahí el
+ * hilo dejaría de poder leerse como «qué han hecho ellos».
+ *
+ * Va en la bandeja, que es la columna de lo accionable, y debajo de «Te esperan»:
+ * lo que otro ha entregado y espera respuesta manda sobre lo que te apuntaste tú.
+ *
+ * ── Lo vencido, y por qué se para en la ventana ─────────────────────────────
+ * Un evento de ayer sin marcar es exactamente lo que se olvida, así que se
+ * reclama. Pero solo dentro de la ventana que se haya pedido: arrastrar para
+ * siempre un «Nota: llamar a Juan» de hace ocho meses convertiría la bandeja en
+ * un cementerio, y una bandeja que no se puede vaciar se deja de mirar. Lo que
+ * queda más atrás sigue en el calendario, que es donde se repasa.
+ *
+ * Las revisiones (`kind: 'checkin'`) NO se cuelan aquí aunque tengan fecha: las
+ * entrega el cliente y ya las reclama `buildInbox` cuando llegan. Contarlas dos
+ * veces daría dos avisos de la misma cosa en la misma columna.
+ */
+export const agenda = (events = [], clients = [], today = todayISO()) => {
+  const nombres = new Map(clients.map((c) => [c.id, c.name]));
+
+  const fila = (event) => ({
+    ...event,
+    clientName: nombres.get(event.clientId) || 'Cliente dado de baja',
+  });
+
+  const hoy = [];
+  const overdue = [];
+
+  for (const event of events) {
+    if (!event?.date || event.kind === 'checkin') continue;
+
+    if (event.date === today) {
+      hoy.push(fila(event));
+      continue;
+    }
+    if (event.date < today && !event.done) overdue.push(fila(event));
+  }
+
+  /* Lo más viejo arriba dentro de lo vencido —es por donde se empieza— y por
+     nombre dentro del día, que es el único orden estable que tiene un día suelto:
+     los eventos no llevan hora. */
+  overdue.sort((a, b) => a.date.localeCompare(b.date) || a.clientName.localeCompare(b.clientName));
+  hoy.sort((a, b) => a.clientName.localeCompare(b.clientName));
+
+  return { today: hoy, overdue, count: hoy.filter((e) => !e.done).length + overdue.length };
 };

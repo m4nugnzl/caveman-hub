@@ -114,12 +114,27 @@ import { isServiceOn } from '@/domain/protocol';
 
   Lo que NO se hace es meterla en Ajustes, que era la alternativa barata: allí va
   lo que se configura una vez y no se toca a diario, y esto se mira cada semana.
+
+  ── Y por qué va DELANTE de «Calendario» ────────────────────────────────────
+  Porque este carril se ordena por cuántas veces se abre, no por la importancia
+  que uno le atribuye a cada cosa — es el mismo criterio con el que «Hoy» va
+  antes que «Clientes».
+
+  El calendario es la sección con menos uso de las cuatro; `docs/producto.md`
+  §8.3 llega a preguntarse en voz alta si retirarla. «¿Quién me debe?» y «¿cuánto
+  llevo este mes?» se preguntan cada semana, y «¿qué tengo el jueves?» bastante
+  menos — sobre todo desde que lo de HOY ya sale en «Hoy», que es lo que la
+  agenda contestaba a diario y ahora contesta la primera pantalla.
+
+  Esa es la razón de que el reorden venga junto con los eventos en «Hoy» y no
+  suelto: al calendario se le ha quitado la mitad de su tráfico diario, así que
+  su sitio ya no es el tercero.
 */
 export const COACH_PRIMARY = [
   { path: '/hoy', label: 'Hoy', icon: Sunrise },
   { path: '/clientes', label: 'Clientes', icon: Users },
-  { path: '/calendario', label: 'Calendario', icon: CalendarDays },
   { path: '/ingresos', label: 'Ingresos', icon: Wallet },
+  { path: '/calendario', label: 'Calendario', icon: CalendarDays },
 ];
 
 /** Nivel 2: las secciones de UN cliente. Cuelgan de `/c/:clientId/`. */

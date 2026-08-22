@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -8,13 +8,15 @@ import { planSnapshot } from '@/domain/reviews';
 import {
   ACTIVITY_KINDS,
   DEFAULT_WINDOW,
+  agenda,
   buildActivity,
   groupByDay,
   activityScale,
 } from '@/domain/today';
+import { kindMeta } from '@/domain/calendar';
 import { clientPath } from '@/routes';
 import { traeALaVista } from '@/lib/motion';
-import { shortDate, todayISO, weekdayName } from '@/lib/dates';
+import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
 import { TaskInbox } from './TaskInbox';
@@ -62,6 +64,44 @@ const ActivityRow = ({ event, onOpen }) => {
   );
 };
 
+/**
+ * Una línea de la agenda: qué hay apuntado, de quién, y el botón de darlo por
+ * hecho.
+ *
+ * El punto de color y la etiqueta salen de `kindMeta` —el mismo mapa que pinta
+ * el calendario— y no de una tabla propia: una cita en ámbar aquí y en azul allí
+ * son dos productos.
+ *
+ * Lo vencido no se puede desmarcar desde aquí, solo darlo por hecho. Es lo único
+ * que se quiere hacer con algo que se pasó, y el interruptor completo vive en su
+ * calendario, que es donde además se puede mover de fecha o borrar.
+ */
+const AgendaRow = ({ event, vencido = false, onToggle }) => {
+  const kind = kindMeta(event.kind);
+  return (
+    <div className="list-row">
+      <span className="cal-dot" style={{ background: kind.color, width: 10, height: 10 }} aria-hidden="true" />
+
+      <span className="list-row-label">
+        <Link
+          className="title"
+          to={clientPath(event.clientId, 'calendario')}
+          style={event.done ? { textDecoration: 'line-through' } : undefined}
+        >
+          {event.title}
+        </Link>
+        <span className="sub">
+          {event.clientName} · {vencido ? `se pasó el ${shortDate(event.date)}` : kind.label}
+        </span>
+      </span>
+
+      <button type="button" className="chip" aria-pressed={event.done} onClick={onToggle}>
+        {event.done ? 'Hecho' : 'Marcar hecho'}
+      </button>
+    </div>
+  );
+};
+
 export const Today = () => {
   const {
     clients,
@@ -74,12 +114,44 @@ export const Today = () => {
     markClientPaid,
     reviewCheckIn,
     unreviewCheckIn,
+    loadEvents,
+    setEventDone,
   } = useApp();
   const navigate = useNavigate();
   const toast = useToast();
   const [error, setError] = useState(null);
 
   const today = todayISO();
+
+  /*
+    ══ La agenda del día, en UNA consulta ══════════════════════════════════════
+
+    Los eventos son lo único de esta pantalla que no está ya en memoria: crecen
+    sin techo, así que no se cargan al arrancar (`useCalendar.js`). Aquí se piden
+    acotados a la ventana del hilo y para toda la cartera de una vez —RLS decide
+    qué filas salen—, que es lo mismo que hace la agenda del entrenador.
+
+    La ventana se comparte con el hilo a propósito: lo que se reclama como
+    vencido es lo que cabe en la pantalla que lo enseña. Un evento de hace ocho
+    meses sin marcar se queda en el calendario, que es donde se repasa.
+  */
+  const [agendaEvents, setAgendaEvents] = useState([]);
+
+  useEffect(() => {
+    let vivo = true;
+    const desde = addDays(today, -(DEFAULT_WINDOW - 1));
+
+    loadEvents(null, { from: desde, to: today }).then((res) => {
+      /* Sin la migración 0009 la tabla no existe y `loadEvents` devuelve vacío
+         con su motivo. No se pinta error: la agenda es una pieza de más en esta
+         pantalla, y tumbar «Hoy» entera por ella sería desproporcionado. */
+      if (vivo && res.ok) setAgendaEvents(res.events);
+    });
+
+    return () => {
+      vivo = false;
+    };
+  }, [loadEvents, today]);
 
   const events = useMemo(
     () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today),
@@ -97,6 +169,19 @@ export const Today = () => {
   const inbox = useMemo(() => portfolioInbox(rows), [rows]);
   const days = useMemo(() => groupByDay(events, today), [events, today]);
   const scale = useMemo(() => activityScale(events, today, DEFAULT_WINDOW), [events, today]);
+  const dia = useMemo(() => agenda(agendaEvents, clients, today), [agendaEvents, clients, today]);
+
+  /* Marcar hecho es optimista y se corrige si el servidor dice que no: es un
+     toque en una lista, y esperar a la ida y vuelta para tachar una línea se
+     nota. El mismo criterio que `markClientPaid`. */
+  const marcarEvento = async (event, done) => {
+    setAgendaEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done } : e)));
+    const res = await setEventDone(event.id, done);
+    if (!res.ok) {
+      setAgendaEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done: !done } : e)));
+      setError(res.error);
+    }
+  };
 
   /*
     ══ En el móvil, el hilo empieza por lo reciente y el resto se pide ═════════
@@ -388,6 +473,31 @@ export const Today = () => {
             />
           </Panel>
 
+          {/*
+            ── LA AGENDA ────────────────────────────────────────────────────
+            Debajo de «Te esperan» y no encima: lo que otro ha entregado y
+            espera respuesta manda sobre lo que te apuntaste tú.
+
+            Solo se pinta si hay algo. Un panel permanentemente vacío en la
+            columna de lo accionable enseña a saltársela, y esta columna es lo
+            único de la pantalla que hay que mirar entero.
+          */}
+          {(dia.today.length > 0 || dia.overdue.length > 0) && (
+            <Panel
+              title="En la agenda"
+              action={dia.count > 0 ? <span className="badge">{dia.count}</span> : null}
+              className="col gap-3"
+            >
+              <div className="list">
+                {dia.overdue.map((event) => (
+                  <AgendaRow key={event.id} event={event} vencido onToggle={() => marcarEvento(event, true)} />
+                ))}
+                {dia.today.map((event) => (
+                  <AgendaRow key={event.id} event={event} onToggle={() => marcarEvento(event, !event.done)} />
+                ))}
+              </div>
+            </Panel>
+          )}
         </aside>
       </div>
     </div>
