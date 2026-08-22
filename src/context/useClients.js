@@ -91,19 +91,84 @@ export const useClients = ({
   );
 
   /**
-   * Marca un cobro como hecho y adelanta el ciclo.
+   * Apunta el cobro en el libro (`client_payments`, migración 0072).
    *
-   * ══ Por qué es una acción y no dos campos sueltos ═══════════════════════════
+   * ══ Por qué la ficha no basta ═══════════════════════════════════════════════
+   *
+   * Porque `payment_status` y `next_payment_date` describen el cobro QUE VIENE, y
+   * marcar uno los sobrescribe. Al mes siguiente no queda ni rastro de que en
+   * marzo entraron 1.240 €: la ficha sabe el estado de hoy y nada más. Un libro
+   * de cobros que solo tiene la última página no es un libro.
+   *
+   * La tabla existía desde la 0010 pero solo la escribían Notion y Stripe, así
+   * que el histórico se estaba generando únicamente para quien tuviera una
+   * integración puesta — que no es el caso normal. La 0072 abre la puerta a este
+   * apunte y `source: 'manual'` deja dicho de dónde salió, que es lo que permite
+   * a la pantalla de Ingresos distinguir contabilidad de memoria.
+   *
+   * ── Por qué no tumba el gesto si falla ──────────────────────────────────────
+   * Porque las dos escrituras no son igual de graves. La de la ficha es lo que el
+   * entrenador acaba de decidir y lo que la cartera necesita para dejar de
+   * reclamar; el apunte es el registro. Revertir la primera porque falló el
+   * segundo dejaría a la cartera pidiendo un cobro que ya entró, que es el
+   * problema peor.
+   *
+   * Y no se pierde en silencio: toda respuesta de error de Supabase pasa por el
+   * interceptor de `lib/supabaseClient.js`, que la registra con su código de
+   * Postgres. Aquí solo se devuelve el resultado para que el «Deshacer» sepa si
+   * hay fila que borrar.
+   */
+  const apuntarCobro = useCallback(async (client) => {
+    const { data, error } = await supabase
+      .from('client_payments')
+      .insert({
+        client_id: client.id,
+        source: 'manual',
+        /*
+          `paid_on` es HOY y no la fecha de vencimiento: lo que se sabe es cuándo
+          lo ha dado por cobrado el entrenador. Usar la de vencimiento colocaría
+          en julio un cobro que entró en agosto para que las cuentas «cuadraran»,
+          y eso es maquillar el histórico.
+
+          `period_end` sí es la de vencimiento: es el ciclo que este cobro cierra.
+        */
+        paid_on: today(),
+        period_end: client.nextPaymentDate ?? null,
+        /* La tarifa anotada, tal cual. Si no la hay, la fila se guarda sin
+           importe: consta que cobró, y cuánto no se sabe. Poner un cero diría que
+           cobró cero. */
+        amount: client.feeAmount ?? null,
+        is_paid: true,
+        status: 'paid',
+      })
+      .select('id')
+      .single();
+
+    return error ? { ok: false, error } : { ok: true, id: data.id };
+  }, []);
+
+  /**
+   * Marca un cobro como hecho, adelanta el ciclo y lo apunta en el libro.
+   *
+   * ══ Por qué es una acción y no tres escrituras sueltas ══════════════════════
    *
    * Marcar «pagado» sin mover la fecha deja la ficha mintiendo al día siguiente:
    * el cobro consta cobrado y la fecha sigue siendo la del que ya entró, así que
-   * la cartera vuelve a reclamarlo. Son dos escrituras que solo tienen sentido
+   * la cartera vuelve a reclamarlo. Son escrituras que solo tienen sentido
    * juntas, y estaban repartidas entre la bandeja de «Hoy» y la ficha — dos
-   * sitios donde acordarse de la segunda.
+   * sitios donde acordarse de las demás.
    *
    * Sin periodicidad anotada solo cambia el estado, que es lo único que se puede
    * saber: adivinar un mes por defecto pondría una fecha inventada en la ficha de
    * alguien que cobra por trimestres.
+   *
+   * ── Por qué devuelve `undo` y ya no `prev` a secas ──────────────────────────
+   * Porque volver atrás dejó de ser un `updateClient` con dos campos: hay que
+   * deshacer también el apunte, o el histórico acumula cobros que el entrenador
+   * acaba de decir que no habían pasado. Devolver los campos y confiar en que
+   * cada pantalla se acuerde del resto es exactamente el reparto que esta acción
+   * vino a eliminar. `prev` sigue ahí porque describe el estado anterior y hay
+   * quien lo lee, pero el inverso completo es `undo`.
    */
   const markClientPaid = useCallback(
     (clientId) => {
@@ -112,12 +177,8 @@ export const useClients = ({
 
       const siguiente = nextPaymentAfter(client.nextPaymentDate, client.billingPeriod);
 
-      /*
-        Lo que había ANTES, devuelto para el «Deshacer» del aviso: marcar cobrado
-        es un toque sin confirmación, y su pareja honesta es poder volver atrás.
-        El inverso es `updateClient` con estos mismos campos — no hace falta una
-        acción nueva porque esta escritura no pasa por ninguna función de la base.
-      */
+      /* Lo que había ANTES: marcar cobrado es un toque sin confirmación, y su
+         pareja honesta es poder volver atrás. */
       const prev = {
         paymentStatus: client.paymentStatus ?? 'pending',
         ...(siguiente ? { nextPaymentDate: client.nextPaymentDate ?? null } : {}),
@@ -127,9 +188,27 @@ export const useClients = ({
         paymentStatus: 'paid',
         ...(siguiente ? { nextPaymentDate: siguiente } : {}),
       });
-      return { ok: true, prev };
+
+      /*
+        El apunte NO se espera. La pantalla ya ha cambiado —la ficha es local y
+        optimista— y bloquear el aviso de «Cobrado» sobre una ida y vuelta al
+        servidor convertiría un toque en una espera. La promesa se guarda para
+        que `undo` sepa qué fila borrar cuando llegue.
+      */
+      const apunte = apuntarCobro(client);
+
+      return {
+        ok: true,
+        prev,
+        apunte,
+        undo: async () => {
+          updateClient(clientId, prev);
+          const res = await apunte;
+          if (res.ok) await supabase.from('client_payments').delete().eq('id', res.id);
+        },
+      };
     },
-    [clientsRef, updateClient]
+    [apuntarCobro, clientsRef, updateClient]
   );
 
   /**
@@ -246,6 +325,40 @@ export const useClients = ({
   );
 
   /**
+   * Escribe varias secciones de preferencias de golpe y ESPERA la respuesta.
+   *
+   * Existe para «Aplicar a todos» en Ajustes → Protocolo. La cola de guardado
+   * (`updateClientPreferences`) es la herramienta correcta para la edición en
+   * pantalla, pero no devuelve nada: empujar la plantilla a toda la cartera con
+   * ella significaba dos escrituras por cliente disparadas a ciegas y un «hecho»
+   * pintado antes de saber si era verdad. Aquí las secciones van en UN solo RPC
+   * por cliente y el resultado se puede contar.
+   *
+   * Fusiona por sección, igual que `updateClientPreferences`: lo que no se toca
+   * no desaparece.
+   */
+  const applyProtocolToClient = useCallback(
+    async (clientId, sections) => {
+      const current = clientsRef.current.find((c) => c.id === clientId)?.preferences || {};
+      const next = { ...current };
+      for (const [section, patch] of Object.entries(sections)) {
+        next[section] = { ...(next[section] || {}), ...patch };
+      }
+
+      setClients(
+        clientsRef.current.map((c) => (c.id === clientId ? { ...c, preferences: next } : c))
+      );
+      const { error } = await supabase.rpc('set_client_preferences', {
+        target: clientId,
+        prefs: next,
+      });
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    },
+    [clientsRef, setClients]
+  );
+
+  /**
    * Sella un cambio para que al cliente le salga como novedad.
    *
    * ── Por qué lo dice un botón y no el guardado ───────────────────────────────
@@ -293,6 +406,55 @@ export const useClients = ({
 
   const revokeInvite = useCallback(async (clientId) => {
     const { error } = await supabase.rpc('revoke_client_invite', { target: clientId });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  /*
+    ══ El calendario del cliente (migración 0071) ═════════════════════════════
+
+    Las tres las llama EL CLIENTE desde su portal, no el entrenador. Están aquí
+    por vecindad —son las mismas tres operaciones que la invitación, sobre un
+    token con la misma forma— y no porque las use la misma persona.
+
+    La URL se compone aquí y no en la pantalla: apunta a la función de borde y no
+    a la aplicación, así que no sale de `window.location.origin` como la de la
+    invitación. Sale de la misma variable con la que se configura el cliente de
+    Supabase, para que no haya un segundo sitio donde apuntar al proyecto.
+  */
+  const calendarFeedUrl = (token) =>
+    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/client-calendar?t=${token}`;
+
+  const loadCalendarFeed = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('client_calendar_feeds')
+      .select('token, revoked_at, last_fetched_at, fetch_count')
+      .eq('client_id', clientId)
+      .maybeSingle();
+
+    if (error) return { ok: false, error: error.message };
+    /* Sin fila o revocado son lo mismo para la pantalla: no hay calendario.
+       Distinguirlos solo serviría para enseñar un enlace que no funciona. */
+    if (!data || data.revoked_at) return { ok: true, feed: null };
+
+    return {
+      ok: true,
+      feed: {
+        url: calendarFeedUrl(data.token),
+        lastFetchedAt: data.last_fetched_at,
+        fetchCount: data.fetch_count,
+      },
+    };
+  }, []);
+
+  /** Crea el enlace, o lo cambia por uno nuevo si ya existía. */
+  const createCalendarFeed = useCallback(async (clientId) => {
+    const { data, error } = await supabase.rpc('create_client_calendar_feed', { target: clientId });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, url: calendarFeedUrl(data) };
+  }, []);
+
+  const revokeCalendarFeed = useCallback(async (clientId) => {
+    const { error } = await supabase.rpc('revoke_client_calendar_feed', { target: clientId });
     return error ? { ok: false, error: error.message } : { ok: true };
   }, []);
 
@@ -659,9 +821,13 @@ export const useClients = ({
     normalizeLegacySessions,
     setClientArchived,
     updateClientPreferences,
+    applyProtocolToClient,
     publishUpdate,
     createInvite,
     revokeInvite,
+    loadCalendarFeed,
+    createCalendarFeed,
+    revokeCalendarFeed,
     addClient,
     exportClientData,
     loadAuditLog,

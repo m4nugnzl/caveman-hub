@@ -89,6 +89,41 @@ export const mapClientToDb = (fields) => {
   return out;
 };
 
+// ── Cobros a clientes (migraciones 0010, 0012 y 0072) ──────────────────────
+
+/**
+ * Un apunte del libro de cobros del entrenador.
+ *
+ * OJO con el nombre: esto NO es lo que el entrenador paga por usar la
+ * aplicación —eso es `mapPlanFromDb`, más abajo—, sino lo que sus clientes le
+ * pagan a él. Las dos cosas se llaman «pagos» y sumarlas por error daría una
+ * cifra que no significa nada.
+ *
+ * `source` (0072) distingue lo que dijo Notion o Stripe de lo que apuntó el
+ * entrenador al pulsar «Cobrado». No es cosmética: dice cuánto te puedes fiar de
+ * la suma, y la pantalla de Ingresos lo escribe.
+ *
+ * `clientId` puede venir vacío a propósito: un cobro importado cuyo nombre no se
+ * ha conciliado todavía se guarda sin cliente y hay que poder verlo para
+ * asignarlo. Como `feeAmount`, el `numeric` llega de Postgres como cadena.
+ */
+export const mapPaymentFromDb = (row) => ({
+  id: row.id,
+  clientId: row.client_id ?? null,
+  externalLabel: row.external_label ?? null,
+  amount: row.amount === null || row.amount === undefined ? null : Number(row.amount),
+  currency: row.currency || 'EUR',
+  paidOn: row.paid_on ?? null,
+  periodEnd: row.period_end ?? null,
+  status: row.status ?? null,
+  isPaid: Boolean(row.is_paid),
+  source: row.source || 'integration',
+  // Lo que Stripe sabe y un apunte suelto no (migración 0012): el último intento
+  // de cobro falló. Es el aviso más accionable de todos, y no es un ingreso.
+  paymentFailed: Boolean(row.payment_failed),
+  subscriptionStatus: row.subscription_status ?? null,
+});
+
 // ── Check-ins (migración 0009) ─────────────────────────────────────────────
 
 /**

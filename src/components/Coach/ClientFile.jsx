@@ -787,7 +787,7 @@ export const ClientFile = () => {
     if (res?.ok === false) return;
     toast({
       text: `Cobro de ${activeClient.name} anotado y fecha adelantada.`,
-      action: { label: 'Deshacer', onClick: () => updateClient(activeClient.id, res.prev) },
+      action: { label: 'Deshacer', onClick: () => res.undo() },
     });
   };
 

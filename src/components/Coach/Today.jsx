@@ -74,7 +74,6 @@ export const Today = () => {
     markClientPaid,
     reviewCheckIn,
     unreviewCheckIn,
-    updateClient,
   } = useApp();
   const navigate = useNavigate();
   const toast = useToast();
@@ -362,10 +361,12 @@ export const Today = () => {
                 /* Marcar cobrado adelanta también la fecha al ciclo siguiente.
                    Antes solo cambiaba el estado, así que el cobro volvía a
                    reclamarse al día siguiente con la fecha vieja puesta. Lo hace
-                   `markClientPaid`, que es la misma acción que usa la ficha.
+                   `markClientPaid`, que es la misma acción que usa la ficha, y
+                   que además lo apunta en el libro de cobros.
 
-                   Devuelve lo que había antes, y con eso el aviso ofrece el
-                   «Deshacer»: el inverso es `updateClient` con esos campos. */
+                   El «Deshacer» del aviso es su `undo`: revierte la ficha Y
+                   borra el apunte. Que cada pantalla compusiera el inverso por su
+                   cuenta es lo que esa acción vino a evitar. */
                 paid: (clientId) => {
                   const res = markClientPaid(clientId);
                   setError(res?.ok === false ? res.error : null);
@@ -376,7 +377,7 @@ export const Today = () => {
                     text: `Cobro de ${nombre} anotado y fecha adelantada.`,
                     action: {
                       label: 'Deshacer',
-                      onClick: () => updateClient(clientId, res.prev),
+                      onClick: () => res.undo(),
                     },
                   });
                 },

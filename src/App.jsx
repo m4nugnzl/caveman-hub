@@ -37,10 +37,10 @@ import { ReviewLayout } from '@/components/review/ReviewLayout';
 */
 const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then((m) => ({ default: m.ClientFile })));
 const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
-const TeamPanel = lazyRoute(() => import('@/components/Coach/TeamPanel').then((m) => ({ default: m.TeamPanel })));
+const TeamPanel = lazyRoute(() => import('@/components/Coach/Settings/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
 const AppearancePanel = lazyRoute(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
-const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
+const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/Protocol/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
 const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
 const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
 const PlanPanel = lazyRoute(() => import('@/components/Coach/Settings/PlanPanel').then((m) => ({ default: m.PlanPanel })));
@@ -55,6 +55,8 @@ const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRo
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
+const CoachCalendar = lazyRoute(() => import('@/components/calendar/CoachCalendar').then((m) => ({ default: m.CoachCalendar })));
+const IncomePanel = lazyRoute(() => import('@/components/Coach/Income/IncomePanel').then((m) => ({ default: m.IncomePanel })));
 import {
   CLIENT_HOME,
   COACH_CLIENT,
@@ -66,7 +68,7 @@ import {
 import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
-import { Notice } from '@/components/ui/primitives';
+import { Loading, Notice } from '@/components/ui/primitives';
 import { AppSkeleton } from '@/components/ui/AppSkeleton';
 import { PlanNotice } from '@/components/PlanNotice';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
@@ -138,7 +140,7 @@ const SECCIONES_CLIENTE = new Set(
   COACH_CLIENT.flatMap((s) => [s.path, ...(s.also || [])])
 );
 const SECCIONES_AJUSTES = new Set(SETTINGS_SECTIONS.map((s) => s.path));
-const RAIZ = new Set(['hoy', 'clientes', 'cartera']);
+const RAIZ = new Set(['hoy', 'clientes', 'cartera', 'ingresos']);
 
 export const pantallaDe = (pathname) => {
   const deCliente = /^\/c\/[^/]+\/(.+?)\/?$/.exec(pathname)?.[1];
@@ -353,7 +355,7 @@ export default function App() {
         <Suspense
           fallback={
             <div className="layout">
-              <p className="t-sm t-tertiary">Cargando…</p>
+              <Loading />
             </div>
           }
         >
@@ -369,6 +371,15 @@ export default function App() {
               <Route element={<CoachLayout />}>
                 <Route path="hoy" element={<Today />} />
                 <Route path="clientes" element={<ClientPortfolio />} />
+                {/* La agenda: la cartera entera en un calendario. El de UN
+                    cliente sigue en su carril (`/c/:id/calendario`), que es
+                    donde se le pone su pauta y se le mueve una fecha. */}
+                <Route path="calendario" element={<CoachCalendar />} />
+                {/* Los ingresos de su cartera: el recurrente, lo que falta por
+                    cobrar, lo que va a entrar y el histórico. No es su plan de
+                    Caveman Hub —eso es `ajustes/plan`— y las dos cifras no se
+                    suman nunca. */}
+                <Route path="ingresos" element={<IncomePanel />} />
                 {/* «Cartera» y «Clientes» eran dos pantallas que listaban a las
                     mismas personas. Se fusionaron en «Clientes»; la ruta vieja
                     sigue viva porque está en marcadores y en enlaces

@@ -15,6 +15,7 @@ import {
   Sunrise,
   Users,
   UsersRound,
+  Wallet,
 } from 'lucide-react';
 
 import { isServiceOn } from '@/domain/protocol';
@@ -77,9 +78,48 @@ import { isServiceOn } from '@/domain/protocol';
  * hago la rutina?». Ahora hay una lista, el clic entra, y la administración de
  * cada cliente es una sección suya más (`/c/:id/ficha`).
  */
+/*
+  ── Y por qué ahora son tres ────────────────────────────────────────────────
+  «Calendario» era una sección DE un cliente, y por tanto la pregunta con la que
+  un entrenador abre un calendario —«¿qué tengo esta semana?»— no la contestaba
+  nadie: había veinte calendarios y ninguna agenda. Entrar en veinte fichas para
+  sumar de memoria quién entrega el martes no es una tarea que la aplicación
+  pueda dejar fuera.
+
+  No repite a las otras dos, que es la prueba que tuvieron que pasar «Cartera» y
+  «Clientes» antes de fusionarse: «Hoy» cuenta lo que HA PASADO, «Clientes» lo
+  que FALTA, y «Calendario» lo que VIENE. Ninguna de las tres contesta la de otra.
+
+  El calendario de un cliente concreto sigue en su carril, con lo suyo: es donde
+  se le pone su pauta y se le mueve una fecha.
+*/
+/*
+  ── Y por qué ahora son cuatro ──────────────────────────────────────────────
+  «Ingresos» pasa la misma prueba que tuvo que pasar «Calendario»: contesta una
+  pregunta que no contestaba ninguna de las otras. «Hoy» cuenta lo que HA PASADO,
+  «Clientes» lo que FALTA, «Calendario» lo que VIENE e «Ingresos» CUÁNTO.
+
+  Los datos estaban todos dentro —la tarifa en la ficha de cada cliente, el
+  vencimiento en la bandeja, el histórico en `client_payments` desde la migración
+  0010— y no había ni una pantalla donde se sumaran. «¿Cuánto voy a ingresar este
+  mes?» obligaba a entrar cliente por cliente, que es la hoja de cálculo aparte
+  que este producto vino a sustituir.
+
+  ── El conflicto con `docs/producto.md`, dicho en voz alta ──────────────────
+  Ese documento va en dirección contraria: su §4.1 REDUCE secciones. Pero lo que
+  reduce es el nivel 2 —las seis secciones de un cliente, que se solapaban entre
+  sí— y sobre el nivel 1 dice literalmente que «Hoy» y «Clientes» se quedan como
+  están. El criterio que aplica no es «menos entradas»: es que cada entrada
+  conteste algo que no conteste otra. Ésta lo hace.
+
+  Lo que NO se hace es meterla en Ajustes, que era la alternativa barata: allí va
+  lo que se configura una vez y no se toca a diario, y esto se mira cada semana.
+*/
 export const COACH_PRIMARY = [
   { path: '/hoy', label: 'Hoy', icon: Sunrise },
   { path: '/clientes', label: 'Clientes', icon: Users },
+  { path: '/calendario', label: 'Calendario', icon: CalendarDays },
+  { path: '/ingresos', label: 'Ingresos', icon: Wallet },
 ];
 
 /** Nivel 2: las secciones de UN cliente. Cuelgan de `/c/:clientId/`. */
