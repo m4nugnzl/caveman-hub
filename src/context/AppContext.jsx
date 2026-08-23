@@ -1295,7 +1295,7 @@ export const AppProvider = ({ children }) => {
 
   /* El primer dominio extraído del proveedor: estado, carga y acciones viven
      en su gancho. La convención está escrita en `useRoadmap.js`. */
-  const { phases, addPhase, updatePhase, removePhase } = useRoadmap({
+  const { phases, addPhase, updatePhase, removePhase, setPhaseFork, chooseFork } = useRoadmap({
     session,
     activeClientId,
   });
@@ -1968,6 +1968,8 @@ export const AppProvider = ({ children }) => {
     addPhase,
     updatePhase,
     removePhase,
+    setPhaseFork,
+    chooseFork,
 
     // Equipo y plan
     refreshPlan,

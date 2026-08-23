@@ -186,6 +186,15 @@ export const mapPhaseFromDb = (row) => ({
   endsOn: row.ends_on ?? null,
   note: row.note || '',
   createdBy: row.created_by ?? null,
+  /*
+    Los caminos que salen del final de esta fase (migración 0073), o `null` si no
+    hay cruce planteado — que es el caso de casi todas.
+
+    Todo lo que no sea una lista se queda en `null`, incluido el `undefined` de
+    una base sin la 0073: así `hasFork` responde que no en vez de recibir algo
+    que no sabe mirar. Ver `domain/fork.js`.
+  */
+  nextOptions: Array.isArray(row.next_options) ? row.next_options : null,
 });
 
 // ── Soporte (migración 0034) ───────────────────────────────────────────────
@@ -247,6 +256,7 @@ const PHASE_COLUMNS = {
   startsOn: 'starts_on',
   endsOn: 'ends_on',
   note: 'note',
+  nextOptions: 'next_options',
 };
 
 /**
@@ -256,12 +266,15 @@ const PHASE_COLUMNS = {
  * una fase sin nota —el caso normal— mandaba `null` y Postgres la rechazaba con
  * «null value in column "note" violates not-null constraint».
  *
- * Son dos vacíos distintos y no se pueden tratar igual:
+ * Son tres vacíos distintos y no se pueden tratar igual:
  *
  *   · **`ends_on` vacío es `null`** y significa algo: fase abierta, sin final
  *     decidido (ver la migración 0028).
  *   · **`note` vacía es una cadena vacía** y significa «no hay nota». Un `null`
  *     ahí no es «sin nota», es una violación de esquema.
+ *   · **`next_options` vacío es `null`**, nunca `[]`: la base solo admite dos o
+ *     tres caminos o ninguno (`client_phases_next_options_shape`, 0073), así que
+ *     una lista vacía —que es como queda al decidir— la rechazaría el CHECK.
  */
 export const mapPhaseToDb = (fields) => {
   const out = {};
@@ -271,7 +284,9 @@ export const mapPhaseToDb = (fields) => {
 
     if (column === 'ends_on') out[column] = value === '' ? null : value;
     else if (column === 'note') out[column] = value ?? '';
-    else out[column] = value;
+    else if (column === 'next_options') {
+      out[column] = Array.isArray(value) && value.length > 0 ? value : null;
+    } else out[column] = value;
   }
   return out;
 };

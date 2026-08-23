@@ -2,13 +2,13 @@
   "version": 2,
   "aceptados": {},
   "ultimo": {
-    "generado": "2026-08-21T07:05:06.132Z",
+    "generado": "2026-08-23T10:14:10.534Z",
     "claves": [
+      "rls|videos|critico",
       "rls|integration_secrets|aviso",
       "rls|platform_admins|aviso",
       "anon|plan_limits · plans_read_anon|aviso",
-      "anon|audit_visible_for(p_client uuid)|critico",
-      "anon|team_storage_bytes(p_team uuid)|critico",
+      "anon|videos|critico",
       "anon|app_can_read_client(target uuid)|aviso",
       "anon|app_can_write_client(target uuid)|aviso",
       "anon|app_is_client(target uuid)|aviso",
@@ -58,20 +58,20 @@
     "metricas": {
       "seguridad · críticos": 2,
       "seguridad · avisos": 48,
-      "actividad · cuentas esta semana": 15,
+      "actividad · cuentas esta semana": 16,
       "fallos · distintos": 0,
-      "embudo · se registró": 11,
+      "embudo · se registró": 18,
       "embudo · dio de alta un cliente": 4,
       "embudo · le programó algo": 4,
       "embudo · le dio acceso al portal": 4,
       "embudo · revisó un check-in": 1,
-      "clientes · total": 19,
-      "clientes · con portal (%)": 36.8,
-      "clientes · con sexo (%)": 57.9,
-      "programas · clientes con programa (%)": 57.9,
+      "clientes · total": 22,
+      "clientes · con portal (%)": 63.6,
+      "clientes · con sexo (%)": 86.4,
+      "programas · clientes con programa (%)": 86.4,
       "revisión · entregados sin contestar +7d": 0,
-      "antropometría · registros": 20,
-      "workout_data · KB por fila": 43
+      "antropometría · registros": 37,
+      "workout_data · KB por fila": 29
     }
   },
   "historico": [
@@ -136,6 +136,27 @@
         "revisión · entregados sin contestar +7d": 0,
         "antropometría · registros": 20,
         "workout_data · KB por fila": 43
+      }
+    },
+    {
+      "generado": "2026-08-23T10:14:10.534Z",
+      "metricas": {
+        "seguridad · críticos": 2,
+        "seguridad · avisos": 48,
+        "actividad · cuentas esta semana": 16,
+        "fallos · distintos": 0,
+        "embudo · se registró": 18,
+        "embudo · dio de alta un cliente": 4,
+        "embudo · le programó algo": 4,
+        "embudo · le dio acceso al portal": 4,
+        "embudo · revisó un check-in": 1,
+        "clientes · total": 22,
+        "clientes · con portal (%)": 63.6,
+        "clientes · con sexo (%)": 86.4,
+        "programas · clientes con programa (%)": 86.4,
+        "revisión · entregados sin contestar +7d": 0,
+        "antropometría · registros": 37,
+        "workout_data · KB por fila": 29
       }
     }
   ]

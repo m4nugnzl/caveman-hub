@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { optionToPhaseDraft } from '@/domain/fork';
 import { mapPhaseFromDb, mapPhaseToDb } from '@/lib/mappers';
 
 /*
@@ -27,11 +28,24 @@ import { mapPhaseFromDb, mapPhaseToDb } from '@/lib/mappers';
 const PG = {
   RLS: '42501', // insufficient_privilege — una política ha rechazado la fila
   EXCLUSION: '23P01', // exclusion_violation — el solape de fases
+  CHECK: '23514', // check_violation — el nombre del CHECK viene en el mensaje
 };
 
 const explicarErrorDeFase = (error) => {
   if (error?.code === PG.EXCLUSION) {
     return 'Esa fase se pisa con otra del mismo cliente. Una fase empieza el día siguiente al final de la anterior.';
+  }
+  /*
+    Los dos CHECK de la 0073 los cubre ya la interfaz —`validateOptions` y el
+    aviso al quitarle el final a una fase con cruce—, así que llegar aquí
+    significa que se coló por un camino que nadie previó. Aun así se traduce: el
+    texto de Postgres nombra el constraint y no dice qué hacer.
+  */
+  if (error?.code === PG.CHECK && String(error.message || '').includes('fork_needs_end')) {
+    return 'La fase tiene un cruce planteado y sin fecha de fin no habría día en el que decidir. Descarta el cruce o déjale un final.';
+  }
+  if (error?.code === PG.CHECK && String(error.message || '').includes('next_options')) {
+    return 'Un cruce son dos caminos o tres.';
   }
   if (error?.code === PG.RLS) {
     return 'No se ha podido guardar el roadmap. Si tu suscripción no está activa, la planificación queda en solo lectura.';
@@ -141,5 +155,53 @@ export const useRoadmap = ({ session, activeClientId }) => {
     return { ok: true };
   }, []);
 
-  return { phases, addPhase, updatePhase, removePhase };
+  /*
+    Plantear los caminos del final de una fase, o retirarlos con `null`.
+
+    Es `updatePhase` con nombre propio: la columna viaja por el mismo mapeo que
+    el resto (`next_options`, migración 0073) y no necesita consulta aparte. Se
+    envuelve para que en la pantalla se lea lo que se está haciendo — «plantear
+    un cruce» y no «actualizar una fase con un jsonb».
+  */
+  const setPhaseFork = useCallback(
+    (phaseId, options) => updatePhase(phaseId, { nextOptions: options ?? null }),
+    [updatePhase]
+  );
+
+  /**
+   * Elegir un camino: la fase nace y el cruce desaparece.
+   *
+   * ── El orden importa, y su fallo a medias es inofensivo ─────────────────────
+   * Primero se inserta la fase y solo después se limpian los caminos. No hay
+   * transacción entre dos llamadas a PostgREST, así que hay que elegir cuál de
+   * los dos fallos a medias se prefiere:
+   *
+   *   · Limpiando primero, un INSERT que falla deja al entrenador sin fase y sin
+   *     los caminos que había escrito. Se pierde trabajo.
+   *   · Insertando primero, un UPDATE que falla deja los caminos colgados de una
+   *     fase que YA tiene otra detrás — y eso `forkState` no lo mira, porque
+   *     solo atiende a la última. La decisión se ve tomada, que es lo que es.
+   *
+   * Por eso el segundo error no se propaga: la parte que importa está hecha, y
+   * devolver un fallo obligaría a la pantalla a decir que no se pudo elegir
+   * cuando la fase está creada. Lo que queda son unos bytes que nadie pinta y
+   * que `staleForks` sabe encontrar.
+   */
+  const chooseFork = useCallback(
+    async (phase, option) => {
+      const draft = optionToPhaseDraft(phase, option);
+      if (!draft) {
+        return { ok: false, error: 'Ese camino no da para una fase. Revisa su dirección y sus semanas.' };
+      }
+
+      const creada = await addPhase(phase.clientId, draft);
+      if (!creada.ok) return creada;
+
+      await setPhaseFork(phase.id, null);
+      return creada;
+    },
+    [addPhase, setPhaseFork]
+  );
+
+  return { phases, addPhase, updatePhase, removePhase, setPhaseFork, chooseFork };
 };

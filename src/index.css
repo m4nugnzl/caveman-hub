@@ -5748,15 +5748,148 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* Las acciones aparecen al pasar por encima o al enfocar con el teclado, en la
    píldora flotante que ya usan las piezas del resumen. Dos botones fijos por
    fila convertían la lista en una barra de herramientas con datos al lado. */
-.rmap-card > .slot-tools { opacity: 0; transition: opacity var(--fast); }
+.rmap-card > .slot-tools,
+.rmap-fork > .slot-tools { opacity: 0; transition: opacity var(--fast); }
 .rmap-item:hover .slot-tools,
 .rmap-item:focus-within .slot-tools { opacity: 1; }
-@media (hover: none) { .rmap-card > .slot-tools { opacity: 1; } }
+@media (hover: none) {
+  .rmap-card > .slot-tools,
+  .rmap-fork > .slot-tools { opacity: 1; }
+}
+
+/* ── El cruce: donde el carril se abre ──────────────────────────────────────
+   Su nodo pierde el número y se gira 45°. Los números cuentan un recorrido —uno,
+   dos, tres—; un cruce no tiene número porque todavía no se sabe cuál va a ser, y
+   el rombo dice eso sin una palabra. El icono se contragira para no quedar
+   torcido. */
+.rmap-item.is-fork > .rmap-node {
+  border-radius: var(--r-sm);
+  transform: rotate(45deg);
+  color: var(--text-tertiary);
+  box-shadow: inset 0 0 0 2px var(--hairline);
+}
+.rmap-item.is-fork > .rmap-node > svg { transform: rotate(-45deg); }
+
+.rmap-fork {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--s2);
+  min-width: 0;
+}
+/* La línea de la decisión pesa menos que el título de una fase: un cruce no es
+   una parada del recorrido, es la bisagra entre dos. Lo que hay que leer aquí
+   son los caminos, y con el mismo cuerpo que las fases les robaba el turno. */
+.rmap-item.is-fork .rmap-head > strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Los caminos, en paralelo. Uno debajo de otro se leerían como dos fases
+   encadenadas, que es exactamente lo contrario de lo que son. */
+.rmap-roads {
+  display: flex; flex-wrap: wrap; align-items: stretch;
+  gap: var(--s2);
+}
+
+/* La conjunción. Es lo único que se ha añadido para decir que son alternativas
+   —«volumen O definición»— y hace el trabajo que haría un corchete de árbol sin
+   la geometría, que es la que se rompe al envolver o al aparecer un tercero. */
+.rmap-or {
+  align-self: center;
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  font-style: italic;
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+/*
+  Un camino no tiene superficie: es un contorno punteado sobre el fondo.
+
+  Es la diferencia de MATERIAL con las fases, que sí son tarjetas, y dice «esto
+  está decidido y esto todavía no» sin una palabra. Es el mismo punteado del
+  carril de las fases futuras y del botón del final: plan, no recorrido.
+*/
+.rmap-road {
+  flex: 1 1 200px;
+  display: flex; flex-direction: column; gap: var(--s2);
+  align-items: flex-start;
+  min-width: 0;
+  padding: var(--s3);
+  border-radius: var(--r-lg);
+  background: transparent;
+  border: 1px dashed var(--hairline);
+  transition: border-color var(--fast), background-color var(--fast);
+}
+/* Al acercarse, el contorno se cierra y toma la tinta de su dirección: el gesto
+   de elegir enseña de qué color va a ser la fase que aparezca arriba. */
+.rmap-road:hover,
+.rmap-road:focus-within {
+  border-style: solid;
+  border-color: var(--fase, var(--edge));
+  background: var(--surface-sunken);
+}
+/* Las acciones, alineadas abajo aunque un «si» ocupe dos líneas y el otro una:
+   dos botones a distinta altura convierten la elección en dos preguntas. */
+.rmap-road > .btn { margin-top: auto; }
+
+/*
+  La condición, arriba. Es la frase que se lee para elegir, así que NO es un pie
+  de foto: va a 13 px y en el gris de texto secundario, un escalón por debajo del
+  nombre y no tres. Puesta como antetítulo de 10 px en terciario —que es donde
+  acabó al primer intento— el bloque pedía decidir escondiendo aquello de lo que
+  depende la decisión.
+*/
+.rmap-road-when {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.rmap-road-name { font-size: var(--fs-base); font-weight: 650; }
+
+/* La invitación al final del carril. Punteada y sin relleno: lo que ofrece no
+   existe todavía, y un botón sólido aquí competiría con las fases de arriba. */
+.rmap-tail {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.rmap-tail > svg { justify-self: center; }
+.rmap-tail > span {
+  padding: var(--s2) var(--s3);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--r-lg);
+}
+.rmap-tail:hover { color: var(--accent); }
+.rmap-tail:hover > span { border-color: var(--accent); }
+
+/* Cada camino dentro del formulario, sobre la superficie de arriba para
+   despegarse del hundido de `.card-inset`. */
+.rmap-road-fields {
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
 
 @media (max-width: 640px) {
   .rmap-item { grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); }
   .rmap-item:not(:last-child)::before { left: 11px; top: 26px; }
   .rmap-node { width: 24px; height: 24px; }
+  .rmap-tail { grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); }
+  /* En columna, y la «o» centrada entre los dos. Dejar que envolvieran solos
+     dejaba la conjunción colgando al final de la primera fila. */
+  .rmap-roads { flex-direction: column; }
+  .rmap-or { align-self: center; }
 }
 
 .exercise-index {

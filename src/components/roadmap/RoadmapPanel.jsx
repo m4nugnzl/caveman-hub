@@ -1,8 +1,17 @@
-import { useMemo, useState } from 'react';
-import { Check, Pencil, Plus, Route, Trash2 } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import { Check, GitBranch, Pencil, Plus, Route, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
+import {
+  FORK_RANGE,
+  forkDraft,
+  forkState,
+  forkablePhase,
+  hasFork,
+  optionDraft,
+  validateFork,
+} from '@/domain/fork';
 import { GOAL_DIRECTIONS, directionById, targetRateKg } from '@/domain/goals';
 import {
   PHASE_PRESETS,
@@ -34,17 +43,32 @@ import { EmptyState, Field, Notice, Panel, SectionTitle, Switch } from '@/compon
  * (migración 0028), no este componente: aquí solo se decide qué botones salen.
  */
 export const RoadmapPanel = ({ audience = 'coach' }) => {
-  const { activeClient, phases, anthropometry, addPhase, updatePhase, removePhase, plan } = useApp();
+  const {
+    activeClient,
+    phases,
+    anthropometry,
+    addPhase,
+    updatePhase,
+    removePhase,
+    setPhaseFork,
+    chooseFork,
+    plan,
+  } = useApp();
 
   /* Igual que en el portal: el peso sale del histórico, que es lo único que se
      mantiene al día. */
   const pesoActual = latestWeight(anthropometry[activeClient?.id]?.history);
   const [form, setForm] = useState(null); // null | {…draft, id?}
+  const [forkForm, setForkForm] = useState(null); // null | {phaseId, options}
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const hoy = todayISO();
   const state = useMemo(() => roadmapState(phases, hoy), [phases, hoy]);
+  const cruce = useMemo(() => forkState(phases, hoy), [phases, hoy]);
+  /* La fase a la que se le podría colgar un cruce: la última, y solo si tiene
+     final. `null` es lo que apaga el botón sin tener que repetir la regla. */
+  const bifurcable = useMemo(() => forkablePhase(phases), [phases]);
 
   const isClient = audience === 'client';
   // Con la suscripción caducada la base rechaza la escritura (0027). Esconder los
@@ -70,7 +94,67 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
         ? ''
         : 'La última fase no tiene fecha de fin, así que no se puede encadenar otra detrás. Ponle un final primero.'
     );
-    if (draft) setForm(draft);
+    if (draft) {
+      setForkForm(null);
+      setForm(draft);
+    }
+  };
+
+  /*
+    ══ El cruce ══════════════════════════════════════════════════════════════
+
+    Los cuatro gestos que existen, y ninguno más: plantearlo, retocarlo, elegir
+    un camino y descartarlo. No hay «avanzar solo»: la decisión es del
+    entrenador y esta pantalla no tiene por dónde tomarla por él.
+  */
+  const abrirCruce = (existente = null) => {
+    const fase = existente?.phase || bifurcable;
+    if (!fase) return;
+    setForm(null);
+    setError('');
+    setForkForm({ phaseId: fase.id, options: existente?.options || forkDraft() });
+  };
+
+  const guardarCruce = async (event) => {
+    event.preventDefault();
+    const problema = validateFork(phases, forkForm.phaseId, forkForm.options);
+    if (problema) {
+      setError(problema);
+      return;
+    }
+
+    setBusy(true);
+    const res = await setPhaseFork(forkForm.phaseId, forkForm.options);
+    setBusy(false);
+
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setForkForm(null);
+    setError('');
+  };
+
+  /* Elegir crea la fase y borra los caminos. El porqué del orden —y de que un
+     fallo a mitad sea inofensivo— está en `useRoadmap.js`. */
+  const elegirCamino = async (option) => {
+    setBusy(true);
+    const res = await chooseFork(cruce.phase, option);
+    setBusy(false);
+    if (!res.ok) setError(res.error);
+  };
+
+  /*
+    Descartar es la salida cuando no vale ninguno de los caminos, que es lo que
+    pasa cuando el cliente se lesiona o se va de viaje. Se quedan en nada y la
+    fase siguiente se crea a mano: el cruce era una previsión, no un compromiso,
+    y no deja rastro porque no lo merece.
+  */
+  const descartarCruce = async () => {
+    setBusy(true);
+    const res = await setPhaseFork(cruce.phase.id, null);
+    setBusy(false);
+    if (!res.ok) setError(res.error);
   };
 
   const guardar = async (event) => {
@@ -78,6 +162,20 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
     const problema = validatePhase(phases, form, form.id || null);
     if (problema) {
       setError(problema);
+      return;
+    }
+
+    /*
+      Quitarle el final a una fase que tiene un cruce planteado lo dejaría sin
+      día en el que decidirse, y la base lo rechaza (`client_phases_fork_needs_end`,
+      migración 0073). Se dice aquí, donde se puede corregir, en vez de dejar
+      salir el error del CHECK — la misma razón por la que `overlapping` existe
+      teniendo el constraint de exclusión.
+    */
+    if (!form.endsOn && hasFork(form)) {
+      setError(
+        'Esta fase tiene un cruce planteado y sin fecha de fin no habría día en el que decidir. Descarta el cruce o déjale un final.'
+      );
       return;
     }
 
@@ -117,7 +215,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
             además este arriba deja dos botones iguales peleando por el mismo
             clic, y el de la cabecera parece pegado encima del otro.
           */
-          puedeEditar && !form && state.all.length > 0 ? (
+          puedeEditar && !form && !forkForm && state.all.length > 0 ? (
             <button type="button" className="btn btn-secondary btn-sm" onClick={abrirNuevo}>
               <Plus size={14} /> Añadir fase
             </button>
@@ -143,7 +241,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
         </Notice>
       )}
 
-      {state.all.length === 0 && !form && (
+      {state.all.length === 0 && !form && !forkForm && (
         <EmptyState
           icon={Route}
           title="Sin roadmap"
@@ -178,7 +276,46 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
               busy={busy}
             />
           ))}
+
+          {/*
+            El cruce va al final del carril y no en una tarjeta aparte porque es
+            parte del plan: lo que hay después de la última fase. Sacarlo fuera
+            lo convertiría en un ajuste, y es justo lo contrario — es lo único de
+            esta pantalla que hay que mirar cuando llega su fecha.
+          */}
+          {cruce && !forkForm && (
+            <ForkRow
+              fork={cruce}
+              weight={pesoActual}
+              onChoose={puedeEditar ? elegirCamino : null}
+              onEdit={puedeEditar ? () => abrirCruce(cruce) : null}
+              onDiscard={puedeEditar ? descartarCruce : null}
+              busy={busy}
+            />
+          )}
+
+          {/* Y si no hay ninguno, la invitación a plantearlo, en el mismo sitio
+              en el que aparecería. Un botón en la cabecera no diría dónde va. */}
+          {!cruce && !form && !forkForm && puedeEditar && bifurcable && (
+            <button type="button" className="rmap-tail" onClick={() => abrirCruce()}>
+              <GitBranch size={14} />
+              <span>¿Y después? Plantea dos caminos</span>
+            </button>
+          )}
         </div>
+      )}
+
+      {forkForm && (
+        <ForkForm
+          value={forkForm}
+          onChange={setForkForm}
+          onSubmit={guardarCruce}
+          onCancel={() => {
+            setForkForm(null);
+            setError('');
+          }}
+          busy={busy}
+        />
       )}
 
       {form && (
@@ -458,5 +595,326 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
         </button>
       </div>
     </form>
+  );
+};
+
+/**
+ * El cruce: la última parada del carril cuando lo que viene aún no está decidido.
+ *
+ * ══ Por qué el cliente lo ve ═══════════════════════════════════════════════
+ *
+ * Es lo mismo que justifica el roadmap entero, pero más fuerte. Un cliente que
+ * lee «aguanta tres semanas más» aguanta o no aguanta. Uno que lee «el 29 de
+ * marzo se decide, y hay dos caminos» sabe que su proceso depende de cómo
+ * responda, y eso es lo único que sostiene una fase aburrida.
+ *
+ * Lo ve y no lo toca, igual que las fases: elegir es criterio profesional del
+ * entrenador. Lo garantiza RLS (migración 0028, que la 0073 hereda); aquí solo
+ * se decide qué botones salen.
+ *
+ * ── Por qué el nodo es un rombo y no un número ──────────────────────────────
+ * Los nodos numerados cuentan un recorrido: uno, dos, tres. Un cruce no tiene
+ * número porque no se sabe cuál va a ser: es un sitio donde el carril se abre,
+ * y el rombo es lo que dice eso sin una palabra.
+ */
+const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, busy }) => {
+  const { options, decidesOn, daysLeft, due, overdue } = fork;
+
+  return (
+    <div className="rmap-item is-fork">
+      <span className="rmap-node" aria-hidden="true">
+        <GitBranch size={13} />
+      </span>
+
+      <div className="rmap-fork">
+        {(onEdit || onDiscard) && (
+          <div className="slot-tools" role="group" aria-label="Ajustar el cruce">
+            {onEdit && (
+              <button
+                type="button"
+                className="slot-btn"
+                onClick={onEdit}
+                aria-label="Editar los caminos"
+                title="Editar"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+            {onDiscard && (
+              /* La salida cuando no vale ninguno: se descarta y la fase
+                 siguiente se crea a mano. Un cruce es una previsión, no un
+                 compromiso. */
+              <button
+                type="button"
+                className="slot-btn is-danger"
+                onClick={onDiscard}
+                disabled={busy}
+                aria-label="Descartar el cruce"
+                title="Descartar"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Una sola línea. Antes eran dos —el estado arriba y la fecha debajo—
+            y el bloque arrancaba con dos titulares antes de llegar a lo que hay
+            que leer, que son los caminos. */}
+        <div className="rmap-head">
+          <strong>{due ? 'Toca decidir' : 'Se decide'}</strong>
+          <span className="rmap-when tnum">
+            {shortDate(decidesOn)}
+            {/* Los días que faltan solo mientras faltan: junto a «se pasó»
+                dirían dos veces lo mismo. */}
+            {daysLeft !== null && daysLeft > 0 &&
+              ` · en ${daysLeft} ${daysLeft === 1 ? 'día' : 'días'}`}
+          </span>
+          {overdue && <span className="badge badge-warn">Se pasó</span>}
+        </div>
+
+        <div className="rmap-roads">
+          {options.map((camino, index) => (
+            <Fragment key={index}>
+              {/*
+                La «o» entre caminos.
+
+                Es lo único que se ha añadido para decir que son alternativas, y
+                dice más que cualquier línea que los una: dos tarjetas separadas
+                por una conjunción se leen «volumen O definición» sin explicar
+                nada. Un corchete de árbol habría necesitado geometría que se
+                rompe al envolver, y habría dicho lo mismo peor.
+              */}
+              {index > 0 && (
+                <span className="rmap-or" aria-hidden="true">
+                  o
+                </span>
+              )}
+              <RoadCard
+                option={camino}
+                weight={weight}
+                onChoose={onChoose ? () => onChoose(camino) : null}
+                busy={busy}
+              />
+            </Fragment>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Un camino: su «si», a dónde lleva, y el botón que lo convierte en fase.
+ *
+ * ── Por qué es un contorno y no una tarjeta ─────────────────────────────────
+ * Porque no es nada todavía. Las fases tienen superficie —son cosas que
+ * existen—; un camino es un borde punteado sobre el fondo hasta que alguien lo
+ * elige, y entonces aparece arriba como una fase de verdad, con su relleno.
+ * Esa diferencia de material dice «esto está decidido y esto no» antes de que
+ * se lea una palabra, que es más de lo que consigue cualquier etiqueta.
+ */
+const RoadCard = ({ option, weight, onChoose, busy }) => {
+  const meta = directionById(option.direction);
+  /* El ritmo en kg/semana como en las fases: es como piensa el entrenador. Sin
+     peso registrado no hay conversión y se dice el porcentaje. */
+  const kg = targetRateKg(option, weight);
+
+  return (
+    <div className="rmap-road" style={{ '--fase': meta?.color }}>
+      {/* El «si» arriba, como antetítulo. No es un adorno estructural: es
+          literalmente lo que decide cuál se coge, así que es lo primero que hay
+          que leer. Debajo del nombre se leería como un pie de foto del volumen. */}
+      <span className="rmap-road-when">{option.when}</span>
+
+      <strong className="rmap-road-name">{option.title}</strong>
+
+      <div className="rmap-when row gap-2 wrap">
+        <span className="tnum">{option.weeks} sem</span>
+        <span style={{ color: meta?.color }}>· {meta?.label || option.direction}</span>
+        {meta?.sign !== 0 && (
+          <span className="tnum">
+            {'· '}
+            {kg === null
+              ? `${fmt(option.ratePct, { decimals: 2 })} %/sem`
+              : `${kg > 0 ? '+' : ''}${fmt(kg, { decimals: 2 })} kg/sem`}
+          </span>
+        )}
+      </div>
+
+      {onChoose && (
+        /* «Elegir» a secas: al lado del nombre no hace falta repetirlo, y con
+           dos botones idénticos en pantalla el lector de voz sí lo necesita. */
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={onChoose}
+          disabled={busy}
+          aria-label={`Elegir ${option.title}`}
+        >
+          <Check size={14} /> Elegir
+        </button>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Plantear los caminos.
+ *
+ * ── Por qué cada camino pide menos que una fase ─────────────────────────────
+ * No tiene fechas —se derivan del final de la fase anterior al elegirlo— ni
+ * nota: lo que el cliente debe saber de un tramo se escribe cuando ese tramo
+ * existe, no mientras es una de dos posibilidades.
+ *
+ * Y la duración va solo con los atajos, sin la barra fina de `PhaseForm`. Un
+ * camino que a lo mejor no se coge no merece que nadie ajuste sus semanas de
+ * una en una; si al elegirlo hay que retocarlas, se retoca la fase.
+ */
+const ForkForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
+  const { options } = value;
+
+  const setOption = (index, patch) =>
+    onChange({
+      ...value,
+      options: options.map((o, i) => (i === index ? { ...o, ...patch } : o)),
+    });
+
+  const addOption = () => onChange({ ...value, options: [...options, optionDraft('maintain', 4)] });
+
+  const removeOption = (index) =>
+    onChange({ ...value, options: options.filter((_, i) => i !== index) });
+
+  return (
+    <form className="card-inset col gap-4" onSubmit={onSubmit}>
+      <div className="col gap-1">
+        <span className="section-label">El cruce</span>
+        <span className="t-xs t-secondary">
+          Al acabar la fase habrá que elegir uno. Escribe de qué depende cada camino con tus
+          palabras: nadie va a comprobarlo por ti, y esa frase es lo que tu cliente va a leer.
+        </span>
+      </div>
+
+      {/* El formulario tiene la forma del resultado: bloque, «o», bloque. Antes
+          cada uno se abría con un «Camino 1» que no decía nada que no dijera ya
+          estar separados, y la conjunción lo dice mejor y ocupa una letra. */}
+      {options.map((option, index) => (
+        <Fragment key={index}>
+          {index > 0 && (
+            <span className="rmap-or" aria-hidden="true">
+              o
+            </span>
+          )}
+          <RoadFields
+            option={option}
+            index={index}
+            onChange={(patch) => setOption(index, patch)}
+            onRemove={options.length > FORK_RANGE.min ? () => removeOption(index) : null}
+          />
+        </Fragment>
+      ))}
+
+      {options.length < FORK_RANGE.max && (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={addOption}>
+          <Plus size={14} /> Añadir un tercer camino
+        </button>
+      )}
+
+      <div className="row gap-2 row-end">
+        <button type="button" className="btn" onClick={onCancel}>
+          Cancelar
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={busy}>
+          {busy ? 'Guardando…' : 'Guardar el cruce'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+/** Los campos de un camino. Los mismos que una fase menos las fechas y la nota. */
+const RoadFields = ({ option, index, onChange, onRemove }) => {
+  const meta = directionById(option.direction);
+
+  return (
+    <div className="rmap-road-fields col gap-3">
+      {/* Solo cuando se puede quitar, que es el tercer camino. Una fila de
+          cabecera fija para colgar de ella un botón que casi nunca sale dejaba
+          un hueco en blanco encima de cada bloque. */}
+      {onRemove && (
+        <div className="row gap-2 between">
+          <span className="section-label">Camino {index + 1}</span>
+          <button type="button" className="btn btn-sm" onClick={onRemove}>
+            Quitar
+          </button>
+        </div>
+      )}
+
+      <Field label="Si…" hint="La condición, con tus palabras.">
+        <input
+          className="input"
+          value={option.when}
+          onChange={(e) => onChange({ when: e.target.value })}
+          placeholder="Si el punto ha bajado lo suficiente"
+        />
+      </Field>
+
+      <div className="rail-wrap" role="group" aria-label={`Dirección del camino ${index + 1}`}>
+        {GOAL_DIRECTIONS.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className="chip"
+            aria-pressed={option.direction === d.id}
+            title={d.hint}
+            /* Como en `PhaseForm`: al cambiar de dirección se arrastran su ritmo
+               y su nombre por defecto. Dejar el anterior daría «Volumen» con el
+               ritmo de una definición, que es el doble de lo razonable. */
+            onClick={() => onChange({ direction: d.id, ratePct: d.defaultRate, title: d.label })}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
+      <Field label="Nombre">
+        <input
+          className="input"
+          value={option.title}
+          onChange={(e) => onChange({ title: e.target.value })}
+          placeholder={meta?.label || 'Volumen'}
+        />
+      </Field>
+
+      <Field label="Duración">
+        <div className="row gap-2 wrap">
+          {PHASE_PRESETS.map((semanas) => (
+            <button
+              key={semanas}
+              type="button"
+              className="chip"
+              aria-pressed={option.weeks === semanas}
+              onClick={() => onChange({ weeks: semanas })}
+            >
+              {semanas} sem
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      {meta?.sign !== 0 && (
+        <Field label="Ritmo semanal (% del peso)" hint={meta?.hint}>
+          <input
+            type="number"
+            className="input input-center"
+            step="0.05"
+            min="0"
+            max="2"
+            value={option.ratePct}
+            onChange={(e) => onChange({ ratePct: Number(e.target.value) })}
+          />
+        </Field>
+      )}
+    </div>
   );
 };
