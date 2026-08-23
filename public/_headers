@@ -58,10 +58,34 @@
 /fonts/*
   Cache-Control: public, max-age=2592000
 
-# El index NUNCA se cachea. Es el que apunta a los bundles con hash: si un usuario
-# se queda con un index viejo después de un despliegue, pide archivos que ya no
-# existen y ve una pantalla en blanco.
+# Ningún DOCUMENTO se cachea. Son los que apuntan a los bundles con hash: si un
+# usuario se queda con uno viejo después de un despliegue, pide archivos que ya
+# no existen y ve la página sin estilos ni JavaScript.
+#
+# Van uno por uno y no con un `/*` porque estas reglas casan con la RUTA PEDIDA
+# y Cloudflare SUMA los valores de una misma cabecera cuando casan varias reglas
+# («los une con una coma»): un `Cache-Control` en `/*` se pegaría al de
+# `/assets/*` y dejaría los bundles en `no-cache, public, max-age=31536000`.
+#
+# Aquí había solo `/index.html`, que es una ruta que no pide nadie: la portada se
+# pide como `/`. Y las rutas de la aplicación (`/hoy`, `/c/<id>/…`) las sirve
+# `worker.mjs` pidiendo `/app` al almacén de archivos, así que la regla que las
+# cubre a todas es esa — no la ruta que escribió el usuario.
+/
+  Cache-Control: no-cache
 /index.html
+  Cache-Control: no-cache
+/app
+  Cache-Control: no-cache
+/app.html
+  Cache-Control: no-cache
+/privacidad
+  Cache-Control: no-cache
+/privacidad.html
+  Cache-Control: no-cache
+/condiciones
+  Cache-Control: no-cache
+/condiciones.html
   Cache-Control: no-cache
 
 # El service worker tampoco: es el que decide qué versión de la aplicación se

@@ -83,7 +83,15 @@ self.addEventListener('fetch', (event) => {
         (hit) =>
           hit ||
           fetch(request).then((res) => {
-            if (res.ok) {
+            // Solo se guarda lo que de verdad es el archivo pedido. Un 200 con
+            // una PÁGINA dentro significa que el archivo no está y que alguien
+            // ha contestado un shell en su lugar (era lo que hacía el comodín
+            // antes del 23/08/2026, ver \`worker.mjs\`). Guardarla dejaba a este
+            // navegador —y solo a este, porque la caché es suya— sirviendo HTML
+            // como si fuera CSS en cada recarga: esta rama es caché primero y
+            // no vuelve a mirar la red nunca.
+            const tipo = res.headers.get('content-type') || '';
+            if (res.ok && !tipo.includes('text/html')) {
               const copia = res.clone();
               caches.open(CACHE).then((cache) => cache.put(request, copia));
             }
@@ -129,10 +137,21 @@ export const serviceWorkerPlugin = () => ({
     const precache = [...DE_PUBLIC, ...delBuild];
 
     /*
-      La versión sale del CONTENIDO de la lista, no de la fecha: dos builds
-      idénticos producen el mismo worker y el navegador no reinstala nada.
+      La versión sale del CONTENIDO, no de la fecha: dos builds idénticos
+      producen el mismo worker y el navegador no reinstala nada.
+
+      Y el contenido son las DOS cosas: la lista de archivos y el código de
+      arriba. Con solo la lista, cambiar una regla del worker no cambiaba el
+      nombre de la caché, así que `activate` la daba por buena y no la borraba
+      — o sea que un arreglo como el del 23/08/2026 (dejar de guardar HTML bajo
+      la URL de un CSS) se desplegaba sin limpiar a los navegadores que ya
+      tenían la caché envenenada, que son justo los que hay que arreglar.
     */
-    const version = createHash('sha256').update(precache.join('\n')).digest('hex').slice(0, 12);
+    const version = createHash('sha256')
+      .update(PLANTILLA)
+      .update(precache.join('\n'))
+      .digest('hex')
+      .slice(0, 12);
 
     this.emitFile({
       type: 'asset',

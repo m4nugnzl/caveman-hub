@@ -27,9 +27,51 @@
  * `/app` y no `/app.html`: el servidor de archivos canonicaliza los `.html`
  * (307 a la ruta sin extensión) y pedir la forma canónica evita reintroducir
  * la redirección que este script existe para eliminar.
+ *
+ * ══ Por qué un ARCHIVO que falta tiene que dar 404 ══════════════════════════
+ *
+ * Esto contestaba el shell a TODO lo que no fuera un archivo existente, y ese
+ * «todo» incluye `/assets/index-<hash>.css`. O sea: una hoja de estilos que ya
+ * no está no daba 404, daba una página HTML con un 200. Y eso rompe la portada
+ * entera sin un solo error a la vista:
+ *
+ *   · El navegador rechaza la hoja por el tipo de contenido (`nosniff` en
+ *     `public/_headers` lo hace obligatorio), así que la página se pinta con la
+ *     hoja del navegador: el `<figure>` con su sangrado de 40 px, el `<body>`
+ *     con su margen de 8 px y las capturas a tamaño natural.
+ *   · Peor: el service worker veía un 200 y lo GUARDABA bajo la URL del CSS
+ *     (`scripts/sw.mjs`). Su rama de `/assets/` es caché primero y no vuelve a
+ *     mirar la red, así que a partir de ahí ese navegador —y solo ese, porque
+ *     la caché es suya— servía HTML como si fuera CSS en cada recarga. De ahí
+ *     el caso del 23/08/2026: roto en Safari, perfecto en Chrome.
+ *
+ * La regla va por EXTENSIÓN y no por `Sec-Fetch-Mode`, que es lo que se suele
+ * usar para distinguir una navegación: esa cabecera no la mandan los Safari
+ * anteriores al 16.4 y darles 404 en una navegación sería mucho peor que el
+ * fallo que arregla. La lista es cerrada a propósito — lo que no está en ella
+ * sigue cayendo en el shell, así que ninguna ruta de la aplicación cambia.
  */
+
+/** Lo que es un archivo. Si acaba así y no existe, la respuesta es 404. */
+const ARCHIVO = /\.(css|js|mjs|map|json|webmanifest|woff2?|ttf|otf|png|jpe?g|gif|svg|webp|avif|ico|mp4|webm|mp3|txt|xml|pdf)$/i;
+
 export default {
   async fetch(request, env) {
+    const { pathname } = new URL(request.url);
+
+    if (ARCHIVO.test(pathname)) {
+      /* `no-store`: si esto pasa a mitad de un despliegue, el hueco dura lo que
+         dura el despliegue y no se queda grabado en ninguna caché. */
+      return new Response('No encontrado', {
+        status: 404,
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Content-Type-Options': 'nosniff',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
     return env.ASSETS.fetch(new URL('/app', request.url));
   },
 };
