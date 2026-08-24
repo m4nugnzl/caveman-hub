@@ -200,9 +200,9 @@ const bloqueTras = (texto, clave) => {
  * `bfchar` traduce códigos sueltos y `bfrange` tramos enteros, que es como se
  * escribe el alfabeto de una tipografía recortada.
  */
-const leerCMap = (texto) => {
+const leerCMap = (texto, anchoForzado = 0) => {
   const tabla = new Map();
-  let anchoCodigo = 1;
+  let anchoCodigo = anchoForzado || 1;
 
   /* Cuántos bytes hace un código lo dice el propio mapa, y solo puede decirlo
      el lado IZQUIERDO de cada línea: el derecho es Unicode y siempre son cuatro
@@ -210,7 +210,7 @@ const leerCMap = (texto) => {
      ponía el ancho a dos— y su efecto es que el texto sale vacío, porque los
      códigos se leen de dos en dos y ninguno existe. */
   const ancho = (codigo) => {
-    if (codigo.length > 2) anchoCodigo = 2;
+    if (!anchoForzado && codigo.length > 2) anchoCodigo = 2;
   };
 
   const espacio = /begincodespacerange([\s\S]*?)endcodespacerange/.exec(texto);
@@ -498,6 +498,51 @@ const textoDeFlujo = (flujo, fuentes) => {
   return lineas;
 };
 
+/* ── Los objetos que van dentro de otro objeto ───────────────────────────── */
+
+/**
+ * Abre los «flujos de objetos» (`/ObjStm`) y suelta lo que llevan dentro.
+ *
+ * ══ Qué son y por qué no se pueden ignorar ═════════════════════════════════
+ *
+ * Desde la versión 1.5, un PDF puede meter TODOS sus diccionarios —el catálogo,
+ * las páginas, las tipografías— dentro de un único flujo comprimido en vez de
+ * escribirlos como `N 0 obj` a la vista. Buscando solo `obj` por el fichero, un
+ * PDF así parece no tener ni una página: en la prueba con catorce ficheros de
+ * generadores distintos, los dos únicos que fallaban eran exactamente estos, y
+ * los produce cualquier LaTeX, cualquier Word moderno y Adobe.
+ *
+ * El formato es simple: la cabecera del flujo son N parejas «número
+ * desplazamiento» y a partir del byte `/First` van los objetos, uno detrás de
+ * otro. Dentro nunca hay flujos —no se pueden anidar—, así que son solo
+ * diccionarios.
+ *
+ * Lo que ya estaba suelto NO se pisa: si un objeto aparece de las dos formas es
+ * porque el fichero se ha actualizado por incrementos, y la versión de fuera es
+ * la nueva.
+ */
+const expandirFlujosDeObjetos = async (objetos) => {
+  for (const [, objeto] of [...objetos]) {
+    if (!/\/Type\s*\/ObjStm/.test(objeto.dict)) continue;
+
+    const contenido = await contenidoDe(objeto);
+    const cuantos = Number(/\/N\s+(\d+)/.exec(objeto.dict)?.[1]);
+    const primero = Number(/\/First\s+(\d+)/.exec(objeto.dict)?.[1]);
+    if (!contenido || !cuantos || !Number.isFinite(primero)) continue;
+
+    const cabecera = contenido.slice(0, primero).trim().split(/\s+/).map(Number);
+
+    for (let i = 0; i < cuantos; i += 1) {
+      const numero = cabecera[i * 2];
+      const desde = cabecera[i * 2 + 1];
+      if (!Number.isFinite(numero) || !Number.isFinite(desde) || objetos.has(numero)) continue;
+
+      const hasta = i + 1 < cuantos ? primero + cabecera[(i + 1) * 2 + 1] : contenido.length;
+      objetos.set(numero, { dict: contenido.slice(primero + desde, hasta), datos: null });
+    }
+  }
+};
+
 /* ── Qué tipografía usa cada página ──────────────────────────────────────── */
 
 const refDe = (texto) => {
@@ -505,18 +550,91 @@ const refDe = (texto) => {
   return m ? Number(m[1]) : null;
 };
 
-/** El diccionario de recursos de una página, esté escrito dentro o aparte. */
-const recursosDe = (dict, objetos) => {
-  const dentro = bloqueTras(dict, '/Resources');
+/** Las referencias de un array —`/Kids [3 0 R 7 0 R]`—, en orden. */
+const refsTras = (dict, clave) => {
+  const i = dict.indexOf(clave);
+  if (i < 0) return [];
+  const m = /^\s*\[([\s\S]*?)\]/.exec(dict.slice(i + clave.length));
+  return m ? [...m[1].matchAll(/(\d+)\s+\d+\s+R/g)].map((r) => Number(r[1])) : [];
+};
+
+/**
+ * Las páginas, en el orden en el que se leen, con los recursos que heredan.
+ *
+ * ══ Por qué se recorre el árbol y no se filtran los objetos ════════════════
+ *
+ * Por dos cosas que se pierden filtrando. La primera es el ORDEN: los objetos
+ * de un PDF no están en el orden de las páginas más que por costumbre, y con
+ * los flujos de objetos ni eso. La segunda es que **los recursos se heredan**:
+ * un fichero puede declarar las tipografías una sola vez, en el nodo padre, y
+ * dejar las páginas sin `/Resources`. Filtrando, esas páginas salen sin
+ * tipografías y su texto sin traducir — es decir, ilegible.
+ *
+ * Si el árbol no se puede recorrer —un fichero roto, un catálogo que no
+ * resuelve— se cae a lo de antes: todas las páginas que haya, por número.
+ */
+const paginasDe = (raw, objetos) => {
+  const salida = [];
+
+  const raizRef = Number(/\/Root\s+(\d+)\s+\d+\s+R/.exec(raw)?.[1]);
+  const catalogo = Number.isFinite(raizRef) ? objetos.get(raizRef)?.dict : null;
+  const arbol = catalogo ? refDe(/\/Pages\s*([\s\S]{0,20})/.exec(catalogo)?.[1]) : null;
+
+  const visitar = (numero, heredados, vistos) => {
+    if (vistos.has(numero) || vistos.size > 4096) return;
+    vistos.add(numero);
+
+    const objeto = objetos.get(numero);
+    if (!objeto) return;
+
+    const propios = recursosDe(objeto.dict, objetos) || heredados;
+
+    if (/\/Type\s*\/Pages\b/.test(objeto.dict)) {
+      for (const hijo of refsTras(objeto.dict, '/Kids')) visitar(hijo, propios, vistos);
+    } else if (/\/Type\s*\/Page\b/.test(objeto.dict)) {
+      salida.push({ pagina: objeto, recursos: propios });
+    }
+  };
+
+  if (arbol !== null) visitar(arbol, '', new Set());
+  if (salida.length) return salida;
+
+  return [...objetos.entries()]
+    .filter(([, o]) => /\/Type\s*\/Page\b/.test(o.dict))
+    .sort((a, b) => a[0] - b[0])
+    .map(([, pagina]) => ({ pagina, recursos: recursosDe(pagina.dict, objetos) }));
+};
+
+/**
+ * El diccionario que hay detrás de una clave, esté escrito dentro o aparte.
+ *
+ * Las dos formas son igual de legales y conviven en el mismo fichero:
+ *
+ *     /Resources << /Font << /F1 5 0 R >> >>      ← dentro
+ *     /Resources 4 0 R … /Font 41 0 R             ← aparte, por referencia
+ *
+ * Resolviendo solo la primera, un PDF entero se queda sin tipografías —y por
+ * tanto sin texto legible— sin que nada falle: es lo que pasaba con los
+ * ficheros de WeasyPrint y de Adobe.
+ */
+const dictTras = (dict, clave, objetos) => {
+  const dentro = bloqueTras(dict, clave);
   if (dentro !== null) return dentro;
-  const ref = refDe(/\/Resources\s*([\s\S]{0,20})/.exec(dict)?.[1]);
+
+  const i = dict.indexOf(clave);
+  if (i < 0) return '';
+
+  const ref = refDe(dict.slice(i + clave.length, i + clave.length + 24));
   return ref !== null ? objetos.get(ref)?.dict || '' : '';
 };
+
+/** El diccionario de recursos de una página. */
+const recursosDe = (dict, objetos) => dictTras(dict, '/Resources', objetos);
 
 /** `/F1 → tabla de la tipografía 5`, para una página. */
 const fuentesDe = async (recursos, objetos, cache) => {
   const fuentes = new Map();
-  const bloque = bloqueTras(recursos, '/Font');
+  const bloque = dictTras(recursos, '/Font', objetos);
   if (!bloque) return fuentes;
 
   for (const m of bloque.matchAll(/\/([^\s/]+)\s+(\d+)\s+\d+\s+R/g)) {
@@ -524,9 +642,26 @@ const fuentesDe = async (recursos, objetos, cache) => {
     if (!cache.has(numero)) {
       const fuente = objetos.get(numero);
       const aUnicode = refDe(/\/ToUnicode\s*([\s\S]{0,20})/.exec(fuente?.dict || '')?.[1]);
+
+      /*
+        ══ Cuántos bytes hace una letra lo dice la TIPOGRAFÍA ═════════════════
+
+        Y no su tabla de traducción. Una tipografía simple —Type1, TrueType—
+        siempre usa un byte por letra; solo las compuestas (`/Type0`, casi
+        siempre con `Identity-H`) usan dos. Deduciéndolo del mapa se acierta
+        casi siempre y se falla en un sitio muy concreto: un generador que
+        escriba los códigos rellenos a cuatro cifras (`<0049>`) en una
+        tipografía de un byte. Ahí se leen los códigos de dos en dos, no
+        coincide ninguno, y las páginas salen VACÍAS —no con basura, vacías—.
+        Es lo que pasaba con los PDF de Adobe.
+      */
+      const compuesta = /\/Subtype\s*\/Type0|\/Encoding\s*\/Identity-[HV]/.test(fuente?.dict || '');
+
       cache.set(
         numero,
-        aUnicode === null ? null : leerCMap(await contenidoDe(objetos.get(aUnicode)))
+        aUnicode === null
+          ? null
+          : leerCMap(await contenidoDe(objetos.get(aUnicode)), fuente ? (compuesta ? 2 : 1) : 0)
       );
     }
     fuentes.set(m[1], cache.get(numero));
@@ -550,17 +685,15 @@ export const readPdfText = async (buffer) => {
 
   const objetos = leerObjetos(raw);
   if (!objetos.size) throw new Error(NO_ES_PDF);
+  /* Y los que van comprimidos dentro de otro, que en un PDF moderno son casi
+     todos. Ver `expandirFlujosDeObjetos`. */
+  await expandirFlujosDeObjetos(objetos);
 
   const cacheFuentes = new Map();
   const lineas = [];
 
-  /* Las páginas, en el orden del fichero. El orden «de verdad» está en el árbol
-     de páginas, pero ningún generador real escribe las páginas desordenadas y
-     recorrer el árbol costaría resolver herencias de recursos para nada. */
-  const paginas = [...objetos.entries()].filter(([, o]) => /\/Type\s*\/Page\b/.test(o.dict));
-
-  for (const [, pagina] of paginas) {
-    const fuentes = await fuentesDe(recursosDe(pagina.dict, objetos), objetos, cacheFuentes);
+  for (const { pagina, recursos } of paginasDe(raw, objetos)) {
+    const fuentes = await fuentesDe(recursos, objetos, cacheFuentes);
 
     /* `/Contents` puede ser una referencia o un array de referencias: un
        procesador de textos parte la página en varios flujos sin avisar. */

@@ -240,6 +240,95 @@ endcmap`;
     expect(texto.split('\n')).toEqual(['Plan', 'Pequeñas pautas', 'antes de empezar', '- 100g Avena']);
   });
 
+  /*
+    ══ El PDF moderno: todo dentro de un flujo comprimido ════════════════════
+
+    Desde la versión 1.5, los diccionarios —el catálogo, las páginas, las
+    tipografías— pueden ir metidos en un `/ObjStm` en vez de escritos como
+    `N 0 obj`. Buscando `obj` por el fichero, uno así parece no tener ni una
+    página. En el barrido sobre catorce PDF de generadores distintos, los dos
+    únicos que fallaban eran exactamente estos: los produce cualquier LaTeX,
+    cualquier Word moderno, Adobe y WeasyPrint.
+  */
+  it('abre los objetos que van comprimidos dentro de otro', async () => {
+    /* Los de dentro se numeran del 10 en adelante para no chocar con los que
+       van sueltos, que es como lo hace un fichero de verdad. */
+    const dentro = [
+      [10, '<< /Type /Catalog /Pages 11 0 R >>'],
+      /* Los recursos los declara el PADRE y la página los hereda; y dentro, el
+         diccionario de tipografías va por REFERENCIA, no escrito ahí. Las dos
+         cosas son legales, las dos aparecen en ficheros reales, y sin resolver
+         ninguna la página sale sin tipografía —es decir, sin traducir—. */
+      [11, '<< /Type /Pages /Kids [12 0 R] /Count 1 /Resources 3 0 R >>'],
+      [12, '<< /Type /Page /Parent 11 0 R /Contents 2 0 R >>'],
+    ];
+
+    /* La cabecera de un `/ObjStm` son parejas «número desplazamiento». */
+    let cursor = 0;
+    const cabecera = dentro
+      .map(([numero, cuerpo]) => {
+        const par = `${numero} ${cursor}`;
+        cursor += cuerpo.length + 1;
+        return par;
+      })
+      .join(' ');
+    const cuerpo = `${cabecera}\n${dentro.map(([, c]) => c).join('\n')}`;
+
+    const texto = await readPdfText(
+      pdf([
+        flujo(
+          `/Type /ObjStm /N ${dentro.length} /First ${cabecera.length + 1} /Filter /FlateDecode`,
+          await deflar(cuerpo)
+        ),
+        /* Se escribe «AAA» y la tipografía dice que esos códigos son «CEN»: si
+           la cadena de recursos no se resuelve, sale «AAA» y se nota. */
+        flujo('', 'BT /F1 12 Tf 72 700 Td (ABC) Tj ET'),
+        '<< /Font 4 0 R >>',
+        '<< /F1 5 0 R >>',
+        '<< /Type /Font /Subtype /TrueType /ToUnicode 6 0 R >>',
+        flujo('', 'begincmap\n3 beginbfchar\n<41> <0043>\n<42> <0045>\n<43> <004E>\nendbfchar\nendcmap'),
+        '<< /Type /XRef /Root 10 0 R >>',
+      ])
+    );
+
+    expect(texto).toBe('CEN');
+  });
+
+  it('una tipografía simple se lee de byte en byte aunque su mapa venga relleno', async () => {
+    /*
+      Cuántos bytes hace una letra lo dice la TIPOGRAFÍA, no su tabla: las
+      simples usan uno y solo las compuestas (`/Type0`) usan dos. Deduciéndolo
+      del mapa, un generador que escriba los códigos rellenos a cuatro cifras
+      —`<0043>` para la «C»— hacía que se leyeran de dos en dos: ninguno
+      coincide y las páginas salen VACÍAS, que es peor que salir con basura
+      porque parece que el PDF no tenía texto.
+    */
+    const rellena = `begincmap
+1 begincodespacerange
+<0000> <FFFF>
+endcodespacerange
+4 beginbfchar
+<0043> <0043>
+<0045> <0045>
+<004E> <004E>
+<0041> <0041>
+endbfchar
+endcmap`;
+
+    const texto = await readPdfText(
+      pdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] >>',
+        '<< /Type /Page /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+        flujo('', 'BT /F1 12 Tf 72 700 Td (CENA) Tj ET'),
+        '<< /Type /Font /Subtype /TrueType /ToUnicode 6 0 R >>',
+        flujo('', rellena),
+      ])
+    );
+
+    expect(texto).toBe('CENA');
+  });
+
   it('dice qué hacer cuando el PDF no trae texto, en vez de devolver basura', async () => {
     await expect(
       readPdfText(
