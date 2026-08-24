@@ -219,6 +219,50 @@ Deno.serve(async (request) => {
       la suscripción o el cliente de Stripe, que es el caso de las facturas: un
       `invoice.payment_failed` no lleva nuestros metadatos.
     */
+    /*
+      ¿Sigue siendo esta la suscripción del equipo?
+
+      Un equipo puede tener más de una en Stripe: una vieja que quedó sin cancelar
+      cuando subió de plan, una cancelada a mano desde el panel. Todas llevan los
+      mismos metadatos —el `team_id` se grabó el día que se contrataron—, así que
+      sin esta comprobación la baja de una suscripción MUERTA deja en `prueba`, y
+      con ello en solo lectura, a un equipo que está pagando otra. Y su renovación
+      le devuelve el plan viejo con sus límites viejos.
+
+      Estuvo a punto de pasar el 24 de agosto de 2026 al cancelar la suscripción
+      duplicada de un cliente que ya había pagado la nueva.
+
+      `checkout.session.completed` se queda fuera a propósito: es justo el evento
+      que INSTALA una suscripción distinta de la que hay guardada, así que
+      compararlo con la vieja lo descartaría siempre.
+    */
+    const subId: string | null =
+      event.type === 'checkout.session.completed'
+        ? null
+        : event.type.startsWith('customer.subscription.')
+          ? object.id || null
+          : typeof object.subscription === 'string'
+            ? object.subscription
+            : null;
+
+    if (subId && (teamId || object.customer)) {
+      const { data: fila } = await service
+        .from('team_subscriptions')
+        .select('stripe_subscription_id')
+        .eq(teamId ? 'team_id' : 'stripe_customer_id', teamId || object.customer)
+        .maybeSingle();
+
+      /*
+        Solo se descarta cuando la fila tiene una suscripción DISTINTA. Con la
+        columna vacía se deja pasar: es el equipo que todavía no ha terminado de
+        estrenar la suya, y ahí el evento es el bueno.
+      */
+      if (fila?.stripe_subscription_id && fila.stripe_subscription_id !== subId) {
+        console.log('Evento de una suscripción que ya no es la del equipo:', event.type, subId);
+        return text('ok (suscripción antigua)', 200);
+      }
+    }
+
     let query = service.from('team_subscriptions').update(patch);
 
     if (teamId) {

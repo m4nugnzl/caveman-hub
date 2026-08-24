@@ -74,6 +74,39 @@ async function stripe(path: string, key: string, form: Record<string, string>) {
   return payload;
 }
 
+/**
+ * Lectura de Stripe.
+ *
+ * `stripe()` solo escribe. Para cambiar de plan hay que leer antes la suscripción
+ * —cuál es su línea y en qué estado está—, y un fallo aquí no es motivo para
+ * cortar: se devuelve `null` y quien llama decide. En la práctica significa que
+ * si la suscripción guardada ya no existe en Stripe, se sigue hacia la pasarela
+ * en vez de dejar al usuario con un error que no puede resolver.
+ */
+async function stripeGet(path: string, key: string) {
+  const response = await fetch(`${STRIPE_API}/${path}`, {
+    headers: { Authorization: `Bearer ${key}` },
+  });
+
+  const payload = await response.json();
+
+  if (!response.ok) {
+    console.error('Stripe GET', response.status, JSON.stringify(payload).slice(0, 500));
+    return null;
+  }
+
+  return payload;
+}
+
+/**
+ * Estados en los que una suscripción todavía se puede modificar.
+ *
+ * Las canceladas se siguen pudiendo LEER en Stripe —contestan 200 con
+ * `status: 'canceled'`—, así que mirar solo si la lectura salió bien no basta
+ * para saber si hay algo vivo que cambiar.
+ */
+const MODIFICABLE = new Set(['active', 'trialing', 'past_due', 'unpaid']);
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (request.method !== 'POST') return json({ error: 'Usa POST.' }, 405);
@@ -119,7 +152,7 @@ Deno.serve(async (request) => {
 
     const { data: subscription } = await service
       .from('team_subscriptions')
-      .select('stripe_customer_id, stripe_subscription_id')
+      .select('stripe_customer_id, stripe_subscription_id, plan')
       .eq('team_id', membership.team_id)
       .maybeSingle();
 
@@ -234,6 +267,108 @@ Deno.serve(async (request) => {
         { error: `El plan ${planRow.label} no tiene precio configurado en Stripe todavía.` },
         400
       );
+    }
+
+    /*
+      ══ Cambiar de plan no es comprar ═══════════════════════════════════════
+
+      Si el equipo ya tiene una suscripción viva, esto NO puede abrir la pasarela.
+      Una sesión de pago en modo suscripción crea siempre una suscripción NUEVA y
+      cobra el primer periodo entero: el equipo se queda con dos —pagando las
+      dos— y a quien sube de plan se le cobra el mes completo sin descontarle lo
+      que ya había pagado del anterior.
+
+      No es una hipótesis: pasó el 24 de agosto de 2026 con un cliente real, que
+      acabó con la Solo de 39 € y la Pro de 79 € activas a la vez. El prorrateo
+      que estaba configurado en el panel de Stripe nunca llegó a aplicarse porque
+      gobierna los CAMBIOS de suscripción, y allí no había ninguno: había una
+      compra.
+
+      El prorrateo solo existe al modificar la suscripción que ya está viva, que
+      es lo que se hace aquí.
+    */
+    if (subscription?.stripe_subscription_id) {
+      const viva = await stripeGet(
+        `subscriptions/${subscription.stripe_subscription_id}`,
+        key
+      );
+      const linea = viva?.items?.data?.[0];
+
+      /*
+        Se mira el estado que dice Stripe, no el de nuestra columna: si la
+        suscripción se canceló a mano desde el panel, la fila puede seguir con su
+        identificador puesto un buen rato. Cuando ya no hay nada que modificar
+        —cancelada, o borrada— se sigue hacia la pasarela, que para ese caso es lo
+        correcto: no hay cambio, hay contratación.
+      */
+      if (linea && MODIFICABLE.has(viva.status)) {
+        if (linea.price?.id === priceId) {
+          return json({ error: `Ya tienes contratado el plan ${planRow.label}.` }, 400);
+        }
+
+        /*
+          Hacia dónde se mueve, que es lo que decide quién paga y cuándo:
+
+            · Subir → `always_invoice`. Se factura la diferencia AHORA, ya
+              descontado lo que le queda sin consumir del plan viejo. Es lo que
+              el usuario espera de un «pasar a Pro»: lo tiene al momento.
+
+            · Bajar → `create_prorations`. El saldo a favor se queda en su cuenta
+              y se le descuenta de la siguiente factura. Facturar al instante una
+              bajada emitiría una factura negativa, que no es una devolución y sí
+              un documento que luego hay que explicar.
+
+          El orden es el de la escala (`sort`), el mismo que la pantalla usa para
+          decir «tu siguiente paso». Si el plan actual no tiene fila —uno retirado—
+          se trata como subida, que es lo que acaba de pulsar quien está delante.
+        */
+        const { data: escalones } = await service
+          .from('plan_limits')
+          .select('plan, sort')
+          .in('plan', [planRow.plan, subscription.plan]);
+
+        const sortDe = (nombre: string) =>
+          escalones?.find((fila) => fila.plan === nombre)?.sort ?? null;
+
+        const sortActual = sortDe(subscription.plan);
+        const sortNuevo = sortDe(planRow.plan);
+        const baja = sortActual !== null && sortNuevo !== null && sortNuevo < sortActual;
+
+        await stripe(`subscriptions/${viva.id}`, key, {
+          'items[0][id]': linea.id,
+          'items[0][price]': priceId,
+          'items[0][quantity]': '1',
+          proration_behavior: baja ? 'create_prorations' : 'always_invoice',
+
+          /*
+            Y los metadatos, en la MISMA llamada. Es la mitad que se olvida: el
+            webhook escribe el plan leyendo `metadata.plan` de la suscripción, así
+            que cambiar el precio sin cambiar el metadato deja a alguien pagando
+            Pro con el tope de Solo en cuanto le llegue la renovación. La 0061 ya
+            documenta ese pisotón y por qué hubo que arreglarlo a mano en Stripe;
+            aquí no puede volver a separarse, porque va en la misma petición.
+          */
+          'metadata[team_id]': membership.team_id,
+          'metadata[plan]': planRow.plan,
+
+          'automatic_tax[enabled]': 'true',
+        });
+
+        /*
+          El cobro de la diferencia se intenta fuera de sesión, con la tarjeta que
+          ya está guardada. Si el banco pide autenticación, la factura queda
+          pendiente y llega `invoice.payment_failed`: la fila pasa a `past_due`,
+          la pantalla lo dice y Stripe le manda al cliente el enlace para
+          autenticarse. Es lo que la 0027 ya decidió que pasara en un impago —se
+          puede seguir trabajando, no se puede dar de alta a nadie nuevo— y por
+          eso aquí no hace falta una pantalla de confirmación propia.
+
+          Sin URL a la que ir: el cambio ya está hecho. Quien escribe el plan en la
+          fila sigue siendo el webhook, con el `customer.subscription.updated` que
+          Stripe manda a continuación.
+        */
+        return json({ ok: true, cambiado: true, baja });
+      }
     }
 
     const form: Record<string, string> = {

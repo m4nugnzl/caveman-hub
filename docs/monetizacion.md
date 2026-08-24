@@ -207,6 +207,40 @@ de la otra sería peor que repetir cuarenta líneas.
 Cambiar tarjeta, ver facturas y darse de baja se delegan en el **portal de
 Stripe**. Reimplementarlo significaría manejar datos de tarjeta.
 
+#### Cambiar de plan NO es contratar — añadido el 24/08/2026
+
+Lo aprendimos cobrando de más. Un entrenador con la Solo de 39 € pulsó «Pasar a
+Pro», pagó los 79 € **enteros** y se quedó con las dos suscripciones activas.
+Stripe hizo lo que se le pidió: una sesión de pago en modo suscripción crea
+siempre una suscripción NUEVA y cobra el primer periodo completo. El prorrateo
+configurado en el panel gobierna los *cambios* de suscripción, y allí no había
+ninguno — había una compra.
+
+Desde entonces `billing-checkout` mira si el equipo ya tiene una suscripción viva
+en Stripe y, si la tiene, la **modifica** (`POST /v1/subscriptions/{id}`) en vez de
+abrir la pasarela. Subida: `always_invoice`, se cobra la diferencia al momento con
+lo no consumido descontado. Bajada: `create_prorations`, el saldo se descuenta de
+la siguiente factura en lugar de emitir una factura negativa. La dirección la
+decide el `sort` de `plan_limits`.
+
+Dos cosas que van con ello y que son fáciles de dejarse:
+
+- **`metadata[plan]` se actualiza en la misma llamada.** El webhook escribe el
+  plan leyendo ese metadato, así que cambiar el precio sin cambiarlo deja a
+  alguien pagando Pro con el tope de Solo en su siguiente renovación. Es el mismo
+  pisotón que la 0061 ya documenta, y por eso el portal de Stripe no vale para
+  cambiar de plan: no toca los metadatos.
+- **El webhook descarta los eventos de suscripciones que ya no son la del
+  equipo.** Todas las suscripciones de un equipo llevan su `team_id`, así que la
+  baja de una muerta dejaba en `prueba` —y en solo lectura— a quien estaba pagando
+  otra.
+
+Queda un caso sin cubrir a propósito: si el banco pide autenticación para cobrar
+la diferencia, la factura se queda pendiente y la cuenta pasa a `past_due`, que
+por la 3.4 permite seguir trabajando pero no dar de alta a nadie nuevo. Stripe le
+manda al cliente el enlace para autenticarse. Montar aquí una pantalla de
+confirmación de pago propia es bastante más trabajo del que ese caso pide hoy.
+
 ### 3.3 Los límites los impone Postgres, no React — **HECHO**
 
 Es el error clásico y es de seguridad, no de estilo. Esconder un botón con

@@ -114,9 +114,28 @@ export const PlanPanel = () => {
 
   useEffect(() => {
     if (!team) return;
-    if (pago === 'ok') poll();
+    if (pago === 'ok' || pago === 'cambiado') poll();
     else refreshPlan();
   }, [team, pago, poll, refreshPlan]);
+
+  /*
+    Pedir un plan, por el camino que toque.
+
+    Con una suscripción ya viva, la función NO abre la pasarela: modifica la
+    suscripción en Stripe —que es lo único que prorratea— y vuelve aquí sin
+    ninguna URL. Como no hay vuelta de Stripe que avise, la señal se deja en la
+    barra de direcciones a mano: es la misma que deja el pago, así que el aviso y
+    la espera al webhook que ya existen valen para los dos caminos sin duplicar
+    nada. Y de paso limpia el `?contratar=` con el que se pudo llegar.
+  */
+  const pedirPlan = useCallback(
+    async (nombre, periodo) => {
+      const cambio = await contratar(nombre, periodo);
+      if (!cambio?.cambiado) return;
+      setParams({ pago: cambio.baja ? 'cambiado' : 'ok' }, { replace: true });
+    },
+    [contratar, setParams]
+  );
 
   /*
     Y aquí se recoge esa intención. Todas las condiciones son «espera», no
@@ -138,8 +157,8 @@ export const PlanPanel = () => {
     if (!tier || !tier.purchasable || tier.plan === plan.plan) return;
 
     yaLanzado.current = true;
-    contratar(tier.plan, params.get('periodo') === 'year' ? 'year' : 'month');
-  }, [contratando, busy, team, plan, tiers, esDueno, contratar, params]);
+    pedirPlan(tier.plan, params.get('periodo') === 'year' ? 'year' : 'month');
+  }, [contratando, busy, team, plan, tiers, esDueno, pedirPlan, params]);
 
   if (!team) {
     return (
@@ -265,7 +284,13 @@ export const PlanPanel = () => {
 
   return (
     <Header>
-      {pago === 'ok' && (
+      {/*
+        El mismo aviso para los dos finales buenos, con la única frase que cambia
+        entre ellos. Una bajada de plan no cobra nada —lo que quedaba pagado se
+        queda como saldo—, y decirlo aquí ahorra la pregunta de a dónde ha ido el
+        dinero del mes que ya no se va a usar.
+      */}
+      {(pago === 'ok' || pago === 'cambiado') && (
         <Notice
           tone="success"
           action={
@@ -278,7 +303,9 @@ export const PlanPanel = () => {
             </button>
           }
         >
-          Pago recibido. Tu plan se actualiza en unos segundos; si no cambia, recarga la página.
+          {pago === 'ok'
+            ? 'Pago recibido. Tu plan se actualiza en unos segundos; si no cambia, recarga la página.'
+            : 'Plan cambiado. Lo que te quedaba pagado del anterior se descontará de tu próxima factura; el cambio se aplica en unos segundos.'}
         </Notice>
       )}
 
@@ -555,7 +582,7 @@ export const PlanPanel = () => {
                         que se acaba de leer.
                       */
                       onClick={() =>
-                        contratar(tier.plan, anual && tier.price_cents_year ? 'year' : 'month')
+                        pedirPlan(tier.plan, anual && tier.price_cents_year ? 'year' : 'month')
                       }
                     >
                       {busy === tier.plan

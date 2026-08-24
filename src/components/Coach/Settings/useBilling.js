@@ -3,12 +3,18 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 /**
- * Contratar un plan y abrir el portal de facturación.
+ * Contratar un plan, cambiarlo y abrir el portal de facturación.
  *
- * Las dos cosas terminan igual: la función devuelve una URL de Stripe y aquí se
- * navega a ella. No se abre en una pestaña nueva a propósito —los bloqueadores de
- * ventanas emergentes la matan y el usuario no se entera de que ha pasado nada— y
- * Stripe devuelve a `/ajustes/plan` al terminar.
+ * Contratar y el portal terminan igual: la función devuelve una URL de Stripe y
+ * aquí se navega a ella. No se abre en una pestaña nueva a propósito —los
+ * bloqueadores de ventanas emergentes la matan y el usuario no se entera de que
+ * ha pasado nada— y Stripe devuelve a `/ajustes/plan` al terminar.
+ *
+ * Cambiar de plan teniendo ya una suscripción es el tercer caso y NO navega a
+ * ningún sitio: la suscripción se modifica en Stripe —que es lo único que
+ * prorratea— y aquí solo vuelve un `{ cambiado }`. `contratar` lo devuelve para
+ * que la pantalla lo sepa; la respuesta sin `cambiado` ni `url` sigue siendo un
+ * error, como antes.
  */
 export const useBilling = () => {
   const [busy, setBusy] = useState(null);
@@ -38,6 +44,16 @@ export const useBilling = () => {
       setBusy(null);
       setError(message);
       return;
+    }
+
+    /*
+      Cambio de plan sobre una suscripción que ya existía: la función lo ha hecho
+      en Stripe y no hay ninguna pantalla a la que ir. Se devuelve para que quien
+      llama avise y espere al webhook, que es quien escribe el plan.
+    */
+    if (data?.cambiado) {
+      setBusy(null);
+      return { cambiado: true, baja: Boolean(data.baja) };
     }
 
     if (!data?.url) {
