@@ -111,9 +111,11 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 179 claves', () => {
+  it('el reparto conserva las 180 claves', () => {
     montar();
-    // 179 desde las equivalencias de alimentos: `swapFood`, que sustituye un
+    // 180 desde las excepciones del protocolo: `saveClientException`, el guardado
+    // por cliente que además deja la marca de «a este no le pongas la plantilla
+    // encima». Antes 179, desde las equivalencias de alimentos: `swapFood`, que sustituye un
     // alimento por su equivalente en su sitio, y `setFoodEquivalences`, la
     // excepción por alimento a lo que el módulo del protocolo decide en general.
     // Antes 177, desde «traer un plan de fuera»: `importDiet`, que escribe la
@@ -128,7 +130,7 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(179);
+    expect(Object.keys(visto.app).length).toBe(180);
   });
 
   it('toda acción es una función', () => {

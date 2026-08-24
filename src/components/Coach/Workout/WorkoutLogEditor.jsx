@@ -59,7 +59,7 @@ export const WorkoutLogEditor = () => {
     saveStatus,
     retrySave,
     updateClient,
-    updateClientPreferences,
+    saveClientException,
     updateWeeklySplit,
     startSession,
     logSessionSet,
@@ -461,7 +461,10 @@ export const WorkoutLogEditor = () => {
         client={activeClient}
         onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
         protocol={protocol}
-        onProtocolChange={(next) => updateClientPreferences(activeClient.id, 'protocol', next)}
+        /* Igual que el interruptor de la dieta: cambiar el protocolo desde aquí
+           es hacerlo para ESTE cliente, así que queda marcado como excepción y
+           «poner al día» deja de pasarle por encima. */
+        onProtocolChange={(next) => saveClientException(activeClient.id, { protocol: next })}
         cicloSlots={cicloSlots}
         resumenExtra={
           diasDeEntreno === null

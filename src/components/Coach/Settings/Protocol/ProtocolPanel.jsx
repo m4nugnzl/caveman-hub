@@ -22,9 +22,10 @@ import {
 } from '@/lib/intakeTemplate';
 import {
   clearLocalTemplate,
-  clientDrifts,
   defaultProtocol,
+  isException,
   matchesTemplate,
+  needsTemplate,
   readLocalTemplate,
   templateFrom,
 } from '@/lib/protocolTemplate';
@@ -70,7 +71,7 @@ export const ProtocolPanel = () => {
   const {
     session,
     clients,
-    updateClientPreferences,
+    saveClientException,
     applyProtocolToClient,
     coachPrefs,
     coachPrefsReady,
@@ -144,11 +145,16 @@ export const ProtocolPanel = () => {
     fallo del servidor SÍ se enseña —antes solo se avisaba de que el navegador no
     dejaba escribir— porque ahora es una escritura de red y puede fallar por estar
     sin conexión, que es un caso frecuente y silencioso.
+
+    Con un cliente delante se guarda por `saveClientException`, que además deja
+    la marca: tocar algo aquí ES declarar la excepción, y a partir de ese momento
+    «poner al día» no le pasa por encima. Ver `isException` en
+    lib/protocolTemplate.
   */
   const saveIntake = async (next) => {
     setFeedback(null);
     if (client) {
-      updateClientPreferences(client.id, 'intake', intakeToPreferences(next));
+      saveClientException(client.id, { intake: intakeToPreferences(next) });
       return;
     }
     const res = await updateCoachPreferences('intakeTemplate', intakeTemplateToPreferences(next));
@@ -160,7 +166,7 @@ export const ProtocolPanel = () => {
   const save = async (next) => {
     setFeedback(null);
     if (client) {
-      updateClientPreferences(client.id, 'protocol', next);
+      saveClientException(client.id, { protocol: next });
       return;
     }
     const res = await updateCoachPreferences('protocolTemplate', next);
@@ -193,13 +199,57 @@ export const ProtocolPanel = () => {
     [protocol, pasos, questions, checkinList]
   );
 
-  /* Quiénes NO tienen puesta la plantilla (`clientDrifts`). El tamaño dice si
-     «aplicar a todos» va a cambiar algo, el conjunto marca «propia» en el
-     selector, y la lista es a quien se escribe. */
-  const driftedSet = useMemo(
-    () => new Set(clients.filter((c) => clientDrifts(template, intakeTemplate, c)).map((c) => c.id)),
+  /*
+    ══ Los dos grupos que antes eran uno solo ═════════════════════════════════
+
+    Estar «distinto de la plantilla» tapaba dos situaciones opuestas: el que se
+    quedó atrás porque cambiaste la plantilla después de aplicársela, y aquel al
+    que le montaste algo distinto a propósito. `needsTemplate` separa a los dos
+    (el porqué, en lib/protocolTemplate).
+
+    `pendientes` es a quien se le escribe al poner al día. `excepciones` no es su
+    complementario —una excepción puede coincidir hoy con la plantilla y seguir
+    protegida— y se calcula aparte porque hay que poder NOMBRARLA: un botón que
+    salta clientes sin decir cuáles es un botón del que no te fías.
+  */
+  const pendientes = useMemo(
+    () => clients.filter((c) => needsTemplate(template, intakeTemplate, c)),
     [clients, template, intakeTemplate]
   );
+  const pendientesSet = useMemo(() => new Set(pendientes.map((c) => c.id)), [pendientes]);
+  const excepciones = useMemo(() => clients.filter(isException), [clients]);
+  const excepcionesSet = useMemo(() => new Set(excepciones.map((c) => c.id)), [excepciones]);
+
+  /**
+   * Ponerle a un cliente lo que dice la plantilla.
+   *
+   * Escribe las dos mitades —protocolo y alta—, no solo la primera: el desvío se
+   * mide contra las dos, así que igualar solo el protocolo dejaba al cliente
+   * marcado como distinto justo después de haberlo igualado. Y suelta la marca
+   * de excepción, que es cosa de `applyProtocolToClient`.
+   */
+  const igualarA = (c) =>
+    applyProtocolToClient(c.id, {
+      protocol: template,
+      /* La plantilla decide QUÉ pasos hay; cada cliente conserva por cuáles va y
+         qué tiene enlazado. Sobrescribirlo entero borraría los vídeos que se han
+         ido pegando cliente a cliente, que es el trabajo que no se puede rehacer. */
+      intake: intakeToPreferences(applyIntakeTemplate(intakeTemplate, c.preferences)),
+    });
+
+  /** Igualar al cliente que se está mirando, con su acuse de recibo. */
+  const igualarAlCliente = async () => {
+    if (!client) return;
+    setFeedback(null);
+    setApplying(true);
+    const res = await igualarA(client);
+    setApplying(false);
+    setFeedback(
+      res?.ok
+        ? { tone: 'success', text: `${client.name} vuelve a tener tu plantilla.` }
+        : { tone: 'error', text: `No se ha podido igualar a ${client.name}: ${res?.error || ''}` }
+    );
+  };
 
   /*
     En tandas de 3 y ESPERANDO cada tanda, no todo a la vez: con una cartera
@@ -208,38 +258,37 @@ export const ProtocolPanel = () => {
     antes se pintaba «Aplicado a N» sin haber mirado ni una respuesta.
   */
   const applyToAll = async () => {
-    const pendientes = clients.filter((c) => driftedSet.has(c.id));
     setApplying(true);
     let fallos = 0;
 
     for (let i = 0; i < pendientes.length; i += 3) {
       const tanda = pendientes.slice(i, i + 3);
-      const results = await Promise.allSettled(
-        tanda.map((c) =>
-          applyProtocolToClient(c.id, {
-            protocol: template,
-            /* La plantilla decide QUÉ pasos hay; cada cliente conserva por cuáles
-               va y qué tiene enlazado. Sobrescribirlo entero borraría los vídeos
-               que se han ido pegando cliente a cliente, que es el trabajo que no
-               se puede rehacer. */
-            intake: intakeToPreferences(applyIntakeTemplate(intakeTemplate, c.preferences)),
-          })
-        )
-      );
+      const results = await Promise.allSettled(tanda.map(igualarA));
       fallos += results.filter((r) => r.status !== 'fulfilled' || !r.value?.ok).length;
     }
 
     setApplying(false);
     const hechos = pendientes.length - fallos;
+    /* Las excepciones se dicen en el acuse: saltarlas en silencio dejaría la duda
+       de si se han quedado fuera por un fallo. Con más de una va el número y no
+       la lista —quiénes son se ve en los chips— porque un aviso que crece con la
+       cartera deja de leerse justo cuando más clientes hay. */
+    const respetadas =
+      excepciones.length === 0
+        ? ''
+        : excepciones.length === 1
+          ? ` La excepción de ${excepciones[0].name} se queda como estaba.`
+          : ` Las ${excepciones.length} excepciones se quedan como estaban.`;
+
     setFeedback(
       fallos === 0
         ? {
             tone: 'success',
-            text: `Aplicado a ${hechos} ${hechos === 1 ? 'cliente' : 'clientes'}.`,
+            text: `Puesto al día ${hechos} ${hechos === 1 ? 'cliente' : 'clientes'}.${respetadas}`,
           }
         : {
             tone: 'error',
-            text: `Aplicado a ${hechos}; ha fallado en ${fallos}. Vuelve a intentarlo: solo se reintenta lo que falta.`,
+            text: `Puesto al día ${hechos}; ha fallado en ${fallos}. Vuelve a intentarlo: solo se reintenta lo que falta.`,
           }
     );
   };
@@ -256,8 +305,12 @@ export const ProtocolPanel = () => {
         onTarget={setTarget}
         client={client}
         esIgual={Boolean(client) && matchesTemplate(template, protocol)}
-        onIgualar={() => save(template)}
-        driftedSet={driftedSet}
+        esExcepcion={Boolean(client) && excepcionesSet.has(client.id)}
+        onIgualar={igualarAlCliente}
+        pendientesSet={pendientesSet}
+        excepcionesSet={excepcionesSet}
+        pendientes={pendientes}
+        excepciones={excepciones}
         applying={applying}
         onApplyAll={applyToAll}
       />
@@ -366,7 +419,7 @@ export const ProtocolPanel = () => {
       <p className="t-xs t-tertiary">
         Tu plantilla se guarda en tu cuenta y te sigue de un ordenador a otro. El protocolo ya
         aplicado a cada cliente vive en su ficha: cambiar la plantilla no toca a nadie hasta que
-        la aplicas.
+        pones al día, y a quien tenga una excepción no lo toca ni entonces.
       </p>
     </div>
   );

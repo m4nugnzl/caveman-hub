@@ -1626,6 +1626,7 @@ export const AppProvider = ({ children }) => {
     normalizeLegacySessions,
     setClientArchived,
     updateClientPreferences,
+    saveClientException,
     applyProtocolToClient,
     publishUpdate,
     createInvite,
@@ -1652,6 +1653,10 @@ export const AppProvider = ({ children }) => {
     persist,
     upsertClientRow,
     refreshPlan,
+    /* Para sembrar la plantilla del entrenador en el cliente que se acaba de dar
+       de alta: sin esto nacía con el protocolo de serie y aparecía como atrasado
+       en Ajustes → Protocolo el mismo día que lo creaste. */
+    coachPrefs,
   });
 
   /* Integraciones (Notion, Stripe): sin estado propio, extraídas con la
@@ -1919,6 +1924,7 @@ export const AppProvider = ({ children }) => {
     markClientPaid,
     setClientArchived,
     updateClientPreferences,
+    saveClientException,
     applyProtocolToClient,
     exportClientData,
     exportAllData,

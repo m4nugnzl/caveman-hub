@@ -7,6 +7,8 @@ import { normalizeMicrocycles } from '@/domain/sessions';
 import { nextPaymentAfter } from '@/domain/billing';
 import { stampUpdate } from '@/domain/updates';
 import { bucket, track } from '@/lib/analytics';
+import { recordIssue } from '@/lib/diagnostics';
+import { newClientPreferences } from '@/lib/protocolTemplate';
 import { BUCKET } from '@/context/media';
 
 /*
@@ -61,7 +63,19 @@ export const useClients = ({
   persist,
   upsertClientRow,
   refreshPlan,
+  coachPrefs,
 }) => {
+  /*
+    Las plantillas del entrenador, en una referencia.
+
+    Solo las usa el alta, y como VALOR entrarían en las dependencias de
+    `addClient` —y con él las de `createClientFromExternal`, que lo recibe—, así
+    que guardar una pregunta del check-in recrearía media cadena de acciones. Es
+    el mismo recurso que `isCoachRef` en el proveedor: el valor de AHORA sin
+    entrar en las dependencias.
+  */
+  const coachPrefsRef = useRef(coachPrefs);
+  coachPrefsRef.current = coachPrefs;
   /**
    * Parches de cliente pendientes de enviar, acumulados por cliente.
    *
@@ -311,10 +325,13 @@ export const useClients = ({
    * propia, un guardado de preferencias no se mezcla con los campos de la ficha
    * que el entrenador pueda estar editando a la vez.
    */
-  const updateClientPreferences = useCallback(
-    (clientId, section, patch) => {
+  const updateClientSections = useCallback(
+    (clientId, sections) => {
       const current = clientsRef.current.find((c) => c.id === clientId)?.preferences || {};
-      const next = { ...current, [section]: { ...(current[section] || {}), ...patch } };
+      const next = { ...current };
+      for (const [section, patch] of Object.entries(sections)) {
+        next[section] = { ...(next[section] || {}), ...patch };
+      }
 
       setClients(
         clientsRef.current.map((c) => (c.id === clientId ? { ...c, preferences: next } : c))
@@ -322,6 +339,38 @@ export const useClients = ({
       persist('preferences', clientId, next, { immediate: true });
     },
     [clientsRef, persist, setClients]
+  );
+
+  const updateClientPreferences = useCallback(
+    (clientId, section, patch) => updateClientSections(clientId, { [section]: patch }),
+    [updateClientSections]
+  );
+
+  /**
+   * Guardar algo del protocolo PARA UN CLIENTE CONCRETO.
+   *
+   * ══ Por qué esto no es `updateClientPreferences` con otro nombre ════════════
+   *
+   * Deja además la marca de excepción, y esa marca es la que hace que «poner al
+   * día» no arrase con el trabajo hecho a mano. Hasta ahora un cliente distinto
+   * era distinto y punto: la pantalla no podía saber si lo era porque el
+   * entrenador le montó algo aposta o porque la plantilla cambió después de
+   * habérsela aplicado. Se trataban igual, así que encender las equivalencias
+   * para uno solo duraba hasta el siguiente «Aplicar a todos».
+   *
+   * La excepción se declara HACIÉNDOLA, no marcando una casilla: si has abierto
+   * a esta persona y le has cambiado algo, ya has dicho todo lo que había que
+   * decir. Por eso vive aquí y no en cada pantalla — son cuatro sitios los que
+   * escriben protocolo de un cliente (Ajustes → Protocolo, el alta de su ficha,
+   * el interruptor de la dieta y el del programa) y el que se olvidara de poner
+   * la marca dejaría un agujero imposible de ver hasta que algo se borrara.
+   *
+   * Se suelta desde `applyProtocolToClient`, que es el camino contrario.
+   */
+  const saveClientException = useCallback(
+    (clientId, sections) =>
+      updateClientSections(clientId, { ...sections, protocolException: { on: true } }),
+    [updateClientSections]
   );
 
   /**
@@ -336,11 +385,18 @@ export const useClients = ({
    *
    * Fusiona por sección, igual que `updateClientPreferences`: lo que no se toca
    * no desaparece.
+   *
+   * ── Y suelta la marca de excepción ──────────────────────────────────────────
+   * Es el camino contrario a `saveClientException`: este cliente pasa a tener lo
+   * que dice la plantilla, así que ya no hay nada que proteger. La quita la
+   * función y no quien llama porque los dos sitios que la usan —«poner al día» e
+   * «igualar a mi plantilla»— significan exactamente eso, y uno de los dos se
+   * habría olvidado.
    */
   const applyProtocolToClient = useCallback(
     async (clientId, sections) => {
       const current = clientsRef.current.find((c) => c.id === clientId)?.preferences || {};
-      const next = { ...current };
+      const next = { ...current, protocolException: { on: false } };
       for (const [section, patch] of Object.entries(sections)) {
         next[section] = { ...(next[section] || {}), ...patch };
       }
@@ -507,7 +563,31 @@ export const useClients = ({
 
       if (error) return { ok: false, error: explicarErrorDeAlta(error) };
 
-      const created = mapClientFromDb(data);
+      const creado = mapClientFromDb(data);
+
+      /*
+        La plantilla, en una segunda escritura. No puede ir en el alta porque
+        `create_client` no acepta `preferences` (ver `newClientPreferences`).
+
+        Su fallo NO tumba el alta: el cliente ya existe y con la columna vacía
+        tiene el protocolo de serie, que es lo que ha tenido siempre cualquier
+        cliente nuevo. Lo único que pasa es que aparece como atrasado en Ajustes →
+        Protocolo y «Poner al día» lo arregla — un estado visible y con su mando
+        delante, no un error tragado. Queda además en el diagnóstico, porque si
+        esto falla de forma sistemática el síntoma que se reporta sería «mi
+        plantilla no llega a los clientes nuevos» y hay que poder verlo.
+      */
+      const semilla = newClientPreferences(coachPrefsRef.current);
+      let created = creado;
+      if (semilla) {
+        const { error: errSemilla } = await supabase.rpc('set_client_preferences', {
+          target: creado.id,
+          prefs: semilla,
+        });
+        if (errSemilla) recordIssue('alta:plantilla', errSemilla, { client: creado.id });
+        else created = { ...creado, preferences: semilla };
+      }
+
       setClients([...clientsRef.current, created]);
       setSelectedClientId(created.id);
       /* El primer paso del embudo. En TRAMOS: «tiene 28 clientes» señala a un
@@ -517,7 +597,7 @@ export const useClients = ({
       track('cliente_creado', { cartera: bucket(clientsRef.current.length) });
       return { ok: true, client: created };
     },
-    [clientsRef, session, setClients, setSelectedClientId, team]
+    [clientsRef, coachPrefsRef, session, setClients, setSelectedClientId, team]
   );
 
   /*
@@ -821,6 +901,7 @@ export const useClients = ({
     normalizeLegacySessions,
     setClientArchived,
     updateClientPreferences,
+    saveClientException,
     applyProtocolToClient,
     publishUpdate,
     createInvite,

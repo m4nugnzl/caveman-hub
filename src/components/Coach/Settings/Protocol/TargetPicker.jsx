@@ -25,6 +25,35 @@ const enumerar = (nombres) => {
 };
 
 /**
+ * Lo que dice el pie cuando se está mirando la plantilla.
+ *
+ * ══ Por qué son dos frases y no un recuento ═════════════════════════════════
+ *
+ * Porque hay dos grupos que no significan lo mismo y el botón trata a cada uno
+ * de una forma: a los pendientes los escribe y a las excepciones las deja. Un
+ * «3 clientes no la tienen» que en realidad va a tocar a uno es la clase de
+ * mensaje que hace que nadie pulse el botón dos veces.
+ */
+const pieDePlantilla = (clients, pendientes, excepciones) => {
+  if (clients.length === 0) return 'Todavía no tienes clientes a los que aplicarla.';
+
+  const nombresExc = excepciones.map((c) => c.name);
+  const respetadas =
+    excepciones.length === 0
+      ? ''
+      : ` ${enumerar(nombresExc)} ${excepciones.length === 1 ? 'tiene una excepción y no se toca' : 'tienen una excepción y no se tocan'}.`;
+
+  if (pendientes.length === 0) {
+    return excepciones.length === 0
+      ? 'Todos tus clientes la tienen puesta.'
+      : `El resto la tiene puesta.${respetadas}`;
+  }
+
+  const nombresPend = pendientes.map((c) => c.name);
+  return `${enumerar(nombresPend)} ${pendientes.length === 1 ? 'se ha' : 'se han'} quedado atrás.${respetadas}`;
+};
+
+/**
  * A quién se le está escribiendo: la plantilla o un cliente concreto.
  *
  * ══ La cartera se VE, siempre ═══════════════════════════════════════════════
@@ -41,8 +70,17 @@ const enumerar = (nombres) => {
  * una pared, que era el problema real) y el buscador se queda como atajo para
  * carteras grandes, ahora ojeable sin escribir (`abreVacio`).
  *
- * La marca «propia» señala a quien NO tiene puesta la plantilla — la misma
- * cuenta que enciende «Aplicar a todos» (`clientDrifts`, lib/protocolTemplate).
+ * ══ Las dos marcas ══════════════════════════════════════════════════════════
+ *
+ * Antes había una, «propia», para todo el que no coincidía con la plantilla.
+ * Ahora son dos porque el botón hace cosas distintas con cada grupo:
+ *
+ *   · `excepción` — se lo montaste tú aposta y el botón NO le toca.
+ *   · `atrasado` — se quedó con una plantilla vieja y el botón se lo arregla.
+ *
+ * Sin la distinción, la marca decía «este es distinto» y el entrenador no tenía
+ * forma de saber cuál de sus clientes iba a perder el trabajo hecho a mano al
+ * pulsar. Ver `isException` en lib/protocolTemplate.
  */
 export const TargetPicker = ({
   clients,
@@ -50,14 +88,20 @@ export const TargetPicker = ({
   onTarget,
   client,
   esIgual,
+  esExcepcion,
   onIgualar,
-  driftedSet,
+  pendientesSet,
+  excepcionesSet,
+  pendientes,
+  excepciones,
   applying,
   onApplyAll,
 }) => {
   const [busqueda, setBusqueda] = useState('');
   const conChips = clients.length <= MAX_CHIPS;
-  const propios = clients.filter((c) => driftedSet.has(c.id));
+
+  const marca = (id) =>
+    excepcionesSet.has(id) ? 'excepción' : pendientesSet.has(id) ? 'atrasado' : null;
 
   return (
     <Panel tight className="col gap-3">
@@ -73,7 +117,7 @@ export const TargetPicker = ({
               onChange={setBusqueda}
               items={clients}
               getLabel={(c) => c.name}
-              getMeta={(c) => (driftedSet.has(c.id) ? 'propia' : null)}
+              getMeta={(c) => marca(c.id)}
               onPick={(c) => {
                 onTarget(c.id);
                 setBusqueda('');
@@ -108,7 +152,7 @@ export const TargetPicker = ({
             onClick={() => onTarget(c.id)}
           >
             {c.name}
-            {driftedSet.has(c.id) && <span className="chip-note">propia</span>}
+            {marca(c.id) && <span className="chip-note">{marca(c.id)}</span>}
           </button>
         ))}
       </div>
@@ -117,16 +161,24 @@ export const TargetPicker = ({
         {client ? (
           <>
             <span className="t-xs t-tertiary grow">
-              Una excepción para {client.name}: no cambia tu plantilla ni al resto.{' '}
-              {esIgual
-                ? 'Ahora mismo es igual que tu plantilla.'
-                : 'Ahora mismo tiene una configuración propia.'}
+              Lo que cambies aquí es solo para {client.name}: no toca tu plantilla ni al resto.{' '}
+              {esExcepcion
+                ? `Es una excepción, así que poner al día a los demás no ${
+                    esIgual ? 'le devolverá nada' : 'le quitará lo suyo'
+                  }.`
+                : esIgual
+                  ? 'Ahora mismo tiene tu plantilla, y en cuanto toques algo pasará a ser una excepción.'
+                  : 'Se ha quedado atrás: recibirá tu plantilla la próxima vez que pongas al día.'}
             </span>
             <button
               type="button"
               className="btn btn-secondary btn-sm"
               onClick={onIgualar}
-              disabled={esIgual}
+              /* Con la excepción puesta el botón sigue vivo aunque el protocolo
+                 coincida: es la única forma de soltarla, y sin eso un cliente que
+                 acabara igualado a mano se quedaba fuera de la plantilla para
+                 siempre sin ningún mando que lo devolviera. */
+              disabled={applying || (esIgual && !esExcepcion)}
             >
               <RotateCcw size={14} /> Igualar a mi plantilla
             </button>
@@ -135,19 +187,15 @@ export const TargetPicker = ({
           <>
             <span className="t-xs t-tertiary grow">
               Tu forma de trabajar. Se usa para los clientes nuevos.{' '}
-              {clients.length === 0
-                ? 'Todavía no tienes clientes a los que aplicarla.'
-                : propios.length === 0
-                  ? 'Todos tus clientes la tienen puesta.'
-                  : `${enumerar(propios.map((c) => c.name))} ${propios.length === 1 ? 'tiene' : 'tienen'} configuración propia.`}
+              {pieDePlantilla(clients, pendientes, excepciones)}
             </span>
             <button
               type="button"
               className="btn btn-primary btn-sm"
               onClick={onApplyAll}
-              disabled={propios.length === 0 || applying}
+              disabled={pendientes.length === 0 || applying}
             >
-              <Users size={14} /> {applying ? 'Aplicando…' : 'Aplicar a todos'}
+              <Users size={14} /> {applying ? 'Poniendo al día…' : 'Poner al día'}
             </button>
           </>
         )}

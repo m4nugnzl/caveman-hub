@@ -78,7 +78,7 @@ export const NutritionModule = () => {
     importDiet,
     importRoutine,
     ensureNutrition,
-    updateClientPreferences,
+    saveClientException,
     setFoodEquivalences,
   } = useApp();
 
@@ -333,8 +333,13 @@ export const NutritionModule = () => {
               label="Equivalencias en la dieta"
               hint={`${activeClient.name} verá con qué puede cambiar cada alimento sin descuadrar el macro de su grupo. Puedes quitárselas a un alimento concreto desde su lista.`}
               checked={clienteVeEquivalencias}
+              /* Por `saveClientException` y no por `updateClientPreferences`:
+                 encenderlas para ESTA persona es una excepción a la plantilla, y
+                 sin la marca el siguiente «poner al día» se las apagaba. */
               onChange={() =>
-                updateClientPreferences(activeClient.id, 'protocol', toggleModule(protocolo, 'dietSwaps'))
+                saveClientException(activeClient.id, {
+                  protocol: toggleModule(protocolo, 'dietSwaps'),
+                })
               }
             />
           )}
