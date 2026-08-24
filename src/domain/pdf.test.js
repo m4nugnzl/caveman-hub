@@ -175,6 +175,71 @@ endcmap`;
     expect(texto).toBe('CENA');
   });
 
+  /*
+    ══ El PDF tal y como lo escribe un procesador de textos ══════════════════
+
+    Y no como sería cómodo. Lo de abajo es la forma EXACTA del PDF de una dieta
+    real, y trae las tres trampas juntas:
+
+      · Cada palabra —y en un título, cada letra— va en su propio `BT … ET`.
+      · Todas repiten la misma `Tm` y se colocan con un `Td` relativo, así que
+        dentro de un párrafo la Y del texto no cambia entre renglones distintos.
+      · Cada párrafo va envuelto en su `q … cm … Q`, y es ESA matriz la que dice
+        a qué altura del papel cae.
+
+    Leído sin las tres, ese fichero daba 1.405 renglones de una palabra («P»,
+    «l», «a», «n»…) o, arreglando solo la primera, un renglón de dos mil
+    caracteres con la página entera dentro. Las dos veces sin un solo error: lo
+    único que se veía era una dieta con cuatro alimentos llamados
+    «kilocalorías», «proteína», «hidratos» y «grasas».
+  */
+  it('reconstruye los renglones de un PDF de procesador de textos', async () => {
+    const parrafo = (cm, renglones) =>
+      [
+        'q',
+        `${cm} cm`,
+        ...renglones.flatMap(({ y, trozos }) =>
+          trozos.map(
+            ({ x, t, tam = 16 }) =>
+              `BT /F1 ${tam} Tf 1 0 0 -1 0 0 Tm ${x} ${y} Td (${t}) Tj ET`
+          )
+        ),
+        'Q',
+      ].join('\n');
+
+    const contenido = [
+      /* El título, letra a letra: no puede salir «P l a n». */
+      parrafo('.75 0 0 .75 72 40', [
+        { y: -19, trozos: [
+          { x: 0, t: 'P', tam: 21 },
+          { x: 14, t: 'l', tam: 21 },
+          { x: 19, t: 'a', tam: 21 },
+          { x: 30, t: 'n', tam: 21 },
+        ] },
+      ]),
+      /* Un párrafo de dos renglones, cada palabra por su cuenta. */
+      parrafo('.75 0 0 .75 72 72', [
+        { y: -14, trozos: [{ x: 0, t: 'Pequeñas' }, { x: 72, t: ' ' }, { x: 76, t: 'pautas' }] },
+        { y: -33, trozos: [{ x: 0, t: 'antes de empezar' }] },
+      ]),
+      /* Y otro párrafo que, en coordenadas de texto, está a la MISMA altura que
+         el primero: solo la matriz de la página los separa. */
+      parrafo('.75 0 0 .75 72 200', [{ y: -14, trozos: [{ x: 0, t: '- 100g Avena' }] }]),
+    ].join('\n');
+
+    const texto = await readPdfText(
+      pdf([
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] >>',
+        '<< /Type /Page /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+        flujo('', contenido),
+        '<< /Type /Font /BaseFont /Arial >>',
+      ])
+    );
+
+    expect(texto.split('\n')).toEqual(['Plan', 'Pequeñas pautas', 'antes de empezar', '- 100g Avena']);
+  });
+
   it('dice qué hacer cuando el PDF no trae texto, en vez de devolver basura', async () => {
     await expect(
       readPdfText(

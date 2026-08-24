@@ -782,6 +782,62 @@ const alimentoDeTrozo = (trozo) => {
 };
 
 /**
+ * Vuelve a juntar los renglones que un documento partió por el ancho de la hoja.
+ *
+ * ══ Por qué hace falta ═════════════════════════════════════════════════════
+ *
+ * En un PDF, un renglón acaba donde acaba el papel, no donde acaba la frase:
+ *
+ *     - 130g Pasta integral / 130g Arroz integral / … / 550g Patata / 470g
+ *     Boniato
+ *
+ * Leídos por separado, la última alternativa se queda en «470g» —una cantidad
+ * sin nada que contar, que se tira— y «Boniato» pasa a ser una frase suelta que
+ * acaba de pauta de la comida. El alimento existe, está escrito, y se pierde.
+ *
+ * ══ Qué NO se junta, que es lo que hace que esto sea seguro ════════════════
+ *
+ * Nada que empiece por viñeta —es otro alimento— y nada que venga detrás de un
+ * TÍTULO o de una línea de cifras: «DESAYUNO / PRE ENTRENO» seguido de «Procura
+ * consumirlo…» son dos cosas distintas, y pegarlas se lleva por delante el
+ * nombre de la comida. Y solo se junta cuando la línea de arriba se ha quedado a
+ * medias: sin punto, sin dos puntos y sin cerrar.
+ */
+const unirRenglonesPartidos = (lineas) => {
+  const out = [];
+
+  for (const cruda of lineas) {
+    const linea = String(cruda || '').trim();
+    if (!linea) continue;
+
+    const anterior = out[out.length - 1];
+    const empiezaAlgo =
+      /^[\s\-–—•*·]/.test(cruda) ||
+      /:\s*$/.test(linea) ||
+      RE_COMIDA.test(linea) ||
+      RE_OPCION.test(linea) ||
+      RE_ETIQUETA.test(linea) ||
+      RE_PASOS.test(linea) ||
+      RE_CARDIO.test(linea) ||
+      Boolean(macrosDeTexto(linea)) ||
+      Boolean(alimentoDeTrozo(linea));
+
+    const anteriorAbierta =
+      anterior &&
+      !/[.:;!?]$/.test(anterior) &&
+      !RE_COMIDA.test(anterior) &&
+      !RE_OPCION.test(anterior) &&
+      !RE_ETIQUETA.test(anterior) &&
+      !macrosDeTexto(anterior);
+
+    if (!empiezaAlgo && anteriorAbierta) out[out.length - 1] = `${anterior} ${linea}`;
+    else out.push(linea);
+  }
+
+  return out;
+};
+
+/**
  * Una dieta escrita en párrafos: la del PDF, la del Word, la del WhatsApp.
  *
  * Cada línea es una de cinco cosas y se preguntan en este orden, que no es
@@ -823,7 +879,7 @@ const parseDietText = (lineas) => {
   };
 
   let primera = true;
-  for (const cruda of lineas) {
+  for (const cruda of unirRenglonesPartidos(lineas)) {
     const linea = String(cruda || '').trim();
     if (!linea) continue;
 

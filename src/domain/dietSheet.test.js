@@ -307,6 +307,35 @@ describe('una dieta escrita, no tabulada', () => {
   it('la prosa de dentro de una comida es su pauta', () => {
     expect(lectura.meals[0].note).toContain('entre 90 y 120');
   });
+
+  it('el renglón que el papel partió se vuelve a juntar', () => {
+    /*
+      En un PDF, un renglón acaba donde acaba la hoja:
+
+        - 130g Pasta integral / … / 550g Patata / 470g
+        Boniato
+
+      Leídos por separado, la última alternativa se queda en «470g» —una
+      cantidad sin nada que contar, que se tira— y «Boniato» acaba de pauta de
+      la comida. El alimento está escrito y se perdía.
+    */
+    const texto = 'CENA\n- 130g Pasta integral / 550g Patata / 470g\nBoniato\n- 200g Brócoli';
+    const [cena] = parseDietSheet(texto).meals;
+
+    expect(cena.options[0].foods[0].alternatives).toEqual(['550g Patata', '470g Boniato']);
+    expect(cena.options[0].foods.map((f) => f.name)).toEqual(['Pasta integral', 'Brócoli']);
+    expect(cena.note).toBe('');
+  });
+
+  it('un título no se pega a la línea de debajo', () => {
+    /* La otra cara de lo mismo: «DESAYUNO» y lo que viene después son dos cosas
+       distintas, y juntarlas se lleva por delante el nombre de la comida. */
+    const texto = 'DESAYUNO\nProcura consumirlo 90 antes\n- 100g Avena';
+    const [desayuno] = parseDietSheet(texto).meals;
+
+    expect(desayuno.name).toBe('DESAYUNO');
+    expect(desayuno.note).toBe('Procura consumirlo 90 antes');
+  });
 });
 
 describe('alimentosDeLinea', () => {

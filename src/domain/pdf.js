@@ -302,53 +302,198 @@ const conFuente = (crudo, fuente) => {
   return out;
 };
 
+/* Los operadores que hacen falta para reconstruir renglones, con nombre para
+   poder leer el bucle de abajo sin contar paréntesis. */
+const OPERADORES = new RegExp(
+  [
+    String.raw`\/(?<fuente>[^\s/<>[\]()]+)\s+(?<tam>-?[\d.]+)\s+Tf`,
+    String.raw`(?<tm>-?[\d.]+(?:\s+-?[\d.]+){5})\s+Tm`,
+    String.raw`(?<cm>-?[\d.]+(?:\s+-?[\d.]+){5})\s+cm`,
+    String.raw`(?<tx>-?[\d.]+)\s+(?<ty>-?[\d.]+)\s+(?:Td|TD)`,
+    String.raw`\[(?<tj>(?:[^[\]\\]|\\.)*)\]\s*TJ`,
+    String.raw`\((?<lit>(?:[^()\\]|\\.)*)\)\s*(?<op>Tj|'|")`,
+    String.raw`<(?<hex>[0-9A-Fa-f\s]*)>\s*Tj`,
+    /* `q` y `Q` son una letra suelta: se exige que vayan solas entre espacios
+       para no confundirlas con la `q` de un nombre. */
+    String.raw`(?:^|[\s>\]])(?<pila>[qQ])(?=\s|$)`,
+    String.raw`(?<solo>T\*|BT|ET)`,
+  ].join('|'),
+  'g'
+);
+
 /**
- * El texto de un flujo de contenido, con sus saltos de línea.
+ * Dos matrices afines, multiplicadas.
  *
- * ══ De dónde salen los saltos, que en un PDF no existen ════════════════════
+ * Un PDF coloca el texto en tres pasos —la posición dentro del bloque, la
+ * matriz del texto y la matriz de la PÁGINA (`cm`)— y solo las tres juntas dicen
+ * dónde acaba una letra en el papel.
+ */
+const porMatriz = (m, n) => [
+  m[0] * n[0] + m[1] * n[2],
+  m[0] * n[1] + m[1] * n[3],
+  m[2] * n[0] + m[3] * n[2],
+  m[2] * n[1] + m[3] * n[3],
+  m[4] * n[0] + m[5] * n[2] + n[4],
+  m[4] * n[1] + m[5] * n[3] + n[5],
+];
+
+/**
+ * El texto de un flujo de contenido, en renglones.
  *
- * Un PDF no tiene líneas: tiene cadenas colocadas en coordenadas. Lo que aquí se
- * llama «línea» es cada cambio de posición vertical (`Td`, `TD`, `T*`, `Tm`), que
- * es exactamente lo que hace un procesador de textos al escribir el renglón
- * siguiente. Sin eso, una dieta entera llega en un párrafo de tres mil
- * caracteres y no hay forma de saber dónde acaba un alimento y empieza otro.
+ * ══ De dónde salen los renglones, que en un PDF no existen ════════════════
  *
- * Y los espacios de dentro de una línea salen de los AJUSTES de un `TJ`: cuando
- * el hueco entre dos trozos pasa de un cuarto de eme, es un espacio. Es la misma
- * regla que usan los visores para dejar copiar el texto.
+ * Un PDF no tiene líneas: tiene cadenas colocadas en coordenadas. Así que el
+ * renglón hay que deducirlo, y **la única señal que vale es la Y en el PAPEL**
+ * —la del texto por la matriz de la página, `cm`—. Con la Y del bloque a secas
+ * no vale: un procesador de textos abre un `q … cm … Q` por párrafo y dentro de
+ * cada uno vuelve a contar desde arriba, así que el título de la página y un
+ * párrafo del final salen a la misma altura y se pegan en un renglón de dos mil
+ * caracteres. Pasó, y con este mismo fichero.
+ *
+ * La primera versión cortaba en cada operador de posición (`Td`, `Tm`, `T*`), y
+ * con un PDF de verdad eso es un desastre silencioso: un procesador de textos
+ * coloca CADA PALABRA con su propio `Td` para ajustar el espaciado —y en un
+ * título, cada letra—. El resultado con el PDF de una dieta real fueron 1.405
+ * «renglones» de una palabra cada uno: «P», «l», «a», «n»… Ninguna línea de
+ * comida sobrevivía, y las de macros llegaban partidas en cuatro trozos que el
+ * lector de dietas leía como cuatro alimentos llamados «kilocalorías»,
+ * «proteína», «hidratos» y «grasas».
+ *
+ * Con la Y, dos trozos a la misma altura son el mismo renglón, se hayan
+ * colocado con uno o con quince operadores.
+ *
+ * ══ Y los espacios ════════════════════════════════════════════════════════
+ *
+ * Un PDF tampoco tiene espacios cuando cada palabra se coloca por su cuenta: el
+ * espacio ES el hueco. Como no se puede medir sin las métricas de la tipografía,
+ * se ESTIMA cuánto ha avanzado lo escrito (media eme por letra, que es la media
+ * de cualquier tipografía de texto) y, si la siguiente cadena empieza más allá
+ * de donde debería, hay un espacio. Es lo mismo que hace un visor al dejarte
+ * copiar el texto, y falla en la misma dirección: de más, nunca de menos.
  */
 const textoDeFlujo = (flujo, fuentes) => {
   const lineas = [];
   let linea = '';
   let fuente = null;
 
-  const nuevaLinea = () => {
+  /* Dónde está el cursor y de qué tamaño se escribe. `tam` es el de `Tf` por la
+     escala de `Tm`: hay generadores que ponen el tamaño en uno y quien lo pone
+     en el otro. */
+  /* La posición en el espacio del TEXTO, tal cual la escribe el fichero. */
+  let x = 0;
+  let y = 0;
+  /* Y la matriz de la página, con su pila: es lo que convierte esa posición en
+     un sitio del papel. */
+  let ctm = [1, 0, 0, 1, 0, 0];
+  const pila = [];
+  /* Dónde debería haber terminado lo último escrito, ya en el papel. La
+     diferencia con la posición real de lo siguiente es el hueco: ver `escribir`. */
+  let xFin = 0;
+  /* La altura a la que va el renglón que se está montando. Se compara contra
+     ESTA y no contra la última posición: `BT` pone el cursor a cero —es lo que
+     dice la matriz— y comparar con cero cortaría el renglón en cada bloque. */
+  let yLinea = 0;
+  let tam = 12;
+  let escala = 1;
+  let empezada = false;
+
+  /* El tamaño de letra como se ve en el papel: el de `Tf`, por la escala de la
+     matriz del texto y por la de la página. */
+  const alto = () => Math.abs(tam * escala * (ctm[3] || 1)) || 12;
+
+  /** Dónde cae en el papel la posición actual del texto. */
+  const enPapel = () => ({
+    x: ctm[0] * x + ctm[2] * y + ctm[4],
+    y: ctm[1] * x + ctm[3] * y + ctm[5],
+  });
+
+  const cerrar = () => {
     if (linea.trim()) lineas.push(linea.replace(/\s+/g, ' ').trim());
     linea = '';
+    empezada = false;
   };
 
-  const RE = /\/([^\s/<>[\]()]+)\s+[\d.]+\s+Tf|\[((?:[^[\]\\]|\\.)*)\]\s*TJ|\(((?:[^()\\]|\\.)*)\)\s*(Tj|TJ|'|")|<([0-9A-Fa-f\s]*)>\s*Tj|(T\*|Td|TD|Tm|ET|BT)/g;
+  /**
+   * Colocar el cursor NO decide nada.
+   *
+   * Decidía, y era el segundo fallo del mismo sitio: un bloque de texto empieza
+   * con `Tm` —que lo pone donde arranca el párrafo— y sigue con un `Td` que baja
+   * al renglón. Entre esas dos posiciones no se ha escrito nada, así que ese
+   * salto no es un renglón nuevo: es el mismo, colocándose. Se apunta dónde
+   * queda el cursor y se decide al ESCRIBIR, que es cuando ya se sabe qué hay.
+   */
+  const mover = (nuevaX, nuevaY) => {
+    x = nuevaX;
+    y = nuevaY;
+  };
 
-  for (const m of flujo.matchAll(RE)) {
-    if (m[1] !== undefined) {
-      fuente = fuentes.get(m[1]) || null;
-    } else if (m[2] !== undefined) {
-      /* El array de un `TJ`: cadenas y números de ajuste alternados. */
-      for (const trozo of m[2].matchAll(/\(((?:[^()\\]|\\.)*)\)|<([0-9A-Fa-f\s]*)>|(-?[\d.]+)/g)) {
-        if (trozo[1] !== undefined) linea += conFuente(literal(trozo[1]), fuente);
-        else if (trozo[2] !== undefined) linea += conFuente(bytesDeHex(trozo[2]), fuente);
-        else if (Number(trozo[3]) < -250 && !/\s$/.test(linea)) linea += ' ';
+  /**
+   * Escribe, y de paso decide si esto era otro renglón o si faltaba un espacio.
+   *
+   * El hueco se mide contra una ESTIMACIÓN del ancho de lo escrito —media eme
+   * larga por letra— y el listón está alto a propósito: en un PDF de procesador
+   * de textos cada letra se coloca por su cuenta, así que entre dos letras de la
+   * misma palabra ya hay un salto, y con el listón bajo salía «A lim enticio».
+   * Los espacios de verdad de estos ficheros vienen escritos como un glifo más.
+   */
+  const escribir = (texto) => {
+    if (!texto) return;
+    const donde = enPapel();
+
+    if (empezada && Math.abs(donde.y - yLinea) > alto() * 0.5) cerrar();
+    else if (empezada && donde.x - xFin > alto() * 0.6 && !/\s$/.test(linea)) linea += ' ';
+
+    if (!empezada) yLinea = donde.y;
+    linea += texto;
+    empezada = true;
+    xFin = donde.x + texto.length * 0.55 * alto();
+  };
+
+  for (const m of flujo.matchAll(OPERADORES)) {
+    const g = m.groups;
+
+    if (g.fuente !== undefined) {
+      fuente = fuentes.get(g.fuente) || null;
+      tam = Number(g.tam) || tam;
+    } else if (g.tm !== undefined) {
+      const n = g.tm.trim().split(/\s+/).map(Number);
+      escala = n[3] || n[0] || 1;
+      mover(n[4], n[5]);
+    } else if (g.cm !== undefined) {
+      ctm = porMatriz(g.cm.trim().split(/\s+/).map(Number), ctm);
+    } else if (g.pila !== undefined) {
+      if (g.pila === 'q') pila.push(ctm);
+      else ctm = pila.pop() || [1, 0, 0, 1, 0, 0];
+    } else if (g.tx !== undefined) {
+      mover(x + Number(g.tx), y + Number(g.ty));
+    } else if (g.tj !== undefined) {
+      /* El array de un `TJ`: cadenas y números de ajuste alternados. El ajuste
+         va en milésimas de eme y hacia atrás, así que un valor muy negativo es
+         el hueco que el generador dejó en vez de escribir un espacio. */
+      for (const trozo of g.tj.matchAll(/\(((?:[^()\\]|\\.)*)\)|<([0-9A-Fa-f\s]*)>|(-?[\d.]+)/g)) {
+        if (trozo[1] !== undefined) escribir(conFuente(literal(trozo[1]), fuente));
+        else if (trozo[2] !== undefined) escribir(conFuente(bytesDeHex(trozo[2]), fuente));
+        else if (Number(trozo[3]) < -250 && linea && !/\s$/.test(linea)) linea += ' ';
       }
-    } else if (m[3] !== undefined) {
-      if (m[4] === "'" || m[4] === '"') nuevaLinea();
-      linea += conFuente(literal(m[3]), fuente);
-    } else if (m[5] !== undefined) {
-      linea += conFuente(bytesDeHex(m[5]), fuente);
-    } else if (m[6] && m[6] !== 'BT') {
-      nuevaLinea();
+    } else if (g.lit !== undefined) {
+      if (g.op === "'" || g.op === '"') cerrar();
+      escribir(conFuente(literal(g.lit), fuente));
+    } else if (g.hex !== undefined) {
+      escribir(conFuente(bytesDeHex(g.hex), fuente));
+    } else if (g.solo === 'T*') {
+      cerrar();
+    } else if (g.solo === 'BT') {
+      /*
+        `BT` NO cierra el renglón: abre un bloque de texto y pone la matriz a
+        cero, nada más. Cerrando en su `ET` —que era lo que se hacía— un PDF de
+        procesador de textos sale palabra por palabra, porque cada una va en su
+        propio bloque. Lo que cierra un renglón es la Y, y solo la Y.
+      */
+      x = 0;
+      y = 0;
     }
   }
-  nuevaLinea();
+  cerrar();
 
   return lineas;
 };
