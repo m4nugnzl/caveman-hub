@@ -111,9 +111,15 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 175 claves', () => {
+  it('el reparto conserva las 179 claves', () => {
     montar();
-    // 175 desde «pegar una rutina»: `addExercises` e `importDays`, las dos
+    // 179 desde las equivalencias de alimentos: `swapFood`, que sustituye un
+    // alimento por su equivalente en su sitio, y `setFoodEquivalences`, la
+    // excepción por alimento a lo que el módulo del protocolo decide en general.
+    // Antes 177, desde «traer un plan de fuera»: `importDiet`, que escribe la
+    // dieta entera de una vez, e `importRoutine`, que decide contra qué semana
+    // cae una rutina importada desde una pantalla que no está mirando ninguna.
+    // Antes 175, desde «pegar una rutina»: `addExercises` e `importDays`, las dos
     // escrituras en bloque que necesita traer una hoja de fuera sin mandar una
     // petición por ejercicio.
     // Antes 173, desde las bifurcaciones del roadmap (0073): `setPhaseFork` y
@@ -122,7 +128,7 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(175);
+    expect(Object.keys(visto.app).length).toBe(179);
   });
 
   it('toda acción es una función', () => {

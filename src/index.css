@@ -6605,11 +6605,30 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .food-row:hover { background: var(--fill-subtle); }
 
+/* El nombre lleva dentro el botón de equivalencias, así que la celda pasa a ser
+   flex y los puntos suspensivos bajan al texto: si recortara la celda entera,
+   un nombre largo se tragaría el botón — que en la vista del cliente es la
+   única puerta a sus equivalencias. */
 .food-row > .name {
   min-width: 0;
+  display: flex; align-items: center; gap: 2px;
   font-size: var(--fs-base); font-weight: 550;
+}
+.food-row > .name > .txt {
+  min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* En gris de terciario para no competir con los datos de la fila: es una puerta,
+   no un dato. Al pasar por encima toma el acento, que es lo que dice «esto se
+   pulsa» sin ocupar más sitio. */
+.equiv-btn { color: var(--text-tertiary); flex-shrink: 0; }
+.equiv-btn:hover { color: var(--accent); }
+/* El alimento al que el entrenador le quitó las equivalencias: el icono sigue
+   —es su herramienta y el diálogo es donde se revierte— pero apagado, para ver
+   de un barrido a cuáles les quitó el margen. Solo lo ve él: al cliente ese
+   botón directamente no se le pinta. */
+.equiv-btn.is-off { opacity: 0.35; }
 .food-row > .grams { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
 .food-row > .grams > .unit { font-size: var(--fs-2xs); color: var(--text-tertiary); }
 
@@ -6649,6 +6668,37 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .food-row > .kcal {
   text-align: right;
   font-size: var(--fs-sm); font-weight: 700; color: var(--warning);
+}
+
+/* ── Las equivalencias de un alimento, en su diálogo ────────────────────────
+   La lista de intercambios de consulta: cada fila es una ración («250 g» o
+   «1,5 manzanas») con sus kcal debajo del nombre. La cantidad es el dato que se
+   viene a buscar, así que va en el peso fuerte y en cifras tabulares; las kcal
+   en el gris del subtítulo, presentes pero sin competir.
+
+   Con tope de alto y su propio desplazamiento: la fruta tiene una docena de
+   intercambios y el diálogo no puede crecer más que la pantalla del móvil. */
+.equiv-list {
+  list-style: none; margin: 0; padding: 2px;
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 52vh; overflow-y: auto;
+}
+.equiv-row {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 8px var(--s3);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+}
+.equiv-row > .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.equiv-row > .who > .name {
+  display: block; min-width: 0;
+  font-size: var(--fs-base); font-weight: 550;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.equiv-row > .who > .sub { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.equiv-row > .amount {
+  flex-shrink: 0;
+  font-size: var(--fs-sm); font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Sin sitio para siete columnas: dos filas. Arriba el nombre y las kcal, abajo

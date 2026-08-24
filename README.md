@@ -187,18 +187,31 @@ es a la vez la estructura y la navegación, y debajo **una sola sesión abierta*
 la de hoy si hoy toca. Los descansos no son píldoras: son una línea de texto,
 porque no llevan a ninguna parte.
 
-### Traer una rutina de fuera
+### Traer el plan de fuera
 
-Quien llega tiene sus rutinas en un Excel, y volver a escribirlas es el peaje de
-entrada. **Traer de un Excel** propone los días, los ejercicios, las series, el
-objetivo de cada una y el RIR, por dos caminos:
+Quien llega tiene su rutina y su dieta en un Excel —o en un PDF—, y volver a
+escribirlas es el peaje de entrada. **Traer un plan** propone los días, los
+ejercicios, las series, el objetivo de cada una y el RIR; y las comidas, sus
+opciones, los gramos de cada alimento, el objetivo de macros, los pasos y las
+pautas. Por tres caminos:
 
-- **Pegando** (`domain/routineSheet.js`). El portapapeles entrega TSV, así que
-  vale igual desde Excel, Sheets, Numbers o una tabla de Word.
+- **Pegando** (`domain/routineSheet.js`, `domain/dietSheet.js`). El portapapeles
+  entrega TSV, así que vale igual desde Excel, Sheets, Numbers o una tabla de
+  Word.
 - **Subiendo el fichero** (`domain/xlsx.js`), que es lo que hace falta cuando el
   libro tiene quince pestañas y no se sabe cuál es la buena, o cuando la semana
   está repartida en una pestaña por día. Se enseñan todas con lo que trae cada
   una y se marcan las que se quieran.
+- **Subiendo un PDF** (`domain/pdf.js`), que es como media profesión manda la
+  dieta.
+
+**Es UN diálogo para las dos cosas**, y no por ahorrar código: es UN fichero. El
+libro que trae quien se muda lleva la rutina en unas pestañas y la dieta en
+otras, y con dos importadores había que abrirlo dos veces sabiendo de antemano
+qué había en cada pestaña. Cada hoja se lee de las dos maneras
+(`Coach/Import/useSheetSource.js`) y se enseña lo que haya salido; el botón dice
+lo que va a hacer —«Crear 5 días y la dieta (4 comidas)»— y cada mitad se puede
+apagar.
 
 **El `.xlsx` se lee sin dependencias.** Es un ZIP con XML dentro, y el navegador
 ya trae `DecompressionStream('deflate-raw')`. Un libro real de 5,2 MB y 15 hojas
@@ -219,24 +232,55 @@ por serie repetido. Si existe la columna, gana; un recuento explícito vale más
 que cualquier deducción. Sin cabecera reconocible se clasifica por contenido, y
 lo que no es una tabla se lee como texto (`Press banca 4x8-10 RIR2`).
 
-Dos reglas que no se negocian:
+Con la dieta pasa lo mismo: la maquetación no se repite entre entrenadores, pero
+por debajo solo hay **tres cosas que una dieta puede decir** —el objetivo, las
+comidas con sus opciones y las pautas—, y las tres se escriben igual en todas
+partes. Una hoja con «OPCIÓN 1 … GRAMOS» repetido en columnas, otra con «MENÚ 1»
+y una fila de `ALIMENTO / GRAMOS` debajo, y un PDF con `- 100g Copos de avena`
+son la misma dieta. Y la que solo trae `3000kcals · 140g P · 452g H · 70g G` es
+una dieta por macros, no un menú vacío. Dos hojas del mismo libro son **dos
+variantes** —«Día Low» y «Día High»— y no seis comidas seguidas.
+
+Cuatro reglas que no se negocian:
 
 - **No se importa el registro.** Los kilos y las repeticiones anotadas están en
   la hoja y se quedan fuera: traerlos fabricaría entrenamientos que aquí no
   ocurrieron y ensuciaría la progresión.
-- **Nada se crea sin verse.** Lo leído se enseña en una tabla editable —nombre
-  del día, grupo muscular, y cuál de las dos columnas de objetivo vale cuando la
-  hoja trae dos—. Es lo que permite que funcione con una hoja que no hemos visto:
-  el lector puede equivocarse, y equivocarse cuesta dos clics.
+- **Los macros de un alimento no se inventan.** La hoja dice «Avena 100g» y no
+  dice cuánta proteína tiene la avena: eso lo pone tu biblioteca y el catálogo
+  (`domain/foodMatch.js`). Lo que encaja con **una sola** entrada se da por
+  bueno; lo que encaja con varias se pregunta, porque entre «Garbanzos (crudos)»
+  y «(cocidos)» hay 150 kcal por cada 100 g y elegir por sorteo da una dieta que
+  cuadra en la pantalla y no en el plato. Se pregunta **por nombre y una sola
+  vez**: «Papilla de bebé» sale cinco veces y es la misma pregunta las cinco.
+- **Una rutina no puede acabar siendo una dieta.** «1 serie 12.5kg» tiene la
+  misma forma que «1 Plátano mediano», y por ahí un mesociclo entero entraba como
+  una comida de noventa alimentos, sin un solo error por el camino. Una cantidad
+  sin cabecera que la respalde tiene que llevar su unidad, y un texto con
+  tabuladores es una tabla y no se reintenta como prosa.
+- **Nada se crea sin verse.** Lo leído se enseña en tablas editables —nombre del
+  día, grupo muscular, qué columna de objetivo vale, nombre de cada comida, qué
+  día es cada variante— y todo se puede quitar antes de crear nada. Es lo que
+  permite que funcione con una hoja que no hemos visto: el lector puede
+  equivocarse, y equivocarse cuesta dos clics.
 
-Las pruebas corren contra tres hojas reales de dos entrenadores distintos
-(`domain/__fixtures__/`), y una de ellas trae su propia fila de totales, así que
-el recuento se contrasta con la hoja y no con el parser. Dos son pestañas
-distintas del mismo libro —una por día de entrenamiento— y no comparten ni el
-número de columnas ni dónde cae el rótulo del rango de repeticiones: si una se
-lee y la otra no, quien importa se lleva medio plan sin enterarse. Las del lector de
-`.xlsx` fabrican sus propios ZIP —un libro de verdad pesa cinco megas y no cabe
-en el repositorio a cambio de nada— y el fichero real se comprueba a mano.
+**El PDF también se lee sin dependencias**, y la trampa no es la compresión: son
+las tipografías. Los bytes de una cadena de un PDF no son letras, son índices
+dentro de una tipografía recortada, así que leerlos como ASCII devuelve algo con
+la longitud correcta que no dice nada. `domain/pdf.js` lee el `/ToUnicode` de
+cada tipografía **por página**, porque la redonda y la negrita dan letras
+distintas al mismo índice. Lo que no cubre —un PDF escaneado, uno cifrado— se
+dice con la salida a mano: ábrelo, copia y pega.
+
+Las pruebas corren contra siete ficheros reales de cinco entrenadores distintos
+(`domain/__fixtures__/`). De rutina, tres hojas; una trae su propia fila de
+totales, así que el recuento se contrasta con la hoja y no con el parser, y dos
+son pestañas del mismo libro que no comparten ni el número de columnas ni dónde
+cae el rótulo del rango. De dieta, cuatro: dos maquetaciones de hoja que no se
+parecen en nada, una que solo trae cifras y el texto de un PDF. Las del lector de
+`.xlsx` y las del de PDF fabrican sus propios ficheros —un libro de verdad pesa
+cinco megas y no cabe en el repositorio a cambio de nada— y los reales se
+comprueban a mano.
 
 > ⚠️ **Al desplegar**: una aplicación de una sola página con rutas necesita que el
 > servidor devuelva `index.html` para cualquier ruta. Si no, entrar directo en

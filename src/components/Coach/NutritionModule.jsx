@@ -1,9 +1,18 @@
 import { useMemo, useState } from 'react';
-import { Copy, Footprints, HeartPulse, Plus, Salad } from 'lucide-react';
+import { Copy, FileSpreadsheet, Footprints, HeartPulse, Plus, Salad } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { dayKcalRange, dayKcals, emptyNutrition, mealsForVariant, targetsFor } from '@/domain/nutrition';
+import {
+  buildFoodEntry,
+  dayKcalRange,
+  dayKcals,
+  emptyNutrition,
+  isEmptyDiet,
+  mealsForVariant,
+  targetsFor,
+} from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
+import { clientProtocol, isModuleOn, toggleModule } from '@/domain/protocol';
 import {
   GroupHead,
   Notice,
@@ -20,6 +29,7 @@ import { MealCard } from '@/components/nutrition/MealCard';
 import { DietNotes } from '@/components/nutrition/DietNotes';
 import { MealStructure } from '@/components/nutrition/MealStructure';
 import { GoalCard } from '@/components/nutrition/GoalCard';
+import { PastePlanDialog } from './Import/PastePlanDialog';
 
 const DIET_TYPES = [
   { id: 'macros', label: 'Por macros' },
@@ -61,9 +71,15 @@ export const NutritionModule = () => {
     addFoodToOption,
     removeFoodFromOption,
     updateFoodGrams,
+    swapFood,
     setFoodDisplay,
     defineFoodUnit,
     upsertLibraryFood,
+    importDiet,
+    importRoutine,
+    ensureNutrition,
+    updateClientPreferences,
+    setFoodEquivalences,
   } = useApp();
 
   const confirm = useConfirm();
@@ -72,6 +88,9 @@ export const NutritionModule = () => {
   const save = saveStatus('nutrition', activeClient.id);
 
   const [dietView, setDietView] = useState('training');
+  /* «Traer de un Excel»: la dieta que el cliente trae de fuera, pegada o subida
+     —y, si el mismo fichero la trae, también su rutina—. */
+  const [pegarAbierto, setPegarAbierto] = useState(false);
   const variant = plan.hasDayVariants ? dietView : 'default';
   const meals = mealsForVariant(plan, variant);
 
@@ -93,6 +112,11 @@ export const NutritionModule = () => {
 
   // La variante que NO se está viendo, que es de donde se copia.
   const otraVariante = VARIANT_OPTIONS.find((v) => v.id !== dietView) || VARIANT_OPTIONS[0];
+
+  /* El protocolo del cliente, del que cuelga si SU app enseña equivalencias.
+     El entrenador las ve siempre al montar; esto decide lo que ve el cliente. */
+  const protocolo = clientProtocol(activeClient.preferences);
+  const clienteVeEquivalencias = isModuleOn(protocolo, 'dietSwaps');
 
   /**
    * Traer el menú de la otra variante.
@@ -152,6 +176,17 @@ export const NutritionModule = () => {
                 error={save.error}
                 onRetry={() => retrySave('nutrition', activeClient.id)}
               />
+              {/* A la vista y no dentro de un menú, por el mismo motivo que su
+                  gemelo en la rutina: es la clase de función que nadie busca
+                  porque nadie sospecha que exista, así que esconderla equivale
+                  a no tenerla. Y es el primer día de cada cliente nuevo. */}
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setPegarAbierto(true)}
+              >
+                <FileSpreadsheet size={15} /> Traer de un Excel o PDF
+              </button>
               <SegmentedControl
                 value={plan.type}
                 onChange={(type) => updateNutrition(activeClient.id, { type })}
@@ -161,6 +196,34 @@ export const NutritionModule = () => {
             </div>
           }
         />
+
+        {pegarAbierto && (
+          <PastePlanDialog
+            foco="dieta"
+            foods={alimentosDisponibles}
+            dietaExistente={!isEmptyDiet(plan)}
+            /* Con dos dietas hay que decir a cuál va lo que se trae, aunque la
+               hoja traiga una sola. */
+            dietaConVariantes={Boolean(plan.hasDayVariants)}
+            onImportDiet={async (importado, nuevos) => {
+              /* La dieta se relee antes de escribir: se lee por cliente y bajo
+                 demanda, y escribir encima de un mapa a medio cargar no sería
+                 importar, sería reemplazar el plan entero por lo que traiga la
+                 hoja. Misma guardia que al copiar de otro cliente. */
+              await ensureNutrition(activeClient.id);
+              /* Lo escrito a mano se queda en la biblioteca: la dieta guarda una
+                 foto de sus macros y funcionaría sin esto, pero la próxima que
+                 se importe volvería a preguntar por los mismos alimentos. */
+              nuevos.forEach((food) => upsertLibraryFood(food));
+              importDiet(activeClient.id, importado);
+            }}
+            /* La rutina que venga en el mismo fichero. Aquí no se está mirando
+               ninguna semana, así que la decide `importRoutine`: la última si ya
+               hay programa, y una nueva si no lo hay. */
+            onImportDays={(days) => importRoutine(activeClient.id, days)}
+            onClose={() => setPegarAbierto(false)}
+          />
+        )}
 
         {/* Un interruptor y no una casilla: esto no es «incluir esto en una
             operación», es un ajuste del plan que se queda puesto. Y encenderlo
@@ -256,6 +319,26 @@ export const NutritionModule = () => {
             }
           />
 
+          {/*
+            ¿El cliente ve las equivalencias? Es un MÓDULO del protocolo —«el
+            entrenador decide qué existe en su app»—, como el RIR en la rutina:
+            la lista completa vive en Ajustes → Protocolo y aquí está el
+            interruptor a mano, en la pantalla donde se echa en falta, para ESTE
+            cliente. Apagado por defecto: dar margen es un acto, no un accidente.
+            La excepción por alimento se decide dentro de cada lista de
+            equivalencias; tú las ves siempre al montar, se enseñen o no.
+          */}
+          {meals.length > 0 && (
+            <Switch
+              label="Equivalencias en la dieta"
+              hint={`${activeClient.name} verá con qué puede cambiar cada alimento sin descuadrar el macro de su grupo. Puedes quitárselas a un alimento concreto desde su lista.`}
+              checked={clienteVeEquivalencias}
+              onChange={() =>
+                updateClientPreferences(activeClient.id, 'protocol', toggleModule(protocolo, 'dietSwaps'))
+              }
+            />
+          )}
+
           {plan.hasDayVariants && (
             <div className="row gap-3 wrap">
               <SegmentedControl
@@ -309,6 +392,36 @@ export const NutritionModule = () => {
                 firstMeal={mealIndex === 0}
                 lastMeal={mealIndex === meals.length - 1}
                 foodLibrary={alimentosDisponibles}
+                catalogFoods={catalogFoods}
+                clientSwapsOn={clienteVeEquivalencias}
+                /* La excepción por alimento: nueces con margen, cornflakes sin
+                   él. Se decide dentro de la propia lista de equivalencias. */
+                onSetEquivalences={(optIndex, foodId, visible) =>
+                  setFoodEquivalences(activeClient.id, variant, mealIndex, optIndex, foodId, visible)
+                }
+                /*
+                  Cambiar un alimento por su equivalente, en su sitio.
+
+                  Elegir un equivalente es elegir un alimento: si venía del
+                  catálogo pasa a tu biblioteca, igual que al añadirlo desde el
+                  buscador. Y como sustituye —no añade—, lleva su «Deshacer»:
+                  la entrada anterior se captura entera y volver es reponerla.
+                */
+                onSwapFood={(optIndex, foodId, food, grams) => {
+                  const previo = meal.options?.[optIndex]?.foods?.find((f) => f.id === foodId);
+                  if (!previo) return;
+                  upsertLibraryFood(food);
+                  const { id: _descartado, ...campos } = buildFoodEntry(food, grams);
+                  swapFood(activeClient.id, variant, mealIndex, optIndex, foodId, campos);
+                  toast({
+                    text: `«${previo.name}» cambiado por ${grams} g de ${food.name}.`,
+                    action: {
+                      label: 'Deshacer',
+                      onClick: () =>
+                        swapFood(activeClient.id, variant, mealIndex, optIndex, foodId, previo),
+                    },
+                  });
+                }}
                 onMoveMeal={(delta) =>
                   moveMeal(activeClient.id, variant, mealIndex, mealIndex + delta)
                 }

@@ -1,6 +1,6 @@
 import { RotateCw } from 'lucide-react';
 
-import { MODULES, isModuleOn, toggleModule } from '@/domain/protocol';
+import { isModuleOn, modulesFor, toggleModule } from '@/domain/protocol';
 import { clampInt } from '@/lib/num';
 import { dayMonthMaybeYear } from '@/lib/dates';
 import { Field, Fold, OptionCard, SegmentedControl } from '@/components/ui/primitives';
@@ -166,7 +166,9 @@ export const CycleSettings = ({
         <fieldset className="col gap-2" style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="section-label">Qué se usa con este cliente</legend>
           <div className="row wrap gap-4">
-            {MODULES.map((mod) => (
+            {/* Solo los de ENTRENAMIENTO: esta pantalla es la rutina, y el de
+                equivalencias tiene su interruptor a mano en la dieta. */}
+            {modulesFor('training').map((mod) => (
               <OptionCard
                 key={mod.id}
                 inline

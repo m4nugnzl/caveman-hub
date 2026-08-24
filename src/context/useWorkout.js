@@ -809,6 +809,35 @@ export const useWorkout = ({
   );
 
   /**
+   * Traer una rutina de fuera SIN saber contra qué semana.
+   *
+   * ── Por qué existe además de `importDays` ───────────────────────────────────
+   * Porque quien importa desde la pantalla de la rutina está mirando una semana
+   * concreta, y quien importa desde otra parte —el plan completo que llega en un
+   * mismo Excel, con la dieta— no está mirando ninguna. Sin esto, cada pantalla
+   * que quiera traer una rutina tiene que repetir la misma decisión: si no hay
+   * programa se crea, y si lo hay se añade a la última semana.
+   *
+   * Repetida en dos sitios acabaría contestándose distinto en cada uno, que es
+   * como aparecen los programas con una semana 1 vacía al lado de la buena.
+   *
+   * Devuelve el número de la semana donde ha caído, para poder navegar a ella.
+   */
+  const importRoutine = useCallback(
+    (clientId, days) => {
+      const actual = workoutRef.current[clientId] || emptyWorkoutData();
+      const desdeCero = actual.microcycles.length === 0;
+      const semana = desdeCero
+        ? startProgram(clientId)
+        : actual.microcycles[actual.microcycles.length - 1].weekNumber;
+
+      importDays(clientId, semana, days, { dropEmptyDays: desdeCero });
+      return semana;
+    },
+    [importDays, startProgram, workoutRef]
+  );
+
+  /**
    * Añade una semana/sesión nueva y VACÍA al final del programa, reutilizando
    * los nombres de día de la última (que es lo que un coach espera al pulsar
    * "nueva semana": la misma estructura, sin las cargas todavía).
@@ -1301,6 +1330,7 @@ export const useWorkout = ({
     addDay,
 
     importDays,
+    importRoutine,
     duplicateDay,
     moveDay,
     removeDay,

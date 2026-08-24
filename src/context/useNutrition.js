@@ -13,6 +13,7 @@ import {
   buildOption,
   emptyNutrition,
 } from '@/domain/nutrition';
+import { toTargetFields } from '@/domain/dietSheet';
 
 /*
   ══ La dieta, fuera de AppContext ════════════════════════════════════════════
@@ -202,6 +203,70 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
       return nombre;
     },
     [applyMeals, nutritionRef]
+  );
+
+  /**
+   * Traer una dieta entera de fuera, en UNA escritura.
+   *
+   * ══ Por qué no es `updateNutrition` llamado ocho veces ═════════════════════
+   *
+   * Porque cada llamada reserializa el plan entero y encola su guardado: una
+   * dieta importada —objetivo, pasos, cardio, pautas y dos listas de comidas—
+   * mandaría ocho escrituras del mismo documento por la cola, y la última en
+   * llegar decide. Es la misma razón por la que la rutina tiene `importDays`.
+   *
+   * ══ Qué sustituye y qué respeta ═══════════════════════════════════════════
+   *
+   * Las comidas de las variantes que se traen se SUSTITUYEN: importar encima de
+   * un menú a medias y que quedaran mezclados sería peor que cualquiera de los
+   * dos. Lo que no venga en la lectura no se toca —una hoja que solo trae los
+   * macros no borra el menú que hubiera—, y las pautas se AÑADEN a las que ya
+   * estaban, porque son suyas y nadie ha pedido quitarlas.
+   *
+   * Quien llama pregunta antes si había algo: la advertencia va en el diálogo,
+   * que es donde se ve lo que se va a sustituir.
+   */
+  const importDiet = useCallback(
+    (clientId, plan) =>
+      applyNutrition(clientId, (n) => {
+        const next = { ...n };
+        const variantes = plan?.variants || [];
+
+        if (variantes.some((v) => v.meals?.length)) next.type = 'closed';
+
+        if (plan?.targets) Object.assign(next, toTargetFields(plan.targets));
+        if (plan?.steps) next.stepsGoal = plan.steps;
+        if (plan?.cardio) next.cardioGoal = plan.cardio;
+        if (plan?.notes?.length) next.habitsNotes = [...(n.habitsNotes || []), ...plan.notes];
+
+        /* Dos variantes traídas encienden las dos dietas: si la hoja distingue
+           el día de entreno del de descanso, el plan también tiene que hacerlo o
+           una de las dos no se podría ni enseñar. */
+        if (variantes.length > 1) next.hasDayVariants = true;
+
+        for (const variante of variantes) {
+          /*
+            Una dieta única traída a un cliente que YA tiene dos cae en la de
+            entreno, no en la lista única: con las dos dietas encendidas, esa
+            lista no se enseña en ninguna parte, así que importar ahí sería
+            importar a un sitio invisible. La de descanso se queda como estaba,
+            que es lo menos destructivo de lo que se puede hacer sin preguntar.
+          */
+          const destino = !next.hasDayVariants
+            ? 'default'
+            : variante.variant === 'default'
+              ? 'training'
+              : variante.variant;
+          next[VARIANT_KEY[destino] || VARIANT_KEY.default] = variante.meals || [];
+
+          if (!variante.targets) continue;
+          if (destino === 'rest') next.restTargets = toTargetFields(variante.targets);
+          else Object.assign(next, toTargetFields(variante.targets));
+        }
+
+        return next;
+      }),
+    [applyNutrition]
   );
 
   const addMeal = useCallback(
@@ -463,6 +528,56 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
   );
 
   /**
+   * Sustituye UN alimento por otro, en su sitio.
+   *
+   * Es lo que hace real el intercambio de equivalencias: «este plátano pasa a
+   * ser 250 g de manzana». Se conserva el `id` y la posición —cambiar no es
+   * quitar y añadir al final, la fila se queda donde el entrenador la puso— y
+   * se reescribe la foto entera del alimento: nombre, macros, unidad y gramos.
+   *
+   * Recibe los campos ya montados (los de `buildFoodEntry`, sin su `id`) y se
+   * queda solo con los que una entrada conoce: así el mismo camino sirve para
+   * aplicar un equivalente y para deshacerlo pasándole la entrada capturada,
+   * sin arrastrar por accidente claves de otro dominio (`category`,
+   * `fromCatalog`) dentro de la dieta guardada.
+   */
+  const swapFood = useCallback(
+    (clientId, variant, mealIdx, optIdx, foodId, entry) =>
+      patchFood(clientId, variant, mealIdx, optIdx, foodId, () => ({
+        name: entry.name,
+        grams: toNum(entry.grams) ?? 0,
+        proteinPer100: entry.proteinPer100,
+        carbsPer100: entry.carbsPer100,
+        fatsPer100: entry.fatsPer100,
+        unitLabel: entry.unitLabel ?? null,
+        unitGrams: entry.unitGrams ?? null,
+        showAs: entry.showAs === 'units' ? 'units' : 'grams',
+      })),
+    [patchFood]
+  );
+
+  /**
+   * ¿Este alimento en concreto lleva equivalencias en la vista del cliente?
+   *
+   * Es la EXCEPCIÓN, no la regla: la regla la pone el módulo «Equivalencias en
+   * la dieta» del protocolo del cliente, y esto la ajusta alimento a alimento
+   * —las nueces se cambian por lo que sea, los cornflakes son esos y no otros—.
+   * Vive en la entrada de la dieta, como `showAs`, porque es una decisión de
+   * ESTE alimento en ESTA comida: el mismo cereal puede llevar margen en el
+   * desayuno libre y no llevarlo en la comida de después de entrenar.
+   *
+   * Se guarda solo el apagado (`equivHidden: true`); lo demás es el estado
+   * natural y no ensucia las entradas ya guardadas.
+   */
+  const setFoodEquivalences = useCallback(
+    (clientId, variant, mealIdx, optIdx, foodId, visible) =>
+      patchFood(clientId, variant, mealIdx, optIdx, foodId, () => ({
+        equivHidden: visible ? null : true,
+      })),
+    [patchFood]
+  );
+
+  /**
    * Elige si este alimento se cuenta en gramos o en unidades.
    *
    * Es una preferencia POR ALIMENTO Y POR DIETA, no de la biblioteca: el mismo
@@ -488,6 +603,7 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     copyVariantMeals,
     copyMealToVariant,
     copyOptionToVariant,
+    importDiet,
     addMeal,
     removeMeal,
     restoreMeal,
@@ -505,6 +621,8 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     restoreFoodInOption,
     patchFood,
     updateFoodGrams,
+    swapFood,
+    setFoodEquivalences,
     setFoodDisplay,
   };
 };

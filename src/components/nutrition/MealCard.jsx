@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowRightLeft,
@@ -25,12 +25,14 @@ import {
   optionMacros,
   unitsLabel,
 } from '@/domain/nutrition';
+import { equivalencesFor } from '@/domain/foodEquiv';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Notice, SegmentedControl } from '@/components/ui/primitives';
 import { AddFoodControl } from './AddFoodControl';
+import { FoodEquivalences } from './FoodEquivalences';
 import { MACRO_META, MacroRing } from './macros';
 import { MealGoal } from './MealGoal';
 
@@ -102,6 +104,11 @@ const CELL = ['is-p', 'is-c', 'is-f'];
 const FoodRow = ({
   food,
   editable,
+  catalogFoods = [],
+  libraryFoods = [],
+  clientSwapsOn = false,
+  onSwap,
+  onSetEquivalences,
   onGrams,
   onSetDisplay,
   onDefineUnit,
@@ -119,8 +126,27 @@ const FoodRow = ({
 }) => {
   const macros = foodMacros(food);
   const [definiendo, setDefiniendo] = useState(false);
+  const [equivalenciasAbiertas, setEquivalenciasAbiertas] = useState(false);
   const sePuede = hasUnits(food);
   const porUnidades = displayAsUnits(food);
+
+  /*
+    ── Las equivalencias de este alimento ─────────────────────────────────────
+    Se calculan aquí y no al abrir el diálogo porque deciden si hay botón: un
+    icono que al pulsarlo dijera «no hay equivalencias» enseñaría a desconfiar
+    de la pantalla. Memoizado sobre la entrada: solo se rehace al cambiar los
+    gramos o el alimento, no en cada render de la comida.
+  */
+  const equivalencias = useMemo(
+    () => (catalogFoods.length ? equivalencesFor(food, catalogFoods, libraryFoods) : null),
+    [food, catalogFoods, libraryFoods]
+  );
+
+  /* Al cliente, un alimento excluido no le enseña botón: para él la lista no
+     existe, no está «desactivada». El entrenador lo sigue viendo —es su
+     herramienta— con el icono apagado, que es lo que deja ver de un barrido a
+     qué alimentos les quitó el margen. */
+  const conBoton = equivalencias && (editable || !food.equivHidden);
 
   // Lo que se enseña en la casilla y lo que significa al escribirlo.
   const valor = porUnidades ? foodUnits(food) : food.grams;
@@ -212,7 +238,27 @@ const FoodRow = ({
       */}
       {!(editable && onMove) && <span aria-hidden="true" />}
 
-      <span className="name">{food.name}</span>
+      <span className="name">
+        <span className="txt">{food.name}</span>
+        {/*
+          Las equivalencias, pegadas al nombre: son OTRA forma de decirlo
+          («150 g de plátano», «250 g de manzana»), no una acción sobre la fila,
+          y por eso no viven con borrar ni con la cantidad. El botón solo existe
+          cuando hay lista que enseñar — también al consultar, que es donde el
+          cliente resuelve «no tengo plátanos» sin escribir a nadie.
+        */}
+        {conBoton && (
+          <button
+            type="button"
+            className={`btn btn-icon btn-icon-compact equiv-btn${editable && food.equivHidden ? ' is-off' : ''}`}
+            onClick={() => setEquivalenciasAbiertas(true)}
+            aria-label={`Equivalencias de ${food.name}`}
+            title={editable && food.equivHidden ? 'Equivalencias (el cliente no las ve)' : 'Equivalencias'}
+          >
+            <ArrowRightLeft size={12} />
+          </button>
+        )}
+      </span>
 
       <span className="grams" title={equivalencia}>
         {editable ? (
@@ -311,6 +357,25 @@ const FoodRow = ({
             onDefineUnit(unitLabel, unitGrams);
             setDefiniendo(false);
           }}
+        />
+      )}
+      {equivalenciasAbiertas && equivalencias && (
+        <FoodEquivalences
+          food={food}
+          equivalences={equivalencias}
+          clientSwapsOn={clientSwapsOn}
+          /* Sin `onSwap` el diálogo es de solo lectura, que es la vista del
+             cliente: su plan es lo estipulado y aquí no hay nada que cambie. */
+          onSwap={
+            editable && onSwap
+              ? (item) => {
+                  onSwap(item);
+                  setEquivalenciasAbiertas(false);
+                }
+              : null
+          }
+          onSetVisible={editable && onSetEquivalences ? onSetEquivalences : null}
+          onClose={() => setEquivalenciasAbiertas(false)}
         />
       )}
     </>
@@ -479,6 +544,13 @@ export const MealCard = ({
   meal,
   editable = false,
   foodLibrary = [],
+  /* El catálogo común, aparte de la biblioteca: es el único que sabe de GRUPOS
+     (fruta, carne…), que es lo que necesitan las equivalencias. Sin él no hay
+     botón de equivalencias y la tarjeta funciona como siempre. */
+  catalogFoods = [],
+  clientSwapsOn = false,
+  onSwapFood,
+  onSetEquivalences,
   onRenameMeal,
   onRemoveMeal,
   onAddOption,
@@ -979,6 +1051,13 @@ export const MealCard = ({
               key={food.id}
               food={food}
               editable={editable}
+              catalogFoods={catalogFoods}
+              libraryFoods={foodLibrary}
+              clientSwapsOn={clientSwapsOn}
+              onSwap={onSwapFood ? (item) => onSwapFood(index, food.id, item.food, item.grams) : null}
+              onSetEquivalences={
+                onSetEquivalences ? (visible) => onSetEquivalences(index, food.id, visible) : null
+              }
               first={foodIndex === 0}
               last={foodIndex === foods.length - 1}
               onGrams={(grams) => onGrams(index, food.id, grams)}

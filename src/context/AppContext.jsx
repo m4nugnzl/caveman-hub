@@ -1492,6 +1492,7 @@ export const AppProvider = ({ children }) => {
     addDay,
 
     importDays,
+    importRoutine,
     duplicateDay,
     moveDay,
     removeDay,
@@ -1535,6 +1536,7 @@ export const AppProvider = ({ children }) => {
     copyVariantMeals,
     copyMealToVariant,
     copyOptionToVariant,
+    importDiet,
     addMeal,
     removeMeal,
     restoreMeal,
@@ -1552,6 +1554,8 @@ export const AppProvider = ({ children }) => {
     restoreFoodInOption,
     patchFood,
     updateFoodGrams,
+    swapFood,
+    setFoodEquivalences,
     setFoodDisplay,
   } = useNutrition({ nutritionRef, setNutrition, persist });
 
@@ -1836,6 +1840,7 @@ export const AppProvider = ({ children }) => {
     setExerciseNote,
     addDay,
     importDays,
+    importRoutine,
     renameDay,
     setDayNote,
     setDayDrills,
@@ -1876,6 +1881,7 @@ export const AppProvider = ({ children }) => {
     copyVariantMeals,
     copyMealToVariant,
     copyOptionToVariant,
+    importDiet,
     moveMeal,
     moveFood,
     duplicateOption,
@@ -1886,6 +1892,8 @@ export const AppProvider = ({ children }) => {
     removeFoodFromOption,
     restoreFoodInOption,
     updateFoodGrams,
+    swapFood,
+    setFoodEquivalences,
     setFoodDisplay,
     defineFoodUnit,
 

@@ -19,6 +19,7 @@ import {
   clientProtocol,
   defaultProtocol,
   isModuleOn,
+  modulesFor,
   moveQuestion,
   questionById,
   removeCustomQuestion,
@@ -128,6 +129,24 @@ describe('orden y activación', () => {
   it('los módulos se ordenan por catálogo al encenderlos', () => {
     const protocol = toggleModule({ ...defaultProtocol(), modules: ['clientNote'] }, 'warmup');
     expect(protocol.modules).toEqual(['warmup', 'clientNote']);
+  });
+
+  /*
+    Las equivalencias de la dieta son un módulo más —«el entrenador decide qué
+    existe en su app»— y nacen APAGADAS: dar margen al cliente es un acto, no
+    algo que aparece solo con una versión nueva.
+  */
+  it('las equivalencias de la dieta existen como módulo y nacen apagadas', () => {
+    expect(isModuleOn(defaultProtocol(), 'dietSwaps')).toBe(false);
+    expect(isModuleOn(toggleModule(defaultProtocol(), 'dietSwaps'), 'dietSwaps')).toBe(true);
+  });
+
+  it('cada interruptor «a mano» recibe solo los módulos de su pantalla', () => {
+    // La rutina no ofrece el de la dieta ni la dieta los de la rutina; la lista
+    // completa sigue en Ajustes → Protocolo.
+    expect(modulesFor('nutrition').map((m) => m.id)).toEqual(['dietSwaps']);
+    expect(modulesFor('training').map((m) => m.id)).not.toContain('dietSwaps');
+    expect(modulesFor('training').length + modulesFor('nutrition').length).toBe(6);
   });
 });
 

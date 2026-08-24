@@ -19,7 +19,7 @@ const VARIANT_OPTIONS = [
  * usa el entrenador. Antes había dos renderizados distintos del mismo dato —con
  * aspecto y estructura diferentes— y el del cliente era el peor de los dos.
  */
-export const ClientDiet = ({ plan }) => {
+export const ClientDiet = ({ plan, catalogFoods = [] }) => {
   const [dietView, setDietView] = useState('training');
 
   /* Se normaliza al leer, no al guardar: hay planes con el formato viejo —una
@@ -93,7 +93,12 @@ export const ClientDiet = ({ plan }) => {
           ) : (
             <div className="col gap-4">
               {meals.map((meal) => (
-                <MealCard key={meal.id} meal={meal} editable={false} />
+                /* Con el catálogo, cada alimento enseña sus equivalencias en
+                   lectura: «no tengo plátanos» se resuelve aquí, sin escribir
+                   al entrenador. Cambiar nada sigue sin poderse — y la lista
+                   solo existe si el entrenador encendió el módulo del
+                   protocolo: sin catálogo no hay botón, que es como se apaga. */
+                <MealCard key={meal.id} meal={meal} editable={false} catalogFoods={catalogFoods} />
               ))}
             </div>
           )}

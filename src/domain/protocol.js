@@ -52,21 +52,25 @@ import { newId } from '@/lib/ids';
 export const MODULES = [
   {
     id: 'warmup',
+    area: 'training',
     label: 'Calentamiento y movilidad',
     hint: 'Una lista de ejercicios previos, con su vídeo y tus indicaciones, delante de cada sesión.',
   },
   {
     id: 'coachNote',
+    area: 'training',
     label: 'Tu nota en cada sesión',
     hint: 'Puedes dejar una indicación en un día concreto. El cliente la ve al abrirlo.',
   },
   {
     id: 'clientNote',
+    area: 'training',
     label: 'Logbook del cliente',
     hint: 'Un espacio propio donde tu cliente apunta lo que quiera de cada sesión. Tú lo lees.',
   },
   {
     id: 'sessionFeedback',
+    area: 'training',
     label: 'Feedback al terminar de entrenar',
     hint: 'Las preguntas que elijas abajo. Cada respuesta numérica se convierte en una serie que puedes seguir.',
   },
@@ -81,12 +85,35 @@ export const MODULES = [
       cuánto se le pidió junto a lo que anotó.
     */
     id: 'rir',
+    area: 'training',
     label: 'RIR objetivo por serie',
     hint: 'Programas cuántas repeticiones debe dejarse en cada serie, y ves lo que anotó frente a lo que le pediste.',
+  },
+  {
+    /*
+      Como el RIR: una forma de pautar, no la forma. Hay quien quiere que su
+      cliente cambie el plátano por fresas sin preguntar, y quien prescribe
+      cerrado y no ofrece margen. Encendido, cada alimento del menú lleva su
+      lista de intercambios («150 g de plátano ≈ 250 g de manzana») calculada
+      sobre el macro de su grupo — y el entrenador puede quitársela a alimentos
+      concretos desde la propia dieta.
+    */
+    id: 'dietSwaps',
+    area: 'nutrition',
+    label: 'Equivalencias en la dieta',
+    hint: 'Tu cliente ve con qué puede cambiar cada alimento del menú sin descuadrar el macro de su grupo.',
   },
 ];
 
 export const moduleById = (id) => MODULES.find((m) => m.id === id) || null;
+
+/**
+ * Los módulos de UNA parte del producto. Es lo que usan los interruptores «a
+ * mano» —los de la pantalla donde el módulo se echa en falta—: la rutina ofrece
+ * los de entrenamiento y la dieta los de nutrición, mientras que Ajustes →
+ * Protocolo sigue enseñando la lista entera.
+ */
+export const modulesFor = (area) => MODULES.filter((m) => m.area === area);
 
 // ── Qué le llevas a esta persona ───────────────────────────────────────────
 

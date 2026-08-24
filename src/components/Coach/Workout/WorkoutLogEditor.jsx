@@ -35,7 +35,7 @@ import { CycleSettings } from './CycleSettings';
 import { WeeklySplitEditor } from './WeeklySplitEditor';
 import { MicrocycleBar } from './MicrocycleBar';
 import { CopyToClientPanel } from './CopyToClientPanel';
-import { PasteRoutineDialog } from './PasteRoutineDialog';
+import { PastePlanDialog } from '../Import/PastePlanDialog';
 import { DayHeader } from './DayHeader';
 import { ImportDayDialog } from './ImportDayDialog';
 import { ExerciseList } from './ExerciseList';
@@ -95,8 +95,14 @@ export const WorkoutLogEditor = () => {
     nutrition,
     replicateClient,
     ensureProgram,
+    ensureNutrition,
     coachPrefs,
     updateCoachPreferences,
+    /* La otra mitad de lo que puede traer un Excel. Ver `dialogoDePegado`. */
+    foodLibrary,
+    catalogFoods,
+    importDiet,
+    upsertLibraryFood,
   } = useApp();
 
   const [copyOpen, setCopyOpen] = useState(false);
@@ -194,6 +200,12 @@ export const WorkoutLogEditor = () => {
   const ejerciciosDisponibles = useMemo(
     () => mergeCatalog(exerciseLibrary, catalogExercises),
     [exerciseLibrary, catalogExercises]
+  );
+
+  /* Los alimentos, para cuando el Excel que se sube trae además la dieta. */
+  const alimentosDisponibles = useMemo(
+    () => mergeCatalog(foodLibrary, catalogFoods),
+    [foodLibrary, catalogFoods]
   );
 
   /*
@@ -300,9 +312,17 @@ export const WorkoutLogEditor = () => {
     En el vacío no hay microciclo, así que se crea al confirmar; y el «Día 1» en
     blanco que monta `startProgram` se retira, porque es andamio del montaje y
     no un día suyo.
+
+    ── Por qué desde aquí también entra la dieta ───────────────────────────────
+    Porque es el MISMO fichero. El libro que trae quien se muda lleva la rutina
+    en unas pestañas y la dieta en otras, y obligar a subirlo dos veces —una
+    aquí y otra en nutrición— es hacer dos veces el trabajo que esto viene a
+    quitar. Solo aparece si la hoja trae algo de dieta, así que quien venga a lo
+    suyo no ve nada nuevo.
   */
   const dialogoDePegado = pegarAbierto && (
-    <PasteRoutineDialog
+    <PastePlanDialog
+      foco="rutina"
       targetDayName={nav.day?.dayName || null}
       unidad={unitLabel(cycleType).toLowerCase()}
       targetPreference={coachPrefs?.importador?.objetivo ?? 0}
@@ -318,6 +338,24 @@ export const WorkoutLogEditor = () => {
         const semana = desdeCero ? startProgram(activeClient.id) : nav.week;
         importDays(activeClient.id, semana, days, { dropEmptyDays: desdeCero });
         if (desdeCero) nav.selectWeek(semana);
+      }}
+      foods={alimentosDisponibles}
+      dietaExistente={!isEmptyDiet(nutrition[activeClient.id])}
+      dietaConVariantes={Boolean(nutrition[activeClient.id]?.hasDayVariants)}
+      onImportDiet={async (plan, nuevos) => {
+        /*
+          La dieta se relee ANTES de escribir. Desde la pantalla de la rutina
+          puede no estar cargada todavía —se lee por cliente y bajo demanda— y
+          escribir encima de un mapa vacío no sería importar: sería reemplazar el
+          plan entero por lo que traiga la hoja, perdiendo lo que no venga en
+          ella. Es la misma guardia que se puso al copiar de otro cliente.
+        */
+        await ensureNutrition(activeClient.id);
+        /* Los alimentos que el entrenador ha escrito a mano se quedan en su
+           biblioteca: la dieta guarda una foto de sus macros y funcionaría sin
+           esto, pero la próxima que importe volvería a preguntarlos. */
+        nuevos.forEach((food) => upsertLibraryFood(food));
+        importDiet(activeClient.id, plan);
       }}
       onClose={() => setPegarAbierto(false)}
     />
