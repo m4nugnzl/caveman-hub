@@ -1872,6 +1872,10 @@ export const AppProvider = ({ children }) => {
     copyProgramToClient,
     replicateClient,
     ensureProgram,
+    /* Se le pasaba a `useWorkout` y se quedó fuera de aquí, así que la pantalla
+       de nutrición lo pedía y recibía `undefined`: al importar una dieta, el
+       `await` reventaba dentro de un `async` y no se guardaba nada. */
+    ensureNutrition,
 
     // Nutrición
     updateNutrition,

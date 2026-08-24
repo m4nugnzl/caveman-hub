@@ -53,7 +53,7 @@ const leerCerrado = (userId) => {
 };
 
 export const GettingStarted = () => {
-  const { clients, training, session, preferences } = useApp();
+  const { clients, training, session, coachPrefs } = useApp();
   const navigate = useNavigate();
   const userId = session?.user?.id;
 
@@ -63,8 +63,13 @@ export const GettingStarted = () => {
 
   /* Que haya tocado su protocolo alguna vez: se mira si existe la clave, no si
      su contenido difiere del de por defecto —eso marcaría el paso como hecho a
-     quien no ha entrado nunca ahí—. */
-  const protocolTocado = Boolean(preferences?.protocol);
+     quien no ha entrado nunca ahí—.
+
+     Se leía de `preferences`, que no existe en el contexto: llegaba `undefined`
+     y el paso no se marcaba nunca, por mucho que el entrenador guardara su
+     protocolo. La plantilla del entrenador vive en `coachPrefs.protocolTemplate`
+     (ver `lib/protocolTemplate.js`). */
+  const protocolTocado = Boolean(coachPrefs?.protocolTemplate);
 
   const pasos = onboardingSteps({ clients, training, protocolTocado });
   const actual = onboardingCurrent(pasos);

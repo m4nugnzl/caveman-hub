@@ -349,8 +349,17 @@ export const WorkoutLogEditor = () => {
           escribir encima de un mapa vacío no sería importar: sería reemplazar el
           plan entero por lo que traiga la hoja, perdiendo lo que no venga en
           ella. Es la misma guardia que se puso al copiar de otro cliente.
+
+          Si la lectura falla no se importa y se dice: un `await` a secas dejaba
+          el fallo dentro de una promesa sin dueño, y desde fuera solo se veía
+          que la dieta no se guardaba.
         */
-        await ensureNutrition(activeClient.id);
+        if (!(await ensureNutrition(activeClient.id).catch(() => null))) {
+          toast({
+            text: 'No he podido leer la dieta que tiene ahora, así que no he importado nada. Inténtalo otra vez.',
+          });
+          return;
+        }
         /* Los alimentos que el entrenador ha escrito a mano se quedan en su
            biblioteca: la dieta guarda una foto de sus macros y funcionaría sin
            esto, pero la próxima que importe volvería a preguntarlos. */

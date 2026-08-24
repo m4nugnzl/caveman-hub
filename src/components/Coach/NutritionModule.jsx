@@ -206,11 +206,22 @@ export const NutritionModule = () => {
                hoja traiga una sola. */
             dietaConVariantes={Boolean(plan.hasDayVariants)}
             onImportDiet={async (importado, nuevos) => {
-              /* La dieta se relee antes de escribir: se lee por cliente y bajo
-                 demanda, y escribir encima de un mapa a medio cargar no sería
-                 importar, sería reemplazar el plan entero por lo que traiga la
-                 hoja. Misma guardia que al copiar de otro cliente. */
-              await ensureNutrition(activeClient.id);
+              /*
+                La dieta se relee antes de escribir: se lee por cliente y bajo
+                demanda, y escribir encima de un mapa a medio cargar no sería
+                importar, sería reemplazar el plan entero por lo que traiga la
+                hoja. Misma guardia que al copiar de otro cliente.
+
+                Y si esa lectura falla, NO se importa y se dice. Antes esto era
+                un `await` a secas: cualquier fallo se lo tragaba la promesa y lo
+                único que se veía era que la dieta no se guardaba, sin motivo.
+              */
+              if (!(await ensureNutrition(activeClient.id).catch(() => null))) {
+                toast({
+                  text: 'No he podido leer la dieta que tiene ahora, así que no he importado nada. Inténtalo otra vez.',
+                });
+                return;
+              }
               /* Lo escrito a mano se queda en la biblioteca: la dieta guarda una
                  foto de sus macros y funcionaría sin esto, pero la próxima que
                  se importe volvería a preguntar por los mismos alimentos. */

@@ -1,3 +1,5 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { renderToString } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -111,9 +113,12 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 180 claves', () => {
+  it('el reparto conserva las 181 claves', () => {
     montar();
-    // 180 desde las excepciones del protocolo: `saveClientException`, el guardado
+    // 181 al poner `ensureNutrition` en la fachada: existía en el proveedor y se
+    // le pasaba a `useWorkout`, pero nunca se expuso, así que la pantalla de
+    // nutrición lo pedía y recibía `undefined`.
+    // Antes 180, desde las excepciones del protocolo: `saveClientException`, el guardado
     // por cliente que además deja la marca de «a este no le pongas la plantilla
     // encima». Antes 179, desde las equivalencias de alimentos: `swapFood`, que sustituye un
     // alimento por su equivalente en su sitio, y `setFoodEquivalences`, la
@@ -130,7 +135,61 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(180);
+    expect(Object.keys(visto.app).length).toBe(181);
+  });
+
+  /*
+    ══ Lo que las pantallas piden TIENE que existir ═══════════════════════════
+
+    Esta prueba nació de un fallo que costó una tarde: la pantalla de nutrición
+    pedía `ensureNutrition` —que existe en el proveedor, pero se le pasaba a
+    `useWorkout` y nunca se puso en la fachada—, así que llegaba `undefined`.
+    Nada falla al arrancar: el desestructurado de una clave que no está no es un
+    error en JavaScript. Fallaba al PULSAR, dentro de un `async`, así que el
+    error se lo tragaba una promesa sin dueño y lo único que se veía era que la
+    dieta importada no se guardaba.
+
+    Ni el linter ni el compilador ven eso, y el recuento de claves tampoco: la
+    fachada estaba completa, lo que faltaba era una clave concreta. Así que se
+    comprueba lo único que lo habría cazado — que todo lo que alguien pide con
+    `useApp()` está de verdad ahí—.
+  */
+  it('todo lo que alguna pantalla desestructura de `useApp()` existe', () => {
+    montar();
+
+    const pedidas = new Map();
+    const mirar = (dir) => {
+      for (const entrada of readdirSync(dir, { withFileTypes: true })) {
+        const ruta = join(dir, entrada.name);
+        if (entrada.isDirectory()) {
+          mirar(ruta);
+          continue;
+        }
+        if (!/\.jsx?$/.test(entrada.name) || /\.test\./.test(entrada.name)) continue;
+
+        const codigo = readFileSync(ruta, 'utf8');
+        /* Sin llaves dentro: así el desestructurado no se puede comer al de
+           arriba —`const { open } = useOtraCosa()` seguido de este—. */
+        for (const m of codigo.matchAll(/const\s*{([^{}]*)}\s*=\s*useApp\(\)/g)) {
+          const nombres = m[1]
+            /* Los comentarios de dentro del desestructurado no son claves. */
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/\/\/[^\n]*/g, '')
+            .split(',')
+            .map((n) => n.split(':')[0].trim())
+            .filter(Boolean);
+          for (const nombre of nombres) if (!pedidas.has(nombre)) pedidas.set(nombre, ruta);
+        }
+      }
+    };
+    mirar(new URL('../', import.meta.url).pathname.replace(/^\/([a-zA-Z]:)/, '$1'));
+
+    const ausentes = [...pedidas]
+      .filter(([nombre]) => !(nombre in visto.app))
+      .map(([nombre, ruta]) => `${nombre} (${ruta.split(/[\\/]/).slice(-2).join('/')})`);
+
+    expect(pedidas.size).toBeGreaterThan(50);
+    expect(ausentes).toEqual([]);
   });
 
   it('toda acción es una función', () => {
