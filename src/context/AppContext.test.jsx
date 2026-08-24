@@ -111,15 +111,18 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 173 claves', () => {
+  it('el reparto conserva las 175 claves', () => {
     montar();
-    // 173 desde las bifurcaciones del roadmap (0073): `setPhaseFork` y
+    // 175 desde «pegar una rutina»: `addExercises` e `importDays`, las dos
+    // escrituras en bloque que necesita traer una hoja de fuera sin mandar una
+    // petición por ejercicio.
+    // Antes 173, desde las bifurcaciones del roadmap (0073): `setPhaseFork` y
     // `chooseFork`. Antes 171, desde el calendario suscribible del cliente
     // (0071): `loadCalendarFeed`, `createCalendarFeed` y `revokeCalendarFeed`.
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(173);
+    expect(Object.keys(visto.app).length).toBe(175);
   });
 
   it('toda acción es una función', () => {

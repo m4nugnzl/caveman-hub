@@ -1478,6 +1478,8 @@ export const AppProvider = ({ children }) => {
     updateMobilityDrills,
     removeSession,
     addExercise,
+
+    addExercises,
     removeExercise,
     restoreExercise,
     addExerciseSetSlot,
@@ -1488,6 +1490,8 @@ export const AppProvider = ({ children }) => {
     setExerciseNote,
     setDayDrills,
     addDay,
+
+    importDays,
     duplicateDay,
     moveDay,
     removeDay,
@@ -1823,6 +1827,7 @@ export const AppProvider = ({ children }) => {
     updateExerciseSet,
     updateExerciseTarget,
     addExercise,
+    addExercises,
     removeExercise,
     restoreExercise,
     addExerciseSetSlot,
@@ -1830,6 +1835,7 @@ export const AppProvider = ({ children }) => {
     moveExercise,
     setExerciseNote,
     addDay,
+    importDays,
     renameDay,
     setDayNote,
     setDayDrills,

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
    nuevos, para que editarlo aquí no toque el del programa. */
 const deepCopyDrills = (drills) =>
   (drills || []).map((d) => ({ ...d, id: `${d.id}-dia-${Math.random().toString(36).slice(2, 8)}` }));
-import { Dumbbell, GripVertical, NotebookPen, Plus, Quote, Users, Waves } from 'lucide-react';
+import { Dumbbell, FileSpreadsheet, GripVertical, NotebookPen, Plus, Quote, Users, Waves } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { useArrastreOrden } from '@/lib/useArrastreOrden';
@@ -35,6 +35,7 @@ import { CycleSettings } from './CycleSettings';
 import { WeeklySplitEditor } from './WeeklySplitEditor';
 import { MicrocycleBar } from './MicrocycleBar';
 import { CopyToClientPanel } from './CopyToClientPanel';
+import { PasteRoutineDialog } from './PasteRoutineDialog';
 import { DayHeader } from './DayHeader';
 import { ImportDayDialog } from './ImportDayDialog';
 import { ExerciseList } from './ExerciseList';
@@ -74,12 +75,14 @@ export const WorkoutLogEditor = () => {
     restoreMicrocycle,
     setMicrocycleDate,
     addDay,
+    importDays,
     renameDay,
     duplicateDay,
     moveDay,
     removeDay,
     restoreDay,
     addExercise,
+    addExercises,
     removeExercise,
     restoreExercise,
     moveExercise,
@@ -92,6 +95,8 @@ export const WorkoutLogEditor = () => {
     nutrition,
     replicateClient,
     ensureProgram,
+    coachPrefs,
+    updateCoachPreferences,
   } = useApp();
 
   const [copyOpen, setCopyOpen] = useState(false);
@@ -103,6 +108,8 @@ export const WorkoutLogEditor = () => {
   const [altaAbierta, setAltaAbierta] = useState(false);
   /* «Copiar un día de otro cliente»: la hoja se abre desde el menú del día. */
   const [importAbierto, setImportAbierto] = useState(false);
+  /* «Traer de un Excel»: la rutina que el cliente trae de fuera, pegada o subida. */
+  const [pegarAbierto, setPegarAbierto] = useState(false);
   /* Qué día tiene abierto el campo de indicación SIN texto todavía (teléfono).
      Se guarda el nombre del día, no un booleano: al cambiar de día, el campo
      vacío de aquel no debe aparecer abierto en este. Mismo patrón que la nota
@@ -283,6 +290,40 @@ export const WorkoutLogEditor = () => {
   );
 
   /*
+    ══ Y traer de FUERA, con el mismo criterio ═══════════════════════════════
+
+    Se monta una vez y lo abren los dos botones: el de la barra de microciclos
+    —quien ya tiene programa y quiere añadir un día más— y el del estado vacío,
+    que es el que de verdad importa: alguien que acaba de dar de alta a un
+    cliente, con su rutina abierta en la otra pestaña.
+
+    En el vacío no hay microciclo, así que se crea al confirmar; y el «Día 1» en
+    blanco que monta `startProgram` se retira, porque es andamio del montaje y
+    no un día suyo.
+  */
+  const dialogoDePegado = pegarAbierto && (
+    <PasteRoutineDialog
+      targetDayName={nav.day?.dayName || null}
+      unidad={unitLabel(cycleType).toLowerCase()}
+      targetPreference={coachPrefs?.importador?.objetivo ?? 0}
+      onRememberTarget={(index) => updateCoachPreferences('importador', { objetivo: index })}
+      onImportIntoDay={(exercises) =>
+        addExercises(activeClient.id, nav.week, nav.day.dayName, exercises)
+      }
+      onImportDays={(days) => {
+        /* Sin microciclos, `nav.week` ya vale 1 aunque no exista ninguno, así
+           que la pregunta es por el PROGRAMA y no por la semana: importar
+           contra una semana que no está creada no falla, no hace nada. */
+        const desdeCero = microcycles.length === 0;
+        const semana = desdeCero ? startProgram(activeClient.id) : nav.week;
+        importDays(activeClient.id, semana, days, { dropEmptyDays: desdeCero });
+        if (desdeCero) nav.selectWeek(semana);
+      }}
+      onClose={() => setPegarAbierto(false)}
+    />
+  );
+
+  /*
     ══ El vacío ofrece las DOS rutas ══════════════════════════════════════════
 
     Enseñaba un solo botón, «Crear primer microciclo», y ese es justo el momento
@@ -300,8 +341,8 @@ export const WorkoutLogEditor = () => {
           title="Este cliente no tiene programa todavía"
           message={
             hayDeQuienTraer
-              ? 'Empieza de cero, o trae el programa de alguien a quien ya se lo tengas montado y retócalo.'
-              : 'Crea el primer microciclo para empezar a programar días y ejercicios.'
+              ? 'Empieza de cero, sube el Excel en el que ya tengas su rutina, o trae el programa de alguien a quien ya se lo tengas montado.'
+              : 'Empieza de cero, o sube el Excel en el que ya tengas escrita su rutina.'
           }
           action={
             <div className="row wrap gap-2">
@@ -311,6 +352,18 @@ export const WorkoutLogEditor = () => {
                 onClick={() => nav.selectWeek(startProgram(activeClient.id))}
               >
                 <Plus size={17} /> Crear primer microciclo
+              </button>
+              {/*
+                El momento exacto de la mudanza: alguien que acaba de dar de alta
+                a un cliente y tiene su rutina abierta en la otra pestaña. Aquí
+                es donde más vale, así que aquí sale, y no dentro de un menú.
+              */}
+              <button
+                type="button"
+                className="btn btn-secondary btn-lg"
+                onClick={() => setPegarAbierto(true)}
+              >
+                <FileSpreadsheet size={17} /> Traer de un Excel
               </button>
               {hayDeQuienTraer && (
                 <button
@@ -327,6 +380,7 @@ export const WorkoutLogEditor = () => {
         />
 
         {panelDeCopia}
+        {dialogoDePegado}
       </div>
     );
   }
@@ -437,6 +491,7 @@ export const WorkoutLogEditor = () => {
         onSelect={nav.selectWeek}
         copyOpen={copyOpen}
         onToggleCopy={hayDeQuienTraer ? () => setCopyOpen((v) => !v) : null}
+        onPasteRoutine={() => setPegarAbierto(true)}
         /*
          * Estas dos acciones devuelven el número de la semana creada, así que la
          * navegación es inmediata. Antes se usaba `setTimeout(..., 50)` para
@@ -472,6 +527,7 @@ export const WorkoutLogEditor = () => {
       />
 
       {panelDeCopia}
+      {dialogoDePegado}
 
       {/*
         ══ El carril de días se arrastra ══════════════════════════════════════
@@ -575,17 +631,52 @@ export const WorkoutLogEditor = () => {
             weeklySplit={cycleType === 'weekly' ? program.weeklySplit : null}
             volume={planned}
             doneSets={doneSets}
-            canRemove={nav.days.length > 1}
+            canRemove
             onRename={(name) => renameDay(activeClient.id, nav.week, nav.day.dayName, name)}
             onDuplicate={() => duplicateDay(activeClient.id, nav.week, nav.day.dayName)}
             onImportDay={() => setImportAbierto(true)}
             onRemove={() => {
-              /* El aviso con su «Deshacer»: el día entero, en su posición. Las
-                 sesiones registradas viven en el microciclo, no en el día, así
-                 que borrar y deshacer no las toca. */
               const day = nav.day;
               const index = nav.dayIndex;
               const { week } = nav;
+
+              /*
+                ══ El último día se lleva su semana ═════════════════════════════
+
+                Borrar el único día estaba prohibido —«un microciclo debe tener al
+                menos un día»— y con eso no había forma de deshacer una rutina
+                recién traída: la salida real era eliminar la SEMANA, que vive en
+                el menú ⋯ y por tanto no la encuentra nadie. Quien acababa de
+                importar mal se quedaba con un programa que no quería y sin manera
+                de volver al punto de partida.
+
+                Así que el último día no se bloquea: se borra, y con él la semana
+                que se queda sin nada dentro. Si era la única, el cliente vuelve a
+                no tener programa, que es exactamente lo que se pedía. El
+                «Deshacer» devuelve la semana entera, con sus sesiones.
+              */
+              if (nav.days.length === 1) {
+                const cycle = nav.microcycle;
+                const destino = removeMicrocycle(activeClient.id, week);
+                if (destino) nav.selectWeek(destino);
+                if (!cycle) return;
+                toast({
+                  text: `«${day.dayName}» era el único día, así que se ha eliminado ${unitLabel(cycleType).toLowerCase()} ${cycle.weekNumber}.`,
+                  duration: 10000,
+                  action: {
+                    label: 'Deshacer',
+                    onClick: () => {
+                      restoreMicrocycle(activeClient.id, cycle);
+                      nav.selectWeek(cycle.weekNumber);
+                    },
+                  },
+                });
+                return;
+              }
+
+              /* El aviso con su «Deshacer»: el día entero, en su posición. Las
+                 sesiones registradas viven en el microciclo, no en el día, así
+                 que borrar y deshacer no las toca. */
               removeDay(activeClient.id, week, day.dayName);
               toast({
                 text: `«${day.dayName}» eliminado.`,

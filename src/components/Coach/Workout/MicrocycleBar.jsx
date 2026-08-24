@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Copy, MoreVertical, Trash2, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, FileSpreadsheet, MoreVertical, Trash2, Users } from 'lucide-react';
 
 import { unitLabel } from '@/domain/training';
 import { shortDate } from '@/lib/dates';
@@ -32,6 +32,7 @@ export const MicrocycleBar = ({
   onClone,
   onRemove,
   onToggleCopy,
+  onPasteRoutine,
   copyOpen,
 }) => {
   const esTelefono = useEsTelefono();
@@ -150,6 +151,22 @@ export const MicrocycleBar = ({
                       aria-expanded={copyOpen}
                     >
                       <Users size={15} /> Traer de otro cliente
+                    </button>
+                  )}
+                  {/* Traer de FUERA: el Excel del que viene quien acaba de
+                      llegar. Va al lado de «traer de otro cliente» porque es la
+                      misma pregunta —«esto ya lo tengo montado en otro sitio»—
+                      con la otra respuesta. */}
+                  {onPasteRoutine && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm btn-pill"
+                      onClick={() => {
+                        setGestion(false);
+                        onPasteRoutine();
+                      }}
+                    >
+                      <FileSpreadsheet size={15} /> Traer de un Excel
                     </button>
                   )}
                   {/* La hoja se cierra antes de preguntar, como en la ficha de
@@ -275,6 +292,15 @@ export const MicrocycleBar = ({
               aria-expanded={copyOpen}
             >
               <Users size={15} /> Traer de otro cliente
+            </button>
+          )}
+
+          {/* Y traer de FUERA. A la vista y no en el ⋯ por el mismo motivo que
+              su vecino: es la clase de función que nadie busca porque nadie
+              sospecha que exista, así que esconderla equivale a no tenerla. */}
+          {onPasteRoutine && (
+            <button type="button" className="btn btn-secondary btn-sm btn-pill" onClick={onPasteRoutine}>
+              <FileSpreadsheet size={15} /> Traer de un Excel
             </button>
           )}
 

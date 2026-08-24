@@ -413,6 +413,23 @@ export const useWorkout = ({
     [applyDay]
   );
 
+  /**
+   * Varios ejercicios a un día, en UNA escritura.
+   *
+   * `addExercise` en bucle parece lo mismo y no lo es: cada llamada reserializa
+   * el programa entero y encola su guardado, así que importar una hoja de siete
+   * ejercicios manda siete escrituras del mismo documento por la cola. Con una
+   * rutina de cinco días son treinta y tres.
+   */
+  const addExercises = useCallback(
+    (clientId, weekNumber, dayName, exercises) =>
+      applyDay(clientId, weekNumber, dayName, (d) => ({
+        ...d,
+        exercises: [...d.exercises, ...exercises],
+      })),
+    [applyDay]
+  );
+
   const removeExercise = useCallback(
     (clientId, weekNumber, dayName, exId) =>
       applyDay(clientId, weekNumber, dayName, (d) => ({
@@ -576,6 +593,45 @@ export const useWorkout = ({
         ),
       })),
     [applyWorkout]
+  );
+
+  /**
+   * Varios días con sus ejercicios ya montados, de una vez.
+   *
+   * Es lo que necesita traer una rutina de fuera: una hoja de cinco días entra
+   * como una sola escritura y no como cinco altas más treinta y tres ejercicios.
+   *
+   * Los nombres pasan por `uniqueDayName` **acumulando**, no contra el
+   * microciclo de partida: dos días llamados «Torso» en la misma hoja tienen que
+   * salir «Torso» y «Torso (2)», y comparando cada uno solo con lo que había
+   * antes de empezar los dos se llamarían igual.
+   *
+   * @param dropEmptyDays  Quita los días que no tienen ni un ejercicio ANTES de
+   *   añadir los nuevos. Solo lo pide quien acaba de crear el programa: el
+   *   «Día 1» en blanco que monta `startProgram` es un andamio para que la
+   *   pantalla tenga algo que enseñar, y dejarlo al lado de los cinco días
+   *   recién traídos es dejar basura del montaje. Fuera de ese caso va apagado,
+   *   porque un día vacío puede ser un día que alguien está montando.
+   */
+  const importDays = useCallback(
+    (clientId, weekNumber, days, { dropEmptyDays = false } = {}) =>
+      applyMicrocycle(clientId, weekNumber, (m) => {
+        const base = dropEmptyDays ? (m.days || []).filter((d) => (d.exercises || []).length > 0) : m.days;
+        return (days || []).reduce(
+          (acc, day) => ({
+            ...acc,
+            days: [
+              ...acc.days,
+              {
+                dayName: uniqueDayName(acc.days, String(day.dayName || '').trim()),
+                exercises: day.exercises || [],
+              },
+            ],
+          }),
+          { ...m, days: base }
+        );
+      }),
+    [applyMicrocycle]
   );
 
   const duplicateDay = useCallback(
@@ -1231,6 +1287,8 @@ export const useWorkout = ({
     updateMobilityDrills,
     removeSession,
     addExercise,
+
+    addExercises,
     removeExercise,
     restoreExercise,
     addExerciseSetSlot,
@@ -1241,6 +1299,8 @@ export const useWorkout = ({
     setExerciseNote,
     setDayDrills,
     addDay,
+
+    importDays,
     duplicateDay,
     moveDay,
     removeDay,

@@ -187,6 +187,57 @@ es a la vez la estructura y la navegación, y debajo **una sola sesión abierta*
 la de hoy si hoy toca. Los descansos no son píldoras: son una línea de texto,
 porque no llevan a ninguna parte.
 
+### Traer una rutina de fuera
+
+Quien llega tiene sus rutinas en un Excel, y volver a escribirlas es el peaje de
+entrada. **Traer de un Excel** propone los días, los ejercicios, las series, el
+objetivo de cada una y el RIR, por dos caminos:
+
+- **Pegando** (`domain/routineSheet.js`). El portapapeles entrega TSV, así que
+  vale igual desde Excel, Sheets, Numbers o una tabla de Word.
+- **Subiendo el fichero** (`domain/xlsx.js`), que es lo que hace falta cuando el
+  libro tiene quince pestañas y no se sabe cuál es la buena, o cuando la semana
+  está repartida en una pestaña por día. Se enseñan todas con lo que trae cada
+  una y se marcan las que se quieran.
+
+**El `.xlsx` se lee sin dependencias.** Es un ZIP con XML dentro, y el navegador
+ya trae `DecompressionStream('deflate-raw')`. Un libro real de 5,2 MB y 15 hojas
+se lee entero en ~250 ms; SheetJS habría costado cientos de kilobytes al paquete
+para lo mismo. Las dos trampas están documentadas en la cabecera del módulo, y
+ninguna es el ZIP: **Excel convierte «8-10» en el 8 de octubre** y solo lo enseña
+como un rango al aplicarle el formato `m-d` —sin repintarlo, media rutina llega
+como números de cinco cifras—, y las celdas vacías vienen autocerradas, de modo
+que leerlas sin cuidado desplaza media hoja en silencio.
+
+Las hojas **ocultas** se ofrecen igualmente, marcadas y sin preseleccionar: en el
+libro de prueba nueve de quince lo estaban, y una de ellas —«Plan de
+Entrenamiento», con cuatro días y 28 ejercicios— es una rutina de verdad.
+
+No hay dos hojas iguales, pero solo hay **dos maneras de decir cuántas series
+lleva un ejercicio**: una columna `SERIES` con un número, o un bloque de columnas
+por serie repetido. Si existe la columna, gana; un recuento explícito vale más
+que cualquier deducción. Sin cabecera reconocible se clasifica por contenido, y
+lo que no es una tabla se lee como texto (`Press banca 4x8-10 RIR2`).
+
+Dos reglas que no se negocian:
+
+- **No se importa el registro.** Los kilos y las repeticiones anotadas están en
+  la hoja y se quedan fuera: traerlos fabricaría entrenamientos que aquí no
+  ocurrieron y ensuciaría la progresión.
+- **Nada se crea sin verse.** Lo leído se enseña en una tabla editable —nombre
+  del día, grupo muscular, y cuál de las dos columnas de objetivo vale cuando la
+  hoja trae dos—. Es lo que permite que funcione con una hoja que no hemos visto:
+  el lector puede equivocarse, y equivocarse cuesta dos clics.
+
+Las pruebas corren contra tres hojas reales de dos entrenadores distintos
+(`domain/__fixtures__/`), y una de ellas trae su propia fila de totales, así que
+el recuento se contrasta con la hoja y no con el parser. Dos son pestañas
+distintas del mismo libro —una por día de entrenamiento— y no comparten ni el
+número de columnas ni dónde cae el rótulo del rango de repeticiones: si una se
+lee y la otra no, quien importa se lleva medio plan sin enterarse. Las del lector de
+`.xlsx` fabrican sus propios ZIP —un libro de verdad pesa cinco megas y no cabe
+en el repositorio a cambio de nada— y el fichero real se comprueba a mano.
+
 > ⚠️ **Al desplegar**: una aplicación de una sola página con rutas necesita que el
 > servidor devuelva `index.html` para cualquier ruta. Si no, entrar directo en
 > `/c/abc/rutina` da un 404 y la aplicación no arranca. Ya están incluidos

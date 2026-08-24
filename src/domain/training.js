@@ -49,6 +49,77 @@ export const MUSCLE_COLORS = {
 };
 
 /**
+ * Cómo lo escribe el mundo → cómo lo llama esta aplicación.
+ *
+ * ══ Por qué hace falta ══════════════════════════════════════════════════════
+ *
+ * `MUSCLE_GROUPS` es el vocabulario de la aplicación, no el del oficio. Fuera de
+ * aquí, «Pecho» se escribe **PECTORAL** en la hoja de un entrenador y
+ * `Pectoral` en el catálogo común sembrado por la migración 0033. Son la misma
+ * cosa dicha de tres formas, y sin una tabla que las junte cada una acaba siendo
+ * un grupo muscular distinto: tres colores, tres filas en el volumen semanal y
+ * un MRV que no cuenta lo que debería.
+ *
+ * ══ Lo que NO está aquí, y es lo importante ═════════════════════════════════
+ *
+ * «Hombros» no está. Es el caso que más se repite en las hojas reales y no tiene
+ * respuesta: puede ser deltoides anterior, lateral o posterior, y elegir uno por
+ * él sería inventarse un dato con toda la pinta de ser correcto. «Erectores» y
+ * «antebrazos» tampoco: no existen en `MUSCLE_GROUPS`, y meterlos en «Otros» en
+ * silencio es perder la información sin avisar.
+ *
+ * Por eso esto devuelve `sure`. Lo que no se sabe se dice.
+ */
+export const MUSCLE_ALIASES = {
+  pectoral: 'Pecho', pectorales: 'Pecho', pecho: 'Pecho', chest: 'Pecho',
+  dorsal: 'Dorsal', dorsales: 'Dorsal', espalda: 'Dorsal', lats: 'Dorsal', back: 'Dorsal',
+  'espalda alta': 'Espalda Alta', trapecio: 'Espalda Alta', trapecios: 'Espalda Alta',
+  'upper back': 'Espalda Alta',
+  triceps: 'Tríceps', tricep: 'Tríceps',
+  biceps: 'Bíceps', bicep: 'Bíceps', braquial: 'Bíceps', braquiorradial: 'Bíceps',
+  'deltoides anterior': 'Deltoides Anterior', 'deltoide anterior': 'Deltoides Anterior',
+  'delt anterior': 'Deltoides Anterior', 'hombro anterior': 'Deltoides Anterior',
+  'deltoides lateral': 'Deltoides Lateral', 'deltoide lateral': 'Deltoides Lateral',
+  'delt lateral': 'Deltoides Lateral', 'hombro lateral': 'Deltoides Lateral',
+  'deltoides posterior': 'Deltoides Posterior', 'deltoide posterior': 'Deltoides Posterior',
+  'delt posterior': 'Deltoides Posterior', 'hombro posterior': 'Deltoides Posterior',
+  posterior: 'Deltoides Posterior',
+  cuadriceps: 'Cuádriceps', cuadricep: 'Cuádriceps', cuadris: 'Cuádriceps', quads: 'Cuádriceps',
+  isquiotibiales: 'Isquiotibiales', isquios: 'Isquiotibiales', isquio: 'Isquiotibiales',
+  femoral: 'Isquiotibiales', femorales: 'Isquiotibiales', hamstrings: 'Isquiotibiales',
+  gluteo: 'Glúteos', gluteos: 'Glúteos', glute: 'Glúteos', glutes: 'Glúteos',
+  aductor: 'Aductor', aductores: 'Aductor', adductor: 'Aductor',
+  gemelo: 'Gemelo', gemelos: 'Gemelo', soleo: 'Gemelo', calves: 'Gemelo', pantorrilla: 'Gemelo',
+  abdominales: 'Abdominales', abdominal: 'Abdominales', abdomen: 'Abdominales',
+  abs: 'Abdominales', core: 'Abdominales',
+};
+
+/** Sin tildes y en minúsculas, que es como se repiten los nombres escritos a mano. */
+const claveMuscular = (name) =>
+  String(name || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLowerCase();
+
+/**
+ * Un grupo muscular escrito por cualquiera, traducido al de la aplicación.
+ *
+ * Devuelve `null` si no había nada que traducir, y `{ muscle, sure }` si lo
+ * había. Con `sure: false` el músculo es «Otros» pero el original se conserva
+ * aparte, para que quien esté importando pueda colocarlo él en vez de tragarse
+ * una suposición.
+ */
+export const normalizeMuscle = (raw) => {
+  const k = claveMuscular(raw);
+  if (!k) return null;
+
+  const exacto = MUSCLE_GROUPS.find((m) => claveMuscular(m) === k);
+  if (exacto) return { muscle: exacto, sure: true };
+
+  const alias = MUSCLE_ALIASES[k];
+  if (alias) return { muscle: alias, sure: true };
+
+  return { muscle: 'Otros', sure: false };
+};
+
+/**
  * El color de un grupo muscular.
  *
  * Existe por el respaldo, que estaba copiado en tres sitios de dos archivos
