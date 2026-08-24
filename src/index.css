@@ -517,6 +517,23 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.018em; min-width: 0;
 }
 
+/* ── El aire de un `h3` dentro de un bloque ────────────────────────────────
+   `.section-title` solo llevaba tipografía: ni un margen. Con un apartado por
+   bloque no se notaba; con cuatro —los que tiene la radiografía— cada título
+   sale pegado a lo que acaba encima y a lo que empieza debajo, y un título
+   pegado a lo de arriba NO titula: se lee como una línea más de aquello.
+
+   Por arriba, solo cuando no es lo primero del bloque: si lo es, el aire ya lo
+   pone la cabecera del panel. Y como los dos son márgenes de hermanos en flujo
+   normal, se solapan en vez de sumarse — no hay que restar nada a mano.
+
+   Asimétrico a propósito, y bastante: 22 px por arriba contra 8 por abajo. Un
+   título tiene que estar más cerca de lo que nombra que de lo que lo precede,
+   o el ojo lo agrupa con el apartado anterior. Repartir el aire a partes
+   iguales es el error clásico de esto. */
+.section-title-row { margin-bottom: var(--s2); }
+.section-title-row:not(:first-child) { margin-top: var(--s5); }
+
 /* El nombre de un día del microciclo. Vivía como `style={{ fontSize:
    'var(--fs-lg)' }}` escrito a mano en DOS archivos —el editor del entrenador y
    la rutina del cliente—, que es la forma más barata de que dentro de un mes
@@ -1222,6 +1239,13 @@ button.task-head:hover > .chevron { color: var(--text); }
 .widget-value { font-size: var(--fs-lg); font-weight: 680; letter-spacing: -0.025em; line-height: 1.1; }
 .widget-spark { margin-top: var(--s1); }
 
+/* Las barras de un `Sparkline`. Ver la cabecera del bloque `bars` en
+   `charts.jsx`: cajas y no SVG, para que el redondeo sean píxeles de verdad a
+   cualquier ancho. Extremo del dato redondeado y base cuadrada, que es la regla
+   de los gráficos del informe. */
+.spark-bars { display: flex; align-items: flex-end; gap: 2px; width: 100%; }
+.spark-bar { flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
+
 .stat {
   background: var(--surface); border-radius: var(--r-md); padding: var(--s4);
   display: flex; flex-direction: column; gap: 3px; min-width: 0; box-shadow: var(--shadow-sm);
@@ -1276,6 +1300,13 @@ button.task-head:hover > .chevron { color: var(--text); }
   display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
   font-size: var(--fs-xs); font-weight: 650; color: var(--text-inverse);
   transition: width var(--normal);
+  /* El color por DEFECTO de una barra de datos, y va aquí a propósito: una
+     pantalla no puede escribir `var(--data-*)` —lo prohíbe `npm run verify`,
+     porque el color es del dato y se declara una vez— pero la hoja de estilos
+     sí, que es donde vive el sistema. Los tres consumidores que sí distinguen
+     series (volumen por músculo, ingresos) lo pisan en línea; el que dibuja una
+     sola serie ya no tiene que inventarse un color ni quedarse sin él. */
+  background: var(--data-blue);
 }
 .meter-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--negative); opacity: 0.5; z-index: 2; }
 
@@ -5510,6 +5541,31 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .cell-weight { font-weight: 800; color: var(--data-amber); }
 .cell-pct { font-weight: 700; color: var(--data-blue); }
 .table-compact td, .table-compact th { padding: 6px 9px; }
+
+/* ── Una cabecera que ordena ───────────────────────────────────────────────
+   El botón va DENTRO del `th`, no un `onClick` en la celda: una celda con
+   manejador no entra en el recorrido del tabulador, así que con el teclado la
+   tabla no se podría ordenar en absoluto. Hereda toda la tipografía de la
+   cabecera para que una columna ordenable y una que no se lean igual — lo único
+   que las distingue es la flecha, y solo cuando sirve de algo.
+
+   La flecha se ve SIEMPRE en la columna activa y solo al apuntar en las demás:
+   seis flechas encendidas a la vez son seis cosas que parecen estar pasando. Y
+   en pantalla táctil no hay `hover`, así que la activa no puede depender de él. */
+.th-orden {
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+  background: none; border: 0; padding: 0; margin: 0;
+  display: inline-flex; align-items: center; gap: 4px;
+  cursor: pointer;
+  transition: color var(--fast);
+}
+.th-orden:hover { color: var(--text); }
+.th-orden > svg { opacity: 0; flex-shrink: 0; transition: opacity var(--fast); }
+.th-orden:hover > svg { opacity: 0.5; }
+.table th[aria-sort='ascending'] > .th-orden,
+.table th[aria-sort='descending'] > .th-orden { color: var(--text); }
+.table th[aria-sort='ascending'] > .th-orden > svg,
+.table th[aria-sort='descending'] > .th-orden > svg { opacity: 1; }
 .table tfoot td { border-top: 1px solid var(--hairline-strong); font-weight: 650; color: var(--text); }
 
 /* ==========================================================================
@@ -9294,3 +9350,64 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   transition: background-color var(--fast), color var(--fast);
 }
 .alert-x:hover { background: var(--fill); color: var(--text); }
+
+/* ==========================================================================
+   La radiografía de la plataforma
+   --------------------------------------------------------------------------
+   Dos piezas, y las dos salen del mismo par de hechos: es la pantalla que más
+   tarda en contestar de toda la aplicación —dieciocho tablas y las dos
+   funciones de catálogo— y la más larga de recorrer.
+   ========================================================================== */
+
+/* ── El informe mientras se vuelve a leer ───────────────────────────────────
+   Cambiar la ventana lo vuelve a pedir entero. En esos segundos el chip ya
+   dice «7 días» y debajo siguen las cifras de 30: el peor estado de un informe
+   no es estar vacío, es contestar con seguridad a otra pregunta. Se apaga —con
+   `aria-busy` puesto, que es la mitad que no se ve— y no se bloquea el ratón:
+   un informe viejo se puede seguir leyendo mientras llega el nuevo, siempre
+   que no se pueda confundir con él. */
+.is-releyendo { opacity: 0.45; transition: opacity var(--fast); }
+
+/* ── El carril de pestañas del detalle ──────────────────────────────────────
+   Dentro de cada pestaña hay tablas largas —la de cuentas sola pasa de una
+   pantalla—, así que al llegar al final el carril quedaba tres pantallas más
+   arriba, por encima de los seis indicadores. La misma factura que `.proto-nav`
+   y por la misma razón: es un OBJETO de cristal que flota, no una franja
+   pegada al papel. Baja lo que mide la cabecera, que es la referencia que ya
+   usan el índice del protocolo y el estudio de fotos. */
+.tab-rail {
+  position: sticky; top: calc(var(--header-h) + var(--s2)); z-index: 40;
+  padding: var(--s1);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+/* Dentro del cristal el carril no lleva su propio relleno: dos fondos, uno
+   dentro del otro y casi del mismo radio, se leen como una caja doble. */
+.tab-rail .segmented { background: transparent; padding: 0; }
+
+/* ── El embudo ─────────────────────────────────────────────────────────────
+   Reutiliza el medidor (`.meter-*`) y solo cambia lo que aquí es distinto: sus
+   rótulos son frases enteras —«Le dio acceso al portal»— y no nombres de
+   músculo de una palabra, así que a 124 px partían en dos líneas y el escalón
+   dejaba de leerse como un escalón. */
+.embudo { display: flex; flex-direction: column; gap: var(--s2); }
+.embudo .meter-label { width: 158px; }
+/* La caída, en su columna. Ancho fijo para que las cinco queden alineadas: en
+   una escalera, lo que se compara de un vistazo es esta cifra, y con el ancho
+   al contenido cada una empezaría en un sitio. */
+.embudo-caida { width: 86px; flex-shrink: 0; text-align: right; }
+.embudo-pie { margin-top: var(--s3); }
+
+@media (max-width: 900px) {
+  .embudo .meter-label { width: 118px; }
+  .embudo-caida { width: 74px; }
+}
+@media (max-width: 640px) {
+  /* Aquí el rótulo ya se pone a lo ancho por la regla de `.meter-label`, así
+     que la caída deja de necesitar columna: se va detrás de la barra. */
+  .embudo .meter-label { width: 100%; }
+  .embudo-caida { width: auto; }
+}

@@ -443,23 +443,46 @@ export const Sparkline = ({ points, color = 'var(--data-blue)', height = 28, bar
   const y = (v) => H - 2 - ((v - min) / range) * (H - 5);
   const x = (i) => (i / (values.length - 1)) * W;
 
+  /*
+    ══ Las barras van en cajas, no en un SVG estirado ═══════════════════════
+
+    Estaban dibujadas con `<rect rx>` dentro de un `<svg preserveAspectRatio=
+    "none">`, y eso tiene dos fallos que solo se ven cuando el gráfico es ancho:
+
+      1. **El redondeo se estira con el lienzo.** Un `rx` de 4 unidades dentro
+         de un viewBox de 100 estirado a mil píxeles son 40 px de radio a lo
+         ancho y 4 de alto: la barra deja de parecer una barra y sale como una
+         pastilla flotando. En una tarjeta estrecha casi no se nota; a lo ancho
+         de la radiografía era lo único que se veía.
+      2. **La base no era cero.** `y()` normaliza entre el mínimo y el máximo,
+         así que la barra más baja de la serie salía siempre a ras de suelo
+         aunque valiera 11 de 17. Para una LÍNEA eso está bien —una línea
+         enseña forma— pero una barra enseña magnitud, y una barra que arranca
+         en el mínimo miente sobre ella. La regla del proyecto lo dice desde el
+         principio: «eje desde cero» (cabecera de `scripts/radiografia/informe.mjs`).
+
+    En cajas, el redondeo son píxeles de verdad a cualquier ancho, y sale la
+    otra mitad de esa regla gratis: extremo del dato redondeado, base cuadrada.
+  */
   if (bars) {
-    const bw = Math.max(1.5, (W / values.length) * 0.6);
+    const tope = Math.max(...values, 0) || 1;
     return (
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ height, width: '100%' }} preserveAspectRatio="none" aria-hidden="true">
+      <div className="spark-bars" style={{ height }} aria-hidden="true">
         {values.map((v, i) => (
-          <rect
+          <span
             key={i}
-            x={x(i) - bw / 2}
-            y={y(v)}
-            width={bw}
-            height={Math.max(1.5, H - 2 - y(v))}
-            rx={bw / 3}
-            fill={color}
-            opacity={i === values.length - 1 ? 1 : 0.4}
+            className="spark-bar"
+            style={{
+              /* Un mínimo visible para que un cero siga ocupando su sitio: sin
+                 él, una semana sin nada desaparece y la serie parece más corta
+                 de lo que es. Dos por ciento es una pestaña, no una cifra. */
+              height: `${Math.max(2, (Math.max(0, v) / tope) * 100)}%`,
+              background: color,
+              opacity: i === values.length - 1 ? 1 : 0.4,
+            }}
           />
         ))}
-      </svg>
+      </div>
     );
   }
 

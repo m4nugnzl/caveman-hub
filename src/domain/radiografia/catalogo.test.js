@@ -2,9 +2,9 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { catalogoDe, clavesDeObjeto, seccionesDe } from './catalogo.mjs';
+import { catalogoDe, clavesDeObjeto, seccionesDe } from './catalogo.js';
 
-const RAIZ = fileURLToPath(new URL('../../', import.meta.url));
+const RAIZ = fileURLToPath(new URL('../../../', import.meta.url));
 const lee = (ruta) => readFile(new URL(ruta, `file://${RAIZ}`), 'utf8');
 
 /**
@@ -12,7 +12,7 @@ const lee = (ruta) => readFile(new URL(ruta, `file://${RAIZ}`), 'utf8');
  *
  * Que el informe no se quede mudo sin decirlo.
  *
- * `catalogo.mjs` lee el código con expresiones regulares para saber qué
+ * `catalogo.js` lee el código con expresiones regulares para saber qué
  * pantallas y qué campos OFRECE la aplicación. Si alguien reescribe
  * `src/routes.jsx` con otra forma, las expresiones dejan de encontrar nada y el
  * informe empieza a decir «ninguna pantalla sin uso» — que se lee como una buena
@@ -104,5 +104,30 @@ describe('cuando el código cambia de forma', () => {
 
   it('sin argumentos tampoco revienta', () => {
     expect(catalogoDe().avisos).toHaveLength(2);
+  });
+});
+
+/* ==========================================================================
+   El catálogo congelado que se lleva la función edge
+   --------------------------------------------------------------------------
+   `supabase/functions/radiografia/catalogo.json` existe porque la función edge
+   corre en un servidor y no tiene este repositorio delante (ver
+   `scripts/generar-catalogo.mjs`). Es un archivo GENERADO y COMPROMETIDO, así
+   que puede quedarse viejo — y quedarse viejo aquí no da error: hace que el
+   panel diga «no falta nada» sobre una pantalla que se añadió el mes pasado.
+
+   Esta prueba es lo único que lo impide. Si falla, no hay que tocarla:
+
+       node scripts/generar-catalogo.mjs
+   ========================================================================== */
+
+describe('el catálogo congelado', () => {
+  it('dice lo mismo que el código de hoy', async () => {
+    const { catalogoDelCodigo, DESTINO } = await import('../../../scripts/generar-catalogo.mjs');
+
+    const congelado = JSON.parse(await readFile(DESTINO, 'utf8'));
+    const { avisos: _avisos, ...delCodigo } = await catalogoDelCodigo();
+
+    expect(congelado).toEqual(delCodigo);
   });
 });

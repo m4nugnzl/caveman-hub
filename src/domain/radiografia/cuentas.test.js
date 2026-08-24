@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { cuentasDe, enRiesgo, faltan, hace } from './cuentas.mjs';
-import { cobros, invitaciones, porPlan, pruebas } from './dinero.mjs';
+import { cuentasDe, enRiesgo, faltan, hace } from './cuentas.js';
+import { cobros, invitaciones, porPlan, pruebas } from './dinero.js';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════

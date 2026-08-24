@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LifeBuoy, LogOut, Moon, Settings, Sun } from 'lucide-react';
+import { LifeBuoy, LogOut, Moon, Settings, Stethoscope, Sun } from 'lucide-react';
 
 import { useSession, useActions } from '@/context/AppContext';
+import { useEsAdminPlataforma } from '@/context/useRadiografia';
 import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
 import { initials } from '@/lib/initials';
@@ -31,6 +32,7 @@ export const AccountMenu = () => {
   const { session, profileRole, isCoach, view } = useSession();
   const { signOut } = useActions();
   const { isDark, toggle } = useTheme();
+  const esAdmin = useEsAdminPlataforma();
   const tour = useTour();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -89,6 +91,32 @@ export const AccountMenu = () => {
               </NavLink>
               <hr className="divider account-ajustes" />
             </>
+          )}
+
+          {/*
+            La radiografía, y solo para quien administra la plataforma.
+
+            Va AQUÍ y no en el carril primario a propósito: ese carril es el
+            trabajo de un entrenador —lo que ha pasado, lo que falta, cuánto y
+            qué viene— y esto no es su trabajo, es el de quien lleva el producto.
+            Una quinta entrada permanente que solo puede abrir una persona le
+            quitaría sitio a las cuatro que abre todo el mundo cada día.
+
+            `esAdmin` decide si se PINTA, no si se puede ver: la puerta de verdad
+            está en la función edge, que lee `platform_admins` con la clave de
+            servicio (ver `useRadiografia`). Quitar este `if` con la consola
+            abierta no enseña un solo dato.
+          */}
+          {esAdmin && (
+            <NavLink
+              to="/plataforma"
+              className="account-item"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+            >
+              <Stethoscope size={15} />
+              Radiografía
+            </NavLink>
           )}
 
           {/*

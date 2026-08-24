@@ -205,8 +205,22 @@ export const Fold = ({
   );
 };
 
+/**
+ * Una pieza dentro de un bloque (`h3`, el cuarto y último nivel de §5.1 bis).
+ *
+ * ── Por qué la fila lleva clase propia ──────────────────────────────────────
+ * Porque `.section-title` solo tenía tipografía: ni un margen. Mientras un
+ * bloque tuvo un solo apartado no se notó, pero en cuanto hay tres o cuatro
+ * seguidos —la radiografía tiene paneles con cuatro— cada título sale pegado a
+ * lo que termina encima y a lo que empieza debajo. Y **un título pegado a lo de
+ * arriba no titula**: se lee como una línea más de aquello.
+ *
+ * El aire no puede ir en el `h3` porque el `h3` vive dentro de esta fila —que
+ * es la que lleva la acción a la derecha—, así que los márgenes del hijo no
+ * salen de ella. Va en la fila.
+ */
 export const SectionTitle = ({ icon: Icon, color, children, action }) => (
-  <div className="row between wrap gap-2">
+  <div className="section-title-row row between wrap gap-2">
     <h3 className="section-title" style={color ? { color } : undefined}>
       {Icon && <Icon size={17} />}
       {children}

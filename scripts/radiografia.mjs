@@ -1,31 +1,28 @@
 /**
  * Radiografía: qué se usa, qué se rompe, qué se rellena y por dónde se entra.
  *
- * ══ Por qué esto NO está dentro de la aplicación ════════════════════════════
+ * ══ Por qué esto SIGUE existiendo en la terminal ════════════════════════════
  *
- * Fue la primera decisión y condiciona todas las demás. Tres razones, y la
- * tercera es la que decide:
+ * Durante un tiempo esto era el ÚNICO sitio donde el informe podía existir, por
+ * las tres razones de `docs/observabilidad.md` §2. Dos de ellas ya no valen —hay
+ * servidor propio desde la sexta función edge— y el informe pasa a tener también
+ * una pantalla dentro de la aplicación y un bot (`docs/plataforma.md`).
  *
- *   1. PUEDE VER MÁS. La mitad más valiosa del informe —el estado real de RLS,
- *      qué puede ejecutar quien no ha iniciado sesión, qué buckets son
- *      públicos— vive en el catálogo de Postgres, y el catálogo no se expone por
- *      la API. Desde el navegador esa sección no existiría.
+ * Este script no se retira, y no por nostalgia. Hace dos cosas que la pantalla
+ * no puede hacer:
  *
- *   2. NO HAY DONDE PONERLO. La aplicación es una SPA estática en Cloudflare
- *      (`wrangler.jsonc`): no hay servidor propio donde guardar una clave. Un
- *      panel web tendría que leerlo todo con la sesión del usuario, y para eso
- *      habría que abrir por política justo lo que no se quiere abrir.
+ *   1. FUNCIONA CUANDO LO DEMÁS NO. Una herramienta cuyo trabajo es auditar la
+ *      infraestructura no puede depender por completo de esa infraestructura:
+ *      con la función edge sin desplegar, mal desplegada o caída, esto sigue
+ *      contestando. Es la única vía que solo necesita una clave y una red.
  *
- *   3. NO TIENE PUERTA. Una pantalla protegida es una pantalla que se puede
- *      desproteger: bastaría una política mal escrita para publicar el mapa de
- *      la seguridad de la base. Un archivo que se genera en local no se puede
- *      filtrar por una política mal escrita porque no hay ninguna que escribir.
- *      Y el reparto de llaves ya existe: la misma `service_role key` de
- *      `npm run backup`, en `.env.backup`, que nunca sale de esta máquina.
+ *   2. TERMINA EN ERROR. `--estricto` devuelve un código de salida, y eso es lo
+ *      que convierte el informe en una comprobación de integración continua. Una
+ *      pantalla no puede tumbar un despliegue.
  *
- * El precio es que no se consulta desde el móvil. A cambio se guarda, se compara
- * con el del mes pasado y se manda por correo, que es lo que de verdad se hace
- * con algo que se mira una vez a la semana.
+ * El razonamiento —qué va mal y por qué— ya no vive aquí, sino en
+ * `src/domain/radiografia/`, porque lo comparten este script, la función edge y
+ * el panel. Aquí queda recoger, orquestar y escribir archivos.
  *
  * ══ Uso ═══════════════════════════════════════════════════════════════════
  *
@@ -53,32 +50,23 @@ import { fileURLToPath } from 'node:url';
 import { createClient } from '@supabase/supabase-js';
 
 import { resolverCredenciales } from './credenciales.mjs';
-import {
-  actividadSemanal,
-  censo,
-  comparar,
-  embudo,
-  fallosAgrupados,
-  fallosPorDia,
-  instantanea,
-  negocio,
-  porEvento,
-  porPantalla,
-  retencionSemanaSiguiente,
-} from './radiografia/analisis.mjs';
-import { catalogoDe } from './radiografia/catalogo.mjs';
-import { cuentasDe, enRiesgo } from './radiografia/cuentas.mjs';
-import { diagnosticar, resumenDe } from './radiografia/diagnosticos.mjs';
-import { cobros, invitaciones, movimientoClientes, porPlan, pruebas } from './radiografia/dinero.mjs';
-import { anotar, guardarEstado, leerEstado, serieDe, siguienteEstado } from './radiografia/estado.mjs';
+/*
+  El análisis vive en `src/domain/radiografia/` y no aquí. No es una mudanza de
+  orden: es que a partir de la función edge hay TRES consumidores del mismo
+  razonamiento —este script, la función y el panel— y dos implementaciones de
+  «qué va mal» divergen. Aquí queda lo que solo sabe hacer un script: recoger,
+  orquestar y escribir archivos.
+*/
+import { catalogoDe } from '../src/domain/radiografia/catalogo.js';
+import { componer } from '../src/domain/radiografia/componer.js';
+import { aAceptar, siguienteEstado } from '../src/domain/radiografia/estado.js';
+import { leerTodo } from '../src/domain/radiografia/lectura.js';
+import { planDe } from '../src/domain/radiografia/recogida.js';
+import { guardarEstado } from './radiografia/archivo.mjs';
+import { guardarMemoria, leerMemoria } from './radiografia/memoria.mjs';
 import { render } from './radiografia/informe.mjs';
 
 const RAIZ = resolve(fileURLToPath(new URL('..', import.meta.url)));
-
-/* PostgREST devuelve como mucho 1000 filas por petición y lo hace SIN avisar de
-   que hay más. El mismo cuidado que en la copia: un informe truncado tiene
-   aspecto de informe completo. */
-const PAGE = 1000;
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -92,6 +80,8 @@ const OPCIONES = [
   '--salida',
   '--sin-programas',
   '--estricto',
+  '--aceptar-nuevos',
+  '--aceptar-avisos',
   '--aceptar-todo',
   '--ayuda',
   '-h',
@@ -107,12 +97,17 @@ const AYUDA = [
   '  npm run radiografia -- --salida D:/x     otra carpeta de salida',
   '  npm run radiografia -- --estricto        termina en error si hay críticos',
   '',
-  '  npm run radiografia -- --aceptar-todo "motivo"',
-  '      Fija la línea base: da por buenos TODOS los hallazgos de seguridad de',
-  '      ahora, con ese motivo, para que a partir del próximo informe solo',
-  '      destaque lo nuevo. Se usa una vez, después de revisarlos a mano.',
+  'Dar por buenos hallazgos de seguridad. El motivo es obligatorio siempre:',
   '',
-  'El panel se abre en informes/radiografia.html y se gestiona ahí mismo.',
+  '  --aceptar-nuevos "motivo"   solo los que no estaban en el informe anterior',
+  '  --aceptar-avisos "motivo"   todos los que no son críticos',
+  '  --aceptar-todo   "motivo"   TODOS, críticos incluidos. Fija la línea base',
+  '',
+  '      Los dos primeros NUNCA alcanzan a un hallazgo crítico: aceptar unos',
+  '      avisos no puede dejar de pedir atención sobre algo sin arreglar. Un',
+  '      crítico solo se acepta escribiendo --aceptar-todo, a propósito.',
+  '',
+  'El informe se escribe en informes/radiografia.html.',
   'Necesita SUPABASE_SERVICE_ROLE_KEY en .env.backup (ver docs/observabilidad.md).',
 ].join('\n');
 
@@ -127,37 +122,11 @@ const fail = (message) => {
    ========================================================================== */
 
 /**
- * Una tabla entera, por páginas.
- *
- * Que una tabla no exista NO es un error: significa que su migración no está
- * aplicada, y eso es una respuesta legítima que el informe tiene que poder
- * contar. Lo que sí sería un error es dar por vacío lo que no se ha podido leer,
- * así que se distingue: `{ rows }`, `{ falta }` o `{ error }`.
- */
-const leer = async (supabase, tabla, { columnas = '*', desde = null } = {}) => {
-  const filas = [];
-  for (let from = 0; ; from += PAGE) {
-    let q = supabase.from(tabla).select(columnas).range(from, from + PAGE - 1);
-    if (desde) q = q.gte('at', desde);
-
-    const { data, error } = await q;
-    if (error) {
-      if (/does not exist|schema cache/i.test(error.message)) return { falta: true };
-      return { error: error.message };
-    }
-
-    filas.push(...data);
-    if (data.length < PAGE) break;
-  }
-  return { rows: filas };
-};
-
-/**
  * Qué ofrece la aplicación, para poder decir qué no se usa.
  *
  * Las reglas —y el porqué de leer el código en vez de copiar la lista— están en
- * `radiografia/catalogo.mjs`, donde además hay pruebas que corren contra estos
- * mismos archivos. Aquí solo se leen del disco.
+ * `src/domain/radiografia/catalogo.js`, donde además hay pruebas que corren
+ * contra estos mismos archivos. Aquí solo se leen del disco.
  */
 const catalogos = async (avisos) => {
   try {
@@ -196,7 +165,6 @@ const main = async () => {
 
   const dias = Math.max(1, Math.min(365, Number(value('--dias')) || 30));
   const ahora = new Date();
-  const hoy = ahora.toISOString().slice(0, 10);
   const desde = new Date(ahora.getTime() - dias * 86400000).toISOString();
 
   const supabase = createClient(url, key, { auth: { persistSession: false } });
@@ -223,78 +191,22 @@ const main = async () => {
 
   /* ── Las tablas ───────────────────────────────────────────────────────── */
 
-  const tablas = {
-    eventos: { tabla: 'product_events', desde },
-    fallos: { tabla: 'app_errors', desde },
-    equipos: { tabla: 'teams', columnas: 'id, name, owner_id, created_at' },
-    /* Nombres y correos de los ENTRENADORES. Ver la cabecera de `cuentas.mjs`:
-       son los clientes de pago del negocio y sin saber quién es quién no se
-       puede llevar. De los clientes finales aquí no sale ni un nombre. */
-    perfiles: { tabla: 'profiles', columnas: 'id, full_name, email, role' },
-    miembros: { tabla: 'team_members', columnas: 'team_id, profile_id, role' },
-    pagos: { tabla: 'client_payments' },
-    tickets: { tabla: 'support_tickets', columnas: 'id, team_id, profile_id, subject, status, created_at' },
-    invites: { tabla: 'client_invites', columnas: 'id, client_id, created_at, expires_at, claimed_at, revoked_at' },
-    integraciones: { tabla: 'integrations', columnas: 'id, team_id, provider, status, last_sync_at' },
-    /* Para saber cuál de las cuentas eres tú y no listarte entre las que no facturan. */
-    admins: { tabla: 'platform_admins', columnas: 'profile_id' },
-    /* Para la etiqueta visible del plan y su tope: la clave interna del gratuito
-       sigue siendo `prueba` (0056) y enseñarla diría lo contrario de lo que hace. */
-    planes: { tabla: 'plan_limits', columnas: 'plan, label, max_clients, max_seats, price_cents, purchasable' },
-    clientes: {
-      tabla: 'clients',
-      columnas: 'id, team_id, status, gender, start_date, client_profile_id, created_at',
+  /* La lista de qué se lee vive en `recogida.js`, compartida con la función
+     edge: dos listas que hay que cambiar a la vez acaban divergiendo, y la que
+     se olvidara no fallaría — devolvería el informe de siempre con una sección
+     en blanco. Aquí queda solo ejecutarla. */
+  const { tablas, avisos: avisosPlan } = planDe({ desde, conProgramas: !flag('--sin-programas') });
+  avisos.push(...avisosPlan);
+
+  const { datos, avisos: avisosLectura } = await leerTodo(supabase, tablas, {
+    alLeer: ({ tabla, filas, falta, error: fallo }) => {
+      const nombre = tabla.padEnd(20);
+      if (falta) return log(`  ·  ${nombre} no existe`);
+      if (fallo) return log(`  ✗  ${nombre} ${fallo}`);
+      return log(`  ✓  ${nombre} ${filas} filas`);
     },
-    antropometria: { tabla: 'anthropometry', columnas: 'client_id, history' },
-    nutricion: {
-      tabla: 'nutrition_plans',
-      columnas: 'client_id, target_kcals, has_day_variants, steps_goal, habits_notes',
-    },
-    checkins: { tabla: 'check_ins', columnas: 'client_id, submitted_at, reviewed_at' },
-    fotos: { tabla: 'progress_photos', columnas: 'client_id' },
-    /* `trial_ends_at` y `current_period_end` son las DOS únicas fechas límite de
-       todo el negocio: pasado ese día ya no se puede hacer nada. Pedir solo el
-       plan y el estado —como se hacía— dejaba el informe sin la información más
-       accionable que existe. */
-    suscripciones: {
-      tabla: 'team_subscriptions',
-      columnas: 'team_id, plan, status, trial_ends_at, current_period_end, stripe_customer_id, updated_at',
-    },
-  };
-
-  /* Los programas van aparte porque son lo único que pesa: `microcycles` es el
-     JSONB de varios MB por cliente de `auditoria.md` §1.4. Se puede dejar fuera
-     con `--sin-programas`, y entonces el censo lo dice en vez de contar cero. */
-  const conProgramas = !flag('--sin-programas');
-  if (conProgramas) {
-    tablas.programas = {
-      tabla: 'workout_data',
-      columnas: 'client_id, microcycles, mobility_drills, notes',
-    };
-  } else {
-    avisos.push('Los programas no se han leído (--sin-programas): la sección de programas sale vacía.');
-  }
-
-  const datos = {};
-  for (const [nombre, opciones] of Object.entries(tablas)) {
-    const res = await leer(supabase, opciones.tabla, opciones);
-
-    if (res.falta) {
-      avisos.push(`La tabla «${opciones.tabla}» no existe en este proyecto: su migración no está aplicada.`);
-      datos[nombre] = [];
-      log(`  ·  ${opciones.tabla.padEnd(20)} no existe`);
-      continue;
-    }
-    if (res.error) {
-      avisos.push(`No se ha podido leer «${opciones.tabla}»: ${res.error}`);
-      datos[nombre] = [];
-      log(`  ✗  ${opciones.tabla.padEnd(20)} ${res.error}`);
-      continue;
-    }
-
-    datos[nombre] = res.rows;
-    log(`  ✓  ${opciones.tabla.padEnd(20)} ${res.rows.length} filas`);
-  }
+  });
+  avisos.push(...avisosLectura);
 
   /*
     ── Las cuentas de `auth`, que no salen por la API de tablas ─────────────
@@ -323,126 +235,30 @@ const main = async () => {
   const carpeta = resolve(value('--salida') || join(RAIZ, 'informes'));
   const rutaEstado = join(carpeta, 'estado.json');
 
-  const { estado, aviso: avisoEstado } = await leerEstado(rutaEstado);
-  if (avisoEstado) avisos.push(avisoEstado);
+  /* De la base si la 0074 está aplicada, y del archivo si no. Las dos cosas
+     funcionan; lo que no puede pasar es leer de un sitio y escribir en el otro.
+     Ver la cabecera de `memoria.mjs`. */
+  const memoria = await leerMemoria(supabase, { rutaEstado });
+  const { estado, sembrar } = memoria;
+  avisos.push(...memoria.avisos);
 
   /* ── El análisis ──────────────────────────────────────────────────────── */
 
-  const eventos = datos.eventos || [];
-  const ahoraISO = ahora.toISOString();
-
-  /*
-    La hoja de cuentas. Va antes que nada porque casi todo lo demás cuelga de
-    ella: los veredictos nombran a estas personas, el dinero se agrupa por su
-    plan y el riesgo sale de sus fechas.
-  */
-  const cuentas = cuentasDe({
-    equipos: datos.equipos,
-    miembros: datos.miembros,
-    perfiles: datos.perfiles,
+  /* Todo el montaje —y sobre todo su ORDEN, que es la mitad del informe— está
+     en `componer.js`, compartido con la función edge. Ver su cabecera. */
+  const informe = componer({
+    datos,
     sesiones,
-    suscripciones: datos.suscripciones,
-    clientes: datos.clientes,
-    programas: datos.programas || [],
-    eventos,
-    tickets: datos.tickets,
-    integraciones: datos.integraciones,
-    admins: datos.admins,
-    planes: datos.planes,
-    hoy: ahoraISO,
-  });
-
-  const porPerfil = new Map((datos.perfiles || []).map((p) => [p.id, p.full_name || p.email]));
-
-  const informe = {
-    proyecto: new URL(url).host,
-    generado: ahora.toISOString(),
-    ventanaDias: dias,
-
     seguridad: seg.data || [],
     avisoSeguridad,
     volumen: vol.data || [],
-
-    cuentas,
-    riesgo: enRiesgo(cuentas),
-    planes: porPlan(cuentas),
-    pruebas: pruebas(cuentas),
-    cobros: cobros(datos.pagos, { hoy: ahoraISO }),
-    movimiento: movimientoClientes(datos.clientes, { hoy: ahoraISO }),
-    invitaciones: invitaciones(datos.invites, { hoy: ahoraISO }),
-    /* Con quién hablar, no solo qué se dijo: un ticket sin nombre no se puede
-       contestar. */
-    tickets: (datos.tickets || [])
-      .map((t) => ({ ...t, quien: porPerfil.get(t.profile_id) || null }))
-      .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))),
-
-    embudo: embudo({
-      equipos: datos.equipos,
-      clientes: datos.clientes,
-      programas: datos.programas || [],
-      checkins: datos.checkins,
-    }),
-
-    actividad: actividadSemanal(eventos, { semanas: Math.min(16, Math.ceil(dias / 7)), hoy }),
-    retencion: retencionSemanaSiguiente(eventos, { semanas: 16 }),
-
-    eventos: porEvento(eventos),
-    pantallas: porPantalla(eventos, cat.pantallas),
-
-    fallos: fallosAgrupados(datos.fallos || []),
-    fallosDia: fallosPorDia(datos.fallos || []),
-
-    censo: censo({
-      clientes: datos.clientes,
-      antropometria: datos.antropometria,
-      nutricion: datos.nutricion,
-      programas: datos.programas || [],
-      checkins: datos.checkins,
-      fotos: datos.fotos,
-      etiquetas: { pliegues: cat.pliegues, perimetros: cat.perimetros },
-      hoy,
-    }),
-
-    negocio: negocio({
-      equipos: datos.equipos,
-      suscripciones: datos.suscripciones,
-      eventos,
-      hoy,
-    }),
-
+    catalogo: cat,
+    estado,
+    proyecto: new URL(url).host,
+    generado: ahora.toISOString(),
+    dias,
     avisos,
-  };
-
-  /*
-    ── Lo aceptado, lo nuevo y lo que ha cambiado ────────────────────────────
-
-    Va después del análisis porque necesita el informe entero: la instantánea se
-    saca de él, y `anotar` compara los hallazgos de hoy con las claves de la vez
-    anterior. Es lo que convierte una foto en una serie.
-  */
-  informe.seguridad = anotar(informe.seguridad, estado);
-  informe.estado = estado;
-
-  const foto = instantanea(informe);
-  informe.cambios = comparar(estado.ultimo?.metricas || {}, foto);
-  informe.comparadoCon = estado.ultimo?.generado || null;
-
-  /*
-    El veredicto va al final del análisis porque necesita el informe COMPLETO —y
-    ya anotado con lo aceptado y lo nuevo—: la mitad de los diagnósticos miran
-    justamente eso. Es lo único del panel que se moja, y por eso vive en su
-    propio archivo con sus propias pruebas.
-  */
-  informe.diagnosticos = diagnosticar(informe);
-  informe.resumen = resumenDe(informe.diagnosticos);
-
-  /* Las líneas de tendencia de los indicadores salen del histórico que este
-     mismo script viene acumulando. En la primera ejecución no hay ninguna, y no
-     se dibuja nada: un punto suelto no es una tendencia. */
-  informe.serie = (clave) =>
-    serieDe([...(estado.historico || []), { generado: informe.generado, metricas: foto }], clave).map(
-      (p) => ({ etiqueta: p.fecha, valor: p.valor })
-    );
+  });
 
   /* ── Los archivos ─────────────────────────────────────────────────────── */
 
@@ -464,26 +280,56 @@ const main = async () => {
     claves de hoy, que es contra lo que se comparará la próxima vez para saber
     qué es nuevo. Sin eso, cada informe sería el primero.
   */
-  const aceptar = flag('--aceptar-todo') ? value('--aceptar-todo') : null;
-  if (flag('--aceptar-todo') && (!aceptar || aceptar.trim().length < 3)) {
+  /*
+    Tres ámbitos, y ninguno salvo `--aceptar-todo` alcanza a un crítico. El
+    porqué está en `AMBITOS` (`src/domain/radiografia/estado.js`): usar la línea
+    base entera para dar por buenos dos avisos nuevos se lleva por delante los
+    críticos sin arreglar, que dejan de pedir atención sin que nadie haya
+    decidido nada sobre ellos.
+  */
+  const BANDERAS = {
+    '--aceptar-nuevos': 'nuevos',
+    '--aceptar-avisos': 'avisos',
+    '--aceptar-todo': 'todo',
+  };
+
+  const usadas = Object.keys(BANDERAS).filter(flag);
+  if (usadas.length > 1) {
+    fail(`No se pueden combinar ${usadas.join(' y ')}: elige un ámbito.`);
+  }
+
+  const bandera = usadas[0] || null;
+  const ambito = bandera ? BANDERAS[bandera] : null;
+  const aceptar = bandera ? value(bandera) : null;
+
+  if (bandera && (!aceptar || aceptar.trim().length < 3)) {
     fail(
-      'A `--aceptar-todo` le falta el motivo.\n' +
+      `A \`${bandera}\` le falta el motivo.\n` +
         '  Dar por buenos unos hallazgos de seguridad sin dejar dicho por qué es\n' +
         '  cómo empiezan los agujeros que luego nadie sabe explicar.\n\n' +
-        '    npm run radiografia -- --aceptar-todo "revisados el 16/08, todos deliberados"'
+        `    npm run radiografia -- ${bandera} "revisados el 23/08, deliberados"`
     );
   }
 
-  await guardarEstado(
-    rutaEstado,
-    siguienteEstado({
-      estado,
-      hallazgos: informe.seguridad.filter((h) => h.nivel !== 'info'),
-      instantanea: foto,
-      generado: informe.generado,
-      aceptar,
-    })
-  );
+  /* Qué alcanza el ámbito, ya descontado lo que estaba aceptado: así el mensaje
+     final dice cuántos se han aceptado de verdad y no un número inflado. */
+  const aceptables = ambito ? aAceptar(informe.seguridad, ambito, estado.aceptados) : [];
+
+  if (memoria.en === 'archivo') {
+    await guardarEstado(
+      rutaEstado,
+      siguienteEstado({
+        estado,
+        hallazgos: informe.seguridad.filter((h) => h.nivel !== 'info'),
+        instantanea: informe.metricas,
+        generado: informe.generado,
+        aceptar,
+        aceptables,
+      })
+    );
+  } else {
+    await guardarMemoria(supabase, { informe, estado, aceptar, aceptables, sembrar });
+  }
 
   /* ── El resumen en pantalla ───────────────────────────────────────────── */
 
@@ -516,7 +362,16 @@ const main = async () => {
       log(`     ${c.mejor ? '↗' : '↘'} ${c.clave}: ${c.antes} → ${c.ahora}`);
     }
   }
-  if (aceptar) log(`\n  ✓  ${informe.seguridad.length} hallazgo(s) aceptados: «${aceptar}»`);
+  /* Decía `informe.seguridad.length` —la lista ENTERA, líneas de contexto
+     incluidas—, así que anunciaba haber aceptado cincuenta cosas al aceptar
+     dos. Un mensaje inflado enseña a no leer los mensajes. */
+  if (aceptar) {
+    log(
+      aceptables.length === 0
+        ? `\n  ·  Nada que aceptar en «${ambito}»: ya estaba todo dado por bueno.`
+        : `\n  ✓  ${aceptables.length} hallazgo(s) aceptados (${ambito}): «${aceptar}»`
+    );
+  }
 
   for (const aviso of avisos) log(`  ⚠  ${aviso}`);
 

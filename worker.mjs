@@ -56,6 +56,59 @@
 const ARCHIVO = /\.(css|js|mjs|map|json|webmanifest|woff2?|ttf|otf|png|jpe?g|gif|svg|webp|avif|ico|mp4|webm|mp3|txt|xml|pdf)$/i;
 
 export default {
+  /**
+   * El reloj del bot de la radiografía.
+   *
+   * ══ Por qué el cron está AQUÍ y no en la base ══════════════════════════════
+   *
+   * `docs/observabilidad.md` §7 apuntaba a `pg_cron`, y correr dentro de la base
+   * habría tenido una ventaja real: sin red de por medio. Pesan más dos
+   * inconvenientes.
+   *
+   *   1. Depende del plan de Supabase, que puede cambiar sin que nadie lo
+   *      relacione con que el bot dejó de avisar.
+   *   2. Y sobre todo: la programación de `pg_cron` vive en una tabla del
+   *      servidor, o sea **fuera de cualquier diff**. Este proyecto ya ha pagado
+   *      tres veces —0046, 0057, 0068— el precio de tener estado que solo existe
+   *      en el servidor y que nadie puede revisar leyendo el repositorio.
+   *
+   * Aquí la cadencia está escrita en `wrangler.jsonc`, al lado del resto del
+   * despliegue, y cambiarla es un commit.
+   *
+   * ══ Por qué el worker no calcula nada ══════════════════════════════════════
+   *
+   * Solo llama. Todo el criterio —qué hay que atender, cuándo hablar y cuándo
+   * callarse— vive en `src/domain/radiografia/` y lo ejecuta la función edge,
+   * que además es la única que tiene la clave de servicio. Un worker que
+   * decidiera algo sería un cuarto sitio donde se contesta «qué va mal».
+   */
+  async scheduled(_evento, env, ctx) {
+    const { SUPABASE_URL, RADIOGRAFIA_CRON_SECRET } = env;
+
+    /* Sin configurar, no pasa nada y se dice. Un cron que falla en silencio es
+       un aviso que deja de llegar sin que nadie se entere. */
+    if (!SUPABASE_URL || !RADIOGRAFIA_CRON_SECRET) {
+      console.error('cron radiografía: faltan SUPABASE_URL o RADIOGRAFIA_CRON_SECRET');
+      return;
+    }
+
+    /* `waitUntil` porque el informe tarda varios segundos y el manejador
+       programado puede darse por terminado antes de que la petición vuelva. */
+    ctx.waitUntil(
+      fetch(`${SUPABASE_URL}/functions/v1/telegram?empujar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RADIOGRAFIA_CRON_SECRET}` },
+      })
+        .then(async (r) => {
+          const cuerpo = await r.text();
+          /* Se registra siempre, también el «no he hablado»: es lo que permite
+             distinguir un bot callado de un cron que no corre. */
+          console.log('cron radiografía', r.status, cuerpo.slice(0, 300));
+        })
+        .catch((e) => console.error('cron radiografía', e))
+    );
+  },
+
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
 

@@ -107,6 +107,36 @@ verify_jwt = false
 [functions.client-calendar]
 verify_jwt = false
 
+# ── El bot de la radiografía ────────────────────────────────────────────────
+#
+# También REQUISITO, y por partida doble: esta función tiene dos llamadores y
+# **ninguno de los dos puede traer un JWT de Supabase**.
+#
+#   · El Cron Trigger del worker (`?empujar`), que se identifica con
+#     `RADIOGRAFIA_CRON_SECRET` en la cabecera `Authorization`. No hay usuario
+#     detrás de un cron, así que no hay sesión que mandar.
+#   · Telegram, que llama al webhook con su propia cabecera
+#     `X-Telegram-Bot-Api-Secret-Token`. Sus servidores no saben nada de
+#     Supabase y no se les puede pedir que añadan nada.
+#
+# Con la pasarela exigiendo un JWT, los dos se llevan un 401 antes de que la
+# función llegue a correr, y el bot no funciona en absoluto.
+#
+# Lo que concede sin pasarela está cerrado por triplicado DENTRO de la función,
+# que es donde tiene que estar: el secreto del cron para el empujón, el secreto
+# del webhook para lo que dice venir de Telegram, y una lista blanca de
+# `chat_id` para quien pregunta. A cualquier otro, silencio — un mensaje de
+# error confirmaría que el bot existe y a qué responde.
+#
+# `radiografia` NO lleva sección, y es deliberado: la llama el navegador con
+# `functions.invoke`, que sí manda la sesión, y la pasarela ya deja pasar el
+# preflight sin autenticar (comprobado: `OPTIONS` contesta 204). Así que ahí la
+# comprobación del gateway se queda puesta, DELANTE de la que hace la propia
+# función contra `platform_admins`. Es el endpoint que entrega el estado de
+# seguridad de la base: es el último sitio donde quitar una capa.
+[functions.telegram]
+verify_jwt = false
+
 # ── Entorno local ───────────────────────────────────────────────────────────
 #
 # El `seed` apunta a `bootstrap.sql`, que no es una semilla de datos sino el

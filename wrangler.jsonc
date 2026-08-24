@@ -55,6 +55,28 @@
 
   "main": "worker.mjs",
 
+  /*
+    ══ El reloj del bot de la radiografía ═══════════════════════════════════
+
+    Una vez al día, a las 7:00 UTC. La hora importa más que la frecuencia: el
+    informe se mira para decidir, y una decisión se toma por la mañana. Un aviso
+    que llega a las tres de la madrugada se lee a las nueve y ya no es un aviso,
+    es una lista.
+
+    Y UNA vez, no cuatro. El bot solo habla si algo ha cambiado (ver
+    `src/domain/radiografia/aviso.js`), así que mirar más a menudo no produciría
+    más mensajes — produciría los mismos, antes, a cambio de correr el informe
+    entero cuatro veces. Esto no es monitorización: no hay guardia y no avisa a
+    nadie a las tres de la mañana, que es lo que `observabilidad.md` §5.4 dice
+    que esta herramienta no pretende ser.
+
+    Cambiar la cadencia es un commit, que es justo lo que se buscaba al no usar
+    `pg_cron` (ver la cabecera de `worker.mjs`).
+  */
+  "triggers": {
+    "crons": ["0 7 * * *"]
+  },
+
   "assets": {
     "directory": "./dist/",
 

@@ -59,7 +59,7 @@ Tres niveles de acercamiento, y el primero es el que hace que sirva:
 
 1. **El veredicto.** Qué hay que atender hoy, con su cifra, de dónde sale y
    **qué hacer**. Es lo único del panel que se moja, y vive en
-   `scripts/radiografia/diagnosticos.mjs` con sus propias pruebas. Antes esta
+   `src/domain/radiografia/diagnosticos.js` con sus propias pruebas. Antes esta
    parte no existía y el panel empezaba por una tabla: quien lo abría tenía que
    saber por su cuenta que el portal es media aplicación y decidir si 13 % es
    poco. Eso es trabajo que la herramienta puede hacer.
@@ -105,6 +105,19 @@ para quien quiere copiarlo.
 ---
 
 ## 2. Por qué está FUERA de la aplicación
+
+> **Revisado en agosto de 2026: dos de estas tres razones han caducado.** La 2.2
+> —«no hay dónde ponerlo»— era la que decidía, y dejó de ser cierta cuando el
+> proyecto acumuló ocho funciones edge sin que nadie relacionara una cosa con la
+> otra. La 2.3 sigue en pie y es la única que importa.
+>
+> La sección se queda entera y sin retocar porque el razonamiento era correcto
+> **con lo que había entonces**, y saber por qué se decidió lo contrario es lo que
+> permite juzgar el cambio. Lo que se hace ahora, y cómo se contesta la 2.3 sin
+> escribir una sola política, está en [`plataforma.md`](plataforma.md).
+>
+> Esto **no retira la herramienta local**: la CLI se queda, y sigue siendo la
+> única que puede correr `--estricto` en integración continua.
 
 Fue la primera decisión y condiciona todas las demás. Tres razones, y la tercera
 es la que decide.
@@ -221,10 +234,27 @@ importa aparece entre los de siempre y no lo ve nadie. La respuesta no es bajar
 el listón de lo que se considera grave —eso es dejar de mirar, disfrazado— sino
 **poder decir «esto ya lo he visto y es deliberado»**:
 
-- En el panel, se marcan los hallazgos revisados, se escribe **el motivo** —es
-  obligatorio— y se descarga el `estado.json` resultante a `informes/`.
-- O de una vez, tras revisarlos a mano:
-  `npm run radiografia -- --aceptar-todo "revisados el 16/08, todos deliberados"`.
+Desde la línea de órdenes, con **el motivo obligatorio** y en tres ámbitos:
+
+```bash
+npm run radiografia -- --aceptar-nuevos "motivo"   # los que ayer no estaban
+npm run radiografia -- --aceptar-avisos "motivo"   # todos los no críticos
+npm run radiografia -- --aceptar-todo   "motivo"   # TODOS. Fija la línea base
+```
+
+**Los dos primeros nunca alcanzan a un crítico**, y ésa es la regla que hace que
+esto se pueda usar cada semana: dar por buenos dos avisos nuevos no puede dejar
+de pedir atención sobre algo que sigue sin arreglar. Un crítico solo se acepta
+escribiendo `--aceptar-todo`, que cuesta más de teclear a propósito.
+
+O desde **el panel de la aplicación** (`/plataforma`), que es donde se hace lo
+selectivo: se marcan los hallazgos, se escribe el motivo y queda guardado con tu
+nombre y la fecha. Ver [`plataforma.md`](plataforma.md).
+
+> **El marcado desde el panel HTML generado en local ya no funciona.** Ese
+> archivo deja seleccionar hallazgos y descargar un `estado.json`, y desde la
+> migración 0074 lo aceptado vive en la base: ese archivo descargado no lo lee
+> nadie. Los botones siguen ahí y se retiran cuando el HTML se jubile.
 
 A partir de ahí solo destaca **lo nuevo**. Y si un hallazgo aceptado **cambia**
 —una política pasa de `SELECT` a `ALL`, una tabla suma un permiso— el texto
@@ -280,7 +310,7 @@ usado no dice nada de lo que sobra, y quitar una pantalla vale más que añadir
 dos.
 
 Para poder decir qué no se usa hay que saber qué existe, y eso está en el código,
-no en la base. `scripts/radiografia/catalogo.mjs` lo extrae de `src/routes.jsx` y
+no en la base. `src/domain/radiografia/catalogo.js` lo extrae de `src/routes.jsx` y
 de `src/domain/anthropometry.js`, con pruebas que corren contra esos mismos
 archivos: si alguien los reescribe con otra forma, la prueba se rompe en vez de
 que el informe empiece a decir «no falta nada» — que es la manera silenciosa de
@@ -426,14 +456,21 @@ se mira una vez a la semana.
 | `src/lib/analytics.js` | El canal de salida: las dos corrientes por el mismo tubo |
 | `src/lib/diagnostics.js` | Recoge los fallos en memoria y avisa por un enganche |
 | `scripts/radiografia.mjs` | Recoge, orquesta y escribe |
-| `scripts/radiografia/analisis.mjs` | Las reglas. Funciones puras, con pruebas |
-| `scripts/radiografia/catalogo.mjs` | Qué ofrece la aplicación, leído del código |
-| `scripts/radiografia/cuentas.mjs` | **La hoja de cuentas.** Una fila por entrenador |
-| `scripts/radiografia/dinero.mjs` | Planes, pruebas, cobros e invitaciones |
-| `scripts/radiografia/diagnosticos.mjs` | **El veredicto.** Lo único que se moja |
-| `scripts/radiografia/estado.mjs` | Lo aceptado, lo de la vez anterior y el histórico |
-| `scripts/radiografia/informe.mjs` | El panel |
+| `scripts/radiografia/informe.mjs` | El panel en HTML |
+| `scripts/radiografia/archivo.mjs` | `estado.json`: leerlo y escribirlo. Lo único que sabe que hay disco |
 | `scripts/credenciales.mjs` | La clave, comprobada. Compartido con `backup.mjs` |
+
+Y **el razonamiento**, que ya no vive en `scripts/` porque lo comparten la CLI, la
+función edge y el panel (ver [`plataforma.md`](plataforma.md) §3):
+
+| Archivo | Qué hace |
+|---|---|
+| `src/domain/radiografia/analisis.js` | Las reglas. Funciones puras, con pruebas |
+| `src/domain/radiografia/catalogo.js` | Qué ofrece la aplicación, leído del código |
+| `src/domain/radiografia/cuentas.js` | **La hoja de cuentas.** Una fila por entrenador |
+| `src/domain/radiografia/dinero.js` | Planes, pruebas, cobros e invitaciones |
+| `src/domain/radiografia/diagnosticos.js` | **El veredicto.** Lo único que se moja |
+| `src/domain/radiografia/estado.js` | Lo aceptado, lo de la vez anterior y el histórico |
 
 ### Por qué `diagnostics` no importa el cliente de Supabase
 

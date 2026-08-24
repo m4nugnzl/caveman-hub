@@ -10,6 +10,18 @@
  * cuatro. A esta escala un porcentaje no informa: divide y borra los nombres.
  * «El 13 % tiene portal» son 2 de 15, y quien lo lee ya lo sabía.
  *
+ * ── El panel de la aplicación SÍ los pinta, y no es una contradicción ───────
+ * Desde agosto de 2026, `src/components/Platform/PlatformPanel.jsx` enseña el
+ * embudo y la retención. No deshace esta decisión: la cumple por otro camino.
+ * Allí la cifra que se lee sigue siendo la absoluta —«12 de 20», nunca «60 %»—
+ * y el porcentaje solo decide el ancho de una barra, que es el único sitio
+ * donde no puede mentir sobre el tamaño de la muestra. Lo que aquella regla
+ * protegía era que un porcentaje no sustituyera a los nombres, no que no
+ * hubiera barras. Ver `docs/plataforma.md` §7.
+ *
+ * Aquí no se pintan igualmente, y también a propósito: este archivo es la hoja
+ * de registro y sigue siendo un HTML que se abre para leer nombres.
+ *
  * El instrumento de un entrenador no es un panel de métricas: es la hoja donde
  * cada fila es una persona y las columnas son lo que hizo esta semana. Este
  * informe es esa hoja, para el negocio: **una fila por cuenta, con su nombre,

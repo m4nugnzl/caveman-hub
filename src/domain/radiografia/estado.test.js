@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { comparar, instantanea } from './analisis.mjs';
-import { anotar, claveDe, claveNovedad, serieDe, siguienteEstado } from './estado.mjs';
+import { comparar, instantanea } from './analisis.js';
+import {
+  aAceptar,
+  aceptadosDe,
+  anotar,
+  claveDe,
+  claveNovedad,
+  estadoDeFilas,
+  filaDeInstantanea,
+  filasDeAceptacion,
+  serieDe,
+  siguienteEstado,
+} from './estado.js';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -345,5 +356,192 @@ describe('instantanea y comparar', () => {
   it('ordena por magnitud, que es el orden en el que se mira', () => {
     const cambios = comparar({ a: 1, b: 1 }, { a: 2, b: 90 });
     expect(cambios[0].clave).toBe('b');
+  });
+});
+
+/* ==========================================================================
+   Lo mismo, viviendo en la base (migración 0074)
+   ========================================================================== */
+
+describe('aceptadosDe', () => {
+  it('no acepta nada si no hay ninguna fila', () => {
+    expect(aceptadosDe([])).toEqual({});
+  });
+
+  it('lee una aceptación con su motivo, su fecha y su autor', () => {
+    const aceptados = aceptadosDe([
+      {
+        id: 1,
+        clave: 'tablas|videos|política FOR ALL',
+        motivo: 'la tabla se retira en la 0057',
+        nivel: 'critico',
+        objeto: 'videos',
+        quien: 'perfil-1',
+        at: '2026-08-16T10:00:00.000Z',
+      },
+    ]);
+
+    expect(aceptados['tablas|videos|política FOR ALL']).toEqual({
+      desde: '2026-08-16',
+      motivo: 'la tabla se retira en la 0057',
+      nivel: 'critico',
+      objeto: 'videos',
+      quien: 'perfil-1',
+    });
+  });
+
+  it('una retirada deja el hallazgo sin aceptar', () => {
+    const aceptados = aceptadosDe([
+      { id: 1, clave: 'a|b|c', motivo: 'deliberado', at: '2026-08-16T10:00:00.000Z' },
+      { id: 2, clave: 'a|b|c', motivo: 'ya no lo es', retira: 1, at: '2026-08-20T10:00:00.000Z' },
+    ]);
+    expect(aceptados['a|b|c']).toBeUndefined();
+  });
+
+  it('aceptar, retirar y volver a aceptar deja el hallazgo aceptado', () => {
+    /* Tres filas y una sola conclusión: es lo que distingue un registro de
+       decisiones de una casilla que se marca y se desmarca. */
+    const aceptados = aceptadosDe([
+      { id: 1, clave: 'a|b|c', motivo: 'primera vez', at: '2026-08-16T10:00:00.000Z' },
+      { id: 2, clave: 'a|b|c', motivo: 'me equivoqué', retira: 1, at: '2026-08-18T10:00:00.000Z' },
+      { id: 3, clave: 'a|b|c', motivo: 'lo he vuelto a mirar', at: '2026-08-20T10:00:00.000Z' },
+    ]);
+    expect(aceptados['a|b|c'].motivo).toBe('lo he vuelto a mirar');
+  });
+
+  it('ordena las filas aunque lleguen del revés', () => {
+    /* Un `select` sin `order by` no promete ningún orden. Aplicar la retirada
+       antes que su aceptación dejaría aceptado algo que ya no debe estarlo:
+       se vería MENOS de lo que hay, que es el fallo caro. */
+    const desordenadas = [
+      { id: 2, clave: 'a|b|c', motivo: 'retirada', retira: 1, at: '2026-08-20T10:00:00.000Z' },
+      { id: 1, clave: 'a|b|c', motivo: 'aceptada', at: '2026-08-16T10:00:00.000Z' },
+    ];
+    expect(aceptadosDe(desordenadas)['a|b|c']).toBeUndefined();
+  });
+});
+
+describe('estadoDeFilas', () => {
+  const snap = (dia, metricas, claves = []) => ({
+    dia,
+    generado: `${dia}T10:00:00.000Z`,
+    metricas,
+    claves,
+  });
+
+  it('sin instantáneas no hay «anterior», y por tanto nada es nuevo', () => {
+    const estado = estadoDeFilas({});
+    expect(estado.ultimo).toBeNull();
+    expect(estado.historico).toEqual([]);
+
+    const hallazgo = { area: 'a', objeto: 'b', detalle: 'c', nivel: 'critico' };
+    expect(anotar([hallazgo], estado)[0].nuevo).toBe(false);
+  });
+
+  it('el «anterior» es la instantánea más reciente, no la primera que llegue', () => {
+    const estado = estadoDeFilas({
+      snapshots: [snap('2026-08-16', { x: 1 }), snap('2026-08-23', { x: 5 }, ['a|b|critico'])],
+    });
+    expect(estado.ultimo.metricas).toEqual({ x: 5 });
+    expect(estado.ultimo.claves).toEqual(['a|b|critico']);
+  });
+
+  it('el histórico sale en orden, para que la línea no vaya y vuelva', () => {
+    const estado = estadoDeFilas({
+      snapshots: [snap('2026-08-23', { x: 5 }), snap('2026-08-09', { x: 1 }), snap('2026-08-16', { x: 3 })],
+    });
+    expect(serieDe(estado.historico, 'x').map((p) => p.valor)).toEqual([1, 3, 5]);
+  });
+});
+
+describe('filaDeInstantanea', () => {
+  it('guarda el día, y con eso manda la última ejecución de cada día', () => {
+    const fila = filaDeInstantanea({
+      generado: '2026-08-23T16:25:50.000Z',
+      metricas: { x: 1 },
+      hallazgos: [{ area: 'tablas', objeto: 'videos', detalle: 'texto que cambia', nivel: 'critico' }],
+    });
+
+    expect(fila.dia).toBe('2026-08-23');
+    /* Las de NOVEDAD: si guardara las estrictas, reescribir el texto de un
+       hallazgo lo haría parecer nuevo sin que la base hubiera cambiado. */
+    expect(fila.claves).toEqual(['tablas|videos|critico']);
+  });
+});
+
+describe('filasDeAceptacion', () => {
+  const hallazgo = { area: 'a', objeto: 'b', detalle: 'c', nivel: 'aviso' };
+
+  it('compone la fila con su clave estricta y su motivo', () => {
+    const [fila] = filasDeAceptacion({ hallazgos: [hallazgo], motivo: 'revisado', quien: 'p1' });
+    expect(fila).toEqual({ clave: 'a|b|c', motivo: 'revisado', nivel: 'aviso', objeto: 'b', quien: 'p1' });
+  });
+
+  it('no repite lo que ya estaba aceptado', () => {
+    /* Sin esto, cada ejecución con --aceptar-todo añadiría una fila idéntica
+       por hallazgo, y la tabla dejaría de ser un registro de decisiones para
+       ser un registro de ejecuciones. */
+    const filas = filasDeAceptacion({
+      hallazgos: [hallazgo],
+      motivo: 'otra vez',
+      yaAceptados: { 'a|b|c': { motivo: 'ya estaba' } },
+    });
+    expect(filas).toEqual([]);
+  });
+});
+
+describe('aAceptar', () => {
+  const h = (nivel, objeto, nuevo = false) => ({
+    area: 'a',
+    objeto,
+    detalle: 'd',
+    nivel,
+    nuevo,
+  });
+
+  const lista = [
+    h('critico', 'videos'),
+    h('aviso', 'platform_snapshots', true),
+    h('aviso', 'una_funcion_vieja'),
+    h('info', 'contexto'),
+  ];
+
+  it('«nuevos» solo alcanza lo que ayer no estaba', () => {
+    expect(aAceptar(lista, 'nuevos').map((x) => x.objeto)).toEqual(['platform_snapshots']);
+  });
+
+  it('«avisos» alcanza todo lo que no es crítico', () => {
+    expect(aAceptar(lista, 'avisos').map((x) => x.objeto)).toEqual([
+      'platform_snapshots',
+      'una_funcion_vieja',
+    ]);
+  });
+
+  it('«todo» incluye los críticos, y es la única forma de aceptarlos', () => {
+    expect(aAceptar(lista, 'todo').map((x) => x.objeto)).toContain('videos');
+  });
+
+  /* ══ La regla que justifica que haya ámbitos ═══════════════════════════
+     Aceptar dos avisos nuevos no puede llevarse por delante un crítico sin
+     arreglar: dejaría de pedir atención sin que nadie decidiera nada. */
+  it('ni «nuevos» ni «avisos» tocan jamás un crítico', () => {
+    for (const ambito of ['nuevos', 'avisos']) {
+      expect(aAceptar(lista, ambito).some((x) => x.nivel === 'critico')).toBe(false);
+    }
+  });
+
+  it('nunca incluye las líneas de contexto', () => {
+    for (const ambito of ['nuevos', 'avisos', 'todo']) {
+      expect(aAceptar(lista, ambito).some((x) => x.nivel === 'info')).toBe(false);
+    }
+  });
+
+  it('descuenta lo que ya estaba aceptado, para no decir un número inflado', () => {
+    const ya = { 'a|una_funcion_vieja|d': { motivo: 'ya estaba' } };
+    expect(aAceptar(lista, 'avisos', ya).map((x) => x.objeto)).toEqual(['platform_snapshots']);
+  });
+
+  it('un ámbito que no existe no acepta nada', () => {
+    expect(aAceptar(lista, 'inventado')).toEqual([]);
   });
 });

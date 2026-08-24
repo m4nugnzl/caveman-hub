@@ -11,6 +11,7 @@
     "verify": "node scripts/verify-styles.mjs",
     "backup": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/backup.mjs",
     "radiografia": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/radiografia.mjs",
+    "catalogo": "node scripts/generar-catalogo.mjs",
     "restore": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/restore.mjs",
     "demo": "node --env-file-if-exists=.env --env-file-if-exists=.env.test scripts/demo.mjs",
     "demo:limpiar": "node --env-file-if-exists=.env --env-file-if-exists=.env.test scripts/demo.mjs --limpiar",

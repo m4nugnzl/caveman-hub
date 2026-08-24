@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { diagnosticar, resumenDe } from './diagnosticos.mjs';
+import { diagnosticar, resumenDe } from './diagnosticos.js';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════

@@ -1,0 +1,42 @@
+{
+  "pantallas": [
+    "hoy",
+    "clientes",
+    "cartera",
+    "cliente_semana",
+    "cliente_resumen",
+    "cliente_rutina",
+    "cliente_nutricion",
+    "cliente_revision",
+    "cliente_calendario",
+    "cliente_ficha",
+    "cliente_analitica",
+    "cliente_revision_fotos",
+    "ajustes_protocolo",
+    "ajustes_equipo",
+    "ajustes_integraciones",
+    "ajustes_copia",
+    "ajustes_apariencia",
+    "ajustes_plan",
+    "ajustes_ayuda"
+  ],
+  "pliegues": [
+    "tricipital",
+    "subescapular",
+    "abdominal",
+    "suprailiaco",
+    "muslo",
+    "pantorrilla"
+  ],
+  "perimetros": [
+    "pecho",
+    "brazoD",
+    "brazoI",
+    "ombligo",
+    "gluteo",
+    "musloD",
+    "musloI",
+    "gemeloD",
+    "gemeloI"
+  ]
+}

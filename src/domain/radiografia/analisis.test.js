@@ -13,7 +13,7 @@ import {
   retencionSemanaSiguiente,
   semanaDe,
   usoDeCampos,
-} from './analisis.mjs';
+} from './analisis.js';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════

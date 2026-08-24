@@ -106,6 +106,21 @@ const TABLES = [
   'support_tickets',
   'support_messages',
   'platform_admins',
+  /*
+    Las dos de la radiografía (0074). Entran, y merece la pena decir por qué,
+    porque la intuición dice lo contrario: `product_events` y `app_errors` están
+    EXCLUIDAS por ser telemetría desechable, y esto se le parece.
+
+    No es lo mismo. Aquellas se pueden volver a generar usando la aplicación;
+    éstas no se pueden generar de ninguna manera. `platform_snapshots` es la
+    única copia que existe de cuántos clientes había en marzo — recalcularlo es
+    imposible porque los datos de marzo ya no existen. Y `platform_acceptances`
+    es el registro de qué hallazgos de seguridad se dieron por buenos y por qué:
+    perderlo hace que todos vuelvan a salir como nuevos y que nadie recuerde
+    cuáles ya se habían mirado.
+  */
+  'platform_snapshots',
+  'platform_acceptances',
   'audit_log',
 ];
 
@@ -131,6 +146,12 @@ export const EXCLUIDAS = {
     'corto —90 días—: un fallo de hace tres meses o está arreglado o sigue ocurriendo hoy, y en ' +
     'los dos casos su copia no sirve para nada. Restaurar una instalación no necesita saber qué ' +
     'se rompió en la anterior.',
+  platform_alerts:
+    'Lo que el bot de Telegram ya ha avisado (0075). Es lo único de las cuatro tablas de ' +
+    'plataforma que NO entra en la copia, y la diferencia importa: las otras tres guardan ' +
+    'medidas que no se pueden recalcular y decisiones que no se pueden reconstruir; ésta ' +
+    'guarda qué mensajes se mandaron. Perderla cuesta un mensaje: el primer aviso tras ' +
+    'restaurar vuelve a fijar la línea base y a partir de ahí sigue igual.',
   videos:
     'La corrección de vídeos se retiró del producto (auditoria.md §2) y la tabla la borra la ' +
     'migración 0057, que se niega a hacerlo si tiene una sola fila. Se queda aquí y no en TABLES ' +

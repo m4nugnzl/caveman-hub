@@ -11,7 +11,7 @@
  *   2. Lo que sus clientes le pagan a ÉL. Eso es esto.
  *
  * Este módulo es solo la segunda. Es la misma separación que ya hace
- * `scripts/radiografia/dinero.mjs`, escrita con el rótulo delante para que nunca
+ * `src/domain/radiografia/dinero.js`, escrita con el rótulo delante para que nunca
  * se sumen por error.
  *
  * ══ Y las dos preguntas del entrenador, que tampoco son la misma ════════════

@@ -2,7 +2,7 @@
   "version": 2,
   "aceptados": {},
   "ultimo": {
-    "generado": "2026-08-23T10:14:10.534Z",
+    "generado": "2026-08-23T17:34:16.240Z",
     "claves": [
       "rls|videos|critico",
       "rls|integration_secrets|aviso",
@@ -58,19 +58,19 @@
     "metricas": {
       "seguridad · críticos": 2,
       "seguridad · avisos": 48,
-      "actividad · cuentas esta semana": 16,
+      "actividad · cuentas esta semana": 17,
       "fallos · distintos": 0,
-      "embudo · se registró": 18,
+      "embudo · se registró": 20,
       "embudo · dio de alta un cliente": 4,
       "embudo · le programó algo": 4,
       "embudo · le dio acceso al portal": 4,
       "embudo · revisó un check-in": 1,
       "clientes · total": 22,
-      "clientes · con portal (%)": 63.6,
+      "clientes · con portal (%)": 72.7,
       "clientes · con sexo (%)": 86.4,
       "programas · clientes con programa (%)": 86.4,
       "revisión · entregados sin contestar +7d": 0,
-      "antropometría · registros": 37,
+      "antropometría · registros": 38,
       "workout_data · KB por fila": 29
     }
   },
@@ -139,23 +139,23 @@
       }
     },
     {
-      "generado": "2026-08-23T10:14:10.534Z",
+      "generado": "2026-08-23T17:34:16.240Z",
       "metricas": {
         "seguridad · críticos": 2,
         "seguridad · avisos": 48,
-        "actividad · cuentas esta semana": 16,
+        "actividad · cuentas esta semana": 17,
         "fallos · distintos": 0,
-        "embudo · se registró": 18,
+        "embudo · se registró": 20,
         "embudo · dio de alta un cliente": 4,
         "embudo · le programó algo": 4,
         "embudo · le dio acceso al portal": 4,
         "embudo · revisó un check-in": 1,
         "clientes · total": 22,
-        "clientes · con portal (%)": 63.6,
+        "clientes · con portal (%)": 72.7,
         "clientes · con sexo (%)": 86.4,
         "programas · clientes con programa (%)": 86.4,
         "revisión · entregados sin contestar +7d": 0,
-        "antropometría · registros": 37,
+        "antropometría · registros": 38,
         "workout_data · KB por fila": 29
       }
     }

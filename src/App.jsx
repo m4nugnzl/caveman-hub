@@ -57,6 +57,10 @@ const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCh
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
 const CoachCalendar = lazyRoute(() => import('@/components/calendar/CoachCalendar').then((m) => ({ default: m.CoachCalendar })));
 const IncomePanel = lazyRoute(() => import('@/components/Coach/Income/IncomePanel').then((m) => ({ default: m.IncomePanel })));
+/* La radiografía va en su propio trozo y no en el del panel: son ~30 KB que
+   solo abre una persona, y meterlos en el arranque se los descargaría todo el
+   mundo en cada visita. */
+const PlatformPanel = lazyRoute(() => import('@/components/Platform/PlatformPanel').then((m) => ({ default: m.PlatformPanel })));
 import {
   CLIENT_HOME,
   COACH_CLIENT,
@@ -385,6 +389,16 @@ export default function App() {
                     sigue viva porque está en marcadores y en enlaces
                     compartidos. */}
                 <Route path="cartera" element={<Navigate to="/clientes" replace />} />
+                {/* La radiografía de la plataforma: qué se usa, qué se rompe,
+                    quién paga y por dónde se podría entrar. NO está en ningún
+                    carril de navegación —solo en el menú de cuenta y solo si
+                    eres admin— porque no es trabajo de un entrenador.
+
+                    Que la ruta exista para todo el mundo no expone nada: la
+                    pantalla no trae datos dentro, los pide a una función edge
+                    que comprueba `platform_admins` en el servidor. Quien entre
+                    aquí sin serlo ve un «esto no es para tu cuenta». */}
+                <Route path="plataforma" element={<PlatformPanel />} />
                 {/* Ajustes: lo que se configura una vez y no se toca a diario.
                     Fuera del nivel primario para que ese tenga tres entradas. */}
                 <Route path="ajustes" element={<SettingsLayout />}>
