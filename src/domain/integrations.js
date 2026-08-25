@@ -97,6 +97,14 @@ export const PROVIDERS = [
     category: 'Cobros',
     what: 'Es la integración que de verdad cambia el trabajo: en lugar de leer una tabla que alguien mantiene a mano, el estado de pago viene de quien cobra. Detecta la tarjeta rechazada el día que pasa y la baja en cuanto ocurre.',
   },
+  {
+    id: 'google_drive',
+    name: 'Google Drive',
+    tagline: 'Una carpeta por cliente, creada y compartida sola',
+    status: 'available',
+    category: 'Archivos',
+    what: 'Tu material ya vive en Drive y no hay ninguna razón para moverlo. Lo que sobra es el trajín: crear la carpeta de cada cliente, compartirla, copiar el enlace y pegarlo. Esto lo hace solo, y si quieres, tu cliente puede dejar cosas ahí desde su portal sin pasar por WhatsApp.',
+  },
 ];
 
 /*
@@ -129,6 +137,8 @@ export const PROVIDERS = [
 export const CATEGORIAS = {
   Cobros:
     'De dónde sale quién ha pagado y quién no. Conectando uno, el estado de pago de tus clientes deja de mantenerse a mano.',
+  Archivos:
+    'Dónde vive el material que le pasas a cada cliente y el que él te manda. La aplicación no lo mueve de sitio: le pone la puerta.',
 };
 
 export const providerById = (id) => PROVIDERS.find((p) => p.id === id) || null;

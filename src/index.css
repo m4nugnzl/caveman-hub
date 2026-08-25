@@ -415,6 +415,10 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 
 .t-secondary { color: var(--text-secondary); }
 .t-tertiary { color: var(--text-tertiary); }
+/* Una línea que avisa sin ser un aviso. Para lo que está mal en UNA fila de una
+   lista —«sin compartir: no tiene correo»— donde un `Notice` arriba obligaría a
+   recordar de quién hablaba mientras se baja a buscarlo. */
+.t-warning { color: var(--warning); }
 .t-2xs { font-size: var(--fs-2xs); }
 .t-xs { font-size: var(--fs-xs); }
 .t-sm { font-size: var(--fs-sm); }
@@ -762,8 +766,27 @@ button.list-row:hover { background: var(--fill-subtle); }
   padding: var(--s3);
 }
 
+/*
+  ══ La cabecera de un grupo, en DOS renglones ═══════════════════════════════
+
+  Estaba en uno solo, con la pista quedándose el hueco sobrante y cortándose por
+  elipsis. En la columna de «Hoy» —unos 300 px— eso daba «Han entregado y esp…»
+  y «Todavía no pueden e…»: texto cortado que no dice nada y que además está en
+  la lista de lo prohibido de `docs/producto.md` §5.6.
+
+  Y no era «una columna que podía ser más ancha»: es la barra lateral, mide lo
+  que mide. Cuando el ancho no se puede negociar, lo que se negocia es el número
+  de renglones — la pista baja al suyo, entera, y ahí cabe siempre.
+
+  En la cartera, donde la bandeja va a ancho completo, el segundo renglón sigue
+  siendo un renglón corto de letra pequeña: se paga barato y a cambio las dos
+  pantallas se leen igual.
+*/
 .task-head {
-  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  display: grid; width: 100%;
+  grid-template-columns: auto auto 1fr auto;
+  grid-template-areas: 'k n . chevron' 'hint hint hint hint';
+  align-items: center; column-gap: var(--s2); row-gap: 2px;
   background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left;
 }
 button.task-head { cursor: pointer; }
@@ -772,23 +795,26 @@ button.task-head { cursor: pointer; }
 button.task-head:hover > .k,
 button.task-head:hover > .chevron { color: var(--text); }
 .task-head > .k {
+  grid-area: k;
   font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
   letter-spacing: var(--tracking-stencil); color: var(--text-secondary);
-  white-space: nowrap;
 }
 .task-head > .n {
+  grid-area: n;
   font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums;
   min-width: 22px; text-align: center; border-radius: var(--r-pill);
   background: var(--fill); color: var(--text-secondary); padding: 0 6px;
 }
-/* La pista se queda con el hueco sobrante y desaparece por elipsis antes que el
-   título o el contador, que son lo que no se puede perder. */
+/* La pista, entera y en su renglón. Sin `nowrap` ni elipsis: lo que no cabe se
+   parte en dos líneas, que es lo que hace un texto cuando no cabe. */
 .task-head > .hint {
-  flex: 1; min-width: 0;
+  grid-area: hint; min-width: 0;
   font-size: var(--fs-2xs); color: var(--text-tertiary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.task-head > .chevron { color: var(--text-tertiary); flex-shrink: 0; transition: transform var(--fast); }
+.task-head > .chevron {
+  grid-area: chevron;
+  color: var(--text-tertiary); transition: transform var(--fast);
+}
 .task-head[aria-expanded='true'] > .chevron { transform: rotate(90deg); }
 
 /* ── El botón flotante de añadir ────────────────────────────────────────────
@@ -900,8 +926,14 @@ button.task-head:hover > .chevron { color: var(--text); }
    El nombre reclama 132 px antes de ceder (`flex-basis`), y cuando no los hay el
    botón baja a su propia línea en vez de comerse el nombre. No se corta nada, no
    se desplaza nada en horizontal y en el móvil se comporta igual sin una regla
-   aparte. La flecha se queda arriba, alineada con el nombre, porque señala a la
-   fila entera. */
+   aparte.
+
+   ── Y la flecha desapareció de las filas con botón ────────────────────────
+   Se quedaba arriba «alineada con el nombre» en teoría, y en la práctica no:
+   con botón y flecha, los dos bajaban juntos y la flecha acababa sola debajo de
+   cada tarjeta, pareciendo un trozo de maquetación rota. Ahora solo se pinta
+   donde no hay botón — no hacía nada por su cuenta, era la señal de que la fila
+   se puede pulsar, y donde hay botón esa señal ya está dada. */
 .task-row {
   position: relative; display: flex; align-items: center; gap: var(--s2) var(--s3);
   flex-wrap: wrap;
@@ -1229,12 +1261,39 @@ button.task-head:hover > .chevron { color: var(--text); }
 }
 .week-quote > strong { font-family: var(--font-display); color: var(--text); margin-right: var(--s2); }
 
-/* Las fotos de la semana, dentro de su tarjeta de métrica. Cuadradas y
-   pequeñas: aquí solo dicen «las hay y son éstas»; compararlas es en Revisión. */
-.week-photos { display: flex; gap: var(--s2); flex-wrap: wrap; }
-.week-photos img {
-  width: 54px; height: 72px; object-fit: cover;
-  border-radius: var(--r-sm); border: 1px solid var(--edge);
+/* ── LA COMPARATIVA de un check-in ─────────────────────────────────────────
+   Dos fotos del mismo ángulo, a la misma altura y del mismo tamaño: comparar
+   exige que lo único que cambie sea el cuerpo.
+
+   Sustituye a las cuatro miniaturas de 54 px que había en «Su semana» dentro de
+   la tarjeta de métrica. Aquéllas decían «hay fotos» —un recuento— y para ver
+   algo había que abrir el estudio, elegir el par a mano y volver.
+
+   `aspect-ratio` fijo y `object-fit: cover` para que una foto vertical y otra
+   apaisada no descoloquen la fila: sin eso, la del móvil en horizontal encogía
+   a la mitad y las dos dejaban de ser comparables. */
+/* ── EL PAR DE FOTOS, con tope ─────────────────────────────────────────────
+   Sin él, en la columna de lectura de una revisión —unos 890 px— cada foto sale
+   a 435 px de ancho, y con proporción 3/4 eso son casi 600 px de alto: un MURO
+   que hay que recorrer entero para llegar a lo siguiente. A 720 px el par mide
+   350 por foto, que sigue siendo de sobra para ver una semana. Grandes de verdad
+   se ven en el estudio, que es para lo que está. */
+.shot-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3);
+  align-items: start; max-width: 720px;
+}
+.shot { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; }
+.shot > img {
+  width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: var(--r-md); border: 1px solid var(--edge);
+  background: var(--surface-sunken);
+}
+/* El hueco de la primera vez: canto punteado, como la casilla vacía de la fila
+   de métricas. Dice «aquí cabrá una», que es distinto de «aquí falta algo». */
+.shot-empty {
+  display: grid; place-items: center; aspect-ratio: 3 / 4; padding: var(--s3);
+  text-align: center;
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-md);
 }
 
 @media (max-width: 560px) {
@@ -1253,6 +1312,32 @@ button.task-head:hover > .chevron { color: var(--text); }
 .metric-row.is-1 { grid-template-columns: minmax(0, 1fr); }
 .metric-row.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .metric-row.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* ── La misma fila, SIN superficie: para cuando va dentro de una franja ────
+   Cuatro tarjetas con su fondo y su sombra metidas en un `Panel` —que también
+   es una tarjeta con fondo y sombra— son cajas dentro de cajas, y es de donde
+   sale que una pantalla de cifras se lea como un montón de piezas pegadas en
+   vez de como un instrumento.
+
+   Aquí las cifras van a pecho descubierto y lo que las separa es un filete
+   vertical, que es lo que hace un marcador. Cambia la PIEL y nada más: mismo
+   `MetricCard`, mismo orden —etiqueta, cifra, delta, pie—, mismas dos o cuatro
+   columnas y el mismo 2×2 del móvil. Una piel nueva no es una familia nueva. */
+.metric-row.is-band { gap: 0; }
+.metric-row.is-band > .metric-card {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 var(--s5);
+  border-left: 1px solid var(--hairline);
+}
+.metric-row.is-band > .metric-card:first-child { border-left: 0; padding-left: 0; }
+/* En un marcador manda la CIFRA. El rótulo iba a tamaño de cuerpo y en blanco
+   —«Peso», «Sesiones», «Adherencia», «Tonelaje» los cuatro en negrita— así que
+   competía con su propio número y la franja se leía como una lista de palabras
+   con datos debajo. En tinta secundaria y un grado más pequeño, el ojo cae donde
+   tiene que caer y el rótulo sigue ahí para cuando haga falta. */
+.metric-row.is-band .metric-title { font-size: var(--fs-sm); color: var(--text-secondary); }
 
 /* La casilla vacía. Canto punteado y nada dentro: dice «aquí cabe otra», que es
    distinto de «aquí falta algo». Sin ella, tres tarjetas dejaban un hueco mudo a
@@ -1274,6 +1359,14 @@ button.task-head:hover > .chevron { color: var(--text); }
    Una etiqueta larga envuelve dentro de su media celda, que es más barato. */
 @media (max-width: 720px) {
   .metric-row.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* A dos columnas, quien abre renglón es quien no lleva filete —y la de abajo
+     necesita aire por arriba, que en una sola fila lo daba el filete vertical.
+
+     Y el canal se estrecha: 22 px a cada lado se comen un tercio de una columna
+     de 160 px, y entonces «12.400» parte en dos renglones. */
+  .metric-row.is-band { row-gap: var(--s4); }
+  .metric-row.is-band > .metric-card { padding: 0 var(--s3); }
+  .metric-row.is-band > .metric-card:nth-child(2n + 1) { border-left: 0; padding-left: 0; }
 }
 @media (max-width: 420px) {
   .metric-slot { display: none; }
@@ -1870,12 +1963,61 @@ button.task-head:hover > .chevron { color: var(--text); }
   border: 1px solid var(--edge); border-radius: var(--r-md);
   background: var(--surface-sunken);
 }
-/* El número de la tanda: dice cuántas quedan sin tener que contarlas. */
-.form-block > .section-label > .n {
+/* Una tanda con TODO contestado deja de pedir la vista: mismo hundido, canto
+   apagado. No se colapsa ni se esconde —se vuelve a ella a corregir— pero en una
+   pantalla de cuatro tandas hay que poder ver de un vistazo cuál queda. */
+.form-block.is-full { border-color: transparent; }
+
+/* El número de la tanda: dice cuántas quedan sin tener que contarlas.
+   El selector es descendiente y no hijo directo porque el rótulo comparte fila
+   con la cuenta de la tanda («3/5»), así que va dentro de un `.row between`. */
+.form-block .section-label > .n {
   display: inline-grid; place-items: center;
   width: 18px; height: 18px; margin-right: 6px; border-radius: 50%;
   background: var(--fill); color: var(--text-tertiary);
   font-size: var(--fs-2xs); font-weight: 700;
+}
+
+/* Cuántas de esta tanda están contestadas. En monoespaciada por lo mismo que el
+   contador del índice: son cifras que se comparan entre tandas, y a esa
+   comparación le estorba que el «1» mida menos que el «4». */
+.tanda-n {
+  display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
+  color: var(--text-tertiary);
+}
+.form-block.is-full .tanda-n { color: var(--positive); }
+
+/* ── La barra de guardar del cuestionario ───────────────────────────────────
+   Pegada al pie de la ventana mientras se rellena. El motivo está en
+   `IntakeQuestions.jsx`: el único botón vivía al final de cinco pantallas de
+   móvil, así que contestar tres preguntas y salir perdía las tres sin un solo
+   aviso.
+
+   Mismo cristal que el índice de las pantallas largas (`.page-nav`), y por lo
+   mismo: flota por encima del contenido y tiene que dejar ver que hay algo
+   debajo sin transparentarlo.
+
+   `bottom` cuenta con la barra del pulgar: por debajo de 1024 px hay una
+   navegación fija abajo (`.bottombar`) y una barra pegada al borde se metería
+   justo detrás de ella — o sea, el botón de guardar tapado por los destinos, que
+   es el mismo fallo que la barra inferior ya documenta en su propio bloque. */
+.form-bar {
+  position: sticky; bottom: var(--s2); z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--fast);
+}
+/* Con algo sin mandar, el canto lo dice. Es el mismo acento que marca el día de
+   hoy y la sección activa: aquí significa «esto está vivo». */
+.form-bar.is-dirty { border-color: var(--brasa); }
+
+@media (max-width: 1023.98px) {
+  .form-bar { bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s2)); }
 }
 
 /* ── Las fotos de la maquinaria de su gimnasio ──────────────────────────────
@@ -7240,6 +7382,80 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .brand-tile.is-bleed > img { border-radius: inherit; }
 
+/* ══ CONECTAR UNA INTEGRACIÓN ════════════════════════════════════════════════
+   La pantalla de antes de conectar, que no es la misma que la de después.
+
+   Era una sola para los dos estados: cabecera con el botón arriba a la derecha,
+   párrafo de qué es esto y bloque del permiso, todo a la vez. Un muro con el
+   botón flotando en una esquina — y con frases que sobran en uno de los dos
+   estados, como explicarle a quien ya lo tiene conectado qué permisos se piden.
+
+   Aquí conectar es lo que es: una decisión que se toma UNA vez. Marca, qué hace,
+   tres pasos y un botón. Nada más, y en ese orden. */
+.connect { padding: var(--s6) var(--s5); }
+@media (min-width: 640px) {
+  .connect { padding: var(--s7) var(--s6); }
+}
+
+/* El titular a tamaño de titular. Es lo único de esta tarjeta que compite con la
+   cabecera de la pantalla, y tiene que hacerlo: la pantalla se llama
+   «Integraciones» y esto es de qué va la que estás mirando. */
+.connect-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+/* ── Los tres pasos ─────────────────────────────────────────────────────────
+   Numerados y unidos por un hilo, porque son una SECUENCIA y no una lista de
+   ventajas: contestan «¿y esto qué me va a hacer?», que es la pregunta con la
+   que uno está mirando el botón sin pulsarlo.
+
+   El hilo va de disco a disco (`::before` sobre el `li`, no sobre el número) y
+   se corta en el último: una raya que sigue por debajo del final sugiere un
+   cuarto paso que no existe. */
+.pitch { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pitch > li {
+  position: relative;
+  display: flex; align-items: flex-start; gap: var(--s3);
+  padding-bottom: var(--s4);
+}
+.pitch > li:last-child { padding-bottom: 0; }
+.pitch > li:not(:last-child)::before {
+  content: '';
+  position: absolute; left: 11px; top: 26px; bottom: 4px;
+  width: 1px; background: var(--hairline);
+}
+.pitch > li > .n {
+  position: relative; z-index: 1; flex-shrink: 0;
+  width: 23px; height: 23px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--fill); color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
+}
+
+/* ── La letra pequeña, plegada ──────────────────────────────────────────────
+   Lo que contesta el susto de la pantalla de Google —«quiere acceder a tu Google
+   Drive»— tiene que estar a mano y no delante: desplegada empujaba el botón por
+   debajo del pliegue y convertía una decisión de dos líneas en un documento.
+
+   Sin caja ni fondo: es una nota al pie, no un bloque más. Lo único que la marca
+   es el triángulo del navegador y que el resumen se subraya al pasar. */
+.fineprint > summary {
+  cursor: pointer; width: fit-content;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  transition: color var(--fast);
+}
+.fineprint > summary:hover { color: var(--text-secondary); text-decoration: underline; }
+.fineprint > p {
+  margin: var(--s2) 0 0;
+  font-size: var(--fs-xs); color: var(--text-secondary); max-width: 62ch;
+}
+.fineprint code {
+  font-family: var(--font-mono); font-size: 0.92em;
+  background: var(--fill-subtle); border-radius: var(--r-xs); padding: 1px 4px;
+}
+
 .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: var(--s3); }
 
 .provider {
@@ -8548,7 +8764,7 @@ button.log-answer:hover { background: var(--fill); }
 
 /* ── Ajustes → Protocolo ───────────────────────────────────────────────── */
 
-/* ── El índice (ProtoNav) ──────────────────────────────────────────────────
+/* ── El índice (PageNav) ───────────────────────────────────────────────────
    Cinco anclas pegajosas que dan mapa a un panel que antes eran ocho bloques
    apilados sin uno, con la cuenta de lo que hay puesto en cada apartado.
 
@@ -8613,7 +8829,7 @@ button.log-answer:hover { background: var(--fill); }
    El `scroll-margin-top` deja sitio a la cabecera Y al índice pegajoso al llegar
    por ancla — antes eran 64 px planos, que es menos de lo que miden las dos, así
    que el ancla dejaba el encabezado tapado. El mismo número que la constante
-   `LINEA` de `ProtoNav.jsx`, que decide qué apartado va marcado. */
+   `LINEA` de `PageNav.jsx`, que decide qué apartado va marcado. */
 .page-section {
   display: flex; flex-direction: column; gap: var(--s4);
 }
@@ -8863,15 +9079,23 @@ button.log-answer:hover { background: var(--fill); }
    368 le da al nombre unos 190 px, que son catorce caracteres largos a 15 px, y
    le quita 36 al hilo, que tiene de sobra. El envoltorio de la fila sigue estando
    como red para los nombres de verdad largos. */
-.today {
+/* ── EL TRABAJO A LA IZQUIERDA, LO ACCIONABLE A LA DERECHA ─────────────────
+   Una columna que se lee y un panel que se usa, pegajoso, siempre a la vista.
+
+   Lo estrenó «Hoy» —el hilo y la bandeja— y ahora lo usa también la revisión de
+   un cliente: allí el problema era el mismo y peor, porque la decisión estaba al
+   final de una página larga y no se sabía ni que existía hasta desplazarse. Es
+   UNA familia de clases y no dos copias: dos rejillas idénticas con nombres
+   distintos es como se llega a cincuenta familias donde debería haber una. */
+.trabajo {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 368px;
   gap: var(--s5);
   align-items: start;
 }
-/* La bandeja pegajosa se ancla al canto de arriba del viewport: en el chasis
-   con barra lateral ya no hay cabecera que esquivar (ver EL CHASIS). */
-.today-side { display: flex; flex-direction: column; gap: var(--s3); position: sticky; top: var(--s5); }
+/* El panel pegajoso se ancla al canto de arriba del viewport: en el chasis con
+   barra lateral ya no hay cabecera que esquivar (ver EL CHASIS). */
+.trabajo-side { display: flex; flex-direction: column; gap: var(--s3); position: sticky; top: var(--s5); }
 
 /* ── LA REGLA ──────────────────────────────────────────────────────────────
    La firma del producto en su versión con datos: catorce marcas de graduación,
@@ -8884,21 +9108,55 @@ button.log-answer:hover { background: var(--fill); }
    pone `.card`, que es de donde cuelga desde que esto es un `Panel`. Antes la
    copiaba entera, que es como se llega a cincuenta familias de clases donde
    debería haber una. */
-/* ── EL PULSO: una franja, no una tarjeta ──────────────────────────────────
-   La escala de 14 días va a pecho descubierto sobre el lienzo, entre dos
-   filetes — la misma gramática que las franjas de la portada. Encajonada en un
-   panel con título era un bloque más de la pila; como franja es lo que la
-   pantalla tiene de instrumento. */
-.pulso {
+/* ── LA FRANJA: el instrumento de una pantalla, a pecho descubierto ────────
+   Entre dos filetes y sobre el lienzo, sin superficie propia — la misma
+   gramática que las bandas de la portada. Un instrumento de medida no va dentro
+   de una caja con título: encajonado es un bloque más de la pila, y suelto es lo
+   que la pantalla tiene de aparato.
+
+   La estrenó la escala de catorce días de «Hoy» —de ahí el nombre `pulso` que
+   tenía— y ahora la usa también el marcador de una revisión: las cuatro cifras
+   de la semana. Se le quitó el nombre de la primera que la usó porque eso es
+   exactamente como se acaba con dos familias de clases idénticas y nombres
+   distintos, que es lo que este archivo lleva mil líneas evitando. */
+.franja {
   display: flex; flex-direction: column; gap: var(--s2);
   padding: var(--s4) 0 var(--s3);
   border-block: 1px solid var(--hairline);
 }
-.pulso-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
-.pulso-hint {
+/* Centrada y no a la línea base: desde que un tramo puede llevar su botón a la
+   derecha —«El estudio», «Pesajes y medidas»—, alinear por la base de las letras
+   deja el botón medio hundido. Entre dos textos de una línea la diferencia no se
+   ve; con un control al lado, sí. */
+.franja-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.franja-hint {
   font-size: var(--fs-xs); color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── EL DOCUMENTO: varias franjas seguidas, como los tramos de un informe ──
+   Lo estrena la revisión de un cliente, y es lo que la saca de ser una pila.
+   Era una columna de tarjetas del mismo peso —«Cómo va», «Su cuerpo», «Lo que
+   te dice»— cada una con su fondo y su sombra, y dentro de la primera, cuatro
+   tarjetas más. Nada decía qué mirar antes, así que todo pesaba igual y el
+   conjunto se leía como piezas pegadas.
+
+   Como tramos de un documento, lo que separa un asunto del siguiente es un
+   filete y un rótulo, que es lo que separa los apartados de cualquier informe.
+   Y entonces **la única tarjeta de la pantalla es la decisión**, encendida con
+   la lumbre: lo que se lee no tiene superficie y lo que se hace sí. Eso es lo
+   que hace la jerarquía, no el tamaño de las letras.
+
+   Los filetes no se suman: cada franja lleva el suyo arriba y abajo, así que
+   dos seguidas darían una línea de 2 px. Manda el de abajo de la anterior. */
+.revision-doc { display: flex; flex-direction: column; }
+.revision-doc > .franja { border-top: 0; }
+.revision-doc > .franja:first-child { padding-top: 0; }
+/* Lo que NO es un tramo —el histórico, que conserva su superficie porque es el
+   archivo de las otras semanas y no un apartado de ésta— necesita separarse del
+   último filete: pegado a él parecería el pie del documento. */
+.revision-doc > :not(.franja) { margin-top: var(--s5); }
+
 /* El «hoy» de la leyenda, en la tinta de su barra. */
 .scale-legend > .is-hoy { color: var(--brasa); }
 
@@ -9021,11 +9279,12 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .today-bridge:hover { border-color: var(--accent); color: var(--text); }
 
 @media (max-width: 1040px) {
-  .today { grid-template-columns: minmax(0, 1fr); }
-  /* La bandeja ENCIMA del hilo: en una columna el orden de lectura es el de la
-     página, y lo accionable va primero. Y deja de ser pegajosa —en vertical,
-     «sticky» significa un panel que te persigue tapando el trabajo. */
-  .today-side { order: -1; position: static; }
+  .trabajo { grid-template-columns: minmax(0, 1fr); }
+  /* Lo accionable ENCIMA: en una columna el orden de lectura es el de la página,
+     y lo que hay que HACER va primero — la bandeja en «Hoy», la decisión en una
+     revisión. Y deja de ser pegajoso: en vertical, «sticky» significa un panel
+     que te persigue tapando el trabajo. */
+  .trabajo-side { order: -1; position: static; }
 }
 
 @media (max-width: 560px) {
@@ -9202,7 +9461,7 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
    sube a 38 en los controles de lista —que van en fila y se tocan de uno en
    uno— y a 44 en los botones, que son los que ejecutan algo.
 
-   El corte es el del CHASIS (1024, como .review-bar en su bloque): esto estuvo
+   El corte es el del CHASIS (1024, el mismo de la barra inferior): esto estuvo
    en 760 y entre un ancho y otro había barra del pulgar con objetivos de ratón
    — una tableta navegaba con el dedo y apuntaba a chips de 28 px. */
 @media (max-width: 1023.98px) {
@@ -9365,48 +9624,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .folio-verdict.is-bad { background: var(--negative-soft); color: var(--negative); }
 
 
-/* ── La barra de la revisión en curso ──────────────────────────────────────
-   Fija abajo mientras se revisa a alguien. Va por encima de todo menos de los
-   diálogos, y en el móvil se sube por encima de la barra de navegación inferior
-   —si no, tapa justo los botones con los que se cierra—.
-
-   `env(safe-area-inset-bottom)` por el iPhone: sin eso, en pantalla completa el
-   botón «Todo ok» cae debajo de la barra del sistema.
-   ========================================================================== */
-.review-bar {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px var(--s4) calc(10px + var(--safe-b, 0px));
-  background: var(--surface-glass);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid var(--edge);
-  box-shadow: 0 -4px 20px rgba(20, 24, 28, 0.1);
-}
-.review-bar-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-  max-width: var(--max-w);
-  margin: 0 auto;
-  width: 100%;
-}
-.review-bar-hint { text-align: center; }
-
-/* Con barra inferior de navegación, la de revisión se apoya encima. El corte es
-   el de la propia barra inferior (1024, ver EL CHASIS): si no coinciden, entre
-   un ancho y otro la revisión tapa los destinos del pulgar. */
-@media (max-width: 1023.98px) {
-  .review-bar { bottom: calc(var(--bottombar-h) + var(--safe-b)); }
-}
-@media (max-width: 720px) {
-  .review-bar-hint { display: none; }
-}
-
 /* ── La barra del guardado al entrenar (portal del cliente) ─────────────────
    El estado del guardado y el «X de Y series» vivían arriba del todo de la
    rutina: por el cuarto ejercicio ya habían salido de pantalla, y un «No se
@@ -9420,7 +9637,8 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
    aquella invisible en escritorio y clavada abajo en el móvil.
 
    Solo existe en el chasis móvil: en escritorio la cabecera se ve sin scroll.
-   La mecánica es la de `.review-bar`, apoyada sobre la barra del pulgar. */
+   Fija abajo y apoyada sobre la barra del pulgar, como lo estuvo la de la
+   revisión en curso antes de que la revisión cupiera en una sola pantalla. */
 .save-bar { display: none; }
 @media (max-width: 1023.98px) {
   .save-bar {
@@ -9457,6 +9675,43 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   font-weight: 650;
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Y la rejilla en la que se leen ────────────────────────────────────────
+   Rótulo a la izquierda, lo que le pasó a la derecha, y TODAS las líneas
+   iguales: la cifra del plan, el día reprogramado y el ejercicio al que le
+   subiste una serie.
+
+   Había tres formas distintas en el mismo bloque —una fila envolvente, un
+   recuento con signos y un sangrado de 100 px escrito a mano en el JSX—, así
+   que doce cambios seguidos eran tres tablas encajadas. Y el sangrado a mano
+   reventaba justo donde este diff vive ahora: la columna de 368 px de la
+   revisión, donde «Hack Squat / 2 / 3 series» se partía en tres renglones.
+
+   La columna del rótulo cede antes que la del dato: un nombre largo se parte,
+   pero «280 g → 240 g» no puede quedarse sin sitio. */
+.diff-list { display: flex; flex-direction: column; gap: 5px; }
+
+.diff-row {
+  display: grid;
+  grid-template-columns: minmax(0, 96px) minmax(0, 1fr);
+  gap: var(--s2);
+  align-items: baseline;
+  font-size: var(--fs-xs);
+}
+.diff-what { color: var(--text-secondary); min-width: 0; overflow-wrap: anywhere; }
+.diff-vals { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; min-width: 0; }
+
+/* Un tramo del programa —«S1 · Torso»— con lo que entró y lo que salió en su
+   misma línea. Encabeza SIEMPRE a los suyos: sin él, «Hack Squat 2 → 3 series»
+   no dice de qué semana habla. */
+.diff-group { display: flex; flex-direction: column; gap: 4px; }
+.diff-where {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2);
+  font-size: var(--fs-xs); font-weight: 650; color: var(--text-secondary);
+}
+/* Las filas de un grupo cuelgan de su rótulo. El sangrado es de la rejilla y no
+   del JSX, que es lo que lo hace resistir una columna estrecha. */
+.diff-group > .diff-row { padding-left: var(--s3); }
 
 /* La respuesta de una revisión: el comentario y el vídeo son la misma cosa, así
    que se agrupan con una marca a la izquierda en vez de quedar como dos
@@ -9785,4 +10040,105 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
      que la caída deja de necesitar columna: se va detrás de la barra. */
   .embudo .meter-label { width: 100%; }
   .embudo-caida { width: auto; }
+}
+
+/* ==========================================================================
+   EL CIERRE — la barra acoplada abajo de una revisión
+   --------------------------------------------------------------------------
+   Ver `review/ReviewDecision.jsx`. Cerrar la semana de alguien es una acción
+   sobre TODA la página, así que vive donde vive una acción de página: acoplada
+   al canto de abajo, siempre alcanzable, sin robarle sitio a lo que se está
+   mirando.
+
+   ── Qué sustituye, y por qué ────────────────────────────────────────────────
+   Una columna pegajosa de 368 px a la derecha. Le quitaba a las fotos y a las
+   cifras un cuarto del ancho —justo lo que hay que mirar para decidir— y partía
+   el ojo en dos: se leía a la izquierda, se decidía a la derecha, y se volvía a
+   la izquierda a comprobar. Una revisión se lee de arriba abajo; lo que se hace
+   con ella va al final, no al lado.
+
+   ── `sticky` y no `fixed` ───────────────────────────────────────────────────
+   Es el último hijo del documento, así que se queda pegado al canto de abajo
+   mientras se recorre la revisión y ATERRIZA al llegar al final, en su sitio, en
+   vez de quedarse flotando encima del último bloque para siempre. Y al ser parte
+   del flujo mide lo que mide la página: ni hace falta un relleno inferior de
+   mentira ni se sale del ancho del contenido, que es de donde salen las barras
+   fijas que tapan la última fila de una tabla.
+
+   El cristal es lo que hace legible que el contenido pasa POR DEBAJO: sin él, la
+   barra parecería el pie de la página y no se entendería que se desplaza. */
+.cierre {
+  position: sticky;
+  bottom: var(--s4);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  gap: var(--s4) var(--s5);
+  padding: var(--s4);
+  background: var(--surface-glass);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Las dos mitades: qué le cambias, y qué le dices. Separadas por un filete
+   vertical, que es lo que las hace dos pasos de lo mismo y no dos bloques. */
+.cierre-cambios { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.cierre-dices {
+  display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
+  padding-left: var(--s5); border-left: 1px solid var(--hairline);
+}
+
+/* La fila de abajo de la derecha: el acuse a la izquierda y EL botón a la
+   derecha. El acuse dice qué se va a guardar, así que va pegado al botón que lo
+   guarda — leerlo en otra esquina obligaría a mirar dos veces antes de pulsar. */
+.cierre-fin {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.cierre-acuse { font-size: var(--fs-xs); color: var(--text-tertiary); min-width: 0; }
+
+/* Lo grabado, esperando a que se cierre la semana. Con su canto y su fondo
+   hundido porque es un ARCHIVO que ya existe, no un campo que se rellena. */
+.cierre-clip {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 900px) {
+  /* En una columna, el filete vertical no separa nada: pasa a ser horizontal. Y
+     el botón a todo lo ancho, que es el destino táctil que hace falta cuando la
+     barra vive a un dedo del borde de la pantalla. */
+  .cierre { grid-template-columns: minmax(0, 1fr); bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .cierre-dices { padding-left: 0; border-left: 0; padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+  .cierre-fin > .btn { width: 100%; }
+}
+
+/* ── El diff, en línea ─────────────────────────────────────────────────────
+   La misma información que la lista vertical de `PlanChanges`, pero en fichas
+   que envuelven: en una barra acoplada, una lista de seis renglones haría crecer
+   el cierre hasta tapar media revisión. Cada ficha es un cambio entero —«Pasos
+   — → 10.000»— para que se pueda leer una sola sin leerlas todas. */
+.diff-inline { display: flex; flex-wrap: wrap; gap: 6px; }
+.diff-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--fill); font-size: var(--fs-xs);
+}
+.diff-chip > .k { color: var(--text-secondary); }
+
+/* ── La vista previa del grabador ──────────────────────────────────────────
+   Lo que se ve aquí es exactamente lo que se graba (ver `ReviewTake`). Con tope
+   de altura porque una pantalla compartida a 16/9 dentro de un diálogo alto
+   empuja los controles de grabar y parar fuera de la vista, que son los dos
+   únicos botones que importan mientras dura. */
+.take-preview {
+  display: block; width: 100%; max-height: 46vh;
+  object-fit: contain;
+  border-radius: var(--r-md); border: 1px solid var(--edge);
+  background: var(--surface-sunken);
 }

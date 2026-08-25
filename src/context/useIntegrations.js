@@ -2,6 +2,27 @@ import { useCallback } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { track } from '@/lib/analytics';
+import { traduceFunctionError } from '@/lib/dbErrors';
+
+/**
+ * La respuesta de una función de borde, con sus dos fallos ya distinguidos.
+ *
+ * Las cinco llamadas de este archivo hacían lo mismo copiado cinco veces, y con
+ * una diferencia que importaba: `error.message` a secas es un genérico —«non-2xx
+ * status code», «Failed to send a request»— que no dice nada. El mensaje útil
+ * viene en el CUERPO cuando la función ha llegado a correr; cuando ni siquiera
+ * está desplegada no hay cuerpo, y eso lo traduce `traduceFunctionError`.
+ *
+ * @param nombre  El nombre de la función, que es lo que hay que teclear detrás de
+ *   `functions deploy` si resulta que no está.
+ */
+const respuestaDe = async ({ data, error }, nombre) => {
+  if (error) {
+    const detail = await error.context?.json?.().catch(() => null);
+    return { ok: false, error: detail?.error || traduceFunctionError(error, nombre) };
+  }
+  return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
+};
 
 /*
   ══ Las integraciones (Notion, Stripe), fuera de AppContext ══════════════════
@@ -116,19 +137,14 @@ export const useIntegrations = ({ session, team, addClient }) => {
    * función usa para comprobar —vía RLS— que la integración es del que llama. El
    * token de Notion no pasa por aquí en ningún momento.
    */
-  const runIntegration = useCallback(async (integrationId, action) => {
-    const { data, error } = await supabase.functions.invoke('notion-payments', {
-      body: { integrationId, action },
-    });
-
-    if (error) {
-      // El cuerpo del error trae el mensaje útil; `error.message` a secas suele ser
-      // un genérico «non-2xx status code» que no ayuda a nadie.
-      const detail = await error.context?.json?.().catch(() => null);
-      return { ok: false, error: detail?.error || error.message };
-    }
-    return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
-  }, []);
+  const runIntegration = useCallback(
+    async (integrationId, action) =>
+      respuestaDe(
+        await supabase.functions.invoke('notion-payments', { body: { integrationId, action } }),
+        'notion-payments'
+      ),
+    []
+  );
 
   /**
    * Da de alta un cliente A PARTIR de un nombre de Notion y lo vincula.
@@ -185,15 +201,123 @@ export const useIntegrations = ({ session, team, addClient }) => {
   }, []);
 
   /** Lo mismo para Stripe, que tiene su propia función. */
-  const runStripe = useCallback(async (integrationId, action) => {
-    const { data, error } = await supabase.functions.invoke('stripe-payments', {
-      body: { integrationId, action },
-    });
-    if (error) {
-      const detail = await error.context?.json?.().catch(() => null);
-      return { ok: false, error: detail?.error || error.message };
-    }
-    return data?.error ? { ok: false, error: data.error } : { ok: true, ...data };
+  const runStripe = useCallback(
+    async (integrationId, action) =>
+      respuestaDe(
+        await supabase.functions.invoke('stripe-payments', { body: { integrationId, action } }),
+        'stripe-payments'
+      ),
+    []
+  );
+
+  /*
+    ══ Google Drive ═══════════════════════════════════════════════════════════
+
+    Tres diferencias con las otras dos, y las tres cambian la forma de estas
+    funciones:
+
+      1. **No hay clave que pegar.** El permiso se pide con OAuth, así que
+         conectar es «llévame a Google y vuelve», no un formulario. Por eso
+         `driveAuthorize` devuelve una DIRECCIÓN en vez de guardar nada.
+      2. **Quien llama no siempre es el entrenador.** `driveUpload` y
+         `driveFiles` las usa el CLIENTE desde su portal, donde no existe ninguna
+         integración que mirar: lo que le autoriza es su carpeta.
+      3. **Viaja un archivo.** Y un archivo no cabe en un JSON sin inflarlo un
+         tercio, así que esa sola va en `FormData`.
+  */
+
+  /** La dirección de la pantalla de permiso de Google. La abre el navegador. */
+  const driveAuthorize = useCallback(
+    async (integrationId) =>
+      respuestaDe(
+        await supabase.functions.invoke('google-drive', {
+          body: { integrationId, action: 'authorize' },
+        }),
+        'google-drive'
+      ),
+    []
+  );
+
+  /** Cualquier acción de Drive que sea del entrenador: `sync`, `folder`. */
+  const runDrive = useCallback(
+    async (payload) =>
+      respuestaDe(await supabase.functions.invoke('google-drive', { body: payload }), 'google-drive'),
+    []
+  );
+
+  /**
+   * La carpeta de un cliente, leída de la base y no de Drive.
+   *
+   * Es una fila de `client_folders`, así que contesta al instante y sin hablar
+   * con Google — que es lo que permite pintar el enlace en cuanto se abre la
+   * pantalla en vez de después de un viaje de ida y vuelta. Lo que hay DENTRO de
+   * la carpeta sí hay que ir a preguntarlo (`driveFiles`).
+   *
+   * La lee igual el entrenador y el cliente: la política `folders_read` de la
+   * 0082 decide, y a quien no le toque le devuelve vacío.
+   */
+  const loadClientFolder = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('client_folders')
+      .select('client_id, folder_id, folder_url, uploads, ask')
+      .eq('client_id', clientId)
+      .maybeSingle();
+
+    /* Sin la 0082 aplicada, la tabla no existe: eso no es un fallo que enseñar,
+       es «no hay carpeta», que es exactamente lo que pinta la pantalla. */
+    if (error) return { ok: false, error: error.message, folder: null };
+    return {
+      ok: true,
+      folder: data
+        ? {
+            clientId: data.client_id,
+            folderId: data.folder_id,
+            url: data.folder_url,
+            uploads: data.uploads,
+            ask: data.ask || '',
+          }
+        : null,
+    };
+  }, []);
+
+  /**
+   * Cambiar lo que el entrenador decide de esa carpeta: si él puede subir y qué
+   * le pide que deje ahí.
+   *
+   * Va por la tabla y no por la función de borde a propósito: son dos decisiones
+   * que no tocan Drive para nada, y hacerlas pasar por Google sería una llamada
+   * de red y un modo de fallo por cada interruptor.
+   */
+  const setClientFolder = useCallback(async (clientId, fields) => {
+    const { error } = await supabase
+      .from('client_folders')
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq('client_id', clientId);
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  /** Lo que hay dentro de la carpeta, preguntado a Drive. */
+  const driveFiles = useCallback((clientId) => runDrive({ action: 'list', clientId }), [runDrive]);
+
+  /**
+   * Subir un archivo a la carpeta de un cliente.
+   *
+   * Pasa POR LA FUNCIÓN y no directo a Google, y eso es deliberado: subir directo
+   * exigiría que el navegador tuviera un permiso sobre el Drive del entrenador
+   * —o sea, entregarle una credencial suya a cada cliente—. Aquí el que habla con
+   * Google es el servidor, que es el único que tiene el token, y de paso es donde
+   * se comprueba que esa carpeta admita subidas.
+   */
+  const driveUpload = useCallback(async (clientId, file) => {
+    const form = new FormData();
+    form.append('action', 'upload');
+    form.append('clientId', clientId);
+    form.append('file', file);
+
+    return respuestaDe(
+      await supabase.functions.invoke('google-drive', { body: form }),
+      'google-drive'
+    );
   }, []);
 
   /** Confirma que una cadena de Notion corresponde a un cliente, para siempre. */
@@ -224,5 +348,11 @@ export const useIntegrations = ({ session, team, addClient }) => {
     setWebhookSecret,
     runStripe,
     linkExternalName,
+    driveAuthorize,
+    runDrive,
+    loadClientFolder,
+    setClientFolder,
+    driveFiles,
+    driveUpload,
   };
 };

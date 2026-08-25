@@ -10,6 +10,29 @@ import { BrandMark } from '@/components/ui/BrandMark';
 import { GroupHead, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { NotionSettings } from './NotionSettings';
 import { StripeSettings } from './StripeSettings';
+import { DriveSettings } from './DriveSettings';
+
+/**
+ * Cómo vuelve el permiso de Google, dicho en castellano.
+ *
+ * La vuelta de OAuth es una REDIRECCIÓN a esta pantalla con un parámetro, así que
+ * lo único que llega de aquel viaje es esa palabra: si no se traduce, el
+ * entrenador acaba en el catálogo sin saber si su Drive quedó conectado o no.
+ * Cancelar no es un fallo y por eso no sale en rojo — es una respuesta.
+ */
+const VUELTA_DE_DRIVE = {
+  ok: { tone: 'success', text: 'Tu Drive ha quedado conectado.' },
+  cancelado: { tone: 'info', text: 'No has dado el permiso, así que no se ha conectado nada.' },
+  caducado: {
+    tone: 'warn',
+    text: 'La conexión ha tardado demasiado y ha caducado. Vuelve a empezar: son dos clics.',
+  },
+  'sin-permiso': {
+    tone: 'error',
+    text: 'Google no ha dado un permiso duradero. Entra en tu cuenta de Google → Datos y privacidad → Aplicaciones de terceros, quita el acceso de Caveman Hub y vuelve a conectarlo.',
+  },
+  error: { tone: 'error', text: 'Google ha rechazado la conexión. Vuelve a intentarlo.' },
+};
 
 /**
  * Las que se pueden conectar HOY.
@@ -144,7 +167,7 @@ const ProviderCard = ({ provider, estado, ready, busy, onOpen, onSync }) => {
  * existe para el siguiente proveedor, no para el aire.)
  */
 export const IntegrationsCatalogue = () => {
-  const { loadIntegration, runIntegration, runStripe } = useActions();
+  const { loadIntegration, runIntegration, runStripe, runDrive } = useActions();
   const { plan } = useSession();
   const [open, setOpen] = useState(null);
   /* El resultado ENTERO de `loadIntegration` por proveedor, no solo si hay
@@ -198,6 +221,31 @@ export const IntegrationsCatalogue = () => {
   }, [loadConnected]);
 
   /*
+    La vuelta de Google, si es que se viene de allí.
+
+    Se lee UNA vez y se limpia de la barra de direcciones: dejar el parámetro
+    puesto haría que recargar la página volviera a anunciar «tu Drive ha quedado
+    conectado» días después, sin que hubiera pasado nada. Se abre además la
+    pantalla de Drive, que es donde estaba uno antes de irse a Google — volver al
+    catálogo y tener que buscarla otra vez es perder el hilo del gesto.
+  */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const vuelta = params.get('drive');
+    if (!vuelta) return;
+
+    setAviso(VUELTA_DE_DRIVE[vuelta] || VUELTA_DE_DRIVE.error);
+    setOpen('google_drive');
+    params.delete('drive');
+    const limpia = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      window.location.pathname + (limpia ? `?${limpia}` : '') + window.location.hash
+    );
+  }, []);
+
+  /*
     Sincronizar desde la tarjeta: la operación de cada lunes, sin pasar por la
     pantalla de configuración. El resumen se dice aquí arriba con las mismas
     cifras que daría la pantalla del proveedor.
@@ -208,12 +256,27 @@ export const IntegrationsCatalogue = () => {
 
     setSyncing(provider.id);
     setAviso(null);
-    const run = provider.id === 'stripe' ? runStripe : runIntegration;
-    const res = await run(integrationId, 'sync');
+    /* Drive no lleva (id, acción) como las de cobros: su función atiende a varios
+       llamadores —el entrenador y su cliente— y por eso recibe un objeto en vez
+       de dos argumentos posicionales. Ver `useIntegrations.js`. */
+    const res =
+      provider.id === 'google_drive'
+        ? await runDrive({ action: 'sync', integrationId })
+        : await (provider.id === 'stripe' ? runStripe : runIntegration)(integrationId, 'sync');
     setSyncing(null);
 
     if (!res.ok) {
       setAviso({ tone: 'error', text: `${provider.name}: ${res.error}` });
+    } else if (res.summary) {
+      /*
+        El proveedor que sepa resumirse, se resume.
+
+        El texto de abajo habla de pagos asignados y de nombres sin conciliar,
+        que es lo que hacen las dos integraciones de cobros. Drive no asigna
+        ningún pago: con esa plantilla decía «0 de 0 pagos asignados», que es una
+        frase verdadera y absurda.
+      */
+      setAviso({ tone: 'success', text: `${provider.name}: ${res.summary}.` });
     } else {
       const partes = [`${res.matched ?? 0} de ${res.total ?? 0} pagos asignados`];
       if (res.clientsUpdated != null) partes.push(`${res.clientsUpdated} clientes al día`);
@@ -224,7 +287,7 @@ export const IntegrationsCatalogue = () => {
   };
 
   // Cada proveedor tiene su pantalla; el catálogo solo decide cuál abre.
-  const DETAIL = { notion: NotionSettings, stripe: StripeSettings };
+  const DETAIL = { notion: NotionSettings, stripe: StripeSettings, google_drive: DriveSettings };
   const Detail = DETAIL[open];
 
   if (Detail) {
@@ -245,6 +308,18 @@ export const IntegrationsCatalogue = () => {
         >
           <ArrowLeft size={14} /> Integraciones
         </button>
+        {/*
+          El aviso, TAMBIÉN aquí dentro.
+
+          Estaba solo en la rejilla, y esa es la mitad de las veces en que hace
+          falta: la vuelta de Google abre esta pantalla y pone el aviso a la vez
+          (ver el efecto de `?drive=`), así que el «Tu Drive ha quedado
+          conectado» se pintaba en una pantalla que en ese momento no se está
+          mirando. Volver de dar un permiso y que no te diga nada es la forma más
+          rápida de creer que no ha funcionado.
+        */}
+        {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
+
         {bloqueado ? (
           <Panel className="col gap-3">
             <div className="row gap-3">

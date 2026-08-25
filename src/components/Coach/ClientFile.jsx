@@ -5,10 +5,12 @@ import {
   Eye,
   ExternalLink,
   FileText,
+  FolderOpen,
   Link2,
   Paperclip,
   Pencil,
   Send,
+  Upload,
   UserCheck,
   Video,
 } from 'lucide-react';
@@ -26,6 +28,7 @@ import { initials } from '@/lib/initials';
 import { toNum } from '@/lib/num';
 import {
   clientIntake,
+  clientSteps,
   intakeProgress,
   intakeSteps,
   intakeToPreferences,
@@ -46,9 +49,11 @@ import {
   Panel,
   SegmentedControl,
 } from '@/components/ui/primitives';
+import { PageNav } from '@/components/ui/PageNav';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConditionsPanel } from '@/components/conditions/ConditionsPanel';
 import { ClientDataPanel } from './ClientDataPanel';
+import { ClientDrive } from './ClientDrive';
 import { EquipmentPanel } from '@/components/equipment/EquipmentPanel';
 import { CustomAnswers } from './CustomAnswers';
 import { DownloadAnamnesis } from './DownloadAnamnesis';
@@ -576,12 +581,71 @@ const ArchiveRow = ({ client }) => {
  * recordatorio privado del entrenador y pasa a ser la cosa que se entrega: al
  * cliente le aparece en su portal y le queda guardada.
  */
-const StepRow = ({ step, hecho, sinPortal, url, file, revisiones = [], onToggle, onLink, onFile }) => {
+const StepRow = ({
+  step,
+  hecho,
+  sinPortal,
+  url,
+  file,
+  revisiones = [],
+  carpeta = null,
+  onToggle,
+  onLink,
+  onFile,
+  onDriveList,
+  onDriveUpload,
+}) => {
   const [editando, setEditando] = useState(false);
   const [draft, setDraft] = useState(url || '');
   const [error, setError] = useState('');
   const [subiendo, setSubiendo] = useState(false);
   const input = useRef(null);
+
+  /* Lo que hay en su carpeta de Drive. `null` es «no lo he preguntado», que no es
+     lo mismo que «está vacía»: la primera no ha costado una llamada a Google y la
+     segunda sí, y la pantalla dice cosas distintas. */
+  const [driveDocs, setDriveDocs] = useState(null);
+  const [cargandoDrive, setCargandoDrive] = useState(false);
+  const [subiendoDrive, setSubiendoDrive] = useState(false);
+  const driveInput = useRef(null);
+
+  const verSuDrive = async () => {
+    setCargandoDrive(true);
+    setError('');
+    const res = await onDriveList();
+    setCargandoDrive(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setDriveDocs(res.files || []);
+  };
+
+  /*
+    Subir a su carpeta y dejar el enlace PUESTO en el borrador, no guardado.
+
+    Guardarlo solo sería más corto y quitaría la última mirada: lo que queda en
+    el paso es lo que el cliente va a abrir, y comprobar que apunta donde toca es
+    media revisión (es el mismo argumento por el que el enlace se ve siempre, no
+    solo al editar). Así que se rellena el campo y se guarda con el mismo botón
+    que todo lo demás.
+  */
+  const subirASuDrive = async (elegido) => {
+    if (!elegido) return;
+    setSubiendoDrive(true);
+    setError('');
+    const res = await onDriveUpload(elegido);
+    setSubiendoDrive(false);
+
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setDraft(res.file?.webViewLink || '');
+    /* La lista se queda vieja en cuanto se sube algo: si estaba abierta, se
+       vuelve a pedir para que lo recién subido aparezca donde se espera. */
+    if (driveDocs !== null) verSuDrive();
+  };
 
   const guardar = () => {
     const limpio = draft.trim();
@@ -761,6 +825,85 @@ const StepRow = ({ step, hecho, sinPortal, url, file, revisiones = [], onToggle,
           )}
 
           {/*
+            ══ O de su carpeta de Drive ═══════════════════════════════════════
+
+            La regla que esto sigue: **donde la aplicación pregunta «¿de dónde
+            sale esto?», Drive tiene que ser una de las respuestas**. Aquí ya
+            preguntaba —enlace, revisión grabada, archivo subido— y Drive faltaba,
+            justo cuando es donde el entrenador tiene su material de verdad.
+
+            Encaja sin inventar nada porque un archivo de Drive acaba siendo un
+            ENLACE: no hay ruta nueva, ni almacenamiento nuevo, ni migración. Lo
+            que se pega en el paso es su `webViewLink`, igual que si lo hubiera
+            copiado a mano — que es exactamente lo que hacía hasta ahora.
+
+            Solo aparece si este cliente tiene carpeta. Sin ella no hay nada que
+            listar, y ofrecer «elige de su Drive» para contestar «no tiene» es
+            hacer trabajar al otro para nada.
+          */}
+          {carpeta && (
+            <div className="col gap-1">
+              <span className="t-2xs t-tertiary">O de su carpeta de Drive:</span>
+              <div className="rail-wrap" role="group" aria-label="Archivos de su carpeta de Drive">
+                {/* No se pide al abrir el editor: es una llamada a Google, y la
+                    mayoría de las veces se viene aquí a pegar un enlace de
+                    YouTube. Se trae cuando se pide. */}
+                {driveDocs === null ? (
+                  <button
+                    type="button"
+                    className="chip chip-dashed"
+                    disabled={cargandoDrive}
+                    onClick={verSuDrive}
+                  >
+                    <FolderOpen size={12} /> {cargandoDrive ? 'Mirando…' : 'Ver qué hay en su carpeta'}
+                  </button>
+                ) : driveDocs.length === 0 ? (
+                  <span className="t-2xs t-tertiary">Su carpeta está vacía.</span>
+                ) : (
+                  driveDocs.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      className="chip chip-dashed"
+                      onClick={() => setDraft(doc.webViewLink)}
+                      title={doc.name}
+                    >
+                      <FileText size={12} /> {doc.name}
+                    </button>
+                  ))
+                )}
+
+                {/*
+                  Y subir ahí, que es la otra mitad de «usar Drive».
+
+                  Va a SU carpeta, así que queda con el resto de lo suyo y él lo
+                  abre con su cuenta de Google. Es distinto del botón de abajo, y
+                  la diferencia se dice: aquello se guarda en la aplicación y se
+                  abre desde ella, con una dirección que caduca.
+                */}
+                <input
+                  ref={driveInput}
+                  type="file"
+                  accept={ATTACHMENT_ACCEPT}
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    subirASuDrive(e.target.files?.[0] || null);
+                    e.target.value = '';
+                  }}
+                />
+                <button
+                  type="button"
+                  className="chip chip-dashed"
+                  disabled={subiendoDrive}
+                  onClick={() => driveInput.current?.click()}
+                >
+                  <Upload size={12} /> {subiendoDrive ? 'Subiendo a Drive…' : 'Subir a su Drive'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/*
             ══ O un archivo, para lo que no vive en ninguna parte ═════════════
 
             El enlace de arriba vale para el vídeo de bienvenida, que está en
@@ -776,7 +919,17 @@ const StepRow = ({ step, hecho, sinPortal, url, file, revisiones = [], onToggle,
             (`domain/intake.js`).
           */}
           <div className="col gap-1">
-            <span className="t-2xs t-tertiary">O súbelo, si no está en ninguna parte:</span>
+            {/* Con Drive delante hay dos botones de subir, y la diferencia hay
+                que decirla o se elige a cara o cruz: lo de aquí se guarda EN LA
+                APLICACIÓN y él lo abre desde su portal con una dirección que
+                caduca; lo de Drive queda en su carpeta y lo abre con su cuenta de
+                Google. Sin Drive conectado la frase de siempre vale y no sobra
+                nada. */}
+            <span className="t-2xs t-tertiary">
+              {carpeta
+                ? 'O guárdalo en la aplicación, y lo abre desde su portal:'
+                : 'O súbelo, si no está en ninguna parte:'}
+            </span>
             <input
               ref={input}
               type="file"
@@ -848,11 +1001,15 @@ const StepRow = ({ step, hecho, sinPortal, url, file, revisiones = [], onToggle,
  * diferencia entre proponer una forma de trabajar e imponerla.
  */
 const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
-  const { listReviewLinks, uploadIntakeFile } = useApp();
+  const { listReviewLinks, uploadIntakeFile, loadClientFolder, driveFiles, driveUpload } = useApp();
   const intake = clientIntake(client.preferences);
   const steps = intakeSteps(intake);
   const { done, total, complete } = intakeProgress(client, intake, estado);
   const [revisiones, setRevisiones] = useState([]);
+  /* Su carpeta de Drive, si su entrenador la ha montado. Se lee de la base —una
+     fila de `client_folders`— así que no cuesta ninguna llamada a Google: eso
+     solo pasa cuando alguien pide ver lo que hay dentro. */
+  const [carpeta, setCarpeta] = useState(null);
 
   /* Solo se piden si hay algún paso que admita contenido: sin eso, la consulta
      no tendría dónde usarse. Los revocados se caen — ofrecer un enlace muerto es
@@ -878,6 +1035,19 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
       vivo = false;
     };
   }, [client.id, admiteEnlace, listReviewLinks]);
+
+  /* Misma condición que las revisiones: sin ningún paso que admita contenido, la
+     carpeta no tendría dónde ofrecerse. */
+  useEffect(() => {
+    if (!admiteEnlace) return undefined;
+    let vivo = true;
+    loadClientFolder(client.id).then((res) => {
+      if (vivo && res.ok) setCarpeta(res.folder);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [client.id, admiteEnlace, loadClientFolder]);
 
   if (total === 0) return null;
 
@@ -914,6 +1084,25 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
         </div>
       }
     >
+      {/*
+        La misma barra que ve él en su portal.
+
+        No es decoración duplicada: es que las dos pantallas hablen el mismo
+        idioma sobre lo mismo. El cliente ve una barra que dice cuánto lleva; el
+        entrenador veía una cifra —«3 de 9»— que hay que leer y comparar. Con
+        nueve pasos, «cómo va el alta de este» es una pregunta de un vistazo, y un
+        vistazo es lo que una barra contesta y una fracción no.
+      */}
+      <div
+        className="form-progress"
+        role="progressbar"
+        aria-valuenow={done}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-label="Pasos del alta terminados"
+      >
+        <i style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+      </div>
 
       {/*
         El aviso que faltaba y que dejaba el alta en un callejón: sin cuenta
@@ -929,19 +1118,35 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
         </Notice>
       )}
 
-      {!steps.some((s) => s.owner === 'client') && (
-        /*
-          Un cliente de antes conserva SUS pasos guardados, así que las tres
-          entregas nuevas —cuestionario, fotos, primer check-in— no le aparecen
-          por cambiar la plantilla. Sin esta línea, la pantalla no dice nada y uno
-          concluye que la función no está.
-        */
-        <p className="t-xs t-tertiary">
-          No le pides nada a él en su alta. Los pasos que entrega el cliente —el cuestionario, las
-          fotos de su gimnasio— se encienden en <Link to="/ajustes/protocolo#alta">Ajustes →
-          Protocolo</Link>, y a un cliente que ya tenías hay que ponérselos con «Igualar a mi
-          plantilla».
-        </p>
+      {/*
+        ══ «A esta persona no le pides NADA», dicho como un aviso ═════════════
+
+        Era una línea gris de letra pequeña al final del bloque, y la letra
+        pequeña gris es donde no se mira. El resultado fue el que tenía que ser:
+        se da de alta a alguien, se entra en su portal a ver cómo le queda, y está
+        vacío — sin cuestionario, sin fotos, sin nada que entregar. Desde ahí lo
+        que se concluye es que la aplicación está rota, no que el alta de uno no
+        pide nada.
+
+        Y le pasa a más gente de la que parece. Quien guardó su plantilla del alta
+        ANTES de que existieran las entregas del cliente tiene guardado un reparto
+        sin ellas, y esa plantilla se copia tal cual a cada cliente nuevo: el que
+        nunca tocó esa pantalla recibe el valor de serie —que sí las trae— y el
+        que la tocó una vez hace meses no las verá nunca más, en silencio.
+
+        Se pregunta con `clientSteps` y no con `steps.some(s => s.owner === …)`,
+        que es como estaba: aquello mira el dueño del CATÁLOGO e ignora el reparto
+        que haya puesto el entrenador (`intake.owners`), así que un paso que él se
+        hubiera pasado a su lado seguía contando como del cliente. Dos formas de
+        contestar la misma pregunta, y una mal.
+      */}
+      {clientSteps(intake).length === 0 && (
+        <Notice tone="warn">
+          <strong>No le pides nada a él en su alta.</strong> Entrará en su portal y no tendrá
+          cuestionario, ni fotos que subir, ni nada que entregar. Las entregas del cliente se
+          encienden en <Link to="/ajustes/protocolo#alta">Ajustes → Protocolo</Link>: enciéndelas
+          ahí y desde esa misma pantalla se les mandan a los clientes que ya tienes.
+        </Notice>
       )}
 
       <div className="col gap-2">
@@ -954,6 +1159,11 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
             url={stepLink(intake, step.id)}
             file={stepFile(intake, step.id)}
             revisiones={revisiones}
+            carpeta={carpeta}
+            /* Las dos de Drive se pasan ya atadas a ESTE cliente: la fila no
+               tiene por qué saber de quién es la carpeta que está enseñando. */
+            onDriveList={() => driveFiles(client.id)}
+            onDriveUpload={(archivo) => driveUpload(client.id, archivo)}
             onToggle={(valor) => toggle(step, valor)}
             onLink={(url) => onPreferences(setStepLink(intake, step.id, url))}
             /* Devuelve el fallo —o null— porque quien lo enseña es la fila: el
@@ -1023,6 +1233,26 @@ export const ClientFile = () => {
     checkIn: checkIns?.[activeClient.id],
   });
 
+  /*
+    Los apartados del índice.
+
+    El alta entra en la lista solo si existe: un entrenador que no le pide nada a
+    nadie no tiene bloque de alta (`Alta` devuelve `null` con cero pasos), y un
+    índice que ofrece un destino vacío es peor que uno más corto — se pulsa, no
+    pasa nada visible, y a partir de ahí no se vuelve a usar.
+
+    Los pasos se cuentan aquí y no dentro de `Alta` porque el índice y el bloque
+    tienen que estar de acuerdo sobre si hay alta o no; preguntarlo dos veces es
+    la forma de que un día discrepen.
+  */
+  const pasosDelAlta = intakeSteps(clientIntake(activeClient.preferences));
+  const apartados = [
+    { id: 'quien', label: 'Quién es' },
+    ...(pasosDelAlta.length > 0 ? [{ id: 'alta', label: 'Su alta' }] : []),
+    { id: 'sabes', label: 'Lo que sabes' },
+    { id: 'relacion', label: 'Vuestra relación' },
+  ];
+
   /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
      y tiene que dejar la misma señal, se pulse donde se pulse. */
   const marcarCobrado = () => {
@@ -1063,13 +1293,29 @@ export const ClientFile = () => {
         por qué el alta y el cobro están más abajo y no en medio.
       */}
 
+      {/*
+        ══ El índice, por el mismo motivo que en Protocolo ═══════════════════
+
+        Esta pantalla son ocho bloques y dos rótulos de grupo, y al abrirla no se
+        viene a leerla entera: se viene a una cosa —«¿cuándo cobra?», «¿qué me
+        ha contado de sus lesiones?», «¿ya le he invitado?»— y esa cosa está a
+        dos o tres pantallas de desplazamiento sin nada que diga en qué dirección.
+
+        Los cuatro nombres son los que ya usa la pantalla: el retrato, el alta y
+        los dos grupos. No inventa una taxonomía nueva; sube a donde se mira
+        primero la que la pantalla ya tenía escrita más abajo.
+      */}
+      <PageNav sections={apartados} label="Apartados de la ficha" />
+
       {/* El retrato abre la pantalla y no cuelga de ningún grupo: dice de
           quién va todo lo de abajo, no es una de las cosas de abajo. */}
-      <Identidad
-        client={activeClient}
-        weight={peso}
-        onUpdate={(fields) => updateClient(activeClient.id, fields)}
-      />
+      <section id="quien" className="anchored">
+        <Identidad
+          client={activeClient}
+          weight={peso}
+          onUpdate={(fields) => updateClient(activeClient.id, fields)}
+        />
+      </section>
 
       {/*
         ══ El alta va arriba, pero DEBAJO de quién es ═══════════════════════════
@@ -1088,6 +1334,8 @@ export const ClientFile = () => {
         —«el alta va la primera: es lo que está sin terminar cuando alguien acaba
         de entrar»— y que se perdió por el camino.
       */}
+      {pasosDelAlta.length > 0 && (
+      <section id="alta" className="anchored">
       <Alta
         client={activeClient}
         /* Lo que ha entregado él. Sale del mismo sitio que su portal
@@ -1100,7 +1348,10 @@ export const ClientFile = () => {
           updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))
         }
       />
+      </section>
+      )}
 
+      <section id="sabes" className="page-section">
       <GroupHead title="Lo que sabes de él" sub="Lo que no cambia de una semana a otra." />
 
       {/*
@@ -1164,8 +1415,16 @@ export const ClientFile = () => {
         client={activeClient}
         onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
       />
+      </section>
 
-      <GroupHead title="Vuestra relación" sub="Su cobro, su acceso y su baja." />
+      <section id="relacion" className="page-section">
+      <GroupHead title="Vuestra relación" sub="Su carpeta, su cobro, su acceso y su baja." />
+
+      {/* La carpeta compartida con él, si tienes Drive conectado. Va la primera
+          del grupo porque es el CANAL —por donde va y viene lo que os mandáis— y
+          lo demás son condiciones de la relación, no cosas que se usen a diario.
+          Sin Drive conectado no se pinta nada (ver `ClientDrive`). */}
+      <ClientDrive client={activeClient} />
 
       <Cobro
         client={activeClient}
@@ -1182,6 +1441,7 @@ export const ClientFile = () => {
           cliente entra o SALE, no mientras se trabaja con él, así que va al
           final de la ficha y no en el carril de secciones. */}
       <ClientDataPanel client={activeClient} />
+      </section>
     </div>
   );
 };

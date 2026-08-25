@@ -439,11 +439,28 @@ export const useClients = ({
    * función y no quien llama porque los dos sitios que la usan —«poner al día» e
    * «igualar a mi plantilla»— significan exactamente eso, y uno de los dos se
    * habría olvidado.
+   *
+   * ══ Salvo cuando lo que se escribe es SOLO el alta ═════════════════════════
+   *
+   * `clearException: false` existe para un caso concreto y hay que entender por
+   * qué no puede compartir el comportamiento de los otros dos.
+   *
+   * A un cliente anterior a esta marca no se le pide nada en su alta —sus pasos
+   * se guardaron antes de que las entregas del cliente existieran— y mandárselas
+   * es ADITIVO: se le pide algo que no se le pedía, no se le quita nada. Pero
+   * está «protegido» (`isProtected`), y con razón: puede tener un protocolo
+   * hecho a mano hace seis meses.
+   *
+   * Si al mandarle el alta se le soltara la marca, el SIGUIENTE «poner al día»
+   * —que escribe el protocolo entero— le pasaría por encima de ese trabajo. Y el
+   * entrenador no habría pedido eso: habría pedido que le llegue el cuestionario.
+   *
+   * O sea: quien escribe una parte no puede decidir sobre el resto.
    */
   const applyProtocolToClient = useCallback(
-    async (clientId, sections) => {
+    async (clientId, sections, { clearException = true } = {}) => {
       const current = clientsRef.current.find((c) => c.id === clientId)?.preferences || {};
-      const next = { ...current, protocolException: { on: false } };
+      const next = clearException ? { ...current, protocolException: { on: false } } : { ...current };
       for (const [section, patch] of Object.entries(sections)) {
         next[section] = { ...(next[section] || {}), ...patch };
       }

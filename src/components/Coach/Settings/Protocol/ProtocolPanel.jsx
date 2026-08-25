@@ -12,7 +12,7 @@ import {
   clientProtocol,
   isModuleOn,
 } from '@/domain/protocol';
-import { clientIntake, intakeSteps, intakeToPreferences } from '@/domain/intake';
+import { clientIntake, clientSteps, intakeSteps, intakeToPreferences } from '@/domain/intake';
 import {
   applyIntakeTemplate,
   clearLocalIntakeTemplate,
@@ -24,6 +24,7 @@ import {
 import {
   clearLocalTemplate,
   defaultProtocol,
+  isException,
   isProtected,
   matchesTemplate,
   templateForClient,
@@ -240,6 +241,36 @@ export const ProtocolPanel = () => {
     protegida— y se calcula aparte porque hay que poder NOMBRARLA: un botón que
     salta clientes sin decir cuáles es un botón del que no te fías.
   */
+  /*
+    ══ A quién NO se le pide nada en su alta ══════════════════════════════════
+
+    El hueco que esto tapa costó una sesión de pruebas: se enciende el
+    cuestionario, se entra en el portal de un cliente de antes, y no hay nada que
+    contestar. Ni cuestionario, ni fotos, ni aviso. La pantalla del cliente está
+    bien; lo que pasa es que a él no se le pide nada.
+
+    Por qué: sus pasos se guardaron antes de que existieran las entregas del
+    cliente, así que `clientSteps` de su alta está vacío. Y «poner al día» NO lo
+    arregla, porque un cliente sin marca de excepción que se desvía queda
+    PROTEGIDO (`isProtected`) y el botón lo salta — protección que está bien
+    puesta y que aquí deja el caso sin salida.
+
+    La diferencia que justifica una acción aparte: mandarle el alta es ADITIVO.
+    No le quita ninguna pregunta ni le devuelve módulos; le pide algo que hasta
+    ahora no se le pedía. Por eso se puede ofrecer en un botón sin la advertencia
+    que lleva «poner al día», y por eso se escribe SOLO el alta y se le respeta la
+    marca (ver `clearException` en useClients).
+
+    Los declarados excepción a propósito (`on === true`) se quedan fuera: si
+    alguien dijo «a este no le pidas nada», esto no es quien para desdecirlo.
+  */
+  const sinAlta = useMemo(() => {
+    if (clientSteps(intakeTemplate).length === 0) return [];
+    return clients.filter(
+      (c) => !isException(c) && clientSteps(clientIntake(c.preferences)).length === 0
+    );
+  }, [clients, intakeTemplate]);
+
   const pendientes = useMemo(
     () => clients.filter((c) => needsTemplate(template, intakeTemplate, c)),
     [clients, template, intakeTemplate]
@@ -271,6 +302,53 @@ export const ProtocolPanel = () => {
          ido pegando cliente a cliente, que es el trabajo que no se puede rehacer. */
       intake: intakeToPreferences(applyIntakeTemplate(intakeTemplate, c.preferences)),
     });
+
+  /**
+   * Mandarles el alta a los que hoy no reciben nada.
+   *
+   * Escribe SOLO el alta y les respeta la marca de excepción: lo que se ha pedido
+   * es que les llegue el cuestionario, no que se les reescriba el protocolo (el
+   * porqué entero, en `applyProtocolToClient`).
+   *
+   * En tandas de 3 y esperando cada una, igual que «poner al día»: con una
+   * cartera grande, cincuenta RPCs a la vez son cincuenta conexiones peleándose y
+   * aquí nadie tiene prisa.
+   */
+  const mandarlesElAlta = async () => {
+    setFeedback(null);
+    setApplying(true);
+    let fallos = 0;
+
+    for (let i = 0; i < sinAlta.length; i += 3) {
+      const tanda = sinAlta.slice(i, i + 3);
+      const results = await Promise.allSettled(
+        tanda.map((c) =>
+          applyProtocolToClient(
+            c.id,
+            /* La plantilla ADAPTADA: la plantilla decide qué pasos hay y cada
+               cliente conserva por cuáles va y qué tiene enlazado. */
+            { intake: intakeToPreferences(applyIntakeTemplate(intakeTemplate, c.preferences)) },
+            { clearException: false }
+          )
+        )
+      );
+      fallos += results.filter((r) => r.status !== 'fulfilled' || !r.value?.ok).length;
+    }
+
+    setApplying(false);
+    const hechos = sinAlta.length - fallos;
+    setFeedback(
+      fallos === 0
+        ? {
+            tone: 'success',
+            text: `Ya se les pide. ${hechos} ${hechos === 1 ? 'cliente lo verá' : 'clientes lo verán'} en su portal la próxima vez que entren.`,
+          }
+        : {
+            tone: 'error',
+            text: `Hecho en ${hechos}; ha fallado en ${fallos}. Vuelve a intentarlo: solo se reintenta lo que falta.`,
+          }
+    );
+  };
 
   /** Igualar al cliente que se está mirando, con su acuse de recibo. */
   const igualarAlCliente = async () => {
@@ -410,8 +488,54 @@ export const ProtocolPanel = () => {
           el onboarding y el análisis postural son tuyos y vienen DESPUÉS de que
           él entregue lo suyo.
         */}
+        {/*
+          El hueco de los clientes de antes, dicho donde se decide qué se pide.
+
+          Va ANTES del editor y no después: quien acaba de encender el
+          cuestionario da por hecho que sus clientes lo tienen, y enterarse al
+          final de la pantalla —o peor, entrando en el portal de alguien a mirar
+          por qué está vacío— es enterarse tarde. Solo aparece con la plantilla
+          delante: con un cliente elegido, lo que se está mirando es el suyo.
+        */}
+        {!client && sinAlta.length > 0 && (
+          <Notice
+            tone="warn"
+            action={
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={applying}
+                onClick={mandarlesElAlta}
+              >
+                {applying ? 'Mandando…' : 'Pedírselo también a ellos'}
+              </button>
+            }
+          >
+            A {sinAlta.length === 1 ? '1 cliente' : `${sinAlta.length} clientes`} no se les pide
+            nada en su alta: entran en su portal y no tienen ni cuestionario ni nada que entregar.
+            Son de antes de que esto existiera —
+            {sinAlta
+              .slice(0, 4)
+              .map((c) => c.name)
+              .join(', ')}
+            {sinAlta.length > 4 && ` y ${sinAlta.length - 4} más`}—. Esto solo les AÑADE lo que
+            pidas aquí arriba: no les toca el protocolo ni les quita nada.
+          </Notice>
+        )}
+
         <IntakeSteps intake={intake} onChange={saveIntake} />
-        <IntakeFormSection />
+
+        {/*
+          El cuestionario recibe el DESTINO aunque no escriba en él.
+
+          Es el único bloque de esta pantalla que ignora el selector de arriba:
+          su plantilla vive en la cuenta del entrenador y a cada cliente se le
+          COPIA el día que entra (`newClientPreferences`), así que con Marta
+          elegida arriba, tocar aquí una casilla no le cambia nada a Marta. Eso,
+          sin decirlo, es la clase de trampa que hace desconfiar de una pantalla
+          entera. Con el cliente delante, el bloque lo dice.
+        */}
+        <IntakeFormSection client={client} />
       </section>
 
       <section id="app" className="page-section">

@@ -27,10 +27,24 @@ export const intakeTemplateFrom = (coachPrefs) => {
  *
  * Ni `done` ni `links` ni `files`: son de cada cliente. Guardarlos en la
  * plantilla haría que «aplicar a todos» repartiera el vídeo de uno a los demás.
+ *
+ * ══ `owners` SÍ es definición, y se quedaba fuera ══════════════════════════
+ *
+ * Era el fallo más silencioso de todo el alta: el reparto —«esto me lo entrega
+ * él», «esto lo hago yo»— es la mitad de lo que se decide en esa pantalla, y al
+ * guardar la plantilla se tiraba. El botón de cambiar de lado movía la fila
+ * delante de tus ojos, la pantalla no daba ningún error, y al recargar volvía a
+ * su sitio de siempre. Y a los clientes nuevos les llegaba el reparto del
+ * catálogo, no el tuyo.
+ *
+ * Es definición y no estado: de quién es un paso lo decide el entrenador una vez
+ * para todos, exactamente igual que qué pasos hay. Lo que es de cada cliente es
+ * si lo ha entregado y qué tiene enlazado, y eso sigue fuera.
  */
 export const intakeTemplateToPreferences = (intake) => ({
   steps: intake.steps,
   custom: intake.custom.map(({ id, label }) => ({ id, label })),
+  owners: intake.owners || {},
 });
 
 /** La que quedara en el navegador, para subirla una vez. `null` si no hay. */
@@ -69,6 +83,11 @@ export const applyIntakeTemplate = (template, preferences) => {
     intake: {
       steps: template.steps,
       custom: template.custom,
+      /* El reparto viaja CON los pasos, y por lo mismo: es una decisión de la
+         plantilla, no del cliente. Sin esto, igualar a alguien le ponía tus pasos
+         con el reparto del catálogo — o sea, un paso que tú te habías quedado le
+         aparecía a él como tarea, o al revés. */
+      owners: template.owners,
       done: actual.done,
       links: actual.links,
       /* Los archivos subidos son del cliente, igual que los enlaces: la anamnesis

@@ -41,6 +41,15 @@ export const IntakeHealth = ({ client }) => {
   const [form, setForm] = useState({ label: '', area: 'training', detail: '' });
   const [guardando, setGuardando] = useState(false);
   const [fallo, setFallo] = useState(null);
+  /*
+    Lo último añadido, para poder decirlo.
+
+    Sin esto, añadir algo vaciaba el formulario y ya está: la fila aparecía
+    arriba, fuera de donde estaba mirando el dedo en un móvil, y desde abajo la
+    pantalla no daba ninguna señal de que hubiera pasado nada. Un formulario que
+    se vacía sin acusar recibo se rellena dos veces.
+  */
+  const [ultimo, setUltimo] = useState('');
 
   const limpio = form.label.trim();
   const declarados = activeConditions(conditions);
@@ -51,6 +60,7 @@ export const IntakeHealth = ({ client }) => {
 
     setGuardando(true);
     setFallo(null);
+    setUltimo('');
     /* `severity` va a lo suyo y no se ofrece: ver la cabecera. */
     const res = await addCondition(client.id, {
       label: limpio,
@@ -64,6 +74,7 @@ export const IntakeHealth = ({ client }) => {
       setFallo(res.error);
       return;
     }
+    setUltimo(limpio);
     setForm({ label: '', area: form.area, detail: '' });
   };
 
@@ -77,6 +88,11 @@ export const IntakeHealth = ({ client }) => {
 
       {declarados.length > 0 && (
         <div className="col gap-2">
+          {/* Un rótulo, porque la lista y el formulario de abajo se parecen
+              demasiado: sin él, lo primero que se ve al abrir el apartado son
+              cajas con texto y no queda claro cuál es lo ya contado y cuál lo
+              que se está escribiendo. */}
+          <span className="section-label">Lo que ya sabe tu entrenador</span>
           {declarados.map((c) => (
             <div key={c.id} className="card-inset col gap-1">
               <span className="row gap-2 wrap t-sm" style={{ alignItems: 'baseline' }}>
@@ -94,6 +110,18 @@ export const IntakeHealth = ({ client }) => {
       )}
 
       <form className="card-inset col gap-3" onSubmit={anadir}>
+        <span className="section-label">
+          {declarados.length > 0 ? 'Añadir otra cosa' : 'Cuéntanos'}
+        </span>
+
+        {/* El acuse de recibo, donde está el dedo. Se va solo al escribir la
+            siguiente, así que no hay nada que cerrar. */}
+        {ultimo && !limpio && (
+          <Notice tone="success">
+            Apuntado: «{ultimo}». Tu entrenador ya lo ve en tu ficha.
+          </Notice>
+        )}
+
         <Field label="¿Algo que debamos saber?">
           {(props) => (
             <input

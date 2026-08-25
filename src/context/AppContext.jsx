@@ -1717,6 +1717,12 @@ export const AppProvider = ({ children }) => {
     setWebhookSecret,
     runStripe,
     linkExternalName,
+    driveAuthorize,
+    runDrive,
+    loadClientFolder,
+    setClientFolder,
+    driveFiles,
+    driveUpload,
   } = useIntegrations({ session, team, addClient });
 
   /* Revisiones y calendario: dos dominios sin estado propio, extraídos con la
@@ -2031,6 +2037,15 @@ export const AppProvider = ({ children }) => {
     setWebhookSecret,
     linkExternalName,
     createClientFromExternal,
+    /* Drive. `loadClientFolder`, `driveFiles` y `driveUpload` las llama también
+       el CLIENTE desde su portal: son las únicas de este bloque que no son del
+       entrenador (ver la cabecera de `useIntegrations.js`). */
+    driveAuthorize,
+    runDrive,
+    loadClientFolder,
+    setClientFolder,
+    driveFiles,
+    driveUpload,
 
     // Revisiones
     uploadReview,

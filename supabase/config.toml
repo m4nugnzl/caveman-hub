@@ -154,3 +154,27 @@ verify_jwt = false
 [db.seed]
 enabled = true
 sql_paths = ["./bootstrap.sql"]
+
+# ── Google Drive ────────────────────────────────────────────────────────────
+#
+# Aquí `verify_jwt = false` es REQUISITO por partida doble, y ninguna de las dos
+# es el apaño del preflight que explican las de arriba.
+#
+#   · La VUELTA de Google (`/google-drive/oauth`) es una redirección del
+#     navegador: una navegación normal que no lleva cabecera `Authorization` ni
+#     puede llevarla. Con la pasarela exigiendo un JWT, el permiso recién
+#     concedido se estrellaría contra un 401 antes de guardarse.
+#   · La SUBIDA del cliente va en `multipart/form-data`, así que el navegador
+#     hace preflight igual que en las demás.
+#
+# Lo que concede sin pasarela está cerrado dentro de la función, y con más
+# criterio del que puede tener el gateway:
+#
+#   · La vuelta de Google solo vale con un `state` que exista en
+#     `integration_oauth_states` —tabla sin políticas, ilegible desde cualquier
+#     navegador—, se consume al usarlo y caduca a los diez minutos.
+#   · Lo demás exige la cabecera de sesión y lee POR RLS: la integración, si
+#     quien llama es el entrenador; su carpeta, si es el cliente. Lo que RLS no
+#     devuelve, no existe para la función.
+[functions.google-drive]
+verify_jwt = false

@@ -50,6 +50,7 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0062_pago_anual.sql` | Para cobrar por años | Solo se puede pagar por meses: la pantalla del plan no enseña el interruptor y la portada no menciona el anual, porque las dos se guían por `price_cents_year` y sin la migración esa columna no existe. Aditiva y sin riesgo. Lleva dentro los pasos de Stripe. Requiere `0021` y `0049` (el `GRANT` a `anon` es parte de la migración). |
 | `0065_integraciones_por_plan.sql` | Solo si quieres capar las integraciones | Gratis y Solo pueden conectar Notion igual que Pro y Equipo. **Decisión de producto, no arreglo**: aplicarla es lo que hace falsa la frase «un plan solo cambia a cuánta gente llevas» del titular de la portada. La lista de las tarjetas ya sale del dato (`has_integrations`), así que esa se corrige sola. No quita la integración a quien ya la tenga. Requiere `0010` y `0019`. |
 | `0064_tope_de_asientos.sql` | Con la tarifa (`docs/monetizacion.md` §7.4) | **`max_seats` sigue sin aplicarse**: la portada anuncia «1 entrenador» en Gratis y Solo y cualquiera puede invitar a los que quiera, así que Equipo no tiene ninguna diferencia real que lo justifique. Aditiva: un disparador `BEFORE INSERT`, no echa a nadie que ya se pase del tope. Requiere `0006` y `0019`. |
+| `0082_la_carpeta_de_cada_cliente.sql` | Cuando quieras conectar Google Drive | La tarjeta de Drive se ve en el catálogo y conectar falla con el aviso de que la integración no está activa. Aditiva: dos tablas nuevas y la restricción de `provider` ampliada; ni un DROP. Requiere `0010` y desplegar `google-drive`. Las credenciales de Google están en [`docs/google-drive.md`](../docs/google-drive.md) — **no hay verificación que esperar**, y el porqué está en su §0. |
 | `0063_deshacer_revision.sql` | Con el «Deshacer» de los avisos | Cerrar revisiones funciona igual, pero el «Deshacer» del aviso falla con su error y la revisión se queda cerrada (se puede reabrir borrando el check-in). Aditiva y sin riesgo: una función, espejo de `review_check_in`. Requiere `0009` y `0042`. |
 
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
@@ -64,6 +65,15 @@ npx supabase login
 npx supabase link --project-ref <project-ref>
 npx supabase functions deploy notion-payments
 npx supabase functions deploy review-link
+npx supabase functions deploy google-drive
+```
+
+`google-drive` necesita además dos secretos, que son las credenciales de la
+consola de Google (`docs/google-drive.md`):
+
+```bash
+npx supabase secrets set GOOGLE_DRIVE_CLIENT_ID=...
+npx supabase secrets set GOOGLE_DRIVE_CLIENT_SECRET=...
 ```
 
 La configuración está en `supabase/config.toml`. `notion-payments` se despliega con

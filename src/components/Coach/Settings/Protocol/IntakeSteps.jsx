@@ -93,7 +93,13 @@ const StepRow = ({ step, propio, bloqueado, onSwap, onRemove }) => (
 
 const Lista = ({ titulo, sub, pasos, vacio, propio, onSwap, onRemove }) => (
   <div className="col gap-2">
-    <span className="section-label">{titulo}</span>
+    <span className="row between gap-2">
+      <span className="section-label">{titulo}</span>
+      {/* Cuántos hay de este lado. Es la cifra que contesta la pregunta con la
+          que se abre este bloque —«¿cuánto le estoy pidiendo?»— y hasta ahora
+          había que contar las filas para saberla. */}
+      {pasos.length > 0 && <span className="badge">{pasos.length}</span>}
+    </span>
     <p className="t-xs t-tertiary" style={{ marginTop: -4 }}>
       {sub}
     </p>
@@ -176,7 +182,17 @@ export const IntakeSteps = ({ intake, onChange }) => {
           Es una respuesta válida.
         </p>
       ) : (
-        <>
+        /*
+          Las dos mitades, LADO A LADO donde hay ancho.
+
+          Apiladas se leían como dos apartados seguidos de una pantalla larga, y
+          lo que hay que ver aquí de un vistazo es el REPARTO: qué le toca a él y
+          qué te toca a ti. Dos columnas lo dicen sin una palabra —es la misma
+          razón por la que la ficha pone los bloques del perfil a dos columnas—, y
+          `grid-2` las apila sola por debajo de 340 px por columna, que es donde
+          una fila con dos botones a la derecha deja de caber.
+        */
+        <div className="grid-2">
           <Lista
             titulo="Te lo entrega él"
             sub="Le sale como tareas en su portal. Se marcan solas en cuanto las entrega."
@@ -196,7 +212,7 @@ export const IntakeSteps = ({ intake, onChange }) => {
             onSwap={(step) => cambiarLado(step, 'client')}
             onRemove={quitar}
           />
-        </>
+        </div>
       )}
 
       {disponibles.length > 0 && (

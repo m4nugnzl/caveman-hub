@@ -123,3 +123,37 @@ export const traduceStorageError = (error, { cliente = false } = {}) => {
 
   return null;
 };
+
+/**
+ * Lo que ha fallado al llamar a una función de borde, dicho en castellano.
+ *
+ * ══ El fallo que esto arregla, y que ya estaba documentado ══════════════════
+ *
+ * `supabase/README.md` lo avisa desde hace tiempo: si una función NO está
+ * desplegada, la petición se lleva un 404 —que no lleva cabeceras de CORS— y lo
+ * que `supabase-js` levanta es un `FunctionsFetchError` con el texto **«Failed to
+ * send a request to the Edge Function»**. Esa frase se pintaba tal cual, en
+ * inglés, en la pantalla de integraciones: no dice qué falta, no dice qué hacer y
+ * hace pensar en un fallo de red pasajero que se arregla recargando.
+ *
+ * Y es, con diferencia, **el despiste más probable la primera vez**: el código
+ * está en el repositorio, la migración está aplicada, y lo único que falta es un
+ * `functions deploy` que nadie ha corrido.
+ *
+ * ── Por qué no se distingue de «estás sin conexión» ─────────────────────────
+ * Porque desde el navegador son indistinguibles: en los dos casos el `fetch` no
+ * llega a completarse y el error es el mismo objeto. Así que la frase nombra las
+ * dos posibilidades por orden de probabilidad, en vez de afirmar una.
+ *
+ * @param nombre  Cuál se ha intentado llamar. Va en el mensaje porque es
+ *   exactamente lo que hay que teclear detrás de `functions deploy`.
+ */
+export const traduceFunctionError = (error, nombre) => {
+  const message = typeof error === 'string' ? error : error?.message || '';
+
+  if (/failed to send a request/i.test(message) || error?.name === 'FunctionsFetchError') {
+    return `No se ha podido hablar con el servidor. Lo más probable es que la función «${nombre}» no esté desplegada todavía (npx supabase functions deploy ${nombre}); si lo está, comprueba tu conexión.`;
+  }
+
+  return message || 'Algo ha fallado en el servidor.';
+};

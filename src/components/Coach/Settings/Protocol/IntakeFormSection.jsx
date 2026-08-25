@@ -39,7 +39,7 @@ import { Field, Notice, Panel } from '@/components/ui/primitives';
  * son de tu forma de trabajar. Ésas la aplicación las guarda y las enseña, y no
  * actúa sobre ellas — y eso se dice abajo, para que nadie espere lo contrario.
  */
-export const IntakeFormSection = () => {
+export const IntakeFormSection = ({ client = null }) => {
   const { coachPrefs, updateCoachPreferences } = useApp();
 
   const form = coachIntakeForm(coachPrefs);
@@ -72,6 +72,23 @@ export const IntakeFormSection = () => {
       className="col gap-4"
       action={<span className="badge">{total}</span>}
     >
+      {/*
+        Con un cliente elegido arriba, lo primero es decir que esto NO es suyo.
+
+        Es el único bloque del protocolo que no obedece al selector de destino, y
+        callarlo convierte la pantalla en una trampa: se elige a Marta, se
+        enciende una pregunta y no pasa nada en el portal de Marta. El motivo —el
+        formulario se COPIA al dar de alta, porque el cliente no puede leer el
+        perfil de su entrenador— está en `domain/intakeForm.js`.
+      */}
+      {client && (
+        <Notice tone="info">
+          Esto es tu plantilla, y se copia a quien des de alta a partir de ahora. El cuestionario de{' '}
+          {client.name} es el que se le copió el día que entró, y desde aquí no cambia — lo que sí
+          puedes cambiarle a él son los pasos de su alta, aquí arriba.
+        </Notice>
+      )}
+
       {total === 0 && (
         <Notice tone="info">
           Sin ninguna pregunta puesta, tu cliente no ve formulario: su alta se queda en las fotos de
@@ -82,11 +99,24 @@ export const IntakeFormSection = () => {
       {/* Las del catálogo, en las mismas dos tandas que la ficha. Que se lean con
           las mismas palabras en los dos sitios es lo que hace evidente dónde va a
           aparecer cada respuesta. */}
-      {PROFILE_GROUPS.map((grupo) => (
+      {PROFILE_GROUPS.map((grupo) => {
+        const campos = fieldsOf(grupo.id);
+        const encendidas = campos.filter((f) => form.asked.includes(f.id)).length;
+
+        return (
         <div key={grupo.id} className="col gap-2">
-          <span className="section-label">{grupo.label}</span>
+          {/* Cuántas de esta tanda se preguntan. Son diecinueve casillas
+              repartidas en dos rótulos: sin la cifra hay que recorrer las dos
+              rejillas contando cantos encendidos para saber qué le estás
+              pidiendo, que es justo la pregunta con la que se entra aquí. */}
+          <span className="row between gap-2">
+            <span className="section-label">{grupo.label}</span>
+            <span className="tanda-n">
+              {encendidas}/{campos.length}
+            </span>
+          </span>
           <div className="grid-2">
-            {fieldsOf(grupo.id).map((field) => (
+            {campos.map((field) => (
               <div
                 key={field.id}
                 className={`ask-row${form.asked.includes(field.id) ? ' is-on' : ''}`}
@@ -122,7 +152,8 @@ export const IntakeFormSection = () => {
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/*
         Preguntar por su salud: un interruptor y no una pregunta más de la lista.

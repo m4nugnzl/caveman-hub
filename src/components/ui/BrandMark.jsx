@@ -44,6 +44,10 @@ const FALLBACK_TINT = {
   notion: 'var(--text)',
   stripe: 'var(--data-violet)',
   google: 'var(--text)',
+  /* Drive publica un glifo tricolor sobre transparente, como el de Google. Su
+     archivo oficial va en `public/brands/google_drive.svg`; mientras no esté, el
+     monograma sale en tinta plena y se ve como lo que es. */
+  google_drive: 'var(--text)',
 };
 
 export const BrandMark = ({ brand, name, size = 28, tile = true }) => {

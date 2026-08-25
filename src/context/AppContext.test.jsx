@@ -150,7 +150,20 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(194);
+    // Antes 194, desde la carpeta compartida en Drive (0082): seis acciones, y la
+    // cuenta se explica sola si se lee quién llama a cada una. Del entrenador son
+    // `driveAuthorize` (el viaje a Google), `runDrive` (montar la carpeta y
+    // comprobar el permiso) y `setClientFolder` (si el cliente puede subir y qué
+    // le pides). Las otras tres —`loadClientFolder`, `driveFiles` y `driveUpload`—
+    // las llaman los DOS: el entrenador desde la ficha y el cliente desde su
+    // portal, y por eso se autorizan por la carpeta y no por la integración, que
+    // él no puede ni ver.
+    //
+    // Fueron siete un rato: había un `loadClientFolders` en plural para pintar la
+    // cartera entera en Ajustes → Integraciones. Esa lista se retiró —gestionar
+    // clientes desde Ajustes es el segundo sitio que la ficha existe para evitar—
+    // y con ella se fue su consulta.
+    expect(Object.keys(visto.app).length).toBe(200);
   });
 
   /*

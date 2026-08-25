@@ -63,3 +63,19 @@ Algunos —Stripe— son un **icono de aplicación**: traen su propio fondo de c
 sus esquinas redondeadas. Esos llenan el azulejo hasta el canto en vez de flotar
 dentro de él con un margen claro. Se declaran en `CON_FONDO_PROPIO`, en
 `src/components/ui/BrandMark.jsx`: no hay forma de adivinarlo desde un `<img>`.
+
+### `google_drive.svg`
+
+El triángulo de seis colores, sobre transparente: glifo, así que NO va en
+`CON_FONDO_PROPIO`.
+
+Es la excepción a lo que dice el segundo párrafo de este documento, y conviene
+saber por qué se admite aquí y no con Notion. La marca de Notion es una pieza de
+tipografía —una ene con sus grosores y sus contornos medidos— y aproximarla de
+memoria da algo que se parece y no es. La de Drive es **geometría pura**: un
+triángulo partido en tres bandas, seis polígonos rectos y seis colores exactos.
+Eso sí se reproduce sin margen de interpretación, y el archivo de aquí son esas
+coordenadas.
+
+Aun así, si algún día quieres el archivo tal cual sale de la página de marca de
+Google, sustitúyelo sin más: el nombre y el tamaño son los mismos.

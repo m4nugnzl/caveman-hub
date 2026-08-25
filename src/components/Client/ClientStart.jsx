@@ -3,6 +3,7 @@ import { clientIntake, clientSteps, stepDone } from '@/domain/intake';
 import { onboardingState } from '@/domain/onboardingState';
 import { PageHead } from '@/components/ui/primitives';
 import { Dashboard } from '@/components/dashboard/Dashboard';
+import { ClientFolder } from './ClientFolder';
 import { ClientUpdates } from './ClientUpdates';
 import { IntakeDeliverables } from './IntakeDeliverables';
 import { IntakePrompt } from './IntakePrompt';
@@ -89,6 +90,19 @@ export const ClientStart = () => {
       <ClientUpdates client={activeClient} altaPendiente={altaPendiente} />
       <Dashboard audience="client" />
       <IntakeDeliverables client={activeClient} />
+
+      {/*
+        Su carpeta compartida, si su entrenador la ha montado.
+
+        Va al lado de lo que le dejó preparado al empezar porque es la misma
+        pregunta —«¿dónde está lo mío?»— contestada por el otro lado: aquello es
+        lo que le entregan, esto es el sitio común. Y va al FINAL porque no se
+        mira todos los días: se mira el día que hay que mandar la analítica.
+
+        No se pinta cuando no hay carpeta, así que a la inmensa mayoría de los
+        portales esta línea no les añade nada (ver `ClientFolder`).
+      */}
+      <ClientFolder client={activeClient} />
     </div>
   );
 };

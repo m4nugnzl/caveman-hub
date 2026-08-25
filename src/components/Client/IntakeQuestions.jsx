@@ -12,6 +12,9 @@ import {
 import { MAX_FIELD, customAnswers, examplePlaceholder } from '@/domain/profile';
 import { Field, Notice, NumberInput, Panel } from '@/components/ui/primitives';
 
+/** Una respuesta cuenta si tiene algo dentro. El mismo criterio que `formProgress`. */
+const puesto = (valor) => valor !== undefined && valor !== null && valor !== '';
+
 /**
  * Un control, según lo que pida la pregunta.
  *
@@ -108,6 +111,18 @@ const Pregunta = ({ field, obligatoria, value, onChange }) => (
  * completarlo se abandona en la tercera pregunta y no llega nada; uno que guarda
  * lo que haya deja a su entrenador con cinco respuestas de siete, que es mucho
  * más de lo que tenía. El contador de arriba dice por dónde va.
+ *
+ * ══ El botón de guardar VIAJA con la pantalla ══════════════════════════════
+ *
+ * Y es la corrección que más se nota. Guardar de una vez tiene un precio que
+ * antes se pagaba entero: el único botón estaba al FINAL de un formulario que en
+ * un teléfono mide cinco pantallas, así que quien contestaba tres preguntas y
+ * salía perdía las tres —sin ningún aviso, porque desde fuera no había nada que
+ * dijera que quedaba algo por hacer—.
+ *
+ * La barra pegajosa dice las dos cosas que faltaban: cuánto llevas y que tienes
+ * algo **sin guardar**. Y como está siempre a un dedo, guardar deja de ser el
+ * final del recorrido para ser lo que es: algo que se hace cuando quieras.
  */
 export const IntakeQuestions = ({ client }) => {
   const { saveClientProfile } = useActions();
@@ -121,18 +136,38 @@ export const IntakeQuestions = ({ client }) => {
   const [borrador, setBorrador] = useState(() => ({ ...perfil, custom: { ...propias } }));
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState(null);
+  /*
+    ¿Hay algo escrito y sin mandar?
+
+    Un booleano que se enciende al tocar y se apaga al guardar, y no una
+    comparación del borrador contra el perfil. La comparación parece más lista y
+    es peor: `client.profile` se actualiza de forma optimista al guardar, así que
+    durante el viaje de ida los dos son iguales y la barra diría «guardado» antes
+    de que el servidor haya contestado.
+  */
+  const [tocado, setTocado] = useState(false);
 
   if (isFormEmpty(form)) return null;
 
   const tandas = formSections(form);
-  const progreso = formProgress(form, perfil);
+  /*
+    El avance se mide sobre lo que hay EN PANTALLA, no sobre lo guardado.
 
-  const set = (field) => (valor) =>
+    Contando lo guardado, contestar una pregunta no movía nada hasta pulsar el
+    botón: el formulario se quedaba mudo justo mientras se rellena, que es cuando
+    la barra sirve de algo. Que pueda decir «10 de 10» con cosas sin mandar no es
+    un problema mientras la barra de abajo lo diga — y lo dice.
+  */
+  const progreso = formProgress(form, borrador);
+
+  const set = (field) => (valor) => {
+    setTocado(true);
     setBorrador((prev) =>
       field.custom
         ? { ...prev, custom: { ...prev.custom, [field.id]: valor } }
         : { ...prev, [field.id]: valor }
     );
+  };
 
   const valorDe = (field) => (field.custom ? borrador.custom?.[field.id] : borrador[field.id]);
 
@@ -160,6 +195,7 @@ export const IntakeQuestions = ({ client }) => {
 
     const res = await saveClientProfile(client.id, respuestas);
     setGuardando(false);
+    if (res.ok) setTocado(false);
     setAviso(
       res.ok
         ? { tone: 'success', text: 'Guardado. Puedes volver y cambiarlo cuando quieras.' }
@@ -214,38 +250,69 @@ export const IntakeQuestions = ({ client }) => {
       )}
 
       <form className="col gap-4" onSubmit={guardar}>
-        {tandas.map((tanda, i) => (
-          <div key={tanda.id} className="form-block col gap-3">
-            <span className="section-label">
-              {/* El número, y no un icono: dice cuántas tandas quedan sin tener
-                  que contarlas, que es la pregunta de quien rellena algo largo
-                  en un móvil. */}
-              <span className="n" aria-hidden="true">
-                {i + 1}
-              </span>
-              {tanda.label}
-            </span>
-            <div className="grid-2">
-              {tanda.fields.map((field) => (
-                <Pregunta
-                  key={field.id}
-                  field={field}
-                  obligatoria={isRequired(form, field.id)}
-                  value={valorDe(field)}
-                  onChange={set(field)}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
+        {tandas.map((tanda, i) => {
+          /* Lo contestado de ESTA tanda. Con cuatro rótulos y diecinueve campos,
+             la cifra de arriba dice cuánto queda en total y ninguna dice dónde
+             está lo que falta — que es lo que hay que saber para seguir. */
+          const contestadas = tanda.fields.filter((f) => puesto(valorDe(f))).length;
+          const llena = contestadas === tanda.fields.length;
 
-        <div className="row gap-2">
-          <button type="submit" className="btn btn-primary btn-sm" disabled={guardando}>
-            {guardando ? 'Guardando…' : 'Guardar'}
-          </button>
-          <span className="t-xs t-tertiary" style={{ alignSelf: 'center' }}>
-            Puedes dejarlo a medias y seguir otro día.
+          return (
+            <div key={tanda.id} className={`form-block col gap-3${llena ? ' is-full' : ''}`}>
+              <div className="row between gap-2">
+                <span className="section-label">
+                  {/* El número, y no un icono: dice cuántas tandas quedan sin
+                      tener que contarlas, que es la pregunta de quien rellena
+                      algo largo en un móvil. */}
+                  <span className="n" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  {tanda.label}
+                </span>
+                {/* La cuenta de la tanda, en voz baja: informa sin competir con
+                    el rótulo, que es lo que se lee para ubicarse. */}
+                <span className="tanda-n">
+                  {llena && <Check size={11} />} {contestadas}/{tanda.fields.length}
+                </span>
+              </div>
+              <div className="grid-2">
+                {tanda.fields.map((field) => (
+                  <Pregunta
+                    key={field.id}
+                    field={field}
+                    obligatoria={isRequired(form, field.id)}
+                    value={valorDe(field)}
+                    onChange={set(field)}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        {/*
+          La barra de guardar, pegada al pie de la ventana mientras se rellena.
+
+          Lo que dice a la izquierda cambia con el estado y ésa es toda su razón
+          de ser: «sin guardar» es un aviso, «guardado» es un acuse, y el resto
+          del tiempo es la cuenta. Tres frases distintas en el mismo sitio, que es
+          donde ya está mirando quien acaba de contestar algo.
+        */}
+        <div className={`form-bar${tocado ? ' is-dirty' : ''}`}>
+          <span className="t-xs t-secondary" style={{ minWidth: 0 }}>
+            {tocado
+              ? 'Tienes respuestas sin guardar.'
+              : progreso.done === progreso.total
+                ? 'Lo tienes todo contestado.'
+                : `Te faltan ${progreso.total - progreso.done} por contestar. Puedes dejarlo a medias.`}
           </span>
+          <button
+            type="submit"
+            className="btn btn-primary btn-sm shrink-0"
+            disabled={guardando || !tocado}
+          >
+            {guardando ? 'Guardando…' : tocado ? 'Guardar' : 'Guardado'}
+          </button>
         </div>
       </form>
     </Panel>

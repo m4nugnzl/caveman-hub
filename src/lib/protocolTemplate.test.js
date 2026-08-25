@@ -9,7 +9,14 @@ import {
 } from '@/lib/protocolTemplate';
 import { defaultIntake, intakeTemplateToPreferences } from '@/lib/intakeTemplate';
 import { toggleModule } from '@/domain/protocol';
-import { INTAKE_CATALOG, intakeToPreferences, toggleStep } from '@/domain/intake';
+import {
+  INTAKE_CATALOG,
+  clientIntake,
+  clientSteps,
+  intakeToPreferences,
+  setStepOwner,
+  toggleStep,
+} from '@/domain/intake';
 
 /*
   De `clientDrifts` cuelgan dos cosas que no pueden discrepar: el recuento que
@@ -164,11 +171,34 @@ describe('newClientPreferences', () => {
   });
 
   /* Del alta va la DEFINICIÓN y nada más: sembrar `done` o `links` repartiría a
-     cada cliente nuevo los pasos marcados y los vídeos de la plantilla. */
-  it('del alta solo se siembra qué pasos hay', () => {
+     cada cliente nuevo los pasos marcados y los vídeos de la plantilla.
+
+     `owners` está DENTRO de la definición, y esta prueba decía lo contrario. El
+     reparto —«esto me lo entrega él», «esto lo hago yo»— es la mitad de lo que se
+     decide en el alta y se decide una vez para todos, igual que qué pasos hay. Al
+     quedarse fuera, cambiarlo de lado en la plantilla no se guardaba: la fila se
+     movía en pantalla, no había ningún error, y al recargar volvía a su sitio. */
+  it('del alta se siembra la definición: qué pasos hay y de quién es cada uno', () => {
     const prefs = newClientPreferences({
       intakeTemplate: intakeTemplateToPreferences(conAlta),
     });
-    expect(Object.keys(prefs.intake).sort()).toEqual(['custom', 'steps']);
+    expect(Object.keys(prefs.intake).sort()).toEqual(['custom', 'owners', 'steps']);
+  });
+
+  it('y el reparto que pusiste llega al cliente nuevo', () => {
+    /* Un paso que el catálogo da por tuyo y que tú pasas a que lo entregue él.
+       `postureVideo` vale porque no es automático — los tres que se marcan solos
+       no se mueven de lado (`setStepOwner`). */
+    const conReparto = setStepOwner(
+      { ...defaultIntake(), steps: [...defaultIntake().steps, 'postureVideo'] },
+      'postureVideo',
+      'client'
+    );
+
+    const prefs = newClientPreferences({
+      intakeTemplate: intakeTemplateToPreferences(conReparto),
+    });
+
+    expect(clientSteps(clientIntake(prefs)).map((s) => s.id)).toContain('postureVideo');
   });
 });
