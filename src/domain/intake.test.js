@@ -10,7 +10,10 @@ import {
   intakeSteps,
   intakeToPreferences,
   markStep,
+  clientSteps,
+  coachSteps,
   moveStep,
+  setStepOwner,
   removeCustomStep,
   safeLink,
   setStepFile,
@@ -287,5 +290,57 @@ describe('lo que ve el cliente', () => {
   it('intakeSteps no devuelve huecos aunque el id sea desconocido', () => {
     const intake = { ...defaultIntake(), steps: ['onboarding', 'fantasma'] };
     expect(intakeSteps(intake)).toHaveLength(1);
+  });
+});
+
+describe('de quién es cada paso', () => {
+  /*
+    ══ Por qué el reparto se puede mover ══════════════════════════════════════
+
+    «El cliente te manda su vídeo de postura» es suyo para quien se lo pide y es
+    un recordatorio privado para quien lo graba en persona. El catálogo trae un
+    reparto sensato, no uno universal.
+  */
+  const conPasos = (steps, owners) => clientIntake({ intake: { steps, owners } });
+
+  it('sin tocar nada, manda el catálogo', () => {
+    const intake = conPasos(['form', 'postureReview']);
+    expect(clientSteps(intake).map((s) => s.id)).toEqual(['form']);
+    expect(coachSteps(intake).map((s) => s.id)).toEqual(['postureReview']);
+  });
+
+  it('un paso tuyo se puede pasar a lo que entrega él', () => {
+    const intake = setStepOwner(conPasos(['postureVideo']), 'postureVideo', 'client');
+    expect(clientSteps(intake).map((s) => s.id)).toEqual(['postureVideo']);
+    expect(coachSteps(intake)).toEqual([]);
+  });
+
+  it('y volver', () => {
+    let intake = setStepOwner(conPasos(['postureVideo']), 'postureVideo', 'client');
+    intake = setStepOwner(intake, 'postureVideo', 'coach');
+    expect(coachSteps(intake).map((s) => s.id)).toEqual(['postureVideo']);
+  });
+
+  /*
+    Los automáticos NO se mueven: lo que los da por hechos es que él los haya
+    entregado, así que del lado del entrenador serían una casilla que no se
+    puede marcar nunca.
+  */
+  it('los que se marcan solos son suyos y no se mueven', () => {
+    const intake = setStepOwner(conPasos(['form']), 'form', 'coach');
+    expect(clientSteps(intake).map((s) => s.id)).toEqual(['form']);
+    expect(coachSteps(intake)).toEqual([]);
+  });
+
+  it('un dueño inventado no se guarda', () => {
+    const intake = setStepOwner(conPasos(['postureVideo']), 'postureVideo', 'nadie');
+    expect(intake.owners.postureVideo).toBeUndefined();
+  });
+
+  /* Un dueño de un paso que ya no está sería una entrada muerta creciendo en una
+     columna con tope de 8 KB. */
+  it('el dueño de un paso retirado no se conserva', () => {
+    const intake = clientIntake({ intake: { steps: ['form'], owners: { postureVideo: 'client' } } });
+    expect(intake.owners).toEqual({});
   });
 });

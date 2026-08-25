@@ -1,4 +1,6 @@
 import { useApp } from '@/context/AppContext';
+import { clientIntake, clientSteps, stepDone } from '@/domain/intake';
+import { onboardingState } from '@/domain/onboardingState';
 import { PageHead } from '@/components/ui/primitives';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ClientUpdates } from './ClientUpdates';
@@ -48,8 +50,30 @@ import { IntakePrompt } from './IntakePrompt';
  * es lo que ninguna pantalla del portal tenía: un título que dice en cuál estás.
  */
 export const ClientStart = () => {
-  const { activeClient } = useApp();
+  const { activeClient, equipment, checkIns } = useApp();
   if (!activeClient) return null;
+
+  /*
+    ══ Mientras no haya empezado, su alta manda sobre TODO ════════════════════
+
+    Esta pantalla abría con «te faltan 3 pesajes esta semana» —tarjeta grande,
+    franja de color— y dejaba «lo que te falta para empezar» debajo, en gris y
+    pareciendo secundario. A alguien que aún no ha contestado el cuestionario se
+    le estaba pidiendo la tercera cosa antes que la primera.
+
+    Con el alta pendiente: su lista sube arriba del todo y la reclamación de la
+    semana calla (ver `ClientUpdates`). Terminada, la pantalla vuelve a ser lo
+    que era y el aviso del alta desaparece solo.
+  */
+  const intake = clientIntake(activeClient.preferences);
+  const estado = onboardingState({
+    client: activeClient,
+    equipment,
+    checkIn: checkIns?.[activeClient.id],
+  });
+  const altaPendiente = clientSteps(intake).some(
+    (paso) => !stepDone(paso, activeClient, intake, estado)
+  );
 
   return (
     <div className="stack">
@@ -57,11 +81,12 @@ export const ClientStart = () => {
           portada: la parte humana del título. Ver `PageHead`. */}
       <PageHead title="Hola," remate={activeClient.name} sub="Tu progreso, semana a semana." />
 
-      <ClientUpdates client={activeClient} />
-      {/* Lo que su entrenador espera DE ÉL, encima de todo y solo mientras
-          falte. Va con los avisos y no con las entregas de abajo porque es una
-          tarea suya, no material que le hayan dejado. */}
+      {/* Lo que su entrenador espera DE ÉL. Va lo primero mientras falte: es lo
+          que desbloquea el resto de la aplicación, y debajo de un aviso de
+          pesajes parecía opcional. */}
       <IntakePrompt client={activeClient} />
+
+      <ClientUpdates client={activeClient} altaPendiente={altaPendiente} />
       <Dashboard audience="client" />
       <IntakeDeliverables client={activeClient} />
     </div>

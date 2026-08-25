@@ -12,7 +12,7 @@ import {
   UserCheck,
   Video,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
@@ -892,9 +892,26 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
       title="Alta"
       className="col gap-4"
       action={
-        <span className={`badge ${complete ? 'badge-ok' : ''}`}>
-          {complete ? <Check size={11} /> : null} {done} de {total}
-        </span>
+        /*
+          ══ «Ver su alta» va aquí y está SIEMPRE ═════════════════════════════
+
+          Nació dentro del aviso de «todavía no le has invitado», y ahí estaba mal
+          por dos motivos: solo aparecía en el hueco entre crear un cliente e
+          invitarle —que dura un rato— y desaparecía justo cuando más se quiere,
+          que es después de cambiar lo que se le pide para ver cómo le queda.
+
+          El marco ya tiene un «Ver su portal» permanente en la barra lateral,
+          pero deja a uno en el INICIO del cliente. Éste va a su alta, que es lo
+          que se acaba de configurar aquí.
+        */
+        <div className="row gap-2">
+          <span className={`badge ${complete ? 'badge-ok' : ''}`}>
+            {complete ? <Check size={11} /> : null} {done} de {total}
+          </span>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
+            <Eye size={14} /> Ver su alta
+          </button>
+        </div>
       }
     >
 
@@ -905,24 +922,26 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
         camino puesto, porque lo que hay que hacer no es nada de esta lista.
       */}
       {!client.clientProfileId && steps.some((s) => s.owner === 'client') && (
-        <Notice
-          tone="warn"
-          action={
-            /*
-              Probarlo uno mismo NO necesita invitar a nadie: el portal de prueba
-              es la misma aplicación con los mismos permisos, y sobre tus propios
-              clientes tú puedes escribir igual que ellos. Sin este botón había
-              que saber que existe el modo, entrar en él y buscar la pantalla —
-              tres pasos para comprobar lo que acabas de configurar.
-            */
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
-              <Eye size={14} /> Probarlo yo
-            </button>
-          }
-        >
+        <Notice tone="warn">
           Todavía no le has dado acceso, así que él no puede contestarte. Invítale desde «Acceso y
-          baja» — o pruébalo tú mismo: lo que rellenes en su portal se guarda de verdad.
+          baja» — o pruébalo tú con «Ver su alta»: sobre tus propios clientes escribes igual que
+          ellos, así que lo que rellenes ahí se guarda de verdad.
         </Notice>
+      )}
+
+      {!steps.some((s) => s.owner === 'client') && (
+        /*
+          Un cliente de antes conserva SUS pasos guardados, así que las tres
+          entregas nuevas —cuestionario, fotos, primer check-in— no le aparecen
+          por cambiar la plantilla. Sin esta línea, la pantalla no dice nada y uno
+          concluye que la función no está.
+        */
+        <p className="t-xs t-tertiary">
+          No le pides nada a él en su alta. Los pasos que entrega el cliente —el cuestionario, las
+          fotos de su gimnasio— se encienden en <Link to="/ajustes/protocolo#alta">Ajustes →
+          Protocolo</Link>, y a un cliente que ya tenías hay que ponérselos con «Igualar a mi
+          plantilla».
+        </p>
       )}
 
       <div className="col gap-2">
@@ -975,10 +994,9 @@ export const ClientFile = () => {
     updateClient,
     updateClientPreferences,
     markClientPaid,
-    setViewMode,
+    openClientView,
   } = useApp();
   const toast = useToast();
-  const navigate = useNavigate();
 
   /* El marco ya redirige cuando el id no existe; esto solo cubre el instante
      entre montar la ruta y tener el cliente cargado. */
@@ -996,8 +1014,7 @@ export const ClientFile = () => {
     clic en vez de en tres.
   */
   const probarSuPortal = () => {
-    setViewMode('client');
-    navigate('/mi/alta');
+    openClientView('/mi/alta');
   };
 
   const estadoDelAlta = onboardingState({
@@ -1045,13 +1062,46 @@ export const ClientFile = () => {
         parámetros propios del entrenador, y porque el grupo es lo que explica
         por qué el alta y el cobro están más abajo y no en medio.
       */}
-      <GroupHead title="La persona" sub="Lo que no cambia de una semana a otra." />
 
+      {/* El retrato abre la pantalla y no cuelga de ningún grupo: dice de
+          quién va todo lo de abajo, no es una de las cosas de abajo. */}
       <Identidad
         client={activeClient}
         weight={peso}
         onUpdate={(fields) => updateClient(activeClient.id, fields)}
       />
+
+      {/*
+        ══ El alta va arriba, pero DEBAJO de quién es ═══════════════════════════
+
+        No es «la persona» —no habla de quién es— ni es «vuestra relación», que
+        es donde estuvo y donde estaba mal: ahí quedaba la sexta tarjeta, pasadas
+        sus condicionantes, sus dos bloques de perfil y las fotos de su gimnasio.
+        O sea, lo único que está SIN TERMINAR cuando alguien acaba de entrar
+        quedaba debajo de todo lo que ya está hecho.
+
+        Es una FASE, no una propiedad: manda mientras dura y estorba cuando
+        acaba. Por eso va arriba y por eso desaparece entera cuando no le pides
+        nada (`total === 0`), en vez de quedarse ocupando sitio para siempre.
+
+        Era además el orden que este archivo ya tenía antes de reorganizarse
+        —«el alta va la primera: es lo que está sin terminar cuando alguien acaba
+        de entrar»— y que se perdió por el camino.
+      */}
+      <Alta
+        client={activeClient}
+        /* Lo que ha entregado él. Sale del mismo sitio que su portal
+           (`domain/onboardingState.js`), así que los dos no pueden discrepar
+           sobre si el cuestionario está contestado. */
+        estado={estadoDelAlta}
+        onProbar={probarSuPortal}
+        onUpdate={(fields) => updateClient(activeClient.id, fields)}
+        onPreferences={(intake) =>
+          updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))
+        }
+      />
+
+      <GroupHead title="Lo que sabes de él" sub="Lo que no cambia de una semana a otra." />
 
       {/*
         La primera vez, una frase que dice de qué van los cuatro bloques de
@@ -1115,23 +1165,7 @@ export const ClientFile = () => {
         onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
       />
 
-      <GroupHead title="Vuestra relación" sub="Su puesta en marcha, su cobro y su acceso." />
-
-      {/* El alta va la primera del grupo: es lo que está sin terminar cuando
-          alguien acaba de entrar, y lo que se viene a mirar en las primeras
-          semanas. */}
-      <Alta
-        client={activeClient}
-        /* Lo que ha entregado él. Sale del mismo sitio que su portal
-           (`domain/onboardingState.js`), así que los dos no pueden discrepar
-           sobre si el cuestionario está contestado. */
-        estado={estadoDelAlta}
-        onProbar={probarSuPortal}
-        onUpdate={(fields) => updateClient(activeClient.id, fields)}
-        onPreferences={(intake) =>
-          updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))
-        }
-      />
+      <GroupHead title="Vuestra relación" sub="Su cobro, su acceso y su baja." />
 
       <Cobro
         client={activeClient}

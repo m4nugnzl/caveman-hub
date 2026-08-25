@@ -1778,6 +1778,51 @@ button.task-head:hover > .chevron { color: var(--text); }
 .task.is-done > .task-mark { background: var(--positive-soft); color: var(--positive); }
 .task.is-done > .task-say > .task-title { color: var(--text-tertiary); font-weight: 500; }
 
+/* ══ ELEGIR QUÉ SE LE PREGUNTA (Ajustes → Protocolo → El alta) ═══════════════
+   Diecinueve casillas repartidas en dos columnas, cada una con una pista de
+   distinto largo y un botón «Obligatoria» a su derecha. Sin caja, cada fila
+   medía lo que midiera su texto: los botones caían a nueve alturas distintas y
+   la lista se leía como una pared de piezas sueltas.
+
+   La caja iguala la altura y ancla el botón, que es lo único que hacía falta:
+   con las filas a la misma altura, dos columnas vuelven a leerse como una tabla
+   y no como un montón. */
+.ask-row {
+  display: flex; align-items: center; gap: var(--s3);
+  min-height: 54px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  transition: border-color var(--fast);
+}
+.ask-row:hover { border-color: var(--hairline-strong); }
+/* Encendida, el canto lo dice: es lo que distingue de un vistazo lo que se
+   pregunta de lo que no, sin tener que mirar dentro de cada casilla. */
+.ask-row.is-on { border-color: var(--hairline-strong); background: var(--surface); }
+
+.ask-row > .checkbox-row { flex: 1; min-width: 0; }
+/* La pista, a UNA línea. Es un recordatorio, no una explicación: dejándola
+   crecer, la fila que la tiene mide el doble que la de al lado y vuelve el
+   desorden que esta caja arregla. */
+.ask-hint {
+  display: block; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ask-req { flex-shrink: 0; }
+
+/* ══ LA TARJETA DE ARRANQUE DEL CLIENTE ══════════════════════════════════════
+   La única del portal que se abre con algo sin hacer que bloquea lo demás: sin
+   sus respuestas no hay rutina, y sin rutina el resto son pantallas vacías. Con
+   el aspecto de un aviso cualquiera se leía como opcional — y quedaba debajo del
+   recordatorio de pesajes, que es lo que pasó de verdad.
+
+   El canto de brasa es la misma tinta que marca el día de hoy y la sección
+   activa. Aquí dice lo mismo: es donde estás. */
+.intake-start { border-color: var(--brasa); box-shadow: inset 3px 0 0 0 var(--brasa); }
+.intake-start-title {
+  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em;
+}
+
 /* ══ EL CUESTIONARIO DE ALTA ══════════════════════════════════════════════════
    Es el formulario más largo que ve un cliente —hasta diecinueve campos— y el
    único que rellena una persona que no conoce la aplicación. Lo que sigue es lo
@@ -1797,10 +1842,28 @@ button.task-head:hover > .chevron { color: var(--text); }
   transition: width var(--slow);
 }
 
-/* Cada tanda, con su filete. Sin él, catorce campos seguidos son una sola masa:
-   los rótulos en troquelada ya nombran las tandas, pero a esta distancia hace
-   falta además que se VEA dónde acaba una. */
-.form-block + .form-block { border-top: 1px solid var(--hairline); padding-top: var(--s5); }
+/* ── Cada tanda, en su propia caja ──────────────────────────────────────────
+   Un filete no bastaba. Catorce campos con sus etiquetas, sus pistas y sus
+   rótulos, todos sobre la misma superficie, se leen como una tirada: la vista no
+   encuentra dónde empieza una pregunta y acaba otra, y el conjunto parece
+   desordenado aunque cada pieza esté en su sitio.
+
+   Con la caja, cada tanda es un objeto: dos o tres objetos se recorren, catorce
+   campos no. Es la misma jerarquía que usa la ficha del entrenador —bloque,
+   rótulo troquelado, contenido— así que además el cliente ve su formulario
+   ordenado igual que su entrenador ve la ficha que sale de él. */
+.form-block {
+  padding: var(--s4);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+/* El número de la tanda: dice cuántas quedan sin tener que contarlas. */
+.form-block > .section-label > .n {
+  display: inline-grid; place-items: center;
+  width: 18px; height: 18px; margin-right: 6px; border-radius: 50%;
+  background: var(--fill); color: var(--text-tertiary);
+  font-size: var(--fs-2xs); font-weight: 700;
+}
 
 /* ── Las fotos de la maquinaria de su gimnasio ──────────────────────────────
    Miniaturas pequeñas y muchas: lo que se mira es la FORMA de la máquina para

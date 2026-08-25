@@ -92,6 +92,25 @@ export const AppProvider = ({ children }) => {
   const [profileRole, setProfileRole] = useState('coach');
   /** Vista activa. Un coach puede previsualizar el portal del cliente. */
   const [viewMode, setViewMode] = useState('coach');
+  /*
+    ══ A dónde ir al entrar en el portal de un cliente ════════════════════════
+
+    Cambiar de modo NO navega: la ruta la traduce el comodín del árbol de destino
+    (`OtherViewFallback`, en App.jsx), y navegar por tu cuenta pierde la carrera
+    contra él —React Router navega en una transición de prioridad baja y el
+    cambio de modo es una actualización normal—. Eso está escrito en `CoachLayout`
+    desde hace tiempo y aun así se cayó en ello: «Ver su alta» llevaba al inicio
+    del cliente porque la ficha no tiene equivalente en su portal.
+
+    La salida es no competir: se deja dicho a dónde se quería ir y el comodín
+    —que es quien decide de verdad— lo lee.
+
+    ── En un ref y no en estado ───────────────────────────────────────────────
+    Porque se consume UNA vez y consumirlo no debe repintar nada. Con estado,
+    limpiarlo al leerlo provoca un render en el que el destino ya no está, y el
+    comodín volvería a calcular el de siempre — la misma carrera por otro lado.
+  */
+  const viewTargetRef = useRef(null);
 
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clients, setClients, clientsRef] = useMirroredState([]);
@@ -1729,6 +1748,19 @@ export const AppProvider = ({ children }) => {
   const isCoach = profileRole === 'coach';
   const effectiveView = isCoach ? viewMode : 'client';
 
+  /** Entrar en el portal de tu cliente por una pantalla concreta. */
+  const openClientView = useCallback((path) => {
+    viewTargetRef.current = path || null;
+    setViewMode('client');
+  }, []);
+
+  /** El destino pedido, y se olvida: solo vale para el salto que lo pidió. */
+  const takeViewTarget = useCallback(() => {
+    const pedido = viewTargetRef.current;
+    viewTargetRef.current = null;
+    return pedido;
+  }, []);
+
   /* ==========================================================================
      Tres contextos, y no uno
      --------------------------------------------------------------------------
@@ -1853,6 +1885,8 @@ export const AppProvider = ({ children }) => {
     resolveConflict,
     signOut,
     setViewMode,
+    openClientView,
+    takeViewTarget,
     setSelectedClientId,
 
     // Estado de guardado

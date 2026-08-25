@@ -113,9 +113,12 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 191 claves', () => {
+  it('el reparto conserva las 193 claves', () => {
     montar();
-    // 191 desde el cuestionario de alta (0080): `saveClientProfile`, el único
+    // 193 desde el salto al portal por una pantalla concreta: `openClientView` y
+    // `takeViewTarget`. Cambiar de modo NO navega —lo traduce el comodín de
+    // App.jsx— así que el destino se deja dicho y lo lee quien decide de verdad.
+    // Antes 191, desde el cuestionario de alta (0080): `saveClientProfile`, el único
     // camino por el que el CLIENTE escribe en su ficha — pasa por una función
     // de la base porque la 0002 le deja `clients` en solo lectura.
     // Antes 190, desde la maquinaria del gimnasio (0079): el estado `equipment` y sus
@@ -144,7 +147,7 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(191);
+    expect(Object.keys(visto.app).length).toBe(193);
   });
 
   /*

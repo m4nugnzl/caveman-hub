@@ -51,7 +51,11 @@ import { Panel } from '@/components/ui/primitives';
  * enseñar. Es lo que hace cierta la promesa del dominio: no ves lo de antes,
  * pero sí todo lo que cambie a partir de ahora.
  */
-export const ClientUpdates = ({ client }) => {
+/**
+ * @param altaPendiente Si todavía no ha entregado lo suyo. Con eso puesto, las
+ *   TAREAS de la semana no se piden: ver el porqué justo debajo.
+ */
+export const ClientUpdates = ({ client, altaPendiente = false }) => {
   const { anthropometry } = useData();
   const { updateClientPreferences } = useActions();
 
@@ -91,7 +95,24 @@ export const ClientUpdates = ({ client }) => {
     return () => clearTimeout(id);
   }, [clientId, hayNovedades, estrena, updateClientPreferences]);
 
-  if (!hayNovedades && pendientes.length === 0) return null;
+  /*
+    ══ A quien todavía no ha empezado no se le reclama la semana ══════════════
+
+    «Te faltan 3 pesajes esta semana» a alguien que acaba de entrar y aún no ha
+    contestado el cuestionario es la aplicación pidiendo la tercera cosa antes
+    que la primera — y encima en la tarjeta grande, con su franja de color,
+    encima de lo que de verdad hace falta.
+
+    La cadencia de pesajes sale del protocolo y es correcta; lo que estaba mal
+    era el MOMENTO. Mientras el alta esté pendiente, esa reclamación calla y la
+    portada la ocupa lo que desbloquea todo lo demás.
+
+    Las NOVEDADES no se callan: si su entrenador le ha contestado algo, eso es
+    suyo y llega igual haya empezado o no.
+  */
+  const tareas = altaPendiente ? [] : pendientes;
+
+  if (!hayNovedades && tareas.length === 0) return null;
 
   return (
     <Panel className="col gap-3">
@@ -131,7 +152,7 @@ export const ClientUpdates = ({ client }) => {
         </div>
       )}
 
-      {pendientes.length > 0 && (
+      {tareas.length > 0 && (
         <div className="col gap-2">
           {/*
             Los pendientes van DEBAJO de las novedades y no al revés: lo primero
@@ -146,7 +167,7 @@ export const ClientUpdates = ({ client }) => {
           {/* Los pendientes NO se pueden descartar: no son un aviso de algo que
               ha pasado, son algo que falta por hacer. Desaparecen solos al
               hacerlo, que es la única forma honesta de quitarlos. */}
-          {pendientes.map((p) => (
+          {tareas.map((p) => (
             <Link className="alert-card is-todo" to={p.href} key={p.id}>
               <span className="alert-hit">
                 <span className="say">

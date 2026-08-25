@@ -87,6 +87,30 @@ const KIND_IDS = CUSTOM_KINDS.map((k) => k.id);
 export const defaultIntakeForm = () => ({
   asked: [...DEFAULT_ASKED],
   custom: [],
+  /*
+    ── Preguntar por su salud, encendido de serie ────────────────────────────
+    Es la única parte de este formulario que NACE encendida, y va contra la regla
+    de «nada llega encendido» a propósito: un cuestionario de alta que pregunta a
+    qué hora entrena y no pregunta por las lesiones no es una anamnesis, es una
+    ficha de preferencias con nombre de historial.
+
+    Quien no lo quiera lo apaga en un clic —hay quien hace la anamnesis hablando,
+    y eso es legítimo—. Lo que no puede pasar es que se quede sin preguntar por
+    no haberlo encontrado.
+  */
+  askHealth: true,
+  /*
+    Qué preguntas no cuentan como contestadas si están en blanco.
+
+    NO bloquean el guardado, y esa es la decisión: un formulario que no deja
+    guardar sin completarlo se abandona en la tercera pregunta y no llega nada.
+    Lo que hacen es que su alta no se dé por terminada — su lista sigue diciendo
+    que falta, y en la ficha del entrenador el paso sigue sin marcarse.
+
+    Obligatorio, aquí, significa «sin esto no empezamos», no «sin esto no
+    guardas». Es lo que de verdad se quiere decir.
+  */
+  required: [],
   /* La nota que ve el cliente encima del formulario. Vacía no se pinta: una
      cabecera de relleno —«Rellena estos datos, por favor»— es cromo. */
   intro: '',
@@ -127,12 +151,32 @@ export const coachIntakeForm = (preferences) => {
     .filter(Boolean)
     .slice(0, MAX_CUSTOM);
 
+  /* Obligatoria solo puede serlo algo que además se pregunte: si no, el alta se
+     quedaría bloqueada por una pregunta que nadie ve. */
+  const preguntadas = new Set([...asked, ...custom.map((q) => q.id)]);
+  const required = Array.isArray(raw.required)
+    ? [...new Set(raw.required.filter((id) => preguntadas.has(id)))]
+    : [];
+
   return {
     asked,
     custom,
+    required,
+    askHealth: raw.askHealth !== false,
     intro: String(raw.intro ?? '').trim().slice(0, 500),
   };
 };
+
+/** ¿Esta pregunta es de las que hay que contestar para dar el alta por hecha? */
+export const isRequired = (form, id) => (form?.required || []).includes(id);
+
+/** Marcarla obligatoria, o dejar de hacerlo. */
+export const toggleRequired = (form, id) => ({
+  ...form,
+  required: isRequired(form, id)
+    ? form.required.filter((x) => x !== id)
+    : [...(form.required || []), id],
+});
 
 /**
  * El formulario que ve UN cliente concreto.
@@ -197,6 +241,26 @@ export const isFormEmpty = (form) =>
   (form?.asked || []).length === 0 && (form?.custom || []).length === 0;
 
 /**
+ * Lo obligatorio que sigue en blanco.
+ *
+ * Es lo que impide que el alta se dé por terminada, y por eso se devuelve la
+ * LISTA y no un booleano: al cliente hay que poder decirle cuáles son. «Te falta
+ * algo obligatorio» sin decir qué es una pantalla que no se puede obedecer.
+ */
+export const missingRequired = (form, profile) => {
+  const propias = customAnswers(profile);
+  const puesto = (valor) => valor !== undefined && valor !== null && valor !== '';
+
+  return (form?.required || [])
+    .map((id) => {
+      const propia = (form.custom || []).find((q) => q.id === id);
+      const valor = propia ? propias[id] : profile?.[id];
+      return puesto(valor) ? null : { id, label: propia ? propia.label : fieldById(id)?.label };
+    })
+    .filter((q) => q && q.label);
+};
+
+/**
  * Cuántas de las preguntas tiene ya contestadas.
  *
  * Cuenta sobre lo PREGUNTADO y no sobre el catálogo entero: si el entrenador
@@ -214,6 +278,10 @@ export const formProgress = (form, profile) => {
   return {
     done: delCatalogo.length + suyas.length,
     total: (form?.asked || []).length + (form?.custom || []).length,
+    /* Lo obligatorio que falta viaja con el progreso porque quien pinta el uno
+       casi siempre necesita el otro, y dos llamadas para lo mismo acaban en dos
+       criterios distintos de «está completo». */
+    missing: missingRequired(form, profile),
   };
 };
 

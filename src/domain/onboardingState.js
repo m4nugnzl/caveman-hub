@@ -42,7 +42,10 @@ export const onboardingState = ({ client, equipment, checkIn }) => {
        todos sus clientes con el cuestionario «hecho» sin haberlo abierto. Se
        trata como que ese paso no aplica, y quien lo tenga en su lista lo verá
        pendiente hasta que ponga preguntas. */
-    form: progreso.total > 0 && progreso.done === progreso.total,
+    /* Y sin nada obligatorio en blanco. Es lo que hace que «obligatoria»
+       signifique algo sin bloquear el guardado: se puede dejar a medias, pero el
+       alta no se da por terminada hasta que está lo que dijiste que hacía falta. */
+    form: progreso.total > 0 && progreso.done === progreso.total && progreso.missing.length === 0,
     gym: (equipment || []).length > 0,
     checkin: Boolean(checkIn?.submittedAt),
   };

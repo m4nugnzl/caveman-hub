@@ -10,8 +10,11 @@ import {
   formProgress,
   formSections,
   isFormEmpty,
+  isRequired,
+  missingRequired,
   removeCustom,
   toggleAsked,
+  toggleRequired,
 } from './intakeForm';
 
 /**
@@ -105,7 +108,7 @@ describe('formProgress', () => {
 
   it('suma las del catálogo y las propias', () => {
     const profile = { sleepHours: 7, custom: { 'ask-1': 'contestada' } };
-    expect(formProgress(form, profile)).toEqual({ done: 2, total: 3 });
+    expect(formProgress(form, profile)).toEqual({ done: 2, total: 3, missing: [] });
   });
 
   it('lo vacío no cuenta como contestado', () => {
@@ -116,7 +119,11 @@ describe('formProgress', () => {
      que no a todo no se daría nunca por terminada. */
   it('un «no» cuenta como contestado', () => {
     const soloSino = { asked: ['coachedBefore'], custom: [] };
-    expect(formProgress(soloSino, { coachedBefore: false })).toEqual({ done: 1, total: 1 });
+    expect(formProgress(soloSino, { coachedBefore: false })).toEqual({
+      done: 1,
+      total: 1,
+      missing: [],
+    });
   });
 });
 
@@ -160,5 +167,71 @@ describe('editar el formulario', () => {
     form = addCustom(form, { label: 'B' });
     const quitada = removeCustom(form, form.custom[0].id);
     expect(quitada.custom.map((q) => q.label)).toEqual(['B']);
+  });
+});
+
+describe('lo obligatorio', () => {
+  const form = coachIntakeForm({
+    intakeForm: { asked: ['sleepHours', 'mealsPerDay'], required: ['sleepHours'] },
+  });
+
+  it('nombra lo que falta, no solo dice que falta', () => {
+    /* «Te falta algo obligatorio» sin decir qué es una pantalla que no se puede
+       obedecer. */
+    const falta = missingRequired(form, {});
+    expect(falta).toHaveLength(1);
+    expect(falta[0].label).toBeTruthy();
+  });
+
+  it('contestada deja de faltar', () => {
+    expect(missingRequired(form, { sleepHours: 7 })).toEqual([]);
+  });
+
+  /* Marcarla obligatoria en algo que no se pregunta dejaría el alta bloqueada
+     por una pregunta que nadie ve. */
+  it('no se puede exigir algo que no se pregunta', () => {
+    const raro = coachIntakeForm({ intakeForm: { asked: ['sleepHours'], required: ['mealsPerDay'] } });
+    expect(raro.required).toEqual([]);
+  });
+
+  it('también vale para las preguntas propias', () => {
+    const conPropia = coachIntakeForm({
+      intakeForm: { asked: [], custom: [{ id: 'q1', label: '¿Fumas?' }], required: ['q1'] },
+    });
+    expect(missingRequired(conPropia, {})[0].label).toBe('¿Fumas?');
+    expect(missingRequired(conPropia, { custom: { q1: 'No' } })).toEqual([]);
+  });
+
+  /*
+    ══ Obligatorio NO significa «no puedes guardar» ═══════════════════════════
+
+    Significa «sin esto no empezamos». Un formulario que no deja guardar sin
+    completarlo se abandona en la tercera pregunta y no llega nada; éste guarda
+    lo que haya y lo que no cuenta como terminado es el ALTA.
+  */
+  it('lo que falta no impide que cuente lo contestado', () => {
+    const progreso = formProgress(form, { mealsPerDay: 4 });
+    expect(progreso.done).toBe(1);
+    expect(progreso.missing).toHaveLength(1);
+  });
+
+  it('encender una pregunta y exigirla son dos gestos', () => {
+    const base = { asked: ['sleepHours'], custom: [], required: [] };
+    expect(isRequired(base, 'sleepHours')).toBe(false);
+    expect(toggleRequired(base, 'sleepHours').required).toEqual(['sleepHours']);
+    expect(toggleRequired(toggleRequired(base, 'sleepHours'), 'sleepHours').required).toEqual([]);
+  });
+});
+
+describe('preguntar por su salud', () => {
+  /* La única parte que nace encendida, y va contra la regla de «nada llega
+     encendido» a propósito: sin ella esto no es una anamnesis. */
+  it('viene encendida de serie', () => {
+    expect(defaultIntakeForm().askHealth).toBe(true);
+    expect(coachIntakeForm({}).askHealth).toBe(true);
+  });
+
+  it('pero se puede apagar', () => {
+    expect(coachIntakeForm({ intakeForm: { askHealth: false } }).askHealth).toBe(false);
   });
 });

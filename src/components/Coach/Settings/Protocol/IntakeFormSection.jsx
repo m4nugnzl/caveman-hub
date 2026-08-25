@@ -10,8 +10,10 @@ import {
   addCustom,
   coachIntakeForm,
   intakeFormToPreferences,
+  isRequired,
   removeCustom,
   toggleAsked,
+  toggleRequired,
 } from '@/domain/intakeForm';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
 
@@ -61,12 +63,12 @@ export const IntakeFormSection = () => {
     setNueva({ label: '', kind: nueva.kind });
   };
 
-  const total = form.asked.length + form.custom.length;
+  const total = form.asked.length + form.custom.length + (form.askHealth ? 1 : 0);
 
   return (
     <Panel
-      title="Qué le preguntas al empezar"
-      sub="Lo contesta él desde su portal, y cae directo en su ficha."
+      title="El cuestionario"
+      sub="Las preguntas que contesta él desde su portal. Cada respuesta cae en su ficha, en el bloque que le toca."
       className="col gap-4"
       action={<span className="badge">{total}</span>}
     >
@@ -85,23 +87,71 @@ export const IntakeFormSection = () => {
           <span className="section-label">{grupo.label}</span>
           <div className="grid-2">
             {fieldsOf(grupo.id).map((field) => (
-              <label key={field.id} className="checkbox-row is-block" style={{ minWidth: 0 }}>
-                <input
-                  type="checkbox"
-                  checked={form.asked.includes(field.id)}
-                  onChange={() => guardar(toggleAsked(form, field.id))}
-                />
-                <span className="col gap-1" style={{ minWidth: 0 }}>
-                  <span className="t-sm" style={{ fontWeight: 600 }}>
-                    {field.label}
+              <div
+                key={field.id}
+                className={`ask-row${form.asked.includes(field.id) ? ' is-on' : ''}`}
+              >
+                <label className="checkbox-row" style={{ minWidth: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={form.asked.includes(field.id)}
+                    onChange={() => guardar(toggleAsked(form, field.id))}
+                  />
+                  <span className="col" style={{ gap: 0, minWidth: 0 }}>
+                    <span className="t-sm" style={{ fontWeight: 600 }}>
+                      {field.label}
+                    </span>
+                    {field.hint && <span className="ask-hint t-2xs t-tertiary">{field.hint}</span>}
                   </span>
-                  {field.hint && <span className="t-2xs t-tertiary">{field.hint}</span>}
-                </span>
-              </label>
+                </label>
+
+                {/* «Obligatoria» solo aparece si además la preguntas: marcarla en
+                    algo que nadie ve dejaría el alta bloqueada por una pregunta
+                    invisible. */}
+                {form.asked.includes(field.id) && (
+                  <button
+                    type="button"
+                    className="chip ask-req"
+                    aria-pressed={isRequired(form, field.id)}
+                    onClick={() => guardar(toggleRequired(form, field.id))}
+                  >
+                    Obligatoria
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         </div>
       ))}
+
+      {/*
+        Preguntar por su salud: un interruptor y no una pregunta más de la lista.
+
+        Porque no es un campo del perfil —son filas de `client_conditions`, con su
+        área y su gravedad— y porque es la parte que convierte esto en una
+        anamnesis. Nace ENCENDIDA, que es la única excepción a la regla de que
+        nada llega encendido: un cuestionario de alta que no pregunta por las
+        lesiones es una ficha de preferencias con otro nombre.
+      */}
+      <div className="col gap-2">
+        <span className="section-label">Su salud</span>
+        <label className="checkbox-row is-block" style={{ minWidth: 0 }}>
+          <input
+            type="checkbox"
+            checked={form.askHealth}
+            onChange={() => guardar({ ...form, askHealth: !form.askHealth })}
+          />
+          <span className="col gap-1" style={{ minWidth: 0 }}>
+            <span className="t-sm" style={{ fontWeight: 600 }}>
+              Pregúntale por sus lesiones y alergias
+            </span>
+            <span className="t-2xs t-tertiary">
+              Lo que declare aparece en sus Condicionantes, y con ello en su rutina y en su dieta.
+              Él añade; quitar o marcar como veto es cosa tuya.
+            </span>
+          </span>
+        </label>
+      </div>
 
       {/* Las tuyas */}
       <div className="col gap-2">

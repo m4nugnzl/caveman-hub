@@ -1,7 +1,9 @@
 import { useApp } from '@/context/AppContext';
+import { clientIntakeForm } from '@/domain/intakeForm';
 import { PageHead } from '@/components/ui/primitives';
 import { DownloadAnamnesis } from '@/components/Coach/DownloadAnamnesis';
 import { ClientGymUpload } from './ClientGymUpload';
+import { IntakeHealth } from './IntakeHealth';
 import { IntakeQuestions } from './IntakeQuestions';
 import { IntakeTasks } from './IntakeTasks';
 
@@ -65,6 +67,13 @@ export const ClientOnboarding = () => {
           necesita para escribir la primera serie, y se contestan aquí y ahora.
           Las fotos hay que ir a hacerlas al gimnasio, que puede ser mañana. */}
       <IntakeQuestions client={activeClient} />
+
+      {/* Su salud, justo detrás del cuestionario: es la parte que decide qué se
+          le puede poner, y va antes que las fotos porque se contesta aquí y
+          ahora — las fotos hay que ir a hacerlas. */}
+      {clientIntakeForm(activeClient.preferences).askHealth && (
+        <IntakeHealth client={activeClient} />
+      )}
 
       <ClientGymUpload client={activeClient} />
     </div>

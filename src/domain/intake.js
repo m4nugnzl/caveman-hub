@@ -214,6 +214,9 @@ export const defaultIntake = () => ({
   done: [],
   links: {},
   files: {},
+  /* De quién es cada paso, solo cuando se cambia el reparto de serie. Vacío
+     significa «el del catálogo», que es lo correcto para casi todo el mundo. */
+  owners: {},
 });
 
 // ── Saneado ────────────────────────────────────────────────────────────────
@@ -314,7 +317,17 @@ export const clientIntake = (preferences) => {
     }
   }
 
-  return { steps, custom, done, links, files };
+  /* Solo se conservan los dueños de pasos que siguen existiendo: un id que se
+     retiró dejaría una entrada muerta creciendo en una columna con tope. */
+  const owners = {};
+  if (raw.owners && typeof raw.owners === 'object') {
+    for (const id of steps) {
+      const valor = raw.owners[id];
+      if (valor === 'client' || valor === 'coach') owners[id] = valor;
+    }
+  }
+
+  return { steps, custom, done, links, files, owners };
 };
 
 // ── Leer ───────────────────────────────────────────────────────────────────
@@ -352,8 +365,47 @@ export const stepDone = (step, client, intake, estado) => {
   return intake.done.includes(step.id);
 };
 
-/** Los pasos que hace el CLIENTE. Es lo que se le pinta en su portal. */
-export const clientSteps = (intake) => intakeSteps(intake).filter((s) => s.owner === 'client');
+/**
+ * De quién es un paso: `client` si lo entrega él, `coach` si lo haces tú.
+ *
+ * ══ Por qué se puede cambiar, y por qué no siempre ═════════════════════════
+ *
+ * El catálogo trae un reparto sensato —el cuestionario lo contesta él, el
+ * análisis postural lo haces tú— y ese reparto no vale para todo el mundo. «El
+ * cliente te manda su vídeo de postura» es suyo para quien se lo pide y es un
+ * recordatorio privado para quien lo graba en persona; y un paso propio —«prueba
+ * de fuerza inicial»— puede ser cualquiera de las dos cosas según quién la haga.
+ *
+ * Así que el dueño se puede mover, y se guarda por cliente como todo lo demás.
+ *
+ * ── Salvo los AUTOMÁTICOS ──────────────────────────────────────────────────
+ * Los tres que la aplicación sabe comprobar sola —el cuestionario, las fotos, el
+ * primer check-in— no se mueven: son suyos por definición, porque lo que los da
+ * por hechos es que ÉL los haya entregado. Ponerlos del lado del entrenador
+ * dejaría una casilla que no se puede marcar.
+ */
+export const stepOwner = (intake, step) => {
+  if (step?.auto) return 'client';
+  const puesto = intake?.owners?.[step?.id];
+  return puesto === 'client' || puesto === 'coach' ? puesto : step?.owner || 'coach';
+};
+
+/** Cambiar de lado un paso. Los automáticos no se mueven: son suyos y ya está. */
+export const setStepOwner = (intake, id, owner) => {
+  const step = stepById(intake, id);
+  if (!step || step.auto) return intake;
+  if (owner !== 'client' && owner !== 'coach') return intake;
+
+  return { ...intake, owners: { ...(intake.owners || {}), [id]: owner } };
+};
+
+/** Los pasos que entrega el CLIENTE. Es lo que se le pinta en su portal. */
+export const clientSteps = (intake) =>
+  intakeSteps(intake).filter((s) => stepOwner(intake, s) === 'client');
+
+/** Y los tuyos: lo que haces tú con lo que él te ha entregado. */
+export const coachSteps = (intake) =>
+  intakeSteps(intake).filter((s) => stepOwner(intake, s) === 'coach');
 
 /** El enlace de un paso, ya saneado, o null. */
 export const stepLink = (intake, id) => intake.links[id] || null;
@@ -416,6 +468,13 @@ export const toggleStep = (intake, id) => {
 };
 
 /** Mueve un paso. El orden es el del alta, así que se puede seguir de arriba abajo. */
+/*
+  Sin uso en la interfaz desde que el alta se pinta en DOS listas —«te lo entrega
+  él» y «lo haces tú»—: subir una fila la haría saltar de grupo a mitad de
+  recorrido. Se conserva porque el orden sigue siendo el de `intake.steps` y es
+  lo que decide en qué orden ve sus tareas el cliente; el día que haga falta
+  reordenar sin romper los grupos, la operación ya está escrita y probada.
+*/
 export const moveStep = (intake, id, delta) => {
   const from = intake.steps.indexOf(id);
   const to = from + delta;

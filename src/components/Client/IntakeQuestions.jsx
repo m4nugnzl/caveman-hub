@@ -2,7 +2,13 @@ import { useState } from 'react';
 import { Check } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { clientIntakeForm, formProgress, formSections, isFormEmpty } from '@/domain/intakeForm';
+import {
+  clientIntakeForm,
+  formProgress,
+  formSections,
+  isFormEmpty,
+  isRequired,
+} from '@/domain/intakeForm';
 import { MAX_FIELD, customAnswers, examplePlaceholder } from '@/domain/profile';
 import { Field, Notice, NumberInput, Panel } from '@/components/ui/primitives';
 
@@ -14,8 +20,14 @@ import { Field, Notice, NumberInput, Panel } from '@/components/ui/primitives';
  * vocabulario. Si no fuera así habría dos formularios que mantener, y el segundo
  * sería el que se quedara atrás.
  */
-const Pregunta = ({ field, value, onChange }) => (
-  <Field label={field.label} hint={field.hint}>
+const Pregunta = ({ field, obligatoria, value, onChange }) => (
+  <Field
+    /* El asterisco y no la palabra «obligatoria» al lado: son hasta diecinueve
+       campos y repetir la palabra en cinco de ellos convierte la etiqueta en
+       ruido. Lo que las nombra es el aviso de abajo, cuando de verdad faltan. */
+    label={obligatoria ? `${field.label} *` : field.label}
+    hint={field.hint}
+  >
     {(props) => {
       if (field.kind === 'number') {
         return (
@@ -185,15 +197,40 @@ export const IntakeQuestions = ({ client }) => {
       {form.intro && <p className="t-sm t-secondary">{form.intro}</p>}
       {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
 
+      {/*
+        Lo obligatorio que falta, NOMBRADO.
+
+        No bloquea el guardado —un formulario que no deja guardar sin completarlo
+        se abandona en la tercera pregunta— pero sí impide que el alta se dé por
+        terminada. Y se dice cuáles son: «te falta algo obligatorio» sin decir qué
+        es una pantalla que no se puede obedecer.
+      */}
+      {progreso.missing.length > 0 && (
+        <Notice tone="warn">
+          Tu entrenador necesita {progreso.missing.length === 1 ? 'esto' : 'estas cosas'} para poder
+          empezar: {progreso.missing.map((q) => q.label).join(', ')}. Puedes guardar lo demás
+          igualmente y volver.
+        </Notice>
+      )}
+
       <form className="col gap-4" onSubmit={guardar}>
-        {tandas.map((tanda) => (
+        {tandas.map((tanda, i) => (
           <div key={tanda.id} className="form-block col gap-3">
-            <span className="section-label">{tanda.label}</span>
+            <span className="section-label">
+              {/* El número, y no un icono: dice cuántas tandas quedan sin tener
+                  que contarlas, que es la pregunta de quien rellena algo largo
+                  en un móvil. */}
+              <span className="n" aria-hidden="true">
+                {i + 1}
+              </span>
+              {tanda.label}
+            </span>
             <div className="grid-2">
               {tanda.fields.map((field) => (
                 <Pregunta
                   key={field.id}
                   field={field}
+                  obligatoria={isRequired(form, field.id)}
                   value={valorDe(field)}
                   onChange={set(field)}
                 />

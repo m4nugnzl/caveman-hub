@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Eye } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import {
@@ -74,6 +75,7 @@ export const ProtocolPanel = () => {
     session,
     clients,
     saveClientException,
+    openClientView,
     applyProtocolToClient,
     coachPrefs,
     coachPrefsReady,
@@ -153,6 +155,14 @@ export const ProtocolPanel = () => {
     «poner al día» no le pasa por encima. Ver `isException` en
     lib/protocolTemplate.
   */
+  /*
+    Entrar en el portal del cliente elegido, por su alta. Mismo gesto que el
+    botón de su ficha: cambiar de modo y navegar, en ese orden.
+  */
+  const verSuAlta = () => {
+    openClientView('/mi/alta');
+  };
+
   const saveIntake = async (next) => {
     setFeedback(null);
     if (client) {
@@ -356,12 +366,36 @@ export const ProtocolPanel = () => {
       <section id="alta" className="proto-section">
         <GroupHead
           title="El alta"
-          sub="Lo que le pides a él y lo que haces tú al empezar con alguien."
+          sub="Qué te entrega él para que puedas empezar, y qué haces tú con eso."
+          action={
+            /*
+              Verlo como lo ve él, desde donde se configura.
+
+              Solo con un cliente elegido: sin destino no hay portal que enseñar,
+              y el modo de prueba necesita saber de quién. Es el mismo botón que
+              hay en su ficha y lleva al mismo sitio — configurar el alta y no
+              poder verla es la clase de hueco que obliga a abrir otra pestaña.
+            */
+            client && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={verSuAlta}>
+                <Eye size={14} /> Ver su alta
+              </button>
+            )
+          }
         />
-        {/* Lo que le pides al CLIENTE va primero: es lo primero que pasa. Los
-            pasos de abajo son tuyos y vienen después de tener sus respuestas. */}
-        <IntakeFormSection />
+
+        {/*
+          ══ Los PASOS van antes que las preguntas ═════════════════════════════
+
+          Porque contestan a quién hace qué, y las preguntas son el detalle de
+          UNO de esos pasos. Al revés —que es como estaba— lo primero que se veía
+          al abrir «El alta» eran diecinueve casillas de un cuestionario, y el
+          reparto de tareas quedaba enterrado debajo: no había forma de ver que
+          el onboarding y el análisis postural son tuyos y vienen DESPUÉS de que
+          él entregue lo suyo.
+        */}
         <IntakeSteps intake={intake} onChange={saveIntake} />
+        <IntakeFormSection />
       </section>
 
       <section id="app" className="proto-section">

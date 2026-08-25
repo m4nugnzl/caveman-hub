@@ -44,31 +44,57 @@ export const IntakePrompt = ({ client }) => {
      desde `/mi/alta`, pero eso ya no es una tarea y no ocupa su portada. */
   if (faltan.length === 0) return null;
 
+  const hechas = tareas.length - faltan.length;
+
   return (
-    <Panel title="Te falta esto" className="col gap-3">
+    /*
+      ══ La tarjeta de arranque, y por qué pesa más que las demás ═══════════════
+
+      Es la única pantalla del portal que se abre con algo que el cliente NO ha
+      hecho todavía y que bloquea lo demás: sin sus respuestas no hay rutina, y
+      sin rutina el resto de la aplicación son pantallas vacías. Con el mismo
+      aspecto que un aviso cualquiera se leía como opcional, y en la práctica lo
+      era: quedaba debajo del recordatorio de pesajes.
+
+      El acento es el mismo que marca el día de hoy y la sección activa. Aquí
+      significa lo mismo: es donde estás.
+    */
+    <Panel className="intake-start col gap-3">
+      <span className="section-label">
+        <ClipboardList size={12} className="icon-inline" /> Para poder empezar
+      </span>
+
       <div className="row between wrap gap-3">
         <div className="col gap-1" style={{ minWidth: 0 }}>
-          <span className="row gap-2 t-sm" style={{ fontWeight: 600 }}>
-            <ClipboardList size={15} />
-            {/* Se nombra lo primero que falta y se cuenta el resto. Enumerarlas
-                todas aquí sería repetir la pantalla a la que lleva el botón. */}
+          <span className="intake-start-title">
+            {/* Se nombra lo primero que falta y se cuenta el resto: enumerarlas
+                todas sería repetir la pantalla a la que lleva el botón. */}
             {faltan[0].youLabel || faltan[0].label}
             {faltan.length > 1 && (
-              <span className="t-tertiary" style={{ fontWeight: 400 }}>
+              <span className="t-secondary" style={{ fontWeight: 400 }}>
+                {' '}
                 y {faltan.length - 1} {faltan.length === 2 ? 'cosa más' : 'cosas más'}
               </span>
             )}
           </span>
-          <span className="t-xs t-tertiary">
-            Es lo que tu entrenador necesita para montarte el plan. Se hace una vez y se puede
-            dejar a medias.
+          <span className="t-sm t-secondary">
+            Tu entrenador lo necesita para montarte el plan. Se hace una vez y se puede dejar a
+            medias.
           </span>
         </div>
 
-        <Link className="btn btn-primary btn-sm" to="/mi/alta">
-          Empezar <ChevronRight size={14} />
+        <Link className="btn btn-primary" to="/mi/alta">
+          {hechas > 0 ? 'Seguir' : 'Empezar'} <ChevronRight size={16} />
         </Link>
       </div>
+
+      {/* El avance, si ya ha hecho algo. Con cero no se pinta: una barra vacía en
+          la primera visita solo dice cuánto queda por delante. */}
+      {hechas > 0 && (
+        <div className="form-progress" role="presentation">
+          <i style={{ width: `${(hechas / tareas.length) * 100}%` }} />
+        </div>
+      )}
     </Panel>
   );
 };

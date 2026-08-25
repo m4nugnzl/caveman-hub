@@ -1,9 +1,9 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { track } from '@/lib/analytics';
 
-import { useApp } from '@/context/AppContext';
+import { useActions, useApp } from '@/context/AppContext';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { Header } from '@/components/Header';
 import { PreviewBar } from '@/components/PreviewBar';
@@ -172,7 +172,23 @@ const usePantallaVista = (pathname, view) => {
 
 const OtherViewFallback = ({ view, clientId }) => {
   const { pathname } = useLocation();
-  const destino = view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname);
+  const { takeViewTarget } = useActions();
+
+  /*
+    ── El destino pedido manda sobre la traducción ────────────────────────────
+    Quien salta al portal desde un sitio SIN equivalente —la ficha, los ajustes—
+    puede decir a dónde quiere ir. Sin esto, «Ver su alta» acababa en el inicio
+    del cliente, porque la ficha no tiene pareja en su portal y la traducción
+    cae en la portada.
+
+    Se calcula UNA vez, al montar: el destino se consume y desaparece, así que un
+    segundo render lo perdería y volvería a la portada.
+  */
+  const [destino] = useState(() => {
+    const pedido = view === 'client' ? takeViewTarget() : null;
+    return pedido || (view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname));
+  });
+
   return <Navigate to={destino} replace />;
 };
 

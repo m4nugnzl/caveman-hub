@@ -1,66 +1,83 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
+import { ArrowLeftRight, Lock, Plus, X } from 'lucide-react';
 
 import {
   INTAKE_CATALOG,
   MAX_CUSTOM_STEPS,
   addCustomStep,
+  clientSteps,
+  coachSteps,
   intakeSteps,
-  moveStep,
   removeCustomStep,
+  setStepOwner,
   toggleStep,
 } from '@/domain/intake';
 import { newId } from '@/lib/ids';
-import { Field, Panel, TextInput } from '@/components/ui/primitives';
+import { Field, Notice, Panel, TextInput } from '@/components/ui/primitives';
 
 /**
- * Los pasos del alta, en Ajustes → Protocolo.
+ * El alta, en Ajustes → Protocolo.
  *
- * ══ Qué se configura aquí y qué no ══════════════════════════════════════════
+ * ══ Dos listas y no una ════════════════════════════════════════════════════
  *
- * Aquí se decide QUÉ PASOS EXISTEN. Lo hecho y el contenido de cada paso —el
- * vídeo de la rutina de esta persona— son de cada cliente y se tocan en su ficha:
- * un vídeo explicando la rutina de Marta no le vale a Luis.
+ * Un alta es «que me mande esto, y con esto yo hago aquello». Estaba montada
+ * como UNA lista numerada donde se mezclaban las dos mitades, así que para saber
+ * qué se le impone al cliente había que reconocer cuál era cuál — y lo primero
+ * que hay que poder ver aquí es precisamente eso.
  *
- * Es la misma división que tienen las preguntas justo encima: la forma de
- * trabajar se piensa una vez, las respuestas son de cada uno.
+ * Partirla en dos hace además evidente el orden real del trabajo: lo de arriba
+ * pasa antes, y lo de abajo no se puede hacer sin ello.
  *
- * Sin cabecera ni pie propios: los dice el `GroupHead` del apartado. Dentro de
- * la tarjeta solo va lo que se toca.
+ * ══ Y el reparto se puede cambiar ══════════════════════════════════════════
+ *
+ * «El cliente te manda su vídeo de postura» es suyo para quien se lo pide y es
+ * un recordatorio privado para quien lo graba en persona. Un paso propio —«prueba
+ * de fuerza inicial»— puede ser cualquiera de las dos cosas. Así que se mueve, y
+ * moverlo es un botón: no hay que aprender ningún concepto para usarlo.
+ *
+ * Los tres AUTOMÁTICOS no se mueven, y se dice por qué en su candado: lo que los
+ * da por hechos es que él los haya entregado, así que del lado del entrenador
+ * serían una casilla que no se puede marcar.
+ *
+ * ══ Sin flechas de ordenar ═════════════════════════════════════════════════
+ *
+ * Las había, y con dos listas dejan de tener sentido: subir una fila la haría
+ * saltar de grupo a mitad de recorrido. Cada lista conserva el orden en que se
+ * añadieron los pasos, que para tres o cuatro es suficiente — y es una cosa
+ * menos que decidir en una pantalla que hay que entender el primer día.
  */
-const StepRow = ({ step, index, total, propio, onMove, onRemove }) => (
+const StepRow = ({ step, propio, bloqueado, onSwap, onRemove }) => (
   <li className="proto-q">
-    <span className="n">{index + 1}</span>
-
     <span className="col grow" style={{ gap: 0, minWidth: 0 }}>
       <span className="t-sm" style={{ fontWeight: 600 }}>
         {step.label}
       </span>
-      <span className="t-2xs t-tertiary">
+      <span className="ask-hint t-2xs t-tertiary">
         {step.hint || (propio ? 'Paso tuyo' : '')}
         {step.link ? ' · admite un enlace para el cliente' : ''}
       </span>
     </span>
 
     <span className="row gap-1 shrink-0">
-      <button
-        type="button"
-        className="btn btn-icon"
-        onClick={() => onMove(-1)}
-        disabled={index === 0}
-        aria-label={`Subir ${step.label}`}
-      >
-        <ChevronUp size={15} />
-      </button>
-      <button
-        type="button"
-        className="btn btn-icon"
-        onClick={() => onMove(1)}
-        disabled={index === total - 1}
-        aria-label={`Bajar ${step.label}`}
-      >
-        <ChevronDown size={15} />
-      </button>
+      {bloqueado ? (
+        <span
+          className="btn btn-icon"
+          title="Este se marca solo cuando él lo entrega, así que es suyo siempre."
+          aria-hidden="true"
+        >
+          <Lock size={14} />
+        </span>
+      ) : (
+        <button
+          type="button"
+          className="btn btn-icon"
+          onClick={onSwap}
+          aria-label={`Cambiar de lado ${step.label}`}
+          title="Cambiarlo de lado"
+        >
+          <ArrowLeftRight size={15} />
+        </button>
+      )}
       <button
         type="button"
         className="btn btn-icon btn-icon-danger"
@@ -74,12 +91,47 @@ const StepRow = ({ step, index, total, propio, onMove, onRemove }) => (
   </li>
 );
 
+const Lista = ({ titulo, sub, pasos, vacio, propio, onSwap, onRemove }) => (
+  <div className="col gap-2">
+    <span className="section-label">{titulo}</span>
+    <p className="t-xs t-tertiary" style={{ marginTop: -4 }}>
+      {sub}
+    </p>
+
+    {pasos.length === 0 ? (
+      <p className="t-sm t-tertiary">{vacio}</p>
+    ) : (
+      <ul className="proto-list">
+        {pasos.map((step) => (
+          <StepRow
+            key={step.id}
+            step={step}
+            propio={propio(step.id)}
+            bloqueado={Boolean(step.auto)}
+            onSwap={() => onSwap(step)}
+            onRemove={() => onRemove(step)}
+          />
+        ))}
+      </ul>
+    )}
+  </div>
+);
+
 export const IntakeSteps = ({ intake, onChange }) => {
   const [draft, setDraft] = useState('');
 
   const activos = intakeSteps(intake);
+  const suyos = clientSteps(intake);
+  const tuyos = coachSteps(intake);
+
   const disponibles = INTAKE_CATALOG.filter((s) => !intake.steps.includes(s.id));
+  const pendientesDelCliente = disponibles.filter((s) => s.owner === 'client');
   const propio = (id) => intake.custom.some((s) => s.id === id);
+
+  const quitar = (step) =>
+    onChange(propio(step.id) ? removeCustomStep(intake, step.id) : toggleStep(intake, step.id));
+
+  const cambiarLado = (step, destino) => onChange(setStepOwner(intake, step.id, destino));
 
   const addPropio = () => {
     const next = addCustomStep(intake, newId('paso'), draft);
@@ -89,34 +141,69 @@ export const IntakeSteps = ({ intake, onChange }) => {
   };
 
   return (
-    <Panel className="col gap-4">
+    <Panel className="col gap-5">
+      {/*
+        El atajo para montar el circuito entero de una vez. Las tres entregas
+        están en la lista de disponibles, entre otras siete, y reconocerlas una a
+        una son tres búsquedas para una sola decisión: «que me lo mande él».
+      */}
+      {suyos.length === 0 && pendientesDelCliente.length > 0 && (
+        <Notice
+          tone="info"
+          action={
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() =>
+                onChange(
+                  pendientesDelCliente.reduce((acc, step) => toggleStep(acc, step.id), intake)
+                )
+              }
+            >
+              <Plus size={14} /> Pedírselo
+            </button>
+          }
+        >
+          No le pides nada a él: tu alta son solo pasos tuyos. Lo habitual es que te entregue el
+          cuestionario, las fotos de su gimnasio y un primer check-in — y con eso ya puedes montarle
+          el plan.
+        </Notice>
+      )}
+
       {activos.length === 0 ? (
         <p className="t-sm t-tertiary">
           Sin pasos: al dar de alta a un cliente no se te pedirá nada y no aparecerá ningún aviso.
           Es una respuesta válida.
         </p>
       ) : (
-        <ul className="proto-list">
-          {activos.map((step, index) => (
-            <StepRow
-              key={step.id}
-              step={step}
-              index={index}
-              total={activos.length}
-              propio={propio(step.id)}
-              onMove={(delta) => onChange(moveStep(intake, step.id, delta))}
-              onRemove={() =>
-                onChange(
-                  propio(step.id) ? removeCustomStep(intake, step.id) : toggleStep(intake, step.id)
-                )
-              }
-            />
-          ))}
-        </ul>
+        <>
+          <Lista
+            titulo="Te lo entrega él"
+            sub="Le sale como tareas en su portal. Se marcan solas en cuanto las entrega."
+            pasos={suyos}
+            vacio="Nada todavía. Lo que muevas aquí le aparecerá a él."
+            propio={propio}
+            onSwap={(step) => cambiarLado(step, 'coach')}
+            onRemove={quitar}
+          />
+
+          <Lista
+            titulo="Lo haces tú"
+            sub="Con lo que te ha entregado. Solo lo ves tú, en su ficha, y lo marcas a mano."
+            pasos={tuyos}
+            vacio="Nada todavía: todo lo del alta lo entrega él."
+            propio={propio}
+            onSwap={(step) => cambiarLado(step, 'client')}
+            onRemove={quitar}
+          />
+        </>
       )}
 
       {disponibles.length > 0 && (
-        <Field label="Añadir uno de estos" hint="Los habituales, para no escribirlos a mano.">
+        <Field
+          label="Añadir uno de estos"
+          hint="Los tres primeros se marcan solos: la aplicación sabe cuándo están hechos."
+        >
           <div className="rail-wrap" role="group" aria-label="Pasos disponibles">
             {disponibles.map((step) => (
               <button
@@ -136,7 +223,7 @@ export const IntakeSteps = ({ intake, onChange }) => {
       {intake.custom.length < MAX_CUSTOM_STEPS && (
         <Field
           label="O escribe el tuyo"
-          hint="Lo que tú haces y no está en la lista. Admite enlace, así que puede entregar algo."
+          hint="Lo que tú haces y no está en la lista. Después puedes pasarlo a lo que entrega él."
         >
           {(props) => (
             <div className="row gap-2 wrap">
