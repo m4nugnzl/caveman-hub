@@ -3,6 +3,7 @@ import { ExternalLink, Pencil } from 'lucide-react';
 
 import {
   MAX_FIELD,
+  examplePlaceholder,
   fieldById,
   fieldsOf,
   groupById,
@@ -26,7 +27,7 @@ const Control = ({ field, value, onChange }) => (
             <NumberInput
               {...props}
               center={false}
-              placeholder={field.placeholder}
+              placeholder={examplePlaceholder(field)}
               value={value}
               onChange={onChange}
             />
@@ -75,7 +76,7 @@ const Control = ({ field, value, onChange }) => (
           type={field.kind === 'link' ? 'url' : 'text'}
           className="input"
           maxLength={MAX_FIELD}
-          placeholder={field.placeholder}
+          placeholder={examplePlaceholder(field)}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
         />

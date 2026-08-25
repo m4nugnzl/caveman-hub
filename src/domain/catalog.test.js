@@ -81,47 +81,60 @@ describe('mergeCatalog', () => {
 /**
  * ══ Solo se corrige lo que diste de alta tú ════════════════════════════════
  *
- * La biblioteca es del EQUIPO (0006) y sus políticas dejan a cualquier miembro
- * escribir cualquier fila: la base no para nada de esto. Y el catálogo (0033) es
- * de todos y de nadie. Así que la regla es de producto y se comprueba aquí.
+ * Tres cosas quedan fuera y por tres motivos distintos: el catálogo es de
+ * referencia, la copia que tienes de un alimento del catálogo SIGUE siendo ese
+ * alimento, y lo que dio de alta un compañero es suyo.
+ *
+ * El del medio es el que costó: la biblioteca de arranque (0022) se siembra con
+ * el `coach_id` del dueño del equipo, y copiar del catálogo también pone el
+ * tuyo. Preguntar solo por `coach_id` decía que todo era tuyo — que es justo lo
+ * que se veía en pantalla, un lápiz en cada fila.
  */
 describe('canEditLibraryItem', () => {
   const YO = 'coach-1';
   const OTRO = 'coach-2';
 
+  /* «Pechuga de pollo» está aquí con MI coach_id a propósito: es exactamente
+     cómo queda un alimento sembrado por la 0022 o copiado del catálogo. */
   const equipo = [
-    { name: 'Pan integral', coachId: YO },
-    { name: 'Pechuga de pollo', coachId: OTRO },
+    { name: 'Pan integral Bimbo', coachId: YO },
+    { name: 'Pechuga de pollo', coachId: YO },
+    { name: 'Batido de la marca X', coachId: OTRO },
   ];
-  const lista = mergeCatalog(equipo, [{ name: 'Lentejas' }]);
+  const generales = [{ name: 'Pechuga de pollo' }, { name: 'Lentejas' }];
+  const opciones = { library: mergeCatalog(equipo, generales), catalog: generales, coachId: YO };
 
   it.each([
-    ['Pan integral', true, 'lo diste de alta tú'],
-    ['pan INTEGRAL ', true, 'y da igual cómo se escriba: misma clave que la mezcla'],
-    ['Pechuga de pollo', false, 'lo dio de alta un compañero de equipo'],
-    ['Lentejas', false, 'el catálogo común no lo edita nadie desde el navegador'],
+    ['Pan integral Bimbo', true, 'lo diste de alta tú y no es de nadie más'],
+    ['pan INTEGRAL bimbo ', true, 'misma clave que la mezcla: da igual cómo se escriba'],
+    ['Pechuga de pollo', false, 'tu copia de un general SIGUE siendo el general'],
+    ['Lentejas', false, 'el catálogo no lo edita nadie desde el navegador'],
+    ['Batido de la marca X', false, 'lo dio de alta un compañero de equipo'],
     ['Boniato', true, 'no está en la biblioteca de nadie: al guardarlo nace tuyo'],
   ])('%#: %s', (name, expected) => {
-    expect(canEditLibraryItem(name, lista, YO)).toBe(expected);
+    expect(canEditLibraryItem(name, opciones)).toBe(expected);
   });
 
-  /* Sin sesión no se corrige nada. Es la vista del cliente, que ya no enseña el
-     lápiz por `editable`; esto es el cinturón además de los tirantes. */
+  /* Sin sesión no se corrige nada. La vista del cliente ya no enseña el lápiz
+     por `editable`; esto es el cinturón además de los tirantes. */
   it('sin saber quién eres, nada es tuyo', () => {
-    expect(canEditLibraryItem('Pan integral', lista, null)).toBe(false);
+    expect(canEditLibraryItem('Pan integral Bimbo', { ...opciones, coachId: null })).toBe(false);
   });
 
   /*
-    El caso que de verdad importa y que no se ve mirando una lista: el catálogo
-    solo queda fuera MIENTRAS no lo hayas usado. En cuanto lo eliges se copia a
-    tu biblioteca con tu nombre encima, y esa copia sí se corrige — que es lo que
-    prometen la 0033 y la cabecera de este archivo.
+    Sin la 0033 aplicada no hay catálogo, y entonces no hay forma de distinguir
+    un general de lo tuyo. Se cae a `coach_id` en vez de bloquearlo todo: es un
+    entorno a medio migrar, no un motivo para dejar a nadie sin arreglar un macro.
   */
-  it('un alimento del catálogo, una vez copiado, ya es tuyo', () => {
-    expect(canEditLibraryItem('Lentejas', lista, YO)).toBe(false);
+  it('sin catálogo cargado se cae a la regla de `coach_id`', () => {
+    const sinCatalogo = { library: equipo, catalog: [], coachId: YO };
+    expect(canEditLibraryItem('Pechuga de pollo', sinCatalogo)).toBe(true);
+    expect(canEditLibraryItem('Batido de la marca X', sinCatalogo)).toBe(false);
+  });
 
-    const despues = mergeCatalog([...equipo, { name: 'Lentejas', coachId: YO }], [{ name: 'Lentejas' }]);
-    expect(canEditLibraryItem('Lentejas', despues, YO)).toBe(true);
+  /* Y sin argumentos raros: llamarla mal no abre la puerta. */
+  it('sin nada, no', () => {
+    expect(canEditLibraryItem('Lo que sea')).toBe(false);
   });
 });
 

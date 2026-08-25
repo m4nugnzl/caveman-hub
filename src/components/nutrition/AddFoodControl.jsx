@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { findByName } from '@/domain/catalog';
 import { macroError } from '@/domain/nutrition';
 import { toNum } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
@@ -38,8 +39,22 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
 
     Y la unidad va entera o no va: con etiqueta escrita, los gramos dejan de ser
     opcionales (CHECK de la 0030).
+
+    ── Y un nombre que ya existe no da de alta nada ─────────────────────────
+    El buscador ya no ofrece «crear» cuando hay coincidencia exacta, pero el
+    nombre se puede seguir cambiando aquí dentro. Y por esta puerta se colaba
+    lo que la regla de edición cierra: `upsertByName` identifica por NOMBRE, así
+    que dar de alta «Pechuga de pollo» con otros macros no crea un segundo
+    alimento — reescribe el que ya hay, que puede ser uno del catálogo o de un
+    compañero.
+
+    Dos alimentos distintos llevan nombres distintos: «Pan integral Bimbo» y no
+    otro «Pan integral». Es lo único que la biblioteca sabe distinguir.
   */
+  const repetido = draft && findByName(foodLibrary, draft.name);
+
   const errores = draft && {
+    name: repetido ? `Ya existe «${repetido.name}». Elígelo de la lista o ponle otro nombre.` : null,
     proteinPer100: macroError(draft.proteinPer100),
     carbsPer100: macroError(draft.carbsPer100),
     fatsPer100: macroError(draft.fatsPer100),
@@ -61,7 +76,7 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
     return (
       <div className="card-inset col gap-3">
         <div className="row-end wrap gap-2">
-          <Field label="Alimento" className="grow">
+          <Field label="Alimento" error={errores.name} className="grow">
             {(props) => (
               <input
                 {...props}

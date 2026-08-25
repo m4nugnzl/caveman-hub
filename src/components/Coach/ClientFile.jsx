@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Archive,
   Check,
+  Eye,
   ExternalLink,
   FileText,
   Link2,
@@ -11,13 +12,14 @@ import {
   UserCheck,
   Video,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
 import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '@/domain/billing';
 import { latestWeight } from '@/domain/anthropometry';
 import { identityFacts, identitySubtitle } from '@/domain/ficha';
+import { onboardingState } from '@/domain/onboardingState';
 import { PROFILE_GROUPS, cleanProfile, isProfileEmpty } from '@/domain/profile';
 import { dayMonthMaybeYear, shortDate, todayISO } from '@/lib/dates';
 import { initials } from '@/lib/initials';
@@ -49,6 +51,7 @@ import { ConditionsPanel } from '@/components/conditions/ConditionsPanel';
 import { ClientDataPanel } from './ClientDataPanel';
 import { EquipmentPanel } from '@/components/equipment/EquipmentPanel';
 import { CustomAnswers } from './CustomAnswers';
+import { DownloadAnamnesis } from './DownloadAnamnesis';
 import { ProfileBlock } from './ProfileBlock';
 import { inviteMessage, useInvite } from './useInvite';
 
@@ -573,7 +576,7 @@ const ArchiveRow = ({ client }) => {
  * recordatorio privado del entrenador y pasa a ser la cosa que se entrega: al
  * cliente le aparece en su portal y le queda guardada.
  */
-const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, onFile }) => {
+const StepRow = ({ step, hecho, sinPortal, url, file, revisiones = [], onToggle, onLink, onFile }) => {
   const [editando, setEditando] = useState(false);
   const [draft, setDraft] = useState(url || '');
   const [error, setError] = useState('');
@@ -616,8 +619,20 @@ const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, on
             TAREA que se marca hecha, no una opción que se incluye ni un ajuste
             que se enciende. Lo que cambia es que el cuadro ya no lo pinta el
             sistema operativo. Ver `.checkbox-row` en el CSS. */}
+        {/*
+          Un paso AUTOMÁTICO no se marca a mano: lo sabe la aplicación —tiene sus
+          respuestas, sus fotos o su check-in— y la casilla se desactiva. Dejarla
+          pulsable sería el peor de los dos mundos: el clic no cambiaría nada
+          (`stepDone` ni mira la lista de hechos para estos) y el entrenador
+          creería que se le ha roto algo.
+        */}
         <label className="checkbox-row is-block grow" style={{ minWidth: 0 }}>
-          <input type="checkbox" checked={hecho} onChange={() => onToggle(!hecho)} />
+          <input
+            type="checkbox"
+            checked={hecho}
+            disabled={Boolean(step.auto)}
+            onChange={() => onToggle(!hecho)}
+          />
           <span className="col gap-1" style={{ minWidth: 0 }}>
             {/*
               Lo HECHO baja de tono y lo pendiente se queda en tinta plena. En una
@@ -631,6 +646,21 @@ const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, on
               {step.label}
             </span>
             {step.hint && <span className="t-2xs t-tertiary">{step.hint}</span>}
+            {step.auto && !hecho && (
+              /*
+                Decir que está esperando al cliente, y no solo que no está hecho:
+                es la diferencia entre una tarea tuya y una que no depende de ti.
+
+                Y si TODAVÍA NO PUEDE, decir eso en su lugar. Un cliente recién
+                creado y sin invitar no tiene portal donde entregar nada, así que
+                «esperando a que lo entregue él» era una espera que no iba a
+                terminar nunca — y el entrenador no tenía por qué deducir que el
+                paso que falta es otro, tres bloques más abajo.
+              */
+              <span className="t-2xs t-tertiary">
+                {sinPortal ? 'Todavía no puede: no tiene acceso al portal.' : 'Esperando a que lo entregue él.'}
+              </span>
+            )}
           </span>
         </label>
 
@@ -817,11 +847,11 @@ const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, on
  * decidido que no quiere ninguno, este panel no aparece — que es exactamente la
  * diferencia entre proponer una forma de trabajar e imponerla.
  */
-const Alta = ({ client, onUpdate, onPreferences }) => {
+const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
   const { listReviewLinks, uploadIntakeFile } = useApp();
   const intake = clientIntake(client.preferences);
   const steps = intakeSteps(intake);
-  const { done, total, complete } = intakeProgress(client, intake);
+  const { done, total, complete } = intakeProgress(client, intake, estado);
   const [revisiones, setRevisiones] = useState([]);
 
   /* Solo se piden si hay algún paso que admita contenido: sin eso, la consulta
@@ -868,12 +898,40 @@ const Alta = ({ client, onUpdate, onPreferences }) => {
       }
     >
 
+      {/*
+        El aviso que faltaba y que dejaba el alta en un callejón: sin cuenta
+        enlazada, el cliente no tiene dónde entrar, así que las tareas suyas no
+        se van a marcar por mucho que se espere. Va arriba del todo y con el
+        camino puesto, porque lo que hay que hacer no es nada de esta lista.
+      */}
+      {!client.clientProfileId && steps.some((s) => s.owner === 'client') && (
+        <Notice
+          tone="warn"
+          action={
+            /*
+              Probarlo uno mismo NO necesita invitar a nadie: el portal de prueba
+              es la misma aplicación con los mismos permisos, y sobre tus propios
+              clientes tú puedes escribir igual que ellos. Sin este botón había
+              que saber que existe el modo, entrar en él y buscar la pantalla —
+              tres pasos para comprobar lo que acabas de configurar.
+            */
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
+              <Eye size={14} /> Probarlo yo
+            </button>
+          }
+        >
+          Todavía no le has dado acceso, así que él no puede contestarte. Invítale desde «Acceso y
+          baja» — o pruébalo tú mismo: lo que rellenes en su portal se guarda de verdad.
+        </Notice>
+      )}
+
       <div className="col gap-2">
         {steps.map((step) => (
           <StepRow
             key={step.id}
             step={step}
-            hecho={stepDone(step, client, intake)}
+            hecho={stepDone(step, client, intake, estado)}
+            sinPortal={!client.clientProfileId}
             url={stepLink(intake, step.id)}
             file={stepFile(intake, step.id)}
             revisiones={revisiones}
@@ -912,11 +970,15 @@ export const ClientFile = () => {
     activeClient,
     anthropometry,
     conditions,
+    equipment,
+    checkIns,
     updateClient,
     updateClientPreferences,
     markClientPaid,
+    setViewMode,
   } = useApp();
   const toast = useToast();
+  const navigate = useNavigate();
 
   /* El marco ya redirige cuando el id no existe; esto solo cubre el instante
      entre montar la ruta y tener el cliente cargado. */
@@ -925,6 +987,24 @@ export const ClientFile = () => {
   /* Leído de su serie de pesajes, no de una copia guardada en la ficha. Ver el
      comentario de `Identidad` y la migración 0048. */
   const peso = latestWeight(anthropometry[activeClient.id]?.history || []);
+  /*
+    Entrar en su portal por donde importa.
+
+    El modo de prueba ya existía y se enciende desde el marco, pero deja a uno en
+    el inicio del cliente — y lo que se quiere comprobar después de configurar el
+    alta es su alta. Las dos cosas juntas convierten «a ver cómo le queda» en un
+    clic en vez de en tres.
+  */
+  const probarSuPortal = () => {
+    setViewMode('client');
+    navigate('/mi/alta');
+  };
+
+  const estadoDelAlta = onboardingState({
+    client: activeClient,
+    equipment,
+    checkIn: checkIns?.[activeClient.id],
+  });
 
   /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
      y tiene que dejar la misma señal, se pulse donde se pulse. */
@@ -942,6 +1022,9 @@ export const ClientFile = () => {
       <PageHead
         title="Ficha"
         sub={`Quién es ${activeClient.name}, su acceso al portal, su cobro y su baja.`}
+        /* Una acción y solo una, como manda §5.1: llevarse esto en un documento.
+           Lo demás de esta pantalla se edita bloque a bloque. */
+        action={<DownloadAnamnesis client={activeClient} />}
       />
 
       {/*
@@ -1039,6 +1122,11 @@ export const ClientFile = () => {
           semanas. */}
       <Alta
         client={activeClient}
+        /* Lo que ha entregado él. Sale del mismo sitio que su portal
+           (`domain/onboardingState.js`), así que los dos no pueden discrepar
+           sobre si el cuestionario está contestado. */
+        estado={estadoDelAlta}
+        onProbar={probarSuPortal}
         onUpdate={(fields) => updateClient(activeClient.id, fields)}
         onPreferences={(intake) =>
           updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))

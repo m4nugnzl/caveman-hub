@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 
+import { findByName } from '@/domain/catalog';
 import { supabase } from '@/lib/supabaseClient';
 import { mapLibraryExerciseFromDb, mapLibraryFoodFromDb } from '@/lib/mappers';
 import { toNum } from '@/lib/num';
@@ -14,7 +15,13 @@ import { toNum } from '@/lib/num';
   biblioteca, así que es el puente entre dos dominios y vive en el proveedor.
 */
 
-export const useLibraries = ({ session, team }) => {
+/*
+  `catalogFoods` y `catalogExercises` entran aquí para una sola cosa: saber qué
+  nombres son GENERALES. Son de referencia y no se reescriben —ni desde la
+  pantalla, que ya no ofrece el lápiz, ni desde una importación, que llama a
+  estas funciones una vez por alimento del PDF—.
+*/
+export const useLibraries = ({ session, team, catalogFoods = [], catalogExercises = [] }) => {
   const [exerciseLibrary, setExerciseLibrary] = useState([]);
   const [foodLibrary, setFoodLibrary] = useState([]);
 
@@ -67,7 +74,7 @@ export const useLibraries = ({ session, team }) => {
    * de una dieta es una copia congelada y es suya—, simplemente no se propaga a
    * la biblioteca de nadie.
    */
-  const upsertByName = useCallback(async (table, coachId, teamId, name, fields) => {
+  const upsertByName = useCallback(async (table, coachId, teamId, name, fields, esGeneral = false) => {
     const trimmed = name.trim();
 
     /* `*` y no `id`: hace falta el `coach_id` para saber de quién es, y la fila
@@ -79,7 +86,9 @@ export const useLibraries = ({ session, team }) => {
     if (findErr) return { error: findErr };
 
     if (existing) {
-      if (existing.coach_id !== coachId) return { data: existing, error: null };
+      /* Ni la de otro ni la de un general: las dos se devuelven tal cual, y quien
+         llama refresca su copia local con la verdad de la base. */
+      if (esGeneral || existing.coach_id !== coachId) return { data: existing, error: null };
       return supabase.from(table).update(fields).eq('id', existing.id).select().single();
     }
 
@@ -100,9 +109,19 @@ export const useLibraries = ({ session, team }) => {
       const userId = session?.user?.id;
       if (!userId || !name?.trim()) return null;
 
-      const { data, error } = await upsertByName('exercises', userId, team?.id || null, name, {
-        muscle_group: muscle,
-      });
+      /* De un ejercicio del catálogo, el grupo muscular lo pone el CATÁLOGO y no
+         quien lo escribe: si «Press banca» es de pecho, lo es en las cuatro
+         bibliotecas. Ver `canEditLibraryItem`. */
+      const general = findByName(catalogExercises, name);
+
+      const { data, error } = await upsertByName(
+        'exercises',
+        userId,
+        team?.id || null,
+        name,
+        { muscle_group: general ? general.muscle : muscle },
+        Boolean(general)
+      );
 
       if (error) {
         console.error('upsertLibraryExercise:', error.message);
@@ -118,7 +137,7 @@ export const useLibraries = ({ session, team }) => {
       });
       return mapped;
     },
-    [session, team, upsertByName]
+    [session, team, catalogExercises, upsertByName]
   );
 
   const upsertLibraryFood = useCallback(
@@ -127,24 +146,45 @@ export const useLibraries = ({ session, team }) => {
       if (!userId || !food?.name?.trim()) return null;
 
       /*
+        ── De un GENERAL se copia el catálogo, no lo que traiga quien llama ──
+        Un alimento del catálogo es de referencia y tiene que valer lo mismo en
+        todas las bibliotecas. Si existe ya, no se toca (`esGeneral` abajo); y si
+        no existe —la primera vez que se usa, que es cuando se copia—, lo que se
+        guarda son los macros del CATÁLOGO.
+
+        Sin esto, importar una dieta de un PDF con «Pechuga de pollo» metía los
+        macros del PDF en tu biblioteca como si fueran los buenos, y encima
+        quedaban bloqueados por ser un nombre general.
+      */
+      const general = findByName(catalogFoods, food.name);
+      const fuente = general || food;
+
+      /*
         Las dos columnas de unidad viajan juntas o no viajan (CHECK de la 0030).
         Una etiqueta en blanco se manda como NULL en las DOS para poder quitarle la
         unidad a un alimento: mandar solo `unit_label: null` dejaría los gramos
         huérfanos y la fila la rechazaría la base.
       */
-      const etiqueta = String(food.unitLabel || '').trim();
-      const gramosPorUnidad = toNum(food.unitGrams);
+      const etiqueta = String(fuente.unitLabel || '').trim();
+      const gramosPorUnidad = toNum(fuente.unitGrams);
       const unidad =
         etiqueta && gramosPorUnidad && gramosPorUnidad > 0
           ? { unit_label: etiqueta, unit_grams: gramosPorUnidad }
           : { unit_label: null, unit_grams: null };
 
-      const { data, error } = await upsertByName('foods', userId, team?.id || null, food.name, {
-        protein_per_100g: toNum(food.proteinPer100) ?? 0,
-        carbs_per_100g: toNum(food.carbsPer100) ?? 0,
-        fats_per_100g: toNum(food.fatsPer100) ?? 0,
-        ...unidad,
-      });
+      const { data, error } = await upsertByName(
+        'foods',
+        userId,
+        team?.id || null,
+        food.name,
+        {
+          protein_per_100g: toNum(fuente.proteinPer100) ?? 0,
+          carbs_per_100g: toNum(fuente.carbsPer100) ?? 0,
+          fats_per_100g: toNum(fuente.fatsPer100) ?? 0,
+          ...unidad,
+        },
+        Boolean(general)
+      );
 
       if (error) {
         console.error('upsertLibraryFood:', error.message);
@@ -160,7 +200,7 @@ export const useLibraries = ({ session, team }) => {
       });
       return mapped;
     },
-    [session, team, upsertByName]
+    [session, team, catalogFoods, upsertByName]
   );
 
   return {

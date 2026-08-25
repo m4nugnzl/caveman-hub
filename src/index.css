@@ -1740,6 +1740,68 @@ button.task-head:hover > .chevron { color: var(--text); }
   .swap-in { animation: fade 0.2s var(--ease); }
 }
 
+/* ══ LO QUE TIENE QUE ENTREGAR EL CLIENTE ════════════════════════════════════
+   Una lista NUMERADA y no una de casillas, y la diferencia importa: una casilla
+   invita a pulsarla, y aquí no hay nada que pulsar —se marcan solas cuando la
+   cosa está hecha—. El número dice además el ORDEN, que es la otra mitad de lo
+   que se viene a preguntar. */
+.task-list { list-style: none; display: flex; flex-direction: column; gap: var(--s2); margin: 0; padding: 0; }
+
+.task {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge);
+}
+
+/* El disco del número. Con el acento porque es lo siguiente que hay que hacer;
+   hecho, baja a tinta apagada y deja de pedir la vista. */
+.task-mark {
+  flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: var(--fs-xs); font-weight: 700;
+  background: var(--accent); color: var(--accent-on);
+}
+.task-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.task-title { font-size: var(--fs-sm); font-weight: 600; }
+
+/*
+  Lo hecho NO se tacha: se apaga.
+
+  El tachado dice «esto ya no vale» y aquí lo que dice es «esto ya está» — son
+  cosas distintas, y una respuesta entregada sigue valiendo. Bajar el tono deja
+  ver lo que llevas sin que compita con lo que falta.
+*/
+.task.is-done { background: transparent; border-color: transparent; }
+.task.is-done > .task-mark { background: var(--positive-soft); color: var(--positive); }
+.task.is-done > .task-say > .task-title { color: var(--text-tertiary); font-weight: 500; }
+
+/* ══ EL CUESTIONARIO DE ALTA ══════════════════════════════════════════════════
+   Es el formulario más largo que ve un cliente —hasta diecinueve campos— y el
+   único que rellena una persona que no conoce la aplicación. Lo que sigue es lo
+   que lo separa de un formulario de administración.
+
+   ── La barra de avance ─────────────────────────────────────────────────────
+   «7 de 10» dicho con una cifra es un dato; dicho con una barra es una promesa
+   de que se acaba. En un formulario que se puede dejar a medias y retomar, saber
+   cuánto queda es lo que decide si se retoma. */
+.form-progress {
+  height: 4px; border-radius: 999px; overflow: hidden;
+  background: var(--fill);
+}
+.form-progress > i {
+  display: block; height: 100%;
+  background: var(--accent);
+  transition: width var(--slow);
+}
+
+/* Cada tanda, con su filete. Sin él, catorce campos seguidos son una sola masa:
+   los rótulos en troquelada ya nombran las tandas, pero a esta distancia hace
+   falta además que se VEA dónde acaba una. */
+.form-block + .form-block { border-top: 1px solid var(--hairline); padding-top: var(--s5); }
+
 /* ── Las fotos de la maquinaria de su gimnasio ──────────────────────────────
    Miniaturas pequeñas y muchas: lo que se mira es la FORMA de la máquina para
    reconocerla, no su detalle. A 150 px caben seis por fila en escritorio y dos

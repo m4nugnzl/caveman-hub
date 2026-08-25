@@ -429,6 +429,24 @@ export const fieldText = (profile, id) => {
  * columna de «sin poner» en gris que nadie va a rellenar por leerla. El hueco se
  * ofrece una vez, en «Editar».
  */
+/**
+ * El texto de ejemplo de un campo, dicho como un EJEMPLO.
+ *
+ * ══ El fallo que arregla ═══════════════════════════════════════════════════
+ *
+ * Los ejemplos de este catálogo son realistas a propósito —«Universidad, 9:30 a
+ * 14:30», «7:30 · 14:45 · 23:15»— porque un ejemplo vago no enseña qué se
+ * espera. Puestos tal cual como marcador de posición, y con el tono apagado de
+ * un formulario en tema oscuro, **se leen como respuestas ya escritas**: la
+ * primera impresión del cuestionario era la de un formulario que alguien había
+ * dejado a medias.
+ *
+ * El prefijo lo desmonta en dos caracteres, sin quitar el ejemplo ni mandarlo a
+ * la letra pequeña de abajo, que es donde no se mira.
+ */
+export const examplePlaceholder = (field) =>
+  field?.placeholder ? `Ej.: ${field.placeholder}` : undefined;
+
 export const profileRows = (profile, group) =>
   fieldsOf(group)
     .map((field) => ({ id: field.id, label: field.label, text: fieldText(profile, field.id) }))

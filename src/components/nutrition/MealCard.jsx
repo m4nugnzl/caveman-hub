@@ -134,18 +134,18 @@ const FoodRow = ({
   const sePuede = hasUnits(food);
   const porUnidades = displayAsUnits(food);
   /*
-    ¿Este alimento lo diste de alta TÚ? Es lo único que se puede corregir: la
-    biblioteca es del EQUIPO y el catálogo es de todos, así que lo tuyo de
-    verdad es lo que creaste. La regla entera está en `canEditLibraryItem`.
+    ¿Este alimento lo diste de alta TÚ? Es lo único que se puede corregir: los
+    del catálogo son de referencia y se quedan como están, y la biblioteca es
+    del EQUIPO. La regla entera —y por qué el catálogo va aparte de la lista
+    mezclada— está en `canEditLibraryItem`.
 
-    Se resuelve por NOMBRE contra la lista que la tarjeta ya recibe —biblioteca
-    y catálogo mezclados—, porque la entrada de la dieta es una copia congelada
+    Se resuelve por NOMBRE, porque la entrada de la dieta es una copia congelada
     y no guarda de quién era el original. Ni debe: el original puede cambiar de
     manos o desaparecer y la copia sigue siendo la misma.
   */
   const mio = useMemo(
-    () => canEditLibraryItem(food.name, libraryFoods, coachId),
-    [food.name, libraryFoods, coachId]
+    () => canEditLibraryItem(food.name, { library: libraryFoods, catalog: catalogFoods, coachId }),
+    [food.name, libraryFoods, catalogFoods, coachId]
   );
 
   /*

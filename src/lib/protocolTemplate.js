@@ -25,11 +25,9 @@
 
 import {
   CHECKIN_BLOCKS,
-  SERVICES,
   checkinMode,
   clientProtocol,
   defaultProtocol,
-  isServiceOn,
 } from '@/domain/protocol';
 import { clientIntake } from '@/domain/intake';
 import { coachIntakeForm } from '@/domain/intakeForm';
@@ -102,15 +100,58 @@ const LISTAS = ['modules', 'questions', 'checkinQuestions'];
 export const matchesTemplate = (template, protocol) =>
   LISTAS.every((k) => (template[k] || []).join() === (protocol[k] || []).join()) &&
   JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
-  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id)) &&
-  /* Qué le llevas —entrenamiento, nutrición o las dos— también es desvío: es la
-     parte del protocolo que MÁS cambia lo que ve el cliente, y dejarla fuera
-     apagaría «Aplicar a todos» justo cuando lo que se acaba de cambiar es que
-     tus clientes nuevos son solo de entrenamiento. */
-  SERVICES.every((s) => isServiceOn(template, s.id) === isServiceOn(protocol, s.id));
+  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id));
 
 /** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
-export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'services'];
+export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin'];
+
+/**
+ * Lo que está en el protocolo y NO se compara con la plantilla, con su motivo.
+ *
+ * ══ `services`: qué le llevas a esta persona ════════════════════════════════
+ *
+ * Estuvo dentro, con este argumento: «es la parte que MÁS cambia lo que ve el
+ * cliente, y dejarla fuera apagaría Aplicar a todos justo cuando lo que acabas
+ * de cambiar es que tus clientes nuevos son solo de entrenamiento».
+ *
+ * El argumento era correcto sobre los clientes NUEVOS y equivocado sobre los que
+ * ya tienes, y la diferencia costó trabajo de verdad: a un cliente al que le
+ * llevas solo el entrenamiento, «poner al día» le devolvía la nutrición. Su
+ * portal recuperaba una sección entera que nadie le está llevando, y el
+ * entrenador se enteraba al abrirle la ficha.
+ *
+ * Porque esto no es una preferencia de protocolo —como preguntar por el dolor de
+ * hombro—: **es lo que le has vendido a esta persona**. Se decide una vez, por
+ * cliente, y no hay ninguna plantilla que pueda saberlo mejor.
+ *
+ * Cambiar la plantilla sigue afectando a los clientes NUEVOS, que es donde ese
+ * argumento sí valía: `newClientPreferences` la copia entera, servicios
+ * incluidos. Lo que ya no pasa es que empuje hacia atrás.
+ *
+ * Es el mismo trato que ya recibían los pasos del alta: la plantilla decide QUÉ
+ * pasos hay y cada cliente conserva por cuáles va y qué tiene enlazado.
+ */
+export const NOT_COMPARED_KEYS = {
+  services:
+    'Qué le llevas a ESTA persona: es lo que le has vendido, no una preferencia de tu protocolo. ' +
+    'La plantilla lo siembra al darle de alta y no vuelve a tocarlo — antes «poner al día» le ' +
+    'devolvía la nutrición a quien solo entrena.',
+};
+
+/**
+ * La plantilla, adaptada a un cliente concreto antes de escribírsela.
+ *
+ * Es lo que se le aplica al «poner al día»: todo lo de la plantilla, MENOS lo
+ * que es suyo y no de ella. Hoy solo los servicios; lo que se añada a
+ * `NOT_COMPARED_KEYS` tiene que pasar por aquí también, porque las dos listas
+ * contestan la misma pregunta desde los dos lados —qué no se compara y qué no se
+ * pisa— y si discrepan, un cliente se queda marcado como distinto justo después
+ * de haberlo igualado.
+ */
+export const templateForClient = (template, clientPreferences) => ({
+  ...template,
+  services: clientProtocol(clientPreferences).services,
+});
 
 /**
  * ¿Este cliente se desvía de la plantilla?
@@ -157,12 +198,44 @@ export const clientDrifts = (template, intakeTemplate, client) => {
  * Se suelta desde `applyProtocolToClient`, que es lo que hacen «poner al día» e
  * «igualar a mi plantilla».
  *
- * ── Ausente es NO ────────────────────────────────────────────────────────────
- * La regla de siempre: quien no tenga la marca —todos los clientes de antes de
- * esto— se comporta como hasta ahora. Nadie se queda de golpe fuera del alcance
- * de su plantilla por un valor que nunca escribió.
+ * ══ Y el que NUNCA pasó por aquí ═══════════════════════════════════════════
+ *
+ * La marca tiene tres estados, no dos, y el tercero es el que costó trabajo de
+ * verdad:
+ *
+ *   · `true`  — excepción declarada. Se respeta.
+ *   · `false` — le pusiste la plantilla y la aceptó. Se le vuelve a poner.
+ *   · AUSENTE — nadie ha decidido nada. Son todos los clientes anteriores a que
+ *     esta marca existiera.
+ *
+ * El tercero se trataba como `false`, con este argumento: «nadie se queda de
+ * golpe fuera del alcance de su plantilla por un valor que nunca escribió». El
+ * argumento era razonable y la consecuencia no: a un cliente al que le habías
+ * quitado preguntas hace seis meses, el primer «poner al día» se las devolvía
+ * todas. Sin aviso, y sin forma de recuperar lo que había.
+ *
+ * Ahora un cliente sin marca está protegido **si además se desvía**. Los dos a
+ * la vez, no uno: sin desvío no hay nada que proteger, así que quien coincide
+ * con la plantilla sigue recibiéndola normalmente y nadie se queda fuera por no
+ * haber hecho nada.
+ *
+ * Cuesta un clic —«Igualar a mi plantilla» sobre ese cliente— y ese clic escribe
+ * la marca a `false`, así que solo hay que darlo una vez. Lo que se gana es que
+ * la operación irreversible deja de ser la que ocurre por defecto.
  */
 export const isException = (client) => client?.preferences?.protocolException?.on === true;
+
+/**
+ * Nadie ha decidido nada sobre este cliente: la marca no está ni a sí ni a no.
+ *
+ * Son los anteriores a que existiera. Por sí solo no significa nada —la mayoría
+ * coincide con la plantilla y no hay nada que proteger—; lo que cuenta es esto
+ * MÁS que se desvíe, y eso lo junta `isProtected`.
+ */
+export const isUndecided = (client) => {
+  const marca = client?.preferences?.protocolException;
+  return !marca || typeof marca.on !== 'boolean';
+};
 
 /**
  * A quién le falta la plantilla y ADEMÁS quiere recibirla.
@@ -172,7 +245,19 @@ export const isException = (client) => client?.preferences?.protocolException?.o
  * lista a la que se escribe no puedan discrepar.
  */
 export const needsTemplate = (template, intakeTemplate, client) =>
-  !isException(client) && clientDrifts(template, intakeTemplate, client);
+  !isProtected(template, intakeTemplate, client) && clientDrifts(template, intakeTemplate, client);
+
+/**
+ * A quién SALTA «poner al día», y por los dos motivos que existen.
+ *
+ * Se calcula aparte de `needsTemplate` porque la pantalla tiene que poder
+ * NOMBRARLOS: un botón que se salta clientes sin decir cuáles es un botón del
+ * que no te fías. Las dos funciones tienen que dar respuestas complementarias
+ * sobre quien se desvía, y por eso la condición se escribe una sola vez.
+ */
+export const isProtected = (template, intakeTemplate, client) =>
+  isException(client) ||
+  (isUndecided(client) && clientDrifts(template, intakeTemplate, client));
 
 /**
  * Con qué preferencias nace un cliente recién dado de alta: tu forma de trabajar.

@@ -3,7 +3,7 @@ import { Check } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
 import { clientIntakeForm, formProgress, formSections, isFormEmpty } from '@/domain/intakeForm';
-import { MAX_FIELD, customAnswers } from '@/domain/profile';
+import { MAX_FIELD, customAnswers, examplePlaceholder } from '@/domain/profile';
 import { Field, Notice, NumberInput, Panel } from '@/components/ui/primitives';
 
 /**
@@ -23,7 +23,7 @@ const Pregunta = ({ field, value, onChange }) => (
             <NumberInput
               {...props}
               center={false}
-              placeholder={field.placeholder}
+              placeholder={examplePlaceholder(field)}
               value={value}
               onChange={onChange}
             />
@@ -65,7 +65,7 @@ const Pregunta = ({ field, value, onChange }) => (
           {...props}
           className="input"
           maxLength={MAX_FIELD}
-          placeholder={field.placeholder}
+          placeholder={examplePlaceholder(field)}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -167,12 +167,27 @@ export const IntakeQuestions = ({ client }) => {
         </span>
       }
     >
+      {/* La barra dice lo mismo que la chapa de la cabecera y lo dice de otra
+          manera: una cifra es un dato, una barra es la promesa de que se acaba.
+          En un formulario que se puede dejar a medias, saber cuánto queda es lo
+          que decide si se retoma. */}
+      <div
+        className="form-progress"
+        role="progressbar"
+        aria-valuenow={progreso.done}
+        aria-valuemin={0}
+        aria-valuemax={progreso.total}
+        aria-label="Preguntas contestadas"
+      >
+        <i style={{ width: `${progreso.total ? (progreso.done / progreso.total) * 100 : 0}%` }} />
+      </div>
+
       {form.intro && <p className="t-sm t-secondary">{form.intro}</p>}
       {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
 
       <form className="col gap-4" onSubmit={guardar}>
         {tandas.map((tanda) => (
-          <div key={tanda.id} className="col gap-3">
+          <div key={tanda.id} className="form-block col gap-3">
             <span className="section-label">{tanda.label}</span>
             <div className="grid-2">
               {tanda.fields.map((field) => (

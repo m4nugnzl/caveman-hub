@@ -136,7 +136,7 @@ export const AppProvider = ({ children }) => {
     setFoodLibrary,
     upsertLibraryExercise,
     upsertLibraryFood,
-  } = useLibraries({ session, team });
+  } = useLibraries({ session, team, catalogFoods, catalogExercises });
 
   /*
     El resumen de entrenamiento que calcula el servidor (migración 0024), por

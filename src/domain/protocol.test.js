@@ -30,7 +30,12 @@ import {
   activeServices,
   isServiceOn,
 } from './protocol';
-import { COMPARED_KEYS, matchesTemplate } from '@/lib/protocolTemplate';
+import {
+  COMPARED_KEYS,
+  NOT_COMPARED_KEYS,
+  matchesTemplate,
+  templateForClient,
+} from '@/lib/protocolTemplate';
 
 describe('clientProtocol', () => {
   it('un cliente sin configurar recibe el protocolo por defecto', () => {
@@ -372,8 +377,26 @@ describe('preguntas del check-in', () => {
   había un segundo sitio que enumerarlas.
 */
 describe('la plantilla compara el protocolo ENTERO', () => {
-  it('no hay ninguna clave del protocolo fuera de la comparación', () => {
-    expect([...Object.keys(defaultProtocol())].sort()).toEqual([...COMPARED_KEYS].sort());
+  /*
+    Cada clave del protocolo tiene que estar EN una de las dos listas: comparada,
+    o excluida con su motivo escrito. Lo que la prueba impide no es excluir —eso
+    es una decisión legítima— sino excluir SIN DECIDIRLO: una clave nueva que se
+    queda fuera por olvido apaga el botón y deja la pantalla afirmando que tus
+    clientes tienen algo que no tienen.
+  */
+  it('toda clave del protocolo está comparada o excluida a propósito', () => {
+    const cubiertas = [...COMPARED_KEYS, ...Object.keys(NOT_COMPARED_KEYS)];
+    expect([...Object.keys(defaultProtocol())].sort()).toEqual([...cubiertas].sort());
+  });
+
+  it('cada exclusión dice por qué', () => {
+    /* Un motivo de tres palabras no es un motivo: dentro de dos años, quien lea
+       esa lista tiene que poder decidir si sigue siendo cierto. Es la misma
+       regla que la lista de tablas excluidas de la copia de seguridad. */
+    for (const [clave, motivo] of Object.entries(NOT_COMPARED_KEYS)) {
+      expect(typeof motivo, `${clave} sin motivo`).toBe('string');
+      expect(motivo.length, `el motivo de ${clave} es demasiado corto`).toBeGreaterThan(40);
+    }
   });
 
   it('un cuestionario distinto cuenta como desvío', () => {
@@ -486,13 +509,35 @@ describe('los servicios', () => {
     expect(toggleService(base, 'telepatia')).toBe(base);
   });
 
-  /* De esta comparación cuelga «Aplicar a todos». Ver el comentario largo de
-     `lib/protocolTemplate.js`: una parte fuera apaga el botón y deja la pantalla
-     afirmando que tus clientes tienen algo que no tienen. */
-  it('llevar cosas distintas cuenta como desvío de la plantilla', () => {
-    const plantilla = clientProtocol({ protocol: { services: { nutrition: false } } });
-    const suyo = clientProtocol({});
-    expect(matchesTemplate(plantilla, suyo)).toBe(false);
-    expect(matchesTemplate(plantilla, plantilla)).toBe(true);
+  /*
+    ══ El fallo que costó el trabajo de un entrenador ═════════════════════════
+
+    «Qué le llevas» estaba DENTRO de la comparación, así que a un cliente al que
+    se le lleva solo el entrenamiento «poner al día» le devolvía la nutrición: su
+    portal recuperaba una sección entera que nadie le está llevando.
+
+    No es una preferencia de protocolo, es lo que le has vendido a esa persona.
+    Ni cuenta como desvío ni se pisa al igualar.
+  */
+  it('llevar cosas distintas NO cuenta como desvío de la plantilla', () => {
+    const plantilla = clientProtocol({});
+    const soloEntreno = clientProtocol({ protocol: { services: { nutrition: false } } });
+    expect(matchesTemplate(plantilla, soloEntreno)).toBe(true);
+  });
+
+  it('igualar a la plantilla le respeta lo que le llevas', () => {
+    const plantilla = clientProtocol({});
+    const suyas = { protocol: { services: { training: true, nutrition: false } } };
+
+    const aplicado = templateForClient(plantilla, suyas);
+    expect(isServiceOn(aplicado, 'nutrition')).toBe(false);
+    expect(isServiceOn(aplicado, 'training')).toBe(true);
+  });
+
+  it('pero un cliente NUEVO sí nace con los servicios de la plantilla', () => {
+    /* Es donde el argumento de meterlos en la comparación sí valía:
+       `newClientPreferences` copia la plantilla entera al dar de alta. */
+    const soloEntreno = clientProtocol({ protocol: { services: { nutrition: false } } });
+    expect(isServiceOn(soloEntreno, 'nutrition')).toBe(false);
   });
 });

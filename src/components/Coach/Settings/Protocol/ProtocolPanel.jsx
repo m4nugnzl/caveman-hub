@@ -23,8 +23,9 @@ import {
 import {
   clearLocalTemplate,
   defaultProtocol,
-  isException,
+  isProtected,
   matchesTemplate,
+  templateForClient,
   needsTemplate,
   readLocalTemplate,
   templateFrom,
@@ -218,7 +219,10 @@ export const ProtocolPanel = () => {
     [clients, template, intakeTemplate]
   );
   const pendientesSet = useMemo(() => new Set(pendientes.map((c) => c.id)), [pendientes]);
-  const excepciones = useMemo(() => clients.filter(isException), [clients]);
+  const excepciones = useMemo(
+    () => clients.filter((c) => isProtected(template, intakeTemplate, c)),
+    [clients, template, intakeTemplate]
+  );
   const excepcionesSet = useMemo(() => new Set(excepciones.map((c) => c.id)), [excepciones]);
 
   /**
@@ -231,7 +235,11 @@ export const ProtocolPanel = () => {
    */
   const igualarA = (c) =>
     applyProtocolToClient(c.id, {
-      protocol: template,
+      /* La plantilla ADAPTADA a este cliente: todo lo suyo menos lo que es de él
+         y no de ella. Hoy, qué le llevas — a quien solo entrena, «poner al día»
+         le devolvía la nutrición y le reaparecía media aplicación en su portal.
+         Ver `NOT_COMPARED_KEYS` en lib/protocolTemplate. */
+      protocol: templateForClient(template, c.preferences),
       /* La plantilla decide QUÉ pasos hay; cada cliente conserva por cuáles va y
          qué tiene enlazado. Sobrescribirlo entero borraría los vídeos que se han
          ido pegando cliente a cliente, que es el trabajo que no se puede rehacer. */

@@ -57,11 +57,38 @@ describe('needsTemplate', () => {
   const suyo = toggleModule(defaultProtocol(), 'warmup');
 
   const marcado = { on: true };
+  /* Ya pasó por «poner al día» alguna vez: alguien decidió que sigue la
+     plantilla. Es el único que se queda ATRÁS de verdad. */
+  const alDia = { on: false };
 
   it('el que se quedó atrás sí recibe la plantilla', () => {
-    const client = { preferences: { protocol: suyo } };
+    const client = { preferences: { protocol: suyo, protocolException: alDia } };
     expect(clientDrifts(template, intakeTemplate, client)).toBe(true);
     expect(needsTemplate(template, intakeTemplate, client)).toBe(true);
+  });
+
+  /*
+    ══ El caso que costó el trabajo de un entrenador ═══════════════════════════
+
+    La marca tiene TRES estados y el tercero —ausente— se trataba como «no». Eso
+    dejaba sin protección a todos los clientes anteriores a que existiera: a uno
+    al que le habías quitado preguntas hace seis meses, el primer «poner al día»
+    se las devolvía todas, sin aviso y sin vuelta atrás.
+
+    Ahora lo no decidido se resuelve hacia el lado que no destruye nada.
+  */
+  it('el que nunca pasó por aquí Y se desvía queda protegido', () => {
+    const client = { preferences: { protocol: suyo } };
+    expect(clientDrifts(template, intakeTemplate, client)).toBe(true);
+    expect(needsTemplate(template, intakeTemplate, client)).toBe(false);
+  });
+
+  /* Pero solo si se desvía: sin nada que proteger, nadie se queda fuera del
+     alcance de su plantilla por no haber hecho nada. */
+  it('el que nunca pasó por aquí y NO se desvía no queda fuera de nada', () => {
+    const client = { preferences: {} };
+    expect(clientDrifts(template, intakeTemplate, client)).toBe(false);
+    expect(needsTemplate(template, intakeTemplate, client)).toBe(false);
   });
 
   it('la excepción se desvía pero NO se toca', () => {

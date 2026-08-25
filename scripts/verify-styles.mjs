@@ -61,6 +61,17 @@ const COLOR_EXCEPTIONS = [
   'lib/useReviewRecorder.js',
   'domain/training.js',
   'domain/nutrition.js',
+  /*
+    La anamnesis que se descarga es un archivo SUELTO: se abre dentro de tres
+    años, en un ordenador que no conoce esta aplicación y sin su hoja de estilos.
+    Un `var(--texto)` ahí no apunta a nada y la declaración entera se invalida —
+    el documento saldría sin color de tinta y sin filetes.
+
+    Es el mismo motivo por el que están las excepciones de canvas, dicho de otra
+    manera: aquí tampoco hay tokens que resolver. Y por eso su paleta es sobria y
+    fija: el destino de esta hoja es el papel o el PDF de una consulta.
+  */
+  'lib/anamnesisDoc.js',
 ];
 
 /**

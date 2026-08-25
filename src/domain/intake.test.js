@@ -49,8 +49,8 @@ describe('safeLink', () => {
 });
 
 describe('clientIntake', () => {
-  it('sin preferencias devuelve los dos pasos que la app traía de siempre', () => {
-    expect(clientIntake(undefined).steps).toEqual(['onboarding', 'postureReview']);
+  it('sin preferencias devuelve los pasos de serie', () => {
+    expect(clientIntake(undefined).steps).toEqual(['form', 'gymPhotos', 'onboarding', 'postureReview']);
     expect(clientIntake({}).steps).toEqual(defaultIntake().steps);
     expect(clientIntake({ protocol: { modules: [] } }).steps).toEqual(defaultIntake().steps);
   });

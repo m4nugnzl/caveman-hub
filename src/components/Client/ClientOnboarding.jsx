@@ -1,7 +1,9 @@
 import { useApp } from '@/context/AppContext';
 import { PageHead } from '@/components/ui/primitives';
+import { DownloadAnamnesis } from '@/components/Coach/DownloadAnamnesis';
 import { ClientGymUpload } from './ClientGymUpload';
 import { IntakeQuestions } from './IntakeQuestions';
+import { IntakeTasks } from './IntakeTasks';
 
 /**
  * Su alta: lo que el cliente entrega al empezar.
@@ -37,11 +39,31 @@ export const ClientOnboarding = () => {
       <PageHead
         title="Tu alta"
         sub="Lo que tu entrenador necesita de ti para montarte el plan. Se hace una vez."
+        /*
+          Llevarse lo suyo, y en algo que se lee.
+
+          La exportación completa que existe es un JSON, y cumplir el derecho de
+          acceso con un JSON es cumplirlo sobre el papel: nadie lo abre. Esto es
+          su historial escrito para una persona — el mismo documento que se lleva
+          su entrenador, sacado de los mismos datos.
+        */
+        action={<DownloadAnamnesis client={activeClient} label="Descargar mi ficha" />}
       />
 
-      {/* El cuestionario primero: son datos que su entrenador necesita antes de
-          escribir la primera serie, y las fotos se hacen cuando pise el
-          gimnasio — que puede ser mañana. */}
+      {/*
+        La lista de tareas ANTES que las tareas.
+
+        Sin ella, esta pantalla era un cuestionario y un cajón de fotos, uno
+        detrás de otro, sin nada que dijera que eran dos entregas de la misma
+        cosa ni cuántas quedaban. Lo que se veía primero al bajar era «el
+        gimnasio donde entrenas», que parecía un apartado más de una pantalla
+        larga en lugar de lo segundo de tres.
+      */}
+      <IntakeTasks client={activeClient} />
+
+      {/* El cuestionario antes que las fotos: son datos que su entrenador
+          necesita para escribir la primera serie, y se contestan aquí y ahora.
+          Las fotos hay que ir a hacerlas al gimnasio, que puede ser mañana. */}
       <IntakeQuestions client={activeClient} />
 
       <ClientGymUpload client={activeClient} />

@@ -73,6 +73,58 @@
  * cobro» es una casilla del entrenador y pedirle un enlace sería ruido.
  */
 export const INTAKE_CATALOG = [
+  /*
+    ══ Los tres primeros son DEL CLIENTE, y se marcan solos ═══════════════════
+
+    El resto del catálogo son cosas que hace el entrenador y que marca a mano:
+    «he grabado el vídeo», «he hecho el análisis postural». Éstos no: los hace el
+    cliente, y la aplicación SABE cuándo están hechos —tiene sus respuestas, sus
+    fotos y su check-in—, así que pedirle al entrenador que los marque sería
+    pedirle que copie a mano un dato que ya tiene delante.
+
+    `owner: 'client'` es lo que hace que aparezcan en SU portal como lo que tiene
+    que hacer; `auto` dice de dónde se saca si está hecho (ver `stepDone`).
+
+    ── Por qué van en este catálogo y no en una lista aparte ──────────────────
+    Porque son la primera mitad de la misma cosa. El alta de un entrenador es
+    «que me mande esto, y con esto yo hago aquello»: partirla en dos listas
+    —lo suyo y lo mío— obligaría a mirar en dos sitios para saber si ya se puede
+    empezar, que es justo la pregunta que este bloque contesta.
+  */
+  /*
+    ── Dos textos por paso, y no es cosmética ────────────────────────────────
+    `label`/`hint` los lee el ENTRENADOR en su lista: hablan de una tercera
+    persona («las sube él»). `youLabel`/`youHint` los lee el CLIENTE en su
+    portal, y ahí esa misma frase es un texto sobre otro. Reutilizar uno solo
+    obligaba a elegir a quién se le habla mal.
+  */
+  {
+    id: 'form',
+    label: 'Cuestionario contestado',
+    hint: 'Lo que le preguntas al empezar. Las preguntas se eligen arriba.',
+    youLabel: 'Cuéntanos de ti',
+    youHint: 'Cuatro cosas sobre cómo entrenas y cómo comes. Aquí abajo.',
+    owner: 'client',
+    auto: 'form',
+  },
+  {
+    id: 'gymPhotos',
+    label: 'Fotos de su gimnasio',
+    hint: 'Las máquinas que tiene delante. Las sube él desde el móvil y las ordenas tú.',
+    youLabel: 'Las fotos de tu gimnasio',
+    youHint: 'Una foto a cada máquina. Sirven para montarte la rutina con lo que de verdad tienes.',
+    owner: 'client',
+    auto: 'gym',
+  },
+  {
+    id: 'firstCheckIn',
+    label: 'Primer check-in entregado',
+    hint: 'Su peso y sus fotos de partida. Es contra lo que se compara todo lo demás.',
+    youLabel: 'Tu primer check-in',
+    youHint: 'Tu peso y tus fotos de partida. Es contra lo que se compara todo lo que venga.',
+    owner: 'client',
+    auto: 'checkin',
+  },
   {
     id: 'welcome',
     label: 'Vídeo de bienvenida',
@@ -142,7 +194,22 @@ export const MAX_LINK = 300;
  * entre imponer una forma de trabajar y proponerla.
  */
 export const defaultIntake = () => ({
-  steps: ['onboarding', 'postureReview'],
+  /*
+    ── Y ahora los dos del cliente van delante ────────────────────────────────
+    Porque son lo PRIMERO que pasa: no hay onboarding que cerrar ni postura que
+    analizar hasta que la persona ha contado quién es y ha mandado las fotos de
+    su gimnasio. El orden de esta lista es el orden de su portal.
+
+    Entran en el valor por defecto y los otros dos no cambiaron: son filas de
+    ESTADO, se marcan solas y no le piden nada al entrenador. Quien ya tenga sus
+    pasos guardados no nota nada —`clientIntake` solo cae aquí cuando no hay nada
+    configurado— y quien empieza hoy tiene el circuito entero sin configurar.
+
+    `firstCheckIn` se queda fuera a propósito: pedir el primer pesaje es una
+    forma de trabajar, no la forma, y una fila que nunca se marca para quien no
+    usa check-ins es peor que no tenerla. Está en el catálogo, a un clic.
+  */
+  steps: ['form', 'gymPhotos', 'onboarding', 'postureReview'],
   custom: [],
   done: [],
   links: {},
@@ -266,8 +333,27 @@ export const intakeSteps = (intake) =>
  * Los dos pasos viejos viven en su columna de `clients` y el resto en las
  * preferencias. Quien pregunte por aquí no tiene que saber cuál es cuál.
  */
-export const stepDone = (step, client, intake) =>
-  step.column ? Boolean(client?.[step.column]) : intake.done.includes(step.id);
+export const stepDone = (step, client, intake, estado) => {
+  /*
+    Tres orígenes distintos, y quien pregunta no tiene que saber cuál es cuál:
+
+      · `auto`   → lo sabe la aplicación. No hay casilla que marcar: o están las
+                   respuestas, o están las fotos, o está el check-in.
+      · `column` → los dos pasos viejos, que viven en su columna de `clients`.
+      · el resto → una casilla en las preferencias.
+
+    `estado` puede no llegar —lo pintan varias pantallas y no todas tienen a mano
+    las tres cosas—, y entonces un paso automático se lee como NO hecho. Es el
+    lado seguro: decir que falta algo que está hecho se corrige mirándolo; decir
+    que está hecho algo que falta es lo que hace que nadie lo reclame.
+  */
+  if (step.auto) return Boolean(estado?.[step.auto]);
+  if (step.column) return Boolean(client?.[step.column]);
+  return intake.done.includes(step.id);
+};
+
+/** Los pasos que hace el CLIENTE. Es lo que se le pinta en su portal. */
+export const clientSteps = (intake) => intakeSteps(intake).filter((s) => s.owner === 'client');
 
 /** El enlace de un paso, ya saneado, o null. */
 export const stepLink = (intake, id) => intake.links[id] || null;
@@ -279,9 +365,9 @@ export const stepFile = (intake, id) => intake.files?.[id] || null;
 export const stepHasContent = (intake, id) => Boolean(stepLink(intake, id) || stepFile(intake, id));
 
 /** Cuánto queda del alta. `total` 0 significa que el entrenador no pide nada. */
-export const intakeProgress = (client, intake) => {
+export const intakeProgress = (client, intake, estado) => {
   const steps = intakeSteps(intake);
-  const done = steps.filter((step) => stepDone(step, client, intake)).length;
+  const done = steps.filter((step) => stepDone(step, client, intake, estado)).length;
   return { done, total: steps.length, complete: done === steps.length };
 };
 
