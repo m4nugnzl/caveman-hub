@@ -21,7 +21,7 @@ import { toTargetFields } from '@/domain/dietSheet';
   Con la convención de `useRoadmap.js` y la frontera de `useClients.js`: recibe
   `persist` y el estado espejado del bloque, que sigue siendo del proveedor.
 
-  `defineFoodUnit` NO está aquí: escribe a la vez en la dieta abierta (con
+  `editFood` NO está aquí: escribe a la vez en la dieta abierta (con
   `patchFood`, que este gancho devuelve) y en la biblioteca del equipo, así que
   es el puente entre dos dominios y vive en el proveedor, como `assignClient`.
 */

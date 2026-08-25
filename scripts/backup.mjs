@@ -92,6 +92,15 @@ const TABLES = [
   'check_ins',
   'client_events',
   'client_phases',
+  /* Lesiones, patologías y alergias (0077). Son datos de salud, así que si esta
+     tabla se quedara fuera, una restauración devolvería a los clientes sin lo
+     único de su ficha que condiciona lo que se les prescribe — y sin ruido: la
+     aplicación trata la ausencia como «no tiene ninguno». */
+  'client_conditions',
+  /* Las fotos de la maquinaria de su gimnasio (0079). Las FOTOS viven en el
+     bucket y no aquí; lo que se copia son las filas, sin las cuales las
+     imágenes quedan en el almacén sin nada que diga de quién son. */
+  'client_equipment',
   'exercises',
   'foods',
   'teams',

@@ -347,6 +347,53 @@ export const useClients = ({
   );
 
   /**
+   * Las respuestas del CLIENTE a su cuestionario de alta.
+   *
+   * ══ Por qué esto no es `updateClient({ profile })` ═════════════════════════
+   *
+   * Porque el que escribe es el cliente, y la 0002 deja `clients` en solo lectura
+   * para él — con razón: RLS filtra filas y no columnas, así que darle UPDATE
+   * sobre la suya le devolvería el poder de ponerse el cobro al día.
+   *
+   * `set_client_profile` (0080) escribe esa columna después de comprobar quién
+   * llama, y **mezcla en vez de reemplazar**: en `profile` conviven lo que
+   * contesta él y lo que apunta su entrenador, así que un reemplazo desde el
+   * portal borraría lo segundo cada vez que alguien guardara el formulario.
+   *
+   * El entrenador NO pasa por aquí: desde la ficha escribe el objeto entero con
+   * `updateClient`, porque él sí tiene que poder VACIAR un campo y una mezcla no
+   * puede borrar una clave.
+   *
+   * ── El estado local se actualiza aparte ────────────────────────────────────
+   * La función no devuelve la fila, así que la mezcla se repite aquí sobre lo que
+   * hay en memoria. Es la misma cuenta y hacerla dos veces es más barato que una
+   * segunda consulta para releer lo que acabamos de escribir.
+   */
+  const saveClientProfile = useCallback(
+    async (clientId, answers) => {
+      const { error } = await supabase.rpc('set_client_profile', {
+        target: clientId,
+        data: answers,
+      });
+
+      if (error) {
+        if (/does not exist|schema cache/i.test(error.message)) {
+          return { ok: false, error: 'Falta aplicar la migración 0080 para poder guardar esto.' };
+        }
+        return { ok: false, error: error.message };
+      }
+
+      setClients(
+        clientsRef.current.map((c) =>
+          c.id === clientId ? { ...c, profile: { ...(c.profile || {}), ...answers } } : c
+        )
+      );
+      return { ok: true };
+    },
+    [clientsRef, setClients]
+  );
+
+  /**
    * Guardar algo del protocolo PARA UN CLIENTE CONCRETO.
    *
    * ══ Por qué esto no es `updateClientPreferences` con otro nombre ════════════
@@ -619,13 +666,18 @@ export const useClients = ({
 
       const table = (name) => supabase.from(name).select('*').eq('client_id', clientId);
 
-      const [wd, anthro, nutri, photos, checkins, events] = await Promise.all([
+      const [wd, anthro, nutri, photos, checkins, events, conditions, equipment] = await Promise.all([
         table('workout_data'),
         table('anthropometry'),
         table('nutrition_plans'),
         table('progress_photos'),
         table('check_ins'),
         table('client_events'),
+        /* Lesiones, patologías y alergias (0077). Es lo MÁS sensible que hay
+           aquí dentro —artículo 9— y por tanto lo que menos puede faltar cuando
+           alguien pide todo lo que guardas de él. */
+        table('client_conditions'),
+        table('client_equipment'),
       ]);
 
       const failed = [wd, anthro, nutri, photos].find((r) => r.error);
@@ -671,10 +723,16 @@ export const useClients = ({
           antropometria: anthro.data || [],
           nutricion: nutri.data || [],
           fotos: (photos.data || []).map((p, i) => ({ ...p, enlace: signed[i]?.signedUrl || null })),
-          // Las dos últimas dependen de la migración 0009: si no está, se
-          // exporta lo que hay en vez de fallar entero.
+          // Las tres últimas dependen de una migración (0009 las dos primeras,
+          // 0077 la tercera): si no está, se exporta lo que hay en vez de fallar
+          // entero.
           checkIns: checkins.error ? [] : checkins.data,
           calendario: events.error ? [] : events.data,
+          condicionantes: conditions.error ? [] : conditions.data,
+          /* Las RUTAS de las fotos de su gimnasio, no las fotos. Se firman las de
+             progreso porque son suyas; estas son de una máquina de un gimnasio y
+             pesan lo mismo que la exportación entera. */
+          maquinaria: equipment.error ? [] : equipment.data,
         },
       };
     },
@@ -794,19 +852,34 @@ export const useClients = ({
     async (clientId) => {
       const problems = [];
 
-      /* Los archivos. Se listan del bucket en vez de fiarse de las filas: una
-         subida que falló a mitad puede haber dejado el archivo sin su fila. */
+      /*
+        Los archivos. Se listan del bucket en vez de fiarse de las filas: una
+        subida que falló a mitad puede haber dejado el archivo sin su fila.
+
+        ── Las carpetas, en una lista y no una escrita a mano ─────────────────
+        Eran solo `photos`, y al aparecer la maquinaria del gimnasio (0079) esa
+        línea suelta se convirtió en la forma de dejarse una carpeta entera de
+        alguien que ha pedido que se borren sus datos — sin error, sin aviso y
+        ocupando cuota para siempre. Ahora se recorren todas las que cuelgan del
+        cliente, que son las mismas que cuenta la cuota de la 0067.
+      */
       try {
-        const root = `${clientId}/photos`;
-        const folders = await supabase.storage.from(BUCKET).list(root, { limit: 1000 });
         const files = [];
-        for (const entry of folders.data || []) {
-          if (entry.id) {
-            files.push(`${root}/${entry.name}`);
-            continue;
+        for (const carpeta of ['photos', 'gym', 'intake', 'reviews']) {
+          const root = `${clientId}/${carpeta}`;
+          const folders = await supabase.storage.from(BUCKET).list(root, { limit: 1000 });
+          for (const entry of folders.data || []) {
+            /* Con `id` es un archivo; sin él, una subcarpeta (`week-3`). Solo se
+               baja un nivel, que es toda la profundidad que escribe la app. */
+            if (entry.id) {
+              files.push(`${root}/${entry.name}`);
+              continue;
+            }
+            const inner = await supabase.storage
+              .from(BUCKET)
+              .list(`${root}/${entry.name}`, { limit: 1000 });
+            for (const file of inner.data || []) files.push(`${root}/${entry.name}/${file.name}`);
           }
-          const inner = await supabase.storage.from(BUCKET).list(`${root}/${entry.name}`, { limit: 1000 });
-          for (const file of inner.data || []) files.push(`${root}/${entry.name}/${file.name}`);
         }
         if (files.length > 0) {
           const removed = await supabase.storage.from(BUCKET).remove(files);
@@ -824,6 +897,14 @@ export const useClients = ({
         'check_ins',
         'client_events',
         'client_invites',
+        /* La 0077 la crea CON cascada, así que la ficha se borraría igual sin
+           esta línea. Se pone de todas formas: la cascada es la red y esto es la
+           cuerda, y cuando lo que se está borrando son datos de salud a petición
+           de su dueño, las dos. */
+        'client_conditions',
+        /* La 0079 también nace con cascada; los ARCHIVOS los ha borrado el
+           bloque de arriba, que la base no sabe nada de ellos. */
+        'client_equipment',
       ]) {
         const res = await supabase.from(table).delete().eq('client_id', clientId);
         /* Una tabla que no existe (migración sin aplicar) no es un problema: es
@@ -901,6 +982,7 @@ export const useClients = ({
     normalizeLegacySessions,
     setClientArchived,
     updateClientPreferences,
+    saveClientProfile,
     saveClientException,
     applyProtocolToClient,
     publishUpdate,

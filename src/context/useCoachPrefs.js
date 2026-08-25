@@ -72,6 +72,22 @@ export const useCoachPrefs = ({ session }) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
 
+      /*
+        ══ Llamarla con un solo argumento fallaba EN SILENCIO ══════════════════
+
+        `updateCoachPreferences({ intakeForm: … })` —la forma en que uno espera
+        que funcione una función de parches— hacía que `section` fuera el objeto:
+        la clave interpolada salía «[object Object]» y la sección de verdad no se
+        escribía nunca. Sin error, sin aviso, y con la pantalla enseñando el valor
+        anterior porque lo guardado no volvía por donde se leía. Los interruptores
+        parecían muertos.
+
+        Un `if` convierte eso en algo que se ve la primera vez que se prueba.
+      */
+      if (typeof section !== 'string' || !section) {
+        return { ok: false, error: 'Falta decir qué sección de las preferencias se guarda.' };
+      }
+
       const next = {
         ...coachPrefs,
         [section]: { ...(coachPrefs[section] || {}), ...patch },

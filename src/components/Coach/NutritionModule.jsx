@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
+import { ConditionsNote } from '@/components/conditions/ConditionsNote';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
 import { DietNotes } from '@/components/nutrition/DietNotes';
@@ -43,6 +44,7 @@ const VARIANT_OPTIONS = [
 
 export const NutritionModule = () => {
   const {
+    session,
     activeClient,
     nutrition,
     foodLibrary,
@@ -73,7 +75,7 @@ export const NutritionModule = () => {
     updateFoodGrams,
     swapFood,
     setFoodDisplay,
-    defineFoodUnit,
+    editFood,
     upsertLibraryFood,
     importDiet,
     importRoutine,
@@ -196,6 +198,11 @@ export const NutritionModule = () => {
             </div>
           }
         />
+
+        {/* Sus alergias, intolerancias y patologías con impacto metabólico, si
+            tiene alguna. Lo mismo que en la rutina y por el mismo motivo: un
+            condicionante que hay que ir a buscar llega después de la decisión. */}
+        <ConditionsNote area="nutrition" />
 
         {pegarAbierto && (
           <PastePlanDialog
@@ -408,6 +415,7 @@ export const NutritionModule = () => {
                 firstMeal={mealIndex === 0}
                 lastMeal={mealIndex === meals.length - 1}
                 foodLibrary={alimentosDisponibles}
+                coachId={session?.user?.id || null}
                 catalogFoods={catalogFoods}
                 clientSwapsOn={clienteVeEquivalencias}
                 /* La excepción por alimento: nueces con margen, cornflakes sin
@@ -515,8 +523,8 @@ export const NutritionModule = () => {
                 onSetDisplay={(optIndex, foodId, mode) =>
                   setFoodDisplay(activeClient.id, variant, mealIndex, optIndex, foodId, mode)
                 }
-                onDefineUnit={(optIndex, food, label, grams) =>
-                  defineFoodUnit(activeClient.id, variant, mealIndex, optIndex, food, label, grams)
+                onEditFood={(optIndex, food, cambios) =>
+                  editFood(activeClient.id, variant, mealIndex, optIndex, food, cambios)
                 }
               />
             ))}

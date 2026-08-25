@@ -25,6 +25,8 @@ import { isEmptyDiet } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
 import { EmptyState, Fold, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
+import { ConditionsNote } from '@/components/conditions/ConditionsNote';
+import { EquipmentNote } from '@/components/equipment/EquipmentNote';
 import { useToast } from '@/components/ui/ToastProvider';
 import { SessionFeedback } from './SessionFeedback';
 import { WarmupEditor } from './WarmupBlock';
@@ -525,6 +527,16 @@ export const WorkoutLogEditor = () => {
         sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}
         action={indicator}
       />
+
+      {/* Sus lesiones y limitaciones, si tiene alguna. Va aquí arriba y no en un
+          menú porque lo que condiciona un programa tiene que verse ANTES de
+          montarlo — hasta ahora vivía en el PDF de su anamnesis, donde la
+          aplicación no podía leerlo. */}
+      <ConditionsNote area="training" />
+
+      {/* Y sus máquinas, plegadas. Es lo que se miraba en otra pestaña para
+          elegir los ejercicios de la semana. */}
+      <EquipmentNote />
 
       {bloqueDelPrograma}
 

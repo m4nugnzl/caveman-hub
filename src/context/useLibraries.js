@@ -10,7 +10,7 @@ import { toNum } from '@/lib/num';
   Con la convención de `useRoadmap.js` y la variante de `useCheckIns.js`: el
   arranque siembra las dos listas con los setters que este gancho devuelve.
 
-  `defineFoodUnit` NO está aquí: escribe a la vez en la dieta abierta y en la
+  `editFood` NO está aquí: escribe a la vez en la dieta abierta y en la
   biblioteca, así que es el puente entre dos dominios y vive en el proveedor.
 */
 
@@ -42,25 +42,54 @@ export const useLibraries = ({ session, team }) => {
    * y lo añade un entrenador suyo, salen dos «Pollo» con macros propios. Es
    * exactamente la divergencia de bibliotecas que `modelo-de-equipo.md` daba como
    * motivo para compartirlas.
+   *
+   * ══ Se busca en la de todos y se ESCRIBE solo en lo tuyo ═══════════════════
+   *
+   * Es el otro lado de lo anterior, y sin él la búsqueda por equipo tiene un
+   * agujero que se abre solo: dar de alta «Pollo» cuando un compañero ya lo tenía
+   * NO creaba un segundo «Pollo» —bien—, pero le REESCRIBÍA los macros a los
+   * suyos sin decir nada, y con ellos todas las dietas que montara a partir de
+   * entonces. No hacía falta ni querer editar nada: pasaba al añadir.
+   *
+   * La regla es la de `canEditLibraryItem`: se corrige lo que has dado de alta
+   * tú. Aquí, que es por donde pasan TODAS las escrituras de biblioteca —los
+   * alimentos y los ejercicios, el alta, la corrección y el «recordar» de la
+   * rutina—, se hace cumplir una sola vez.
+   *
+   * La base no la va a hacer cumplir por nosotros: las políticas de la 0006 y la
+   * 0027 dejan a cualquier miembro escribir cualquier fila del equipo, y está
+   * bien que sea así —es una biblioteca compartida, no cuatro—. Esto es una
+   * decisión de producto y por eso vive en el producto.
+   *
+   * Cuando la fila es de otro se devuelve TAL CUAL está, sin tocarla: quien llama
+   * refresca su copia local con la verdad de la base en vez de quedarse creyendo
+   * que escribió. Lo que estuviera montando en una dieta no se pierde —la entrada
+   * de una dieta es una copia congelada y es suya—, simplemente no se propaga a
+   * la biblioteca de nadie.
    */
   const upsertByName = useCallback(async (table, coachId, teamId, name, fields) => {
     const trimmed = name.trim();
 
-    let find = supabase.from(table).select('id').eq('name', trimmed);
+    /* `*` y no `id`: hace falta el `coach_id` para saber de quién es, y la fila
+       entera para poder devolverla sin una segunda petición cuando no es tuya. */
+    let find = supabase.from(table).select('*').eq('name', trimmed);
     find = teamId ? find.eq('team_id', teamId) : find.eq('coach_id', coachId);
 
     const { data: existing, error: findErr } = await find.maybeSingle();
     if (findErr) return { error: findErr };
 
     if (existing) {
+      if (existing.coach_id !== coachId) return { data: existing, error: null };
       return supabase.from(table).update(fields).eq('id', existing.id).select().single();
     }
 
     return supabase
       .from(table)
       // `coach_id` se sigue escribiendo porque es NOT NULL y su retirada va en
-      // otra migración (ver 0006). `team_id`, solo si hay equipo: sin la 0006 esa
-      // columna no existe y PostgREST rechazaría la fila entera.
+      // otra migración (ver 0006). Y ahora además es lo que decide quién puede
+      // corregir esta entrada después, así que menos prescindible que nunca.
+      // `team_id`, solo si hay equipo: sin la 0006 esa columna no existe y
+      // PostgREST rechazaría la fila entera.
       .insert({ coach_id: coachId, ...(teamId ? { team_id: teamId } : {}), name: trimmed, ...fields })
       .select()
       .single();

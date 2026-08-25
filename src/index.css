@@ -1057,6 +1057,61 @@ button.task-head:hover > .chevron { color: var(--text); }
 .folio-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .folio-foot { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin-top: auto; }
 
+/* ── La cabecera de la ficha ────────────────────────────────────────────────
+   Es la misma gramática que el folio de arriba —inicial, nombre, línea de voz
+   baja y una rejilla de hechos etiqueta/valor— porque es la misma persona: la
+   tarjeta de la lista, abierta.
+
+   Y aun así son clases propias, por una razón concreta: el folio lleva una capa
+   de clic por debajo (`.folio-hit`) y para dejarla pasar anula los eventos de
+   puntero de su cabecera y de sus hechos. Aquí la ficha NO navega a ningún
+   sitio, y heredar ese `pointer-events: none` impediría seleccionar con el ratón
+   el correo o el teléfono — que es justo lo que se viene a hacer a una ficha.
+
+   `.folio-mark` sí se reutiliza tal cual: la inicial de una persona se dibuja
+   igual en los tres sitios donde aparece. */
+.ficha-head { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.ficha-head > .who { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.ficha-head > .who > .name {
+  display: block; min-width: 0;
+  font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ficha-head > .who > .sub {
+  display: block; min-width: 0;
+  font-size: var(--fs-sm); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* La inicial, más grande que en la lista: aquí es el retrato de la pantalla y
+   no una marca de fila. */
+.ficha-head > .folio-mark { width: 48px; height: 48px; font-size: var(--fs-md); }
+
+/* Cuatro hechos y no `auto-fit`: son la anatomía de una persona y se leen como
+   una serie comparable. Con anchos distintos dejarían de parecer lo mismo, que
+   es el mismo motivo por el que `.tiles` fija sus cinco columnas. En el teléfono
+   bajan a dos, que es donde caben sin cortarse. */
+.ficha-facts {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s2) var(--s3);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  padding: var(--s3);
+}
+@media (max-width: 620px) {
+  .ficha-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.ficha-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ficha-fact > .k {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
+}
+/* Tinta plena y sin color: ninguno de los cuatro es una serie que se siga, y la
+   regla del proyecto es que una cifra sin serie no lleva color (`metrics.js`). */
+.ficha-fact > .v {
+  font-size: var(--fs-md); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ficha-fact > .v.is-empty { color: var(--text-tertiary); font-weight: 500; }
+
 /* Cifra de cabecera pulsable: la métrica ES el filtro, así que ver "4 sin
    entrenar" y filtrar por ellos es el mismo gesto.
 
@@ -1631,6 +1686,128 @@ button.task-head:hover > .chevron { color: var(--text); }
   left: 5px; top: 1px; width: 4px; height: 9px;
   border: solid var(--accent-on); border-width: 0 2px 2px 0;
   transform: rotate(45deg);
+}
+/* El tic ENTRA. Marcar una tarea es la única casilla de la aplicación que
+   celebra algo —las otras dos formas encienden opciones— y aparecer de golpe
+   hace dudar de si se ha marcado la fila que se pulsó.
+
+   La escala arranca en 0.3 y no en 0 porque un tic que nace de la nada parpadea;
+   naciendo pequeño se lee el gesto. El `rotate(45deg)` va en las dos puntas del
+   fotograma: sin él, el tic gira mientras crece y parece un aspa. */
+@media (prefers-reduced-motion: no-preference) {
+  .checkbox-row input[type='checkbox']:checked::after { animation: tic-entra 0.18s var(--ease); }
+}
+@keyframes tic-entra {
+  from { opacity: 0; transform: rotate(45deg) scale(0.3); }
+  to { opacity: 1; transform: rotate(45deg) scale(1); }
+}
+
+/* ── La casilla con etiqueta de dos líneas ──────────────────────────────────
+   `.checkbox-row` centra su contenido, que es lo correcto con una sola línea de
+   texto y lo que descuadra la casilla en cuanto hay una explicación debajo: el
+   cuadro se va al centro del BLOQUE, o sea a media altura entre el título y su
+   letra pequeña, y deja de pertenecer a ninguno de los dos.
+
+   Se resolvía con `alignItems: 'flex-start'` escrito en línea en cada sitio, y
+   ahí el cuadro se iba 2,6 px por DEBAJO del centro óptico de la primera línea:
+   los 3 px de margen que le dan blanco táctil arriba y abajo no se compensan
+   contra una línea de 18,85 px (13 px × 1,45). Es poco y se nota — es el motivo
+   de que los pasos del alta se leyeran torcidos.
+
+   Anulando el margen SUPERIOR el cuadro centra en 9 px contra los 9,4 de la
+   línea. El de los lados se queda: es el que separa del texto y el que da
+   blanco al dedo. */
+.checkbox-row.is-block { align-items: flex-start; }
+.checkbox-row.is-block > input[type='checkbox'] { margin-top: 0; }
+
+/* ── La fila de un paso del alta ────────────────────────────────────────────
+   Casi toda la fila es una etiqueta de casilla, o sea que casi toda la fila se
+   puede pulsar — y nada lo decía: el cursor cambiaba sobre el texto y la
+   superficie se quedaba quieta, que es la señal de algo que NO responde. El
+   canto se marca al pasar por encima; el fondo no se toca, porque un hundido
+   que cambia de tono compite con la tarjeta que lo contiene.
+
+   Un paso ya hecho baja el canto en vez de subirlo: la lista existe para
+   enseñar lo que FALTA, y lo terminado tiene que dejar de pedir la vista. */
+.step-row { transition: border-color var(--fast); }
+.step-row:hover { border-color: var(--hairline-strong); }
+.step-row.is-done { border-color: var(--hairline); }
+
+/* Un bloque que sustituye a otro en su sitio: leer ⇄ editar. Solo opacidad —
+   desplazar lo que aparece donde ya había algo se lee como un salto, no como una
+   transición. */
+@media (prefers-reduced-motion: no-preference) {
+  .swap-in { animation: fade 0.2s var(--ease); }
+}
+
+/* ── Las fotos de la maquinaria de su gimnasio ──────────────────────────────
+   Miniaturas pequeñas y muchas: lo que se mira es la FORMA de la máquina para
+   reconocerla, no su detalle. A 150 px caben seis por fila en escritorio y dos
+   en un teléfono, que es lo que convierte cuarenta fotos en algo que se recorre
+   de un vistazo en vez de en un scroll.
+
+   `auto-fill` y no `auto-fit`: con tres fotos en una fila de seis huecos, el
+   segundo las estiraría hasta ocupar el ancho entero y tres máquinas se verían
+   gigantes al lado de las seis del grupo de al lado. Aquí el tamaño tiene que
+   ser el mismo en todos los grupos. */
+.gym-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: var(--s2);
+}
+
+.gym-shot {
+  position: relative; margin: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  border-radius: var(--r-md); overflow: hidden;
+}
+.gym-shot > img {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: var(--r-md); background: var(--fill);
+}
+.gym-shot > figcaption { padding: 0 2px; }
+/* El selector de grupo debajo de cada foto. Pequeño y a ancho completo: es la
+   etiqueta de la imagen, no un control de formulario, así que tiene que caber en
+   la columna de 150 px sin obligar a la rejilla a ensancharse. */
+.select-xs {
+  width: 100%; min-width: 0;
+  font-size: var(--fs-2xs); padding: 3px 6px; height: auto;
+}
+/* La pieza que no se pudo firmar. Ocupa lo mismo que una foto para que la
+   rejilla no se descoloque, y dice por qué en vez de enseñar un cuadro roto. */
+.gym-shot-missing {
+  display: grid; place-items: center; text-align: center;
+  aspect-ratio: 4 / 3; padding: var(--s2);
+  border-radius: var(--r-md); background: var(--fill);
+}
+
+/* Borrar aparece al pasar por encima. En el móvil no hay «encima», así que ahí
+   está siempre: una acción que no se puede alcanzar con el dedo no existe. */
+.gym-shot-del {
+  position: absolute; top: 4px; right: 4px;
+  display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  border: 0; cursor: pointer;
+  /* Tinta clara FIJA sobre el velo oscuro, en los dos temas: lo que hay debajo
+     es una fotografía y no la superficie de la aplicación, así que `--accent-on`
+     —que se vuelve tinta oscura en tema oscuro— desaparecería. Mismo trato que
+     `.photo-thumb-tag`, que resuelve este caso desde el estudio de fotos. */
+  background: var(--scrim); color: #fff;
+  opacity: 0; transition: opacity var(--fast);
+}
+.gym-shot:hover > .gym-shot-del,
+.gym-shot-del:focus-visible { opacity: 1; }
+@media (hover: none) {
+  .gym-shot-del { opacity: 1; }
+}
+
+/* El icono que gira mientras sube. Un `Loader2` quieto no dice «estoy
+   trabajando»: dice «me he colgado». */
+@media (prefers-reduced-motion: no-preference) {
+  .spin { animation: girar 1s linear infinite; }
+}
+@keyframes girar {
+  to { transform: rotate(360deg); }
 }
 .checkbox-row input[type='checkbox']:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
@@ -6605,7 +6782,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .food-row:hover { background: var(--fill-subtle); }
 
-/* El nombre lleva dentro el botón de equivalencias, así que la celda pasa a ser
+/* El nombre lleva dentro sus botones —equivalencias y editar—, así que la celda
    flex y los puntos suspensivos bajan al texto: si recortara la celda entera,
    un nombre largo se tragaría el botón — que en la vista del cliente es la
    única puerta a sus equivalencias. */
@@ -6621,9 +6798,9 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
 /* En gris de terciario para no competir con los datos de la fila: es una puerta,
    no un dato. Al pasar por encima toma el acento, que es lo que dice «esto se
-   pulsa» sin ocupar más sitio. */
-.equiv-btn { color: var(--text-tertiary); flex-shrink: 0; }
-.equiv-btn:hover { color: var(--accent); }
+   pulsa» sin ocupar más sitio. Vale para los dos: equivalencias y editar. */
+.food-row > .name > .btn-icon { color: var(--text-tertiary); flex-shrink: 0; }
+.food-row > .name > .btn-icon:hover { color: var(--accent); }
 /* El alimento al que el entrenador le quitó las equivalencias: el icono sigue
    —es su herramienta y el diálogo es donde se revierte— pero apagado, para ver
    de un barrido a cuáles les quitó el margen. Solo lo ve él: al cliente ese

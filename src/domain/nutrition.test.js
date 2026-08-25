@@ -15,6 +15,7 @@ import {
   hasUnits,
   emptyNutrition,
   isEmptyDiet,
+  macroError,
   MAX_NOTES,
   mealTarget,
   mealTargetsTotal,
@@ -108,6 +109,41 @@ describe('hasUnits', () => {
   });
 });
 
+/**
+ * ══ Corregir un alimento mal dado de alta ══════════════════════════════════
+ *
+ * El caso real: se teclea «135» donde iban «13,5» y el alimento entra así en la
+ * biblioteca del equipo. Antes no había vuelta atrás —solo se podía tocar al
+ * crearlo— y ahora la hay (`FoodDialog`), pero lo primero es que la cifra
+ * imposible no llegue a entrar.
+ *
+ * El tope no es una preferencia: 100 g de un alimento no pueden llevar más de
+ * 100 g de nada. El aceite, que es el extremo, lleva 100 de grasa.
+ */
+describe('macroError — un macro por 100 g imposible es siempre un error de tecleo', () => {
+  it.each([
+    ['', null, 'en blanco vale: significa cero'],
+    ['   ', null, 'solo espacios es lo mismo que en blanco'],
+    [null, null, 'sin dato'],
+    ['0', null, 'cero es un macro legítimo'],
+    ['13,5', null, 'coma decimal, que es lo que produce el teclado español'],
+    ['100', null, 'el extremo: el aceite lleva 100 g de grasa por 100 g'],
+    ['100.1', 'Máximo 100 por 100 g.', 'pasarse del tope, aunque sea por poco'],
+    ['135', 'Máximo 100 por 100 g.', 'el error que motivó todo esto'],
+    ['-1', 'No puede ser negativo.', 'negativo'],
+    ['pollo', 'Solo números.', 'texto'],
+  ])('%#: %s', (value, expected) => {
+    expect(macroError(value)).toBe(expected);
+  });
+
+  /* La comprobación vive en el dominio y no en cada pantalla para que el alta
+     (`AddFoodControl`) y la corrección (`FoodDialog`) no puedan discrepar: sería
+     absurdo que se pudiera crear un alimento que luego no se deja guardar. */
+  it('el cero se distingue del vacío, y los dos valen', () => {
+    expect(macroError('0')).toBe(null);
+    expect(macroError('')).toBe(null);
+  });
+});
 describe('moveItem', () => {
   const lista = ['a', 'b', 'c', 'd'];
 

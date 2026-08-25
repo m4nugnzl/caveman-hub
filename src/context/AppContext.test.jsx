@@ -113,9 +113,18 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 181 claves', () => {
+  it('el reparto conserva las 191 claves', () => {
     montar();
-    // 181 al poner `ensureNutrition` en la fachada: existía en el proveedor y se
+    // 191 desde el cuestionario de alta (0080): `saveClientProfile`, el único
+    // camino por el que el CLIENTE escribe en su ficha — pasa por una función
+    // de la base porque la 0002 le deja `clients` en solo lectura.
+    // Antes 190, desde la maquinaria del gimnasio (0079): el estado `equipment` y sus
+    // tres acciones. Sin `resolveEquipment`: una máquina no se cura, se quita.
+    // Antes 186, desde los condicionantes (0077): el estado `conditions` y sus cuatro
+    // acciones —`addCondition`, `updateCondition`, `resolveCondition` y
+    // `removeCondition`—. Resolver y borrar son dos y no una a propósito: una
+    // lesión curada se conserva con su fecha y solo se borra lo que se apuntó mal.
+    // Antes 181, al poner `ensureNutrition` en la fachada: existía en el proveedor y se
     // le pasaba a `useWorkout`, pero nunca se expuso, así que la pantalla de
     // nutrición lo pedía y recibía `undefined`.
     // Antes 180, desde las excepciones del protocolo: `saveClientException`, el guardado
@@ -135,7 +144,7 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(181);
+    expect(Object.keys(visto.app).length).toBe(191);
   });
 
   /*

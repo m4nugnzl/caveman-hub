@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { byCategory, mergeCatalog } from './catalog';
+import { byCategory, canEditLibraryItem, findByName, mergeCatalog } from './catalog';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -75,6 +75,67 @@ describe('mergeCatalog', () => {
   // 2 míos + 2 del catálogo (el pan se deduplica) y el nulo se descarta.
   it('aguanta filas nulas sin explotar', () => {
     expect(mergeCatalog(mios, [null, ...comunes])).toHaveLength(4);
+  });
+});
+
+/**
+ * ══ Solo se corrige lo que diste de alta tú ════════════════════════════════
+ *
+ * La biblioteca es del EQUIPO (0006) y sus políticas dejan a cualquier miembro
+ * escribir cualquier fila: la base no para nada de esto. Y el catálogo (0033) es
+ * de todos y de nadie. Así que la regla es de producto y se comprueba aquí.
+ */
+describe('canEditLibraryItem', () => {
+  const YO = 'coach-1';
+  const OTRO = 'coach-2';
+
+  const equipo = [
+    { name: 'Pan integral', coachId: YO },
+    { name: 'Pechuga de pollo', coachId: OTRO },
+  ];
+  const lista = mergeCatalog(equipo, [{ name: 'Lentejas' }]);
+
+  it.each([
+    ['Pan integral', true, 'lo diste de alta tú'],
+    ['pan INTEGRAL ', true, 'y da igual cómo se escriba: misma clave que la mezcla'],
+    ['Pechuga de pollo', false, 'lo dio de alta un compañero de equipo'],
+    ['Lentejas', false, 'el catálogo común no lo edita nadie desde el navegador'],
+    ['Boniato', true, 'no está en la biblioteca de nadie: al guardarlo nace tuyo'],
+  ])('%#: %s', (name, expected) => {
+    expect(canEditLibraryItem(name, lista, YO)).toBe(expected);
+  });
+
+  /* Sin sesión no se corrige nada. Es la vista del cliente, que ya no enseña el
+     lápiz por `editable`; esto es el cinturón además de los tirantes. */
+  it('sin saber quién eres, nada es tuyo', () => {
+    expect(canEditLibraryItem('Pan integral', lista, null)).toBe(false);
+  });
+
+  /*
+    El caso que de verdad importa y que no se ve mirando una lista: el catálogo
+    solo queda fuera MIENTRAS no lo hayas usado. En cuanto lo eliges se copia a
+    tu biblioteca con tu nombre encima, y esa copia sí se corrige — que es lo que
+    prometen la 0033 y la cabecera de este archivo.
+  */
+  it('un alimento del catálogo, una vez copiado, ya es tuyo', () => {
+    expect(canEditLibraryItem('Lentejas', lista, YO)).toBe(false);
+
+    const despues = mergeCatalog([...equipo, { name: 'Lentejas', coachId: YO }], [{ name: 'Lentejas' }]);
+    expect(canEditLibraryItem('Lentejas', despues, YO)).toBe(true);
+  });
+});
+
+describe('findByName', () => {
+  const lista = [{ name: 'Pan integral', coachId: 'a' }];
+
+  it('encuentra ignorando mayúsculas y espacios, como la mezcla', () => {
+    expect(findByName(lista, '  PAN Integral ')?.coachId).toBe('a');
+  });
+
+  it('devuelve null y no revienta con lo que no está', () => {
+    expect(findByName(lista, 'Boniato')).toBe(null);
+    expect(findByName(undefined, 'Pan integral')).toBe(null);
+    expect(findByName(lista, null)).toBe(null);
   });
 });
 

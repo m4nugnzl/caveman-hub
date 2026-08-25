@@ -21,11 +21,14 @@ import {
   foodUnits,
   gramsFromUnits,
   hasUnits,
+  macroError,
   mealTarget,
   optionMacros,
   unitsLabel,
 } from '@/domain/nutrition';
+import { canEditLibraryItem } from '@/domain/catalog';
 import { equivalencesFor } from '@/domain/foodEquiv';
+import { toNum, toNum0 } from '@/lib/num';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -106,12 +109,13 @@ const FoodRow = ({
   editable,
   catalogFoods = [],
   libraryFoods = [],
+  coachId = null,
   clientSwapsOn = false,
   onSwap,
   onSetEquivalences,
   onGrams,
   onSetDisplay,
-  onDefineUnit,
+  onEditFood,
   onMove,
   onRemove,
   first,
@@ -125,10 +129,24 @@ const FoodRow = ({
   onDrop,
 }) => {
   const macros = foodMacros(food);
-  const [definiendo, setDefiniendo] = useState(false);
+  const [editando, setEditando] = useState(false);
   const [equivalenciasAbiertas, setEquivalenciasAbiertas] = useState(false);
   const sePuede = hasUnits(food);
   const porUnidades = displayAsUnits(food);
+  /*
+    ¿Este alimento lo diste de alta TÚ? Es lo único que se puede corregir: la
+    biblioteca es del EQUIPO y el catálogo es de todos, así que lo tuyo de
+    verdad es lo que creaste. La regla entera está en `canEditLibraryItem`.
+
+    Se resuelve por NOMBRE contra la lista que la tarjeta ya recibe —biblioteca
+    y catálogo mezclados—, porque la entrada de la dieta es una copia congelada
+    y no guarda de quién era el original. Ni debe: el original puede cambiar de
+    manos o desaparecer y la copia sigue siendo la misma.
+  */
+  const mio = useMemo(
+    () => canEditLibraryItem(food.name, libraryFoods, coachId),
+    [food.name, libraryFoods, coachId]
+  );
 
   /*
     ── Las equivalencias de este alimento ─────────────────────────────────────
@@ -258,6 +276,27 @@ const FoodRow = ({
             <ArrowRightLeft size={12} />
           </button>
         )}
+
+        {/*
+          Corregir el alimento. Aquí, pegado al nombre, porque lo que se corrige
+          es QUÉ ES este alimento —sus macros por 100 g, su unidad—, no cuánto
+          hay de él en esta comida, que es la columna de al lado.
+
+          Sin esto un macro mal tecleado no tenía vuelta atrás: el alimento solo
+          se podía tocar al crearlo, y volver a añadirlo devolvía de la
+          biblioteca la misma cifra equivocada. Ver `FoodDialog`.
+        */}
+        {editable && onEditFood && mio && (
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-compact"
+            onClick={() => setEditando(true)}
+            aria-label={`Editar ${food.name}`}
+            title="Editar macros y unidad"
+          >
+            <Pencil size={12} />
+          </button>
+        )}
       </span>
 
       <span className="grams" title={equivalencia}>
@@ -292,7 +331,7 @@ const FoodRow = ({
           siempre es corta; la larga se ve entera al desplegarlo, que es donde
           hace falta.
         */}
-        {editable ? (
+        {editable && (sePuede || mio) ? (
           <select
             className="select unit-select"
             value={porUnidades ? 'units' : 'grams'}
@@ -304,15 +343,21 @@ const FoodRow = ({
                 se queda seleccionada. Como el `value` lo manda el alimento y no
                 el evento, el desplegable vuelve solo a lo que estaba.
               */
-              if (e.target.value === 'define') setDefiniendo(true);
+              if (e.target.value === 'define') setEditando(true);
               else onSetDisplay(e.target.value);
             }}
           >
             <option value="grams">g</option>
             {sePuede && <option value="units">{abreviar(food.unitLabel)}</option>}
-            <option value="define">
-              {sePuede ? `Cambiar ${food.unitLabel}…` : 'Definir unidad…'}
-            </option>
+            {/* Definir la unidad escribe en la biblioteca igual que los macros,
+                así que no aparece en un alimento que no es tuyo. Lo que SÍ se
+                puede es elegir en cuál de las dos medidas se lee esta entrada:
+                eso vive en la dieta y es de quien la monta. */}
+            {mio && (
+              <option value="define">
+                {sePuede ? `Cambiar ${food.unitLabel}…` : 'Definir unidad…'}
+              </option>
+            )}
           </select>
         ) : (
           <span className="unit">{porUnidades ? abreviar(food.unitLabel) : 'g'}</span>
@@ -348,14 +393,14 @@ const FoodRow = ({
   return (
     <>
       {row}
-      {definiendo && (
-        <UnitDialog
+      {editando && (
+        <FoodDialog
           food={food}
-          onClose={() => setDefiniendo(false)}
+          onClose={() => setEditando(false)}
           onSetDisplay={onSetDisplay}
-          onSave={(unitLabel, unitGrams) => {
-            onDefineUnit(unitLabel, unitGrams);
-            setDefiniendo(false);
+          onSave={(cambios) => {
+            onEditFood(cambios);
+            setEditando(false);
           }}
         />
       )}
@@ -383,57 +428,137 @@ const FoodRow = ({
 };
 
 /**
- * Definir cuánto pesa una unidad, sin salir de la dieta.
+ * Corregir un alimento sin salir de la dieta: sus macros y cómo se cuenta.
  *
- * ── Por qué aquí y no en la biblioteca ──────────────────────────────────────
- * Porque no existe una pantalla de biblioteca: un alimento solo se podía tocar
- * EN EL MOMENTO DE CREARLO, y a partir de ahí quedaba congelado. Así que un
- * alimento dado de alta antes de que existieran las unidades —o con un nombre que
- * no estaba en la lista de la 0030, como «Huevos enteros frescos»— no tenía forma
- * de recibir la suya.
+ * ── Por qué aquí y no en una pantalla de biblioteca ─────────────────────────
+ * Porque no existe una: un alimento solo se podía tocar EN EL MOMENTO DE
+ * CREARLO —las casillas de `AddFoodControl`— y a partir de ahí quedaba
+ * congelado. Quien tecleaba «135» donde iban «13,5» no tenía ningún camino de
+ * vuelta, y quitarlo y volverlo a añadir tampoco servía: lo que vuelve de la
+ * biblioteca es exactamente lo que se guardó mal.
  *
- * Y este es además el sitio donde te das cuenta de que la necesitas: montando la
- * dieta, no administrando una lista.
+ * Y este es además el sitio donde uno se da cuenta: montando la dieta, viendo
+ * unas kcal que no cuadran, no administrando una lista.
  *
- * Lo que se guarda va a la BIBLIOTECA, no solo a esta entrada: la próxima vez que
- * añadas ese alimento a cualquier dieta ya vendrá con su unidad puesta.
+ * También es la puerta de la unidad para un alimento dado de alta antes de que
+ * existieran las unidades —o con un nombre que no está en la lista de la 0030,
+ * como «Huevos enteros frescos»—, que era lo único que este diálogo hacía
+ * antes. Es la misma pregunta —«qué es este alimento»— y por eso es un solo
+ * diálogo y no dos.
+ *
+ * ── Escribe en DOS sitios, y es deliberado ──────────────────────────────────
+ *   1. **La entrada abierta**, para que el cambio se vea al instante. No es un
+ *      atajo: una entrada de dieta es una FOTO del alimento (ver
+ *      `buildFoodEntry`) y no se recalcula sola cuando cambia la biblioteca.
+ *   2. **La biblioteca**, para no repetir la corrección cada vez que se añada.
+ *
+ * Y esa misma foto es el motivo de que las OTRAS dietas que ya llevan este
+ * alimento se queden como estaban. Es a propósito —corregir un alimento no
+ * puede reescribirle la dieta a veinte clientes a sus espaldas— y significa que
+ * ahí la corrección hay que repetirla.
  */
-const UnitDialog = ({ food, onClose, onSetDisplay, onSave }) => {
+const FoodDialog = ({ food, onClose, onSetDisplay, onSave }) => {
+  /* Como texto y no como número: son casillas, y mientras se escribe hay que
+     poder distinguir «0» de «vacío» (ver `toNum` en `lib/num.js`). */
+  const [macros, setMacros] = useState(() =>
+    Object.fromEntries(MACRO_META.map(({ key }) => [key, String(food[`${key}Per100`] ?? '')]))
+  );
   const [label, setLabel] = useState(food.unitLabel || '');
   const [grams, setGrams] = useState(food.unitGrams || '');
 
+  const errores = Object.fromEntries(MACRO_META.map(({ key }) => [key, macroError(macros[key])]));
+  const hayError = Object.values(errores).some(Boolean);
+
   const limpio = label.trim();
-  const gramos = Number(String(grams).replace(',', '.'));
-  const valido = limpio.length > 0 && Number.isFinite(gramos) && gramos > 0;
+  const gramos = toNum(grams);
+  const unidadValida = limpio.length > 0 && gramos !== null && gramos > 0;
+  /* Sin etiqueta se le QUITA la unidad al alimento, y las dos columnas viajan
+     juntas o no viaja ninguna (CHECK de la 0030): vaciar solo la etiqueta y
+     dejar los gramos huérfanos lo rechaza la base. Con etiqueta escrita, los
+     gramos son obligatorios; sin ella, sobran. */
+  const unidadCompleta = unidadValida || limpio.length === 0;
+  const valido = !hayError && unidadCompleta;
+
+  /* Lo que se va a guardar, ya en números. Es también lo que alimenta la
+     previsualización de abajo, así que lo que se lee ahí es exactamente lo que
+     se escribe al pulsar Guardar. */
+  const cambios = {
+    ...Object.fromEntries(MACRO_META.map(({ key }) => [`${key}Per100`, toNum0(macros[key])])),
+    unitLabel: unidadValida ? limpio : null,
+    unitGrams: unidadValida ? gramos : null,
+  };
+
+  const antes = foodMacros(food);
+  const despues = foodMacros({ ...food, ...cambios });
+  const cambiaKcal = Math.round(antes.kcal) !== Math.round(despues.kcal);
+  const cambiaUnidad =
+    unidadValida && (limpio !== (food.unitLabel || '') || gramos !== toNum(food.unitGrams));
 
   const guardar = (e) => {
     e.preventDefault();
-    if (valido) onSave(limpio, gramos);
+    if (valido) onSave(cambios);
   };
 
   return (
     <Modal
-      title={`Cómo se cuenta ${food.name}`}
+      title={`Editar ${food.name}`}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancelar
           </button>
-          <button type="submit" form="unit-form" className="btn btn-primary" disabled={!valido}>
+          <button type="submit" form="food-form" className="btn btn-primary" disabled={!valido}>
             Guardar
           </button>
         </>
       }
     >
       {/* El `form` va dentro del cuerpo y los botones en el pie del diálogo, así
-          que se enlazan por `form="unit-form"`. Es lo que permite que Enter
-          guarde desde cualquiera de los dos campos sin duplicar el manejador. */}
-      <form id="unit-form" className="col gap-4" onSubmit={guardar}>
+          que se enlazan por `form="food-form"`. Es lo que permite que Enter
+          guarde desde cualquiera de los campos sin duplicar el manejador. */}
+      <form id="food-form" className="col gap-4" onSubmit={guardar}>
         {/*
-          Elegir la medida solo tiene sentido cuando hay dos entre las que elegir.
-          Con el alimento sin unidad definida, este diálogo es únicamente el
-          formulario de abajo.
+          ── Los macros, primero ──────────────────────────────────────────────
+          Es lo que trae aquí a casi todo el mundo: la cifra que se tecleó mal.
+          Van con el color de su macro, el mismo del anillo y de la cabecera de
+          la tabla, para que se lean como las tres columnas de las que salen.
+        */}
+        <div className="row-end wrap gap-2">
+          {MACRO_META.map(({ key, label: nombre, color }) => (
+            <Field
+              key={key}
+              /* El nombre entero y con el color de su macro: los mismos del
+                 anillo y de la cabecera de la tabla, para que las tres casillas
+                 se lean como las tres columnas de las que salen. Aquí hay sitio
+                 para escribirlo; en la fila de la tabla no lo hay. */
+              label={
+                <>
+                  <span style={{ color }}>{nombre}</span> /100 g
+                </>
+              }
+              error={errores[key]}
+              className="grow"
+            >
+              {(props) => (
+                <input
+                  {...props}
+                  type="text"
+                  inputMode="decimal"
+                  className="input input-center"
+                  value={macros[key]}
+                  onChange={(e) => setMacros({ ...macros, [key]: e.target.value })}
+                  aria-label={`${nombre} por 100 g de ${food.name}`}
+                />
+              )}
+            </Field>
+          ))}
+        </div>
+
+        {/*
+          Elegir la medida solo tiene sentido cuando hay dos entre las que
+          elegir. Con el alimento sin unidad definida, aquí no hay nada que
+          elegir.
 
           Cambiar de medida se aplica al momento y cierra: es una elección, no
           algo que haya que confirmar. Guardar, en cambio, escribe en la
@@ -455,8 +580,10 @@ const UnitDialog = ({ food, onClose, onSetDisplay, onSave }) => {
             />
           </Field>
         )}
+
         {/*
-          Los dos campos en rejilla de dos columnas y ambos al ancho de su celda.
+          Los dos campos de la unidad, en rejilla de dos columnas y ambos al
+          ancho de su celda.
 
           Antes era una fila flexible con el segundo a 90 px fijos: el primero
           crecía, el segundo no, y quedaban de tamaños distintos y sin alinear
@@ -465,7 +592,7 @@ const UnitDialog = ({ food, onClose, onSetDisplay, onSave }) => {
         */}
         <div className="grid-2">
           <Field
-            label="Se cuenta en"
+            label="Se cuenta en (opcional)"
             /*
               Los ejemplos van de lo general a lo concreto: «unidad» sirve para
               casi todo —un huevo, una manzana, un yogur— y es la que más se va a
@@ -480,22 +607,25 @@ const UnitDialog = ({ food, onClose, onSetDisplay, onSave }) => {
             {(props) => (
               <input
                 {...props}
-                autoFocus
                 className="input"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 /*
                   Neutro a propósito. Ponía «huevo», y este diálogo lo abre
-                  cualquier alimento: leer «Cómo se cuenta Brócoli → huevo» hace
-                  dudar de si el campo está relleno o de si la aplicación se ha
-                  equivocado de alimento.
+                  cualquier alimento: leer «Editar Brócoli → huevo» hace dudar de
+                  si el campo está relleno o de si la aplicación se ha equivocado
+                  de alimento.
                 */
-                placeholder="unidad"
+                placeholder="Se pesa en gramos"
               />
             )}
           </Field>
 
-          <Field label="Gramos por unidad" hint="Lo que pesa una, en crudo.">
+          <Field
+            label="Gramos por unidad"
+            hint="Lo que pesa una, en crudo."
+            error={limpio && !unidadValida ? 'Hace falta el peso de una.' : null}
+          >
             {(props) => (
               <input
                 {...props}
@@ -504,6 +634,9 @@ const UnitDialog = ({ food, onClose, onSetDisplay, onSave }) => {
                 className="input"
                 value={grams}
                 onChange={(e) => setGrams(e.target.value)}
+                // Sin etiqueta este número no significa nada, igual que en el
+                // alta (`AddFoodControl`): las dos columnas van juntas.
+                disabled={!limpio}
               />
             )}
           </Field>
@@ -511,19 +644,31 @@ const UnitDialog = ({ food, onClose, onSetDisplay, onSave }) => {
 
         {/*
           Lo que va a pasar con ESTE alimento y sus gramos actuales, antes de
-          guardar. Es lo que convierte dos casillas en una decisión: se ve al
-          momento si 55 es el peso de una pieza o si te has equivocado de orden
-          de magnitud.
+          guardar. Es lo que convierte unas casillas en una decisión: se ve al
+          momento si el 135 que se acaba de corregir era de verdad el error —las
+          kcal caen a la décima parte— o si 55 es el peso de una pieza.
         */}
-        <Notice tone="info">
-          {valido ? (
-            <>
-              1 {limpio} = {gramos} g, así que los <strong>{food.grams} g</strong> de esta comida
-              pasarán a leerse como{' '}
-              <strong>{unitsLabel({ ...food, unitLabel: limpio, unitGrams: gramos })}</strong>.
-            </>
+        <Notice tone={valido ? 'info' : 'warn'}>
+          {!valido ? (
+            'Revisa lo que está marcado en rojo: así no se puede guardar.'
           ) : (
-            'Escribe cómo se cuenta y cuánto pesa una unidad. Se guarda en tu biblioteca, así que la próxima vez que añadas este alimento a cualquier dieta ya vendrá con su unidad.'
+            <>
+              {cambiaKcal && (
+                <>
+                  Los <strong>{food.grams} g</strong> de esta comida pasan de{' '}
+                  <strong>{Math.round(antes.kcal)}</strong> a{' '}
+                  <strong>{Math.round(despues.kcal)} kcal</strong>.{' '}
+                </>
+              )}
+              {cambiaUnidad && (
+                <>
+                  1 {limpio} = {gramos} g, así que se leerán como{' '}
+                  <strong>{unitsLabel({ ...food, unitLabel: limpio, unitGrams: gramos })}</strong>.{' '}
+                </>
+              )}
+              Se guarda en esta comida y en tu biblioteca. Las dietas que ya llevan este alimento se
+              quedan como están.
+            </>
           )}
         </Notice>
       </form>
@@ -548,6 +693,10 @@ export const MealCard = ({
      (fruta, carne…), que es lo que necesitan las equivalencias. Sin él no hay
      botón de equivalencias y la tarjeta funciona como siempre. */
   catalogFoods = [],
+  /* Quién está mirando. Decide qué alimentos puede corregir: los que dio de
+     alta él y ninguno más. Sin él —la vista del cliente— no se corrige nada,
+     que es lo que ya dice `editable`. */
+  coachId = null,
   clientSwapsOn = false,
   onSwapFood,
   onSetEquivalences,
@@ -559,7 +708,7 @@ export const MealCard = ({
   onRemoveFood,
   onGrams,
   onSetDisplay,
-  onDefineUnit,
+  onEditFood,
   onMoveFood,
   onMoveMeal,
   onDuplicateMeal,
@@ -1053,6 +1202,7 @@ export const MealCard = ({
               editable={editable}
               catalogFoods={catalogFoods}
               libraryFoods={foodLibrary}
+              coachId={coachId}
               clientSwapsOn={clientSwapsOn}
               onSwap={onSwapFood ? (item) => onSwapFood(index, food.id, item.food, item.grams) : null}
               onSetEquivalences={
@@ -1062,7 +1212,7 @@ export const MealCard = ({
               last={foodIndex === foods.length - 1}
               onGrams={(grams) => onGrams(index, food.id, grams)}
               onSetDisplay={(mode) => onSetDisplay?.(index, food.id, mode)}
-              onDefineUnit={(label, grams) => onDefineUnit?.(index, food, label, grams)}
+              onEditFood={(cambios) => onEditFood?.(index, food, cambios)}
               onMove={
                 onMoveFood ? (delta) => onMoveFood(index, foodIndex, foodIndex + delta) : null
               }

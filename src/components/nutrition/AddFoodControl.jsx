@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { macroError } from '@/domain/nutrition';
+import { toNum } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { Field } from '@/components/ui/primitives';
 
@@ -27,8 +29,29 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
     setDraft({ ...EMPTY, name: query.trim() });
   };
 
+  /*
+    ── Lo que se comprueba antes de dar de alta ─────────────────────────────
+    Aquí no se comprobaba NADA: lo que se tecleara entraba en la biblioteca del
+    equipo tal cual, y de ahí a todas las dietas que usaran el alimento. Es la
+    misma regla que aplica `FoodDialog` al corregirlo — la comprobación vive en
+    `domain/nutrition.js` para que las dos pantallas no puedan discrepar.
+
+    Y la unidad va entera o no va: con etiqueta escrita, los gramos dejan de ser
+    opcionales (CHECK de la 0030).
+  */
+  const errores = draft && {
+    proteinPer100: macroError(draft.proteinPer100),
+    carbsPer100: macroError(draft.carbsPer100),
+    fatsPer100: macroError(draft.fatsPer100),
+    unitGrams:
+      draft.unitLabel.trim() && !(toNum(draft.unitGrams) > 0)
+        ? 'Hace falta el peso de una.'
+        : null,
+  };
+  const sePuedeAnadir = Boolean(draft?.name.trim()) && !Object.values(errores || {}).some(Boolean);
+
   const commitNew = () => {
-    if (!draft?.name.trim()) return;
+    if (!sePuedeAnadir) return;
     onAdd(draft);
     setDraft(null);
     setQuery('');
@@ -56,7 +79,7 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
             { key: 'carbsPer100', label: 'C /100g' },
             { key: 'fatsPer100', label: 'G /100g' },
           ].map(({ key, label }) => (
-            <Field key={key} label={label} className="shrink-0">
+            <Field key={key} label={label} error={errores[key]} className="shrink-0">
               {(props) => (
                 <input
                   {...props}
@@ -102,7 +125,7 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
             )}
           </Field>
 
-          <Field label="g por unidad" className="shrink-0">
+          <Field label="g por unidad" error={errores.unitGrams} className="shrink-0">
             {(props) => (
               <input
                 {...props}
@@ -121,7 +144,12 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
         </div>
 
         <div className="row gap-2">
-          <button type="button" className="btn btn-primary btn-sm" onClick={commitNew} disabled={!draft.name.trim()}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={commitNew}
+            disabled={!sePuedeAnadir}
+          >
             Añadir
           </button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => setDraft(null)}>

@@ -10,7 +10,7 @@
  * por 100 g, alimento a alimento.
  */
 
-import { toNum0, round } from '@/lib/num';
+import { isBlank, round, toNum, toNum0 } from '@/lib/num';
 import { newId } from '@/lib/ids';
 
 /**
@@ -171,6 +171,32 @@ export const buildFoodEntry = (food, grams = null) => {
     // pesan todo y clientes que no tienen báscula.
     showAs: unitGrams ? 'units' : 'grams',
   };
+};
+
+/**
+ * ¿Vale este macro por 100 g? Devuelve el error, o `null` si está bien.
+ *
+ * ── Por qué existe ──────────────────────────────────────────────────────────
+ * Porque el alta de un alimento no comprobaba nada: lo que se tecleara acababa
+ * en la biblioteca del equipo tal cual, y de ahí a todas las dietas que lo usen.
+ * Un «13.5» escrito «135» multiplica por diez las calorías de esa comida y no
+ * lo delata nada — la fila enseña un número grande, que es lo que enseñaría un
+ * alimento graso de verdad.
+ *
+ * El tope de 100 no es una preferencia: **un alimento no puede llevar más de
+ * 100 g de nada por cada 100 g**. El aceite, que es el extremo, lleva 100 de
+ * grasa. Cualquier cifra por encima es un error de tecleo, siempre.
+ *
+ * En blanco vale y significa cero: casi ningún alimento tiene los tres macros, y
+ * obligar a escribir «0» en dos de cada tres casillas es peor formulario.
+ */
+export const macroError = (value) => {
+  if (isBlank(value)) return null;
+  const n = toNum(value);
+  if (n === null) return 'Solo números.';
+  if (n < 0) return 'No puede ser negativo.';
+  if (n > 100) return 'Máximo 100 por 100 g.';
+  return null;
 };
 
 // ── Reordenar y duplicar ───────────────────────────────────────────────────

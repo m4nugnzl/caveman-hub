@@ -2,11 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Archive,
   Check,
-  ContactRound,
-  CreditCard,
   ExternalLink,
   FileText,
-  ListChecks,
   Link2,
   Paperclip,
   Pencil,
@@ -19,7 +16,11 @@ import { Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
 import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '@/domain/billing';
-import { shortDate } from '@/lib/dates';
+import { latestWeight } from '@/domain/anthropometry';
+import { identityFacts, identitySubtitle } from '@/domain/ficha';
+import { PROFILE_GROUPS, cleanProfile, isProfileEmpty } from '@/domain/profile';
+import { dayMonthMaybeYear, shortDate, todayISO } from '@/lib/dates';
+import { initials } from '@/lib/initials';
 import { toNum } from '@/lib/num';
 import {
   clientIntake,
@@ -36,15 +37,19 @@ import {
 } from '@/domain/intake';
 import {
   Field,
+  GroupHead,
   Notice,
   NumberInput,
   PageHead,
   Panel,
-  SectionTitle,
   SegmentedControl,
 } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
+import { ConditionsPanel } from '@/components/conditions/ConditionsPanel';
 import { ClientDataPanel } from './ClientDataPanel';
+import { EquipmentPanel } from '@/components/equipment/EquipmentPanel';
+import { CustomAnswers } from './CustomAnswers';
+import { ProfileBlock } from './ProfileBlock';
 import { inviteMessage, useInvite } from './useInvite';
 
 /**
@@ -76,6 +81,12 @@ import { inviteMessage, useInvite } from './useInvite';
  * Lo del sexo no era cosmético: la fórmula de pliegues es distinta para hombre y
  * mujer, y sin definir se aplicaba **la de hombre en silencio**. El porcentaje
  * graso salía, parecía bueno, y podía estar varios puntos desviado.
+ *
+ * ── Y ahora son siete: la fecha de nacimiento y la altura ───────────────────
+ * Las dos por el mismo motivo que el sexo: no son ficha de contacto, son datos
+ * que ENTRAN EN CUENTAS. La edad la piden las fórmulas de gasto energético y las
+ * zonas de frecuencia cardíaca; la altura convierte la cintura —que ya se
+ * mide— en un ratio con lectura. Ver `domain/ficha.js` y la migración 0076.
  */
 const ClientEditor = ({ client, onSave, onCancel }) => {
   const [form, setForm] = useState({
@@ -83,24 +94,40 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
     email: client.email || '',
     phone: client.phone || '',
     gender: client.gender || '',
+    birthDate: client.birthDate || '',
+    heightCm: client.heightCm ?? '',
     plan: client.plan || '',
   });
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const limpio = form.name.trim();
+  /* Un dedo de más al teclear el año en el selector de fecha, y la ficha diría
+     «−4 años». Se corta aquí y con palabras, en vez de dejar que lo rechace la
+     restricción de la base con su mensaje de Postgres. */
+  const futuro = Boolean(form.birthDate) && form.birthDate > todayISO();
 
   return (
     <form
       className="col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!limpio) return;
+        if (!limpio || futuro) return;
         /*
           Se manda TODO el formulario, incluidos los campos vacíos: dejar un
           correo en blanco tiene que poder borrarlo. Filtrar los vacíos —que es
           la tentación— convertiría «quitar el teléfono» en algo imposible.
+
+          Los dos que van a columnas tipadas se convierten antes: una cadena
+          vacía es texto válido para `text` y basura para `date` y `numeric`, así
+          que borrar la altura fallaría con un error de Postgres en vez de
+          dejarla en blanco.
         */
-        onSave({ ...form, name: limpio });
+        onSave({
+          ...form,
+          name: limpio,
+          birthDate: form.birthDate || null,
+          heightCm: toNum(form.heightCm),
+        });
       }}
     >
       <Field label="Nombre">
@@ -135,13 +162,48 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
             </select>
           )}
         </Field>
+        <Field
+          label="Fecha de nacimiento"
+          hint="De aquí sale su edad. No se guarda la edad: se calcula, para que no envejezca sola."
+          error={futuro ? 'Esa fecha todavía no ha llegado.' : null}
+        >
+          {(props) => (
+            <input
+              {...props}
+              type="date"
+              className="input"
+              /* Ni el día de mañana ni el año 3000: el navegador ya sabe cortar
+                 por arriba, y así el aviso de abajo es el segundo cinturón. */
+              max={todayISO()}
+              value={form.birthDate}
+              onChange={set('birthDate')}
+            />
+          )}
+        </Field>
+      </div>
+
+      <div className="grid-2">
+        <Field label="Altura" hint="En centímetros. Con ella, su cintura pasa a ser un ratio.">
+          {(props) => (
+            <div className="input-suffix">
+              <NumberInput
+                {...props}
+                center={false}
+                placeholder="175"
+                value={form.heightCm}
+                onChange={(v) => setForm({ ...form, heightCm: v })}
+              />
+              <span aria-hidden="true">cm</span>
+            </div>
+          )}
+        </Field>
         <Field label="Plan" hint="El tuyo, el que le cobras. Texto libre.">
           {(props) => <input {...props} className="input" value={form.plan} onChange={set('plan')} />}
         </Field>
       </div>
 
       <div className="row gap-2">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio}>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || futuro}>
           Guardar
         </button>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
@@ -153,62 +215,126 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
   );
 };
 
-/** Los datos, en modo lectura. Editar los sustituye en su sitio. */
-const Datos = ({ client, onUpdate }) => {
+/**
+ * Quién es: la cabecera de la ficha.
+ *
+ * ══ Por qué la ficha empieza por un retrato y no por un formulario ══════════
+ *
+ * Porque era cinco tarjetas idénticas apiladas —alta, datos, cobro, acceso,
+ * datos personales— y ninguna decía de quién estabas leyendo. El nombre solo
+ * aparecía en el selector del marco, o sea fuera de la pantalla, así que la
+ * ficha de Marta y la de Javier eran el mismo dibujo. Y esto es lo que más va a
+ * crecer: con los condicionantes y los parámetros del entrenador detrás, sin
+ * una cabecera que ancle a la persona serían nueve tarjetas de scroll.
+ *
+ * La inicial, el nombre y la línea de voz baja son la misma gramática que la
+ * tarjeta de la lista de clientes, porque son la misma persona: esto es esa
+ * tarjeta, abierta.
+ *
+ * ══ Los cuatro hechos, y por qué el peso está entre ellos sin guardarse ═════
+ *
+ * Edad, altura, peso y sexo son lo que se mira antes de decidir nada. Los tres
+ * primeros no estaban en ninguna parte de la aplicación; el cuarto sí, escondido
+ * en una fila de texto.
+ *
+ * El peso se LEE del histórico de pesajes y no se copia aquí. `clients` llegó a
+ * tener una columna `current_weight` y la 0048 tuvo que borrarla porque enseñaba
+ * el valor congelado del día que alguien dejó de rellenarla mientras la serie
+ * decía otra cosa. Un dato viejo con etiqueta de actual es peor que un hueco.
+ *
+ * ══ Lo que está sin poner NO se pinta ══════════════════════════════════════
+ *
+ * Salvo en los cuatro hechos, que son la anatomía de una persona y cuyo hueco
+ * informa (`domain/ficha.js`). Las filas de abajo —correo, teléfono, plan— solo
+ * salen si tienen valor. Antes cada hueco decía «sin poner» en gris, y con cuatro
+ * filas se aguantaba; con las quince que vienen detrás, la ficha de alguien
+ * recién dado de alta sería una columna de grises que nadie va a rellenar por
+ * leerla. El hueco se ofrece una vez, en «Editar».
+ */
+const Identidad = ({ client, weight, onUpdate }) => {
   const [editando, setEditando] = useState(false);
 
-  if (editando) {
-    return (
-      <Panel className="col gap-4">
-        <SectionTitle icon={ContactRound}>Datos</SectionTitle>
-        <ClientEditor
-          client={client}
-          onCancel={() => setEditando(false)}
-          onSave={(fields) => {
-            onUpdate(fields);
-            setEditando(false);
-          }}
-        />
-      </Panel>
-    );
-  }
-
+  const facts = identityFacts({ client, weight });
+  /*
+    El PLAN no está aquí, y estuvo: salía en la línea de voz baja del retrato y
+    otra vez como fila, a diez píxeles. Dos veces el mismo dato en el mismo
+    bloque no es redundancia inofensiva —hace dudar de si son dos cosas
+    distintas—. Se queda arriba, que es donde acompaña a la antigüedad y donde ya
+    lo dice el selector de cliente del marco.
+  */
   const filas = [
     ['Correo', client.email],
     ['Teléfono', client.phone],
-    ['Sexo', client.gender],
-    ['Plan', client.plan],
-  ];
+  ].filter(([, valor]) => valor);
 
   return (
-    <Panel className="col gap-4">
-      <div className="row between wrap gap-2">
-        <SectionTitle icon={ContactRound}>Datos</SectionTitle>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditando(true)}>
-          <Pencil size={13} /> Editar
-        </button>
+    <Panel
+      title="Quién es"
+      className="col gap-4"
+      action={
+        !editando && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setEditando(true)}
+          >
+            <Pencil size={13} /> Editar
+          </button>
+        )
+      }
+    >
+      <div className="ficha-head">
+        <span className="folio-mark" aria-hidden="true">
+          {initials(client.name)}
+        </span>
+        <span className="who">
+          <span className="name">{client.name}</span>
+          <span className="sub">
+            {identitySubtitle(client, dayMonthMaybeYear(client.startDate))}
+          </span>
+        </span>
       </div>
 
-      <div className="card-inset col gap-2 t-sm">
-        {filas.map(([label, valor]) => (
-          <div key={label} className="row between gap-2">
-            <span className="t-secondary">{label}</span>
-            {valor ? (
-              <span style={{ fontWeight: 600 }}>{valor}</span>
-            ) : (
-              /* Sin poner se dice en gris, salvo el sexo: ese cambia un cálculo
-                 que se hace igualmente, así que se avisa. */
-              <span className="t-tertiary">sin poner</span>
-            )}
+      {editando ? (
+        <div className="swap-in">
+          <ClientEditor
+            client={client}
+            onCancel={() => setEditando(false)}
+            onSave={(fields) => {
+              onUpdate(fields);
+              setEditando(false);
+            }}
+          />
+        </div>
+      ) : (
+        <div className="swap-in col gap-4">
+          <div className="ficha-facts">
+            {facts.map((fact) => (
+              <div key={fact.id} className="ficha-fact">
+                <span className="k">{fact.label}</span>
+                <span className={`v${fact.value ? '' : ' is-empty'}`}>{fact.value ?? '—'}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {!client.gender && (
-        <Notice tone="warn">
-          Sin el sexo, el % graso por pliegues se calcula con la fórmula de hombre. Ponlo aquí y los
-          pliegues pasan a usar la que toca.
-        </Notice>
+          {filas.length > 0 && (
+            <div className="col gap-2 t-sm">
+              {filas.map(([label, valor]) => (
+                <div key={label} className="row between gap-2">
+                  <span className="t-secondary">{label}</span>
+                  <span style={{ fontWeight: 600 }}>{valor}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!client.gender && (
+            <Notice tone="warn">
+              Sin el sexo, el % graso por pliegues se calcula con la fórmula de hombre. Ponlo aquí y
+              los pliegues pasan a usar la que toca.
+            </Notice>
+          )}
+        </div>
       )}
     </Panel>
   );
@@ -245,8 +371,7 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
   const siguiente = nextPaymentAfter(client.nextPaymentDate, client.billingPeriod);
 
   return (
-    <Panel className="col gap-4">
-      <SectionTitle icon={CreditCard}>Cobro</SectionTitle>
+    <Panel title="Cobro" className="col gap-4">
 
       {/*
         ══ Cuánto, antes que cuándo ═══════════════════════════════════════════
@@ -485,16 +610,24 @@ const StepRow = ({ step, hecho, url, file, revisiones = [], onToggle, onLink, on
   };
 
   return (
-    <div className="card-inset col gap-2">
+    <div className={`card-inset col gap-2 step-row${hecho ? ' is-done' : ''}`}>
       <div className="row between wrap gap-2">
         {/* Sigue siendo una casilla, y a propósito: un paso del alta es una
             TAREA que se marca hecha, no una opción que se incluye ni un ajuste
             que se enciende. Lo que cambia es que el cuadro ya no lo pinta el
             sistema operativo. Ver `.checkbox-row` en el CSS. */}
-        <label className="checkbox-row grow" style={{ minWidth: 0, alignItems: 'flex-start' }}>
+        <label className="checkbox-row is-block grow" style={{ minWidth: 0 }}>
           <input type="checkbox" checked={hecho} onChange={() => onToggle(!hecho)} />
           <span className="col gap-1" style={{ minWidth: 0 }}>
-            <span className="t-sm" style={{ fontWeight: 600 }}>
+            {/*
+              Lo HECHO baja de tono y lo pendiente se queda en tinta plena. En una
+              lista de nueve pasos la única diferencia entre uno y otro era el
+              cuadro de 18 px, así que había que leerlos todos para ver cuál
+              faltaba — que es justo lo que este bloque existe para contestar.
+
+              Bajar de tono y no tachar: un paso terminado no está cancelado.
+            */}
+            <span className={`t-sm${hecho ? ' t-secondary' : ''}`} style={{ fontWeight: hecho ? 500 : 600 }}>
               {step.label}
             </span>
             {step.hint && <span className="t-2xs t-tertiary">{step.hint}</span>}
@@ -725,13 +858,15 @@ const Alta = ({ client, onUpdate, onPreferences }) => {
   };
 
   return (
-    <Panel className="col gap-4">
-      <div className="row between wrap gap-2">
-        <SectionTitle icon={ListChecks}>Alta</SectionTitle>
+    <Panel
+      title="Alta"
+      className="col gap-4"
+      action={
         <span className={`badge ${complete ? 'badge-ok' : ''}`}>
           {complete ? <Check size={11} /> : null} {done} de {total}
         </span>
-      </div>
+      }
+    >
 
       <div className="col gap-2">
         {steps.map((step) => (
@@ -773,12 +908,23 @@ const Alta = ({ client, onUpdate, onPreferences }) => {
 };
 
 export const ClientFile = () => {
-  const { activeClient, updateClient, updateClientPreferences, markClientPaid } = useApp();
+  const {
+    activeClient,
+    anthropometry,
+    conditions,
+    updateClient,
+    updateClientPreferences,
+    markClientPaid,
+  } = useApp();
   const toast = useToast();
 
   /* El marco ya redirige cuando el id no existe; esto solo cubre el instante
      entre montar la ruta y tener el cliente cargado. */
   if (!activeClient) return null;
+
+  /* Leído de su serie de pesajes, no de una copia guardada en la ficha. Ver el
+     comentario de `Identidad` y la migración 0048. */
+  const peso = latestWeight(anthropometry[activeClient.id]?.history || []);
 
   /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
      y tiene que dejar la misma señal, se pulse donde se pulse. */
@@ -795,11 +941,102 @@ export const ClientFile = () => {
     <div className="stack">
       <PageHead
         title="Ficha"
-        sub={`Los datos de ${activeClient.name}, su acceso al portal, su cobro y su baja.`}
+        sub={`Quién es ${activeClient.name}, su acceso al portal, su cobro y su baja.`}
       />
 
-      {/* El alta va la primera: es lo que está sin terminar cuando alguien acaba
-          de entrar, y lo que se viene a mirar en las primeras semanas. */}
+      {/*
+        ══ Los dos grupos, y por qué la ficha los necesitaba ═══════════════════
+
+        Eran cinco bloques seguidos con el mismo peso, y no son del mismo asunto:
+        uno habla de la PERSONA y cuatro de la RELACIÓN que tienes con ella —lo
+        que le has entregado, lo que te paga, cómo entra y cómo sale—. Sin nada
+        que lo dijera, la ficha se leía como una lista de cosas administrativas
+        con los datos de alguien traspapelados en medio.
+
+        Es el caso exacto para el que existe `GroupHead` (`docs/producto.md`
+        §5.1 bis): dos tandas de bloques con asuntos distintos, nombradas en
+        troquelada para que ordenen la pantalla sin competir con su título.
+
+        El primero tiene un solo bloque HOY. Se queda igualmente, porque es donde
+        entran los condicionantes —lesiones, alergias, patologías— y los
+        parámetros propios del entrenador, y porque el grupo es lo que explica
+        por qué el alta y el cobro están más abajo y no en medio.
+      */}
+      <GroupHead title="La persona" sub="Lo que no cambia de una semana a otra." />
+
+      <Identidad
+        client={activeClient}
+        weight={peso}
+        onUpdate={(fields) => updateClient(activeClient.id, fields)}
+      />
+
+      {/*
+        La primera vez, una frase que dice de qué van los cuatro bloques de
+        abajo. Sin ella, un entrenador que abre la ficha de alguien recién dado
+        de alta ve cuatro tarjetas vacías y no tiene por qué adivinar que ahí es
+        donde aterriza lo que le ha contado su cliente.
+
+        Desaparece en cuanto hay algo, que es lo que la diferencia de un texto de
+        ayuda: se lee una vez, no mil.
+      */}
+      {isProfileEmpty(activeClient.profile) && conditions.length === 0 && (
+        <Notice tone="info">
+          Aquí va lo que te cuenta de sí mismo al empezar: sus lesiones, cuándo puede entrenar, qué
+          maquinaria tiene y cómo come. No decide nada solo — es lo que lees tú para montarle el
+          onboarding, la rutina y la dieta.
+        </Notice>
+      )}
+
+      {/* Lo que condiciona lo que le puedes poner. Va delante de los tres
+          bloques de perfil porque es lo único de esta tanda que además AVISA:
+          sale por su cuenta en su rutina y en su dieta. */}
+      <ConditionsPanel client={activeClient} />
+
+      {/*
+        Los tres bloques del perfil, a dos columnas. Salen del catálogo
+        (`domain/profile.js`), así que esta lista no crece cuando crecen los
+        campos — solo cuando se añade una tanda entera.
+
+        A dos columnas y no apilados porque son filas cortas de etiqueta y valor:
+        a ancho completo dejan un río de blanco en el centro que es exactamente
+        lo que hacía que la ficha se leyera como un formulario abandonado.
+      */}
+      <div className="grid-2">
+        {PROFILE_GROUPS.map((grupo) => (
+          <ProfileBlock
+            key={grupo.id}
+            client={activeClient}
+            group={grupo.id}
+            onSave={(profile) => updateClient(activeClient.id, { profile: cleanProfile(profile) })}
+          />
+        ))}
+      </div>
+
+      {/* Sus respuestas a las preguntas propias del cuestionario, si las hay.
+          Aparte de los dos bloques de arriba porque esas preguntas no están en
+          el catálogo del perfil: las inventa cada entrenador. */}
+      <CustomAnswers client={activeClient} />
+
+      {/*
+        Su maquinaria, a ancho completo y al final del grupo.
+
+        Completo porque es una rejilla de fotos y no una lista de filas: en media
+        columna caben dos miniaturas por fila y cuarenta máquinas se convierten en
+        una tira de veinte filas.
+
+        Al final porque es lo último que se rellena —hay que pedirle las fotos— y
+        lo primero que se consulta después, pero desde su RUTINA y no desde aquí.
+      */}
+      <EquipmentPanel
+        client={activeClient}
+        onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
+      />
+
+      <GroupHead title="Vuestra relación" sub="Su puesta en marcha, su cobro y su acceso." />
+
+      {/* El alta va la primera del grupo: es lo que está sin terminar cuando
+          alguien acaba de entrar, y lo que se viene a mirar en las primeras
+          semanas. */}
       <Alta
         client={activeClient}
         onUpdate={(fields) => updateClient(activeClient.id, fields)}
@@ -808,18 +1045,13 @@ export const ClientFile = () => {
         }
       />
 
-      <Datos client={activeClient} onUpdate={(fields) => updateClient(activeClient.id, fields)} />
-
-      {/* El cobro va justo detrás de los datos: las dos cosas son «quién es y qué
-          me paga», y hasta ahora la segunda no tenía dónde vivir. */}
       <Cobro
         client={activeClient}
         onUpdate={(fields) => updateClient(activeClient.id, fields)}
         onMarkPaid={marcarCobrado}
       />
 
-      <Panel className="col gap-3">
-        <SectionTitle icon={Send}>Acceso y baja</SectionTitle>
+      <Panel title="Acceso y baja" className="col gap-3">
         <PortalAccess client={activeClient} />
         <ArchiveRow client={activeClient} />
       </Panel>

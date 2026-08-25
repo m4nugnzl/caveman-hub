@@ -6,6 +6,8 @@
  */
 
 import { isRemoteUrl, parsePhotoPath } from '@/domain/photos';
+import { cleanCondition } from '@/domain/conditions';
+import { cleanProfile } from '@/domain/profile';
 
 // ── Clientes ───────────────────────────────────────────────────────────────
 
@@ -43,6 +45,33 @@ export const mapClientFromDb = (row) => ({
   startDate: row.start_date,
   cycleType: row.cycle_type || 'weekly',
   cyclePattern: row.cycle_pattern || { train: 2, rest: 1 },
+  /*
+    Quién es la persona (migración 0076). Mientras no esté aplicada llegan
+    `undefined` y caen a `null`, que es lo mismo que «no lo ha puesto»: la ficha
+    enseña el hueco y nada se rompe.
+
+    La EDAD no está aquí porque no está en la base: se deriva de la fecha cada
+    vez que se pinta (`domain/ficha.js`). Guardarla sería guardar algo que
+    caduca solo — el error que costó `current_weight` en la 0048.
+
+    `height_cm` es `numeric`, y Postgres devuelve los `numeric` como CADENA para
+    no perder precisión. Sin este Number, comparar la altura con un número daría
+    resultados absurdos; es el mismo cuidado que ya se tiene con `fee_amount`.
+  */
+  birthDate: row.birth_date ?? null,
+  heightCm:
+    row.height_cm === null || row.height_cm === undefined ? null : Number(row.height_cm),
+  /*
+    Lo que el cliente cuenta de sí mismo (migración 0078): cómo entrena, cómo
+    come y cómo es su día. Pasa por `cleanProfile` al leerlo y no solo al
+    escribirlo, por el mismo motivo que los condicionantes: un campo que se
+    retire del catálogo mañana tiene que dejar de pintarse hoy, sin que nadie
+    tenga que limpiar la columna de veinte clientes.
+
+    Sin la migración llega `undefined` y queda `{}`: los tres bloques enseñan su
+    estado vacío y nada se rompe.
+  */
+  profile: cleanProfile(row.profile),
   // Equipos (migración 0006). Mientras no esté aplicada llegan `undefined`, y
   // `assignedTo` cae en `coach_id`, que es exactamente lo que significaba antes:
   // el entrenador responsable. Así ninguna vista necesita distinguir los dos
@@ -61,6 +90,9 @@ const CLIENT_COLUMNS = {
   status: 'status',
   plan: 'plan',
   gender: 'gender',
+  birthDate: 'birth_date',
+  heightCm: 'height_cm',
+  profile: 'profile',
   onboardingComplete: 'onboarding_complete',
   postureReviewed: 'posture_reviewed',
   paymentStatus: 'payment_status',
@@ -196,6 +228,54 @@ export const mapPhaseFromDb = (row) => ({
   */
   nextOptions: Array.isArray(row.next_options) ? row.next_options : null,
 });
+
+// ── Condicionantes (migración 0077) ────────────────────────────────────────
+
+/**
+ * Una lesión, una patología o una alergia.
+ *
+ * Pasa por `cleanCondition` en vez de copiar campos a mano, y no es ceremonia:
+ * ahí es donde un `area` desconocido cae en «entrenamiento» en lugar de dejar la
+ * fila invisible en las dos secciones. Una fila escrita a mano en la base —o de
+ * una versión futura con un área más— tiene que seguir viéndose en alguna parte.
+ *
+ * Devuelve `null` si la fila no tiene etiqueta. Quien mapea una lista filtra:
+ * pintar un condicionante sin nombre sería pintar una fila que no se puede leer
+ * ni borrar.
+ */
+export const mapConditionFromDb = (row) =>
+  cleanCondition({
+    id: row.id,
+    clientId: row.client_id,
+    label: row.label,
+    detail: row.detail,
+    area: row.area,
+    severity: row.severity,
+    since: row.since,
+    resolvedAt: row.resolved_at,
+  });
+
+const CONDITION_COLUMNS = {
+  label: 'label',
+  detail: 'detail',
+  area: 'area',
+  severity: 'severity',
+  since: 'since',
+  resolvedAt: 'resolved_at',
+};
+
+/** Convierte solo las claves presentes: sirve para crear y para actualizar. */
+export const mapConditionToDb = (fields) => {
+  const out = {};
+  for (const [key, value] of Object.entries(fields || {})) {
+    const column = CONDITION_COLUMNS[key];
+    /* La cadena vacía se manda como NULL: `detail`, `since` y `resolved_at`
+       admiten nulo y NO admiten «», que para una `date` es un error de Postgres
+       y para el texto es un detalle que existe pero está en blanco. */
+    if (column) out[column] = value === '' ? null : value;
+  }
+  return out;
+};
 
 // ── Soporte (migración 0034) ───────────────────────────────────────────────
 
@@ -395,16 +475,28 @@ export const mapNutritionToDb = (clientId, data) => ({
 });
 
 // ── Bibliotecas del coach ──────────────────────────────────────────────────
+//
+// `coachId` es QUIÉN DIO DE ALTA la entrada, y no es decoración: desde la 0006
+// la biblioteca es del EQUIPO —cualquier miembro la lee y las políticas le
+// dejan escribirla entera—, así que la única forma de saber que una entrada es
+// tuya es esta columna. Es lo que decide si se puede corregir (ver
+// `canEditLibraryItem` en `domain/catalog.js`).
+//
+// Las filas del CATÁLOGO no la traen —son globales y sin dueño (0033)—, así que
+// ahí llega `null`, que es exactamente lo que significa: no es de nadie, y no se
+// toca desde el navegador.
 
 export const mapLibraryExerciseFromDb = (row) => ({
   id: row.id,
   name: row.name,
   muscle: row.muscle_group,
+  coachId: row.coach_id ?? null,
 });
 
 export const mapLibraryFoodFromDb = (row) => ({
   id: row.id,
   name: row.name,
+  coachId: row.coach_id ?? null,
   proteinPer100: row.protein_per_100g,
   carbsPer100: row.carbs_per_100g,
   fatsPer100: row.fats_per_100g,

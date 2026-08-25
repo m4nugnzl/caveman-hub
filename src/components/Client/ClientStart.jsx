@@ -3,6 +3,7 @@ import { PageHead } from '@/components/ui/primitives';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ClientUpdates } from './ClientUpdates';
 import { IntakeDeliverables } from './IntakeDeliverables';
+import { IntakePrompt } from './IntakePrompt';
 
 /**
  * El inicio del cliente: SU PROGRESO, con lo que ha cambiado arriba.
@@ -57,6 +58,10 @@ export const ClientStart = () => {
       <PageHead title="Hola," remate={activeClient.name} sub="Tu progreso, semana a semana." />
 
       <ClientUpdates client={activeClient} />
+      {/* Lo que su entrenador espera DE ÉL, encima de todo y solo mientras
+          falte. Va con los avisos y no con las entregas de abajo porque es una
+          tarea suya, no material que le hayan dejado. */}
+      <IntakePrompt client={activeClient} />
       <Dashboard audience="client" />
       <IntakeDeliverables client={activeClient} />
     </div>

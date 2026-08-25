@@ -36,6 +36,8 @@ const AUDIT_LABEL = {
   anthropometry: 'Peso y medidas',
   nutrition_plans: 'Nutrición',
   check_ins: 'Check-in',
+  client_conditions: 'Condicionantes',
+  client_equipment: 'Maquinaria',
 };
 const AUDIT_ACTION = { INSERT: 'creado', UPDATE: 'modificado', DELETE: 'borrado' };
 

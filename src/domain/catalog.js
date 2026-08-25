@@ -44,6 +44,55 @@ export const mergeCatalog = (library = [], catalog = []) => {
 };
 
 /**
+ * La entrada de la lista que se llama así, o `null`.
+ *
+ * Compara con la misma `clave` que la mezcla: si «Pan Integral» y «pan integral »
+ * cuentan como el mismo a la hora de no duplicar, tienen que contar como el mismo
+ * a la hora de decir de quién es.
+ */
+export const findByName = (items, name) => {
+  const buscada = clave(name);
+  return (items || []).find((item) => clave(item?.name) === buscada) || null;
+};
+
+/**
+ * ══ Quién puede corregir qué ═══════════════════════════════════════════════
+ *
+ * **Solo se toca lo que has dado de alta tú.** Los dos casos que quedan fuera
+ * son distintos y por motivos distintos:
+ *
+ *   · **El catálogo** (0033) es global, sin dueño y de solo lectura para todo el
+ *     mundo. Son datos de referencia que tienen que estar bien para todos; una
+ *     escritura mal puesta ahí la vería la aplicación entera. Ni siquiera el
+ *     dueño de un equipo escribe en él, y por eso no se edita: se COPIA. Al
+ *     elegirlo por primera vez nace una fila tuya en tu biblioteca, y ESA sí es
+ *     editable — que es justo lo que dice la cabecera de este archivo.
+ *
+ *   · **Lo que dio de alta un compañero de equipo.** Desde la 0006 la biblioteca
+ *     es del EQUIPO y sus políticas de RLS dejan a cualquier miembro escribir
+ *     cualquier fila: la base NO te va a parar. La regla vive aquí, en el
+ *     producto, porque es una decisión de producto — un entrenador no le
+ *     reescribe los macros a otro sin que se entere.
+ *
+ * ── Lo que NO está en la biblioteca de nadie ───────────────────────────────
+ * Vale: si no hay fila con ese nombre, nadie lo creó, y al guardarlo nace una
+ * fila tuya. Es el caso de una dieta traída de fuera —un PDF importado— cuyos
+ * alimentos todavía no ha visto la biblioteca.
+ *
+ * ── Y esto NO decide si se puede tocar la DIETA ────────────────────────────
+ * Una entrada de dieta es una copia congelada (ver `buildFoodEntry`): los gramos,
+ * el orden, la unidad en la que se lee y hasta cambiar un alimento por otro
+ * siguen siendo del entrenador que monta ese plan. Lo que esto acota es la
+ * escritura en la BIBLIOTECA, que es lo único compartido.
+ */
+export const canEditLibraryItem = (name, items, coachId) => {
+  if (!coachId) return false;
+  const fila = findByName(items, name);
+  if (!fila) return true;
+  return !fila.fromCatalog && fila.coachId === coachId;
+};
+
+/**
  * Agrupa por categoría, respetando el orden en que llegan.
  *
  * Se usa cuando hay que enseñar el catálogo entero —no en el buscador, que

@@ -19,6 +19,9 @@ import { Today } from '@/components/Coach/Today';
 import { ClientPortfolio } from '@/components/Coach/ClientPortfolio';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ClientStart } from '@/components/Client/ClientStart';
+/* Perezosa: es la pantalla que un cliente abre la primera semana y no vuelve a
+   abrir. Cargarla con el portal sería pagar su peso en cada arranque. */
+const ClientOnboarding = lazyRoute(() => import('@/components/Client/ClientOnboarding').then((m) => ({ default: m.ClientOnboarding })));
 import { ProgressLayout } from '@/components/analytics/ProgressLayout';
 import { ReviewLayout } from '@/components/review/ReviewLayout';
 
@@ -491,6 +494,9 @@ export default function App() {
                 </Route>
                 {/* «Hoy» dejó de ser una sección: lo suyo se repartió entre el
                     inicio y el check-in. La ruta sigue viva por los marcadores. */}
+                {/* Su alta: lo que entrega al empezar. Fuera del carril de
+                    secciones porque se hace una vez — ver `ClientOnboarding`. */}
+                <Route path="alta" element={<ClientOnboarding />} />
                 <Route path="hoy" element={<Navigate to="/mi/inicio" replace />} />
                 <Route path="panel" element={<Navigate to="/mi/inicio" replace />} />
                 <Route

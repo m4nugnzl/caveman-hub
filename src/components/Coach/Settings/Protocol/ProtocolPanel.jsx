@@ -37,6 +37,7 @@ import { ServicesSection } from './ServicesSection';
 import { PresetsSection } from './PresetsSection';
 import { ModulesSection } from './ModulesSection';
 import { CheckinBlocksSection } from './CheckinBlocksSection';
+import { IntakeFormSection } from './IntakeFormSection';
 import { QuestionEditor } from './QuestionEditor';
 
 /**
@@ -347,8 +348,11 @@ export const ProtocolPanel = () => {
       <section id="alta" className="proto-section">
         <GroupHead
           title="El alta"
-          sub="Los pasos que das tú al empezar con alguien. El contenido de cada uno —un vídeo, un documento— se enlaza cliente a cliente, en su ficha."
+          sub="Lo que le pides a él y lo que haces tú al empezar con alguien."
         />
+        {/* Lo que le pides al CLIENTE va primero: es lo primero que pasa. Los
+            pasos de abajo son tuyos y vienen después de tener sus respuestas. */}
+        <IntakeFormSection />
         <IntakeSteps intake={intake} onChange={saveIntake} />
       </section>
 

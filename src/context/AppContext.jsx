@@ -6,6 +6,8 @@ import { pendingStore } from '@/lib/pendingSaves';
 import { useMirroredState } from '@/lib/useMirroredState';
 import { recordIssue } from '@/lib/diagnostics';
 import { flushEvents, forgetActor, identify } from '@/lib/analytics';
+import { useConditions } from '@/context/useConditions';
+import { useEquipment } from '@/context/useEquipment';
 import { useRoadmap } from '@/context/useRoadmap';
 import { useSupport } from '@/context/useSupport';
 import { useReviews } from '@/context/useReviews';
@@ -1300,6 +1302,21 @@ export const AppProvider = ({ children }) => {
     activeClientId,
   });
 
+  /* Lo que condiciona lo que le puedes poner (migración 0077). Misma convención
+     y mismo alcance que el roadmap: los del cliente abierto. */
+  const { conditions, addCondition, updateCondition, resolveCondition, removeCondition } =
+    useConditions({ activeClientId });
+
+  /* La maquinaria de su gimnasio (migración 0079). Mismo alcance: la del cliente
+     abierto, que es de quien se está montando la rutina. */
+  const { equipment, addEquipment, setEquipmentGroup, removeEquipment } = useEquipment({
+    activeClientId,
+    /* Solo para redactar el aviso cuando la cuota corta: al entrenador se le dice
+       que amplíe su plan y al cliente que avise a su entrenador (ver
+       `traduceStorageError`). Es el mismo espejo que usa el guardado. */
+    isCoach: isCoachRef.current,
+  });
+
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
 
   /**
@@ -1528,7 +1545,7 @@ export const AppProvider = ({ children }) => {
 
   /* En su gancho (useNutrition.js), con la frontera de useClients.js: recibe
      persist y el estado espejado del bloque. patchFood se destructura porque
-     defineFoodUnit —el puente con la biblioteca— lo necesita aquí abajo. */
+     editFood —el puente con la biblioteca— lo necesita aquí abajo. */
   const {
     updateNutrition,
     updateNutritionTargets,
@@ -1571,44 +1588,50 @@ export const AppProvider = ({ children }) => {
 
   // ── Bibliotecas del coach ────────────────────────────────────────────────
   //
-  // Viven en useLibraries.js. Aquí queda solo defineFoodUnit, el puente que
-  // escribe a la vez en la dieta abierta (patchFood) y en la biblioteca.
+  // Viven en useLibraries.js. Aquí queda solo editFood, el puente que escribe a
+  // la vez en la dieta abierta (patchFood) y en la biblioteca.
 
   /**
-   * Define cuánto pesa una unidad de un alimento, desde la dieta.
+   * Corrige un alimento —sus macros por 100 g y su unidad— desde la dieta.
    *
    * ── Escribe en DOS sitios, y es deliberado ──────────────────────────────────
-   *   1. **La entrada abierta**, para que el cambio se vea al instante y sin
-   *      esperar a una recarga de la biblioteca.
+   *   1. **La entrada abierta**, para que el cambio se vea al instante. Y no es
+   *      solo por la espera: una entrada de dieta es una FOTO del alimento (ver
+   *      `buildFoodEntry`) y NO se recalcula sola cuando cambia la biblioteca,
+   *      así que sin esto corregir un macro no movería ni una kcal de la comida
+   *      que se está mirando.
    *   2. **La biblioteca**, para que la próxima vez que se añada ese alimento a
-   *      cualquier dieta ya venga con su unidad.
+   *      cualquier dieta venga ya corregido.
    *
-   * Sin (2) habría que repetir la definición en cada dieta, que es justo el
-   * trabajo manual que esto viene a quitar. Sin (1) el entrenador definiría la
-   * unidad y no pasaría nada visible, que parece que no ha funcionado.
+   * Sin (2) habría que repetir la corrección en cada dieta, que es justo el
+   * trabajo manual que esto viene a quitar. Sin (1) el entrenador corregiría y
+   * no pasaría nada visible, que parece que no ha funcionado.
+   *
+   * Antes era `defineFoodUnit` y solo sabía de unidades. Los macros no tenían
+   * NINGÚN camino de vuelta: se tecleaban una vez, al dar de alta el alimento, y
+   * quedaban congelados en la biblioteca del equipo — un «135» donde iban
+   * «13,5» multiplicaba por diez las kcal de esa comida para siempre.
+   *
+   * ── `showAs` solo se toca cuando cambia lo que representa ───────────────────
+   * Al DEFINIR una unidad que no había, se pasa a contar en unidades, que es lo
+   * que se acaba de pedir; al quitarla, a gramos por narices. Corregir un macro
+   * de un alimento que ya tenía unidad no le cambia la lente al entrenador: esa
+   * es su elección por alimento y por dieta (ver `setFoodDisplay`).
    *
    * Va DESPUÉS de `upsertLibraryFood` en el archivo a propósito: las dependencias
    * de un `useCallback` se evalúan al renderizar, así que declararlo antes daría
    * «Cannot access before initialization» al montar la aplicación.
    */
-  const defineFoodUnit = useCallback(
-    async (clientId, variant, mealIdx, optIdx, food, unitLabel, unitGrams) => {
-      patchFood(clientId, variant, mealIdx, optIdx, food.id, () => ({
-        unitLabel,
-        unitGrams,
-        showAs: 'units',
+  const editFood = useCallback(
+    async (clientId, variant, mealIdx, optIdx, food, cambios) => {
+      patchFood(clientId, variant, mealIdx, optIdx, food.id, (actual) => ({
+        ...cambios,
+        showAs: !cambios.unitGrams ? 'grams' : actual.unitGrams ? actual.showAs : 'units',
       }));
 
-      // La biblioteca se actualiza por nombre (`upsertByName`), así que basta con
-      // el nombre y las macros que la entrada ya lleva copiadas.
-      return upsertLibraryFood({
-        name: food.name,
-        proteinPer100: food.proteinPer100,
-        carbsPer100: food.carbsPer100,
-        fatsPer100: food.fatsPer100,
-        unitLabel,
-        unitGrams,
-      });
+      // La biblioteca se actualiza por nombre (`upsertByName`), así que el nombre
+      // lo pone la entrada y lo demás son los campos ya corregidos.
+      return upsertLibraryFood({ name: food.name, ...cambios });
     },
     [patchFood, upsertLibraryFood]
   );
@@ -1626,6 +1649,7 @@ export const AppProvider = ({ children }) => {
     normalizeLegacySessions,
     setClientArchived,
     updateClientPreferences,
+    saveClientProfile,
     saveClientException,
     applyProtocolToClient,
     publishUpdate,
@@ -1788,6 +1812,8 @@ export const AppProvider = ({ children }) => {
       checkIns,
       checkInsActivos,
       phases,
+      conditions,
+      equipment,
       saveStatus,
       hasUnsavedChanges,
     }),
@@ -1795,7 +1821,7 @@ export const AppProvider = ({ children }) => {
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
       workoutData, training, legacyPending, anthropometry, nutrition, progressPhotos,
       exerciseLibrary, foodLibrary, catalogFoods, catalogExercises, checkIns, checkInsActivos,
-      phases, saveStatus, hasUnsavedChanges,
+      phases, conditions, equipment, saveStatus, hasUnsavedChanges,
     ]
   );
 
@@ -1904,7 +1930,7 @@ export const AppProvider = ({ children }) => {
     swapFood,
     setFoodEquivalences,
     setFoodDisplay,
-    defineFoodUnit,
+    editFood,
 
     // Antropometría
     addAnthropometryLog,
@@ -1928,6 +1954,8 @@ export const AppProvider = ({ children }) => {
     markClientPaid,
     setClientArchived,
     updateClientPreferences,
+
+    saveClientProfile,
     saveClientException,
     applyProtocolToClient,
     exportClientData,
@@ -1994,6 +2022,17 @@ export const AppProvider = ({ children }) => {
     removePhase,
     setPhaseFork,
     chooseFork,
+
+    // Condicionantes
+    addCondition,
+    updateCondition,
+    resolveCondition,
+    removeCondition,
+
+    // Maquinaria del gimnasio
+    addEquipment,
+    setEquipmentGroup,
+    removeEquipment,
 
     // Equipo y plan
     refreshPlan,

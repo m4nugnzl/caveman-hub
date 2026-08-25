@@ -32,6 +32,7 @@ import {
   isServiceOn,
 } from '@/domain/protocol';
 import { clientIntake } from '@/domain/intake';
+import { coachIntakeForm } from '@/domain/intakeForm';
 import { intakeTemplateFrom, intakeTemplateToPreferences } from '@/lib/intakeTemplate';
 
 const key = (userId) => `caveman-protocol:${userId || 'anon'}`;
@@ -205,10 +206,22 @@ export const needsTemplate = (template, intakeTemplate, client) =>
 export const newClientPreferences = (coachPrefs) => {
   const protocolo = templateFrom(coachPrefs);
   const alta = intakeTemplateFrom(coachPrefs);
-  if (!protocolo && !alta) return null;
+  /*
+    El cuestionario del alta, SOLO si el entrenador lo ha tocado.
+
+    Se copia porque el cliente no puede leer el perfil de su entrenador
+    (`profiles` solo deja ver la fila propia, 0002), así que su portal no tendría
+    de dónde sacar las preguntas. Pero copiar el de serie a quien no ha
+    configurado nada sería escribir en su ficha para no decir nada nuevo:
+    `clientIntakeForm` ya cae en el formulario por defecto cuando no encuentra
+    copia, y el resultado es idéntico sin ocupar la columna.
+  */
+  const formulario = coachPrefs?.intakeForm ? coachIntakeForm(coachPrefs) : null;
+  if (!protocolo && !alta && !formulario) return null;
 
   return {
     ...(protocolo ? { protocol: protocolo } : {}),
     ...(alta ? { intake: intakeTemplateToPreferences(alta) } : {}),
+    ...(formulario ? { intakeForm: formulario } : {}),
   };
 };
