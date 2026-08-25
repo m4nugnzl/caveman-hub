@@ -29,7 +29,8 @@
  * Sigue siendo cálculo puro sobre datos en memoria; lo que cambia es cuántos.
  */
 
-import { clientIntake } from './intake';
+import { clientIntake, clientSteps, coachSteps, stepDone } from './intake';
+import { onboardingState } from './onboardingState';
 import { feeLabel, paymentState } from './billing';
 import { currentCheckInPeriod } from './calendar';
 import { clientProtocol, isServiceOn, requiredBlocks } from './protocol';
@@ -102,7 +103,7 @@ const hasBlock = (log, block) => {
  *   descargarlo todo al arrancar. Ver `auditoria.md` 1.5.
  */
 export const clientStatus = (
-  { client, training, anthro, photos = [], checkIn: submitted = null },
+  { client, training, anthro, photos = [], checkIn: submitted = null, equipmentCount = 0 },
   today = todayISO()
 ) => {
   const resumen = training || emptyTrainingSummary();
@@ -113,6 +114,9 @@ export const clientStatus = (
   const lastPhoto = lastDate(photos.map((p) => p.date));
 
   const checkIn = weeklyCheckIn(history, today);
+  /* Qué ha entregado él, del mismo sitio que su portal y que su ficha: los tres
+     no pueden discrepar sobre si el cuestionario está contestado. */
+  const estadoDelAlta = onboardingState({ client, equipment: { length: equipmentCount }, checkIn: submitted });
   const alerts = [];
 
   const add = (id, severity, label, detail) => alerts.push({ id, severity, label, detail });
@@ -289,8 +293,47 @@ export const clientStatus = (
     Ahora es un paso más de los que cada uno elige (`domain/intake.js`) y, si lo
     quita, el aviso desaparece con él.
   */
-  if (clientIntake(client.preferences).steps.includes('onboarding') && !client.onboardingComplete) {
+  const alta = clientIntake(client.preferences);
+
+  if (alta.steps.includes('onboarding') && !client.onboardingComplete) {
     add('onboarding', 'media', 'Onboarding sin cerrar', 'Falta marcarlo como completado.');
+  }
+
+  /*
+    ── «Ya puedes empezar con él» ────────────────────────────────────────────
+
+    El aviso que faltaba, y es el que cierra el circuito: el cliente entrega lo
+    suyo —cuestionario, fotos del gimnasio, primer check-in— y a partir de ahí le
+    toca al entrenador. Sin esto, enterarse de que ya se puede empezar exigía
+    entrar en su ficha a mirar, o sea acordarse de mirar.
+
+    ══ Cuándo salta, y por qué las tres condiciones ══════════════════════════
+
+      · Le pides ALGO a él. Quien no le pide nada no tiene nada que esperar.
+      · Está TODO entregado. A medias no vale: montar un plan con la mitad de
+        las respuestas es lo que este circuito viene a evitar.
+      · Y a ti te queda algo por hacer. Si tus pasos están cerrados, no hay
+        tarea: el aviso sería un recordatorio de algo terminado.
+
+    ── Severidad media y no alta ─────────────────────────────────────────────
+    Alta es para lo que se está estropeando —un cobro vencido, alguien sin
+    entrenar hace nueve días—. Esto es trabajo que ha llegado, no un problema, y
+    subirlo al rojo haría que el rojo dejara de significar «esto va mal».
+  */
+  const suyos = clientSteps(alta);
+  const mios = coachSteps(alta);
+  const entregado =
+    suyos.length > 0 &&
+    suyos.every((paso) => stepDone(paso, client, alta, estadoDelAlta));
+  const meFalta = mios.some((paso) => !stepDone(paso, client, alta, estadoDelAlta));
+
+  if (entregado && meFalta) {
+    add(
+      'intake_ready',
+      'media',
+      'Ya puedes empezar con él',
+      'Te ha entregado todo lo suyo: te toca a ti.'
+    );
   }
 
   // ── Fotos ─────────────────────────────────────────────────────────────────
@@ -442,7 +485,16 @@ export const reviewQueue = (rows = [], today = todayISO()) =>
  * lo que hay que hacer hoy está siempre arriba.
  */
 export const buildPortfolio = (
-  { clients = [], training = {}, anthropometry = {}, progressPhotos = [], checkIns = {} },
+  {
+    clients = [],
+    training = {},
+    anthropometry = {},
+    progressPhotos = [],
+    checkIns = {},
+    /* Cuántas fotos de maquinaria tiene cada uno. Solo hace falta saber si hay
+       alguna, así que viaja como cifra y no como lista: ver `useEquipment`. */
+    equipmentCounts = {},
+  },
   today = todayISO()
 ) => {
   const photosByClient = new Map();
@@ -460,6 +512,7 @@ export const buildPortfolio = (
         training: training[client.id],
         anthro: anthropometry[client.id],
         photos: photosByClient.get(client.id) || [],
+        equipmentCount: equipmentCounts[client.id] || 0,
         // El check-in de LA SEMANA EN CURSO. Los anteriores no dicen nada del
         // estado de hoy, y mezclarlos haría que un cliente pareciera pendiente
         // por algo que entregó en marzo.
@@ -717,6 +770,20 @@ export const INBOX_TASKS = [
       const tarifa = feeLabel(row.client);
       return [alerta?.label, tarifa].filter(Boolean).join(' · ');
     },
+  },
+  {
+    /*
+      Va la PRIMERA de las dos del alta, y delante de «terminar el alta»: son dos
+      momentos del mismo circuito y éste es el que acaba de desbloquearse. Detrás
+      del otro quedaría mezclado con los que todavía no han entregado nada, que
+      es justo la distinción que hace falta ver de un vistazo.
+    */
+    id: 'intake_ready',
+    label: 'Ya puedes empezar',
+    hint: 'Te han entregado lo suyo y te toca a ti',
+    tone: 'info',
+    match: (row) => row.alerts.some((a) => a.id === 'intake_ready'),
+    why: () => 'Alta entregada',
   },
   {
     id: 'intake',

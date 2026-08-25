@@ -1744,10 +1744,23 @@ button.task-head:hover > .chevron { color: var(--text); }
    Una lista NUMERADA y no una de casillas, y la diferencia importa: una casilla
    invita a pulsarla, y aquí no hay nada que pulsar —se marcan solas cuando la
    cosa está hecha—. El número dice además el ORDEN, que es la otra mitad de lo
-   que se viene a preguntar. */
-.task-list { list-style: none; display: flex; flex-direction: column; gap: var(--s2); margin: 0; padding: 0; }
+   que se viene a preguntar.
 
-.task {
+   ── Por qué `chore` y no `task`, que es como se llamaba ─────────────────────
+   Porque `.task` YA EXISTE, mil líneas más arriba: es el grupo plegable de la
+   bandeja de «Hoy» (`.task-head`, `.task-rows`, `.task-row`). Dos bloques
+   distintos con el mismo nombre en la misma hoja no conviven, gana el último —y
+   ganaba éste—, así que los grupos de «Hoy» venían heredando de aquí un canto,
+   un radio menor y un `align-items: center` que en una columna encoge las filas
+   de dentro y las centra. Un fallo silencioso en una pantalla que ni se toca al
+   trabajar en el alta, que es la peor clase.
+
+   El nombre en singular no es capricho: aquí una fila es una ENTREGA del cliente
+   («súbeme las fotos del gimnasio»), y allí una TAREA del entrenador. Nombres
+   distintos para cosas distintas es lo que impide que vuelva a pasar. */
+.chore-list { list-style: none; display: flex; flex-direction: column; gap: var(--s2); margin: 0; padding: 0; }
+
+.chore {
   display: flex; align-items: center; gap: var(--s3);
   padding: var(--s3);
   border-radius: var(--r-md);
@@ -1757,15 +1770,15 @@ button.task-head:hover > .chevron { color: var(--text); }
 
 /* El disco del número. Con el acento porque es lo siguiente que hay que hacer;
    hecho, baja a tinta apagada y deja de pedir la vista. */
-.task-mark {
+.chore-mark {
   flex-shrink: 0;
   width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center;
   font-size: var(--fs-xs); font-weight: 700;
   background: var(--accent); color: var(--accent-on);
 }
-.task-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.task-title { font-size: var(--fs-sm); font-weight: 600; }
+.chore-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.chore-title { font-size: var(--fs-sm); font-weight: 600; }
 
 /*
   Lo hecho NO se tacha: se apaga.
@@ -1774,9 +1787,9 @@ button.task-head:hover > .chevron { color: var(--text); }
   cosas distintas, y una respuesta entregada sigue valiendo. Bajar el tono deja
   ver lo que llevas sin que compita con lo que falta.
 */
-.task.is-done { background: transparent; border-color: transparent; }
-.task.is-done > .task-mark { background: var(--positive-soft); color: var(--positive); }
-.task.is-done > .task-say > .task-title { color: var(--text-tertiary); font-weight: 500; }
+.chore.is-done { background: transparent; border-color: transparent; }
+.chore.is-done > .chore-mark { background: var(--positive-soft); color: var(--positive); }
+.chore.is-done > .chore-say > .chore-title { color: var(--text-tertiary); font-weight: 500; }
 
 /* ══ ELEGIR QUÉ SE LE PREGUNTA (Ajustes → Protocolo → El alta) ═══════════════
    Diecinueve casillas repartidas en dos columnas, cada una con una pista de
@@ -8552,7 +8565,7 @@ button.log-answer:hover { background: var(--fill); }
    (`.shell-top`, z-index 80) en escritorio: el índice se metía DEBAJO de ellas y
    desaparecía justo al desplazar, que es cuando servía. Baja lo que mide la
    cabecera, que es la referencia que ya usan el estudio de fotos y el subnivel. */
-.proto-nav {
+.page-nav {
   position: sticky; top: calc(var(--header-h) + var(--s2)); z-index: 40;
   display: flex; align-items: center; gap: var(--s1);
   padding: var(--s1);
@@ -8563,9 +8576,9 @@ button.log-answer:hover { background: var(--fill); }
   box-shadow: var(--shadow-sm);
   overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
 }
-.proto-nav::-webkit-scrollbar { display: none; }
+.page-nav::-webkit-scrollbar { display: none; }
 
-.proto-nav-link {
+.page-nav-link {
   display: flex; align-items: center; justify-content: center; gap: var(--s2);
   /* A partes iguales: cinco apartados que son cinco decisiones del mismo peso,
      y repartidos no hay que apuntar a una pastilla de ancho variable. */
@@ -8575,22 +8588,22 @@ button.log-answer:hover { background: var(--fill); }
   color: var(--text-tertiary); white-space: nowrap;
   transition: background-color var(--fast), color var(--fast);
 }
-.proto-nav-link:hover { background: var(--fill-subtle); color: var(--text); }
+.page-nav-link:hover { background: var(--fill-subtle); color: var(--text); }
 /* El apartado en el que se está. Tinta plena sobre relleno, que es la forma que
    ya tiene lo seleccionado en el resto del producto (`.chip[aria-pressed]`). */
-.proto-nav-link.is-here { background: var(--accent); color: var(--accent-on); }
+.page-nav-link.is-here { background: var(--accent); color: var(--accent-on); }
 
 /* La cuenta de lo que hay puesto ahí. En monoespaciada porque es una cifra que
    se compara con las de al lado, y a esa comparación le estorba que el «1» mida
    menos que el «4». */
-.proto-nav-link > .n {
+.page-nav-link > .n {
   flex-shrink: 0;
   min-width: 18px; height: 18px; padding: 0 5px;
   display: grid; place-items: center; border-radius: var(--r-pill);
   background: var(--fill); color: var(--text-secondary);
   font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
 }
-.proto-nav-link.is-here > .n { background: transparent; color: var(--accent-on); opacity: 0.75; }
+.page-nav-link.is-here > .n { background: transparent; color: var(--accent-on); opacity: 0.75; }
 
 /* ── Cada tanda del protocolo ──────────────────────────────────────────────
    Encabezado y tarjetas más juntos entre sí (`--s4`) de lo que están las tandas
@@ -8601,15 +8614,25 @@ button.log-answer:hover { background: var(--fill); }
    por ancla — antes eran 64 px planos, que es menos de lo que miden las dos, así
    que el ancla dejaba el encabezado tapado. El mismo número que la constante
    `LINEA` de `ProtoNav.jsx`, que decide qué apartado va marcado. */
-.proto-section {
+.page-section {
   display: flex; flex-direction: column; gap: var(--s4);
+}
+
+/* El hueco que deja el ancla al saltar, en UNA regla para los dos que lo
+   necesitan: el apartado con encabezado y tarjetas (`.page-section`) y la
+   sección que es una sola tarjeta y solo quiere ser un destino —el cuestionario,
+   la salud y el gimnasio en «Tu alta»—. Escrito dos veces, uno de los dos se
+   quedaría corto el día que cambie la cabecera y el ancla dejaría el título
+   tapado, que es un fallo que no da ningún error. */
+.page-section,
+.anchored {
   scroll-margin-top: calc(var(--header-h) + 78px);
 }
 /* Y un respiro más entre apartados que dentro de uno: 44 px contra 16 dejan el
    grupo hecho sin gastar un filete. La doctrina de los bloques ya dice por qué
    no se separa con líneas —cinco apartados serían cinco costuras, y en el tema
    claro eso es una hoja de cálculo—; aquí separa el aire. */
-.proto-section + .proto-section { margin-top: var(--s3); }
+.page-section + .page-section { margin-top: var(--s3); }
 
 .proto-presets {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
@@ -8697,7 +8720,7 @@ button.log-answer:hover { background: var(--fill); }
      aplicación» ni recortada. Cada pastilla mide lo suyo y el índice se
      desplaza, que es la regla del `.rail`: si la lista es larga y se recorre, se
      recorre. */
-  .proto-nav-link { flex: 0 0 auto; }
+  .page-nav-link { flex: 0 0 auto; }
 
   /* Nombre y mandos, uno debajo del otro: el carril de tres posiciones mide
      unos 200 px y al lado no queda ancho para leer «Perímetros corporales». */
@@ -9723,7 +9746,7 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 /* ── El carril de pestañas del detalle ──────────────────────────────────────
    Dentro de cada pestaña hay tablas largas —la de cuentas sola pasa de una
    pantalla—, así que al llegar al final el carril quedaba tres pantallas más
-   arriba, por encima de los seis indicadores. La misma factura que `.proto-nav`
+   arriba, por encima de los seis indicadores. La misma factura que `.page-nav`
    y por la misma razón: es un OBJETO de cristal que flota, no una franja
    pegada al papel. Baja lo que mide la cabecera, que es la referencia que ya
    usan el índice del protocolo y el estudio de fotos. */

@@ -109,6 +109,7 @@ export const Today = () => {
     anthropometry,
     progressPhotos,
     checkIns,
+    equipmentCounts,
     nutrition,
     workoutData,
     markClientPaid,
@@ -159,8 +160,8 @@ export const Today = () => {
   );
 
   const rows = useMemo(
-    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns }, today),
-    [clients, training, anthropometry, progressPhotos, checkIns, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, today]
   );
 
   /* La MISMA bandeja que calcula el dominio. Antes «Hoy» tenía la suya —tres

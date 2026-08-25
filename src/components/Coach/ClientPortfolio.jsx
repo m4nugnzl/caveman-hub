@@ -125,6 +125,7 @@ export const ClientPortfolio = () => {
     anthropometry,
     progressPhotos,
     checkIns,
+    equipmentCounts,
     checkInsActivos,
     addClient,
     team,
@@ -140,8 +141,8 @@ export const ClientPortfolio = () => {
 
   const today = todayISO();
   const rows = useMemo(
-    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns }, today),
-    [clients, training, anthropometry, progressPhotos, checkIns, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, today]
   );
 
   /* El eje de entrenador solo existe si hay equipo con más de una persona: con un

@@ -442,3 +442,83 @@ describe('clientStatus con un cliente de solo nutrición', () => {
     expect(row.alerts.map((a) => a.id)).toContain('no_program');
   });
 });
+
+/*
+  ══ «Ya puedes empezar con él» ═══════════════════════════════════════════════
+
+  El aviso que cierra el circuito del alta: el cliente entrega lo suyo y a partir
+  de ahí le toca al entrenador. Sin él, enterarse de que ya se puede empezar
+  exigía entrar en su ficha a mirar — o sea, acordarse de mirar.
+
+  Lo que estas pruebas defienden son sus tres condiciones, porque cada una evita
+  un aviso falso distinto y ninguna se ve mirando la pantalla.
+*/
+describe('el aviso de alta entregada', () => {
+  /* Le pide las tres entregas y le quedan sus dos pasos por hacer. */
+  const preferences = {
+    intake: { steps: ['form', 'gymPhotos', 'postureReview'], done: [] },
+    /* Un cuestionario con UNA pregunta, para poder darlo por contestado sin
+       tener que rellenar diecinueve campos en cada caso. */
+    intakeForm: { asked: ['sleepHours'], custom: [], askHealth: false },
+  };
+
+  const entregado = client({
+    preferences,
+    profile: { sleepHours: 7 },
+    postureReviewed: false,
+  });
+
+  const tiene = (row) => row.alerts.some((a) => a.id === 'intake_ready');
+
+  it('salta cuando lo ha entregado todo y a ti te falta algo', () => {
+    const row = clientStatus({ client: entregado, equipmentCount: 4 }, '2026-08-11');
+    expect(tiene(row)).toBe(true);
+  });
+
+  /* A medias no vale: montar un plan con la mitad de las respuestas es lo que
+     este circuito viene a evitar. */
+  it('no salta si le falta una de sus entregas', () => {
+    const sinFotos = clientStatus({ client: entregado, equipmentCount: 0 }, '2026-08-11');
+    expect(tiene(sinFotos)).toBe(false);
+
+    const sinCuestionario = clientStatus(
+      { client: { ...entregado, profile: {} }, equipmentCount: 4 },
+      '2026-08-11'
+    );
+    expect(tiene(sinCuestionario)).toBe(false);
+  });
+
+  /* Si tus pasos están cerrados no hay tarea: el aviso sería el recordatorio de
+     algo terminado, y eso es exactamente cómo una bandeja deja de leerse. */
+  it('no salta si ya has hecho lo tuyo', () => {
+    const row = clientStatus(
+      { client: { ...entregado, postureReviewed: true }, equipmentCount: 4 },
+      '2026-08-11'
+    );
+    expect(tiene(row)).toBe(false);
+  });
+
+  /* Quien no le pide nada a su cliente no tiene nada que esperar, así que no hay
+     momento en el que «acabe de entregar». */
+  it('no salta si no le pides nada a él', () => {
+    const soloTuyos = client({
+      preferences: { intake: { steps: ['postureReview'], done: [] } },
+      postureReviewed: false,
+    });
+    expect(tiene(clientStatus({ client: soloTuyos }, '2026-08-11'))).toBe(false);
+  });
+
+  it('llega a la bandeja como su propia tarea, y delante de «terminar el alta»', () => {
+    const rows = buildPortfolio(
+      { clients: [entregado], equipmentCounts: { c1: 4 } },
+      '2026-08-11'
+    );
+    const { tasks } = portfolioInbox(rows);
+    const ids = tasks.map((t) => t.id);
+
+    expect(ids).toContain('intake_ready');
+    expect(ids.indexOf('intake_ready')).toBeLessThan(
+      ids.indexOf('intake') === -1 ? Infinity : ids.indexOf('intake')
+    );
+  });
+});

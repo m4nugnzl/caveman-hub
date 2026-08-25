@@ -1,41 +1,38 @@
 import { useEffect, useState } from 'react';
 
 /**
- * El índice del protocolo: cinco anclas pegajosas bajo la cabecera.
+ * El índice de una pantalla larga: anclas pegajosas bajo la cabecera.
+ *
+ * ══ De dónde sale ══════════════════════════════════════════════════════════
+ *
+ * Era `Protocol/ProtoNav.jsx` y solo servía al protocolo. Sube a primitiva
+ * porque la ficha del cliente tiene exactamente el mismo problema —siete bloques
+ * apilados, dos rótulos de grupo y ningún mapa— y la alternativa era la copia:
+ * dos observadores de desplazamiento con la misma constante mal sincronizada, que
+ * es como este proyecto se ha ganado ya tres duplicaciones.
  *
  * ── Por qué anclas y no pestañas ────────────────────────────────────────────
- * El panel eran ocho bloques apilados sin mapa: para tocar el check-in había
- * que reconocer la pantalla entera bajando a ciegas. Trocearlo en pestañas
- * escondería lo que no está delante —y este panel se lee entero la primera
- * vez, que es cuando se decide la forma de trabajar—. Las anclas dan el mapa
- * sin quitar el papiro: todo sigue en una pasada, y `#checkin` es enlazable
- * (/ajustes/protocolo#checkin) para señalar un bloque desde donde haga falta.
+ * Trocear en pestañas esconde lo que no está delante, y estas dos pantallas se
+ * leen ENTERAS la primera vez —una decide tu forma de trabajar, la otra es todo
+ * lo que sabes de una persona—. Las anclas dan el mapa sin quitar el papiro: todo
+ * sigue en una pasada, y `#checkin` es enlazable (`/ajustes/protocolo#checkin`)
+ * para señalar un bloque desde donde haga falta.
  *
  * ── Y por qué además CUENTA ─────────────────────────────────────────────────
  * Un índice que solo nombra apartados es un adorno: dice a dónde ir, no qué hay
- * allí. Con el número al lado —«El check-in · 4»— la barra contesta de un
- * vistazo la pregunta que traía uno al entrar («¿qué le estoy pidiendo a esta
- * gente?») sin recorrer la pantalla entera. No es un dato nuevo: es el mismo
- * que está más abajo, subido a donde se mira primero.
+ * allí. Con el número al lado —«El check-in · 4»— la barra contesta de un vistazo
+ * la pregunta que traía uno al entrar sin recorrer la pantalla entera. No es un
+ * dato nuevo: es el mismo que está más abajo, subido a donde se mira primero.
  *
  * `href` planos a propósito: el desplazamiento suave lo da el CSS (`html {
  * scroll-behavior: smooth }`) y la regla global de menos movimiento ya lo
  * neutraliza; no hace falta JavaScript para el salto.
  */
-const SECCIONES = [
-  { id: 'servicios', label: 'Qué llevas' },
-  { id: 'alta', label: 'El alta' },
-  { id: 'app', label: 'La aplicación' },
-  { id: 'sesion', label: 'La sesión' },
-  { id: 'checkin', label: 'El check-in' },
-];
-
-const IDS = SECCIONES.map((s) => s.id);
 
 /**
  * La línea de corte, en píxeles desde arriba: por debajo de la barra pegajosa,
  * que es justo donde deja de verse una sección. Sale del mismo cálculo que el
- * `scroll-margin-top` de `.proto-section` en el CSS; si uno cambia, el otro
+ * `scroll-margin-top` de `.page-section` en el CSS; si uno cambia, el otro
  * también.
  */
 const LINEA = 140;
@@ -55,10 +52,15 @@ const LINEA = 140;
  * desplazamiento: `getBoundingClientRect` fuerza un recálculo, y sesenta por
  * segundo es lo que separa esto de un `scroll` que se nota.
  */
-const useApartadoVisible = () => {
-  const [aqui, setAqui] = useState(IDS[0]);
+const useApartadoVisible = (ids) => {
+  /* La lista, en una cadena estable: `ids` es un array nuevo en cada render de
+     quien llama, y sin esto el efecto se volvería a montar sesenta veces por
+     segundo mientras se desplaza. */
+  const clave = ids.join('|');
+  const [aqui, setAqui] = useState(ids[0]);
 
   useEffect(() => {
+    const lista = clave.split('|');
     let pedido = 0;
 
     const mirar = () => {
@@ -70,12 +72,12 @@ const useApartadoVisible = () => {
          página delante. Sin nada que desplazar, la activa es la última. */
       const restante = document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
       if (restante <= 2) {
-        setAqui(IDS[IDS.length - 1]);
+        setAqui(lista[lista.length - 1]);
         return;
       }
 
-      let visible = IDS[0];
-      for (const id of IDS) {
+      let visible = lista[0];
+      for (const id of lista) {
         const el = document.getElementById(id);
         if (el && el.getBoundingClientRect().top <= LINEA) visible = id;
       }
@@ -94,29 +96,33 @@ const useApartadoVisible = () => {
       window.removeEventListener('scroll', alMover);
       window.removeEventListener('resize', alMover);
     };
-  }, []);
+  }, [clave]);
 
   return aqui;
 };
 
 /**
- * @param cuentas  Cuántas piezas activas hay en cada apartado, por `id`. No es
- *   la misma unidad en todos —servicios, pasos, módulos, preguntas— y no falta
- *   que lo sea: lo que se lee es «cuánto hay puesto aquí».
+ * @param sections  `[{ id, label }]`. El `id` tiene que existir como `id` de una
+ *   `<section className="page-section">` de la pantalla.
+ * @param cuentas   Cuántas piezas hay en cada apartado, por `id`. No es la misma
+ *   unidad en todos —servicios, pasos, módulos, preguntas— y no falta que lo
+ *   sea: lo que se lee es «cuánto hay puesto aquí». Opcional.
+ * @param label     Qué índice es, para quien navega a oídas.
  */
-export const ProtoNav = ({ cuentas = {} }) => {
-  const aqui = useApartadoVisible();
+export const PageNav = ({ sections, cuentas = {}, label = 'Apartados de esta pantalla' }) => {
+  const ids = sections.map((s) => s.id);
+  const aqui = useApartadoVisible(ids);
 
   return (
-    <nav className="proto-nav" aria-label="Apartados del protocolo">
-      {SECCIONES.map(({ id, label }) => (
+    <nav className="page-nav" aria-label={label}>
+      {sections.map(({ id, label: nombre }) => (
         <a
           key={id}
-          className={`proto-nav-link${aqui === id ? ' is-here' : ''}`}
+          className={`page-nav-link${aqui === id ? ' is-here' : ''}`}
           href={`#${id}`}
           aria-current={aqui === id ? 'true' : undefined}
         >
-          {label}
+          {nombre}
           {cuentas[id] !== undefined && <span className="n">{cuentas[id]}</span>}
         </a>
       ))}

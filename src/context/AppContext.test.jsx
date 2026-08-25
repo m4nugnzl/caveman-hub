@@ -113,9 +113,12 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 193 claves', () => {
+  it('el reparto conserva las 194 claves', () => {
     montar();
-    // 193 desde el salto al portal por una pantalla concreta: `openClientView` y
+    // 194 desde el aviso de «ya puedes empezar» en Hoy: `equipmentCounts`, una
+    // cifra por cliente. El detalle sigue siendo del cliente abierto; para saber
+    // quién ha terminado su alta basta con si tiene fotos o no.
+    // Antes 193, desde el salto al portal por una pantalla concreta: `openClientView` y
     // `takeViewTarget`. Cambiar de modo NO navega —lo traduce el comodín de
     // App.jsx— así que el destino se deja dicho y lo lee quien decide de verdad.
     // Antes 191, desde el cuestionario de alta (0080): `saveClientProfile`, el único
@@ -147,7 +150,7 @@ describe('AppProvider', () => {
     // Y antes 168, desde `applyProtocolToClient` — «Aplicar a todos» dejó de
     // escribir a ciegas por la cola y pasó a esperar cada respuesta para
     // contarla.
-    expect(Object.keys(visto.app).length).toBe(193);
+    expect(Object.keys(visto.app).length).toBe(194);
   });
 
   /*

@@ -98,6 +98,7 @@ export const CoachLayout = () => {
     anthropometry,
     progressPhotos,
     checkIns,
+    equipmentCounts,
   } = useApp();
   const { setViewMode } = useActions();
   const { clientId } = useParams();
@@ -115,9 +116,9 @@ export const CoachLayout = () => {
     cuenta propia divergiría; por eso se suman sus filas y no se inventa nada.
   */
   const pendientes = useMemo(() => {
-    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns });
+    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts });
     return portfolioInbox(rows).tasks.reduce((n, task) => n + task.rows.length, 0);
-  }, [clients, training, anthropometry, progressPhotos, checkIns]);
+  }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts]);
 
   /*
     Qué número acompaña a cada puerta del nivel primario. «Hoy» lleva el trabajo

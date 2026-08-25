@@ -32,9 +32,9 @@ import {
   templateFrom,
 } from '@/lib/protocolTemplate';
 import { GroupHead, Notice, PageHead } from '@/components/ui/primitives';
+import { PageNav } from '@/components/ui/PageNav';
 import { IntakeSteps } from './IntakeSteps';
 import { TargetPicker } from './TargetPicker';
-import { ProtoNav } from './ProtoNav';
 import { ServicesSection } from './ServicesSection';
 import { PresetsSection } from './PresetsSection';
 import { ModulesSection } from './ModulesSection';
@@ -60,7 +60,7 @@ import { QuestionEditor } from './QuestionEditor';
  * Esto eran 700 líneas con ocho bloques apilados. Aquí queda el ESTADO —el
  * destino, las plantillas, los dos guardados y «aplicar a todos»— y cada bloque
  * vive en su fichero como pieza de presentación que recibe `(protocol, onSave)`.
- * `ProtoNav` pone el mapa: cinco anclas que agrupan los bloques por asunto.
+ * `PageNav` pone el mapa: cinco anclas que agrupan los bloques por asunto.
  *
  * ── Dónde vive cada cosa ────────────────────────────────────────────────────
  * La plantilla del entrenador se guarda en su cuenta (`profiles.preferences`,
@@ -70,6 +70,22 @@ import { QuestionEditor } from './QuestionEditor';
  * (`clients.preferences.protocol`): se puede perder la plantilla, nunca lo que
  * tus clientes tienen puesto.
  */
+/**
+ * Los cinco apartados, en el orden en que se leen.
+ *
+ * La lista vive aquí y no dentro del índice porque es la ESTRUCTURA de esta
+ * pantalla: cada entrada tiene que casar con el `id` de su `<section>` de abajo,
+ * y tenerlas a la vista en el mismo archivo es lo que hace evidente que añadir un
+ * apartado son dos sitios y no uno.
+ */
+const APARTADOS = [
+  { id: 'servicios', label: 'Qué llevas' },
+  { id: 'alta', label: 'El alta' },
+  { id: 'app', label: 'La aplicación' },
+  { id: 'sesion', label: 'La sesión' },
+  { id: 'checkin', label: 'El check-in' },
+];
+
 export const ProtocolPanel = () => {
   const {
     session,
@@ -334,7 +350,7 @@ export const ProtocolPanel = () => {
         onApplyAll={applyToAll}
       />
 
-      <ProtoNav cuentas={cuentas} />
+      <PageNav sections={APARTADOS} cuentas={cuentas} label="Apartados del protocolo" />
 
       {/*
         ══ La prosa fuera de la tarjeta ══════════════════════════════════════
@@ -348,7 +364,7 @@ export const ProtocolPanel = () => {
         lo que se toca y el ojo puede saltarse lo que ya sabe.
       */}
 
-      <section id="servicios" className="proto-section">
+      <section id="servicios" className="page-section">
         <GroupHead
           title="Qué llevas"
           sub={
@@ -363,7 +379,7 @@ export const ProtocolPanel = () => {
       {/* El alta va la primera de las que configuran el seguimiento porque es lo
           primero que pasa: los pasos del alta se dan antes de que exista una
           sesión que puntuar. */}
-      <section id="alta" className="proto-section">
+      <section id="alta" className="page-section">
         <GroupHead
           title="El alta"
           sub="Qué te entrega él para que puedas empezar, y qué haces tú con eso."
@@ -398,7 +414,7 @@ export const ProtocolPanel = () => {
         <IntakeFormSection />
       </section>
 
-      <section id="app" className="proto-section">
+      <section id="app" className="page-section">
         <GroupHead
           title="La aplicación"
           sub="Qué piezas existen para esta persona. Lo que esté apagado no aparece: ni tú lo ves al programar, ni tu cliente al entrenar."
@@ -407,7 +423,7 @@ export const ProtocolPanel = () => {
         <ModulesSection protocol={protocol} onSave={save} />
       </section>
 
-      <section id="sesion" className="proto-section">
+      <section id="sesion" className="page-section">
         <GroupHead
           title="La sesión"
           sub="Qué le preguntas al terminar de entrenar. Cada pregunta de escala se convierte en una serie que puedes seguir en su panel; las de texto no se pueden medir."
@@ -435,7 +451,7 @@ export const ProtocolPanel = () => {
           pregunta (cuestionario). Antes los bloques iban pegados a los módulos y
           el cuestionario tres pantallas más abajo; son las dos mitades de la
           misma revisión semanal y se leen juntas. */}
-      <section id="checkin" className="proto-section">
+      <section id="checkin" className="page-section">
         <GroupHead
           title="El check-in"
           sub="Su revisión semanal: lo que se mide y lo que se pregunta antes de entregarla."

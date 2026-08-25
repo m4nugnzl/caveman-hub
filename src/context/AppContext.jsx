@@ -1328,13 +1328,17 @@ export const AppProvider = ({ children }) => {
 
   /* La maquinaria de su gimnasio (migración 0079). Mismo alcance: la del cliente
      abierto, que es de quien se está montando la rutina. */
-  const { equipment, addEquipment, setEquipmentGroup, removeEquipment } = useEquipment({
-    activeClientId,
+  const { equipment, equipmentCounts, addEquipment, setEquipmentGroup, removeEquipment } =
+    useEquipment({
+      activeClientId,
+      /* Para el recuento de TODA la cartera, que se pide una vez por sesión y no
+         por cliente. Sin usuario no hay nada que contar. */
+      userId: session?.user?.id || null,
     /* Solo para redactar el aviso cuando la cuota corta: al entrenador se le dice
        que amplíe su plan y al cliente que avise a su entrenador (ver
        `traduceStorageError`). Es el mismo espejo que usa el guardado. */
-    isCoach: isCoachRef.current,
-  });
+      isCoach: isCoachRef.current,
+    });
 
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
 
@@ -1846,6 +1850,7 @@ export const AppProvider = ({ children }) => {
       phases,
       conditions,
       equipment,
+      equipmentCounts,
       saveStatus,
       hasUnsavedChanges,
     }),
@@ -1853,7 +1858,7 @@ export const AppProvider = ({ children }) => {
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
       workoutData, training, legacyPending, anthropometry, nutrition, progressPhotos,
       exerciseLibrary, foodLibrary, catalogFoods, catalogExercises, checkIns, checkInsActivos,
-      phases, conditions, equipment, saveStatus, hasUnsavedChanges,
+      phases, conditions, equipment, equipmentCounts, saveStatus, hasUnsavedChanges,
     ]
   );
 

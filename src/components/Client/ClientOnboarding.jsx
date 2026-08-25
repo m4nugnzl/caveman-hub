@@ -21,13 +21,22 @@ import { IntakeTasks } from './IntakeTasks';
  * Así que vive fuera del carril, con su ruta propia, y se llega desde su inicio
  * mientras haya algo pendiente. Cuando termina, deja de estorbar.
  *
- * ══ Las dos cosas que entrega, en una pantalla ═════════════════════════════
+ * ══ Las tres cosas que entrega, en una pantalla ════════════════════════════
  *
  * El cuestionario —lo que hoy viaja en un Word por correo, con las preguntas que
- * cada entrenador elija— y las fotos de la maquinaria de su gimnasio. Son la
- * misma clase de cosa: información que el cliente da una vez y con la que se le
- * monta el plan, así que comparten pantalla en vez de repartirse entre dos
+ * cada entrenador elija—, su salud y las fotos de la maquinaria de su gimnasio.
+ * Son la misma clase de cosa: información que el cliente da una vez y con la que
+ * se le monta el plan, así que comparten pantalla en vez de repartirse entre tres
  * sitios que hay que recordar.
+ *
+ * ══ Y cada una es una SECCIÓN con nombre ═══════════════════════════════════
+ *
+ * `anchored` con su `id` no es adorno: es lo que convierte la lista de tareas
+ * de arriba en un índice de verdad. Antes decía «te falta el cuestionario» sin
+ * ofrecer forma de llegar a él, y en un móvil eso son tres pantallas de
+ * desplazamiento reconociendo tarjetas. Ahora cada tarea salta a la suya, y el
+ * `scroll-margin-top` de la clase deja el título por debajo de la cabecera en vez
+ * de tapado por ella.
  */
 export const ClientOnboarding = () => {
   const { activeClient } = useApp();
@@ -66,16 +75,27 @@ export const ClientOnboarding = () => {
       {/* El cuestionario antes que las fotos: son datos que su entrenador
           necesita para escribir la primera serie, y se contestan aquí y ahora.
           Las fotos hay que ir a hacerlas al gimnasio, que puede ser mañana. */}
-      <IntakeQuestions client={activeClient} />
+      <section id="cuestionario" className="anchored">
+        <IntakeQuestions client={activeClient} />
+      </section>
 
       {/* Su salud, justo detrás del cuestionario: es la parte que decide qué se
           le puede poner, y va antes que las fotos porque se contesta aquí y
-          ahora — las fotos hay que ir a hacerlas. */}
+          ahora — las fotos hay que ir a hacerlas.
+
+          No es un paso del alta y por eso no sale en la lista de tareas: son
+          filas de `client_conditions`, no respuestas del formulario, y no hay
+          forma de saber que alguien «ya ha terminado» de contar lo que le duele.
+          Se pregunta, y quien no tenga nada sigue. */}
       {clientIntakeForm(activeClient.preferences).askHealth && (
-        <IntakeHealth client={activeClient} />
+        <section id="salud" className="anchored">
+          <IntakeHealth client={activeClient} />
+        </section>
       )}
 
-      <ClientGymUpload client={activeClient} />
+      <section id="gimnasio" className="anchored">
+        <ClientGymUpload client={activeClient} />
+      </section>
     </div>
   );
 };

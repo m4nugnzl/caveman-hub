@@ -1680,7 +1680,7 @@ export const PlatformPanel = () => {
             sola pasa de una pantalla—, así que al llegar al final el carril
             estaba tres pantallas más arriba, por encima de los seis
             indicadores. Un mapa que hay que ir a buscar deja de ser un mapa.
-            Es lo mismo que `.proto-nav` resolvió en el protocolo, con la misma
+            Es lo mismo que `.page-nav` resolvió en el protocolo, con la misma
             factura de cristal.
           */}
           <GroupHead title="El detalle" />

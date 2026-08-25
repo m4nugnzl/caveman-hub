@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { buildEquipmentPath, cleanEquipment } from '@/domain/equipment';
@@ -46,8 +46,22 @@ const explicarError = (error) => {
   return texto || 'No se ha podido guardar la foto.';
 };
 
-export const useEquipment = ({ activeClientId, isCoach = true }) => {
+export const useEquipment = ({ activeClientId, userId, isCoach = true }) => {
   const [equipment, setEquipment] = useState([]);
+  /*
+    ══ Cuántas fotos tiene CADA cliente ═══════════════════════════════════════
+
+    El detalle es del cliente abierto —esa es la regla de este gancho— y para
+    saber si alguien ha terminado su alta hace falta una sola cifra de TODOS: si
+    ha mandado fotos o no. Sin esto, «Hoy» no puede avisar de quién ya está listo
+    para que le montes el plan, que es justo la pregunta con la que se abre.
+
+    Una consulta y de una columna: RLS filtra a los tuyos, así que ni siquiera
+    hace falta decir de quién. Veinte clientes con cuarenta máquinas son
+    ochocientos uuid, unos treinta kilobytes — el mismo orden que una sola foto
+    de las que ya se descargan.
+  */
+  const [counts, setCounts] = useState({});
 
   /**
    * Carga y firma.
@@ -97,6 +111,30 @@ export const useEquipment = ({ activeClientId, isCoach = true }) => {
        de desaparecer sin decir nada. */
     return piezas.map((p) => ({ ...p, url: porRuta.get(p.photoPath) || null }));
   }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setCounts({});
+      return undefined;
+    }
+
+    let cancelado = false;
+    supabase
+      .from('client_equipment')
+      .select('client_id')
+      .then(({ data, error }) => {
+        if (cancelado || error) return;
+        const cuenta = {};
+        for (const fila of data || []) {
+          cuenta[fila.client_id] = (cuenta[fila.client_id] || 0) + 1;
+        }
+        setCounts(cuenta);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     if (!activeClientId) {
@@ -213,5 +251,18 @@ export const useEquipment = ({ activeClientId, isCoach = true }) => {
     return { ok: true };
   }, []);
 
-  return { equipment, addEquipment, setEquipmentGroup, removeEquipment };
+  /*
+    El recuento, con el cliente abierto SIEMPRE al día.
+
+    La consulta de arriba se hace una vez por sesión, así que subir o borrar una
+    foto la dejaría rancia — y el aviso de «ya puedes empezar» aparecería o no
+    según cuándo se recargó la página. Para el que se está mirando manda la lista
+    de verdad, que es la que acaba de cambiar; para los demás, el recuento.
+  */
+  const equipmentCounts = useMemo(
+    () => (activeClientId ? { ...counts, [activeClientId]: equipment.length } : counts),
+    [counts, activeClientId, equipment.length]
+  );
+
+  return { equipment, equipmentCounts, addEquipment, setEquipmentGroup, removeEquipment };
 };
