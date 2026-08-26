@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { traduceDbError, traduceStorageError } from './dbErrors';
+import { esRechazoDefinitivo, traduceDbError, traduceStorageError } from './dbErrors';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -101,5 +101,36 @@ describe('traduceStorageError', () => {
   it('lo que no es la cuota se queda como estaba', () => {
     expect(traduceStorageError({ message: 'mime type video/webm is not supported' })).toBeNull();
     expect(traduceStorageError(null)).toBeNull();
+  });
+});
+
+/**
+ * ══ Qué se puede tirar y qué no ════════════════════════════════════════════
+ *
+ * La nota del navegador cubre el hueco entre «no hay red» y «vuelve a haberla».
+ * La línea que separa un caso del otro la traza esto, y equivocarse hacia un lado
+ * pierde datos y hacia el otro deja a alguien con «No se guardó · Reintentar»
+ * encendido para siempre. Le pasó a un cliente durante semanas.
+ */
+describe('esRechazoDefinitivo', () => {
+  it('lo que una guarda del servidor ha rechazado no mejora esperando', () => {
+    expect(
+      esRechazoDefinitivo({ code: 'P0001', message: 'El ejercicio ex_1 no está programado en EMPUJES' })
+    ).toBe(true);
+    expect(esRechazoDefinitivo({ code: '42501', message: 'row-level security' })).toBe(true);
+    expect(esRechazoDefinitivo({ code: '23505' })).toBe(true);
+  });
+
+  /* El caso para el que se inventó la nota: el gimnasio sin cobertura. */
+  it('un fallo de red se conserva', () => {
+    expect(esRechazoDefinitivo({ message: 'Failed to fetch' })).toBe(false);
+    expect(esRechazoDefinitivo(new Error('offline'))).toBe(false);
+    expect(esRechazoDefinitivo(null)).toBe(false);
+  });
+
+  /* Se parece a un rechazo definitivo y no lo es: se arregla desde el otro lado,
+     y a menudo en minutos. Lo que hay que hacer es esperar, no tirarlo. */
+  it('faltar una migración se conserva', () => {
+    expect(esRechazoDefinitivo({ code: 'PGRST202', message: 'Could not find the function' })).toBe(false);
   });
 });

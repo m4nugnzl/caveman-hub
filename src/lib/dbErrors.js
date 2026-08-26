@@ -37,7 +37,7 @@
 const FUNCION_MIGRACION = {
   log_session_set: '0014',
   save_workout_data: '0014',
-  continue_program: '0014',
+  continue_program: '0085',
   log_session_feedback: '0016',
   set_client_preferences: '0008',
   create_client_invite: '0015',
@@ -92,6 +92,47 @@ export const traduceDbError = (error) => {
   }
 
   return message || 'No se pudo guardar';
+};
+
+/**
+ * ¿Este error dice «esto no se va a poder guardar nunca»?
+ *
+ * ══ Para qué se pregunta ════════════════════════════════════════════════════
+ *
+ * Lo que queda sin confirmar se apunta en el navegador (`lib/pendingSaves`) y se
+ * reenvía en cada arranque. Esa nota existe para cubrir UN hueco concreto: el que
+ * hay entre «no hay red» y «vuelve a haberla». Cubre bien la pestaña que muere en
+ * un gimnasio sin cobertura, que es el único fallo de la aplicación que pierde
+ * datos de verdad.
+ *
+ * Pero un guardado que el servidor ya ha MIRADO y ha rechazado no se vuelve
+ * válido por sobrevivir a un reinicio: se reenvía, se rechaza igual, y deja a esa
+ * persona con «Cambios sin confirmar» y «No se guardó · Reintentar» encendidos
+ * para siempre, por algo que ya no puede arreglar nadie desde su lado. Es el
+ * estado en el que quedó un cliente por la divergencia de ids que arregla la
+ * 0085: un ejercicio que después de recargar no existía en ninguna parte, pidiendo
+ * reintento en cada visita.
+ *
+ * Así que el rechazo definitivo deja de apuntarse. El error SE SIGUE ENSEÑANDO y
+ * `Reintentar` sigue funcionando mientras la pestaña viva —quien lo tiene delante
+ * decide—; lo que no hace es resucitar mañana.
+ *
+ * ── Qué NO cuenta como definitivo, a propósito ─────────────────────────────
+ * Faltar una migración (PGRST202). Se parece mucho —reintentar no sirve de nada—
+ * pero se arregla desde el otro lado, y a menudo en minutos: lo que hay que hacer
+ * es esperar al despliegue y mandarlo entonces, no tirarlo.
+ *
+ * Un error sin código tampoco: es el de red, y es exactamente para el que se
+ * inventó la nota.
+ */
+export const esRechazoDefinitivo = (error) => {
+  const code = typeof error === 'string' ? '' : error?.code || '';
+
+  return (
+    code === 'P0001' || // RAISE EXCEPTION: una guarda del servidor ha dicho que no
+    code === '42501' || // sin permiso, o RLS
+    code === '23505' //   ya estaba guardado
+  );
 };
 
 /**

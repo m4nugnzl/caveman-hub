@@ -53,6 +53,7 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0082_la_carpeta_de_cada_cliente.sql` | Cuando quieras conectar Google Drive | La tarjeta de Drive se ve en el catálogo y conectar falla con el aviso de que la integración no está activa. Aditiva: dos tablas nuevas y la restricción de `provider` ampliada; ni un DROP. Requiere `0010` y desplegar `google-drive`. Las credenciales de Google están en [`docs/google-drive.md`](../docs/google-drive.md) — **no hay verificación que esperar**, y el porqué está en su §0. |
 | `0083_volver_a_dar_acceso.sql` | **Sí, mientras el correo salga por el SMTP de Supabase** | Un cliente que pierde su contraseña se queda fuera **para siempre**: el correo de recuperación no llega (SMTP compartido, ver [`docs/correo-transaccional.md`](../docs/correo-transaccional.md)) y `create_client_invite` se niega a reinvitar a una ficha ya enlazada, así que la única salida es poner `clients.client_profile_id` a NULL a mano en el panel. El botón «Perdió el acceso» de la ficha aparece igualmente y falla con «function does not exist». Aditiva: una función nueva, ni un DROP. Requiere `0015`. |
 | `0084_un_entrenador_no_canjea_una_invitacion.sql` | **Sí, cuanto antes** | Un entrenador que abre el enlace de invitación de un cliente suyo **con su sesión iniciada** se convierte en ese cliente: el canje termina con `UPDATE profiles SET role = 'client'` sobre quien llama, y desde la siguiente recarga entra en el portal del cliente sin ver su cartera. No se pierde ningún dato —son dos filas— pero el síntoma es la pantalla vacía de quien lo ha perdido todo, y probar tu propio enlace es lo que hace todo el mundo al montar la asesoría. Solo reemplaza `claim_client_invite(text)` para que se niegue; no toca tablas, permisos ni datos. La reparación de quien ya haya caído va al final del archivo. Requiere `0015`. |
+| `0085_la_semana_nueva_con_los_ids_del_movil.sql` | **Sí, con el despliegue del código** | Un cliente que pulsa «añadir semana» y entrena a continuación **pierde el entrenamiento entero**: la semana la construyen el navegador y el servidor por separado, cada uno con sus propios identificadores, y `log_session_set` rechaza cada serie con «El ejercicio ex_… no está programado en EMPUJES» hasta la siguiente recarga completa. El registro rechazado además se reenvía en cada arranque, así que esa persona arrastra «No se guardó · Reintentar» para siempre. **Cambia la firma y el tipo de retorno** de `continue_program` (de `(uuid) → integer` a `(uuid, jsonb) → jsonb`), así que lleva un `DROP`: entre aplicarla y desplegar, el botón de añadir semana falla con el aviso de migración pendiente. No toca tablas, políticas ni datos. De paso deja de duplicar semanas al reintentar y deja de perder `targetRir`. Requiere `0014`. |
 | `0063_deshacer_revision.sql` | Con el «Deshacer» de los avisos | Cerrar revisiones funciona igual, pero el «Deshacer» del aviso falla con su error y la revisión se queda cerrada (se puede reabrir borrando el check-in). Aditiva y sin riesgo: una función, espejo de `review_check_in`. Requiere `0009` y `0042`. |
 
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
@@ -272,6 +273,15 @@ entrenador, con control de concurrencia). Al final **retira la política
 que usa las funciones nuevas.
 
 Es el mismo arreglo que la 0008 hizo con `preferences`, por el mismo motivo.
+
+**`continue_program` la reemplaza la [`0085`](migrations/0085_la_semana_nueva_con_los_ids_del_movil.sql).**
+La versión de la 0014 se inventaba los identificadores de la semana nueva, y el
+navegador —que la pinta al instante para que se pueda añadir sin conexión— se
+inventaba los suyos. Eran dos semanas idénticas salvo en lo único que
+`log_session_set` mira, así que todo lo que se anotara en ella se rechazaba hasta la
+siguiente recarga completa. Desde la 0085 los ids los propone quien llama y la
+función los adopta si describen la semana que va a construir; la estructura la sigue
+decidiendo el servidor, que es lo que la 0014 vino a garantizar.
 
 ### 0014 — y nadie comparaba `updated_at`
 

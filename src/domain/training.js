@@ -442,6 +442,63 @@ export const blankDays = (days) =>
     })),
   }));
 
+/**
+ * Los identificadores de un microciclo, para que el servidor construya EL MISMO.
+ *
+ * ══ Por qué hace falta decírselos ═══════════════════════════════════════════
+ *
+ * Al continuar el programa, la semana nueva se construye dos veces: aquí, para
+ * que aparezca en pantalla al instante y sin conexión, y en el servidor, que es
+ * quien la escribe de verdad (`continue_program`). Las dos con la misma regla,
+ * pero cada una con sus propios `uuid`.
+ *
+ * Y el id del ejercicio es lo ÚNICO que `log_session_set` mira para localizar la
+ * fila donde anotar. Dos semanas idénticas con ids distintos significan que todo
+ * lo que esa persona registre hasta la siguiente recarga se rechaza con «el
+ * ejercicio no está programado en …». Un entrenamiento entero, perdido en
+ * silencio. Mandando los ids, las dos semanas son la misma desde el principio.
+ *
+ * El servidor los adopta solo si describen la semana que él va a construir; la
+ * estructura la sigue decidiendo él. Ver la migración 0085.
+ */
+export const microcycleIds = (microcycle) => ({
+  id: microcycle?.id ?? null,
+  days: (microcycle?.days || []).map((day) => ({
+    dayName: day.dayName,
+    exerciseIds: (day.exercises || []).map((exercise) => exercise.id),
+  })),
+});
+
+/**
+ * Sustituye el microciclo que se pintó a la espera por el que escribió el
+ * servidor.
+ *
+ * `localId` es el id que se propuso. Si se aceptó, el que vuelve es idéntico y
+ * esto no cambia nada; si no —la copia del navegador estaba vieja—, el bueno es
+ * el del servidor y el de aquí sobra.
+ *
+ * ── Las sesiones son del navegador ──────────────────────────────────────────
+ * Una semana recién creada vuelve sin sesiones, y para entonces puede haber ya
+ * series anotadas en ella —se crea sin conexión y se entrena a continuación—.
+ * Esas van por su propio camino (`log_session_set`), así que se conservan las de
+ * aquí salvo que el servidor mande las suyas, que es lo que ocurre cuando esta
+ * respuesta es la de un reintento sobre una semana que ya existía.
+ */
+export const adoptMicrocycle = (data, localId, server) => {
+  if (!server?.id) return data;
+
+  const local = data.microcycles.find((m) => m.id === localId) || null;
+  const sessions = server.sessions?.length ? server.sessions : local?.sessions || [];
+
+  return {
+    ...data,
+    microcycles: [
+      ...data.microcycles.filter((m) => m.id !== localId && m.id !== server.id),
+      { ...server, sessions },
+    ].sort((a, b) => a.weekNumber - b.weekNumber),
+  };
+};
+
 // ── Consultas ──────────────────────────────────────────────────────────────
 
 export const findMicrocycle = (microcycles, weekNumber) =>

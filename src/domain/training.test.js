@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  adoptMicrocycle,
   blankDays,
   buildMicrocycle,
   cloneDays,
@@ -15,6 +16,7 @@ import {
   firstCycleDate,
   indexAfterMove,
   isRestDay,
+  microcycleIds,
   nextCycleDate,
   rotatingSlots,
   today,
@@ -597,5 +599,100 @@ describe('cloneExerciseAsTemplate', () => {
     expect(copia.coachNote).toBeUndefined();
     // Sus kilos y repeticiones no viajan: esto es una plantilla, no un registro.
     expect(copia.sets.every((s) => s.kg === '' && s.reps === '' && s.rir === '')).toBe(true);
+  });
+});
+
+/**
+ * ══ Que la semana que se pinta y la que se guarda sean la misma ════════════
+ *
+ * Al continuar el programa, la semana nueva se construye aquí —para que aparezca
+ * al instante y sin conexión— y también en el servidor, que es quien la escribe.
+ * Las dos con la misma regla, pero cada una con sus propios `uuid`, y el id del
+ * ejercicio es lo único que `log_session_set` mira para saber dónde anotar.
+ *
+ * La consecuencia real, y el motivo de estas pruebas: un cliente pulsó «Semana 5»,
+ * entrenó, y sus 19 series se rechazaron una a una con «el ejercicio ex_… no está
+ * programado en EMPUJES». El ejercicio estaba: con otro id. Ver la migración 0085.
+ */
+describe('los identificadores viajan con la petición', () => {
+  const micro = buildMicrocycle({
+    weekNumber: 5,
+    days: [
+      {
+        dayName: 'EMPUJES',
+        exercises: [
+          { id: 'ex_a', name: 'Press banca', muscle: 'Pecho', sets: [] },
+          { id: 'ex_b', name: 'Fondos', muscle: 'Pecho', sets: [] },
+        ],
+      },
+      { dayName: 'TIRONES', exercises: [{ id: 'ex_c', name: 'Remo', muscle: 'Espalda', sets: [] }] },
+    ],
+  });
+
+  it('describe la semana entera: el microciclo, cada día y cada ejercicio', () => {
+    expect(microcycleIds(micro)).toEqual({
+      id: micro.id,
+      days: [
+        { dayName: 'EMPUJES', exerciseIds: ['ex_a', 'ex_b'] },
+        { dayName: 'TIRONES', exerciseIds: ['ex_c'] },
+      ],
+    });
+  });
+
+  it('un día sin ejercicios no rompe la propuesta', () => {
+    expect(microcycleIds({ id: 'mc_1', days: [{ dayName: 'DESCANSO' }] })).toEqual({
+      id: 'mc_1',
+      days: [{ dayName: 'DESCANSO', exerciseIds: [] }],
+    });
+  });
+});
+
+describe('adoptMicrocycle', () => {
+  const local = buildMicrocycle({ weekNumber: 5, days: [{ dayName: 'EMPUJES', exercises: [] }] });
+  const data = { microcycles: [buildMicrocycle({ weekNumber: 4, days: [] }), local] };
+
+  it('el servidor manda: su microciclo sustituye al que se pintó a la espera', () => {
+    const server = { id: 'mc_servidor', weekNumber: 5, days: [], sessions: [] };
+    const out = adoptMicrocycle(data, local.id, server);
+
+    expect(out.microcycles).toHaveLength(2);
+    expect(out.microcycles[1].id).toBe('mc_servidor');
+    expect(out.microcycles.map((m) => m.weekNumber)).toEqual([4, 5]);
+  });
+
+  it('si adoptó los ids propuestos, la respuesta confirma lo que ya había', () => {
+    const server = { ...local, sessions: [] };
+    const out = adoptMicrocycle(data, local.id, server);
+
+    expect(out.microcycles).toHaveLength(2);
+    expect(out.microcycles[1].id).toBe(local.id);
+  });
+
+  /* Se crea la semana sin conexión y se entrena a continuación: esas series van
+     por `log_session_set`, así que la respuesta no las trae y no puede borrarlas. */
+  it('conserva las sesiones que ya se habían anotado aquí', () => {
+    const conSesion = { ...local, sessions: [{ id: 'ses_1', dayName: 'EMPUJES', entries: [] }] };
+    const out = adoptMicrocycle(
+      { microcycles: [conSesion] },
+      local.id,
+      { id: 'mc_servidor', weekNumber: 5, days: [], sessions: [] }
+    );
+
+    expect(out.microcycles[0].sessions).toHaveLength(1);
+  });
+
+  /* El reintento sobre una semana que ya existía: ahí las de verdad son las suyas. */
+  it('pero si el servidor manda sesiones, son las suyas', () => {
+    const conSesion = { ...local, sessions: [{ id: 'ses_local', dayName: 'EMPUJES', entries: [] }] };
+    const out = adoptMicrocycle({ microcycles: [conSesion] }, local.id, {
+      ...local,
+      sessions: [{ id: 'ses_servidor', dayName: 'EMPUJES', entries: [] }],
+    });
+
+    expect(out.microcycles[0].sessions.map((s) => s.id)).toEqual(['ses_servidor']);
+  });
+
+  it('sin respuesta utilizable no toca nada', () => {
+    expect(adoptMicrocycle(data, local.id, null)).toBe(data);
   });
 });

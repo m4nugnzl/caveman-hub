@@ -139,6 +139,51 @@ describe('la cola apunta lo pendiente y lo suelta al confirmar', () => {
     expect(store.list()).toHaveLength(1);
   });
 
+  /*
+    La otra cara de la prueba de arriba, y la que faltaba: «sigue apuntado» vale
+    para lo que NO ha llegado, no para lo que el servidor ha mirado y ha dicho que
+    no. Un cliente acabó arrastrando «No se guardó · Reintentar» en cada visita por
+    un ejercicio que después de recargar ya no existía en ninguna parte.
+  */
+  it('lo que el servidor RECHAZA no se guarda para el próximo arranque', async () => {
+    const { queue, store } = cola();
+    queue.enqueue(
+      'set:c1:s1:e1:0:kg',
+      { v: '100' },
+      async () => ({ error: { code: 'P0001', message: 'El ejercicio ex_1 no está programado en EMPUJES' } }),
+      { immediate: true }
+    );
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(store.list()).toEqual([]);
+  });
+
+  it('pero se puede reintentar mientras la pestaña viva', async () => {
+    const { queue, store } = cola();
+    const sender = vi.fn(async () => ({ error: { code: 'P0001', message: 'no' } }));
+    queue.enqueue('set:c1:s1:e1:0:kg', { v: '100' }, sender, { immediate: true });
+
+    await new Promise((r) => setTimeout(r, 0));
+    queue.retry('set:c1:s1:e1:0:kg');
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(sender).toHaveBeenCalledTimes(2);
+    expect(store.list()).toEqual([]);
+  });
+
+  it('faltar una migración NO es un rechazo definitivo: se arregla desde el otro lado', async () => {
+    const { queue, store } = cola();
+    queue.enqueue(
+      'set:c1:s1:e1:0:kg',
+      { v: '100' },
+      async () => ({ error: { code: 'PGRST202', message: 'Could not find the function' } }),
+      { immediate: true }
+    );
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(store.list()).toHaveLength(1);
+  });
+
   it('sin almacén, la cola se comporta igual que antes', async () => {
     const queue = createSaveQueue({ debounceMs: 0, onStatus: () => {} });
     const sender = vi.fn(async () => ({ error: null }));

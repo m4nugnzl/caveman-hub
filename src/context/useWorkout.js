@@ -10,6 +10,7 @@ import {
   emptyWorkoutData,
   findMicrocycle,
   firstCycleDate,
+  microcycleIds,
   nextCycleDate,
   nextWeekNumber,
   reidExercises,
@@ -41,6 +42,7 @@ export const useWorkout = ({
   setNutrition,
   persist,
   persistSet,
+  persistContinue,
   queue,
   ensureProgram,
   ensureNutrition,
@@ -1004,10 +1006,10 @@ export const useWorkout = ({
    * `blankDays` y no `cloneDays`.
    *
    * ── Sobre el permiso ───────────────────────────────────────────────────────
-   * El cliente ya tiene UPDATE sobre `workout_data` para registrar sus series, y
-   * como RLS filtra filas y no columnas, ese permiso alcanza al JSONB completo.
-   * Esto no abre ninguna puerta nueva: usa la que ya estaba abierta por el diseño
-   * de un único bloque `microcycles`.
+   * El cliente NO tiene UPDATE sobre `workout_data` desde la 0014 —lo tuvo, y ese
+   * permiso, sobre una fila con el programa entero en un jsonb, le alcanzaba para
+   * borrárselo desde la consola—. Así que esto no escribe el bloque: pide una
+   * operación acotada, `continue_program`, que construye la semana en el servidor.
    */
   const continueProgram = useCallback(
     (clientId) => {
@@ -1017,40 +1019,42 @@ export const useWorkout = ({
       const last = [...current.microcycles].sort((a, b) => b.weekNumber - a.weekNumber)[0];
       const newWeek = nextWeekNumber(current.microcycles);
       const days = blankDays(last.days || []);
+      const micro = buildMicrocycle({ weekNumber: newWeek, days });
 
       /*
         Igual que al registrar series: el estado local se actualiza en los dos
         casos, y lo que cambia es quién puede escribir el bloque.
 
         El cliente no puede —ni debe— reescribir `microcycles`, así que llama a
-        `continue_program` (0014), que construye la semana EN EL SERVIDOR copiando
-        la estructura de la última y vaciando los valores. La diferencia importa:
-        lo que se le concede es «duplica la última semana en blanco», no «guárdame
+        `continue_program`, que construye la semana EN EL SERVIDOR copiando la
+        estructura de la última y vaciando los valores. La diferencia importa: lo
+        que se le concede es «duplica la última semana en blanco», no «guárdame
         este programa».
 
-        La semana local y la del servidor se construyen con la misma regla, así que
-        coinciden salvo en los identificadores, que se recolocan en la próxima carga.
+        ── Y los identificadores viajan con la petición ────────────────────────
+        Las dos semanas se construyen con la misma regla, pero cada una generaba
+        sus propios `uuid`, y esa diferencia NO era cosmética: el id del ejercicio
+        es lo único que `log_session_set` mira para saber dónde anotar. Mientras
+        no se recargara la página entera, la pantalla enseñaba una semana y la base
+        de datos guardaba otra, y cada kilo que se registrase en ella se rechazaba
+        con «el ejercicio no está programado en …». Un entrenamiento completo,
+        perdido sin que nadie pudiera hacer nada —el reintento mandaba lo mismo—.
+
+        Ahora los ids los propone esta parte y el servidor los adopta si describen
+        la semana que él va a construir (migración 0085). La respuesta trae el
+        microciclo escrito, y `persistContinue` se queda con ese: si la copia de
+        aquí estaba vieja y la propuesta se rechazó, se corrige en el sitio.
       */
-      applyWorkout(
-        clientId,
-        (cd) => ({
-          ...cd,
-          microcycles: [...cd.microcycles, buildMicrocycle({ weekNumber: newWeek, days })],
-        }),
-        { skipPersist: profileRole === 'client' }
-      );
+      applyWorkout(clientId, (cd) => ({ ...cd, microcycles: [...cd.microcycles, micro] }), {
+        skipPersist: profileRole === 'client',
+      });
 
       if (profileRole === 'client') {
-        queue.enqueue(
-          `continue:${clientId}:${newWeek}`,
-          newWeek,
-          () => supabase.rpc('continue_program', { p_client: clientId }),
-          { immediate: true }
-        );
+        persistContinue(`continue:${clientId}:${newWeek}`, clientId, microcycleIds(micro));
       }
       return newWeek;
     },
-    [applyWorkout, profileRole, queue, workoutRef]
+    [applyWorkout, persistContinue, profileRole, workoutRef]
   );
 
   // ── Copiar entre clientes ────────────────────────────────────────────────

@@ -31,7 +31,7 @@
  *      antes.
  */
 
-import { traduceDbError } from './dbErrors';
+import { esRechazoDefinitivo, traduceDbError } from './dbErrors';
 
 const DEFAULT_DEBOUNCE_MS = 600;
 
@@ -65,7 +65,17 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
             la pantalla era el error del servidor en crudo: un cliente anotando
             sus kilos en el gimnasio veía la firma de una función de Postgres.
             Ver `lib/dbErrors.js`.
+
+            ── Lo que el servidor ha rechazado no se apunta para mañana ────────
+            La nota del navegador cubre el hueco entre «no hay red» y «vuelve a
+            haberla». Un guardado que el servidor ya ha mirado y ha rechazado no
+            se vuelve válido por sobrevivir a un reinicio: se reenviaría en cada
+            arranque, se rechazaría igual, y dejaría el aviso de «no se guardó»
+            encendido para siempre. Se sigue enseñando el error y `retry` sigue
+            funcionando mientras la pestaña viva. Ver `esRechazoDefinitivo`.
           */
+          if (esRechazoDefinitivo(error)) store?.clear(key);
+
           emit(key, 'error', traduceDbError(error));
           return;
         }

@@ -40,7 +40,7 @@ import {
   mapWorkoutFromDb,
   mapWorkoutToDb,
 } from '@/lib/mappers';
-import { emptyWorkoutData } from '@/domain/training';
+import { adoptMicrocycle, emptyWorkoutData } from '@/domain/training';
 import { emptyNutrition } from '@/domain/nutrition';
 import {
   buildIntakePath,
@@ -76,6 +76,16 @@ const QUEUE_OF_TABLE = {
 const DOMINIOS = ['workout', 'anthro', 'nutrition', 'client', 'preferences'];
 
 const EMPTY_SAVE_STATE = { status: 'idle', error: null };
+
+/**
+ * Las claves de cola que son «la rutina de este cliente» sin ser `workout:<id>`.
+ *
+ * El cliente no escribe el bloque: escribe una serie (`set:`) o pide la semana
+ * siguiente (`continue:`), cada una con su clave para que no se pisen. Las dos
+ * cuentan para el indicador de guardado y para el reintento.
+ */
+const esClaveDeRutina = (key, clientId) =>
+  key.startsWith(`set:${clientId}:`) || key.startsWith(`continue:${clientId}:`);
 
 export const AppProvider = ({ children }) => {
   const [session, setSession] = useState(null);
@@ -235,14 +245,18 @@ export const AppProvider = ({ children }) => {
    * Así que para `workout` se agrega: cualquier campo fallando pone el indicador en
    * error —un fallo silencioso es exactamente lo que la cola existe para evitar—, y
    * cualquiera en vuelo lo pone en «guardando».
+   *
+   * `continue:` va en el mismo saco por lo mismo: la semana que el cliente añade
+   * también la escribe una función de la base, y si no llega, todo lo que anote en
+   * ella se va a rechazar. Que eso pase sin que el indicador se entere es el fallo
+   * silencioso otra vez.
    */
   const saveStatus = useCallback(
     (domain, clientId) => {
       const own = saveState[`${domain}:${clientId}`];
       if (domain !== 'workout') return own || EMPTY_SAVE_STATE;
 
-      const prefix = `set:${clientId}:`;
-      const parts = Object.entries(saveState).filter(([key]) => key.startsWith(prefix));
+      const parts = Object.entries(saveState).filter(([key]) => esClaveDeRutina(key, clientId));
       if (parts.length === 0) return own || EMPTY_SAVE_STATE;
 
       const failed = parts.find(([, s]) => s.status === 'error');
@@ -261,7 +275,7 @@ export const AppProvider = ({ children }) => {
       // pendientes el cliente.
       if (domain === 'workout') {
         for (const key of Object.keys(saveState)) {
-          if (key.startsWith(`set:${clientId}:`) && saveState[key]?.status === 'error') queue.retry(key);
+          if (esClaveDeRutina(key, clientId) && saveState[key]?.status === 'error') queue.retry(key);
         }
       }
     },
@@ -634,6 +648,59 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * Pide al servidor la semana siguiente, y se queda con LA SUYA.
+   *
+   * ── Por qué no basta con encolar la llamada ────────────────────────────────
+   * El navegador ya ha pintado la semana —tiene que aparecer al instante, y sin
+   * conexión— construyéndola con la misma regla que el servidor. Con la misma
+   * regla, sí, pero con sus propios identificadores, y el id del ejercicio es lo
+   * único que `log_session_set` mira para saber dónde anotar. Así que hasta la
+   * 0085 la pantalla enseñaba una semana y la base de datos guardaba otra, y todo
+   * lo que se registrara en ella se rechazaba con «el ejercicio no está programado
+   * en …» hasta la siguiente recarga completa.
+   *
+   * Ahora la propuesta de ids viaja en el payload y la respuesta trae el
+   * microciclo que el servidor ha escrito de verdad. Si adoptó los ids es el
+   * mismo y adoptarlo no cambia nada; si no —la copia de aquí estaba vieja—, se
+   * corrige en el sitio sin esperar a ninguna recarga.
+   *
+   * El payload son los ids y no el número de semana porque es lo que hay que
+   * poder reenviar: apuntado en el navegador, sobrevive al cierre de la pestaña y
+   * sale con los mismos identificadores que la pantalla lleva enseñando desde
+   * ayer. Y como el id del microciclo lo pone quien llama, un reenvío de algo que
+   * ya llegó se reconoce y no duplica la semana.
+   */
+  const persistContinue = useCallback(
+    (key, clientId, ids) => {
+      queue.enqueue(
+        key,
+        ids,
+        async (data) => {
+          const res = await supabase.rpc('continue_program', { p_client: clientId, p_ids: data });
+
+          /*
+            Solo si el programa ya está en memoria. Este envío también sale desde
+            la recuperación del arranque, en carrera con la carga inicial: escribir
+            ahí un bloque con una única semana pisaría el programa entero si la
+            respuesta llegara después. Y no hace falta — la carga trae justo lo que
+            el servidor acaba de escribir.
+          */
+          const actual = workoutRef.current[clientId];
+          if (!res.error && res.data && actual) {
+            setWorkoutData({
+              ...workoutRef.current,
+              [clientId]: adoptMicrocycle(actual, data?.id ?? null, res.data),
+            });
+          }
+          return res;
+        },
+        { immediate: true }
+      );
+    },
+    [queue, setWorkoutData, workoutRef]
+  );
+
+  /**
    * Reenvía lo que quedó sin confirmar la última vez.
    *
    * ── Por qué se reconstruye el envío y no se guarda ─────────────────────────
@@ -644,9 +711,14 @@ export const AppProvider = ({ children }) => {
    *
    * La clave dice a dónde iba. `domain:clientId` para lo que se guarda entero, y
    * `set:clientId:…` para una serie suelta —el camino del cliente en el gimnasio,
-   * que es justo el caso que esto viene a salvar—. Una clave que no encaje en
-   * ninguno de los dos se ignora: reenviar algo a un destino adivinado es peor
-   * que perderlo.
+   * que es justo el caso que esto viene a salvar—, y `continue:clientId:…` para la
+   * semana que se añadió sin conexión. Una clave que no encaje en ninguno se
+   * ignora: reenviar algo a un destino adivinado es peor que perderlo.
+   *
+   * ── Por qué la semana nueva también tiene que estar aquí ────────────────────
+   * Porque si no llega, las series que se anoten en ella se rechazan todas con
+   * «no existe la semana N»: es el mismo desencuentro entre lo que enseña la
+   * pantalla y lo que hay guardado que arregla la 0085, por el otro extremo.
    */
   const recuperadoRef = useRef(false);
 
@@ -668,11 +740,13 @@ export const AppProvider = ({ children }) => {
       const partes = key.split(':');
       if (partes[0] === 'set' && partes[1]) {
         persistSet(key, partes[1], payload);
+      } else if (partes[0] === 'continue' && partes[1]) {
+        persistContinue(key, partes[1], payload);
       } else if (DOMINIOS.includes(partes[0]) && partes[1]) {
         persist(partes[0], partes[1], payload, { immediate: true });
       }
     }
-  }, [session, persist, persistSet]);
+  }, [session, persist, persistSet, persistContinue]);
 
   // ── Carga inicial ────────────────────────────────────────────────────────
 
@@ -1558,6 +1632,7 @@ export const AppProvider = ({ children }) => {
     setNutrition,
     persist,
     persistSet,
+    persistContinue,
     queue,
     ensureProgram,
     ensureNutrition,
