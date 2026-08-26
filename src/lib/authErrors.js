@@ -38,28 +38,6 @@ const MESSAGES = {
   // traducir parece que algo se ha roto cuando lo que pasa es que hay que esperar.
   'For security purposes, you can only request this after 60 seconds.':
     'Acabas de pedir uno. Espera un minuto antes de volver a intentarlo.',
-
-  /*
-    ── Los dos fallos del correo saliente ──────────────────────────────────────
-
-    No son el límite de arriba, que es por persona y se pasa esperando un minuto.
-    Estos dos son del PROYECTO: el techo de envíos por hora del SMTP compartido de
-    Supabase y el fallo del propio servidor de correo. Llegaban sin traducir —«email
-    rate limit exceeded»— y el que los lee entiende que ha hecho algo mal y vuelve a
-    pulsar, que es justo lo que no hay que hacer.
-
-    Se dice que el problema no es suyo y se le da la salida que sí tiene: su
-    entrenador puede devolverle el acceso sin correo (migración 0083). Ese camino se
-    nombra aquí porque este mensaje es lo único que va a leer.
-
-    El arreglo de fondo es un SMTP propio: `docs/correo-transaccional.md`.
-  */
-  'email rate limit exceeded':
-    'Ahora mismo no podemos enviar correos. No es cosa tuya: vuelve a intentarlo dentro de un rato y, si eres cliente de un entrenador, pídele que te mande un enlace de acceso nuevo.',
-  'Error sending recovery email':
-    'No hemos podido enviar el correo. Vuelve a intentarlo dentro de un rato y, si eres cliente de un entrenador, pídele que te mande un enlace de acceso nuevo.',
-  'Error sending confirmation email':
-    'No hemos podido enviar el correo de confirmación. Vuelve a intentarlo dentro de un rato.',
 };
 
 export const traduceAuthError = (message = '') =>

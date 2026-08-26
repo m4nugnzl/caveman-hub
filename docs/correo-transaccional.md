@@ -6,37 +6,6 @@ está al final.
 
 ---
 
-## Ya ha pasado: un cliente sin contraseña y sin correo
-
-Un cliente olvidó su contraseña, pidió el enlace de recuperación y no le llegó
-nada. Es exactamente lo que anuncia la sección «Por qué hay que hacerlo» de más
-abajo, y conviene tenerlo escrito arriba del todo porque el diagnóstico no se ve
-desde la aplicación: **la API responde 200 y la pantalla dice «te hemos mandado un
-enlace» aunque no haya salido ningún correo.**
-
-Hay dos arreglos y son independientes.
-
-**El de fondo es este documento**: §1 → §2 → §3, un SMTP propio. Mientras no esté,
-el restablecimiento de contraseña seguirá fallando en silencio para todo el mundo.
-
-**Y el de emergencia ya está programado** — migración `0083_volver_a_dar_acceso`.
-El agujero no era solo que el correo no llegara: era que **el entrenador no podía
-hacer nada**. `create_client_invite` se niega a reinvitar a una ficha ya enlazada,
-así que la única salida era abrir el panel de Supabase y poner
-`clients.client_profile_id` a NULL a mano.
-
-Ahora, en la ficha del cliente → **Acceso al portal → «Perdió el acceso»**: suelta
-la ficha de la cuenta que la tenía, anula los enlaces anteriores y copia uno nuevo
-para mandárselo por WhatsApp. El cliente se crea otra cuenta —o entra con Google— y
-**recupera la ficha entera**, porque el historial cuelga de la ficha y no de la
-cuenta. Ninguna contraseña pasa por las manos del entrenador.
-
-Eso cubre además tres casos que el SMTP no arregla nunca: la dirección que ya no
-existe, el cliente que se registró con el correo de una empresa en la que ya no
-está, y el que sencillamente no recuerda con cuál entró.
-
----
-
 ## Atajo: el aviso de soporte funciona YA, sin dominio
 
 Todo lo de abajo hace falta para los correos que van **a tus usuarios**. Pero hay
@@ -138,9 +107,7 @@ Las consecuencias concretas, hoy:
 - **El restablecimiento de contraseña falla en silencio.** Supabase devuelve
   «hemos enviado un correo» aunque no lo haya enviado, porque no quiere revelar
   si esa dirección existe. El usuario espera, no llega nada, y vuelve a pedirlo —
-  lo que consume el siguiente hueco del límite. Cuando el límite sí devuelve
-  error, el mensaje está traducido en `src/lib/authErrors.js` y dice que no es
-  culpa suya y a quién pedir el acceso; la salida de emergencia es la `0083`.
+  lo que consume el siguiente hueco del límite.
 - **Los correos caen en spam.** Salen de un dominio que no es el tuyo y sin
   autenticar contra él.
 - **Las invitaciones de cliente se copian a mano a WhatsApp**, porque no hay

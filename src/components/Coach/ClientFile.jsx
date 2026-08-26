@@ -6,7 +6,6 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
-  KeyRound,
   Link2,
   Paperclip,
   Pencil,
@@ -51,7 +50,6 @@ import {
   SegmentedControl,
 } from '@/components/ui/primitives';
 import { PageNav } from '@/components/ui/PageNav';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConditionsPanel } from '@/components/conditions/ConditionsPanel';
 import { ClientDataPanel } from './ClientDataPanel';
@@ -538,65 +536,14 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
  */
 const PortalAccess = ({ client }) => {
   const { result, busy, send } = useInvite();
-  const confirm = useConfirm();
-
-  /*
-    ══ Cuando el cliente ha perdido su cuenta (migración 0083) ════════════════
-
-    Esta rama enseñaba solo la insignia de «tiene su cuenta enlazada», y era un
-    callejón sin salida: el día que un cliente olvida su contraseña, pide el
-    correo de recuperación y no le llega —el SMTP compartido de Supabase, ver
-    `docs/correo-transaccional.md`—, su entrenador abría esta pantalla, leía que
-    todo estaba bien y no tenía ni un botón que pulsar. La única salida era
-    entrar al panel de Supabase.
-
-    El gesto no toca la cuenta de nadie: suelta la ficha y emite un enlace nuevo,
-    el mismo de siempre. El historial cuelga de la ficha, así que no se pierde
-    nada al entrar con otra cuenta.
-  */
-  const reemitir = async () => {
-    const ok = await confirm({
-      title: `¿Volver a dar acceso a ${client.name}?`,
-      message:
-        'Su cuenta actual dejará de estar enlazada a esta ficha y no podrá entrar con ella. Te damos un enlace nuevo para que se cree otra —o entre con Google— y recupere la ficha entera: su rutina, su dieta, sus registros y sus fotos siguen aquí. Úsalo cuando haya perdido la contraseña o el correo con el que se registró.',
-      confirmLabel: 'Emitir acceso nuevo',
-      tone: 'danger',
-    });
-    if (ok) send(client, { reemitir: true });
-  };
 
   if (client.clientProfileId) {
     return (
-      <div className="card-inset col gap-2">
-        <div className="row between wrap gap-2 t-sm">
-          <span className="t-secondary">Acceso al portal</span>
-          <div className="row gap-2">
-            <span className="badge badge-ok">
-              <UserCheck size={11} /> Tiene su cuenta enlazada
-            </span>
-            {/*
-              Secundario y a la derecha de la insignia: casi nunca hace falta, y
-              lo que esta línea dice normalmente es «esto está bien». Un botón
-              primario aquí invitaría a pulsarlo por curiosidad, y lo que hay
-              detrás echa a alguien de su cuenta.
-            */}
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={reemitir}
-              disabled={busy}
-            >
-              <KeyRound size={14} /> {busy ? 'Generando…' : 'Perdió el acceso'}
-            </button>
-          </div>
-        </div>
-
-        {result &&
-          (result.ok ? (
-            <Notice tone={result.copied ? 'success' : 'info'}>{inviteMessage(result)}</Notice>
-          ) : (
-            <Notice tone="error">{result.error}</Notice>
-          ))}
+      <div className="card-inset row between wrap gap-2 t-sm">
+        <span className="t-secondary">Acceso al portal</span>
+        <span className="badge badge-ok">
+          <UserCheck size={11} /> Tiene su cuenta enlazada
+        </span>
       </div>
     );
   }

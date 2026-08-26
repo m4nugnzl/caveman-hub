@@ -970,40 +970,6 @@ export const useClients = ({
   }, [setClients]);
 
   /**
-   * Volver a dar acceso a un cliente que ha perdido su cuenta (migración 0083).
-   *
-   * Suelta la ficha de la cuenta a la que estaba enlazada y devuelve un enlace de
-   * invitación nuevo, igual que `createInvite`: la forma del resultado es la misma
-   * a propósito, porque lo consume el mismo hook y la misma pantalla.
-   *
-   * ── Por qué relee la cartera y no parchea la fila ──────────────────────────
-   * Porque `client_profile_id` lo escribe el SERVIDOR, dentro de la función. Un
-   * `updateClient({ clientProfileId: null })` no solo duplicaría esa decisión:
-   * `updateClient` PERSISTE lo que le pasas, así que intentaría escribir esa
-   * columna desde el navegador —que RLS no le deja— y dejaría un fallo en el
-   * registro por un cambio que ya estaba hecho. Es el mismo caso que las
-   * integraciones: algo cambió ahí fuera, se vuelve a preguntar.
-   */
-  const reissueAccess = useCallback(
-    async (clientId) => {
-      const { data, error } = await supabase.rpc('reissue_client_access', { target: clientId });
-      if (error) return { ok: false, error: error.message };
-
-      await reloadClients();
-
-      /*
-        Se cuenta aparte de `invitacion_creada` porque no cuenta lo mismo. Una
-        invitación es un cliente que empieza; esto es un cliente que se quedó
-        fuera, y cuántas veces pasa al mes es la medida de si el correo hace su
-        trabajo. Sin separarlas, arreglar el SMTP no se notaría en ningún número.
-      */
-      track('acceso_reemitido');
-      return { ok: true, token: data, url: `${window.location.origin}/invitacion/${data}` };
-    },
-    [reloadClients]
-  );
-
-  /**
    * Aplica un panel a toda la cartera de una vez (migración 0035).
    *
    * ── Por qué una función de base de datos y no un bucle ──────────────────────
@@ -1039,7 +1005,6 @@ export const useClients = ({
     publishUpdate,
     createInvite,
     revokeInvite,
-    reissueAccess,
     loadCalendarFeed,
     createCalendarFeed,
     revokeCalendarFeed,

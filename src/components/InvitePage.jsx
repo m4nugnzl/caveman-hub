@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { Logo } from '@/components/ui/Logo';
@@ -35,6 +35,9 @@ export const InvitePage = () => {
   const [checking, setChecking] = useState(true);
   const [state, setState] = useState({ status: 'idle' });
   const [accepted, setAccepted] = useState(false);
+  /* `null` mientras no se sabe: es lo que evita enseñar el botón de aceptar un
+     instante antes de descubrir que quien mira es el entrenador. */
+  const [esEntrenador, setEsEntrenador] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -49,6 +52,56 @@ export const InvitePage = () => {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  /*
+    ══ ¿Está mirando esto un entrenador? ═════════════════════════════════════
+
+    Porque si lo está y pulsa «Acepto», su cuenta DEJA DE SER la suya: el canje
+    termina con `UPDATE profiles SET role = 'client'` sobre quien llama, y a
+    partir de la siguiente recarga entra en el portal del cliente con sus fichas
+    fuera de la vista. Probar el enlace que acabas de generar es lo que hace todo
+    el mundo al montar la asesoría, así que este no es un camino raro.
+
+    ── Por qué no se mira `profiles.role` ────────────────────────────────────
+    Porque no distingue nada: `handle_new_user` da `'coach'` a TODO el que se
+    registra —el rol de cliente lo pone el canje—, así que en esa columna un
+    cliente recién registrado y un entrenador con veinte fichas son iguales.
+
+    Se pregunta por hechos, y las dos consultas son las dos formas de tenerlos:
+
+      · fichas a su nombre — un cliente recién registrado tiene cero;
+      · poder LEER esta invitación — la política `invites_coach_read` solo se la
+        enseña al entrenador del cliente invitado, así que una fila aquí
+        significa «este enlace es de un cliente tuyo». Cubre al entrenador que
+        todavía no tiene ninguna otra ficha, que es justo quien está probando.
+
+    Esto es el aviso, no la cerradura: la de verdad es la guarda de
+    `claim_client_invite` (migración 0084), porque esta se salta abriendo las
+    herramientas de desarrollo y lo que hay al otro lado es una cuenta rota.
+  */
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) {
+      setEsEntrenador(null);
+      return undefined;
+    }
+
+    let alive = true;
+    Promise.all([
+      supabase.from('clients').select('id').eq('coach_id', uid).limit(1),
+      supabase.from('client_invites').select('id').eq('token', token).limit(1),
+    ]).then(([fichas, propia]) => {
+      if (!alive) return;
+      /* Si alguna consulta falla se sigue adelante: quedarse bloqueado dejaría
+         fuera al cliente legítimo por un fallo de red, y la base sigue siendo
+         quien decide. */
+      setEsEntrenador((fichas.data?.length || 0) > 0 || (propia.data?.length || 0) > 0);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, [session, token]);
 
   const claim = useCallback(async () => {
     setState({ status: 'claiming' });
@@ -107,6 +160,68 @@ export const InvitePage = () => {
         */
         destino={window.location.href}
       />
+    );
+  }
+
+  /*
+    Con sesión iniciada pero sin saber todavía de quién es, se espera. Enseñar el
+    botón y retirarlo medio segundo después sería peor que tardar medio segundo.
+  */
+  if (esEntrenador === null) {
+    return (
+      <div className="review-page">
+        <div className="review-card">
+          <Loading />
+        </div>
+      </div>
+    );
+  }
+
+  /*
+    Un callejón sin salida a propósito: aquí NO hay botón de aceptar. El gesto que
+    se ofrece es el que resuelve de verdad —salir— y el enlace queda intacto para
+    que lo abra quien tiene que abrirlo.
+  */
+  if (esEntrenador) {
+    return (
+      <div className="review-page">
+        <div className="review-card col gap-4">
+          <Logo size={34} />
+          <div className="row gap-3">
+            <AlertTriangle size={22} color="var(--negative)" />
+            <div className="col gap-1">
+              <h2>Este enlace no es para ti</h2>
+              <p className="t-sm t-secondary">
+                Estás dentro con tu cuenta de entrenador
+                {session?.user?.email ? ` (${session.user.email})` : ''}. Si aceptaras esta
+                invitación, esa cuenta pasaría a ser la del cliente y perderías de vista tu
+                cartera.
+              </p>
+            </div>
+          </div>
+          <p className="t-sm t-secondary">
+            El enlace sigue sirviendo. Mándaselo a tu cliente, o ábrelo en una ventana privada
+            si lo que quieres es ver por dónde entra él.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => window.location.replace('/')}
+          >
+            Volver a mis clientes
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-lg"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              window.location.reload();
+            }}
+          >
+            Cerrar sesión y entrar como cliente
+          </button>
+        </div>
+      </div>
     );
   }
 
