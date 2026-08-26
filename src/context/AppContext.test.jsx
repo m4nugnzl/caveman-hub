@@ -163,7 +163,13 @@ describe('AppProvider', () => {
     // cartera entera en Ajustes → Integraciones. Esa lista se retiró —gestionar
     // clientes desde Ajustes es el segundo sitio que la ficha existe para evitar—
     // y con ella se fue su consulta.
-    expect(Object.keys(visto.app).length).toBe(200);
+    //
+    // Y 201 desde la salida de emergencia del acceso (0083): `reissueAccess`, que
+    // suelta la ficha de la cuenta que la tenía y devuelve un enlace de invitación
+    // nuevo. Es una acción y no dos porque el canje ya existía desde la 0015: lo
+    // único que faltaba era poder SOLTAR una ficha ya enlazada, que es lo que
+    // dejaba a un cliente sin contraseña fuera para siempre.
+    expect(Object.keys(visto.app).length).toBe(201);
   });
 
   /*
