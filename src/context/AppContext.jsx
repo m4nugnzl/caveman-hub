@@ -1678,6 +1678,7 @@ export const AppProvider = ({ children }) => {
     publishUpdate,
     createInvite,
     revokeInvite,
+    reissueAccess,
     loadCalendarFeed,
     createCalendarFeed,
     revokeCalendarFeed,
@@ -2025,6 +2026,8 @@ export const AppProvider = ({ children }) => {
     reloadClients,
     createInvite,
     revokeInvite,
+    // La salida de emergencia cuando el cliente pierde su cuenta (0083).
+    reissueAccess,
     // El calendario suscribible del cliente (0071). Las llama él, no el entrenador.
     loadCalendarFeed,
     createCalendarFeed,

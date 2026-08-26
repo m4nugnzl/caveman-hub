@@ -160,9 +160,18 @@ export const Login = ({ notice = null, destino = null }) => {
           dado de alta probando emails, uno por uno y sin límite. Es el mismo
           motivo por el que la API de Supabase tampoco lo distingue.
         */
+        /*
+          Y la segunda frase dice qué hacer cuando NO llegue, porque pasa: el
+          correo sale por el SMTP compartido de Supabase, que va limitado por horas
+          para todo el proyecto y ni siquiera avisa cuando se traga un envío
+          (`docs/correo-transaccional.md`). Sin esta línea, quien se queda fuera
+          vuelve a pulsar «enviar enlace» hasta cansarse. La salida que sí funciona
+          es su entrenador: desde la ficha puede emitirle un acceso nuevo sin correo
+          de por medio (migración 0083).
+        */
         else
           setInfo(
-            'Si hay una cuenta con ese email, te llega un enlace para elegir contraseña nueva. Revisa también la carpeta de spam.'
+            'Si hay una cuenta con ese email, te llega un enlace para elegir contraseña nueva. Revisa también la carpeta de spam. Y si eres cliente de un entrenador y no te llega, escríbele: puede darte un enlace de acceso nuevo al momento.'
           );
       } else {
         // Alta de un ENTRENADOR. El rol 'coach' lo asigna el trigger
