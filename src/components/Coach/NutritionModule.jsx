@@ -31,6 +31,7 @@ import { DietNotes } from '@/components/nutrition/DietNotes';
 import { MealStructure } from '@/components/nutrition/MealStructure';
 import { GoalCard } from '@/components/nutrition/GoalCard';
 import { PastePlanDialog } from './Import/PastePlanDialog';
+import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 
 const DIET_TYPES = [
   { id: 'macros', label: 'Por macros' },
@@ -168,6 +169,10 @@ export const NutritionModule = () => {
   return (
     <div className="stack">
       <section className="col gap-4">
+        {/* Si has llegado aquí desde una revisión, el camino de vuelta. Solo
+            entonces: no es un modo, viaja en la navegación (`VueltaALaRevision`). */}
+        <VueltaALaRevision />
+
         <PageHead
           title="Plan nutricional"
           sub={`Objetivo, menú cerrado por alimentos y tus pautas para ${activeClient.name}.`}

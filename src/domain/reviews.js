@@ -23,7 +23,8 @@
  */
 
 import { optionMacros } from './nutrition';
-import { toNum } from '@/lib/num';
+import { weekFromStart } from './photos';
+import { round, toNum } from '@/lib/num';
 
 /**
  * La foto del plan que se guarda al cerrar una revisión.
@@ -154,12 +155,36 @@ const CAMPOS = [
   { key: 'weeks', label: 'Semanas programadas', unit: '' },
 ];
 
+/** Una cifra o un texto que de verdad está puesto. La cadena vacía cuenta como
+    ausente: el cardio se guarda como texto y borrarlo deja `''`, no `null`. */
+const puesto = (v) => v !== null && v !== undefined && v !== '';
+
 /**
  * Qué cambió entre dos fotos. Lista vacía si no cambió nada o si falta alguna.
  *
- * `null` como valor anterior NO se cuenta como cambio: significa que entonces no
- * había esa cifra, y «sin calorías → 2400» no es un ajuste, es haber configurado
- * el plan por primera vez.
+ * ══ Estrenar una cifra SÍ es un cambio ══════════════════════════════════════
+ *
+ * Aquí se exigía que las dos fotos tuvieran valor, con el argumento de que «sin
+ * calorías → 2400» es configurar el plan por primera vez y no un ajuste. El
+ * argumento es cierto para la PRIMERA revisión y falso para todas las demás, y
+ * como la regla estaba puesta campo por campo se comía cambios de verdad:
+ *
+ *   Ponerle 10.000 pasos a alguien que no los tenía puestos es exactamente la
+ *   clase de decisión que se toma revisando —y de las que más se toman, porque
+ *   los pasos y el cardio son los dos campos que casi nadie rellena al dar de
+ *   alta—. No salía en el diff, no le llegaba al cliente como cambio, y el
+ *   histórico decía «sin cambios en el plan» encima de una semana en la que sí
+ *   los hubo.
+ *
+ * El caso que la regla quería proteger ya está protegido un piso más arriba y
+ * mejor: sin foto anterior no se compara NADA (la línea de abajo, y `comparable`
+ * en `reviewHistory`). Dar de alta el plan pasa en la primera revisión, que por
+ * definición no tiene contra qué medirse.
+ *
+ * ── Y por eso `from` y `to` pueden ser nulos ────────────────────────────────
+ * `from: null` es «no lo tenía» y `to: null` es «se lo has quitado». La pantalla
+ * los pinta con una raya (ver `PlanChanges`), que es lo que son: un hueco, no un
+ * cero. Escribir 0 ahí sería afirmar que le pusiste cero pasos.
  */
 export const snapshotChanges = (antes, ahora) => {
   if (!antes || !ahora) return [];
@@ -167,22 +192,31 @@ export const snapshotChanges = (antes, ahora) => {
   return CAMPOS.filter(({ key }) => {
     const a = antes[key];
     const b = ahora[key];
-    return a !== null && a !== undefined && b !== null && b !== undefined && a !== b;
-  }).map(({ key, label, unit, text }) => ({
-    key,
-    label,
-    unit,
-    text: Boolean(text),
-    from: antes[key],
-    to: ahora[key],
-    /* La dirección se calcula aquí y no en la pantalla: es lo que decide el color
-       y la flecha, y dos pantallas calculándolo por su cuenta acabarían pintando
-       una subida de calorías de dos colores distintos.
+    /* Lo que no estaba antes y sigue sin estar no es un cambio: es una cifra que
+       este entrenador no usa, y sacarla llenaría el diff de campos vacíos. */
+    if (!puesto(a) && !puesto(b)) return false;
+    return a !== b;
+  }).map(({ key, label, unit, text }) => {
+    const a = antes[key];
+    const b = ahora[key];
+    return {
+      key,
+      label,
+      unit,
+      text: Boolean(text),
+      from: puesto(a) ? a : null,
+      to: puesto(b) ? b : null,
+      /* La dirección se calcula aquí y no en la pantalla: es lo que decide el
+         color y la flecha, y dos pantallas calculándolo por su cuenta acabarían
+         pintando una subida de calorías de dos colores distintos.
 
-       `null` en los campos de texto: no es que no haya subido, es que la pregunta
-       no aplica. Con `false` la pantalla lo pintaría como una bajada. */
-    up: text ? null : ahora[key] > antes[key],
-  }));
+         `null` cuando la pregunta no aplica, y son dos casos: los campos de
+         TEXTO —«2 días» y «3 días de 15 min» no suben ni bajan— y los que
+         estrenan o pierden valor, donde no hay dos cifras que comparar. Con
+         `false` la pantalla los pintaría como una bajada. */
+      up: text || !puesto(a) || !puesto(b) ? null : b > a,
+    };
+  });
 };
 
 /*
@@ -456,4 +490,193 @@ export const reviewHistory = ({ checkIns = [], links = [] } = {}) => {
       video: videos.get(actual.weekStart) || null,
     }))
     .reverse();
+};
+
+/**
+ * CÓMO EVOLUCIONA LO QUE TE CUENTA: sus respuestas del check-in, semana a semana.
+ *
+ * ══ Por qué una respuesta suelta no sirve para decidir ═════════════════════
+ *
+ * «Descanso: 5» no es información. Un cinco en alguien que lleva meses en cuatro
+ * es una buena noticia, y en alguien que venía de ocho es la explicación de por
+ * qué esta semana no ha rendido. La revisión enseñaba el número de la semana y
+ * nada más, así que la mitad de lo que el cliente cuenta se perdía.
+ *
+ * Aquí sale el valor de ESTA semana, el de la última vez que contestó antes, y
+ * la serie para dibujarla. Con eso, «5» pasa a ser «5, y venía de 8».
+ *
+ * ── Solo las de escala ──────────────────────────────────────────────────────
+ * Las preguntas de texto no tienen evolución que dibujar: lo que escribió se lee,
+ * no se compara. Salen en el bloque de respuestas tal cual.
+ *
+ * ── Y hasta la semana que se está mirando ──────────────────────────────────
+ * Revisando la semana 3 de ocho, las respuestas de la 4 a la 8 todavía no han
+ * pasado para quien revisa. Enseñarlas convertiría el histórico en una
+ * predicción.
+ *
+ * @param questions  Las preguntas de HOY (`checkinQuestions`). Si el entrenador
+ *   quitó una, su serie deja de pintarse: no hay forma de saber de qué escala
+ *   era, y el mismo criterio ya rige en el histórico.
+ */
+export const answerTrend = ({ checkIns = [], questions = [], weekStart = null, weeks = 8 } = {}) => {
+  const previas = checkIns
+    .filter((c) => c.weekStart && (!weekStart || c.weekStart <= weekStart))
+    .sort((a, b) => String(a.weekStart).localeCompare(String(b.weekStart)))
+    .slice(-weeks);
+
+  return questions
+    .filter((q) => q.kind !== 'text')
+    .map((q) => {
+      const puntos = previas
+        .map((c) => ({ label: c.weekStart, value: toNum(c.answers?.[q.id]) }))
+        .filter((p) => p.value !== null);
+
+      /* El valor de ESTA semana, no el último que haya. Si no contestó, el hueco
+         se dice: coger el de hace tres semanas y pintarlo como el de ahora es
+         inventarle una respuesta. */
+      const ahora = puntos.find((p) => p.label === weekStart) ?? null;
+      const antes = puntos.filter((p) => !weekStart || p.label < weekStart).at(-1) ?? null;
+
+      return {
+        id: q.id,
+        label: q.label,
+        color: q.color,
+        min: q.min ?? 1,
+        max: q.max ?? 10,
+        value: ahora?.value ?? null,
+        from: antes?.value ?? null,
+        delta: ahora && antes ? round(ahora.value - antes.value, 1) : null,
+        points: puntos,
+      };
+    })
+    /* Una pregunta que no ha contestado NUNCA no es una fila vacía: es una
+       pregunta que este cliente no usa. */
+    .filter((r) => r.points.length > 0);
+};
+
+/**
+ * LA PASADA: a quién le debes una respuesta ahora mismo.
+ *
+ * ══ Por qué esto es una lista y no un modo ═════════════════════════════════
+ *
+ * Revisar no es un sitio, es una tarea con final: el lunes se contestan cuatro
+ * personas y hay que saber cuántas quedan. Eso se resolvía con un MODO —una
+ * barra flotante que te seguía por la aplicación— y un modo no sabe contar: te
+ * acompañaba con un solo nombre y al cerrarlo te dejaba donde estuvieras.
+ *
+ * Una lista sí. Se calcula sobre lo que ya está en memoria, se recalcula sola al
+ * cerrar una —la fila deja de estar pendiente— y no necesita guardar ningún
+ * estado: no hay ninguna «pasada en curso» que pueda quedarse a medias.
+ *
+ * ── En orden de ENTREGA ─────────────────────────────────────────────────────
+ * El primero que entregó es el que lleva más esperando. Ordenarlo por nombre o
+ * por urgencia sería inventar una prioridad que aquí no existe: las cuatro se
+ * van a contestar hoy.
+ *
+ * Solo cuentan las ENTREGADAS y sin contestar. Quien no ha subido nada no está
+ * esperando por ti, y meterlo en la pasada sería pararla en alguien con quien no
+ * se puede hacer nada salvo recordárselo.
+ */
+export const pendingReviews = ({ clients = [], checkIns = {} } = {}) =>
+  clients
+    .filter((client) => client?.status !== 'archived')
+    .map((client) => ({ client, checkIn: checkIns[client.id] }))
+    .filter(({ checkIn }) => Boolean(checkIn?.submittedAt) && !checkIn.reviewedAt)
+    .sort((a, b) => String(a.checkIn.submittedAt).localeCompare(String(b.checkIn.submittedAt)));
+
+/**
+ * QUÉ SEMANA ABRE LA REVISIÓN DE ALGUIEN.
+ *
+ * ══ El fallo que esta función viene a cerrar ════════════════════════════════
+ *
+ * La pantalla lo decidía con dos reglas: la semana que el cliente entregó y
+ * espera respuesta, y si no la había, **la última con actividad**. Le faltaba la
+ * tercera, que es la que manda en «Hoy»: el PERIODO DE CHECK-IN VIGENTE.
+ *
+ * `buildPortfolio` descarta cualquier entrega anterior a `periodo.start` antes de
+ * mirar si está revisada, así que la pasada solo se queda tranquila con una
+ * revisión guardada DENTRO del periodo de ahora. Abriendo en la última semana con
+ * actividad —que con un cliente que lleva dos semanas flojo es una semana vieja—
+ * se cerraba la semana equivocada: la escritura era correcta, el histórico se
+ * actualizaba, el diff volvía a cero… y el cliente seguía en la pasada. Desde
+ * fuera: «le doy a cerrar y no pasa nada».
+ *
+ * ── Por qué vive aquí y no en la pantalla ──────────────────────────────────
+ * Porque es una regla, no una maqueta, y porque una regla que solo existe dentro
+ * de un componente de setecientas líneas no se puede probar — que es exactamente
+ * la razón por la que ese fallo llegó a producción.
+ *
+ * @param weeks     Las semanas de programa que EXISTEN (tienen microciclo). Una
+ *   semana sin montar no se puede abrir: la pantalla no tendría qué enseñar.
+ * @param submitted La última entrega del cliente, o null.
+ * @param period    `currentCheckInPeriod(...)`, o null si no le toca.
+ * @param fallback  Qué abrir cuando ninguna de las dos aplica. Lo calcula quien
+ *   llama (`latestActiveWeek`) porque necesita las fotos y los pesajes.
+ */
+export const weekToReview = ({
+  weeks = [],
+  startDate = null,
+  submitted = null,
+  period = null,
+  fallback = null,
+} = {}) => {
+  /* 1 · Lo que entregó y espera respuesta. Manda sobre todo: es la razón por la
+     que se entra a esta pantalla desde «Hoy». */
+  const entregada =
+    submitted?.submittedAt && !submitted.reviewedAt
+      ? weekFromStart(startDate, submitted.weekStart)
+      : null;
+  if (weeks.includes(entregada)) return entregada;
+
+  /* 2 · Lo que la pasada está pidiendo, haya entregado o no. */
+  const pedida = period?.isDue ? weekFromStart(startDate, period.start) : null;
+  if (weeks.includes(pedida)) return pedida;
+
+  /* 3 · Y si no le toca nada, lo último que hizo. */
+  return fallback;
+};
+
+/** La semana por la que pregunta la pasada, o `null` si a este cliente no le toca. */
+export const queueWeek = ({ startDate = null, period = null } = {}) =>
+  period?.isDue ? weekFromStart(startDate, period.start) : null;
+
+/**
+ * QUÉ SEMANAS SE PUEDEN ABRIR EN LA REVISIÓN DE ALGUIEN.
+ *
+ * ══ Por qué no bastan las del programa ══════════════════════════════════════
+ *
+ * La pantalla las sacaba de los microciclos: solo se podía mirar una semana que
+ * tuviera rutina montada. Y el calendario de check-ins no espera a que la montes
+ * — avanza con la cadencia que le pusiste, esté programada o no.
+ *
+ * El resultado era un callejón sin salida. Un cliente con el programa acabado en
+ * la semana 3 y cadencia semanal aparece en la pasada pidiendo la 4; se pulsa
+ * «Revisar», la pantalla no puede abrir la 4 porque no existe, se cae a la 3, y
+ * lo que se cierra es la 3. El cliente se queda en la lista para siempre y
+ * ninguna de las dos pantallas miente: la pasada pide la 4 y la revisión cierra
+ * la 3.
+ *
+ * Una semana sin rutina montada SÍ se revisa: se mira lo que pesó, lo que subió
+ * y lo que contó, y se cierra. Que no le programaras nada es una respuesta sobre
+ * ti, no un motivo para no poder contestarle.
+ *
+ * ── Y la que entregó, por el mismo motivo ──────────────────────────────────
+ * Un cliente puede entregar una semana que tú no montaste. Sin ella en la lista,
+ * su entrega tampoco se podía abrir.
+ */
+export const reviewableWeeks = ({
+  programmed = [],
+  startDate = null,
+  submitted = null,
+  period = null,
+} = {}) => {
+  const semanas = new Set(programmed.filter((w) => Number.isFinite(w) && w >= 1));
+
+  const entregada = submitted?.weekStart ? weekFromStart(startDate, submitted.weekStart) : null;
+  if (Number.isFinite(entregada) && entregada >= 1) semanas.add(entregada);
+
+  const pedida = queueWeek({ startDate, period });
+  if (Number.isFinite(pedida) && pedida >= 1) semanas.add(pedida);
+
+  return [...semanas].sort((a, b) => a - b);
 };

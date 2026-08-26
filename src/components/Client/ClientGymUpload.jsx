@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react';
-import { Camera, Dumbbell, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Camera, Dumbbell } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
 import { muscleColor } from '@/domain/training';
-import { UNSORTED, byMuscle, groupOptions, unsortedCount } from '@/domain/equipment';
-import { Field, Notice, Panel } from '@/components/ui/primitives';
+import { byMuscle, groupOptions, unsortedCount } from '@/domain/equipment';
+import { Notice, Panel } from '@/components/ui/primitives';
+import { GymPicker } from '@/components/equipment/GymPicker';
 import { Thumb } from '@/components/photos/Thumb';
 
 /**
@@ -39,41 +40,10 @@ import { Thumb } from '@/components/photos/Thumb';
 export const ClientGymUpload = ({ client }) => {
   const { equipment } = useData();
   const { addEquipment, setEquipmentGroup } = useActions();
-  const input = useRef(null);
-
-  /* El grupo de la tanda que se va a subir. Arranca en la bandeja: quien no lo
-     sepa sube y sigue, y quien sí lo sabe se ahorra el paso de después. */
-  const [grupo, setGrupo] = useState(UNSORTED);
-  const [subiendo, setSubiendo] = useState(false);
   const [fallo, setFallo] = useState(null);
-  const [hechas, setHechas] = useState(0);
 
   const tandas = byMuscle(equipment);
   const pendientes = unsortedCount(equipment);
-
-  const subir = async (archivos) => {
-    const lista = Array.from(archivos || []);
-    if (lista.length === 0) return;
-
-    setSubiendo(true);
-    setFallo(null);
-    setHechas(0);
-
-    /* De una en una hacia el servidor: en paralelo, chocar contra la cuota deja
-       media tanda subida sin saber cuál falló. Así el contador va diciendo por
-       dónde va, que en un móvil con mala cobertura es la mitad del asunto. */
-    for (const archivo of lista) {
-      const res = await addEquipment(client.id, { file: archivo, muscleGroup: grupo });
-      if (!res.ok) {
-        setFallo(res.error);
-        break;
-      }
-      setHechas((n) => n + 1);
-    }
-
-    setSubiendo(false);
-    if (input.current) input.current.value = '';
-  };
 
   return (
     <Panel
@@ -88,53 +58,26 @@ export const ClientGymUpload = ({ client }) => {
           <Camera size={15} /> Haz una foto a cada máquina y súbelas todas de golpe.
         </span>
         <span className="t-xs t-tertiary">
-          Con el móvil puedes seleccionar varias a la vez. Si son todas del mismo sitio, dilo aquí
-          abajo; si no, súbelas y las ordenas después.
+          Con el móvil puedes seleccionarlas todas a la vez. No hace falta que sepas de qué es
+          cada una: déjalas en «Sin clasificar» y tu entrenador las coloca.
         </span>
-
-        <Field label="Estas fotos son de">
-          {(props) => (
-            <select
-              {...props}
-              className="select"
-              value={grupo}
-              onChange={(e) => setGrupo(e.target.value)}
-            >
-              {groupOptions().map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-
-        <div className="row gap-2 wrap">
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            disabled={subiendo}
-            onClick={() => input.current?.click()}
-          >
-            {subiendo ? <Loader2 size={14} className="spin" /> : <Camera size={14} />}
-            {subiendo ? `Subiendo… ${hechas}` : 'Subir fotos'}
-          </button>
-          <input
-            ref={input}
-            type="file"
-            accept="image/*"
-            multiple
-            hidden
-            onChange={(e) => subir(e.target.files)}
-          />
-          {equipment.length > 0 && !subiendo && (
-            <span className="t-xs t-tertiary" style={{ alignSelf: 'center' }}>
-              {equipment.length === 1 ? '1 foto subida' : `${equipment.length} fotos subidas`}
-              {pendientes > 0 && ` · ${pendientes} por clasificar`}
-            </span>
-          )}
-        </div>
       </div>
+
+      {/*
+        El mismo lote que usan las fotos de una revisión: se eligen, se ven, se
+        dice qué es cada una y se suben en serie. Ver `GymPicker`.
+      */}
+      <GymPicker
+        clientId={client.id}
+        onUpload={({ clientId, file, muscleGroup }) => addEquipment(clientId, { file, muscleGroup })}
+      />
+
+      {equipment.length > 0 && (
+        <p className="t-xs t-tertiary">
+          {equipment.length === 1 ? '1 foto subida' : `${equipment.length} fotos subidas`}
+          {pendientes > 0 && ` · ${pendientes} por clasificar`}
+        </p>
+      )}
 
       {tandas.length === 0 ? (
         <p className="t-xs t-tertiary row gap-2">
@@ -163,7 +106,10 @@ export const ClientGymUpload = ({ client }) => {
                       className="select select-xs"
                       aria-label="De qué es esta máquina"
                       value={pieza.muscleGroup}
-                      onChange={(e) => setEquipmentGroup(pieza.id, e.target.value)}
+                      onChange={async (e) => {
+                        const res = await setEquipmentGroup(pieza.id, e.target.value);
+                        setFallo(res.ok ? null : res.error);
+                      }}
                     >
                       {groupOptions().map((g) => (
                         <option key={g} value={g}>

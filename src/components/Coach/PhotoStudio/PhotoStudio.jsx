@@ -17,7 +17,7 @@ import { StudioBar } from './StudioBar';
 import { StudioPanel } from './StudioPanel';
 import { SlotControls } from './SlotControls';
 import { WeekAnglePicker } from './WeekAnglePicker';
-import { ComparisonData } from './ComparisonData';
+import { ComparisonData } from '@/components/review/ComparisonData';
 import { ReviewRecorder } from './ReviewRecorder';
 
 /**

@@ -413,3 +413,78 @@ export const weekSpan = (before, after, startDate) => {
   if (a === null || b === null) return null;
   return Math.abs(b - a);
 };
+/**
+ * La comparativa de UNA semana: su foto contra la de una semana anterior.
+ *
+ * ══ Por qué no vale `suggestPair` ═══════════════════════════════════════════
+ *
+ * `suggestPair` contesta «¿cómo va este cliente?» y para eso empareja la foto
+ * más antigua con la más reciente: la comparación que se enseña. Al revisar un
+ * check-in la pregunta es otra —«¿qué ha pasado desde la última vez?»— y el
+ * «después» no se elige: es la entrega que estoy mirando. Lo único que se elige
+ * es contra qué.
+ *
+ * ══ Y por qué se puede elegir contra cuál ══════════════════════════════════
+ *
+ * Porque de una semana a la siguiente casi nunca se ve nada, y entonces la
+ * comparativa no informa: dos fotos idénticas al lado no son un dato, son ruido
+ * con forma de dato. A tres o cuatro semanas ya se ve algo, y ése es el gesto
+ * real —«enséñame contra hace un mes»—. Se devuelven las semanas anteriores que
+ * TIENEN ese ángulo, de la más reciente a la más antigua, para que la pantalla
+ * las ofrezca sin inventarse ninguna: un chip que lleva a un hueco vacío es peor
+ * que no tener el chip.
+ *
+ * `null` cuando esa semana no tiene ninguna foto — no hay nada que comparar ni
+ * nada que decir.
+ *
+ * @param angle        El ángulo elegido. Si no está disponible esa semana se cae
+ *                     al primero que sí, en el orden de `ANGLES`: mezclar
+ *                     ángulos produce comparaciones sin sentido.
+ * @param againstWeek  La semana contra la que comparar. Si no vale —no existe o
+ *                     no tiene ese ángulo— se cae a la anterior más cercana, que
+ *                     es la que contesta la pregunta del check-in.
+ */
+export const weekComparison = ({
+  photos = [],
+  startDate = null,
+  weekNumber = null,
+  angle = null,
+  againstWeek = null,
+} = {}) => {
+  if (weekNumber === null) return null;
+
+  /* `groupByWeek` ya devuelve las semanas de la más reciente a la más antigua y
+     las fotos de cada una ordenadas: aquí no se vuelve a ordenar nada. */
+  const semanas = groupByWeek(photos, startDate).filter((g) => g.week !== null);
+  const actual = semanas.find((g) => g.week === weekNumber);
+  if (!actual) return null;
+
+  const angles = ANGLE_IDS.filter((id) => actual.photos.some((p) => p.angle === id));
+  if (angles.length === 0) return null;
+
+  const elegido = angles.includes(angle) ? angle : angles[0];
+  const after = actual.photos.find((p) => p.angle === elegido) || null;
+
+  const anteriores = semanas.filter(
+    (g) => g.week < weekNumber && g.photos.some((p) => p.angle === elegido)
+  );
+  const options = anteriores.map((g) => g.week);
+
+  const contra = options.includes(againstWeek) ? againstWeek : options[0] ?? null;
+  const before =
+    contra === null
+      ? null
+      : anteriores.find((g) => g.week === contra).photos.find((p) => p.angle === elegido);
+
+  return {
+    angle: elegido,
+    angles,
+    after,
+    before,
+    against: contra,
+    options,
+    /* Cuántas semanas atrás está la elegida. Es lo que hace legible el chip
+       —«hace 3 semanas» y no «S2»— cuando el cliente lleva medio año. */
+    span: contra === null ? null : weekNumber - contra,
+  };
+};

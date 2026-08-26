@@ -17,7 +17,7 @@ import { ANGLES } from '@/domain/photos';
  * elegir archivo, rellenar cuatro campos, subir, cerrar… y repetirlo tres veces,
  * porque una revisión son tres fotos. Doce campos y tres viajes para una tarea.
  */
-export const PhotoPicker = ({ items, busy, onAddFiles, onSetAngle, onDrop, compacto = false }) => {
+export const PhotoPicker = ({ items, busy, onAddFiles, onSetTag, onDrop, compacto = false }) => {
   const inputRef = useRef(null);
 
   return (
@@ -61,9 +61,9 @@ export const PhotoPicker = ({ items, busy, onAddFiles, onSetAngle, onDrop, compa
                       key={a.id}
                       type="button"
                       className="chip"
-                      aria-pressed={item.angle === a.id}
+                      aria-pressed={item.tag === a.id}
                       disabled={busy || item.status === 'done'}
-                      onClick={() => onSetAngle(item.id, a.id)}
+                      onClick={() => onSetTag(item.id, a.id)}
                       title={a.hint}
                     >
                       {a.label}

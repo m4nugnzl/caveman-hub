@@ -66,7 +66,29 @@ const Row = ({ label, before, after, unit, decimals = 1, lowerIsBetter = false }
  * Las filas sin dato en ninguna de las dos fechas no se pintan — una tabla con
  * ocho guiones no informa de nada.
  */
-export const ComparisonData = ({ before, after, span = null, history, gender, notes = null }) => {
+/**
+ * @param bare  Sin tarjeta y sin rótulo propio, para cuando ya cuelga de un
+ *   tramo que los pone (la revisión). Y con una regla más, que es la que de
+ *   verdad importa: **si lo único que puede enseñar es el peso, no se pinta**.
+ *
+ *   Ahí estaba el bloque más feo de la revisión: una tarjeta grande y oscura al
+ *   lado de las fotos con UNA fila dentro —«Peso 80,13 → 81,5»— y medio metro de
+ *   vacío debajo. Y encima esa fila ya estaba dicha dos veces en la misma
+ *   pantalla: en el marcador de arriba y en el pie de las propias fotos. Una
+ *   tabla que repite lo que hay encima no es una tabla, es ruido con canto.
+ *
+ *   Con pliegues o perímetros sí aparece, porque entonces dice algo que ninguna
+ *   otra cosa de la pantalla dice.
+ */
+export const ComparisonData = ({
+  before,
+  after,
+  span = null,
+  history,
+  gender,
+  notes = null,
+  bare = false,
+}) => {
   /*
     El intervalo, en la cabecera del panel. Vivía en una tarjeta aparte junto a
     otra con la variación de peso; el peso ya es la primera fila de esta tabla,
@@ -105,6 +127,10 @@ export const ComparisonData = ({ before, after, span = null, history, gender, no
   const hasAnything =
     data.weightA !== null || data.weightB !== null || data.fatA !== null || perimeterRows.length > 0;
 
+  /* Lo que esta tabla aporta MÁS ALLÁ del peso. Ver `bare`. */
+  const hayMedidas = data.fatA !== null || data.fatB !== null || perimeterRows.length > 0;
+  if (bare && !hayMedidas) return null;
+
   if (!hasAnything) {
     return (
       <Panel tight className="col gap-2">
@@ -122,15 +148,8 @@ export const ComparisonData = ({ before, after, span = null, history, gender, no
     );
   }
 
-  return (
-    <Panel className="col gap-3">
-      <SectionTitle
-        icon={Ruler}
-        action={intervalo && <span className="t-xs t-tertiary">{intervalo}</span>}
-      >
-        Qué dicen los números
-      </SectionTitle>
-
+  const tabla = (
+    <>
       <div className="compare-table">
         <div className="compare-row is-head">
           <span className="k">Medida</span>
@@ -169,6 +188,21 @@ export const ComparisonData = ({ before, after, span = null, history, gender, no
         El peso es el promedio del check-in de cada semana. Las medidas son la revisión más cercana a
         la fecha de cada foto, con un margen de diez días.
       </p>
+    </>
+  );
+
+  /* Suelta, para el tramo que ya la titula. */
+  if (bare) return <div className="col gap-3">{tabla}</div>;
+
+  return (
+    <Panel className="col gap-3">
+      <SectionTitle
+        icon={Ruler}
+        action={intervalo && <span className="t-xs t-tertiary">{intervalo}</span>}
+      >
+        Qué dicen los números
+      </SectionTitle>
+      {tabla}
     </Panel>
   );
 };

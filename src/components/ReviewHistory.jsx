@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, History, Link2, MessageSquareQuote, Pencil, Trash2, Video } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { History, Link2, MessageSquareQuote, Pencil, Trash2, Video } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { groupChanges, reviewHistory } from '@/domain/reviews';
 import { checkinQuestions, clientProtocol } from '@/domain/protocol';
+import { PlanChanges } from '@/components/review/PlanChanges';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { shortDate } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
@@ -33,31 +33,28 @@ import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
  *
  * El mismo componente sirve a los dos. Al cliente se le enseña lo mismo salvo
  * poder enlazar: eso es del entrenador.
- */
-/**
- * Hasta tres nombres y el resto contado.
  *
- * La lista completa de un día reprogramado son treinta nombres que nadie lee. El
- * recuento va delante —es lo que se busca— y estos tres sirven para reconocer de
- * qué se está hablando.
+ * ══ Las filas llegan de fuera ══════════════════════════════════════════════
+ *
+ * Antes las cargaba él. El problema es que las dos pantallas que lo llevan
+ * dentro necesitan lo mismo para otra cosa —el portal, para saber qué semanas
+ * quedan por entregar; «Su semana», para saber contra qué comparar el plan de
+ * hoy— así que la misma consulta se hacía dos veces seguidas en la misma
+ * pantalla. Ahora carga el dueño (`useReviewRows`) y aquí solo se pinta.
+ *
+ * @param rows      Las revisiones cerradas, de `useReviewRows`.
+ * @param recargar  Volver a leerlas: enlazar un vídeo o corregir una nota cambia
+ *                  lo que hay que enseñar, y quien lo hace es este panel.
  */
-const nombres = (lista) => {
-  const primeros = lista.slice(0, 3).join(', ');
-  return lista.length > 3 ? `${primeros} y ${lista.length - 3} más` : primeros;
-};
-
-export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) => {
-  const {
-    loadCheckInHistory,
-    listReviewLinks,
-    createReviewUrl,
-    publishUpdate,
-    updateCheckInNotes,
-    deleteCheckIn,
-  } = useActions();
+export const ReviewHistory = ({
+  client,
+  audience = 'coach',
+  rows = [],
+  recargar = () => {},
+  excludeId = null,
+}) => {
+  const { createReviewUrl, publishUpdate, updateCheckInNotes, deleteCheckIn } = useActions();
   const confirm = useConfirm();
-  const [filas, setFilas] = useState([]);
-  const [cargando, setCargando] = useState(true);
   const [enlazando, setEnlazando] = useState(null); // weekStart de la fila abierta
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -78,32 +75,15 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
     [client?.preferences]
   );
 
-  const recargar = useCallback(async () => {
-    if (!clientId) return;
-    const [historial, enlaces] = await Promise.all([
-      loadCheckInHistory(clientId),
-      listReviewLinks(clientId),
-    ]);
-    /*
-      Lo que ya se está enseñando arriba no vuelve a salir aquí.
+  /*
+    Lo que ya se está enseñando arriba no vuelve a salir aquí.
 
-      En el «Hoy» del cliente, la revisión de esta semana ocupa su propio bloque
-      —con la respuesta y todo—, así que repetirla en «anteriores» la contaba dos
-      veces y hacía dudar de si eran dos revisiones distintas. «Anteriores»
-      significa anteriores.
-    */
-    setFilas(
-      reviewHistory({ checkIns: historial.checkIns, links: enlaces.links || [] }).filter(
-        (f) => f.id !== excludeId
-      )
-    );
-    setCargando(false);
-  }, [clientId, loadCheckInHistory, listReviewLinks, excludeId]);
-
-  useEffect(() => {
-    setCargando(true);
-    recargar();
-  }, [recargar]);
+    En el portal del cliente, la revisión de esta semana ocupa su propio bloque
+    —con la respuesta y los cambios—, así que repetirla en «anteriores» la contaba
+    dos veces y hacía dudar de si eran dos revisiones distintas. «Anteriores»
+    significa anteriores.
+  */
+  const filas = useMemo(() => rows.filter((f) => f.id !== excludeId), [rows, excludeId]);
 
   /**
    * Reescribir el comentario de una revisión ya cerrada.
@@ -193,12 +173,14 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
     await recargar();
   };
 
-  /* Cargando no se anuncia: esto va debajo de otras cosas y un «cargando» que
-     aparece y desaparece en 200 ms es un parpadeo, no información. */
-  /* Sin revisiones no hay panel: una revisión es la RESPUESTA a algo que el
+  /* Mientras carga tampoco se anuncia nada: esto va debajo de otras cosas y un
+     «cargando» que aparece y desaparece en 200 ms es un parpadeo, no
+     información. Con las filas vacías el panel simplemente no está.
+
+     Sin revisiones no hay panel: una revisión es la RESPUESTA a algo que el
      cliente entregó, así que no hay nada que ofrecer aquí cuando no ha entregado
      nunca. */
-  if (cargando || filas.length === 0) return null;
+  if (filas.length === 0) return null;
 
   return (
     <Panel className="col gap-4">
@@ -234,92 +216,11 @@ export const ReviewHistory = ({ client, audience = 'coach', excludeId = null }) 
             </div>
 
             {/*
-              LO QUE CAMBIÓ, en rojo lo de antes y en verde lo de ahora.
-
-              Es la razón de existir de esta pantalla: la cifra anterior y la
-              nueva, no un «se ajustó la dieta». El color no dice si es bueno o
-              malo —bajar calorías puede ser lo correcto—: dice qué se retiró y
-              qué se puso, que es lo que se busca al mirar atrás.
+              LO QUE CAMBIÓ esa semana. El render vive en `PlanChanges` porque el
+              mismo diff hace falta en tres momentos —mientras decides, cuando él
+              lo lee y aquí, dos meses después— y tres copias habrían divergido.
             */}
-            {fila.changes.length > 0 && (
-              <div className="col gap-1">
-                {fila.changes.map((c) => (
-                  <span className="row gap-2 wrap t-xs" key={c.key}>
-                    <span className="t-secondary" style={{ minWidth: 92 }}>
-                      {c.label}
-                    </span>
-                    <span className="diff-out">
-                      {c.from}
-                      {c.unit}
-                    </span>
-                    <ArrowRight size={11} style={{ color: 'var(--text-tertiary)' }} />
-                    <span className="diff-in">
-                      {c.to}
-                      {c.unit}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/*
-              Y los cambios de estructura, que no son una cifra que sube o baja
-              sino algo que entra o sale. Por eso se pintan con signo y no con
-              flecha: «− Prensa» y «+ Hack» se leen de un vistazo, y «de Prensa a
-              Hack» obligaría a inventar una correspondencia que no existe.
-            */}
-            {fila.structure.length > 0 && (
-              <div className="col gap-1">
-                {groupChanges(fila.structure).map((g) => (
-                  <div className="col gap-1" key={g.sitio}>
-                    <span className="row gap-2 wrap t-xs">
-                      <span className="t-secondary" style={{ minWidth: 92, fontWeight: 600 }}>
-                        {g.sitio}
-                      </span>
-
-                      {/*
-                        Lo que entró y lo que salió, CONTADO y con hasta tres
-                        nombres. Reprogramar una semana cambia treinta
-                        ejercicios, y treinta líneas no son un resumen: son el
-                        volcado que hay que leer entero para enterarse de que se
-                        rehízo el día. El recuento se lee de un vistazo y los
-                        nombres son el detalle.
-                      */}
-                      {g.removed.length > 0 && (
-                        <span className="diff-out">
-                          −{g.removed.length} {nombres(g.removed)}
-                        </span>
-                      )}
-                      {g.added.length > 0 && (
-                        <span className="diff-in">
-                          +{g.added.length} {nombres(g.added)}
-                        </span>
-                      )}
-                    </span>
-
-                    {/*
-                      Los cambios de cifra, uno por línea y SIN envolver.
-
-                      Estaban en una fila con `wrap` y un hueco de 92 px delante,
-                      así que en cuanto no cabían se partían en tres renglones y
-                      «Hack Squat / 2 / 3 series» dejaba de leerse como una cosa.
-                      Un solo `span` con el texto seguido no se puede romper mal.
-                    */}
-                    {g.changed.map((c) => (
-                      <span className="t-xs" key={c.label} style={{ paddingLeft: 100 }}>
-                        <span className="t-secondary">{c.label} </span>
-                        <span className="diff-out">{c.from}</span>
-                        <span className="t-tertiary"> → </span>
-                        <span className="diff-in">
-                          {c.to}
-                          {c.unit}
-                        </span>
-                      </span>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
+            <PlanChanges changes={fila.changes} structure={fila.structure} />
 
             {/*
               Los tres casos, y son tres cosas distintas:

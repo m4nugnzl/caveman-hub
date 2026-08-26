@@ -691,7 +691,7 @@ export const ReviewWizard = ({
                 items={lote.items}
                 busy={lote.busy}
                 onAddFiles={lote.addFiles}
-                onSetAngle={lote.setAngle}
+                onSetTag={lote.setTag}
                 onDrop={lote.drop}
                 compacto
               />

@@ -4,6 +4,7 @@ import { useApp } from '@/context/AppContext';
 import { Notice, PageHead } from '@/components/ui/primitives';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 import { ReviewHistory } from '@/components/ReviewHistory';
+import { useReviewRows } from '@/components/review/useReviewRows';
 
 /**
  * Los check-ins del cliente activo, vistos por el entrenador.
@@ -27,6 +28,11 @@ export const AnthropometryModule = () => {
     updateClient,
   } = useApp();
 
+  /* El historial de revisiones lo carga la pantalla y no el panel: es lo mismo
+     que hacen «Su semana» y el portal desde que dos piezas de la misma pantalla
+     lo necesitaban a la vez. Ver `useReviewRows`. */
+  const { rows: revisiones, recargar } = useReviewRows(activeClient?.id);
+
   const photos = useMemo(
     () => progressPhotos.filter((p) => p.clientId === activeClient.id),
     [progressPhotos, activeClient.id]
@@ -44,7 +50,12 @@ export const AnthropometryModule = () => {
 
       {/* Lo que se decidió en las revisiones anteriores, antes que el formulario:
           para decidir esta semana hace falta saber qué se hizo la pasada. */}
-      <ReviewHistory client={activeClient} audience="coach" />
+      <ReviewHistory
+        client={activeClient}
+        audience="coach"
+        rows={revisiones}
+        recargar={recargar}
+      />
 
       <Notice tone="info">
         Un check-in son dos cosas: los pesajes de la semana —que se promedian para filtrar la

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check, MessageSquareQuote, Send, Sunrise } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Check, MessageSquareQuote, Send, Sunrise, SlidersHorizontal } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { weeklyCheckIn } from '@/domain/anthropometry';
@@ -9,6 +9,8 @@ import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { ClientReviews } from './ClientReviews';
 import { ReviewHistory } from '@/components/ReviewHistory';
+import { PlanChanges } from '@/components/review/PlanChanges';
+import { useReviewRows } from '@/components/review/useReviewRows';
 
 /**
  * Tu semana: entregarla, y leer lo que te ha contestado tu entrenador.
@@ -34,8 +36,7 @@ import { ReviewHistory } from '@/components/ReviewHistory';
  *   tarjeta.
  */
 export const ClientWeek = ({ client, onDeliver }) => {
-  const { anthropometry, checkIns, submitCheckIn, loadCheckInHistory } = useApp();
-  const [historial, setHistorial] = useState([]);
+  const { anthropometry, checkIns, submitCheckIn } = useApp();
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,17 +45,16 @@ export const ClientWeek = ({ client, onDeliver }) => {
     [anthropometry, client?.id]
   );
 
-  /* Su historial de check-ins, para saber cuáles ya entregó. `checkIns` solo
-     guarda el más reciente, que no basta para mirar hacia atrás. */
-  const cargarHistorial = useCallback(async () => {
-    if (!client?.id) return;
-    const res = await loadCheckInHistory(client.id);
-    if (res.ok) setHistorial(res.checkIns);
-  }, [client?.id, loadCheckInHistory]);
+  /*
+    Su historial, UNA sola vez para toda la pantalla.
 
-  useEffect(() => {
-    cargarHistorial();
-  }, [cargarHistorial]);
+    Hacen falta las dos formas: la lista cruda para saber qué semanas ya entregó
+    —`checkIns` del contexto solo guarda la más reciente— y las revisiones
+    cerradas, con los cambios de plan de cada una, tanto para la respuesta de
+    esta semana como para el panel de las anteriores. Antes esto se pedía dos
+    veces: aquí para lo primero, y otra vez dentro de `ReviewHistory`.
+  */
+  const { rows: revisiones, checkIns: historial, recargar } = useReviewRows(client?.id);
 
   const hoy = todayISO();
   const semana = weekStart(hoy);
@@ -123,12 +123,18 @@ export const ClientWeek = ({ client, onDeliver }) => {
     setError(res.ok ? '' : res.error);
     /* Al entregar una atrasada hay que releer el historial: si no, el botón de
        esa semana seguiría ahí después de haberla mandado. */
-    if (res.ok) cargarHistorial();
+    if (res.ok) recargar();
   };
 
   if (!client) return null;
 
   const sinEntregar = !deEstaSemana?.submittedAt && !deEstaSemana?.reviewedAt;
+
+  /* La revisión de esta semana ya cerrada, con lo que le cambió el entrenador.
+     Sale del historial y no de `checkIns`, porque el diff necesita también la
+     foto del plan de la revisión ANTERIOR. */
+  const revisada = revisiones.find((r) => r.id === deEstaSemana?.id) || null;
+  const hayCambios = Boolean(revisada && (revisada.changes.length || revisada.structure.length));
 
   return (
     <div className="stack">
@@ -157,6 +163,30 @@ export const ClientWeek = ({ client, onDeliver }) => {
                   Lo que te dice
                 </span>
                 <p className="t-sm pre-wrap">{deEstaSemana.coachNotes}</p>
+              </div>
+            )}
+
+            {/*
+              ══ Y LO QUE TE CAMBIA, aquí y no en otra pantalla ═══════════════
+
+              Al tocarle la dieta o la rutina le salta «tu dieta ha cambiado» en
+              su inicio, y eso es todo lo que sabía: un aviso que no dice QUÉ
+              obliga a ir a buscarlo, comparar de memoria con lo que había y
+              acabar preguntando por WhatsApp. El «280 → 240 g» existía desde la
+              migración 0042 pero solo se pintaba en «revisiones anteriores», o
+              sea al fondo de la pantalla y una semana tarde.
+
+              Va DEBAJO del texto a propósito: primero se lee por qué —que es lo
+              que ha escrito una persona— y después qué, que es la consecuencia.
+              Sin respuesta escrita, los cambios se sostienen solos.
+            */}
+            {hayCambios && (
+              <div className="card-inset col gap-2">
+                <span className="t-2xs t-tertiary">
+                  <SlidersHorizontal size={11} className="icon-inline" />
+                  Lo que te cambia esta semana
+                </span>
+                <PlanChanges changes={revisada.changes} structure={revisada.structure} />
               </div>
             )}
           </>
@@ -248,7 +278,13 @@ export const ClientWeek = ({ client, onDeliver }) => {
 
       {/* Y lo que le fue diciendo semana a semana, con los cambios que hizo en su
           plan. Es su historia con el entrenador. */}
-      <ReviewHistory client={client} audience="client" excludeId={deEstaSemana?.id} />
+      <ReviewHistory
+        client={client}
+        audience="client"
+        rows={revisiones}
+        recargar={recargar}
+        excludeId={deEstaSemana?.id}
+      />
     </div>
   );
 };

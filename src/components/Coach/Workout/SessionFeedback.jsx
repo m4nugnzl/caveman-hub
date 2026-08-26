@@ -21,6 +21,12 @@ import { MessageSquare } from 'lucide-react';
  * No es una copia con otro formato: que la respuesta se lea en el mismo sitio y
  * con la misma forma en que se dio es lo que evita que las dos versiones
  * divergan.
+ *
+ * ── `title={false}`: sin rótulo propio ──────────────────────────────────────
+ * Para cuando este bloque YA cuelga de un rótulo. En la revisión ocupa un panel
+ * entero titulado «Lo que te cuenta» y encima pintaba su propia troquelada, así
+ * que eran dos rótulos seguidos diciendo lo mismo con distintas palabras — la
+ * clase de costura de la que sale que una pantalla parezca un collage.
  */
 
 const Scale = ({ question, value, onChange, readOnly }) => {
@@ -86,16 +92,18 @@ export const SessionFeedback = ({ questions, answers = {}, onChange, readOnly = 
 
   return (
     <section className="feedback-block">
-      <header className="row between wrap gap-2">
-        <span className="section-label">
-          <MessageSquare size={12} /> {title || 'Cómo ha ido'}
-        </span>
-        {!readOnly && questions.length > 1 && (
-          <span className="t-2xs t-tertiary">
-            {answered} de {questions.length}
+      {title !== false && (
+        <header className="row between wrap gap-2">
+          <span className="section-label">
+            <MessageSquare size={12} /> {title || 'Cómo ha ido'}
           </span>
-        )}
-      </header>
+          {!readOnly && questions.length > 1 && (
+            <span className="t-2xs t-tertiary">
+              {answered} de {questions.length}
+            </span>
+          )}
+        </header>
+      )}
 
       <div className="feedback-list">
         {questions.map((question) => {

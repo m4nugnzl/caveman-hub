@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { clientWeek, latestActiveWeek, weightMove } from './week';
+import {
+  clientWeek,
+  exerciseHistory,
+  exerciseTrack,
+  exerciseTrend,
+  latestActiveWeek,
+  weightMove,
+} from './week';
 import { weekTonnage } from './training';
 
 /* El alta cae en LUNES a propósito: la semana de programa se ancla al lunes del
@@ -135,6 +142,18 @@ describe('latestActiveWeek', () => {
     expect(latestActiveWeek({ microcycles, history, startDate: ALTA })).toBe(2);
   });
 
+  /*
+    El caso que hacía que dos pantallas del mismo cliente hablaran de semanas
+    distintas: sube sus fotos el domingo y todavía no ha registrado el entreno.
+    La revisión entraba por la 2 y el estudio de fotos enseñaba la 3.
+  */
+  it('una foto también cuenta como actividad', () => {
+    const microcycles = [micro(1, { dias: [dia('Push')] }), micro(2, { dias: [dia('Push')] })];
+    const photos = [{ id: 'f', week: 2, angle: 'frontal', date: '2026-08-09' }];
+
+    expect(latestActiveWeek({ microcycles, photos, startDate: ALTA })).toBe(2);
+  });
+
   it('sin nada registrado, cae en la última montada', () => {
     const microcycles = [micro(1, { dias: [dia('Push')] }), micro(2, { dias: [dia('Push')] })];
     expect(latestActiveWeek({ microcycles, startDate: ALTA })).toBe(2);
@@ -165,5 +184,279 @@ describe('weightMove', () => {
     const history = [{ id: 'a', date: '2026-08-03', weight: '80' }];
     expect(weightMove({ history, startDate: ALTA, weekNumber: 1 })).toBeNull();
     expect(weightMove({ history, startDate: ALTA, weekNumber: 2 })).toBeNull();
+  });
+});
+
+describe('exerciseHistory', () => {
+  const conCarga = (kg, reps, n = 2) =>
+    Array.from({ length: n }, () => ({ kg: String(kg), reps: String(reps), rir: '2' }));
+
+  const plan = [
+    {
+      dayName: 'Push',
+      exercises: [
+        { id: 'e1', name: 'Press banca', muscle: 'Pecho', sets: programadas(2) },
+        { id: 'e2', name: 'Press militar', muscle: 'Hombro', sets: programadas(2) },
+      ],
+    },
+  ];
+
+  const semana = (weekNumber, entradas) =>
+    micro(weekNumber, {
+      dias: plan,
+      sesiones: entradas
+        ? [{ id: `s${weekNumber}`, dayName: 'Push', date: '2026-08-05', entries: entradas }]
+        : [],
+    });
+
+  const banca = (kg, reps, n) => [
+    { exerciseId: 'e1', name: 'Press banca', muscle: 'Pecho', sets: conCarga(kg, reps, n) },
+  ];
+
+  it('devuelve las series tal cual, de la más reciente hacia atrás', () => {
+    const filas = exerciseHistory({
+      microcycles: [semana(1, banca(95, 8)), semana(2, banca(100, 8))],
+      weekNumber: 2,
+    });
+
+    const press = filas.find((f) => f.name === 'Press banca');
+    expect(press.sessions.map((s) => s.week)).toEqual([2, 1]);
+    expect(press.sessions[0].sets).toEqual([
+      { kg: 100, reps: 8, rir: 2 },
+      { kg: 100, reps: 8, rir: 2 },
+    ]);
+  });
+
+  /* Más kilos, o los mismos kilos con más repeticiones. Nada más: sin fórmulas
+     de 1RM que decidan por el entrenador. */
+  /* Con su DÍA delante: un entrenamiento se lee por sesiones, no como una
+     lista suelta de ejercicios. */
+  it('cada ejercicio sabe de qué día es', () => {
+    const filas = exerciseHistory({ microcycles: [semana(1, banca(95, 8))], weekNumber: 1 });
+    expect(filas[0].dayName).toBe('Push');
+  });
+
+  it('sube con más kilos', () => {
+    const filas = exerciseHistory({
+      microcycles: [semana(1, banca(95, 8)), semana(2, banca(100, 8))],
+      weekNumber: 2,
+    });
+    expect(filas.find((f) => f.name === 'Press banca').trend).toBe('up');
+  });
+
+  it('sube con los mismos kilos y más repeticiones', () => {
+    const filas = exerciseHistory({
+      microcycles: [semana(1, banca(100, 8)), semana(2, banca(100, 10))],
+      weekNumber: 2,
+    });
+    expect(filas.find((f) => f.name === 'Press banca').trend).toBe('up');
+  });
+
+  it('igual es igual, y no un hueco', () => {
+    const filas = exerciseHistory({
+      microcycles: [semana(1, banca(100, 8)), semana(2, banca(100, 8))],
+      weekNumber: 2,
+    });
+    expect(filas.find((f) => f.name === 'Press banca').trend).toBe('same');
+  });
+
+  /* Se buscan las últimas sesiones CON registro, no las últimas semanas: una
+     descarga por el medio dejaría el historial vacío justo donde hay que
+     comparar. */
+  it('salta las semanas sin registro al mirar atrás', () => {
+    const filas = exerciseHistory({
+      microcycles: [semana(1, banca(95, 8)), semana(2, null), semana(3, banca(105, 8))],
+      weekNumber: 3,
+    });
+    const press = filas.find((f) => f.name === 'Press banca');
+    expect(press.sessions.map((s) => s.week)).toEqual([3, 1]);
+    expect(press.trend).toBe('up');
+  });
+
+  /*
+    Programado y no hecho SÍ sale, con su historial de antes: que se lo saltara
+    es media revisión, y lo de semanas anteriores explica desde cuándo. Pero sin
+    flecha, porque no hay nada de esta semana que comparar.
+  */
+  it('el que estaba programado y no hizo sale, sin flecha', () => {
+    const filas = exerciseHistory({
+      microcycles: [semana(1, banca(95, 8)), semana(2, null)],
+      weekNumber: 2,
+    });
+    const press = filas.find((f) => f.name === 'Press banca');
+    expect(press).toMatchObject({ done: false, trend: null });
+    expect(press.sessions.map((s) => s.week)).toEqual([1]);
+  });
+
+  /* Un ejercicio programado que no se ha hecho nunca es una línea del plan, y
+     eso ya se ve en la rutina. */
+  it('el que no se ha hecho nunca no genera fila', () => {
+    const filas = exerciseHistory({ microcycles: [semana(1, banca(95, 8))], weekNumber: 1 });
+    expect(filas.map((f) => f.name)).toEqual(['Press banca']);
+  });
+
+  it('sin microciclo de esa semana no inventa nada', () => {
+    expect(exerciseHistory({ microcycles: [semana(1, banca(95, 8))], weekNumber: 9 })).toEqual([]);
+    expect(exerciseHistory({ microcycles: [], weekNumber: null })).toEqual([]);
+  });
+});
+
+describe('exerciseTrack', () => {
+  /* Series con peso y repeticiones concretas, para poder afirmar sobre ellas. */
+  const conCarga = (kg, reps, n = 3) =>
+    Array.from({ length: n }, () => ({ kg: String(kg), reps: String(reps), rir: '2' }));
+
+  const semanaDe = (weekNumber, kg, reps = 8) =>
+    micro(weekNumber, {
+      dias: [dia('Push')],
+      sesiones: [
+        {
+          id: `s${weekNumber}`,
+          dayName: 'Push',
+          date: `2026-08-0${weekNumber}`,
+          entries: [{ exerciseId: 'e1', name: 'Press banca', sets: conCarga(kg, reps) }],
+        },
+      ],
+    });
+
+  it('devuelve una fila por semana en la que lo hizo, en orden', () => {
+    const microcycles = [semanaDe(1, 95), semanaDe(2, 97.5), semanaDe(3, 100)];
+    const track = exerciseTrack({ microcycles, name: 'Press banca', weekNumber: 3 });
+
+    expect(track.map((f) => f.week)).toEqual([1, 2, 3]);
+    expect(track.map((f) => f.topKg)).toEqual([95, 97.5, 100]);
+  });
+
+  /* Lo que decide si progresa, y la razón de que las series vayan en crudo. */
+  it('marca la tendencia contra la ÚLTIMA VEZ que lo hizo, no contra la semana anterior', () => {
+    const microcycles = [
+      semanaDe(1, 100),
+      /* En la 2 entrenó otra cosa: no abre fila. */
+      micro(2, { dias: [dia('Push')], sesiones: [] }),
+      semanaDe(3, 102.5),
+    ];
+    const track = exerciseTrack({ microcycles, name: 'Press banca', weekNumber: 3 });
+
+    expect(track.map((f) => f.week)).toEqual([1, 3]);
+    expect(track[1].trend).toBe('up');
+  });
+
+  it('mismos kilos con más repeticiones también es subir', () => {
+    const microcycles = [semanaDe(1, 100, 6), semanaDe(2, 100, 8)];
+    const track = exerciseTrack({ microcycles, name: 'Press banca', weekNumber: 2 });
+
+    expect(track[1].trend).toBe('up');
+    expect(track[1].reps).toBe(24);
+  });
+
+  it('conserva el RIR de cada serie: es la mitad de la información', () => {
+    const track = exerciseTrack({
+      microcycles: [semanaDe(1, 100)],
+      name: 'Press banca',
+      weekNumber: 1,
+    });
+
+    expect(track[0].sets[0]).toEqual({ kg: 100, reps: 8, rir: 2 });
+  });
+
+  /* Igual que `exerciseHistory`: lo que viene después todavía no ha pasado para
+     quien revisa, y una fila del futuro se lee como un récord que aún no existe. */
+  it('no enseña las semanas posteriores a la que se revisa', () => {
+    const microcycles = [semanaDe(1, 95), semanaDe(2, 100), semanaDe(3, 105)];
+    const track = exerciseTrack({ microcycles, name: 'Press banca', weekNumber: 2 });
+
+    expect(track.map((f) => f.week)).toEqual([1, 2]);
+  });
+
+  it('sin nombre no hay seguimiento', () => {
+    expect(exerciseTrack({ microcycles: [semanaDe(1, 95)], name: '' })).toEqual([]);
+  });
+});
+
+describe('exerciseTrend', () => {
+  const conCarga = (kg, reps, n = 3) =>
+    Array.from({ length: n }, () => ({ kg: String(kg), reps: String(reps), rir: '2' }));
+
+  const semanaDe = (weekNumber, kg, reps = 8) =>
+    micro(weekNumber, {
+      dias: [dia('Push')],
+      sesiones: [
+        {
+          id: `s${weekNumber}`,
+          dayName: 'Push',
+          date: `2026-08-${String(weekNumber).padStart(2, '0')}`,
+          entries: [{ exerciseId: 'e1', name: 'Press banca', sets: conCarga(kg, reps) }],
+        },
+      ],
+    });
+
+  const trend = (pesos, { reps = 8, hasta = null } = {}) =>
+    exerciseTrend({
+      microcycles: pesos.map((kg, i) => semanaDe(i + 1, kg, reps)),
+      name: 'Press banca',
+      weekNumber: hasta ?? pesos.length,
+    });
+
+  it('dice que sube cuando sube de verdad', () => {
+    const t = trend([90, 92.5, 95, 97.5, 100]);
+
+    expect(t.verdict).toBe('up');
+    expect(t.from).toBe(90);
+    expect(t.to).toBe(100);
+    expect(t.weeks).toBe(5);
+    /* Los puntos que se DIBUJAN son kilos, no una cifra derivada. */
+    expect(t.points.map((p) => p.value)).toEqual([90, 92.5, 95, 97.5, 100]);
+  });
+
+  it('dice que baja cuando baja', () => {
+    expect(trend([110, 105, 100, 97.5]).verdict).toBe('down');
+  });
+
+  it('la misma carga toda la vida es mantenerse, no progresar', () => {
+    expect(trend([100, 100, 100, 100]).verdict).toBe('flat');
+  });
+
+  /*
+    La razón de clasificar con 1RM estimado y no con kilos: bajar el peso para
+    subir las repeticiones es progresar, y con los kilos a secas saldría como un
+    desplome. Es la misma regla que usa strengthTrend en la lectura semanal.
+  */
+  it('subir repeticiones con menos peso no cuenta como bajar', () => {
+    const microcycles = [
+      semanaDe(1, 100, 3),
+      semanaDe(2, 95, 6),
+      semanaDe(3, 92.5, 9),
+      semanaDe(4, 90, 12),
+    ];
+    const t = exerciseTrend({ microcycles, name: 'Press banca', weekNumber: 4 });
+
+    expect(t.verdict).not.toBe('down');
+  });
+
+  /* Una recta plana sobre diez semanas y tres semanas sin mover un kilo son dos
+     cosas distintas, y la segunda es la que se toca el lunes. */
+  it('cuenta las sesiones seguidas sin mejorar la mejor marca', () => {
+    expect(trend([90, 95, 100, 100, 100]).stalled).toBe(2);
+    expect(trend([90, 95, 100, 102.5]).stalled).toBe(0);
+  });
+
+  it('con menos de tres sesiones no se inventa una tendencia', () => {
+    const t = trend([100, 102.5]);
+
+    expect(t.verdict).toBe(null);
+    expect(t.weeks).toBe(2);
+  });
+
+  it('un ejercicio que nunca hizo no tiene fila', () => {
+    expect(exerciseTrend({ microcycles: [semanaDe(1, 100)], name: 'Sentadilla', weekNumber: 1 })).toBe(
+      null
+    );
+  });
+
+  it('no mira más allá de la semana que se revisa', () => {
+    const t = trend([90, 95, 100, 200], { hasta: 3 });
+
+    expect(t.to).toBe(100);
+    expect(t.weeks).toBe(3);
   });
 });

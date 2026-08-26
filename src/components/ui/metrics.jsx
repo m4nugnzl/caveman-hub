@@ -124,11 +124,24 @@ export const StatWidget = ({ title, icon: Icon, timeframe, value, unit, color, d
  * widgets del resumen los elige cada cliente (`domain/preferences.js`), tres es
  * un estado real y frecuente, no una rareza.
  *
+ * ── 3. Y una piel para cuando la fila va suelta sobre el lienzo ────────────
+ * `band` le quita a las tarjetas su fondo y su sombra y las separa con un filete
+ * vertical. Es para las filas que viven dentro de una franja (`.franja`) y no
+ * dentro de un `Panel`: cuatro tarjetas con superficie metidas en otra tarjeta
+ * con superficie son cajas dentro de cajas, que es como una pantalla de cifras
+ * pasa de instrumento a montón de piezas.
+ *
+ * Es una piel y no un componente aparte a propósito: el orden de las cuatro
+ * piezas, la regla de dos-o-cuatro y el 2×2 del móvil son los mismos, y
+ * duplicarlos para cambiar un fondo es como se llega a dos filas de métricas que
+ * un día dejan de medir igual.
+ *
  * @param children  Las tarjetas. Se cuentan para decidir la rejilla.
  * @param slotHint  Qué poner en la casilla vacía —normalmente el botón de
  *   personalizar—. Sin ella, la casilla se pinta muda.
+ * @param band      Sin superficie, separadas por un filete. Ver arriba.
  */
-export const MetricRow = ({ children, slotHint = null }) => {
+export const MetricRow = ({ children, slotHint = null, band = false }) => {
   const items = Children.toArray(children).filter(Boolean);
   if (items.length === 0) return null;
 
@@ -138,7 +151,7 @@ export const MetricRow = ({ children, slotHint = null }) => {
   const huecos = (cols - (items.length % cols)) % cols;
 
   return (
-    <div className={`metric-row is-${cols}`}>
+    <div className={`metric-row is-${cols}${band ? ' is-band' : ''}`}>
       {items}
       {Array.from({ length: huecos }, (_, i) => (
         <div className="metric-slot" key={`hueco-${i}`} aria-hidden={!slotHint}>

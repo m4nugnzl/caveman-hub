@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { photoCoverage, thumbnailUrl, weekFromStart, weekStartOfProgramWeek } from './photos';
+import {
+  photoCoverage,
+  thumbnailUrl,
+  weekComparison,
+  weekFromStart,
+  weekStartOfProgramWeek,
+} from './photos';
 import { weekStart } from '@/lib/dates';
 
 /**
@@ -161,5 +167,61 @@ describe('photoCoverage', () => {
 
   it('sin fotos no hay historial que enseñar', () => {
     expect(photoCoverage({ photos: [], startDate: START })).toEqual([]);
+  });
+});
+
+/**
+ * La comparativa de un check-in.
+ *
+ * Lo que se fija aquí es que el «después» NO se elige —es la entrega que se está
+ * revisando— y que el «antes» solo puede caer en una semana que tenga ESE mismo
+ * ángulo. Ofrecer una semana sin la foto del ángulo elegido es ofrecer un hueco.
+ */
+describe('weekComparison', () => {
+  const foto = (week, angle, date) => ({ id: `${week}-${angle}`, week, angle, date });
+
+  const fotos = [
+    foto(1, 'frontal', '2026-01-05'),
+    foto(1, 'lateral', '2026-01-05'),
+    foto(2, 'frontal', '2026-01-12'),
+    foto(4, 'frontal', '2026-01-26'),
+    foto(4, 'espalda', '2026-01-26'),
+  ];
+
+  it('compara contra la semana anterior más cercana con ese ángulo', () => {
+    const c = weekComparison({ photos: fotos, weekNumber: 4 });
+    expect(c.angle).toBe('frontal');
+    expect(c.after.id).toBe('4-frontal');
+    expect(c.before.id).toBe('2-frontal');
+    expect(c.against).toBe(2);
+    expect(c.span).toBe(2);
+    // Las dos anteriores con frontal, de la más reciente a la más antigua.
+    expect(c.options).toEqual([2, 1]);
+  });
+
+  it('deja elegir contra cuál, y solo entre las que existen', () => {
+    expect(weekComparison({ photos: fotos, weekNumber: 4, againstWeek: 1 }).before.id).toBe(
+      '1-frontal'
+    );
+    // La 3 no existe: se cae a la anterior más cercana en vez de quedarse sin par.
+    expect(weekComparison({ photos: fotos, weekNumber: 4, againstWeek: 3 }).against).toBe(2);
+  });
+
+  it('un ángulo sin par anterior no ofrece ninguna semana, no ofrece una vacía', () => {
+    const c = weekComparison({ photos: fotos, weekNumber: 4, angle: 'espalda' });
+    expect(c.angle).toBe('espalda');
+    expect(c.before).toBe(null);
+    expect(c.options).toEqual([]);
+  });
+
+  it('el ángulo pedido cae al disponible en vez de vaciar la comparativa', () => {
+    // Esa semana no tiene lateral: se enseña el frontal, que sí está.
+    expect(weekComparison({ photos: fotos, weekNumber: 4, angle: 'lateral' }).angle).toBe('frontal');
+  });
+
+  it('sin fotos esa semana no hay comparativa que enseñar', () => {
+    expect(weekComparison({ photos: fotos, weekNumber: 3 })).toBe(null);
+    expect(weekComparison({ photos: [], weekNumber: 1 })).toBe(null);
+    expect(weekComparison({ photos: fotos, weekNumber: null })).toBe(null);
   });
 });

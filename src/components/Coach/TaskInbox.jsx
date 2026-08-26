@@ -34,7 +34,10 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
         type="button"
         className="task-hit"
         onClick={onOpen}
-        aria-label={`Abrir la ficha de ${client.name}`}
+        /* «Abrir a X» y no «abrir su ficha»: cada tarea aterriza donde se
+           trabaja —la respuesta en su semana, la rutina en su plan— y su ficha
+           es solo uno de esos sitios. */
+        aria-label={`Abrir a ${client.name}`}
       />
 
       <span className="mark" aria-hidden="true">
@@ -65,7 +68,19 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
         </button>
       )}
 
-      <ChevronRight size={15} className="chevron" aria-hidden="true" />
+      {/*
+        La flecha SOLO cuando la fila no tiene botón.
+
+        Con los dos, [inicial][nombre][botón][flecha] no cabe en la columna de
+        «Hoy» —unos 300 px— y la fila envolvía: el botón y la flecha caían a un
+        segundo renglón, y la flecha sola debajo de cada tarjeta parecía un
+        trozo de maquetación rota.
+
+        Y no se pierde nada: la flecha no hace nada por su cuenta, es la señal de
+        que la fila entera se puede pulsar. Donde hay botón, esa señal ya la da
+        el botón — y la fila sigue abriendo al cliente por su capa de clic.
+      */}
+      {!action && <ChevronRight size={15} className="chevron" aria-hidden="true" />}
     </div>
   );
 };
@@ -163,7 +178,12 @@ const TaskGroup = ({ task, trainerOf, onOpen, handlers }) => {
               key={row.client.id}
               row={row}
               trainer={trainerOf(row.client.assignedTo)}
-              onOpen={() => onOpen(row.client.id)}
+              /* La tarea viaja con el cliente: abrir a alguien porque le debes
+                 una respuesta y abrirlo porque no tiene rutina no llevan al
+                 mismo sitio. Antes las nueve tareas aterrizaban en el mismo
+                 cajón —su resumen—, así que «Responder check-ins» dejaba en una
+                 gráfica de seis meses y sin nada que responder. */
+              onOpen={() => onOpen(row.client.id, task.id, row)}
               action={taskAction(task.id, row, handlers)}
             />
           ))}

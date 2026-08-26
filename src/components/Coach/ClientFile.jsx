@@ -20,10 +20,10 @@ import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
 import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '@/domain/billing';
 import { latestWeight } from '@/domain/anthropometry';
-import { identityFacts, identitySubtitle } from '@/domain/ficha';
+import { MAX_AGE, MIN_AGE, age, birthDateForAge, identityFacts, identitySubtitle } from '@/domain/ficha';
 import { onboardingState } from '@/domain/onboardingState';
 import { PROFILE_GROUPS, cleanProfile, isProfileEmpty } from '@/domain/profile';
-import { dayMonthMaybeYear, shortDate, todayISO } from '@/lib/dates';
+import { dayMonthMaybeYear, shortDate } from '@/lib/dates';
 import { initials } from '@/lib/initials';
 import { toNum } from '@/lib/num';
 import {
@@ -102,6 +102,10 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
     email: client.email || '',
     phone: client.phone || '',
     gender: client.gender || '',
+    /* Se teclea la EDAD y se guarda la FECHA. El porqué de las dos mitades está
+       en `birthDateForAge`; aquí solo viajan las dos, porque la fecha exacta de
+       quien la tenga no se puede perder por haber abierto el formulario. */
+    edad: age(client.birthDate) ?? '',
     birthDate: client.birthDate || '',
     heightCm: client.heightCm ?? '',
     plan: client.plan || '',
@@ -109,17 +113,42 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const limpio = form.name.trim();
-  /* Un dedo de más al teclear el año en el selector de fecha, y la ficha diría
-     «−4 años». Se corta aquí y con palabras, en vez de dejar que lo rechace la
-     restricción de la base con su mensaje de Postgres. */
-  const futuro = Boolean(form.birthDate) && form.birthDate > todayISO();
+
+  /*
+    ══ La edad se escribe; la fecha se recalcula SOLO si cambia ═══════════════
+
+    Quien tenga guardado su día exacto de nacimiento no lo pierde por abrir la
+    ficha: mientras la edad tecleada siga siendo la que ya tenía, la fecha se
+    queda como estaba. Reescribirla «por si acaso» cambiaría un 15 de junio por
+    un 26 de agosto sin que nadie lo hubiera pedido.
+  */
+  const edadOriginal = age(client.birthDate);
+  const setEdad = (e) => {
+    const edad = e.target.value;
+    setForm((f) => ({
+      ...f,
+      edad,
+      birthDate:
+        edad === ''
+          ? ''
+          : Number(edad) === edadOriginal
+            ? client.birthDate || ''
+            : birthDateForAge(edad) || '',
+    }));
+  };
+
+  /* Un dedo de más y la ficha diría «4 años» o «204». Se corta aquí y con
+     palabras, en vez de dejar que lo rechace la restricción de la base con su
+     mensaje de Postgres. */
+  const edadMal =
+    form.edad !== '' && (!Number.isFinite(Number(form.edad)) || birthDateForAge(form.edad) === null);
 
   return (
     <form
       className="col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!limpio || futuro) return;
+        if (!limpio || edadMal) return;
         /*
           Se manda TODO el formulario, incluidos los campos vacíos: dejar un
           correo en blanco tiene que poder borrarlo. Filtrar los vacíos —que es
@@ -170,22 +199,33 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
             </select>
           )}
         </Field>
+        {/*
+          ══ Se pregunta la EDAD, no el día que nació ═══════════════════════
+
+          Era un selector de fecha del navegador, y para poner un dato de dos
+          dígitos había que desplegar ochenta años y recorrerlos. Nadie se sabe
+          el cumpleaños de la persona a la que entrena; su edad, sí.
+
+          Por dentro se sigue guardando la fecha —una edad escrita en la base
+          miente sola al cabo de un año— y quien tenga el día exacto no lo
+          pierde. Ver `birthDateForAge`.
+        */}
         <Field
-          label="Fecha de nacimiento"
-          hint="De aquí sale su edad. No se guarda la edad: se calcula, para que no envejezca sola."
-          error={futuro ? 'Esa fecha todavía no ha llegado.' : null}
+          label="Edad"
+          hint="Se guarda como fecha, para que no envejezca sola. Entra en el gasto energético y en sus zonas de pulso."
+          error={edadMal ? `Entre ${MIN_AGE} y ${MAX_AGE} años.` : null}
         >
           {(props) => (
-            <input
-              {...props}
-              type="date"
-              className="input"
-              /* Ni el día de mañana ni el año 3000: el navegador ya sabe cortar
-                 por arriba, y así el aviso de abajo es el segundo cinturón. */
-              max={todayISO()}
-              value={form.birthDate}
-              onChange={set('birthDate')}
-            />
+            <div className="input-suffix">
+              <NumberInput
+                {...props}
+                center={false}
+                placeholder="34"
+                value={form.edad}
+                onChange={(v) => setEdad({ target: { value: v } })}
+              />
+              <span aria-hidden="true">años</span>
+            </div>
           )}
         </Field>
       </div>
@@ -211,7 +251,7 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
       </div>
 
       <div className="row gap-2">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || futuro}>
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || edadMal}>
           Guardar
         </button>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>

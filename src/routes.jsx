@@ -155,12 +155,34 @@ export const COACH_CLIENT = [
     entero (ver `docs/producto.md`, fase 5).
   */
   /*
-    `short` es la etiqueta de la barra del pulgar, igual que en las secciones
-    del cliente: «Su semana» no cabe en un destino de 78 px sin cortarse por
-    caracteres. Desde que la barra inferior del entrenador cambia de plano al
-    entrar en un cliente (ver CoachLayout), estas etiquetas también viven ahí.
+    ══ Y se llama «Revisión», que es lo que se pulsa ══════════════════════════
+
+    Se llamaba «Su semana», y debajo había OTRA entrada llamada «Revisión» que
+    era el formulario de pesajes y el estudio de fotos. Dos nombres compitiendo,
+    y el gesto natural —«voy a revisar a Javier» → pulsar «Revisión»— aterrizaba
+    en el sitio equivocado: en dónde se METEN los datos, no en dónde se decide.
+
+    Ahora es UNA sección con tres niveles, igual que «Progreso» tiene resumen y
+    análisis: la revisión (aquí), su check-in y sus fotos. Se baja a los dos de
+    archivo desde el bloque de la revisión que enseña ese dato —los pesajes desde
+    «Cómo va», el estudio desde «Su cuerpo»— y se vuelve por el carril de chips
+    que ellos sí llevan (`review/ReviewRail.jsx`). `also` es lo que mantiene esta
+    entrada marcada mientras estás en cualquiera de los dos.
+
+    ── Ninguna URL se mueve ────────────────────────────────────────────────────
+    `/c/:id/semana`, `/c/:id/revision` y `/c/:id/revision/fotos` siguen donde
+    estaban: esto es una etiqueta y una agrupación, no la fase 5 de
+    `docs/producto.md` —que además mueve las rutas y duplica para siempre la
+    tabla de redirecciones—. El documento nombra esta sección «Su semana»; se
+    queda el nombre que el entrenador busca de verdad, que es el otro.
   */
-  { path: 'semana', label: 'Su semana', short: 'Semana', icon: CalendarCheck },
+  {
+    path: 'semana',
+    label: 'Revisión',
+    short: 'Revisión',
+    icon: CalendarCheck,
+    also: ['revision', 'revision/fotos', 'revision/estudio'],
+  },
   /*
     «Progreso» era dos entradas —Resumen y Analítica— y las dos contestan la misma
     pregunta con distinto detalle. Eso obligaba a elegir cuál abrir antes de saber
@@ -194,7 +216,6 @@ export const COACH_CLIENT = [
   */
   { path: 'rutina', label: 'Rutina', icon: Layers, service: 'training' },
   { path: 'nutricion', label: 'Nutrición', icon: Salad, service: 'nutrition' },
-  { path: 'revision', label: 'Revisión', icon: Ruler, also: ['revision/fotos'] },
   { path: 'calendario', label: 'Calendario', icon: CalendarDays },
   /*
     La ficha va la última del carril a propósito. Sus datos, su acceso al portal,
@@ -442,6 +463,10 @@ const EQUIVALENTES = [
   ['nutricion', 'dieta'],
   ['revision', 'evolucion'],
   ['revision/fotos', 'evolucion/fotos'],
+  /* El estudio no tiene equivalente en el portal: el cliente no compara,
+     entrega. Su pareja es su archivo de fotos, que es lo más cercano a lo que
+     estabas mirando. */
+  ['revision/estudio', 'evolucion/fotos'],
   ['calendario', 'calendario'],
   /*
     «Su semana» ⇄ «Mi evolución». Son los dos lados del mismo gesto: donde el

@@ -21,8 +21,29 @@ import { newId } from '@/lib/ids';
  * Tres subidas simultáneas de 15 MB desde el móvil de un cliente en el gimnasio
  * saturan la conexión y fallan las tres. En serie, además, cada foto se marca
  * como subida o fallida por separado y se puede reintentar solo lo que falló.
+ *
+ * ══ Y ahora son TRES sitios: las máquinas del gimnasio ═════════════════════
+ *
+ * El mismo lote con otra etiqueta. Una foto de progreso lleva un ÁNGULO —frontal,
+ * lateral, espalda— y una de maquinaria lleva un GRUPO MUSCULAR; lo demás
+ * —validar, previsualizar, subir en serie, marcar cuál falló, poder reintentar
+ * solo eso— es idéntico hasta la última línea.
+ *
+ * Por eso la etiqueta se parametriza en vez de copiarse el gancho: la cabecera
+ * de arriba ya avisaba de lo que pasa al copiarlo, y con tres copias sería
+ * cuestión de meses que una subiera en paralelo o dejara de validar el tamaño.
+ *
+ * `tagKey` es cómo se llama esa etiqueta en el objeto que recibe `onUpload`, y
+ * `nextTag` decide cuál se propone al añadir un archivo: las fotos de progreso
+ * reparten los ángulos que quedan libres, y las de maquinaria le ponen a todas
+ * la misma —quien sube veinte máquinas de pecho no quiere que la aplicación se
+ * invente un reparto—.
  */
-export const usePhotoBatch = ({ onUpload }) => {
+export const usePhotoBatch = ({
+  onUpload,
+  tagKey = 'angle',
+  nextTag = (usados) => ANGLES.find((a) => !usados.has(a.id))?.id || 'frontal',
+}) => {
   /** items: [{ id, file, url, angle, status, error }] */
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
@@ -57,17 +78,16 @@ export const usePhotoBatch = ({ onUpload }) => {
     setError(rejected.length > 0 ? rejected.join(' · ') : null);
 
     setItems((prev) => {
-      const used = new Set(prev.map((i) => i.angle));
+      const used = new Set(prev.map((i) => i.tag));
       const next = [...prev];
       for (const file of accepted) {
-        const free = ANGLES.find((a) => !used.has(a.id));
-        const angle = free?.id || 'frontal';
-        used.add(angle);
+        const tag = nextTag(used);
+        used.add(tag);
         next.push({
           id: newId('up'),
           file,
           url: URL.createObjectURL(file),
-          angle,
+          tag,
           status: 'pending',
           error: null,
         });
@@ -76,8 +96,7 @@ export const usePhotoBatch = ({ onUpload }) => {
     });
   };
 
-  const setAngle = (id, angle) =>
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, angle } : i)));
+  const setTag = (id, tag) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, tag } : i)));
 
   const drop = (id) =>
     setItems((prev) => {
@@ -106,7 +125,7 @@ export const usePhotoBatch = ({ onUpload }) => {
         clientId,
         file: item.file,
         week,
-        angle: item.angle,
+        [tagKey]: item.tag,
         notes,
       });
 
@@ -136,7 +155,7 @@ export const usePhotoBatch = ({ onUpload }) => {
     setError,
     busy,
     addFiles,
-    setAngle,
+    setTag,
     drop,
     upload,
     /** Lo que aún no está arriba. Es lo que cuenta el botón de subir. */

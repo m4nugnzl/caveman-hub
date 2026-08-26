@@ -42,6 +42,7 @@ import { DayHeader } from './DayHeader';
 import { ImportDayDialog } from './ImportDayDialog';
 import { ExerciseList } from './ExerciseList';
 import { AddExerciseForm } from './AddExerciseForm';
+import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 
 /**
  * Editor de rutina. Antes eran 866 líneas y 14 `useState` en un solo
@@ -522,6 +523,10 @@ export const WorkoutLogEditor = () => {
       {/* El estado de guardado es de la PANTALLA, no de la estructura: vivía
           dentro de la línea de configuración, que ahora se pliega — y un aviso
           de «no se guardó» no puede quedarse doblado dentro de nada. */}
+      {/* Si has llegado aquí desde una revisión, el camino de vuelta. Solo
+          entonces: no es un modo, viaja en la navegación (`VueltaALaRevision`). */}
+      <VueltaALaRevision />
+
       <PageHead
         title="Rutina"
         sub={`Los microciclos de ${activeClient.name}: qué días entrena, qué ejercicios y cuántas series.`}

@@ -1,10 +1,9 @@
-import { useRef, useState } from 'react';
-import { Dumbbell, ExternalLink, Link2, Loader2, Trash2, Upload, X } from 'lucide-react';
+import { useState } from 'react';
+import { Dumbbell, ExternalLink, Link2, Trash2, X } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
 import { muscleColor } from '@/domain/training';
 import {
-  UNSORTED,
   byMuscle,
   equipmentHeadline,
   groupOptions,
@@ -13,7 +12,9 @@ import {
 import { COACH_FIELDS, cleanProfile, fieldText } from '@/domain/profile';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { Gallery } from '@/components/photos/Gallery';
 import { Thumb } from '@/components/photos/Thumb';
+import { GymPicker } from './GymPicker';
 
 /**
  * Su maquinaria: las fotos del gimnasio donde entrena.
@@ -45,18 +46,7 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
   const { equipment } = useData();
   const { addEquipment, setEquipmentGroup, removeEquipment } = useActions();
   const confirm = useConfirm();
-  const input = useRef(null);
 
-  /*
-    Se sube a la BANDEJA por defecto, no a un músculo.
-
-    Subir y clasificar son dos gestos y pasan en momentos distintos: quien está
-    en el gimnasio hace cuarenta fotos seguidas, y decidir de qué músculo es cada
-    máquina mientras las hace convierte una tanda de dos minutos en un formulario
-    de veinte. Quien SÍ lo sabe puede elegir el grupo aquí y saltarse el paso.
-  */
-  const [grupo, setGrupo] = useState(UNSORTED);
-  const [subiendo, setSubiendo] = useState(false);
   const [fallo, setFallo] = useState(null);
   /* El enlace a la carpeta de fuera: se edita aquí y no en «Cómo entrena»,
      porque no es un dato de la persona sino una decisión tuya sobre dónde viven
@@ -69,37 +59,26 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
   const pendientes = unsortedCount(equipment);
 
   /*
-    Varias fotos de golpe, y de UNA en una hacia el servidor.
+    ══ El álbum, aplanado en el MISMO orden en que se ve ══════════════════════
 
-    Un gimnasio son cuarenta máquinas y nadie las sube de cuarenta en cuarenta
-    clics. En paralelo sería más rápido y también la forma de chocar contra la
-    cuota con media subida hecha y sin saber cuál falló; en serie, el primer
-    fallo corta y dice cuántas entraron.
+    El visor recorre todas las fotos del gimnasio de corrido —de «Pecho» a
+    «Espalda» sin cerrar— como el carrete de un teléfono. Y el orden tiene que
+    ser exactamente el de la rejilla: si «la siguiente» no es la que está al
+    lado, pasar fotos deja de tener sentido.
+
+    Solo las que tienen enlace firmado: una foto sin URL no se puede enseñar
+    grande, y meterla en el álbum sería un hueco negro a mitad del recorrido.
   */
-  const subir = async (archivos) => {
-    const lista = Array.from(archivos || []);
-    if (lista.length === 0) return;
-
-    setSubiendo(true);
-    setFallo(null);
-
-    let hechas = 0;
-    for (const archivo of lista) {
-      const res = await addEquipment(client.id, { file: archivo, muscleGroup: grupo });
-      if (!res.ok) {
-        setFallo(
-          hechas > 0
-            ? `${res.error} (se subieron ${hechas} de ${lista.length})`
-            : res.error
-        );
-        break;
-      }
-      hechas += 1;
-    }
-
-    setSubiendo(false);
-    if (input.current) input.current.value = '';
-  };
+  const album = tandas.flatMap((tanda) =>
+    tanda.items
+      .filter((pieza) => pieza.url)
+      .map((pieza) => ({
+        id: pieza.id,
+        url: pieza.url,
+        caption: pieza.name ? `${tanda.group} · ${pieza.name}` : tanda.group,
+      }))
+  );
+  const [abierta, setAbierta] = useState(null); // índice dentro de `album`
 
   const mover = async (pieza, destino) => {
     const res = await setEquipmentGroup(pieza.id, destino);
@@ -200,46 +179,17 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
         </Notice>
       )}
 
-      <div className="row-end wrap gap-3">
-        <Field
-          label="Van a"
-          hint="Puedes subirlas todas y ordenarlas después."
-          className="grow"
-        >
-          {(props) => (
-            <select
-              {...props}
-              className="select"
-              value={grupo}
-              onChange={(e) => setGrupo(e.target.value)}
-            >
-              {groupOptions().map((g) => (
-                <option key={g} value={g}>
-                  {g}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          disabled={subiendo}
-          onClick={() => input.current?.click()}
-        >
-          {subiendo ? <Loader2 size={14} className="spin" /> : <Upload size={14} />}
-          {subiendo ? 'Subiendo…' : 'Subir fotos'}
-        </button>
-        <input
-          ref={input}
-          type="file"
-          accept="image/*"
-          multiple
-          hidden
-          onChange={(e) => subir(e.target.files)}
-        />
-      </div>
+      {/*
+        El lote, con el mismo aparato que las fotos de una revisión: se eligen
+        todas, se ven antes de mandarlas, se dice qué es cada una y se suben en
+        serie sabiendo cuál falló. Ver `GymPicker`.
+      */}
+      <GymPicker
+        clientId={client.id}
+        onUpload={({ clientId, file, muscleGroup }) =>
+          addEquipment(clientId, { file, muscleGroup })
+        }
+      />
 
       {tandas.length === 0 ? (
         <div className="card-inset col gap-2">
@@ -266,7 +216,18 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
                 {tanda.items.map((pieza) => (
                   <figure key={pieza.id} className="gym-shot">
                     {pieza.url ? (
-                      <Thumb url={pieza.url} alt={pieza.name || tanda.group} width={320} />
+                      /* Se pulsa y se abre grande, como en la galería del móvil.
+                         Es un botón y no una imagen con `onClick`: así se llega
+                         con el tabulador y se abre con Intro, y un lector de
+                         pantalla lo anuncia como lo que es. */
+                      <button
+                        type="button"
+                        className="gym-shot-open"
+                        aria-label={`Ver ${pieza.name || tanda.group} en grande`}
+                        onClick={() => setAbierta(album.findIndex((f) => f.id === pieza.id))}
+                      >
+                        <Thumb url={pieza.url} alt={pieza.name || tanda.group} width={320} />
+                      </button>
                     ) : (
                       /* Firmar puede fallar sin que la pieza deje de existir. Se
                          dice, en vez de enseñar un cuadro roto. */
@@ -316,6 +277,16 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
         <p className="t-xs t-tertiary">
           {equipmentHeadline(equipment)}. Las ves al montar su rutina sin salir de la pantalla.
         </p>
+      )}
+
+      {/* Y a pantalla completa, recorriendo el gimnasio entero. Ver `Gallery`. */}
+      {abierta !== null && album[abierta] && (
+        <Gallery
+          items={album}
+          index={abierta}
+          onIndex={setAbierta}
+          onClose={() => setAbierta(null)}
+        />
       )}
     </Panel>
   );

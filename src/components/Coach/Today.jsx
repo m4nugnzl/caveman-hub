@@ -4,7 +4,6 @@ import { Inbox } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
-import { planSnapshot } from '@/domain/reviews';
 import {
   ACTIVITY_KINDS,
   DEFAULT_WINDOW,
@@ -19,6 +18,7 @@ import { traeALaVista } from '@/lib/motion';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
+import { SIN_CAMBIOS, useCloseReview } from '@/components/review/useCloseReview';
 import { TaskInbox } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
 import { ReviewQueue } from './ReviewQueue';
@@ -40,6 +40,31 @@ import { ReviewQueue } from './ReviewQueue';
  *
  * Toda la lógica está en `domain/today.js`. Aquí solo hay presentación.
  */
+
+/*
+  ══ Cada tarea aterriza donde SE HACE, y no en el mismo cajón ════════════════
+
+  Las nueve llevaban al resumen del cliente. Así que «Responder check-ins» —que
+  es la primera de la lista y lo único que espera POR TI— dejaba en una gráfica
+  de seis meses, sin la entrega delante y sin nada que responder: la tarea decía
+  qué hacer y el destino no dejaba hacerlo.
+
+  Es lo que `producto.md` §4.1 ya pedía: «Hoy», al pulsar sobre un check-in
+  entregado, aterriza en LA SEMANA de esa persona. Las demás siguen el mismo
+  criterio —programar lleva a su rutina, cobrar y dar acceso a su ficha— y lo que
+  no tenga un sitio mejor se queda en el resumen.
+*/
+const DESTINO = {
+  review: 'semana',
+  checkin: 'semana',
+  inactive: 'semana',
+  program: 'rutina',
+  start: 'rutina',
+  access: 'ficha',
+  payment: 'ficha',
+  intake: 'ficha',
+  intake_ready: 'ficha',
+};
 
 /** Título del día, con su recuento. */
 const DayHead = ({ label, count }) => (
@@ -110,16 +135,13 @@ export const Today = () => {
     progressPhotos,
     checkIns,
     equipmentCounts,
-    nutrition,
-    workoutData,
     markClientPaid,
-    reviewCheckIn,
-    unreviewCheckIn,
     loadEvents,
     setEventDone,
   } = useApp();
   const navigate = useNavigate();
   const toast = useToast();
+  const { close } = useCloseReview();
   const [error, setError] = useState(null);
 
   const today = todayISO();
@@ -226,46 +248,32 @@ export const Today = () => {
 
   const open = (clientId, section) => navigate(clientPath(clientId, section));
 
+  const abrirTarea = (clientId, taskId) => open(clientId, DESTINO[taskId] || 'resumen');
+
   /*
     ══ Cerrar una revisión, en un solo sitio ══════════════════════════════════
 
-    La misma fila pendiente se puede cerrar desde DOS piezas de esta pantalla: la
-    cola de revisiones y la bandeja de tareas. Estaban llamando a `reviewCheckIn`
-    por su cuenta, y la bandeja lo hacía sin la foto del plan —que es opcional en
-    la firma— así que cerrar por un lado o por el otro dejaba rastros distintos:
-    unas revisiones con su plan congelado y otras con `null`, según por dónde se
-    hubiera pulsado.
+    La misma fila pendiente se puede cerrar desde DOS piezas de esta pantalla —la
+    cola de revisiones y la bandeja de tareas— y desde otras dos fuera de ella: la
+    semana del cliente y la barra de la revisión. Cada una lo hacía por su cuenta,
+    y la bandeja lo hacía sin la foto del plan —que es opcional en la firma— así
+    que cerrar por un lado o por el otro dejaba rastros distintos: unas revisiones
+    con su plan congelado y otras con `null` según por dónde se hubiera pulsado.
 
     Eso es un hueco que no se puede rellenar después: la foto vale porque se toma
-    EN EL MOMENTO de revisar. Ahora las dos piezas llaman aquí, y no hay ninguna
-    forma de cerrar una revisión sin ella.
+    EN EL MOMENTO de revisar. Ahora las cuatro pasan por `useCloseReview`, y no
+    hay ninguna forma de cerrar una revisión sin ella.
   */
-  const cerrarRevision = async (reviewId, clientId, notas = null) => {
-    const res = await reviewCheckIn(
-      reviewId,
-      notas,
-      planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId] })
-    );
-    setError(res?.ok === false ? res.error : null);
-    if (res?.ok === false) return;
-
-    /*
-      El aviso con su «Deshacer»: cerrar es un toque sin confirmación —así debe
-      ser, es el gesto de cada lunes— y su pareja honesta es la vuelta atrás.
-      El inverso limpia sello, nota y foto (migración 0063) y la fila vuelve a
-      la cola.
-    */
-    const nombre = clients.find((c) => c.id === clientId)?.name || 'el cliente';
-    toast({
-      text: `Semana de ${nombre} cerrada.`,
-      action: {
-        label: 'Deshacer',
-        onClick: async () => {
-          const undo = await unreviewCheckIn(reviewId);
-          if (undo?.ok === false) setError(undo.error);
-        },
-      },
+  const cerrarRevision = async (reviewId, clientId, notas = SIN_CAMBIOS) => {
+    const cliente = clients.find((c) => c.id === clientId);
+    const res = await close({
+      clientId,
+      name: cliente?.name || 'el cliente',
+      checkInId: reviewId,
+      weekStart: checkIns[clientId]?.weekStart,
+      notes: notas,
     });
+    setError(res?.ok === false ? res.error : null);
   };
 
   if (clients.length === 0) {
@@ -327,10 +335,10 @@ export const Today = () => {
           como las bandas de la portada. Un instrumento de medida no va dentro
           de una caja con título — la escala ES la pieza, y encajonarla la
           convertía en un panel más de la pila. */}
-      <section className="pulso" aria-label="El pulso de la cartera">
-        <div className="pulso-head">
+      <section className="franja" aria-label="El pulso de la cartera">
+        <div className="franja-head">
           <span className="section-label">El pulso de la cartera</span>
-          <span className="pulso-hint">
+          <span className="franja-hint">
             {DEFAULT_WINDOW} días · {events.length} {events.length === 1 ? 'registro' : 'registros'}
           </span>
         </div>
@@ -395,7 +403,7 @@ export const Today = () => {
         </div>
       </section>
 
-      <div className="today">
+      <div className="trabajo">
         {/* ── EL HILO ──────────────────────────────────────────────────── */}
         <section className="col gap-5">
           {days.length === 0 ? (
@@ -434,7 +442,7 @@ export const Today = () => {
         </section>
 
         {/* ── LA BANDEJA ───────────────────────────────────────────────── */}
-        <aside className="today-side">
+        <aside className="trabajo-side">
           <Panel
             title="Te esperan"
             action={<span className="badge">{inbox.tasks.reduce((n, t) => n + t.rows.length, 0)}</span>}
@@ -442,7 +450,7 @@ export const Today = () => {
           >
             <TaskInbox
               tasks={inbox.tasks}
-              onOpen={(clientId) => open(clientId, 'resumen')}
+              onOpen={abrirTarea}
               handlers={{
                 /* Marcar cobrado adelanta también la fecha al ciclo siguiente.
                    Antes solo cambiaba el estado, así que el cobro volvía a

@@ -24,8 +24,16 @@ import { useElementWidth } from '@/lib/useElementWidth';
 
 const MIN_W = 240;
 
-/** Curva suave que no inventa máximos entre puntos (Catmull-Rom, tensión baja). */
-const smoothPath = (points) => {
+/**
+ * Curva suave que no inventa máximos entre puntos (Catmull-Rom, tensión baja).
+ *
+ * Se exporta porque la línea de tiempo de una revisión dibuja su propio SVG —es
+ * un instrumento compuesto: la curva del peso, las barras de las calorías y la
+ * tira de fotos sobre un mismo eje— y tiene que trazar la curva EXACTAMENTE
+ * igual que los demás gráficos. Dos formas de suavizar una línea en el mismo
+ * producto son dos curvas distintas para los mismos datos.
+ */
+export const smoothPath = (points) => {
   if (points.length < 2) return '';
   if (points.length === 2) {
     return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1].y.toFixed(1)}`;
@@ -55,7 +63,12 @@ const movingAverage = (values, window = 3) => {
   });
 };
 
-const makeScale = (values, { fromZero = false, padRatio = 0.16 } = {}) => {
+/**
+ * El rango de un eje, con su margen. Exportada por lo mismo que `smoothPath`:
+ * si la línea de tiempo calculara su escala por su cuenta, la misma serie
+ * llenaría el alto de una forma aquí y de otra en la analítica.
+ */
+export const makeScale = (values, { fromZero = false, padRatio = 0.16 } = {}) => {
   const finite = values.filter((v) => Number.isFinite(v));
   if (finite.length === 0) return null;
 

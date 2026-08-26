@@ -10,12 +10,11 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { currentCheckInPeriod } from '@/domain/calendar';
 import { reviewQueue } from '@/domain/portfolio';
 import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
-import { useReviewSession } from './ReviewSession';
+import { SIN_CAMBIOS } from '@/components/review/useCloseReview';
 
 /**
  * Las revisiones que tienes pendientes. Solo esas.
@@ -39,18 +38,20 @@ import { useReviewSession } from './ReviewSession';
  *
  * ══ Y qué se hace con cada uno ═════════════════════════════════════════════
  *
- *   · «Revisar» abre lo que ha subido —sus fotos contra las de la vez anterior,
- *     con el peso al lado—, que es lo único que hace falta para decidir. Es el
- *     ÚNICO botón primario de la fila: el gesto del lunes es entrar a mirar, y
- *     desde dentro se llega también al plan si hay que tocarlo.
+ *   · «Revisar» abre SU SEMANA, y lo hacen TODAS las filas — hayan entregado o
+ *     no. Es la corrección que más se notaba: los «sin subir» tenían en su lugar
+ *     un «Ajustar» que llevaba al editor de microciclos, así que intentar
+ *     revisar a alguien acababa en su rutina. Una lista con un solo destino no
+ *     hay que leerla dos veces.
+ *
+ *     Allí está todo: lo que hizo, lo que entregó —con la comparativa de sus
+ *     fotos y lo que contestó—, qué le cambias y dónde contestarle. Y su semana
+ *     se puede cerrar aunque no llegara a entregar: la fila se crea al hacerlo.
  *   · «Seguimos igual» cierra sin cambios, en un toque. Es la mayoría de las
  *     veces, y durante meses.
- *   · «Contestar» escribe la respuesta, que él lee en su «Hoy».
- *   · En los «Sin subir», «Recordar» abre WhatsApp con el mensaje puesto —lo
- *     único que se puede hacer con quien no ha subido nada es recordárselo— y
- *     «Ajustar» entra a su plan a media espera. «Ajustar» ya no sale en los que
- *     SÍ han subido: cuatro botones idénticos por fila obligaban a leerlos todos
- *     antes de pulsar, y ese camino ya lo cubre la propia revisión.
+ *   · «Contestar» escribe la respuesta, que él lee en su portal.
+ *   · Y en los «Sin subir», «Recordar» abre WhatsApp con el mensaje puesto: eso
+ *     sí es otro gesto, y se hace desde su conversación de siempre.
  *
  * ── Por qué el «seguimos igual» deja rastro ─────────────────────────────────
  * Porque es información: dentro de tres meses permite contestar «llevas nueve
@@ -77,10 +78,6 @@ const ESTADOS = {
   ready: { label: 'Te espera', tone: 'badge-warn' },
   missing: { label: 'Sin subir', tone: '' },
 };
-
-/** Lo que se guarda al cerrar sin cambios. Es texto y no un booleano porque va a
-    la misma nota que escribirías tú, y así el histórico se lee de corrido. */
-const SIN_CAMBIOS = 'Sin cambios: seguimos igual.';
 
 /**
  * Recordarle el check-in a quien no lo ha subido, por WhatsApp y con el mensaje
@@ -110,25 +107,10 @@ const resumen = (row) =>
 
 export const ReviewQueue = ({ rows, onReview }) => {
   const navigate = useNavigate();
-  const { start } = useReviewSession();
   const [abierto, setAbierto] = useState(true);
   const [enCurso, setEnCurso] = useState(null);
   const [escribiendo, setEscribiendo] = useState(null);
   const [texto, setTexto] = useState('');
-
-  /*
-    Lo que necesita la barra para poder cerrar la revisión: a quién, qué fila hay
-    que marcar y —si no hay ninguna porque el cliente no llegó a entregar— en qué
-    semana crearla.
-  */
-  const abrir = (row) => ({
-    clientId: row.client.id,
-    name: row.client.name,
-    checkInId: row.review.id || null,
-    weekStart:
-      currentCheckInPeriod(row.client.preferences, row.client.startDate)?.start ||
-      row.checkIn.weekStart,
-  });
 
   const lista = reviewQueue(rows);
   if (lista.length === 0) return null;
@@ -242,61 +224,45 @@ export const ReviewQueue = ({ rows, onReview }) => {
                 )}
 
                 {/*
-                  «Revisar» ABRE LA REVISIÓN, no solo navega.
+                  «Revisar» LLEVA A SU SEMANA, y ahí está la revisión entera.
 
-                  Antes llevaba a las fotos y ahí se acababa: una vez dentro no
-                  había forma de cerrarla ni de contestar, así que era lo mismo
-                  que entrar al cliente por el carril de siempre. Ahora arranca el
-                  modo (`ReviewSession`) y la barra de abajo te acompaña por donde
-                  vayas —fotos, dieta, rutina— hasta que la cierras con el visto o
-                  contestando.
+                  Llevaba a las fotos, y ahí se acababa: una vez dentro no había
+                  forma de cerrarla ni de contestar, así que era lo mismo que
+                  entrar al cliente por el carril de siempre. Se tapó con un modo
+                  —una barra flotante que te seguía por la aplicación— y eso era
+                  peor: tres botones y ningún dato, ofreciéndote tres formas de
+                  terminar algo que no podías ver.
 
-                  Y aterriza en las fotos porque es lo primero que se mira: las
-                  suyas contra las de la vez anterior, con el peso al lado.
+                  Su semana lo tiene todo junto: el veredicto, la comparativa, lo
+                  que contestó, qué le cambias —con la dieta ajustable ahí mismo—
+                  y dónde contestarle. El estudio de fotos sigue a un enlace desde
+                  allí, para cuando haga falta de verdad.
 
                   Es EL botón primario de la fila —el único—: mirar lo que ha
                   subido es el trabajo; cerrar y contestar son sus remates.
                 */}
-                {row.review_state === 'ready' && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => navigate(clientPath(id, 'semana'))}
+                >
+                  <Images size={12} /> Revisar
+                </button>
+
+                {/* Con quien no ha subido nada cabe además recordárselo, y eso sí
+                    es otro gesto: se hace desde su conversación de WhatsApp y no
+                    desde aquí. «Ajustar» ya no está — llevaba a su rutina, que es
+                    la razón por la que intentar revisar acababa en el editor de
+                    microciclos. */}
+                {row.review_state === 'missing' && row.client.phone && (
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
-                    onClick={() => {
-                      start(abrir(row));
-                      navigate(clientPath(id, 'revision/fotos'));
-                    }}
+                    className="btn btn-secondary btn-sm"
+                    title="Abrir WhatsApp con el recordatorio escrito"
+                    onClick={() => recordarCheckIn(row.client)}
                   >
-                    <Images size={12} /> Revisar
+                    <MessageCircle size={12} /> Recordar
                   </button>
-                )}
-
-                {/* Con quien no ha subido nada solo caben dos gestos: recordárselo
-                    —si hay teléfono— y tocarle el plan a media espera. «Ajustar»
-                    ya no sale en las filas que SÍ han subido: ese camino lo cubre
-                    la propia revisión, y el cuarto botón idéntico era ruido. */}
-                {row.review_state === 'missing' && (
-                  <>
-                    {row.client.phone && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        title="Abrir WhatsApp con el recordatorio escrito"
-                        onClick={() => recordarCheckIn(row.client)}
-                      >
-                        <MessageCircle size={12} /> Recordar
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        start(abrir(row));
-                        navigate(clientPath(id, 'rutina'));
-                      }}
-                    >
-                      Ajustar
-                    </button>
-                  </>
                 )}
 
                 {escribiendo === id && (

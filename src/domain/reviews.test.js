@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  answerTrend,
   deliverableWeeks,
+  pendingReviews,
   planSnapshot,
   readableStructure,
+  reviewableWeeks,
   reviewHistory,
   snapshotChanges,
+  queueWeek,
   structureChanges,
+  weekToReview,
 } from './reviews';
 
 /**
@@ -58,11 +63,37 @@ describe('qué cambió entre dos revisiones', () => {
     expect(cambios[0]).toMatchObject({ key: 'kcals', from: 2400, to: 2200, up: false });
   });
 
-  /* Configurar el plan por primera vez no es un ajuste. «Sin calorías → 2400»
-     leído como cambio haría creer que hubo una decisión donde solo hubo un alta. */
-  it('estrenar una cifra no cuenta como cambio', () => {
-    expect(snapshotChanges({ kcals: null }, { kcals: 2400 })).toEqual([]);
-    expect(snapshotChanges({}, { kcals: 2400 })).toEqual([]);
+  /*
+    ══ Estrenar una cifra SÍ es un cambio, y era el fallo que más se notaba ═══
+
+    Aquí se exigía que las dos fotos tuvieran la cifra puesta, así que ponerle
+    10.000 pasos a alguien que no los tenía no producía ninguna línea: ni en el
+    diff de la revisión, ni en lo que le llega al cliente, ni en el histórico.
+    Y los pasos y el cardio son justo los dos campos que casi nadie rellena al
+    dar de alta, o sea que el caso frecuente era el que se perdía.
+
+    Lo que la regla protegía —el alta del plan leída como un ajuste— lo protege
+    la prueba siguiente: sin foto anterior no se compara nada.
+  */
+  it('estrenar una cifra cuenta como cambio, con el hueco de antes', () => {
+    const cambios = snapshotChanges({ kcals: 2400 }, { kcals: 2400, steps: 10000 });
+    expect(cambios).toHaveLength(1);
+    expect(cambios[0]).toMatchObject({ key: 'steps', from: null, to: 10000, up: null });
+  });
+
+  /* Y quitársela también: «te retiro el cardio» es una decisión de revisión, y
+     con `to: null` la pantalla pinta el hueco en vez de inventarse un cero. */
+  it('quitar una cifra cuenta como cambio', () => {
+    const cambios = snapshotChanges({ steps: 10000 }, {});
+    expect(cambios).toHaveLength(1);
+    expect(cambios[0]).toMatchObject({ key: 'steps', from: 10000, to: null, up: null });
+  });
+
+  /* Lo que no estaba y sigue sin estar no es nada: son las cifras que este
+     entrenador no usa, y sacarlas llenaría el diff de campos vacíos. */
+  it('una cifra que nunca ha estado no genera línea', () => {
+    expect(snapshotChanges({ kcals: 2400 }, { kcals: 2400 })).toEqual([]);
+    expect(snapshotChanges({ cardio: '' }, {})).toEqual([]);
   });
 
   it('sin foto anterior no se compara nada', () => {
@@ -413,5 +444,279 @@ describe('semanas entregables', () => {
 
   it('sin datos no se ofrece nada', () => {
     expect(deliverableWeeks(opciones({ history: [] }))).toEqual([]);
+  });
+});
+
+/**
+ * La pasada del lunes.
+ *
+ * Lo que se fija: cuenta ENTREGAS sin contestar, en el orden en que llegaron, y
+ * nunca a quien no ha entregado nada — parar la pasada en alguien con quien no se
+ * puede hacer nada es lo que hace que se abandone a la tercera.
+ */
+describe('pendingReviews', () => {
+  const clients = [
+    { id: 'a', name: 'Ana' },
+    { id: 'b', name: 'Berto' },
+    { id: 'c', name: 'Cris' },
+    { id: 'z', name: 'Zoe', status: 'archived' },
+  ];
+
+  const checkIns = {
+    // Berto entregó antes que Ana: va primero aunque alfabéticamente vaya después.
+    b: { submittedAt: '2026-08-24T09:00:00Z', reviewedAt: null },
+    a: { submittedAt: '2026-08-24T18:00:00Z', reviewedAt: null },
+    // Cris ya está contestada.
+    c: { submittedAt: '2026-08-23T10:00:00Z', reviewedAt: '2026-08-23T11:00:00Z' },
+    z: { submittedAt: '2026-08-20T10:00:00Z', reviewedAt: null },
+  };
+
+  it('son las entregadas sin contestar, en orden de entrega', () => {
+    expect(pendingReviews({ clients, checkIns }).map((p) => p.client.id)).toEqual(['b', 'a']);
+  });
+
+  it('quien no ha entregado no está esperando por ti', () => {
+    expect(pendingReviews({ clients, checkIns: {} })).toEqual([]);
+    expect(
+      pendingReviews({ clients, checkIns: { a: { submittedAt: null, reviewedAt: null } } })
+    ).toEqual([]);
+  });
+
+  it('los archivados no entran en la pasada', () => {
+    expect(pendingReviews({ clients, checkIns }).some((p) => p.client.id === 'z')).toBe(false);
+  });
+
+  it('sin nada que pasar devuelve una lista vacía, no revienta', () => {
+    expect(pendingReviews()).toEqual([]);
+  });
+});
+
+describe('cómo evoluciona lo que te cuenta', () => {
+  const PREGUNTAS = [
+    { id: 'sueño', label: 'Descanso', kind: 'scale', min: 1, max: 10 },
+    { id: 'hambre', label: 'Hambre', kind: 'scale', min: 1, max: 10 },
+    { id: 'nota', label: 'Algo más', kind: 'text' },
+  ];
+  const entrega = (weekStart, answers) => ({ id: weekStart, weekStart, answers });
+
+  it('el valor de esta semana, el de la anterior y su diferencia', () => {
+    const filas = answerTrend({
+      checkIns: [
+        entrega('2026-08-03', { sueño: '8', hambre: '3' }),
+        entrega('2026-08-10', { sueño: '5', hambre: '3' }),
+      ],
+      questions: PREGUNTAS,
+      weekStart: '2026-08-10',
+    });
+
+    expect(filas.map((f) => f.id)).toEqual(['sueño', 'hambre']);
+    expect(filas[0]).toMatchObject({ value: 5, from: 8, delta: -3 });
+    /* Sin movimiento, la diferencia es cero y no un hueco: «igual que la semana
+       pasada» es una respuesta, no una ausencia. */
+    expect(filas[1]).toMatchObject({ value: 3, from: 3, delta: 0 });
+  });
+
+  /* Las de texto no se comparan: lo que escribió se lee. */
+  it('las preguntas de texto no entran', () => {
+    const filas = answerTrend({
+      checkIns: [entrega('2026-08-10', { nota: 'comí fuera el domingo' })],
+      questions: PREGUNTAS,
+      weekStart: '2026-08-10',
+    });
+    expect(filas).toEqual([]);
+  });
+
+  /*
+    Revisando una semana pasada, lo que vino DESPUÉS todavía no ha ocurrido para
+    quien revisa. Enseñarlo convertiría el histórico en una predicción.
+  */
+  it('no mira más allá de la semana que se revisa', () => {
+    const filas = answerTrend({
+      checkIns: [
+        entrega('2026-08-03', { sueño: '8' }),
+        entrega('2026-08-10', { sueño: '5' }),
+        entrega('2026-08-17', { sueño: '9' }),
+      ],
+      questions: PREGUNTAS,
+      weekStart: '2026-08-10',
+    });
+    expect(filas[0].points.map((p) => p.value)).toEqual([8, 5]);
+    expect(filas[0].value).toBe(5);
+  });
+
+  /* No haber contestado ESTA semana es un hueco, y se dice: coger el valor de
+     hace tres semanas y pintarlo como el de ahora sería inventarle una
+     respuesta. */
+  it('si no contestó esta semana, el valor es nulo pero la serie sigue', () => {
+    const filas = answerTrend({
+      checkIns: [entrega('2026-08-03', { sueño: '8' }), entrega('2026-08-10', {})],
+      questions: PREGUNTAS,
+      weekStart: '2026-08-10',
+    });
+    expect(filas[0]).toMatchObject({ value: null, from: 8, delta: null });
+  });
+
+  it('una pregunta que nunca ha contestado no genera fila', () => {
+    const filas = answerTrend({
+      checkIns: [entrega('2026-08-10', { sueño: '5' })],
+      questions: PREGUNTAS,
+      weekStart: '2026-08-10',
+    });
+    expect(filas.map((f) => f.id)).toEqual(['sueño']);
+  });
+});
+
+/*
+  ══ QUÉ SEMANA ABRE LA REVISIÓN ═══════════════════════════════════════════════
+
+  Estas pruebas existen por un fallo que llegó a producción: se cerraba la semana
+  y el cliente seguía en la pasada de «Hoy». La escritura era correcta —el
+  histórico se actualizaba y el diff volvía a cero— pero se guardaba con la fecha
+  de OTRA semana, porque la pantalla abría en la última con actividad y la pasada
+  pregunta por el periodo de check-in vigente.
+
+  La regla estaba escrita dentro de un componente de setecientas líneas, así que
+  no había forma de probarla. Ahora está aquí.
+*/
+describe('weekToReview', () => {
+  /* Alta en lunes, para que la semana 1 empiece el 2 de marzo. */
+  const ALTA_W = '2026-03-02';
+  const lunesW = (n) =>
+    new Date(Date.parse(`${ALTA_W}T00:00:00Z`) + (n - 1) * 7 * 86400000).toISOString().slice(0, 10);
+
+  const semanasW = [1, 2, 3, 4, 5];
+
+  it('manda lo que entregó y espera respuesta', () => {
+    expect(
+      weekToReview({
+        weeks: semanasW,
+        startDate: ALTA_W,
+        submitted: { weekStart: lunesW(2), submittedAt: '2026-03-15', reviewedAt: null },
+        period: { start: lunesW(5), isDue: true },
+        fallback: 1,
+      })
+    ).toBe(2);
+  });
+
+  /*
+    Y sin entrega esperando, LA QUE PIDE LA PASADA — no la última con actividad.
+    Éste es el caso que fallaba: cerrar la 3 no quita de «Hoy» a quien tiene
+    pendiente la 5, porque `buildPortfolio` descarta toda entrega anterior al
+    inicio del periodo vigente antes de mirar si está revisada.
+  */
+  it('sin entrega esperando, abre la semana que pide la pasada', () => {
+    expect(
+      weekToReview({
+        weeks: semanasW,
+        startDate: ALTA_W,
+        submitted: { weekStart: lunesW(2), submittedAt: '2026-03-15', reviewedAt: '2026-03-16' },
+        period: { start: lunesW(5), isDue: true },
+        fallback: 3,
+      })
+    ).toBe(5);
+  });
+
+  /* Una semana que aún no le toca no se abre: no hay nada que cerrar todavía. */
+  it('si el periodo no ha vencido, se cae a lo último que hizo', () => {
+    expect(
+      weekToReview({
+        weeks: semanasW,
+        startDate: ALTA_W,
+        submitted: null,
+        period: { start: lunesW(5), isDue: false },
+        fallback: 3,
+      })
+    ).toBe(3);
+  });
+
+  /* Y una semana sin montar tampoco: la pantalla no tendría qué enseñar. */
+  it('una semana que no existe en el programa no se abre', () => {
+    expect(
+      weekToReview({
+        weeks: [1, 2, 3],
+        startDate: ALTA_W,
+        submitted: null,
+        period: { start: lunesW(9), isDue: true },
+        fallback: 3,
+      })
+    ).toBe(3);
+  });
+
+  it('sin nada de nada, lo que diga quien llama', () => {
+    expect(weekToReview({ weeks: semanasW, startDate: ALTA_W, fallback: 4 })).toBe(4);
+  });
+
+  /* La semana por la que pregunta la pasada, para poder AVISAR cuando lo que se
+     va a cerrar no es esa. */
+  it('queueWeek dice por cuál pregunta la pasada', () => {
+    expect(queueWeek({ startDate: ALTA_W, period: { start: lunesW(5), isDue: true } })).toBe(5);
+    expect(queueWeek({ startDate: ALTA_W, period: { start: lunesW(5), isDue: false } })).toBe(null);
+    expect(queueWeek({ startDate: ALTA_W, period: null })).toBe(null);
+  });
+});
+
+/*
+  ══ QUÉ SEMANAS SE PUEDEN ABRIR ═══════════════════════════════════════════════
+
+  La segunda mitad del mismo fallo. Aunque la pantalla ya sepa que la pasada pide
+  la semana 4, si la 4 no existe en la lista no se puede abrir — y la lista salía
+  de los microciclos. Un cliente con el programa acabado en la 3 y cadencia
+  semanal pedía la 4, se caía a la 3, y se cerraba la 3: callejón sin salida.
+*/
+describe('reviewableWeeks', () => {
+  const ALTA_R = '2026-03-02';
+  const lunesR = (n) =>
+    new Date(Date.parse(`${ALTA_R}T00:00:00Z`) + (n - 1) * 7 * 86400000).toISOString().slice(0, 10);
+
+  it('incluye la semana que pide la pasada aunque no tenga rutina montada', () => {
+    expect(
+      reviewableWeeks({
+        programmed: [1, 2, 3],
+        startDate: ALTA_R,
+        submitted: null,
+        period: { start: lunesR(4), isDue: true },
+      })
+    ).toEqual([1, 2, 3, 4]);
+  });
+
+  /* Y la que entregó, por el mismo motivo: puede entregar una semana que tú no
+     montaste, y sin ella en la lista su entrega tampoco se podía abrir. */
+  it('incluye la semana que entregó aunque no tenga rutina montada', () => {
+    expect(
+      reviewableWeeks({
+        programmed: [1, 2],
+        startDate: ALTA_R,
+        submitted: { weekStart: lunesR(5), submittedAt: '2026-04-01', reviewedAt: null },
+        period: null,
+      })
+    ).toEqual([1, 2, 5]);
+  });
+
+  it('no duplica lo que ya estaba montado, y sale ordenado', () => {
+    expect(
+      reviewableWeeks({
+        programmed: [3, 1, 2],
+        startDate: ALTA_R,
+        submitted: { weekStart: lunesR(2), submittedAt: '2026-03-10', reviewedAt: null },
+        period: { start: lunesR(3), isDue: true },
+      })
+    ).toEqual([1, 2, 3]);
+  });
+
+  /* Si no le toca revisión, no se inventa una semana: la lista es la del
+     programa y nada más. */
+  it('sin periodo vencido no añade nada', () => {
+    expect(
+      reviewableWeeks({
+        programmed: [1, 2],
+        startDate: ALTA_R,
+        submitted: null,
+        period: { start: lunesR(4), isDue: false },
+      })
+    ).toEqual([1, 2]);
+  });
+
+  it('sin nada devuelve una lista vacía, no un hueco', () => {
+    expect(reviewableWeeks({})).toEqual([]);
   });
 });

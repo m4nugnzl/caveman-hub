@@ -58,6 +58,12 @@ export const METRIC_COLORS = {
      del mismo color en un gráfico son una sola serie mal dibujada. */
   sets: 'var(--data-teal)',
   adherence: 'var(--data-lime)',
+  /* La carga de la serie tope de un ejercicio, que es la serie que dibuja su
+     progresión en la revisión. Comparte el violeta del tonelaje porque es lo
+     mismo medido de otra forma —los kilos del entrenamiento— y nunca salen las
+     dos en el mismo gráfico: el tonelaje vive en la analítica y ésta en la
+     ficha de un ejercicio. */
+  topKg: 'var(--data-violet)',
   /* El 1RM estimado iba en `--accent`, o sea pintado con la tinta del CROMO. Es
      una serie con su propio gráfico y le toca color de dato como a las demás;
      además comparte selector con el tonelaje y el volumen, y desde el pizarrón

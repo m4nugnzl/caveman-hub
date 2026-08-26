@@ -51,6 +51,10 @@ const SupportPanel = lazyRoute(() => import('@/components/Coach/Settings/Support
 const WorkoutLogEditor = lazyRoute(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
 const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
 const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
+/* El archivo de fotos va en diferido igual que el estudio: no es pantalla de
+   entrada, y su diálogo de subida por lotes se lleva doce kilobytes que no tiene
+   por qué descargar quien entra a mirar «Hoy». */
+const PhotoArchive = lazyRoute(() => import('@/components/photos/PhotoArchive').then((m) => ({ default: m.PhotoArchive })));
 const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
 const AnalyticsPanel = lazyRoute(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
 const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
@@ -80,7 +84,6 @@ import { AppSkeleton } from '@/components/ui/AppSkeleton';
 import { PlanNotice } from '@/components/PlanNotice';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
-import { ReviewBar, ReviewSessionProvider } from '@/components/Coach/ReviewSession';
 
 /**
  * Mapa de rutas.
@@ -313,7 +316,6 @@ export default function App() {
         de cuenta—, así que el booleano tiene que estar por encima de los dos.
       */}
       <TourProvider>
-      <ReviewSessionProvider>
       <Header />
       {/* La barra del modo preview cuelga del MODO, no de una pantalla: tiene
           que ofrecer la salida también cuando el portal no puede pintarse
@@ -466,10 +468,26 @@ export default function App() {
 
                   {/* Revisión: el check-in y las fotos son la misma tarea, y
                       estaban en dos secciones porque son dos tablas. Ver
-                      `components/review/ReviewLayout.jsx`. */}
+                      `components/review/ReviewLayout.jsx`.
+
+                      ── `fotos` es el ARCHIVO y `estudio` la herramienta ──────
+                      `fotos` fue el estudio de montaje, y por tanto la única
+                      forma de ver una foto era abrir el comparador: se
+                      descargaba el lienzo, la caché de imágenes y el grabador de
+                      pantalla para mirar el check-in inicial de alguien, y el
+                      panel de carpetas que hay dentro no abre fotos —asigna
+                      huecos del collage—.
+
+                      Son dos cosas: el archivo (ver lo que ha subido, en
+                      carpetas por semana) y el estudio (poner cuatro al lado y
+                      grabarse explicándolas). El archivo se lleva la URL que ya
+                      está en los marcadores porque es lo que el nombre promete,
+                      y el estudio —que sigue en carga diferida— se abre desde
+                      él. Ver `photos/PhotoArchive.jsx`. */}
                   <Route path="revision" element={<ReviewLayout audience="coach" />}>
                     <Route index element={<AnthropometryModule />} />
-                    <Route path="fotos" element={<PhotoStudio />} />
+                    <Route path="fotos" element={<PhotoArchive />} />
+                    <Route path="estudio" element={<PhotoStudio />} />
                   </Route>
                   {/* Las dos rutas viejas siguen vivas: están en marcadores y en
                       enlaces compartidos por WhatsApp. */}
@@ -551,13 +569,19 @@ export default function App() {
         </Suspense>
       </main>
 
-      {/* La revisión en curso, por encima de todo: se empieza en la cola de
-          «Hoy» y se cierra desde donde estés. */}
-      {view === 'coach' && <ReviewBar />}
+      {/*
+        ── Aquí vivía la barra de la revisión en curso ───────────────────────
+        Un MODO que te seguía por la aplicación con tres botones y ningún dato:
+        te ofrecía tres formas de terminar algo que no podías ver, porque lo
+        que hacía falta para decidir estaba en otra pantalla. Existía para pegar
+        dos pantallas que no se hablaban, y desde que la revisión entera cabe en
+        «Su semana» —con la comparativa, el ajuste de la dieta y la respuesta—
+        no queda nada que pegar. Ver `review/ReviewDecision.jsx` y
+        `docs/producto.md` §4.1.
+      */}
 
       <CommandPalette />
       <WelcomeTour />
-      </ReviewSessionProvider>
       </TourProvider>
     </CommandPaletteProvider>
   );

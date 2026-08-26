@@ -53,6 +53,53 @@ export const age = (birthDate, today = todayISO()) => {
   return hoy.slice(5) < nacimiento.slice(5) ? años - 1 : años;
 };
 
+/** Los años que se pueden teclear. Fuera de aquí no es una edad, es una errata. */
+export const MIN_AGE = 10;
+export const MAX_AGE = 110;
+
+/**
+ * La fecha de nacimiento que corresponde a una edad tecleada.
+ *
+ * ══ Por qué se teclea la edad y se guarda la fecha ══════════════════════════
+ *
+ * Son las dos mitades de la misma decisión, y cada una está en el sitio que le
+ * toca:
+ *
+ *   · **Se GUARDA la fecha** porque un «34» escrito en la base miente solo al
+ *     cabo de un año sin que nadie toque nada. Eso ya costó una columna: la 0048
+ *     tuvo que borrar `current_weight` por exactamente el mismo motivo.
+ *   · **Se TECLEA la edad** porque es lo que un entrenador sabe de su cliente.
+ *     Nadie se acuerda del día que nació la persona a la que entrena, y el
+ *     selector de fecha del navegador obligaba a recorrer un desplegable de
+ *     ochenta años para poner un dato que se dice en dos dígitos.
+ *
+ * ── El día que sale, y por qué da igual ─────────────────────────────────────
+ * Se usa el mes y el día de HOY, así que la edad es exacta ahora mismo y cumple
+ * dentro de un año justo. El error medio contra el cumpleaños real es de medio
+ * año, y donde esta cifra entra —el gasto energético y las zonas de frecuencia
+ * cardíaca— medio año no mueve el resultado. Lo que sí lo movería es la edad
+ * congelada, que es lo que esto evita.
+ *
+ * Y quien SÍ tenga la fecha exacta guardada no la pierde: la pantalla solo
+ * reescribe cuando la edad cambia (ver `ClientFile`).
+ *
+ * ── El 29 de febrero ────────────────────────────────────────────────────────
+ * Restarle años a un 29 de febrero da fechas que no existen tres de cada cuatro
+ * veces, y `date` de Postgres las rechaza con un error suyo delante de alguien
+ * que solo estaba poniendo una edad. Se cae al 28.
+ */
+export const birthDateForAge = (años, today = todayISO()) => {
+  const n = Number(años);
+  if (!Number.isFinite(n) || n < MIN_AGE || n > MAX_AGE) return null;
+
+  const hoy = toISODate(today);
+  if (!hoy) return null;
+
+  const año = Number(hoy.slice(0, 4)) - Math.floor(n);
+  const mesDia = hoy.slice(5) === '02-29' ? '02-28' : hoy.slice(5);
+  return `${año}-${mesDia}`;
+};
+
 /**
  * Los cuatro hechos de la cabecera de la ficha.
  *
