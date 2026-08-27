@@ -23,6 +23,7 @@ import { ClientStart } from '@/components/Client/ClientStart';
    abrir. Cargarla con el portal sería pagar su peso en cada arranque. */
 const ClientOnboarding = lazyRoute(() => import('@/components/Client/ClientOnboarding').then((m) => ({ default: m.ClientOnboarding })));
 import { ProgressLayout } from '@/components/analytics/ProgressLayout';
+import { FichaLayout } from '@/components/Coach/FichaLayout';
 import { ReviewLayout } from '@/components/review/ReviewLayout';
 
 /*
@@ -42,7 +43,6 @@ const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then(
 const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
 const TeamPanel = lazyRoute(() => import('@/components/Coach/Settings/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
-const AppearancePanel = lazyRoute(() => import('@/components/Coach/Settings/AppearancePanel').then((m) => ({ default: m.AppearancePanel })));
 const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/Protocol/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
 const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
 const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
@@ -425,7 +425,17 @@ export default function App() {
                 <Route path="ajustes" element={<SettingsLayout />}>
                   <Route index element={<Navigate to="protocolo" replace />} />
                   <Route path="protocolo" element={<ProtocolPanel />} />
-                  <Route path="apariencia" element={<AppearancePanel />} />
+                  {/* «Apariencia» era una de las siete secciones de Ajustes —con su
+                      entrada, su pantalla y su vista previa de los dos temas— para UN
+                      ajuste: claro u oscuro. Y ese mismo ajuste ya estaba, con el
+                      mismo efecto, en el menú de la cuenta, que es donde lo pone
+                      cualquier aplicación y donde se busca.
+
+                      Dos sitios para lo mismo no es generosidad: es una pregunta más
+                      («¿cuál de los dos uso?») y una sección de siete que no dice
+                      nada nuevo. Se queda el que está donde se mira, y su ruta
+                      redirige — puede estar en un marcador. */}
+                  <Route path="apariencia" element={<Navigate to="/ajustes" replace />} />
                   <Route path="integraciones" element={<IntegrationsCatalogue />} />
                   <Route path="copia" element={<BackupPanel />} />
                   <Route path="equipo" element={<TeamPanel />} />
@@ -438,7 +448,7 @@ export default function App() {
                       viene a hacer. El resumen contesta «¿esto funciona?», que es
                       una pregunta de meses; la semana contesta «¿qué le digo?»,
                       que es la de cada lunes. */}
-                  <Route index element={<Navigate to="semana" replace />} />
+                  <Route index element={<Navigate to="resumen" replace />} />
                   <Route path="semana" element={<WeekReview />} />
                   {/* Resumen y análisis son dos profundidades de la misma sección:
                       una sola entrada en el carril, dos rutas debajo para que el
@@ -447,8 +457,14 @@ export default function App() {
                     <Route path="resumen" element={<Dashboard audience="coach" />} />
                     <Route path="analitica" element={<AnalyticsPanel audience="coach" />} />
                   </Route>
-                  {/* Las dos secciones que pueden no existir para este cliente.
-                      Ver `ConServicio` y `domain/protocol.js`. */}
+                  {/* Las dos que un entrenador AJUSTA, y las dos que pueden no
+                      existir para este cliente: a quien solo le llevas el
+                      entrenamiento no le sobra media pantalla, es que no la
+                      tiene. Ver `ConServicio` y `domain/protocol.js`.
+
+                      Sin ninguno de los dos servicios, la salida es su semana y
+                      no la otra sección — con `to` cruzado, una URL vieja
+                      rebotaba entre las dos para siempre. */}
                   <Route
                     path="rutina"
                     element={
@@ -494,8 +510,14 @@ export default function App() {
                   <Route path="checkins" element={<Navigate to="../revision" replace />} />
                   <Route path="fotos" element={<Navigate to="../revision/fotos" replace />} />
 
-                  <Route path="calendario" element={<CalendarPanel audience="coach" />} />
-                  <Route path="ficha" element={<ClientFile />} />
+                  {/* «Ficha»: quién es y cuándo. El calendario de una persona
+                      —su pauta de entregas, sus fechas— es de la misma
+                      naturaleza que su tarifa y su antigüedad, y era la sección
+                      con menos uso de las seis. Ver `Coach/FichaLayout`. */}
+                  <Route element={<FichaLayout />}>
+                    <Route path="ficha" element={<ClientFile />} />
+                    <Route path="calendario" element={<CalendarPanel audience="coach" />} />
+                  </Route>
                 </Route>
               </Route>
 

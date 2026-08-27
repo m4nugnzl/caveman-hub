@@ -1,18 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Activity,
   Camera,
   Dumbbell,
   Flame,
   MessageSquare,
-  Percent,
-  Ruler,
   Scale,
-  Settings2,
   Target,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
+import { blockChanges } from '@/domain/blocks';
 import { buildWeeklySeries, metricPoints, weekAdherence, weekOverWeek } from '@/domain/analytics';
 import {
   MRV_GOALS,
@@ -27,7 +26,7 @@ import {
   weekMuscleVolume,
 } from '@/domain/training';
 import { MACROS, macroSplit } from '@/domain/nutrition';
-import { fatPercent, reverseChronological, weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
+import { weeklyCheckIn, weeklyRateOfChange } from '@/domain/anthropometry';
 import { clientProtocol, isServiceOn, scaleQuestions } from '@/domain/protocol';
 import {
   buildFeedbackSeries,
@@ -35,30 +34,22 @@ import {
   feedbackLabels,
   questionStats,
 } from '@/domain/readiness';
-import {
-  CARDS,
-  WIDGETS,
-  dashboardPrefs,
-  defaultDashboardPrefs,
-  isCustomized,
-  layoutCards,
-  movePref,
-  pieceNeeds,
-  toggleSpan,
-  togglePref,
-  widgetById,
-} from '@/domain/preferences';
+import { pieceNeeds } from '@/domain/preferences';
 import { metricColor } from '@/domain/metrics';
 import { shortDate, todayISO } from '@/lib/dates';
+import { clientPath } from '@/routes';
 import { fmt } from '@/lib/num';
 import { BandChart, BarBandChart, MeterList, Sparkline } from '@/components/ui/charts';
-import { Delta, MetricCard, MetricList, StatWidget } from '@/components/ui/metrics';
+import { Delta, MetricCard, StatWidget } from '@/components/ui/metrics';
 import { CycleChain } from '@/components/ui/CycleChain';
-import { GroupHead, Notice, PageHead, Panel, SaveIndicator } from '@/components/ui/primitives';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { GroupHead, PageHead, Panel } from '@/components/ui/primitives';
+import { Mando } from '@/components/ui/Mando';
 import { MacroBar } from '@/components/nutrition/macros';
 import { RoadmapPanel } from '@/components/roadmap/RoadmapPanel';
-import { DashboardEditBar, DashboardTrays, SlotTools, cardMeta } from './DashboardEditor';
+import { useReviewRows } from '@/components/review/useReviewRows';
+import { useReviewTrack } from '@/components/review/useReviewTrack';
+import { ReviewChart } from '@/components/review/ReviewChart';
+import { useElementWidth } from '@/lib/useElementWidth';
 
 // La tripleta de colores viene del dominio: cuatro copias del mismo dato divergen.
 
@@ -87,15 +78,69 @@ export const Dashboard = ({ audience = 'coach' }) => {
     anthropometry,
     nutrition,
     progressPhotos,
-    updateClientPreferences,
-    coachPrefs,
-    updateCoachPreferences,
-    applyDashboardToAll,
-    saveStatus,
-    retrySave,
   } = useApp();
 
-  const [editing, setEditing] = useState(false);
+  /*
+    ══ LO QUE LE HAS IDO CAMBIANDO ════════════════════════════════════════════
+
+    Esta pantalla existe para contestar «¿esto está funcionando?», y hasta ahora
+    enseñaba tonelaje, series efectivas, adherencia y macros: el EFECTO, sin la
+    causa. De todo lo que hace un entrenador, aquí no salía ni una sola de sus
+    decisiones.
+
+    En culturismo eso es justo la mitad que falta. No se planifica por bloques
+    cerrados: se monta una rutina, se cuadra una dieta y se van AJUSTANDO —bajar
+    doscientas calorías, cambiar un ejercicio, subir una serie— semana a semana.
+    La pregunta profesional no es «¿cuánto ha bajado?» sino «¿están funcionando
+    mis ajustes?», y para contestarla hay que ver los ajustes al lado de la curva.
+
+    El producto ya lo tenía todo registrado y en un solo sitio: `ReviewHistory`
+    junta lo que él entregó, lo que tú contestaste y —comparando la foto del plan
+    con la de la revisión anterior— **lo que cambiaste**, con las cifras de antes
+    y de después. Su propia cabecera dice qué contesta: «¿qué le cambié en
+    agosto?».
+
+    Estaba en tres sitios —el portal del cliente, el archivo del check-in y el
+    pie de la revisión— y no estaba en el único que promete contestar si aquello
+    sirvió de algo. Aquí no se añade nada nuevo: se pone donde hacía falta.
+
+    ── Solo para el entrenador ────────────────────────────────────────────────
+    El cliente ya tiene esta misma historia en su semana (`Client/ClientWeek`),
+    que es donde lee la respuesta de su entrenador. Repetirla en su progreso
+    sería contarle dos veces lo mismo en dos pestañas.
+  */
+  const { rows: revisiones } = useReviewRows(
+    audience === 'coach' ? activeClient?.id : null
+  );
+
+  /*
+    ══ LA HISTORIA DE SUS AJUSTES, Y SI FUNCIONARON ═══════════════════════════
+
+    Esta pantalla existe para contestar «¿esto está funcionando?» y enseñaba
+    tonelaje, adherencia y macros: métricas sueltas, sin una sola decisión tuya.
+
+    Aquí está la que la contesta de verdad: su peso arriba y, debajo y con el
+    mismo eje, la escalera de las calorías que le fuiste poniendo. Cada peldaño
+    es un ajuste y lo que hay encima es lo que pasó después — que es exactamente
+    la pregunta de un entrenador de culturismo, donde no se planifica por bloques
+    sino que se ajusta sobre la marcha.
+
+    ── Es la MISMA gráfica de la revisión, no otra ────────────────────────────
+    Allí es el mando: se pulsa una semana y el tablero de abajo habla de ella.
+    Aquí no hay tablero que mandar, así que va en `soloLectura` y su eje son
+    rótulos en vez de botones — un control que no lleva a ninguna parte promete
+    algo que no cumple. La cadena que la alimenta también es una sola:
+    `useReviewTrack`, que se subió de `WeekReview` para no copiarla.
+
+    Y va sobre la historia ENTERA, sin ventana: en la revisión se mira un tramo
+    de cerca y aquí se viene a ver la forma de todo.
+  */
+  const track = useReviewTrack(revisiones);
+  /* Devuelve [ref, ancho]. Se leía como objeto y el ancho llegaba undefined: la
+     gráfica del peso se pintaba vacía. El medidor va FUERA del panel condicional,
+     porque el observador se engancha al montar y el panel llega después. */
+  const [refAncho, ancho] = useElementWidth();
+
 
   const program = workoutData[activeClient.id];
   const microcycles = useMemo(() => program?.microcycles || [], [program]);
@@ -106,56 +151,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const isClient = audience === 'client';
   /* Ver el comentario de la cabecera, más abajo. */
   const Cabecera = isClient ? GroupHead : PageHead;
-  const confirm = useConfirm();
-  const [aviso, setAviso] = useState(null);
-
-  /*
-    La ficha del cliente manda; si no dice nada, la plantilla del entrenador
-    (migración 0035). El orden importa: un cambio en la plantilla no puede
-    deshacer el panel que alguien ajustó a mano para Marta.
-
-    Al cliente no se le aplica plantilla ninguna —la del entrenador es sobre CÓMO
-    MIRA ÉL a su cartera, no sobre cómo quiere ver su propio panel quien entrena—.
-  */
-  const prefs = dashboardPrefs(
-    activeClient.preferences,
-    isClient ? null : coachPrefs?.dashboard || null
-  );
-  const savePrefs = (patch) => updateClientPreferences(activeClient.id, 'dashboard', patch);
-
-  /** Convierte el panel de este cliente en el predeterminado para los nuevos. */
-  const guardarPlantilla = async () => {
-    const res = await updateCoachPreferences('dashboard', prefs);
-    setAviso(
-      res.ok
-        ? { tone: 'success', text: 'Guardado. Tus clientes nuevos empezarán con este resumen.' }
-        : { tone: 'error', text: `No se ha podido guardar: ${res.error}` }
-    );
-  };
-
-  /** Y lo aplica a los que ya existen. Sustituye, así que se pregunta antes. */
-  const aplicarATodos = async () => {
-    const ok = await confirm({
-      title: '¿Aplicar este resumen a todos?',
-      message: 'Todos tus clientes activos pasarán a tener exactamente este resumen.',
-      detail:
-        'SUSTITUYE el de los que hubieras ajustado a mano, uno por uno. Los archivados no se tocan. No se puede deshacer.',
-      confirmLabel: 'Aplicar a todos',
-      tone: 'danger',
-    });
-    if (!ok) return;
-
-    const res = await applyDashboardToAll(prefs);
-    setAviso(
-      res.ok
-        ? {
-            tone: 'success',
-            text: `Aplicado a ${res.count} ${res.count === 1 ? 'cliente' : 'clientes'}.`,
-          }
-        : { tone: 'error', text: `No se ha podido aplicar: ${res.error}` }
-    );
-  };
-  const prefsSave = saveStatus('preferences', activeClient.id);
 
   const series = useMemo(
     () => buildWeeklySeries({ microcycles, history, gender: activeClient.gender }),
@@ -223,10 +218,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
   }, [microcycles, protocol]);
   const adherenceToFeedback = useMemo(() => feedbackAdherence(microcycles), [microcycles]);
 
-  const logs = useMemo(() => reverseChronological(history), [history]);
-  const lastLog = logs[0];
-  const lastFatLog = useMemo(() => logs.find((h) => h.skinFolds), [logs]);
-  const lastFat = lastFatLog ? fatPercent(lastFatLog.skinFolds, activeClient.gender) : null;
 
   /**
    * Las cifras de arriba, por identificador.
@@ -591,268 +582,109 @@ export const Dashboard = ({ audience = 'coach' }) => {
   };
 
   /** Filas de la lista agrupada. Solo entran las que tienen dato. */
-  const metricRows = [
-    lastLog && {
-      id: 'weight',
-      label: 'Peso corporal',
-      icon: Scale,
-      color: metricColor('weight'),
-      value: fmt(lastLog.weight, { decimals: 1, unit: ' kg' }),
-      updated: shortDate(lastLog.date),
-    },
-    lastFat != null && {
-      id: 'fat',
-      label: '% graso',
-      icon: Percent,
-      color: metricColor('fat'),
-      value: `${lastFat}%`,
-      updated: shortDate(lastFatLog.date),
-    },
-    lastLog?.perimeters?.ombligo != null && {
-      id: 'waist',
-      label: 'Cintura',
-      icon: Ruler,
-      color: metricColor('waist'),
-      value: `${lastLog.perimeters.ombligo} cm`,
-      updated: shortDate(lastLog.date),
-    },
-    plan?.targetKcals && {
-      id: 'kcals',
-      label: 'Objetivo calórico',
-      icon: Flame,
-      color: metricColor('kcals'),
-      value: `${plan.targetKcals} kcal`,
-      sub:
-        macros.total > 0
-          ? `P ${macros.pct.protein}% · C ${macros.pct.carbs}% · G ${macros.pct.fats}%`
-          : null,
-      updated: 'Vigente',
-    },
-    latestWeek && {
-      id: 'tonnage',
-      label: 'Tonelaje',
-      icon: Dumbbell,
-      color: metricColor('tonnage'),
-      value: `${tonnagePts[tonnagePts.length - 1]?.value ?? 0} kg`,
-      updated: `${unit} ${latestWeek}`,
-    },
-    adherence && {
-      id: 'adherence',
-      label: 'Adherencia',
-      icon: Target,
-      color: metricColor('adherence'),
-      value: `${adherence.pct}%`,
-      sub: `${adherence.logged} de ${adherence.planned} series`,
-      updated: `${unit} ${latestWeek}`,
-    },
-    {
-      id: 'photos',
-      label: 'Fotos de progreso',
-      icon: Camera,
-      value: photos.length,
-      updated: photos[0] ? shortDate(photos[0].date) : '—',
-    },
-  ]
-    .filter(Boolean)
-    .filter((fila) => piezaVisible(fila.id));
+  /*
+    ══ La composición es fija, y es ésta ═════════════════════════════════════
 
-  const visibleWidgets = prefs.widgets.filter((id) => widgetNodes[id] && piezaVisible(id));
-  const cardLayout = layoutCards(
-    prefs,
-    prefs.cards.filter((id) => cardNodes[id] && piezaVisible(id))
-  );
+    Hubo un «Personalizar»: cada entrenador recolocaba las piezas, y por tanto
+    no existía UNA pantalla que pulir — la de cada uno era una que nadie había
+    diseñado. Ahora la decidimos aquí, para todos, con una regla que ordena
+    qué va arriba y qué va abajo: **una cifra se dice una vez, y grande solo si
+    es el contenido**.
 
-  /**
-   * Un hueco del panel. Fuera del modo edición no añade nada más que su ancho;
-   * dentro, envuelve la pieza con sus controles.
-   *
-   * Envolver siempre —en lugar de solo al editar— evita que las piezas se
-   * remonten al entrar y salir del modo edición, que hacía que los gráficos se
-   * volvieran a animar desde cero cada vez.
-   */
-  const Slot = ({ node, wide, tools }) => (
-    <div className={`slot${wide ? ' is-wide' : ''}${editing ? ' is-editing' : ''}`}>
-      {editing && tools}
-      {node}
-    </div>
+      · Arriba, cuatro cifras que NO tienen gráfica debajo: el check-in de la
+        semana, la adherencia, las kcal objetivo (con su reparto) y, si el
+        protocolo pregunta, cómo se ha sentido.
+      · Debajo, las gráficas. El peso se pinta UNA vez: para el entrenador, la
+        curva con los peldaños de lo que le fue poniendo (`ReviewChart`), que
+        es la lectura completa; para el cliente, la curva sola. El tonelaje, la
+        estructura, el volumen y cómo le ha ido, cada uno en la suya.
+      · Después, sus fases (`RoadmapPanel`): su historia.
+
+    Lo que se ha ido, y a dónde: las revisiones anteriores viven en la pestaña
+    «Revisiones»; el archivo de fotos y las medidas, en el análisis y en el
+    check-in; «Todas las métricas» repetía en lista lo que ya estaba en cifra.
+    La preferencia guardada (`preferences.dashboard`) se conserva en la base de
+    datos y no se lee: si algún día vuelve a hacer falta, no hay que migrar nada.
+  */
+  const cifras = ['checkin', 'adherence', 'kcals', 'readiness'].filter(
+    (id) => widgetNodes[id] && piezaVisible(id)
   );
+  const pesoEnTrack = audience === 'coach' && track.length > 1;
+  const graficas = [
+    !pesoEnTrack && 'weightTrend',
+    'tonnageTrend',
+    'split',
+    'feedbackTrend',
+    'volume',
+  ].filter((id) => id && cardNodes[id] && piezaVisible(id));
 
   return (
     <div className="stack">
       <section className="col gap-3">
         {/*
-          Dos cabeceras distintas porque son dos cosas distintas.
-
-          Para el ENTRENADOR esto es la pantalla entera —`/c/:id/resumen`— así que
-          le toca la cabecera de pantalla. Y se titula «Progreso», que es como se
-          llama la sección en el carril: ponía el NOMBRE del cliente, que ya está
-          dos veces encima —en el selector y en la propia URL— y así ninguna de
-          sus siete secciones decía en cuál estabas.
-
-          Para el CLIENTE esto es una tanda de bloques dentro de su inicio, que ya
-          se titula «Hola, X» (`ClientStart`). Dos cabeceras de pantalla seguidas
-          eran, para un lector de pantalla, dos pantallas pegadas.
+          Para el entrenador, sin titular: la pestaña ya dice «Resumen» y la
+          cabecera ya dice quién. Queda una línea de contexto y la puerta al
+          análisis. El cliente conserva su «Tu resumen», que es su portada.
         */}
-        <Cabecera
-          title={isClient ? 'Tu resumen' : 'Progreso'}
-          sub={
-            [activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`]
-              .filter(Boolean)
-              .join(' · ') || 'Sin plan asignado'
-          }
-          action={
-          <div className="row gap-3 wrap">
-            {/* Guardar las preferencias puede fallar (falta la función 0008, o RLS
-                no lo permite). Sin este indicador el fallo sería invisible: los
-                cambios se ven en pantalla porque el estado local ya cambió. */}
-            <SaveIndicator
-              status={prefsSave.status}
-              error={prefsSave.error}
-              onRetry={() => retrySave('preferences', activeClient.id)}
-            />
-
-            {!editing && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>
-                <Settings2 size={14} />
-                Personalizar
-                {isCustomized(activeClient.preferences) && (
-                  <span className="badge badge-info">a medida</span>
-                )}
-              </button>
-            )}
-          </div>
-          }
-        />
-
-        {/* El resultado de las dos acciones de plantilla. Sin esto, «Aplicar a
-            todos» no daría ninguna señal de haber hecho nada: los cambios están
-            en OTROS clientes, no en el que se está mirando. */}
-        {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
-
-        {/*
-          Lo que ha cambiado, lo que le falta, sus revisiones y lo que le dejó su
-          entrenador vivían aquí y se han ido a «Hoy», que es su pantalla de
-          entrada. Estaban en esta por un motivo malo —era la primera que se
-          abría— y convertían el resumen en dos cosas: un panel de cifras y un
-          tablón de avisos. Aquí se queda lo que esta pantalla sabe hacer.
-        */}
-
-        {editing && (
-          <DashboardEditBar
-            prefs={prefs}
-            audience={audience}
-            onApplyPreset={(preset) => savePrefs(preset)}
-            onToggleMetricList={() => savePrefs({ showMetricList: !prefs.showMetricList })}
-            onReset={() => savePrefs(defaultDashboardPrefs())}
-            onDone={() => setEditing(false)}
-            onSaveAsDefault={isClient ? null : guardarPlantilla}
-            onApplyToAll={isClient ? null : aplicarATodos}
+        {isClient ? (
+          <Cabecera
+            title="Tu resumen"
+            sub={
+              [activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`]
+                .filter(Boolean)
+                .join(' · ') || 'Sin plan asignado'
+            }
+          />
+        ) : (
+          <Mando
+            contexto={
+              [activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`]
+                .filter(Boolean)
+                .join(' · ') || 'Sin plan asignado'
+            }
+            acciones={
+              <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'analitica')}>
+                Análisis →
+              </Link>
+            }
           />
         )}
 
-        {visibleWidgets.length > 0 && (
+        {cifras.length > 0 && (
           <div className="grid-auto">
-            {visibleWidgets.map((id, index) => (
-              <Slot
-                key={id}
-                node={widgetNodes[id]}
-                tools={
-                  <SlotTools
-                    label={widgetById(id)?.label || id}
-                    index={index}
-                    total={visibleWidgets.length}
-                    onMove={(dir) => savePrefs({ widgets: movePref(prefs.widgets, id, dir) })}
-                    onHide={() => savePrefs({ widgets: togglePref(prefs.widgets, id, WIDGETS) })}
-                  />
-                }
-              />
+            {cifras.map((id) => (
+              <div className="slot" key={id}>
+                {widgetNodes[id]}
+              </div>
             ))}
           </div>
         )}
       </section>
 
-      {cardLayout.length > 0 && (
+      <div ref={refAncho} style={{ minWidth: 0 }}>
+        {pesoEnTrack && (
+          <Panel
+            title="Su peso y lo que le fuiste poniendo"
+            sub="Cada peldaño de abajo es un ajuste tuyo. Lo de arriba es lo que pasó después."
+            className="col gap-3"
+          >
+            {/* El medidor mide la columna; la tarjeta le quita su relleno a cada lado. */}
+            <ReviewChart weeks={track} ancho={ancho - 44} soloLectura cambios={blockChanges(program)} />
+          </Panel>
+        )}
+      </div>
+
+      {graficas.length > 0 && (
         <section className="grid-slots">
-          {cardLayout.map(({ id, span }, index) => {
-            const meta = cardMeta(prefs, id);
-            return (
-              <Slot
-                key={id}
-                node={cardNodes[id]}
-                wide={span === 'full'}
-                tools={
-                  <SlotTools
-                    label={meta.label}
-                    index={index}
-                    total={cardLayout.length}
-                    /* El ancho que se muestra en el control es el ELEGIDO, no el
-                       calculado: si una tarjeta está estirada solo porque se ha
-                       quedado sin pareja, el botón debe seguir diciendo qué pasa
-                       al pulsarlo. */
-                    span={meta.span}
-                    onMove={(dir) => savePrefs({ cards: movePref(prefs.cards, id, dir) })}
-                    onToggleSpan={
-                      meta.fixed ? null : () => savePrefs({ spans: toggleSpan(prefs.spans, id) })
-                    }
-                    onHide={() => savePrefs({ cards: togglePref(prefs.cards, id, CARDS) })}
-                  />
-                }
-              />
-            );
-          })}
+          {graficas.map((id) => (
+            <div className={`slot${id === 'feedbackTrend' ? ' is-wide' : ''}`} key={id}>
+              {cardNodes[id]}
+            </div>
+          ))}
         </section>
       )}
 
-      {editing && (
-        <DashboardTrays
-          prefs={prefs}
-          onAddWidget={(id) => savePrefs({ widgets: togglePref(prefs.widgets, id, WIDGETS) })}
-          onAddCard={(id) => savePrefs({ cards: togglePref(prefs.cards, id, CARDS) })}
-          visible={piezaVisible}
-        />
-      )}
-
-      {!editing && visibleWidgets.length === 0 && cardLayout.length === 0 && (
-        <Panel className="col gap-2">
-          <span className="section-title">Has escondido todo el resumen</span>
-          <p className="t-sm t-secondary">Pulsa «Personalizar» para volver a elegir qué quieres ver.</p>
-        </Panel>
-      )}
-
-      {/*
-        El roadmap va aquí, debajo del tablero, y NO como un widget más.
-
-        Es la única cosa fija que se añade al resumen, y la razón es que el tablero
-        es configurable: un widget desactivado por defecto no lo activa nadie
-        —hay que entrar en «Personalizar», encontrarlo en la bandeja y sacarlo—, y
-        uno activado por defecto le ocuparía sitio a todo el mundo, incluidos los
-        que no planifican por fases.
-
-        Debajo no le quita el puesto a nada y se encuentra solo. Cuando el cliente
-        no tiene fases, es un bloque vacío que explica para qué sirve; en cuanto
-        las tiene, es lo que contesta «¿y ahora qué toca?».
-      */}
       <RoadmapPanel audience={audience} />
-
-      {/* Lo que le dejó el entrenador —entregables del alta y revisiones— y lo
-          que ha cambiado esta semana viven ahora en «Hoy», que es su pantalla de
-          entrada. Aquí se queda lo que esta pantalla sabe hacer: sus cifras. */}
-
-      {prefs.showMetricList && (
-        <MetricList
-          title="Todas las métricas"
-          count={metricRows.length}
-          rows={metricRows}
-          emptyMessage="Aún no hay ninguna métrica registrada."
-        />
-      )}
-
-      <p className="t-sm t-tertiary">
-        {isClient
-          ? 'En «Análisis», aquí arriba, tienes la evolución de tus calorías y macros, la progresión de cada ejercicio y tus perímetros.'
-          : 'En «Análisis», aquí arriba, está la lectura de la semana, la evolución nutricional, el volumen por músculo y la progresión ejercicio a ejercicio.'}
-      </p>
-
     </div>
   );
 };

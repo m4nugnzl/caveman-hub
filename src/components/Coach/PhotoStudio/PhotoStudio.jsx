@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Video } from 'lucide-react';
+import { Camera } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { canvasSize, isDerivedLayout } from '@/domain/photoLayout';
 import { photoWeight, weekSpan } from '@/domain/photos';
-import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { Mando } from '@/components/ui/Mando';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { usePhotoStudio } from './usePhotoStudio';
@@ -194,10 +195,7 @@ export const PhotoStudio = () => {
 
   return (
     <div className="col gap-4">
-      <PageHead
-        title="Fotos"
-        sub="Compara dos semanas, encuadra para que coincidan y monta el antes y después."
-      />
+      <Mando contexto="Compara dos semanas, encuadra para que coincidan y monta el antes y después." />
 
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
 
@@ -205,7 +203,7 @@ export const PhotoStudio = () => {
         <Notice
           tone="warn"
           action={
-            <button type="button" className="btn btn-secondary btn-sm" onClick={refreshPhotoUrls}>
+            <button type="button" className="btn btn-quiet btn-sm" onClick={refreshPhotoUrls}>
               Recargar imágenes
             </button>
           }
@@ -411,10 +409,10 @@ export const PhotoStudio = () => {
           action={
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={() => setGrabarAbierto(true)}
             >
-              <Video size={15} /> Abrir el grabador
+              Abrir el grabador
             </button>
           }
         >

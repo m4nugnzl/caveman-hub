@@ -37,7 +37,7 @@ export const VueltaALaRevision = () => {
   if (!clientId) return null;
 
   return (
-    <Link className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} to={clientPath(clientId, 'semana')}>
+    <Link className="btn btn-quiet btn-sm" style={{ alignSelf: 'flex-start' }} to={clientPath(clientId, 'semana')}>
       <ArrowLeft size={14} />
       Volver a la revisión{nombre ? ` de ${nombre.split(' ')[0]}` : ''}
     </Link>

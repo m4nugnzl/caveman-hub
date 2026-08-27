@@ -19,6 +19,7 @@ import {
   uniqueDayName,
 } from '@/domain/training';
 import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessions';
+import { blocksAfterInsertingWeek, openNextBlock, programAfterRemovingWeek, renameBlockIn } from '@/domain/blocks';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
 
 /*
@@ -852,7 +853,7 @@ export const useWorkout = ({
 
       const weekNumber = nextWeekNumber(current.microcycles);
       const last = current.microcycles[current.microcycles.length - 1];
-      const days = (last?.days || []).map((d) => ({ dayName: d.dayName, exercises: [] }));
+      const days = (last?.days || []).map((d) => ({ ...deepClone(d), exercises: [] }));
 
       applyWorkout(clientId, (cd) => ({
         ...cd,
@@ -878,6 +879,55 @@ export const useWorkout = ({
   );
 
   /**
+   * Cierra el bloque abierto y empieza otro.
+   *
+   * La estructura de un bloque no cambia: cuando hay que cambiarla, se cierra
+   * el bloque (queda congelado con su estructura y su calentamiento, ver
+   * `domain/blocks`) y se abre el siguiente con su primera semana. Con
+   * `keepStructure` esa semana copia los días del anterior, vacíos; sin ella,
+   * empieza con un solo día en blanco para montarla desde cero.
+   *
+   * Devuelve el número de la semana nueva.
+   */
+  const startBlock = useCallback(
+    (clientId, { name = null, keepStructure = true } = {}) => {
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      if (current.microcycles.length === 0) return startProgram(clientId);
+      const weekNumber = nextWeekNumber(current.microcycles);
+      const last = current.microcycles[current.microcycles.length - 1];
+      const days = keepStructure
+        ? (last?.days || []).map((d) => ({ ...deepClone(d), exercises: [] }))
+        : [{ dayName: 'Día 1', exercises: [] }];
+      applyWorkout(clientId, (cd) => {
+        const { program } = openNextBlock(cd, { name });
+        return {
+          ...program,
+          /* Desde cero, la semana natural también empieza limpia: el reparto
+             anterior nombraba días que ya no existen. */
+          weeklySplit: keepStructure ? program.weeklySplit : restWeekSplit(),
+          microcycles: [
+            ...program.microcycles,
+            buildMicrocycle({
+              weekNumber,
+              days: days.length > 0 ? days : [{ dayName: 'Día 1', exercises: [] }],
+              date: fechaSiguienteCiclo(clientId, last),
+            }),
+          ],
+        };
+      });
+      track('bloque_abierto');
+      return weekNumber;
+    },
+    [applyWorkout, fechaSiguienteCiclo, startProgram, workoutRef]
+  );
+
+  const renameBlock = useCallback(
+    (clientId, blockId, name) =>
+      applyWorkout(clientId, (cd) => renameBlockIn(cd, blockId, name), { immediate: false }),
+    [applyWorkout]
+  );
+
+  /**
    * Elimina una semana/sesión completa y RENUMERA las restantes para que la
    * secuencia siga siendo continua (borrar la 2 de 1-2-3 deja 1-2, no 1-3).
    *
@@ -897,7 +947,12 @@ export const useWorkout = ({
         .sort((a, b) => a.weekNumber - b.weekNumber)
         .map((m, index) => ({ ...m, weekNumber: index + 1, sessionNumber: index + 1 }));
 
-      applyWorkout(clientId, (cd) => ({ ...cd, microcycles: renumbered }));
+      /* Los bloques son rangos de números: se corren con la renumeración, y un
+         bloque abierto que se queda vacío se va (ver `programAfterRemovingWeek`). */
+      applyWorkout(clientId, (cd) => ({
+        ...programAfterRemovingWeek(cd, weekNumber),
+        microcycles: renumbered,
+      }));
 
       if (renumbered.length === 0) return null;
       // Se queda en la posición que ocupaba la borrada, o en la última.
@@ -915,12 +970,16 @@ export const useWorkout = ({
    * demás recuperan exactamente el número que tenían.
    */
   const restoreMicrocycle = useCallback(
-    (clientId, microcycle) =>
+    (clientId, microcycle, estructura = null) =>
       applyWorkout(clientId, (cd) => {
         const sorted = [...cd.microcycles].sort((a, b) => a.weekNumber - b.weekNumber);
-        sorted.splice(Math.max(0, Math.min(microcycle.weekNumber - 1, sorted.length)), 0, microcycle);
+        const sitio = Math.max(0, Math.min(microcycle.weekNumber - 1, sorted.length));
+        sorted.splice(sitio, 0, microcycle);
         return {
           ...cd,
+          /* Si al borrar se fue un bloque entero, `estructura` trae los bloques, el
+             reparto y el calentamiento de antes: deshacer los devuelve tal cual. */
+          ...(estructura || { blocks: blocksAfterInsertingWeek(cd.blocks || [], sitio + 1) }),
           microcycles: sorted.map((m, index) => ({
             ...m,
             weekNumber: index + 1,
@@ -1182,6 +1241,7 @@ export const useWorkout = ({
           applyWorkout(targetClientId, () => ({
             weeklySplit: deepClone(source.weeklySplit || {}),
             mobilityDrills: deepClone(source.mobilityDrills || []),
+            blocks: deepClone(source.blocks || []),
             notes: source.notes || '',
             microcycles: [...source.microcycles]
               .sort((a, b) => a.weekNumber - b.weekNumber)
@@ -1342,6 +1402,8 @@ export const useWorkout = ({
     updateWeeklySplit,
     startProgram,
     appendMicrocycle,
+    startBlock,
+    renameBlock,
     removeMicrocycle,
     restoreMicrocycle,
     cloneMicrocycle,

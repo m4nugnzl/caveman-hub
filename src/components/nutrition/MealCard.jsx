@@ -1,19 +1,5 @@
-import { useMemo, useRef, useState } from 'react';
-import {
-  ArrowDown,
-  ArrowRightLeft,
-  ArrowUp,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  GripVertical,
-  MoreVertical,
-  NotebookPen,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, Copy, GripVertical, Pencil, Trash2, X } from 'lucide-react';
 
 import {
   displayAsUnits,
@@ -29,15 +15,12 @@ import {
 import { canEditLibraryItem } from '@/domain/catalog';
 import { equivalencesFor } from '@/domain/foodEquiv';
 import { toNum, toNum0 } from '@/lib/num';
-import { useClickOutside } from '@/lib/useClickOutside';
-import { useDismissable } from '@/lib/useDismissable';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Modal } from '@/components/ui/Modal';
-import { Field, Notice, SegmentedControl } from '@/components/ui/primitives';
+import { Field, Notice, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
 import { AddFoodControl } from './AddFoodControl';
 import { FoodEquivalences } from './FoodEquivalences';
 import { MACRO_META, MacroRing } from './macros';
-import { MealGoal } from './MealGoal';
 
 /**
  * La columna de cantidad mide 74 px contando la casilla, así que ahí no cabe
@@ -505,7 +488,7 @@ const FoodDialog = ({ food, onClose, onSetDisplay, onSave }) => {
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
+          <button type="button" className="btn btn-quiet" onClick={onClose}>
             Cancelar
           </button>
           <button type="submit" form="food-form" className="btn btn-primary" disabled={!valido}>
@@ -677,25 +660,73 @@ const FoodDialog = ({ food, onClose, onSetDisplay, onSave }) => {
 };
 
 /**
- * Una comida del menú cerrado.
+ * Una comida de la hoja de dieta.
  *
- * Dos niveles, no tres: la comida es una tarjeta, **las opciones son pestañas**
- * —lo que además comunica que se elige UNA, no todas— y los alimentos son cajas
- * flotantes. Antes eran cajas dentro de cajas dentro de cajas.
+ * ══ La forma, la misma que un ejercicio en la hoja de Entreno ═══════════════
  *
- * El mismo componente sirve al entrenador y al cliente; `editable` decide.
+ *     1  Comida 1                      2 opciones · 908 kcal              ···
+ *        OBJETIVO  [900] kcal  [40] P  [140] C  [20] G
+ *        + nota para el cliente
+ *        Opción 1 908 · Opción 2 966 · + alternativa                     ···
+ *        ALIMENTO            CANTIDAD      P     C     G   KCAL
+ *        Avena                80 g        11    53     6    320
+ *        …
+ *        Suma                             37/40 138/140 23/20 908/900
+ *        + alimento
+ *
+ * Antes cada comida era una tarjeta con seis iconos, un carril de chips, un
+ * anillo de 86 px y cuatro barras de objetivo: dos pantallas por comida. Ahora
+ * es una sección de la hoja con un número, un nombre, una línea de objetivo, sus
+ * opciones como pestañas y la tabla; lo que se compara —lo puesto contra lo
+ * pedido— va en la fila de SUMA de la propia tabla, cifra a cifra y en color.
+ *
+ * ── Dónde vive cada acción ──────────────────────────────────────────────────
+ *   · Sobre la COMIDA (renombrar, duplicar, copiar al otro día, subir, bajar,
+ *     eliminar): el «···» de su cabecera. Renombrar también con doble clic.
+ *   · Sobre la OPCIÓN abierta (duplicar, copiar, quitar): el «···» de la fila
+ *     de opciones. Con una sola cosa que hacer, es una papelera y no un menú.
+ *   · El objetivo de la comida se escribe aquí, en su línea, y no en una tabla
+ *     aparte: es de esta comida.
+ *
+ * Los menús son `MenuAcciones` y viven FUERA de cualquier contenedor con
+ * desplazamiento: el carril anterior recortaba el desplegable y «Quitar la
+ * opción» no se veía nunca.
+ *
+ * El cliente (`editable=false`) ve lo mismo sin mandos: su comida, su nota, sus
+ * opciones y, si su entrenador fijó un objetivo, el anillo de lo estipulado.
  */
+/** Puesto contra pedido, con el mismo margen del 5 % que tenía el objetivo. */
+const estadoDe = (actual, objetivo) => {
+  if (!objetivo) return '';
+  const margen = objetivo * 0.05;
+  const diff = actual - objetivo;
+  return diff > margen ? ' is-over' : diff < -margen ? ' is-under' : ' is-ok';
+};
+
+/*
+  ══ Las acciones, a la vista y con icono, como en la hoja de Entreno ═════════
+  Nada dentro de un «···»: lo que se le hace a una comida (renombrar, duplicar,
+  copiar al otro día, subir, bajar, eliminar) y a la opción abierta (duplicar,
+  copiar, quitar) son iconos en su fila, atenuados hasta pasar por encima.
+*/
+const Accion = ({ icon: Icon, label, onClick, danger = false }) => (
+  <button
+    type="button"
+    className={`btn btn-icon btn-icon-compact${danger ? ' btn-icon-danger' : ''}`}
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+  >
+    <Icon size={13} />
+  </button>
+);
+
 export const MealCard = ({
   meal,
+  numero = null,
   editable = false,
   foodLibrary = [],
-  /* El catálogo común, aparte de la biblioteca: es el único que sabe de GRUPOS
-     (fruta, carne…), que es lo que necesitan las equivalencias. Sin él no hay
-     botón de equivalencias y la tarjeta funciona como siempre. */
   catalogFoods = [],
-  /* Quién está mirando. Decide qué alimentos puede corregir: los que dio de
-     alta él y ninguno más. Sin él —la vista del cliente— no se corrige nada,
-     que es lo que ya dice `editable`. */
   coachId = null,
   clientSwapsOn = false,
   onSwapFood,
@@ -710,31 +741,30 @@ export const MealCard = ({
   onSetDisplay,
   onEditFood,
   onMoveFood,
-  onMoveMeal,
   onDuplicateMeal,
   onDuplicateOption,
   onCopyMeal,
   onCopyOption,
   onNote = () => {},
   otherVariantLabel = '',
-  firstMeal,
-  lastMeal,
+  /* El arrastre entre comidas lo lleva la hoja (`NutritionModule`), como el de
+     los ejercicios lo lleva `HojaDeSeries`: aquí solo se pinta el asa y se
+     obedece. `{ dragging, dropTarget, onDragStart, onDragEnd, onDragOver,
+     onDragLeave, onDrop }`. */
+  arrastre = null,
+  /* La opción abierta, controlada desde la hoja cuando el resumen del día tiene
+     que verla: `opcion` (índice) y `onOpcion(índice)`. Sin ellos, estado propio. */
+  opcion = null,
+  onOpcion = null,
 }) => {
   const confirm = useConfirm();
-  const [activeOption, setActiveOption] = useState(0);
-  const [editingName, setEditingName] = useState(false);
-  /* El menú de acciones de la comida. Mismo patrón que la cabecera de un día. */
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
-  const menu = useDismissable(menuOpen);
-
-  /* El de la OPCIÓN abierta, que es otro plano: la cabecera actúa sobre la
-     comida entera y esto sobre una de sus alternativas. */
-  const [opcionMenu, setOpcionMenu] = useState(false);
-  const opcionMenuRef = useRef(null);
-  useClickOutside(opcionMenuRef, () => setOpcionMenu(false), opcionMenu);
-  const opcion = useDismissable(opcionMenu);
+  const [opcionPropia, setOpcionPropia] = useState(0);
+  const activeOption = opcion ?? opcionPropia;
+  const setActiveOption = onOpcion || setOpcionPropia;
+  const [renombrando, setRenombrando] = useState(false);
+  /* La nota se pliega a una línea de «+ nota» mientras está vacía: seis comidas
+     con seis cajas vacías era la mitad de la densidad de la pantalla. */
+  const [notaAbierta, setNotaAbierta] = useState(false);
   // Estado del arrastre, igual que en `ExerciseList`: quién se arrastra y sobre
   // quién se está soltando, para poder pintar las dos filas de forma distinta.
   const [dragIndex, setDragIndex] = useState(null);
@@ -748,37 +778,14 @@ export const MealCard = ({
   const objetivo = mealTarget(meal);
   const foods = option?.foods || [];
 
-  /*
-    ══ De quién es cada cifra ═════════════════════════════════════════════════
-
-    El anillo enseña una cosa distinta a cada uno, y no por adornar:
-
-    · Al ENTRENADOR, el reparto REAL de la opción que tiene abierta. Es lo que
-      está montando, y lo que compara contra su objetivo en las barras de al
-      lado.
-    · Al CLIENTE, lo ESTIPULADO. Su plan es lo que su entrenador fijó para esa
-      comida, y no cambia según la alternativa que abra. La suma de los
-      alimentos es una cifra aproximada que además se contradice a sí misma al
-      cambiar de opción — la misma razón por la que la cabecera ya enseña el
-      objetivo y no el total.
-
-    Sin objetivo puesto el cliente no ve anillo: no hay nada estipulado que
-    enseñar, y el real es precisamente el que no le toca ver.
-  */
-  const anillo = editable
-    ? { protein: totals.protein, carbs: totals.carbs, fats: totals.fats, kcals: totals.kcal }
-    : objetivo;
-
-  /* Sin confirmación: borrar una comida tiene ahora inverso —el aviso con
-     «Deshacer» que enseña `NutritionModule`— y lo que se puede deshacer no se
-     confirma (la regla, en `ui/ToastProvider`). */
-  const askRemoveMeal = () => onRemoveMeal();
-
   const askRemoveOption = async () => {
     const ok = await confirm({
-      title: `¿Eliminar la opción ${index + 1}?`,
-      message: `Se borrarán sus ${foods.length} alimentos.`,
-      confirmLabel: 'Eliminar opción',
+      title: `¿Quitar la opción ${index + 1}?`,
+      message:
+        foods.length === 0
+          ? 'No tiene alimentos.'
+          : `Se borrará${foods.length === 1 ? '' : 'n'} su${foods.length === 1 ? '' : 's'} ${foods.length} alimento${foods.length === 1 ? '' : 's'}.`,
+      confirmLabel: 'Quitar opción',
       tone: 'danger',
     });
     if (ok) {
@@ -787,355 +794,162 @@ export const MealCard = ({
     }
   };
 
+
+  const contexto = options.length > 1 ? `${options.length} opciones` : '';
+
+  const hayNota = Boolean(meal.note?.trim());
+
   return (
-    <article className="meal">
-      <header className="meal-head">
-        {editingName && editable ? (
-          <input
-            autoFocus
-            className="input grow"
-            style={{ fontWeight: 650 }}
+    <section
+      id={`comida-${meal.id}`}
+      className={`comida${editable ? '' : ' is-lectura'}${arrastre?.dragging ? ' is-dragging' : ''}${arrastre?.dropTarget ? ' is-drop-target' : ''}`}
+      aria-label={meal.name}
+      onDragOver={arrastre?.onDragOver}
+      onDragLeave={arrastre?.onDragLeave}
+      onDrop={arrastre?.onDrop}
+    >
+      <header className="comida-cab">
+        {editable && arrastre && (
+          <button
+            type="button"
+            className="hoja-asa"
+            draggable
+            onDragStart={arrastre.onDragStart}
+            onDragEnd={arrastre.onDragEnd}
+            aria-label={`Arrastrar ${meal.name} para reordenar`}
+            title="Arrastra para reordenar"
+          >
+            <GripVertical size={14} />
+          </button>
+        )}
+        {numero !== null && <span className="comida-n">{numero}</span>}
+        {renombrando && editable ? (
+          <RenombrarEnSitio
+            variante="is-comida"
             value={meal.name}
-            onChange={(e) => onRenameMeal(e.target.value)}
-            onBlur={() => setEditingName(false)}
-            onKeyDown={(e) => e.key === 'Enter' && setEditingName(false)}
-            aria-label="Nombre de la comida"
+            label="Nombre de la comida"
+            onRename={onRenameMeal}
+            onDone={() => setRenombrando(false)}
           />
         ) : (
-          <h4 className="meal-title">
+          <h4
+            className={`comida-nombre${editable ? ' is-editable' : ''}`}
+            onClick={editable ? () => setRenombrando(true) : undefined}
+            title={editable ? 'Pulsa para renombrar' : undefined}
+          >
             {meal.name}
-            {editable && (
-              <button
-                type="button"
-                className="btn btn-icon btn-icon-compact"
-                onClick={() => setEditingName(true)}
-                aria-label={`Renombrar ${meal.name}`}
-              >
-                <Pencil size={12} />
-              </button>
-            )}
           </h4>
         )}
+        {contexto && <span className="comida-meta">{contexto}</span>}
+        {/* Lo que suma la opción abierta contra lo que pide el plan, en color. */}
+        {editable && foods.length > 0 && (
+          <span className={`comida-kcal${estadoDe(totals.kcal, objetivo?.kcals)}`}>
+            <b>{Math.round(totals.kcal)}</b>
+            {objetivo?.kcals ? ` / ${objetivo.kcals}` : ''} kcal
+          </span>
+        )}
 
-        {/*
-          ── Aquí ya no va ninguna cifra ──────────────────────────────────────
-          Había una pastilla de kcal, y decía cosas distintas a cada uno: al
-          entrenador la suma de la opción abierta, al cliente lo estipulado. Las
-          dos sobraban por el mismo motivo: **el anillo de abajo ya las dice**,
-          con su reparto al lado, y una cifra suelta a dos centímetros de otra
-          igual solo invita a compararlas y a preguntarse por qué no coinciden.
-        */}
-        <div className="row gap-2 shrink-0">
-          {editable && (
-            <>
-              {/*
-                ══ Por qué solo quedan tres iconos aquí ═══════════════════════
-
-                Eran SEIS seguidos —renombrar, subir, bajar, duplicar, copiar al
-                otro día y borrar—, todos del mismo tamaño, el mismo color y la
-                misma caja, sin una palabra. El sexto borraba la comida entera.
-                Un día de dieta son cinco o seis comidas: treinta iconos mudos en
-                una pantalla, con los destructivos escondidos entre ellos.
-
-                El razonamiento original —«un menú para tres cosas es un clic de
-                más en la operación que más se repite»— sigue siendo bueno; lo
-                que pasó es que dejaron de ser tres.
-
-                Se quedan fuera las que se usan MONTANDO, que son las repetidas:
-                subir y bajar. Lo demás pasa al menú de al lado, con borrar
-                separado y en su tono.
-              */}
-              {onMoveMeal && (
-                <>
-                  <button
-                    type="button"
-                    className="btn btn-icon"
-                    onClick={() => onMoveMeal(-1)}
-                    disabled={firstMeal}
-                    aria-label={`Subir ${meal.name}`}
-                  >
-                    <ChevronUp size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-icon"
-                    onClick={() => onMoveMeal(1)}
-                    disabled={lastMeal}
-                    aria-label={`Bajar ${meal.name}`}
-                  >
-                    <ChevronDown size={14} />
-                  </button>
-                </>
-              )}
-              {/*
-                El resto, en el mismo menú de desbordamiento que ya usa la
-                cabecera de un día en el editor de rutina (`Workout/DayHeader`).
-                Mismo gesto, mismo sitio, misma forma: no hay nada nuevo que
-                aprender.
-              */}
-              <div ref={menuRef} style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  className="btn btn-icon"
-                  onClick={() => setMenuOpen((v) => !v)}
-                  aria-haspopup="menu"
-                  aria-expanded={menuOpen}
-                  aria-label={`Acciones de ${meal.name}`}
-                >
-                  <MoreVertical size={16} />
-                </button>
-
-                {menu.mounted && (
-                  <div
-                    ref={menu.ref}
-                    className="popover popover-right"
-                    data-state={menu.closing ? 'closing' : 'open'}
-                    style={{ top: '120%' }}
-                    role="menu"
-                  >
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="menu-item"
-                      onClick={() => {
-                        setEditingName(true);
-                        setMenuOpen(false);
-                      }}
-                    >
-                      <Pencil size={15} /> Renombrar
-                    </button>
-
-                    {onDuplicateMeal && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="menu-item"
-                        onClick={() => {
-                          onDuplicateMeal();
-                          setMenuOpen(false);
-                        }}
-                      >
-                        <Copy size={15} /> Duplicar con sus alternativas
-                      </button>
-                    )}
-
-                    {/*
-                      Llevarse esta comida al otro día. Solo existe cuando el plan
-                      tiene dos días distintos: sin variantes no hay «el otro», y
-                      la entrada sería un adorno que no lleva a ninguna parte.
-                    */}
-                    {onCopyMeal && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="menu-item"
-                        onClick={() => {
-                          onCopyMeal();
-                          setMenuOpen(false);
-                        }}
-                      >
-                        <ArrowRightLeft size={15} /> Copiar a {otherVariantLabel}
-                      </button>
-                    )}
-
-                    {/* Separado y en su tono: es la única de las cuatro que no se
-                        puede deshacer. */}
-                    <hr className="divider" />
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="menu-item menu-item-danger"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        askRemoveMeal();
-                      }}
-                    >
-                      <Trash2 size={15} /> Eliminar comida
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        {editable && (
+          <div className="comida-acciones">
+            {/* Renombrar es tocar el nombre; mover es arrastrar por el asa:
+                ninguno de los dos necesita botón. */}
+            {onDuplicateMeal && <Accion icon={Copy} label="Duplicar con sus alternativas" onClick={onDuplicateMeal} />}
+            {/* Llevarse esta comida al otro día. Solo existe cuando el plan
+                tiene dos días distintos: sin variantes no hay «el otro». */}
+            {onCopyMeal && <Accion icon={ArrowRightLeft} label={`Copiar a ${otherVariantLabel}`} onClick={onCopyMeal} />}
+            {/* Sin confirmación: borrar una comida tiene inverso —el aviso con
+                «Deshacer» de `NutritionModule`— y lo que se deshace no se
+                confirma. */}
+            <Accion icon={Trash2} label="Eliminar comida" onClick={onRemoveMeal} danger />
+          </div>
+        )}
       </header>
 
       {/*
-        ── La pauta de esta comida ────────────────────────────────────────────
-        Lo que no cabe en un gramo: «aproximadamente 2 h antes de dormir», «el
-        yogur, de la marca X», «si entrenas por la tarde, cámbiala por la cena».
-
-        Va debajo de la cabecera y encima de los alimentos porque es el marco en
-        el que se leen: una indicación que apareciera al final se lee después de
-        haber entendido mal la comida.
-
-        Editando siempre se ve el campo —si hay que buscar dónde escribir, no se
-        escribe—; en modo consulta solo aparece si tiene algo, y con los saltos de
-        línea conservados.
+        La pauta de esta comida: «2 h antes de dormir», «el yogur, de la marca
+        X». Va encima de los alimentos porque es el marco en el que se leen.
+        Al montar, plegada en «+ nota» hasta que hay algo que decir.
       */}
       {editable ? (
-        <label className="meal-note">
-          <NotebookPen size={14} aria-hidden="true" />
-          <input
-            className="input input-sm"
-            value={meal.note ?? ''}
-            maxLength={200}
-            placeholder="Cómo cocinarlo, marcas, sustituciones… lo verá tal cual"
-            onChange={(e) => onNote(e.target.value)}
-            aria-label={`Pauta de ${meal.name}`}
-          />
-        </label>
-      ) : (
-        meal.note?.trim() && (
-          <p className="t-sm t-secondary pre-wrap">
-            {meal.note}
-          </p>
+        hayNota || notaAbierta ? (
+          <label className="comida-nota">
+            <span className="comida-objetivo-k">Nota</span>
+            <input
+              autoFocus={notaAbierta && !hayNota}
+              className="comida-nota-texto"
+              value={meal.note ?? ''}
+              maxLength={200}
+              placeholder="Cómo cocinarlo, marcas, sustituciones… lo verá tal cual"
+              onChange={(e) => onNote(e.target.value)}
+              onBlur={() => !meal.note?.trim() && setNotaAbierta(false)}
+              aria-label={`Nota de ${meal.name}`}
+            />
+          </label>
+        ) : (
+          <button type="button" className="comida-nota-mas" onClick={() => setNotaAbierta(true)}>
+            + nota para el cliente
+          </button>
         )
+      ) : (
+        hayNota && <p className="comida-nota-lectura">{meal.note}</p>
       )}
 
+      {/*
+        Las opciones como pestañas —dónde estás, y añadir otra—, y a la derecha
+        lo que se le hace a la abierta. Crear una alternativa te DEJA en ella:
+        la nueva se añade al final (ver `addMealOption`).
+      */}
       {(options.length > 1 || editable) && (
-        <div className="rail" role="group" aria-label={`Opciones de ${meal.name}`}>
-          {options.map((opt, i) => (
-            <button
-              key={opt.id}
-              type="button"
-              className="chip"
-              aria-pressed={i === index}
-              onClick={() => setActiveOption(i)}
-            >
-              Opción {i + 1}
-              {/*
-                Las kcal de cada alternativa, solo al programar: son la suma de
-                sus alimentos, y sirven para comprobar que las opciones de una
-                misma comida son de verdad intercambiables. Al cliente le
-                enseñaban cuatro cifras distintas para una comida que su
-                entrenador fijó en una sola.
-              */}
-              {editable && (
-                <span className="t-xs" style={{ opacity: 0.75 }}>
-                  {Math.round(optionMacros(opt).kcal)}
-                </span>
-              )}
-            </button>
-          ))}
-          {editable && (
-            /*
-              ══ Crear una alternativa te DEJA en ella ══════════════════════════
-
-              Antes no: la pestaña nueva aparecía al final del carril y tú seguías
-              en la de antes, mirando los alimentos de la opción que ya tenías
-              montada. El gesto no tenía ninguna consecuencia visible salvo un
-              chip más, así que se lee como que no ha funcionado — y eso lleva a
-              pulsarlo dos o tres veces y acabar con alternativas vacías de más.
-
-              La nueva se añade AL FINAL (ver `addMealOption`), así que su índice
-              es el número de opciones que había. Si por lo que sea no llegara a
-              crearse, el índice se recorta solo unas líneas más arriba y esto no
-              deja la comida en una pestaña que no existe.
-            */
-            <button
-              type="button"
-              className="chip chip-dashed"
-              onClick={() => {
-                onAddOption();
-                setActiveOption(options.length);
-              }}
-            >
-              <Plus size={13} /> Alternativa
-            </button>
-          )}
-          {/*
-            ══ Y las acciones SOBRE la opción abierta, en un menú ═════════════
-
-            El carril tenía cuatro clases de cosa seguidas y todas con la misma
-            forma: las pestañas de cada opción —que son dónde ESTÁS—, «+
-            Alternativa» —que crea—, «Duplicar» y «A días de descanso» —que
-            actúan sobre la abierta—, y más abajo, suelto, un botón rojo de
-            quitar. Con tres alternativas eran siete controles en una comida, y
-            una comida no es la única de la pantalla.
-
-            Ahora el carril dice lo que es —en qué opción estás, y añadir otra— y
-            lo que se le HACE a la abierta vive en un menú, igual que en la
-            cabecera de la comida. Quitar entra ahí también: estaba lejos de las
-            otras tres y es la que hay que mirar dos veces antes de pulsar.
-          */}
-          {editable && (
-            <div ref={opcionMenuRef} style={{ position: 'relative' }}>
+        <div className="comida-opciones">
+          <div className="comida-opciones-tabs" role="tablist" aria-label={`Opciones de ${meal.name}`}>
+            {options.map((opt, i) => (
+              <button
+                key={opt.id}
+                type="button"
+                role="tab"
+                aria-selected={i === index}
+                className={`comida-opcion${i === index ? ' is-on' : ''}`}
+                onClick={() => setActiveOption(i)}
+              >
+                Opción {i + 1}
+                {/* Las kcal de cada alternativa, solo al programar: sirven para
+                    ver que las opciones son de verdad intercambiables. */}
+                {editable && <small>{Math.round(optionMacros(opt).kcal)}</small>}
+              </button>
+            ))}
+            {editable && (
               <button
                 type="button"
-                className="btn btn-icon"
-                onClick={() => setOpcionMenu((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={opcionMenu}
-                aria-label={`Acciones de la opción ${index + 1}`}
+                className="comida-opcion is-nueva"
+                onClick={() => {
+                  onAddOption();
+                  setActiveOption(options.length);
+                }}
               >
-                <MoreVertical size={16} />
+                + alternativa
               </button>
-
-              {opcion.mounted && (
-                <div
-                  ref={opcion.ref}
-                  className="popover popover-right"
-                  data-state={opcion.closing ? 'closing' : 'open'}
-                  style={{ top: '120%' }}
-                  role="menu"
-                >
-                  {/* Solo con alimentos dentro: duplicar una opción vacía crea
-                      otra vacía, que es lo mismo que «Alternativa». */}
-                  {foods.length > 0 && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="menu-item"
-                      onClick={() => {
-                        onDuplicateOption(index);
-                        /* La copia se inserta DETRÁS de la original (ver
-                           `duplicateOption`), y se abre por lo mismo que la
-                           alternativa nueva: duplicas para cambiarle algo, y
-                           quedarte en el original es quedarte en lo que no vas a
-                           tocar. */
-                        setActiveOption(index + 1);
-                        setOpcionMenu(false);
-                      }}
-                    >
-                      <Copy size={15} /> Duplicar esta opción
-                    </button>
-                  )}
-
-                  {/* Llevarse SOLO esta alternativa al otro día. Aterriza en la
-                      comida que se llama igual, que es siempre la respuesta. */}
-                  {foods.length > 0 && onCopyOption && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="menu-item"
-                      onClick={() => {
-                        onCopyOption(index);
-                        setOpcionMenu(false);
-                      }}
-                    >
-                      <ArrowRightLeft size={15} /> Copiar a {otherVariantLabel}
-                    </button>
-                  )}
-
-                  {options.length > 1 && (
-                    <>
-                      <hr className="divider" />
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="menu-item menu-item-danger"
-                        onClick={() => {
-                          setOpcionMenu(false);
-                          askRemoveOption();
-                        }}
-                      >
-                        <Trash2 size={15} /> Quitar la opción {index + 1}
-                      </button>
-                    </>
-                  )}
-                </div>
+            )}
+          </div>
+          {editable && (foods.length > 0 || options.length > 1) && (
+            <div className="comida-opciones-acciones">
+              <span className="comida-opciones-k">Opción {index + 1}</span>
+              {foods.length > 0 && onDuplicateOption && (
+                <Accion
+                  icon={Copy}
+                  label={`Duplicar la opción ${index + 1}`}
+                  onClick={() => {
+                    onDuplicateOption(index);
+                    /* La copia se inserta DETRÁS de la original y se abre: duplicas
+                       para cambiarle algo, y quedarte en el original es quedarte en
+                       lo que no vas a tocar. */
+                    setActiveOption(index + 1);
+                  }}
+                />
               )}
+              {foods.length > 0 && onCopyOption && (
+                <Accion icon={ArrowRightLeft} label={`Copiar la opción ${index + 1} a ${otherVariantLabel}`} onClick={() => onCopyOption(index)} />
+              )}
+              {options.length > 1 && <Accion icon={Trash2} label={`Quitar la opción ${index + 1}`} onClick={askRemoveOption} danger />}
             </div>
           )}
         </div>
@@ -1148,53 +962,29 @@ export const MealCard = ({
       )}
 
       {/*
-        El reparto de ESTA opción, como anillo.
-        --------------------------------------------------------------------
-        Es lo que permite ver de un vistazo si una opción está desequilibrada y
-        comparar dos alternativas de la misma comida sin hacer cuentas: dos
-        anillos con el mismo lenguaje al lado. El total del día usa una barra
-        —otra forma para otra escala— y la diferencia es intencionada.
+        Al cliente, lo ESTIPULADO como anillo: su plan es lo que su entrenador
+        fijó para esa comida, y no cambia según la alternativa que abra. Sin
+        objetivo no hay nada estipulado que enseñar.
       */}
-      {foods.length > 0 && anillo && (
+      {!editable && foods.length > 0 && objetivo && (
         <div className="card-inset row wrap gap-4">
           <MacroRing
-            protein={anillo.protein}
-            carbs={anillo.carbs}
-            fats={anillo.fats}
-            kcals={anillo.kcals}
+            protein={objetivo.protein}
+            carbs={objetivo.carbs}
+            fats={objetivo.fats}
+            kcals={objetivo.kcals}
             size={86}
-            /*
-              El pie dice de QUÉ son las cifras, que es lo que cambia entre los
-              dos. Al entrenador, de la opción abierta —solo hace falta cuando
-              hay más de una—. Al cliente, de la comida entera: el anillo es el
-              mismo abra la opción que abra, y titularlo «Opción 1 de 3» le haría
-              creer que esos gramos son los de esa alternativa.
-            */
-            caption={
-              editable
-                ? options.length > 1
-                  ? `Opción ${index + 1} de ${options.length}`
-                  : undefined
-                : 'Objetivo de esta comida'
-            }
+            caption="Objetivo de esta comida"
           />
-          {/*
-            El objetivo, solo al programar. El cliente se queda con su anillo y
-            nada más: la comparación no la puede resolver él, y metida en esta
-            misma fila estrujaba la tabla de alimentos hasta dejar los nombres
-            en dos letras.
-          */}
-          {editable && <MealGoal meal={meal} optionIndex={index} />}
         </div>
       )}
 
-      {foods.length === 0 ? (
-        <p className="t-sm t-secondary">
-          {editable ? 'Sin alimentos todavía.' : 'Tu entrenador no ha detallado esta opción.'}
-        </p>
+      {foods.length === 0 && !editable ? (
+        <p className="t-sm t-tertiary">Tu entrenador no ha detallado esta opción.</p>
       ) : (
         <div className="food-table">
           <FoodTableHead editable={editable} />
+          {foods.length === 0 && <p className="food-vacia t-sm t-tertiary">Sin alimentos todavía.</p>}
           {foods.map((food, foodIndex) => (
             <FoodRow
               key={food.id}
@@ -1242,16 +1032,40 @@ export const MealCard = ({
               }}
             />
           ))}
+
+          {/*
+            La SUMA, al pie de la tabla: lo puesto y, detrás y en pequeño, lo
+            pedido en el plan del día, en el color de si cuadra. Solo al montar:
+            al cliente la comparación no le toca resolverla.
+          */}
+          {editable && foods.length > 0 && (
+            <div className="food-row is-suma" aria-label={`Suma de la opción ${index + 1}`}>
+              <span aria-hidden="true" />
+              <span className="name">
+                <span className="txt">Suma</span>
+              </span>
+              <span className="grams" />
+              {MACRO_META.map(({ key, short }, i) => (
+                <span key={key} className={`n ${CELL[i]}${estadoDe(totals[key], objetivo?.[key])}`} data-macro={short}>
+                  {Math.round(totals[key])}
+                  {objetivo?.[key] ? <small>/{objetivo[key]}</small> : null}
+                </span>
+              ))}
+              <span className={`kcal${estadoDe(totals.kcal, objetivo?.kcals)}`}>
+                {Math.round(totals.kcal)}
+                {objetivo?.kcals ? <small>/{objetivo.kcals}</small> : null}
+              </span>
+              <span aria-hidden="true" />
+            </div>
+          )}
         </div>
       )}
 
       {editable && (
-        <div className="row between wrap gap-2">
-          <div className="grow" style={{ minWidth: 210 }}>
-            <AddFoodControl foodLibrary={foodLibrary} onAdd={(food) => onAddFood(index, food)} />
-          </div>
+        <div className="comida-alta">
+          <AddFoodControl foodLibrary={foodLibrary} onAdd={(food) => onAddFood(index, food)} />
         </div>
       )}
-    </article>
+    </section>
   );
 };

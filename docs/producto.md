@@ -107,6 +107,17 @@ que la aplicación no tiene modelada.
 | Familias de clases CSS a medida de una pantalla | ~**50** (`warmup-`, `set-`, `studio-`, `folio-`, `macro-`, `rmap-`, `wiz-`, `scale-`, `meal-`…) |
 | Líneas de `index.css` para la portada / para la aplicación | **1.820** para 5 secciones / ~4.500 para ~40 pantallas |
 
+> **Este inventario está caducado, y hay que decirlo aquí y no en otro sitio**
+> (26 de agosto de 2026). Se midió contra el código y quedan tres filas vivas de
+> las seis: los encabezados, `Panel`, la regla del `card` a mano (nueve casos) y
+> las familias de CSS. Las otras **están cerradas**: hay 30 pantallas con
+> `PageHead`, y sobre todo **ya no hay cinco selectores de semana** — `WeekPicker`
+> es la primitiva única y la usan el editor de rutina, el estudio de fotos y el
+> portal; `.checkin-week` nunca fue un selector, es la rejilla de siete días
+> donde se meten los pesajes, y el «periodo» de Analítica es un rango, no una
+> semana. Quien planifique trabajo a partir de esta tabla, que la vuelva a medir
+> antes: se ha recomendado dos veces un frente que ya estaba hecho.
+
 La última fila es el resumen de todo: la portada recibió cuatro veces más diseño
 por pantalla. No porque sea más importante, sino porque **se diseñó entera de una
 vez y la aplicación se diseñó función a función**, que es justo lo que dice la
@@ -307,10 +318,23 @@ La jerarquía definitiva son **cuatro niveles y ni uno más**:
 | `PageHead` | `h1` | cómo se llama esta pantalla | exactamente 1 |
 | `GroupHead` | `h2`, en troquelada | de qué va esta tanda de bloques | 0, 1 o 2 |
 | `Panel title` | troquelada | qué es este bloque | las que hagan falta |
+| `Panel rango="bloque"` | `h2` | …cuando el bloque es media pantalla | ídem |
 | `SectionTitle` | `h3` | una pieza dentro de un bloque | ídem |
 
 El grupo va en troquelada y no a tamaño de titular porque **no compite con la
 pantalla: la ordena por dentro**.
+
+> **Enmienda (26 de agosto de 2026).** La fila del `rango="bloque"` no estaba, y
+> el tablero de la revisión enseñó por qué hacía falta. Sus bloques no son
+> tarjetas: «Su cuerpo» son tres tramos —lo que cuenta el cliente, sus fotos y
+> sus medidas— y cada tramo se nombra con la troquelada. Nombrar con esa MISMA
+> troquelada el bloque que los contiene deja la pantalla sin un solo nivel de
+> jerarquía: el continente y el contenido hablan igual de alto.
+>
+> Se resolvió durante un tiempo con una cabecera propia en tres archivos del
+> tablero —`.bloque-head`, `.bloque-say`, `.bloque-titulo`, `.bloque-sub`—, que
+> era `.panel-head` copiada con otros nombres, o sea el defecto de §2 otra vez.
+> Ahora es un rango de `Panel` y lo puede pedir cualquier pantalla.
 
 ### 5.2 Un bloque
 
@@ -327,6 +351,10 @@ Panel
   `--tracking-stencil`), no en `<h2>`. Los tokens ya dicen que la troquelada es
   lo que estructura la pantalla ahora que el cromo no puede usar color; hay que
   usarla para eso en vez de para decorar cuatro sitios.
+  **Con una excepción, la de §5.1 bis:** un bloque que ocupa media pantalla y
+  que tiene tramos con su propia troquelada dentro pide `rango="bloque"`, y
+  entonces su título es un `h2` de verdad. La regla que no cambia es que ese
+  `h2` lo emite `Panel` — nunca se escribe suelto.
 - Las acciones del bloque viven **en su cabecera**, alineadas a la derecha.
   Nunca sueltas entre el título y el contenido, que es donde están hoy en
   Nutrición («Copiar desde días de descanso» flotando al lado de unas pestañas).
@@ -471,7 +499,36 @@ puede parar sin dejar la aplicación a medias entre dos modelos.
 | 2 | **Migrar pantallas** | **Las 24 pantallas de ruta** con `PageHead`, y el color en las nueve que lo elegían a mano | **HECHA** |
 | 3 | **Quitar los planos de más** | Las tarjetas-pestaña de Progreso y de Revisión → chips; el saludo deja de ser una tarjeta | **HECHA** |
 | 4 | **«Su semana»** | La pantalla de §6, en `/c/:id/semana`, con `domain/week.js` y once pruebas. Convive con las secciones actuales sin sustituir ninguna | **HECHA** |
-| 5 | **Reagrupar las secciones** | §4.1 y §4.2, con toda la tabla de redirecciones de §4.3 | **NO EMPEZADA, y a propósito** |
+| 5 | **Reagrupar las secciones** | Seis secciones a cinco, sin una sola redirección. §4.2 (el portal) sigue sin decidir | **HECHA en parte** (26 ago 2026) |
+
+> **§4.3 estaba equivocado en el precio, y era lo que bloqueaba esta fase.** Este
+> documento daba por hecho que reagrupar obliga a mover URLs —`/rutina` →
+> `/plan`, `/calendario` → `/ficha`— y por tanto a duplicar para siempre la tabla
+> de redirecciones. No hay que pagarlo: **agrupar es una decisión de navegación y
+> las rutas son otra cosa.** El propio producto ya tenía la pieza —una sección
+> con dos niveles, como «Progreso» = `resumen` + `analitica`, se resuelve con una
+> ruta de layout sin `path` y un carril de chips—.
+>
+> **Y §4.1 estaba equivocado en QUÉ agrupar.** Su tabla mete la rutina y la
+> nutrición dentro de «Su plan». Se hizo, se probó y se deshizo el mismo día, con
+> el argumento correcto: **son las dos cosas que un entrenador AJUSTA de cada
+> cliente**, o sea su oficio, y lo que se ajusta no se esconde detrás de un chip.
+> El horizonte de tiempo es un buen criterio para lo que se CONSULTA y un mal
+> criterio para lo que se TRABAJA.
+>
+> Lo que sí se agrupó es el calendario de una persona dentro de su ficha: sus
+> fechas son de la misma naturaleza que su tarifa y su antigüedad, y era la
+> sección con menos uso de las seis. El carril queda en cinco:
+>
+> ```
+> Resumen · Entreno · Dieta · Revisiones · Perfil
+>  meses     ── lo que ajustas ──    semana     siempre
+> ```
+>
+> Cada una contesta una pregunta que no contesta ninguna otra, que es la prueba
+> que este documento aplica en todas partes. Bajar de cinco solo por bajar
+> fundiría «voy a revisar a Javier» con «¿cómo va Javier en tres meses?», que son
+> dos frecuencias distintas.
 
 ### Lo que la fase 2 cerró
 
@@ -522,6 +579,14 @@ semanas con clientes de verdad**, y esa condición se puso antes de construir
 nada, no después. Es la única fase sin vuelta atrás barata: duplica la tabla de
 redirecciones para siempre y mueve de sitio URLs que están pegadas en
 conversaciones de WhatsApp.
+
+> **Las dos mitades de ese párrafo se cumplieron, y la segunda resultó falsa.**
+> La condición se cumplió sola: dos entrenadores describieron la aplicación, por
+> separado, con las mismas palabras del §2 de este documento. Y la vuelta atrás
+> sí era barata, porque la reagrupación no necesitaba mover URLs (ver el recuadro
+> de §7). Lo que quedó sin hacer es §4.2, el portal del cliente, y ahí la
+> prudencia sigue en pie: es lo que ve quien paga y hay dos portales activos en
+> producción, así que no hay con qué decidirlo.
 
 Lo que sí se ha hecho es dejar la fase 4 **conviviendo** con lo de antes: «Su
 semana» es una sección más del carril y no ha sustituido a ninguna. Rutina,

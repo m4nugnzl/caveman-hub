@@ -222,7 +222,7 @@ export const ClientDataPanel = ({ client }) => {
       <div className="row wrap gap-2">
         <button
           type="button"
-          className="btn btn-secondary btn-sm"
+          className="btn btn-quiet btn-sm"
           onClick={download}
           disabled={busy !== null}
         >
@@ -266,7 +266,7 @@ export const ClientDataPanel = ({ client }) => {
             </button>
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={() => {
                 setConfirming(false);
                 setTyped('');

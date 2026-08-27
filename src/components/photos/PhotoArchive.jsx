@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, ChevronDown, ChevronRight, Columns2, Trash2, Upload } from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { ANGLES, angleLabel, angleShort, groupByWeek, photoWeight } from '@/domain/photos';
 import { shortDate } from '@/lib/dates';
 import { clientPath } from '@/routes';
-import { EmptyState, PageHead } from '@/components/ui/primitives';
+import { EmptyState } from '@/components/ui/primitives';
+import { Mando, MandoTab, MandoTabs } from '@/components/ui/Mando';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Gallery } from '@/components/photos/Gallery';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
@@ -136,37 +137,45 @@ export const PhotoArchive = () => {
 
   return (
     <div className="stack">
-      <PageHead
-        title="Sus fotos"
-        sub={
+      {/* La fila de mando: los ángulos como pestañas —comparar frontales con
+          frontales es la mitad del trabajo—, cuántas hay en voz baja, y a la
+          derecha el estudio como enlace y subir como única acción principal. */}
+      <Mando
+        contexto={
           suyas.length > 0
             ? `${suyas.length} ${suyas.length === 1 ? 'foto' : 'fotos'} en ${carpetas.length} ${
                 carpetas.length === 1 ? 'semana' : 'semanas'
               }`
             : `Todavía no hay ninguna foto de ${nombre}.`
         }
-        action={
-          <div className="row gap-2 wrap">
+        acciones={
+          <>
             {/* El estudio es la herramienta COMPARATIVA, y se abre desde aquí:
                 el archivo es donde se elige qué merece la pena comparar. */}
             {suyas.length > 1 && (
-              <Link
-                className="btn btn-secondary btn-sm"
-                to={clientPath(activeClient.id, 'revision/estudio')}
-              >
-                <Columns2 size={14} /> Comparar en el estudio
+              <Link className="cab-accion" to={clientPath(activeClient.id, 'revision/estudio')}>
+                Comparar en el estudio →
               </Link>
             )}
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => setSubiendo(true)}
-            >
-              <Upload size={14} /> Subir fotos
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setSubiendo(true)}>
+              Subir fotos
             </button>
-          </div>
+          </>
         }
-      />
+      >
+        {suyas.length > 0 && (
+          <MandoTabs label="Filtrar por ángulo">
+            <MandoTab on={angulo === 'all'} onClick={() => setAngulo('all')}>
+              Todas
+            </MandoTab>
+            {ANGLES.map((a) => (
+              <MandoTab key={a.id} on={angulo === a.id} onClick={() => setAngulo(a.id)}>
+                {a.label}
+              </MandoTab>
+            ))}
+          </MandoTabs>
+        )}
+      </Mando>
 
       {suyas.length === 0 ? (
         <EmptyState
@@ -176,31 +185,6 @@ export const PhotoArchive = () => {
         />
       ) : (
         <>
-          {/* Por ángulo. Comparar frontales con frontales es la mitad del
-              trabajo, y mezclados en la carpeta hay que ir saltándose dos de
-              cada tres. */}
-          <div className="rail-wrap" role="group" aria-label="Filtrar por ángulo">
-            <button
-              type="button"
-              className="chip"
-              aria-pressed={angulo === 'all'}
-              onClick={() => setAngulo('all')}
-            >
-              Todos
-            </button>
-            {ANGLES.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className="chip"
-                aria-pressed={angulo === a.id}
-                onClick={() => setAngulo(a.id)}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
-
           {carpetas.length === 0 ? (
             <p className="t-sm t-tertiary">Ninguna foto con ese ángulo.</p>
           ) : (

@@ -1,0 +1,37 @@
+-- ============================================================================
+-- Los bloques de entreno
+-- ----------------------------------------------------------------------------
+-- Añade UNA columna a `workout_data`. No toca filas, funciones ni políticas.
+-- Se puede aplicar antes o después del despliegue del código: la aplicación
+-- solo ENVÍA la columna cuando el programa tiene bloques (el mapeador la omite
+-- si está vacía), y sin ella la lee como vacía: todo sigue siendo el «Bloque 1».
+-- Lo que sí falla sin esta migración es ABRIR un bloque nuevo: por eso conviene
+-- aplicarla antes de que nadie lo intente.
+--
+-- ══ Qué es un bloque ══════════════════════════════════════════════════════
+--
+-- Mientras la ESTRUCTURA del programa no cambia —qué días hay, qué toca cada
+-- uno, qué calentamiento se hace— es el mismo bloque, y las semanas se van
+-- sumando. Cuando el entrenador cambia la estructura, cierra ese bloque y
+-- empieza otro; el anterior queda entero y consultable. Es cómo lo piensa el
+-- dueño: «eso fue un bloque completo y ahora creo otro».
+--
+-- ── Cómo se guarda ─────────────────────────────────────────────────────────
+-- Como RANGOS de semanas, no como una etiqueta en cada microciclo:
+--
+--     [ { "id": "b_…", "name": "Fuerza", "fromWeek": 1, "toWeek": 6,
+--         "weeklySplit": {…}, "mobilityDrills": […] },
+--       { "id": "b_…", "name": "Bloque 2", "fromWeek": 7, "toWeek": null } ]
+--
+-- El bloque ABIERTO es el último (`toWeek` nulo) y su estructura y su
+-- calentamiento son los de siempre: `weekly_split` y `mobility_drills` de esta
+-- misma fila. Los cerrados llevan una copia congelada de los suyos. Así:
+--
+--   · el portal del cliente no cambia: sigue leyendo las columnas de siempre;
+--   · `continue_program` (0085) no cambia: construye microciclos, no bloques;
+--   · una fila sin bloques ES el bloque 1 desde la semana 1: no hay que migrar
+--     datos, y quien nunca cambie de estructura nunca verá esta columna llena.
+-- ============================================================================
+
+ALTER TABLE public.workout_data
+  ADD COLUMN IF NOT EXISTS blocks jsonb NOT NULL DEFAULT '[]'::jsonb;

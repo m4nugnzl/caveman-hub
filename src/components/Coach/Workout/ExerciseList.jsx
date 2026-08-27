@@ -60,6 +60,10 @@ export const ExerciseList = ({
   showRir = false,
   showNotes = false,
   previousSets = null,
+  /* El ejercicio «en foco»: el que enseña su histórico en la columna de al lado.
+     Se marca al pulsar cualquier parte de su fila que no sea un control. */
+  focusedId = null,
+  onFocusExercise = null,
 }) => {
   const esTelefono = useEsTelefono();
   const [dragIndex, setDragIndex] = useState(null);
@@ -274,6 +278,7 @@ export const ExerciseList = ({
                  apaños que había que leer para entender por qué el nombre acababa
                  encima. Si la forma correcta es la columna, se declara. */
               canEditStructure ? '' : 'is-log',
+              focusedId === exercise.id ? 'is-focused' : '',
               overIndex === index && dragIndex !== index ? 'is-drop-target' : '',
               dragIndex === index ? 'is-dragging' : '',
             ]
@@ -285,6 +290,8 @@ export const ExerciseList = ({
             }}
             onDragLeave={() => setOverIndex((i) => (i === index ? null : i))}
             onDrop={(e) => handleDrop(e, index)}
+            onClick={onFocusExercise ? () => onFocusExercise(exercise.id) : undefined}
+            onFocus={onFocusExercise ? () => onFocusExercise(exercise.id) : undefined}
           >
             {canEditStructure && (
               <>

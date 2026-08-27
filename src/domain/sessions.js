@@ -157,6 +157,8 @@ export const trainingSummary = (program, { today = todayISO(), days = 21 } = {})
 
   return {
     microcycleCount: microcycles.length,
+    // La semana más alta que hay montada: la «S3» que la barra pone al lado del nombre.
+    weekNumber: microcycles.length ? Math.max(...microcycles.map((m) => m.weekNumber || 0)) : null,
     sessionCount: sessions.length,
     /*
       La última de todas, tenga la edad que tenga: la alerta «X días sin entrenar»

@@ -11,15 +11,17 @@ import { useCommandPalette } from '@/components/ui/CommandPalette';
  *
  * ── Una cabecera, dos monturas ──────────────────────────────────────────────
  * La franja clásica (`<Header/>`) navega el móvil, el portal del cliente y el
- * modo preview. En el escritorio del entrenador NO hay franja: el chasis con
- * barra lateral monta sus dos piezas útiles —la búsqueda y la cuenta— en su
- * propia barra de herramientas (`.shell-top`, ver `CoachLayout`), un objeto de
- * cristal a juego con la barra lateral, no una franja de borde a borde. Una
- * franja entera para un buscador y un avatar era cromo vacío.
+ * modo preview. En el escritorio del entrenador NO hay franja: sus dos piezas
+ * útiles van DENTRO de la barra lateral —la búsqueda bajo la marca y la cuenta
+ * al pie (ver `CoachLayout`)—. Una franja entera para un buscador y un avatar
+ * era cromo vacío, y una barra de herramientas aparte para lo mismo repetía la
+ * cabecera y le quitaba a la barra dos cosas que son suyas.
  *
  * Por eso este archivo exporta las piezas por separado: `Omnibox` y
- * `HeaderActions` se pintan en las dos monturas y no pueden divergir. Y el
- * avatar queda SIEMPRE arriba a la derecha, en cualquier modo y tamaño.
+ * `HeaderActions` se pintan en las dos monturas y no pueden divergir. Lo que
+ * cambia entre ellas es el TRAJE de la cuenta, no la pieza: `variante="fila"`
+ * la pinta como una fila con tu nombre —que es lo que pide el pie de una
+ * columna— y por defecto es el círculo de la esquina.
  *
  * ── Qué se ha ido de la cabecera ────────────────────────────────────────────
  * · **El recuento de clientes.** «12 clientes» es un dato de la cartera, y en
@@ -60,11 +62,11 @@ export const Omnibox = () => {
   );
 };
 
-export const HeaderActions = () => {
+export const HeaderActions = ({ variante = 'avatar' }) => {
   const { hasUnsavedChanges } = useData();
 
   return (
-    <div className="row gap-2 shrink-0">
+    <div className={`row gap-2 shrink-0${variante === 'fila' ? ' is-fila' : ''}`}>
       {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
           a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
       <ClientBell />
@@ -75,7 +77,7 @@ export const HeaderActions = () => {
           Cambios sin confirmar
         </span>
       )}
-      <AccountMenu />
+      <AccountMenu variante={variante} />
     </div>
   );
 };

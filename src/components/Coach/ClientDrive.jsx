@@ -146,7 +146,7 @@ export const ClientDrive = ({ client }) => {
       action={
         folder ? (
           <a
-            className="btn btn-secondary btn-sm"
+            className="btn btn-quiet btn-sm"
             href={folder.url}
             target="_blank"
             rel="noreferrer noopener"
@@ -156,7 +156,7 @@ export const ClientDrive = ({ client }) => {
         ) : (
           /* El botón explícito, para cuando lo que quieres es la carpeta EN SÍ:
              abrirla y llenarla tú desde Drive. Para todo lo demás se crea sola. */
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={asegurar}>
+          <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={asegurar}>
             <FolderPlus size={14} /> {busy ? 'Creando…' : 'Crear su carpeta'}
           </button>
         )

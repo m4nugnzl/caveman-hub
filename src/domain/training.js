@@ -278,6 +278,7 @@ export const emptyWorkoutData = () => ({
   mobilityDrills: [],
   notes: '',
   microcycles: [],
+  blocks: [],
 });
 
 export const restWeekSplit = () => Object.fromEntries(WEEK_DAYS.map((d) => [d, 'Descanso']));

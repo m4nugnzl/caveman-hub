@@ -482,3 +482,54 @@ export const weightMove = ({ history = [], startDate = null, weekNumber = null }
 
   return { delta: round(a - b, 2), from: b, to: a };
 };
+
+/**
+ * La PRESCRIPCIÓN que se puede ajustar de un ejercicio, y de qué semana es.
+ *
+ * ══ Por qué esto no es «el ejercicio de la semana que estoy revisando» ══════
+ *
+ * Revisar es mirar hacia atrás y ajustar es escribir hacia delante, y confundir
+ * las dos es el fallo que hay que hacer imposible: cambiarle las series a la
+ * semana que ya entrenó reescribe su registro y no le cambia nada de lo que
+ * viene. Por eso esta función busca la ÚLTIMA semana en la que aparece el
+ * ejercicio y solo la devuelve si es POSTERIOR a la revisada.
+ *
+ * Sin semana siguiente devuelve `null`, y quien llama no ofrece el ajuste: no
+ * hay dónde escribirlo todavía, y crear una semana entera no es una decisión que
+ * deba tomar un panel de consulta.
+ *
+ * Devuelve las tres coordenadas que piden las acciones de `useWorkout`
+ * —`weekNumber`, `dayName`, `id`— más lo que hay puesto ahora, para poder
+ * enseñarlo sin volver a buscarlo.
+ */
+export const nextPrescription = ({ microcycles = [], name = '', afterWeek = null } = {}) => {
+  const buscado = String(name || '').trim().toLowerCase();
+  if (!buscado) return null;
+
+  const candidatas = [...microcycles]
+    .filter((m) => Number.isFinite(Number(m?.weekNumber)))
+    .sort((a, b) => Number(b.weekNumber) - Number(a.weekNumber));
+
+  for (const micro of candidatas) {
+    if (afterWeek !== null && Number(micro.weekNumber) <= Number(afterWeek)) return null;
+
+    for (const day of micro.days || []) {
+      const ex = (day.exercises || []).find(
+        (e) => String(e?.name || '').trim().toLowerCase() === buscado
+      );
+      if (!ex) continue;
+
+      return {
+        weekNumber: Number(micro.weekNumber),
+        dayName: day.dayName,
+        id: ex.id,
+        sets: (ex.sets || []).length,
+        /* El objetivo se guarda por serie y se programa por ejercicio: se lee el
+           de la primera, que es el que `updateExerciseTarget` escribe en todas. */
+        targetReps: ex.sets?.[0]?.targetReps || '',
+      };
+    }
+  }
+
+  return null;
+};

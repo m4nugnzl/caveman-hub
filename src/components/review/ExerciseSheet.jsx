@@ -1,9 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { metricColor } from '@/domain/metrics';
 import { LOCALE } from '@/lib/dates';
 import { traeALaVista } from '@/lib/motion';
 import { Sparkline } from '@/components/ui/charts';
+import { Link } from 'react-router-dom';
+import { Minus, Plus } from 'lucide-react';
+
 import { Modal } from '@/components/ui/Modal';
 
 /**
@@ -87,7 +90,76 @@ const PASO = {
   flat: { className: 'delta delta-flat', text: 'igual' },
 };
 
-export const ExerciseSheet = ({ trend, open, onClose }) => {
+/**
+ * ══ EL AJUSTE, AL PIE DEL HISTORIAL ═══════════════════════════════════════
+ *
+ * Es media fase 1 del replanteamiento: **lo que se decide se decide donde se
+ * mira**. Hasta ahora la revisión dejaba tocar la dieta en el sitio y no dejaba
+ * tocar el entreno — para subirle una serie había que salir a su rutina, buscar
+ * el día, buscar el ejercicio y volver—, y eso con la mitad de la pantalla
+ * ocupada por el entreno.
+ *
+ * ── Lo que NO se puede tocar desde aquí, y es lo importante ────────────────
+ * La semana que se está revisando. Revisar es mirar atrás y ajustar es escribir
+ * hacia delante: cambiarle las series a la semana que ya entrenó reescribiría su
+ * registro y no le cambiaría nada de lo que viene. Por eso la prescripción sale
+ * de `nextPrescription`, que solo devuelve algo si el ejercicio existe en una
+ * semana POSTERIOR, y el panel dice en voz alta cuál está cambiando.
+ *
+ * Sin semana siguiente no se ofrece: queda el enlace a su rutina, que es donde
+ * se crea. Crear una semana entera no es una decisión de un panel de consulta.
+ *
+ * ── Y son dos cosas, no todo el editor ────────────────────────────────────
+ * Las series y el objetivo de repeticiones, que es lo que se ajusta leyendo una
+ * revisión. Cambiar el ejercicio, moverlo de día o reordenarlo son gestos de
+ * montar la rutina, y para eso está su pantalla.
+ */
+const AjustarProxima = ({ receta, onSeries, onObjetivo }) => {
+  const [objetivo, setObjetivo] = useState(receta.targetReps || '');
+
+  return (
+    <div className="col gap-2" style={{ width: '100%' }}>
+      <span className="section-label">Para la semana {receta.weekNumber}</span>
+
+      <div className="row gap-3 wrap between">
+        <div className="row gap-2">
+          <button
+            type="button"
+            className="btn btn-icon"
+            onClick={() => onSeries(-1)}
+            disabled={receta.sets <= 1}
+            aria-label="Una serie menos"
+          >
+            <Minus size={14} />
+          </button>
+          <span className="t-sm" style={{ minWidth: 78, textAlign: 'center' }}>
+            {receta.sets} {receta.sets === 1 ? 'serie' : 'series'}
+          </span>
+          <button type="button" className="btn btn-icon" onClick={() => onSeries(1)} aria-label="Una serie más">
+            <Plus size={14} />
+          </button>
+        </div>
+
+        <label className="row gap-2 t-sm">
+          <span className="t-tertiary">Reps</span>
+          <input
+            className="input"
+            style={{ width: 92 }}
+            value={objetivo}
+            placeholder="8-10"
+            onChange={(e) => setObjetivo(e.target.value)}
+            /* Se guarda al salir del campo y no en cada tecla: «8-10» pasa por
+               «8», «8-» y «8-1», y escribir tres objetivos intermedios en las
+               cuatro series de un ejercicio es ruido en la cola de guardado. */
+            onBlur={() => objetivo !== receta.targetReps && onObjetivo(objetivo)}
+          />
+        </label>
+      </div>
+    </div>
+  );
+};
+
+export const ExerciseSheet = ({ trend, open, onClose, ajustar = null, receta = null, onAjustar }) => {
   /* La última sesión, para aterrizar en ella. El registro va de antiguo a nuevo
      —el tiempo baja— así que sin esto la ficha se abre en la primera semana del
      bloque, que es la que menos importa. */
@@ -108,8 +180,34 @@ export const ExerciseSheet = ({ trend, open, onClose }) => {
   const sesiones = trend.sessions;
   const v = trend.verdict ? VEREDICTO[trend.verdict] : null;
 
+  /* Un PANEL y no un diálogo centrado: esto se abre para comparar el
+     historial con la recta que hay debajo, y un diálogo con velo tapa justamente
+     aquello con lo que se compara. Ver `size="side"` en `ui/Modal.jsx`. */
   return (
-    <Modal open={open} title={trend.name} onClose={onClose} size="md">
+    <Modal
+      open={open}
+      title={trend.name}
+      onClose={onClose}
+      size="side"
+      /* La salida a cambiarlo, al pie del panel: se mira el historial para
+         decidir, y decidir aquí es tocarle la rutina. Sin esto, el panel es un
+         archivo que se consulta y se cierra sin poder hacer nada con lo que
+         acabas de ver. */
+      footer={
+        receta ? (
+          <AjustarProxima
+            key={`${trend.name}-${receta.weekNumber}`}
+            receta={receta}
+            onSeries={(paso) => onAjustar?.('series', paso)}
+            onObjetivo={(valor) => onAjustar?.('objetivo', valor)}
+          />
+        ) : ajustar ? (
+          <Link className="btn btn-primary btn-sm" to={ajustar.to} state={ajustar.state}>
+            Ajustar en su rutina
+          </Link>
+        ) : null
+      }
+    >
       <div className="col gap-4">
         {/* ── Lo que la referencia no tenía: ¿va a alguna parte? ────────── */}
         <header className="hist-cabecera">

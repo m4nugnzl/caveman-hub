@@ -68,13 +68,40 @@ export const FoodEquivalences = ({
             <li key={item.food.id || item.food.name} className="equiv-row">
               <span className="who">
                 <span className="name">{item.food.name}</span>
-                <span className="sub">{item.kcal} kcal</span>
+                {/* Las DOS cifras que definen el cambio: los gramos del macro
+                    del grupo y las kcal, cada una con lo que se separa de la
+                    tuya. La ración se elige cuadrando ambas, así que enseñar
+                    solo una escondería en qué se pagó la otra. En tinta de dato;
+                    el color, solo en las diferencias. */}
+                <span className="sub">
+                  {item.macroGrams} g de {nombre}
+                  {item.macroDiff ? <b className={`dif${item.macroDiff > 0 ? ' is-mas' : ' is-menos'}`}>{item.macroDiff > 0 ? '+' : ''}{item.macroDiff}</b> : null}
+                  <span className="sep">·</span>
+                  {item.kcal} kcal
+                  {item.kcalDiff ? <b className={`dif${item.kcalDiff > 0 ? ' is-mas' : ' is-menos'}`}>{item.kcalDiff > 0 ? '+' : ''}{item.kcalDiff}</b> : null}
+                </span>
+                {item.gramsKcal && (
+                  <span className="sub equiv-kcal">
+                    {onSwap ? (
+                      <button
+                        type="button"
+                        className="equiv-kcal-usar"
+                        onClick={() => onSwap({ ...item, grams: item.gramsKcal })}
+                        aria-label={`Cambiar ${food.name} por ${item.gramsKcal} g de ${item.food.name}, con las mismas kcal`}
+                      >
+                        o {item.gramsKcal} g para las mismas kcal
+                      </button>
+                    ) : (
+                      `o ${item.gramsKcal} g para las mismas kcal`
+                    )}
+                  </span>
+                )}
               </span>
               <span className="amount">{racion(item)}</span>
               {onSwap && (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-quiet btn-sm"
                   onClick={() => onSwap(item)}
                   aria-label={`Cambiar ${food.name} por ${racion(item)} de ${item.food.name}`}
                 >
@@ -87,8 +114,8 @@ export const FoodEquivalences = ({
 
         <p className="t-xs t-tertiary">
           {onSwap
-            ? `Se igualan los ${nombre} del grupo; las kcal de cada ración van al lado porque el resto de macros puede variar.`
-            : `Cualquiera de estas raciones vale por la tuya: llevan los mismos ${nombre}. Las kcal pueden variar un poco por el resto de macros.`}
+            ? `Cada ración se ajusta para cuadrar a la vez ${nombre} y kcal: manda el macro del grupo, con un margen del 10 % para no descuadrar el día.`
+            : `Cualquiera de estas raciones vale por la tuya: llevan ${nombre} y kcal muy parecidas. La pequeña diferencia va escrita debajo de cada una.`}
         </p>
 
         {/*

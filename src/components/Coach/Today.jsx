@@ -1,131 +1,215 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Inbox } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Check,
+  ChevronRight,
+  Inbox,
+  MessageCircle,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
-import {
-  ACTIVITY_KINDS,
-  DEFAULT_WINDOW,
-  agenda,
-  buildActivity,
-  groupByDay,
-  activityScale,
-} from '@/domain/today';
+import { TRAMITES_INICIO, buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
+import { ACTIVITY_KINDS, buildActivity } from '@/domain/today';
 import { kindMeta } from '@/domain/calendar';
+import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
-import { traeALaVista } from '@/lib/motion';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
-import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { initials } from '@/lib/initials';
+import { EmptyState, Fold, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
 import { SIN_CAMBIOS, useCloseReview } from '@/components/review/useCloseReview';
-import { TaskInbox } from './TaskInbox';
+import { taskAction } from './TaskInbox';
 import { GettingStarted } from './GettingStarted';
-import { ReviewQueue } from './ReviewQueue';
 
 /**
- * «Hoy»: la pantalla con la que abre el entrenador.
+ * «Inicio»: qué tengo que hacer hoy.
  *
- * Tres piezas, en el orden en que se necesitan:
+ * ══ Por qué ya no es un diario ══════════════════════════════════════════════
  *
- *   1. LA REGLA — catorce días de actividad de toda la cartera. Es la firma
- *      visual del producto y, a la vez, un histograma: un hueco en mitad de la
- *      tira es la cartera parada, y se ve antes de leer una línea.
- *   2. LA BANDEJA — lo que espera respuesta tuya. Corta a propósito.
- *   3. EL HILO — lo que han hecho ellos, por días.
+ * Era un hilo de eventos por día —«Ayer 6 · Martes 2»: pesajes, fotos, entrenos—
+ * con una columna al lado que sumaba un «36» mezclando responder check-ins con
+ * dar acceso al portal. Contaba lo que HA PASADO, y el entrenador abre la
+ * aplicación para saber qué TIENE QUE HACER; ninguna fila llevaba un verbo.
+ * Dos entrenadores lo dijeron igual: «mucha información y no sé qué hacer con
+ * ella».
  *
- * En escritorio la bandeja va a la derecha y se queda fija mientras se recorre el
- * hilo; en móvil se apila ENCIMA, porque es lo accionable y ahí el orden de
- * lectura es el de la página.
+ * Ahora la pantalla son CUATRO COLAS, cada una una pregunta que un entrenador
+ * se hace de verdad, con un número y un verbo:
  *
- * Toda la lógica está en `domain/today.js`. Aquí solo hay presentación.
+ *   Por revisar     ¿a quién le debo respuesta?         → Revisar
+ *   Sin programar   ¿a quién le falta rutina?           → Programar
+ *   Sin señales     ¿quién ha desaparecido?             → Escribir
+ *   Cobros          ¿quién me debe?                     → Cobrar
+ *
+ * La cola elegida se despliega debajo con sus personas y la acción para
+ * vaciarla. Lo que ha pasado no desaparece: baja a una columna de actividad, más
+ * pequeña, al lado de la agenda de la semana. Y los TRÁMITES —dar acceso,
+ * terminar un alta, recordar un check-in— dejan de sumar en la cifra grande:
+ * no son trabajo del oficio, y sumados hacían que el número no dijera nada.
+ *
+ * Las colas salen de `portfolioInbox` y `reviewQueue`, que ya lo calculaban
+ * todo. Esto es pintar de otra forma lo que había, no un motor nuevo.
  */
 
-/*
-  ══ Cada tarea aterriza donde SE HACE, y no en el mismo cajón ════════════════
+/** «miércoles, 26 de agosto» → «Miércoles, 26 de agosto»: es el titular. */
+const capitalizar = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
-  Las nueve llevaban al resumen del cliente. Así que «Responder check-ins» —que
-  es la primera de la lista y lo único que espera POR TI— dejaba en una gráfica
-  de seis meses, sin la entrega delante y sin nada que responder: la tarea decía
-  qué hacer y el destino no dejaba hacerlo.
-
-  Es lo que `producto.md` §4.1 ya pedía: «Hoy», al pulsar sobre un check-in
-  entregado, aterriza en LA SEMANA de esa persona. Las demás siguen el mismo
-  criterio —programar lleva a su rutina, cobrar y dar acceso a su ficha— y lo que
-  no tenga un sitio mejor se queda en el resumen.
-*/
-const DESTINO = {
-  review: 'semana',
-  checkin: 'semana',
-  inactive: 'semana',
-  program: 'rutina',
-  start: 'rutina',
-  access: 'ficha',
-  payment: 'ficha',
-  intake: 'ficha',
-  intake_ready: 'ficha',
+const ESTADO_REVISION = {
+  ready: { label: 'Te espera', tone: 'badge-warn' },
+  missing: { label: 'Sin subir', tone: '' },
 };
 
-/** Título del día, con su recuento. */
-const DayHead = ({ label, count }) => (
-  <div className="feed-date">
-    <span className="k">{label}</span>
-    <span className="n">{count}</span>
+const recordarCheckIn = (client) => {
+  const nombre = (client.name || '').trim().split(/\s+/)[0];
+  const texto = `Hola${nombre ? ` ${nombre}` : ''}, te toca el check-in de esta semana: pésate, hazte las fotos y entrégalo desde tu portal cuando puedas.`;
+  window.open(
+    `https://wa.me/${client.phone.replace(/[^\d]/g, '')}?text=${encodeURIComponent(texto)}`,
+    '_blank',
+    'noopener,noreferrer'
+  );
+};
+
+/** De qué va la revisión de alguien, en una línea: sus respuestas, o su lectura. */
+const resumenDe = (row) =>
+  answersSummary(clientProtocol(row.client.preferences), row.review?.answers) ||
+  row.headline?.text ||
+  [
+    `${row.checkIn.count}/${row.checkIn.target} pesajes`,
+    row.sinceTraining === null ? 'sin entrenos' : `entrenó hace ${row.sinceTraining} d`,
+  ].join(' · ');
+
+/** Una persona de una cola, con lo que hay que hacer con ella. */
+const Persona = ({ row, sub, badge, onOpen, children }) => (
+  <div className="task-row">
+    <button type="button" className="task-hit" onClick={onOpen} aria-label={`Abrir a ${row.client.name}`} />
+    <span className="mark" aria-hidden="true">
+      {initials(row.client.name)}
+    </span>
+    <span className="who">
+      <span className="name">
+        {row.client.name}
+        {badge && <span className={`badge ${badge.tone}`}>{badge.label}</span>}
+      </span>
+      <span className="sub">{sub}</span>
+    </span>
+    {children}
   </div>
 );
 
-const ActivityRow = ({ event, onOpen }) => {
-  const kind = ACTIVITY_KINDS[event.kind];
+const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
+  const [enCurso, setEnCurso] = useState(null);
+  const [escribiendo, setEscribiendo] = useState(null);
+  const [texto, setTexto] = useState('');
+
   return (
-    <button type="button" className="feed-row" onClick={onOpen}>
-      <span className="feed-dot" style={{ background: kind.color }} aria-hidden="true" />
-      <span className="who">{event.clientName}</span>
-      <span className="what">
-        {event.title}
-        {event.detail && <span className="detail"> · {event.detail}</span>}
-      </span>
-      <span className="feed-kind">{kind.label}</span>
-    </button>
-  );
-};
-
-/**
- * Una línea de la agenda: qué hay apuntado, de quién, y el botón de darlo por
- * hecho.
- *
- * El punto de color y la etiqueta salen de `kindMeta` —el mismo mapa que pinta
- * el calendario— y no de una tabla propia: una cita en ámbar aquí y en azul allí
- * son dos productos.
- *
- * Lo vencido no se puede desmarcar desde aquí, solo darlo por hecho. Es lo único
- * que se quiere hacer con algo que se pasó, y el interruptor completo vive en su
- * calendario, que es donde además se puede mover de fecha o borrar.
- */
-const AgendaRow = ({ event, vencido = false, onToggle }) => {
-  const kind = kindMeta(event.kind);
-  return (
-    <div className="list-row">
-      <span className="cal-dot" style={{ background: kind.color, width: 10, height: 10 }} aria-hidden="true" />
-
-      <span className="list-row-label">
-        <Link
-          className="title"
-          to={clientPath(event.clientId, 'calendario')}
-          style={event.done ? { textDecoration: 'line-through' } : undefined}
-        >
-          {event.title}
-        </Link>
-        <span className="sub">
-          {event.clientName} · {vencido ? `se pasó el ${shortDate(event.date)}` : kind.label}
-        </span>
-      </span>
-
-      <button type="button" className="chip" aria-pressed={event.done} onClick={onToggle}>
-        {event.done ? 'Hecho' : 'Marcar hecho'}
-      </button>
+    <div className="task-rows">
+      {lista.map((row) => {
+        const id = row.client.id;
+        const puedeCerrar = row.review_state === 'ready' && row.review.exact && row.review.id;
+        return (
+          <Persona
+            key={id}
+            row={row}
+            sub={resumenDe(row)}
+            badge={ESTADO_REVISION[row.review_state]}
+            onOpen={() => onOpen(id, 'semana')}
+          >
+            {puedeCerrar && (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={enCurso === id}
+                  title="Cierra su semana sin cambios y le llega que está vista"
+                  onClick={async () => {
+                    setEnCurso(id);
+                    await onCerrar(row.review.id, id, SIN_CAMBIOS);
+                    setEnCurso(null);
+                  }}
+                >
+                  <Check size={12} /> {enCurso === id ? 'Guardando…' : 'Seguimos igual'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  aria-expanded={escribiendo === id}
+                  onClick={() => setEscribiendo(escribiendo === id ? null : id)}
+                >
+                  <MessageSquare size={12} /> Contestar
+                </button>
+              </>
+            )}
+            {row.review_state === 'missing' && row.client.phone && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                title="Abrir WhatsApp con el recordatorio escrito"
+                onClick={() => recordarCheckIn(row.client)}
+              >
+                <MessageCircle size={12} /> Recordar
+              </button>
+            )}
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => onOpen(id, 'semana')}>
+              Revisar
+            </button>
+            {escribiendo === id && (
+              <form
+                className="col gap-2 task-respuesta"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const limpio = texto.trim();
+                  if (!limpio) return;
+                  setEnCurso(id);
+                  await onCerrar(row.review.id, id, limpio);
+                  setEnCurso(null);
+                  setTexto('');
+                  setEscribiendo(null);
+                }}
+              >
+                <textarea
+                  autoFocus
+                  className="textarea"
+                  rows={2}
+                  value={texto}
+                  placeholder="Lo que le dirías de esta semana. Lo lee en su portal."
+                  onChange={(e) => setTexto(e.target.value)}
+                />
+                <div className="row gap-2">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={!texto.trim() || enCurso === id}>
+                    Enviar y cerrar
+                  </button>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEscribiendo(null)}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+          </Persona>
+        );
+      })}
     </div>
   );
 };
+
+const ColaTareas = ({ filas, seccion, onOpen, handlers }) => (
+  <div className="task-rows">
+    {filas.map(({ row, taskId }) => {
+      const accion = taskAction(taskId, row, handlers);
+      return (
+        <Persona key={row.client.id} row={row} sub={row.why} onOpen={() => onOpen(row.client.id, seccion)}>
+          {accion && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={accion.onClick} title={accion.title}>
+              <accion.icon size={12} /> {accion.label}
+            </button>
+          )}
+          <ChevronRight size={15} className="chevron" aria-hidden="true" />
+        </Persona>
+      );
+    })}
+  </div>
+);
 
 export const Today = () => {
   const {
@@ -143,127 +227,63 @@ export const Today = () => {
   const toast = useToast();
   const { close } = useCloseReview();
   const [error, setError] = useState(null);
-
   const today = todayISO();
-
-  /*
-    ══ La agenda del día, en UNA consulta ══════════════════════════════════════
-
-    Los eventos son lo único de esta pantalla que no está ya en memoria: crecen
-    sin techo, así que no se cargan al arrancar (`useCalendar.js`). Aquí se piden
-    acotados a la ventana del hilo y para toda la cartera de una vez —RLS decide
-    qué filas salen—, que es lo mismo que hace la agenda del entrenador.
-
-    La ventana se comparte con el hilo a propósito: lo que se reclama como
-    vencido es lo que cabe en la pantalla que lo enseña. Un evento de hace ocho
-    meses sin marcar se queda en el calendario, que es donde se repasa.
-  */
-  const [agendaEvents, setAgendaEvents] = useState([]);
-
-  useEffect(() => {
-    let vivo = true;
-    const desde = addDays(today, -(DEFAULT_WINDOW - 1));
-
-    loadEvents(null, { from: desde, to: today }).then((res) => {
-      /* Sin la migración 0009 la tabla no existe y `loadEvents` devuelve vacío
-         con su motivo. No se pinta error: la agenda es una pieza de más en esta
-         pantalla, y tumbar «Hoy» entera por ella sería desproporcionado. */
-      if (vivo && res.ok) setAgendaEvents(res.events);
-    });
-
-    return () => {
-      vivo = false;
-    };
-  }, [loadEvents, today]);
-
-  const events = useMemo(
-    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today),
-    [clients, training, anthropometry, progressPhotos, checkIns, today]
-  );
 
   const rows = useMemo(
     () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts }, today),
     [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, today]
   );
-
-  /* La MISMA bandeja que calcula el dominio. Antes «Hoy» tenía la suya —tres
-     tipos de aviso contados aparte— y «Clientes» la de verdad, con siete tareas:
-     dos listas de «lo que te espera» que no coincidían. */
-  const inbox = useMemo(() => portfolioInbox(rows), [rows]);
-  const days = useMemo(() => groupByDay(events, today), [events, today]);
-  const scale = useMemo(() => activityScale(events, today, DEFAULT_WINDOW), [events, today]);
-  const dia = useMemo(() => agenda(agendaEvents, clients, today), [agendaEvents, clients, today]);
-
-  /* Marcar hecho es optimista y se corrige si el servidor dice que no: es un
-     toque en una lista, y esperar a la ida y vuelta para tachar una línea se
-     nota. El mismo criterio que `markClientPaid`. */
-  const marcarEvento = async (event, done) => {
-    setAgendaEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done } : e)));
-    const res = await setEventDone(event.id, done);
-    if (!res.ok) {
-      setAgendaEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done: !done } : e)));
-      setError(res.error);
-    }
-  };
-
-  /*
-    ══ En el móvil, el hilo empieza por lo reciente y el resto se pide ═════════
-    Recorriendo esta pantalla a 390 px, la quincena entera eran ~60 filas y
-    cinco pantallas de scroll para llegar al final. Lo que se viene a mirar por
-    la mañana son los últimos días; los once anteriores siguen ahí, detrás de un
-    botón que dice cuántos son. En escritorio no se acota: allí el hilo comparte
-    fila con la bandeja y la quincena entera es la gracia del panel.
-
-    Igual que en la bandeja (`TaskInbox`), el estado inicial se decide al montar.
-  */
-  const [hiloEntero, setHiloEntero] = useState(
-    () => typeof window === 'undefined' || window.matchMedia('(min-width: 1024px)').matches
+  const colas = useMemo(() => colasDeInicio(rows, today), [rows, today]);
+  const tramites = useMemo(
+    () => portfolioInbox(rows).tasks.filter((t) => TRAMITES_INICIO.includes(t.id)),
+    [rows]
   );
-  const DIAS_VISIBLES = 3;
-  const diasVisibles = hiloEntero ? days : days.slice(0, DIAS_VISIBLES);
 
-  /* El salto desde el pulso a un día todavía plegado: primero se despliega el
-     hilo y, cuando el día existe en el DOM, se baja hasta él. */
-  const [saltoPendiente, setSaltoPendiente] = useState(null);
+  /* La cola abierta: la primera con algo dentro, y la que se pulse después. */
+  const [elegida, setElegida] = useState(null);
+  const tieneGente = (c) => c.n > 0 || (c.lista?.length || 0) > 0;
+  const abierta = colas.find((c) => c.id === elegida && tieneGente(c)) || colas.find(tieneGente) || null;
+  const pendientes = colas.reduce((n, c) => n + c.n, 0);
+
+  /* ── La agenda de la semana y la actividad reciente ────────────────────── */
+  const [agendaEvents, setAgendaEvents] = useState([]);
   useEffect(() => {
-    if (!saltoPendiente || !hiloEntero) return;
-    traeALaVista(document.getElementById(`dia-${saltoPendiente}`), {
-      block: 'center',
-      behavior: 'smooth',
+    let vivo = true;
+    loadEvents(null, { from: addDays(today, -14), to: addDays(today, 6) }).then((res) => {
+      if (vivo && res.ok) setAgendaEvents(res.events);
     });
-    setSaltoPendiente(null);
-  }, [saltoPendiente, hiloEntero]);
+    return () => {
+      vivo = false;
+    };
+  }, [loadEvents, today]);
 
-  const irAlDia = (date) => {
-    if (!hiloEntero && days.findIndex((d) => d.date === date) >= DIAS_VISIBLES) {
-      setHiloEntero(true);
-      setSaltoPendiente(date);
-      return;
+  const semana = useMemo(() => {
+    const nombres = new Map(clients.map((c) => [c.id, c.name]));
+    const fila = (e) => ({ ...e, clientName: nombres.get(e.clientId) || 'Cliente dado de baja' });
+    const utiles = agendaEvents.filter((e) => e?.date && e.kind !== 'checkin');
+    const vencidos = utiles
+      .filter((e) => e.date < today && !e.done)
+      .map(fila)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const porDia = new Map();
+    for (const e of utiles.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date))) {
+      if (!porDia.has(e.date)) porDia.set(e.date, []);
+      porDia.get(e.date).push(fila(e));
     }
-    traeALaVista(document.getElementById(`dia-${date}`), { block: 'center', behavior: 'smooth' });
-  };
+    const etiqueta = (date) =>
+      date === today ? 'Hoy' : date === addDays(today, 1) ? 'Mañana' : weekdayName(`${date}T00:00:00Z`);
+    const dias = [...porDia.entries()].map(([date, eventos]) => ({ date, label: etiqueta(date), eventos }));
+    return { vencidos, dias, total: vencidos.length + dias.reduce((n, d) => n + d.eventos.length, 0) };
+  }, [agendaEvents, clients, today]);
 
-  const maxCount = Math.max(1, ...scale.map((d) => d.count));
-  const activeToday = scale[scale.length - 1]?.count || 0;
+  const actividad = useMemo(
+    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today, 2).slice(0, 8),
+    [clients, training, anthropometry, progressPhotos, checkIns, today]
+  );
 
+  /* ── Acciones ──────────────────────────────────────────────────────────── */
   const open = (clientId, section) => navigate(clientPath(clientId, section));
 
-  const abrirTarea = (clientId, taskId) => open(clientId, DESTINO[taskId] || 'resumen');
-
-  /*
-    ══ Cerrar una revisión, en un solo sitio ══════════════════════════════════
-
-    La misma fila pendiente se puede cerrar desde DOS piezas de esta pantalla —la
-    cola de revisiones y la bandeja de tareas— y desde otras dos fuera de ella: la
-    semana del cliente y la barra de la revisión. Cada una lo hacía por su cuenta,
-    y la bandeja lo hacía sin la foto del plan —que es opcional en la firma— así
-    que cerrar por un lado o por el otro dejaba rastros distintos: unas revisiones
-    con su plan congelado y otras con `null` según por dónde se hubiera pulsado.
-
-    Eso es un hueco que no se puede rellenar después: la foto vale porque se toma
-    EN EL MOMENTO de revisar. Ahora las cuatro pasan por `useCloseReview`, y no
-    hay ninguna forma de cerrar una revisión sin ella.
-  */
   const cerrarRevision = async (reviewId, clientId, notas = SIN_CAMBIOS) => {
     const cliente = clients.find((c) => c.id === clientId);
     const res = await close({
@@ -276,239 +296,197 @@ export const Today = () => {
     setError(res?.ok === false ? res.error : null);
   };
 
+  const handlers = {
+    paid: (clientId) => {
+      const res = markClientPaid(clientId);
+      setError(res?.ok === false ? res.error : null);
+      if (res?.ok === false) return;
+      const nombre = clients.find((c) => c.id === clientId)?.name || 'el cliente';
+      toast({
+        text: `Cobro de ${nombre} anotado y fecha adelantada.`,
+        action: { label: 'Deshacer', onClick: () => res.undo() },
+      });
+    },
+    review: (reviewId, clientId) => cerrarRevision(reviewId, clientId),
+    invite: () => navigate('/clientes'),
+  };
+
+  const marcarEvento = async (event, done) => {
+    setAgendaEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done } : e)));
+    const res = await setEventDone(event.id, done);
+    if (!res.ok) {
+      setAgendaEvents((prev) => prev.map((e) => (e.id === event.id ? { ...e, done: !done } : e)));
+      setError(res.error);
+    }
+  };
+
   if (clients.length === 0) {
     return (
       <EmptyState
         icon={Inbox}
-        title="Todavía no hay nada que contar"
-        message="En cuanto des de alta a tu primer cliente, aquí aparecerá lo que va haciendo: sus entrenos, sus pesajes y sus fotos, en orden."
+        title="Todavía no hay nada que hacer"
+        message="En cuanto des de alta a tu primer cliente, aquí verás a quién le debes respuesta, a quién le falta rutina y quién te debe."
       />
     );
   }
 
   return (
     <div className="stack">
-      {/* La fecha es el REMATE del título, en cursiva y en minúscula, como los
-          titulares de la portada: «Hoy, martes 19 de agosto». La línea de abajo
-          se queda con lo único que cambia a lo largo del día. */}
       <PageHead
-        title="Hoy,"
-        remate={weekdayName(`${today}T00:00:00Z`, { conFecha: true })}
+        title={capitalizar(weekdayName(`${today}T00:00:00Z`, { conFecha: true }))}
         sub={
-          activeToday > 0
-            ? `${activeToday} ${activeToday === 1 ? 'movimiento' : 'movimientos'} de tu cartera`
-            : 'Sin movimiento todavía'
+          pendientes === 0
+            ? `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'} · nada pendiente`
+            : `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'} · ${pendientes} ${pendientes === 1 ? 'cosa por hacer' : 'cosas por hacer'}`
         }
       />
-
       {error && <Notice tone="error">{error}</Notice>}
-
-      {/* La guía de las primeras veces. Se cierra y no vuelve. */}
       <GettingStarted />
 
-      {/*
-        ══ La pasada semanal, antes que el hilo ═══════════════════════════════
+      {/* ── Las cuatro colas ──────────────────────────────────────────────── */}
+      <div className="colas" role="tablist" aria-label="Qué tienes que hacer">
+        {colas.map((cola) => {
+          const activa = abierta?.id === cola.id;
+          return (
+            <button
+              key={cola.id}
+              type="button"
+              role="tab"
+              aria-selected={activa}
+              className={`cola${activa ? ' is-on' : ''}${tieneGente(cola) ? '' : ' is-vacia'}`}
+              disabled={!tieneGente(cola)}
+              onClick={() => setElegida(cola.id)}
+            >
+              <span className="cola-k">{cola.label}</span>
+              <span className="cola-n">
+                {cola.n}
+                <small>{cola.n === 0 ? 'nadie' : cola.sub}</small>
+              </span>
+              <span className="cola-verbo">{cola.n > 0 ? `${cola.verbo} →` : tieneGente(cola) ? 'Recordar →' : 'Al día'}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        El hilo de abajo cuenta lo que HA PASADO —es el pulso de la cartera— y
-        eso se mira; la pasada es lo que hay que HACER, y eso se trabaja. Debajo
-        de catorce días de actividad, la lista de a quién le debes una respuesta
-        quedaba fuera de la primera pantalla.
-
-        No sustituye a la bandeja de tareas: aquélla ordena por tipo de trabajo
-        —cobrar, dar acceso, programar— y ésta recorre a las personas una por una,
-        que es el gesto del lunes.
-      */}
-      <ReviewQueue
-        rows={rows}
-        /* La misma foto del plan que guarda la bandeja: cerrar desde aquí o desde
-           allí tiene que dejar el mismo rastro, o el histórico saldría con huecos
-           según por dónde se cerrara. Por eso las dos pasan por `cerrarRevision`. */
-        onReview={(id, notas, clientId) => cerrarRevision(id, clientId, notas)}
-      />
-
-      {/* ── EL PULSO ────────────────────────────────────────────────────────
-          Catorce días, uno por marca. La barra es cuántas cosas pasaron; la
-          marca de abajo existe aunque el día esté vacío, porque una escala a la
-          que le faltan las marcas vacías deja de ser una escala.
-
-          Ya no es una tarjeta: es una FRANJA del lienzo, entre dos filetes,
-          como las bandas de la portada. Un instrumento de medida no va dentro
-          de una caja con título — la escala ES la pieza, y encajonarla la
-          convertía en un panel más de la pila. */}
-      <section className="franja" aria-label="El pulso de la cartera">
-        <div className="franja-head">
-          <span className="section-label">El pulso de la cartera</span>
-          <span className="franja-hint">
-            {DEFAULT_WINDOW} días · {events.length} {events.length === 1 ? 'registro' : 'registros'}
-          </span>
-        </div>
-        {/*
-          ══ La escala también es el ÍNDICE del hilo ════════════════════════════
-
-          La información de cada día vivía solo en `title`, que en una pantalla
-          táctil no existe — y el panel se usa también desde el móvil—. Ahora un
-          día con actividad es un botón que lleva a ese día en el hilo de abajo:
-          el instrumento que mide la quincena sirve además para recorrerla.
-
-          Los días vacíos siguen siendo marcas mudas: no hay nada a lo que ir, y
-          un botón que no lleva a ninguna parte es un control falso. Por lo
-          mismo, el contenedor ya no es `role="img"` —eso volvería presentacional
-          todo lo de dentro, botones incluidos— sino un grupo con nombre.
-        */}
-        <div
-          className="scale"
-          role="group"
-          aria-label={`Actividad de los últimos ${DEFAULT_WINDOW} días: ${events.length} registros en total.`}
-        >
-          {scale.map((day) => {
-            const etiqueta = `${shortDate(day.date)}: ${day.count} ${day.count === 1 ? 'registro' : 'registros'}`;
-            const dentro = (
-              <>
-                <span className="scale-track">
-                  <span
-                    className="scale-bar"
-                    style={{ height: `${day.count === 0 ? 0 : Math.max(9, (day.count / maxCount) * 100)}%` }}
-                  />
-                </span>
-                <span className="scale-tick" aria-hidden="true" />
-              </>
-            );
-
-            return day.count > 0 ? (
-              <button
-                key={day.date}
-                type="button"
-                className={`scale-day${day.isToday ? ' is-today' : ''}`}
-                title={`${etiqueta} · ver ese día en el hilo`}
-                aria-label={`${etiqueta}. Ver ese día en el hilo.`}
-                onClick={() => irAlDia(day.date)}
-              >
-                {dentro}
-              </button>
-            ) : (
-              <div
-                key={day.date}
-                className={`scale-day${day.isToday ? ' is-today' : ''}`}
-                title={etiqueta}
-                aria-hidden="true"
-              >
-                {dentro}
-              </div>
-            );
-          })}
-        </div>
-        <div className="scale-legend">
-          <span>{shortDate(scale[0]?.date)}</span>
-          <span className="is-hoy">hoy</span>
-        </div>
-      </section>
-
-      <div className="trabajo">
-        {/* ── EL HILO ──────────────────────────────────────────────────── */}
+      <div className="inicio">
         <section className="col gap-5">
-          {days.length === 0 ? (
-            <Panel title="Dos semanas en silencio" className="col gap-2">
-              <p className="t-sm t-secondary">
-                Nadie ha registrado un entreno, un pesaje ni una foto en catorce días. Si tus
-                clientes entrenan pero no lo anotan, revisa que tengan acceso a su portal desde
-                «Clientes».
-              </p>
+          {abierta ? (
+            <Panel
+              title={abierta.label}
+              sub={abierta.id === 'revisar' ? 'Primero quien lleva más tiempo esperando' : abierta.sub}
+              className="col gap-3"
+            >
+              {abierta.id === 'revisar' ? (
+                <ColaRevisar lista={abierta.lista} onOpen={open} onCerrar={cerrarRevision} />
+              ) : (
+                <ColaTareas filas={abierta.filas} seccion={abierta.seccion} onOpen={open} handlers={handlers} />
+              )}
             </Panel>
           ) : (
-            diasVisibles.map((day) => (
-              /* El `id` es el ancla a la que saltan las barras del pulso. */
-              <section className="feed-day" id={`dia-${day.date}`} key={day.date}>
-                <DayHead label={day.label} count={day.events.length} />
-                <div className="feed-rows">
-                  {day.events.map((event) => (
-                    <ActivityRow
-                      key={event.id}
-                      event={event}
-                      onOpen={() => open(event.clientId, ACTIVITY_KINDS[event.kind].section)}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))
+            <Panel className="card-lumbre">
+              <div className="empty">
+                <span className="empty-icon">
+                  <Sparkles size={26} />
+                </span>
+                <h3>Todo al día</h3>
+                <p>Nadie espera respuesta, todos tienen rutina y no hay cobros pendientes.</p>
+              </div>
+            </Panel>
           )}
 
-          {/* El resto de la quincena, con la cuenta delante: un «ver más» sin
-              número no dice si esconde dos días o doce. */}
-          {!hiloEntero && days.length > DIAS_VISIBLES && (
-            <button type="button" className="btn btn-secondary" onClick={() => setHiloEntero(true)}>
-              Ver los {days.length - DIAS_VISIBLES} días anteriores
-            </button>
+          {tramites.length > 0 && (
+            <Panel title="Trámites" sub="Lo administrativo, para cuando tengas un hueco" className="col gap-3">
+              {tramites.map((task) => (
+                <Fold
+                  key={task.id}
+                  title={task.label}
+                  summary={`${task.rows.length} ${task.rows.length === 1 ? 'persona' : 'personas'}`}
+                >
+                  <ColaTareas filas={task.rows.map((row) => ({ row, taskId: task.id }))} seccion={task.seccion} onOpen={open} handlers={handlers} />
+                </Fold>
+              ))}
+            </Panel>
           )}
         </section>
 
-        {/* ── LA BANDEJA ───────────────────────────────────────────────── */}
-        <aside className="trabajo-side">
+        {/* ── La semana y lo que ha pasado ───────────────────────────────── */}
+        <aside className="inicio-lado">
           <Panel
-            title="Te esperan"
-            action={<span className="badge">{inbox.tasks.reduce((n, t) => n + t.rows.length, 0)}</span>}
+            title="Esta semana"
+            action={semana.total > 0 ? <span className="badge">{semana.total}</span> : null}
             className="col gap-3"
           >
-            <TaskInbox
-              tasks={inbox.tasks}
-              onOpen={abrirTarea}
-              handlers={{
-                /* Marcar cobrado adelanta también la fecha al ciclo siguiente.
-                   Antes solo cambiaba el estado, así que el cobro volvía a
-                   reclamarse al día siguiente con la fecha vieja puesta. Lo hace
-                   `markClientPaid`, que es la misma acción que usa la ficha, y
-                   que además lo apunta en el libro de cobros.
-
-                   El «Deshacer» del aviso es su `undo`: revierte la ficha Y
-                   borra el apunte. Que cada pantalla compusiera el inverso por su
-                   cuenta es lo que esa acción vino a evitar. */
-                paid: (clientId) => {
-                  const res = markClientPaid(clientId);
-                  setError(res?.ok === false ? res.error : null);
-                  if (res?.ok === false) return;
-
-                  const nombre = clients.find((c) => c.id === clientId)?.name || 'el cliente';
-                  toast({
-                    text: `Cobro de ${nombre} anotado y fecha adelantada.`,
-                    action: {
-                      label: 'Deshacer',
-                      onClick: () => res.undo(),
-                    },
-                  });
-                },
-                review: (reviewId, clientId) => cerrarRevision(reviewId, clientId),
-                invite: () => navigate('/clientes'),
-              }}
-              emptyMessage="Nada pendiente por tu parte. Cuando alguien entregue su check-in o venza un cobro, aparecerá aquí."
-            />
-          </Panel>
-
-          {/*
-            ── LA AGENDA ────────────────────────────────────────────────────
-            Debajo de «Te esperan» y no encima: lo que otro ha entregado y
-            espera respuesta manda sobre lo que te apuntaste tú.
-
-            Solo se pinta si hay algo. Un panel permanentemente vacío en la
-            columna de lo accionable enseña a saltársela, y esta columna es lo
-            único de la pantalla que hay que mirar entero.
-          */}
-          {(dia.today.length > 0 || dia.overdue.length > 0) && (
-            <Panel
-              title="En la agenda"
-              action={dia.count > 0 ? <span className="badge">{dia.count}</span> : null}
-              className="col gap-3"
-            >
-              <div className="list">
-                {dia.overdue.map((event) => (
-                  <AgendaRow key={event.id} event={event} vencido onToggle={() => marcarEvento(event, true)} />
-                ))}
-                {dia.today.map((event) => (
-                  <AgendaRow key={event.id} event={event} onToggle={() => marcarEvento(event, !event.done)} />
+            {semana.total === 0 ? (
+              <p className="t-sm t-secondary">Nada apuntado en la agenda hasta el domingo.</p>
+            ) : (
+              <div className="agenda">
+                {semana.vencidos.length > 0 && (
+                  <div className="agenda-dia is-vencido">
+                    <span className="agenda-k">Se pasó</span>
+                    {semana.vencidos.map((e) => (
+                      <AgendaFila key={e.id} event={e} fecha onToggle={() => marcarEvento(e, true)} />
+                    ))}
+                  </div>
+                )}
+                {semana.dias.map((dia) => (
+                  <div key={dia.date} className={`agenda-dia${dia.date === today ? ' is-hoy' : ''}`}>
+                    <span className="agenda-k">{dia.label}</span>
+                    {dia.eventos.map((e) => (
+                      <AgendaFila key={e.id} event={e} onToggle={() => marcarEvento(e, !e.done)} />
+                    ))}
+                  </div>
                 ))}
               </div>
-            </Panel>
-          )}
+            )}
+          </Panel>
+
+          <Panel title="Actividad" sub="Últimas 48 horas" className="col gap-3">
+            {actividad.length === 0 ? (
+              <p className="t-sm t-secondary">Nadie ha registrado nada en dos días.</p>
+            ) : (
+              <div className="actividad">
+                {actividad.map((event) => {
+                  const kind = ACTIVITY_KINDS[event.kind];
+                  return (
+                    <button
+                      key={event.id}
+                      type="button"
+                      className="actividad-fila"
+                      onClick={() => open(event.clientId, kind.section)}
+                    >
+                      <span className="feed-dot" style={{ background: kind.color }} aria-hidden="true" />
+                      <span className="who">{event.clientName}</span>
+                      <span className="what">
+                        {event.title}
+                        {event.detail && <span className="detail"> · {event.detail}</span>}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
         </aside>
       </div>
+    </div>
+  );
+};
+
+const AgendaFila = ({ event, fecha = false, onToggle }) => {
+  const kind = kindMeta(event.kind);
+  return (
+    <div className="agenda-fila">
+      <span className="cal-dot" style={{ background: kind.color }} aria-hidden="true" />
+      <span className="agenda-que">
+        <span className={`title${event.done ? ' is-hecho' : ''}`}>{event.title}</span>
+        <span className="sub">
+          {event.clientName}
+          {fecha ? ` · ${shortDate(event.date)}` : ''}
+        </span>
+      </span>
+      <button type="button" className="chip" aria-pressed={event.done} onClick={onToggle}>
+        {event.done ? 'Hecho' : 'Marcar hecho'}
+      </button>
     </div>
   );
 };

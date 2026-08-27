@@ -147,7 +147,7 @@ export const ProfileBlock = ({ client, group, onSave }) => {
       className="col gap-3"
       action={
         !editando && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={abrir}>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={abrir}>
             <Pencil size={13} /> {filas.length > 0 ? 'Editar' : 'Rellenar'}
           </button>
         )
@@ -172,7 +172,7 @@ export const ProfileBlock = ({ client, group, onSave }) => {
             </button>
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={() => setEditando(false)}
             >
               Cancelar

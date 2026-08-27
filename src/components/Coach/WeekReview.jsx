@@ -7,6 +7,7 @@ import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
 import { checkinQuestions, clientProtocol } from '@/domain/protocol';
 import { readingHeadline, weeklyReading } from '@/domain/reading';
+import { phaseAt, phaseProgress } from '@/domain/roadmap';
 import {
   answerTrend,
   pendingReviews,
@@ -17,6 +18,7 @@ import {
 } from '@/domain/reviews';
 import { nutritionTrack, reviewTimeline, timelineSummary } from '@/domain/timeline';
 import { clientWeek, exerciseHistory, latestActiveWeek } from '@/domain/week';
+import { blockChanges } from '@/domain/blocks';
 import { shortDate, todayISO } from '@/lib/dates';
 import { useElementWidth } from '@/lib/useElementWidth';
 import { Delta } from '@/components/ui/metrics';
@@ -25,7 +27,8 @@ import { Delta } from '@/components/ui/metrics';
    TÍTULO de verdad con su frase debajo — que es media corrección de esta
    pantalla. Usar `Panel` obligaría a pasarle un `title` vacío y a montar la
    cabecera por fuera igualmente. */
-import { EmptyState, PageHead } from '@/components/ui/primitives';
+import { EmptyState } from '@/components/ui/primitives';
+import { Mando } from '@/components/ui/Mando';
 import { Gallery } from '@/components/photos/Gallery';
 import { TimelineSpine } from '@/components/review/TimelineSpine';
 import { useTimelineWindow } from '@/components/review/useTimelineWindow';
@@ -152,6 +155,7 @@ export const WeekReview = () => {
     progressPhotos,
     checkIns,
     nutrition,
+    phases,
     ensurePhotoUrls,
   } = useApp();
 
@@ -570,6 +574,26 @@ export const WeekReview = () => {
     para que la ficha de alguien y la lista de clientes no puedan dar dos
     veredictos distintos de la misma persona.
   */
+  /*
+    ══ EL VEREDICTO SE JUZGA CONTRA EL BLOQUE, NO CONTRA EL OBJETIVO GENERAL ══
+
+    Esto es un arreglo, no un añadido. `weeklyReading` acepta `phases` desde el
+    principio y por dentro llama a `effectiveGoal`, que es lo que hace que el
+    objetivo salga de la FASE que cubre el día leído y solo se caiga al
+    `preferences.goal` cuando no hay ninguna. La cabecera de `domain/roadmap.js`
+    lo dice con todas las letras: «el día que empieza el volumen, subir de peso
+    pasa a leerse como en rumbo sin que nadie tenga que acordarse de tocar nada».
+
+    No se le pasaban. Sin `phases`, el parámetro cae a `[]`, `phaseAt` no
+    encuentra nada y el veredicto se calcula contra el objetivo general del
+    cliente — así que a alguien en un bloque de volumen, subir de peso le salía
+    como «en dirección contraria» aunque fuera exactamente lo que le habías
+    pedido. Un veredicto que contradice tu propia prescripción es peor que no
+    tener veredicto: enseña a ignorar la chapa.
+
+    De las diecinueve pantallas, solo la analítica pasaba las fases. Aquí se
+    arregla la revisión, que es donde ese veredicto decide algo.
+  */
   const veredicto = useMemo(() => {
     if (!activeClient) return null;
     return readingHeadline(
@@ -579,9 +603,52 @@ export const WeekReview = () => {
         microcycles: [],
         history,
         today: todayISO(),
+        phases,
       }).filter((f) => f.id === 'rate')
     );
-  }, [activeClient, history]);
+  }, [activeClient, history, phases]);
+
+  /*
+    ══ CONTRA QUÉ se está revisando, dicho en la cabecera ═════════════════════
+
+    Un veredicto sin etapa es un veredicto suelto: dice «+0,45 kg/semana, en
+    dirección contraria» y no dice contraria A QUÉ. La etapa —«definición»,
+    «volumen»— es lo que le da sentido, y ya está en `domain/roadmap.js`: tramos
+    con objetivo y fechas, sin solape, con su progreso.
+
+    ── Y NO es una periodización por bloques ──────────────────────────────────
+    Se dice aquí porque el vocabulario importa: esto no es powerlifting y no hay
+    bloques cerrados que se ejecutan y se evalúan. En culturismo se monta una
+    rutina y se AJUSTA sobre la marcha; la etapa es solo la dirección en la que
+    se está yendo durante una temporada, y muchos clientes no tendrán ninguna.
+
+    Por eso esta línea solo aparece si el entrenador ha marcado una: sin etapa,
+    la cabecera se queda exactamente como estaba.
+  */
+  const bloque = useMemo(() => {
+    const fase = phaseAt(phases, datos.weekStart || todayISO());
+    if (!fase) return null;
+    const avance = phaseProgress(fase, datos.weekStart || todayISO());
+    const semanaDeFase = avance ? Math.max(1, Math.ceil(avance.elapsed / 7)) : null;
+    const totalDeFase = avance && avance.total ? Math.ceil(avance.total / 7) : null;
+    return [
+      fase.title,
+      semanaDeFase && totalDeFase
+        ? `semana ${semanaDeFase} de ${totalDeFase}`
+        : semanaDeFase
+          ? `semana ${semanaDeFase}`
+          : null,
+      /* Y el aviso de que la etapa se acaba, solo si el entrenador le puso
+         fecha de fin. No decide nada ni propone nada: dice que la fecha que él
+         mismo marcó está encima, que es lo que la aplicación sabía y no contaba
+         en ninguna parte. Dónde se contesta ya existe, en «Progreso». */
+      avance && !avance.open && avance.weeksLeft !== null && avance.weeksLeft <= 1
+        ? 'su etapa termina esta semana'
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }, [phases, datos.weekStart]);
 
   /*
     ══ LA PASADA ═════════════════════════════════════════════════════════════
@@ -630,14 +697,11 @@ export const WeekReview = () => {
   if (semanas.length === 0) {
     return (
       <div className="stack">
-        <PageHead
-          title="Revisión"
-          sub={`Todavía no le has montado ningún microciclo a ${activeClient.name}.`}
-        />
+        <Mando contexto="Todavía no tiene ninguna semana montada." />
         <EmptyState
           icon={ClipboardCheck}
           title="Aún no hay ninguna semana que cerrar"
-          message="Móntale su primera semana en «Rutina» y aquí aparecerá lo que hace con ella, lo que entrega y el sitio para contestarle."
+          message="Móntale su primera semana en «Entreno» y aquí aparecerá lo que hace con ella, lo que entrega y el sitio para contestarle."
         />
       </div>
     );
@@ -650,12 +714,16 @@ export const WeekReview = () => {
         es el dato, no la tarea—. Y las dos chapas de estado juntas: cómo va esta
         persona, y por dónde vas tú.
       */}
-      <PageHead
-        title="Revisión"
-        remate={`de ${activeClient.name.split(' ')[0]}`}
-        sub={[
-          `Semana ${semana}`,
-          datos.weekStart ? `del ${shortDate(datos.weekStart)}` : null,
+      {/* La unidad es la semana, no la persona: quién es ya lo dice la cabecera.
+          Y es la fila de mando de Entreno: la semana a la izquierda, en voz baja
+          de cuándo es y cómo va, y a la derecha por dónde vas tú en la pasada. */}
+      <Mando
+        titulo={`Semana ${semana}`}
+        contexto={[
+          datos.weekStart && `del ${shortDate(datos.weekStart)}`,
+          /* El bloque va DELANTE del estado de la entrega: es contra lo que se
+             revisa, y lo otro es por dónde vas tú. */
+          bloque,
           pendiente ? 'entregó y espera tu respuesta' : 'sin nada pendiente por tu parte',
         ]
           .filter(Boolean)
@@ -667,7 +735,7 @@ export const WeekReview = () => {
           que juzga, en la esquina opuesta de la pantalla. Un veredicto lejos de
           su dato es una etiqueta suelta.
         */
-        action={
+        acciones={
           pasada.length > 1 && posicion > 0 ? (
             <span className="badge">
               {posicion} de {pasada.length}
@@ -702,19 +770,34 @@ export const WeekReview = () => {
               {resumen?.delta !== null && resumen?.delta !== undefined && (
                 <Delta value={resumen.delta} unit=" kg" lowerIsBetter />
               )}
+
+              {/*
+                El veredicto, EN la línea de la cifra que juzga. Es la única
+                frase que contesta la pregunta con la que se entra a revisar, y
+                se calcula igual que en la lista de clientes —mismo
+                `weeklyReading`, mismo filtro— para que la ficha de alguien y la
+                lista no puedan dar dos veredictos distintos de la misma persona.
+
+                ── Estaba al otro lado de la tarjeta ──────────────────────────
+                Era hermano de este bloque dentro de una cabecera con
+                `space-between`, o sea pegado al canto derecho: en una pantalla
+                ancha, a mil doscientos píxeles del número que juzga y a la
+                misma altura que el rótulo. Se había bajado aquí precisamente
+                para que no estuviera lejos, y el reparto de la fila lo devolvía
+                a la esquina.
+
+                Aquí va detrás de la píldora de variación, que es su orden
+                natural: cuánto ha cambiado y qué significa eso.
+              */}
+              {veredicto && (
+                <span className={`badge ${TONO_BADGE[veredicto.tone] || ''}`}>
+                  {veredicto.text}
+                </span>
+              )}
             </p>
 
             <p className="revision-hero-meta">{contexto}</p>
           </div>
-
-          {/* El veredicto, al lado de la cifra que juzga. Es la única línea que
-              contesta la pregunta con la que se entra a revisar, y se calcula
-              EXACTAMENTE igual que en la lista de clientes —mismo
-              `weeklyReading`, mismo filtro— para que la ficha de alguien y la
-              lista no puedan dar dos veredictos distintos de la misma persona. */}
-          {veredicto && (
-            <span className={`badge ${TONO_BADGE[veredicto.tone] || ''}`}>{veredicto.text}</span>
-          )}
         </header>
 
         {/* El ancho se mide en este envoltorio y no en la tarjeta: la tarjeta
@@ -727,6 +810,7 @@ export const WeekReview = () => {
             onSelect={irA}
             onStep={paso}
             ancho={ancho}
+            cambios={blockChanges(workoutData[activeClient?.id])}
             /* El proceso entero, como pie y solo cuando la ventana recorta: es
                el salto largo —irse a la semana 5 de un cliente de seis meses sin
                pasar por las otras diecinueve— y con una ventana que las abarca

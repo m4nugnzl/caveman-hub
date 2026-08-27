@@ -10,9 +10,8 @@ import {
   LifeBuoy,
   Plug,
   Ruler,
-  Palette,
   Salad,
-  Sunrise,
+  Home,
   Users,
   UsersRound,
   Wallet,
@@ -41,8 +40,8 @@ import { isServiceOn } from '@/domain/protocol';
  * Ahora hay tres planos, y dos de ellos nunca coinciden:
  *
  *   1. **Primario** (siempre visible): Cartera · Clientes · Ajustes. Tres.
- *   2. **Del cliente** (solo dentro de `/c/:id/…`): sus siete secciones, con su
- *      nombre delante para que se vea de quién estás hablando.
+ *   2. **Del cliente** (solo dentro de `/c/:id/…`): sus cinco pestañas planas
+ *      —Resumen · Entreno · Dieta · Revisiones · Perfil—. Ver `COACH_CLIENT`.
  *   3. **De ajustes** (solo dentro de `/ajustes/…`): equipo, integraciones y lo
  *      que venga.
  *
@@ -131,10 +130,20 @@ import { isServiceOn } from '@/domain/protocol';
   su sitio ya no es el tercero.
 */
 export const COACH_PRIMARY = [
-  { path: '/hoy', label: 'Hoy', icon: Sunrise },
+  { path: '/hoy', label: 'Inicio', icon: Home },
   { path: '/clientes', label: 'Clientes', icon: Users },
-  { path: '/ingresos', label: 'Ingresos', icon: Wallet },
-  { path: '/calendario', label: 'Calendario', icon: CalendarDays },
+  { path: '/ingresos', label: 'Cobros', icon: Wallet },
+  /*
+    Se llamaba «Calendario», igual que el calendario de UN cliente, y son dos
+    cosas: aquí se mira la semana entera de la cartera y allí se le pone la pauta
+    a una persona. Dos entradas con el mismo nombre a dos clics una de otra es de
+    donde sale «esto marea».
+
+    «Agenda» es la palabra que ya usaba el razonamiento de esta entrada cuando se
+    añadió: «había veinte calendarios y ninguna agenda». Era el nombre correcto
+    desde el principio.
+  */
+  { path: '/calendario', label: 'Agenda', icon: CalendarDays },
 ];
 
 /** Nivel 2: las secciones de UN cliente. Cuelgan de `/c/:clientId/`. */
@@ -149,10 +158,11 @@ export const COACH_CLIENT = [
 
     Va delante de todas porque el orden del carril es el del trabajo y esto es lo
     que se hace más veces: programar se toca cada varias semanas, revisar es cada
-    lunes con todo el mundo. Las demás no se tocan —la rutina completa, la dieta
-    y el análisis siguen donde estaban— porque son otro horizonte de tiempo, y
-    reagruparlas de verdad es un paso que no se da sin haber usado esto un ciclo
-    entero (ver `docs/producto.md`, fase 5).
+    lunes con todo el mundo.
+
+    Cuando esto se escribió, las demás secciones seguían sueltas porque
+    reagruparlas «de verdad» se daba por un paso caro. Ya están agrupadas, y no
+    lo era: ver el bloque de arriba.
   */
   /*
     ══ Y se llama «Revisión», que es lo que se pulsa ══════════════════════════
@@ -176,13 +186,55 @@ export const COACH_CLIENT = [
     tabla de redirecciones—. El documento nombra esta sección «Su semana»; se
     queda el nombre que el entrenador busca de verdad, que es el otro.
   */
-  {
-    path: 'semana',
-    label: 'Revisión',
-    short: 'Revisión',
-    icon: CalendarCheck,
-    also: ['revision', 'revision/fotos', 'revision/estudio'],
-  },
+  /*
+    ══════════════════════════════════════════════════════════════════════════
+    LAS SECCIONES DE UN CLIENTE SON SUS HORIZONTES DE TIEMPO, NO SUS TABLAS
+    ══════════════════════════════════════════════════════════════════════════
+
+    Eran seis: Revisión · Progreso · Rutina · Nutrición · Calendario · Ficha. Que
+    es, casi exactamente, la lista de tablas de la base de datos —`workout_data`,
+    `nutrition_plans`, `anthropometry`, `calendar`, `clients`—, y por tanto un
+    menú dibujado desde el modelo de datos y no desde el trabajo.
+
+    El precio lo pagaba la única tarea que este producto hace mejor que una hoja
+    de cálculo: cerrar la semana de alguien cruzaba CUATRO de las seis, cada una
+    con su cabecera y su vocabulario. Dos entrenadores lo dijeron con las mismas
+    palabras sin haber hablado entre ellos: «zonas que se interconectan y
+    marean».
+
+    Ahora la pregunta que ordena el menú no es «¿qué tipo de dato quiero tocar?»
+    sino «¿de cuándo estamos hablando?», que es la que un entrenador se hace de
+    verdad:
+
+      Revisiones  esta semana    qué le puse, qué hizo, qué me entregó, qué le digo
+      Entreno     este bloque    qué le tengo montado y qué le cambio
+      Dieta       este bloque    qué come
+      Resumen     estos meses    ¿esto está funcionando?
+      Perfil      siempre        quién es, qué paga, sus fechas
+
+    (Los nombres de esta tabla son los de agosto de 2026; el razonamiento de
+    abajo es anterior y habla de «Plan», que fue una agrupación que se probó y
+    se deshizo: Entreno y Dieta son pestañas propias.)
+
+    ── Y NO se ha movido ni una URL ───────────────────────────────────────────
+    `docs/producto.md` §4.3 daba esto por imposible sin pagarlo: proponía mover
+    `/rutina` a `/plan`, `/nutricion` a `/plan/dieta`, `/calendario` a `/ficha`…
+    y con ello duplicar para siempre la tabla de redirecciones, porque esos
+    enlaces están pegados en conversaciones de WhatsApp. Ese coste es la razón
+    por la que la fase llevaba meses sin empezarse.
+
+    No hacía falta. Una sección con DOS NIVELES ya existía en el producto
+    —«Progreso» es `resumen` + `analitica`, «Revisión» es `semana` + su archivo—
+    y se resuelve con una ruta de layout sin `path` que solo aporta un carril de
+    chips. Agrupar es una decisión de NAVEGACIÓN; las rutas se quedan donde
+    están, los marcadores siguen valiendo y volver atrás es borrar cuatro
+    líneas de este archivo.
+
+    Lo que cuesta de verdad —partir la rutina entre «la semana activa» y «el
+    bloque entero»— es trabajo de dominio y no de menú, y no hace falta para
+    esto: dentro de «Plan» están las dos cosas, como estaban.
+    ══════════════════════════════════════════════════════════════════════════
+  */
   /*
     «Progreso» era dos entradas —Resumen y Analítica— y las dos contestan la misma
     pregunta con distinto detalle. Eso obligaba a elegir cuál abrir antes de saber
@@ -190,7 +242,39 @@ export const COACH_CLIENT = [
     resumen y se pasa al análisis desde dentro (`analytics/ProgressLayout.jsx`).
     La ruta `/analitica` sigue existiendo, así que los enlaces guardados valen.
   */
-  { path: 'resumen', label: 'Progreso', icon: Gauge, also: ['analitica'] },
+  /*
+    ── Rutina y Dieta, y por qué NO se agrupan ────────────────────────────────
+    Hubo una versión que las metió dentro de una sección llamada «Plan», con el
+    argumento de que son el mismo horizonte —lo que se cambia cada varias
+    semanas— y el mismo gesto. El argumento es cierto y la conclusión estaba
+    mal: **son las dos cosas que un entrenador AJUSTA de cada cliente**, o sea
+    su trabajo. Todo lo demás de este carril es mirar o administrar.
+
+    Lo que se ajusta no se esconde detrás de un chip. Agrupar es para lo que se
+    consulta —dos profundidades de la misma lectura, un archivo, unas fechas—,
+    no para el oficio.
+
+    Y se llama «Dieta» y no «Nutrición» porque es la palabra que usan el
+    entrenador y el cliente: su portal lleva «Mi dieta» desde el primer día.
+  */
+  /*
+    ══ El orden y los nombres, tal como los busca el entrenador (ago 2026) ═══
+    Resumen · Entreno · Dieta · Revisiones · Perfil. Cinco pestañas planas y
+    NINGÚN carril debajo: lo que cuelga de una sección se abre desde su contenido
+    (la analítica desde la cifra, las fotos desde el bloque del cuerpo, el
+    calendario desde el perfil) y vuelve con una miga, no con otra fila de chips.
+    Un nombre por concepto, el mismo en los dos portales.
+  */
+  { path: 'resumen', label: 'Resumen', icon: Gauge, also: ['analitica'] },
+  { path: 'rutina', label: 'Entreno', icon: Layers, service: 'training' },
+  { path: 'nutricion', label: 'Dieta', icon: Salad, service: 'nutrition' },
+  {
+    path: 'semana',
+    label: 'Revisiones',
+    short: 'Revisiones',
+    icon: CalendarCheck,
+    also: ['revision', 'revision/fotos', 'revision/estudio'],
+  },
   /*
     «Revisión» era dos entradas —Fotos y Check-ins— y las dos son la misma tarea:
     mirar lo que ha subido esta semana y contestarle. Estaban separadas porque son
@@ -214,17 +298,22 @@ export const COACH_CLIENT = [
     aquí ni en su portal, y su ruta manda al resumen. Sin marca no hay filtro: lo
     que no lleva `service` existe siempre.
   */
-  { path: 'rutina', label: 'Rutina', icon: Layers, service: 'training' },
-  { path: 'nutricion', label: 'Nutrición', icon: Salad, service: 'nutrition' },
-  { path: 'calendario', label: 'Calendario', icon: CalendarDays },
   /*
     La ficha va la última del carril a propósito. Sus datos, su acceso al portal,
     archivarle y exportar lo suyo son cosas de cuando alguien ENTRA o SALE; las
-    seis de delante son con las que se trabaja cada semana. Pero está en el mismo
+    tres de delante son con las que se trabaja cada semana. Pero está en el mismo
     carril que ellas porque habla del mismo cliente, y tenerla fuera —que es de
     donde viene— obligaba a salirse de la persona para tocar sus datos.
+
+    ── Y se lleva dentro el calendario ────────────────────────────────────────
+    Era una sección propia y es la de menos uso de las seis: `docs/producto.md`
+    §8.3 llega a preguntarse en voz alta si retirarla. No hace falta retirarla —
+    su sitio es éste. Las fechas de alguien son de la misma naturaleza que su
+    tarifa y su antigüedad: datos que se ponen una vez y se consultan, no
+    trabajo de la semana. Y la pregunta diaria que un calendario contesta —«¿qué
+    tengo hoy?»— ya la contesta «Hoy», que es por donde se entra.
   */
-  { path: 'ficha', label: 'Ficha', icon: FileText },
+  { path: 'ficha', label: 'Perfil', icon: FileText, also: ['calendario'] },
 ];
 
 /**
@@ -271,12 +360,33 @@ export const SETTINGS_SECTIONS = [
     hint: 'Llévate todo lo que guarda la aplicación',
     group: 'Conexiones',
   },
-  { path: 'apariencia', label: 'Apariencia', icon: Palette, hint: 'Tema claro u oscuro', group: 'Tu cuenta' },
+  /*
+    ── «Apariencia» sale de la lista, y su ruta se queda ──────────────────────
+    Era una de las siete secciones de Ajustes —con su entrada, su rótulo de
+    grupo y su pantalla— para UN ajuste: claro u oscuro. Y ese mismo ajuste ya
+    estaba, con el mismo efecto y a un clic de distancia, en el menú de la
+    cuenta, que es donde lo pone cualquier aplicación y donde se busca.
+
+    Dos sitios para lo mismo no es generosidad: es una pregunta más («¿cuál de
+    los dos uso?») y una sección de siete que no dice nada nuevo. Se queda el que
+    está donde se mira.
+
+    La RUTA sigue viva —`/ajustes/apariencia` responde igual, con su pantalla y
+    su vista previa de los dos temas— porque puede estar en un marcador y porque
+    la pantalla explica la elección mejor que un conmutador. Lo que desaparece es
+    su entrada en la lista.
+  */
+  /*
+    Se llamaba «Plan», y en este producto un plan es lo que le montas a un
+    cliente: su rutina y su dieta. La palabra más cargada del oficio estaba
+    ocupada por la pantalla de facturación, que se abre una vez al mes. La suya
+    es «Suscripción», que además es la que dice de qué va sin abrirla.
+  */
   {
     path: 'plan',
-    label: 'Plan',
+    label: 'Suscripción',
     icon: CreditCard,
-    hint: 'Tu suscripción y hasta dónde llega',
+    hint: 'Cuántos clientes llevas y hasta dónde llega',
     group: 'Tu cuenta',
   },
   /*
@@ -347,7 +457,7 @@ export const CLIENT_SECTIONS = [
     Además había DOS botones de subir foto en dos sitios distintos, lo que
     obligaba a preguntarse cuál era el bueno. Ahora se sube donde toca hacerlo.
   */
-  { path: 'evolucion', label: 'Mi evolución', short: 'Evolución', icon: Ruler, also: ['evolucion/fotos'] },
+  { path: 'evolucion', label: 'Mi revisión', short: 'Revisión', icon: Ruler, also: ['evolucion/fotos'] },
   { path: 'calendario', label: 'Mi calendario', short: 'Calendario', icon: CalendarDays },
 ];
 
@@ -377,7 +487,7 @@ export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${s
  * Filtra por `service`, así que sirve igual para el carril del entrenador y para
  * las pestañas del portal: las dos listas marcan sus secciones con el mismo
  * nombre de servicio y el filtro es uno solo. Un cliente al que no le llevas
- * dieta no tiene «Nutrición» ni «Mi dieta».
+ * dieta no tiene «Dieta» ni «Mi dieta».
  */
 export const sectionsFor = (sections, protocol) =>
   sections.filter((s) => !s.service || isServiceOn(protocol, s.service));
@@ -392,8 +502,15 @@ export const sectionsFor = (sections, protocol) =>
 const seccionDe = (pathname, prefijo) =>
   new RegExp(`^${prefijo}/(.+)$`).exec(pathname)?.[1]?.replace(/\/$/, '') || null;
 
-/** Todas las rutas que pertenecen a una sección: la suya y sus niveles. */
-const rutasDe = (seccion) => [seccion.path, ...(seccion.also || [])];
+/**
+ * Todas las rutas que pertenecen a una sección: la suya y sus niveles.
+ *
+ * Se exporta porque `lib/analytics.js` tenía esta misma función copiada para
+ * saber qué ruta es una sección de cliente y cuál del portal. Dos copias de la
+ * regla significan que añadir un nivel —el calendario dentro de «Ficha»— arregla
+ * la navegación y deja la analítica contando mal, sin que nada avise.
+ */
+export const rutasDe = (seccion) => [seccion.path, ...(seccion.also || [])];
 
 /**
  * Mantiene la sección al cambiar de cliente.
@@ -401,9 +518,15 @@ const rutasDe = (seccion) => [seccion.path, ...(seccion.also || [])];
  * Si estás mirando la nutrición de Marta y cambias a Luis, quieres la nutrición de
  * Luis, no su resumen. Sin esto, cada cambio de cliente te devolvía al inicio.
  *
+ * ── Y sin sección que mantener, su semana ───────────────────────────────────
+ * Caía en el resumen, y eso contradecía al índice de la ruta —`/c/:id` lleva a
+ * `semana` desde que se entra por lo que se viene a hacer—. Dos entradas por
+ * defecto distintas para la misma pregunta: pulsar a alguien en la barra
+ * aterrizaba en un sitio y escribir su URL a pelo en otro. Ahora es una.
+ *
  * `protocol` es el DEL DESTINO, y por eso es un parámetro y no algo que se lea
- * aquí: si a Luis no le llevas dieta, su nutrición no existe y se cae al resumen
- * en vez de aterrizar en una ruta que va a rebotar. Sin él se comporta como
+ * aquí: si a Luis no le llevas dieta, su nutrición no existe y se cae a su
+ * semana en vez de aterrizar en una ruta que va a rebotar. Sin él se comporta como
  * siempre, que es lo que hace falta donde no hay cliente que consultar.
  */
 export const sameSectionFor = (pathname, clientId, protocol = null) => {

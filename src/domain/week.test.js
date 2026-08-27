@@ -6,6 +6,7 @@ import {
   exerciseTrack,
   exerciseTrend,
   latestActiveWeek,
+  nextPrescription,
   weightMove,
 } from './week';
 import { weekTonnage } from './training';
@@ -458,5 +459,55 @@ describe('exerciseTrend', () => {
 
     expect(t.to).toBe(100);
     expect(t.weeks).toBe(3);
+  });
+});
+
+describe('nextPrescription', () => {
+  const micro = (weekNumber, sets, name = 'Sentadilla') => ({
+    weekNumber,
+    days: [
+      {
+        dayName: 'Día 1',
+        exercises: [
+          { id: `e${weekNumber}`, name, sets: Array.from({ length: sets }, () => ({ targetReps: '8-10' })) },
+        ],
+      },
+    ],
+  });
+
+  /*
+    Lo que hay que hacer imposible: ajustar la semana que se está revisando.
+    Escribiría sobre lo que ya entrenó y no cambiaría nada de lo que viene.
+  */
+  it('no devuelve nada si la última semana es la que se está revisando', () => {
+    expect(nextPrescription({ microcycles: [micro(3, 4), micro(4, 4)], name: 'Sentadilla', afterWeek: 4 })).toBe(
+      null
+    );
+  });
+
+  it('devuelve la semana siguiente con sus coordenadas y lo que hay puesto', () => {
+    const p = nextPrescription({
+      microcycles: [micro(4, 4), micro(5, 3)],
+      name: 'Sentadilla',
+      afterWeek: 4,
+    });
+
+    expect(p).toEqual({ weekNumber: 5, dayName: 'Día 1', id: 'e5', sets: 3, targetReps: '8-10' });
+  });
+
+  /* El nombre se compara sin mayúsculas ni espacios de sobra: es lo que teclea
+     una persona en dos sitios distintos. */
+  it('encuentra el ejercicio aunque se escribiera con otra caja', () => {
+    expect(
+      nextPrescription({ microcycles: [micro(5, 3, 'sentadilla ')], name: 'Sentadilla', afterWeek: 4 })
+        ?.weekNumber
+    ).toBe(5);
+  });
+
+  /* Un ejercicio que se dejó de programar no tiene dónde ajustarse. */
+  it('devuelve null si ya no está en la semana siguiente', () => {
+    expect(
+      nextPrescription({ microcycles: [micro(5, 3, 'Prensa')], name: 'Sentadilla', afterWeek: 4 })
+    ).toBe(null);
   });
 });

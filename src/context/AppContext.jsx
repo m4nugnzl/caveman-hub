@@ -100,6 +100,11 @@ export const AppProvider = ({ children }) => {
 
   /** Rol real, según la tabla `profiles`. La autorización la aplica RLS. */
   const [profileRole, setProfileRole] = useState('coach');
+  /* Tu nombre, el de `profiles.full_name`. Se cargaba con el resto del perfil y
+     se tiraba: la barra lateral acababa enseñando las iniciales del correo bajo
+     el rótulo «mi nombre». Vacío si el perfil no lo tiene, y entonces quien lo
+     pinta cae en el correo — inventar un nombre a partir de él sería peor. */
+  const [profileName, setProfileName] = useState('');
   /** Vista activa. Un coach puede previsualizar el portal del cliente. */
   const [viewMode, setViewMode] = useState('coach');
   /*
@@ -787,6 +792,7 @@ export const AppProvider = ({ children }) => {
 
       const role = profile?.role === 'client' ? 'client' : 'coach';
       setProfileRole(role);
+      setProfileName(String(profile?.full_name || '').trim());
       setViewMode(role === 'coach' ? 'coach' : 'client');
 
       /*
@@ -1614,6 +1620,8 @@ export const AppProvider = ({ children }) => {
     updateWeeklySplit,
     startProgram,
     appendMicrocycle,
+    startBlock,
+    renameBlock,
     removeMicrocycle,
     restoreMicrocycle,
     cloneMicrocycle,
@@ -1884,6 +1892,7 @@ export const AppProvider = ({ children }) => {
       loadError,
       conflict,
       profileRole,
+      profileName,
       isCoach,
       view: effectiveView,
       team,
@@ -1896,7 +1905,7 @@ export const AppProvider = ({ children }) => {
       coachPrefsReady,
     }),
     [
-      session, loading, loadError, conflict, profileRole, isCoach, effectiveView,
+      session, loading, loadError, conflict, profileRole, profileName, isCoach, effectiveView,
       team, teamMembers, plan, isSupport, coachPrefs, coachPrefsReady,
     ]
   );
@@ -2009,6 +2018,8 @@ export const AppProvider = ({ children }) => {
     removeSession,
     startProgram,
     appendMicrocycle,
+    startBlock,
+    renameBlock,
     cloneMicrocycle,
     continueProgram,
     removeMicrocycle,

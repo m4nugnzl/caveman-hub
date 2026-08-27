@@ -62,7 +62,7 @@
  * que la pantalla se abra.
  */
 
-import { CLIENT_SECTIONS, COACH_CLIENT, RESET_PATH, SETTINGS_SECTIONS } from '@/routes';
+import { CLIENT_SECTIONS, COACH_CLIENT, RESET_PATH, SETTINGS_SECTIONS, rutasDe } from '@/routes';
 
 import { currentActor } from './actor';
 import { onIssue } from './diagnostics';
@@ -189,8 +189,11 @@ export const bucket = (n) => {
   una copia a mano se queda vieja en silencio — ya pasó una vez con la prueba de
   privacidad al fundir «Fotos» y «Check-ins» en «Revisión».
 */
-const rutasDe = (seccion) => [seccion.path, ...(seccion.also || [])];
-
+/* `rutasDe` viene de `routes.jsx` y no está copiada aquí. Lo estuvo, y era
+   justo el fallo que este comentario dice que se quiere evitar: cuando una
+   sección gana un segundo nivel —la analítica bajo «Resumen», el calendario
+   bajo «Perfil», las fotos bajo «Revisiones»— ese nivel dejaría de contarse
+   como sección de cliente sin que nada avisara. */
 const SEC_CLIENTE = new Set(COACH_CLIENT.flatMap(rutasDe));
 const SEC_PORTAL = new Set(CLIENT_SECTIONS.flatMap(rutasDe));
 const SEC_AJUSTES = new Set(SETTINGS_SECTIONS.map((s) => s.path));

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { useApp } from '@/context/AppContext';
-import { Notice, PageHead } from '@/components/ui/primitives';
+import { Mando } from '@/components/ui/Mando';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 import { ReviewHistory } from '@/components/ReviewHistory';
 import { useReviewRows } from '@/components/review/useReviewRows';
@@ -40,13 +40,12 @@ export const AnthropometryModule = () => {
 
   return (
     <div className="stack">
-      {/* El subtítulo va sin pronombre: la ficha no sabe el género de esta
-          persona, y un «él» fijo debajo del nombre de una clienta se lee como
-          un descuido. */}
-      <PageHead
-        title="Check-in"
-        sub={`El peso de la semana de ${activeClient.name} y sus medidas. Lo normal es que lo entregue desde su portal.`}
-      />
+      {/* Una línea, sin titular —la miga ya dice «Check-in»— y sin pronombre: la
+          ficha no sabe el género de esta persona. Lo que era un aviso de tres
+          líneas explicando qué es un check-in cabe aquí: los pesajes se
+          promedian, las fotos en las mismas condiciones, y lo normal es que lo
+          entregue desde su portal. */}
+      <Mando contexto="Los pesajes de la semana se promedian. Lo normal es que lo entregue desde su portal; aquí lo completas o lo corriges." />
 
       {/* Lo que se decidió en las revisiones anteriores, antes que el formulario:
           para decidir esta semana hace falta saber qué se hizo la pasada. */}
@@ -56,12 +55,6 @@ export const AnthropometryModule = () => {
         rows={revisiones}
         recargar={recargar}
       />
-
-      <Notice tone="info">
-        Un check-in son dos cosas: los pesajes de la semana —que se promedian para filtrar la
-        variación diaria— y las fotos, siempre en las mismas condiciones. Lo normal es que lo haga el
-        cliente desde su portal; desde aquí puedes completarlo o corregirlo.
-      </Notice>
 
       <AnthropometryPanel
         client={activeClient}

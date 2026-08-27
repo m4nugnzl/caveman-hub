@@ -1,17 +1,17 @@
-import { Fragment, useEffect, useMemo } from 'react';
-import { NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Eye, Settings, UserPlus } from 'lucide-react';
+import { useEffect, useMemo } from 'react';
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, UserPlus } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
 import { feeLabel, paymentState } from '@/domain/billing';
-import { buildPortfolio, portfolioInbox } from '@/domain/portfolio';
+import { buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
 import { clientProtocol } from '@/domain/protocol';
+import { latestActiveWeek } from '@/domain/week';
 import { dayMonthMaybeYear } from '@/lib/dates';
 import {
   COACH_CLIENT,
   COACH_HOME,
   COACH_PRIMARY,
-  SETTINGS_SECTIONS,
   clientPath,
   isSectionActive,
   sameSectionFor,
@@ -36,29 +36,37 @@ import { GettingStarted } from './GettingStarted';
  * tres asuntos distintos (quién soy, a dónde voy, en quién estoy) compartiendo
  * columna.
  *
- * Ahora la barra hace UNA cosa —navegar— y CAMBIA DE PLANO en vez de apilarlos,
- * igual que ya hacía el subnivel del móvil: fuera de un cliente enseña el nivel
- * primario; dentro, el cliente entero con su vuelta a la lista. La cuenta y la
- * búsqueda viven en la barra de herramientas (`.shell-top`), un objeto de
- * cristal a juego con la barra y alineado con el contenido — no una franja de
- * borde a borde—, montando las MISMAS piezas que la cabecera del móvil
- * (`Header.jsx`): el avatar arriba a la derecha en todos los modos, sin saltar
- * de sitio al previsualizar el portal. En móvil y tableta ni barra ni
- * herramientas: navegan la cabecera, la barra del pulgar y el subnivel de
- * siempre. Las DOS geometrías montan aquí, y la hoja de estilos decide cuál se
- * ve.
+ * Ahora la barra hace UNA cosa —navegar— y NO SE MUEVE: las cuatro puertas
+ * arriba, la cartera entera debajo y tú al pie, estés donde estés. Las
+ * secciones del cliente abierto —con su cobro y su portal— son una fila de
+ * pestañas en el área de trabajo (`.client-head`), no un plano de la barra.
+ *
+ * Hubo una versión intermedia en la que la barra CAMBIABA de plano: fuera de un
+ * cliente el nivel primario, dentro el cliente entero. Servía para que en
+ * pantalla nunca hubiera más de diez opciones, y el precio fue que entrar en
+ * alguien borraba el resto de la aplicación. Ver el comentario largo de la
+ * barra, más abajo.
+ *
+ * La búsqueda y la cuenta viven DENTRO de la barra —arriba y al pie—, montando
+ * las mismas piezas que la cabecera del móvil (`Header.jsx` exporta `Omnibox` y
+ * `HeaderActions` para que no puedan divergir). Hubo una barra de herramientas
+ * aparte (`.shell-top`) con esas dos piezas y una miga; se retiró porque
+ * repetía la cabecera y le quitaba a la barra dos cosas que son suyas. En móvil
+ * y tableta no hay barra: navegan la cabecera, la barra del pulgar y el
+ * subnivel de siempre. Las DOS geometrías montan aquí, y la hoja de estilos
+ * decide cuál se ve.
  *
  * El cliente activo lo manda la URL. El contexto lo sincroniza desde la ruta, no al
  * revés: una sola fuente de verdad, la de arriba.
  */
 /**
- * El estado del cobro, en la cabecera de las siete secciones del cliente.
+ * El estado del cobro, en la cabecera del cliente.
  *
  * ══ Por qué ya no hay un rojo por defecto ═══════════════════════════════════
  *
  * Decía «Pago pendiente» en rojo siempre que `payment_status` no fuera `paid`, y
  * ese campo se pone en pendiente en cuanto empieza un ciclo nuevo. O sea: quien
- * renueva el día 30 llevaba esta chapa en rojo desde el día 1, en las siete
+ * renueva el día 30 llevaba esta chapa en rojo desde el día 1, en todas sus
  * pantallas, veintinueve días seguidos.
  *
  * Un aviso que sale casi siempre no avisa de nada: se aprende a ignorarlo, y el
@@ -73,9 +81,9 @@ const ChapaDeCobro = ({ client }) => {
   const pago = paymentState(client);
   const tarifa = feeLabel(client);
 
-  /* Sin fecha la chapa desaparece. Poner «sin fecha de cobro» en la cabecera de
-     las siete secciones sería reprocharle al entrenador un campo vacío cada vez
-     que abre a un cliente; ese aviso vive en la ficha, que es donde se arregla. */
+  /* Sin fecha la chapa desaparece. Poner «sin fecha de cobro» en la cabecera
+     sería reprocharle al entrenador un campo vacío cada vez que abre a un
+     cliente; ese aviso vive en la ficha, que es donde se arregla. */
   if (pago.state === 'no_date' && !tarifa) return null;
 
   const clase = pago.tone === 'bad' ? 'badge badge-bad' : pago.tone === 'warn' ? 'badge badge-warn' : 'badge';
@@ -86,6 +94,9 @@ const ChapaDeCobro = ({ client }) => {
     </span>
   );
 };
+
+/** La pestaña desde la que NO se ofrece «Revisar semana»: ya estás en ella. */
+const SECCION_SEMANA = COACH_CLIENT.find((s) => s.path === 'semana');
 
 export const CoachLayout = () => {
   const {
@@ -99,6 +110,7 @@ export const CoachLayout = () => {
     progressPhotos,
     checkIns,
     equipmentCounts,
+    workoutData,
   } = useApp();
   const { setViewMode } = useActions();
   const { clientId } = useParams();
@@ -109,26 +121,78 @@ export const CoachLayout = () => {
   const onClient = Boolean(clientId);
 
   /*
+    La semana por la que va: la última en la que hay algo registrado, que es la
+    misma por la que entra la revisión (`latestActiveWeek`). Del cliente abierto
+    se tiene el programa entero; si aún no ha llegado, la más alta del resumen.
+  */
+  const programaAbierto = clientId ? workoutData[clientId] : null;
+  const historiaAbierta = clientId ? anthropometry[clientId]?.history : null;
+  const fotosAbiertas = useMemo(
+    () => (clientId ? progressPhotos.filter((p) => p.clientId === clientId) : []),
+    [progressPhotos, clientId]
+  );
+  const inicioAbierto = clientId ? clients.find((c) => c.id === clientId)?.startDate || null : null;
+  const resumenAbierto = clientId ? training[clientId] : null;
+  /* Depende de lo de ESE cliente, no de la cartera entera: una serie anotada en
+     otro cliente o una foto subida por ahí no tienen por qué recalcular esto. */
+  const semanaActiva = useMemo(() => {
+    if (!clientId) return null;
+    if (programaAbierto?.microcycles?.length) {
+      return latestActiveWeek({
+        microcycles: programaAbierto.microcycles,
+        history: historiaAbierta || [],
+        photos: fotosAbiertas,
+        startDate: inicioAbierto,
+      });
+    }
+    return resumenAbierto?.weekNumber || null;
+  }, [clientId, programaAbierto, historiaAbierta, fotosAbiertas, inicioAbierto, resumenAbierto]);
+
+  /*
     ── El recuento de la bandeja, en la puerta de «Hoy» ────────────────────────
     La MISMA bandeja que calculan «Hoy» y la cartera (`portfolioInbox`), contada
     aquí para que la barra lo diga desde cualquier pantalla: lo que espera
     respuesta no debería descubrirse solo al pasar por la bandeja. Una tercera
     cuenta propia divergiría; por eso se suman sus filas y no se inventa nada.
+
+    Y de las MISMAS filas sale el punto de cada persona de la cartera, que es lo
+    que convierte la lista de la barra en un panel de control en vez de un
+    índice: quién te espera se ve sin entrar en nadie.
+
+    ── Pero el punto NO marca lo mismo que cuenta la chapa ─────────────────────
+    La chapa de «Hoy» cuenta la bandeja entera —programar, cobrar, recordar—
+    porque eso es lo que hay en la bandeja. El punto marca solo las tareas
+    `awaited` de `domain/portfolio.js`: gente que ha entregado algo y está
+    esperando a que contestes.
+
+    Marcaba las once, y con catorce clientes eso eran diez puntos de catorce: un
+    aviso que llevan casi todos deja de ser un aviso. No es que las dos cifras
+    diverjan por descuido — es que contestan preguntas distintas, y cada una lo
+    dice en su etiqueta.
   */
-  const pendientes = useMemo(() => {
+  const bandeja = useMemo(() => {
     const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts });
-    return portfolioInbox(rows).tasks.reduce((n, task) => n + task.rows.length, 0);
+    const { tasks } = portfolioInbox(rows);
+    return {
+      // La MISMA cifra que las cuatro colas de «Inicio»: los trámites no cuentan.
+      total: colasDeInicio(rows).reduce((n, cola) => n + cola.n, 0),
+      esperando: new Set(
+        tasks.filter((task) => task.awaited).flatMap((task) => task.rows.map((row) => row.client.id))
+      ),
+    };
   }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts]);
 
   /*
-    Qué número acompaña a cada puerta del nivel primario. «Hoy» lleva el trabajo
-    que espera —en ámbar, porque es un pendiente, no un dato—; «Clientes», el
-    tamaño de la cartera, en voz baja. Sin nada que contar no se pinta un cero:
+    Qué número acompaña a cada puerta del nivel primario. Solo «Hoy», y en ámbar
+    porque es un pendiente y no un dato. Sin nada que contar no se pinta un cero:
     un cero permanente es cromo.
+
+    «Clientes» llevaba el tamaño de la cartera y lo ha soltado: la cartera está
+    ahora dos filas más abajo, con los nombres a la vista y su rótulo
+    contándolos. Repetir el número a dos centímetros es decirlo dos veces.
   */
   const cuentaDe = {
-    '/hoy': pendientes > 0 ? { n: pendientes, warn: true, detalle: 'Esperan respuesta tuya' } : null,
-    '/clientes': hasClients ? { n: clients.length, warn: false, detalle: 'Clientes en la cartera' } : null,
+    '/hoy': bandeja.total > 0 ? { n: bandeja.total, warn: true, detalle: 'Esperan respuesta tuya' } : null,
   };
 
   /*
@@ -163,27 +227,52 @@ export const CoachLayout = () => {
   }
 
   /*
-    ── Las piezas que se ven en las DOS geometrías ─────────────────────────────
-    El selector de cliente y sus chapas aparecen en la barra lateral (escritorio)
-    y en el subnivel (móvil). Se declaran UNA vez y se rinden en los dos huecos:
-    un elemento de React es un descriptor y puede pintarse en dos sitios, así que
-    la lista de clientes del selector —con su caso del archivado— no puede
-    divergir entre geometrías.
+    ── La cartera que se pinta, con su caso raro ───────────────────────────────
+    La cartera viva, más el cliente abierto si resulta estar archivado. Sin ese
+    añadido, entrar por enlace directo a la ficha de alguien archivado dejaría la
+    barra entera sin ninguna fila marcada mientras debajo se ve su ficha — y en
+    el selector del móvil enseñaría el nombre de OTRA persona, la primera de la
+    lista. Aparecer no le desarchiva: sigue fuera de la cartera en cuanto se sale
+    de su ficha.
+
+    Una lista, dos huecos: la barra del escritorio y el selector del móvil. Son
+    la misma cartera y no pueden divergir entre geometrías.
+  */
+  const cartera =
+    activeClient && !clients.some((c) => c.id === activeClient.id)
+      ? [activeClient, ...clients]
+      : clients;
+
+  /*
+    A dónde lleva pulsar a alguien. Cambiar de cliente CONSERVA la sección: si
+    estabas en su nutrición, pasas a la nutrición del otro. Salvo que al otro no
+    le lleves dieta, y entonces se cae a su semana — mandarle a una sección que
+    no tiene sería un salto y un rebote.
+
+    Desde fuera de un cliente no hay sección que conservar y `sameSectionFor` cae
+    en la misma entrada por defecto que el índice de la ruta: su semana, que es a
+    lo que se viene.
+  */
+  const destinoDe = (id) =>
+    sameSectionFor(
+      location.pathname,
+      id,
+      clientProtocol(clients.find((c) => c.id === id)?.preferences)
+    );
+
+  /*
+    ── El selector, que ahora es SOLO del móvil ────────────────────────────────
+    Vivía también en la barra lateral, y allí era la consecuencia de que la
+    cartera no cupiera: si la lista de clientes no está, hace falta un
+    desplegable que la traiga. Con la lista puesta, el desplegable al lado sería
+    dos formas de hacer lo mismo a un palmo.
+
+    En el móvil sigue siendo la única forma: allí no hay barra donde poner
+    quince nombres.
   */
   const selector = onClient && activeClient && (
     <ClientSwitcher
-      /*
-        La cartera viva, más el cliente abierto si resulta estar archivado. Sin
-        ese añadido, entrar por enlace directo a la ficha de alguien archivado
-        enseñaría en el selector el nombre de OTRA persona —el primero de la
-        lista— mientras debajo se ve la ficha del archivado. Aparecer no le
-        desarchiva: sigue fuera de la cartera en cuanto se sale de su ficha.
-      */
-      clients={
-        activeClient && !clients.some((c) => c.id === activeClient.id)
-          ? [activeClient, ...clients]
-          : clients
-      }
+      clients={cartera}
       selectedClientId={selectedClientId}
       /* El plan y la antigüedad, en una sola línea de voz baja: los dos datos
          quietos de identidad, juntos y sin chapas. */
@@ -193,19 +282,7 @@ export const CoachLayout = () => {
       ]
         .filter(Boolean)
         .join(' · ')}
-      /* Cambiar de cliente conserva la sección: si estabas en su nutrición,
-         pasas a la nutrición del otro. Salvo que al otro no le lleves dieta, y
-         entonces se cae a su resumen: mandarle a una sección que no tiene sería
-         un salto y un rebote. */
-      onSelect={(id) =>
-        navigate(
-          sameSectionFor(
-            location.pathname,
-            id,
-            clientProtocol(clients.find((c) => c.id === id)?.preferences)
-          )
-        )
-      }
+      onSelect={(id) => navigate(destinoDe(id))}
     />
   );
 
@@ -213,14 +290,15 @@ export const CoachLayout = () => {
      quieto y viaja en el subtítulo del selector — como chapa suelta al lado del
      botón del portal componía un cajón de piezas desparejas. */
   const chapas = onClient && activeClient && <ChapaDeCobro client={activeClient} />;
-
   /*
     La marca de «estás aquí» NO la decide `NavLink` por prefijo de URL. Desde que
     una sección tiene dos niveles —`revision` y `revision/fotos`, `resumen` y
-    `analitica`— el prefijo se queda corto y bajar al segundo nivel dejaba la
-    navegación entera sin marcar. Los niveles se declaran en `also`, en
-    `routes.jsx`. Y solo las secciones que existen para él: a quien no le llevas
-    dieta no le sobra media pantalla, es que no la tiene (`sectionsFor`).
+    `analitica`, el calendario dentro de «Ficha»— el prefijo se queda corto y bajar al
+    segundo nivel dejaba la navegación entera sin marcar. Los niveles se declaran
+    en `also`, en `routes.jsx`. Y solo las secciones que existen para él: a quien
+    no le llevas dieta no le sobra media pantalla, es que no la tiene
+    (`sectionsFor`).
+
   */
   const seccionesDeCliente =
     onClient && activeClient
@@ -239,20 +317,6 @@ export const CoachLayout = () => {
     búsqueda), quién soy (la cuenta). No son enlaces: para moverse ya están la
     barra lateral y la paleta; esto solo nombra la hoja abierta.
   */
-  const miga = (() => {
-    if (location.pathname.startsWith('/ajustes')) {
-      const seccion = SETTINGS_SECTIONS.find((s) =>
-        location.pathname.startsWith(`/ajustes/${s.path}`)
-      );
-      return ['Ajustes', seccion?.label].filter(Boolean);
-    }
-    if (onClient && activeClient) {
-      const activa = seccionesDeCliente.find((s) => s.activa)?.seccion;
-      return [activeClient.name, activa?.label].filter(Boolean);
-    }
-    const primaria = COACH_PRIMARY.find((p) => location.pathname.startsWith(p.path));
-    return primaria ? [primaria.label] : [];
-  })();
 
   return (
     <div className="shell">
@@ -261,194 +325,212 @@ export const CoachLayout = () => {
         <div className="sidebar-brand">
           <Logo subtitle={null} />
         </div>
+        {/* Buscar vive en la barra: es a donde se va, no un mueble aparte. */}
+        <div className="sidebar-buscar">
+          <Omnibox />
+        </div>
 
         {/*
-          ── El panel intercambiable ─────────────────────────────────────────
-          La barra no apila planos: CAMBIA de plano, como el subnivel del móvil.
-          Fuera de un cliente, el nivel primario; dentro, el cliente entero con
-          su vuelta a la lista. La `key` fuerza el remontaje para que el cambio
-          se anuncie con el fundido corto de `.sidebar-pane`.
+          ── El nivel primario, que ya no se va a ninguna parte ───────────────
+          Aquí vivió un PANEL INTERCAMBIABLE: fuera de un cliente el nivel
+          primario, dentro el cliente entero con sus siete secciones. La barra
+          no apilaba planos, los CAMBIABA — y el argumento era bueno: así en
+          pantalla nunca había más de diez opciones.
+
+          Lo que no se vio es lo que costaba. Bajar de diez escondiendo el resto
+          significa que entrar en un cliente no es entrar en una habitación:
+          es cambiar de edificio. Hoy, Ingresos, el calendario y las otras
+          catorce personas dejaban de existir, y volver a cualquiera de ellas
+          era un viaje de vuelta. Dos entrenadores lo dijeron con las mismas
+          palabras sin haber hablado entre ellos: «zonas que se interconectan y
+          marean», «ventanas inconexas».
+
+          Ahora el marco no cambia nunca. Las cuatro puertas se quedan, la
+          cartera entera vive debajo de ellas —que es lo que convierte la barra
+          en el sitio donde estás en vez de en un menú— y las secciones del
+          cliente bajan al área de trabajo, pegadas a su nombre
+          (`.client-head`). En pantalla siguen sin verse más de diez opciones a
+          la vez, porque las del cliente ya no están aquí.
+
+          El móvil no cambia: allí la barra del pulgar SÍ cambia de plano, y
+          allí es lo correcto — no hay sitio para las dos cosas y el gesto de
+          volver es el dedo.
         */}
-        {onClient && activeClient ? (
-          <div className="sidebar-pane" key="cliente">
-            <NavLink to="/clientes" className="side-link side-back">
-              <ArrowLeft size={15} />
-              Clientes
-            </NavLink>
+        <nav className="sidebar-nav" aria-label="Secciones principales">
+          {COACH_PRIMARY.map(({ path, label, icon: Icon }) => {
+            const cuenta = cuentaDe[path];
+            return (
+              <NavLink
+                key={path}
+                to={path}
+                className="side-link"
+                /* «Clientes» no debe marcarse por estar dentro de un cliente. */
+                end
+              >
+                <Icon size={15} />
+                {label}
+                {cuenta && (
+                  <span
+                    className={`side-count${cuenta.warn ? ' is-warn' : ''}`}
+                    title={cuenta.detalle}
+                  >
+                    {cuenta.n}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })}
+        </nav>
 
-            {/*
-              ── Nada de filetes ni cajas dentro del cristal ───────────────────
-              La barra separa por ESPACIO y agrupación, no por líneas: quién es
-              (el selector, con el plan y la antigüedad en su subtítulo), su
-              estado si lo hay (la chapa de cobro), las secciones, y al final
-              su otra cara. Cada borde de más dentro de un panel de cristal es
-              una caja dentro de una caja.
-            */}
-            {selector}
-            {chapas && <div className="sidebar-meta">{chapas}</div>}
+        {/*
+          ── La cartera, siempre a la vista ──────────────────────────────────
+          La lista de clientes deja de ser una pantalla a la que se va y pasa a
+          ser parte del marco, como en cualquier herramienta donde el trabajo es
+          sobre personas. Cambiar de cliente es un clic desde donde estés, sin
+          salir ni volver, y quién te espera se ve sin entrar en nadie.
 
-            <nav className="sidebar-nav" aria-label={`Secciones de ${activeClient.name}`}>
-              {seccionesDeCliente.map(({ seccion, activa }) => {
-                const { path, label, icon: Icon } = seccion;
+          Es la ÚNICA franja que desplaza: las cuatro puertas de arriba y los
+          ajustes de abajo se quedan quietos por muchos clientes que haya.
+
+          Hablan en voz más baja que las puertas —peso de texto normal, tinta
+          secundaria— a propósito: son quince y ellas cuatro, y sin esa
+          diferencia la barra se lee como una lista de diecinueve cosas.
+        */}
+        {cartera.length > 0 ? (
+          <div className="sidebar-cartera">
+            <p className="sidebar-group">
+              Cartera
+              <span className="sidebar-group-n">{clients.length}</span>
+            </p>
+
+            <nav className="sidebar-nav" aria-label="Tus clientes">
+              {cartera.map((cliente) => {
+                const abierto = cliente.id === clientId;
                 return (
                   <NavLink
-                    key={path}
-                    to={clientPath(clientId, path)}
-                    className={`side-link${activa ? ' active' : ''}`}
-                    aria-current={activa ? 'page' : undefined}
+                    key={cliente.id}
+                    to={destinoDe(cliente.id)}
+                    className={`side-link side-client${abierto ? ' active' : ''}`}
+                    aria-current={abierto ? 'page' : undefined}
                   >
-                    <Icon size={15} />
-                    {label}
-                  </NavLink>
-                );
-              })}
-            </nav>
-
-            {/*
-              Ver el portal de ESTE cliente: la última fila de su plano, en voz
-              de puerta. Aquí SOLO se cambia el modo; la ruta la traduce el
-              comodín del árbol de destino (`OtherViewFallback`, en `App.jsx`):
-              navegar también desde aquí pierde la carrera contra ese comodín,
-              porque React Router navega en una transición de prioridad baja y
-              el cambio de modo es una actualización normal.
-            */}
-            <button
-              type="button"
-              className="side-link side-action"
-              onClick={() => setViewMode('client')}
-            >
-              <Eye size={15} />
-              Ver su portal
-            </button>
-          </div>
-        ) : (
-          <div className="sidebar-pane" key="primario">
-            <nav className="sidebar-nav" aria-label="Secciones principales">
-              {COACH_PRIMARY.map(({ path, label, icon: Icon }) => {
-                const cuenta = cuentaDe[path];
-                return (
-                  <NavLink
-                    key={path}
-                    to={path}
-                    className="side-link"
-                    /* «Clientes» no debe marcarse por estar dentro de un cliente. */
-                    end
-                  >
-                    <Icon size={15} />
-                    {label}
-                    {cuenta && (
+                    <span className="side-client-name">{cliente.name}</span>
+                    {/* La semana por la que va, como en cualquier lista de atletas seria:
+                        el estado de cada persona se ve sin entrar. */}
+                    {(training[cliente.id]?.weekNumber || training[cliente.id]?.microcycleCount) > 0 && !bandeja.esperando.has(cliente.id) && (
+                      <span className="side-client-week">S{training[cliente.id].weekNumber || training[cliente.id].microcycleCount}</span>
+                    )}
+                    {/* Sin número: aquí la pregunta es a quién, no a cuántos, y
+                        catorce cifras seguidas son una tabla. */}
+                    {bandeja.esperando.has(cliente.id) && (
                       <span
-                        className={`side-count${cuenta.warn ? ' is-warn' : ''}`}
-                        title={cuenta.detalle}
-                      >
-                        {cuenta.n}
-                      </span>
+                        className="side-dot"
+                        role="img"
+                        title="Ha entregado algo y espera tu respuesta"
+                        aria-label="Ha entregado algo y espera tu respuesta"
+                      />
                     )}
                   </NavLink>
                 );
               })}
             </nav>
           </div>
-        )}
+        ) : null}
 
         {/*
-          ── El pie: ajustes, siempre a la vista ─────────────────────────────
-          Un solo enlace, anclado abajo como en cualquier aplicación con barra
-          (el engranaje de Slack o de Linear). La navegación INTERNA de ajustes
-          sigue siendo de `SettingsLayout`, que ya la resuelve en las dos
-          geometrías y lleva el contador de la ayuda; aquí solo está la puerta,
-          que metida en el menú de cuenta no la encontraba nadie.
+          ── El pie: QUIÉN ERES, y dentro lo tuyo ────────────────────────────
+          Aquí había dos filas para una sola idea: «Ajustes» con su engranaje y,
+          debajo, un círculo con tus iniciales. El círculo no llevaba a ninguna
+          parte —su menú se abría hacia abajo, ya fuera de la ventana, y encima
+          la barra lo recortaba con su `overflow`—, así que la mitad del pie era
+          un adorno que al pulsarlo no hacía nada.
+
+          Ahora es UNA fila del ancho de la barra: tu nombre, tu rol y el
+          gancho de que se abre. Dentro está lo tuyo —ajustes, el tema, el
+          tutorial, cerrar sesión—, que es donde se busca la configuración de
+          uno en cualquier aplicación con barra. La navegación INTERNA de
+          ajustes sigue siendo de `SettingsLayout`.
         */}
         <div className="sidebar-foot">
-          <NavLink to="/ajustes" className="side-link">
-            <Settings size={15} />
-            Ajustes
-          </NavLink>
+          {/* Las mismas piezas que monta la cabecera del móvil, en su versión de
+              fila: la campana del cliente y el aviso de cambios sin confirmar
+              viajan con ellas. */}
+          <HeaderActions variante="fila" />
         </div>
       </aside>
 
       <div className="shell-main">
-        {/*
-          ── La barra de herramientas del escritorio ─────────────────────────
-          En el chasis no hay franja de cabecera: sus piezas van en este objeto
-          de cristal, a juego con la barra lateral y alineado con la columna de
-          contenido. Tres voces, de izquierda a derecha: dónde estás (la miga),
-          a dónde vas (la búsqueda) y quién eres (la cuenta). La búsqueda y la
-          cuenta son las MISMAS piezas que monta la cabecera del móvil
-          (`Header.jsx`): el avatar está siempre arriba a la derecha, en
-          cualquier modo y tamaño. La miga es solo del escritorio — en el móvil
-          la cabecera lleva la marca y el contexto ya lo da el subnivel.
-        */}
-        <div className="shell-top">
-          <div className="crumb">
-            {miga.map((parte, i) => (
-              <Fragment key={i}>
-                {i > 0 && (
-                  <span className="crumb-sep" aria-hidden="true">
-                    ›
-                  </span>
-                )}
-                <span className="crumb-part">{parte}</span>
-              </Fragment>
-            ))}
-          </div>
-          <Omnibox />
-          <HeaderActions />
-        </div>
-
         <div className="layout">
           {/* ── El subnivel del móvil: el mismo contexto, en horizontal ──── */}
+          {/*
+            ══ La cabecera del cliente: fija, igual en las cinco pestañas ═════
+            Quién es, en qué semana va, si te espera y qué paga: eso no cambia
+            al cambiar de pestaña, así que tampoco se mueve. Debajo, las cinco
+            pestañas planas — y NUNCA un segundo carril bajo ellas: lo que
+            cuelga de una sección se abre desde su contenido y vuelve con una
+            miga (`ui/Migas`). Es la respuesta directa a «zonas que se
+            interconectan y marean»: dentro de una persona hay un solo plano.
+
+            En el móvil el nombre es el selector de cliente (no hay barra donde
+            listar quince nombres) y las pestañas las lleva la barra del pulgar.
+          */}
           {onClient && activeClient && (
-            <div className="subnav">
-              <div className="subnav-head">
-                <button
-                  type="button"
-                  className="btn btn-icon"
-                  onClick={() => navigate('/clientes')}
-                  aria-label="Volver a la lista de clientes"
-                  title="Volver a la lista de clientes"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-
-                {selector}
-
-                {/* Las chapas se esconden en el móvil (`.subnav-chapas`): el
-                    estado del cobro y la antigüedad viven en la ficha, y aquí
-                    costaban una segunda línea de cabecera en las SIETE
-                    secciones del cliente. */}
-                <div className="row gap-2 wrap subnav-chapas">{chapas}</div>
-
-                {/* La misma puerta al portal que en la barra lateral: solo
-                    cambia el modo, la ruta la traduce `OtherViewFallback`.
-                    En el móvil queda el ojo solo: el texto es lo que obligaba
-                    a la cabecera a partirse en dos líneas. */}
-                <button
-                  type="button"
-                  className="btn btn-sm subnav-view"
-                  onClick={() => setViewMode('client')}
-                  aria-label="Ver su portal"
-                  title="Ver su portal"
-                >
-                  <Eye size={14} />
-                  <span className="subnav-view-label">Ver su portal</span>
-                </button>
+            <header className="cliente-cab">
+              <div className="cliente-cab-fila">
+                <div className="cliente-cab-quien">
+                  <button
+                    type="button"
+                    className="btn btn-icon cliente-cab-volver"
+                    onClick={() => navigate('/clientes')}
+                    aria-label="Volver a la lista de clientes"
+                    title="Volver a la lista de clientes"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+                  <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
+                  <div className="cliente-cab-selector">{selector}</div>
+                  <p className="cliente-cab-meta">
+                    {semanaActiva && <span>Semana {semanaActiva}</span>}
+                    {bandeja.esperando.has(activeClient.id) && (
+                      <span className="cliente-cab-espera">Te espera</span>
+                    )}
+                    {chapas}
+                  </p>
+                </div>
+                <div className="cliente-cab-acciones">
+                  <button
+                    type="button"
+                    className="btn btn-quiet btn-sm"
+                    onClick={() => setViewMode('client')}
+                    title="Ver la aplicación como la ve esta persona"
+                  >
+                    Ver como {activeClient.name.split(/\s+/)[0]}
+                  </button>
+                  {!isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') && (
+                    <Link className="btn btn-primary btn-sm" to={clientPath(clientId, 'semana')}>
+                      Revisar semana
+                    </Link>
+                  )}
+                </div>
               </div>
-
-              {/*
-                ══ Aquí vivió el carril de chips con las secciones ═══════════════
-                Era la única navegación del cliente en el móvil, arriba del todo:
-                la zona que el pulgar no alcanza, y otra fila más de chasis antes
-                del contenido. Desde que la barra del pulgar cambia de plano al
-                entrar en un cliente (ver abajo), esas mismas secciones están
-                fijas y visibles donde está el dedo, y el carril sobraba: dos
-                navegaciones para lo mismo son una pregunta («¿cuál uso?») que
-                nadie tiene por qué contestar.
-              */}
-            </div>
+              <nav className="tabs cliente-cab-tabs" aria-label={`Secciones de ${activeClient.name}`}>
+                {seccionesDeCliente.map(({ seccion, activa }) => {
+                  const { path, label, icon: Icon } = seccion;
+                  return (
+                    <NavLink
+                      key={path}
+                      to={clientPath(clientId, path)}
+                      className={`tab${activa ? ' active' : ''}`}
+                      aria-current={activa ? 'page' : undefined}
+                    >
+                      <Icon size={15} /> {label}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            </header>
           )}
-
-          {/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
+          
+{/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
               entrenador recién registrado y no puede limitarse a estar vacía.
               «Clientes» ya trae su propio vacío —con el formulario de alta
               dentro—, por eso aquí solo se cubre la de inicio.
@@ -476,19 +558,26 @@ export const CoachLayout = () => {
         </div>
 
         {/*
-          ══ La barra del pulgar CAMBIA de plano, como la barra lateral ═════════
+          ══ La barra del pulgar CAMBIA de plano, y aquí sí es lo correcto ══════
 
           Llevaba siempre el primer nivel —Hoy, Clientes— y las secciones del
           cliente iban en un carril de chips arriba, en la zona que el pulgar no
           alcanza. Es decir: la navegación que se usa DECENAS de veces al día
           (moverse por un cliente) estaba en el sitio malo, y la que se usa dos
-          veces (volver a Hoy) ocupaba el bueno.
+          veces (volver a Hoy) ocupaba el bueno. Así que cambia de plano: fuera
+          de un cliente el nivel primario, dentro el cliente entero, y la vuelta
+          al primario es la flecha de la cabecera.
 
-          La barra lateral de escritorio ya había resuelto esto mismo: no apila
-          planos, CAMBIA de plano — fuera de un cliente el nivel primario, dentro
-          el cliente entero. La barra del pulgar hace ahora exactamente eso. No
-          es mezclar niveles: en pantalla nunca hay más de un plano, y la vuelta
-          al primario es la flecha de la cabecera, igual que en la barra lateral.
+          ── Y por qué el escritorio ha dejado de hacerlo ─────────────────────
+          Porque allí sobra sitio y aquí no. La barra lateral cambiaba de plano
+          por el mismo argumento y acabó borrando la aplicación entera cada vez
+          que se entraba en alguien; una columna de 264 px y 900 de alto tiene
+          espacio para las cuatro puertas Y la cartera, así que ya no cambia.
+          Una tira de 56 px al alcance del pulgar no lo tiene, y esconder aquí
+          la navegación detrás de un botón sería peor que cambiar de plano.
+
+          No es que las dos geometrías divergan por descuido: es que la
+          restricción es distinta y la respuesta también.
 
           Con más de cinco secciones, BottomNav enseña cuatro y guarda el resto
           en su hoja de «Más» — la misma mecánica que el portal del cliente.
@@ -502,8 +591,8 @@ export const CoachLayout = () => {
                  del cliente. Hubo una versión que reordenaba el cuarteto por
                  frecuencia de uso (revisión delante de nutrición) y se
                  deshizo: tres órdenes distintos para las mismas secciones
-                 —barra lateral, portal, pulgar— cuestan más de memorizar que
-                 lo que ahorra un toque en «Más». */
+                 —la cabecera del cliente, el portal y el pulgar— cuestan más
+                 de memorizar que lo que ahorra un toque en «Más». */
               ? seccionesDeCliente.map(({ seccion }) => ({
                   to: clientPath(clientId, seccion.path),
                   label: seccion.short || seccion.label,

@@ -169,7 +169,12 @@ describe('AppProvider', () => {
     // nuevo. Es una acción y no dos porque el canje ya existía desde la 0015: lo
     // único que faltaba era poder SOLTAR una ficha ya enlazada, que es lo que
     // dejaba a un cliente sin contraseña fuera para siempre.
-    expect(Object.keys(visto.app).length).toBe(201);
+    //
+    // Y 204 desde `profileName`: TU nombre, el de `profiles.full_name`. Se
+    // cargaba con el resto del perfil y se tiraba, así que el pie de la barra
+    // lateral —donde ahora vive tu identidad y, dentro de ella, tus ajustes—
+    // solo podía enseñar las iniciales de tu correo.
+    expect(Object.keys(visto.app).length).toBe(204);
   });
 
   /*

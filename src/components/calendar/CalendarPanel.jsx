@@ -25,6 +25,7 @@ import { clientProtocol, requiresBlock } from '@/domain/protocol';
 import { addDays, daysBetween, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
 import { Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
+import { Mando } from '@/components/ui/Mando';
 import { KindLegend, WeekBoard } from './WeekBoard';
 
 /** «jueves 20 de agosto» → «Jueves 20 de agosto». Es un título; se le pone mayúscula. */
@@ -368,17 +369,23 @@ export const CalendarPanel = ({ audience = 'client' }) => {
 
   return (
     <div className="stack">
-      <PageHead
-        title={isClient ? 'Mi calendario' : 'Calendario'}
-        sub="Cuándo toca la revisión, y lo que hay alrededor: citas, competiciones y descansos."
-        action={
-          isClient && reclama ? (
-            <Link className="btn btn-primary btn-sm" to="/mi/evolucion">
-              Entregar mi revisión
-            </Link>
-          ) : null
-        }
-      />
+      {/* El cliente conserva su titular; para el entrenador la miga ya dice
+          «Calendario» y queda la línea de contexto. */}
+      {isClient ? (
+        <PageHead
+          title="Mi calendario"
+          sub="Cuándo toca la revisión, y lo que hay alrededor: citas, competiciones y descansos."
+          action={
+            reclama ? (
+              <Link className="btn btn-primary btn-sm" to="/mi/evolucion">
+                Entregar mi revisión
+              </Link>
+            ) : null
+          }
+        />
+      ) : (
+        <Mando contexto="Cuándo toca la revisión, y lo que hay alrededor: citas, competiciones y descansos." />
+      )}
 
       {unavailable && (
         <Notice tone="info">

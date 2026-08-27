@@ -8,6 +8,7 @@ import { macroColor } from '@/domain/nutrition';
 import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { Delta } from '@/components/ui/metrics';
+import { Panel } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { GoalCard } from '@/components/nutrition/GoalCard';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
@@ -108,31 +109,33 @@ export const NutritionCard = ({ track = [], selected, client }) => {
   const sinPlan = !fila || (fila.kcals === null && fila.protein === null && fila.steps === null);
 
   return (
-    <section className="card bloque" aria-label="Su nutrición">
-      <div className="bloque-head">
-        <div className="bloque-say">
-          <h2 className="bloque-titulo">Su plan esta semana</h2>
-          <p className="bloque-sub">
-            {previa
-              ? `Lo tiene puesto desde la semana ${previa.week + 1}.`
-              : 'Lo que tenía puesto de comer y de moverse.'}
-          </p>
-        </div>
+    <Panel
+      className="bloque"
+      rango="bloque"
+      aria-label="Su nutrición"
+      title="Su plan esta semana"
+      sub={
+        previa
+          ? `Lo tiene puesto desde la semana ${previa.week + 1}.`
+          : 'Lo que tenía puesto de comer y de moverse.'
+      }
+      action={
         <div className="row gap-2 wrap">
           {puedeAjustar && (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={() => setAjustando(true)}
             >
               <SlidersHorizontal size={13} /> Ajustar
             </button>
           )}
-          <Link className="btn btn-secondary btn-sm" to={clientPath(client?.id, 'nutricion')}>
+          <Link className="btn btn-quiet btn-sm" to={clientPath(client?.id, 'nutricion')}>
             <Apple size={13} /> Su dieta
           </Link>
         </div>
-      </div>
+      }
+    >
 
       {sinPlan ? (
         <p className="t-sm t-tertiary">
@@ -168,19 +171,41 @@ export const NutritionCard = ({ track = [], selected, client }) => {
       )}
 
       {/*
-        ══ El ajuste, en un DIÁLOGO ══════════════════════════════════════════
+        ══ El ajuste, en un PANEL AL LADO ════════════════════════════════════
 
-        Tocar los números es un gesto corto y con final —abres, cambias, guardas,
-        vuelves— y mientras lo haces no necesitas la revisión detrás. Al cerrarlo,
-        el recuento de la barra ya lo dice.
+        Estuvo en un diálogo centrado, con el argumento de que tocar los números
+        es un gesto corto y con final y que mientras tanto no hace falta ver la
+        revisión detrás. Es justo al revés: **la cifra que se pone sale de lo que
+        se está mirando** —cuánto ha bajado, cuántos pesajes hay, qué dice la
+        curva—, así que con el velo delante había que memorizar el dato antes de
+        abrir y volver a comprobarlo al cerrar.
 
-        Son los MISMOS controles de «Nutrición», con su mismo `onSave`: un segundo
+        En el panel las dos cosas están a la vez. Ver `size="side"` en
+        `ui/Modal.jsx`.
+
+        Son los MISMOS controles de «Dieta», con su mismo `onSave`: un segundo
         formulario de calorías es un segundo sitio donde arreglar el día que
         cambie el modelo.
       */}
       {ajustando && puedeAjustar && (
+        /*
+          ── Un PANEL, no un diálogo centrado ─────────────────────────────────
+          Ajustar es el gesto que cierra una revisión, y se decide MIRANDO la
+          semana: cuánto ha bajado, cuántos pesajes hay, qué dice la curva. Un
+          diálogo centrado con velo tapa exactamente eso, así que había que
+          memorizar la cifra antes de abrirlo y volver a mirarla al cerrar.
+
+          En el panel lateral los dos están a la vez: a la izquierda la semana
+          que estás juzgando, a la derecha lo que le cambias. Es la misma pieza
+          que estrena el historial de un ejercicio (`size="side"` en
+          `ui/Modal.jsx`), y es media fase 1: **se ajusta sobre lo que se está
+          mirando, sin irse a otra pantalla.**
+
+          El ancho no importa aquí: la rejilla de los dos objetivos ya se apila
+          sola por debajo de 340 px, así que en el panel se leen uno bajo otro.
+        */
         <Modal
-          size="lg"
+          size="side"
           title={`Ajustar la dieta de ${nombre}`}
           onClose={() => setAjustando(false)}
           footer={
@@ -256,6 +281,6 @@ export const NutritionCard = ({ track = [], selected, client }) => {
           </div>
         </Modal>
       )}
-    </section>
+    </Panel>
   );
 };

@@ -664,7 +664,7 @@ export const PlanPanel = () => {
 /** La cabecera es la misma en los tres estados de la pantalla. */
 const Header = ({ children }) => (
   <div className="stack">
-    <PageHead title="Plan" sub="Cuántos clientes llevas y hasta dónde llega tu plan." />
+    <PageHead title="Suscripción" sub="Cuántos clientes llevas y hasta dónde llega tu plan." />
     {children}
   </div>
 );

@@ -117,7 +117,7 @@ export const ReviewTake = ({ nombre, onReady, onClose }) => {
       footer={
         status === 'ready' ? (
           <div className="row gap-2 wrap">
-            <button type="button" className="btn btn-secondary" onClick={discard}>
+            <button type="button" className="btn btn-quiet" onClick={discard}>
               <RotateCcw size={15} /> Repetir
             </button>
             <button type="button" className="btn btn-primary" onClick={usar}>

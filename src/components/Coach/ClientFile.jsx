@@ -1,21 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  Archive,
   Check,
   Eye,
   ExternalLink,
   FileText,
   FolderOpen,
-  KeyRound,
   Link2,
   Paperclip,
-  Pencil,
   Send,
   Upload,
   UserCheck,
   Video,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { clientPath } from '@/routes';
 
 import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
@@ -46,11 +44,12 @@ import {
   GroupHead,
   Notice,
   NumberInput,
-  PageHead,
+  Fold,
   Panel,
   SegmentedControl,
 } from '@/components/ui/primitives';
 import { PageNav } from '@/components/ui/PageNav';
+import { Mando } from '@/components/ui/Mando';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConditionsPanel } from '@/components/conditions/ConditionsPanel';
@@ -256,7 +255,7 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
         <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || edadMal}>
           Guardar
         </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
+        <button type="button" className="btn btn-quiet btn-sm" onClick={onCancel}>
           Cancelar
         </button>
         {!limpio && <span className="t-xs t-tertiary">El nombre no puede quedar vacío.</span>}
@@ -325,10 +324,10 @@ const Identidad = ({ client, weight, onUpdate }) => {
         !editando && (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-quiet btn-sm"
             onClick={() => setEditando(true)}
           >
-            <Pencil size={13} /> Editar
+            Editar
           </button>
         )
       }
@@ -582,11 +581,11 @@ const PortalAccess = ({ client }) => {
             */}
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={reemitir}
               disabled={busy}
             >
-              <KeyRound size={14} /> {busy ? 'Generando…' : 'Perdió el acceso'}
+              {busy ? 'Generando…' : 'Perdió el acceso'}
             </button>
           </div>
         </div>
@@ -652,14 +651,14 @@ const ArchiveRow = ({ client }) => {
       </div>
       <button
         type="button"
-        className="btn btn-secondary btn-sm"
+        className="btn btn-quiet btn-sm"
         disabled={busy}
         onClick={() => {
           setBusy(true);
           setClientArchived(client.id, true);
         }}
       >
-        <Archive size={14} /> Archivar
+        Archivar
       </button>
     </div>
   );
@@ -824,7 +823,7 @@ const StepRow = ({
         {step.link && !editando && (
           <button
             type="button"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-quiet btn-sm"
             onClick={() => {
               setDraft(url || '');
               setEditando(true);
@@ -1035,7 +1034,7 @@ const StepRow = ({
             />
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               style={{ alignSelf: 'flex-start' }}
               disabled={subiendo}
               onClick={() => input.current?.click()}
@@ -1055,7 +1054,7 @@ const StepRow = ({
             </button>
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-quiet btn-sm"
               onClick={() => {
                 setEditando(false);
                 setError('');
@@ -1066,7 +1065,7 @@ const StepRow = ({
             {(url || file) && (
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="btn btn-quiet btn-sm"
                 onClick={() => {
                   /* Quitar lo que haya: solo hay una de las dos cosas, así que se
                      limpian las dos y da igual cuál estuviera puesta. */
@@ -1163,15 +1162,15 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
           invitarle —que dura un rato— y desaparecía justo cuando más se quiere,
           que es después de cambiar lo que se le pide para ver cómo le queda.
 
-          El marco ya tiene un «Ver su portal» permanente en la barra lateral,
-          pero deja a uno en el INICIO del cliente. Éste va a su alta, que es lo
-          que se acaba de configurar aquí.
+          El marco ya tiene un «Ver su portal» permanente en la cabecera del
+          cliente, pero deja a uno en el INICIO del cliente. Éste va a su alta,
+          que es lo que se acaba de configurar aquí.
         */
         <div className="row gap-2">
           <span className={`badge ${complete ? 'badge-ok' : ''}`}>
             {complete ? <Check size={11} /> : null} {done} de {total}
           </span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={onProbar}>
             <Eye size={14} /> Ver su alta
           </button>
         </div>
@@ -1339,6 +1338,27 @@ export const ClientFile = () => {
     la forma de que un día discrepen.
   */
   const pasosDelAlta = intakeSteps(clientIntake(activeClient.preferences));
+  /*
+    ── Qué hay dentro del pliegue de la anamnesis, dicho en la fila ───────────
+    Un pliegue cerrado que solo dice su nombre obliga a abrirlo para saber si
+    hay algo. Con el resumen delante —«3 lesiones · 4 respuestas · 12 máquinas»—
+    la fila contesta sin abrirse, que es la mitad de su trabajo.
+
+    Y es lo mismo que decide si arranca abierto: sin nada contestado, la ficha
+    es un formulario y se abre sola.
+  */
+  const anamnesisVacia =
+    isProfileEmpty(activeClient.profile) && conditions.length === 0;
+  const resumenAnamnesis = anamnesisVacia
+    ? 'Todavía no te ha contado nada'
+    : [
+        conditions.length > 0 &&
+          `${conditions.length} ${conditions.length === 1 ? 'condición' : 'condiciones'}`,
+        !isProfileEmpty(activeClient.profile) && 'su perfil',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
   const apartados = [
     { id: 'quien', label: 'Quién es' },
     ...(pasosDelAlta.length > 0 ? [{ id: 'alta', label: 'Su alta' }] : []),
@@ -1359,12 +1379,21 @@ export const ClientFile = () => {
 
   return (
     <div className="stack">
-      <PageHead
-        title="Ficha"
-        sub={`Quién es ${activeClient.name}, su acceso al portal, su cobro y su baja.`}
-        /* Una acción y solo una, como manda §5.1: llevarse esto en un documento.
-           Lo demás de esta pantalla se edita bloque a bloque. */
-        action={<DownloadAnamnesis client={activeClient} />}
+      {/* La fila de mando: sin titular —la pestaña ya dice «Perfil»—, el
+          contexto en voz baja y, a la derecha, su calendario como enlace de
+          texto y la anamnesis para llevar. Lo demás se edita bloque a bloque. */}
+      <Mando
+        contexto={identitySubtitle(activeClient, dayMonthMaybeYear(activeClient.startDate))}
+        acciones={
+          <>
+            {/* Su calendario es parte del perfil —sus fechas— y se abre desde aquí,
+                no desde un carril de chips. Vuelve con una miga. */}
+            <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'calendario')}>
+              Su calendario →
+            </Link>
+            <DownloadAnamnesis client={activeClient} className="btn btn-quiet btn-sm" />
+          </>
+        }
       />
 
       {/*
@@ -1464,11 +1493,40 @@ export const ClientFile = () => {
         </Notice>
       )}
 
-      {/* Lo que condiciona lo que le puedes poner. Va delante de los tres
-          bloques de perfil porque es lo único de esta tanda que además AVISA:
-          sale por su cuenta en su rutina y en su dieta. */}
+      {/* Lo que condiciona lo que le puedes poner. Va delante del pliegue y
+          FUERA de él porque es lo único de esta tanda que además AVISA: sale por
+          su cuenta en su rutina y en su dieta, y un aviso que hay que desplegar
+          para verlo no es un aviso. */}
       <ConditionsPanel client={activeClient} />
 
+      {/*
+        ══ Y el resto de la anamnesis se PLIEGA cuando ya está contestada ══════
+
+        Ésta es la pantalla más grande del producto —41 campos y 41 cosas
+        pulsables— y sus dos mitades no se miran con la misma frecuencia. Lo que
+        te cuenta de sí mismo se lee entero UNA vez, el día que le montas la
+        rutina y la dieta; su cobro, su acceso y su baja se consultan cada mes.
+        Estaban a la misma altura y con el mismo peso, así que abrir la ficha de
+        alguien para ver cuándo paga costaba pasar por delante de sus lesiones,
+        su disponibilidad, sus respuestas y su maquinaria.
+
+        ── Por qué un pliegue y no unas pestañas ──────────────────────────────
+        «PageNav» ya argumenta —y bien— que trocear esta pantalla en pestañas
+        escondería lo que no está delante, y que la primera vez se lee entera.
+        Las dos cosas siguen siendo verdad, y por eso el pliegue **decide su
+        estado por el dato, no por gusto**: vacío se abre solo, porque entonces
+        la pantalla es un formulario que hay que rellenar; contestado arranca
+        cerrado, porque entonces es un archivo que se consulta.
+
+        Es la misma regla que ya usa el aviso de aquí arriba, que desaparece en
+        cuanto hay algo. No esconde nada: el apartado sigue en el índice, la fila
+        resume qué hay dentro y se abre de un toque.
+      */}
+      <Fold
+        title="Lo que te ha contado"
+        summary={resumenAnamnesis}
+        defaultOpen={anamnesisVacia}
+      >
       {/*
         Los tres bloques del perfil, a dos columnas. Salen del catálogo
         (`domain/profile.js`), así que esta lista no crece cuando crecen los
@@ -1508,6 +1566,7 @@ export const ClientFile = () => {
         client={activeClient}
         onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
       />
+      </Fold>
       </section>
 
       <section id="relacion" className="page-section">

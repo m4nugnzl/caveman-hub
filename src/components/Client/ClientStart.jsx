@@ -80,7 +80,12 @@ export const ClientStart = () => {
     <div className="stack">
       {/* El nombre en cursiva es el REMATE, como en los titulares de la
           portada: la parte humana del título. Ver `PageHead`. */}
-      <PageHead title="Hola," remate={activeClient.name} sub="Tu progreso, semana a semana." />
+      {/* El título dice el nombre de la pantalla, que es lo que dice su
+          pestaña. Era «Hola, Marta»: cálido, y la única pantalla del producto
+          cuyo titular no la nombraba — su pestaña decía «Mi progreso» y al
+          entrar no había forma de saber que habías llegado ahí. El saludo no se
+          pierde del todo: su nombre y su avatar siguen en la cabecera. */}
+      <PageHead title="Mi progreso" sub="Cómo vas, semana a semana." />
 
       {/* Lo que su entrenador espera DE ÉL. Va lo primero mientras falte: es lo
           que desbloquea el resto de la aplicación, y debajo de un aviso de

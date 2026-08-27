@@ -348,6 +348,16 @@
   --header-h: 58px;
   --max-w: 1320px;
 
+  /* El ancho de las dos pantallas de TRABAJO de un cliente: la hoja de series y
+     el menú de la dieta. Las dos piden más sitio que una página de lectura —una
+     tabla de series con sus tres columnas, un menú con el objetivo al lado— y
+     las dos tienen que pedir EL MISMO: se salta de Entreno a Dieta con las
+     pestañas del cliente, y si una va a 1320 y la otra a todo lo ancho, el
+     contenido baila de sitio en cada salto. Antes Entreno se quedaba sin tope y
+     Dieta a la medida de lectura, y en un monitor grande el salto era medio
+     palmo. */
+  --max-w-trabajo: 1560px;
+
   /* Alto de la barra de navegación inferior del móvil, incluida el área segura
      del iPhone. Vive aquí porque no lo usa solo la barra: el contenido de la
      página tiene que reservar ese hueco al final o la última fila queda debajo

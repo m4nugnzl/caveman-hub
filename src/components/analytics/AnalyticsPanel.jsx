@@ -29,6 +29,7 @@ import { BandChart, BarBandChart, MeterList, StackedShareChart } from '@/compone
 import { RangeChips } from '@/components/ui/ChartCard';
 import { Delta, MetricCard } from '@/components/ui/metrics';
 import { EmptyState, PageHead, Panel } from '@/components/ui/primitives';
+import { Mando } from '@/components/ui/Mando';
 import { AnalyticsReading } from './AnalyticsReading';
 
 /**
@@ -319,14 +320,13 @@ export const AnalyticsPanel = ({ audience = 'coach' }) => {
 
   return (
     <div className="stack">
-      <PageHead
-        title="Análisis"
-        sub={
-          isClient
-            ? 'Tu progreso a fondo: qué se mueve, cuánto y desde cuándo.'
-            : `La revisión a fondo de ${activeClient.name}: qué se mueve, cuánto y desde cuándo.`
-        }
-      />
+      {/* El cliente conserva su titular —es su portada—; para el entrenador la
+          miga ya dice «Análisis» y queda la línea de contexto. */}
+      {isClient ? (
+        <PageHead title="Análisis" sub="Tu progreso a fondo: qué se mueve, cuánto y desde cuándo." />
+      ) : (
+        <Mando contexto="A fondo: qué se mueve, cuánto y desde cuándo." />
+      )}
 
       {/* La conclusión antes de la prueba. Ver AnalyticsReading. */}
       <AnalyticsReading

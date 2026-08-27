@@ -7,6 +7,7 @@ import { TrainingCard } from './TrainingCard';
 import { NutritionCard } from './NutritionCard';
 import { BodyCard } from './BodyCard';
 import { ExerciseSheet } from './ExerciseSheet';
+import { ExerciseCard } from './ExerciseCard';
 import { nutritionTrack, reviewTimeline } from '@/domain/timeline';
 import { exerciseTrend } from '@/domain/week';
 
@@ -209,6 +210,35 @@ describe('TrainingCard', () => {
     );
 
   /*
+    ══ Y por qué las tarjetas se prueban SUELTAS ══════════════════════════════
+
+    Desde que el día se pliega, `TrainingCard` no pinta sus ejercicios hasta que
+    alguien lo abre, y `renderToStaticMarkup` no pulsa nada. Estas pruebas
+    fallaron en cuanto se plegó, que es exactamente lo que tenían que hacer: la
+    forma de la pantalla cambió.
+
+    Lo que NO tenía sentido era volver a abrir el día para que pasaran. Lo que
+    comprueban —la recta, la cifra de la semana señalada, el ejercicio que no se
+    hizo— es de la TARJETA, no del día que la contiene, y probarlo a través de su
+    contenedor era lo que las ataba a una decisión de plegado que no es suya. Se
+    montan directamente, y así siguen protegiendo lo mismo cuando el día cambie
+    de forma otra vez.
+
+    Lo del día —que su línea resuma la sesión sin abrirla— se prueba aparte, más
+    abajo, que es lo que de verdad se ha añadido.
+  */
+  const pintaTarjeta = (props = {}) =>
+    monta(
+      <ExerciseCard
+        ejercicio={ejercicio}
+        trend={exerciseTrend({ microcycles, name: 'Sentadilla', weekNumber: 4 })}
+        semana={4}
+        onOpen={() => {}}
+        {...props}
+      />
+    );
+
+  /*
     ══ Lo que este bloque vino a arreglar, a la tercera ══════════════════════
 
     Fue una fila de cifras derivadas —un dibujito, «45 → 45» y una palabra— y
@@ -221,7 +251,7 @@ describe('TrainingCard', () => {
     Lo primero que se ve ahora es la recta.
   */
   it('lo primero es la recta, con sus dos extremos rotulados', () => {
-    const html = pinta();
+    const html = pintaTarjeta();
 
     expect(html).toContain('ejerc-recta');
     expect(html).toContain('recta-trazo');
@@ -234,7 +264,7 @@ describe('TrainingCard', () => {
      anterior SUYA y el número de semana al canto — sin él, deslizar cambia los
      números y no dice de cuándo son. */
   it('la cifra es la de la semana señalada, con su salto y su semana', () => {
-    const html = pinta();
+    const html = pintaTarjeta();
 
     expect(html).toContain('ejerc-kpi');
     expect(html).toContain('115');
@@ -245,7 +275,10 @@ describe('TrainingCard', () => {
   /* El que no hizo conserva su recta: qué le tocaba y por dónde iba. Es lo que
      permite decidir si se reprograma o se le pregunta qué pasó. */
   it('el ejercicio que no hizo conserva su recta y lo dice', () => {
-    const html = pinta();
+    const html = pintaTarjeta({
+      ejercicio: saltado,
+      trend: exerciseTrend({ microcycles, name: 'Face pull', weekNumber: 4 }),
+    });
 
     expect(html).toContain('Face pull');
     expect(html).toContain('No lo hizo esta semana');
@@ -262,10 +295,31 @@ describe('TrainingCard', () => {
   /* El registro en crudo vive en un diálogo, no desplegado aquí: con ocho
      ejercicios de cinco series serían cuarenta renglones en mitad del tablero. */
   it('el registro completo no se pinta hasta que se pide', () => {
-    const html = pinta();
+    const html = pintaTarjeta();
 
     expect(html).not.toContain('hist-serie');
     expect(html).toContain('ejerc-tarjeta-head');
+  });
+
+  /*
+    ══ Y el día resume su sesión SIN abrirse ═════════════════════════════════
+
+    Es lo que hace que plegar no sea esconder: la línea del día tiene que decir
+    cuándo fue, cuántas series de las que le pusiste hizo y cómo le fue, o
+    plegarlo solo estaría quitando información de la pantalla.
+
+    Se comprueba que la línea lo dice y que los ejercicios NO están pintados,
+    que son las dos mitades del trato.
+  */
+  it('el día se pliega y su línea resume la sesión', () => {
+    const html = pinta();
+
+    expect(html).toContain('Día 1');
+    expect(html).toContain('3 de 4 series');
+    expect(html).toContain('sube en 1');
+    /* Y dentro no hay nada hasta que se abre. */
+    expect(html).not.toContain('ejerc-recta');
+    expect(html).not.toContain('Face pull');
   });
 
   /*

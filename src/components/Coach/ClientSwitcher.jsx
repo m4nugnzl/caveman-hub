@@ -98,20 +98,23 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
     : clients;
 
   return (
-    <div ref={wrapRef} className="switcher" style={{ position: 'relative' }}>
+    /* Sin clases propias: las dos que llevaba (`switcher`, `switcher-btn`) solo
+       existían para que la barra lateral pudiera desvestir el botón cuando el
+       selector vivía dentro de ella. Ahora la barra lleva la cartera entera y
+       esto es solo del móvil, donde el botón se viste como cualquier otro. */
+    <div ref={wrapRef} style={{ position: 'relative' }}>
       <button
         type="button"
-        className="btn btn-secondary switcher-btn"
+        className="btn btn-secondary"
         style={{ padding: '6px 14px 6px 6px', borderRadius: 'var(--r-lg)' }}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={abrir}
       >
         <Avatar name={current.name} active />
-        {/* `flex: 1` para que en la barra lateral —donde el botón ocupa el
-            ancho— el galón se vaya al canto derecho, como en cualquier
-            selector de espacio de trabajo. En el subnivel del móvil el botón
-            mide lo que su contenido y el `flex` no cambia nada. */}
+        {/* `flex: 1` empuja el galón al canto derecho cuando el botón ocupa
+            ancho. En el subnivel del móvil mide lo que su contenido y esto no
+            cambia nada; se queda porque la hoja del teléfono sí lo estira. */}
         <span style={{ textAlign: 'left', flex: 1, minWidth: 0 }}>
           <span
             style={{

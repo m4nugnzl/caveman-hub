@@ -139,6 +139,20 @@ export interface WorkoutData {
   mobilityDrills: MobilityDrill[];
   notes: string;
   microcycles: Microcycle[];
+  /** Los bloques, como rangos de semanas. Vacío = todo es el Bloque 1 (ver `domain/blocks`). */
+  blocks: TrainingBlock[];
+}
+
+/** Un bloque de entreno: la estructura que no cambia y sus semanas. */
+export interface TrainingBlock {
+  id: string;
+  name: string;
+  fromWeek: number;
+  /** `null` en el bloque abierto. */
+  toWeek: number | null;
+  /** Copia congelada al cerrarlo; el abierto usa los del programa. */
+  weeklySplit?: Record<string, string>;
+  mobilityDrills?: MobilityDrill[];
 }
 
 /** Un ejercicio de calentamiento. */

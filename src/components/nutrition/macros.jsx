@@ -184,3 +184,105 @@ export const MacroRing = ({ protein, carbs, fats, kcals, caption, size = 92 }) =
     </div>
   );
 };
+
+/**
+ * El reparto de macros en MINIATURA: una barra de tres tramos y nada más.
+ *
+ * Para la cabecera de una comida y las filas del plan del día: dice de un
+ * vistazo si una comida es de proteína o de hidratos sin gastar un anillo ni
+ * una leyenda. Los colores son los del dominio, como en la barra grande.
+ */
+export const MacroMini = ({ protein, carbs, fats, title }) => {
+  const m = macroBreakdown({ protein, carbs, fats });
+  if (m.empty) return null;
+  return (
+    <span
+      className="macro-mini"
+      role="img"
+      aria-label={`Proteína ${m.pct.protein} %, carbos ${m.pct.carbs} %, grasas ${m.pct.fats} %`}
+      title={title || `P ${m.pct.protein} % · C ${m.pct.carbs} % · G ${m.pct.fats} %`}
+    >
+      {MACRO_META.map(({ key, color }) => (
+        <span key={key} style={{ width: `${m.pct[key]}%`, background: color }} />
+      ))}
+    </span>
+  );
+};
+
+/**
+ * La opción ELEGIDA de una comida, para sumar el día con lo que está abierto.
+ * `elegidas` es `{ [meal.id]: índice }`; sin entrada, la primera.
+ */
+export const opcionElegida = (meal, elegidas) => {
+  const n = (meal?.options || []).length;
+  const i = elegidas?.[meal?.id] ?? 0;
+  return meal?.options?.[Math.min(Math.max(0, i), Math.max(0, n - 1))];
+};
+
+/** El margen dentro del cual un macro «cuadra»: el 5 % de lo pautado. */
+export const MARGEN = 0.05;
+
+/**
+ * ¿Cuadra, se pasa o se queda corto? El mismo margen con el que la ventana del
+ * día cuenta las comidas que cuadran.
+ */
+export const estadoMacro = (real, objetivo) => {
+  if (!objetivo) return '';
+  const diff = real - objetivo;
+  const margen = objetivo * MARGEN;
+  return diff > margen ? 'is-over' : diff < -margen ? 'is-under' : 'is-ok';
+};
+
+/**
+ * UNA COLUMNA DE LA TIRA DEL DÍA: rótulo, lo que va sobre lo pedido, y de
+ * cuánto es la diferencia.
+ *
+ * ══ Por qué aquí no hay gráfico ═════════════════════════════════════════════
+ *
+ * Se probaron tres y los tres estorbaban:
+ *
+ *   1. Un anillo junto a una barra. Los arcos del anillo eran el reparto de
+ *      macros pero su centro llevaba el porcentaje del objetivo —lo que ya
+ *      pintaba la barra—: dos gráficos para un dato, y el anillo diciendo dos
+ *      cosas distintas a la vez.
+ *   2. Cuatro barras de progreso. Una dieta montada va siempre por el 95-105 %
+ *      de lo pautado, así que las cuatro salían llenas: cuatro franjas de color
+ *      sin más lectura que su propio color.
+ *   3. Un medidor de desvío, con lo pautado en el centro. Medía lo correcto,
+ *      pero cada columna tenía su propio eje y cuatro rayitas sueltas a distinta
+ *      altura se leían como un fallo de pintado, no como un dato.
+ *
+ * El problema de fondo es que aquí no hay nada que dibujar: son cuatro
+ * diferencias de una o dos cifras. «−9 g» ES el gráfico, y escrito ocupa menos
+ * y se entiende antes. Lo que sí hacía falta era que las cuatro columnas se
+ * pudieran leer en horizontal, y para eso las cuatro cifras van del MISMO
+ * tamaño —el tamaño extra de las kcal era lo que desalineaba las filas— y cada
+ * renglón queda a la altura de su vecino.
+ *
+ * ── El color, donde hay algo que corregir ───────────────────────────────────
+ * Las cifras van en tinta de dato. Cuatro números en verde por cuadrar son la
+ * misma señal cuatro veces y dejan de ser señal: el color vive en la línea de
+ * la diferencia, y solo cuando se sale del margen.
+ *
+ * @param {string} [color]     Color del macro, para el punto del rótulo.
+ * @param {string} [lectura]   Línea de pie: «cuadra», «−9 g», «+3».
+ * @param {boolean} [total]    La columna del total (las kcal): va separada de
+ *                             las tres que la descomponen.
+ */
+export const Medidor = ({ label, color, valor, objetivo, unidad = '', lectura, total = false }) => {
+  const estado = estadoMacro(valor, objetivo);
+
+  return (
+    <div className={`medidor${total ? ' is-total' : ''}${estado ? ` ${estado}` : ''}`}>
+      <span className="k">
+        {color && <i style={{ background: color }} />}
+        {label}
+      </span>
+      <span className="v">
+        <b>{valor}</b>
+        {objetivo ? <small>/{objetivo}{unidad ? ` ${unidad}` : ''}</small> : unidad ? <small> {unidad}</small> : null}
+      </span>
+      {lectura && <span className="lectura">{lectura}</span>}
+    </div>
+  );
+};

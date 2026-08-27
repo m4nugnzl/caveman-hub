@@ -27,6 +27,24 @@ const FOCUSABLE =
  * montado es abierto y el cierre es un corte. Es la puerta de atrás que permite
  * migrar los sitios de llamada uno a uno en vez de todos en la misma tarde.
  */
+/*
+  ── `size="side"`: el detalle sin salir de la pantalla ─────────────────────
+  Un diálogo centrado tapa el trabajo con un velo y dice «esto de aquí ha
+  terminado, atiéndeme a mí». Para confirmar un borrado es exactamente lo que
+  hace falta. Para MIRAR un detalle —el historial de un ejercicio, una comida,
+  una foto— es lo contrario de lo que hace falta: se abre justamente para
+  compararlo con lo que hay debajo, y el velo tapa aquello con lo que se compara.
+
+  Ésa es la mitad de la sensación de «saltar entre ventanas»: mirar una cosa te
+  saca de donde estabas. Con `side` el panel entra por el canto derecho, el plan
+  sigue delante y a la vista, y se cierra igual —con la equis, con Escape o
+  pulsando fuera—. Es lo que hace el competidor de referencia con el detalle de
+  un ejercicio.
+
+  Sigue siendo el mismo componente y el mismo contrato de accesibilidad
+  (`role="dialog"`, foco atrapado, `aria-modal`): lo único que cambia es dónde
+  se coloca y cuánto tapa.
+*/
 export const Modal = ({ open, title, onClose, children, footer, size = 'md', labelledBy }) => {
   const dialogRef = useRef(null);
   const titleId = useId();
@@ -84,13 +102,13 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
   return (
     <div
       ref={ref}
-      className="modal-backdrop"
+      className={`modal-backdrop${size === 'side' ? ' is-side' : ''}`}
       data-state={closing ? 'closing' : 'open'}
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <div
         ref={dialogRef}
-        className={`modal${size === 'lg' ? ' modal-lg' : ''}`}
+        className={`modal${size === 'lg' ? ' modal-lg' : ''}${size === 'side' ? ' modal-side' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy || titleId}

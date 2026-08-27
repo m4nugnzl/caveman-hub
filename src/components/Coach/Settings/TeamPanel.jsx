@@ -274,8 +274,14 @@ export const TeamPanel = () => {
         estaba renombrando —y de paso metía un `<input>` dentro de un
         encabezado, que para un lector de pantalla no es un encabezado—.
       */}
+      {/* El título es el nombre de la PANTALLA, y el del equipo es un dato
+          suyo: pulsando «Equipo» en la lista de ajustes se aterrizaba en «Los
+          Cavernícolas», y quien no recuerde cómo llamó a su equipo no sabe si
+          ha llegado. El nombre va de remate, que es donde va la parte humana de
+          un titular en este producto. Se sigue cambiando desde el mismo sitio. */}
       <PageHead
-        title={team.name}
+        title="Equipo"
+        remate={team.name}
         sub={`${rows.length} ${rows.length === 1 ? 'persona' : 'personas'} · ${clients.length} ${
           clients.length === 1 ? 'cliente' : 'clientes'
         }${

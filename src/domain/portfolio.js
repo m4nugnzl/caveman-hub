@@ -624,6 +624,7 @@ export const BOARD_COLUMNS = [
   },
   {
     id: 'checkin',
+    seccion: 'semana',
     label: 'Check-in pendiente',
     hint: 'Les toca pesarse y subir fotos esta semana',
     tone: 'warn',
@@ -708,17 +709,41 @@ export const portfolioBoard = (rows) => {
  * `verb` es lo que se hace, no lo que le pasa al cliente: «Responder el check-in»
  * y no «Check-in por revisar». Una bandeja de tareas se lee en infinitivo.
  */
+/*
+  ── `awaited`: quién ha entregado algo y sigue esperando ────────────────────
+  Las once tareas de la bandeja no son de la misma naturaleza. Nueve son trabajo
+  TUYO que decides cuándo hacer —programarle, cobrarle, recordarle el check-in—
+  y dos son gente que ya ha hecho su parte y está esperando a que contestes.
+
+  La distinción no la pedía la bandeja, que las lista todas y está bien así.
+  La pidió el punto de la cartera en la barra lateral: marcaba a quien apareciera
+  en CUALQUIER tarea, y con catorce clientes eso son diez puntos de catorce. Un
+  aviso que llevan casi todos no avisa de nada — el mismo argumento por el que
+  la chapa de cobro dejó de salir en rojo por defecto.
+
+  Se declara aquí y no en la barra porque es una propiedad de la tarea, no de
+  cómo se pinta: si mañana hay una tarea nueva, quien la escriba tiene que
+  decidir de qué clase es, y lo tiene delante.
+*/
+/*
+  `seccion` es a dónde lleva pulsar a la persona: la sección del cliente donde se
+  resuelve esa tarea. Vive aquí, al lado de `awaited`, porque es una propiedad de
+  la tarea y no de la pantalla que la pinta.
+*/
 export const INBOX_TASKS = [
   {
     id: 'review',
+    seccion: 'semana',
     label: 'Responder check-ins',
     hint: 'Han entregado y esperan tu respuesta',
     tone: 'info',
+    awaited: true,
     match: (row) => Boolean(row.review?.pending),
     why: () => 'Entregado y esperando',
   },
   {
     id: 'access',
+    seccion: 'ficha',
     label: 'Dar acceso al portal',
     hint: 'Todavía no pueden entrar a ver nada',
     tone: 'bad',
@@ -733,6 +758,7 @@ export const INBOX_TASKS = [
       uno, así que el recién llegado encabezaba la lista de urgencias.
     */
     id: 'start',
+    seccion: 'rutina',
     label: 'Poner en marcha',
     hint: 'Dados de alta y sin empezar todavía',
     tone: 'info',
@@ -741,6 +767,7 @@ export const INBOX_TASKS = [
   },
   {
     id: 'program',
+    seccion: 'rutina',
     label: 'Programar la rutina',
     hint: 'No tienen ni un microciclo',
     tone: 'bad',
@@ -749,6 +776,7 @@ export const INBOX_TASKS = [
   },
   {
     id: 'inactive',
+    seccion: 'semana',
     label: 'Se están descolgando',
     hint: 'Llevan demasiado sin entrenar',
     tone: 'bad',
@@ -758,6 +786,7 @@ export const INBOX_TASKS = [
   },
   {
     id: 'payment',
+    seccion: 'ficha',
     label: 'Cobrar',
     hint: 'Les ha vencido el cobro o les vence hoy',
     tone: 'warn',
@@ -779,14 +808,17 @@ export const INBOX_TASKS = [
       es justo la distinción que hace falta ver de un vistazo.
     */
     id: 'intake_ready',
+    seccion: 'ficha',
     label: 'Ya puedes empezar',
     hint: 'Te han entregado lo suyo y te toca a ti',
     tone: 'info',
+    awaited: true,
     match: (row) => row.alerts.some((a) => a.id === 'intake_ready'),
     why: () => 'Alta entregada',
   },
   {
     id: 'intake',
+    seccion: 'ficha',
     label: 'Terminar el alta',
     hint: 'Les faltan pasos de tu alta',
     tone: 'warn',
@@ -858,3 +890,81 @@ export const portfolioSummary = (rows) => ({
   paymentIssues: countBy(rows, 'payment'),
   clean: countBy(rows, 'ok'),
 });
+
+/**
+ * Las cuatro colas de «Inicio», y nada más.
+ *
+ * ── Por qué son cuatro y no las nueve tareas de la bandeja ──────────────────
+ * La bandeja (`INBOX_TASKS`) mezcla el trabajo del oficio —revisar, programar,
+ * escribir a quien desaparece, cobrar— con los trámites de un alta: dar acceso,
+ * terminar el alta, recordar un check-in. Sumados, el «36» de la portada no
+ * decía nada y se aprendía a ignorar. Las colas son solo el oficio; los
+ * trámites se listan aparte, en voz baja, y no cuentan.
+ *
+ * Vive aquí, en el dominio, para que la chapa de la barra lateral y la portada
+ * cuenten LO MISMO: una tercera cuenta propia divergiría (y divergió).
+ */
+export const COLAS_INICIO = [
+  { id: 'revisar', label: 'Por revisar', verbo: 'Revisar', seccion: 'semana', tasks: [] },
+  {
+    id: 'programar',
+    label: 'Sin programar',
+    sub: 'sin rutina o sin empezar',
+    verbo: 'Programar',
+    seccion: 'rutina',
+    tasks: ['program', 'start'],
+  },
+  {
+    id: 'senales',
+    label: 'Sin señales',
+    sub: 'llevan días sin entrenar',
+    verbo: 'Escribir',
+    seccion: 'semana',
+    tasks: ['inactive'],
+  },
+  {
+    id: 'cobrar',
+    label: 'Cobros',
+    sub: 'vencidos o vencen hoy',
+    verbo: 'Cobrar',
+    seccion: 'ficha',
+    tasks: ['payment'],
+  },
+];
+
+/** Lo administrativo: se lista aparte y no suma en las colas. */
+export const TRAMITES_INICIO = ['access', 'intake_ready', 'intake', 'checkin'];
+
+/**
+ * @returns Las colas con su gente: `n` es la cifra grande; en «Por revisar»,
+ *   `lista` son las filas de `reviewQueue` (entregadas primero) y `n` solo las
+ *   entregadas; en las demás, `filas` son `{ row, taskId }` sin repetir persona.
+ */
+export const colasDeInicio = (rows = [], today = todayISO()) => {
+  const { tasks } = portfolioInbox(rows);
+  const porTarea = new Map(tasks.map((t) => [t.id, t.rows]));
+  const revisiones = reviewQueue(rows, today);
+
+  return COLAS_INICIO.map((cola) => {
+    if (cola.id === 'revisar') {
+      const listas = revisiones.filter((r) => r.review_state === 'ready').length;
+      const sinSubir = revisiones.length - listas;
+      return {
+        ...cola,
+        n: listas,
+        sub: sinSubir > 0 ? `${sinSubir} sin subir todavía` : 'han entregado',
+        lista: revisiones,
+      };
+    }
+    const vistos = new Set();
+    const filas = [];
+    for (const taskId of cola.tasks) {
+      for (const row of porTarea.get(taskId) || []) {
+        if (vistos.has(row.client.id)) continue;
+        vistos.add(row.client.id);
+        filas.push({ row, taskId });
+      }
+    }
+    return { ...cola, n: filas.length, filas };
+  });
+};

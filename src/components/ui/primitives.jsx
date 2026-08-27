@@ -43,6 +43,35 @@ import { Check, CheckCircle2, ChevronRight, Info, Plus, TriangleAlert, XCircle }
  * @param sub     Una línea, opcional, debajo del título.
  * @param action  Lo que se puede hacer con este bloque. A la derecha.
  */
+/*
+  ══ Los bloques tienen DOS rangos, y la gramática escrita solo tenía uno ═════
+
+  `docs/producto.md` §5.2 dice que el título de un bloque va siempre en etiqueta
+  troquelada. Se escribió cuando todos los bloques del producto eran del mismo
+  tamaño —una tarjeta, un asunto, cuatro filas— y ahí la regla es correcta.
+
+  El tablero de la revisión enseñó el caso que faltaba. Sus bloques no son
+  tarjetas: «Su cuerpo» son tres tramos con lo que cuenta el cliente, sus fotos y
+  sus medidas; «Su entreno», una recta por ejercicio con su historial. Nombrar
+  eso con la misma versalita de diez píxeles con la que se nombra un tramo de su
+  interior deja la pantalla sin un solo nivel de jerarquía: el bloque y las
+  piezas de dentro hablan igual de alto.
+
+  Así que la respuesta no era volver a la versalita. Era que existe un rango más,
+  y que en vez de vivir en tres archivos del tablero —con `.bloque-head`,
+  `.bloque-say`, `.bloque-titulo` y `.bloque-sub`, una copia entera de esta
+  cabecera— viva aquí, donde cualquier pantalla con bloques grandes puede
+  pedirlo y donde no puede divergir.
+
+  Sigue habiendo cuatro niveles y ni uno más. Lo que cambia es que el tercero,
+  el bloque, se dice de dos maneras según lo que pese:
+
+    PageHead     h1                 cómo se llama esta pantalla        1
+    GroupHead    h2 troquelada      de qué va esta tanda               0-2
+    Panel        troquelada         qué es este bloque                 las que hagan falta
+      · rango «bloque»  h2          …cuando el bloque es media pantalla
+    SectionTitle h3                 una pieza dentro de un bloque      ídem
+*/
 export const Panel = ({
   as: Tag = 'section',
   tight,
@@ -50,6 +79,7 @@ export const Panel = ({
   title,
   sub,
   action,
+  rango = 'rotulo',
   className = '',
   children,
   ...rest
@@ -63,7 +93,12 @@ export const Panel = ({
     {(title || action) && (
       <header className="panel-head">
         <div className="panel-head-say">
-          {title && <span className="section-label">{title}</span>}
+          {title &&
+            (rango === 'bloque' ? (
+              <h2 className="panel-head-titulo">{title}</h2>
+            ) : (
+              <span className="section-label">{title}</span>
+            ))}
           {sub && <p className="panel-head-sub">{sub}</p>}
         </div>
         {action}
@@ -607,5 +642,64 @@ export const WeekPicker = ({
         </button>
       )}
     </div>
+  );
+};
+
+/* ==========================================================================
+   Renombrar en su sitio
+   --------------------------------------------------------------------------
+   El nombre de una comida (Dieta) y la pestaña de un día (Entreno) se editaban
+   cada uno por su cuenta: en Dieta la casilla era el propio título y en Entreno
+   salía una caja gris con relleno que, además, se fijaba al largo del nombre
+   original y lo recortaba en cuanto se escribía una letra de más.
+
+   Aquí hay una sola casilla para los dos: hereda la letra de lo que sustituye
+   —el título en Dieta, la pestaña en Entreno—, no pinta caja, marca que se está
+   editando con un subrayado de acento y crece con lo que se escribe.
+   ========================================================================== */
+
+/**
+ * @param {string} value        Nombre actual.
+ * @param {(nombre: string) => void} onRename  Solo se llama si cambia y no queda vacío.
+ * @param {() => void} onDone   Cerrar la edición (Escape, Enter o salir del foco).
+ * @param {string} [variante]   Clase de contexto: `is-comida` o `is-dia`.
+ */
+export const RenombrarEnSitio = ({ value, onRename, onDone, variante = '', label, min = 6 }) => {
+  const [texto, setTexto] = useState(value);
+  // Enter dispara el submit y, al desmontarse el formulario, también el blur:
+  // sin este cerrojo el renombrado se pediría dos veces.
+  const [cerrado, setCerrado] = useState(false);
+
+  const confirmar = () => {
+    if (cerrado) return;
+    setCerrado(true);
+    const nombre = texto.trim();
+    if (nombre && nombre !== value) onRename(nombre);
+    onDone();
+  };
+
+  return (
+    <form
+      className={`renombrar ${variante}`.trim()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        confirmar();
+      }}
+    >
+      <input
+        autoFocus
+        className="renombrar-input"
+        style={{ width: `${Math.max(min, texto.length + 2)}ch` }}
+        value={texto}
+        aria-label={label}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Escape') return;
+          setCerrado(true);
+          onDone();
+        }}
+        onBlur={confirmar}
+      />
+    </form>
   );
 };

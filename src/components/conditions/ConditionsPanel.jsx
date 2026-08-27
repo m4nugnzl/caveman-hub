@@ -148,7 +148,7 @@ const Alta = ({ existing, onAdd, onCancel }) => {
         <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || guardando}>
           {guardando ? 'Guardando…' : 'Añadir'}
         </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
+        <button type="button" className="btn btn-quiet btn-sm" onClick={onCancel}>
           Cerrar
         </button>
       </div>
@@ -260,7 +260,7 @@ export const ConditionsPanel = ({ client }) => {
       className="col gap-3"
       action={
         !abriendo && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAbriendo(true)}>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => setAbriendo(true)}>
             <Plus size={13} /> Añadir
           </button>
         )

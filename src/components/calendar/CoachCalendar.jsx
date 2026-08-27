@@ -317,7 +317,7 @@ export const CoachCalendar = () => {
   if (activos.length === 0) {
     return (
       <div className="stack">
-        <PageHead title="Calendario" sub="Lo que tienes esta semana, con toda tu cartera junta." />
+        <PageHead title="Agenda" sub="Lo que tienes esta semana, con toda tu cartera junta." />
         <EmptyState
           title="Todavía no hay a quién agendar"
           message="Da de alta a tu primer cliente y su día de revisión aparecerá aquí, junto al de los demás."
@@ -334,7 +334,7 @@ export const CoachCalendar = () => {
   return (
     <div className="stack">
       <PageHead
-        title="Calendario"
+        title="Agenda"
         sub="Quién te entrega y qué tienes agendado, con toda tu cartera junta."
       />
 

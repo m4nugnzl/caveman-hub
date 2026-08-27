@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Dumbbell } from 'lucide-react';
 
-import { exerciseTrend } from '@/domain/week';
+import { exerciseTrend, nextPrescription } from '@/domain/week';
+import { useApp } from '@/context/AppContext';
 import { shortDate } from '@/lib/dates';
 import { clientPath } from '@/routes';
+import { Fold, Panel } from '@/components/ui/primitives';
 import { ExerciseCard } from '@/components/review/ExerciseCard';
 import { ExerciseSheet } from '@/components/review/ExerciseSheet';
 
@@ -66,6 +68,33 @@ const reparto = (ejercicios) => {
 
 export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesiones, client }) => {
   const [abierto, setAbierto] = useState(null);
+  const { addExerciseSetSlot, removeExerciseSetSlot, updateExerciseTarget } = useApp();
+
+  /*
+    ══ DÓNDE se escribe un ajuste, y por qué no es aquí mismo ═════════════════
+
+    La semana que se está revisando ya se entrenó: escribir en ella reescribiría
+    su registro sin cambiarle nada de lo que viene. El ajuste va a la primera
+    semana POSTERIOR en la que ese ejercicio siga programado, y si no hay
+    ninguna no se ofrece — ver `nextPrescription` en `domain/week.js`, que es
+    donde vive la regla y donde está probada.
+  */
+  const receta = useMemo(
+    () => (abierto ? nextPrescription({ microcycles, name: abierto, afterWeek: semana }) : null),
+    [abierto, microcycles, semana]
+  );
+
+  const ajustarProxima = (que, valor) => {
+    if (!receta || !client?.id) return;
+    const { weekNumber, dayName, id } = receta;
+
+    if (que === 'series') {
+      if (valor > 0) addExerciseSetSlot(client.id, weekNumber, dayName, id);
+      else removeExerciseSetSlot(client.id, weekNumber, dayName, id);
+      return;
+    }
+    updateExerciseTarget(client.id, weekNumber, dayName, id, valor);
+  };
 
   /*
     El seguimiento de cada ejercicio: todas sus semanas con las series en crudo.
@@ -92,18 +121,19 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
   }, [porDia, microcycles, semana]);
 
   return (
-    <section className="card bloque" aria-label="Su entrenamiento">
-      <div className="bloque-head">
-        <div className="bloque-say">
-          <h2 className="bloque-titulo">Su entreno</h2>
-          {/* Lo que hay, no cómo se usa. Aquí decía además «desliza por la recta
-              para comparar; pulsa el nombre para ver el registro entero», que es
-              un manual de instrucciones dentro de la pantalla: el cursor de mira,
-              el punto que se mueve y la flecha de la cabecera enseñan las dos
-              cosas en medio segundo, y una aplicación que explica sus propios
-              gestos con texto es una que no confía en ellos. */}
-          <p className="bloque-sub">La carga de cada ejercicio, semana a semana.</p>
-        </div>
+    /* El subtítulo dice lo que hay, no cómo se usa. Decía además «desliza por la
+       recta para comparar; pulsa el nombre para ver el registro entero», que es
+       un manual de instrucciones dentro de la pantalla: el cursor de mira, el
+       punto que se mueve y la flecha de la cabecera enseñan las dos cosas en
+       medio segundo, y una aplicación que explica sus propios gestos con texto
+       es una que no confía en ellos. */
+    <Panel
+      className="bloque"
+      rango="bloque"
+      aria-label="Su entrenamiento"
+      title="Su entreno"
+      sub="La carga de cada ejercicio, semana a semana."
+      action={
         <div className="row gap-2 wrap">
           {sesiones && (
             <span className={`badge ${sesiones.done >= sesiones.planned ? 'badge-ok' : 'badge-warn'}`}>
@@ -111,14 +141,15 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
             </span>
           )}
           <Link
-            className="btn btn-secondary btn-sm"
+            className="btn btn-quiet btn-sm"
             to={clientPath(client?.id, 'rutina')}
             state={{ revisionDe: client?.id, revisionNombre: client?.name }}
           >
             <Dumbbell size={13} /> Su rutina
           </Link>
         </div>
-      </div>
+      }
+    >
 
       {dias.length === 0 ? (
         <p className="t-sm t-tertiary">Esta semana no tiene días montados.</p>
@@ -134,30 +165,52 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
             */
             const hecho = dia.done && dia.loggedSets > 0;
             const patron = hecho ? reparto(ejercicios) : '';
+            /*
+              ══ EL DÍA SE PLIEGA, Y LO DECIDE EL DATO ═════════════════════════
 
+              Una semana de entreno son entre tres y seis días, y cada día son
+              seis u ocho ejercicios: entre veinte y treinta tarjetas seguidas,
+              cada una con su gráfica, su cifra y sus series. Eso es la mitad de
+              la queja de «hay demasiada información»: la pantalla lo enseña TODO
+              a la vez y con el mismo peso, así que el ojo no tiene por dónde
+              entrar y hay que leerla entera para saber si algo va mal.
+
+              Plegado, un día es una línea que ya contesta la pregunta con la que
+              se abre una revisión: «Push A · lun 11 · 18 de 18 series · sube en
+              3 · igual en 2». Seis líneas en lugar de treinta tarjetas, y el
+              detalle a un toque.
+
+              ── Y arranca PLEGADO siempre ─────────────────────────────────────
+              La primera versión lo abría «solo si había algo que mirar»: día no
+              entrenado o series a medias. Sobre el papel es la regla buena —la
+              misma que usa la anamnesis de la ficha— y con datos de verdad no
+              condensa nada: un cliente que registra parte de sus series deja
+              TODOS los días a medias, así que se abrían los seis y la pantalla
+              quedaba igual que antes con un galón de más.
+
+              Plegado siempre. Y lo que la regla quería conseguir lo consigue
+              mejor el resumen: sobre seis líneas cerradas, un «no entrenado» o
+              un «12 de 18 series» se ve MÁS, no menos, porque no está enterrado
+              entre treinta tarjetas.
+
+              No esconde nada, porque el resumen va en la propia fila — que es lo
+              que distingue plegar de esconder.
+            */
             return (
-              <div className={`dia${hecho ? '' : ' is-missing'}`} key={dia.dayName}>
-                <div className="dia-head">
-                  <span className="dia-nombre">{dia.dayName}</span>
-                  {hecho && dia.date && <span className="dia-fecha">{shortDate(dia.date)}</span>}
-                  {!hecho && <span className="badge badge-warn">no entrenado</span>}
-
-                  {/* Cuántas series de las que le pusiste llegó a hacer, y cómo
-                      va el día entero. Lo segundo dice si el problema es de un
-                      ejercicio o de todos, y por eso va aquí y no tarjeta a
-                      tarjeta. */}
-                  <span className="dia-estado">
-                    {[
-                      Number.isFinite(dia.plannedSets)
-                        ? `${dia.loggedSets ?? 0} de ${dia.plannedSets} series`
-                        : null,
-                      patron,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                </div>
-
+              <Fold
+                key={dia.dayName}
+                title={dia.dayName}
+                summary={[
+                  hecho && dia.date ? shortDate(dia.date) : null,
+                  hecho ? null : 'no entrenado',
+                  Number.isFinite(dia.plannedSets)
+                    ? `${dia.loggedSets ?? 0} de ${dia.plannedSets} series`
+                    : null,
+                  patron,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              >
                 {/* Lo que escribió al terminar, pegado a su día. */}
                 {dia.note && <p className="dia-nota">«{dia.note}»</p>}
 
@@ -174,18 +227,42 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
                     ))}
                   </div>
                 )}
-              </div>
+              </Fold>
             );
           })}
         </div>
       )}
 
       {/* El registro completo de un ejercicio, semana a semana. */}
+      {/* El registro completo de un ejercicio, y la puerta a cambiarlo.
+
+          Hasta ahora la revisión dejaba AJUSTAR la dieta en el sitio y no dejaba
+          tocar el entreno: para subirle una serie había que salir a su rutina,
+          buscar el día, buscar el ejercicio y volver. Esa asimetría entre las dos
+          cosas que un entrenador ajusta era media queja de «saltar entre
+          ventanas», y con la mitad de la pantalla ocupada por el entreno.
+
+          El editor de series dentro del panel es la pieza que falta y es trabajo
+          de verdad —el modelo de microciclos vive en `Workout/`—. Lo que sí se
+          puede cerrar ya es el viaje: desde aquí se va a su rutina llevando de
+          quién se venía, y `VueltaALaRevision` devuelve al mismo sitio. Antes se
+          entraba a la rutina desde la cabecera del bloque, sin saber a por qué
+          ejercicio ibas. */}
       <ExerciseSheet
         open={Boolean(abierto)}
         trend={abierto ? tendencias.get(abierto) : null}
         onClose={() => setAbierto(null)}
+        receta={receta}
+        onAjustar={ajustarProxima}
+        ajustar={
+          client?.id
+            ? {
+                to: clientPath(client.id, 'rutina'),
+                state: { revisionDe: client.id, revisionNombre: client.name },
+              }
+            : null
+        }
       />
-    </section>
+    </Panel>
   );
 };

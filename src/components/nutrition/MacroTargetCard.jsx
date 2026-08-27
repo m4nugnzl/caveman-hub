@@ -29,7 +29,7 @@ const LABELS = {
  * los días de entreno —en la de descanso había que esconderlo a mano— y daba a
  * entender que eran los pasos de esos días.
  */
-export const MacroTargetCard = ({ plan, variant = 'default', title, editable = false, onSave }) => {
+export const MacroTargetCard = ({ plan, variant = 'default', title, editable = false, onSave, onAbrir = null }) => {
   const targets = targetsFor(plan, variant);
   const macros = macroSplit(targets);
 
@@ -88,16 +88,41 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
 
   return (
     <article className="card col gap-4">
-      <div className="row between wrap gap-2">
-        <span className="section-label">{title || 'Objetivo diario'}</span>
-        <div className="row gap-2">
+      {/*
+        Con `onAbrir`, la tarjeta es la de Entreno: rótulo, TÍTULO PULSABLE que
+        abre la ventana del día —lo real contra lo esperado y el reparto por
+        comida— y el lápiz para el objetivo. Sin él (el portal del cliente) es
+        solo el rótulo.
+      */}
+      {onAbrir ? (
+        <div className="lado-cab">
+          <span className="section-label">Objetivo</span>
+          <div className="lado-cab-fila">
+            <button
+              type="button"
+              className="lado-titulo"
+              onClick={onAbrir}
+              title="Ver el día: lo real contra lo esperado y el reparto por comida"
+            >
+              {(title || 'Objetivo diario').replace(/^Objetivo(?: ·)? /, '')}
+            </button>
+            {editable && (
+              <button type="button" className="btn btn-icon btn-icon-compact" onClick={open} aria-label="Editar objetivo">
+                <Pencil size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="row between wrap gap-2">
+          <span className="section-label">{title || 'Objetivo diario'}</span>
           {editable && (
             <button type="button" className="btn btn-icon" onClick={open} aria-label="Editar objetivo">
               <Pencil size={14} />
             </button>
           )}
         </div>
-      </div>
+      )}
 
       <MacroBar
         protein={targets.proteinGrams}

@@ -382,6 +382,7 @@ export const mapWorkoutFromDb = (row) => ({
   mobilityDrills: row.mobility_drills || [],
   notes: row.notes || '',
   microcycles: row.microcycles || [],
+  blocks: row.blocks || [],
 });
 
 export const mapWorkoutToDb = (clientId, data) => ({
@@ -390,6 +391,9 @@ export const mapWorkoutToDb = (clientId, data) => ({
   mobility_drills: data.mobilityDrills,
   notes: data.notes,
   microcycles: data.microcycles,
+  /* Solo si hay bloques: así el código puede desplegarse antes que la migración
+     0086 —quien nunca abra un bloque nunca envía la columna—. */
+  ...(data.blocks?.length ? { blocks: data.blocks } : {}),
   updated_at: new Date().toISOString(),
 });
 

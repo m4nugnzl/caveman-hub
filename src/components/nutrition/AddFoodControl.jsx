@@ -167,7 +167,7 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
           >
             Añadir
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setDraft(null)}>
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => setDraft(null)}>
             Cancelar
           </button>
         </div>

@@ -78,18 +78,44 @@ describe('equivalencesFor', () => {
 
   it('los gramos salen en múltiplos de 5, que es lo que una báscula distingue', () => {
     const fresas = equivalencesFor(platano, catalogo).items.find((i) => i.food.name === 'Fresas');
-    // 30 / 7 × 100 = 428,6 → 430.
-    expect(fresas.grams).toBe(430);
+    // Clavar los 30 g de hidratos son 428,6 g de fresas y 144 kcal contra las
+    // 131 del plátano. Gastando parte del margen del macro se queda en 410 g:
+    // 29 g de hidratos y 137 kcal, más cerca de las dos cosas a la vez.
+    expect(fresas.grams).toBe(410);
   });
 
-  it('la carne se iguala por proteína, porque lo dice el grupo', () => {
+  /*
+    ── La holgura del macro se gasta en cuadrar las kcal ────────────────────
+    El caso que lo motivó: la ternera clavaba la proteína de la pechuga en 165 g
+    y se iba a +40 kcal (+23 %). Dos cambios así seguidos mueven el día. La
+    ración baja a 150 g —proteína dentro de su margen del 10 %— y las kcal se
+    quedan en +12 %.
+  */
+  it('la carne se iguala por proteína, cediendo lo justo para no descuadrar las kcal', () => {
     const pechuga = { name: 'Pechuga de pollo', grams: 150, proteinPer100: 23, carbsPer100: 0, fatsPer100: 2.6 };
     const eq = equivalencesFor(pechuga, catalogo);
 
     expect(eq.macro).toBe('protein');
+    expect(eq.macroGrams).toBe(35); // 34,5 g de proteína en la pechuga.
+
     const ternera = eq.items.find((i) => i.food.name === 'Ternera magra');
-    // 34,5 g de proteína / 21 por 100 g = 164,3 → 165.
-    expect(ternera.grams).toBe(165);
+    expect(ternera.grams).toBe(150);
+
+    // El macro se mueve, pero nunca más del 10 % de lo pautado…
+    expect(Math.abs(ternera.macroGrams - 34.5)).toBeLessThanOrEqual(3.45);
+    // …y las kcal quedan mejor que clavando la proteína (que daba +40).
+    expect(Math.abs(ternera.kcalDiff)).toBeLessThan(30);
+  });
+
+  it('cuando el macro y las kcal ya cuadran juntos, la ración no se toca', () => {
+    // 20 g de azúcar son 20 g de hidratos y 80 kcal; 25 g de miel son ambas
+    // cosas a la vez, así que no hay holgura que gastar.
+    const azucar = { name: 'Azúcar', grams: 20, proteinPer100: 0, carbsPer100: 100, fatsPer100: 0 };
+    const miel = equivalencesFor(azucar, catalogo).items.find((i) => i.food.name === 'Miel');
+
+    expect(miel.grams).toBe(25);
+    expect(miel.macroDiff).toBe(0);
+    expect(Math.abs(miel.kcalDiff)).toBeLessThanOrEqual(3);
   });
 
   it('tu biblioteca manda sobre el catálogo al calcular', () => {

@@ -6,7 +6,7 @@ import { checkinQuestions, clientProtocol } from '@/domain/protocol';
 import { PlanChanges } from '@/components/review/PlanChanges';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { shortDate } from '@/lib/dates';
-import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Fold, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 
@@ -191,16 +191,45 @@ export const ReviewHistory = ({
       {error && <Notice tone="error">{error}</Notice>}
 
 
-      <div className="col gap-3">
+      {/*
+        ══ UNA REVISIÓN PASADA ES UNA LÍNEA, Y SE ABRE LA QUE INTERESE ═════════
+
+        Cada fila enseñaba a la vez su peso, el diff del plan, lo que anotó él,
+        la respuesta del entrenador, el vídeo y las respuestas del cuestionario.
+        Con veinte semanas de historia eso es un muro, y el histórico se usa
+        justo al revés: se busca UNA cosa —«¿qué le cambié en agosto?»— y hay que
+        recorrerlo entero para encontrarla.
+
+        Plegada, la línea ya contesta esa pregunta: «Semana del 11 ago · 81,5 kg
+        · bajaste los hidratos». Y se abre la que interese. Es el mismo gesto que
+        los días del entreno y que la anamnesis de la ficha: resumen en la fila,
+        detalle a un toque, nada escondido.
+      */}
+      <div className="col">
         {filas.map((fila) => (
-          <div className="card-inset col gap-2" key={fila.id}>
+          <Fold
+            key={fila.id}
+            title={`Semana del ${shortDate(fila.weekStart)}`}
+            summary={[
+              fila.weight ? `${fila.weight} kg` : null,
+              /* Lo que se DECIDIÓ, que es a lo que se viene: cuántas cosas se
+                 movieron del plan, o que no se movió ninguna. */
+              fila.changes.length + fila.structure.length > 0
+                ? `${fila.changes.length + fila.structure.length} ${
+                    fila.changes.length + fila.structure.length === 1 ? 'cambio' : 'cambios'
+                  }`
+                : fila.comparable
+                  ? 'sin cambios'
+                  : null,
+              fila.coachNotes ? 'con respuesta' : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          >
+          <div className="col gap-2">
             <div className="row between wrap gap-2">
-              <span className="t-sm" style={{ fontWeight: 650 }}>
-                Semana del {shortDate(fila.weekStart)}
-              </span>
+              <span className="t-2xs t-tertiary">revisada el {shortDate(fila.reviewedAt)}</span>
               <span className="row gap-2 t-2xs t-tertiary">
-                {fila.weight ? `${fila.weight} kg · ` : ''}
-                revisada el {shortDate(fila.reviewedAt)}
                 {esEntrenador && (
                   <button
                     type="button"
@@ -430,6 +459,7 @@ export const ReviewHistory = ({
               </div>
             )}
           </div>
+          </Fold>
         ))}
       </div>
     </Panel>

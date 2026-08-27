@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LifeBuoy, LogOut, Moon, Settings, Stethoscope, Sun } from 'lucide-react';
+import { ChevronsUpDown, LifeBuoy, LogOut, Moon, Settings, Stethoscope, Sun } from 'lucide-react';
 
 import { useSession, useActions } from '@/context/AppContext';
 import { useEsAdminPlataforma } from '@/context/useRadiografia';
@@ -28,8 +28,15 @@ import { useDismissable } from '@/lib/useDismissable';
  * Apariencia: es lo único de configuración que se cambia al vuelo, según la luz
  * de la habitación.
  */
-export const AccountMenu = () => {
-  const { session, profileRole, isCoach, view } = useSession();
+/**
+ * @param variante  `avatar` (por defecto) es el círculo de la esquina, que es
+ *   lo que pide una cabecera. `fila` es la pieza del pie de la barra lateral:
+ *   una fila del ancho de la barra con quién eres escrito, porque ahí hay sitio
+ *   y porque un círculo suelto al fondo de una columna no se lee como un botón
+ *   —de hecho no se leía: pulsarlo no parecía hacer nada—.
+ */
+export const AccountMenu = ({ variante = 'avatar' }) => {
+  const { session, profileRole, profileName, isCoach, view } = useSession();
   const { signOut } = useActions();
   const { isDark, toggle } = useTheme();
   const esAdmin = useEsAdminPlataforma();
@@ -41,20 +48,33 @@ export const AccountMenu = () => {
   const menu = useDismissable(open);
 
   const email = session?.user?.email || '';
+  /* Tu nombre si lo hay y, si no, el correo: es la identidad que sí tenemos. */
+  const quien = profileName || email || 'Sesión activa';
+  const rol = profileRole === 'coach' ? 'Entrenador' : 'Cliente';
+  const fila = variante === 'fila';
 
   return (
-    <div className="account" ref={ref}>
+    <div className={`account${fila ? ' is-fila' : ''}`} ref={ref}>
       <button
         type="button"
-        className="account-btn"
+        className={fila ? 'account-fila' : 'account-btn'}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((v) => !v)}
         title="Cuenta y configuración"
       >
         <span className="account-avatar" aria-hidden="true">
-          {initials(email)}
+          {initials(profileName || email)}
         </span>
+        {fila && (
+          <>
+            <span className="account-fila-quien">
+              <span className="nm">{quien}</span>
+              <span className="rol">{rol}</span>
+            </span>
+            <ChevronsUpDown size={14} aria-hidden="true" />
+          </>
+        )}
       </button>
 
       {menu.mounted && (
@@ -65,31 +85,41 @@ export const AccountMenu = () => {
           role="menu"
         >
           <div className="account-head">
-            <span className="name">{email || 'Sesión activa'}</span>
-            <span className="sub">{profileRole === 'coach' ? 'Entrenador' : 'Cliente'}</span>
+            <span className="name">{quien}</span>
+            {/* Con nombre, el correo dice de qué cuenta se habla —hay quien
+                tiene dos—; sin él, el nombre YA es el correo y repetirlo sobra. */}
+            <span className="sub">{profileName && email ? `${rol} · ${email}` : rol}</span>
           </div>
 
           {/*
-            La puerta de ajustes, SOLO donde no hay barra lateral: en escritorio
-            la puerta es el pie de la barra, y dos puertas iguales a un palmo
-            confunden — el CSS esconde esta con `body:has(.sidebar)` (ver EL
-            CHASIS). Las siete secciones vivieron aquí enumeradas y era esconder
-            la configuración detrás de un menú. La condición es la misma que usa
-            la paleta (`isCoach && view === 'coach'`): en modo preview este menú
-            enseña lo del portal que se está mirando, no las puertas del panel.
+            La puerta de ajustes.
+            ──────────────────────────────────────────────────────────────────
+            Estuvo aquí, luego se sacó al pie de la barra lateral —y este ítem
+            se escondía por CSS en escritorio para no tener dos puertas iguales
+            a un palmo—. El resultado en la barra eran dos filas seguidas:
+            «Ajustes» y, debajo, un círculo con tus iniciales que no llevaba a
+            ninguna parte (su menú se abría hacia abajo, fuera de la pantalla, y
+            encima la barra lo recortaba). Dos piezas para una sola idea, y una
+            de ellas rota.
+
+            Vuelve a estar donde se busca la configuración de uno: dentro de tu
+            nombre, con el tema y el cierre de sesión. La condición es la misma
+            que usa la paleta (`isCoach && view === 'coach'`): en modo preview
+            este menú enseña lo del portal que se está mirando, no las puertas
+            del panel.
           */}
           {isCoach && view === 'coach' && (
             <>
               <NavLink
                 to="/ajustes"
-                className="account-item account-ajustes"
+                className="account-item"
                 role="menuitem"
                 onClick={() => setOpen(false)}
               >
                 <Settings size={15} />
                 Ajustes
               </NavLink>
-              <hr className="divider account-ajustes" />
+              <hr className="divider" />
             </>
           )}
 

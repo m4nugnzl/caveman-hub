@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Camera, Columns2, Images, Ruler } from 'lucide-react';
 
 import { clientPath } from '@/routes';
-import { Fold } from '@/components/ui/primitives';
+import { Fold, Panel } from '@/components/ui/primitives';
 import { Delta } from '@/components/ui/metrics';
 import { ComparisonData } from '@/components/review/ComparisonData';
 import { PhotoContactSheet } from '@/components/review/PhotoContactSheet';
@@ -86,26 +86,26 @@ export const BodyCard = ({
   const nombre = client?.name?.split(' ')[0] || 'Tu cliente';
 
   return (
-    <section className="card bloque" aria-label="Su cuerpo">
-      <div className="bloque-head">
-        <div className="bloque-say">
-          <h2 className="bloque-titulo">Su cuerpo</h2>
-          <p className="bloque-sub">
-            Lo que te cuenta, cómo se ve y lo que dice la cinta métrica.
-          </p>
-        </div>
-        {/* Las dos puertas al archivo, y las dos aquí: éste es el bloque que
-            enseña el cuerpo, así que es donde se busca «déjame ver el resto».
-            Estaban una en la cabecera y otra enterrada dentro de un pliegue. */}
+    <Panel
+      className="bloque"
+      rango="bloque"
+      aria-label="Su cuerpo"
+      title="Su cuerpo"
+      sub="Lo que te cuenta, cómo se ve y lo que dice la cinta métrica."
+      /* Las dos puertas al archivo, y las dos aquí: éste es el bloque que
+         enseña el cuerpo, así que es donde se busca «déjame ver el resto».
+         Estaban una en la cabecera y otra enterrada dentro de un pliegue. */
+      action={
         <div className="row gap-2 wrap">
-          <Link className="btn btn-secondary btn-sm" to={clientPath(client?.id, 'revision/fotos')}>
+          <Link className="btn btn-quiet btn-sm" to={clientPath(client?.id, 'revision/fotos')}>
             <Camera size={13} /> Sus fotos
           </Link>
-          <Link className="btn btn-secondary btn-sm" to={clientPath(client?.id, 'revision')}>
+          <Link className="btn btn-quiet btn-sm" to={clientPath(client?.id, 'revision')}>
             <Ruler size={13} /> Pesajes y medidas
           </Link>
         </div>
-      </div>
+      }
+    >
 
       {/* ── 1 · LO QUE TE CUENTA ────────────────────────────────────────────
           Lo único de toda la revisión escrito por una persona, y lo que más
@@ -176,7 +176,7 @@ export const BodyCard = ({
                     El collage y el vídeo de comparación son del estudio.
                   </span>
                   <Link
-                    className="btn btn-secondary btn-sm"
+                    className="btn btn-quiet btn-sm"
                     to={clientPath(client?.id, 'revision/estudio')}
                   >
                     <Columns2 size={13} /> El estudio
@@ -221,6 +221,6 @@ export const BodyCard = ({
           )}
         </Fold>
       </div>
-    </section>
+    </Panel>
   );
 };

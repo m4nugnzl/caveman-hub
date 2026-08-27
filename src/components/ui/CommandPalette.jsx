@@ -160,15 +160,17 @@ export const CommandPalette = () => {
     // ── Segundo nivel: dentro de un cliente ────────────────────────────────
     if (scope) {
       /* Las suyas, no todas: la paleta es otra forma de enseñar el carril, y
-         ofrecer «Nutrición» de quien no la tiene lleva a una ruta que rebota. */
-      return sectionsFor(COACH_CLIENT, clientProtocol(scope.preferences)).map(({ path, label, icon }) => ({
-        id: `section:${path}`,
-        group: 'Cliente',
-        label,
-        hint: scope.name,
-        icon,
-        run: () => go(clientPath(scope.id, path)),
-      }));
+         ofrecer «Dieta» de quien no la tiene lleva a una ruta que rebota. */
+      return sectionsFor(COACH_CLIENT, clientProtocol(scope.preferences)).map(
+        ({ path, label, icon }) => ({
+          id: `section:${path}`,
+          group: 'Cliente',
+          label,
+          hint: scope.name,
+          icon,
+          run: () => go(clientPath(scope.id, path)),
+        })
+      );
     }
 
     const out = [];

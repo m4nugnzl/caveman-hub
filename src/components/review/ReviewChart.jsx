@@ -72,7 +72,12 @@ import { makeScale, smoothPath } from '@/components/ui/charts';
    peldaño, que es lo único que se mira ahí. */
 const ALTO_PESO = 132;
 const ALTO_KCAL = 66;
-const HUECO = 26;
+/* El hueco era de 26 y los dos ejes se leían como uno solo: el último número
+   del peso y el primero de las calorías quedaban a catorce píxeles, en la misma
+   columna y con la misma tinta, así que «78,3 · 2.576» parecía una escala de
+   cinco valores. Con 34 y el filete cruzando también el canal (ver abajo) son
+   dos instrumentos, que es lo que son. */
+const HUECO = 34;
 const ALTO = ALTO_PESO + HUECO + ALTO_KCAL;
 
 /* El canal de la izquierda, donde viven los números de las dos rejillas. Es la
@@ -103,6 +108,23 @@ export const ReviewChart = ({
      dónde cae este trozo dentro del proceso entero— y arriba, suelto, se leía
      como una segunda gráfica del mismo dato. */
   mapa = null,
+  /*
+    ── Solo mirar ─────────────────────────────────────────────────────────────
+    Este dibujo nació siendo EL MANDO de la revisión: su eje horizontal se pulsa
+    y todo el tablero de abajo pasa a hablar de esa semana. En «Progreso» no hay
+    tablero que mandar — se entra a leer la historia entera, no a elegir una
+    semana— y una tira de botones que no llevan a ninguna parte es un control
+    falso: promete algo y no lo cumple.
+
+    Con `soloLectura` el eje sigue siendo el eje, con sus marcas bajo sus
+    columnas, pero deja de ser un grupo de botones y pasa a ser lo que parece:
+    rótulos. El dibujo, la rejilla, las dos bandas y la lectura del pie no
+    cambian, que es el motivo de reutilizarlo en vez de dibujar otro.
+  */
+  soloLectura = false,
+  /* Dónde empezó cada bloque de entreno: `[{ week, name }]`. Un cambio de
+     rutina es tan decisión tuya como un peldaño de calorías, y se marca. */
+  cambios = [],
 }) => {
   /*
     Las flechas recorren la línea entera y, al llegar al borde de la ventana,
@@ -269,17 +291,45 @@ export const ReviewChart = ({
             ))}
           </g>
 
-          {/* La columna de la semana elegida, de arriba abajo. Va DEBAJO de los
-              datos: señala, no tapa. */}
+          {/*
+            La marca de la semana elegida: una regleta de brasa de arriba abajo,
+            debajo de los datos. Señala, no tapa.
+
+            ── Era una COLUMNA rellena, y de ancho variable ───────────────────
+            Medía `geo.columna`, o sea el hueco entero de una semana. Con seis
+            meses de historia eso son cuarenta píxeles y se leía como lo que
+            quería ser; con un cliente de cuatro semanas en una tarjeta de 1.200
+            px son TRESCIENTOS píxeles de brasa al 14 % cruzando las dos bandas,
+            que es una mancha de alerta encima de los datos y no una marca.
+
+            Una raya no depende del número de semanas. Y es la misma marca que
+            usa el producto en todas partes —el canto de la barra lateral, la
+            raya de la pestaña activa— alineada además con el subrayado de la
+            semana en la tira de abajo: sube y baja el mismo trazo.
+          */}
           {geo.iSel >= 0 && (
-            <rect
-              className="grafica-columna"
-              x={geo.x(geo.iSel) - geo.columna / 2}
-              width={geo.columna}
-              y="0"
-              height={ALTO}
+            <line
+              className="grafica-marca"
+              x1={geo.x(geo.iSel)}
+              x2={geo.x(geo.iSel)}
+              y1="0"
+              y2={ALTO}
             />
           )}
+
+          {/* ── Los cambios de bloque: una raya discontinua en el canto de la
+              semana en que empezó, con su nombre en el canal entre bandas. ── */}
+          {cambios.map((c) => {
+            const i = weeks.findIndex((f) => f.week === c.week);
+            if (i < 0) return null;
+            const x = geo.x(i) - geo.columna / 2;
+            return (
+              <g key={`b-${c.week}`} className="grafica-cambio">
+                <line x1={x} x2={x} y1={0} y2={ALTO} />
+                <text x={x + 5} y={ALTO_PESO + HUECO / 2 - 5}>{c.name}</text>
+              </g>
+            );
+          })}
 
           {/* ── Banda 1 · el peso ──────────────────────────────────────── */}
           <text className="banda-rotulo" x={CANAL} y="9">
@@ -322,10 +372,15 @@ export const ReviewChart = ({
           </g>
 
           {/* El filete que separa las dos bandas: son dos escalas distintas y hay
-              que verlo, o vuelven a leerse como un solo gráfico. */}
+              que verlo, o vuelven a leerse como un solo gráfico.
+
+              Empieza en cero y no en `CANAL`, que es donde empiezan las líneas
+              de la rejilla: la rejilla vive dentro del dibujo, pero esto tiene
+              que cortar también el canal de los números — que es justo donde las
+              dos escalas se confundían. */}
           <line
             className="banda-corte"
-            x1={CANAL}
+            x1={0}
             x2={geo.W - MARGEN_D}
             y1={ALTO_PESO + HUECO / 2}
             y2={ALTO_PESO + HUECO / 2}
@@ -382,27 +437,37 @@ export const ReviewChart = ({
           marginLeft: geo ? CANAL : 0,
           marginRight: geo ? MARGEN_D : 0,
         }}
-        role="group"
-        aria-label="Elegir qué semana revisar"
-        onKeyDown={teclas}
+        role={soloLectura ? undefined : 'group'}
+        aria-label={soloLectura ? undefined : 'Elegir qué semana revisar'}
+        onKeyDown={soloLectura ? undefined : teclas}
       >
-        {weeks.map((f) => (
-          <button
-            key={f.week}
-            type="button"
-            className={`grafica-semana${f.week === selected ? ' is-now' : ''}${
-              f.reviewed ? ' is-hecha' : ''
-            }`}
-            aria-pressed={f.week === selected}
-            /* Roving tabindex: una sola parada para toda la tira, y dentro se
-               anda con las flechas. Veinte paradas seguidas para elegir una
-               semana es lo que convierte el tabulador en algo que se evita. */
-            tabIndex={f.week === selected ? 0 : -1}
-            onClick={() => onSelect?.(f.week)}
-          >
-            S{f.week}
-          </button>
-        ))}
+        {weeks.map((f) =>
+          soloLectura ? (
+            <span
+              key={f.week}
+              className={`grafica-semana${f.reviewed ? ' is-hecha' : ''}`}
+              aria-hidden="true"
+            >
+              S{f.week}
+            </span>
+          ) : (
+            <button
+              key={f.week}
+              type="button"
+              className={`grafica-semana${f.week === selected ? ' is-now' : ''}${
+                f.reviewed ? ' is-hecha' : ''
+              }`}
+              aria-pressed={f.week === selected}
+              /* Roving tabindex: una sola parada para toda la tira, y dentro se
+                 anda con las flechas. Veinte paradas seguidas para elegir una
+                 semana es lo que convierte el tabulador en algo que se evita. */
+              tabIndex={f.week === selected ? 0 : -1}
+              onClick={() => onSelect?.(f.week)}
+            >
+              S{f.week}
+            </button>
+          )
+        )}
       </div>
 
       {/* ── La lectura de la semana elegida ────────────────────────────────
