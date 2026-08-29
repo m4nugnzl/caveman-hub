@@ -50,6 +50,26 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
   const titleId = useId();
   const { mounted, closing, ref } = useDismissable(open === undefined ? true : open);
 
+  /*
+    ── Por qué `onClose` va por referencia y NO en las dependencias ───────────
+    El efecto de abajo TOMA EL FOCO al entrar y lo DEVUELVE al salir. Eso solo
+    puede pasar una vez por apertura. Con `onClose` en las dependencias pasaba
+    en cada render, porque los 43 sitios de llamada lo pasan como una flecha en
+    línea —`onClose={() => setResumen(false)}`— y esa función es nueva cada vez.
+
+    El síntoma era del cliente escribiendo en el móvil: cada tecla en «Algo que
+    quieras contarme» o en «Tu cuaderno» guardaba, guardar cambiaba el estado,
+    el estado renderizaba, el render traía un `onClose` distinto y el efecto se
+    rehacía: la limpieza devolvía el foco al botón que abrió el diálogo y el
+    teclado en pantalla se cerraba. Una letra por apertura del teclado.
+
+    La `ref` mantiene viva la última versión sin que su identidad cuente para
+    nada, así que el efecto cuelga solo de `mounted`: una toma de foco al abrir,
+    una devolución al cerrar.
+  */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!mounted) return undefined;
 
@@ -70,7 +90,7 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -95,7 +115,7 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
       document.body.style.overflow = overflow;
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };
-  }, [mounted, onClose]);
+  }, [mounted]);
 
   if (!mounted) return null;
 
