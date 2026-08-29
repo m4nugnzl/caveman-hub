@@ -3,291 +3,281 @@
 > Fecha: 29 de agosto de 2026. Base: `93ab681`.
 >
 > Sale de comparar el repositorio con las dos referencias guardadas en
-> `capturas/referencias/` —Efort Coach y ProCoach— y con lo que hacen las
-> aplicaciones de registro de entreno que usa el cliente por su cuenta (Hevy,
-> Strong).
+> `capturas/referencias/` —Efort Coach y ProCoach— y con las aplicaciones de
+> registro de entreno que el cliente ya usa por su cuenta (Hevy, Strong).
 >
-> **Qué es esto:** una lista de propuestas con su evidencia y un orden de
-> trabajo. **Qué NO es:** una decisión. Ninguna propuesta de aquí depende de que
-> se contesten las cinco preguntas de la §8 de `producto.md`, y eso es a
-> propósito.
+> **Qué es esto:** una lista de propuestas con su evidencia en el código y un
+> orden de trabajo. **Qué NO es:** una decisión.
 >
-> **Nada de esto está validado con `npm run check`**: en el entorno donde se
-> escribió no había `node_modules`. Es lectura de código, del esquema y de los
-> documentos.
+> **Nada de esto está validado con `npm run check`.** Es lectura de código, del
+> esquema y de la documentación.
+>
+> **Corrección (misma fecha).** La primera versión de este documento daba por
+> ausentes tres cosas que existen: la triaje de cartera de `portfolio.js`, el
+> gesto de repetir la serie anterior y —como decisión tomada, no como olvido— la
+> ausencia de mensajería. Estaban mal porque se leyó `domain/today.js` y no
+> `domain/portfolio.js`, que es donde vive la mitad importante. Lo que sigue está
+> corregido y cada afirmación lleva el archivo donde se comprueba.
 
 ---
 
-## 0. Lo que no hay que tocar
+## 0. Lo que no hay que tocar, y lo que ya está resuelto
 
-La mayor parte, y conviene decirlo antes de proponer nada.
+La mayor parte. Y conviene ser explícito con lo segundo, porque es donde la
+primera versión de este documento se equivocó.
+
+**No se toca:**
 
 - **«Hierro y tiza».** Resuelve un problema que las dos referencias ni se
-  plantean —el cromo sin color, para que el círculo cromático entero quede libre
-  para el dato— y lo resuelve con una regla que `verify-styles.mjs` verifica.
+  plantean —el cromo sin color, para que el círculo cromático quede libre para el
+  dato— y con una regla que `verify-styles.mjs` verifica.
 - **`domain/`.** Funciones puras, con pruebas, sin React.
 - **`lib/saveQueue` y `lib/pendingSaves`.** Cubren el único fallo que pierde
   datos de verdad.
-- **El razonamiento escrito en los propios archivos.** `BottomNav`,
-  `CLIENT_SECTIONS`, `SetCell`, `AppContext`: cada uno defiende su decisión y
-  casi siempre tiene razón. Donde una propuesta contradice a uno de ellos, se
-  dice.
 
-La tesis de la lista, en una frase: **el lenguaje visual y el oficio por cliente
-están por encima de las dos referencias; lo que está por debajo es que el
-producto es dueño de la semana pero no de la conversación, que todo escala en
-línea recta con el número de clientes, y que el móvil del gimnasio sigue tratado
-como un escritorio pequeño.**
+**Y ya está construido, aunque parezca que no:**
+
+- **La triaje de cartera.** `portfolio.js` tiene `BOARD_COLUMNS` (Por revisar ·
+  En riesgo · Check-in pendiente · Al día), `INBOX_TASKS` con ocho tareas,
+  `PORTFOLIO_FILTERS` y `COLAS_INICIO` —«Por revisar», «Sin programar», «Sin
+  señales», «Cobros»— con sus cifras en Inicio y en la chapa de la barra lateral.
+  Es, casi pieza por pieza, el panel de Efort. No hay que construirlo.
+- **Repetir la serie anterior.** `SetRow` ya lo hace: cuando hay referencia y la
+  serie está vacía, la marca es un botón que apunta lo mismo que la vez anterior.
+  El comentario del propio archivo lo llama «el gesto de Hevy».
+- **El cliente ve sus series previas y sus mejores marcas** mientras entrena
+  (`previousSetsBefore`, `bestSetsBefore` en `ClientRoutine`).
 
 ---
 
-## A. El producto: lo que no existe
+## A. El producto
 
-### A1 · La conversación vive fuera del producto
+### A1 · La conversación está fuera, y es una decisión tomada
 
-**Hoy.** No hay ninguna tabla de mensajes entre entrenador y cliente. Las que
-hay —`support_tickets`, `support_messages`— son el soporte de la plataforma,
-otra cosa. El bucle se cierra con el check-in y la decisión escrita; todo el
-«oye, esto cómo lo hago» ocurre en WhatsApp.
+**Esto no es un olvido.** `domain/updates.js` lo dice literalmente: «No es una
+bandeja de mensajes. La conversación con el cliente es de WhatsApp — ahí hay una
+persona». De ahí sale que las novedades del portal no tengan ni un campo de
+texto: son dos sellos de tiempo comparados, sin tabla y sin migración.
 
-**La referencia.** Efort lleva el chat acoplado abajo a la derecha en todas las
-pantallas, y su panel de inicio cuenta «6 unanswered chats» como métrica de
-primer nivel. ProCoach lo pone en la frase con la que se vende: «message
-clients… from one place».
+El argumento es bueno y barato. **Lo que sigue lo contradice**, así que va con
+esa etiqueta puesta (regla 20 de `CLAUDE.md`) y no como una propuesta neutra.
 
-**Propuesta.** Un hilo por cliente, pero **anclado al contexto**: cada mensaje
-nace de una pieza del producto —esta serie, esta comida, esta foto, esta
-revisión— y se lee con ella delante. Es lo que WhatsApp no puede hacer, y por
-tanto la única razón por la que alguien se cambiaría. Un chat genérico sería un
-WhatsApp peor.
+**El argumento para revisarlo.** Las dos referencias tratan el chat como pieza de
+primer nivel: Efort lo lleva acoplado en todas las pantallas y cuenta
+«unanswered chats» en su panel; ProCoach lo vende en su frase principal. Y no es
+por moda: mientras la conversación esté fuera, **el contexto del trabajo está
+partido en dos sitios**, y el que está fuera no es auditable, no se exporta con
+el cliente y no se puede enseñar en un juicio de protección de datos.
 
-La versión pequeña que ya cabe sin infraestructura nueva: comentarios en la
-sesión y en el ejercicio, más una bandeja «sin responder» en Inicio, al lado de
-«Te esperan». La grande necesita tabla, RLS, tiempo real y avisos.
+**Propuesta, si se revisa.** No un chat: **comentarios anclados a la pieza** —a
+esta serie, a esta comida, a esta foto—. Un chat genérico sería un WhatsApp peor
+y le daría la razón a `updates.js`. Un comentario que nace de una serie concreta
+es lo que WhatsApp no puede hacer.
 
-> Impacto alto · la más cara de la lista · es donde está la retención.
+> La más cara de la lista, la única que contradice una decisión escrita, y la que
+> más retención daría si sale bien.
 
-### A2 · Todo escala en línea recta con el número de clientes
+### A2 · Al cliente se le pueden acabar las semanas y nadie avisa
 
-**Hoy.** Hay biblioteca de *ejercicios* y de *alimentos* (`exercises`,
-`catalog_exercises`, `foods`), pero no de **estructuras**: no existe un bloque,
-una semana ni una dieta guardados con nombre y reutilizables. Lo más parecido es
-copiar de otro cliente (`CopyToClientPanel`, `ImportDayDialog`). El lote existe
-en un solo sitio: el «aplicar a todos» de nutrición.
+**Lo que hay.** `clientStatus` emite `no_program` cuando el cliente **no tiene
+ningún** microciclo, y `stale_training` cuando lleva días sin entrenar. Las dos
+alimentan «Sin programar» y «Sin señales» en Inicio. Funciona.
 
-Y «Inicio» mira hacia atrás: la barra de las últimas dos semanas y el hilo
-cuentan lo que **ha pasado**; `buildInbox` solo conoce dos motivos, y los dos son
-reactivos (check-in entregado, cobro pendiente).
+**El hueco, y es estrecho.** `no_program` solo dispara en cero. No hay ninguna
+alerta para *«tiene rutina, y se le acaba el domingo»*, que es el trabajo que de
+verdad se planifica con antelación. Efort lo trata como su métrica principal
+—«New block needed: 10», «Block update needed: 13», con previsión por semanas— y
+aquí no existe.
 
-**La referencia.** «Librería» es una entrada de nivel 1 en Efort, al lado de
-Atletas. Y su panel de inicio no cuenta lo que pasó: cuenta lo que hay que hacer
-—«New block needed: 10», «Block update needed: 13»— con una previsión de bloques
-nuevos por semanas.
+**Y el dato ya está calculado.** `buildPortfolio` expone `weeksProgrammed:
+resumen.microcycleCount` en cada fila de la cartera, y **no lo lee nadie**: es la
+única propiedad de la fila sin un solo consumidor en todo el repositorio.
 
-**Propuesta**, en orden de rentabilidad:
+**Propuesta.** Una alerta más —`program_ending`— y una cola más en
+`COLAS_INICIO`. Es `domain/` puro, encaja en una estructura que ya existe y no
+inventa ninguna pantalla.
 
-1. **La previsión**, que es casi gratis. «Inicio» ya conoce el microciclo activo
-   de cada cliente y su semana; leído hacia delante, ese mismo dato contesta «a
-   quién se le acaba el bloque esta semana». Es la misma barra mirando hacia el
-   otro lado, y sale de `domain/`.
-2. **La biblioteca de estructuras.** Bloques, semanas, sesiones y dietas con
-   nombre. Es la pieza que convierte veinte aperturas en tres.
-3. **El lote.** Generalizar el «aplicar a todos» que ya existe: aplicar una
-   progresión a seis clientes, subir 100 kcal a cuatro.
+### A3 · No hay estructuras reutilizables, solo copiar de otro cliente
 
-### A3 · Los hallazgos existen por cliente y no existen por cartera
+**Lo que hay.** Biblioteca de *ejercicios* y de *alimentos* (`exercises`,
+`catalog_exercises`, `foods`), y `CopyToClientPanel`, que replica de un cliente a
+otro el entrenamiento, la dieta y la estructura semanal. Está bien hecho y
+resuelve el caso de «montar a uno nuevo como otro que ya tengo».
 
-**Hoy.** `domain/reading.js` ya produce veredictos del tipo «estancado y la
-adherencia es del 40 %», y `Hallazgos.jsx` los pinta dentro de la ventana del
-panel de *un* cliente, encima de su prueba. Bien puesto: la conclusión va donde
-está su prueba.
+**El hueco.** No existe un bloque, una semana ni una dieta guardados **con
+nombre y sin dueño**. Todo plan es propiedad de un cliente, así que reutilizarlo
+obliga a recordar de quién copiarlo. En Efort, «Librería» es entrada de nivel 1,
+al lado de Atletas.
 
-**Propuesta.** La **transpuesta** de lo que ya se calcula. El entrenador con
-cuarenta clientes no se pregunta «¿cómo va Javier?»; se pregunta «¿quién se me
-está yendo?». Es agregación de un cálculo hecho y probado: un tercer motivo en la
-bandeja de Inicio —«se está apagando»— con su prueba a un clic. La regla que ya
-sostiene `Hallazgos` se mantiene: son hechos, no consejos.
+**Propuesta.** La biblioteca de estructuras, y **generalizar el lote**: el
+«aplicar a todos» de nutrición ya existe y es la forma correcta; falta que valga
+para una progresión de entreno o para un ajuste de kcal sobre un subconjunto.
 
-Es la única propuesta de la lista donde la referencia **no** enseña el camino
-—ninguna de las dos lo hace bien— y por eso puede ser la más diferencial.
+Es la pieza que cambia cuánta gente puede llevar un entrenador, y la única de
+esta lista que necesita tabla nueva además de A1.
+
+### A4 · Los veredictos buenos no llegan a la cartera
+
+**Lo que hay.** `domain/reading.js` produce lecturas del tipo «estancado y la
+adherencia es del 40 %», y se consumen en `Dashboard`, `Hallazgos` y
+`WeekReview`: los tres, **de un cliente**.
+
+**El hueco.** `portfolio.js` no importa `reading.js`. La triaje de cartera es
+buena pero se apoya en señales gruesas —sin entrenar, sin rutina, pago vencido—
+mientras que la señal fina —*está entrenando y aun así no avanza*— existe,
+está probada y no sale nunca de la ficha.
+
+**Propuesta.** Que «En riesgo» pueda dispararse también por estancamiento, no
+solo por inactividad. Es agregación de un cálculo hecho, y la regla que sostiene
+`Hallazgos` se mantiene: son hechos, no consejos.
 
 ---
 
 ## B. La estructura, por dentro
 
-Cuatro cosas medidas. Ninguna es urgente hoy; las cuatro se vuelven caras justo
-cuando el producto empieza a funcionar.
-
 ### B1 · 13.784 líneas de CSS en un archivo, y la portada dentro
 
 **Medido.** `src/index.css`: 13.784 líneas, 3.355 reglas, cuarenta secciones,
-123 `@media`. Las líneas 3.040–6.183 son la portada pública y el acceso: el 22 %
-del archivo. El JS ya está partido por rutas con `lazyRoute`; el CSS no está
-partido por nada.
+123 `@media`. Las líneas 3.040–6.183 son la portada y el acceso: el 22 %.
+El JS ya está partido por rutas con `lazyRoute`; el CSS no está partido por nada.
 
 **El precio real, para no exagerarlo:** unos **50 KB comprimidos**, de los cuales
 7,6 son de la portada. *No es un problema de peso.* Es de navegación y de riesgo:
-el CSS del escaparate convive en el mismo archivo con el de la hoja de series.
+el CSS del escaparate convive con el de la hoja de series.
 
-**Propuesta.** Partirlo por el eje que ya usa el JS, **sin tocar un solo
-selector**: un `base/` (reset, tipografía, superficies, botones, formularios), el
-chasis, y un archivo por dominio. `marketing.css` importado desde
-`LandingPage.jsx`, que Vite ya sabe llevar a su propio trozo. Ni un token cambia.
-Es la refactorización más segura de la lista, y desbloquea que
-`verify-styles.mjs` verifique por zona en vez de por archivo.
+**Propuesta.** Partirlo por el eje que ya usa el JS, **sin tocar un selector**:
+`base/`, el chasis, y un archivo por dominio; `marketing.css` importado desde
+`LandingPage.jsx`, que Vite lleva a su propio trozo. Ni un token cambia.
 
-### B2 · Al entrar se descarga la cartera entera
+### B2 · La carga perezosa está a un cuarto, y la auditoría la da por hecha
 
-**Hoy.** El arranque de `AppContext` pide con `.in('client_id', ids)` la
-antropometría, los planes de nutrición y las fotos de **todos** los clientes —y
-los programas completos si el RPC de resúmenes no se puede usar. Las fotos,
-además, ordenadas y sin `limit`. Con quince clientes va bien; el coste crece con
-cada alta.
+**La discrepancia.** `auditoria.md` 1.5 titula «Se cargan todos los datos de
+todos los clientes al arrancar — **CORREGIDO (0024)**». En el código, el arranque
+de `AppContext` sigue pidiendo con `.in('client_id', ids)`:
 
-**Propuesta.** La solución ya está inventada dentro del propio proyecto:
-`training_summaries` es exactamente el patrón correcto —resumen por RPC para la
-lista, detalle al entrar— y está aplicado a **una** de las cuatro tablas.
-Extenderlo a las otras tres e hidratar el cliente completo al entrar en su ruta.
-No es arquitectura nueva: es terminar la que ya se eligió.
+- `anthropometry` — completa, de todos
+- `nutrition_plans` — completos, de todos
+- `progress_photos` — todas, ordenadas y **sin `limit`**
+
+Lo que 0024 corrigió es `workout_data`, mediante el RPC `training_summaries`.
+Una de las cuatro. La auditoría no miente sobre lo que se hizo; sí sobre el
+estado.
+
+**Propuesta.** Extender el patrón —que ya está elegido y probado— a las otras
+tres, e hidratar el cliente completo al entrar en su ruta. Y actualizar el 1.5,
+que hoy dice que esto está cerrado.
 
 ### B3 · El corte en tres contextos está hecho, y 38 componentes no lo usan
 
-**Hoy.** `AppContext` se partió en sesión, datos y acciones, y está bien
-argumentado en el propio archivo. Pero `useApp()` los vuelve a fundir en un
-objeto, y **38 archivos siguen llamándolo** frente a 12 que usan los ganchos
+`AppContext` se partió en sesión, datos y acciones. Pero `useApp()` los vuelve a
+fundir, y **38 archivos siguen llamándolo** frente a 12 con los ganchos
 estrechos: se repintan con cualquier escritura aunque solo lean una función.
 
-**Propuesta.** Terminar la migración —es mecánica— y **cerrarla con una regla, no
-con una intención**: `no-restricted-imports` sobre `useApp` en cuanto llegue a
-cero. Sin eso vuelve solo, igual que volvía el color de marca antes de que
-`verify-styles` lo persiguiera.
+**Propuesta.** Terminar la migración —es mecánica— y cerrarla con
+`no-restricted-imports` sobre `useApp` en cuanto llegue a cero. Sin la regla
+vuelve solo.
 
 ### B4 · Treinta archivos abren una ventana; la referencia usa un inspector
 
-**Hoy.** Treinta componentes montan `<Modal>`. Solo el editor de rutina tiene
-seis: `BloquePopup`, `ProgresionPopup`, `SensacionesPopup`, `NuevoBloqueDialog`,
-`ImportDayDialog` y la comparativa de ejercicio.
+Treinta componentes montan `<Modal>`. Solo el editor de rutina tiene seis:
+`BloquePopup`, `ProgresionPopup`, `SensacionesPopup`, `NuevoBloqueDialog`,
+`ImportDayDialog` y la comparativa.
 
-**La referencia.** Efort resuelve el mismo editor con tres columnas: lista de
-días, hoja de series y **un inspector fijo a la derecha** con el ejercicio
-seleccionado —historial, equipamiento, tempo, rango de movimiento— en chips. Cero
-ventanas.
+Efort resuelve el mismo editor con tres columnas y **un inspector fijo a la
+derecha** —historial, equipamiento, tempo, rango de movimiento— sin una sola
+ventana.
 
-**Propuesta.** Un modal es la forma correcta de una decisión con respuesta
-cerrada (`ConfirmProvider` lo usa bien). Es la forma equivocada de *editar
-mientras miras*, porque tapa justo lo que hay que comparar. Convertir en
-inspector lo que en el editor es consulta —la comparativa, la progresión, las
-sensaciones— y dejar en ventana solo lo que interrumpe a propósito.
+**Propuesta.** El modal es correcto para una decisión cerrada (`ConfirmProvider`
+lo usa bien) y equivocado para *editar mientras miras*, porque tapa lo que hay
+que comparar. Pasar a inspector lo que en el editor es consulta.
 
 ---
 
 ## C. El móvil del cliente
 
-Aquí está la mayor distancia con el mercado, y no con Efort ni con ProCoach:
-con Hevy y Strong, que es contra quien compara el cliente cuando abre la
-aplicación en el gimnasio.
-
 ### C1 · Sin cobertura, la aplicación abre — y está vacía
 
-**Hoy.** El camino sin red está construido por los dos extremos y le falta el
-medio. El service worker precachea el casco con la lista real del build, así que
-la aplicación *abre*. `pendingSaves` guarda en el navegador lo que falta por
-enviar, así que lo escrito *no se pierde*. Pero la tercera regla del worker es
-explícita —Supabase «ni se toca»—, así que en un sótano el cliente abre la
-aplicación, la ve pintarse y **no tiene su sesión**.
+El camino sin red está construido por los dos extremos y le falta el medio. El
+service worker precachea el casco con la lista real del build, así que la
+aplicación *abre*. `pendingSaves` guarda lo que falta por enviar, así que lo
+escrito *no se pierde*. Pero la tercera regla del worker es explícita —Supabase
+«ni se toca»—, así que en un sótano el cliente abre la aplicación, la ve pintarse
+y **no tiene su sesión**.
 
 **Propuesta.** Cachear **dos objetos**, no inventar un modo sin conexión: el
-microciclo activo y el plan de dieta vigente. Son los únicos dos que se usan sin
-red y los dos que caben. Con la marca de cuándo se vieron por última vez, que es
-lo que evita que una caché vieja mienta. Es la misma decisión que ya se tomó para
-lo pendiente de guardar —«una nota de lo que faltaba», no una base de datos
-local— aplicada a la lectura en vez de a la escritura.
+microciclo activo y el plan de dieta vigente, con la marca de cuándo se vieron.
+Es la misma decisión que ya se tomó para lo pendiente de guardar —«una nota de lo
+que faltaba», no una base de datos local— aplicada a la lectura.
 
-### C2 · Registrar una serie sigue siendo rellenar un formulario
+Es la propuesta con mejor relación entre lo que cuesta y lo que arregla.
 
-**Hoy.** Está bien resuelto y con criterio: la fila en vez de la tarjeta cuando
-quien escribe es el cliente, `inputMode` por campo, objetivo por serie, y el
-cliente **sí** recibe sus series previas y sus mejores marcas
-(`previousSetsBefore`, `bestSetsBefore`). Lo que no hay es lo que separa un
-formulario de un compañero de entreno.
+### C2 · Falta el temporizador de descanso
 
-**Propuesta.** Dos gestos, los dos de cliente y sin tocar `domain/`:
+Lo demás del registro está resuelto y con criterio: la fila en vez de la tarjeta
+cuando escribe el cliente, `inputMode` por campo, objetivo por serie, series
+previas, mejores marcas y el botón de repetir la serie anterior.
 
-- **Temporizador de descanso** que arranca solo al marcar la serie —el momento
-  exacto en que el dato existe y nadie tiene que pulsar nada.
-- **Repetir la serie anterior de un toque**, que ahorra la mayoría de las
-  escrituras porque la mayoría de las series repiten kilos y repeticiones.
+Lo que no hay es el temporizador de descanso. Y el sitio donde ponerlo ya
+existe: `SetRow` sabe el momento exacto en que una serie pasa a estar hecha
+(`isSetLogged`), que es cuando el descanso empieza sin que nadie pulse nada.
 
 ### C3 · Cinco destinos y cuatro huecos
 
-**Hoy.** `CLIENT_SECTIONS` declara cinco secciones y `BottomNav` razona muy bien
-por qué solo caben cuatro. La consecuencia aritmética es que una está siempre
-detrás de «Más». La §4.2 de `producto.md` propone bajar a tres y quedó sin
-decidir por falta de datos, con dos portales en producción.
+`CLIENT_SECTIONS` declara cinco secciones y `BottomNav` razona bien por qué solo
+caben cuatro: la consecuencia aritmética es que una está siempre detrás de «Más».
+La §4.2 de `producto.md` propone bajar a tres y quedó sin decidir.
 
-**Propuesta.** Una tercera opción que **no obliga a decidir esa pregunta**: que la
-primera entrada de la barra deje de ser una sección y pase a ser *el gesto de
-hoy* —«Entrenar» cuando toca sesión, «Entregar la revisión» cuando toca
-check-in—. Las demás se quedan como consulta y ninguna se retira, así que no hay
-redirecciones nuevas ni hay que elegir entre dos razonamientos escritos. Es lo
-que enseña ProCoach en la captura del iPhone, y es coherente con la tesis del
-propio proyecto: la unidad es la semana, no el módulo de datos.
+**Propuesta.** Una tercera opción que no obliga a decidir esa pregunta: que la
+primera entrada deje de ser una sección y pase a ser *el gesto de hoy*
+—«Entrenar» o «Entregar la revisión» según toque—. Ninguna sección se retira, así
+que no hay redirecciones nuevas ni hay que elegir entre dos razonamientos
+escritos.
 
 ---
 
-## D. Lo visual: poco, porque está bien
+## D. Lo visual
 
-### D1 · Sin color de marca, la jerarquía se apoya entera en contraste y tamaño
+### D1 · Sin color de marca, la jerarquía se apoya en contraste y posición
 
-**El coste de la regla.** «El cromo no tiene color» es una decisión correcta y
-bien defendida: con nueve series que distinguir, gastar una franja del círculo
-cromático en la interfaz se paga dos veces. Pero tiene una factura y conviene
-mirarla de frente: en las pantallas densas —Inicio, la ficha— *lo accionable y lo
-informativo se distinguen solo por posición*, porque los dos ejes que quedaban
-(color y tamaño) están comprometidos con el dato y con la cifra.
+«El cromo no tiene color» es correcto y está bien defendido. Su factura: en las
+pantallas densas, *lo accionable y lo informativo se distinguen sobre todo por
+posición*, porque los otros dos ejes están comprometidos con el dato y con la
+cifra.
 
-**Propuesta.** No romper la regla: usar el eje que le queda libre. El sistema ya
-tiene `--surface-sunken`, `--edge` y el juego de rellenos, y hoy se usan como
-decoración de agrupación. Convertirlos en gramática: **hundido = te está
-esperando; elevado con canto = información**. Una regla más, del mismo tipo que
-las que ya funcionan, y sin gastar ni una gota de color.
+**Propuesta.** No romper la regla: usar el eje libre. `--surface-sunken`,
+`--edge` y los rellenos ya existen y hoy agrupan; convertirlos en gramática
+—hundido = te espera; elevado con canto = información—. Sin gastar color.
 
-La brasa se queda donde está —«aquí», pequeña y estructural—: ese trabajo ya lo
-hace bien y ampliarlo la convertiría en tema.
-
-> Es lo más discutible de la lista y lo único que no se apoya en una medida.
-> Merece verse en pantalla antes que discutirse por escrito.
+> Es lo más discutible del documento y lo único sin una medida detrás. Merece
+> verse en pantalla antes que discutirse por escrito.
 
 ---
 
 ## E. Orden de trabajo
 
-Ordenado por lo que rinde antes, no por lo que impresiona más. Los tres primeros
-no tocan `domain/`, no mueven ninguna URL y se pueden parar en cualquier punto.
-
 | # | Qué | Coste | Por qué ahí |
 |---|---|---|---|
-| 1 | La previsión en Inicio (A2.1) | Días | El dato ya está cargado; es leerlo hacia delante |
-| 2 | Los dos gestos del gimnasio (C2) | Días | Lo que más veces al día toca un cliente, y no hay nada que decidir antes |
-| 3 | El microciclo y la dieta sin red (C1) | 1–2 semanas | Cierra el camino offline que ya está construido por los dos extremos |
-| 4 | Partir `index.css` (B1) | 1 semana | Antes de que llegue nada de lo grande, no después |
-| 5 | La biblioteca de estructuras (A2.2) | Semanas | La primera pieza que cambia cuánta gente puede llevar un entrenador |
-| 6 | La carga por resumen en las cuatro tablas (B2) | 1 semana | Aquí y no antes: es cuando la biblioteca hace crecer las carteras |
-| 7 | El hilo con el cliente (A1) | Un mes | La más cara y la que más retención da; conviene entrar con el resto asentado |
+| 1 | El temporizador de descanso (C2) | Días | Único hueco de una pantalla por lo demás resuelta, y el sitio ya existe |
+| 2 | `program_ending` y su cola (A2) | Días | `weeksProgrammed` ya está calculado y sin consumidor |
+| 3 | El microciclo y la dieta sin red (C1) | 1–2 semanas | Cierra el camino offline construido por los dos extremos |
+| 4 | Partir `index.css` (B1) | 1 semana | Antes de que llegue nada grande, no después |
+| 5 | El estancamiento en «En riesgo» (A4) | 1 semana | Agregación de un cálculo ya probado |
+| 6 | La carga perezosa en las otras tres tablas (B2) | 1 semana | Y corregir el 1.5 de `auditoria.md` |
+| 7 | La biblioteca de estructuras (A3) | Semanas | Lo que cambia cuánta gente cabe en una cartera |
+| — | El hilo con el cliente (A1) | Un mes | Sin número: contradice una decisión escrita y hay que decidirla antes |
 
-`B3` (terminar la migración de `useApp`) y `B4` (el inspector del editor) no
-llevan número: son trabajo de acompañamiento, y el sitio natural de cada uno es
-el primer día que se toque el archivo por otro motivo.
+`B3` y `B4` no llevan número: son trabajo de acompañamiento, el primer día que se
+toque cada archivo por otro motivo.
 
 ---
 
 ## F. Lo que no se ha comprobado
 
-- **No se ha ejecutado la aplicación.** Sin `node_modules` en el entorno, nada de
-  esto está validado con `npm run check`.
+- **No se ha ejecutado la aplicación con datos.** El build sí corre y la portada
+  se renderiza; las pantallas internas necesitan una sesión de Supabase que no
+  hay en el entorno donde se escribió esto.
 - **Las capturas de `capturas/` son del 21 de agosto** y el lenguaje visual se
-  rehízo el 29 (`93ab681`, `d99cadb`, `820fb59`). Todo lo que se dice de la
-  interfaz sale del CSS y del JSX actuales, no de esas imágenes.
-- **Ninguna propuesta se ha contrastado con uso real.** La condición que
-  `producto.md` se puso para su fase 5 —usarla un ciclo entero antes de
-  decidir— vale igual aquí.
+  rehízo el 29 (`93ab681`, `d99cadb`, `820fb59`). Nada de lo que aquí se dice de
+  la interfaz sale de esas imágenes.
+- **Ninguna propuesta se ha contrastado con uso real**, que es la condición que
+  `producto.md` se puso a sí mismo antes de su fase 5.
