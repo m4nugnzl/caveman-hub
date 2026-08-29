@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { track } from '@/lib/analytics';
-import { deepClone } from '@/lib/ids';
+import { deepClone, newId } from '@/lib/ids';
 import {
   buildMicrocycle,
   blankDays,
@@ -18,8 +18,14 @@ import {
   today,
   uniqueDayName,
 } from '@/domain/training';
-import { buildSessionFromPlan, sessionsOf, withSessionSet } from '@/domain/sessions';
-import { blocksAfterInsertingWeek, openNextBlock, programAfterRemovingWeek, renameBlockIn } from '@/domain/blocks';
+import { buildSessionFromPlan, isSetLogged, sessionsOf, withSessionSet } from '@/domain/sessions';
+import {
+  blocksAfterInsertingWeek,
+  logBlockChange as logBlockChangeIn,
+  openNextBlock,
+  programAfterRemovingWeek,
+  renameBlockIn,
+} from '@/domain/blocks';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
 
 /*
@@ -489,6 +495,45 @@ export const useWorkout = ({
     [applyDay]
   );
 
+  /**
+   * Cuántas series tiene un ejercicio, de una vez.
+   *
+   * ── Por qué no basta con llamar a los dos de arriba en bucle ───────────────
+   * Porque pasar de 3 a 6 series serían tres escrituras del programa entero por
+   * la cola, y desde la plantilla del bloque eso se multiplica por las semanas
+   * a las que llega el cambio: una edición de «4 → 6» en un bloque de seis
+   * semanas mandaría doce. Es el mismo motivo por el que existe `addExercises`
+   * al lado de `addExercise`.
+   *
+   * Las series que sobran se quitan por el final y NUNCA una con algo anotado:
+   * cambiar el plan no puede borrar lo que alguien levantó. Si las últimas
+   * están registradas, el ejercicio se queda con las que tiene.
+   */
+  const setExerciseSetCount = useCallback(
+    (clientId, weekNumber, dayName, exId, count) =>
+      applyDay(clientId, weekNumber, dayName, (d) => ({
+        ...d,
+        exercises: d.exercises.map((ex) => {
+          if (ex.id !== exId) return ex;
+          const objetivo = Math.max(1, Math.min(12, Math.round(count) || 1));
+          const sets = [...(ex.sets || [])];
+          if (sets.length === objetivo) return ex;
+
+          if (sets.length < objetivo) {
+            const ultima = sets[sets.length - 1];
+            while (sets.length < objetivo) {
+              sets.push({ kg: '', reps: '', rir: '', targetReps: ultima?.targetReps || '', targetRir: ultima?.targetRir || '' });
+            }
+            return { ...ex, sets };
+          }
+
+          while (sets.length > objetivo && sets.length > 1 && !isSetLogged(sets[sets.length - 1])) sets.pop();
+          return { ...ex, sets };
+        }),
+      })),
+    [applyDay]
+  );
+
   const moveExercise = useCallback(
     (clientId, weekNumber, dayName, fromIndex, toIndex) =>
       applyDay(clientId, weekNumber, dayName, (d) => {
@@ -924,6 +969,24 @@ export const useWorkout = ({
   const renameBlock = useCallback(
     (clientId, blockId, name) =>
       applyWorkout(clientId, (cd) => renameBlockIn(cd, blockId, name), { immediate: false }),
+    [applyWorkout]
+  );
+
+  /**
+   * Apunta un cambio de plan en la bitácora de su bloque.
+   *
+   * El reloj y el generador de ids viven aquí y no en el dominio, que es puro y
+   * tiene que poder probarse sin fingir ninguno de los dos. Va con
+   * `immediate: false` porque acompaña siempre a otra escritura —la que de
+   * verdad cambió el plan— y las dos salen en el mismo guardado.
+   */
+  const logBlockChange = useCallback(
+    (clientId, blockId, entry) =>
+      applyWorkout(
+        clientId,
+        (cd) => logBlockChangeIn(cd, blockId, { id: newId('bl'), at: new Date().toISOString(), ...entry }),
+        { immediate: false }
+      ),
     [applyWorkout]
   );
 
@@ -1387,6 +1450,7 @@ export const useWorkout = ({
     addExerciseSetSlot,
     removeExerciseSetSlot,
     moveExercise,
+    setExerciseSetCount,
     renameDay,
     setDayNote,
     setExerciseNote,
@@ -1404,6 +1468,7 @@ export const useWorkout = ({
     appendMicrocycle,
     startBlock,
     renameBlock,
+    logBlockChange,
     removeMicrocycle,
     restoreMicrocycle,
     cloneMicrocycle,

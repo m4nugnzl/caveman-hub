@@ -21,6 +21,7 @@
  */
 import { newId } from '@/lib/ids';
 import { dayPlannedVolume } from './training';
+import { executedSessions, sessionTonnage } from './sessions';
 
 /** La última semana montada del programa (0 sin ninguna). */
 export const lastWeekNumber = (microcycles = []) =>
@@ -240,4 +241,292 @@ export const blockPlannedVolume = (program, block) => {
       Object.entries(porMusculo).map(([musculo, v]) => [musculo, { total: v, media: media(v) }])
     ),
   };
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA PLANTILLA DEL BLOQUE
+   ══════════════════════════════════════════════════════════════════════════
+
+   Un bloque es una estructura repetida, pero hasta ahora solo se podía mirar
+   una CELDA de ella: una semana por un día. Para verlo entero —sus sesiones,
+   y en cada una sus ejercicios con series y reps— hace falta una lectura del
+   bloque como plan, y es lo que hay aquí.
+
+   ── Derivada, no guardada ─────────────────────────────────────────────────
+   La plantilla NO es un campo nuevo del programa: se lee de la última semana
+   montada del bloque. Guardarla como fuente de verdad (`block.template`)
+   obligaría a instanciar semanas desde ella y a migrar todo lo que hoy
+   trabaja por semana, a cambio de nada que no se pueda derivar. Lo que se
+   escribe sobre la plantilla se reparte a las semanas del bloque; ver
+   `untrainedWeeksOfDay`.
+
+   ── Y dice dónde NO se cumple ─────────────────────────────────────────────
+   Dentro de un bloque las semanas pueden haberse tocado a mano. Enseñar la
+   plantilla como si todas fueran iguales sería mentir, así que cada sesión
+   lleva las semanas que se salen (`difieren`) y la pantalla las nombra.
+*/
+
+/** «8-10» si todas las series piden lo mismo; `null` si son mixtas. */
+const repsObjetivo = (exercise) => {
+  const valores = (exercise?.sets || []).map((s) => String(s?.targetReps ?? '').trim());
+  if (valores.length === 0) return '';
+  return valores.every((v) => v === valores[0]) ? valores[0] : null;
+};
+
+/** Qué ejercicios y cuántas series tiene un día: dos días con la misma firma
+    son el mismo día programado. Los kilos anotados no cuentan — son de la
+    persona, no del plan. */
+const firmaDelDia = (day) =>
+  (day?.exercises || [])
+    .map((ex) => `${String(ex.name || '').trim().toLowerCase()}·${(ex.sets || []).length}`)
+    .join('|');
+
+/**
+ * El bloque como plan: sus sesiones, y en cada una sus ejercicios.
+ *
+ * @returns `{ reference, weeks, sessions: [{ dayName, series, volumen,
+ *   exercises: [{ id, name, muscle, series, targetReps }], difieren }] }`
+ *   — `reference` es la semana de la que se lee (la última del bloque), y
+ *   `difieren` las semanas del bloque cuya versión de esa sesión no coincide
+ *   con la plantilla. Sin semanas montadas, `sessions` viene vacío.
+ */
+export const blockPlan = (program, block) => {
+  const weeks = weeksOfBlock(program, block);
+  const microcycles = program?.microcycles || [];
+  const conAlgo = (w) => (microcycles.find((m) => m.weekNumber === w)?.days || []).some((d) => (d.exercises || []).length > 0);
+
+  /* La referencia es la última semana ESCRITA, no la última a secas: continuar
+     el programa crea la semana siguiente con los días vacíos
+     (ver `appendMicrocycle`), y leer la plantilla de ella la dejaría en blanco
+     justo después del gesto que más se repite. Las vacías son destino de la
+     plantilla, no su origen. */
+  const reference = [...weeks].reverse().find(conAlgo) ?? (weeks.length ? weeks[weeks.length - 1] : null);
+  const micro = microcycles.find((m) => m.weekNumber === reference);
+
+  const sessions = (micro?.days || []).map((day) => {
+    const firma = firmaDelDia(day);
+    const otras = weeks.filter((w) => w !== reference);
+    const suyoEn = (w) => ((microcycles.find((m) => m.weekNumber === w)?.days) || []).find((d) => d.dayName === day.dayName);
+
+    return {
+      dayName: day.dayName,
+      series: (day.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
+      volumen: dayPlannedVolume(day),
+      exercises: (day.exercises || []).map((ex) => ({
+        id: ex.id,
+        name: ex.name,
+        muscle: ex.muscle,
+        series: (ex.sets || []).length,
+        targetReps: repsObjetivo(ex),
+      })),
+      /* Sin nada escrito es que está por rellenar; con algo distinto, que se
+         tocó a mano. Son dos cosas y llevan a dos acciones distintas: la
+         primera se rellena con la plantilla, la segunda solo se avisa. */
+      vacias: otras.filter((w) => (suyoEn(w)?.exercises || []).length === 0),
+      difieren: otras.filter((w) => {
+        const suyo = suyoEn(w);
+        return Boolean(suyo) && (suyo.exercises || []).length > 0 && firmaDelDia(suyo) !== firma;
+      }),
+    };
+  });
+
+  return { reference, weeks, sessions };
+};
+
+/**
+ * EL BLOQUE EN CIFRAS: lo justo para una fila de su historia.
+ *
+ * ══ Por qué existe ═════════════════════════════════════════════════════════
+ * Viajar entre bloques era un desplegable con nombres, y un nombre no dice si
+ * aquel bloque fue el bueno. Para elegir hace falta lo que lo distingue: cuánto
+ * duró, cuándo fue, cuánto se levantó y cuánto se cumplió. Con eso, la lista de
+ * bloques deja de ser un selector y pasa a ser la historia del entrenamiento de
+ * esa persona — que es lo que un entrenador consulta al plantear el siguiente.
+ *
+ * ── Pautado y hecho, los dos ────────────────────────────────────────────────
+ * `series` es lo que le PUSISTE por semana (`blockPlannedVolume`, que promedia
+ * porque el total de un bloque de seis semanas no se compara con el de tres);
+ * `kg`, `hechas` y `planificadas` son lo que PASÓ. Son dos preguntas y las dos
+ * hacen falta para juzgar un bloque: uno con mucho volumen y media adherencia
+ * no es un bloque de mucho volumen.
+ */
+export const blockSummary = (program, block) => {
+  const semanas = weeksOfBlock(program, block);
+  const microcycles = program?.microcycles || [];
+  const suyos = semanas.map((w) => microcycles.find((m) => m.weekNumber === w)).filter(Boolean);
+
+  let kg = 0;
+  let hechas = 0;
+  let planificadas = 0;
+  for (const micro of suyos) {
+    const sesiones = executedSessions(micro);
+    hechas += sesiones.length;
+    planificadas += (micro.days || []).length;
+    for (const s of sesiones) kg += sessionTonnage(s);
+  }
+
+  const fechas = suyos.map((m) => m.date).filter(Boolean);
+  return {
+    semanas: semanas.length,
+    desde: fechas[0] || null,
+    hasta: fechas[fechas.length - 1] || null,
+    kg,
+    hechas,
+    planificadas,
+    /* Sin nada planificado no hay adherencia que dar: un 0 % diría que se lo
+       saltó todo, y lo que pasa es que no había nada que saltarse. */
+    adherencia: planificadas > 0 ? Math.round((hechas / planificadas) * 100) : null,
+    series: blockPlannedVolume(program, block).media,
+    abierto: block?.toWeek === null || block?.toWeek === undefined,
+  };
+};
+
+/**
+ * Dónde puede escribir la plantilla sin pisar lo que ya pasó.
+ *
+ * Las semanas del bloque en las que ESA sesión todavía no se ha entrenado.
+ * Añadir un ejercicio a una semana que el cliente ya cerró no es programar:
+ * es cambiarle el pasado, y además la deja contada como incompleta (una serie
+ * más planificada que nunca hizo). Es la misma regla con la que ya se quitaba
+ * un día del bloque entero.
+ */
+export const untrainedWeeksOfDay = (program, block, dayName) => {
+  const microcycles = program?.microcycles || [];
+  return weeksOfBlock(program, block).filter((w) => {
+    const micro = microcycles.find((m) => m.weekNumber === w);
+    if (!(micro?.days || []).some((d) => d.dayName === dayName)) return false;
+    return !executedSessions(micro).some((ss) => ss.dayName === dayName);
+  });
+};
+
+/**
+ * Y dónde se puede PONER la plantilla: las semanas del bloque en las que esa
+ * sesión está en blanco —sin ejercicios, o sin el día siquiera— y todavía no
+ * se ha entrenado.
+ *
+ * No vale `untrainedWeeksOfDay` para esto: aquel exige que el día EXISTA,
+ * porque escribir en un día que no está no hace nada. Aquí es al revés — un
+ * día que falta es justo el hueco más grande que hay que poder rellenar, y
+ * quien llame creará el día antes de escribir en él.
+ */
+export const fillableWeeksOfDay = (program, block, dayName) => {
+  const microcycles = program?.microcycles || [];
+  return weeksOfBlock(program, block).filter((w) => {
+    const micro = microcycles.find((m) => m.weekNumber === w);
+    const dia = (micro?.days || []).find((d) => d.dayName === dayName);
+    if ((dia?.exercises || []).length > 0) return false;
+    return !executedSessions(micro).some((ss) => ss.dayName === dayName);
+  });
+};
+
+/**
+ * Y dónde entra una sesión NUEVA: de la semana en curso en adelante.
+ *
+ * No sirve la regla de arriba —un día que no existe en ningún sitio no está
+ * entrenado en ninguno, así que caería también en las semanas ya cerradas y
+ * las dejaría con una sesión en blanco que nadie se saltó—. Sin semana en
+ * curso (el bloque aún no ha empezado) entra en todas.
+ */
+export const weeksAheadOfBlock = (program, block, currentWeek = null) => {
+  const weeks = weeksOfBlock(program, block);
+  if (currentWeek === null || currentWeek === undefined) return weeks;
+  const desde = weeks.filter((w) => w >= currentWeek);
+  return desde.length > 0 ? desde : weeks.slice(-1);
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA BITÁCORA DEL BLOQUE
+   ══════════════════════════════════════════════════════════════════════════
+
+   ══ La pregunta ═══════════════════════════════════════════════════════════
+   «Si toco el volumen de UNA semana del bloque, ¿qué pasa?»
+
+   La respuesta del producto es: sigue siendo el mismo bloque. Un bloque es una
+   estructura y una estructura aguanta retoques —subir una serie de espalda en
+   la semana 3 porque llegó fresco— sin dejar de ser la misma. Abrir un bloque
+   nuevo es una decisión, no una consecuencia; se hace a mano y se confirma
+   (`NuevoBloqueDialog`).
+
+   Pero un retoque que no deja rastro es un agujero: tres semanas después nadie
+   sabe si el pico de la S3 fue una decisión o un despiste, y la comparación
+   entre semanas —que es para lo que sirve un bloque— deja de significar nada.
+
+   Así que el bloque no se parte: se APUNTA.
+
+   ══ Dónde vive ════════════════════════════════════════════════════════════
+   En el propio bloque, `block.log`. `workout_data.blocks` ya es una columna
+   `jsonb` (migración 0086) y los bloques ya llevan claves de más —los cerrados
+   guardan su `weeklySplit` y su `mobilityDrills`—, así que esto no necesita
+   migración ninguna. Y vivir dentro del bloque es lo correcto: si el bloque se
+   renombra, se borra o se restaura, su historia va con él sin código extra.
+
+   ══ Qué se apunta ═════════════════════════════════════════════════════════
+   Solo lo que cambia el VOLUMEN o la forma del plan: un ejercicio que entra o
+   sale, series que suben o bajan, una hoja que aparece o desaparece. No los
+   kilos que levanta la persona —eso es la sesión, y ya se guarda— ni cada
+   tecleo en un rango de reps, que llenaría la bitácora de ruido.
+
+   Y cada entrada dice su ALCANCE, que es la mitad de la información:
+
+     · `bloque` — se escribió desde el plan y fue a todas sus semanas por
+       entrenar. El bloque sigue siendo uniforme.
+     · `semana` — se escribió en una hoja concreta. Esa semana se sale de la
+       plantilla, a propósito, y aquí queda dicho cuál y cuándo.
+*/
+
+/* Un tope, porque esto va en la misma fila que el programa: sin él, un año de
+   retoques engorda cada lectura del cliente. Se quedan los últimos, que son los
+   que se consultan. */
+const MAX_BITACORA = 200;
+
+export const BLOCK_CHANGE = {
+  EJERCICIO_MAS: 'ejercicio-mas',
+  EJERCICIO_MENOS: 'ejercicio-menos',
+  SERIES: 'series',
+  HOJA_MAS: 'hoja-mas',
+  HOJA_MENOS: 'hoja-menos',
+  PLANTILLA: 'plantilla',
+};
+
+/**
+ * Apunta un cambio en la bitácora de un bloque y devuelve el programa nuevo.
+ *
+ * @param entry `{ id, at, kind, hoja, alcance: 'bloque'|'semana', semanas, que }`
+ *   — `at` e `id` los pone quien llama, que es quien tiene reloj y generador.
+ */
+export const logBlockChange = (program, blockId, entry) => ({
+  ...program,
+  blocks: blocksOf(program).map((b) =>
+    b.id !== blockId ? b : { ...b, log: [...(b.log || []), entry].slice(-MAX_BITACORA) }
+  ),
+});
+
+/** La bitácora de un bloque, de lo más reciente a lo más viejo. */
+export const blockChangeLog = (block) => [...(block?.log || [])].reverse();
+
+/** Los cambios que afectan solo a una semana: los que la sacan de la plantilla. */
+export const weekChangesOfBlock = (block, week) =>
+  blockChangeLog(block).filter((e) => e.alcance === 'semana' && (e.semanas || []).includes(week));
+
+/** «+ Face pull», «Sentadilla 3 → 4 series»… en una línea. */
+export const describeBlockChange = (entry) => {
+  const que = entry?.que || '';
+  switch (entry?.kind) {
+    case BLOCK_CHANGE.EJERCICIO_MAS:
+      return `+ ${que}`;
+    case BLOCK_CHANGE.EJERCICIO_MENOS:
+      return `− ${que}`;
+    case BLOCK_CHANGE.SERIES:
+      return `${que}: ${entry.de} → ${entry.a} series`;
+    case BLOCK_CHANGE.HOJA_MAS:
+      return `hoja «${que}» añadida`;
+    case BLOCK_CHANGE.HOJA_MENOS:
+      return `hoja «${que}» quitada`;
+    case BLOCK_CHANGE.PLANTILLA:
+      /* Las semanas ya salen en la columna del alcance: repetirlas aquí sería
+         decir dos veces lo mismo en la misma fila. */
+      return 'plantilla puesta';
+    default:
+      return que;
+  }
 };

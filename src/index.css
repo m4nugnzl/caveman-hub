@@ -11836,18 +11836,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .menu-acciones .hoja-semana.is-nueva, .menu-acciones .hoja-dia.is-nuevo { cursor: pointer; }
 
 
-/* ══ EL BLOQUE ═════════════════════════════════════════════════════════════
-   El nombre del bloque abre la tira de semanas: es la identidad de lo que se
-   está mirando, y se pulsa para ver su estructura o cambiar de bloque. */
-.hoja-bloque {
-  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px 0 6px;
-  border: 0; background: transparent; border-radius: var(--r-md);
-  font: inherit; font-family: var(--font-display); font-size: var(--fs-base); font-weight: 720; letter-spacing: -0.02em;
-  color: var(--text); cursor: pointer; margin-right: var(--s2); white-space: nowrap;
-}
-.hoja-bloque:hover { background: var(--fill-subtle); }
-.hoja-bloque > svg { color: var(--text-tertiary); }
-
 /* El calentamiento, en una línea encima de la hoja. */
 .hoja-calentamiento {
   display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
@@ -11930,23 +11918,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
    Pestañas de bloques arriba; nombre y cifras; la estructura; los días con lo
    que llevan; las semanas con su tonelaje como barra. Se mira, y se salta. */
 .bloque { display: flex; flex-direction: column; gap: var(--s5); }
-.bloque-tabs { display: flex; gap: var(--s1); flex-wrap: wrap; }
-.bloque-tab {
-  display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 10px; border-radius: var(--r-md);
-  border: 0; background: transparent; font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); cursor: pointer;
-}
-.bloque-tab > small { font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); }
-.bloque-tab:hover { background: var(--fill-subtle); color: var(--text); }
-.bloque-tab.is-on { background: var(--fill); color: var(--text); }
-.bloque-cab { display: flex; flex-direction: column; gap: var(--s4); }
-.bloque-nombre { display: flex; flex-direction: column; gap: 2px; }
-.bloque-nombre-input {
-  font: inherit; font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 720; letter-spacing: -0.03em; line-height: 1.1;
-  background: transparent; border: 0; padding: 0; color: var(--text); width: 100%; border-radius: var(--r-xs);
-}
-.bloque-nombre-input:hover { background: var(--fill-subtle); }
-.bloque-nombre-input:focus { outline: none; background: var(--fill-subtle); }
-.bloque-sub { font-size: var(--fs-sm); color: var(--text-tertiary); }
 /* El cuándo, DENTRO del rótulo pero fuera del troquel: la fecha sitúa la
    medida, no la nombra, y troquelada gasta el doble de ancho por el
    interletraje. Ver `dashboard/TarjetaSensaciones`. */
@@ -11961,35 +11932,7 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .bloque-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .bloque-seccion { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
 .bloque-titulo { font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: var(--tracking-stencil); text-transform: uppercase; color: var(--text-tertiary); }
-.bloque-semana-natural { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s2); }
-.bloque-dia-natural { display: flex; flex-direction: column; gap: 2px; padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--surface-sunken); min-width: 0; }
-.bloque-dia-natural > .k { font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
-.bloque-dia-natural > .v { font-size: var(--fs-sm); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bloque-dia-natural.is-descanso > .v { color: var(--text-tertiary); font-weight: 500; }
-.bloque-dias { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s2); }
-.bloque-dia { display: flex; flex-direction: column; gap: 2px; padding: var(--s3); border-radius: var(--r-md); border: 1px solid var(--hairline); min-width: 0; }
-.bloque-dia-nombre { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-base); letter-spacing: -0.015em; }
-.bloque-dia-meta { font-size: var(--fs-xs); color: var(--text-secondary); }
-.bloque-dia-lista { font-size: var(--fs-xs); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bloque-semanas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.bloque-semana {
-  display: grid; grid-template-columns: 40px 70px 112px minmax(0, 1fr) 90px 44px; gap: var(--s3); align-items: center;
-  width: 100%; padding: 7px 10px; border: 0; border-radius: var(--r-md); background: transparent;
-  font: inherit; font-size: var(--fs-sm); color: var(--text-secondary); text-align: left; cursor: pointer;
-}
-.bloque-semana:hover { background: var(--fill-subtle); color: var(--text); }
-.bloque-semana.is-on { background: var(--fill); color: var(--text); }
-.bloque-semana-n { font-family: var(--font-display); font-weight: 700; color: var(--text); }
-.bloque-semana-estado { font-size: var(--fs-xs); color: var(--text-tertiary); }
-.bloque-semana.is-curso .bloque-semana-estado { color: var(--brasa); font-weight: 600; }
-.bloque-semana-fecha { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.bloque-semana-barra { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
-.bloque-semana-barra > span { display: block; height: 100%; background: var(--data-violet); border-radius: 3px; }
-.bloque-semana-kg { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
-.bloque-semana-ses { text-align: right; font-variant-numeric: tabular-nums; font-size: var(--fs-xs); color: var(--text-tertiary); }
-@media (max-width: 760px) { .bloque-cifras { grid-template-columns: repeat(2, 1fr); } .bloque-semana-natural { grid-template-columns: repeat(4, 1fr); } .bloque-semana { grid-template-columns: 40px 70px minmax(0, 1fr) 80px; } .bloque-semana-fecha, .bloque-semana-ses { display: none; } }
-.bloque-semana-fecha.is-editable { font: inherit; font-size: var(--fs-xs); background: transparent; border: 0; padding: 0; color: var(--text-tertiary); color-scheme: inherit; width: 100%; }
-.bloque-semana-fecha.is-editable:hover, .bloque-semana-fecha.is-editable:focus { color: var(--text); outline: none; }
+@media (max-width: 760px) { .bloque-cifras { grid-template-columns: repeat(2, 1fr); } }
 
 
 /* ── La columna derecha: progresión arriba, cómo lo llevó debajo ──────────── */
@@ -12024,27 +11967,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .progresion-celda.is-vacia { background: transparent; color: var(--text-tertiary); }
 
 /* ── La ventana del bloque: dos pantallas que se deslizan ─────────────────── */
-.bloque-track { display: grid; grid-template-columns: 100% 100%; overflow: hidden; }
-.bloque-pantalla { transition: transform var(--normal), opacity var(--normal); min-width: 0; }
-.bloque-track.is-estructura > .bloque-pantalla { transform: translateX(-100%); }
-.bloque-track > .bloque-pantalla[aria-hidden='true'] { opacity: 0; pointer-events: none; height: 0; overflow: hidden; }
-.bloque-track.is-estructura > .bloque-pantalla:first-child { height: 0; }
-@media (prefers-reduced-motion: reduce) { .bloque-pantalla { transition: none; } }
-.bloque-volver {
-  display: inline-flex; align-items: center; gap: 4px; background: transparent; border: 0; padding: 0;
-  font: inherit; font-size: var(--fs-md); font-weight: 650; color: var(--text); cursor: pointer;
-}
-.bloque-volver:hover { color: var(--brasa); }
-.bloque-volver > svg { color: var(--text-tertiary); }
-.bloque-editar-dias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
-.bloque-editar-dia { display: grid; grid-template-columns: 24px minmax(0, 1fr) 110px auto; gap: var(--s3); align-items: center; padding: 6px 8px; border-radius: var(--r-md); background: var(--surface-sunken); }
-.bloque-editar-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); text-align: center; }
-.bloque-editar-nombre { font: inherit; font-weight: 650; background: transparent; border: 0; padding: 4px 6px; border-radius: var(--r-xs); color: var(--text); min-width: 0; }
-.bloque-editar-nombre:hover, .bloque-editar-nombre:focus { background: var(--surface); outline: none; box-shadow: inset 0 0 0 1px var(--hairline-strong); }
-.bloque-editar-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
-.bloque-editar-acciones { display: flex; gap: 2px; }
-.bloque-editar-alta { display: flex; gap: var(--s2); align-items: center; }
-.bloque-editar-alta .input { flex: 1; min-width: 0; }
 
 
 /* ── La cabecera de las tarjetas laterales: rótulo, título pulsable, paso ── */
@@ -12072,25 +11994,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .bloque-cifras.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 
-/* ── El bloque en la barra: un selector, no un rótulo suelto ─────────────── */
-.hoja-bloque-sitio { position: relative; display: inline-flex; align-items: center; margin-right: var(--s2); }
-.hoja-bloque {
-  display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 9px 0 11px;
-  border: 1px solid var(--hairline-strong); background: var(--surface-sunken); border-radius: var(--r-md);
-  font: inherit; color: var(--text); cursor: pointer; white-space: nowrap; margin-right: 0;
-  transition: border-color var(--fast), background-color var(--fast);
-}
-.hoja-bloque:hover, .hoja-bloque[aria-expanded='true'] { background: var(--fill-subtle); border-color: var(--text-tertiary); }
-.hoja-bloque-n { font-family: var(--font-display); font-size: var(--fs-base); font-weight: 720; letter-spacing: -0.02em; }
-.hoja-bloque-m { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
-.hoja-bloque > svg { color: var(--text-tertiary); }
-.hoja-bloque-sep { width: 1px; height: 18px; background: var(--hairline-strong); margin-left: var(--s2); }
-.hoja-bloques { left: 0; right: auto; top: calc(100% + 6px); min-width: 260px; }
-.hoja-bloques-item { justify-content: space-between; gap: var(--s3); }
-.hoja-bloques-item.is-on { background: var(--fill-subtle); }
-.hoja-bloques-item.is-on .hoja-bloques-nombre::before { content: '● '; color: var(--brasa); font-size: 8px; vertical-align: 2px; }
-.hoja-bloques-nombre { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
-.hoja-bloques-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 
 /* ── Abrir un bloque nuevo ─────────────────────────────────────────────────── */
 .nuevo-bloque { display: flex; flex-direction: column; gap: var(--s4); }
@@ -12115,13 +12018,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 }
 
 /* ── El desplegable de bloques: cada fila entra; a la derecha, ver y editar ── */
-.hoja-bloques { min-width: 280px; }
-.hoja-bloques-fila { display: flex; align-items: center; gap: 2px; border-radius: var(--r-sm); }
-.hoja-bloques-fila.is-on { background: var(--fill-subtle); }
-.hoja-bloques-fila > .menu-item { flex: 1; min-width: 0; }
-.hoja-bloques-fila > .menu-item:hover { background: var(--fill); }
-.hoja-bloques-fila > .btn-icon { color: var(--text-tertiary); margin-right: 2px; }
-.hoja-bloques-fila > .btn-icon:hover { color: var(--text); }
 .hoja-nuevo-bloque { color: var(--text-secondary); }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -13746,12 +13642,6 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .split-day.is-descanso .split-select { color: var(--text-tertiary); font-weight: 500; background-color: transparent; border-style: dashed; }
-.split-carga { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.split-carga > li { display: flex; justify-content: space-between; gap: 6px; font-size: var(--fs-2xs); color: var(--text-tertiary); min-width: 0; }
-.split-carga > li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.split-carga > li > b { font-family: var(--font-display); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.split-semana { font-size: var(--fs-sm); color: var(--text-secondary); }
-.split-semana > b { color: var(--text); }
 @media (max-width: 767.98px) {
   .split-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split-day > .name { text-align: left; }
@@ -13781,3 +13671,301 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 .chart-line.is-sobre-barras { stroke-width: 1.5; opacity: 0.85; }
 /* El último punto de una curva: su halo lo separa del área. */
 .chart-ultimo { pointer-events: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL BLOQUE  ·  el nivel de arriba de Entreno
+   ══════════════════════════════════════════════════════════════════════════
+
+   Dos columnas, la misma forma que la dieta (`.dieta`) y que la hoja de
+   series: a la IZQUIERDA lo que se monta —con la línea de tiempo de los
+   bloques arriba, que es el mapa y el mando para moverse por el programa—, a
+   la DERECHA con qué se juzga: dos tarjetas con la cabecera de las laterales
+   (`.lado-cab`), cuyos títulos abren su ventana grande.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* ── La miga: dónde estás, y cómo se vuelve ──────────────────────────────── */
+.entreno-miga { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; font-size: var(--fs-sm); }
+.entreno-miga-boton {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border: 0; border-radius: var(--r-md); background: transparent;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em;
+  color: var(--text); cursor: pointer; transition: background-color var(--fast), color var(--fast);
+}
+.entreno-miga-boton:hover { background: var(--fill-subtle); }
+.entreno-miga-boton > svg { color: var(--text-tertiary); }
+.entreno-miga-boton.is-volver:hover { color: var(--brasa); }
+.entreno-miga-boton.is-volver:hover > svg { color: var(--brasa); }
+.entreno-miga-aqui { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 600; }
+
+/* ── El reparto de la pantalla ───────────────────────────────────────────── */
+.bloque-pagina { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; min-width: 0; }
+.bloque-plan { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+.bloque-lado { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; position: sticky; top: var(--s5); }
+@media (max-width: 1023.98px) {
+  .bloque-pagina { grid-template-columns: 1fr; }
+  .bloque-lado { position: static; }
+}
+
+/* ── El mando del bloque: el nombre se escribe en su sitio ───────────────── */
+.plan-mando { align-items: center; }
+.plan-nombre {
+  width: auto; min-width: 0; max-width: 100%;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.022em; line-height: 1.2;
+  color: var(--text); background: transparent; border: 0; border-radius: var(--r-sm); padding: 2px 6px; margin-left: -6px;
+  transition: background-color var(--fast);
+}
+.plan-nombre:hover { background: var(--fill-subtle); }
+.plan-nombre:focus { outline: none; background: var(--fill-subtle); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+
+/* ══ LA LÍNEA DE TIEMPO: un tramo por bloque, una marca por semana ═════════
+   Cada tramo crece con sus semanas (flex-grow = semanas), así que la línea se
+   lee como tiempo. El abierto lleva el borde y las marcas son botones; los
+   demás van en voz baja y se entra pulsando su cabecera. */
+.linea { min-width: 0; }
+.linea-tramos { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--s2); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.linea-tramos::-webkit-scrollbar { display: none; }
+.linea-tramo {
+  flex: 1 1 0; min-width: 132px; display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s2) var(--s3) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid transparent;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.linea-tramo.is-on { background: var(--surface); border-color: var(--edge); box-shadow: var(--shadow-sm); }
+.linea-tramo:not(.is-on):hover { border-color: var(--hairline-strong); }
+.linea-cab {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--s2); align-items: baseline;
+  width: 100%; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; color: var(--text); cursor: pointer; min-width: 0;
+}
+.linea-tramo.is-on .linea-cab { cursor: default; }
+.linea-n { grid-row: 1 / 3; align-self: start; font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em; color: var(--text-tertiary); padding-top: 3px; }
+.linea-tramo.is-on .linea-n { color: var(--brasa); }
+.linea-nombre { font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--text-secondary); transition: color var(--fast); }
+.linea-tramo.is-on .linea-nombre { color: var(--text); }
+.linea-tramo:not(.is-on) .linea-cab:hover .linea-nombre { color: var(--brasa); }
+.linea-cuando { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Las semanas: casillas del mismo tamaño, hechas rellenas, en curso en brasa,
+   por hacer vacías. En el bloque abierto son puertas. */
+.linea-semanas { display: flex; flex-wrap: wrap; gap: 3px; }
+.linea-semana {
+  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 18px; border-radius: var(--r-xs);
+  font: inherit; font-family: var(--font-display); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary); background: transparent; box-shadow: inset 0 0 0 1px var(--hairline-strong); border: 0; padding: 0;
+  transition: background-color var(--fast), color var(--fast), box-shadow var(--fast);
+}
+.linea-semana.is-hecha { background: var(--fill); color: var(--text-secondary); box-shadow: none; }
+.linea-semana.is-curso { background: var(--brasa); color: var(--accent-on); box-shadow: none; }
+button.linea-semana { cursor: pointer; }
+button.linea-semana:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-tertiary); }
+button.linea-semana.is-curso:hover { color: var(--accent-on); filter: brightness(1.08); box-shadow: none; }
+.linea-semana.is-nueva { box-shadow: inset 0 0 0 1px var(--hairline); color: var(--text-tertiary); }
+.linea-semana.is-nueva:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+/* El bloque de más: un tramo vacío al final, con el peso de un hueco. */
+.linea-tramo.is-siguiente { flex: 0 0 auto; min-width: 0; background: transparent; border: 1px dashed var(--hairline-strong); justify-content: center; padding: var(--s2); }
+.linea-tramo.is-siguiente:hover { border-color: var(--text-tertiary); background: var(--fill-subtle); }
+.linea-mas {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--s2) var(--s3);
+  border: 0; background: transparent; font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary); cursor: pointer;
+}
+.linea-mas:hover { color: var(--text); }
+
+/* ── Los tramos: rótulo, contexto en voz baja, y su acción a la derecha ──── */
+.plan-tramo { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.plan-tramo-cab { display: flex; align-items: center; gap: var(--s3); min-height: 26px; flex-wrap: wrap; }
+.plan-titulo {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: var(--tracking-stencil); text-transform: uppercase; color: var(--text-tertiary);
+}
+.plan-tramo-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.plan-tramo-accion { margin-left: auto; }
+
+/* El hueco que deja continuar el programa: se dice y se resuelve en la misma línea. */
+.plan-hueco {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s3) var(--s4); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--hairline);
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.plan-hoja-alta { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.plan-hoja-alta .input { flex: 0 1 220px; min-width: 140px; }
+
+/* ══ LAS HOJAS: columnas que se reparten el ancho y, si no caben, saltan ═══
+   `auto-fit` con un mínimo de 150 px: seis hojas caben en el ancho de trabajo
+   a ~175 px; nueve pasan a dos filas. Nunca un carril con desplazamiento que
+   deje la última fuera de la vista. Sin caja: un filete separa cada columna. */
+.plan-rejilla {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s4) 0; min-width: 0;
+}
+.plan-col {
+  display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
+  padding: 0 var(--s3); border-left: 1px solid var(--hairline); border-radius: var(--r-sm);
+  transition: opacity var(--fast), box-shadow var(--fast);
+}
+.plan-col:first-child { border-left: 0; padding-left: 0; }
+/* Arrastrar: la hoja que viaja se atenúa y la de destino enseña el canto. */
+.plan-col.is-dragging { opacity: 0.4; }
+.plan-col.is-drop-target { box-shadow: inset 3px 0 0 var(--accent); }
+.plan-rejilla.is-arrastrando-hoja .plan-col { padding-left: var(--s3); }
+.plan-col-cab { display: flex; align-items: flex-start; gap: 2px; min-width: 0; }
+.plan-col-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+/* El asa de la hoja y la del ejercicio: la misma pieza que en la hoja de
+   series, y solo se enciende al pasar por la pieza que mueve. */
+.plan-asa { opacity: 0; margin-left: -4px; margin-top: 3px; flex-shrink: 0; }
+.plan-asa.is-ej { width: 14px; height: 16px; margin: 0 1px 0 -3px; vertical-align: -3px; }
+.plan-col:hover > .plan-col-cab > .plan-asa,
+.plan-ej:hover .plan-asa,
+.plan-asa:focus-visible { opacity: 0.7; }
+.plan-asa:hover { opacity: 1 !important; }
+@media (hover: none) { .plan-asa { opacity: 0.5; } }
+/* El nombre ES la puerta de la hoja, con la misma marca que los títulos de
+   las tarjetas laterales: se pulsa, y en brasa al pasar. */
+.plan-col-nombre {
+  min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-md); font-weight: 720; letter-spacing: -0.022em; line-height: 1.25;
+  background: transparent; border: 0; padding: 2px 0; border-radius: var(--r-xs);
+  color: var(--text); cursor: pointer; transition: color var(--fast);
+}
+.plan-col-nombre::after { content: ' ↗'; font-family: var(--font); font-weight: 500; font-size: var(--fs-xs); color: var(--text-tertiary); opacity: 0; transition: opacity var(--fast); }
+.plan-col-nombre:hover { color: var(--brasa); }
+.plan-col-nombre:hover::after { opacity: 1; color: var(--brasa); }
+/* Cuándo cae y cuánto pesa, en un renglón: «Lun · 18 series · 5 ejercicios». */
+.plan-col-sub { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Seis «···» siempre encendidos son seis cosas que mirar: aparecen al pasar. */
+.plan-col-menu { opacity: 0; transition: opacity var(--fast); margin-top: 1px; }
+.plan-col:hover .plan-col-menu,
+.plan-col:focus-within .plan-col-menu,
+.plan-col-menu[aria-expanded='true'] { opacity: 1; }
+@media (hover: none) { .plan-col-menu { opacity: 1; } }
+
+.plan-ejs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+/* El ejercicio en DOS líneas y no en una: a 175 px de columna, «Press
+   Inclinado Máquina» en una sola línea es puntos suspensivos, y un plan en el
+   que no se leen los ejercicios no es un plan. */
+.plan-ej { display: flex; flex-direction: column; gap: 1px; padding: 5px 0; border-top: 1px solid var(--hairline); min-width: 0; transition: opacity var(--fast), box-shadow var(--fast); }
+.plan-ej:first-child { border-top: 0; }
+.plan-ej.is-dragging { opacity: 0.4; }
+.plan-ej.is-drop-target { box-shadow: inset 0 2px 0 var(--accent); }
+.plan-ej-nombre { font-size: var(--fs-sm); font-weight: 600; color: var(--text); line-height: 1.3; overflow-wrap: anywhere; }
+.plan-ej-fila { display: flex; align-items: center; gap: 1px; min-width: 0; }
+.plan-ej-acciones { display: flex; gap: 0; margin-left: auto; opacity: 0; transition: opacity var(--fast); }
+.plan-ej:hover .plan-ej-acciones,
+.plan-ej:focus-within .plan-ej-acciones { opacity: 1; }
+@media (hover: none) { .plan-ej-acciones { opacity: 1; } }
+
+/* La pauta se escribe donde se lee: campos sin caja que solo se dibujan al
+   tocarlos. Con caja, cada columna serían diez rectángulos y la lista dejaría
+   de leerse como una lista. */
+.plan-series,
+.plan-reps {
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums;
+  text-align: center; color: var(--text-secondary);
+  background: transparent; border: 0; border-radius: var(--r-xs); padding: 2px 2px;
+}
+.plan-series { width: 24px; }
+.plan-reps { width: 48px; }
+.plan-series:hover, .plan-reps:hover { background: var(--fill-subtle); color: var(--text); }
+.plan-series:focus, .plan-reps:focus { outline: none; background: var(--surface-sunken); color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.plan-series::placeholder, .plan-reps::placeholder { color: var(--text-tertiary); font-weight: 500; }
+.plan-por { color: var(--text-tertiary); font-size: var(--fs-xs); }
+
+/* El pie va abajo del todo: con las columnas del mismo alto, las altas quedan
+   alineadas en una fila. */
+.plan-col-pie { margin-top: auto; display: flex; flex-direction: column; gap: 4px; padding-top: var(--s3); }
+.plan-col-cerrada { font-size: var(--fs-xs); color: var(--text-tertiary); font-style: italic; }
+.plan-alta-abrir {
+  display: inline-flex; align-items: center; gap: 4px; align-self: flex-start;
+  padding: 4px 6px; margin-left: -6px; border: 0; border-radius: var(--r-sm); background: transparent;
+  font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary); cursor: pointer;
+  transition: background-color var(--fast), color var(--fast);
+}
+.plan-alta-abrir:hover { background: var(--fill-subtle); color: var(--text); }
+.plan-alta { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s2); border-radius: var(--r-md); background: var(--surface-sunken); }
+.plan-alta-pie { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.plan-alta-pie .plan-series,
+.plan-alta-pie .plan-reps { background: var(--surface); box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text); }
+.plan-difiere {
+  align-self: flex-start; padding: 0; border: 0; background: transparent;
+  font: inherit; font-size: var(--fs-2xs); color: var(--brasa); cursor: pointer; text-align: left;
+}
+.plan-difiere:hover { text-decoration: underline; }
+
+/* ══ EL COSTADO: dos tarjetas ══════════════════════════════════════════════
+   La misma caja que `.comparativa` al lado de la hoja: así el costado del
+   bloque y el de la hoja son el mismo objeto a dos niveles. */
+.lado-tarjeta {
+  display: flex; flex-direction: column; gap: var(--s3); min-width: 0;
+  padding: var(--s4); border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--shadow-sm);
+}
+.lado-aviso { font-size: var(--fs-2xs); font-weight: 600; color: var(--negative); white-space: nowrap; flex-shrink: 0; }
+.lado-mas { align-self: flex-start; padding: 0; border: 0; background: transparent; font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary); cursor: pointer; }
+.lado-mas:hover { color: var(--text); }
+.lado-tarjeta .bloque-cifra { padding: var(--s2) var(--s3); }
+.lado-tarjeta .bloque-cifra > .v { font-size: var(--fs-lg); }
+.lado-tarjeta .bloque-cifra > .v > small { font-size: var(--fs-sm); }
+
+/* ── La ventana del volumen ──────────────────────────────────────────────── */
+.volumen-ventana { display: flex; flex-direction: column; gap: var(--s4); }
+.volumen-ventana .subjetivo-fila { grid-template-columns: 120px minmax(0, 1fr) 56px; }
+
+/* ══ EL HISTORIAL: todos los bloques, en grande ════════════════════════════ */
+.historial { display: flex; flex-direction: column; gap: var(--s5); }
+.historial-bloque { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
+.historial-bloque.is-on { border-top-color: var(--brasa); }
+.historial-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; }
+.historial-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.historial-nombre {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; text-align: left;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.022em;
+  color: var(--text); cursor: pointer; transition: color var(--fast);
+}
+.historial-nombre > svg { color: var(--text-tertiary); }
+.historial-nombre:hover:not(:disabled) { color: var(--brasa); }
+.historial-nombre:hover:not(:disabled) > svg { color: var(--brasa); }
+.historial-nombre:disabled { cursor: default; color: var(--brasa); }
+.historial-cuando { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.historial-cifras { display: flex; gap: var(--s5); margin: 0; flex-shrink: 0; }
+.historial-cifras > div { display: flex; flex-direction: column; gap: 1px; align-items: flex-end; }
+.historial-cifras dt { font-size: var(--fs-2xs); color: var(--text-tertiary); order: 2; }
+.historial-cifras dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-md); font-weight: 720; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.historial-cifras dd > small { font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 600; }
+.historial-semanas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1px var(--s5); }
+.historial-semana {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) 72px 34px; gap: var(--s2);
+  align-items: center; font-size: var(--fs-xs); color: var(--text-tertiary); padding: 3px 0; border-top: 1px solid var(--hairline);
+}
+.historial-semana.is-curso .historial-semana-n { color: var(--brasa); }
+.historial-semana-n {
+  padding: 2px 0; border: 0; background: transparent; text-align: left; cursor: pointer;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.historial-semana-n:hover { color: var(--brasa); }
+.historial-fecha {
+  font: inherit; font-size: var(--fs-xs); background: transparent; border: 0; padding: 0;
+  color: var(--text-tertiary); color-scheme: inherit; min-width: 0; width: 100%;
+}
+.historial-fecha:hover, .historial-fecha:focus { color: var(--text); outline: none; }
+.historial-kg, .historial-ses { text-align: right; font-variant-numeric: tabular-nums; }
+.historial-cambios { display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s2); }
+.historial-mas { align-self: flex-start; font-size: var(--fs-xs); }
+@media (max-width: 640px) {
+  .historial-cifras { gap: var(--s4); }
+  .historial-cifras > div { align-items: flex-start; }
+}
+
+/* ── Los cambios de un bloque ────────────────────────────────────────────── */
+.cambios { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cambio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px var(--s2); padding: 5px 0; border-top: 1px solid var(--hairline); }
+.cambio:first-child { border-top: 0; }
+.cambio-cuando { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+/* El ALCANCE es la mitad del dato: si fue a todo el bloque o solo a una
+   semana. Lo de una semana lleva la marca de brasa porque es lo que se sale de
+   la plantilla y por tanto lo que se viene a buscar aquí. */
+.cambio-alcance {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-tertiary);
+}
+.cambio-alcance.is-semana { color: var(--brasa); }
+.cambio-que { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.4; }
+.cambio-que > b { color: var(--text); font-weight: 650; }

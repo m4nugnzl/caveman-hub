@@ -174,7 +174,20 @@ describe('AppProvider', () => {
     // cargaba con el resto del perfil y se tiraba, así que el pie de la barra
     // lateral —donde ahora vive tu identidad y, dentro de ella, tus ajustes—
     // solo podía enseñar las iniciales de tu correo.
-    expect(Object.keys(visto.app).length).toBe(204);
+    //
+    // Y 205 desde `setExerciseSetCount`: cuántas series tiene un ejercicio, en
+    // UNA escritura. Existe por la vista «Bloque», donde un cambio de «4 → 6»
+    // llega a todas las semanas del bloque a la vez: con los dos slots de uno
+    // en uno, esa edición mandaría una escritura del programa entero por cada
+    // serie y cada semana. Mismo motivo que `addExercises` al lado de
+    // `addExercise`.
+    //
+    // Y 206 desde `logBlockChange`: la bitácora del bloque. Tocar el volumen de
+    // una semana suelta NO parte el bloque —eso se decide a mano— pero tiene
+    // que dejar rastro, o tres semanas después nadie sabe si el pico de la S3
+    // fue una decisión o un despiste. Va dentro del propio bloque
+    // (`block.log`), así que no hay columna ni migración nuevas.
+    expect(Object.keys(visto.app).length).toBe(206);
   });
 
   /*

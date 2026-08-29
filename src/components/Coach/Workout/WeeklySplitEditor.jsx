@@ -1,101 +1,71 @@
-import { Calendar } from 'lucide-react';
-import { WEEK_DAYS, dayMuscleVolume, isRestDay } from '@/domain/training';
-import { SectionTitle } from '@/components/ui/primitives';
+import { WEEK_DAYS, isRestDay } from '@/domain/training';
 
 /**
- * Qué se entrena cada día de la semana natural. Solo tiene sentido con
- * `cycleType: 'weekly'`; en ciclo rotativo no hay semana a la que atarse.
+ * Qué hoja cae cada día de la semana natural. Solo tiene sentido con
+ * `cycleType: 'weekly'`; en ciclo rotativo no hay semana a la que atarse —ahí
+ * la estructura la dice la cadena del patrón (`ui/CycleChain`)—.
  *
  * ══ La semana como REJILLA, no como siete cajas de texto ════════════════════
  *
  * Era un campo de texto por día donde había que escribir «Empuje A» a mano —y
- * escribirlo igual que en el microciclo, o el día no se encontraba—. Ahora
- * cada día ELIGE entre las sesiones que existen (o descanso), y debajo enseña
- * lo que esa sesión carga: los grupos con más series. Es la vista para
- * diseñar el bloque de una mirada, como la semana de TrueCoach: se ve dónde
- * caen dos días de pierna seguidos antes de que el cliente los sufra.
+ * escribirlo igual que en el microciclo, o el día no se encontraba—. Ahora cada
+ * día ELIGE entre las hojas que existen, o descanso. Es la vista para ver de
+ * una mirada dónde caen dos días de pierna seguidos antes de que el cliente los
+ * sufra.
  *
- * Al pie, la carga de la semana entera por grupo, sumando los siete días.
+ * ══ Sin la carga: eso lo dice la matriz ════════════════════════════════════
+ * Debajo de cada día iba su top-3 de grupos, y al pie la suma de la semana
+ * entera. Era el mismo dato que la matriz de volumen del bloque, dicho peor
+ * —tres grupos de siete, sin MRV y sin poder comparar hojas entre sí—. Dos
+ * sitios contando series acaban discrepando, así que se cuenta en uno.
  *
- * ══ Ni caja ni pliegue propio ═══════════════════════════════════════════════
- * Vive dentro del pliegue de la estructura (`CycleSettings`): si lo has
- * abierto, ya has dicho que vienes a cambiarla. Dentro de una superficie, las
- * zonas las separa el espacio.
+ * Aquí se contesta CUÁNDO; cuánto, en la matriz.
  *
- * @param days  Los días del microciclo activo, para ofrecerlos y para medir
- *   su carga. Sin ellos, el selector solo ofrece descanso y lo que ya hubiera.
+ * ══ Ni caja ni pliegue ═════════════════════════════════════════════════════
+ * Vive arriba del plan del bloque, a la vista. Estuvo dentro del pliegue de
+ * `CycleSettings`, al final de la pantalla: la estructura del bloque, escondida
+ * debajo de todo lo que la estructura explica.
+ *
+ * @param days  Las hojas del bloque, para ofrecerlas en el selector.
  */
 const DESCANSO = 'Descanso';
 
-const cargaDe = (day) =>
-  Object.entries(dayMuscleVolume(day || {}))
-    .sort((a, b) => b[1] - a[1]);
-
-export const WeeklySplitEditor = ({ split, onChange, days = [] }) => {
+export const WeeklySplitEditor = ({ split, onChange, days = [], disabled = false }) => {
   const nombres = days.map((d) => d.dayName);
-  const sesionDe = (valor) => days.find((d) => d.dayName.trim().toLowerCase() === String(valor).trim().toLowerCase()) || null;
-
-  /* La carga de la semana entera: la suma de lo que cae cada día. */
-  const semana = {};
-  for (const dia of WEEK_DAYS) {
-    const sesion = sesionDe(split?.[dia] ?? DESCANSO);
-    if (!sesion) continue;
-    for (const [m, n] of cargaDe(sesion)) semana[m] = (semana[m] || 0) + n;
-  }
-  const cargaSemana = Object.entries(semana).sort((a, b) => b[1] - a[1]);
-  const diasEntreno = WEEK_DAYS.filter((d) => !isRestDay(split?.[d] ?? DESCANSO)).length;
 
   return (
-    <div className="col gap-3">
-      <SectionTitle icon={Calendar}>Planificación semanal</SectionTitle>
-      <div className="split-grid">
-        {WEEK_DAYS.map((day) => {
-          const value = split?.[day] ?? DESCANSO;
-          const descanso = isRestDay(value);
-          const sesion = sesionDe(value);
-          const opciones = [DESCANSO, ...nombres];
-          if (!descanso && !sesion && value) opciones.push(value);
-          return (
-            <div className={`split-day${descanso ? ' is-descanso' : ' is-training'}`} key={day}>
-              <label className="name" htmlFor={`split-${day}`}>
-                {day.slice(0, 3)}
-              </label>
-              <select
-                id={`split-${day}`}
-                className="split-select"
-                value={value}
-                onChange={(e) => onChange(day, e.target.value)}
-                aria-label={`Sesión del ${day.toLowerCase()}`}
-              >
-                {opciones.map((o) => (
-                  <option key={o} value={o}>
-                    {o}
-                  </option>
-                ))}
-              </select>
-              {sesion && (
-                <ul className="split-carga" aria-label={`Carga de ${value}`}>
-                  {cargaDe(sesion)
-                    .slice(0, 3)
-                    .map(([m, n]) => (
-                      <li key={m}>
-                        <span>{m}</span>
-                        <b>{n}</b>
-                      </li>
-                    ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {cargaSemana.length > 0 && (
-        <p className="split-semana">
-          <b>{diasEntreno} {diasEntreno === 1 ? 'día' : 'días'}</b> ·{' '}
-          {cargaSemana.map(([m, n]) => `${m} ${n}`).join(' · ')}
-          <span className="t-tertiary"> series a la semana</span>
-        </p>
-      )}
+    <div className="split-grid">
+      {WEEK_DAYS.map((day) => {
+        const value = split?.[day] ?? DESCANSO;
+        const descanso = isRestDay(value);
+        const opciones = [DESCANSO, ...nombres];
+        /* Un valor que ya no corresponde a ninguna hoja (se renombró, se quitó)
+           se sigue ofreciendo: si no, el selector lo cambiaría solo por el
+           primero de la lista al primer render. */
+        if (!descanso && !opciones.includes(value)) opciones.push(value);
+
+        return (
+          <div className={`split-day${descanso ? ' is-descanso' : ' is-training'}`} key={day}>
+            <label className="name" htmlFor={`split-${day}`}>
+              {day.slice(0, 3)}
+            </label>
+            <select
+              id={`split-${day}`}
+              className="split-select"
+              value={value}
+              disabled={disabled}
+              onChange={(e) => onChange(day, e.target.value)}
+              aria-label={`Hoja del ${day.toLowerCase()}`}
+            >
+              {opciones.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+          </div>
+        );
+      })}
     </div>
   );
 };
