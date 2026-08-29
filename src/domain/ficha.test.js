@@ -59,7 +59,9 @@ describe('identityFacts', () => {
   it('devuelve los cuatro hechos, siempre y en el mismo orden', () => {
     const facts = identityFacts({ client, weight: 61.42 }, '2026-08-25');
     expect(facts.map((f) => f.id)).toEqual(['age', 'height', 'weight', 'gender']);
-    expect(facts.map((f) => f.value)).toEqual(['34 años', '168 cm', '61.4 kg', 'Mujer']);
+    /* Con coma decimal: `fmt` dice la cifra en el idioma de la aplicación, no en
+       el de JavaScript. Ver `lib/num.js`. */
+    expect(facts.map((f) => f.value)).toEqual(['34 años', '168 cm', '61,4 kg', 'Mujer']);
   });
 
   /* Un hueco es `null` y no la cadena «—»: quien pinta tiene que poder

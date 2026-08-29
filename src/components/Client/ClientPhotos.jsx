@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Camera } from 'lucide-react';
 
 import { ANGLES, angleLabel, groupByWeek, photoWeight, suggestPair, weightDelta } from '@/domain/photos';
+import { fmt } from '@/lib/num';
 import { metricColor } from '@/domain/metrics';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
 import { Thumb } from '@/components/photos/Thumb';
@@ -99,7 +100,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
                   }
                 >
                   {photo.week != null ? `Semana ${photo.week}` : photo.date}
-                  {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
+                  {photo.derivedWeight != null ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}
                 </figcaption>
               </figure>
             ))}
@@ -109,7 +110,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
             <div className="grid-auto">
               <StatCard
                 label="Variación de peso"
-                value={`${delta > 0 ? '+' : ''}${delta} kg`}
+                value={`${delta > 0 ? '+' : ''}${fmt(delta, { decimals: 1 })} kg`}
                 color={metricColor('weight')}
               />
               <StatCard label="Ángulo comparado" value={angleLabel(pair.after.angle)} />
@@ -146,7 +147,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
                     leerse en un móvil con el brillo bajo. */}
                 <figcaption className="photo-label" style={{ fontSize: 'var(--fs-xs)', padding: '4px 8px' }}>
                   {angleLabel(photo.angle)}
-                  {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
+                  {photo.derivedWeight != null ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}
                 </figcaption>
               </figure>
             ))}

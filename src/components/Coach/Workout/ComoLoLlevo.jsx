@@ -1,4 +1,4 @@
-import { Subjetivo } from './Subjetivo';
+import { Subjetivo } from '@/components/ui/Subjetivo';
 
 /**
  * Cómo lo llevó: lo que el cliente contó al acabar LA SESIÓN abierta.

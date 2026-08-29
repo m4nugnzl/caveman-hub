@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mergePlanWithSession, previousSetKey, previousSetsBefore } from './sessions';
+import { bestSetsBefore, isRecord, mergePlanWithSession, previousSetKey, previousSetsBefore } from './sessions';
 
 describe('mergePlanWithSession — los dos objetivos vienen del plan', () => {
   /*
@@ -100,5 +100,48 @@ describe('previousSetsBefore — lo que se levantó la vez anterior', () => {
     const mapa = previousSetsBefore(piramide, 2);
     expect(mapa.get(previousSetKey('Press', 0)).kg).toBe('100');
     expect(mapa.get(previousSetKey('Press', 1)).kg).toBe('90');
+  });
+});
+
+describe('bestSetsBefore / isRecord — el listón de cada ejercicio', () => {
+  const semana = (weekNumber, date, sets) => ({
+    id: `m${weekNumber}`,
+    weekNumber,
+    date,
+    days: [{ dayName: 'Día 1', exercises: [] }],
+    sessions: [
+      {
+        id: `s${weekNumber}`,
+        date,
+        dayName: 'Día 1',
+        entries: [{ exerciseId: `e${weekNumber}`, name: 'Press', muscle: 'Pecho', sets }],
+      },
+    ],
+  });
+
+  const micros = [
+    semana(1, '2026-03-02', [{ kg: '80', reps: '8' }, { kg: '80', reps: '8' }]),
+    semana(2, '2026-03-09', [{ kg: '90', reps: '5' }]),
+    semana(3, '2026-03-16', [{ kg: '100', reps: '3' }]),
+  ];
+
+  it('se queda con la mejor serie por 1RM estimado, no con la más reciente', () => {
+    const best = bestSetsBefore(micros, 3).get('Press');
+    // 80×8 → 101,3 ; 90×5 → 105
+    expect(best.kg).toBe('90');
+    expect(best.weekNumber).toBe(2);
+  });
+
+  it('no mira la semana en curso ni las siguientes', () => {
+    expect(bestSetsBefore(micros, 1).size).toBe(0);
+    expect(bestSetsBefore(micros, 2).get('Press').kg).toBe('80');
+  });
+
+  it('una serie es récord solo si supera el listón', () => {
+    const best = bestSetsBefore(micros, 3).get('Press');
+    expect(isRecord({ kg: '92.5', reps: '5' }, best)).toBe(true);
+    expect(isRecord({ kg: '90', reps: '5' }, best)).toBe(false);
+    expect(isRecord({ kg: '', reps: '5' }, best)).toBe(false);
+    expect(isRecord({ kg: '100', reps: '5' }, null)).toBe(false);
   });
 });

@@ -18,6 +18,7 @@ import {
   sectionsFor,
 } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
+import { Avatar } from '@/components/ui/Avatar';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { Logo } from '@/components/ui/Logo';
 import { HeaderActions, Omnibox } from '@/components/Header';
@@ -486,7 +487,10 @@ export const CoachLayout = () => {
                   >
                     <ArrowLeft size={16} />
                   </button>
-                  <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
+                  <h1 className="cliente-cab-nombre">
+                    <Avatar name={activeClient.name} src={activeClient.avatar} size="md" />
+                    {activeClient.name}
+                  </h1>
                   <div className="cliente-cab-selector">{selector}</div>
                   <p className="cliente-cab-meta">
                     {semanaActiva && <span>Semana {semanaActiva}</span>}

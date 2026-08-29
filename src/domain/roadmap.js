@@ -33,7 +33,8 @@
  */
 
 import { daysBetween, todayISO, toISODate } from '@/lib/dates';
-import { clientGoal, directionById } from './goals';
+import { round, toNum } from '@/lib/num';
+import { clientGoal, directionById, targetRateKg } from './goals';
 
 /** Una fase dura al menos esto para que hablar de «ritmo semanal» signifique algo. */
 export const MIN_PHASE_DAYS = 7;
@@ -322,4 +323,66 @@ const addDays = (day, count) => {
   const base = Date.parse(`${day}T00:00:00Z`);
   if (!Number.isFinite(base)) return null;
   return new Date(base + count * 86400000).toISOString().slice(0, 10);
+};
+
+/**
+ * DÓNDE VA A ACABAR LA FASE SI SIGUE ASÍ.
+ *
+ * ══ Por qué hacía falta ════════════════════════════════════════════════════
+ *
+ * El panel abría con «−0,45 kg/semana», debajo «En rumbo: −0,45 kg/semana»,
+ * debajo un medidor con ese mismo −0,45 y debajo «Objetivo: −0,46». Cuatro
+ * repeticiones de dos números: mucha tinta para no decir nada que no supieras ya
+ * al mirar la báscula.
+ *
+ * Lo que un entrenador no puede calcular de cabeza —y es lo que decide si toca
+ * algo esta semana— es la PROYECCIÓN: a este ritmo, y con las semanas que quedan
+ * de fase, ¿dónde acaba? ¿Y coincide con dónde tenía que acabar? Ahí sí hay una
+ * decisión: si se va a quedar dos kilos corto quedan cinco semanas para
+ * corregir, y si se va a pasar, también.
+ *
+ * ── Solo con fase cerrada ───────────────────────────────────────────────────
+ * Sin final decidido no hay tramo que proyectar, y estirar la recta «hasta
+ * siempre» daría un número inventado. Devuelve `null`, y la pantalla enseña
+ * entonces lo que sí sabe.
+ *
+ * ── El peso de partida es el de la báscula, no el del plan ─────────────────
+ * El objetivo del final se calcula sobre lo que pesaba AL EMPEZAR la fase, que
+ * es contra lo que se fijó el ritmo. Tomarlo del peso de hoy convertiría cada
+ * semana de retraso en un objetivo nuevo y más fácil.
+ *
+ * @returns `{ desde, hoy, proyectado, objetivo, desvio, semanas, restantes }`
+ */
+export const phaseProjection = ({ phase, history = [], perWeek = null, goal = null, date = todayISO() } = {}) => {
+  const progreso = phaseProgress(phase, date);
+  if (!progreso || progreso.open || perWeek === null || perWeek === undefined) return null;
+
+  const pesos = [...history]
+    .filter((h) => h?.date && toNum(h?.weight) !== null)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (pesos.length === 0) return null;
+
+  const inicio = iso(phase?.startsOn);
+  /* El pesaje más cercano al arranque de la fase: el último de antes, y si no
+     hubo ninguno, el primero de después. */
+  const previo = [...pesos].reverse().find((h) => String(h.date) <= inicio);
+  const desde = toNum((previo || pesos[0]).weight);
+  const hoy = toNum(pesos[pesos.length - 1].weight);
+
+  const semanas = progreso.total / 7;
+  const restantes = progreso.remaining / 7;
+
+  const ritmoObjetivo = targetRateKg(goal, desde);
+  const objetivo = ritmoObjetivo === null ? null : round(desde + ritmoObjetivo * semanas, 1);
+  const proyectado = round(hoy + perWeek * restantes, 1);
+
+  return {
+    desde: round(desde, 1),
+    hoy: round(hoy, 1),
+    proyectado,
+    objetivo,
+    desvio: objetivo === null ? null : round(proyectado - objetivo, 1),
+    semanas: Math.round(semanas),
+    restantes: Math.ceil(restantes),
+  };
 };

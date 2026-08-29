@@ -8,7 +8,7 @@ import { buildPortfolio } from '@/domain/portfolio';
 import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { todayISO } from '@/lib/dates';
-import { initials } from '@/lib/initials';
+import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
 import { ArchivedClients } from './ArchivedClients';
 import { NewClientForm } from './NewClientForm';
@@ -46,9 +46,7 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
         aria-label={`Abrir la ficha de ${client.name}`}
       />
 
-      <span className="mark" aria-hidden="true">
-        {initials(client.name)}
-      </span>
+      <Avatar name={client.name} src={client.avatar} size="md" className="mark" />
 
       <span className="who">
         <span className="name">
@@ -56,6 +54,13 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
           {espera && <span className="task-wait" aria-hidden="true" />}
         </span>
         <span className="sub">
+          {/* El veredicto de la semana delante de todo: es lo único que el
+              entrenador quiere saber de cada persona de un vistazo. Lo demás
+              —lo que falta, quién la lleva— va detrás, en voz baja. */}
+          {row.headline?.text && (
+            <span className={`veredicto is-${row.headline.tone || 'neutral'}`}>{row.headline.text}</span>
+          )}
+          {row.headline?.text && (row.why || trainer !== null) ? ' · ' : ''}
           {[
             row.why,
             /* El entrenador responsable solo aparece si hay equipo: en un equipo

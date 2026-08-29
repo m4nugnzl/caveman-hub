@@ -14,6 +14,7 @@ import {
 } from '@/domain/team';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
+import { Avatar } from '@/components/ui/Avatar';
 
 /**
  * El tope de asientos del plan actual (0064; la columna existe desde la 0019).
@@ -42,14 +43,6 @@ const useMaxSeats = (planId) => {
   }, [planId]);
   return maxSeats;
 };
-
-const initials = (text) =>
-  (text || '?')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('');
 
 /** Formulario de invitación. Falla de forma explicativa, que es lo que importa. */
 const InviteForm = ({ onInvite, cupoLleno }) => {
@@ -133,9 +126,7 @@ const InviteForm = ({ onInvite, cupoLleno }) => {
 
 const MemberRow = ({ member, isOwner, canManage, onRole, onRemove }) => (
   <div className="list-row">
-    <span className="folio-mark" aria-hidden="true">
-      {initials(memberName(member))}
-    </span>
+    <Avatar name={memberName(member)} size="md" className="folio-mark" />
 
     <span className="list-row-label">
       <span className="title">{memberName(member)}</span>

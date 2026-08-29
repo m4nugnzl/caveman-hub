@@ -1,0 +1,1304 @@
+{
+  "cliente": {
+    "id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+    "name": "Javier López",
+    "coach_id": "4ba2959d-24b7-4b91-b786-2182479ea48b",
+    "start_date": "2026-08-06",
+    "plan": null,
+    "preferences": {
+      "feed": {
+        "seen": "2026-08-26T21:23:15.995Z"
+      },
+      "goal": {
+        "note": "",
+        "ratePct": 0,
+        "direction": "maintain"
+      },
+      "intake": {
+        "done": [],
+        "files": {},
+        "links": {},
+        "steps": [
+          "onboarding",
+          "postureReview"
+        ],
+        "custom": []
+      },
+      "checkin": {
+        "weekday": 1,
+        "everyWeeks": 1
+      },
+      "updates": {
+        "diet": "2026-08-25T20:08:45.142Z",
+        "review": "2026-08-15T17:52:04.481Z",
+        "checkin": "2026-08-15T17:47:12.502Z",
+        "routine": "2026-08-27T09:00:25.367Z"
+      },
+      "protocol": {
+        "custom": [],
+        "checkin": {
+          "folds": "optional",
+          "perimeters": "optional"
+        },
+        "modules": [
+          "warmup",
+          "coachNote",
+          "clientNote",
+          "sessionFeedback",
+          "dietSwaps"
+        ],
+        "services": {
+          "training": true,
+          "nutrition": true
+        },
+        "questions": [
+          "fatigue",
+          "pain",
+          "energy",
+          "mood"
+        ],
+        "checkinQuestions": []
+      },
+      "dashboard": {
+        "cards": [
+          "weightTrend",
+          "tonnageTrend",
+          "split"
+        ],
+        "spans": {},
+        "widgets": [
+          "weight",
+          "checkin",
+          "tonnage",
+          "kcals"
+        ],
+        "showMetricList": true
+      }
+    }
+  },
+  "workout_data": [
+    {
+      "id": "bca46545-d476-4616-85ef-8a7810031921",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "data": {
+        "microcycles": []
+      },
+      "updated_at": "2026-08-27T09:00:48.725+00:00",
+      "weekly_split": {
+        "Lunes": "Push",
+        "Jueves": "Descanso",
+        "Martes": "Pull",
+        "Domingo": "Descanso",
+        "Sábado": "Descanso",
+        "Viernes": "Descanso",
+        "Miércoles": "Descanso"
+      },
+      "mobility_drills": [
+        {
+          "id": "drill_f141e53e-fe6d-41f5-b51b-4832d9ecdf02",
+          "name": "Side Breathing",
+          "notes": "LEGS: lado derecho, apoyo cabeza y apoyo cresta iliaca derecha",
+          "videoUrl": "https://youtu.be/xZy8Wk2p7aE?si=JJXzHkVrcmD00IzJ",
+          "prescription": ""
+        },
+        {
+          "id": "drill_32194c60-b38e-430a-b9ac-b0f8e7a1c507",
+          "name": "Reach",
+          "notes": "PUSH: 90, +90, 60 grados de reach con los brazos",
+          "videoUrl": "https://www.youtube.com/watch?v=2wnsGJ6n3Vk",
+          "prescription": ""
+        },
+        {
+          "id": "drill_f7730621-1594-4997-b293-bfee1f5eb014",
+          "name": "Reach",
+          "notes": "PULL: 30, 60, 90 grados de reach con los brazos",
+          "videoUrl": "https://www.youtube.com/watch?v=2wnsGJ6n3Vk",
+          "prescription": ""
+        }
+      ],
+      "notes": "",
+      "microcycles": [
+        {
+          "id": "mc_1786090862693",
+          "date": "2026-08-07",
+          "days": [
+            {
+              "dayName": "Push",
+              "exercises": [
+                {
+                  "id": "ex_1786095168441",
+                  "name": "Press Banca",
+                  "sets": [
+                    {
+                      "kg": "4",
+                      "rir": "",
+                      "reps": "7",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "30",
+                      "rir": "",
+                      "reps": "4",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    }
+                  ],
+                  "muscle": "Pecho"
+                },
+                {
+                  "id": "ex_ff22398f-f9be-4178-b4f5-cb4d12965c5e",
+                  "name": "Press Militar",
+                  "sets": [
+                    {
+                      "kg": "40",
+                      "rir": "",
+                      "reps": "4",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    }
+                  ],
+                  "muscle": "Deltoides Anterior"
+                }
+              ]
+            },
+            {
+              "dayName": "Pull",
+              "exercises": [
+                {
+                  "id": "ex_cbda31a3-c859-4bbd-aaf5-35e14e01fa02",
+                  "name": "Abs Polea",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Abdominales"
+                },
+                {
+                  "id": "ex_59b050d3-fd6d-4fe5-8be4-14d581c79b4f",
+                  "name": "Laterales en Polea",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Deltoides Lateral"
+                },
+                {
+                  "id": "ex_32c4e4db-2f83-45e1-809e-9e001c08ec52",
+                  "name": "Remo en T",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Espalda Alta"
+                }
+              ]
+            }
+          ],
+          "sessions": [
+            {
+              "id": "ses_96cf8c36-6a1b-4b92-8040-243c83a666a1",
+              "date": "2026-07-28",
+              "notes": "",
+              "dayName": "Push",
+              "entries": [
+                {
+                  "name": "Press Banca",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Pecho",
+                  "exerciseId": "ex_1786095168441"
+                },
+                {
+                  "name": "Press Militar",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Deltoides Anterior",
+                  "exerciseId": "ex_ff22398f-f9be-4178-b4f5-cb4d12965c5e"
+                }
+              ]
+            },
+            {
+              "id": "legacy_mc_1786090862693_Pull",
+              "date": "2026-08-07",
+              "notes": "",
+              "dayName": "Pull",
+              "entries": [
+                {
+                  "name": "Abs Polea",
+                  "sets": [
+                    {
+                      "kg": "20",
+                      "rir": "",
+                      "reps": "3"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Abdominales",
+                  "exerciseId": "ex_cbda31a3-c859-4bbd-aaf5-35e14e01fa02"
+                },
+                {
+                  "name": "Laterales en Polea",
+                  "sets": [
+                    {
+                      "kg": "30",
+                      "rir": "",
+                      "reps": "3"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Deltoides Lateral",
+                  "exerciseId": "ex_59b050d3-fd6d-4fe5-8be4-14d581c79b4f"
+                },
+                {
+                  "name": "Remo en T",
+                  "sets": [
+                    {
+                      "kg": "40",
+                      "rir": "",
+                      "reps": "7"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Espalda Alta",
+                  "exerciseId": "ex_32c4e4db-2f83-45e1-809e-9e001c08ec52"
+                }
+              ]
+            }
+          ],
+          "weekNumber": 1,
+          "sessionNumber": 1
+        },
+        {
+          "id": "mc_8f0ee0af-07ee-4296-8a97-d2d9b98880d5",
+          "date": "2026-08-07",
+          "days": [
+            {
+              "dayName": "Push",
+              "exercises": [
+                {
+                  "id": "ex_62844a49-2467-4703-8f09-5aca8982bce5",
+                  "name": "Press Banca",
+                  "sets": [
+                    {
+                      "kg": "4",
+                      "rir": "",
+                      "reps": "8",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "30",
+                      "rir": "",
+                      "reps": "4",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    }
+                  ],
+                  "muscle": "Pecho"
+                },
+                {
+                  "id": "ex_48e48ff0-94f2-4160-967a-d77bc9c57027",
+                  "name": "Press Militar",
+                  "sets": [
+                    {
+                      "kg": "40",
+                      "rir": "",
+                      "reps": "5",
+                      "targetReps": "6-8"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": "",
+                      "targetReps": "8-10"
+                    }
+                  ],
+                  "muscle": "Deltoides Anterior"
+                }
+              ]
+            },
+            {
+              "dayName": "Pull",
+              "exercises": [
+                {
+                  "id": "ex_2841f11a-9496-4128-ab61-67cda4c8cb95",
+                  "name": "Abs Polea",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Abdominales"
+                },
+                {
+                  "id": "ex_f789fa2e-f0db-4460-b7a5-f9656e139a8c",
+                  "name": "Laterales en Polea",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Deltoides Lateral"
+                },
+                {
+                  "id": "ex_9af86c31-2ca3-452e-a677-d26fd63ba082",
+                  "name": "Remo en T",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Espalda Alta"
+                }
+              ]
+            }
+          ],
+          "sessions": [
+            {
+              "id": "ses_52deab43-2f47-462b-a181-af6e7e580cb8",
+              "date": "2026-07-29",
+              "notes": "",
+              "dayName": "Push",
+              "entries": [
+                {
+                  "name": "Press Banca",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Pecho",
+                  "exerciseId": "ex_62844a49-2467-4703-8f09-5aca8982bce5"
+                },
+                {
+                  "name": "Press Militar",
+                  "sets": [
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Deltoides Anterior",
+                  "exerciseId": "ex_48e48ff0-94f2-4160-967a-d77bc9c57027"
+                }
+              ]
+            },
+            {
+              "id": "legacy_mc_8f0ee0af-07ee-4296-8a97-d2d9b98880d5_Pull",
+              "date": "2026-08-07",
+              "notes": "",
+              "dayName": "Pull",
+              "entries": [
+                {
+                  "name": "Abs Polea",
+                  "sets": [
+                    {
+                      "kg": "20",
+                      "rir": "",
+                      "reps": "4"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Abdominales",
+                  "exerciseId": "ex_2841f11a-9496-4128-ab61-67cda4c8cb95"
+                },
+                {
+                  "name": "Laterales en Polea",
+                  "sets": [
+                    {
+                      "kg": "30",
+                      "rir": "",
+                      "reps": "5"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Deltoides Lateral",
+                  "exerciseId": "ex_f789fa2e-f0db-4460-b7a5-f9656e139a8c"
+                },
+                {
+                  "name": "Remo en T",
+                  "sets": [
+                    {
+                      "kg": "40",
+                      "rir": "",
+                      "reps": "8"
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    },
+                    {
+                      "kg": "",
+                      "rir": "",
+                      "reps": ""
+                    }
+                  ],
+                  "muscle": "Espalda Alta",
+                  "exerciseId": "ex_9af86c31-2ca3-452e-a677-d26fd63ba082"
+                }
+              ]
+            }
+          ],
+          "weekNumber": 2,
+          "sessionNumber": 2
+        },
+        {
+          "id": "mc_11632e8a-c8e9-48e9-a478-7e922b66877e",
+          "date": "2026-08-14",
+          "days": [
+            {
+              "dayName": "Push",
+              "exercises": []
+            },
+            {
+              "dayName": "Pull",
+              "exercises": []
+            }
+          ],
+          "weekNumber": 3,
+          "sessionNumber": 3
+        }
+      ],
+      "blocks": [
+        {
+          "id": "b_1",
+          "name": "Bloque 1",
+          "toWeek": 2,
+          "fromWeek": 1,
+          "weeklySplit": {
+            "Lunes": "Push",
+            "Jueves": "Descanso",
+            "Martes": "Pull",
+            "Domingo": "Descanso",
+            "Sábado": "Descanso",
+            "Viernes": "Descanso",
+            "Miércoles": "Descanso"
+          },
+          "mobilityDrills": [
+            {
+              "id": "drill_f141e53e-fe6d-41f5-b51b-4832d9ecdf02",
+              "name": "Side Breathing",
+              "notes": "LEGS: lado derecho, apoyo cabeza y apoyo cresta iliaca derecha",
+              "videoUrl": "https://youtu.be/xZy8Wk2p7aE?si=JJXzHkVrcmD00IzJ",
+              "prescription": ""
+            },
+            {
+              "id": "drill_32194c60-b38e-430a-b9ac-b0f8e7a1c507",
+              "name": "Reach",
+              "notes": "PUSH: 90, +90, 60 grados de reach con los brazos",
+              "videoUrl": "https://www.youtube.com/watch?v=2wnsGJ6n3Vk",
+              "prescription": ""
+            },
+            {
+              "id": "drill_f7730621-1594-4997-b293-bfee1f5eb014",
+              "name": "Reach",
+              "notes": "PULL: 30, 60, 90 grados de reach con los brazos",
+              "videoUrl": "https://www.youtube.com/watch?v=2wnsGJ6n3Vk",
+              "prescription": ""
+            }
+          ]
+        },
+        {
+          "id": "b_b470d234-0536-4bb5-9957-d6291fa527e7",
+          "name": "Bloque 2",
+          "toWeek": null,
+          "fromWeek": 3
+        }
+      ]
+    }
+  ],
+  "anthropometry": [
+    {
+      "id": "10cf3033-414c-4746-854d-dae8f1eafafb",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "history": [
+        {
+          "id": "log_8c5bb52b-4608-4622-bf78-626aebf5629a",
+          "date": "2026-08-25",
+          "weight": 82,
+          "nutrition": {
+            "fats": 60,
+            "carbs": 400,
+            "kcals": 2500,
+            "protein": 140
+          }
+        },
+        {
+          "id": "log_23551a88-574f-4911-b3ad-beea6fa98a52",
+          "date": "2026-08-18",
+          "weight": 81.5,
+          "nutrition": {
+            "fats": 60,
+            "carbs": 400,
+            "kcals": 2500,
+            "protein": 140
+          }
+        },
+        {
+          "id": "log_62367222-5f05-41f4-a243-fe34d5aeafad",
+          "date": "2026-08-15",
+          "weight": 79
+        },
+        {
+          "id": "log_8d8e97c0-2468-45a7-85a9-edf18a09011d",
+          "date": "2026-08-12",
+          "weight": 80.5,
+          "nutrition": {
+            "fats": 60,
+            "carbs": 400,
+            "kcals": 2500,
+            "protein": 140
+          }
+        },
+        {
+          "id": "log_1be548d1-fd85-4873-9d5c-4d2522d2d36b",
+          "date": "2026-08-11",
+          "weight": 81
+        },
+        {
+          "id": "log_ddeea868-66b4-498b-ae02-2efb50f0e83a",
+          "date": "2026-08-10",
+          "weight": 80
+        },
+        {
+          "id": "log_67aa31cd-b501-4033-9fa8-b32ae0ab119f",
+          "date": "2026-08-07",
+          "weight": 79,
+          "nutrition": {
+            "fats": 60,
+            "carbs": 400,
+            "kcals": 2500,
+            "protein": 140
+          }
+        },
+        {
+          "id": "log_8a8f8c71-ad15-4495-be8d-9fb363b07eac",
+          "date": "2026-07-27",
+          "weight": 81,
+          "nutrition": {
+            "fats": 60,
+            "carbs": 400,
+            "kcals": 2500,
+            "protein": 140
+          }
+        }
+      ],
+      "updated_at": "2026-08-25T19:06:09.441+00:00"
+    }
+  ],
+  "nutrition_plans": [
+    {
+      "id": "525ea49e-5942-4847-9106-88cd91b27bfd",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "meals": {
+        "restTargets": {
+          "fatsGrams": 60,
+          "carbsGrams": 400,
+          "targetKcals": 2500,
+          "proteinGrams": 140
+        }
+      },
+      "updated_at": "2026-08-25T20:09:10.241+00:00",
+      "type": "closed",
+      "target_kcals": 2300,
+      "protein_grams": 140,
+      "carbs_grams": 400,
+      "fats_grams": 60,
+      "steps_goal": "10000",
+      "habits_notes": [],
+      "closed_meals": [
+        {
+          "id": "meal_1786090343388",
+          "name": "Nueva Comida",
+          "options": [
+            {
+              "id": "opt_1786090343388",
+              "foods": [
+                {
+                  "id": "food_1786095311235_o6bt",
+                  "name": "Arroz basmati",
+                  "grams": 100,
+                  "fatsPer100": 0.6,
+                  "carbsPer100": 77,
+                  "proteinPer100": 7.2
+                },
+                {
+                  "id": "food_1786095307881_3wfj",
+                  "name": "Pechuga de pollo",
+                  "grams": 100,
+                  "fatsPer100": 1.2,
+                  "carbsPer100": 0,
+                  "proteinPer100": 23.1
+                },
+                {
+                  "id": "food_1786095313984_rg0n",
+                  "name": "Brócoli",
+                  "grams": 100,
+                  "fatsPer100": 0.4,
+                  "carbsPer100": 4,
+                  "proteinPer100": 2.8
+                },
+                {
+                  "id": "food_b110e7f0-69d9-4d19-a00d-3dce07130440",
+                  "name": "Huevo entero fresco",
+                  "grams": 55,
+                  "showAs": "units",
+                  "unitGrams": 55,
+                  "unitLabel": "huevo",
+                  "fatsPer100": 9.5,
+                  "carbsPer100": 0.7,
+                  "proteinPer100": 12.6
+                }
+              ]
+            },
+            {
+              "id": "opt_1786095318059_1hb0",
+              "foods": []
+            }
+          ]
+        }
+      ],
+      "has_day_variants": false,
+      "closed_meals_training": [
+        {
+          "id": "meal_1786090343388",
+          "name": "Nueva Comida",
+          "options": [
+            {
+              "id": "opt_1786090343388",
+              "foods": [
+                {
+                  "id": "food_1786095307881_3wfj",
+                  "name": "Pechuga de pollo",
+                  "grams": 100,
+                  "fatsPer100": 1.2,
+                  "carbsPer100": 0,
+                  "proteinPer100": 23.1
+                },
+                {
+                  "id": "food_1786095311235_o6bt",
+                  "name": "Arroz basmati",
+                  "grams": 100,
+                  "fatsPer100": 0.6,
+                  "carbsPer100": 77,
+                  "proteinPer100": 7.2
+                },
+                {
+                  "id": "food_1786095313984_rg0n",
+                  "name": "Brócoli",
+                  "grams": 100,
+                  "fatsPer100": 0.4,
+                  "carbsPer100": 4,
+                  "proteinPer100": 2.8
+                }
+              ]
+            },
+            {
+              "id": "opt_1786095318059_1hb0",
+              "foods": []
+            }
+          ]
+        }
+      ],
+      "closed_meals_rest": [
+        {
+          "id": "meal_1786090343388",
+          "name": "Nueva Comida",
+          "options": [
+            {
+              "id": "opt_1786090343388",
+              "foods": [
+                {
+                  "id": "food_1786095307881_3wfj",
+                  "name": "Pechuga de pollo",
+                  "grams": 100,
+                  "fatsPer100": 1.2,
+                  "carbsPer100": 0,
+                  "proteinPer100": 23.1
+                },
+                {
+                  "id": "food_1786095311235_o6bt",
+                  "name": "Arroz basmati",
+                  "grams": 100,
+                  "fatsPer100": 0.6,
+                  "carbsPer100": 77,
+                  "proteinPer100": 7.2
+                },
+                {
+                  "id": "food_1786095313984_rg0n",
+                  "name": "Brócoli",
+                  "grams": 100,
+                  "fatsPer100": 0.4,
+                  "carbsPer100": 4,
+                  "proteinPer100": 2.8
+                }
+              ]
+            },
+            {
+              "id": "opt_1786095318059_1hb0",
+              "foods": []
+            }
+          ]
+        }
+      ],
+      "cardio_goal": null
+    }
+  ],
+  "check_ins": [
+    {
+      "id": "efa894b9-d900-4245-ae3f-b3877e1eac22",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "week_start": "2026-08-03",
+      "program_week": null,
+      "weight": null,
+      "notes": null,
+      "submitted_at": "2026-08-15T17:26:51.3457+00:00",
+      "reviewed_at": "2026-08-15T17:47:12.62803+00:00",
+      "reviewed_by": "4ba2959d-24b7-4b91-b786-2182479ea48b",
+      "coach_notes": "ok",
+      "created_at": "2026-08-15T17:26:51.3457+00:00",
+      "updated_at": "2026-08-15T17:47:12.62803+00:00",
+      "snapshot": null,
+      "answers": null
+    },
+    {
+      "id": "6df18cf8-90bc-445e-a9b3-e628aa590b9f",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "week_start": "2026-08-17",
+      "program_week": null,
+      "weight": null,
+      "notes": null,
+      "submitted_at": "2026-08-22T18:07:44.362003+00:00",
+      "reviewed_at": "2026-08-26T11:43:36.93102+00:00",
+      "reviewed_by": "4ba2959d-24b7-4b91-b786-2182479ea48b",
+      "coach_notes": "Sin cambios: seguimos igual.",
+      "created_at": "2026-08-22T18:07:44.362003+00:00",
+      "updated_at": "2026-08-26T11:43:36.93102+00:00",
+      "snapshot": {
+        "fats": 60,
+        "carbs": 400,
+        "kcals": 2300,
+        "meals": [
+          {
+            "k": 476,
+            "n": "Nueva Comida"
+          }
+        ],
+        "steps": 10000,
+        "weeks": 3,
+        "protein": 140,
+        "weeksPlan": [
+          {
+            "d": [
+              {
+                "e": [
+                  {
+                    "n": "Press Banca",
+                    "s": 4
+                  },
+                  {
+                    "n": "Press Militar",
+                    "s": 3
+                  }
+                ],
+                "n": "Push"
+              },
+              {
+                "e": [
+                  {
+                    "n": "Abs Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Laterales en Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Remo en T",
+                    "s": 3
+                  }
+                ],
+                "n": "Pull"
+              }
+            ],
+            "w": 1
+          },
+          {
+            "d": [
+              {
+                "e": [
+                  {
+                    "n": "Press Banca",
+                    "s": 4
+                  },
+                  {
+                    "n": "Press Militar",
+                    "s": 3
+                  }
+                ],
+                "n": "Push"
+              },
+              {
+                "e": [
+                  {
+                    "n": "Abs Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Laterales en Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Remo en T",
+                    "s": 3
+                  }
+                ],
+                "n": "Pull"
+              }
+            ],
+            "w": 2
+          },
+          {
+            "d": [
+              {
+                "e": [
+                  {
+                    "n": "Press Banca",
+                    "s": 4
+                  },
+                  {
+                    "n": "Press Militar",
+                    "s": 2
+                  }
+                ],
+                "n": "Push"
+              },
+              {
+                "e": [
+                  {
+                    "n": "Abs Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Laterales en Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Remo en T",
+                    "s": 3
+                  }
+                ],
+                "n": "Pull"
+              }
+            ],
+            "w": 3
+          }
+        ]
+      },
+      "answers": null
+    },
+    {
+      "id": "33e97ccc-5cae-4ad8-ac18-b8d496820fcc",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "week_start": "2026-08-24",
+      "program_week": null,
+      "weight": null,
+      "notes": null,
+      "submitted_at": "2026-08-26T11:48:24.940869+00:00",
+      "reviewed_at": "2026-08-26T11:48:25.047292+00:00",
+      "reviewed_by": "4ba2959d-24b7-4b91-b786-2182479ea48b",
+      "coach_notes": "Sin cambios: seguimos igual.",
+      "created_at": "2026-08-26T11:48:24.940869+00:00",
+      "updated_at": "2026-08-26T11:48:25.047292+00:00",
+      "snapshot": {
+        "fats": 60,
+        "carbs": 400,
+        "kcals": 2300,
+        "meals": [
+          {
+            "k": 476,
+            "n": "Nueva Comida"
+          }
+        ],
+        "steps": 10000,
+        "weeks": 3,
+        "protein": 140,
+        "weeksPlan": [
+          {
+            "d": [
+              {
+                "e": [
+                  {
+                    "n": "Press Banca",
+                    "s": 4
+                  },
+                  {
+                    "n": "Press Militar",
+                    "s": 3
+                  }
+                ],
+                "n": "Push"
+              },
+              {
+                "e": [
+                  {
+                    "n": "Abs Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Laterales en Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Remo en T",
+                    "s": 3
+                  }
+                ],
+                "n": "Pull"
+              }
+            ],
+            "w": 1
+          },
+          {
+            "d": [
+              {
+                "e": [
+                  {
+                    "n": "Press Banca",
+                    "s": 4
+                  },
+                  {
+                    "n": "Press Militar",
+                    "s": 3
+                  }
+                ],
+                "n": "Push"
+              },
+              {
+                "e": [
+                  {
+                    "n": "Abs Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Laterales en Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Remo en T",
+                    "s": 3
+                  }
+                ],
+                "n": "Pull"
+              }
+            ],
+            "w": 2
+          },
+          {
+            "d": [
+              {
+                "e": [
+                  {
+                    "n": "Press Banca",
+                    "s": 4
+                  },
+                  {
+                    "n": "Press Militar",
+                    "s": 2
+                  }
+                ],
+                "n": "Push"
+              },
+              {
+                "e": [
+                  {
+                    "n": "Abs Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Laterales en Polea",
+                    "s": 3
+                  },
+                  {
+                    "n": "Remo en T",
+                    "s": 3
+                  }
+                ],
+                "n": "Pull"
+              }
+            ],
+            "w": 3
+          }
+        ]
+      },
+      "answers": null
+    }
+  ],
+  "client_phases": [
+    {
+      "id": "216ed8f0-e373-400e-b810-ad541d08d959",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "title": "Definición",
+      "direction": "cut",
+      "rate_pct": 0.6,
+      "starts_on": "2026-08-23",
+      "ends_on": "2026-11-14",
+      "note": "",
+      "created_by": "4ba2959d-24b7-4b91-b786-2182479ea48b",
+      "created_at": "2026-08-23T09:31:01.144134+00:00",
+      "updated_at": "2026-08-23T10:12:07.456+00:00",
+      "next_options": null
+    },
+    {
+      "id": "098e6123-78d8-4c6d-80db-c7a9369a7e45",
+      "client_id": "c91c5cd3-ddb6-4469-947c-9d2070080c23",
+      "title": "Volumen",
+      "direction": "bulk",
+      "rate_pct": 0.25,
+      "starts_on": "2026-11-15",
+      "ends_on": "2027-02-06",
+      "note": "",
+      "created_by": "4ba2959d-24b7-4b91-b786-2182479ea48b",
+      "created_at": "2026-08-23T10:12:07.683364+00:00",
+      "updated_at": "2026-08-23T10:24:19.002+00:00",
+      "next_options": [
+        {
+          "when": "si el punto baja",
+          "title": "Volumen",
+          "weeks": 12,
+          "ratePct": 0.25,
+          "direction": "bulk"
+        },
+        {
+          "when": "si no",
+          "title": "Definición",
+          "weeks": 12,
+          "ratePct": 0.6,
+          "direction": "cut"
+        }
+      ]
+    }
+  ]
+}

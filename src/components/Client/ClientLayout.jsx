@@ -23,7 +23,7 @@ export const ClientLayout = () => {
   const { pathname } = useLocation();
 
   /* El saludo y la privacidad son de la PORTADA, no del marco. Ver abajo. */
-  const esInicio = pathname === '/mi' || pathname.startsWith('/mi/inicio');
+  const esInicio = pathname === '/mi' || pathname.startsWith('/mi/inicio') || pathname.startsWith('/mi/rutina');
 
   // Un perfil de cliente sin ficha vinculada no tiene datos que mostrar. Antes
   // esto tumbaba la app entera al leer `activeClient.id` sobre undefined.
@@ -52,7 +52,7 @@ export const ClientLayout = () => {
   const secciones = sectionsFor(CLIENT_SECTIONS, clientProtocol(activeClient.preferences));
 
   return (
-    <div className="layout layout-narrow">
+    <div className="layout layout-narrow layout-portal">
       {/*
         ══ Aquí vivió la banda de «estás previsualizando» ═════════════════════
 

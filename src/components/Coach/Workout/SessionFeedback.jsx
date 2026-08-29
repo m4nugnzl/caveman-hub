@@ -95,7 +95,7 @@ export const SessionFeedback = ({ questions, answers = {}, onChange, readOnly = 
       {title !== false && (
         <header className="row between wrap gap-2">
           <span className="section-label">
-            <MessageSquare size={12} /> {title || 'Cómo ha ido'}
+            <MessageSquare size={12} className="icon-inline" />{title || 'Cómo ha ido'}
           </span>
           {!readOnly && questions.length > 1 && (
             <span className="t-2xs t-tertiary">

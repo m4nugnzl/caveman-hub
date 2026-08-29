@@ -9,6 +9,7 @@ import {
   phaseAt,
   phaseGoal,
   phaseProgress,
+  phaseProjection,
   phaseWeeks,
   roadmapState,
   validatePhase,
@@ -312,5 +313,53 @@ describe('nextPhaseAfter', () => {
 
   it('en la última no hay siguiente', () => {
     expect(nextPhaseAfter(roadmap, '2026-09-01')).toBeNull();
+  });
+});
+
+describe('la proyección de una fase', () => {
+  const fase = { title: 'Definición', direction: 'cut', ratePct: 0.6, startsOn: '2026-07-06', endsOn: '2026-09-27' };
+  const goal = { direction: 'cut', ratePct: 0.6, note: '' };
+  const history = [
+    { date: '2026-07-04', weight: 80.8 },
+    { date: '2026-08-01', weight: 79 },
+    { date: '2026-08-28', weight: 77.3 },
+  ];
+
+  it('proyecta el peso del final con el ritmo de ahora', () => {
+    const p = phaseProjection({ phase: fase, history, perWeek: -0.45, goal, date: '2026-08-28' });
+
+    expect(p.desde).toBe(80.8); // el pesaje de antes de arrancar la fase
+    expect(p.hoy).toBe(77.3);
+    expect(p.semanas).toBe(12);
+    expect(p.restantes).toBe(5);
+    // 77,3 − 0,45 × las 4,3 semanas que quedan de fase
+    expect(p.proyectado).toBeCloseTo(75.4, 1);
+  });
+
+  it('mide el objetivo del final sobre el peso de PARTIDA, no sobre el de hoy', () => {
+    const p = phaseProjection({ phase: fase, history, perWeek: -0.45, goal, date: '2026-08-28' });
+
+    // 0,6 % de 80,8 = 0,48 kg/semana × 12 semanas = 5,8 kg
+    expect(p.objetivo).toBeCloseTo(75, 1);
+    expect(p.desvio).toBeCloseTo(0.4, 1);
+  });
+
+  it('no proyecta una fase sin final decidido', () => {
+    expect(
+      phaseProjection({ phase: { ...fase, endsOn: null }, history, perWeek: -0.45, goal, date: '2026-08-28' })
+    ).toBeNull();
+  });
+
+  it('no proyecta sin tendencia ni sin pesajes', () => {
+    expect(phaseProjection({ phase: fase, history, perWeek: null, goal, date: '2026-08-28' })).toBeNull();
+    expect(phaseProjection({ phase: fase, history: [], perWeek: -0.45, goal, date: '2026-08-28' })).toBeNull();
+  });
+
+  it('sin objetivo declarado proyecta igual, pero no dice contra qué', () => {
+    const p = phaseProjection({ phase: fase, history, perWeek: -0.45, goal: null, date: '2026-08-28' });
+
+    expect(p.proyectado).toBeCloseTo(75.4, 1);
+    expect(p.objetivo).toBeNull();
+    expect(p.desvio).toBeNull();
   });
 });

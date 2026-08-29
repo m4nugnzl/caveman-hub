@@ -8,6 +8,7 @@ import {
   Link2,
   Paperclip,
   Send,
+  TriangleAlert,
   Upload,
   UserCheck,
   Video,
@@ -21,9 +22,9 @@ import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '
 import { latestWeight } from '@/domain/anthropometry';
 import { MAX_AGE, MIN_AGE, age, birthDateForAge, identityFacts, identitySubtitle } from '@/domain/ficha';
 import { onboardingState } from '@/domain/onboardingState';
-import { PROFILE_GROUPS, cleanProfile, isProfileEmpty } from '@/domain/profile';
+import { PROFILE_GROUPS, cleanProfile } from '@/domain/profile';
 import { dayMonthMaybeYear, shortDate } from '@/lib/dates';
-import { initials } from '@/lib/initials';
+import { Avatar } from '@/components/ui/Avatar';
 import { toNum } from '@/lib/num';
 import {
   clientIntake,
@@ -41,14 +42,11 @@ import {
 } from '@/domain/intake';
 import {
   Field,
-  GroupHead,
   Notice,
   NumberInput,
-  Fold,
   Panel,
   SegmentedControl,
 } from '@/components/ui/primitives';
-import { PageNav } from '@/components/ui/PageNav';
 import { Mando } from '@/components/ui/Mando';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -333,9 +331,7 @@ const Identidad = ({ client, weight, onUpdate }) => {
       }
     >
       <div className="ficha-head">
-        <span className="folio-mark" aria-hidden="true">
-          {initials(client.name)}
-        </span>
+        <Avatar name={client.name} src={client.avatar} size="lg" className="folio-mark" />
         <span className="who">
           <span className="name">{client.name}</span>
           <span className="sub">
@@ -519,11 +515,9 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
       )}
 
       <p className="t-xs t-tertiary">
-        {client.plan
-          ? `Su plan es «${client.plan}». Se cambia arriba, en Datos.`
-          : 'No tiene plan escrito. Ponlo arriba, en Datos, para saber qué le vendiste.'}{' '}
-        {!periodo && 'Sin periodicidad, la fecha del próximo cobro la llevas tú. '}
-        Si conectas Notion o Stripe, la sincronización actualiza el estado y la fecha sola.
+        {!client.plan && 'Sin plan escrito: ponlo en «Editar». '}
+        {!periodo && 'Sin periodicidad, la fecha la llevas tú. '}
+        Con Notion o Stripe conectados, estado y fecha se actualizan solos.
       </p>
     </Panel>
   );
@@ -642,16 +636,13 @@ const ArchiveRow = ({ client }) => {
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="card-inset row between wrap gap-2 t-sm">
-      <div className="col gap-1">
-        <span className="t-secondary">Terminar con este cliente</span>
-        <span className="t-xs t-tertiary">
-          Deja de aparecer en la lista y de contar para tu plan. Todo lo suyo se conserva.
-        </span>
-      </div>
+    <div className="row between wrap gap-2 t-sm">
+      <span className="t-xs t-tertiary">
+        Archivarle le quita de la lista y de tu plan; todo lo suyo se conserva.
+      </span>
       <button
         type="button"
-        className="btn btn-quiet btn-sm"
+        className="cab-accion"
         disabled={busy}
         onClick={() => {
           setBusy(true);
@@ -1233,12 +1224,13 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
         contestar la misma pregunta, y una mal.
       */}
       {clientSteps(intake).length === 0 && (
-        <Notice tone="warn">
-          <strong>No le pides nada a él en su alta.</strong> Entrará en su portal y no tendrá
-          cuestionario, ni fotos que subir, ni nada que entregar. Las entregas del cliente se
-          encienden en <Link to="/ajustes/protocolo#alta">Ajustes → Protocolo</Link>: enciéndelas
-          ahí y desde esa misma pantalla se les mandan a los clientes que ya tienes.
-        </Notice>
+        <p className="t-xs alta-aviso">
+          <TriangleAlert size={12} aria-hidden="true" />
+          <span>
+            No le pides nada a él: su portal no tendrá cuestionario ni entregas. Se encienden en{' '}
+            <Link to="/ajustes/protocolo#alta">Ajustes → Protocolo</Link>.
+          </span>
+        </p>
       )}
 
       <div className="col gap-2">
@@ -1278,10 +1270,6 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
         ))}
       </div>
 
-      <p className="t-xs t-tertiary">
-        Estos pasos los eliges tú en <Link to="/ajustes/protocolo">Ajustes → Protocolo</Link>. Lo que
-        enlaces aquí es de este cliente.
-      </p>
     </Panel>
   );
 };
@@ -1290,7 +1278,6 @@ export const ClientFile = () => {
   const {
     activeClient,
     anthropometry,
-    conditions,
     equipment,
     checkIns,
     updateClient,
@@ -1325,46 +1312,9 @@ export const ClientFile = () => {
     checkIn: checkIns?.[activeClient.id],
   });
 
-  /*
-    Los apartados del índice.
-
-    El alta entra en la lista solo si existe: un entrenador que no le pide nada a
-    nadie no tiene bloque de alta (`Alta` devuelve `null` con cero pasos), y un
-    índice que ofrece un destino vacío es peor que uno más corto — se pulsa, no
-    pasa nada visible, y a partir de ahí no se vuelve a usar.
-
-    Los pasos se cuentan aquí y no dentro de `Alta` porque el índice y el bloque
-    tienen que estar de acuerdo sobre si hay alta o no; preguntarlo dos veces es
-    la forma de que un día discrepen.
-  */
+  /* Los pasos del alta se cuentan aquí y no dentro de `Alta`: la columna de
+     al lado y el bloque tienen que estar de acuerdo sobre si hay alta o no. */
   const pasosDelAlta = intakeSteps(clientIntake(activeClient.preferences));
-  /*
-    ── Qué hay dentro del pliegue de la anamnesis, dicho en la fila ───────────
-    Un pliegue cerrado que solo dice su nombre obliga a abrirlo para saber si
-    hay algo. Con el resumen delante —«3 lesiones · 4 respuestas · 12 máquinas»—
-    la fila contesta sin abrirse, que es la mitad de su trabajo.
-
-    Y es lo mismo que decide si arranca abierto: sin nada contestado, la ficha
-    es un formulario y se abre sola.
-  */
-  const anamnesisVacia =
-    isProfileEmpty(activeClient.profile) && conditions.length === 0;
-  const resumenAnamnesis = anamnesisVacia
-    ? 'Todavía no te ha contado nada'
-    : [
-        conditions.length > 0 &&
-          `${conditions.length} ${conditions.length === 1 ? 'condición' : 'condiciones'}`,
-        !isProfileEmpty(activeClient.profile) && 'su perfil',
-      ]
-        .filter(Boolean)
-        .join(' · ');
-
-  const apartados = [
-    { id: 'quien', label: 'Quién es' },
-    ...(pasosDelAlta.length > 0 ? [{ id: 'alta', label: 'Su alta' }] : []),
-    { id: 'sabes', label: 'Lo que sabes' },
-    { id: 'relacion', label: 'Vuestra relación' },
-  ];
 
   /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
      y tiene que dejar la misma señal, se pulse donde se pulse. */
@@ -1378,7 +1328,7 @@ export const ClientFile = () => {
   };
 
   return (
-    <div className="stack">
+    <div className="ficha-pagina">
       {/* La fila de mando: sin titular —la pestaña ya dice «Perfil»—, el
           contexto en voz baja y, a la derecha, su calendario como enlace de
           texto y la anamnesis para llevar. Lo demás se edita bloque a bloque. */}
@@ -1386,8 +1336,6 @@ export const ClientFile = () => {
         contexto={identitySubtitle(activeClient, dayMonthMaybeYear(activeClient.startDate))}
         acciones={
           <>
-            {/* Su calendario es parte del perfil —sus fechas— y se abre desde aquí,
-                no desde un carril de chips. Vuelve con una miga. */}
             <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'calendario')}>
               Su calendario →
             </Link>
@@ -1397,203 +1345,97 @@ export const ClientFile = () => {
       />
 
       {/*
-        ══ Los dos grupos, y por qué la ficha los necesitaba ═══════════════════
+        ══ DOS COLUMNAS, como el resto del cliente ═══════════════════════════
 
-        Eran cinco bloques seguidos con el mismo peso, y no son del mismo asunto:
-        uno habla de la PERSONA y cuatro de la RELACIÓN que tienes con ella —lo
-        que le has entregado, lo que te paga, cómo entra y cómo sale—. Sin nada
-        que lo dijera, la ficha se leía como una lista de cosas administrativas
-        con los datos de alguien traspapelados en medio.
+        Era una hoja de ocho bloques con un índice de cuatro apartados, dos
+        rótulos de grupo, un pliegue y tres avisos: dos mil píxeles para
+        contestar «¿cuándo cobra?». Y era la única pestaña que no tenía la forma
+        de las otras cuatro —el trabajo a lo ancho, lo que se consulta al lado—.
 
-        Es el caso exacto para el que existe `GroupHead` (`docs/producto.md`
-        §5.1 bis): dos tandas de bloques con asuntos distintos, nombradas en
-        troquelada para que ordenen la pantalla sin competir con su título.
+        A la IZQUIERDA, la PERSONA: quién es, lo que le condiciona, lo que te
+        contó y su gimnasio. Se lee entero una vez, el día que le montas la
+        rutina y la dieta. A la DERECHA, la RELACIÓN: su alta —mientras dure—,
+        su cobro, su acceso, su carpeta y sus datos. Es lo que se consulta cada
+        mes, y a un vistazo desde cualquier punto de la columna de al lado.
 
-        El primero tiene un solo bloque HOY. Se queda igualmente, porque es donde
-        entran los condicionantes —lesiones, alergias, patologías— y los
-        parámetros propios del entrenador, y porque el grupo es lo que explica
-        por qué el alta y el cobro están más abajo y no en medio.
+        El índice, los rótulos de grupo, el aviso de bienvenida y el pliegue de
+        la anamnesis se van: con dos columnas ya no hay tres pantallas que
+        recorrer, y una ficha vacía se ve vacía sin que nadie lo explique.
       */}
-
-      {/*
-        ══ El índice, por el mismo motivo que en Protocolo ═══════════════════
-
-        Esta pantalla son ocho bloques y dos rótulos de grupo, y al abrirla no se
-        viene a leerla entera: se viene a una cosa —«¿cuándo cobra?», «¿qué me
-        ha contado de sus lesiones?», «¿ya le he invitado?»— y esa cosa está a
-        dos o tres pantallas de desplazamiento sin nada que diga en qué dirección.
-
-        Los cuatro nombres son los que ya usa la pantalla: el retrato, el alta y
-        los dos grupos. No inventa una taxonomía nueva; sube a donde se mira
-        primero la que la pantalla ya tenía escrita más abajo.
-      */}
-      <PageNav sections={apartados} label="Apartados de la ficha" />
-
-      {/* El retrato abre la pantalla y no cuelga de ningún grupo: dice de
-          quién va todo lo de abajo, no es una de las cosas de abajo. */}
-      <section id="quien" className="anchored">
-        <Identidad
-          client={activeClient}
-          weight={peso}
-          onUpdate={(fields) => updateClient(activeClient.id, fields)}
-        />
-      </section>
-
-      {/*
-        ══ El alta va arriba, pero DEBAJO de quién es ═══════════════════════════
-
-        No es «la persona» —no habla de quién es— ni es «vuestra relación», que
-        es donde estuvo y donde estaba mal: ahí quedaba la sexta tarjeta, pasadas
-        sus condicionantes, sus dos bloques de perfil y las fotos de su gimnasio.
-        O sea, lo único que está SIN TERMINAR cuando alguien acaba de entrar
-        quedaba debajo de todo lo que ya está hecho.
-
-        Es una FASE, no una propiedad: manda mientras dura y estorba cuando
-        acaba. Por eso va arriba y por eso desaparece entera cuando no le pides
-        nada (`total === 0`), en vez de quedarse ocupando sitio para siempre.
-
-        Era además el orden que este archivo ya tenía antes de reorganizarse
-        —«el alta va la primera: es lo que está sin terminar cuando alguien acaba
-        de entrar»— y que se perdió por el camino.
-      */}
-      {pasosDelAlta.length > 0 && (
-      <section id="alta" className="anchored">
-      <Alta
-        client={activeClient}
-        /* Lo que ha entregado él. Sale del mismo sitio que su portal
-           (`domain/onboardingState.js`), así que los dos no pueden discrepar
-           sobre si el cuestionario está contestado. */
-        estado={estadoDelAlta}
-        onProbar={probarSuPortal}
-        onUpdate={(fields) => updateClient(activeClient.id, fields)}
-        onPreferences={(intake) =>
-          updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))
-        }
-      />
-      </section>
-      )}
-
-      <section id="sabes" className="page-section">
-      <GroupHead title="Lo que sabes de él" sub="Lo que no cambia de una semana a otra." />
-
-      {/*
-        La primera vez, una frase que dice de qué van los cuatro bloques de
-        abajo. Sin ella, un entrenador que abre la ficha de alguien recién dado
-        de alta ve cuatro tarjetas vacías y no tiene por qué adivinar que ahí es
-        donde aterriza lo que le ha contado su cliente.
-
-        Desaparece en cuanto hay algo, que es lo que la diferencia de un texto de
-        ayuda: se lee una vez, no mil.
-      */}
-      {isProfileEmpty(activeClient.profile) && conditions.length === 0 && (
-        <Notice tone="info">
-          Aquí va lo que te cuenta de sí mismo al empezar: sus lesiones, cuándo puede entrenar, qué
-          maquinaria tiene y cómo come. No decide nada solo — es lo que lees tú para montarle el
-          onboarding, la rutina y la dieta.
-        </Notice>
-      )}
-
-      {/* Lo que condiciona lo que le puedes poner. Va delante del pliegue y
-          FUERA de él porque es lo único de esta tanda que además AVISA: sale por
-          su cuenta en su rutina y en su dieta, y un aviso que hay que desplegar
-          para verlo no es un aviso. */}
-      <ConditionsPanel client={activeClient} />
-
-      {/*
-        ══ Y el resto de la anamnesis se PLIEGA cuando ya está contestada ══════
-
-        Ésta es la pantalla más grande del producto —41 campos y 41 cosas
-        pulsables— y sus dos mitades no se miran con la misma frecuencia. Lo que
-        te cuenta de sí mismo se lee entero UNA vez, el día que le montas la
-        rutina y la dieta; su cobro, su acceso y su baja se consultan cada mes.
-        Estaban a la misma altura y con el mismo peso, así que abrir la ficha de
-        alguien para ver cuándo paga costaba pasar por delante de sus lesiones,
-        su disponibilidad, sus respuestas y su maquinaria.
-
-        ── Por qué un pliegue y no unas pestañas ──────────────────────────────
-        «PageNav» ya argumenta —y bien— que trocear esta pantalla en pestañas
-        escondería lo que no está delante, y que la primera vez se lee entera.
-        Las dos cosas siguen siendo verdad, y por eso el pliegue **decide su
-        estado por el dato, no por gusto**: vacío se abre solo, porque entonces
-        la pantalla es un formulario que hay que rellenar; contestado arranca
-        cerrado, porque entonces es un archivo que se consulta.
-
-        Es la misma regla que ya usa el aviso de aquí arriba, que desaparece en
-        cuanto hay algo. No esconde nada: el apartado sigue en el índice, la fila
-        resume qué hay dentro y se abre de un toque.
-      */}
-      <Fold
-        title="Lo que te ha contado"
-        summary={resumenAnamnesis}
-        defaultOpen={anamnesisVacia}
-      >
-      {/*
-        Los tres bloques del perfil, a dos columnas. Salen del catálogo
-        (`domain/profile.js`), así que esta lista no crece cuando crecen los
-        campos — solo cuando se añade una tanda entera.
-
-        A dos columnas y no apilados porque son filas cortas de etiqueta y valor:
-        a ancho completo dejan un río de blanco en el centro que es exactamente
-        lo que hacía que la ficha se leyera como un formulario abandonado.
-      */}
-      <div className="grid-2">
-        {PROFILE_GROUPS.map((grupo) => (
-          <ProfileBlock
-            key={grupo.id}
+      <div className="ficha">
+        <div className="ficha-trabajo">
+          <Identidad
             client={activeClient}
-            group={grupo.id}
-            onSave={(profile) => updateClient(activeClient.id, { profile: cleanProfile(profile) })}
+            weight={peso}
+            onUpdate={(fields) => updateClient(activeClient.id, fields)}
           />
-        ))}
+
+          {/* Lo que condiciona lo que le puedes poner. Es lo único de esta
+              columna que además AVISA —sale por su cuenta en su rutina y en su
+              dieta— y por eso va justo debajo de quién es. */}
+          <ConditionsPanel client={activeClient} />
+
+          {/* Los bloques del perfil, a dos columnas: filas cortas de etiqueta y
+              valor que a ancho completo dejan un río de blanco en el centro. */}
+          <div className="grid-2">
+            {PROFILE_GROUPS.map((grupo) => (
+              <ProfileBlock
+                key={grupo.id}
+                client={activeClient}
+                group={grupo.id}
+                onSave={(profile) => updateClient(activeClient.id, { profile: cleanProfile(profile) })}
+              />
+            ))}
+          </div>
+
+          <CustomAnswers client={activeClient} />
+
+          {/* Su maquinaria, al final: es lo último que se rellena y lo que se
+              consulta desde su RUTINA, no desde aquí. */}
+          <EquipmentPanel
+            client={activeClient}
+            onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
+          />
+
+          {/* Sus datos personales —consentimiento, exportar, borrar— son de la
+              PERSONA, y al final: es lo que se hace cuando entra o sale. */}
+          <ClientDataPanel client={activeClient} />
+        </div>
+
+        <aside className="ficha-lado">
+          {/*
+            El alta, la primera de la columna y solo mientras exista: es una
+            FASE, no una propiedad. Manda mientras dura y desaparece entera
+            cuando no le pides nada (`Alta` devuelve null con cero pasos).
+          */}
+          {pasosDelAlta.length > 0 && (
+            <Alta
+              client={activeClient}
+              estado={estadoDelAlta}
+              onProbar={probarSuPortal}
+              onUpdate={(fields) => updateClient(activeClient.id, fields)}
+              onPreferences={(intake) =>
+                updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))
+              }
+            />
+          )}
+
+          <Cobro
+            client={activeClient}
+            onUpdate={(fields) => updateClient(activeClient.id, fields)}
+            onMarkPaid={marcarCobrado}
+          />
+
+          <Panel title="Acceso y baja" className="col gap-3">
+            <PortalAccess client={activeClient} />
+            <ArchiveRow client={activeClient} />
+          </Panel>
+
+          {/* La carpeta compartida con él, si tienes Drive conectado. Sin Drive
+              no se pinta nada (ver `ClientDrive`). */}
+          <ClientDrive client={activeClient} />
+        </aside>
       </div>
-
-      {/* Sus respuestas a las preguntas propias del cuestionario, si las hay.
-          Aparte de los dos bloques de arriba porque esas preguntas no están en
-          el catálogo del perfil: las inventa cada entrenador. */}
-      <CustomAnswers client={activeClient} />
-
-      {/*
-        Su maquinaria, a ancho completo y al final del grupo.
-
-        Completo porque es una rejilla de fotos y no una lista de filas: en media
-        columna caben dos miniaturas por fila y cuarenta máquinas se convierten en
-        una tira de veinte filas.
-
-        Al final porque es lo último que se rellena —hay que pedirle las fotos— y
-        lo primero que se consulta después, pero desde su RUTINA y no desde aquí.
-      */}
-      <EquipmentPanel
-        client={activeClient}
-        onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
-      />
-      </Fold>
-      </section>
-
-      <section id="relacion" className="page-section">
-      <GroupHead title="Vuestra relación" sub="Su carpeta, su cobro, su acceso y su baja." />
-
-      {/* La carpeta compartida con él, si tienes Drive conectado. Va la primera
-          del grupo porque es el CANAL —por donde va y viene lo que os mandáis— y
-          lo demás son condiciones de la relación, no cosas que se usen a diario.
-          Sin Drive conectado no se pinta nada (ver `ClientDrive`). */}
-      <ClientDrive client={activeClient} />
-
-      <Cobro
-        client={activeClient}
-        onUpdate={(fields) => updateClient(activeClient.id, fields)}
-        onMarkPaid={marcarCobrado}
-      />
-
-      <Panel title="Acceso y baja" className="col gap-3">
-        <PortalAccess client={activeClient} />
-        <ArchiveRow client={activeClient} />
-      </Panel>
-
-      {/* Exportar y borrar sus datos personales. Es lo que se hace cuando un
-          cliente entra o SALE, no mientras se trabaja con él, así que va al
-          final de la ficha y no en el carril de secciones. */}
-      <ClientDataPanel client={activeClient} />
-      </section>
     </div>
   );
 };

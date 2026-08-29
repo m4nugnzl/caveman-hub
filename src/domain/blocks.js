@@ -20,6 +20,7 @@
  * de datos y nada de lo que ya existe cambia de forma. Ver la migración 0086.
  */
 import { newId } from '@/lib/ids';
+import { dayPlannedVolume } from './training';
 
 /** La última semana montada del programa (0 sin ninguna). */
 export const lastWeekNumber = (microcycles = []) =>
@@ -182,4 +183,61 @@ export const weekInBlock = (program, weekNumber) => {
 export const weekLabel = (program, weekNumber, letra = 'S') => {
   const { n, index } = weekInBlock(program, weekNumber);
   return blocksOf(program).length > 1 ? `B${index + 1}·${letra}${n}` : `${letra}${n}`;
+};
+
+/**
+ * EL VOLUMEN DE UN BLOQUE: lo que le has PUESTO, y su media por semana.
+ *
+ * ══ Por qué el bloque es la unidad y no la semana ══════════════════════════
+ *
+ * Porque un bloque es la estructura que no cambia —los mismos días, los mismos
+ * ejercicios— y por tanto es el único tramo en el que «cuántas series de espalda
+ * le estoy dando» tiene una respuesta estable. Semana a semana la cifra sube y
+ * baja por los ajustes finos de cada sesión, y mirar una sola semana para decidir
+ * si a alguien le sobra pecho es mirar el ruido.
+ *
+ * ── Pautado, no hecho ───────────────────────────────────────────────────────
+ * Sale de `dayPlannedVolume`, o sea de las series que hay ESCRITAS en el
+ * programa, y no de las que tienen repeticiones registradas. Son dos preguntas
+ * distintas y aquí se contesta la del entrenador: qué le he mandado hacer. Lo
+ * que de verdad hizo es la adherencia, y va por su cuenta.
+ *
+ * ── Y la media, porque el total no se puede comparar ────────────────────────
+ * Un bloque de seis semanas tiene el doble de series que uno de tres sin que eso
+ * signifique nada. Lo que se compara con el MRV —y entre bloques— es la media
+ * por semana, así que se devuelven las dos y la pantalla no tiene que dividir.
+ *
+ * @returns `{ semanas, total, media, porMusculo: { musculo: {total, media} } }`
+ */
+export const blockPlannedVolume = (program, block) => {
+  const semanas = weeksOfBlock(program, block);
+  const microcycles = program?.microcycles || [];
+
+  const porMusculo = {};
+  let total = 0;
+
+  for (const week of semanas) {
+    const micro = microcycles.find((m) => m.weekNumber === week);
+    for (const day of micro?.days || []) {
+      for (const [musculo, series] of Object.entries(dayPlannedVolume(day))) {
+        porMusculo[musculo] = (porMusculo[musculo] || 0) + series;
+        total += series;
+      }
+    }
+  }
+
+  /* Sin semanas montadas no hay media que dar: dividir entre cero para enseñar
+     un «0 series/semana» diría que le has puesto nada, y lo que pasa es que el
+     bloque todavía no tiene ninguna semana. */
+  const n = semanas.length;
+  const media = (v) => (n === 0 ? null : Math.round((v / n) * 10) / 10);
+
+  return {
+    semanas: n,
+    total,
+    media: media(total),
+    porMusculo: Object.fromEntries(
+      Object.entries(porMusculo).map(([musculo, v]) => [musculo, { total: v, media: media(v) }])
+    ),
+  };
 };

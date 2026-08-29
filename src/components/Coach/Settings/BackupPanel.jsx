@@ -93,7 +93,7 @@ export const BackupPanel = () => {
         */}
         <div className="card-inset col gap-2">
           <span className="section-label">
-            <ShieldAlert size={12} /> Lo que esta copia no hace
+            <ShieldAlert size={12} className="icon-inline" />Lo que esta copia no hace
           </span>
           <ul className="col gap-1 t-xs t-secondary" style={{ paddingLeft: '1.1em' }}>
             <li>

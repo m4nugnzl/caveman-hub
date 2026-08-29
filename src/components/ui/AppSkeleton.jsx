@@ -41,3 +41,23 @@ export const AppSkeleton = () => (
     </div>
   </div>
 );
+
+/**
+ * El esqueleto de UNA pantalla, para el respaldo de Suspense de cada ruta.
+ * Título, subtítulo y tres tarjetas: la forma de cualquier pantalla del
+ * producto, sin imitar a ninguna. Era un «Cargando…» en texto, y un texto que
+ * aparece y desaparece en 80 ms llama más la atención que una sombra con la
+ * forma de lo que viene.
+ */
+export const PageSkeleton = () => (
+  <div className="stack esqueleto" role="status" aria-label="Cargando la pantalla">
+    <span className="bone boot-title" aria-hidden="true" />
+    <span className="bone boot-sub" aria-hidden="true" />
+    <div className="esqueleto-tarjetas" aria-hidden="true">
+      <span className="bone esqueleto-tarjeta is-ancha" />
+      <span className="bone esqueleto-tarjeta" />
+      <span className="bone esqueleto-tarjeta is-ancha" />
+      <span className="bone esqueleto-tarjeta" />
+    </div>
+  </div>
+);

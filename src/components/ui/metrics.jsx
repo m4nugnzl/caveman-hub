@@ -1,5 +1,6 @@
 import { Children } from 'react';
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
+import { localeNumber } from '@/lib/dates';
 import { round } from '@/lib/num';
 
 /**
@@ -31,9 +32,12 @@ export const Delta = ({ value, unit = '', percent = null, lowerIsBetter = false,
   return (
     <span className={`delta delta-${tone}`}>
       <Icon size={11} strokeWidth={2.5} />
+      {/* La misma coma decimal que la cifra grande de al lado: la píldora decía
+          «0.4 kg» pegada a un «77,3 kg», que es la misma medida escrita de dos
+          maneras a quince píxeles de distancia. */}
       {percent !== null && Number.isFinite(Number(percent))
-        ? `${Math.abs(round(percent, 1))}%`
-        : `${Math.abs(round(n, decimals))}${unit}`}
+        ? `${localeNumber(Math.abs(round(percent, 1)))} %`
+        : `${localeNumber(Math.abs(round(n, decimals)))}${unit}`}
     </span>
   );
 };

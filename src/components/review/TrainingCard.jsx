@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Dumbbell } from 'lucide-react';
 
 import { exerciseTrend, nextPrescription } from '@/domain/week';
 import { useApp } from '@/context/AppContext';
 import { shortDate } from '@/lib/dates';
 import { clientPath } from '@/routes';
-import { Fold, Panel } from '@/components/ui/primitives';
-import { ExerciseCard } from '@/components/review/ExerciseCard';
+import { Fold } from '@/components/ui/primitives';
+import { Tarjeta } from '@/components/dashboard/Tarjeta';
+import { ExerciseRow } from '@/components/review/ExerciseRow';
 import { ExerciseSheet } from '@/components/review/ExerciseSheet';
 
 /**
@@ -26,25 +26,21 @@ import { ExerciseSheet } from '@/components/review/ExerciseSheet';
  *      ochenta cifras en una rejilla de cinco columnas: un listado de texto, que
  *      es exactamente de lo que se venía huyendo.
  *
- * Lo que hacía falta era lo que se mira primero de verdad: **la recta**. Una
- * tarjeta por ejercicio con su cifra grande, su recorrido dibujado y sus series
- * debajo — y la recta se desliza, así que se recorre el bloque entero comparando
- * cualquier semana con la de al lado sin abrir nada. Ver `ExerciseCard`.
+ * Y el tercero fue UNA TARJETA por ejercicio, con su cifra grande, su recta
+ * deslizable y sus series: bien con tres ejercicios, y con los seis u ocho de
+ * un día de verdad una rejilla de tarjetas del mismo peso donde nada se podía
+ * comparar en vertical. Una revisión se lee por columnas —¿cuánto levantó?,
+ * ¿sube o baja?, ¿qué anotó?— y eso es una TABLA, la misma forma que la hoja
+ * de Entreno. Ver :
  *
- *     PUSH · 11 ago                             5 de 6 series · sube en 1
- *     ┌── Press Banca ───────┐ ┌── Press Militar ─────┐
- *     │ 45 kg × 8   ↑ vs S2  │ │ 30 kg × 3   ↓ vs S2  │
- *     │        ╭──●  45      │ │  ●───╮               │
- *     │  40 ●──╯             │ │  30   ╰──● 30        │
- *     │  S1        S3        │ │  S1        S3        │
- *     │  45×8 45×8 45×6      │ │  30×3                │
- *     └──────────────────────┘ └──────────────────────┘
+ *     PUSH A · 24 ago                       18 de 18 series · sube en 5
+ *     Press banca      109,5 kg × 8  ↑ vs S14  ╱‾  109,5×8 · 109,5×8 · 109,5×7  ›
+ *     Press inclinado   39 kg × 8    ↑ vs S14  ╱‾  39×8 · 39×8 · 39×7           ›
  *
  * ── Y el registro completo, a un toque ─────────────────────────────────────
- * La cabecera de cada tarjeta abre el historial del ejercicio: fecha a fecha,
- * serie a serie, con la tope marcada. La tarjeta enseña la forma y la semana que
- * señales; el archivo entero es otra cosa y se consulta y se cierra. Ver
- * `ExerciseSheet`.
+ * La fila abre el historial del ejercicio: fecha a fecha, serie a serie, con la
+ * tope marcada y la recta con ejes. La fila enseña la forma; el archivo entero
+ * es otra cosa y se consulta y se cierra. Ver .
  *
  * ── Se DIBUJA con kilos y se CLASIFICA con 1RM estimado ────────────────────
  * La regla de esta pantalla es que el 1RM estimado no se ENSEÑA —es una cifra
@@ -127,29 +123,27 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
        punto que se mueve y la flecha de la cabecera enseñan las dos cosas en
        medio segundo, y una aplicación que explica sus propios gestos con texto
        es una que no confía en ellos. */
-    <Panel
-      className="bloque"
-      rango="bloque"
-      aria-label="Su entrenamiento"
-      title="Su entreno"
-      sub="La carga de cada ejercicio, semana a semana."
-      action={
-        <div className="row gap-2 wrap">
-          {sesiones && (
-            <span className={`badge ${sesiones.done >= sesiones.planned ? 'badge-ok' : 'badge-warn'}`}>
-              {sesiones.done} de {sesiones.planned} sesiones
-            </span>
-          )}
-          <Link
-            className="btn btn-quiet btn-sm"
-            to={clientPath(client?.id, 'rutina')}
-            state={{ revisionDe: client?.id, revisionNombre: client?.name }}
-          >
-            <Dumbbell size={13} /> Su rutina
-          </Link>
-        </div>
+    <Tarjeta
+      rotulo="Su entreno"
+      span={12}
+      accion={
+        <Link
+          className="cab-accion"
+          to={clientPath(client?.id, 'rutina')}
+          state={{ revisionDe: client?.id, revisionNombre: client?.name }}
+        >
+          Su rutina →
+        </Link>
       }
     >
+      {/* Cuántas sesiones hizo de las que tenía, en una línea y no en una
+          chapa: es el contexto del bloque, como «lo tiene puesto desde» en el
+          plan. Las que faltan se ven además en las filas, en «no entrenado». */}
+      {sesiones && (
+        <p className={`tarjeta-meta${sesiones.done < sesiones.planned ? ' is-warn' : ''}`}>
+          {sesiones.done} de {sesiones.planned} sesiones esta semana
+        </p>
+      )}
 
       {dias.length === 0 ? (
         <p className="t-sm t-tertiary">Esta semana no tiene días montados.</p>
@@ -215,13 +209,12 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
                 {dia.note && <p className="dia-nota">«{dia.note}»</p>}
 
                 {ejercicios.length > 0 && (
-                  <div className="ejercs">
+                  <div className="ejerc-tabla">
                     {ejercicios.map((ejercicio) => (
-                      <ExerciseCard
+                      <ExerciseRow
                         key={ejercicio.name}
                         ejercicio={ejercicio}
                         trend={tendencias.get(ejercicio.name)}
-                        semana={semana}
                         onOpen={() => setAbierto(ejercicio.name)}
                       />
                     ))}
@@ -263,6 +256,6 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
             : null
         }
       />
-    </Panel>
+    </Tarjeta>
   );
 };

@@ -59,7 +59,7 @@ import { ExerciseList } from './ExerciseList';
 import { AddExerciseForm } from './AddExerciseForm';
 import { ComparativaEjercicio } from './ComparativaEjercicio';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { Subjetivo } from './Subjetivo';
+import { Subjetivo } from '@/components/ui/Subjetivo';
 import { BloquePopup } from './BloquePopup';
 import { ComoLoLlevo } from './ComoLoLlevo';
 import { ProgresionPopup } from './ProgresionPopup';
@@ -560,6 +560,7 @@ export const WorkoutLogEditor = () => {
         {cycleType === 'weekly' && (
           <WeeklySplitEditor
             split={program.weeklySplit}
+            days={nav.days}
             onChange={(day, value) => updateWeeklySplit(activeClient.id, day, value)}
           />
         )}

@@ -6,7 +6,7 @@ import { useSession, useActions } from '@/context/AppContext';
 import { useEsAdminPlataforma } from '@/context/useRadiografia';
 import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
-import { initials } from '@/lib/initials';
+import { Avatar } from '@/components/ui/Avatar';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 
@@ -63,9 +63,7 @@ export const AccountMenu = ({ variante = 'avatar' }) => {
         onClick={() => setOpen((v) => !v)}
         title="Cuenta y configuración"
       >
-        <span className="account-avatar" aria-hidden="true">
-          {initials(profileName || email)}
-        </span>
+        <Avatar name={profileName || email} size="sm" className="account-avatar is-round" />
         {fila && (
           <>
             <span className="account-fila-quien">

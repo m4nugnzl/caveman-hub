@@ -9,6 +9,7 @@
  */
 
 import { coverFit, cssFilter, denormalizePoint, slotRects, spacing } from '@/domain/photoLayout';
+import { fmt } from '@/lib/num';
 import { angleLabel } from '@/domain/photos';
 
 const BG = '#0b0f19';
@@ -78,7 +79,7 @@ const drawCaption = (ctx, rect, photo, size) => {
   const weight = photo.derivedWeight ?? photo.weight;
   const title = [
     photo.week != null ? `Semana ${photo.week}` : null,
-    weight != null ? `${weight} kg` : null,
+    weight != null ? `${fmt(weight, { decimals: 1 })} kg` : null,
   ]
     .filter(Boolean)
     .join('  ·  ');

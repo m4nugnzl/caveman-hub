@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Check, Pencil, X } from 'lucide-react';
 
+import { localeNumber } from '@/lib/dates';
+import { toNum } from '@/lib/num';
+
 /**
  * Un objetivo de actividad del plan: los pasos diarios, el cardio de alta
  * intensidad.
@@ -69,7 +72,7 @@ export const GoalCard = ({
   if (!editable && !puesto) return null;
 
   const Etiqueta = (
-    <span className="section-label">
+    <span className="section-label is-titulo">
       <Icon size={12} className="icon-inline" />
       {label}
     </span>
@@ -137,9 +140,14 @@ export const GoalCard = ({
       </span>
 
       <span className="row gap-2 shrink-0">
+        {/* La cifra se dice como en el resto del producto: «11.000», no
+            «11000». Se guarda como texto y se pintaba tal cual, así que los
+            mismos pasos salían con punto de millar en el Resumen y sin él
+            aquí. */}
         {puesto && numeric && (
           <strong style={{ fontSize: '1.25rem' }}>
-            {puesto} {unit && <span className="t-sm t-tertiary">{unit}</span>}
+            {toNum(puesto) === null ? puesto : localeNumber(toNum(puesto))}{' '}
+            {unit && <span className="t-sm t-tertiary">{unit}</span>}
           </strong>
         )}
         {editable && (

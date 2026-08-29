@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { PageHead } from '@/components/ui/primitives';
 import { ClientRoutine } from './ClientRoutine';
+import { IntakePrompt } from './IntakePrompt';
 
 /**
  * Ruta `/mi/rutina`: conecta el contexto con la vista.
@@ -47,6 +48,9 @@ export const ClientRoutineRoute = () => {
   return (
     <div className="stack">
       <PageHead title="Mi rutina" sub="Lo que toca esta semana, y dónde apuntas lo que levantas." />
+      {/* Lo que su entrenador espera de él antes de empezar: la rutina es la
+          primera pantalla del portal, así que el alta pendiente se pide aquí. */}
+      <IntakePrompt client={activeClient} />
       <ClientRoutine
       client={activeClient}
       program={program}

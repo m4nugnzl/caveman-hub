@@ -137,7 +137,7 @@ export const ClientDataPanel = ({ client }) => {
   return (
     <div className="card-inset col gap-3">
       <span className="section-label">
-        <ShieldAlert size={12} /> Datos personales
+        <ShieldAlert size={12} className="icon-inline" />Datos personales
       </span>
 
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}

@@ -556,3 +556,56 @@ export const previousSetsBefore = (microcycles, weekNumber) => {
 export function previousSetKey(exerciseName, setIndex) {
   return `${exerciseName}#${setIndex}`;
 }
+
+// ── La mejor marca, para saber cuándo hay un récord ────────────────────────
+
+/**
+ * Una repetición máxima estimada (Epley). No es un dato: es la vara con la que
+ * comparar dos series de distinto peso y distintas repeticiones —90 × 8 contra
+ * 95 × 5— para decir cuál es mejor. Solo se usa para eso; nunca se enseña como
+ * cifra.
+ */
+export const e1rm = (kg, reps) => {
+  const k = toNum(kg) ?? 0;
+  const r = toNum(reps) ?? 0;
+  if (k <= 0 || r <= 0) return 0;
+  return r === 1 ? k : k * (1 + r / 30);
+};
+
+/**
+ * La mejor serie de cada ejercicio ANTES de una semana: el listón que hay que
+ * superar para que una serie de hoy sea un récord.
+ *
+ * Empareja por nombre, como `previousSetsBefore`, y por el mismo motivo. Solo
+ * cuentan las series con kilos: una serie a peso corporal no tiene marca que
+ * batir con esta vara.
+ *
+ * @returns {Map<string, {kg: string, reps: string, e1rm: number, weekNumber: number}>}
+ */
+export const bestSetsBefore = (microcycles, weekNumber) => {
+  const out = new Map();
+  if (!Number.isFinite(weekNumber)) return out;
+
+  for (const session of allSessions(microcycles)) {
+    if (!Number.isFinite(session.weekNumber) || session.weekNumber >= weekNumber) continue;
+    for (const entry of session.entries || []) {
+      if (!entry.name) continue;
+      for (const set of entry.sets || []) {
+        const marca = e1rm(set?.kg, set?.reps);
+        if (marca <= 0) continue;
+        const actual = out.get(entry.name);
+        if (!actual || marca > actual.e1rm) {
+          out.set(entry.name, { kg: set.kg, reps: set.reps, e1rm: marca, weekNumber: session.weekNumber });
+        }
+      }
+    }
+  }
+
+  return out;
+};
+
+/** Si una serie supera el listón de su ejercicio. Sin listón no hay récord. */
+export const isRecord = (set, best) => {
+  if (!best || best.e1rm <= 0) return false;
+  return e1rm(set?.kg, set?.reps) > best.e1rm + 1e-9;
+};

@@ -5,6 +5,7 @@ import {
   blocksAfterInsertingWeek,
   blocksAfterRemovingWeek,
   blockChanges,
+  blockPlannedVolume,
   blocksOf,
   currentBlock,
   openNextBlock,
@@ -181,5 +182,60 @@ describe('la semana dentro de su bloque', () => {
   it('se etiqueta con el bloque solo cuando hay más de uno', () => {
     expect(weekLabel(p, 4)).toBe('B2·S2');
     expect(weekLabel(programa([1, 2]), 2)).toBe('S2');
+  });
+});
+
+describe('el volumen pautado de un bloque', () => {
+  /* Dos días por semana: Push con 6 series de pecho, Pull con 4 de espalda. */
+  const dia = (nombre, musculo, series) => ({
+    dayName: nombre,
+    exercises: [{ id: `e_${nombre}`, name: nombre, muscle: musculo, sets: Array.from({ length: series }, () => ({})) }],
+  });
+  const conDias = (semanas, extra = {}) => ({
+    weeklySplit: { Lunes: 'Push' },
+    microcycles: semanas.map((weekNumber) => ({
+      weekNumber,
+      days: [dia('Push', 'Pecho', 6), dia('Pull', 'Espalda', 4)],
+    })),
+    ...extra,
+  });
+
+  it('suma las series escritas de todas sus semanas', () => {
+    const p = conDias([1, 2, 3]);
+    const v = blockPlannedVolume(p, currentBlock(p));
+
+    expect(v.semanas).toBe(3);
+    expect(v.total).toBe(30); // (6 + 4) × 3
+    expect(v.porMusculo.Pecho.total).toBe(18);
+    expect(v.porMusculo.Espalda.total).toBe(12);
+  });
+
+  it('da la media por semana, que es lo comparable', () => {
+    const p = conDias([1, 2, 3]);
+    const v = blockPlannedVolume(p, currentBlock(p));
+
+    expect(v.media).toBe(10);
+    expect(v.porMusculo.Pecho.media).toBe(6);
+  });
+
+  it('solo cuenta las semanas de SU bloque', () => {
+    const p = conDias([1, 2, 3, 4], {
+      blocks: [
+        { id: 'b1', name: 'Bloque 1', fromWeek: 1, toWeek: 2 },
+        { id: 'b2', name: 'Bloque 2', fromWeek: 3, toWeek: null },
+      ],
+    });
+
+    expect(blockPlannedVolume(p, blocksOf(p)[0]).total).toBe(20);
+    expect(blockPlannedVolume(p, blocksOf(p)[1]).total).toBe(20);
+  });
+
+  it('sin semanas montadas no inventa una media de cero', () => {
+    const p = conDias([], { blocks: [{ id: 'b1', name: 'Bloque 1', fromWeek: 1, toWeek: null }] });
+    const v = blockPlannedVolume(p, currentBlock(p));
+
+    expect(v.semanas).toBe(0);
+    expect(v.total).toBe(0);
+    expect(v.media).toBeNull();
   });
 });

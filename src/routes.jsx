@@ -224,9 +224,8 @@ export const COACH_CLIENT = [
     por la que la fase llevaba meses sin empezarse.
 
     No hacía falta. Una sección con DOS NIVELES ya existía en el producto
-    —«Progreso» es `resumen` + `analitica`, «Revisión» es `semana` + su archivo—
-    y se resuelve con una ruta de layout sin `path` que solo aporta un carril de
-    chips. Agrupar es una decisión de NAVEGACIÓN; las rutas se quedan donde
+    —«Revisión» es `semana` + su archivo de fotos— y se resuelve con una ruta de
+    layout sin `path` que solo aporta la miga de vuelta. Agrupar es una decisión de NAVEGACIÓN; las rutas se quedan donde
     están, los marcadores siguen valiendo y volver atrás es borrar cuatro
     líneas de este archivo.
 
@@ -236,11 +235,14 @@ export const COACH_CLIENT = [
     ══════════════════════════════════════════════════════════════════════════
   */
   /*
-    «Progreso» era dos entradas —Resumen y Analítica— y las dos contestan la misma
-    pregunta con distinto detalle. Eso obligaba a elegir cuál abrir antes de saber
-    qué se quería mirar. Ahora es una sección con dos niveles: se entra por el
-    resumen y se pasa al análisis desde dentro (`analytics/ProgressLayout.jsx`).
-    La ruta `/analitica` sigue existiendo, así que los enlaces guardados valen.
+    «Progreso» era dos entradas —Resumen y Analítica—, luego una sección con dos
+    niveles, y ahora es UNA pantalla. Las dos contestaban la misma pregunta con
+    distinto detalle, así que la segunda solo servía para obligar a un viaje: salir
+    de donde estabas, cargar otra pantalla, encontrar el gráfico y volver.
+
+    El detalle se abre EN SU SITIO, en una ventana por pregunta y desde el título
+    de la pieza que la resume (ver `dashboard/Dashboard.jsx`). `/analitica` sigue
+    dada de alta porque está en marcadores, y rebota al resumen.
   */
   /*
     ── Rutina y Dieta, y por qué NO se agrupan ────────────────────────────────
@@ -261,11 +263,13 @@ export const COACH_CLIENT = [
     ══ El orden y los nombres, tal como los busca el entrenador (ago 2026) ═══
     Resumen · Entreno · Dieta · Revisiones · Perfil. Cinco pestañas planas y
     NINGÚN carril debajo: lo que cuelga de una sección se abre desde su contenido
-    (la analítica desde la cifra, las fotos desde el bloque del cuerpo, el
-    calendario desde el perfil) y vuelve con una miga, no con otra fila de chips.
+    (las fotos desde el bloque del cuerpo, el calendario desde el perfil) y vuelve
+    con una miga, no con otra fila de chips. Y lo que no es una pantalla sino el
+    detalle de algo que ya está delante —el análisis de cada cifra del resumen—
+    se abre en una ventana y no se va a ninguna parte.
     Un nombre por concepto, el mismo en los dos portales.
   */
-  { path: 'resumen', label: 'Resumen', icon: Gauge, also: ['analitica'] },
+  { path: 'resumen', label: 'Resumen', icon: Gauge },
   { path: 'rutina', label: 'Entreno', icon: Layers, service: 'training' },
   { path: 'nutricion', label: 'Dieta', icon: Salad, service: 'nutrition' },
   {
@@ -445,8 +449,8 @@ export const CLIENT_SECTIONS = [
     Ahora el inicio son sus cifras y sus gráficos, con lo que ha cambiado
     condensado arriba y en la campana de la cabecera. Ver `ClientStart`.
   */
-  { path: 'inicio', label: 'Mi progreso', short: 'Progreso', icon: Gauge, also: ['analitica'] },
   { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers, service: 'training' },
+  { path: 'inicio', label: 'Mi progreso', short: 'Progreso', icon: Gauge },
   { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad, service: 'nutrition' },
   /*
     «Mi evolución» era dos secciones —«Mis check-ins» y «Mis fotos»— y para el
@@ -475,7 +479,7 @@ export const CLIENT_SECTIONS = [
 export const RESET_PATH = '/nueva-contrasena';
 
 export const COACH_HOME = '/hoy';
-export const CLIENT_HOME = '/mi/inicio';
+export const CLIENT_HOME = '/mi/rutina';
 export const SETTINGS_HOME = '/ajustes/protocolo';
 
 /** Ruta de una sección de un cliente. Nadie construye estas cadenas a mano. */
@@ -542,9 +546,9 @@ export const sameSectionFor = (pathname, clientId, protocol = null) => {
  * ══ Por qué no vale el `NavLink` a secas ═══════════════════════════════════
  *
  * `NavLink` marca por prefijo de URL, y desde que una sección tiene dos niveles
- * eso deja de bastar: «Progreso» apunta a `resumen`, pero `analitica` es hermana
- * suya y no empieza por `resumen`. El resultado era que al bajar al análisis —o a
- * las fotos de una revisión— **ninguna pestaña quedaba marcada**, y la aplicación
+ * eso deja de bastar: «Revisiones» apunta a `semana`, pero `revision/fotos` es
+ * hermana suya y no empieza por `semana`. El resultado era que al bajar a las
+ * fotos de una revisión **ninguna pestaña quedaba marcada**, y la aplicación
  * parecía haberse salido de sí misma.
  *
  * Los niveles de cada sección se declaran arriba en `also`, al lado de la propia
@@ -581,7 +585,6 @@ export const isSectionActive = (pathname, seccion, prefijo) => {
 /** Pares [sección del entrenador, sección del cliente]. */
 const EQUIVALENTES = [
   ['resumen', 'inicio'],
-  ['analitica', 'analitica'],
   ['rutina', 'rutina'],
   ['nutricion', 'dieta'],
   ['revision', 'evolucion'],

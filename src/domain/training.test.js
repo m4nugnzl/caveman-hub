@@ -12,6 +12,8 @@ import {
   dayPlannedSets,
   drillsForDay,
   dayPlannedVolume,
+  dayProgression,
+  dayNames,
   exerciseProgression,
   firstCycleDate,
   indexAfterMove,
@@ -694,5 +696,84 @@ describe('adoptMicrocycle', () => {
 
   it('sin respuesta utilizable no toca nada', () => {
     expect(adoptMicrocycle(data, local.id, null)).toBe(data);
+  });
+});
+
+describe('la progresión de una rutina', () => {
+  const serie = (kg, reps) => ({ kg, reps });
+  const dia = (dayName, ejercicios) => ({
+    dayName,
+    exercises: ejercicios.map(([name, muscle, n]) => ({
+      id: `e_${name}`,
+      name,
+      muscle,
+      sets: Array.from({ length: n }, () => ({})),
+    })),
+  });
+
+  const programa = [
+    {
+      weekNumber: 1,
+      days: [dia('Push', [['Press', 'Pecho', 4], ['Fondos', 'Tríceps', 3]]), dia('Pull', [['Remo', 'Espalda', 4]])],
+      sessions: [
+        {
+          id: 's1',
+          dayName: 'Push',
+          date: '2026-01-05',
+          entries: [
+            { name: 'Press', muscle: 'Pecho', sets: [serie(80, 8), serie(80, 8), serie(80, 6), serie(80, 5)] },
+            { name: 'Fondos', muscle: 'Tríceps', sets: [serie(20, 10), serie(20, 10), serie(20, 8)] },
+          ],
+        },
+      ],
+    },
+    {
+      weekNumber: 2,
+      days: [dia('Push', [['Press', 'Pecho', 5], ['Fondos', 'Tríceps', 3]])],
+      sessions: [
+        {
+          id: 's2',
+          dayName: 'Push',
+          date: '2026-01-12',
+          entries: [{ name: 'Press', muscle: 'Pecho', sets: [serie(85, 8), serie(85, 8)] }],
+        },
+      ],
+    },
+  ];
+
+  it('da lo pautado y lo hecho de ese día, semana a semana', () => {
+    const filas = dayProgression(programa, 'Push');
+
+    expect(filas.map((f) => f.week)).toEqual([1, 2]);
+    expect(filas[0].planned).toEqual({ Pecho: 4, Tríceps: 3 });
+    expect(filas[0].done).toEqual({ Pecho: 4, Tríceps: 3 });
+    expect(filas[1].planned).toEqual({ Pecho: 5, Tríceps: 3 });
+    expect(filas[1].done).toEqual({ Pecho: 2 });
+  });
+
+  it('suma el tonelaje de ESE día y no el de la semana', () => {
+    const [s1] = dayProgression(programa, 'Push');
+    // 80×8 + 80×8 + 80×6 + 80×5 = 2160 · 20×10 + 20×10 + 20×8 = 560
+    expect(s1.tonnage).toBe(2720);
+    expect(s1.plannedSets).toBe(7);
+    expect(s1.doneSets).toBe(7);
+  });
+
+  it('salta las semanas en las que ese día no existe', () => {
+    expect(dayProgression(programa, 'Pull').map((f) => f.week)).toEqual([1]);
+    expect(dayProgression(programa, 'Piernas')).toEqual([]);
+    expect(dayProgression(programa, null)).toEqual([]);
+  });
+
+  it('distingue no haber entrenado de haber movido cero', () => {
+    const sinSesion = [{ weekNumber: 3, days: [dia('Push', [['Press', 'Pecho', 4]])], sessions: [] }];
+    const [fila] = dayProgression(sinSesion, 'Push');
+
+    expect(fila.entrenado).toBe(false);
+    expect(fila.doneSets).toBe(0);
+  });
+
+  it('lista los días del programa empezando por los de la última semana', () => {
+    expect(dayNames(programa)).toEqual(['Push', 'Pull']);
   });
 });

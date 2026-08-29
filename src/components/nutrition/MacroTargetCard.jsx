@@ -115,7 +115,7 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
         </div>
       ) : (
         <div className="row between wrap gap-2">
-          <span className="section-label">{title || 'Objetivo diario'}</span>
+          <span className="section-label is-titulo">{title || 'Objetivo diario'}</span>
           {editable && (
             <button type="button" className="btn btn-icon" onClick={open} aria-label="Editar objetivo">
               <Pencil size={14} />

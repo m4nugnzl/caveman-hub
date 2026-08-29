@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Plus, Sparkles, Trash2 } from 'lucide-react';
 
 import {
@@ -34,9 +34,26 @@ import { GroupHead, Panel } from '@/components/ui/primitives';
  * Porque cada pulsación sería una escritura en la base de datos de un texto de
  * mil caracteres. El borrador vive aquí mientras se escribe y baja al plan
  * cuando el campo pierde el foco, que es cuando la pauta está terminada.
+ *
+ * ══ Y por qué ya no parece un formulario ════════════════════════════════════
+ *
+ * Cada pauta era una tarjeta gris dentro de un panel dentro de la columna, y
+ * dentro de ella una casilla de título con su recuadro y un área de texto con
+ * el suyo, su barra de desplazamiento y el asa de redimensionar en la esquina.
+ * Cuatro superficies encajadas para enseñar dos frases, y una pauta ya escrita
+ * seguía viéndose como los campos vacíos que había que rellenar.
+ *
+ * Lo que se escribe aquí lo LEE el cliente tal cual, así que aquí también tiene
+ * que leerse como texto: el título en la letra de los títulos, el cuerpo en
+ * prosa, sin cajas, y la caja creciendo con lo escrito en vez de pedir rueda.
+ * Es la misma idea que la nota de una comida (`comida-nota`) y que renombrar en
+ * su sitio (`RenombrarEnSitio`): el campo ES el texto. Las acciones —subir,
+ * bajar, borrar— se atenúan hasta que pasas por encima, como en la cabecera de
+ * una comida.
  */
 const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
   const [draft, setDraft] = useState(note);
+  const cuerpoRef = useRef(null);
 
   /* Si la pauta cambia por fuera —otra pestaña, deshacer— el borrador se queda
      rancio. Comparar por id evita pisar lo que se está escribiendo ahora. */
@@ -47,11 +64,21 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
     onChange(actual);
   };
 
+  /* La caja crece con lo escrito. Un alto fijo con barra de desplazamiento
+     obliga a leer una pauta de seis líneas por una ventana de tres, y lo que se
+     escribe aquí está pensado para leerse entero. */
+  useEffect(() => {
+    const el = cuerpoRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [actual.body]);
+
   return (
-    <div className="card-inset col gap-2">
-      <div className="row gap-2">
+    <article className="pauta">
+      <div className="pauta-cab">
         <input
-          className="input input-sm grow"
+          className="pauta-titulo"
           value={actual.title}
           maxLength={NOTE_TITLE_MAX}
           placeholder="Título (opcional). Ej: Hipotiroidismo"
@@ -59,10 +86,13 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
           onChange={(e) => setDraft({ ...actual, title: e.target.value })}
           onBlur={guardar}
         />
-        <span className="row gap-1 shrink-0">
+        {/* Atenuadas hasta que pasas por encima, como en la cabecera de una
+            comida: mover y borrar se hacen de uvas a peras y no tienen por qué
+            competir con lo que se está leyendo. */}
+        <span className="pauta-acciones">
           <button
             type="button"
-            className="btn btn-icon"
+            className="btn btn-icon btn-icon-compact"
             onClick={() => onMove(-1)}
             disabled={index === 0}
             aria-label="Subir esta pauta"
@@ -71,7 +101,7 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
           </button>
           <button
             type="button"
-            className="btn btn-icon"
+            className="btn btn-icon btn-icon-compact"
             onClick={() => onMove(1)}
             disabled={index === total - 1}
             aria-label="Bajar esta pauta"
@@ -80,7 +110,7 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
           </button>
           <button
             type="button"
-            className="btn btn-icon btn-icon-danger"
+            className="btn btn-icon btn-icon-compact btn-icon-danger"
             onClick={onRemove}
             aria-label="Eliminar esta pauta"
           >
@@ -90,7 +120,9 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
       </div>
 
       <textarea
-        className="input textarea"
+        ref={cuerpoRef}
+        rows={1}
+        className="pauta-cuerpo"
         value={actual.body}
         maxLength={NOTE_BODY_MAX}
         placeholder="Lo que quieras explicarle. Los saltos de línea se conservan."
@@ -98,7 +130,7 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
         onChange={(e) => setDraft({ ...actual, body: e.target.value })}
         onBlur={guardar}
       />
-    </div>
+    </article>
   );
 };
 
@@ -115,7 +147,7 @@ export const DietNotes = ({ notes: raw, onChange }) => {
         sub="Lo que le explicas a esta persona sobre su plan. Lo ve en su dieta, tal cual lo escribes."
       />
 
-      <Panel tight className="col gap-3">
+      <Panel tight className="pautas">
         {notes.length === 0 && (
           <p className="t-sm t-tertiary">
             Nada escrito todavía. Aquí van las indicaciones que no caben en una cifra: por qué el

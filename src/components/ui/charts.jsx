@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from 'react';
+import { localeNumber } from '@/lib/dates';
 import { round, toNum } from '@/lib/num';
 import { useElementWidth } from '@/lib/useElementWidth';
 
@@ -34,23 +35,42 @@ const MIN_W = 240;
  * producto son dos curvas distintas para los mismos datos.
  */
 export const smoothPath = (points) => {
-  if (points.length < 2) return '';
-  if (points.length === 2) {
-    return `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1].y.toFixed(1)}`;
+  const n = points.length;
+  if (n < 2) return '';
+  const f = (v) => v.toFixed(1);
+  if (n === 2) return `M ${f(points[0].x)} ${f(points[0].y)} L ${f(points[1].x)} ${f(points[1].y)}`;
+
+  /*
+    ══ Monótona, no Catmull-Rom ══════════════════════════════════════════════
+    La curva anterior inventaba máximos entre dos puntos: sobre las barras del
+    tonelaje se veía pasar POR ENCIMA de la barra más alta, afirmando un pico
+    que no existió. La interpolación monótona (Fritsch–Carlson, la de d3
+    `curveMonotoneX`) no puede: entre dos datos nunca sale del intervalo que
+    forman, y en un máximo local la tangente es cero, así que la curva se apoya
+    en el dato y no lo sobrevuela.
+  */
+  const dx = [];
+  const m = [];
+  for (let i = 0; i < n - 1; i += 1) {
+    dx.push(points[i + 1].x - points[i].x || 1e-6);
+    m.push((points[i + 1].y - points[i].y) / dx[i]);
+  }
+  const t = new Array(n);
+  t[0] = m[0];
+  t[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i += 1) {
+    if (m[i - 1] * m[i] <= 0) t[i] = 0;
+    else {
+      const w1 = 2 * dx[i] + dx[i - 1];
+      const w2 = dx[i] + 2 * dx[i - 1];
+      t[i] = (w1 + w2) / (w1 / m[i - 1] + w2 / m[i]);
+    }
   }
 
-  let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const p0 = points[i - 1] || points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
-    const t = 0.16;
-    const c1x = p1.x + (p2.x - p0.x) * t;
-    const c1y = p1.y + (p2.y - p0.y) * t;
-    const c2x = p2.x - (p3.x - p1.x) * t;
-    const c2y = p2.y - (p3.y - p1.y) * t;
-    d += ` C ${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+  let d = `M ${f(points[0].x)} ${f(points[0].y)}`;
+  for (let i = 0; i < n - 1; i += 1) {
+    const h = dx[i] / 3;
+    d += ` C ${f(points[i].x + h)} ${f(points[i].y + t[i] * h)}, ${f(points[i + 1].x - h)} ${f(points[i + 1].y - t[i + 1] * h)}, ${f(points[i + 1].x)} ${f(points[i + 1].y)}`;
   }
   return d;
 };
@@ -85,6 +105,40 @@ export const makeScale = (values, { fromZero = false, padRatio = 0.16 } = {}) =>
     max += pad;
   }
   return { min, max };
+};
+
+/**
+ * El tope de un eje que arranca en cero, redondeado a una cifra que se lee.
+ *
+ * ══ Por qué un eje tiene que acabar en un número redondo ═══════════════════
+ *
+ * El tope era «el valor más alto × 1,12», así que el eje del tonelaje ponía
+ * 43.326 arriba y 21.663 en medio. Esas dos cifras no significan nada: son un
+ * cálculo interno asomando por el borde del gráfico. Y un eje sirve justamente
+ * para lo contrario —para leer una barra sin tener que medirla—, así que con
+ * topes arbitrarios deja de leerse: se mira la forma y se ignora la escala.
+ *
+ * `PASOS` es la escalera de siempre —1, 1,5, 2, 2,5, 3, 4, 5, 6, 8— aplicada a
+ * la magnitud del dato: se busca el primer escalón que cubra la mitad del
+ * recorrido, y el tope es ese escalón por el número de divisiones. Así la línea
+ * de en medio cae también en un número redondo, que es lo que hace que el eje
+ * se pueda usar de regla.
+ *
+ *     43.326 · 21.663 · 0     →     40.000 · 20.000 · 0
+ *      1.635 ·    818 · 0     →      1.600 ·    800 · 0
+ *
+ * El escalón sustituye además al margen del 12 %: subir hasta el siguiente
+ * número redondo ya deja aire por arriba, y del que hace falta.
+ */
+const PASOS = [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
+export const topeLegible = (max, divisiones = 2) => {
+  if (!Number.isFinite(max) || max <= 0) return 1;
+  const bruto = max / divisiones;
+  const magnitud = 10 ** Math.floor(Math.log10(bruto));
+  const paso = (PASOS.find((p) => p * magnitud >= bruto - 1e-9) ?? 10) * magnitud;
+  /* Redondeo a 12 cifras: `0.1 * 3` es 0.30000000000000004, y esa cola sale
+     impresa en el eje de un gráfico con valores pequeños. */
+  return Number((paso * divisiones).toPrecision(12));
 };
 
 const Empty = ({ message, height }) => (
@@ -287,6 +341,21 @@ export const BandChart = ({
                   )}
                   <path className="chart-line" d={path} stroke={s.color} />
 
+                  {/* El último dato, marcado: es donde está la persona HOY y
+                      lo que se busca al mirar la curva. Con halo del color de
+                      la superficie, para que se lea sobre el área. */}
+                  {hover === null && coords.length > 0 && (
+                    <circle
+                      className="chart-ultimo"
+                      cx={coords[coords.length - 1].x}
+                      cy={coords[coords.length - 1].y}
+                      r="4"
+                      fill={s.color}
+                      stroke="var(--surface)"
+                      strokeWidth="2"
+                    />
+                  )}
+
                   {hover !== null &&
                     s.pts
                       .filter((p) => p.index === hover)
@@ -352,7 +421,7 @@ export const BarBandChart = ({
   const innerH = H - PAD.top - PAD.bottom;
 
   const values = data.map((b) => Number(b.value));
-  const max = (values.length > 0 ? Math.max(...values) : 1) * 1.12 || 1;
+  const max = topeLegible(values.length > 0 ? Math.max(...values) : 1);
   const yAt = (v) => PAD.top + innerH - (v / max) * innerH;
 
   const slot = data.length > 0 ? innerW / data.length : innerW;
@@ -382,10 +451,12 @@ export const BarBandChart = ({
                 <line key={f} x1={PAD.left} x2={W - PAD.right} y1={yAt(max * f)} y2={yAt(max * f)} />
               ))}
             </g>
+            {/* El eje de un tonelaje llega a cinco cifras: sin el punto de los
+                miles, «43326» se lee como una matrícula y no como kilos. */}
             <g className="chart-axis">
               {[0, 0.5, 1].map((f) => (
                 <text key={f} x={PAD.left - 6} y={yAt(max * f)} textAnchor="end" dominantBaseline="middle">
-                  {Math.round(max * f)}
+                  {localeNumber(max * f, { maximumFractionDigits: max < 10 ? 1 : 0 })}
                 </text>
               ))}
             </g>
@@ -407,7 +478,7 @@ export const BarBandChart = ({
 
             {showLine && data.length > 1 && (
               <path
-                className="chart-line"
+                className="chart-line is-sobre-barras"
                 d={smoothPath(values.map((v, i) => ({ x: xC(i), y: yAt(v) })))}
                 stroke={color}
               />
@@ -429,7 +500,7 @@ export const BarBandChart = ({
               <span className="chart-swatch" style={{ background: color, width: 8, height: 8, borderRadius: 2 }} />
               <span>{hover !== null ? data[hover].label : 'Último'}</span>
               <strong style={{ color }}>
-                {hover !== null ? Math.round(values[hover]) : Math.round(values[values.length - 1])}
+                {localeNumber(Math.round(hover !== null ? values[hover] : values[values.length - 1]))}
                 {unit}
               </strong>
             </span>

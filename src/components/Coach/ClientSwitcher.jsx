@@ -6,36 +6,7 @@ import { norm } from '@/lib/texto';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 
-/** Iniciales para el avatar: un cliente sin foto no debe verse como un hueco. */
-const initials = (name = '') =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('');
-
-const Avatar = ({ name, active, size = 32 }) => (
-  <span
-    aria-hidden="true"
-    style={{
-      width: size,
-      height: size,
-      borderRadius: size / 3,
-      flexShrink: 0,
-      display: 'grid',
-      placeItems: 'center',
-      fontWeight: 900,
-      fontSize: size * 0.3,
-      background: active
-        ? 'linear-gradient(135deg, var(--accent), var(--data-blue))'
-        : 'var(--fill)',
-      color: active ? 'var(--accent-on)' : 'var(--text-secondary)',
-    }}
-  >
-    {initials(name)}
-  </span>
-);
+import { Avatar } from '@/components/ui/Avatar';
 
 /**
  * Selector de cliente. Sigue siendo un desplegable propio (y no un `<select>`
@@ -52,7 +23,7 @@ const ClientOption = ({ client, selected, onPick }) => (
     style={selected ? { background: 'var(--accent-soft)' } : undefined}
     onClick={onPick}
   >
-    <Avatar name={client.name} active={selected} size={28} />
+    <Avatar name={client.name} src={client.avatar} size="sm" />
     <span className="grow" style={{ minWidth: 0 }}>
       <span
         style={{
@@ -111,7 +82,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
         aria-expanded={open}
         onClick={abrir}
       >
-        <Avatar name={current.name} active />
+        <Avatar name={current.name} src={current.avatar} size="sm" />
         {/* `flex: 1` empuja el galón al canto derecho cuando el botón ocupa
             ancho. En el subnivel del móvil mide lo que su contenido y esto no
             cambia nada; se queda porque la hoja del teléfono sí lo estira. */}

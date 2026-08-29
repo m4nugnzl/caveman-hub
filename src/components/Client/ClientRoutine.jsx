@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Dumbbell, NotebookPen, Play, Quote } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ChevronRight, NotebookPen, Play, Quote, Timer } from 'lucide-react';
 
 import {
   WEEK_DAYS,
@@ -12,12 +12,17 @@ import {
 } from '@/domain/training';
 import {
   allSessionsOfDay,
+  bestSetsBefore,
+  isRecord,
+  isSetLogged,
   previousSetsBefore,
   sessionLabel,
   sessionSetCount,
+  sessionTonnage,
 } from '@/domain/sessions';
 import { activeQuestions, asksFeedback, clientProtocol, isModuleOn } from '@/domain/protocol';
-import { shortDate, todayISO } from '@/lib/dates';
+import { localeNumber, shortDate, todayISO } from '@/lib/dates';
+import { Modal } from '@/components/ui/Modal';
 import { Panel, SaveIndicator, WeekPicker } from '@/components/ui/primitives';
 import { ExerciseList } from '@/components/Coach/Workout/ExerciseList';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
@@ -173,6 +178,11 @@ const DayPill = ({ entry, active, onOpen }) => {
 const joinDays = (list) =>
   list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} y ${list[list.length - 1]}`;
 
+/** Segundos de descanso que arrancan solos al cerrar una serie. */
+const DESCANSO_S = 90;
+
+const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
 /**
  * Un día de la rutina, con su sesión.
  *
@@ -190,22 +200,38 @@ const joinDays = (list) =>
  * Ahora el cliente escribe en el mismo sitio que el entrenador. El componente es
  * aparte porque `useDaySession` es un hook y no se puede llamar dentro de un
  * `.map`.
+ *
+ * ══ Cómo se registra, después de mirar Hevy y ProCoach ═════════════════════
+ *
+ * · Cada serie lleva la vez anterior dentro del campo y un ✓ que la repite de
+ *   un toque. La mayoría de las series de un bloque son «lo mismo que la
+ *   semana pasada»: escribir se reserva para cuando algo cambia.
+ * · Al cerrar una serie arranca solo el descanso, en la barra de abajo. Se
+ *   puede parar con un toque y no suena nada: el gimnasio ya tiene ruido.
+ * · Una serie que supera la mejor marca del ejercicio se marca «PR».
+ * · La sesión se TERMINA: el botón de la barra abre el resumen —series,
+ *   tonelaje, comparado con la última vez— y ahí, y solo ahí, se contesta
+ *   cómo ha ido y se escribe en el cuaderno. Antes las cuatro escalas iban
+ *   debajo del último ejercicio, cuarenta botones a la vista mientras todavía
+ *   se estaba entrenando.
  */
-const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, protocol, onMeta }) => {
+const ClientDay = ({
+  client,
+  program,
+  microcycle,
+  day,
+  cycleType,
+  onLogSet,
+  protocol,
+  onMeta,
+  save,
+  onRetry,
+}) => {
   const daySession = useDaySession(microcycle, day);
   const volume = dayMuscleVolume(day);
   const questions = activeQuestions(protocol);
   const session = daySession.session;
 
-  /*
-    El feedback y el logbook se escriben SOBRE UNA SESIÓN, y la sesión no existe
-    hasta que se anota la primera serie (así lo impone `log_session_feedback` de
-    la 0016, y a propósito: contestar un formulario no es haber entrenado).
-
-    Por eso los dos bloques aparecen solo cuando ya hay algo registrado, y
-    mientras tanto se dice por qué en vez de enseñar campos que no se pueden
-    guardar. Una sesión heredada tampoco vale: no tiene id real.
-  */
   const canAnnotate = Boolean(session && !session.isLegacy && daySession.activeId);
 
   const saveMeta = (patch) =>
@@ -215,26 +241,60 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
   const planned = countSets(day);
   const weekday = weekdayForDay(cycleType === 'weekly' ? program?.weeklySplit : null, day.dayName);
 
-  /*
-    Lo que levantó la vez anterior en cada serie. Se calcula UNA vez por día y no
-    por celda: recorrer todas las sesiones del programa por cada uno de los
-    veinticuatro campos de la pantalla sería el mismo trabajo veinticuatro veces.
-  */
+  /* Lo que levantó la vez anterior en cada serie, y su mejor marca por
+     ejercicio. Una vez por día, no por celda. */
   const previousSets = useMemo(
     () => previousSetsBefore(program?.microcycles || [], microcycle.weekNumber),
     [program?.microcycles, microcycle.weekNumber]
   );
+  const bestSets = useMemo(
+    () => bestSetsBefore(program?.microcycles || [], microcycle.weekNumber),
+    [program?.microcycles, microcycle.weekNumber]
+  );
 
-  const logSet = (exId, setIndex, field, value) => {
+  /* La última vez que hizo ESTE día: contra qué se compara el resumen. */
+  const anterior = useMemo(() => {
+    const micros = (program?.microcycles || [])
+      .filter((m) => m.weekNumber < microcycle.weekNumber)
+      .sort((a, b) => b.weekNumber - a.weekNumber);
+    for (const m of micros) {
+      const sesiones = allSessionsOfDay(m, day.dayName);
+      if (sesiones.length > 0) {
+        return { weekNumber: m.weekNumber, tonnage: Math.max(...sesiones.map(sessionTonnage)) };
+      }
+    }
+    return null;
+  }, [program?.microcycles, microcycle.weekNumber, day.dayName]);
+
+  /* ── El descanso ──────────────────────────────────────────────────────── */
+  const [finDescanso, setFinDescanso] = useState(null);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!finDescanso) return undefined;
+    const id = setInterval(() => tick((t) => t + 1), 500);
+    return () => clearInterval(id);
+  }, [finDescanso]);
+  const restante = finDescanso ? Math.max(0, Math.ceil((finDescanso - Date.now()) / 1000)) : 0;
+  useEffect(() => {
+    if (finDescanso && restante === 0) setFinDescanso(null);
+  }, [finDescanso, restante]);
+  const empezarDescanso = () => setFinDescanso(Date.now() + DESCANSO_S * 1000);
+
+  const [resumen, setResumen] = useState(false);
+
+  /* Escribe un campo y devuelve el id de la sesión en la que ha escrito: la
+     primera serie de un día CREA la sesión, y quien escriba dos campos seguidos
+     tiene que pasarle ese id al segundo o abrirá dos sesiones. */
+  const escribir = (exId, setIndex, field, value, sessionId) => {
     const exercise = (day.exercises || []).find((ex) => ex.id === exId);
-    if (!exercise) return;
+    if (!exercise) return null;
 
     const id = onLogSet({
       clientId: client.id,
       weekNumber: microcycle.weekNumber,
       // Una sesión heredada (kilos que quedaron dentro del plan de una versión
       // anterior) no tiene id real: se manda `null` y se crea una de verdad.
-      sessionId: daySession.session?.isLegacy ? null : daySession.activeId,
+      sessionId: sessionId !== undefined ? sessionId : daySession.session?.isLegacy ? null : daySession.activeId,
       date: daySession.session?.date || todayISO(),
       dayName: day.dayName,
       exercise,
@@ -243,43 +303,55 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
       value,
     });
     if (id && id !== daySession.activeId) daySession.select(id);
+    return id || sessionId || daySession.activeId || null;
   };
+
+  const logSet = (exId, setIndex, field, value) => {
+    /* La serie pasa a hecha con las repeticiones: ahí arranca el descanso. */
+    const antes = daySession.exercises.find((ex) => ex.id === exId)?.sets?.[setIndex];
+    if (field === 'reps' && antes && !isSetLogged(antes) && (Number(value) || 0) > 0) empezarDescanso();
+    escribir(exId, setIndex, field, value);
+  };
+
+  /* «Igual que la vez anterior»: kilos y reps, en la MISMA sesión. */
+  const confirmarSet = (exId, setIndex, previo) => {
+    const id = escribir(exId, setIndex, 'kg', String(previo.kg));
+    escribir(exId, setIndex, 'reps', String(previo.reps), id);
+    empezarDescanso();
+  };
+
+  const tonelaje = session ? sessionTonnage(session) : 0;
+  const records = daySession.exercises.reduce(
+    (n, ex) => n + (ex.sets || []).filter((s) => isSetLogged(s) && isRecord(s, bestSets.get(ex.name))).length,
+    0
+  );
+  const contestadas = questions.filter((q) => String(session?.feedback?.[q.id] ?? '').trim() !== '').length;
+  const pideCierre = asksFeedback(protocol) || isModuleOn(protocol, 'clientNote');
 
   return (
     <Panel className="col gap-4">
-      {/*
-        La cabecera de la sesión.
-        --------------------------------------------------------------------
-        Era la misma `.day-head` que usa el entrenador, con su icono grande y sus
-        dos cifras sueltas. Aquí sobra la mitad: el nombre del día ya está
-        marcado en la tira de arriba, así que lo que hace falta no es repetirlo
-        en grande sino decir CUÁNTO LLEVAS, que es lo único que cambia mientras
-        entrenas. La barra de progreso es eso mismo, sin una cifra más.
-      */}
-      <header className="col gap-2">
+      {/* La cabecera: qué sesión es y cuánto llevas. El nombre del día ya está
+          marcado en la tira de arriba; lo que cambia mientras entrenas es la
+          barra. */}
+      <header className="sesion-cab">
         <div className="row between wrap gap-2">
-          <div className="row gap-3">
-            <span className="day-icon">
-              <Dumbbell size={18} />
+          <div className="col">
+            <h3 className="day-name">{day.dayName}</h3>
+            <span className="t-xs t-tertiary">
+              {[
+                weekday,
+                daySession.session
+                  ? `registrando el ${shortDate(daySession.session.date)}`
+                  : 'se registrará con la fecha de hoy',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </span>
-            <div className="col">
-              <h3 className="day-name">{day.dayName}</h3>
-              <span className="t-xs t-tertiary">
-                {[
-                  weekday,
-                  daySession.session
-                    ? `registrando el ${shortDate(daySession.session.date)}`
-                    : 'se registrará con la fecha de hoy',
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-            </div>
           </div>
 
           {planned > 0 && (
-            <span className="badge">
-              {logged} de {planned} series
+            <span className="sesion-cuenta">
+              <strong>{logged}</strong> de {planned} series
             </span>
           )}
         </div>
@@ -296,18 +368,18 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
             <span style={{ width: `${Math.min(100, (logged / planned) * 100)}%` }} />
           </div>
         )}
-      </header>
 
-      {Object.keys(volume).length > 0 && (
-        <div className="row wrap gap-2">
-          {Object.entries(volume).map(([muscle, count]) => (
-            <span className="badge" key={muscle}>
-              {muscle}
-              <strong>{count}</strong>
-            </span>
-          ))}
-        </div>
-      )}
+        {Object.keys(volume).length > 0 && (
+          <div className="row wrap gap-2">
+            {Object.entries(volume).map(([muscle, count]) => (
+              <span className="badge" key={muscle}>
+                {muscle}
+                <strong>{count}</strong>
+              </span>
+            ))}
+          </div>
+        )}
+      </header>
 
       {/* Los selectores de sesión solo si de verdad hay más de una que elegir. */}
       {daySession.sessions.length > 1 && (
@@ -326,23 +398,13 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
         </div>
       )}
 
-      {/*
-        La misma lista que usa el entrenador con `canEditStructure` en false: el
-        cliente registra sus kg, reps y RIR pero no reordena, borra ni añade
-        series. En ese modo cada ejercicio es una ficha con su tabla de series
-        —etiquetas una sola vez— en vez de un carril de tarjetas.
-      */}
       {/* La indicación del entrenador va ANTES de los ejercicios: es lo que hay
-          que leer para hacerlos, no un comentario sobre lo hecho. */}
-      {/*
-        La indicación vive en el DÍA del plan. Se lee también de la sesión como
-        respaldo: la primera versión la guardaba ahí, y lo que ya se escribiera no
-        tiene por qué desaparecer al cambiar el modelo.
-      */}
+          que leer para hacerlos, no un comentario sobre lo hecho. Vive en el DÍA
+          del plan; la sesión es el respaldo de la primera versión. */}
       {isModuleOn(protocol, 'coachNote') && (day.coachNote?.trim() || session?.coachNote?.trim()) && (
         <div className="coach-note">
           <span className="section-label">
-            <Quote size={12} /> De tu entrenador
+            <Quote size={12} className="icon-inline" />De tu entrenador
           </span>
           <p>{day.coachNote?.trim() || session.coachNote}</p>
         </div>
@@ -356,46 +418,110 @@ const ClientDay = ({ client, program, microcycle, day, cycleType, onLogSet, prot
         emptyMessage="Tu entrenador no ha programado ejercicios en este día."
         onSetChange={logSet}
         showRir={isModuleOn(protocol, 'rir')}
-        /* Las notas que tu entrenador haya dejado en un ejercicio suelto, en
-           modo lectura: el mismo interruptor que su indicación del día. */
         showNotes={isModuleOn(protocol, 'coachNote')}
         previousSets={previousSets}
+        bestSets={bestSets}
+        onConfirmSet={confirmarSet}
       />
 
-      {(asksFeedback(protocol) || isModuleOn(protocol, 'clientNote')) &&
-        (canAnnotate ? (
-          <div className="col gap-4">
-            {asksFeedback(protocol) && (
-              <SessionFeedback
-                questions={questions}
-                answers={session.feedback}
-                /* Se manda UNA respuesta, no el objeto entero: el contexto y la
-                   función de la 0016 fusionan. Mandarlo entero haría que dos
-                   toques seguidos se pisaran. */
-                onChange={(id, value) => saveMeta({ feedback: { [id]: value } })}
-              />
-            )}
+      {/* El cierre, en línea: una fila que dice si falta contar cómo ha ido y
+          abre el resumen. Lo que había aquí eran las cuatro escalas enteras. */}
+      {pideCierre && logged > 0 && (
+        <button type="button" className="sesion-cierre" onClick={() => setResumen(true)}>
+          <span className="col">
+            <strong>{contestadas === questions.length && questions.length > 0 ? 'Sesión terminada' : 'Terminar la sesión'}</strong>
+            <span className="t-xs t-tertiary">
+              {questions.length > 0
+                ? `${contestadas} de ${questions.length} contestadas · cómo ha ido y tu cuaderno`
+                : 'resumen y tu cuaderno'}
+            </span>
+          </span>
+          <ChevronRight size={16} aria-hidden="true" />
+        </button>
+      )}
 
-            {isModuleOn(protocol, 'clientNote') && (
-              <label className="feedback-q">
-                <span className="k">
-                  <NotebookPen size={12} /> Tu cuaderno
-                </span>
-                <textarea
-                  className="textarea"
-                  rows={3}
-                  placeholder="Lo que quieras recordar de este entreno. Lo lee tu entrenador."
-                  value={session.clientNote ?? ''}
-                  onChange={(e) => saveMeta({ clientNote: e.target.value })}
-                />
-              </label>
-            )}
-          </div>
+      {/* La barra de abajo, en el móvil: cuánto llevas, el descanso y la
+          salida. Es la que grita «No se guardó · Reintentar» cuando la red del
+          gimnasio falla (ver `.save-bar`). */}
+      <div className="save-bar">
+        {finDescanso ? (
+          <button type="button" className="descanso" onClick={() => setFinDescanso(null)} aria-label="Parar el descanso">
+            <Timer size={14} aria-hidden="true" />
+            <strong>{mmss(restante)}</strong>
+            <span>descanso</span>
+          </button>
         ) : (
-          <p className="t-xs t-tertiary">
-            En cuanto anotes tu primera serie podrás contarme cómo ha ido y apuntar lo que quieras.
-          </p>
-        ))}
+          <span className="t-sm t-secondary">
+            {planned > 0 ? `${logged} de ${planned} series` : day.dayName}
+          </span>
+        )}
+        <span className="row gap-2">
+          <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
+          {logged > 0 && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setResumen(true)}>
+              Terminar
+            </button>
+          )}
+        </span>
+      </div>
+
+      {/* ══ El resumen ═══════════════════════════════════════════════════ */}
+      <Modal open={resumen} title={`${day.dayName} · hecho`} onClose={() => setResumen(false)}>
+        <div className="col gap-5">
+          <div className="sesion-resumen">
+            <div className="sesion-kpi">
+              <span className="v">{logged}<small> de {planned}</small></span>
+              <span className="k">series</span>
+            </div>
+            <div className="sesion-kpi">
+              <span className="v">{localeNumber(Math.round(tonelaje))}<small> kg</small></span>
+              <span className="k">
+                {anterior && anterior.tonnage > 0 && tonelaje > 0
+                  ? `${tonelaje >= anterior.tonnage ? '+' : '−'}${Math.round((Math.abs(tonelaje - anterior.tonnage) / anterior.tonnage) * 100)} % que la semana ${anterior.weekNumber}`
+                  : 'tonelaje'}
+              </span>
+            </div>
+            <div className={`sesion-kpi${records > 0 ? ' is-record' : ''}`}>
+              <span className="v">{records}</span>
+              <span className="k">{records === 1 ? 'récord' : 'récords'}</span>
+            </div>
+          </div>
+
+          {canAnnotate ? (
+            <>
+              {asksFeedback(protocol) && (
+                <SessionFeedback
+                  questions={questions}
+                  answers={session.feedback}
+                  onChange={(id, value) => saveMeta({ feedback: { [id]: value } })}
+                />
+              )}
+              {isModuleOn(protocol, 'clientNote') && (
+                <label className="feedback-q">
+                  <span className="k">
+                    <NotebookPen size={12} /> Tu cuaderno
+                  </span>
+                  <textarea
+                    className="textarea"
+                    rows={3}
+                    placeholder="Lo que quieras recordar de este entreno. Lo lee tu entrenador."
+                    value={session.clientNote ?? ''}
+                    onChange={(e) => saveMeta({ clientNote: e.target.value })}
+                  />
+                </label>
+              )}
+            </>
+          ) : (
+            <p className="t-sm t-tertiary">
+              En cuanto anotes tu primera serie podrás contarme cómo ha ido y apuntar lo que quieras.
+            </p>
+          )}
+
+          <button type="button" className="btn btn-primary btn-block" onClick={() => setResumen(false)}>
+            Listo
+          </button>
+        </div>
+      </Modal>
     </Panel>
   );
 };
@@ -447,9 +573,6 @@ export const ClientRoutine = ({
   const activeName =
     picked && days.some((d) => d.dayName === picked) ? picked : suggested?.day.dayName || null;
   const activeDay = days.find((d) => d.dayName === activeName);
-  /* La entrada de la tira del día abierto: su recuento de series ya viene
-     calculado en `buildStrip` y se recalcula con cada serie anotada. */
-  const activeEntry = entries.find((entry) => entry.day.dayName === activeName);
 
   return (
     <div className="stack save-pad">
@@ -520,6 +643,8 @@ export const ClientRoutine = ({
           onLogSet={onLogSet}
           protocol={protocol}
           onMeta={onMeta}
+          save={save}
+          onRetry={onRetry}
         />
       ) : (
         <Panel>
@@ -529,23 +654,6 @@ export const ClientRoutine = ({
         </Panel>
       )}
 
-      {/*
-        En el móvil, el estado del guardado y el progreso VIAJAN con el scroll:
-        el indicador de la cabecera (arriba) se pierde por el segundo ejercicio,
-        y esta pantalla se usa apuntando una serie cada dos minutos. La barra es
-        la que grita «No se guardó · Reintentar» cuando la red del gimnasio
-        falla. Solo se pinta en el chasis móvil (ver `.save-bar`).
-      */}
-      {activeDay && (
-        <div className="save-bar">
-          <span className="t-sm t-secondary">
-            {activeEntry && activeEntry.planned > 0
-              ? `${activeEntry.logged} de ${activeEntry.planned} series`
-              : activeDay.dayName}
-          </span>
-          <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
-        </div>
-      )}
     </div>
   );
 };

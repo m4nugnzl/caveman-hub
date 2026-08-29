@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, ChevronRight, Eye, MessageCircle, Send } from 'lucide-react';
 
-import { initials } from '@/lib/initials';
+import { Avatar } from '@/components/ui/Avatar';
 import { memberName } from '@/domain/team';
 
 /**
@@ -40,9 +40,7 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
         aria-label={`Abrir a ${client.name}`}
       />
 
-      <span className="mark" aria-hidden="true">
-        {initials(client.name)}
-      </span>
+      <Avatar name={client.name} src={client.avatar} className="mark" />
 
       <span className="who">
         <span className="name">{client.name}</span>

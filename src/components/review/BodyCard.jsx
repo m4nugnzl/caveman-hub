@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Camera, Columns2, Images, Ruler } from 'lucide-react';
+import { Images, Ruler } from 'lucide-react';
 
 import { clientPath } from '@/routes';
-import { Fold, Panel } from '@/components/ui/primitives';
+import { Fold } from '@/components/ui/primitives';
 import { Delta } from '@/components/ui/metrics';
+import { Tarjeta } from '@/components/dashboard/Tarjeta';
 import { ComparisonData } from '@/components/review/ComparisonData';
 import { PhotoContactSheet } from '@/components/review/PhotoContactSheet';
 import { PhotoStrip } from '@/components/review/PhotoStrip';
@@ -20,22 +21,25 @@ import { PhotoStrip } from '@/components/review/PhotoStrip';
  * exactamente el error que se comete cuando la báscula no se mueve y no miras
  * los perímetros.
  *
- * ══ Y por qué DOS de ellos ya no se pliegan ═════════════════════════════════
+ * ══ Lo que se ve sin abrir nada, y lo que se pliega ═════════════════════════
  *
- * Fueron tres pliegues iguales, uno detrás de otro. Eso hacía dos cosas mal:
+ *   · **Lo que escribió**, como CITA: es lo único de toda la revisión escrito
+ *     por una persona y pesa más en la decisión que medio kilo de báscula.
+ *   · **Sus escalas**, solo las que contestó. Salían las cinco con una raya y
+ *     un «igual que antes» debajo cuando no había contestado ninguna: cinco
+ *     casillas para decir «nada», que es lo que ahora dice una línea.
+ *   · **La tira de fotos**, solo de las semanas que tienen foto. Una columna
+ *     vacía por semana sin foto convertía la tira en once rectángulos de puntos
+ *     y una foto; la ventana de la gráfica ya dice qué semanas hay.
  *
- *   · **Enterraba lo único escrito por una persona.** Lo que el cliente cuenta
- *     —«llevo dos semanas durmiendo fatal»— pesa más en la decisión que medio
- *     kilo de báscula, y salía como una fila de menú con una flecha. Ahora es una
- *     CITA, con su tipografía y su aire, que es como se lee lo que alguien dice.
- *   · **Escondía las fotos detrás de un clic.** Una foto se juzga mirándola, no
- *     decidiendo si merece la pena abrirla. La tira de miniaturas cuesta ochenta
- *     píxeles de alto y contesta sola la mitad de las preguntas de una revisión.
+ * Lo que se pliega es lo que se CONSULTA cuando ya sospechas algo: la hoja de
+ * contactos a tamaño de comparar y la tabla de perímetros y pliegues. Y llevan
+ * su resumen en el rótulo, así que se sabe qué hay dentro sin abrirlo.
  *
- * Lo que sí sigue plegado es lo que se CONSULTA cuando ya sospechas algo: la hoja
- * de contactos a tamaño grande y la tabla de perímetros y pliegues. Y llevan su
- * resumen en el rótulo —«cintura −1 cm»— así que se sabe qué hay dentro sin
- * abrirlo, que es lo que distingue plegar de esconder.
+ * ── Sin puertas en la cabecera ─────────────────────────────────────────────
+ * Tuvo «Sus fotos →» y «Pesajes y medidas →». La primera es el archivo del
+ * cuerpo a lo largo del tiempo y vive en «El cuerpo» del Resumen; la segunda
+ * es ANOTAR datos y va dentro del pliegue de las medidas, al lado de ellas.
  */
 
 /** «Sueño 3 de 5, antes 4». Las escalas se comparan; por eso van en fila. */
@@ -43,8 +47,8 @@ const Escala = ({ fila }) => (
   <div className="escala">
     <span className="k">{fila.label}</span>
     <span className="v">
-      {fila.value === null ? '—' : fila.value}
-      {fila.value !== null && <span className="u">de {fila.max}</span>}
+      {fila.value}
+      <span className="u">de {fila.max}</span>
     </span>
     <span className="d">
       {fila.delta !== null && fila.delta !== 0 ? (
@@ -71,42 +75,24 @@ export const BodyCard = ({
   client,
 }) => {
   const deEstaSemana = groups.find((g) => g.week === selected)?.photos.length || 0;
-  const hayFotos = weeks.some((s) => s.photo);
+  /* Solo las semanas con foto: la tira enseña cómo SE VE, y una semana sin foto
+     no enseña nada. */
+  const conFoto = weeks.filter((s) => s.photo);
 
   /* Lo que escribió, ya contestado. Una pregunta sin respuesta no abre cita: una
      cita vacía dice que no dijo nada, y lo que pasó es que no le preguntaste. */
   const dichos = textos
     .map((q) => ({ ...q, texto: String(respuestas[q.id] ?? '').trim() }))
     .filter((q) => q.texto !== '');
+  /* Y las escalas que contestó ESTA semana. Las de valor nulo son preguntas
+     activas sin respuesta, y no hay nada que enseñar de ellas. */
+  const escalas = tendencia.filter((fila) => fila.value !== null && fila.value !== undefined);
 
-  const hayRespuestas = tendencia.length > 0 || dichos.length > 0;
-
-  /* El resumen de sus medidas: la que más se ha movido, que es la que merece que
-     abras el pliegue. Una lista de seis no cabe en un rótulo. */
+  const hayRespuestas = escalas.length > 0 || dichos.length > 0;
   const nombre = client?.name?.split(' ')[0] || 'Tu cliente';
 
   return (
-    <Panel
-      className="bloque"
-      rango="bloque"
-      aria-label="Su cuerpo"
-      title="Su cuerpo"
-      sub="Lo que te cuenta, cómo se ve y lo que dice la cinta métrica."
-      /* Las dos puertas al archivo, y las dos aquí: éste es el bloque que
-         enseña el cuerpo, así que es donde se busca «déjame ver el resto».
-         Estaban una en la cabecera y otra enterrada dentro de un pliegue. */
-      action={
-        <div className="row gap-2 wrap">
-          <Link className="btn btn-quiet btn-sm" to={clientPath(client?.id, 'revision/fotos')}>
-            <Camera size={13} /> Sus fotos
-          </Link>
-          <Link className="btn btn-quiet btn-sm" to={clientPath(client?.id, 'revision')}>
-            <Ruler size={13} /> Pesajes y medidas
-          </Link>
-        </div>
-      }
-    >
-
+    <Tarjeta rotulo="Su cuerpo" span={12}>
       {/* ── 1 · LO QUE TE CUENTA ────────────────────────────────────────────
           Lo único de toda la revisión escrito por una persona, y lo que más
           cambia la respuesta. Va lo primero y sin pliegue. */}
@@ -124,9 +110,9 @@ export const BodyCard = ({
           </div>
         )}
 
-        {tendencia.length > 0 && (
+        {escalas.length > 0 && (
           <div className="escalas">
-            {tendencia.map((fila) => (
+            {escalas.map((fila) => (
               <Escala fila={fila} key={fila.id} />
             ))}
           </div>
@@ -156,9 +142,11 @@ export const BodyCard = ({
           </span>
         </div>
 
-        {hayFotos ? (
+        {conFoto.length > 0 ? (
           <>
-            <PhotoStrip weeks={weeks} selected={selected} onSelect={onSelect} onPhoto={onPhoto} />
+            <div className="tira-marco">
+              <PhotoStrip weeks={conFoto} selected={selected} onSelect={onSelect} onPhoto={onPhoto} />
+            </div>
 
             <Fold
               icon={Images}
@@ -175,11 +163,8 @@ export const BodyCard = ({
                   <span className="t-xs t-tertiary">
                     El collage y el vídeo de comparación son del estudio.
                   </span>
-                  <Link
-                    className="btn btn-quiet btn-sm"
-                    to={clientPath(client?.id, 'revision/estudio')}
-                  >
-                    <Columns2 size={13} /> El estudio
+                  <Link className="cab-accion" to={clientPath(client?.id, 'revision/estudio')}>
+                    El estudio →
                   </Link>
                 </div>
               </div>
@@ -204,23 +189,30 @@ export const BodyCard = ({
             comparativa ? `contra la semana ${comparativa.before?.week ?? '—'}` : 'sin medidas cerca'
           }
         >
-          {comparativa ? (
-            <ComparisonData
-              bare
-              before={comparativa.before}
-              after={comparativa.after}
-              span={comparativa.span}
-              history={history}
-              gender={client?.gender}
-            />
-          ) : (
-            <p className="t-sm t-tertiary">
-              No hay pliegues ni perímetros cerca de esta semana. Cuando la báscula no se mueve, son
-              lo único que distingue un estancamiento de una recomposición.
-            </p>
-          )}
+          <div className="col gap-3">
+            {comparativa ? (
+              <ComparisonData
+                bare
+                before={comparativa.before}
+                after={comparativa.after}
+                span={comparativa.span}
+                history={history}
+                gender={client?.gender}
+              />
+            ) : (
+              <p className="t-sm t-tertiary">
+                No hay pliegues ni perímetros cerca de esta semana. Cuando la báscula no se mueve,
+                son lo único que distingue un estancamiento de una recomposición.
+              </p>
+            )}
+            {/* Anotar es ENTRAR datos —cuando le mides tú—, y va al lado de las
+                medidas, no como botón de cabecera de toda la tarjeta. */}
+            <Link className="cab-accion" to={clientPath(client?.id, 'revision')}>
+              Anotar pesajes y medidas →
+            </Link>
+          </div>
         </Fold>
       </div>
-    </Panel>
+    </Tarjeta>
   );
 };

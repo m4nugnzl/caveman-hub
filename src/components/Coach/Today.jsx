@@ -9,14 +9,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-import { useApp } from '@/context/AppContext';
+import { useApp, useSession } from '@/context/AppContext';
 import { TRAMITES_INICIO, buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
 import { ACTIVITY_KINDS, buildActivity } from '@/domain/today';
 import { kindMeta } from '@/domain/calendar';
 import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
-import { initials } from '@/lib/initials';
+import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState, Fold, Notice, PageHead, Panel } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
 import { SIN_CAMBIOS, useCloseReview } from '@/components/review/useCloseReview';
@@ -56,6 +56,15 @@ import { GettingStarted } from './GettingStarted';
 /** «miércoles, 26 de agosto» → «Miércoles, 26 de agosto»: es el titular. */
 const capitalizar = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
+/* El saludo con tu nombre de pila: la pantalla se abre hablándote a ti, no
+   leyendo el calendario. La fecha sigue ahí, en la línea de debajo. */
+const saludo = (nombre) => {
+  const h = new Date().getHours();
+  const franja = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
+  const pila = String(nombre || '').trim().split(/\s+/)[0];
+  return pila ? `${franja}, ${pila}` : franja;
+};
+
 const ESTADO_REVISION = {
   ready: { label: 'Te espera', tone: 'badge-warn' },
   missing: { label: 'Sin subir', tone: '' },
@@ -84,9 +93,7 @@ const resumenDe = (row) =>
 const Persona = ({ row, sub, badge, onOpen, children }) => (
   <div className="task-row">
     <button type="button" className="task-hit" onClick={onOpen} aria-label={`Abrir a ${row.client.name}`} />
-    <span className="mark" aria-hidden="true">
-      {initials(row.client.name)}
-    </span>
+    <Avatar name={row.client.name} src={row.client.avatar} className="mark" />
     <span className="who">
       <span className="name">
         {row.client.name}
@@ -223,6 +230,7 @@ export const Today = () => {
     loadEvents,
     setEventDone,
   } = useApp();
+  const { profileName } = useSession();
   const navigate = useNavigate();
   const toast = useToast();
   const { close } = useCloseReview();
@@ -333,12 +341,12 @@ export const Today = () => {
   return (
     <div className="stack">
       <PageHead
-        title={capitalizar(weekdayName(`${today}T00:00:00Z`, { conFecha: true }))}
-        sub={
-          pendientes === 0
-            ? `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'} · nada pendiente`
-            : `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'} · ${pendientes} ${pendientes === 1 ? 'cosa por hacer' : 'cosas por hacer'}`
-        }
+        title={saludo(profileName)}
+        sub={[
+          capitalizar(weekdayName(`${today}T00:00:00Z`, { conFecha: true })),
+          `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}`,
+          pendientes === 0 ? 'nada pendiente' : `${pendientes} ${pendientes === 1 ? 'cosa por hacer' : 'cosas por hacer'}`,
+        ].join(' · ')}
       />
       {error && <Notice tone="error">{error}</Notice>}
       <GettingStarted />

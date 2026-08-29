@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, FolderOpen, Trash2, Upload } from 'lucide-re
 
 import { ANGLES, angleLabel, angleShort, groupByWeek } from '@/domain/photos';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { fmt } from '@/lib/num';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { Thumb } from '@/components/photos/Thumb';
@@ -119,7 +120,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                           style={{ width: '100%' }}
                           aria-pressed={used}
                           onClick={() => onAssign(photo.id)}
-                          title={`${angleLabel(photo.angle)} · ${photo.date}${photo.derivedWeight ? ` · ${photo.derivedWeight} kg` : ''}`}
+                          title={`${angleLabel(photo.angle)} · ${photo.date}${photo.derivedWeight ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}`}
                         >
                           {photo.url ? (
                             /* Miniatura de 180 px, no el original de 3 MB. Ver

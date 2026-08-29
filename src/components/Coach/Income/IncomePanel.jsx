@@ -447,7 +447,10 @@ export const IncomePanel = () => {
               label: `${fila.label} · ${fila.clients} ${fila.clients === 1 ? 'cliente' : 'clientes'}`,
               value: Math.round(fila.monthly),
               pct: recurrente.total > 0 ? (fila.monthly / recurrente.total) * 100 : 0,
-              color: 'var(--accent)',
+              /* Sin color propio: el medidor ya trae el suyo, y es el mismo con
+                 el que esta pantalla dibuja el dinero dos paneles más arriba.
+                 Aquí ponía `--accent` —tinta plena— y tres barras negras a lo
+                 ancho eran lo más pesado de Cobros para decir un reparto. */
             }))}
           />
 

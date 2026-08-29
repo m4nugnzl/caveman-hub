@@ -9,6 +9,7 @@ import { clientPath } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
 import { Mando, MandoTab, MandoTabs } from '@/components/ui/Mando';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { fmt } from '@/lib/num';
 import { Gallery } from '@/components/photos/Gallery';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
 import { Thumb } from '@/components/photos/Thumb';
@@ -110,7 +111,7 @@ export const PhotoArchive = () => {
             g.label,
             angleLabel(p.angle),
             p.date ? shortDate(p.date) : null,
-            photoWeight(p, history) ? `${photoWeight(p, history)} kg` : null,
+            photoWeight(p, history) ? `${fmt(photoWeight(p, history), { decimals: 1 })} kg` : null,
           ]
             .filter(Boolean)
             .join(' · '),

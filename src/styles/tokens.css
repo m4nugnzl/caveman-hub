@@ -60,19 +60,19 @@
      `canvas` es el fondo de la página; `surface` las tarjetas, en blanco puro.
      El salto entre el gris del lienzo y el blanco de la tarjeta es lo que separa
      «la mesa» de «la hoja» sin necesidad de decorar nada. */
-  --canvas: #eceef1;
-  --canvas-alt: #e2e5ea;
+  --canvas: #f4f2ee;
+  --canvas-alt: #ebe8e2;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-sunken: #f5f6f8;
-  --surface-glass: rgba(255, 255, 255, 0.86);
+  --surface-sunken: #f7f5f1;
+  --surface-glass: rgba(255, 255, 255, 0.74);
 
   /* ── Separadores y rellenos ── */
-  --hairline: #e0e3e8;
-  --hairline-strong: #c6ccd4;
-  --fill-subtle: #f4f6f8;
-  --fill: #e9ecf0;
-  --fill-strong: #dadee6;
+  --hairline: #ebe7e0;
+  --hairline-strong: #d9d3ca;
+  --fill-subtle: #f5f2ed;
+  --fill: #eeeae3;
+  --fill-strong: #e2dcd2;
 
   /* ── Canto de la tarjeta ─────────────────────────────────────────────────
      Nuevo. Antes la tarjeta se separaba del fondo SOLO por la sombra, y en el
@@ -83,12 +83,12 @@
      Ahora todas las superficies tienen canto definido. Un instrumento tiene
      piezas con borde; una tarjeta que flota sin canto es una convención de
      marketing, no de medida. */
-  --edge: #e4e7ec;
+  --edge: rgba(60, 45, 30, 0.08);
 
   /* ── Texto ── */
-  --text: #14181c;
-  --text-secondary: #5a6472;
-  --text-tertiary: #7b8592;
+  --text: #201c18;
+  --text-secondary: #6b645c;
+  --text-tertiary: #958d83;
   --text-inverse: #ffffff;
 
   /* ── Acento: TIZA ────────────────────────────────────────────────────────
@@ -100,9 +100,9 @@
      en la pestaña activa y en `.btn-plain`, esto es también lo que arregla de
      raíz el problema que arrastraba el verde: nunca más habrá que comprobar si
      el color de marca llega al mínimo. */
-  --accent: #14181c;
+  --accent: #201c18;
   --accent-hover: #000000;
-  --accent-soft: rgba(20, 24, 28, 0.06);
+  --accent-soft: rgba(32, 28, 24, 0.06);
   --accent-on: #ffffff;
 
   /* ── LA BRASA: la marca de «aquí» ────────────────────────────────────────
@@ -125,10 +125,10 @@
      `--brasa-luz` es la lumbre: la misma temperatura como LUZ, no como tinta,
      detrás de los momentos que la merecen (una bienvenida, un vacío, la única
      decisión del día). */
-  --brasa: #b8432f;
-  --brasa-soft: rgba(184, 67, 47, 0.1);
+  --brasa: #c4452e;
+  --brasa-soft: rgba(196, 69, 46, 0.1);
   --brasa-on: #ffffff;
-  --brasa-luz: rgba(184, 67, 47, 0.12);
+  --brasa-luz: rgba(214, 96, 60, 0.13);
 
   /* El AIRE: la iluminación de dos fuentes de la portada —una cálida que manda
      y una fría que rellena—, en versión de trabajo, sobre el lienzo del panel.
@@ -249,15 +249,15 @@
      blando y de consumo; esto es una herramienta de medida y carga. No se va a
      cero porque el canto vivo lee frágil en pantalla y se come el antialiasing
      en las esquinas de las tarjetas anidadas. */
-  --r-xs: 3px;
-  --r-sm: 5px;
-  --r-md: 8px;
+  --r-xs: 4px;
+  --r-sm: 7px;
+  --r-md: 11px;
   /* La tarjeta a 14 y lo flotante a 18: un paso hacia los radios del
      escaparate, sin llegar a ellos. La tarjeta deja de leerse recortada al lado
      de la portada, y los controles pequeños (chips, campos, botones) se quedan
      en sus radios cerrados: siguen siendo instrumento. */
-  --r-lg: 14px;
-  --r-xl: 18px;
+  --r-lg: 18px;
+  --r-xl: 24px;
   --r-pill: 999px;
 
   /* ── Y los del ESCAPARATE, mucho más abiertos ──────────────────────────────
@@ -289,11 +289,11 @@
      Sobre papel la sombra sigue existiendo, pero ahora ACOMPAÑA al canto en vez
      de sustituirlo: más corta y más suave que antes, porque una tarjeta con
      borde y sombra larga parece despegada. */
-  --shadow-xs: 0 1px 1px rgba(20, 24, 28, 0.04);
-  --shadow-sm: 0 1px 2px rgba(20, 24, 28, 0.06);
-  --shadow-md: 0 3px 10px -2px rgba(20, 24, 28, 0.08), 0 1px 3px rgba(20, 24, 28, 0.05);
-  --shadow-lg: 0 16px 36px -14px rgba(20, 24, 28, 0.22), 0 3px 8px rgba(20, 24, 28, 0.06);
-  --shadow-float: 0 10px 28px -8px rgba(20, 24, 28, 0.18);
+  --shadow-xs: 0 1px 1px rgba(60, 45, 30, 0.04);
+  --shadow-sm: 0 1px 2px rgba(60, 45, 30, 0.05), 0 4px 14px -6px rgba(60, 45, 30, 0.08);
+  --shadow-md: 0 6px 20px -8px rgba(60, 45, 30, 0.14), 0 1px 3px rgba(60, 45, 30, 0.05);
+  --shadow-lg: 0 16px 36px -14px rgba(60, 45, 30, 0.22), 0 3px 8px rgba(60, 45, 30, 0.06);
+  --shadow-float: 0 10px 28px -8px rgba(60, 45, 30, 0.18);
 
   /* ── Movimiento ── */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
@@ -396,41 +396,41 @@
      portada su atmósfera de noche. No llega al negro del escaparate —esto se
      mira una jornada entera, aquello seis segundos— pero sale del mismo sitio,
      y entrar de la portada a la aplicación ya no es cambiar de material. */
-  --canvas: #0d1014;
-  --canvas-alt: #12161b;
-  --surface: #171c22;
-  --surface-raised: #1f252d;
-  --surface-sunken: #101419;
-  --surface-glass: rgba(13, 16, 20, 0.82);
+  --canvas: #141311;
+  --canvas-alt: #1a1917;
+  --surface: #1e1c19;
+  --surface-raised: #26231f;
+  --surface-sunken: #171614;
+  --surface-glass: rgba(30, 28, 25, 0.8);
 
-  --hairline: rgba(226, 233, 241, 0.09);
-  --hairline-strong: rgba(226, 233, 241, 0.2);
-  --fill-subtle: rgba(226, 233, 241, 0.05);
-  --fill: rgba(226, 233, 241, 0.09);
-  --fill-strong: rgba(226, 233, 241, 0.15);
+  --hairline: rgba(255, 240, 220, 0.07);
+  --hairline-strong: rgba(255, 240, 220, 0.16);
+  --fill-subtle: rgba(255, 240, 220, 0.04);
+  --fill: rgba(255, 240, 220, 0.08);
+  --fill-strong: rgba(255, 240, 220, 0.14);
 
   /* Aquí el canto hace todo el trabajo que sobre papel hace la sombra. */
-  --edge: rgba(226, 233, 241, 0.1);
+  --edge: rgba(255, 240, 220, 0.09);
 
-  --text: #e8ecf1;
-  --text-secondary: #a3acb8;
-  --text-tertiary: #7b8592;
-  --text-inverse: #14181c;
+  --text: #f0ebe3;
+  --text-secondary: #aaa196;
+  --text-tertiary: #7f776d;
+  --text-inverse: #1a1816;
 
   /* La tiza, literal. Un botón primario sobre hierro es un rectángulo de tiza
      con la letra en grafito: es el máximo contraste que la pantalla puede dar. */
-  --accent: #e8ecf1;
+  --accent: #f0ebe3;
   --accent-hover: #ffffff;
-  --accent-soft: rgba(232, 236, 241, 0.1);
-  --accent-on: #14181c;
+  --accent-soft: rgba(240, 235, 227, 0.1);
+  --accent-on: #1a1816;
 
   /* La brasa de la portada, literal: sobre la noche no hace falta oscurecerla
      (5,1:1 como texto sobre el lienzo). `--brasa-on` es hierro y no blanco: el
      blanco sobre este rojo se queda en 3,7:1. */
-  --brasa: #e2564a;
-  --brasa-soft: rgba(226, 86, 74, 0.14);
-  --brasa-on: #14181c;
-  --brasa-luz: rgba(226, 86, 74, 0.16);
+  --brasa: #ec6a52;
+  --brasa-soft: rgba(236, 106, 82, 0.14);
+  --brasa-on: #1a1816;
+  --brasa-luz: rgba(236, 106, 82, 0.15);
 
   /* El aire de la noche: apenas se distingue, y es justo lo que se pide de una
      luz bien puesta (ver la portada). */

@@ -8,7 +8,7 @@ import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { shortDate } from '@/lib/dates';
 import { Fold, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
+import { Subjetivo } from '@/components/ui/Subjetivo';
 
 /**
  * Las revisiones anteriores de un cliente: qué se decidió cada semana.
@@ -45,6 +45,10 @@ import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
  * @param rows      Las revisiones cerradas, de `useReviewRows`.
  * @param recargar  Volver a leerlas: enlazar un vídeo o corregir una nota cambia
  *                  lo que hay que enseñar, y quien lo hace es este panel.
+ * @param abierta   El id de la revisión que arranca desplegada: la que se
+ *                  pulsó para llegar aquí.
+ * @param plain     Sin tarjeta ni título: cuando ya va dentro de una ventana
+ *                  que se llama como él (la revisión del entrenador lo abre así).
  */
 export const ReviewHistory = ({
   client,
@@ -52,6 +56,8 @@ export const ReviewHistory = ({
   rows = [],
   recargar = () => {},
   excludeId = null,
+  plain = false,
+  abierta = null,
 }) => {
   const { createReviewUrl, publishUpdate, updateCheckInNotes, deleteCheckIn } = useActions();
   const confirm = useConfirm();
@@ -183,10 +189,12 @@ export const ReviewHistory = ({
   if (filas.length === 0) return null;
 
   return (
-    <Panel className="col gap-4">
-      <SectionTitle icon={History}>
-        {esEntrenador ? 'Revisiones anteriores' : 'Tus revisiones anteriores'}
-      </SectionTitle>
+    <Panel plain={plain} className="col gap-4">
+      {!plain && (
+        <SectionTitle icon={History}>
+          {esEntrenador ? 'Revisiones anteriores' : 'Tus revisiones anteriores'}
+        </SectionTitle>
+      )}
 
       {error && <Notice tone="error">{error}</Notice>}
 
@@ -209,6 +217,7 @@ export const ReviewHistory = ({
         {filas.map((fila) => (
           <Fold
             key={fila.id}
+            defaultOpen={fila.id === abierta}
             title={`Semana del ${shortDate(fila.weekStart)}`}
             summary={[
               fila.weight ? `${fila.weight} kg` : null,
@@ -298,9 +307,13 @@ export const ReviewHistory = ({
             */}
             {/* Lo que escribió él al entregar. Solo al entrenador: el cliente ya
                 sabe lo que puso. */}
-            {esEntrenador && fila.notes && (
-              <p className="t-xs t-secondary pre-wrap">Él anotó: {fila.notes}</p>
-            )}
+            {/* Y no cuando es lo mismo que contestó a la pregunta de texto de
+                abajo, que sale como cita: la misma frase dos veces seguidas. */}
+            {esEntrenador &&
+              fila.notes &&
+              !preguntasCheckIn.some(
+                (q) => q.kind === 'text' && String(fila.answers?.[q.id] ?? '').trim() === fila.notes.trim()
+              ) && <p className="t-xs t-secondary pre-wrap">Él anotó: {fila.notes}</p>}
 
             {/*
               ══ Y lo que contestó al cuestionario de esa semana ════════════════
@@ -315,12 +328,24 @@ export const ReviewHistory = ({
               la respuesta se lea con la forma en que se dio es lo que evita que
               las dos versiones acaben divergiendo. Sin respuestas no pinta nada.
             */}
-            <SessionFeedback
-              readOnly
-              questions={preguntasCheckIn}
+            {/* Las escalas como BARRAS —las mismas de «Cómo lo lleva» del Resumen y
+                de la hoja de Entreno— y no como la fila de botones con la que
+                se contestaron: eso es un control, y aquí se lee. Cinco filas de
+                once botones eran media ventana para decir «7, 7, 7, 6, 7». */}
+            <Subjetivo
+              preguntas={preguntasCheckIn.filter((q) => q.kind !== 'text')}
               answers={fila.answers || {}}
-              title={esEntrenador ? 'Lo que contestó' : 'Lo que contestaste'}
+              titulo={esEntrenador ? 'Lo que contestó' : 'Lo que contestaste'}
             />
+            {/* Y lo que escribió, como cita: es lo que dijo una persona. */}
+            {preguntasCheckIn
+              .filter((q) => q.kind === 'text' && String(fila.answers?.[q.id] ?? '').trim() !== '')
+              .map((q) => (
+                <figure className="cita" key={q.id}>
+                  <blockquote>{String(fila.answers[q.id]).trim()}</blockquote>
+                  <figcaption>{q.label}</figcaption>
+                </figure>
+              ))}
 
             {/*
               ══ LA RESPUESTA: el texto y el vídeo son la misma cosa ═══════════

@@ -414,6 +414,102 @@ navegación** (Mi progreso / Análisis) → cabecera de bloque con su botón.
 - **El saludo no es una pantalla.** Va en la cabecera de la aplicación, junto al
   avatar, o no va.
 
+> **Enmienda (27 de agosto de 2026): «Progreso» deja de tener dos niveles.**
+>
+> El resumen y el análisis eran dos pantallas —y el análisis, por dentro, otra
+> barra de cuatro pestañas—. Las dos contestan la MISMA pregunta con distinto
+> detalle, así que el segundo nivel no ordenaba nada: obligaba a un viaje (salir
+> de donde estás, cargar otra pantalla, buscar el gráfico, volver) para mirar
+> algo que se quiere mirar **al lado** de lo que lo motivó.
+>
+> Ahora es una sola pantalla, y el detalle se abre EN SU SITIO: cada pieza del
+> resumen resume una de las cuatro preguntas de `domain/reading.js`, y su título
+> es la puerta de la ventana que la contesta entera. No es un plano de
+> navegación nuevo —una ventana no te lleva a ninguna parte, ni cambia la URL, ni
+> hay que volver de ella—, y es el gesto que Entreno («Ver toda la progresión ↗»)
+> y Dieta («Ver el día ↗») ya usaban.
+>
+> Esto no toca la regla: **sigue habiendo dos planos y ninguno más**. Lo que se
+> retira es el segundo nivel de una sección que no lo necesitaba, con él
+> `analytics/ProgressLayout.jsx` y el carril de dos chips del portal del cliente.
+> `/c/:id/analitica` y `/mi/analitica` siguen dadas de alta y rebotan al panel:
+> están en marcadores.
+>
+> La tabla de §4.3 propone `/c/:id/progreso` para fusionar las dos rutas. No hace
+> falta: la fusión es de PANTALLAS, no de URLs, y la que se queda ya se llama
+> `resumen`.
+
+> **Enmienda (28 de agosto de 2026): el Resumen son TRES BLOQUES.**
+>
+> Unificada la pantalla, faltaba ordenarla. Un entrenador no mira «métricas»:
+> mira tres cosas, y en este orden.
+>
+> | Bloque | La pregunta | Qué lleva |
+> |---|---|---|
+> | **Objetivos** | ¿hacia dónde, y se está consiguiendo? | la fase de hoy con su progreso, el ritmo buscado contra el real, el veredicto, y las cuatro palancas (kcal, pasos, cardio, días) |
+> | **Evolución** | ¿qué dice el cuerpo? | el peso contra las calorías **o los pasos** —misma banda, se elige—, las medidas, y lo que contesta en el check-in |
+> | **Entrenamiento** | ¿qué está pasando en el gimnasio? | volumen **pautado** del bloque y su media semanal, series registradas, tonelaje, sensaciones de sesión y progresión por cargas |
+>
+> Cada bloque es un `Panel rango="bloque"` —el rango que §5.1 bis reservaba para
+> esto— y su cabecera abre la ventana que lo desarrolla. La columna lateral
+> desaparece: sus cifras viven donde miden algo. El roadmap deja de ocupar el pie
+> de la página y se abre desde Objetivos, porque es una herramienta de
+> planificar y no una lectura.
+>
+> Dos datos que estaban guardados y no se enseñaban en NINGUNA pantalla entran
+> aquí: los **pasos** que le pautas (eran una foto de cada revisión, como las
+> kcal) y lo que contesta en el **check-in** semanal —adherencia, hambre, sueño,
+> estrés—, que solo se podía leer abriendo la revisión de esa semana concreta.
+
+> **Corrección (28 de agosto de 2026): tres bloques apilados eran dos metros de
+> página.** El contenido de arriba se queda; la forma pasa a ser la de Entreno y
+> Dieta, que es donde ya estaba resuelta:
+>
+> - **Una fila de mando** con los dos asuntos como PESTAÑAS —Evolución y
+>   Entrenamiento—, cada una con su punto de aviso. Apiladas había que recorrer
+>   la primera entera para llegar a la segunda.
+> - **La hoja a lo ancho** y **el objetivo en una columna pegajosa**, igual que
+>   el menú y la tarjeta de objetivo en Dieta: es contra lo que se cuadra todo, y
+>   como bloque apilado desaparecía al desplazar.
+> - **La progresión es de la RUTINA, no del ejercicio.** Los días son pestañas y
+>   debajo va su tabla: una fila por semana, una columna por grupo muscular con
+>   lo hecho sobre lo pautado, y el tonelaje con su barra. Un entrenador no
+>   progresa ejercicios sueltos: progresa sesiones.
+>
+> **Corrección (28 de agosto de 2026, tarde): el Resumen es un MOSAICO.**
+> Cuarto intento y el que se queda. Las dos hojas en pestañas fallaban por lo
+> mismo que las diez cajas del principio pero al revés: para ver el entreno
+> había que dejar de ver el cuerpo, y un panel existe para verlo todo a la vez.
+> Y la columna del objetivo —tres filas de «Busca / Va a / Ahora»— era una tabla
+> de laboratorio.
+>
+> Ahora son SIETE TARJETAS en una rejilla de dos columnas; las que llevan una
+> serie o una tabla ocupan el ancho entero. Cada una abre su ventana. La
+> referencia es el panel principal del competidor.
+>
+> **La regla que lo salva de parecer un laboratorio: cada tarjeta tiene UNA
+> forma, y la forma es del dato.** El medidor del ritmo —con la zona buena
+> pintada y la aguja dentro o fuera, que es la resta que antes había que hacer de
+> cabeza y con signos cruzados—, la escalera bajo la curva del peso, la franja de
+> macros, la tabla de la rutina con su barra de tonelaje, los medidores del
+> volumen con la marca del MRV, las barras de lo subjetivo. Siete instrumentos
+> porque son siete medidas. **Ninguna lleva icono decorativo**: con icono, siete
+> tarjetas se leen como un menú; sin él, como siete medidas.
+>
+> Dos detalles que hacen que se lea como un panel y no como cajas sueltas: las
+> tarjetas de una misma fila **miden lo mismo** (`stretch`, no `start`), y hay
+> **una sola tarjeta encendida** con la lumbre —la del veredicto—, porque dos ya
+> no señalan nada.
+>
+> Y tres cosas se bajan de tono porque gritaban sin motivo: el **veredicto** (un
+> «En dirección contraria» a tamaño de titular alarma cada vez que se abre la
+> ficha; lo que distingue un veredicto es la marca, no el tamaño), el **recuento
+> de pesajes** (es intendencia: dice si el promedio es de fiar, no cómo va
+> nadie) y la **adherencia** (lo normal es que esté bien; importa cuando se cae,
+> y como curva gastaba el primer vistazo en decir «sí» doce veces). Sale también
+> el **1RM estimado**: es una estimación y presentarla con la misma cara que un
+> tonelaje medido invita a leerla como un dato.
+
 ### 5.6 La lista corta de lo prohibido
 
 Para poder revisar un diff sin discutir:

@@ -823,3 +823,80 @@ export const drillsForDay = (program, day) => {
 
 /** ¿Este día tiene calentamiento propio, o hereda el del programa? */
 export const dayHasOwnDrills = (day) => Array.isArray(day?.mobilityDrills);
+
+/**
+ * LA PROGRESIÓN DE UNA RUTINA, semana a semana.
+ *
+ * ══ Por qué la unidad es el DÍA y no el ejercicio ══════════════════════════
+ *
+ * Porque un entrenador no progresa ejercicios sueltos: progresa sesiones. «¿Cómo
+ * va el Push?» es la pregunta que se hace al montar la semana siguiente, y para
+ * contestarla hacen falta las tres cosas a la vez —cuántas series de cada grupo
+ * lleva ese día, cuántas se hicieron de verdad y cuánto peso movió—, que es
+ * exactamente lo que no se podía ver: la progresión por ejercicio contesta otra
+ * cosa, y el volumen por músculo mezcla los cinco días de la semana en un solo
+ * montón.
+ *
+ * ── Pautado y hecho, los dos ────────────────────────────────────────────────
+ * Una fila con «14 series de pecho» no dice si son las que le pusiste o las que
+ * hizo. Van los dos números porque la diferencia ES el dato: 16 pautadas y 9
+ * hechas no es un Push de 9 series, es un Push a medias.
+ *
+ * ── Solo las semanas en las que ese día EXISTE ─────────────────────────────
+ * Si el día se llamaba «Push» en el bloque 1 y «Empuje» en el 2, la tabla del
+ * primero acaba donde acaba el bloque. Es correcto: son dos rutinas distintas
+ * aunque se parezcan, y encadenarlas por el nombre sería inventarse una
+ * continuidad que no existe.
+ */
+export const dayProgression = (microcycles, dayName) => {
+  if (!dayName) return [];
+
+  return [...(microcycles || [])]
+    .sort((a, b) => a.weekNumber - b.weekNumber)
+    .map((micro) => {
+      const day = (micro.days || []).find((d) => d.dayName === dayName);
+      if (!day) return null;
+
+      const sesiones = executedSessions(micro).filter((s) => s.dayName === dayName);
+
+      const done = {};
+      let tonnage = 0;
+      for (const session of sesiones) {
+        for (const [muscle, count] of Object.entries(sessionMuscleVolume(session))) {
+          done[muscle] = (done[muscle] || 0) + count;
+        }
+        tonnage += sessionTonnage(session);
+      }
+
+      const planned = dayPlannedVolume(day);
+      return {
+        week: micro.weekNumber,
+        label: `S${micro.weekNumber}`,
+        date: micro.date || null,
+        planned,
+        done,
+        plannedSets: dayPlannedSets(day),
+        doneSets: Object.values(done).reduce((a, v) => a + v, 0),
+        tonnage: Math.round(tonnage),
+        /* Sin sesión anotada no es «cero kilos»: es una semana sin registrar, y
+           pintar un cero diría que ese día se entrenó a vacío. */
+        entrenado: sesiones.length > 0,
+      };
+    })
+    .filter(Boolean);
+};
+
+/** Los nombres de día que existen en el programa, en el orden en que se montan. */
+export const dayNames = (microcycles) => {
+  const vistos = new Set();
+  const out = [];
+  for (const micro of [...(microcycles || [])].sort((a, b) => b.weekNumber - a.weekNumber)) {
+    for (const day of micro.days || []) {
+      if (day.dayName && !vistos.has(day.dayName)) {
+        vistos.add(day.dayName);
+        out.push(day.dayName);
+      }
+    }
+  }
+  return out;
+};

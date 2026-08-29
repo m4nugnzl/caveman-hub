@@ -2,7 +2,26 @@ import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
 
 import { setColor } from '@/domain/training';
-import { previousSetKey } from '@/domain/sessions';
+import { e1rm, isRecord, isSetLogged, previousSetKey } from '@/domain/sessions';
+
+/**
+ * Qué serie del ejercicio es EL récord de hoy, si lo hay: la mejor de las que
+ * superan el listón. Una sola por ejercicio y sesión — con una progresión
+ * lineal cada serie bate a la de la semana pasada, y veinte «PR» seguidos
+ * dejan de significar nada.
+ */
+const recordSetIndex = (exercise, bestSets) => {
+  const best = bestSets?.get(exercise.name);
+  if (!best) return -1;
+  let idx = -1;
+  let top = 0;
+  (exercise.sets || []).forEach((set, i) => {
+    if (!isSetLogged(set) || !isRecord(set, best)) return;
+    const marca = e1rm(set.kg, set.reps);
+    if (marca > top) { top = marca; idx = i; }
+  });
+  return idx;
+};
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 import { SetCell, SetRow, SetRowHead } from './SetCell';
@@ -60,6 +79,10 @@ export const ExerciseList = ({
   showRir = false,
   showNotes = false,
   previousSets = null,
+  /* La mejor marca de cada ejercicio (`domain/sessions.bestSetsBefore`) y el
+     gesto de «igual que la vez anterior»: los dos solo registrando. */
+  bestSets = null,
+  onConfirmSet = null,
   /* El ejercicio «en foco»: el que enseña su histórico en la columna de al lado.
      Se marca al pulsar cualquier parte de su fila que no sea un control. */
   focusedId = null,
@@ -238,7 +261,7 @@ export const ExerciseList = ({
               {showNotes && (
                 <label className="exercise-note">
                   <span className="section-label">
-                    <Quote size={12} /> Nota de {abiertoEx.name}
+                    <Quote size={12} className="icon-inline" />Nota de {abiertoEx.name}
                   </span>
                   <textarea
                     className="textarea"
@@ -443,6 +466,8 @@ export const ExerciseList = ({
                     onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
                     showRir={showRir}
                     previous={previousSets?.get(previousSetKey(exercise.name, setIndex))}
+                    record={setIndex === recordSetIndex(exercise, bestSets)}
+                    onConfirm={onConfirmSet ? (antes) => onConfirmSet(exercise.id, setIndex, antes) : null}
                   />
                 ))}
               </div>
@@ -473,7 +498,7 @@ export const ExerciseList = ({
             {showNotes && canEditStructure && editandoNota && (
               <label className="exercise-note">
                 <span className="section-label">
-                  <Quote size={12} /> Nota de {exercise.name}
+                  <Quote size={12} className="icon-inline" />Nota de {exercise.name}
                 </span>
                 <textarea
                   className="textarea"

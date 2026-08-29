@@ -41,11 +41,24 @@ export const round = (n, decimals = 0) => {
   return Math.round(n * f) / f;
 };
 
-/** Formatea para mostrar, con guion largo cuando no hay dato. */
+/**
+ * Formatea para mostrar, con guion largo cuando no hay dato.
+ *
+ * ── En español, y no en el idioma de JavaScript ─────────────────────────────
+ * Esto devolvía `${round(n, decimals)}`, que es la representación de un número
+ * de JS: punto decimal y sin separador de miles. En pantalla eso se veía como
+ * «−2.5 kg» al lado de un «−0,46 kg por semana» y como «2300 kcal» encima de un
+ * «11.000 pasos», porque los dos vecinos sí pasaban por `toLocaleString`. Dos
+ * ortografías del mismo número en la misma tarjeta.
+ *
+ * Es la misma cifra dicha en el idioma de la aplicación: coma decimal y punto
+ * de millar. `maximumFractionDigits` hace además lo que hacía el redondeo, así
+ * que un entero sigue saliendo sin decimales de relleno.
+ */
 export const fmt = (v, { decimals = 0, unit = '', dash = '—' } = {}) => {
   const n = toNum(v);
   if (n === null) return dash;
-  return `${round(n, decimals)}${unit}`;
+  return `${localeNumber(round(n, decimals), { maximumFractionDigits: decimals })}${unit}`;
 };
 
 /**

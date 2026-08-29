@@ -4,7 +4,7 @@ import { allSessions } from '@/domain/sessions';
 import { shortDate } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
 import { BandChart } from '@/components/ui/charts';
-import { Subjetivo } from './Subjetivo';
+import { Subjetivo } from '@/components/ui/Subjetivo';
 
 /**
  * Las sensaciones, sesión a sesión.

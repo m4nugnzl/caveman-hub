@@ -41,7 +41,7 @@ import { makeScale, smoothPath } from '@/components/ui/charts';
  *      │ ____╱             ╲______________╱‾
  *   80 ┼········································································
  *      ├────────────────────────────────────────────────────────
- *      KCAL OBJETIVO                                      2 300 kcal
+ *      KCAL OBJETIVO  (o PASOS AL DÍA)                    2 300 kcal
  * 2600 ┼▔▔▔▔▔╲______
  * 2200 ┼·············▔▔▔▔▔▔▔▔╲_______________________________
  *      S15  S16  S17  S18  S19  S20  S21  S22  S23  [S24]
@@ -97,6 +97,27 @@ const kg = (v) => (Math.round(v * 10) / 10).toLocaleString('es-ES');
 /** Y de calorías, con su separador de millar. */
 const kcal = (v) => Math.round(v).toLocaleString('es-ES');
 
+/**
+ * LA BANDA DE ABAJO: qué le pusiste, y de qué.
+ *
+ * ══ Por qué es intercambiable ══════════════════════════════════════════════
+ *
+ * Porque las calorías no son lo único que se pone y se deja puesto. Los PASOS
+ * son exactamente la misma clase de dato —un objetivo que dura hasta que lo
+ * cambias, con su escalera y sus peldaños— y contestan la otra mitad de la
+ * pregunta: cuando el peso se para con las kcal quietas, lo que suele haberse
+ * movido es la actividad. Tenerlos en dos gráficos distintos obliga a comparar
+ * de memoria; en la misma banda, con el mismo eje de semanas, se cambia de uno
+ * a otro y la curva de arriba no se mueve.
+ *
+ * Sigue siendo UNA sola banda a propósito. Apilar tres bandas deja cada una en
+ * cuarenta píxeles, y a esa altura un peldaño de doscientas kcal no se ve.
+ */
+export const BANDAS = {
+  kcals: { campo: 'kcals', rotulo: 'KCAL OBJETIVO', unidad: 'kcal', metrica: 'kcals' },
+  steps: { campo: 'steps', rotulo: 'PASOS AL DÍA', unidad: 'pasos', metrica: 'steps' },
+};
+
 export const ReviewChart = ({
   weeks = [],
   selected = null,
@@ -125,7 +146,11 @@ export const ReviewChart = ({
   /* Dónde empezó cada bloque de entreno: `[{ week, name }]`. Un cambio de
      rutina es tan decisión tuya como un peldaño de calorías, y se marca. */
   cambios = [],
+  /* Qué se dibuja en la banda de abajo. Ver `BANDAS`. */
+  banda = 'kcals',
 }) => {
+  const bajo = BANDAS[banda] || BANDAS.kcals;
+  const colorBajo = metricColor(bajo.metrica);
   /*
     Las flechas recorren la línea entera y, al llegar al borde de la ventana,
     ésta pasa página sola (de eso se encarga `onStep`). Es el gesto con el que se
@@ -185,7 +210,7 @@ export const ReviewChart = ({
       : [];
 
     // ── Banda de las calorías ─────────────────────────────────────────────
-    const kcals = weeks.map((f) => f.kcals).filter((v) => v !== null && v !== undefined);
+    const kcals = weeks.map((f) => f[bajo.campo]).filter((v) => v !== null && v !== undefined);
     /*
       La escala arranca por debajo del mínimo y no en cero: entre 2.100 y 2.400,
       con base cero, la escalera sale plana y el peldaño —que es lo único que se
@@ -215,7 +240,7 @@ export const ReviewChart = ({
       const izq = x(i) - columna / 2;
       const der = x(i) + columna / 2;
 
-      if (f.kcals === null || f.kcals === undefined) {
+      if (f[bajo.campo] === null || f[bajo.campo] === undefined) {
         if (abierta !== null) {
           relleno += ` L ${abierta.x.toFixed(1)} ${sueloKcal} Z`;
           abierta = null;
@@ -223,7 +248,7 @@ export const ReviewChart = ({
         return;
       }
 
-      const y = yKcal(f.kcals);
+      const y = yKcal(f[bajo.campo]);
       if (abierta === null) {
         escalera += ` M ${izq.toFixed(1)} ${y.toFixed(1)}`;
         relleno += ` M ${izq.toFixed(1)} ${sueloKcal} L ${izq.toFixed(1)} ${y.toFixed(1)}`;
@@ -243,6 +268,22 @@ export const ReviewChart = ({
       ? [escalaKcal.min, escalaKcal.max].map((v) => ({ v, y: yKcal(v) }))
       : [];
 
+    /*
+      Los PELDAÑOS: en qué semana dejó de valer lo de la semana anterior. Se
+      calcula aquí, de la propia serie, y no se lee de `fila.changed` — ese
+      campo lo pone `nutritionTrack` y solo sabe de calorías, así que al pasar a
+      los pasos marcaría los escalones equivocados. La regla es la misma que usa
+      el dominio: distinto del último valor conocido.
+    */
+    const marcas = [];
+    let previo = null;
+    weeks.forEach((f, i) => {
+      const v = f[bajo.campo];
+      if (v === null || v === undefined) return;
+      if (previo !== null && v !== previo) marcas.push({ i, v });
+      previo = v;
+    });
+
     const iSel = weeks.findIndex((f) => f.week === selected);
 
     return {
@@ -257,11 +298,12 @@ export const ReviewChart = ({
       escalera,
       relleno,
       ticksKcal,
+      marcas,
       yPeso,
       yKcal,
       iSel,
     };
-  }, [weeks, ancho, selected]);
+  }, [weeks, ancho, selected, bajo.campo]);
 
   if (weeks.length === 0) return null;
 
@@ -388,33 +430,24 @@ export const ReviewChart = ({
 
           {/* ── Banda 2 · las calorías, en escalera ───────────────────── */}
           <text className="banda-rotulo" x={CANAL} y={ALTO_PESO + HUECO + 9}>
-            KCAL OBJETIVO
+            {bajo.rotulo}
           </text>
 
-          {geo.relleno && (
-            <path className="banda-area" d={geo.relleno} fill={metricColor('kcals')} />
-          )}
-          <path
-            className="banda-escalera"
-            d={geo.escalera}
-            fill="none"
-            stroke={metricColor('kcals')}
-          />
+          {geo.relleno && <path className="banda-area" d={geo.relleno} fill={colorBajo} />}
+          <path className="banda-escalera" d={geo.escalera} fill="none" stroke={colorBajo} />
 
           {/* Los peldaños: dónde TÚ cambiaste algo. Es la marca que convierte el
               dibujo en el registro de tus decisiones. */}
-          {weeks.map((f, i) =>
-            f.changed && f.kcals !== null && f.kcals !== undefined ? (
-              <circle
-                key={`c-${f.week}`}
-                className="banda-escalon"
-                cx={geo.x(i)}
-                cy={geo.yKcal(f.kcals)}
-                r="3.5"
-                fill={metricColor('kcals')}
-              />
-            ) : null
-          )}
+          {geo.marcas.map((m) => (
+            <circle
+              key={`c-${weeks[m.i].week}`}
+              className="banda-escalon"
+              cx={geo.x(m.i)}
+              cy={geo.yKcal(m.v)}
+              r="3.5"
+              fill={colorBajo}
+            />
+          ))}
 
           <g className="grafica-eje">
             {geo.ticksKcal.map((t) => (
@@ -481,12 +514,14 @@ export const ReviewChart = ({
       {fila && (
         <p className="grafica-lectura" aria-live="polite">
           <span className="s">Semana {fila.week}</span>
-          <span className="v" style={{ color: metricColor('kcals') }}>
-            {fila.kcals === null || fila.kcals === undefined
+          <span className="v" style={{ color: colorBajo }}>
+            {fila[bajo.campo] === null || fila[bajo.campo] === undefined
               ? 'sin plan registrado'
-              : `${kcal(fila.kcals)} kcal`}
+              : `${kcal(fila[bajo.campo])} ${bajo.unidad}`}
           </span>
-          {fila.changed && <span className="n">se lo cambiaste esta semana</span>}
+          {geo?.marcas.some((m) => weeks[m.i].week === fila.week) && (
+            <span className="n">se lo cambiaste esta semana</span>
+          )}
         </p>
       )}
 

@@ -1,38 +1,30 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Apple, Footprints, HeartPulse, SlidersHorizontal } from 'lucide-react';
+import { Footprints, HeartPulse } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { metricColor } from '@/domain/metrics';
-import { macroColor } from '@/domain/nutrition';
 import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { Delta } from '@/components/ui/metrics';
-import { Panel } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
+import { Tarjeta, TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import { GoalCard } from '@/components/nutrition/GoalCard';
 import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 
 /**
  * LO QUE LE PUSISTE DE COMER esa semana: calorías, macros, pasos y cardio.
  *
- * ══ Por qué es una TIRA y no una columna ════════════════════════════════════
+ * ══ Por qué va en la columna de al lado ═════════════════════════════════════
  *
- * Estaba en la mitad derecha de una rejilla de dos columnas, al lado del
- * entreno. Y el entreno son cuatro días con sus ejercicios mientras que esto son
- * cinco cifras: la columna de la derecha quedaba con las cifras arriba y un
- * palmo de blanco debajo, tan alto como toda la lista de al lado. No era un
- * problema de esta pieza —es corta y está bien que lo sea—, era la rejilla
- * pidiéndole que midiera lo que no mide.
+ * Es la RECETA de la semana, no lo que pasó en ella. Entreno, Dieta y Resumen
+ * ya tienen esta forma —el trabajo a lo ancho y, al lado, lo que se decidió una
+ * vez y se consulta muchas— y la revisión la sigue: el plan se mira mientras se
+ * decide qué tocarle, así que va pegado a la barra que lo cambia y no a media
+ * página de distancia, ocupando el ancho entero con cinco cifras.
  *
- * A lo ancho, las cinco cifras se leen de un barrido y el bloque ocupa
- * exactamente lo que tiene que decir:
- *
- *     SU PLAN ESTA SEMANA                       desde la semana 4 · [Su dieta]
- *     CALORÍAS      PROTEÍNA    HIDRATOS    GRASAS     PASOS
- *     2 300 kcal    190 g       220 g       68 g       12 000
- *     ↓200          ↑10         ↓60                    ↑3 000
- *     Cardio · 3 días de 25 min
+ * Es la misma tarjeta que «El plan» del Resumen, con una fila por palanca; lo
+ * que añade es lo que cambió respecto del plan ANTERIOR, que es lo que aquí
+ * importa.
  *
  * ── Y contra qué se compara ────────────────────────────────────────────────
  * Contra el plan anterior, no contra la semana anterior. Entre dos revisiones no
@@ -44,29 +36,22 @@ import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 /** «12.000» y no «12000»: cinco dígitos seguidos hay que contarlos. */
 const cifra = (v) => (Number.isFinite(Number(v)) ? Number(v).toLocaleString('es-ES') : v);
 
-/** Una macro, con lo que cambió respecto del plan anterior. */
-const Macro = ({ id, label, valor, antes, unidad = ' g', color, mayor = false }) => {
+/** Una palanca, con lo que cambió respecto del plan anterior. */
+const Palanca = ({ label, valor, antes, unidad = 'g' }) => {
   if (valor === null || valor === undefined) return null;
   const delta = antes === null || antes === undefined ? null : valor - antes;
 
   return (
-    <div className={`macro${mayor ? ' is-mayor' : ''}`}>
-      {/* El color del macro va en el RÓTULO y no en la cifra: es el mismo con el
-          que se dibuja en la dieta, así que sirve para reconocerlo de un vistazo,
-          y en la cifra competiría con el resto de la pantalla. */}
-      <span className="k" style={{ color: color || macroColor(id) || undefined }}>
-        {label}
-      </span>
-      <span className="v">
+    <li className="palanca">
+      <span className="palanca-k">{label}</span>
+      <span className="palanca-v is-fila">
         {cifra(valor)}
-        {unidad.trim() && <span className="u">{unidad.trim()}</span>}
+        {unidad && <small> {unidad}</small>}
+        {delta !== null && delta !== 0 && (
+          <Delta value={delta} unit={unidad ? ` ${unidad}` : ''} decimals={0} />
+        )}
       </span>
-      {/* El hueco del delta se reserva siempre: sin él, la fila de cifras baila
-          media línea según cuántas hayan cambiado esta semana. */}
-      <span className="d">
-        {delta !== null && delta !== 0 && <Delta value={delta} unit={unidad} decimals={0} />}
-      </span>
-    </div>
+    </li>
   );
 };
 
@@ -78,18 +63,9 @@ export const NutritionCard = ({ track = [], selected, client }) => {
 
   /*
     ══ AJUSTAR SE HACE AQUÍ, y no en la barra de abajo ════════════════════════
-
-    El botón vivía en la barra de cierre, junto al de ir a su entreno. Los dos
-    sobraban allí: la barra ya tenía el enlace a la dieta DE ESTA MISMA TARJETA
-    tres centímetros más arriba, así que la pantalla ofrecía dos veces lo mismo y
-    ensanchaba la única zona que no tiene por qué crecer.
-
-    Una acción va al lado de lo que modifica. Éste es el bloque que enseña las
-    calorías, los macros y los pasos: es donde se busca el botón de cambiarlos.
-
-    El recuento de cambios de la barra sigue subiendo solo al guardar aquí, sin
-    que ninguna de las dos piezas sepa nada de la otra: las dos leen el mismo
-    plan del contexto (ver `ReviewDecision`).
+    Una acción va al lado de lo que modifica. El recuento de cambios de la barra
+    sube solo al guardar aquí, sin que ninguna de las dos piezas sepa nada de la
+    otra: las dos leen el mismo plan del contexto (ver `ReviewDecision`).
   */
   const plan = nutrition[client?.id];
   const puedeAjustar = isServiceOn(clientProtocol(client?.preferences), 'nutrition') && Boolean(plan);
@@ -109,101 +85,60 @@ export const NutritionCard = ({ track = [], selected, client }) => {
   const sinPlan = !fila || (fila.kcals === null && fila.protein === null && fila.steps === null);
 
   return (
-    <Panel
-      className="bloque"
-      rango="bloque"
-      aria-label="Su nutrición"
-      title="Su plan esta semana"
-      sub={
-        previa
-          ? `Lo tiene puesto desde la semana ${previa.week + 1}.`
-          : 'Lo que tenía puesto de comer y de moverse.'
-      }
-      action={
-        <div className="row gap-2 wrap">
-          {puedeAjustar && (
-            <button
-              type="button"
-              className="btn btn-quiet btn-sm"
-              onClick={() => setAjustando(true)}
-            >
-              <SlidersHorizontal size={13} /> Ajustar
-            </button>
-          )}
-          <Link className="btn btn-quiet btn-sm" to={clientPath(client?.id, 'nutricion')}>
-            <Apple size={13} /> Su dieta
-          </Link>
-        </div>
+    <Tarjeta
+      rotulo="Su plan esta semana"
+      span={12}
+      vacia={sinPlan}
+      accion={
+        <Link className="cab-accion" to={clientPath(client?.id, 'nutricion')}>
+          Su dieta →
+        </Link>
       }
     >
-
       {sinPlan ? (
-        <p className="t-sm t-tertiary">
-          Esa semana no hay constancia de qué plan tenía puesto. El plan queda registrado al cerrar
-          una revisión, así que las semanas anteriores a la primera salen vacías.
-        </p>
+        <TarjetaVacia>
+          Esa semana no hay constancia de qué plan tenía puesto: el plan queda registrado al cerrar
+          una revisión.
+        </TarjetaVacia>
       ) : (
         <>
-          <div className="plan">
-            <Macro
-              id="kcals"
-              label="Calorías"
-              valor={fila.kcals}
-              antes={previa?.kcals}
-              unidad=" kcal"
-              color={metricColor('kcals')}
-              mayor
-            />
-            <Macro id="protein" label="Proteína" valor={fila.protein} antes={previa?.protein} />
-            <Macro id="carbs" label="Hidratos" valor={fila.carbs} antes={previa?.carbs} />
-            <Macro id="fats" label="Grasas" valor={fila.fats} antes={previa?.fats} />
-            <Macro id="steps" label="Pasos" valor={fila.steps} antes={previa?.steps} unidad="" />
-          </div>
+          <p className="tarjeta-meta">
+            {previa ? `Lo tiene puesto desde la semana ${previa.week + 1}.` : 'Lo que tenía puesto de comer y de moverse.'}
+          </p>
 
-          {/* El cardio es texto —«3 días de 25 min»— y por eso no va en la
-              rejilla de cifras: una pauta no es una magnitud. */}
-          {fila.cardio && (
-            <p className="plan-cardio">
-              <span className="k">Cardio</span> {fila.cardio}
-            </p>
-          )}
+          <ul className="palancas">
+            <Palanca label="Calorías" valor={fila.kcals} antes={previa?.kcals} unidad="kcal" />
+            <Palanca label="Proteína" valor={fila.protein} antes={previa?.protein} />
+            <Palanca label="Hidratos" valor={fila.carbs} antes={previa?.carbs} />
+            <Palanca label="Grasas" valor={fila.fats} antes={previa?.fats} />
+            <Palanca label="Pasos" valor={fila.steps} antes={previa?.steps} unidad="" />
+            {/* El cardio es texto —«3 días de 25 min»—: una pauta, no una magnitud. */}
+            {fila.cardio && (
+              <li className="palanca">
+                <span className="palanca-k">Cardio</span>
+                <span className="palanca-v is-texto">{fila.cardio}</span>
+              </li>
+            )}
+          </ul>
         </>
+      )}
+
+      {puedeAjustar && (
+        <footer className="tarjeta-pie-accion">
+          <button type="button" className="cab-accion is-principal" aria-haspopup="dialog" onClick={() => setAjustando(true)}>
+            Ajustar la dieta →
+          </button>
+        </footer>
       )}
 
       {/*
         ══ El ajuste, en un PANEL AL LADO ════════════════════════════════════
-
-        Estuvo en un diálogo centrado, con el argumento de que tocar los números
-        es un gesto corto y con final y que mientras tanto no hace falta ver la
-        revisión detrás. Es justo al revés: **la cifra que se pone sale de lo que
-        se está mirando** —cuánto ha bajado, cuántos pesajes hay, qué dice la
-        curva—, así que con el velo delante había que memorizar el dato antes de
-        abrir y volver a comprobarlo al cerrar.
-
-        En el panel las dos cosas están a la vez. Ver `size="side"` en
-        `ui/Modal.jsx`.
-
-        Son los MISMOS controles de «Dieta», con su mismo `onSave`: un segundo
-        formulario de calorías es un segundo sitio donde arreglar el día que
-        cambie el modelo.
+        La cifra que se pone sale de lo que se está mirando —cuánto ha bajado,
+        cuántos pesajes hay, qué dice la curva—, así que un diálogo con velo
+        tapaba justo eso. En el panel las dos cosas están a la vez. Son los
+        MISMOS controles de «Dieta», con su mismo `onSave`.
       */}
       {ajustando && puedeAjustar && (
-        /*
-          ── Un PANEL, no un diálogo centrado ─────────────────────────────────
-          Ajustar es el gesto que cierra una revisión, y se decide MIRANDO la
-          semana: cuánto ha bajado, cuántos pesajes hay, qué dice la curva. Un
-          diálogo centrado con velo tapa exactamente eso, así que había que
-          memorizar la cifra antes de abrirlo y volver a mirarla al cerrar.
-
-          En el panel lateral los dos están a la vez: a la izquierda la semana
-          que estás juzgando, a la derecha lo que le cambias. Es la misma pieza
-          que estrena el historial de un ejercicio (`size="side"` en
-          `ui/Modal.jsx`), y es media fase 1: **se ajusta sobre lo que se está
-          mirando, sin irse a otra pantalla.**
-
-          El ancho no importa aquí: la rejilla de los dos objetivos ya se apila
-          sola por debajo de 340 px, así que en el panel se leen uno bajo otro.
-        */
         <Modal
           size="side"
           title={`Ajustar la dieta de ${nombre}`}
@@ -215,7 +150,7 @@ export const NutritionCard = ({ track = [], selected, client }) => {
           }
         >
           <div className="col gap-3">
-            {/* Se guarda solo, a cada campo, como en «Nutrición». El botón de
+            {/* Se guarda solo, a cada campo, como en «Dieta». El botón de
                 abajo cierra: no hay un estado «cambiado pero sin mandar». */}
             {plan.hasDayVariants ? (
               <div className="grid-2">
@@ -265,8 +200,6 @@ export const NutritionCard = ({ track = [], selected, client }) => {
               onSave={(cardioGoal) => updateNutrition(client.id, { cardioGoal })}
             />
 
-            {/* El menú y los alimentos no caben aquí: son el plan entero, no el
-                ajuste de una semana. */}
             <p className="t-xs t-tertiary">
               Para tocarle el menú, los alimentos o las equivalencias,{' '}
               <Link
@@ -281,6 +214,6 @@ export const NutritionCard = ({ track = [], selected, client }) => {
           </div>
         </Modal>
       )}
-    </Panel>
+    </Tarjeta>
   );
 };

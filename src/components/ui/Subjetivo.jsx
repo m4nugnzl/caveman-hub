@@ -1,11 +1,17 @@
 /**
- * Lo que contó el cliente al acabar, como barras.
+ * Una tanda de respuestas de escala, como barras.
  *
  * Una fila por pregunta: la palabra, una barra de 1 a 10 con el color de la
  * pregunta, y la cifra. Se lee sin comparar números: la fatiga alta es una
- * barra larga; el dolor bajo, una corta. Misma pieza en el panel de la semana
- * y bajo la progresión del ejercicio, para que «lo subjetivo» se vea siempre
- * igual y se reconozca.
+ * barra larga; el dolor bajo, una corta.
+ *
+ * ── Vive en `ui/` porque lo subjetivo se pregunta en DOS sitios ─────────────
+ * Al acabar una sesión (`SESSION_QUESTIONS`) y al cerrar la semana en el
+ * check-in (`CHECKIN_QUESTIONS`). Son dos catálogos distintos y la misma clase
+ * de respuesta —una escala con su color y su tope—, así que se pintan igual: el
+ * panel de la semana, la progresión de un ejercicio y el bloque de evolución
+ * del resumen usan esta misma pieza. Estaba dentro de `Workout/`, que es lo que
+ * habría llevado a dibujar unas barras nuevas para el check-in.
  */
 export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null }) => {
   const filas = preguntas

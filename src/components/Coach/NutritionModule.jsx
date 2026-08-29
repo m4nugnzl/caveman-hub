@@ -54,6 +54,22 @@ const VARIANT_OPTIONS = [
  * cardio eran cuatro filas ENCIMA del menú, y la pantalla abría por lo que se
  * toca una vez al mes.
  *
+ * ══ Y la otra forma: por macros, sin menú ══════════════════════════════════
+ *
+ *     Por macros: reparte los alimentos como quiera        Traer de fuera · ⚙
+ *     ┌ objetivo ───────────────────────────────────────────────────────────┐
+ *     │ 2.600 kcal · P 115 g · C 411 g · G 55 g                             │
+ *     └─────────────────────────────────────────────────────────────────────┘
+ *     ┌ pasos ─────────────────────┐ ┌ cardio ────────────────────────────┐
+ *     └────────────────────────────┘ └────────────────────────────────────┘
+ *     tus pautas
+ *
+ * Sin menú, la columna ancha se quedaba con las pautas y nada más —media
+ * pantalla en blanco— mientras lo único que de verdad se pauta, el objetivo,
+ * vivía apretado en la columna estrecha. Esa columna existe para ACOMPAÑAR a un
+ * menú, y aquí no hay menú al que acompañar: una sola columna, en el orden en
+ * que se decide, y con el ancho de un documento.
+ *
  * ── Dónde vive cada cosa ────────────────────────────────────────────────────
  * · AÑADIR una comida está al pie de la lista y en un solo sitio, que es donde
  *   va a aparecer. Traer de fuera (la otra dieta, un Excel) cuelga de ahí
@@ -361,7 +377,7 @@ export const NutritionModule = () => {
         )}
       </Mando>
 
-      <div className="dieta">
+      <div className={`dieta${cerrado ? '' : ' is-macros'}`}>
         {/* ── El menú: el trabajo, a lo ancho ─────────────────────────────── */}
         <div className="dieta-menu">
           {cerrado && meals.length === 0 && (
@@ -549,6 +565,9 @@ export const NutritionModule = () => {
           persona hace cada día, entrene o no—, y van una vez, debajo.
         */}
         <aside className="dieta-lado" aria-label="Objetivo del plan">
+          {/* Uno, o dos si hay dietas de entreno y de descanso. Sin menú se
+              reparten el ancho; con menú van apilados en su columna. */}
+          <div className="dieta-objetivos">
           {plan.hasDayVariants ? (
             <>
               <MacroTargetCard
@@ -578,6 +597,7 @@ export const NutritionModule = () => {
               onSave={(fields) => updateNutritionTargets(activeClient.id, 'default', fields)}
             />
           )}
+          </div>
 
           {/*
             La ventana del día de una variante: el anillo de lo que suma, las
@@ -607,6 +627,8 @@ export const NutritionModule = () => {
             />
           )}
 
+          {/* La actividad: del PLAN, no de una variante. */}
+          <div className="dieta-actividad">
           <GoalCard
             icon={Footprints}
             label="Pasos diarios"
@@ -627,6 +649,7 @@ export const NutritionModule = () => {
             editable
             onSave={(cardioGoal) => updateNutrition(activeClient.id, { cardioGoal })}
           />
+          </div>
         </aside>
       </div>
     </div>

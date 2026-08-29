@@ -22,7 +22,6 @@ import { ClientStart } from '@/components/Client/ClientStart';
 /* Perezosa: es la pantalla que un cliente abre la primera semana y no vuelve a
    abrir. Cargarla con el portal sería pagar su peso en cada arranque. */
 const ClientOnboarding = lazyRoute(() => import('@/components/Client/ClientOnboarding').then((m) => ({ default: m.ClientOnboarding })));
-import { ProgressLayout } from '@/components/analytics/ProgressLayout';
 import { FichaLayout } from '@/components/Coach/FichaLayout';
 import { ReviewLayout } from '@/components/review/ReviewLayout';
 
@@ -56,7 +55,6 @@ const AnthropometryModule = lazyRoute(() => import('@/components/Coach/Anthropom
    por qué descargar quien entra a mirar «Hoy». */
 const PhotoArchive = lazyRoute(() => import('@/components/photos/PhotoArchive').then((m) => ({ default: m.PhotoArchive })));
 const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
-const AnalyticsPanel = lazyRoute(() => import('@/components/analytics/AnalyticsPanel').then((m) => ({ default: m.AnalyticsPanel })));
 const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
 const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
@@ -79,8 +77,8 @@ import {
 import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { ReviewPage } from '@/components/ReviewPage';
 import { InvitePage } from '@/components/InvitePage';
-import { Loading, Notice } from '@/components/ui/primitives';
-import { AppSkeleton } from '@/components/ui/AppSkeleton';
+import { Notice } from '@/components/ui/primitives';
+import { AppSkeleton, PageSkeleton } from '@/components/ui/AppSkeleton';
 import { PlanNotice } from '@/components/PlanNotice';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
@@ -380,7 +378,7 @@ export default function App() {
         <Suspense
           fallback={
             <div className="layout">
-              <Loading />
+              <PageSkeleton />
             </div>
           }
         >
@@ -450,13 +448,16 @@ export default function App() {
                       que es la de cada lunes. */}
                   <Route index element={<Navigate to="resumen" replace />} />
                   <Route path="semana" element={<WeekReview />} />
-                  {/* Resumen y análisis son dos profundidades de la misma sección:
-                      una sola entrada en el carril, dos rutas debajo para que el
-                      enlace directo y el botón atrás sigan funcionando. */}
-                  <Route element={<ProgressLayout audience="coach" />}>
-                    <Route path="resumen" element={<Dashboard audience="coach" />} />
-                    <Route path="analitica" element={<AnalyticsPanel audience="coach" />} />
-                  </Route>
+                  {/* El resumen ES el análisis: una sola pantalla, y lo que
+                      antes era la segunda —los diez gráficos con su barra de
+                      cuatro pestañas— se abre ahora en ventanas desde el título
+                      de cada pieza. Ver `dashboard/Dashboard.jsx`.
+
+                      `/analitica` sigue viva porque está en marcadores y en
+                      enlaces viejos: rebota al resumen, que es donde está todo
+                      lo que prometía. */}
+                  <Route path="resumen" element={<Dashboard audience="coach" />} />
+                  <Route path="analitica" element={<Navigate to="../resumen" replace />} />
                   {/* Las dos que un entrenador AJUSTA, y las dos que pueden no
                       existir para este cliente: a quien solo le llevas el
                       entrenamiento no le sobra media pantalla, es que no la
@@ -544,10 +545,10 @@ export default function App() {
 
                 {/* Su inicio ES su progreso: las cifras y los gráficos, con lo
                     que ha cambiado condensado arriba. Ver `ClientStart`. */}
-                <Route element={<ProgressLayout audience="client" />}>
-                  <Route path="inicio" element={<ClientStart />} />
-                  <Route path="analitica" element={<AnalyticsPanel audience="client" />} />
-                </Route>
+                <Route path="inicio" element={<ClientStart />} />
+                {/* Su análisis se abre en ventanas desde su propio panel, igual
+                    que el del entrenador. La ruta rebota: estaba en su carril. */}
+                <Route path="analitica" element={<Navigate to="/mi/inicio" replace />} />
                 {/* «Hoy» dejó de ser una sección: lo suyo se repartió entre el
                     inicio y el check-in. La ruta sigue viva por los marcadores. */}
                 {/* Su alta: lo que entrega al empezar. Fuera del carril de

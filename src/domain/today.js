@@ -42,6 +42,7 @@
  */
 
 import { daysBetween, localeNumber, toISODate, todayISO, weekdayName } from '@/lib/dates';
+import { fmt } from '@/lib/num';
 import { feeLabel, needsCollecting, paymentState } from './billing';
 import { isSetLogged, sessionTonnage } from './sessions';
 
@@ -136,7 +137,11 @@ const clientEvents = ({ client, training, anthro, photos, checkIn }, today, days
       id: `weight:${client.id}:${log.date}`,
       date: log.date,
       kind: 'weight',
-      title: `${log.weight} kg`,
+      /* El peso se guarda como TEXTO tal y como se teclea («73.25», «76,9»), y
+         aquí salía crudo: la actividad decía «73.25 kg» debajo de un panel que
+         dice «77,3 kg». Se redondea al decimal que se usa en todas partes y se
+         escribe con coma. */
+      title: fmt(log.weight, { decimals: 1, unit: ' kg' }),
       detail: log.skinFolds ? 'con pliegues' : null,
     });
   }

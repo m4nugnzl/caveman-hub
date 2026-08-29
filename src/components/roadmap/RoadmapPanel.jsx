@@ -42,7 +42,17 @@ import { EmptyState, Field, Notice, Panel, SectionTitle, Switch } from '@/compon
  * cliente pudiera moverse de fase no habría plan que sostener. Lo garantiza RLS
  * (migración 0028), no este componente: aquí solo se decide qué botones salen.
  */
-export const RoadmapPanel = ({ audience = 'coach' }) => {
+/*
+  ── `desnudo`: el mismo panel, sin su tarjeta ni su rótulo ────────────────
+  Desde que el roadmap se abre en una ventana (`dashboard/FasesPopup`), pintar
+  aquí su superficie y su sombra sería una tarjeta dentro de otra tarjeta —el
+  defecto que el rediseño del resumen vino a quitar— y su «Roadmap» diría por
+  segunda vez, con otra palabra, lo que ya dice el título de la ventana.
+
+  Con `desnudo` el contenido sale a pelo y el marco lo pone quien lo abre. Sin
+  él, se comporta exactamente como siempre.
+*/
+export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
   const {
     activeClient,
     phases,
@@ -205,27 +215,30 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
     hijos entre sí. Sin esto, la cabecera queda tocando la primera fase. Mismo
     olvido que en el panel de Ayuda.
   */
-  return (
-    <Panel className="col gap-4">
-      <SectionTitle
-        icon={Route}
-        action={
-          /*
-            Sin fases, el hueco central ya ofrece «Crear la primera fase». Sacar
-            además este arriba deja dos botones iguales peleando por el mismo
-            clic, y el de la cabecera parece pegado encima del otro.
-          */
-          puedeEditar && !form && !forkForm && state.all.length > 0 ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={abrirNuevo}>
-              <Plus size={14} /> Añadir fase
-            </button>
-          ) : null
-        }
-      >
-        Roadmap
-      </SectionTitle>
+  const Marco = desnudo ? 'div' : Panel;
+  /*
+    Sin fases, el hueco central ya ofrece «Crear la primera fase». Sacar además
+    este arriba deja dos botones iguales peleando por el mismo clic, y el de la
+    cabecera parece pegado encima del otro.
+  */
+  const anadir =
+    puedeEditar && !form && !forkForm && state.all.length > 0 ? (
+      <button type="button" className="btn btn-secondary btn-sm" onClick={abrirNuevo}>
+        <Plus size={14} /> Añadir fase
+      </button>
+    ) : null;
 
-      {error && <Notice tone="error">{error}</Notice>}
+  return (
+    <Marco className="col gap-4">
+      {desnudo ? (
+        anadir && <div className="row between">{anadir}</div>
+      ) : (
+        <SectionTitle icon={Route} action={anadir}>
+          Roadmap
+        </SectionTitle>
+      )}
+
+      {error && !form && !forkForm && <Notice tone="error">{error}</Notice>}
 
       {/*
         El agujero de hoy. Es el único aviso que da esta pantalla porque es el
@@ -274,6 +287,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
               onEdit={puedeEditar ? () => setForm({ ...fase }) : null}
               onRemove={puedeEditar ? () => borrar(fase.id) : null}
               busy={busy}
+              error={error}
             />
           ))}
 
@@ -291,6 +305,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
               onEdit={puedeEditar ? () => abrirCruce(cruce) : null}
               onDiscard={puedeEditar ? descartarCruce : null}
               busy={busy}
+              error={error}
             />
           )}
 
@@ -315,6 +330,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
             setError('');
           }}
           busy={busy}
+          error={error}
         />
       )}
 
@@ -328,9 +344,10 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
             setError('');
           }}
           busy={busy}
+          error={error}
         />
       )}
-    </Panel>
+    </Marco>
   );
 };
 
@@ -424,7 +441,7 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
             y en las futuras siempre 0, que no es información sino ruido. */}
         {current && progress && !progress.open && (
           <div className="col gap-1">
-            <div className="plan-bar">
+            <div className="plan-bar is-fase">
               <span className="plan-bar-fill" style={{ width: `${progress.pct}%` }} />
             </div>
             <span className="t-2xs t-tertiary tnum">
@@ -444,7 +461,7 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 };
 
 /** Alta y edición. El mismo formulario para las dos: los campos son idénticos. */
-const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
+const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
   const set = (patch) => onChange({ ...value, ...patch });
   const meta = directionById(value.direction);
   // Sin fecha de fin, la fase queda abierta. Es un estado, no un campo vacío.
@@ -586,6 +603,10 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
         />
       </Field>
 
+      {/* El error va aquí, pegado al botón que lo provoca: arriba del panel, con el
+         formulario desplegado y la ventana desplazada, no se veía y parecía que
+         guardar no hacía nada. */}
+      {error && <Notice tone="error">{error}</Notice>}
       <div className="row gap-2 row-end">
         <button type="button" className="btn" onClick={onCancel}>
           Cancelar
@@ -771,7 +792,7 @@ const RoadCard = ({ option, weight, onChoose, busy }) => {
  * camino que a lo mejor no se coge no merece que nadie ajuste sus semanas de
  * una en una; si al elegirlo hay que retocarlas, se retoca la fase.
  */
-const ForkForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
+const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
   const { options } = value;
 
   const setOption = (index, patch) =>
@@ -820,6 +841,10 @@ const ForkForm = ({ value, onChange, onSubmit, onCancel, busy }) => {
         </button>
       )}
 
+      {/* El error va aquí, pegado al botón que lo provoca: arriba del panel, con el
+         formulario desplegado y la ventana desplazada, no se veía y parecía que
+         guardar no hacía nada. */}
+      {error && <Notice tone="error">{error}</Notice>}
       <div className="row gap-2 row-end">
         <button type="button" className="btn" onClick={onCancel}>
           Cancelar

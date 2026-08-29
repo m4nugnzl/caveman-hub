@@ -1,5 +1,6 @@
 import { ArrowLeftRight, FlipHorizontal, RotateCcw, RotateCw, Sparkles, Trash2, ZoomIn } from 'lucide-react';
 
+import { fmt } from '@/lib/num';
 import { angleLabel } from '@/domain/photos';
 // Sin `Panel`: este bloque se pinta dentro de `StudioPanel`, que ya es la tarjeta.
 
@@ -106,7 +107,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
             </span>
             <span className="t-xs t-secondary">
               {photo.date}
-              {photo.derivedWeight != null ? ` · ${photo.derivedWeight} kg` : ''}
+              {photo.derivedWeight != null ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}
             </span>
           </div>
 

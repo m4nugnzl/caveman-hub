@@ -40,6 +40,7 @@
  * es de quien cobra por tomarla.
  */
 
+import { localeNumber } from '@/lib/dates';
 import { round } from '@/lib/num';
 import { linearTrend, metricPoints, weekAdherence } from './analytics';
 import { RATE_VERDICTS, directionById, rateVerdict, targetRateKg } from './goals';
@@ -178,40 +179,74 @@ export const weighInAdherence = (history, date, target = 3) => {
  * subir en todos es progreso general; subir en uno y bajar en cinco es una
  * casualidad en ese uno.
  */
+/**
+ * LA FUERZA, EJERCICIO A EJERCICIO.
+ *
+ * ══ Por qué hace falta la lista y no solo el recuento ══════════════════════
+ *
+ * «La fuerza sube en 4 de 6 ejercicios» contesta si el plan funciona en general,
+ * y es lo que necesita la lectura. Lo que necesita un entrenador para DECIDIR es
+ * la otra mitad: en cuáles sube y en cuáles no. Un press que se estanca mientras
+ * todo lo demás progresa no es un problema del déficit — es ese ejercicio.
+ *
+ * Esa lista ya se calculaba aquí dentro y se tiraba al salir: el bucle recorría
+ * cada ejercicio, sacaba su pendiente y solo se quedaba con el nombre en un
+ * montón. Ahora sale entera y `strengthTrend` la resume, que es el orden
+ * correcto — el recuento se deduce de la lista, la lista no se deduce del
+ * recuento.
+ *
+ * ── El umbral, y por qué no es cero ─────────────────────────────────────────
+ * Medio por ciento del 1RM por semana. Por debajo de eso es la misma carga con
+ * una repetición de diferencia, y llamar «progresión» a eso llenaría la lista de
+ * flechas verdes que no significan nada.
+ *
+ * ── En orden alfabético, no por pendiente ───────────────────────────────────
+ * Ordenar es de quien pinta: la lectura los cita en el orden en que aparecen y
+ * el panel los ordena por lo que sube más. Devolverlos ya ordenados aquí
+ * obligaría a las dos a compartir un criterio que no comparten.
+ */
+export const strengthByExercise = (microcycles, minPoints = 3) =>
+  exerciseNames(microcycles)
+    .map((name) => {
+      const points = exerciseProgression(microcycles, name)
+        .map((row) => ({ label: row.label, value: row.e1rm }))
+        .filter((p) => p.value !== null && p.value !== undefined);
+      if (points.length < minPoints) return null;
+
+      const trend = linearTrend(points);
+      if (!trend) return null;
+
+      const threshold = Math.max(0.5, Math.abs(trend.from) * 0.005);
+      const first = points[0].value;
+      const last = points[points.length - 1].value;
+
+      return {
+        name,
+        weeks: points.length,
+        first,
+        e1rm: last,
+        delta: round(last - first, 1),
+        perWeek: trend.perWeek,
+        dir: trend.perWeek > threshold ? 'up' : trend.perWeek < -threshold ? 'down' : 'flat',
+      };
+    })
+    .filter(Boolean);
+
 export const strengthTrend = (microcycles, minPoints = 3) => {
-  const names = exerciseNames(microcycles);
-  let up = 0;
-  let down = 0;
-  let flat = 0;
-  const rising = [];
-  const falling = [];
+  const filas = strengthByExercise(microcycles, minPoints);
+  if (filas.length === 0) return null;
 
-  for (const name of names) {
-    const points = exerciseProgression(microcycles, name)
-      .map((row) => ({ label: row.label, value: row.e1rm }))
-      .filter((p) => p.value !== null && p.value !== undefined);
-    if (points.length < minPoints) continue;
+  const rising = filas.filter((f) => f.dir === 'up').map((f) => f.name);
+  const falling = filas.filter((f) => f.dir === 'down').map((f) => f.name);
 
-    const trend = linearTrend(points);
-    if (!trend) continue;
-
-    // Umbral del 0,5 % del 1RM por semana: por debajo de eso es la misma carga con
-    // una repetición de diferencia, no una progresión.
-    const threshold = Math.max(0.5, Math.abs(trend.from) * 0.005);
-    if (trend.perWeek > threshold) {
-      up += 1;
-      rising.push(name);
-    } else if (trend.perWeek < -threshold) {
-      down += 1;
-      falling.push(name);
-    } else {
-      flat += 1;
-    }
-  }
-
-  const tracked = up + down + flat;
-  if (tracked === 0) return null;
-  return { tracked, up, down, flat, rising, falling };
+  return {
+    tracked: filas.length,
+    up: rising.length,
+    down: falling.length,
+    flat: filas.length - rising.length - falling.length,
+    rising,
+    falling,
+  };
 };
 
 /**
@@ -281,11 +316,11 @@ export const weeklyReading = ({
         id: 'rate',
         tone: meta.tone,
         evidence: 'direction',
-        title: `${meta.label}: ${trend.perWeek > 0 ? '+' : ''}${trend.perWeek} kg/semana`,
+        title: `${meta.label}: ${trend.perWeek > 0 ? '+' : ''}${localeNumber(trend.perWeek)} kg/semana`,
         detail:
           direction.sign === 0
-            ? `El objetivo es mantener el peso, con un margen de ±${verdict.tolerance} kg por semana. Media de las últimas ${trend.weeks} semanas.`
-            : `Objetivo: ${target > 0 ? '+' : ''}${target} kg/semana (${goal.ratePct} % del peso corporal). Media de las últimas ${trend.weeks} semanas.`,
+            ? `El objetivo es mantener el peso, con un margen de ±${localeNumber(verdict.tolerance)} kg por semana. Media de las últimas ${trend.weeks} semanas.`
+            : `Objetivo: ${target > 0 ? '+' : ''}${localeNumber(target)} kg/semana (${goal.ratePct} % del peso corporal). Media de las últimas ${trend.weeks} semanas.`,
       });
     }
 

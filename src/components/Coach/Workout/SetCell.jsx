@@ -64,21 +64,47 @@ const FIELDS = [
  * Y no rellena el valor: un marcador desaparece al escribir y NO se guarda. Unos
  * kilos heredados que nadie ha levantado son indistinguibles de los reales.
  */
-export const SetRow = ({ index, set, onChange, exerciseName, showRir = false, previous = null }) => {
+export const SetRow = ({
+  index,
+  set,
+  onChange,
+  exerciseName,
+  showRir = false,
+  previous = null,
+  record = false,
+  onConfirm = null,
+}) => {
   const label = `${exerciseName}, serie ${index + 1}`;
   const done = isSetLogged(set);
+  /* Se puede repetir lo de la vez anterior de un toque: hay referencia y la
+     serie está vacía. Es el gesto de Hevy —la mayoría de las series son «lo
+     mismo que la última vez»— y ahorra escribir dos cifras por serie. */
+  const puedeRepetir = !done && previous?.kg && previous?.reps && onConfirm;
 
   return (
-    <div className={`set-row${done ? ' is-done' : ''}`}>
-      <span className="set-row-tag">
-        {/*
-          La marca de hecho sustituye al número, no lo acompaña: en una lista de
-          cuatro series el orden ya lo da la posición, así que repetir «S3» al lado
-          del visto es decir dos veces lo mismo. Lo que no se sabe de un vistazo es
-          cuáles quedan.
-        */}
-        {done ? <Check size={13} strokeWidth={3} /> : index + 1}
-      </span>
+    <div className={`set-row${done ? ' is-done' : ''}${record ? ' is-record' : ''}`}>
+      {/*
+        La marca de hecho sustituye al número, no lo acompaña: en una lista de
+        cuatro series el orden ya lo da la posición, así que repetir «S3» al lado
+        del visto es decir dos veces lo mismo. Lo que no se sabe de un vistazo es
+        cuáles quedan. Y mientras no está hecha, si hay vez anterior, la marca es
+        un BOTÓN: tocarlo apunta lo mismo que entonces.
+      */}
+      {puedeRepetir ? (
+        <button
+          type="button"
+          className="set-row-tag is-boton"
+          onClick={() => onConfirm(previous)}
+          aria-label={`${label}: apuntar lo mismo que la vez anterior, ${previous.kg} kg por ${previous.reps}`}
+          title="Igual que la vez anterior"
+        >
+          <Check size={13} strokeWidth={3} />
+        </button>
+      ) : (
+        <span className="set-row-tag" title={record ? 'Récord: tu mejor marca en este ejercicio' : undefined}>
+          {record ? 'PR' : done ? <Check size={13} strokeWidth={3} /> : index + 1}
+        </span>
+      )}
 
       <span className="set-row-target">
         {set.targetReps || '—'}

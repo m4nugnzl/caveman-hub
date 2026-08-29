@@ -75,6 +75,16 @@ export const METRIC_COLORS = {
      la kcal de un día ES mayoritariamente su carbohidrato. Lo que no puede
      compartir es el ámbar del AVISO, y por eso están separados en los tokens. */
   kcals: 'var(--data-amber)',
+  /* Los pasos que le pones al día. Son una serie como las calorías —se ponen y
+     siguen puestos hasta que los cambias— y se dibujan en la misma banda de la
+     gráfica del peso, alternando con ellas: por eso NO pueden compartir el
+     ámbar, que es lo único que distingue una escalera de la otra.
+
+     Rosa y no cualquiera de los libres: el naranja es la cintura y el lima la
+     adherencia, y las tres salen en el mismo panel. El rosa solo lo usa una
+     pregunta del check-in (el estrés), que vive en otra familia —las escalas
+     subjetivas— y nunca se dibuja en el mismo gráfico que esto. */
+  steps: 'var(--data-pink)',
   proteinShare: macroColor('protein'),
 };
 

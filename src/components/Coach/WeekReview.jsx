@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck } from 'lucide-react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { buildWeeklySeries } from '@/domain/analytics';
+import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
 import { checkinQuestions, clientProtocol } from '@/domain/protocol';
-import { readingHeadline, weeklyReading } from '@/domain/reading';
-import { phaseAt, phaseProgress } from '@/domain/roadmap';
+import { readingHeadline, weeklyReading, weightTrend } from '@/domain/reading';
+import { effectiveGoal, phaseAt, phaseProgress } from '@/domain/roadmap';
 import {
   answerTrend,
   pendingReviews,
@@ -18,9 +19,9 @@ import {
 } from '@/domain/reviews';
 import { nutritionTrack, reviewTimeline, timelineSummary } from '@/domain/timeline';
 import { clientWeek, exerciseHistory, latestActiveWeek } from '@/domain/week';
-import { blockChanges } from '@/domain/blocks';
-import { shortDate, todayISO } from '@/lib/dates';
+import { localeNumber, shortDate, todayISO } from '@/lib/dates';
 import { useElementWidth } from '@/lib/useElementWidth';
+import { lazyRoute } from '@/lib/lazyRoute';
 import { Delta } from '@/components/ui/metrics';
 /* Las tarjetas se declaran con la clase `card` y no con `Panel`: `Panel` monta
    además su propia cabecera de rótulo en versalita, y aquí cada bloque lleva un
@@ -29,79 +30,77 @@ import { Delta } from '@/components/ui/metrics';
    cabecera por fuera igualmente. */
 import { EmptyState } from '@/components/ui/primitives';
 import { Mando } from '@/components/ui/Mando';
+import { Avatar } from '@/components/ui/Avatar';
+import { Modal } from '@/components/ui/Modal';
+import { Tarjeta } from '@/components/dashboard/Tarjeta';
 import { Gallery } from '@/components/photos/Gallery';
-import { TimelineSpine } from '@/components/review/TimelineSpine';
 import { useTimelineWindow } from '@/components/review/useTimelineWindow';
-import { ReviewChart } from '@/components/review/ReviewChart';
+import { useReviewTrack } from '@/components/review/useReviewTrack';
 import { BodyCard } from '@/components/review/BodyCard';
 import { TrainingCard } from '@/components/review/TrainingCard';
 import { NutritionCard } from '@/components/review/NutritionCard';
 import { ReviewDecision } from '@/components/review/ReviewDecision';
+import { fmt } from '@/lib/num';
+import { clientPath } from '@/routes';
+import { Anteriores } from '@/components/review/Anteriores';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { ReviewHistory } from '@/components/ReviewHistory';
 
+/* La ventana del cuerpo a fondo es la MISMA del Resumen: se difiere igual. */
+const PanelCuerpo = lazyRoute(() => import('@/components/dashboard/PanelCuerpo').then((m) => ({ default: m.PanelCuerpo })));
+
 /**
- * LA REVISIÓN DE UN CLIENTE: cuatro tarjetas y una decisión.
+ * LA REVISIÓN DE UN CLIENTE: lo que pasó a la izquierda, lo que le pusiste a la
+ * derecha, y una decisión.
  *
  * ══ La forma ════════════════════════════════════════════════════════════════
  *
- *     Revisión de Javier                                      [1 de 4]
- *     Semana 24 · del 17 ago · espera tu respuesta
+ *     Semana 24 · del 17 ago · Definición · espera tu respuesta    [1 de 4] ‹ ›
+ *     ┌── CÓMO VA ──────────────────────────────┐ ┌ SU PLAN ESTA SEMANA ──┐
+ *     │ 81,5 kg  ↑1,4  [en dirección contraria]  │ │ Calorías  2.300 ↓150  │
+ *     │ 3 pesajes · 2,5 kg más que en la S1      │ │ Proteína  185 g  ↑5   │
+ *     │ S15 · S16 · … · [S24 pendiente]   a fondo → │ │ Pasos     11.000      │
+ *     │                                          │ │ Ajustar la dieta →    │
+ *     └──────────────────────────────────────────┘ └───────────────────────┘
+ *     ┌── SU CUERPO ─────────────────────────────┐ ┌ ANTERIORES  Ver todas ┐
+ *     │ «llevo dos semanas durmiendo fatal»      │ │ Sem. del 17 ago 77,7  │
+ *     │ Sueño 3/5 ↓1 · Hambre 4/5                │ │ Sem. del 10 ago 77,9  │
+ *     │ [fotos de las semanas que las tienen]    │ └───────────────────────┘
+ *     └──────────────────────────────────────────┘
+ *     ┌── SU ENTRENO ────────────── Su rutina → ─┐
+ *     │ Push A · 24 ago · 18 de 18 · sube en 5 › │
+ *     └──────────────────────────────────────────┘
+ *     ═══ la barra con la que se cierra ═══════════════════════════════════
  *
- *     ┌ CÓMO VA ────────────────────────────────────────────────────┐
- *     │  PESO MEDIO DE LA SEMANA          [en dirección contraria]  │
- *     │  81,5 kg  ↑1,4                                              │
- *     │  solo 1 de 3 pesajes · 2,5 kg más que en la S1 · 2 500 kcal  │
- *     │                                                             │
- *     │  PESO                                                       │
- *     │  84 ┼···········································___·······  │
- *     │  82 ┼·····╱‾‾╲______······················___╱···╲__●·····  │
- *     │  ├──────────────────────────────────────────────────────    │
- *     │  KCAL OBJETIVO                                              │
- *     │  2600 ┼▔▔▔▔╲______                                          │
- *     │  2200 ┼···········▔▔▔▔▔▔▔▔╲______________________________  │
- *     │    S15  S16  S17  S18  S19  S20  S21  S22  S23  [S24]       │
- *     │    Semana 24 · 81,5 kg · 2 300 kcal                         │
- *     └─────────────────────────────────────────────────────────────┘
- *     ┌ SU CUERPO ── qué te cuenta · cómo se ve · sus medidas ───────┐
- *     ┌ SU ENTRENO ── qué levantó, serie a serie ────────────────────┐
- *     ┌ SU PLAN ── con qué comía y cuánto andaba ────────────────────┐
- *     ═══ la barra con la que se cierra ════════════════════════════
+ * ══ Por qué DOS COLUMNAS, después de cinco tarjetas apiladas ═══════════════
  *
- * ══ 0 · Por qué son TARJETAS, y ésta fue la corrección grande ══════════════
+ * Entreno, Dieta y Resumen ya tienen esta forma: el trabajo a lo ancho y, al
+ * lado, lo que se decidió una vez y se consulta muchas. La revisión era la única
+ * pantalla del cliente que no —cinco tarjetas a lo ancho, a la medida de
+ * lectura— y se notaba al saltar de pestaña: otro ancho, otra gramática.
  *
- * La pantalla se montó como «un documento»: ni una superficie, todo separado por
- * filetes de un píxel y rotulado con la misma versalita diminuta. El resultado
- * eran doce rótulos del mismo tamaño y del mismo gris —PESO MEDIO DE LA SEMANA,
- * ENTRENO, NUTRICIÓN, CUERPO, CALORÍAS, PROTEÍNA, HIDRATOS…— o sea una pantalla
- * SIN jerarquía: nada empieza, nada manda, y el ojo no tiene por dónde entrar.
- * El resto del producto usa tarjetas y ésta era la única que no.
+ * Lo que se ha ido:
+ *   · El mapa del proceso entero al pie de la gráfica (TimelineSpine): una
+ *     segunda curva del mismo peso; para el salto largo están las flechas.
+ *   · El rótulo «Lo que pasó en la semana 15 · del 24 ago», que repetía la
+ *     fila de mando de treinta líneas más arriba.
+ *   · Las cinco escalas vacías con «igual que antes» debajo cuando no había
+ *     contestado ninguna, y las once columnas de puntos de la tira de fotos.
+ *   · El plan a lo ancho —cinco cifras ocupando una tarjeta entera— y el
+ *     histórico completo debajo de todo: el plan está al lado, en la forma
+ *     de «El plan» del Resumen; el histórico, en una ventana grande.
  *
- * Ahora cada bloque es una tarjeta con su título de verdad y su frase, y el
- * orden es el de la lectura de una revisión: cómo va, qué te cuenta y cómo se
- * ve, qué levantó, y con qué plan lo hizo — que es justo el que estás a punto de
- * tocar en la barra de abajo.
+ * ══ 1 · Aquí NO se dibuja la curva del peso ════════════════════════════════
  *
- * ── Y NO hay rejilla de dos columnas ───────────────────────────────────────
- * La hubo, con el entreno a la izquierda y la nutrición a la derecha. Son cuatro
- * días de ejercicios contra cinco cifras: la columna estrecha quedaba con un
- * palmo de blanco tan alto como toda la lista de al lado. A lo ancho, cada
- * bloque ocupa exactamente lo que tiene que decir — y las cinco cifras del plan,
- * en fila, se leen de un barrido.
- *
- * ══ 1 · UNA curva del peso, y con ejes ═════════════════════════════════════
- *
- * Había TRES dibujos de la misma serie en la misma pantalla: la espina, la banda
- * del peso de la gráfica y —dentro del pliegue de las fotos— la tira. Con un
- * cliente de treinta semanas la espina se defiende (una es el mapa y la otra la
- * ventana); con uno de tres semanas no hay ventana que recortar, así que salían
- * dos dibujos idénticos de tres puntos, uno encima del otro.
- *
- * Ahora hay una, dentro de la tarjeta de la cifra —porque la cifra ES la lectura
- * de un punto de esa curva—, con rejilla, números en el canal izquierdo, área
- * bajo la línea y una lectura en palabras de la semana elegida. Y el mapa del
- * proceso entero queda como PIE suyo, y solo cuando la ventana recorta de
- * verdad. Ver `ReviewChart` y `TimelineSpine`.
+ * La tuvo —con la escalera de calorías debajo y el eje como selector de
+ * semana— y era exactamente la misma gráfica que «El cuerpo» del Resumen, en
+ * la pestaña de al lado. Dos pestañas con el mismo dibujo se leen como una
+ * pantalla partida en dos. Lo que esta tarjeta tiene que decir de la semana es
+ * su cifra, su variación y su veredicto; el selector son pastillas como las de
+ * Entreno, y el análisis entero —la tabla semana a semana con peso, kcal, pasos
+ * y lo que contestó, la tendencia, los perímetros— se abre «a fondo» en la
+ * MISMA ventana que el Resumen (`PanelCuerpo`). Las dos pestañas dejan de
+ * pisarse: Resumen lee el proceso, Revisiones cierra la semana.
  *
  * ══ 2 · Los tres bloques SON LOS TRES DOMINIOS de una asesoría ═════════════
  *
@@ -109,11 +108,8 @@ import { ReviewHistory } from '@/components/ReviewHistory';
  *     cuatro instrumentos del mismo examen, y por eso van juntos: es lo que
  *     impide bajarle la comida a alguien que no mueve la báscula pero ha perdido
  *     cinco centímetros de cintura. Ver `BodyCard`.
- *   · **Entreno** — una tarjeta por ejercicio con LA RECTA de su carga, la cifra
- *     de la semana que señales con el dedo y sus series debajo. Fue una fila de
- *     cifras derivadas —un dibujito, «45 → 45» y una palabra— y luego una tabla
- *     de dos sesiones al lado; las dos contestaban media pregunta, porque en dos
- *     columnas la FORMA no se ve. Ver `TrainingCard` y `ExerciseCard`.
+ *   · **Entreno** — una fila por ejercicio: su tope, si sube o baja, la forma
+ *     de su recorrido y sus series. Ver `TrainingCard` y `ExerciseRow`.
  *   · **Nutrición** — qué le pusiste y cuándo lo cambiaste. La escalera contra
  *     su peso vive arriba, en la gráfica, que es donde se comparan las dos.
  *     Ver `NutritionCard`.
@@ -237,6 +233,8 @@ export const WeekReview = () => {
 
   /* Qué foto de la tira se está mirando a pantalla completa, o `null`. */
   const [verFotos, setVerFotos] = useState(null);
+  /* La ventana abierta: el histórico completo, o ninguna. */
+  const [ventana, setVentana] = useState(null);
 
   const setSemanaElegida = (week) => setElegida({ clientId: activeClient?.id, week });
 
@@ -375,6 +373,19 @@ export const WeekReview = () => {
   const resumen = useMemo(() => timelineSummary(linea, semana), [linea, semana]);
 
   /*
+    ══ Lo que necesita la ventana «a fondo» ═══════════════════════════════════
+    Es `PanelCuerpo`, la misma del Resumen: la tabla semana a semana con peso,
+    kcal, pasos y lo que contestó, la tendencia, los perímetros y las escalas.
+    Aquí NO se dibuja la curva del peso: ya está en el Resumen, y repetirla era
+    la mitad de la sensación de que las dos pestañas se pisan.
+  */
+  const track = useReviewTrack(revisiones);
+  const protocolo = useMemo(() => clientProtocol(activeClient?.preferences), [activeClient?.preferences]);
+  const pesoActual = metricPoints(serie, 'weight').slice(-1)[0]?.value ?? null;
+  const trend = useMemo(() => weightTrend(serie), [serie]);
+  const goal = useMemo(() => effectiveGoal(activeClient, phases, todayISO()), [activeClient, phases]);
+
+  /*
     ══ QUÉ LE PUSISTE DE COMER, SEMANA A SEMANA ══════════════════════════════
 
     El objetivo de calorías no se mide: se pone, y sigue puesto hasta que lo
@@ -417,7 +428,7 @@ export const WeekReview = () => {
     cero y la ventana cambiaría de tamaño al cambiar de pestaña.
   */
   const [refAncho, ancho] = useElementWidth();
-  const { desde, hasta, visibles, elegir, vecina } = useTimelineWindow({
+  const { visibles, elegir, vecina } = useTimelineWindow({
     weeks: linea,
     selected: semana,
     ancho,
@@ -502,7 +513,7 @@ export const WeekReview = () => {
     const acumulado =
       resumen.sinceStart === null || resumen.sinceStart === 0
         ? null
-        : `${Math.abs(resumen.sinceStart)} kg ${
+        : `${fmt(Math.abs(resumen.sinceStart), { decimals: 1 })} kg ${
             resumen.sinceStart < 0 ? 'menos' : 'más'
           } que en la semana ${resumen.from}`;
 
@@ -661,6 +672,39 @@ export const WeekReview = () => {
   const pasada = useMemo(() => pendingReviews({ clients, checkIns }), [clients, checkIns]);
   const posicion = pasada.findIndex((p) => p.client.id === activeClient?.id) + 1;
   const siguiente = pasada.find((p) => p.client.id !== activeClient?.id) || null;
+  const navigate = useNavigate();
+  const idxPasada = pasada.findIndex((p) => p.client.id === activeClient?.id);
+
+  /*
+    ══ La bandeja se vacía con el teclado ═════════════════════════════════════
+    Revisar doce clientes un domingo tiene que sentirse como vaciar un correo:
+    J y K saltan entre las personas que esperan respuesta, R lleva el cursor a
+    la caja de escribir y ⌘/Ctrl + Intro cierra la semana. Las letras solo
+    funcionan fuera de un campo de texto; el cierre, también dentro, que es
+    donde uno está cuando termina de escribir.
+  */
+  useEffect(() => {
+    const onKey = (e) => {
+      const enCampo = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) || e.target?.isContentEditable;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        const boton = document.querySelector('.cierre .btn-primary');
+        if (boton) { e.preventDefault(); boton.click(); }
+        return;
+      }
+      if (enCampo || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'j' || e.key === 'k') {
+        if (pasada.length < 2) return;
+        const paso = e.key === 'j' ? 1 : -1;
+        const destino = pasada[(idxPasada + paso + pasada.length) % pasada.length];
+        if (destino) { e.preventDefault(); navigate(clientPath(destino.client.id, 'semana')); }
+      } else if (e.key === 'r') {
+        const caja = document.querySelector('.cierre textarea');
+        if (caja) { e.preventDefault(); caja.focus(); }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pasada, idxPasada, navigate]);
 
   /* Las preguntas del check-in, para leer lo que contestó al entregar. Las de
      HOY: si el entrenador quitó una después, su respuesta deja de pintarse
@@ -707,195 +751,214 @@ export const WeekReview = () => {
     );
   }
 
+  /* La semana de al lado, para las flechas del mando. `vecina` devuelve null en
+     los extremos, y ahí la flecha no se pinta: un botón apagado en una fila de
+     mando es ruido. */
+  const anterior = vecina(-1);
+  const posterior = vecina(1);
+
   return (
-    <div className="stack">
+    <div className="revision-pagina">
       {/*
-        El título dice lo que estás HACIENDO y el subtítulo de qué semana va —que
-        es el dato, no la tarea—. Y las dos chapas de estado juntas: cómo va esta
-        persona, y por dónde vas tú.
+        La fila de mando, la misma que en Entreno y Dieta: a la izquierda qué
+        semana es y en voz baja de cuándo, contra qué etapa y si espera
+        respuesta; a la derecha las flechas para pasar de semana —que es el
+        gesto más frecuente de esta pantalla y hasta ahora solo estaba en el
+        teclado y en el eje de la gráfica— y por dónde vas en la pasada.
+
+        El veredicto de cómo va ÉL no va aquí: es un juicio sobre la curva y
+        vive pegado a la cifra que juzga.
       */}
-      {/* La unidad es la semana, no la persona: quién es ya lo dice la cabecera.
-          Y es la fila de mando de Entreno: la semana a la izquierda, en voz baja
-          de cuándo es y cómo va, y a la derecha por dónde vas tú en la pasada. */}
       <Mando
         titulo={`Semana ${semana}`}
         contexto={[
           datos.weekStart && `del ${shortDate(datos.weekStart)}`,
-          /* El bloque va DELANTE del estado de la entrega: es contra lo que se
-             revisa, y lo otro es por dónde vas tú. */
           bloque,
           pendiente ? 'entregó y espera tu respuesta' : 'sin nada pendiente por tu parte',
         ]
           .filter(Boolean)
           .join(' · ')}
-        /*
-          Aquí va solo POR DÓNDE VAS TÚ. El veredicto de cómo va ÉL bajó a la
-          tarjeta de la cifra: es un juicio sobre esa curva —«en dirección
-          contraria: +0,45 kg/semana»— y estaba a ochocientos píxeles del número
-          que juzga, en la esquina opuesta de la pantalla. Un veredicto lejos de
-          su dato es una etiqueta suelta.
-        */
         acciones={
-          pasada.length > 1 && posicion > 0 ? (
-            <span className="badge">
-              {posicion} de {pasada.length}
-            </span>
-          ) : null
+          <>
+            {pasada.length > 1 && posicion > 0 && (
+              <span className="badge">
+                {posicion} de {pasada.length}
+              </span>
+            )}
+            <div className="revision-paso" role="group" aria-label="Cambiar de semana">
+              <button
+                type="button"
+                className="btn btn-icon"
+                aria-label={anterior !== null ? `Semana ${anterior}` : 'No hay semana anterior'}
+                disabled={anterior === null}
+                onClick={() => paso(-1)}
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                type="button"
+                className="btn btn-icon"
+                aria-label={posterior !== null ? `Semana ${posterior}` : 'No hay semana posterior'}
+                disabled={posterior === null}
+                onClick={() => paso(1)}
+              >
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </>
         }
       />
 
+      {/* La bandeja: quién más espera respuesta, con la persona abierta marcada.
+          Es la lista de un correo, tumbada. Solo se pinta con dos o más. */}
+      {pasada.length > 1 && (
+        <nav className="bandeja" aria-label="Personas que esperan respuesta">
+          <ul className="bandeja-lista">
+            {pasada.map((p) => (
+              <li key={p.client.id}>
+                <Link
+                  className={`bandeja-persona${p.client.id === activeClient.id ? ' is-abierta' : ''}`}
+                  to={clientPath(p.client.id, 'semana')}
+                  aria-current={p.client.id === activeClient.id ? 'page' : undefined}
+                >
+                  <Avatar name={p.client.name} src={p.client.avatar} size="xs" />
+                  <span>{p.client.name.split(/s+/)[0]}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <span className="bandeja-teclas" aria-hidden="true">
+            <kbd className="kbd">J</kbd><kbd className="kbd">K</kbd> siguiente · <kbd className="kbd">R</kbd> responder · <kbd className="kbd">⌘↵</kbd> cerrar
+          </span>
+        </nav>
+      )}
+
       {/*
-        ══ CÓMO VA: la cifra y la gráfica, en la misma tarjeta ═══════════════
-
-        Estaban en dos bloques a sangre separados por filetes, y con ellos la
-        espina —una TERCERA curva del peso, con la misma serie que la gráfica de
-        debajo—. Con un cliente de tres semanas eso eran dos dibujos idénticos de
-        tres puntos, uno encima del otro, que es justo el defecto que la gráfica
-        vino a arreglar.
-
-        Ahora la cifra y su gráfica son una sola pieza —la cifra ES la lectura de
-        un punto de esa curva— y el proceso entero queda como PIE de la gráfica,
-        y solo cuando la ventana recorta algo de verdad. Ver `ReviewChart`.
+        ══ DOS COLUMNAS, como Entreno, Dieta y Resumen ══════════════════════
+        A la izquierda lo que PASÓ esa semana —cómo va, qué te cuenta y cómo se
+        ve, qué levantó—, que es lo que se lee. A la derecha lo que le tenías
+        PUESTO y lo que decidiste las semanas anteriores, que es lo que se
+        consulta mientras decides. Antes eran cinco tarjetas apiladas a lo
+        ancho y el plan —cinco cifras— ocupaba una tarjeta entera de ancho de
+        página; el histórico, catorce filas más.
       */}
-      <section className="card revision-hero" aria-label="Cómo va">
-        <header className="revision-hero-head">
-          <div className="revision-hero-say">
-            <span className="section-label">Peso medio de la semana</span>
+      <div className="revision">
+        <div className="revision-trabajo">
+          {/*
+            ══ CÓMO VA: la cifra y la gráfica, en la misma tarjeta ═══════════
+            La cifra ES la lectura de un punto de esa curva. Y la gráfica es el
+            MANDO: se pulsa una semana y todo lo demás pasa a hablar de ella.
 
-            <p className="revision-hero-cifra">
-              <span className="v">{resumen?.weight ?? '—'}</span>
-              {resumen?.weight !== null && resumen?.weight !== undefined && (
-                <span className="u">kg</span>
-              )}
-              {resumen?.delta !== null && resumen?.delta !== undefined && (
-                <Delta value={resumen.delta} unit=" kg" lowerIsBetter />
-              )}
-
-              {/*
-                El veredicto, EN la línea de la cifra que juzga. Es la única
-                frase que contesta la pregunta con la que se entra a revisar, y
-                se calcula igual que en la lista de clientes —mismo
-                `weeklyReading`, mismo filtro— para que la ficha de alguien y la
-                lista no puedan dar dos veredictos distintos de la misma persona.
-
-                ── Estaba al otro lado de la tarjeta ──────────────────────────
-                Era hermano de este bloque dentro de una cabecera con
-                `space-between`, o sea pegado al canto derecho: en una pantalla
-                ancha, a mil doscientos píxeles del número que juzga y a la
-                misma altura que el rótulo. Se había bajado aquí precisamente
-                para que no estuviera lejos, y el reparto de la fila lo devolvía
-                a la esquina.
-
-                Aquí va detrás de la píldora de variación, que es su orden
-                natural: cuánto ha cambiado y qué significa eso.
-              */}
-              {veredicto && (
-                <span className={`badge ${TONO_BADGE[veredicto.tone] || ''}`}>
-                  {veredicto.text}
+            El mapa del proceso entero que iba al pie (`TimelineSpine`) se ha
+            quitado: era una segunda curva del mismo peso debajo de la primera,
+            y para el salto largo están las flechas del mando y las del teclado.
+            El proceso entero, además, ya está dibujado en «Resumen».
+          */}
+          <Tarjeta
+            rotulo="Cómo va"
+            span={12}
+            className="revision-hero"
+            accion={
+              <button type="button" className="cab-accion" aria-haspopup="dialog" onClick={() => setVentana('cuerpo')}>
+                Ver a fondo →
+              </button>
+            }
+          >
+            <div className="revision-hero-say">
+              <p className="revision-hero-cifra">
+                {/* En español: «77,3» y no «77.267». */}
+                <span className="v">
+                  {resumen?.weight === null || resumen?.weight === undefined
+                    ? '—'
+                    : localeNumber(resumen.weight, { maximumFractionDigits: 1 })}
                 </span>
-              )}
-            </p>
+                {resumen?.weight !== null && resumen?.weight !== undefined && (
+                  <span className="u">kg</span>
+                )}
+                {resumen?.delta !== null && resumen?.delta !== undefined && (
+                  <Delta value={resumen.delta} unit=" kg" lowerIsBetter />
+                )}
+                {/* El veredicto, EN la línea de la cifra que juzga, y calculado
+                    igual que en la lista de clientes para que los dos sitios no
+                    puedan discrepar de la misma persona. */}
+                {veredicto && (
+                  <span className={`badge ${TONO_BADGE[veredicto.tone] || ''}`}>
+                    {veredicto.text}
+                  </span>
+                )}
+              </p>
+              <p className="revision-hero-meta">{contexto}</p>
+            </div>
 
-            <p className="revision-hero-meta">{contexto}</p>
-          </div>
-        </header>
+            {/*
+              ══ EL SELECTOR DE SEMANA: pastillas, como en Entreno ══════════════
+              Era una gráfica del peso con las calorías debajo cuyo eje se
+              pulsaba. La gráfica es la del Resumen —se dibujaba dos veces en dos
+              pestañas contiguas— y como mando obligaba a apuntar a una marca de
+              cincuenta píxeles. Las pastillas son el mismo control con el que se
+              cambia de semana en la hoja de Entreno, y dicen además cuáles ya
+              están cerradas y cuál es la que la pasada está pidiendo.
+            */}
+            <div className="hoja-semanas revision-semanas" role="tablist" aria-label="Semanas" ref={refAncho}>
+              {linea.map((fila) => (
+                <button
+                  key={fila.week}
+                  type="button"
+                  role="tab"
+                  aria-selected={fila.week === semana}
+                  className={`hoja-semana${fila.week === semana ? ' is-on' : ''}${
+                    fila.week === semanaDeLaCola ? ' is-curso' : ''
+                  }`}
+                  onClick={() => irA(fila.week)}
+                >
+                  <span className="hoja-semana-n">S{fila.week}</span>
+                  {/* Solo hablan las que tienen algo que decir: la que la
+                      pasada pide y las que se quedaron sin cerrar. Catorce
+                      «cerrada» seguidas no informan; una «sin cerrar» sí. */}
+                  {fila.week === semanaDeLaCola ? (
+                    <span className="hoja-semana-estado">pendiente</span>
+                  ) : !fila.reviewed && fila.week < semanaDeLaCola ? (
+                    <span className="hoja-semana-estado">sin cerrar</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </Tarjeta>
 
-        {/* El ancho se mide en este envoltorio y no en la tarjeta: la tarjeta
-            lleva relleno, así que su medida es 44 px más ancha que el sitio donde
-            de verdad cabe el dibujo — y el dibujo se salía por los dos cantos. */}
-        <div className="revision-grafica" ref={refAncho}>
-          <ReviewChart
-            weeks={nutricion.slice(desde, hasta)}
+          <BodyCard
+            weeks={visibles}
             selected={semana}
             onSelect={irA}
-            onStep={paso}
-            ancho={ancho}
-            cambios={blockChanges(workoutData[activeClient?.id])}
-            /* El proceso entero, como pie y solo cuando la ventana recorta: es
-               el salto largo —irse a la semana 5 de un cliente de seis meses sin
-               pasar por las otras diecinueve— y con una ventana que las abarca
-               todas no recorta nada, así que no se pinta. */
-            mapa={
-              hasta - desde < linea.length ? (
-                <TimelineSpine
-                  weeks={linea}
-                  selected={semana}
-                  onSelect={irA}
-                  desde={desde}
-                  hasta={hasta}
-                />
-              ) : null
-            }
+            onPhoto={(s) => setVerFotos(Math.max(0, album.findIndex((f) => f.week === s.week)))}
+            comparativa={comparativa}
+            history={history}
+            groups={porSemana}
+            preguntas={preguntas}
+            respuestas={respuestas}
+            tendencia={tendencia}
+            textos={textos}
+            client={activeClient}
+          />
+
+          <TrainingCard
+            dias={datos.days}
+            porDia={porDia}
+            semana={semana}
+            microcycles={microcycles}
+            sesiones={datos.sessions}
+            client={activeClient}
           />
         </div>
-      </section>
 
-      {/*
-        ══ LA SEMANA ELEGIDA, bloque a bloque ════════════════════════════════
-
-        Cuatro tarjetas a lo ancho y en el orden en que se lee una revisión: cómo
-        va (arriba), qué te cuenta y cómo se ve, qué levantó, y con qué plan lo
-        hizo — que es el que estás a punto de tocar en la barra de abajo.
-
-        Estaban en una rejilla de dos columnas con el entreno a la izquierda y la
-        nutrición a la derecha. Son cuatro días de ejercicios contra cinco cifras:
-        la columna derecha quedaba con un palmo de blanco tan alto como toda la
-        lista de al lado. Cada bloque a lo ancho ocupa lo que tiene que decir.
-
-        Lo que sí se abre en diálogo es el registro completo de un ejercicio, que
-        es consultar un archivo y volver. Ver `ExerciseSheet`.
-      */}
-      <div className="tablero">
-        {/*
-          El marcador de tramo: de aquí abajo, todo habla de la semana que está
-          señalada en la gráfica. Hace falta porque esa semana SE CAMBIA —la
-          gráfica es el mando— y sin él tres tarjetas seguidas no dicen de cuándo
-          hablan; la cabecera de la pantalla nombra la que se abrió, no la que
-          estás mirando ahora.
-
-          Y es un rótulo de tramo con su filete, no una línea de texto pequeño:
-          separa dos partes de la pantalla que responden a cosas distintas —lo
-          que va arriba vale para todo el proceso, lo de abajo solo para esta
-          semana—.
-        */}
-        <div className="tablero-head">
-          <span className="section-label is-group">Lo que pasó en la semana {semana}</span>
-          <span className="t-xs t-tertiary">
-            {datos.weekStart ? `del ${shortDate(datos.weekStart)}` : ''}
-          </span>
-        </div>
-
-        <BodyCard
-          weeks={visibles}
-          selected={semana}
-          onSelect={irA}
-          onPhoto={(s) => setVerFotos(Math.max(0, album.findIndex((f) => f.week === s.week)))}
-          comparativa={comparativa}
-          history={history}
-          groups={porSemana}
-          preguntas={preguntas}
-          respuestas={respuestas}
-          tendencia={tendencia}
-          textos={textos}
-          client={activeClient}
-        />
-
-        <TrainingCard
-          dias={datos.days}
-          porDia={porDia}
-          semana={semana}
-          microcycles={microcycles}
-          sesiones={datos.sessions}
-          client={activeClient}
-        />
-
-        <NutritionCard track={nutricion} selected={semana} client={activeClient} />
+        <aside className="revision-lado">
+          <NutritionCard track={nutricion} selected={semana} client={activeClient} />
+          <Anteriores
+            rows={revisiones}
+            onVerTodas={() => setVentana('historial')}
+            onAbrir={(fila) => setVentana({ revision: fila.id })}
+          />
+        </aside>
       </div>
-
-      {/* Y lo que se decidió las semanas anteriores. Va al final y conserva su
-          superficie: no es un bloque de esta revisión, es el archivo de las
-          otras. */}
-      <ReviewHistory client={activeClient} audience="coach" rows={revisiones} recargar={recargar} />
 
       {/* Todas sus fotos, a pantalla completa y pasando con el dedo. */}
       {verFotos !== null && album.length > 0 && (
@@ -905,6 +968,52 @@ export const WeekReview = () => {
           onIndex={setVerFotos}
           onClose={() => setVerFotos(null)}
         />
+      )}
+
+      {/*
+        El archivo de las otras semanas, en una ventana grande —la misma que
+        abre el bloque de Entreno y el cuerpo «a fondo» del Resumen—. En la
+        página eran catorce filas a lo ancho debajo de la revisión, y el
+        histórico se usa al revés: se busca UNA cosa y se vuelve.
+      */}
+      <Suspense fallback={null}>
+        {ventana === 'cuerpo' && (
+          <PanelCuerpo
+            open
+            onClose={() => setVentana(null)}
+            serie={serie}
+            track={track}
+            checkIns={entregas}
+            protocol={protocolo}
+            history={history}
+            pesoActual={pesoActual}
+            trend={trend}
+            goal={goal}
+          />
+        )}
+      </Suspense>
+
+      {ventana !== null && ventana !== 'cuerpo' && (
+        <Modal
+          size="lg"
+          title={
+            ventana === 'historial'
+              ? 'Revisiones anteriores'
+              : `Revisión de la semana del ${shortDate(revisiones.find((r) => r.id === ventana.revision)?.weekStart)}`
+          }
+          onClose={() => setVentana(null)}
+        >
+          <ReviewHistory
+            plain
+            client={activeClient}
+            audience="coach"
+            /* Una sola, desplegada, cuando se llega desde su fila; todas cuando
+               se pide el archivo entero. */
+            rows={ventana === 'historial' ? revisiones : revisiones.filter((r) => r.id === ventana.revision)}
+            abierta={ventana === 'historial' ? null : ventana.revision}
+            recargar={recargar}
+          />
+        </Modal>
       )}
 
       {/*

@@ -98,6 +98,12 @@ export const AnthropometryPanel = ({
   const delta = useMemo(() => seriesDelta(weekly), [weekly]);
   const rate = useMemo(() => weeklyRateOfChange(history), [history]);
   const rows = useMemo(() => reverseChronological(history), [history]);
+  /* El historial entero son meses de pesajes: se enseñan los últimos y el
+     resto se pide. Una lista de sesenta filas debajo del check-in convertía la
+     pantalla del cliente en dos metros de tabla. */
+  const [todoElHistorial, setTodoElHistorial] = useState(false);
+  const VISIBLES = 10;
+  const filas = todoElHistorial ? rows : rows.slice(0, VISIBLES);
 
   const askRemove = async (log) => {
     const ok = await confirm({
@@ -147,8 +153,8 @@ export const AnthropometryPanel = ({
           {delta && (
             <MetricCard
               title="Variación total"
-              subtitle={`de ${delta.from} a ${delta.to} kg`}
-              value={`${delta.delta > 0 ? '+' : ''}${delta.delta}`}
+              subtitle={`de ${fmt(delta.from, { decimals: 1 })} a ${fmt(delta.to, { decimals: 1 })} kg`}
+              value={`${delta.delta > 0 ? '+' : ''}${fmt(delta.delta, { decimals: 1 })}`}
               unit="kg"
               color={metricColor('weight')}
             />
@@ -235,7 +241,7 @@ export const AnthropometryPanel = ({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((log) => {
+                {filas.map((log) => {
                   const logPct = fatPercent(log.skinFolds, client.gender);
                   return (
                     <tr key={log.id || log.date}>
@@ -267,6 +273,11 @@ export const AnthropometryPanel = ({
               </tbody>
             </table>
           </div>
+          {rows.length > VISIBLES && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setTodoElHistorial((v) => !v)}>
+              {todoElHistorial ? 'Ver solo los últimos' : `Ver los ${rows.length} registros`}
+            </button>
+          )}
         </Panel>
       )}
 

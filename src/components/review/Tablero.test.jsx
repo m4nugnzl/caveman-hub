@@ -7,7 +7,7 @@ import { TrainingCard } from './TrainingCard';
 import { NutritionCard } from './NutritionCard';
 import { BodyCard } from './BodyCard';
 import { ExerciseSheet } from './ExerciseSheet';
-import { ExerciseCard } from './ExerciseCard';
+import { ExerciseRow } from './ExerciseRow';
 import { nutritionTrack, reviewTimeline } from '@/domain/timeline';
 import { exerciseTrend } from '@/domain/week';
 
@@ -227,64 +227,53 @@ describe('TrainingCard', () => {
     Lo del día —que su línea resuma la sesión sin abrirla— se prueba aparte, más
     abajo, que es lo que de verdad se ha añadido.
   */
-  const pintaTarjeta = (props = {}) =>
+  const pintaFila = (props = {}) =>
     monta(
-      <ExerciseCard
+      <ExerciseRow
         ejercicio={ejercicio}
         trend={exerciseTrend({ microcycles, name: 'Sentadilla', weekNumber: 4 })}
-        semana={4}
         onOpen={() => {}}
         {...props}
       />
     );
 
   /*
-    ══ Lo que este bloque vino a arreglar, a la tercera ══════════════════════
+    ══ Una FILA por ejercicio, y qué tiene que decir ══════════════════════════
 
-    Fue una fila de cifras derivadas —un dibujito, «45 → 45» y una palabra— y
-    luego una tabla con las dos últimas sesiones al lado. La primera no traía ni
-    un dato del registro; la segunda sí, pero ocho ejercicios eran ochenta cifras
-    en una rejilla de cinco columnas, y en dos columnas la FORMA no se ve: quien
-    sube, baja y vuelve a subir está estancado aunque la última flecha diga que
-    subió.
-
-    Lo primero que se ve ahora es la recta.
+    Fue una fila de cifras derivadas, luego una tabla de dos sesiones, luego una
+    tarjeta por ejercicio con su gráfica deslizable. La tarjeta se leía con tres
+    ejercicios y se volvía una rejilla ilegible con ocho. Ahora es una tabla: la
+    fila dice el tope de la semana, si sube o baja contra la anterior SUYA, la
+    forma de su recorrido como chispa y lo que anotó.
   */
-  it('lo primero es la recta, con sus dos extremos rotulados', () => {
-    const html = pintaTarjeta();
+  it('la fila dice el tope de esta semana, con su salto contra la anterior', () => {
+    const html = pintaFila();
 
-    expect(html).toContain('ejerc-recta');
-    expect(html).toContain('recta-trazo');
-    /* De dónde viene y dónde está, escritos sobre el dibujo. */
-    expect(html).toContain('>100<');
-    expect(html).toContain('>115<');
-  });
-
-  /* Y la cifra grande es la de la semana señalada, con su salto contra la
-     anterior SUYA y el número de semana al canto — sin él, deslizar cambia los
-     números y no dice de cuándo son. */
-  it('la cifra es la de la semana señalada, con su salto y su semana', () => {
-    const html = pintaTarjeta();
-
-    expect(html).toContain('ejerc-kpi');
+    expect(html).toContain('ejerc-fila');
+    expect(html).toContain('ejerc-fila-tope');
     expect(html).toContain('115');
     expect(html).toContain('vs S3');
-    expect(html).toContain('ejerc-kpi-sem is-now');
   });
 
-  /* El que no hizo conserva su recta: qué le tocaba y por dónde iba. Es lo que
-     permite decidir si se reprograma o se le pregunta qué pasó. */
-  it('el ejercicio que no hizo conserva su recta y lo dice', () => {
-    const html = pintaTarjeta({
+  it('lleva la forma de su recorrido como chispa, y sus series', () => {
+    const html = pintaFila();
+
+    expect(html).toContain('ejerc-fila-chispa');
+    expect(html).toContain('<svg');
+    expect(html).toContain('serie is-tope');
+  });
+
+  /* El que no hizo conserva su sitio y lo dice: es lo que permite decidir si se
+     reprograma o se le pregunta qué pasó. */
+  it('el ejercicio que no hizo lo dice', () => {
+    const html = pintaFila({
       ejercicio: saltado,
       trend: exerciseTrend({ microcycles, name: 'Face pull', weekNumber: 4 }),
     });
 
     expect(html).toContain('Face pull');
-    expect(html).toContain('No lo hizo esta semana');
-    expect(html).toContain('ejerc-tarjeta is-saltado');
-    /* Su historial sigue ahí: dejó de hacerlo en la semana 2. */
-    expect(html).toContain('>S2<');
+    expect(html).toContain('no lo hizo');
+    expect(html).toContain('ejerc-fila is-saltado');
   });
 
   /* Y el reparto del día: dice si el problema es de un ejercicio o de todos. */
@@ -293,24 +282,15 @@ describe('TrainingCard', () => {
   });
 
   /* El registro en crudo vive en un diálogo, no desplegado aquí: con ocho
-     ejercicios de cinco series serían cuarenta renglones en mitad del tablero. */
+     ejercicios de cinco series serían cuarenta renglones en mitad del tablero.
+     La fila entera es la puerta. */
   it('el registro completo no se pinta hasta que se pide', () => {
-    const html = pintaTarjeta();
+    const html = pintaFila();
 
     expect(html).not.toContain('hist-serie');
-    expect(html).toContain('ejerc-tarjeta-head');
+    expect(html).toContain('<button');
   });
 
-  /*
-    ══ Y el día resume su sesión SIN abrirse ═════════════════════════════════
-
-    Es lo que hace que plegar no sea esconder: la línea del día tiene que decir
-    cuándo fue, cuántas series de las que le pusiste hizo y cómo le fue, o
-    plegarlo solo estaría quitando información de la pantalla.
-
-    Se comprueba que la línea lo dice y que los ejercicios NO están pintados,
-    que son las dos mitades del trato.
-  */
   it('el día se pliega y su línea resume la sesión', () => {
     const html = pinta();
 
@@ -318,15 +298,10 @@ describe('TrainingCard', () => {
     expect(html).toContain('3 de 4 series');
     expect(html).toContain('sube en 1');
     /* Y dentro no hay nada hasta que se abre. */
-    expect(html).not.toContain('ejerc-recta');
+    expect(html).not.toContain('ejerc-fila');
     expect(html).not.toContain('Face pull');
   });
 
-  /*
-    Un día con sesión abierta y NINGUNA serie anotada es haber pulsado «empezar»
-    y no haber entrenado. Leerlo como «día hecho» era lo que hacía que el bloque
-    dijera «0 de 9 series» debajo de un día que se daba por bueno.
-  */
   it('una sesión sin ninguna serie anotada no es un día entrenado', () => {
     const html = pinta({
       dias: [{ dayName: 'Día 1', done: true, date: '2026-04-04', loggedSets: 0, plannedSets: 9 }],
