@@ -7,6 +7,42 @@ import { Gallery } from '@/components/photos/Gallery';
 import { Thumb } from '@/components/photos/Thumb';
 
 /**
+ * Una casilla de la hoja: la foto, o el hueco de cuando aún no hay par.
+ *
+ * ── Por qué vive AQUÍ y no dentro de la hoja ────────────────────────────────
+ * Estaba declarada dentro de `PhotoContactSheet`. Un componente definido dentro
+ * de otro es un TIPO NUEVO en cada render, así que React no lo actualiza: lo
+ * desmonta y lo vuelve a montar. Y aquí cada casilla es un `Thumb`, que guarda
+ * en estado si la miniatura cargó o si hubo que caer a la original.
+ *
+ * El resultado era que abrir el visor —o pasar una sola foto dentro de él, que
+ * llama a `onIndex` y repinta la hoja— desmontaba las seis miniaturas de detrás:
+ * los `<img>` se vaciaban, volvían a decodificar y la decisión del respaldo se
+ * perdía. Fuera del componente el tipo es estable y React se limita a
+ * actualizar lo que cambia.
+ */
+const Foto = ({ foto, week, angle, onOpen }) =>
+  foto?.url ? (
+    <button
+      type="button"
+      className="contacto-foto"
+      aria-label={`Ver ${angleLabel(angle).toLowerCase()} de la semana ${week} en grande`}
+      onClick={() => onOpen(foto)}
+    >
+      <Thumb url={foto.url} alt={`${angleLabel(angle)} de la semana ${week}`} width={420} />
+    </button>
+  ) : (
+    /* Sin par anterior se dice, y no se deja un hueco mudo: es su primera de
+       ese ángulo, y la comparación empieza a existir la próxima vez. */
+    <div className="contacto-hueco">
+      <span className="t-2xs t-tertiary">
+        <Camera size={13} className="icon-inline" />
+        Primera
+      </span>
+    </div>
+  );
+
+/**
  * LA HOJA DE CONTACTOS: los tres ángulos y sus dos épocas, a la vez.
  *
  * ══ Por qué se cae el comparador de un ángulo ═══════════════════════════════
@@ -97,27 +133,6 @@ export const PhotoContactSheet = ({ groups = [], weekNumber, history = [] }) => 
     return [`S${week}`, peso === null ? null : `${peso} kg`].filter(Boolean).join(' · ');
   };
 
-  const Foto = ({ foto, week, angle }) =>
-    foto?.url ? (
-      <button
-        type="button"
-        className="contacto-foto"
-        aria-label={`Ver ${angleLabel(angle).toLowerCase()} de la semana ${week} en grande`}
-        onClick={() => abrir(foto)}
-      >
-        <Thumb url={foto.url} alt={`${angleLabel(angle)} de la semana ${week}`} width={420} />
-      </button>
-    ) : (
-      /* Sin par anterior se dice, y no se deja un hueco mudo: es su primera de
-         ese ángulo, y la comparación empieza a existir la próxima vez. */
-      <div className="contacto-hueco">
-        <span className="t-2xs t-tertiary">
-          <Camera size={13} className="icon-inline" />
-          Primera
-        </span>
-      </div>
-    );
-
   return (
     <>
       <div className="contactos">
@@ -126,8 +141,8 @@ export const PhotoContactSheet = ({ groups = [], weekNumber, history = [] }) => 
             <span className="section-label">{angleLabel(angle)}</span>
 
             <div className="contacto-par">
-              <Foto foto={antes} week={antesWeek} angle={angle} />
-              <Foto foto={ahora} week={weekNumber} angle={angle} />
+              <Foto foto={antes} week={antesWeek} angle={angle} onOpen={abrir} />
+              <Foto foto={ahora} week={weekNumber} angle={angle} onOpen={abrir} />
             </div>
 
             <figcaption className="row between gap-2 t-2xs t-tertiary">
