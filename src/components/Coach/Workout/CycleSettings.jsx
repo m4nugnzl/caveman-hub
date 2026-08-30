@@ -1,10 +1,7 @@
-import { RotateCw } from 'lucide-react';
-
 import { isModuleOn, modulesFor, toggleModule } from '@/domain/protocol';
 import { clampInt } from '@/lib/num';
 import { dayMonthMaybeYear } from '@/lib/dates';
-import { Field, Fold, OptionCard, SegmentedControl } from '@/components/ui/primitives';
-import { CycleChain } from '@/components/ui/CycleChain';
+import { Field, OptionCard, SegmentedControl } from '@/components/ui/primitives';
 
 const CYCLE_OPTIONS = [
   { id: 'weekly', label: 'Semanal', hint: 'Atada a lunes–domingo' },
@@ -23,10 +20,10 @@ const CYCLE_OPTIONS = [
  * lleva el foco, y esto no viene de fuera — es el contexto del programa que se
  * está mirando. Se cambia el tipo de ciclo mirando los días que ya hay puestos.
  *
- * Ahora es una fila que se abre en su sitio (`Fold`, con su porqué), hermana de
- * la del calentamiento: dos filas del mismo bloque, con la misma forma y el
- * mismo gesto. Cerrada dice lo que hay —«Semana natural · empieza el 12 sept»—,
- * así que plegarla no es esconderla.
+ * Ahora es la primera sección del panel de Ajustes, abierta: un panel que se
+ * abre para esto no necesita un pliegue dentro. La cadena del ciclo ya no se
+ * repite aquí —está en la pantalla del bloque, encima de las hojas—; el panel
+ * dice lo que hay en una línea y deja los campos que lo cambian.
  *
  * Recibe por `children` lo que cada estructura añade (la planificación semanal
  * cuando el ciclo es semanal): así el editor no tiene que saber qué hay dentro
@@ -38,7 +35,6 @@ export const CycleSettings = ({
   protocol,
   onProtocolChange,
   resumenExtra,
-  cicloSlots = [],
   children,
 }) => {
   const cycleType = client.cycleType || 'weekly';
@@ -58,17 +54,11 @@ export const CycleSettings = ({
     .join('  ·  ');
 
   return (
-    <Fold icon={RotateCw} title="Estructura" summary={resumen}>
-      <div className="col gap-5">
-        {/*
-          La cadena del ciclo, la MISMA que ve el cliente en su panel de
-          progreso (`ui/CycleChain`). Aquí había una versión propia con casillas
-          genéricas de «Entreno», sin los nombres de los días: enseñaba la forma
-          del patrón pero no el programa. Compartir el componente es lo que
-          garantiza que lo que montas es lo que él lee.
-        */}
-        {cycleType === 'rotating' && <CycleChain slots={cicloSlots} />}
-
+    <div className="col gap-5">
+        <div className="col gap-1">
+          <h3 className="panel-seccion-titulo">Estructura</h3>
+          <span className="t-sm t-tertiary">{resumen}</span>
+        </div>
         <div className="row wrap gap-5">
           {/*
             ══ Cuándo empieza esta persona ═════════════════════════════════════
@@ -182,7 +172,6 @@ export const CycleSettings = ({
             Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
           </span>
         </fieldset>
-      </div>
-    </Fold>
+    </div>
   );
 };

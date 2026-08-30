@@ -30,7 +30,6 @@ import {
   drillsForDay,
   dayHasOwnDrills,
   indexAfterMove,
-  rotatingSlots,
   findMicrocycle,
   unitLabel,
   unitLabelPlural,
@@ -577,7 +576,6 @@ export const WorkoutLogEditor = () => {
          es hacerlo para ESTE cliente, así que queda marcado como excepción y
          «poner al día» deja de pasarle por encima. */
       onProtocolChange={(next) => saveClientException(activeClient.id, { protocol: next })}
-      cicloSlots={cycleType === 'rotating' ? rotatingSlots(activeClient.cyclePattern, nav.days) : []}
     />
   );
 

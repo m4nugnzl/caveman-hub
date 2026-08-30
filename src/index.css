@@ -13706,23 +13706,24 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   .bloque-lado { position: static; }
 }
 
-/* ── El mando del bloque: el nombre se escribe en su sitio ───────────────── */
-.plan-mando { align-items: center; }
-.plan-nombre {
-  width: auto; min-width: 0; max-width: 100%;
-  font: inherit; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.022em; line-height: 1.2;
-  color: var(--text); background: transparent; border: 0; border-radius: var(--r-sm); padding: 2px 6px; margin-left: -6px;
-  transition: background-color var(--fast);
-}
-.plan-nombre:hover { background: var(--fill-subtle); }
-.plan-nombre:focus { outline: none; background: var(--fill-subtle); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
-
 /* ══ LA LÍNEA DE TIEMPO: un tramo por bloque, una marca por semana ═════════
    Cada tramo crece con sus semanas (flex-grow = semanas), así que la línea se
-   lee como tiempo. El abierto lleva el borde y las marcas son botones; los
-   demás van en voz baja y se entra pulsando su cabecera. */
-.linea { min-width: 0; }
-.linea-tramos { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--s2); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+   lee como tiempo. El abierto lleva el borde, su nombre se escribe en él y
+   sus marcas son botones; los demás van en voz baja y se entra pulsando su
+   cabecera. Es la cabecera del bloque: encima no va ningún titular. */
+.linea { display: flex; align-items: flex-start; gap: var(--s2); min-width: 0; }
+.linea-tramos { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--s2); min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.linea-ajustes { flex-shrink: 0; margin-top: var(--s2); color: var(--text-tertiary); }
+.linea-ajustes:hover { color: var(--text); }
+.linea-cab.is-este { cursor: default; }
+.linea-nombre.is-campo {
+  width: auto; max-width: 100%; font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.022em; line-height: 1.2;
+  background: transparent; border: 0; border-radius: var(--r-sm); padding: 1px 6px; margin-left: -6px;
+  transition: background-color var(--fast);
+}
+.linea-nombre.is-campo:hover { background: var(--fill-subtle); }
+.linea-nombre.is-campo:focus { outline: none; background: var(--fill-subtle); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.linea-tramo.is-on .linea-cuando { white-space: normal; }
 .linea-tramos::-webkit-scrollbar { display: none; }
 .linea-tramo {
   flex: 1 1 0; min-width: 132px; display: flex; flex-direction: column; gap: var(--s2);
@@ -13776,7 +13777,21 @@ button.linea-semana.is-curso:hover { color: var(--accent-on); filter: brightness
   letter-spacing: var(--tracking-stencil); text-transform: uppercase; color: var(--text-tertiary);
 }
 .plan-tramo-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
-.plan-tramo-accion { margin-left: auto; }
+
+/* La tira de más: una hoja nueva, al final y del alto de las hojas, como el
+   asa de «añadir columna» de una tabla. Estrecha —solo el «+»— hasta que se
+   abre para escribir el nombre. */
+.plan-col.is-nueva { flex: 0 0 auto; border-left: 0; padding: 0 0 0 var(--s3); }
+.plan-col.is-nueva.is-abierta { flex: 1 1 200px; justify-content: flex-start; }
+.plan-col-mas {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 100%; min-height: 120px; padding: 0; border: 1px dashed var(--hairline-strong);
+  border-radius: var(--r-md); background: transparent; color: var(--text-tertiary); cursor: pointer;
+  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
+}
+.plan-col-mas:hover { background: var(--fill-subtle); color: var(--text); border-color: var(--text-tertiary); }
+.plan-col.is-nueva .plan-hoja-alta { flex-direction: column; align-items: stretch; }
+.plan-col.is-nueva .plan-hoja-alta .input { flex: none; min-width: 0; }
 
 /* El hueco que deja continuar el programa: se dice y se resuelve en la misma línea. */
 .plan-hueco {
@@ -13788,16 +13803,51 @@ button.linea-semana.is-curso:hover { color: var(--accent-on); filter: brightness
 .plan-hoja-alta { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .plan-hoja-alta .input { flex: 0 1 220px; min-width: 140px; }
 
-/* ══ LAS HOJAS: columnas que se reparten el ancho y, si no caben, saltan ═══
-   `auto-fit` con un mínimo de 150 px: seis hojas caben en el ancho de trabajo
-   a ~175 px; nueve pasan a dos filas. Nunca un carril con desplazamiento que
-   deje la última fuera de la vista. Sin caja: un filete separa cada columna. */
-.plan-rejilla {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: var(--s4) 0; min-width: 0;
+/* ── Dónde cae cada hoja: una franja encima de las hojas ─────────────────
+   El rótulo a la izquierda y el editor a lo ancho, en la misma franja hundida
+   que el calentamiento y la nota de la comida: es contexto de lo de debajo,
+   no una sección aparte. En rotativo, la cadena y su puerta a Ajustes. */
+.plan-estructura {
+  display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap;
+  padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--surface-sunken);
 }
+.plan-estructura-k {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: var(--tracking-stencil); text-transform: uppercase; color: var(--text-tertiary); flex-shrink: 0; min-width: 64px;
+}
+.plan-estructura .split-grid { flex: 1; min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.plan-estructura .split-select { padding: 5px 18px 5px 7px; font-size: var(--fs-xs); background-position: calc(100% - 9px) 55%, calc(100% - 5px) 55%; }
+/* El ciclo como TIRA: una casilla por día, todas del mismo ancho, sin
+   flechas —el orden ya lo dice la posición— y el remate que vuelve al
+   principio. Los descansos, en hueco: son parte de la estructura, no a lo que
+   se viene. La cadena con flechas sigue siendo la del cliente (`CycleChain`). */
+.ciclo-tira { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 0; display: flex; gap: 4px; align-items: stretch; }
+.ciclo-dia {
+  flex: 1 1 0; display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 5px 7px; border-radius: var(--r-sm);
+  background: var(--accent-soft); color: var(--accent);
+}
+.ciclo-dia-n { font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em; opacity: 0.7; }
+.ciclo-dia-nombre { font-size: var(--fs-xs); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ciclo-dia.is-descanso { background: transparent; box-shadow: inset 0 0 0 1px var(--hairline); color: var(--text-tertiary); }
+.ciclo-dia.is-descanso .ciclo-dia-nombre { font-weight: 500; font-style: italic; }
+.ciclo-dia.is-vuelta { flex: 0 0 24px; padding: 0; align-items: center; justify-content: center; background: transparent; color: var(--text-tertiary); }
+@media (max-width: 760px) {
+  .ciclo-tira { flex-wrap: wrap; }
+  .ciclo-dia { flex: 1 1 28%; }
+}
+@media (max-width: 760px) {
+  .plan-estructura .split-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ══ LAS HOJAS: columnas que se reparten el ancho y, si no caben, saltan ═══
+   Flex con envoltura y un mínimo de 150 px: seis hojas caben en el ancho de
+   trabajo a ~175 px; nueve pasan a dos filas. Nunca un carril con
+   desplazamiento que deje la última fuera de la vista. Sin caja: un filete
+   separa cada columna. Flex y no rejilla porque la tira de «+ hoja» del final
+   tiene otro ancho. */
+.plan-rejilla { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--s4) 0; min-width: 0; }
 .plan-col {
-  display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
+  flex: 1 1 150px; display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
   padding: 0 var(--s3); border-left: 1px solid var(--hairline); border-radius: var(--r-sm);
   transition: opacity var(--fast), box-shadow var(--fast);
 }
@@ -13904,9 +13954,41 @@ button.linea-semana.is-curso:hover { color: var(--accent-on); filter: brightness
 .lado-tarjeta .bloque-cifra > .v { font-size: var(--fs-lg); }
 .lado-tarjeta .bloque-cifra > .v > small { font-size: var(--fs-sm); }
 
-/* ── La ventana del volumen ──────────────────────────────────────────────── */
-.volumen-ventana { display: flex; flex-direction: column; gap: var(--s4); }
-.volumen-ventana .subjetivo-fila { grid-template-columns: 120px minmax(0, 1fr) 56px; }
+/* ══ LA VENTANA DEL VOLUMEN: grupos en filas, hojas en columnas ════════════
+   La suma esconde el reparto; aquí cada celda dice cuántas series le da esa
+   hoja a ese grupo, «veces» en cuántas hojas se toca, y el total contra el
+   tramo útil con la marca del MEV. La misma tabla que la progresión. */
+.volumen { display: flex; flex-direction: column; gap: var(--s4); }
+.bloque-cifra.is-mal > .v { color: var(--negative); }
+.bloque-cifra.is-aviso > .v { color: var(--warning); }
+.volumen-tabla { display: flex; flex-direction: column; gap: 2px; overflow-x: auto; }
+.volumen-fila { display: grid; gap: 3px; align-items: center; min-width: 560px; }
+.volumen-fila.is-head > span {
+  font-family: var(--font-display); font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary);
+  text-align: center; padding-bottom: 4px; border-bottom: 1px solid var(--hairline); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.volumen-fila.is-head > span:first-child, .volumen-fila.is-head > span:last-child { text-align: left; }
+/* El nombre de la hoja en la cabecera: sin mayúsculas forzadas, que es un nombre propio. */
+.volumen-fila.is-head > .volumen-hoja { text-transform: none; letter-spacing: -0.01em; font-size: var(--fs-2xs); }
+.volumen-fila.is-suma { margin-top: 2px; padding-top: 4px; border-top: 1px solid var(--hairline-strong); }
+.volumen-fila.is-suma .volumen-celda { background: transparent; font-weight: 700; color: var(--text); }
+.volumen-grupo { font-size: var(--fs-sm); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.volumen-fila.is-suma .volumen-grupo { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil); color: var(--text-tertiary); }
+.volumen-celda {
+  display: flex; align-items: center; justify-content: center; height: 28px; border-radius: var(--r-sm);
+  background: var(--surface-sunken); font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums;
+}
+.volumen-celda.is-vacia { background: transparent; color: var(--text-tertiary); font-weight: 400; }
+.volumen-num { text-align: center; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.volumen-total { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.volumen-v { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; width: 48px; flex-shrink: 0; }
+.volumen-v > small { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 500; }
+.volumen-v.is-mal { color: var(--negative); }
+.volumen-v.is-aviso { color: var(--warning); }
+.volumen-barra { position: relative; flex: 1; height: 6px; border-radius: 3px; background: var(--fill); overflow: visible; }
+.volumen-relleno { display: block; height: 100%; border-radius: 3px; }
+/* La marca del MEV: un palito sobre la barra, donde empieza a contar. */
+.volumen-mev { position: absolute; top: -3px; width: 2px; height: 12px; margin-left: -1px; border-radius: 1px; background: var(--text-tertiary); }
 
 /* ══ EL HISTORIAL: todos los bloques, en grande ════════════════════════════ */
 .historial { display: flex; flex-direction: column; gap: var(--s5); }

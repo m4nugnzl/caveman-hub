@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Dumbbell, GripVertical, Pencil, Plus, Settings2, Trash2, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Dumbbell, GripVertical, Pencil, Plus, RotateCw, Settings2, Trash2, Wand2 } from 'lucide-react';
 
 import {
   blockPlan,
@@ -12,16 +12,15 @@ import {
   weeksOfBlock,
 } from '@/domain/blocks';
 import { executedSessions } from '@/domain/sessions';
-import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, isRestDay, rotatingSlots, unitLabel, unitLabelPlural } from '@/domain/training';
+import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, isRestDay, rotatingSlots } from '@/domain/training';
 import { metricColor } from '@/domain/metrics';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { clampInt } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
-import { CycleChain } from '@/components/ui/CycleChain';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { Modal } from '@/components/ui/Modal';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { HistorialPopup } from './HistorialPopup';
+import { VolumenPopup } from './VolumenPopup';
 import { WeeklySplitEditor } from './WeeklySplitEditor';
 
 /**
@@ -124,7 +123,7 @@ const AltaEnHoja = ({ dayName, library, onAdd, onRecordar, onCerrar }) => {
  * los demás van en voz baja. Al final, en el bloque en curso, la semana de
  * más y el bloque de más: cada «+» al final de lo que alarga.
  */
-const LineaDeBloques = ({ program, bloque, semanaEnCurso, unidad, unidades, onIrBloque, onIrSemana, onNuevaSemana, onNuevoBloque }) => {
+const LineaDeBloques = ({ program, bloque, contexto, semanaEnCurso, unidad, unidades, onIrBloque, onIrSemana, onNuevaSemana, onNuevoBloque, onRenombrarBloque, onAjustes }) => {
   const bloques = blocksOf(program);
   const microcycles = program?.microcycles || [];
 
@@ -136,23 +135,36 @@ const LineaDeBloques = ({ program, bloque, semanaEnCurso, unidad, unidades, onIr
           const r = blockSummary(program, b);
           const semanas = weeksOfBlock(program, b);
           const cifras = [r.kg > 0 && `${localeNumber(r.kg)} kg`, r.adherencia !== null && `${r.adherencia} % de lo pautado`].filter(Boolean).join(' · ');
+          const cuando = `${r.desde ? shortDate(r.desde) : 'sin fechas'}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`;
 
           return (
             <li key={b.id} className={`linea-tramo${esEste ? ' is-on' : ''}${r.abierto ? ' is-abierto' : ''}`} style={{ flexGrow: Math.max(2, semanas.length) }}>
-              <button
-                type="button"
-                className="linea-cab"
-                onClick={() => !esEste && onIrBloque(b)}
-                aria-current={esEste ? 'true' : undefined}
-                title={esEste ? `${b.name}: el que estás mirando` : `Ir a ${b.name}${cifras ? ` · ${cifras}` : ''}`}
-              >
-                <span className="linea-n">B{i + 1}</span>
-                <span className="linea-nombre">{b.name}</span>
-                <span className="linea-cuando">
-                  {r.desde ? shortDate(r.desde) : 'sin fechas'}
-                  {r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}
-                </span>
-              </button>
+              {esEste ? (
+                /* El tramo abierto ES la cabecera del bloque: el nombre se
+                   escribe aquí, y no se repite en ningún titular encima. */
+                <div className="linea-cab is-este">
+                  <span className="linea-n">B{i + 1}</span>
+                  <input
+                    key={b.id}
+                    className="linea-nombre is-campo"
+                    defaultValue={b.name}
+                    size={Math.max(6, b.name.length + 1)}
+                    aria-label="Nombre del bloque"
+                    onBlur={(e) => {
+                      const nombre = e.target.value.trim();
+                      if (nombre && nombre !== b.name) onRenombrarBloque(b.id, nombre);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                  />
+                  <span className="linea-cuando">{[cuando, contexto].filter(Boolean).join(' · ')}</span>
+                </div>
+              ) : (
+                <button type="button" className="linea-cab" onClick={() => onIrBloque(b)} title={`Ir a ${b.name}${cifras ? ` · ${cifras}` : ''}`}>
+                  <span className="linea-n">B{i + 1}</span>
+                  <span className="linea-nombre">{b.name}</span>
+                  <span className="linea-cuando">{cuando}</span>
+                </button>
+              )}
 
               <div className="linea-semanas" role="list" aria-label={`${unidades} de ${b.name}`}>
                 {semanas.map((w) => {
@@ -189,6 +201,9 @@ const LineaDeBloques = ({ program, bloque, semanaEnCurso, unidad, unidades, onIr
           </li>
         )}
       </ol>
+      <button type="button" className="btn btn-icon btn-icon-compact linea-ajustes" onClick={onAjustes} aria-label="Ajustes del programa" title="Ajustes: tipo de ciclo, patrón, fecha de inicio y protocolo">
+        <Settings2 size={16} />
+      </button>
     </nav>
   );
 };
@@ -353,8 +368,11 @@ export const VistaBloque = ({
   const esActual = isCurrentBlock(program, bloque);
   const cycleType = cliente?.cycleType || 'weekly';
   const rotativo = cycleType === 'rotating';
-  const unidad = unitLabel(cycleType);
-  const unidades = unitLabelPlural(cycleType);
+  /* La unidad del bloque: la SEMANA natural o el CICLO —una vuelta al patrón—.
+     No «sesión»: en la hoja de series una sesión es un entrenamiento, y «109
+     series por sesión» era mentira. Son por ciclo. */
+  const unidad = rotativo ? 'Ciclo' : 'Semana';
+  const unidades = rotativo ? 'ciclos' : 'semanas';
   const estructura = structureOfBlock(program, bloque);
   const resumen = blockSummary(program, bloque);
   const grupos = volumenPorGrupo(plan.sessions);
@@ -469,6 +487,9 @@ export const VistaBloque = ({
       onIrSemana={onIrSemana}
       onNuevaSemana={onNuevaSemana}
       onNuevoBloque={esActual ? onNuevoBloque : null}
+      onRenombrarBloque={onRenombrarBloque}
+      onAjustes={onAjustes}
+      contexto={[cuenta(plan.sessions.length, 'hoja', 'hojas'), estructuraTexto, esActual ? null : 'cerrado'].filter(Boolean).join(' · ')}
     />
   );
 
@@ -502,52 +523,14 @@ export const VistaBloque = ({
           onFechaSemana={onFechaSemana}
         />
       )}
-      {ventana === 'volumen' && (
-        <Modal open title={`Volumen por grupo · ${bloque.name}`} onClose={() => setVentana(null)}>
-          <div className="volumen-ventana">
-            <p className="t-sm t-secondary">
-              Series pautadas por {unidad.toLowerCase()} en este bloque, contra el máximo recuperable estimado de cada grupo. En rojo, lo que se pasa.
-            </p>
-            <BarrasVolumen grupos={grupos} />
-          </div>
-        </Modal>
-      )}
+      {ventana === 'volumen' && <VolumenPopup open onClose={() => setVentana(null)} bloque={bloque} hojas={plan.sessions} unidad={unidad} />}
     </>
-  );
-
-  /* ── El mando: nombre, contexto, y el engranaje ────────────────────────── */
-  const mando = (
-    <header className="mando plan-mando">
-      <div className="mando-izq">
-        <input
-          key={bloque.id}
-          className="plan-nombre"
-          defaultValue={bloque.name}
-          size={Math.max(6, bloque.name.length + 1)}
-          aria-label="Nombre del bloque"
-          onBlur={(e) => {
-            const nombre = e.target.value.trim();
-            if (nombre && nombre !== bloque.name) onRenombrarBloque(bloque.id, nombre);
-          }}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        />
-        <span className="mando-contexto">
-          {[cuenta(plan.sessions.length, 'hoja', 'hojas'), estructuraTexto, esActual ? null : 'cerrado'].filter(Boolean).join(' · ')}
-        </span>
-      </div>
-      <div className="mando-acciones">
-        <button type="button" className="btn btn-icon btn-icon-compact" onClick={onAjustes} aria-label="Ajustes del programa" title="Ajustes: tipo de ciclo, fecha de inicio y protocolo">
-          <Settings2 size={16} />
-        </button>
-      </div>
-    </header>
   );
 
   if (plan.sessions.length === 0) {
     return (
       <div className="bloque-pagina">
         <div className="bloque-plan">
-          {mando}
           {linea}
           <EmptyState
             icon={Dumbbell}
@@ -570,25 +553,7 @@ export const VistaBloque = ({
     <div className="bloque-pagina">
       {/* ══ EL PLAN ═══════════════════════════════════════════════════════ */}
       <div className="bloque-plan">
-        {mando}
         {linea}
-
-        {/*
-          La estructura: en la semana natural, dónde cae cada hoja de lunes a
-          domingo (un editor); en rotativo, la cadena del patrón —qué va tras
-          qué y dónde se descansa—, que se edita en Ajustes.
-        */}
-        <section className="plan-tramo">
-          <div className="plan-tramo-cab">
-            <h3 className="plan-titulo">Estructura</h3>
-            <span className="plan-tramo-meta">{rotativo ? 'el ciclo se repite sin fin' : 'la semana natural'}</span>
-          </div>
-          {rotativo ? (
-            <CycleChain slots={slots} />
-          ) : (
-            <WeeklySplitEditor split={estructura.weeklySplit} days={plan.sessions.map((s) => ({ dayName: s.dayName }))} disabled={!esActual} onChange={onSplit} />
-          )}
-        </section>
 
         {esActual && semanasPorRellenar.length > 0 && (
           <div className="plan-hueco">
@@ -609,13 +574,31 @@ export const VistaBloque = ({
               {resumen.series ?? 0} series por {unidad.toLowerCase()}
               {esActual && plan.sessions.length > 1 ? ' · arrastra por el asa para ordenar' : ''}
             </span>
-            {esActual && nuevaHoja === null && (
-              <button type="button" className="btn btn-quiet btn-sm plan-tramo-accion" onClick={() => setNuevaHoja('')}>
-                <Plus size={14} /> Hoja
-              </button>
+          </div>
+
+          {/*
+            Dónde cae cada hoja, justo encima de las hojas: en la semana
+            natural se ELIGE día a día; en rotativo lo dicta el patrón, que
+            se enseña como cadena y se cambia en Ajustes.
+          */}
+          <div className="plan-estructura">
+            <span className="plan-estructura-k">{rotativo ? 'El ciclo' : 'La semana'}</span>
+            {rotativo ? (
+              <ol className="ciclo-tira" aria-label="El ciclo, día a día">
+                {slots.map((slot, i) => (
+                  <li key={slot.key} className={`ciclo-dia${slot.rest ? ' is-descanso' : ''}`} title={`Día ${i + 1}: ${slot.rest ? 'descanso' : slot.name}`}>
+                    <span className="ciclo-dia-n">{i + 1}</span>
+                    <span className="ciclo-dia-nombre">{slot.rest ? 'descanso' : slot.name}</span>
+                  </li>
+                ))}
+                <li className="ciclo-dia is-vuelta" aria-label="y vuelta a empezar" title="Y vuelta a empezar">
+                  <RotateCw size={12} aria-hidden="true" />
+                </li>
+              </ol>
+            ) : (
+              <WeeklySplitEditor split={estructura.weeklySplit} days={plan.sessions.map((s) => ({ dayName: s.dayName }))} disabled={!esActual} onChange={onSplit} />
             )}
           </div>
-          {nuevaHoja !== null && altaDeHoja}
 
           <div className={`plan-rejilla${arrastre ? ` is-arrastrando-${arrastre.tipo}` : ''}`} role="list">
             {plan.sessions.map((hoja, index) => {
@@ -760,6 +743,20 @@ export const VistaBloque = ({
                 </section>
               );
             })}
+
+            {/* La hoja de más: una columna al final, que es donde iría —la
+                misma regla que «+ bloque» al final de la línea—. */}
+            {esActual && (
+              <section className={`plan-col is-nueva${nuevaHoja === null ? '' : ' is-abierta'}`} role="listitem">
+                {nuevaHoja === null ? (
+                  <button type="button" className="plan-col-mas" onClick={() => setNuevaHoja('')} aria-label="Añadir una hoja" title="Añadir una hoja al bloque">
+                    <Plus size={15} aria-hidden="true" />
+                  </button>
+                ) : (
+                  altaDeHoja
+                )}
+              </section>
+            )}
           </div>
         </section>
       </div>
