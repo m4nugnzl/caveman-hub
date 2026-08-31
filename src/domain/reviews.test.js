@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   answerTrend,
   deliverableWeeks,
+  jsonbSize,
   pendingReviews,
   planSnapshot,
   readableStructure,
@@ -53,6 +54,113 @@ describe('la foto del plan', () => {
 
   it('sin cardio no deja la clave puesta', () => {
     expect(planSnapshot({ nutrition: { cardioGoal: '   ' } })).toEqual({});
+  });
+});
+
+/*
+  ══ El tope de la columna ═══════════════════════════════════════════════════
+
+  Un entrenador escribió una nota de dos líneas y la revisión no se cerró: «La
+  foto del plan es demasiado grande». No había tocado el programa — la foto se
+  hace sola con el plan que tenga puesto, y el suyo era largo.
+
+  La causa: se medía el texto JSON contra un tope que el servidor comprueba en
+  bytes de jsonb (`pg_column_size`, migración 0042), y jsonb pesa aquí más de
+  vez y media lo que el texto. Medido contra Postgres, la foto de 6.208
+  caracteres que el recorte daba por buena ocupaba 10.172 bytes.
+*/
+describe('la foto cabe en la columna', () => {
+  const TOPE = 8192; // el de la migración 0042
+
+  const EJERCICIOS = [
+    'Sentadilla trasera con barra',
+    'Press de banca plano con barra',
+    'Remo con barra a 45 grados',
+    'Press militar de pie',
+    'Peso muerto rumano con mancuernas',
+    'Jalón al pecho agarre neutro',
+    'Curl de bíceps con mancuernas',
+    'Extensión de tríceps en polea alta',
+  ];
+  const DIAS = ['Pierna completa', 'Torso empuje', 'Torso tirón', 'Pierna posterior', 'Full body'];
+
+  const programa = (semanas) => ({
+    microcycles: Array.from({ length: semanas }, (_, i) => ({
+      weekNumber: i + 1,
+      days: DIAS.map((dayName) => ({
+        dayName,
+        exercises: EJERCICIOS.map((name) => ({ name, sets: [{}, {}, {}, {}] })),
+      })),
+    })),
+  });
+
+  const dieta = {
+    targetKcals: 2400,
+    proteinGrams: 180,
+    carbsGrams: 280,
+    fatsGrams: 70,
+    stepsGoal: 10000,
+    cardioGoal: '3 días de 25 minutos',
+    closedMeals: ['Desayuno', 'Media mañana', 'Comida', 'Merienda', 'Cena'].map((name) => ({
+      name,
+      target: { kcals: 500 },
+    })),
+  };
+
+  it('un programa largo no revienta la revisión', () => {
+    const foto = planSnapshot({ nutrition: dieta, program: programa(20) });
+    expect(jsonbSize(foto)).toBeLessThanOrEqual(TOPE);
+  });
+
+  /* Lo que se suelta es historia vieja, nunca las cifras del objetivo: son lo que
+     se consulta dos meses después y ocupan unos cientos de bytes. */
+  it('recortando conserva las cifras y las semanas recientes', () => {
+    const foto = planSnapshot({ nutrition: dieta, program: programa(20) });
+    expect(foto).toMatchObject({ kcals: 2400, protein: 180, carbs: 280, fats: 70, weeks: 20 });
+    expect(foto.weeksPlan.length).toBeGreaterThan(0);
+    /* Las últimas, no las primeras: se revisa lo que está por venir. */
+    expect(foto.weeksPlan[foto.weeksPlan.length - 1].w).toBe(20);
+  });
+
+  /* Una sola semana desmesurada tampoco puede tumbarla: antes el recorte paraba
+     en una semana y la mandaba igual. */
+  it('una semana sola que no cabe se suelta entera', () => {
+    const enorme = {
+      microcycles: [
+        {
+          weekNumber: 1,
+          days: Array.from({ length: 7 }, (_, i) => ({
+            dayName: `Día ${i + 1}`,
+            exercises: Array.from({ length: 40 }, (_, j) => ({
+              name: `Ejercicio con nombre largo número ${j}`,
+              sets: [{}, {}, {}],
+            })),
+          })),
+        },
+      ],
+    };
+    const foto = planSnapshot({ nutrition: dieta, program: enorme });
+    expect(jsonbSize(foto)).toBeLessThanOrEqual(TOPE);
+    expect(foto.kcals).toBe(2400);
+  });
+
+  /* Y un plan corriente no pierde nada: el recorte solo actúa cuando hace falta.
+     Cuatro semanas de tres días, que es lo que tiene la mayoría. */
+  it('un plan corriente se guarda entero', () => {
+    const foto = planSnapshot({
+      nutrition: dieta,
+      program: {
+        microcycles: Array.from({ length: 4 }, (_, i) => ({
+          weekNumber: i + 1,
+          days: DIAS.slice(0, 3).map((dayName) => ({
+            dayName,
+            exercises: EJERCICIOS.slice(0, 5).map((name) => ({ name, sets: [{}, {}, {}] })),
+          })),
+        })),
+      },
+    });
+    expect(foto.weeksPlan).toHaveLength(4);
+    expect(foto.meals).toHaveLength(5);
   });
 });
 

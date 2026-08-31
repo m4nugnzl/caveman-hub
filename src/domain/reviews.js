@@ -35,20 +35,83 @@ import { round, toNum } from '@/lib/num';
  * el plan actual.
  */
 /**
- * Recorta las semanas hasta que la foto quepa.
+ * Recorta la foto hasta que quepa DE VERDAD en la columna.
  *
  * La base rechaza una foto de más de 8 KB (migración 0042), y un programa de
- * veinte semanas con seis días se pasa. Si eso llegara al servidor, la revisión
- * FALLARÍA al cerrarse — que es infinitamente peor que guardar menos historia.
+ * veinte semanas con seis días se pasa. Si eso llega al servidor, la revisión
+ * FALLA al cerrarse — y se lleva por delante la nota que el entrenador acababa
+ * de escribir, que no tenía nada que ver con el programa.
  *
- * Se recortan las más ANTIGUAS: los cambios de una revisión se hacen en lo que
- * está por venir, no en lo que ya se entrenó hace tres meses.
+ * ══ Y eso es justo lo que pasaba ═══════════════════════════════════════════
+ *
+ * Se medía `JSON.stringify(...).length`, o sea CARACTERES DE TEXTO, contra un
+ * tope que la migración comprueba con `pg_column_size`, o sea BYTES DE JSONB.
+ * No son la misma unidad ni se parecen: jsonb no guarda el texto, guarda un
+ * árbol con cuatro bytes de índice por cada clave y por cada valor, y los
+ * números ocupan una docena de bytes cada uno. Esta foto está llena de objetos
+ * diminutos —`{n, s}` por ejercicio—, que es la forma que peor sale parada.
+ *
+ * Medido contra Postgres, una foto de 6.208 caracteres —holgada bajo el
+ * presupuesto viejo de 7.000— pesa 10.172 bytes de jsonb y el servidor la
+ * rechaza. De ahí el «La foto del plan es demasiado grande» delante de alguien
+ * que solo había escrito un texto.
+ *
+ * Se estima en las unidades del servidor con `jsonbSize`, que redondea SIEMPRE
+ * hacia arriba: pasarse de prudente cuesta una semana menos de historia, y
+ * quedarse corto cuesta la revisión entera.
+ *
+ * Se recortan las semanas más ANTIGUAS: los cambios de una revisión se hacen en
+ * lo que está por venir, no en lo que ya se entrenó hace tres meses.
  */
-const PRESUPUESTO = 7000; // margen bajo el tope de 8 KB, contando el resto de claves
+const PRESUPUESTO = 7800; // bytes de jsonb; margen bajo el tope de 8.192
 
-const fitWeeks = (semanas) => {
-  let out = semanas;
-  while (out.length > 1 && JSON.stringify(out).length > PRESUPUESTO) out = out.slice(1);
+const utf8 = (texto) => new TextEncoder().encode(texto).length;
+
+/**
+ * Cuánto ocupa un valor como jsonb, por lo alto.
+ *
+ * El formato: cuatro bytes de cabecera por cada objeto o lista, cuatro más por
+ * cada clave y por cada valor que contengan, y el contenido en crudo. Los
+ * números se guardan como `numeric` alineado; 16 bytes los cubre con holgura.
+ *
+ * Se exporta para poder comprobar en las pruebas lo único que importa aquí: que
+ * la foto que sale de `planSnapshot` cabe en la columna.
+ */
+export const jsonbSize = (valor) => {
+  if (valor === null || typeof valor === 'boolean') return 4;
+  if (typeof valor === 'number') return 4 + 16;
+  if (typeof valor === 'string') return 4 + utf8(valor);
+  if (Array.isArray(valor)) return 8 + valor.reduce((n, v) => n + jsonbSize(v), 0);
+  return 8 + Object.entries(valor).reduce((n, [k, v]) => n + 4 + utf8(k) + jsonbSize(v), 0);
+};
+
+const sinClave = (foto, clave) => {
+  const out = { ...foto };
+  delete out[clave];
+  return out;
+};
+
+/**
+ * Quita historia hasta que la foto entre, en este orden: primero las semanas
+ * viejas, luego el programa entero y por último la dieta.
+ *
+ * Se mide la foto COMPLETA en cada vuelta, no solo las semanas: las comidas y
+ * las cifras del objetivo también ocupan, y el tope es de la fila entera.
+ *
+ * Lo último que se suelta son las cifras del objetivo —calorías, macros, pasos—,
+ * que nunca se sueltan: ocupan unos cientos de bytes y son lo que de verdad se
+ * consulta dos meses después. Una foto recortada sigue siendo una foto; una
+ * revisión que no se puede cerrar no es nada.
+ */
+const recorta = (foto) => {
+  let out = foto;
+  while (out.weeksPlan?.length > 1 && jsonbSize(out) > PRESUPUESTO) {
+    out = { ...out, weeksPlan: out.weeksPlan.slice(1) };
+  }
+  /* Una sola semana que ya no cabe: fuera el programa. Pasa con un microciclo de
+     seis días y veinte ejercicios por día. */
+  if (out.weeksPlan && jsonbSize(out) > PRESUPUESTO) out = sinClave(out, 'weeksPlan');
+  if (out.meals && jsonbSize(out) > PRESUPUESTO) out = sinClave(out, 'meals');
   return out;
 };
 
@@ -130,11 +193,17 @@ export const planSnapshot = ({ nutrition, program } = {}) => {
   }));
 
   if (comidas.length > 0) foto.meals = comidas;
-  if (semanas.length > 0) foto.weeksPlan = fitWeeks(semanas);
+  if (semanas.length > 0) foto.weeksPlan = semanas;
 
   /* Las claves vacías no se guardan: una foto llena de `null` ocupa lo mismo que
      una con datos y hace creer que se midió algo que no existía. */
-  return Object.fromEntries(Object.entries(foto).filter(([, v]) => v !== null && v !== undefined));
+  const limpia = Object.fromEntries(
+    Object.entries(foto).filter(([, v]) => v !== null && v !== undefined)
+  );
+
+  /* Y el recorte al final, sobre la foto entera: es la foto entera lo que el
+     servidor mide contra su tope. */
+  return recorta(limpia);
 };
 
 /**
