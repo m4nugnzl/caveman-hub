@@ -162,6 +162,55 @@ describe('la foto cabe en la columna', () => {
     expect(foto.weeksPlan).toHaveLength(4);
     expect(foto.meals).toHaveLength(5);
   });
+
+  /*
+    ══ Y la estimación medida contra Postgres de verdad ═══════════════════════
+
+    El recorte se fía de `jsonbSize`, así que comprobar el recorte con `jsonbSize`
+    no demuestra nada: si la cuenta está mal, las dos partes se equivocan igual.
+    Estos son cuatro valores pesados con `pg_column_size` en Postgres 17, y lo que
+    se exige es lo único que salva la revisión — que la estimación NUNCA quede por
+    debajo del tamaño real.
+
+    Faltaba el relleno de alineación: Postgres cuadra a cuatro bytes antes de cada
+    objeto, cada lista y cada número, y una foto son cientos de `{n, s}`. Sin
+    contarlo, un programa de veinte ejercicios por día se estimaba en 7.627 bytes,
+    pesaba 8.296 y el servidor lo rechazaba con la foto ya recortada.
+  */
+  const MEDIDO = [
+    [{ n: 'abc', s: null }, 29],
+    [[{ n: 'abc', s: null }, { n: 'abc', s: null }, { n: 'abc', s: null }], 101],
+    [{ kcals: 2400 }, 32],
+    [{ w: 1, d: [{ n: 'Dia', e: [{ n: 'Sentadilla', s: 4 }] }] }, 120],
+  ];
+
+  it('la estimación nunca queda por debajo de lo que pesa en Postgres', () => {
+    MEDIDO.forEach(([valor, real]) => {
+      expect(jsonbSize(valor)).toBeGreaterThanOrEqual(real);
+    });
+  });
+
+  /*
+    El programa que se le cayó a un entrenador: muchos ejercicios por día, nombres
+    cortos y sin series apuntadas todavía. Es la forma que peor sale —todo son
+    objetos diminutos, y el relleno pesa más que el contenido—.
+  */
+  it('un programa de objetos diminutos también cabe', () => {
+    const foto = planSnapshot({
+      nutrition: dieta,
+      program: {
+        microcycles: Array.from({ length: 8 }, (_, i) => ({
+          weekNumber: i + 1,
+          days: Array.from({ length: 3 }, (_, d) => ({
+            dayName: `D${d}`,
+            exercises: Array.from({ length: 20 }, (_, j) => ({ name: `E${j}`, sets: [] })),
+          })),
+        })),
+      },
+    });
+    expect(jsonbSize(foto)).toBeLessThanOrEqual(TOPE);
+    expect(foto.kcals).toBe(2400);
+  });
 });
 
 describe('qué cambió entre dos revisiones', () => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { esRechazoDefinitivo, traduceDbError, traduceStorageError } from './dbErrors';
+import {
+  esFotoDemasiadoGrande,
+  esRechazoDefinitivo,
+  traduceDbError,
+  traduceStorageError,
+} from './dbErrors';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -132,5 +137,31 @@ describe('esRechazoDefinitivo', () => {
      y a menudo en minutos. Lo que hay que hacer es esperar, no tirarlo. */
   it('faltar una migración se conserva', () => {
     expect(esRechazoDefinitivo({ code: 'PGRST202', message: 'Could not find the function' })).toBe(false);
+  });
+});
+
+/*
+  ══ El rechazo que no se puede enseñar ══════════════════════════════════════
+
+  Un entrenador escribió su respuesta y la revisión no se cerró: «La foto del
+  plan es demasiado grande». La foto la hace la aplicación sola con el plan que
+  tenga puesto, así que no había nada que él pudiera arreglar. Reconocer ese
+  rechazo es lo que permite reenviar la revisión sin foto y no perder lo escrito.
+*/
+describe('esFotoDemasiadoGrande', () => {
+  const rechazo = (message) => ({ code: 'P0001', message });
+
+  it('reconoce el rechazo de la 0042', () => {
+    expect(esFotoDemasiadoGrande(rechazo('La foto del plan es demasiado grande'))).toBe(true);
+  });
+
+  /* Los demás rechazos del servidor SÍ se enseñan: reenviar sin foto no arregla
+     un problema de permisos, y callarlo dejaría la semana sin cerrar en silencio. */
+  it('no confunde otros rechazos', () => {
+    expect(esFotoDemasiadoGrande(rechazo('No tienes permiso sobre ese cliente'))).toBe(false);
+    expect(esFotoDemasiadoGrande(rechazo('La foto del plan tiene que ser un objeto JSON'))).toBe(
+      false
+    );
+    expect(esFotoDemasiadoGrande(null)).toBe(false);
   });
 });

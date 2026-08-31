@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { esFotoDemasiadoGrande } from '@/lib/dbErrors';
 import { mapCheckInFromDb } from '@/lib/mappers';
 import { track } from '@/lib/analytics';
 
@@ -161,14 +162,30 @@ export const useCheckIns = ({ stampNow }) => {
    * que quede registrado QUIÉN lo revisó sin que la aplicación tenga que acordarse
    * de mandarlo — que es justo el dato que se olvida y luego se echa en falta con
    * un equipo de varios entrenadores.
+   *
+   * ── Si la foto del plan no cabe, se cierra sin ella ────────────────────────
+   * La foto es lo que le permite al histórico decir «2400 → 2200 kcal»; la
+   * respuesta al cliente es el trabajo. Que un plan largo tumbe una respuesta ya
+   * escrita es la peor manera posible de fallar, así que el rechazo por tamaño
+   * (migración 0042) no se enseña: se manda otra vez la revisión sin foto y esa
+   * semana se queda sin línea de cambios en el histórico.
+   *
+   * El tamaño ya se recorta antes de mandar (`planSnapshot`), así que esto es la
+   * red de abajo, no el plan A.
    */
   const reviewCheckIn = useCallback(
     async (checkInId, notes = null, snapshot = null) => {
-      const { error } = await supabase.rpc('review_check_in', {
-        check_in: checkInId,
-        notes,
-        snapshot,
-      });
+      const manda = (foto) =>
+        supabase.rpc('review_check_in', { check_in: checkInId, notes, snapshot: foto });
+
+      let guardada = snapshot;
+      let { error } = await manda(snapshot);
+
+      if (error && esFotoDemasiadoGrande(error)) {
+        console.warn('review_check_in: la foto del plan no cabía; se cierra la semana sin ella.');
+        guardada = null;
+        ({ error } = await manda(null));
+      }
       if (error) return { ok: false, error: error.message };
 
       /*
@@ -191,7 +208,9 @@ export const useCheckIns = ({ stampNow }) => {
             ...entry,
             reviewedAt: new Date().toISOString(),
             coachNotes: notes ?? entry.coachNotes,
-            snapshot: snapshot ?? entry.snapshot,
+            /* La que de verdad se guardó: si la foto se cayó por tamaño, el
+               servidor conserva la anterior (COALESCE) y aquí también. */
+            snapshot: guardada ?? entry.snapshot,
           },
         };
       });

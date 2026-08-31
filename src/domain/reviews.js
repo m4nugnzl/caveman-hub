@@ -72,17 +72,36 @@ const utf8 = (texto) => new TextEncoder().encode(texto).length;
  *
  * El formato: cuatro bytes de cabecera por cada objeto o lista, cuatro más por
  * cada clave y por cada valor que contengan, y el contenido en crudo. Los
- * números se guardan como `numeric` alineado; 16 bytes los cubre con holgura.
+ * números se guardan como `numeric`; 16 bytes los cubren con holgura.
+ *
+ * ══ Y el relleno, que es lo que se le escapó a la primera versión ══════════
+ *
+ * Postgres ALINEA a cuatro bytes todo lo que no es texto: antes de cada objeto,
+ * de cada lista y de cada número mete hasta tres bytes de relleno para cuadrar.
+ * Tres bytes no son nada; una foto son cientos de objetos diminutos —un `{n, s}`
+ * por ejercicio— y el relleno se acumula hasta pesar más que el margen.
+ *
+ * Medido contra Postgres: un programa con veinte ejercicios por día y nombres
+ * cortos se estimaba en 7.627 bytes y ocupaba 8.296 de verdad. Pasaba el recorte
+ * y el servidor lo rechazaba igual, con el mismo mensaje delante del entrenador.
+ *
+ * Contando el relleno, la estimación queda por encima del tamaño real en todos
+ * los casos medidos, que es lo que tiene que hacer: sobrar cuesta una semana
+ * menos de historia, faltar cuesta la revisión entera.
  *
  * Se exporta para poder comprobar en las pruebas lo único que importa aquí: que
  * la foto que sale de `planSnapshot` cabe en la columna.
  */
+const RELLENO = 3; // lo que puede costar cuadrar a cuatro bytes
+
 export const jsonbSize = (valor) => {
   if (valor === null || typeof valor === 'boolean') return 4;
-  if (typeof valor === 'number') return 4 + 16;
+  if (typeof valor === 'number') return 4 + RELLENO + 16;
   if (typeof valor === 'string') return 4 + utf8(valor);
-  if (Array.isArray(valor)) return 8 + valor.reduce((n, v) => n + jsonbSize(v), 0);
-  return 8 + Object.entries(valor).reduce((n, [k, v]) => n + 4 + utf8(k) + jsonbSize(v), 0);
+  if (Array.isArray(valor)) return 8 + RELLENO + valor.reduce((n, v) => n + jsonbSize(v), 0);
+  return (
+    8 + RELLENO + Object.entries(valor).reduce((n, [k, v]) => n + 4 + utf8(k) + jsonbSize(v), 0)
+  );
 };
 
 const sinClave = (foto, clave) => {

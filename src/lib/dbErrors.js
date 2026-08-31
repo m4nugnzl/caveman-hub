@@ -136,6 +136,32 @@ export const esRechazoDefinitivo = (error) => {
 };
 
 /**
+ * ¿El servidor ha rechazado la revisión SOLO por la foto del plan?
+ *
+ * ══ Por qué hace falta preguntarlo ══════════════════════════════════════════
+ *
+ * La foto del plan es un extra: sirve para que el histórico pueda decir «2400 →
+ * 2200 kcal» dentro de tres meses. La RESPUESTA al cliente no lo es. Cuando la
+ * foto se pasa del tope de la columna (migración 0042), el servidor tira la
+ * llamada entera —foto y nota— y el entrenador se queda mirando «La foto del
+ * plan es demasiado grande» encima de un texto que acaba de escribir y que no
+ * tiene nada que ver con el programa.
+ *
+ * Reconocerlo permite volver a mandar la revisión SIN foto: se pierde una línea
+ * del histórico y se conserva lo que se estaba haciendo. Al revés no vale.
+ *
+ * El tamaño se estima antes de mandar (`domain/reviews.js`), así que esto no
+ * debería saltar nunca. Está por lo que ya pasó una vez: la estimación se hacía
+ * en otras unidades que el servidor y la revisión se caía. Una cuenta mal hecha
+ * aquí no puede volver a costarle a nadie su respuesta.
+ */
+export const esFotoDemasiadoGrande = (error) => {
+  const message = typeof error === 'string' ? error : error?.message || '';
+
+  return /la foto del plan es demasiado grande/i.test(message);
+};
+
+/**
  * Traduce el error de una SUBIDA a Storage. Devuelve la frase, o `null` si no
  * lo reconoce — entonces quien llama enseña el mensaje original, como siempre.
  *
