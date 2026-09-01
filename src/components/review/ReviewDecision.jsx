@@ -15,7 +15,7 @@ import { useApp } from '@/context/AppContext';
 import { planSnapshot, snapshotChanges, structureChanges } from '@/domain/reviews';
 import { dayMonthMaybeYear } from '@/lib/dates';
 import { clientPath } from '@/routes';
-import { Notice } from '@/components/ui/primitives';
+import { BotonAccion, Notice } from '@/components/ui/primitives';
 import { PlanChanges } from './PlanChanges';
 import { ReviewTake } from './ReviewTake';
 import { SIN_CAMBIOS, useCloseReview } from './useCloseReview';
@@ -542,19 +542,22 @@ export const ReviewDecision = ({
               hecho» y aquí lo que se hace es PASAR — se cierra la semana y se va
               al siguiente cliente de la pasada. La flecha lo dice y además
               anticipa el salto. */}
-          <button
-            type="button"
+          {/* El rótulo no cambia mientras trabaja: pasaba de «Cerrar y pasar a
+              Marta →» a «Guardando…», o sea que el botón se encogía a la mitad
+              justo al soltarlo y volvía a crecer al acabar. Ahora el giro y el
+              tic van en el hueco de la flecha, que ya estaba ahí. Ver
+              `BotonAccion`. */}
+          <BotonAccion
             className="btn btn-primary cierre-cerrar"
+            icon={ArrowRight}
+            alFinal
             disabled={enviando}
             onClick={cerrar}
           >
-            {enviando
-              ? 'Guardando…'
-              : siguiente
-                ? `Cerrar y pasar a ${siguiente.client.name.split(' ')[0]}`
-                : 'Cerrar la semana'}
-            {!enviando && <ArrowRight size={16} />}
-          </button>
+            {siguiente
+              ? `Cerrar y pasar a ${siguiente.client.name.split(' ')[0]}`
+              : 'Cerrar la semana'}
+          </BotonAccion>
         </div>
 
         {error && <Notice tone="error">{error}</Notice>}

@@ -41,6 +41,8 @@ export const ClientRoutineRoute = () => {
   );
 
   const program = workoutData[activeClient.id];
+  /* Solo para elegir la semana abierta: la lista de semanas ya no viaja a la
+     vista, que las saca del programa tramo a tramo (ver `LineaDeBloques`). */
   const weeks = (program?.microcycles || []).map((m) => m.weekNumber);
   // Derivado, no almacenado: no puede quedar una semana rancia seleccionada.
   const activeWeek = weeks.includes(preferredWeek) ? preferredWeek : weeks[weeks.length - 1] ?? null;
@@ -54,7 +56,6 @@ export const ClientRoutineRoute = () => {
       <ClientRoutine
       client={activeClient}
       program={program}
-      weeks={weeks}
       activeWeek={activeWeek}
       onSelectWeek={setPreferredWeek}
       onLogSet={logClientSet}

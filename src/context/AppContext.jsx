@@ -1221,6 +1221,48 @@ export const AppProvider = ({ children }) => {
     await supabase.auth.signOut();
   }, [queue]);
 
+  /**
+   * Cómo te llamas.
+   *
+   * ══ Por qué no había forma de ponerlo ══════════════════════════════════════
+   *
+   * `profiles.full_name` se LEÍA en cinco sitios —el saludo de la portada, el
+   * menú de cuenta, la lista del equipo, el historial de cambios y la
+   * radiografía— y no se escribía en ninguno. Quien no lo tuviera relleno de
+   * antes veía «Buenos días, m4nugnzl@gmail.com» todas las mañanas sin ninguna
+   * manera de arreglarlo desde dentro de la aplicación.
+   *
+   * El correo como identidad es el respaldo correcto —es lo único que sí
+   * tenemos siempre—, pero tiene que poder dejar de serlo.
+   *
+   * ── Optimista, como el resto ───────────────────────────────────────────────
+   * El nombre se ve cambiado al momento y se revierte si la escritura falla: es
+   * el mismo trato que reciben las preferencias del entrenador, y aquí importa
+   * porque este nombre está en la cabecera de la pantalla que se está mirando.
+   */
+  const updateProfileName = useCallback(
+    async (nombre) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const limpio = String(nombre || '').trim().slice(0, 80);
+      const previo = profileName;
+
+      setProfileName(limpio);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: limpio || null })
+        .eq('id', userId);
+
+      if (error) {
+        setProfileName(previo);
+        return { ok: false, error: error.message };
+      }
+      return { ok: true };
+    },
+    [session, profileName]
+  );
+
   /*
     A quién se le apunta el uso (migración 0045).
 
@@ -1982,6 +2024,7 @@ export const AppProvider = ({ children }) => {
     // Sesión
     resolveConflict,
     signOut,
+    updateProfileName,
     setViewMode,
     openClientView,
     takeViewTarget,

@@ -107,7 +107,7 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
           <div className="row gap-2">
             {carpeta && (
               <a
-                className="btn btn-quiet btn-sm"
+                className="btn btn-secondary btn-sm"
                 href={carpeta}
                 target="_blank"
                 rel="noreferrer noopener"
@@ -161,7 +161,7 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
           </button>
           <button
             type="button"
-            className="btn btn-quiet btn-sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => setEditandoCarpeta(false)}
           >
             <X size={13} /> Cancelar

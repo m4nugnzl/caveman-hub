@@ -6,6 +6,7 @@ import {
   exerciseTrack,
   exerciseTrend,
   latestActiveWeek,
+  semanaDeAhora,
   nextPrescription,
   weightMove,
 } from './week';
@@ -509,5 +510,44 @@ describe('nextPrescription', () => {
     expect(
       nextPrescription({ microcycles: [micro(5, 3, 'Prensa')], name: 'Sentadilla', afterWeek: 4 })
     ).toBe(null);
+  });
+});
+
+/*
+  ══ UN SOLO RELOJ ═══════════════════════════════════════════════════════════
+
+  El fallo que estas pruebas cierran salía en pantalla así: la cabecera de un
+  cliente decía «Semana 10» y el contenido de esa MISMA pantalla decía «Semana
+  18», porque una miraba los microciclos montados y la otra el calendario de
+  check-ins. Ninguna mentía, y por eso había que averiguar cada vez cuál valía.
+*/
+describe('semanaDeAhora', () => {
+  /* El alta en lunes, por lo de siempre: los dos ejes coinciden sin desfase. */
+  const inicio = '2026-05-04';
+
+  it('cuenta el tiempo transcurrido, no lo que hayas montado', () => {
+    expect(semanaDeAhora({ startDate: inicio, today: '2026-05-04' })).toBe(1);
+    expect(semanaDeAhora({ startDate: inicio, today: '2026-05-10' })).toBe(1);
+    expect(semanaDeAhora({ startDate: inicio, today: '2026-05-11' })).toBe(2);
+  });
+
+  /* Éste es el caso exacto de la captura: diez microciclos montados y dieciocho
+     semanas de cliente. La respuesta es 18 — que el programa se quede corto es
+     un hecho sobre el entrenador, no sobre el cliente. */
+  it('no se queda en la última semana programada', () => {
+    const microcycles = Array.from({ length: 10 }, (_, i) => ({ weekNumber: i + 1, days: [] }));
+    expect(latestActiveWeek({ microcycles, startDate: inicio })).toBe(10);
+    expect(semanaDeAhora({ startDate: inicio, today: '2026-08-31', microcycles })).toBe(18);
+  });
+
+  /* Sin fecha de alta no hay tiempo que contar, y entonces sí manda lo montado. */
+  it('se cae a la última semana con actividad cuando no hay alta', () => {
+    const microcycles = [{ weekNumber: 1, days: [] }, { weekNumber: 2, days: [] }];
+    expect(semanaDeAhora({ today: '2026-08-31', microcycles })).toBe(2);
+  });
+
+  /* Y sin nada de nada no se inventa un número. */
+  it('devuelve null cuando no hay ni alta ni programa', () => {
+    expect(semanaDeAhora({})).toBe(null);
   });
 });

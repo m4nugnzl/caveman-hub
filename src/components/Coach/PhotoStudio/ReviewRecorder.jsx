@@ -29,7 +29,13 @@ import {
 } from '@/domain/recorder';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { dateTime, todayISO, weekStart } from '@/lib/dates';
-import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import {
+  BotonAccion,
+  Notice,
+  Panel,
+  SectionTitle,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 
 const mmss = (total) => `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 
@@ -55,7 +61,8 @@ const ExternalReview = ({ client, onDone }) => {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');
-  const [enviando, setEnviando] = useState(false);
+  /* El giro y el tic del botón de añadir; ver `BotonAccion`. */
+  const envio = useAccionDeBoton();
 
   const video = parseVideoUrl(url);
   /* El botón se apaga si lo pegado no vale, y se dice por qué debajo. Un botón
@@ -63,33 +70,33 @@ const ExternalReview = ({ client, onDone }) => {
      está rota. */
   const listo = Boolean(video);
 
-  const guardar = async (event) => {
+  const guardar = (event) => {
     event.preventDefault();
     if (!listo) return;
 
-    setEnviando(true);
-    const res = await createReviewUrl({
-      clientId: client.id,
-      // La dirección canónica, no la que se haya pegado: así dos formas de
-      // escribir el mismo vídeo —con lista, con marca de tiempo, acortada—
-      // acaban siendo la misma fila.
-      url: video.watchUrl,
-      title: title.trim() || null,
-      weekStart: weekStart(todayISO()),
+    envio.lanzar(async () => {
+      const res = await createReviewUrl({
+        clientId: client.id,
+        // La dirección canónica, no la que se haya pegado: así dos formas de
+        // escribir el mismo vídeo —con lista, con marca de tiempo, acortada—
+        // acaban siendo la misma fila.
+        url: video.watchUrl,
+        title: title.trim() || null,
+        weekStart: weekStart(todayISO()),
+      });
+      if (!res.ok) {
+        setError(res.error);
+        return false;
+      }
+      /* Añadir una revisión SÍ es un acto único, así que no hace falta un botón de
+         «avisar»: se sella sola y le sale como novedad al entrar. */
+      publishUpdate(client.id, 'review');
+      setUrl('');
+      setTitle('');
+      setAbierto(false);
+      onDone(`Revisión de ${video.label} añadida. Ya le aparece en su portal.`);
+      return true;
     });
-    setEnviando(false);
-
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    /* Añadir una revisión SÍ es un acto único, así que no hace falta un botón de
-       «avisar»: se sella sola y le sale como novedad al entrar. */
-    publishUpdate(client.id, 'review');
-    setUrl('');
-    setTitle('');
-    setAbierto(false);
-    onDone(`Revisión de ${video.label} añadida. Ya le aparece en su portal.`);
   };
 
   if (!abierto) {
@@ -138,9 +145,14 @@ const ExternalReview = ({ client, onDone }) => {
       </span>
 
       <div className="row gap-2 wrap">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!listo || enviando}>
-          {enviando ? 'Guardando…' : 'Añadir'}
-        </button>
+        <BotonAccion
+          type="submit"
+          className="btn btn-primary btn-sm"
+          estado={envio.estado}
+          disabled={!listo}
+        >
+          Añadir
+        </BotonAccion>
         <button
           type="button"
           className="btn btn-secondary btn-sm"

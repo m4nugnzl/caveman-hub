@@ -17,7 +17,19 @@ import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState, Fold, Notice, PageHead, Panel } from '@/components/ui/primitives';
+/* El vacío de un bloque es `TarjetaVacia` en todo el producto —35 sitios—, y en
+   los dos paneles de esta columna era una frase gris suelta: justo lo que ese
+   componente vino a quitar. Ver su comentario en `dashboard/Tarjeta`. */
+import { TarjetaVacia } from '@/components/dashboard/Tarjeta';
+import {
+  BotonAccion,
+  EmptyState,
+  Fold,
+  Notice,
+  PageHead,
+  Panel,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/ToastProvider';
 import { SIN_CAMBIOS, useCloseReview } from '@/components/review/useCloseReview';
 import { taskAction } from './TaskInbox';
@@ -61,7 +73,17 @@ const capitalizar = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 const saludo = (nombre) => {
   const h = new Date().getHours();
   const franja = h < 6 ? 'Buenas noches' : h < 14 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
-  const pila = String(nombre || '').trim().split(/\s+/)[0];
+  const limpio = String(nombre || '').trim();
+  /*
+    Un correo no es un nombre de pila.
+
+    `profiles.full_name` viene relleno con el correo en las cuentas creadas antes
+    de que hubiera dónde escribirlo, así que el titular más grande de la
+    aplicación decía «Buenos días, m4nugnzl@gmail.com» todas las mañanas. Sin
+    nombre de verdad se saluda a secas, que es correcto y no es raro; para
+    ponerlo, el menú de cuenta (`AccountMenu`).
+  */
+  const pila = limpio.includes('@') ? '' : limpio.split(/\s+/)[0];
   return pila ? `${franja}, ${pila}` : franja;
 };
 
@@ -106,8 +128,10 @@ const Persona = ({ row, sub, badge, onOpen, children }) => (
 );
 
 const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
-  const [enCurso, setEnCurso] = useState(null);
   const [escribiendo, setEscribiendo] = useState(null);
+  /* Solo hay UNA respuesta abierta a la vez, así que un estado basta para su
+     botón de enviar. Ver `BotonAccion`. */
+  const envio = useAccionDeBoton();
   const [texto, setTexto] = useState('');
 
   return (
@@ -125,19 +149,16 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
           >
             {puedeCerrar && (
               <>
-                <button
-                  type="button"
+                {/* Cada fila lleva su propio estado dentro del botón, así que
+                    ya no hace falta apuntar fuera cuál se está guardando. */}
+                <BotonAccion
                   className="btn btn-secondary btn-sm"
-                  disabled={enCurso === id}
+                  icon={Check}
                   title="Cierra su semana sin cambios y le llega que está vista"
-                  onClick={async () => {
-                    setEnCurso(id);
-                    await onCerrar(row.review.id, id, SIN_CAMBIOS);
-                    setEnCurso(null);
-                  }}
+                  onClick={() => onCerrar(row.review.id, id, SIN_CAMBIOS)}
                 >
-                  <Check size={12} /> {enCurso === id ? 'Guardando…' : 'Seguimos igual'}
-                </button>
+                  Seguimos igual
+                </BotonAccion>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
@@ -164,15 +185,17 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
             {escribiendo === id && (
               <form
                 className="col gap-2 task-respuesta"
-                onSubmit={async (e) => {
+                onSubmit={(e) => {
                   e.preventDefault();
                   const limpio = texto.trim();
                   if (!limpio) return;
-                  setEnCurso(id);
-                  await onCerrar(row.review.id, id, limpio);
-                  setEnCurso(null);
-                  setTexto('');
-                  setEscribiendo(null);
+                  envio.lanzar(async () => {
+                    const bien = await onCerrar(row.review.id, id, limpio);
+                    if (!bien) return false;
+                    setTexto('');
+                    setEscribiendo(null);
+                    return true;
+                  });
                 }}
               >
                 <textarea
@@ -184,9 +207,14 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
                   onChange={(e) => setTexto(e.target.value)}
                 />
                 <div className="row gap-2">
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={!texto.trim() || enCurso === id}>
+                  <BotonAccion
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    estado={envio.estado}
+                    disabled={!texto.trim()}
+                  >
                     Enviar y cerrar
-                  </button>
+                  </BotonAccion>
                   <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEscribiendo(null)}>
                     Cancelar
                   </button>
@@ -284,8 +312,17 @@ export const Today = () => {
     return { vencidos, dias, total: vencidos.length + dias.reduce((n, d) => n + d.eventos.length, 0) };
   }, [agendaEvents, clients, today]);
 
+  /*
+    ── Cinco, y por qué se recortó de ocho ────────────────────────────────────
+    Esta columna es LECTURA —lo que ha pasado, la agenda— y la de al lado es el
+    trabajo. Con ocho entradas la columna secundaria acababa siendo la más larga
+    de la pantalla: la vista quedaba desequilibrada y lo importante parecía lo
+    de la derecha. Cinco cubren las últimas horas, que es lo que un feed de
+    «últimas 48 horas» tiene que contestar; el resto es historia y vive en la
+    ficha de cada uno.
+  */
   const actividad = useMemo(
-    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today, 2).slice(0, 8),
+    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today, 2).slice(0, 5),
     [clients, training, anthropometry, progressPhotos, checkIns, today]
   );
 
@@ -302,6 +339,9 @@ export const Today = () => {
       notes: notas,
     });
     setError(res?.ok === false ? res.error : null);
+    /* Se devuelve para que el botón de la cola sepa si confirmar con un tic o
+       volver a su sitio callado. Ver `BotonAccion`. */
+    return res?.ok !== false;
   };
 
   const handlers = {
@@ -425,7 +465,7 @@ export const Today = () => {
             className="col gap-3"
           >
             {semana.total === 0 ? (
-              <p className="t-sm t-secondary">Nada apuntado en la agenda hasta el domingo.</p>
+              <TarjetaVacia>Nada apuntado en la agenda hasta el domingo.</TarjetaVacia>
             ) : (
               <div className="agenda">
                 {semana.vencidos.length > 0 && (
@@ -450,7 +490,7 @@ export const Today = () => {
 
           <Panel title="Actividad" sub="Últimas 48 horas" className="col gap-3">
             {actividad.length === 0 ? (
-              <p className="t-sm t-secondary">Nadie ha registrado nada en dos días.</p>
+              <TarjetaVacia>Nadie ha registrado nada en dos días.</TarjetaVacia>
             ) : (
               <div className="actividad">
                 {actividad.map((event) => {

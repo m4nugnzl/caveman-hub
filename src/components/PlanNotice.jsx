@@ -55,7 +55,7 @@ export const PlanNotice = () => {
               {aviso.accion}
             </Link>
             {aviso.sePuedeCerrar && (
-              <button type="button" className="btn btn-sm" onClick={cerrar}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={cerrar}>
                 Hoy no
               </button>
             )}

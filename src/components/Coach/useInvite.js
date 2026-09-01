@@ -42,17 +42,39 @@ export const useInvite = () => {
       const created = reemitir ? await reissueAccess(client.id) : await createInvite(client.id);
       setBusy(false);
 
+      /* Y además de pintarlo arriba, se DEVUELVE: el botón que lo llamó tiene
+         que saber si confirmar con un tic o volver a su sitio sin celebrar
+         nada. Antes esto no devolvía nada y desde fuera un fallo del servidor
+         era indistinguible de un acierto. Ver `BotonAccion`. */
       if (!created.ok) {
-        setResult({ ok: false, error: created.error });
-        return;
+        const fallo = { ok: false, error: created.error };
+        setResult(fallo);
+        return fallo;
       }
 
+      /*
+        ── Y con tope de tiempo ──────────────────────────────────────────────
+        `clipboard.writeText` no siempre falla cuando no puede: si el documento
+        ha perdido el foco, la promesa se queda colgada y NO rechaza. Con eso,
+        el enlace estaba creado en el servidor y la pantalla se quedaba esperando
+        para siempre — con el botón sin poder pulsarse otra vez.
+
+        Un segundo y medio es de sobra para escribir cincuenta caracteres en el
+        portapapeles. Si no ha ido, se cae al camino que ya existía: enseñar la
+        URL entera para poder seleccionarla a mano.
+      */
+      let salida;
       try {
-        await navigator.clipboard.writeText(created.url);
-        setResult({ ok: true, copied: true, name: client.name, url: created.url, reemitir });
+        await Promise.race([
+          navigator.clipboard.writeText(created.url),
+          new Promise((_, fallar) => setTimeout(() => fallar(new Error('portapapeles sin respuesta')), 1500)),
+        ]);
+        salida = { ok: true, copied: true, name: client.name, url: created.url, reemitir };
       } catch {
-        setResult({ ok: true, copied: false, name: client.name, url: created.url, reemitir });
+        salida = { ok: true, copied: false, name: client.name, url: created.url, reemitir };
       }
+      setResult(salida);
+      return salida;
     },
     [createInvite, reissueAccess]
   );

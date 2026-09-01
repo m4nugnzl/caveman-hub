@@ -1,0 +1,3153 @@
+/* ==========================================================================
+   La calle
+   --------------------------------------------------------------------------
+   La portada pública y la pantalla de acceso. Es la única zona con tinta
+   de marca —la brasa—: dentro de la aplicación el cromo no tiene color.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Portada pública
+   --------------------------------------------------------------------------
+   ══ La decisión: enseñar la pantalla, entera ════════════════════════════════
+
+   Una página de captación de una herramienta de entrenadores es, casi siempre,
+   un titular sobre un degradado, cuatro tarjetas con iconos y —con suerte— un
+   vídeo de producto. Eso se puede maquetar sin haber visto la aplicación, y se
+   nota.
+
+   Aquí hubo lo contrario y también falló: tres secciones eran la aplicación
+   FUNCIONANDO —se escribían kilos y se movía el tonelaje, se encendía un módulo
+   y aparecía en el móvil de al lado—. Piezas hechas a medida para la portada,
+   tocables, que seguían al tema y no envejecían. Y aun así lo que se veía era
+   una maqueta: una pieza cortada para caber en media columna NO es la pantalla,
+   es lo que cabe de ella, y un entrenador no reconoce ahí su trabajo.
+
+   Ahora son capturas de la cuenta que monta `scripts/demo.mjs`, y RECORTADAS:
+   `scripts/recortar-capturas.ps1` deja en `public/capturas/portada/` una pieza
+   por sección con la tabla de series, los anillos de calorías y las cifras de la
+   semana, y sin nada de cromo. La cabecera con la marca, el buscador y el avatar
+   son exactamente lo que tiene igual cualquier aplicación del mundo: ocupaban un
+   tercio de cada captura diciendo lo que no distingue a esta de ninguna otra.
+
+   El precio es que hay que volver a sacarlas y a recortarlas cuando una de esas
+   pantallas cambie de forma. Se paga.
+
+   ══ Y la forma: escaparate de noche ═════════════════════════════════════════
+
+   Cuatro reglas sostienen la página entera:
+
+   ── 1. Negro fijo ──────────────────────────────────────────────────────────
+   `.lp-noche` (en `styles/tokens.css`) lo ponen y lo quitan la portada y el
+   acceso, vía `lib/useNoche.js`, en el elemento raíz. Una pantalla de trabajo es
+   un objeto ILUMINADO: sobre un lienzo apagado se lee como la pieza que es, y
+   sobre papel compite con él.
+
+   ── 2. Franjas, no huecos ──────────────────────────────────────────────────
+   Las secciones no se separan con aire: se alternan entre el lienzo y un escalón
+   más claro a sangre, con filete arriba y abajo (`.is-band`). Seis bloques
+   separados solo por espacio se leen como una lista larga; en franjas se ve de
+   un vistazo dónde empieza y acaba cada argumento. Por eso `.lp` no tiene `gap`
+   y cada sección lleva su propio `padding-block`: dos franjas seguidas tienen
+   que TOCARSE o el escalón deja de leerse como tal.
+
+   ── 3. Sin tinta de marca ──────────────────────────────────────────────────
+   La misma paleta que el producto: tiza sobre hierro, y el color reservado para
+   los datos. Aquí hubo un amarillo de alta visibilidad pintando remates,
+   rótulos, botones y la losa del cierre, y sobraba: una portada que necesita una
+   tinta propia para tener carácter es una portada que no lo tiene.
+
+   Lo que separa un titular de su remate es la CURSIVA —fuente de verdad
+   (`archivo-italic-*.woff2`), no una inclinación sintética: a 84 px el sesgo que
+   se inventa el navegador se ve—, y lo que separa un rótulo de su párrafo es la
+   troquelada. El único color de la página es el que traen dentro las capturas,
+   que ahí sí significa algo.
+
+   ── 4. Toda captura va enmarcada ───────────────────────────────────────────
+   Las capturas son del tema CLARO y el lienzo es negro, así que ninguna se pega
+   desnuda: van dentro de una ventana con su barra y su sombra (`.lp-shot`) o de
+   un móvil con su bisel (`.lp-movil`). Sin marco, una imagen clara sobre negro no
+   tiene canto y se lee como un agujero en la página. Las secciones de producto
+   llevan el discurso a un lado y la ventana al otro, alternando el lado
+   (`.lp-feat`).
+
+   ── La rejilla ─────────────────────────────────────────────────────────────
+   Todas las secciones van a sangre y el ancho de lectura vive DENTRO, en
+   `.lp-in`. Es al revés que en la aplicación, y es lo que permite que una franja
+   ocupe la pantalla entera mientras su texto sigue alineado con el resto.
+   ========================================================================== */
+
+.lp {
+  /* El ancho de lectura de la portada. Más ancho que el de la aplicación porque
+     aquí una sección son dos columnas —discurso y pieza— y la pieza es un trozo
+     de producto que necesita sitio para no leerse como una miniatura. */
+  --lp-w: 1200px;
+  /* El gutter, que crece con la pantalla. En una variable porque la caja de
+     contenido y la barra tienen que coincidir al píxel — y porque las piezas que
+     salen a sangre en un teléfono se sacan restándolo (`margin-inline`
+     negativo), así que un solo número decide las dos cosas.
+
+     ── Y nunca por debajo del hueco del bisel ──────────────────────────────
+     `index.html` declara `viewport-fit=cover`, o sea que la página se pinta POR
+     DEBAJO de las esquinas redondeadas y de la muesca. Con el teléfono en
+     horizontal eso deja la primera letra de cada línea bajo el bisel. `max()`
+     con `env()` lo impide, y en un ordenador `env()` vale 0: ahí esto es
+     exactamente el `clamp` de siempre. */
+  --lp-pad: max(
+    clamp(20px, 4vw, 40px),
+    env(safe-area-inset-left, 0px),
+    env(safe-area-inset-right, 0px)
+  );
+  /* El aire de una sección, arriba y abajo. Es lo único que separa un argumento
+     del siguiente cuando dos secciones sin franja se tocan — y por eso el mínimo
+     sube en un teléfono: ahí las franjas se tocan por el canto largo y con 52 px
+     el titular de la siguiente sección empezaba a la altura del pie de la
+     anterior. */
+  --lp-air: clamp(64px, 6.5vw, 104px);
+
+  background: var(--canvas);
+  /* El halo del héroe y las fichas que flotan se salen por los lados. Con
+     `clip` no se ve la barra horizontal y, a diferencia de `hidden`, no crea un
+     contenedor de desplazamiento —que rompería la barra pegajosa—. */
+  overflow-x: clip;
+}
+
+/* La caja de contenido. Vive dentro de cada sección, no envolviéndolas. */
+.lp-in {
+  width: 100%;
+  max-width: calc(var(--lp-w) + var(--lp-pad) * 2);
+  margin-inline: auto;
+  padding-inline: var(--lp-pad);
+}
+
+/* Las excepciones, y son dos: la hoja de progreso y la escena del héroe. En las
+   dos por lo mismo —una pieza que no puede encoger— y por motivos distintos.
+
+   En el progreso es un gráfico: las etiquetas de los ejes tienen un tamaño
+   mínimo por debajo del cual no se leen. En el héroe son dos aparatos que tienen
+   que caber uno al lado del otro sin pisarse, y en 1200 px no caben: el teléfono
+   acaba mordiendo setenta y cinco píxeles de la ventana, o sea tapando una
+   columna entera de la captura. Ver `.lp-hero-escena`.
+
+   El titular no las sigue: se queda centrado y con su tope de caracteres, que
+   una línea de texto de 1440 px no se lee. */
+.lp-in.is-ancha { max-width: calc(1440px + var(--lp-pad) * 2); }
+
+.lp-sec { padding-block: var(--lp-air); }
+
+/* La franja: un escalón de luz a sangre. El filete de arriba y abajo es lo que
+   la convierte en una banda y no en un cambio de fondo que se nota a medias. */
+.lp-sec.is-band {
+  background: var(--canvas-alt);
+  border-block: 1px solid var(--hairline);
+}
+
+/* El destino de un ancla no puede quedar debajo de la barra pegajosa. */
+.lp [id] { scroll-margin-top: calc(var(--header-h) + var(--s4)); }
+
+/* ══ Y SE BAJA DESPLAZANDO, no de un salto ══════════════════════════════════
+   «Ver cómo funciona» y los tres enlaces de la barra son anclas, y sin esto el
+   navegador TELETRANSPORTA. En una página con secciones que aparecen al
+   llegar a ellas, eso sale mal de una forma muy concreta y muy fea: el salto
+   deja la vista sobre una sección que todavía está invisible —a la espera de
+   que su observador se dispare—, así que durante un instante no hay nada, y
+   acto seguido el bloque entero entra desde abajo. Se ha llegado, y parece que
+   la página se ha quedado en blanco.
+
+   Desplazando, el observador se dispara por el camino: cuando el desplazamiento
+   termina, la sección ya está puesta. La animación deja de ser un parpadeo al
+   final y pasa a ser lo que era, algo que ocurre mientras se recorre.
+
+   Va en `.lp-noche` porque esa clase la pone `useNoche` en el ELEMENTO RAÍZ, que
+   es el que desplaza, y solo mientras la portada o el acceso están montados: no
+   se le cambia el comportamiento a la aplicación de dentro. Y quien pide menos
+   movimiento lo recupera en el bloque de `prefers-reduced-motion` de arriba, que
+   devuelve `scroll-behavior: auto` con `!important`. */
+.lp-noche { scroll-behavior: smooth; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ENTRAR AL LLEGAR
+   --------------------------------------------------------------------------
+   Una portada larga se RECORRE, no se lee: se baja de un tirón y el ojo se para
+   en lo que se acaba de mover. Eso es todo lo que hace esto, y hace bastante —
+   marca dónde empieza cada argumento y da la sensación de que la página
+   responde a lo que se hace con ella.
+
+   Hay dos capas y son distintas a propósito:
+
+   ── 1. El bloque, al llegar a él (`.lp-reveal`) ─────────────────────────────
+   Lo enciende `useReveal` con un `IntersectionObserver`, una vez y para
+   siempre. Sube y aparece.
+
+   ── 2. Su contenido, en cascada (`.lp-tanda`) ───────────────────────────────
+   Una caja con esa clase reparte el retraso entre sus hijos: el rótulo, el
+   titular y la frase no aparecen a la vez, aparecen en el orden en que se leen.
+   Es la diferencia entre una sección que «se enciende» y una que se ESCRIBE
+   sola, y no cuesta ni un estado más en JavaScript — el retraso es un
+   `:nth-child` y la señal es la misma clase `is-in` del bloque de fuera.
+
+   Se para en el quinto hijo: pasado de ahí el último tarda casi medio segundo
+   en llegar, y una cascada que se hace esperar deja de leerse como un
+   movimiento y pasa a leerse como que la página va lenta.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
+}
+.lp-reveal.is-in { opacity: 1; transform: none; }
+
+.lp-tanda > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.lp-reveal.is-in .lp-tanda > * { opacity: 1; transform: none; }
+.lp-tanda > *:nth-child(2) { transition-delay: 90ms; }
+.lp-tanda > *:nth-child(3) { transition-delay: 180ms; }
+.lp-tanda > *:nth-child(4) { transition-delay: 270ms; }
+.lp-tanda > *:nth-child(n + 5) { transition-delay: 360ms; }
+
+/* ── Y LA PIEZA, que es la que había que animar ─────────────────────────────
+   Esto faltaba, y era lo que más se notaba: entraba el rótulo, entraba el
+   titular, entraba la frase… y la pantalla —que es a lo que va todo el mundo—
+   ya estaba puesta desde el principio. La sección se encendía por todas partes
+   menos por la única que importa.
+
+   Sube MÁS que el texto y desde un pelo más pequeña. No es un capricho: un
+   bloque de texto que se desliza se lee como texto que aparece, pero una imagen
+   que además crece se lee como un objeto que se ACERCA, y eso es lo que hace
+   que el ojo se pare en ella. Y llega la última, cuando ya se ha leído lo que
+   la presenta. */
+.lp-feat-art {
+  opacity: 0;
+  transform: translateY(34px) scale(0.975);
+  transition: opacity 0.85s var(--ease), transform 0.85s var(--ease);
+  transition-delay: 160ms;
+}
+.lp-reveal.is-in .lp-feat-art { opacity: 1; transform: none; }
+
+/* ── Y el héroe, que no espera a nadie ───────────────────────────────────────
+   El primer bloque de la página no puede depender de un observador: ya está en
+   pantalla cuando se carga, así que si esperara a cruzarla no entraría nunca.
+   Va con una animación de las de siempre y en cascada. */
+
+@keyframes lp-entra {
+  from { opacity: 0; transform: translateY(20px); }
+}
+
+/* ── Y las dos tarjetas del par no se posan del todo: SIGUEN FLOTANDO ────────
+   El par entra, la nota aterriza con él y ahí se quedaría muerta. Y una tarjeta
+   que se sale del canto de un aparato está diciendo que es una capa por encima,
+   o sea que está en el aire — si luego no se mueve, deja de ser una capa y pasa
+   a ser parte de la imagen, que es justo de lo que se la quería sacar.
+
+   Nueve píxeles arriba y abajo en siete segundos. Es un movimiento que no se
+   mira: se nota. Pasado de ahí ya no flota, se balancea, y una portada con
+   cosas balanceándose se lee como una plantilla.
+
+   ── Por qué `translate` y no `transform` ───────────────────────────────────
+   Porque la entrada ya usa `transform`, y dos animaciones sobre la misma
+   propiedad no se suman: gana la última y la otra desaparece. `translate` es
+   una propiedad aparte que se COMPONE con `transform`, así que las dos pueden
+   correr a la vez sobre el mismo elemento — que es exactamente lo que hace
+   falta aquí: primero se posa, y desde entonces flota.
+
+   Las dos comparten fotogramas y no comparten ritmo. Con la misma duración
+   subirían y bajarían a la vez, y dos cosas que se mueven sincronizadas en
+   esquinas opuestas se leen como un banner. */
+@keyframes lp-flota {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -9px; }
+}
+
+.lp-hero-in > * { animation: lp-entra 0.7s var(--ease) both; }
+.lp-hero-in > *:nth-child(2) { animation-delay: 80ms; }
+.lp-hero-in > *:nth-child(3) { animation-delay: 160ms; }
+.lp-hero-in > *:nth-child(4) { animation-delay: 240ms; }
+.lp-hero-in > *:nth-child(5) { animation-delay: 320ms; }
+
+/* ── LA CHAPA CAE ENCIMA, después de que la escena se pose ───────────────────
+   Aquí decía «la chapa no necesita entrada propia: llega con el bloque de
+   aparatos». Y llegando así era invisible COMO OBJETO: pegada a la captura
+   desde el primer fotograma, entraba como un píxel más de la imagen — nadie la
+   veía aparecer, que es justo lo que el dueño señaló. Una nota que dice ser
+   una capa tiene que llegar DESPUÉS de aquello sobre lo que se posa.
+
+   Así que ahora la escena aterriza primero (los aparatos acaban su entrada
+   hacia el segundo) y la chapa cae encima con su rebote: crece desde pequeña,
+   se pasa un pelo y asienta. Y desde entonces flota — `lp-flota` va sobre
+   `translate`, que se COMPONE con el `transform` del rebote, así que las dos
+   animaciones conviven sin pisarse (el porqué largo, encima de `lp-flota`).
+
+   El rebote lleva la opacidad dentro y rellena hacia atrás (`both`): antes de
+   su retraso la chapa está en su fotograma inicial, o sea invisible, sin
+   necesitar una regla aparte de «escondida hasta que llegues».
+
+   Con ritmos distintos en cada par: dos que suben y bajan a la vez a dos
+   pantallas de distancia se leen como un banner. */
+@keyframes lp-chapa-cae {
+  from { opacity: 0; transform: translateY(12px) scale(0.72); }
+  72% { opacity: 1; transform: translateY(-2px) scale(1.035); }
+  to { opacity: 1; transform: none; }
+}
+.lp-par-art .lp-chapa { opacity: 0; }
+.lp-par.lp-reveal.is-in .lp-chapa {
+  animation:
+    lp-chapa-cae 0.5s var(--ease) 1.05s both,
+    lp-flota 6.4s ease-in-out 2.6s infinite;
+}
+.lp-par.is-vuelta.lp-reveal.is-in .lp-chapa {
+  animation-delay: 1.05s, 3.2s;
+  animation-duration: 0.5s, 7.6s;
+}
+
+/* El segundo cinturón. `useReveal` ya devuelve «visible» a quien pidió menos
+   movimiento, pero si ese gancho no llegara a ejecutarse —JavaScript que falla,
+   un navegador sin `IntersectionObserver`— el contenido se quedaría invisible
+   para siempre. Esto lo impide desde la hoja de estilos, que no depende de nada. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-reveal,
+  .lp-tanda > *,
+  .lp-feat-art { opacity: 1; transform: none; transition: none; }
+  /* La entrada de las tarjetas de plan, con su especificidad de tres clases:
+     la lista de arriba no llega a pisarla. */
+  .lp-plan.lp-reveal:not(.is-in) { transform: none; }
+  /* Y el raíl, entero desde el principio: es una línea, no una animación. */
+  .lp-ruta-paso::before { scale: 1 1; }
+  .lp-hero-in > *,
+  .lp-hero-escena,
+  .lp-par-art .lp-chapa,
+  /* La chapa encendida pesa cuatro clases y ganaría al apagado genérico. Y su
+     opacidad de partida es 0 —la entrada la trae el rebote—, así que aquí se
+     enciende a mano o se quedaría invisible sin animación que la trajera. */
+  .lp-par.lp-reveal.is-in .lp-chapa,
+  /* El acceso usa los mismos fotogramas: si se desconectan aquí y allí no, la
+     pantalla que va justo detrás de la portada se movería igual. */
+  .acceso-in > * { animation: none; }
+  /* Y sin el rebote que la traía, la chapa se enciende desde aquí. */
+  .lp-par-art .lp-chapa { opacity: 1; }
+}
+
+/* ==========================================================================
+   LA VOZ
+   --------------------------------------------------------------------------
+   Tres tamaños y un remate, y con eso está toda la página:
+
+     · el titular del héroe, de 44 a 84 px;
+     · el titular de sección, de 30 a 52 px;
+     · el rótulo troquelado, de 11 px, que encabeza cada una;
+
+   y el REMATE: la última frase del titular, en cursiva. Es lo que convierte un
+   titular grande en un titular con acento, y lo que hace que ocho secciones se
+   lean como una sola página en vez de como ocho pantallas.
+   ========================================================================== */
+
+.lp h1, .lp h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-wrap: balance;
+  /* La tinta, DECLARADA y no heredada. Todo lo demás de esta página dice de qué
+     color es —el rótulo, el lede, la nota— y los titulares eran los únicos que
+     lo daban por hecho. Se pagó: en una prueba de pintado salieron a un tercio
+     de su luz, con el resto de la página bien, y eso es de lo más caro de
+     encontrar porque el CSS del titular no tiene nada que mirar. En la pieza
+     más grande de la portada, heredar no compensa. */
+  color: var(--text);
+}
+
+/* El mínimo del `clamp` solo entra por debajo de 550 px de ventana, o sea justo
+   en un teléfono — y ahí 2,75rem eran 44 px, con los que «Todos tus clientes,»
+   no cabe en una línea y el titular se parte en cuatro. A 2,35rem entra en dos,
+   que es la forma que tiene escrito. */
+.lp-h1 {
+  font-size: clamp(2.35rem, 7vw, 5.25rem);
+  line-height: 0.96;
+  letter-spacing: -0.04em;
+}
+
+.lp h2 {
+  font-size: clamp(1.9rem, 4.4vw, 3.25rem);
+  line-height: 1.03;
+  letter-spacing: -0.032em;
+  max-width: 17ch;
+}
+
+/* EL REMATE. `em` y no un `span` con clase: esto es énfasis de verdad —la parte
+   de la frase que carga el significado— y así lo dice también el lector de
+   pantalla, que le sube el tono.
+
+   ══ Y la LUMBRE detrás, que no es lo mismo que teñirlo ════════════════════
+
+   El remate estuvo pintado de rojo, y era la receta de la portada que servía de
+   referencia: rótulos, cursivas y botón en la tinta de marca. Dos cosas iban
+   mal. Que en cuanto dos productos usan la misma receta la tinta deja de ser de
+   nadie. Y que a 84 px el color plano no acentúa una letra: la APLANA — el peso
+   se pierde y el remate compite con el titular en vez de rematarlo.
+
+   Lo que hay ahora es una lumbre: la letra se queda en tiza plena —que es lo
+   que la mantiene con peso— y lo que cambia es la TEMPERATURA del hueco donde
+   está. Se ve que ahí hay algo antes de saber qué es, y eso es exactamente lo
+   que se le pide a un remate.
+
+   Y sigue siendo cursiva de verdad, que es lo que lo separa para quien no
+   distingue una temperatura de otra.
+
+   ── Y la lumbre es una SOMBRA de texto, no una mancha detrás ───────────────
+   El primer intento fue un pseudo-elemento borroso con `z-index: -1` dentro del
+   `em`. Se veía bien y traía dos problemas de los que no se arreglan
+   ajustando números:
+
+     · El `em` es un elemento EN LÍNEA. Meterle dentro una caja absoluta con
+       `filter` y contexto de apilado propio deja el pintado del titular en
+       manos de cómo el navegador decida componer esa capa — y en pruebas salía
+       el titular entero apagado, con la letra a un tercio de su luz.
+     · Y una mancha ovalada detrás de una palabra es una mancha: se le ve la
+       forma en cuanto la palabra es corta.
+
+   `text-shadow` no tiene ninguno de los dos. No crea capa, no crea contexto de
+   apilado, y sobre todo la luz sigue el CONTORNO de las letras en vez de
+   dibujar un óvalo detrás — que es exactamente lo que hace un metal caliente:
+   brillar por donde tiene masa. Dos sombras, una corta y otra abierta, porque
+   una sola se ve como un halo de cartel.
+
+   ══ Y la intensidad la manda la SECCIÓN, no el remate ══════════════════════
+
+   Aquí la lumbre era una constante: el mismo rescoldo detrás del mismo remate
+   en cursiva, siete veces al bajar por la página. Y un acento que se repite
+   idéntico deja de acentuar — a la tercera sección el ojo ya sabe lo que hay y
+   no se para.
+
+   `--lumbre` es la misma propiedad leída desde cada sección, así que la
+   temperatura sube y baja según dónde se esté: a plena potencia en la primera
+   pantalla, a media luz en las franjas, apagada del todo en la losa de tiza del
+   cierre —donde un rescoldo rojo alrededor de una letra oscura sobre fondo
+   claro no es una lumbre, es una mala impresión—. No hay dos secciones seguidas
+   con la misma.
+
+   Y las secciones que se quedan a media luz no pierden el acento: lo llevan en
+   otro sitio. Los pares en su número, las fichas en sus azulejos, las dudas en
+   la cifra de la que está abierta. Ver el encabezado de `LandingPage.jsx`. */
+.lp { --lumbre: var(--brasa-luz); }
+.lp-hero { --lumbre: var(--brasa-luz-alta); }
+.lp-sec.is-band { --lumbre: var(--brasa-luz-baja); }
+.lp-slab { --lumbre: transparent; }
+
+.lp h1 em, .lp h2 em {
+  font-style: italic;
+  text-shadow: 0 0 34px var(--lumbre), 0 0 88px var(--lumbre);
+}
+
+/* ── El rótulo, y LA REGLA delante ───────────────────────────────────────────
+   En tiza, no en tinta: teñir el rótulo era la otra mitad de la receta prestada
+   y además dejaba dos cosas de color en cada sección compitiendo entre ellas.
+
+   Lo que lo distingue ahora es la marca que lleva delante: las muescas de una
+   cinta métrica (`--rule`, la firma del producto — ver `styles/tokens.css`).
+   Aparece en la aplicación solo donde se MIDE algo, y una portada de una
+   herramienta de medida es exactamente ese sitio. No hace falta explicarla: se
+   lee como un trocito de regla y ordena la sección sin decir nada. */
+.lp-eyebrow, .lp-kicker {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--text);
+}
+.lp-eyebrow::before, .lp-kicker::before {
+  content: '';
+  width: 27px; height: 9px;
+  background: var(--rule);
+  /* Las muescas nacen del canto de abajo, como en una cinta de verdad. */
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 55%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 55%);
+}
+
+.lp-lede {
+  font-size: clamp(1rem, 1.5vw, 1.15rem); color: var(--text-secondary);
+  line-height: 1.5; max-width: 56ch;
+}
+.lp-lede-sm {
+  font-size: var(--fs-md); color: var(--text-secondary);
+  line-height: 1.55; max-width: 54ch;
+}
+
+.lp-sec-head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+.lp-sec-head.is-center { align-items: center; text-align: center; }
+.lp-sec-head.is-center > h2 { max-width: 20ch; }
+.lp-sec-head.is-center > .lp-lede-sm { max-width: 58ch; }
+
+/* ==========================================================================
+   LOS BOTONES DE LA PORTADA
+   --------------------------------------------------------------------------
+   No son los del producto, y no es un descuido. Dentro, un botón es una
+   herramienta: fuente del sistema, esquina corta, tamaño de dedo justo. Aquí es
+   SEÑALÉTICA —hay dos en toda la primera pantalla y tienen que verse desde el
+   otro lado de la habitación—, así que van en pastilla, en versalita troquelada
+   y en tiza plena: sobre un lienzo casi negro, un rectángulo blanco es el máximo
+   contraste que da la pantalla, y no hace falta ningún color para conseguirlo.
+   ========================================================================== */
+
+.lp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  height: 52px; padding-inline: 30px;
+  border: 0; border-radius: var(--r-pill);
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; text-decoration: none;
+  white-space: nowrap; cursor: pointer;
+  transition: box-shadow var(--fast), background-color var(--fast), color var(--fast),
+    border-color var(--fast), transform var(--fast);
+}
+.lp-btn:active { transform: scale(0.975); }
+.lp-btn.is-sm { height: 38px; padding-inline: 18px; font-size: var(--fs-2xs); }
+
+/* ══ EL BOTÓN DE EMPEZAR: TIZA, y la lumbre alrededor ════════════════════════
+   Estuvo en rojo, y era el objeto que más chillaba de la página. El argumento
+   para pintarlo era que un botón tiene que ser lo ÚNICO que se ve así, y sigue
+   siendo verdad — lo que estaba mal es la forma de conseguirlo. Sobre un lienzo
+   casi negro, un rectángulo de tiza YA es el máximo contraste que da la
+   pantalla; un rectángulo rojo tiene menos, y encima obliga al resto de la
+   página a bajar la voz para no pelearse con él.
+
+   Lo que lo distingue de las otras manchas de tiza es que es el único que está
+   ENCENDIDO: lleva un rescoldo cálido debajo, que es la misma lumbre que hay
+   detrás del titular. Al pasar por encima se aviva. */
+.lp-btn.is-fill {
+  background: var(--accent); color: var(--accent-on);
+  box-shadow: 0 10px 34px -8px var(--brasa-luz);
+}
+.lp-btn.is-fill:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 12px 40px -6px var(--brasa-luz), 0 0 0 5px var(--accent-soft);
+}
+
+.lp-btn.is-ghost {
+  background: transparent; color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+.lp-btn.is-ghost:hover { box-shadow: inset 0 0 0 1px var(--text); }
+
+/* El de la losa: allí la tiza es el fondo, así que el botón se invierte. */
+.lp-btn.is-dark { background: var(--accent-on); color: var(--accent); }
+.lp-btn.is-dark:hover { box-shadow: 0 0 0 5px rgba(20, 24, 28, 0.12); }
+
+/* ── La barra ────────────────────────────────────────────────────────────── */
+
+.lp-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding-block: 0;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid var(--hairline);
+}
+.lp-bar-in {
+  height: var(--header-h);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+}
+.lp-brand {
+  display: inline-flex; align-items: center; gap: var(--s3);
+  font-family: var(--font-display); font-size: var(--fs-md);
+  font-weight: 700; letter-spacing: -0.02em;
+  color: var(--text); text-decoration: none; white-space: nowrap;
+}
+.lp-nav { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 34px); }
+.lp-bar-cta { display: flex; align-items: center; gap: var(--s4); }
+/* Versalita troquelada también en la navegación: son cuatro rótulos sueltos y en
+   caja baja se leían como texto corrido al lado del logotipo. */
+.lp-nav-link {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-secondary); text-decoration: none; white-space: nowrap;
+  transition: color var(--fast);
+}
+.lp-nav-link:hover { color: var(--text); }
+.lp-nav-link.is-plain { color: var(--text); }
+
+/* ==========================================================================
+   EL HÉROE
+   --------------------------------------------------------------------------
+   Centrado, a una columna y con la escena DEBAJO, no al lado. Partirlo en dos
+   columnas obliga a leer y mirar a la vez y deja el titular a la mitad de su
+   tamaño posible; así el titular ocupa lo que puede ocupar y el producto llega
+   entero justo después — y cortado en el canto donde la sección acaba, que es lo
+   que hace que se siga bajando.
+
+   El texto es corto a propósito: cuatro cosas —rótulo, titular, una frase y el
+   precio— y ni una más. Cada línea que se añade aquí empuja la escena fuera del
+   pliegue, y una escena que empieza por debajo del canto es una escena que no
+   existe. Los dos botones que hubo aquí se fueron por eso, y porque el de
+   empezar está ya en la barra, que va pegajosa.
+
+   Ver `.lp-hero-escena`, más abajo, y `HERO` en `LandingPage.jsx`.
+   ========================================================================== */
+
+/* ══ EL HÉROE MIDE UNA PANTALLA, Y ACABA EN UN CANTO ═══════════════════════
+   Aquí el héroe no medía nada: era texto y una escena, y lo que la cortaba era
+   el canto del navegador. O sea que el corte lo decidía la ventana de cada uno,
+   y al desplazar la imagen iba asomando poco a poco hasta salir entera. Eso no
+   es un corte, es una imagen que tarda en verse.
+
+   Lo que hace falta es lo contrario: que la primera pantalla TERMINE en un sitio
+   —el mismo para todo el mundo— y que la escena se corte ahí de golpe, con la
+   franja siguiente empezando justo debajo. El canto es lo que dice «hasta aquí
+   la portada» y lo que convierte la imagen cortada en una promesa en vez de en
+   una imagen a medio cargar.
+
+   ── La cuenta del alto ────────────────────────────────────────────────────
+   Una pantalla, menos la barra —que va pegajosa pero ocupa sitio en el flujo—,
+   menos un dedo. Ese dedo es a propósito: si el héroe midiera la pantalla
+   entera, el canto caería justo en el borde y no se vería NADA de lo que hay
+   detrás. Dejando cuarenta y pico píxeles, asoma una banda de la sección
+   siguiente, y una banda que asoma es lo único que hace que se siga bajando.
+
+   `svh` y no `vh`: en un teléfono, `vh` mide la pantalla con la barra del
+   navegador escondida, así que al abrir la página —con la barra puesta— el
+   héroe mide más que el hueco y la banda no asoma, que es justo lo que esto
+   existe para conseguir. La línea de `vh` de encima es para el navegador que no
+   entienda `svh`; ahí se queda como estaba.
+
+   ── Y es `height`, no `min-height`. Esto costó un intento ──────────────────
+   Con `min-height` no pasaba absolutamente nada: es un SUELO, así que la sección
+   seguía creciendo con su contenido hasta los mil y pico píxeles que ocupan el
+   texto y la escena juntos. Y una caja que ya cabe entera no tiene sobrante que
+   repartir, así que la caja de recorte no recortaba nada — el canto no aparecía
+   por ningún lado y todo quedaba igual que antes.
+
+   El corte necesita un alto DEFINIDO: solo con él la caja de dentro sabe cuánto
+   sitio le queda, y solo entonces hay algo que se salga y que recortar.
+
+   Y el alto solo se pone donde hay escena que recortar. En un teléfono y en una
+   ventana baja se quita —ver `@media (max-width: 700px), (max-height: 640px)` al
+   final del archivo—: allí la escena ya cabe o el texto se comería el hueco, y
+   un canto que no corta nada es un agujero.
+   ══════════════════════════════════════════════════════════════════════════ */
+.lp-hero {
+  position: relative;
+  padding-top: clamp(44px, 8vh, 92px);
+  /* El aire de abajo se va entero: aquí no separa nada, porque lo que hay
+     debajo del canto es la franja siguiente pegada a él. */
+  padding-bottom: 0;
+  height: calc(100vh - var(--header-h) - clamp(28px, 5vh, 56px));
+  height: calc(100svh - var(--header-h) - clamp(28px, 5vh, 56px));
+  display: flex;
+  flex-direction: column;
+}
+.lp-hero-in {
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: var(--s4);
+}
+
+/* ── LA CAJA QUE CORTA ───────────────────────────────────────────────────────
+   Se come todo el hueco que deja el texto (`flex: 1`) y recorta lo que se salga
+   por abajo. Las tres declaraciones hacen falta y ninguna sobra:
+
+     · `flex: 1 1 auto` para que llegue hasta el canto del héroe;
+     · `min-height: 0` porque un elemento flexible no baja de su contenido a
+       menos que se le diga, y sin esto la escena EMPUJA la sección hacia abajo
+       en vez de dejarse cortar — o sea, no pasa nada de nada;
+     · `overflow: clip` para el corte. `clip` y no `hidden`: `hidden` crea un
+       contenedor de desplazamiento y eso rompería la barra pegajosa de arriba.
+
+   Y va en los dos ejes aunque solo haga falta el vertical: un `overflow-y`
+   solo, con el horizontal en `visible`, obliga al navegador a convertir el otro
+   en `auto` — que es exactamente el contenedor de desplazamiento que no puede
+   haber.
+
+   ══ Y por qué es una caja APARTE y no la propia escena ═════════════════════
+
+   Porque la escena alinea sus dos aparatos por ABAJO (`align-items: flex-end`),
+   que es lo que hace que el teléfono se apoye en la base de la ventana. Si el
+   recorte se le pusiera a ella, su caja pasaría a medir menos que su contenido
+   y el `flex-end` empujaría los dos aparatos hacia ARRIBA para pegar sus pies a
+   un suelo que ya no está donde estaba: la escena se saldría por el techo y lo
+   que se vería sería su mitad de abajo. Al revés de lo que se busca.
+
+   Con la caja aparte, la escena conserva su alto de siempre, se ancla arriba y
+   lo que sobra se va por el canto de abajo. */
+.lp-hero-corte {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: clip;
+}
+
+/* ══ LA LUZ DEL HÉROE: dos fuentes, cálida y fría ═══════════════════════════
+   Era un halo gris centrado, y hacía lo justo: decía «aquí hay luz» sin decir
+   de qué tipo. Un lienzo casi negro con una mancha blanca encima sigue siendo
+   una pared iluminada.
+
+   Ahora son tres capas y es iluminación de dos fuentes, que es lo que se hace
+   para fotografiar un objeto de metal: una CÁLIDA que manda, arriba y a la
+   izquierda, y una FRÍA de relleno enfrente, mucho más floja. Es lo que da
+   volumen a un negro plano —el ojo lee la diferencia de temperatura entre dos
+   lados como profundidad, aunque no sepa decir por qué— y es también lo que
+   evita el filtro naranja: con la cálida sola, esto parecería una foto pasada
+   por un preajuste.
+
+   Todo a sangre, saliéndose por los dos lados: un halo que se corta en el
+   gutter es una mancha. */
+.lp-hero::before {
+  content: '';
+  position: absolute; inset: 0 50% auto; translate: -50% 0;
+  width: 150vw; height: 860px;
+  background:
+    radial-gradient(38% 44% at 26% 16%, var(--brasa-luz) 0%, transparent 62%),
+    radial-gradient(34% 40% at 82% 52%, var(--acero-luz) 0%, transparent 66%),
+    radial-gradient(
+      50% 50% at 50% 20%,
+      rgba(232, 236, 241, 0.055) 0%,
+      rgba(232, 236, 241, 0.02) 38%,
+      transparent 70%
+    );
+  pointer-events: none;
+}
+.lp-hero-in > * { position: relative; }
+
+/* Aquí vive el precio, y por eso no es texto terciario diminuto: se lee. */
+.lp-cta-note { font-size: var(--fs-sm); color: var(--text-tertiary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA ESCENA DEL HÉROE: la pantalla del entrenador y el móvil del cliente
+   --------------------------------------------------------------------------
+   Lo que el héroe no tenía. Aquí la primera pantalla era texto de arriba abajo
+   —rótulo, titular, párrafo, dos botones y una nota— y cinco bloques de texto
+   apilados no tienen jerarquía: todos piden lo mismo, que es que los leas. Una
+   portada tiene que dar algo que MIRAR antes de dar algo que leer.
+
+   Los dos aparatos son los mismos que los de un par y se montan igual —el
+   teléfono muerde el canto derecho de la ventana y cae por debajo de su base—,
+   así que lo que hay aquí son cuatro medidas y ni una técnica nueva. Lo que
+   cambia es la ESCALA: esta ventana se pinta a 980 px y las de las secciones a
+   770, porque una primera pantalla con una imagen del tamaño de las de abajo no
+   es un impacto, es la primera de una lista de seis.
+
+   ══ Y SE CORTA EN UN CANTO, que es la mitad del efecto ═════════════════════
+
+   Aquí el corte lo hacía el canto del NAVEGADOR: la escena se iba por debajo de
+   la ventana y al desplazar salía entera, poco a poco. Eso no es un corte —el
+   sitio donde ocurre lo decide la pantalla de cada uno, y lo que se ve mientras
+   tanto es una imagen que tarda en aparecer—.
+
+   Ahora lo corta la página, en un canto duro y con la franja siguiente pegada
+   debajo. Ver `.lp-hero` y `.lp-hero-corte`, más arriba: el héroe mide una
+   pantalla menos un dedo, y ese dedo es la banda que asoma y que dice que hay
+   más. Una imagen cortada por un canto que se ve es una promesa; cortada por el
+   borde del monitor es una imagen mal puesta.
+
+   El aire de encima va en `vh` y no en píxeles por lo mismo: en una pantalla
+   baja se aprieta para que la escena llegue a asomar antes del canto, y en una
+   alta se abre para que no quede pegada a la frase.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-hero-escena {
+  display: flex; align-items: flex-end; justify-content: center;
+  margin-top: clamp(32px, 5vh, 68px);
+  /* Posicionada y aislada, que es de lo que vive el fulgor: va con `z-index: -1`
+     y sin contexto de apilado propio se iría detrás del fondo de la sección.
+     `position` además la sube por encima del halo de `.lp-hero::before`, igual
+     que hace `.lp-hero-in > *`. */
+  position: relative;
+  isolation: isolate;
+  /* Entra la última, después de la cascada de la columna de texto: la escena es
+     la recompensa de haber leído el titular, no algo que aparezca antes que él. */
+  animation: lp-entra 0.9s var(--ease) 400ms both;
+}
+
+/* Ajustada al contenido y no al 100 %, igual que `.lp-par-desk`: con el ancho
+   entero de la fila la ventana se queda centrada con aire a los lados, el margen
+   negativo del teléfono se come ese aire y los dos aparatos acaban separados por
+   un hueco. */
+.lp-hero-desk { flex: 0 1 auto; min-width: 0; }
+
+/* El tope de `.lp-plana` son 880 px y esta pieza se pinta a 980. Se levanta
+   nombrando `--nat`, que es justo el ancho al que la pieza declara que se puede
+   pintar sin ampliarse: la regla de «una captura no se amplía nunca» la sigue
+   garantizando la pieza, no un número escrito aquí. */
+.lp-hero-desk > .lp-plana { max-width: var(--nat, 880px); }
+
+/* El MORDISCO es corto: el teléfono se apoya en el canto derecho de la ventana y
+   casi todo él queda por fuera. Aquí estuvo en −75 px, que es lo que hacía falta
+   para que los dos aparatos cupieran en el ancho de lectura, y con ese mordisco
+   tapaba entera la columna de «Te esperan» — o sea, media captura. La escena se
+   fue a la caja ancha y el mordisco pudo bajar a lo que tiene que ser: el canto,
+   y nada más.
+
+   ── Y por qué no baja más de aquí ─────────────────────────────────────────
+   Porque la tarjeta de «Revisiones» lleva sus dos botones pegados al canto
+   derecho de la ventana, así que cualquier mordisco que se note tapa el final de
+   uno. Se probó a quitarlo casi del todo —veinte píxeles— para librarlos, y lo
+   que salía era peor: el teléfono dejaba de morder y se quedaba PUESTO AL LADO
+   de la ventana, o sea dos objetos en vez de una escena, que es justo lo que el
+   solape existe para evitar.
+
+   Un aparato delante de una pantalla tapa parte de la pantalla. Eso no se lee
+   como un fallo; dos aparatos que se rozan sin tocarse, sí.
+
+   El ANCHO del aparato no está aquí: vive detrás del bloque `.lp-iphone`, que es
+   el único sitio donde gana. Ver allí. */
+.lp-hero-movil {
+  flex-shrink: 0;
+  margin-left: clamp(-48px, -3vw, -24px);
+  margin-bottom: clamp(-64px, -4vw, -32px);
+  z-index: 1;
+}
+
+/* ── Y aquí vivió EL HILO ────────────────────────────────────────────────────
+   Una línea colgada de un filete que cerraba el héroe diciendo de quién eran
+   todas las capturas de la página: «Javier López · Cut Phase, semana 3 · 80,1
+   kg · −0,44 kg por semana». Explicaba que los números encadenaban de una
+   pantalla a la siguiente, y a cambio ponía el nombre propio de un cliente de
+   mentira como última cosa de la primera pantalla — o sea, justo donde tiene
+   que estar el precio y el botón, y con la única letra de la página que no
+   habla del producto.
+
+   Un caso se lee dentro de las capturas o no se lee. No hace falta presentarlo
+   con ficha. */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL PAR: tu pantalla y la suya, la misma cosa
+   --------------------------------------------------------------------------
+   La unidad de la sección de producto, y lo que sustituye al anillo de cinco
+   capturas girando que hubo aquí. El anillo ponía cinco láminas superpuestas en
+   el hueco de una —la del centro pisada por dos rebanadas giradas— y la vista se
+   atoraba antes de leer una cifra.
+
+   Un par son dos aparatos y sitio de sobra alrededor:
+
+     · La ventana lleva la pantalla de trabajo, la del entrenador.
+     · El teléfono PISA su canto derecho y cae por debajo de su base. Dos
+       márgenes negativos: el horizontal los solapa lo justo para que se toquen
+       sin comerse la última columna de la tabla, y el vertical da la
+       profundidad —lo de delante baja, lo de detrás sube— sin inclinar nada ni
+       inventarse una perspectiva.
+     · Y el `z-index` decide cuál está delante, que es el teléfono: es la pieza
+       pequeña, y detrás el solape se leería como un recorte mal hecho.
+
+   ── El reparto de la fila ─────────────────────────────────────────────────
+   Los aparatos se llevan tres quintos y el discurso dos. No es simetría mal
+   hecha: el discurso son cinco líneas y los aparatos son 770 px de ventana más
+   200 de teléfono. A partes iguales, la captura baja de 500 px y hay que
+   acercarse a la pantalla para leer un número.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* El aire ENTRE los dos pares, que es más que el de dentro de uno: si los dos
+   huecos se parecen, los cuatro aparatos se leen como una rejilla de cuatro y
+   no como dos parejas. */
+.lp-pares {
+  margin-top: clamp(40px, 5.5vw, 84px);
+  display: flex; flex-direction: column;
+  gap: clamp(64px, 9vw, 148px);
+}
+
+.lp-par {
+  display: grid;
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.28fr);
+  gap: clamp(36px, 5vw, 84px);
+  align-items: center;
+}
+/* El segundo par, del revés. Dos pares idénticos uno debajo de otro son una
+   lista; alternados, el ojo cruza la página y sabe que ha cambiado de tema sin
+   leer el titular. El `order` va sobre los hijos y el reparto se da la vuelta
+   con él, o la columna estrecha se quedaría con los aparatos. */
+.lp-par.is-vuelta { grid-template-columns: minmax(0, 1.28fr) minmax(0, 0.72fr); }
+.lp-par.is-vuelta > .lp-par-say { order: 2; }
+.lp-par.is-vuelta > .lp-par-art { order: 1; }
+
+.lp-par-say {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
+}
+
+/* ── EL NÚMERO: la tinta de esta sección ─────────────────────────────────────
+   Y la única. El rótulo de las demás secciones lleva delante las muescas de la
+   cinta métrica; este lleva una cifra en brasa, y es a propósito: si los pares
+   encabezaran igual que todo lo demás, la sección más importante de la página
+   sería la que menos se distingue de las otras.
+
+   La cifra dice además algo que un rótulo no dice — que hay un ORDEN, y por
+   tanto que esto no es una rejilla de funciones equivalentes. */
+.lp-par-n {
+  display: inline-flex; align-items: baseline; gap: 11px;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.14em;
+  color: var(--text);
+}
+.lp-par-n > i {
+  font-style: normal;
+  font-size: var(--fs-lg); letter-spacing: -0.03em;
+  color: var(--accent);
+  /* La misma lumbre que los titulares, en pequeño: sobre el lienzo de la franja
+     un rojo de 20 px sin nada detrás se queda plano. */
+  text-shadow: 0 0 20px var(--brasa-luz);
+}
+
+/* El titular de un par es un `h3`: la sección ya tiene su `h2` arriba y estos
+   dos cuelgan de él. Va un escalón por debajo en tamaño y NO lleva lumbre — el
+   color de esta sección se lo lleva el número. */
+.lp-par-h {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(1.5rem, 2.7vw, 2.2rem);
+  line-height: 1.06; letter-spacing: -0.03em;
+  color: var(--text); text-wrap: balance;
+  max-width: 15ch;
+}
+.lp-par-h em { font-style: italic; }
+
+.lp-par-art {
+  display: flex; align-items: flex-end; justify-content: center;
+  /* `isolation` es lo que hace que el fulgor de detrás exista: va con
+     `z-index: -1` y sin un contexto de apilado propio se iría detrás del fondo
+     de la sección. */
+  isolation: isolate;
+}
+
+/* Sin `width: 100%`, y es la diferencia entre que haya solape y que no lo haya.
+   Con el ancho al 100 % de la columna, la ventana ocupa toda la fila y la
+   captura se queda CENTRADA dentro con aire a los dos lados; el margen negativo
+   del teléfono se come ese aire y los dos aparatos acaban separados por un
+   hueco, que es exactamente lo que el par existe para no tener. Ajustada al
+   contenido, el margen negativo muerde la ventana de verdad. */
+.lp-par-desk {
+  flex: 0 1 auto; min-width: 0;
+  /* Y POSICIONADA, que es de lo que cuelga la chapa. Sin esto, la chapa se
+     coloca contra `.lp-par-art` —la caja de los dos aparatos— y ahí solo
+     funciona de milagro: en fila, esa caja mide casi lo mismo que la ventana,
+     así que un `bottom` negativo cae más o menos donde debe. En columna, con el
+     teléfono debajo, esa misma regla manda la chapa al pie del teléfono y
+     desaparece de la pantalla. Colgada de la ventana, cae en su canto siempre. */
+  position: relative;
+}
+
+.lp-par-movil {
+  --tel: clamp(140px, 13vw, 190px);
+  flex-shrink: 0;
+  margin-left: clamp(-72px, -4.6vw, -38px);
+  margin-bottom: clamp(-54px, -3.4vw, -26px);
+  z-index: 1;
+}
+
+/* En el par vuelto se da la vuelta también a los APARATOS, no solo al texto: el
+   teléfono se apoya en el canto izquierdo de la ventana en vez de en el
+   derecho. Si solo cambiara de sitio el discurso, los dos pares tendrían la
+   misma escena repetida y la alternancia se leería como un descuido de
+   maquetación en vez de como un espejo. */
+.lp-par.is-vuelta .lp-par-art { flex-direction: row-reverse; }
+.lp-par.is-vuelta .lp-par-movil {
+  margin-left: 0;
+  margin-right: clamp(-72px, -4.6vw, -38px);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CHAPA: lo que se dicen los dos, posado en el canto de la ventana
+   --------------------------------------------------------------------------
+   Aquí hubo DOS tarjetas por par y las dos estaban mal, cada una a su manera:
+
+     · **La del cliente era enorme.** 300 px de ancho y cinco líneas de alto,
+       con avatar redondo, nombre, hora y un filete separando la firma. Eso no es
+       una nota flotando sobre una captura: es un cartel tapando el producto.
+       Y lo que aportaban el avatar y la hora era exactamente nada — quién habla
+       ya lo dice el rótulo, en dos palabras.
+     · **La otra caía sobre el teléfono**, en su esquina de arriba, justo encima
+       de la cabecera de la aplicación del móvil. O sea tapando lo único que el
+       móvil venía a enseñar.
+
+   ══ La que queda ═══════════════════════════════════════════════════════════
+
+   Una por par, dos líneas, 250 px, y colgada del canto de ABAJO de la ventana:
+   la mitad por debajo de la captura y la otra mitad pisando su esquina inferior
+   izquierda. Esa esquina es, en las dos capturas de la sección, la fila menos
+   informativa que hay — y cruzar el borde es lo que hace que se lea como una
+   CAPA y no como un elemento más de la aplicación.
+
+   Del teléfono no toca nada.
+
+   ── El alto declarado ──────────────────────────────────────────────────────
+   `--alto` existe porque para sacar la mitad de la chapa por debajo del canto
+   hace falta saber cuánto mide, y una caja de texto no lo dice hasta que está
+   pintada. Dos líneas es todo lo que cabe escribir aquí; con el alto declarado,
+   el margen negativo la deja siempre medio dentro y medio fuera.
+
+   ── Y el cristal ───────────────────────────────────────────────────────────
+   Fondo translúcido y desenfoque, no un color opaco: opaca sería un parche
+   tapando la captura; translúcida deja ver que debajo sigue habiendo pantalla,
+   y ese es justo el mensaje.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-chapa {
+  --alto: 74px;
+  position: absolute; z-index: 3;
+  left: clamp(-40px, -3vw, -18px);
+  bottom: calc(var(--alto) / -2);
+  width: min(250px, 44%);
+  min-height: var(--alto);
+  margin: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  padding: var(--s3) var(--s4);
+  text-align: left;
+  border: 1px solid rgba(232, 236, 241, 0.16);
+  border-radius: var(--lp-r);
+  background: rgba(22, 27, 33, 0.86);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* En el par vuelto la ventana está a la derecha, así que la chapa sale por el
+   canto de allí: hacia dentro de la página y no hacia el teléfono. */
+.lp-par.is-vuelta .lp-chapa {
+  left: auto;
+  right: clamp(-40px, -3vw, -18px);
+}
+
+/* El rótulo, con su icono en brasa. El icono no es adorno: a este tamaño la
+   línea troquelada es una fila de letras diminutas, y lo que hace que la chapa
+   se identifique de un vistazo —desde el otro lado del par y sin leerla— es la
+   forma que lleva delante. */
+.lp-chapa-rotulo {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+.lp-chapa-rotulo > svg { color: var(--accent); flex-shrink: 0; }
+
+/* La frase va en tinta PLENA y a tamaño de cuerpo pequeño. Es lo único que se
+   lee de la chapa; en gris de nota al pie, la jerarquía diría «esto es un
+   detalle» justo de lo que es el argumento de la sección. */
+.lp-chapa-dice {
+  margin: 0;
+  font-size: var(--fs-sm); color: var(--text);
+  line-height: 1.4; letter-spacing: -0.006em;
+}
+
+/* ==========================================================================
+   EL BLOQUE DE SECCIÓN: discurso y pieza
+   --------------------------------------------------------------------------
+   La mitad de la página está hecha con esto. Las columnas van casi al 50 % con
+   la pieza un poco más ancha, porque el discurso son cuatro líneas y la pieza es
+   un trozo de aplicación de verdad: si se reparte a partes iguales, la tabla de
+   series se queda sin sitio y hay que encogerle la letra.
+   ========================================================================== */
+
+/* Lo común a las secciones de dos columnas. Lo que cambia entre ellas —el
+   reparto y de qué lado cae la pieza— lo pone cada una. */
+.lp-feat-art { position: relative; min-width: 0; }
+
+.lp-mas-in {
+  display: grid;
+  gap: clamp(32px, 5vw, 72px);
+  align-items: center;
+}
+
+.lp-mas-say {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
+}
+
+/* ── EL FULGOR ───────────────────────────────────────────────────────────────
+   Una mancha de luz muy abierta detrás del anillo, cálida y muy baja de
+   opacidad. No se ve como un efecto —si se nota, está mal puesta—: se ve como
+   que las pantallas están delante de algo y no pegadas al fondo.
+
+   Es la misma idea que sostiene el color de toda la portada: la tinta no pinta
+   la letra, la luz pinta el hueco donde está. Ver `--brasa-luz` en
+   `styles/tokens.css`.
+
+   Va detrás con `z-index` negativo, y por eso su contenedor necesita
+   `isolation`: sin un contexto de apilado propio, ese -1 lo manda detrás del
+   FONDO de la sección — o sea, deja de verse. Es el mismo recurso que sostiene
+   el encendido de las tarjetas de plan. */
+.lp-fulgor {
+  position: absolute; z-index: -1;
+  top: 50%; left: 50%; translate: -50% -50%;
+  width: 96%; aspect-ratio: 1.6;
+  pointer-events: none;
+  background:
+    radial-gradient(46% 50% at 34% 44%, var(--brasa-luz) 0%, transparent 64%),
+    radial-gradient(40% 46% at 74% 58%, var(--acero-luz) 0%, transparent 66%),
+    radial-gradient(58% 58% at 50% 50%, rgba(232, 236, 241, 0.04) 0%, transparent 70%);
+  filter: blur(10px);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   2. LA SECUENCIA DE LA SEMANA — tres paradas en un raíl
+   --------------------------------------------------------------------------
+   Aquí hubo dos ventanas en escalón, la segunda medio palmo más abajo que la
+   primera. El escalón decía que había un orden y ahí se acababa: dos capturas
+   quietas, cada una con su pie, sin nada que dijera qué tiene que ver una con la
+   otra. Se leían como dos funciones que resulta que van juntas.
+
+   ══ Lo que las relaciona ═══════════════════════════════════════════════════
+
+   Dos cosas, y la primera no es de maquetación: los NÚMEROS encadenan. El
+   roadmap pide −0,47 kg por semana y el check-in mide −0,44, así que el discurso
+   de cada paso señala la cifra del paso anterior en vez de describir su propia
+   pantalla. Eso es lo que convierte tres capturas en una secuencia.
+
+   Y la segunda es esto: un raíl. Una línea vertical con tres paradas numeradas,
+   que es la MISMA forma que tiene el roadmap dentro de la aplicación —el que se
+   ve en la captura del primer paso, sin ir más lejos—. No es un guiño: es que en
+   los dos sitios dice lo mismo, «esto va en este orden», y ya está resuelto.
+
+   ══ Y el raíl se DIBUJA al bajar ═══════════════════════════════════════════
+
+   Que es lo que le faltaba a esta sección. La línea estaba entera desde el
+   principio y los tres pasos se encendían de golpe con el bloque de fuera: la
+   única parte de la página que habla de un ORDEN era la que se enseñaba toda a
+   la vez. Al bajar no pasaba nada.
+
+   Ahora cada paso trae su propio observador (ver `Paso` en `LandingPage.jsx`) y
+   al alcanzarlo hace tres cosas a la vez: se enciende su parada, crece el tramo
+   de línea que va hacia la siguiente y entra su discurso en cascada. Se recorre
+   en vez de leerse, y es literalmente lo que la sección está contando.
+
+   ── Por eso la línea la dibuja cada paso y no la lista ────────────────────
+   Estaba en un pseudo-elemento de la lista entera, que es lo correcto mientras
+   la línea sea una sola cosa quieta. Para que crezca por tramos hace falta un
+   tramo por paso, y para que la línea siga siendo CONTINUA cada tramo tiene que
+   llegar hasta la parada siguiente: de ahí el `+ var(--paso-gap)` en el alto y
+   de ahí que el hueco entre pasos viva en una variable en vez de escrito en el
+   `gap`. Del último no sale ninguno — una línea que sigue después de la última
+   parada promete un cuarto paso que no existe.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-ruta {
+  /* El hueco entre paradas, y lo lee también el tramo de línea de cada paso
+     para saber cuánto tiene que estirarse hasta la siguiente. */
+  --paso-gap: clamp(44px, 6vw, 92px);
+
+  position: relative;
+  list-style: none;
+  margin-top: clamp(36px, 5vw, 72px);
+  display: flex; flex-direction: column;
+  gap: var(--paso-gap);
+}
+
+/* ── Y las dos columnas se alinean por ARRIBA ───────────────────────────────
+   Estuvieron centradas, y con el raíl quieto daba igual: la línea la dibujaba la
+   lista entera y le traía sin cuidado a qué altura cayera cada parada. En cuanto
+   la línea pasa a ser un tramo POR PASO deja de dar igual, porque el tramo se
+   mide desde el `li` y la bolita cuelga del discurso.
+
+   Centrando, el discurso de un paso arranca donde le deja su pantalla —si la
+   captura es más alta, baja; si es más baja, sube—, así que la bolita está cada
+   vez a una distancia distinta del canto de arriba y el tramo llega corto o se
+   pasa. Eso era lo que dejaba la línea del 01 sin tocar el 02.
+
+   Alineados arriba, la bolita está SIEMPRE a la misma altura del `li` y la
+   cuenta del tramo es exacta. Y de paso es como se lee un paso numerado: el
+   número y su título a la altura de lo que presentan. */
+.lp-ruta-paso {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1.38fr);
+  gap: clamp(28px, 4vw, 68px);
+  align-items: start;
+}
+
+/* EL TRAMO: de esta parada a la SIGUIENTE, y tiene que llegar hasta su centro.
+   De ahí la cuenta: empieza justo debajo de esta bolita (34 px, que son sus 37
+   menos los 2 que sube) y baja el alto del paso, más el hueco hasta el
+   siguiente, más los 17 px que hay desde el canto de aquel hasta el centro de su
+   bolita. Quedarse en el canto del `li` —que es donde se quedaba— deja los
+   últimos diecisiete píxeles sin línea, o sea la línea sin tocar la parada.
+
+   El `left` en píxeles es la mitad del ancho de una bolita: la línea cae por su
+   centro, y por eso los tres números se mueven juntos cuando cambia el tamaño.
+
+   `scale` y no `height` porque una animación de alto pinta en cada fotograma y
+   esta corre mientras se desplaza la página. */
+.lp-ruta-paso::before {
+  content: '';
+  position: absolute; z-index: 0;
+  left: 18px; top: 34px; width: 1px;
+  height: calc(100% - 34px + var(--paso-gap) + 17px);
+  background: linear-gradient(180deg, var(--hairline-strong) 0%, var(--hairline) 100%);
+  transform-origin: top;
+  scale: 1 0;
+  transition: scale 0.9s var(--ease) 0.12s;
+}
+.lp-ruta-paso.is-in::before { scale: 1 1; }
+.lp-ruta-paso:last-child::before { content: none; }
+
+/* ── Y el paso entero entra al llegar a él ──────────────────────────────────
+   Las mismas dos capas que usa una sección —el bloque sube y aparece, y su
+   contenido detrás en cascada— pero colgadas del `li` y no del bloque de fuera.
+   Ver `Paso`: la sección solo envuelve ya a su cabecera. */
+.lp-ruta-paso.is-in .lp-tanda > *,
+.lp-ruta-paso.is-in .lp-feat-art { opacity: 1; transform: none; }
+
+/* El discurso, apartado del raíl lo justo para que la bolita quepa delante. */
+.lp-ruta-say {
+  position: relative;
+  padding-left: 62px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3);
+}
+
+/* ── LA PARADA ───────────────────────────────────────────────────────────────
+   La cifra dentro de un círculo con FONDO OPACO. Lo del fondo no es un detalle
+   de acabado: sin él, la línea del raíl se ve cruzando el número por dentro y la
+   parada deja de ser una parada — pasa a ser un número puesto encima de una
+   raya.
+
+   ── Y SE ENCIENDE al llegar ────────────────────────────────────────────────
+   Apagada es una cifra gris con su canto; encendida es la brasa con su lumbre y
+   un aro de calor alrededor. Es el único sitio de la página donde el color no
+   está puesto de antemano sino que APARECE, y es lo que hace que las tres
+   paradas se lean como un recorrido: al bajar se van encendiendo una detrás de
+   otra, igual que el roadmap de dentro de la aplicación marca la fase en curso.
+
+   Sin `transform` en la transición: la cascada de `.lp-tanda` ya está moviendo
+   este mismo elemento, y dos reglas peleándose por la propiedad no se suman. */
+.lp-ruta-n {
+  position: absolute; left: 0; top: -2px; z-index: 1;
+  display: grid; place-items: center;
+  width: 37px; height: 37px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: var(--canvas);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-tertiary);
+  transition: color 0.55s var(--ease) 0.2s, border-color 0.55s var(--ease) 0.2s,
+    box-shadow 0.55s var(--ease) 0.2s, text-shadow 0.55s var(--ease) 0.2s;
+}
+.lp-ruta-paso.is-in .lp-ruta-n {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-shadow: 0 0 16px var(--brasa-luz);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.lp-ruta-h {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(1.3rem, 2.1vw, 1.75rem);
+  line-height: 1.08; letter-spacing: -0.028em;
+  color: var(--text); text-wrap: balance;
+  max-width: 14ch;
+}
+
+.lp-ruta-art { display: flex; justify-content: flex-start; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   4. Y ADEMÁS — la rejilla de cuatro fichas
+   --------------------------------------------------------------------------
+   La única forma de la página que dice «hay MÁS»: cosas pequeñas, equivalentes
+   y en fila. Todo esto vivía dentro de una respuesta cerrada de las dudas, o
+   sea media aplicación escondida detrás de un clic.
+
+   Dos por dos y no cuatro en fila: en fila, cada ficha se queda a 250 px y su
+   frase parte en cuatro líneas; en cuadro, la rejilla tiene la misma altura que
+   el discurso de al lado y las dos columnas de la sección se sostienen.
+   ══════════════════════════════════════════════════════════════════════════ */
+.lp-mas-in { grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr); }
+
+.lp-mas-grid {
+  display: grid; gap: clamp(12px, 1.4vw, 18px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lp-ficha {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: clamp(18px, 2vw, 26px);
+  border: 1px solid var(--hairline);
+  border-radius: var(--lp-r);
+  background: var(--canvas-alt);
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.is-band .lp-ficha { background: var(--canvas); }
+.lp-ficha:hover { border-color: var(--hairline-strong); }
+.lp-ficha > h3 {
+  font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700;
+  letter-spacing: -0.015em; color: var(--text);
+}
+.lp-ficha > p {
+  font-size: var(--fs-sm); color: var(--text-tertiary); line-height: var(--lh-base);
+}
+/* El azulejo del icono. Es lo que convierte cuatro párrafos con título en
+   cuatro FICHAS: una forma reconocible arriba a la izquierda de cada una, que
+   es lo que el ojo usa para contarlas sin leerlas. */
+.lp-ficha-ico {
+  display: grid; place-items: center;
+  width: 38px; height: 38px; margin-bottom: var(--s2);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA VENTANA: una captura enmarcada
+   --------------------------------------------------------------------------
+   Las capturas eran del tema CLARO y la portada es de noche, así que el marco
+   estaba ahí para que una mancha blanca sobre negro no se leyera como un
+   agujero en la página. Eso se acabó: ahora todas salen del mismo tema que la
+   portada.
+
+   Y el marco se queda, porque el problema es el contrario y necesita lo mismo:
+   una captura oscura sobre un lienzo oscuro no se funde menos, se funde MÁS.
+
+     · El canto y la sombra dicen dónde acaba la página y empieza la pantalla.
+     · La barra de arriba explica el corte: todo recorte está cortado por algún
+       sitio, y con una barra deja de ser un recorte y pasa a ser el borde de
+       una ventana, que se entiende sin pensarlo.
+
+   ── El tope de ancho ────────────────────────────────────────────────────────
+   Y no es una preferencia de composición: las capturas salen del script a unos
+   770 px, que es lo que mide la columna de contenido de la aplicación. Estirada
+   a los 1200 px de la caja de lectura, una pieza así se amplía un 55 % y lo
+   primero que se rompe al ampliar es el texto — que es justo lo único que hay
+   que poder leer. El tope es lo que mantiene la captura cerca de su tamaño
+   real.
+
+   La barra lleva el nombre de la sección de la aplicación y no una dirección
+   inventada: una URL falsa en una portada es una promesa sobre algo que
+   todavía no existe.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── EL PORTÁTIL ─────────────────────────────────────────────────────────────
+   Aquí hubo una ventana suelta flotando sobre el lienzo: un rectángulo con
+   canto, sombra y tres puntos arriba. Y una ventana flotando en el vacío no es
+   nada — no es un objeto, es una tarjeta con una barra de adorno. Junto a un
+   teléfono dibujado con su canto y su muesca, además, se notaba cuál de las dos
+   piezas estaba hecha con cuidado.
+
+   Un portátil sí es un objeto: tiene tapa, canto, barbilla, base y peso. Y hace
+   dos cosas que la ventana no hacía. Dice de qué APARATO se está hablando —lo
+   tuyo es la pantalla grande, lo suyo el teléfono— sin una palabra, y le da a la
+   escena una silueta reconocible desde el otro lado de la habitación, que es de
+   lo que va una primera pantalla.
+
+   La ventana no se ha ido: se ha metido DENTRO, que es donde vive un navegador.
+   Los tres puntos siguen ahí y ahora significan algo, porque hay una pantalla
+   alrededor que los sostiene.
+
+   Todo con reglas. La alternativa —una imagen de un portátil con la captura
+   pegada dentro— pesa cien veces más, sale borrosa en cuanto se amplía y hay
+   que rehacerla cada vez que cambia el ancho de una sección. */
+
+/* ── Qué cambió, y por qué se notaba ────────────────────────────────────────
+   El aparato estaba dibujado con tres gradientes claros —tapa gris medio, base
+   de un gris casi plata— sobre un lienzo casi negro. Eso no se lee como
+   aluminio: se lee como PLÁSTICO, y de los baratos, porque un metal oscuro
+   apenas cambia de tono en su cara frontal. Lo que le da volumen a un canto
+   mecanizado no es el degradado de la cara, son las ARISTAS: una línea de luz
+   arriba, una sombra debajo, y los dos flancos apagándose donde la pieza se
+   curva y deja de mirar a la lámpara.
+
+   Así que el cuerpo baja a casi negro y el relieve se lo llevan cuatro filetes.
+   Es la misma regla que ya sostenía el teléfono, aplicada aquí:
+
+     · Un fondo con DOS capas: una vertical, que es la cara, y otra horizontal
+       muy corta en los dos flancos, que es donde la chapa se va.
+     · Una arista de luz de 1 px arriba, en la tapa y otra vez en la base.
+     · Dos sombras en vez de una: la de contacto —corta y pegada, que es lo que
+       apoya el aparato en el suelo— y la ambiental, larga y abierta. Una sola
+       sombra larga hace flotar las cosas.
+
+   Y el tope de ancho deja de ser un número redondo: es el de la CAPTURA que
+   lleva dentro (`--nat`, que pone `Ventana` desde el JSX). Ver el bloque de
+   piezas en `LandingPage.jsx` — con el tope general de 880 px la ventana
+   estiraba un 12 % una imagen de 766, y eso es letra sucia en la única cosa que
+   hay que poder leer. */
+.lp-portatil {
+  --marco: clamp(6px, 0.78vw, 10px);
+  margin: 0 auto;
+  max-width: min(880px, calc(var(--nat, 880px) + var(--marco) * 2));
+  /* En `filter` y no en `box-shadow`: tiene que seguir el contorno del aparato
+     —tapa más base, que no es un rectángulo— y no el de su caja. */
+  filter:
+    drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 30px 58px rgba(0, 0, 0, 0.6));
+}
+
+.lp-portatil-tapa {
+  position: relative; display: block;
+  padding: var(--marco);
+  /* La barbilla, casi el doble que los otros tres cantos. Es lo que hace que la
+     tapa se lea como una tapa y no como un marco de fotos. */
+  padding-bottom: calc(var(--marco) * 1.85);
+  border-radius: clamp(10px, 1.3vw, 15px) clamp(10px, 1.3vw, 15px) 3px 3px;
+  background:
+    /* Los flancos: donde la chapa se curva y pierde la luz. */
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 2.5%,
+      rgba(0, 0, 0, 0) 97.5%, rgba(0, 0, 0, 0.5) 100%
+    ),
+    linear-gradient(180deg, #23282f 0%, #1b2027 62%, #171b21 100%);
+  /* Las aristas: luz arriba, sombra abajo y el filete de contorno. Es todo el
+     relieve que necesita un metal oscuro. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(232, 236, 241, 0.07);
+}
+/* ── Y aquí NO va la cámara ──────────────────────────────────────────────────
+   Había una: un punto de tres píxeles y medio con su reflejo, centrado en el
+   canto de arriba. Sobre el papel es el detalle que remata un portátil; en
+   pantalla era un defecto.
+
+   El motivo es dónde cae. El canto de arriba mide ocho píxeles y justo debajo,
+   a la misma distancia del centro, está la pastilla con el nombre de la
+   sección. Las dos cosas centradas y separadas por seis píxeles no se leen como
+   «cámara» y «pestaña»: se leen como una mancha encima de otra — un pelo en el
+   escáner, algo a medio pintar. Y no hay tamaño que lo arregle, porque el
+   problema no es el punto, es que ahí arriba ya hay algo.
+
+   Un portátil actual tampoco enseña la suya a esta escala: es un agujero de
+   medio milímetro en un marco negro. Se quita, y el canto de arriba queda
+   limpio. */
+
+/* ── La base ─────────────────────────────────────────────────────────────────
+   Más ancha que la tapa, porque un portátil abierto se ve así: la tapa cae por
+   detrás y la base asoma por los dos lados. Es el detalle que más hace por que
+   la silueta se lea como un aparato y no como un marco.
+
+   Y son TRES franjas en un solo gradiente, que es lo que se ve de verdad al
+   mirar un portátil abierto de frente: la arista de la bisagra recogiendo la
+   luz, la sombra que deja la tapa justo debajo, y la cara del canto delantero
+   ya en penumbra. Antes era un degradado suelto de plata a negro y por eso la
+   base parecía una barra puesta ahí para tapar el corte. */
+.lp-portatil-base {
+  position: relative; display: block;
+  width: 105.5%; margin-left: -2.75%;
+  height: clamp(8px, 0.95vw, 12px);
+  border-radius: 0 0 clamp(5px, 0.7vw, 9px) clamp(5px, 0.7vw, 9px);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 3.5%,
+      rgba(0, 0, 0, 0) 96.5%, rgba(0, 0, 0, 0.55) 100%
+    ),
+    linear-gradient(180deg, #6f7784 0 1px, #2c323a 1px 30%, #1d222a 30% 62%, #10141a 100%);
+}
+/* La muesca de abrir, en el centro del canto de arriba. */
+.lp-portatil-base::after {
+  content: '';
+  position: absolute; top: 0; left: 50%; translate: -50% 0;
+  width: 9%; height: 48%;
+  border-radius: 0 0 var(--r-pill) var(--r-pill);
+  background: #0a0d11;
+}
+/* Y el suelo: una mancha oscura y muy abierta justo debajo. No es la sombra del
+   conjunto —esa la pone el `filter`— es el CONTACTO, la línea de apoyo. Sin
+   ella el portátil flota, y un aparato que flota se lee como un dibujo. */
+.lp-portatil-base::before {
+  content: '';
+  position: absolute; z-index: -1;
+  left: 5%; right: 5%; bottom: -16px; height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.62) 0%, transparent 72%);
+}
+
+/* ── Y dentro, el navegador ─────────────────────────────────────────────────
+   La pantalla encendida: fondo del lienzo de la aplicación, esquina casi viva
+   —una pantalla no tiene el canto redondo, lo tiene la tapa— y arriba la barra
+   con sus tres puntos y el nombre de la SECCIÓN.
+
+   El nombre de la sección y no una dirección inventada: una URL falsa en una
+   portada es una promesa sobre algo que todavía no existe. */
+.lp-shot {
+  /* El alto de la barra del navegador, y en una variable porque hay dos cosas
+     que dependen de él: la propia barra y el aviso de arrastre, que se posa
+     justo por debajo. Cuando la pieza va SIN barra —la secuencia— vale cero y el
+     aviso sube al canto de la captura sin tocar un número. */
+  --barra-h: clamp(24px, 2.7vw, 32px);
+
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--canvas-alt);
+}
+.is-desnuda .lp-shot { --barra-h: 0px; }
+/* El reflejo. Una diagonal de luz de un 5 %, y es lo que separa una pantalla
+   ENCENDIDA de una imagen pegada dentro de un marco: un panel real nunca
+   devuelve la misma luz en las dos esquinas. Al 5 % no se ve como un efecto —si
+   se nota, está mal puesto—, se ve como que hay cristal delante. */
+.lp-shot::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    104deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0.018) 26%,
+    rgba(255, 255, 255, 0) 48%
+  );
+}
+.lp-shot-bar {
+  position: relative;
+  display: flex; align-items: center;
+  height: var(--barra-h); padding-inline: clamp(9px, 1.1vw, 14px);
+  background: linear-gradient(180deg, #14181e 0%, #0f1318 100%);
+  border-bottom: 1px solid rgba(232, 236, 241, 0.06);
+}
+.lp-shot-dots { display: flex; gap: clamp(4px, 0.5vw, 6px); }
+.lp-shot-dots > i {
+  width: clamp(6px, 0.7vw, 8px); height: clamp(6px, 0.7vw, 8px);
+  border-radius: 50%; background: var(--fill-strong);
+}
+/* ── La pastilla, y CENTRADA ─────────────────────────────────────────────────
+   El nombre de la sección iba suelto y pegado a los tres puntos, y ahí no
+   imitaba nada: parecía el título de una tarjeta. En el centro y dentro de un
+   chip es donde va la dirección en cualquier navegador de los últimos quince
+   años, así que se reconoce sin leerlo — que es justo lo que tiene que hacer el
+   cromo de un marco.
+
+   Absoluta y no un tercer hijo del flex: centrada de verdad respecto a la
+   VENTANA, no respecto al hueco que dejan los puntos. */
+.lp-shot-tab {
+  position: absolute; left: 50%; translate: -50% 0;
+  max-width: 52%;
+  padding: 0.28em 1.1em;
+  border-radius: var(--r-pill);
+  background: rgba(232, 236, 241, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(232, 236, 241, 0.06);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* El aviso de arrastre, apagado. Se encendía en pantallas estrechas, cuando la
+   captura se deslizaba dentro de su marco; ya no hay nada que deslizar. Se queda
+   aquí y no se va del marcado porque vuelve con una línea el día que las
+   capturas de móvil se saquen recortadas y quepa acercarlas otra vez. */
+.lp-shot-desliza { display: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CAJA DE LA PANTALLA
+   --------------------------------------------------------------------------
+   Un bloque del ancho de la ventana con la captura dentro. Hoy no hace nada por
+   sí sola, y aun así no sobra: es lo que separa la PANTALLA del cromo del marco.
+
+   Aquí vivió el deslizado. Por debajo de 700 px la imagen no encogía —se pintaba
+   al doble del hueco y se arrastraba dentro de esta caja— para que la tabla de
+   series y las cifras de la semana siguieran leyéndose en un teléfono. Se quitó
+   porque enseñaba el 30 % de la captura y el corte se leía como un fallo; el
+   porqué entero está en el bloque de móvil, al final del archivo.
+
+   ── Y por qué la caja se queda ─────────────────────────────────────────────
+   Porque la barra del navegador tiene que poder quedarse quieta. Todo lo que se
+   le haga a la imagen —un tope de alto, un encuadre, un recorte, el deslizado si
+   algún día vuelve con recortes cerrados— se le pone a esta caja, y los tres
+   puntos y la pastilla de la sección no se enteran. Si el marco entero fuera el
+   que recorta, media ventana se quedaría sin cromo arriba.
+   ══════════════════════════════════════════════════════════════════════════ */
+.lp-shot-vista { display: block; position: relative; }
+
+/* `display: block` no es cosmético: una imagen en línea arrastra el hueco del
+   descendente de la línea de texto y deja una banda clara bajo la captura. */
+.lp-shot-img { display: block; width: 100%; height: auto; }
+
+/* ── La captura cortada por abajo ────────────────────────────────────────────
+   Algunos recortes acaban a media tarjeta: el script corta por una altura fija
+   y lo que haya ahí se parte. En una pieza pequeña no se nota; en la única
+   imagen de la primera pantalla, ese borde partido es lo último que se ve del
+   héroe y se lee como lo que es.
+
+   `--corte` es la proporción a la que la pieza declara que está ENTERA. La caja
+   se queda con esa proporción y la imagen la rellena anclada arriba, así que lo
+   que sobra por abajo no se pinta. Es un encuadre, no un reescalado: la parte
+   que se ve sigue a su tamaño y con su nitidez.
+
+   `aspect-ratio` gana a los atributos `width`/`height` del marcado, así que el
+   navegador sigue sabiendo cuánto sitio reservar y la página no pega el salto
+   de siempre al cargar la imagen. */
+.lp-shot-img.is-cortada {
+  /* Con reserva, como `--nat`: `--corte` lo pone el marcado en línea, y un
+     `var()` sin salida invalida la declaración entera si algún día llega la
+     clase sin su variable. `auto` es exactamente «la proporción del archivo»,
+     o sea el comportamiento de antes. */
+  aspect-ratio: var(--corte, auto);
+  height: auto;
+  object-fit: cover;
+  object-position: top center;
+}
+
+/* ── LA VENTANA SOLA, sin aparato alrededor ──────────────────────────────────
+   La otra forma de enseñar una captura de escritorio, y existe para que no haya
+   dos secciones que se presenten igual. La usa «lo que le montas», dentro de su
+   caja.
+
+   Aquí la ventana no imita un objeto: imita una VENTANA, así que lleva lo que
+   lleva una —esquina redonda arriba y abajo, canto fino, sombra corta— y nada
+   más. Sin tapa, sin base y sin barbilla, la misma captura se enseña un 6 % más
+   grande en el mismo hueco, que es justo lo que se necesitaba después de bajar
+   las piezas al 80 % de sus píxeles. */
+.lp-plana {
+  --marco: 0px;
+  margin: 0 auto;
+  max-width: min(880px, var(--nat, 880px));
+  border-radius: var(--lp-r);
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgba(232, 236, 241, 0.09),
+    0 24px 48px rgba(0, 0, 0, 0.5);
+}
+/* La tapa se queda sin nada que la haga tapa: ni relleno, ni fondo, ni
+   barbilla. Se anula aquí en vez de sacarla del marcado para que `Ventana` siga
+   siendo UN componente con dos formas y no dos componentes que se parecen. */
+.lp-plana > .lp-portatil-tapa {
+  display: block;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: inherit;
+}
+.lp-plana .lp-shot { border-radius: inherit; }
+/* La base no pinta nada aquí: no hay aparato del que ser la base. */
+.lp-plana > .lp-portatil-base { display: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL TELÉFONO
+   --------------------------------------------------------------------------
+   Aquí había un bisel genérico —siete píxeles de relleno, esquina de treinta y
+   un filete gris— y no se leía como un teléfono: se leía como una captura con
+   las esquinas redondeadas. Y eso no es un detalle de acabado. La promesa de
+   esta página es que el cliente lleva el plan ENCIMA, y esa promesa la hace el
+   aparato, no lo que se ve dentro.
+
+   Lo que lo convierte en un teléfono son seis cosas y ninguna es adorno:
+
+     · **El canto metálico.** Un degradado en diagonal con las paradas de un
+       perfil torneado: claro donde le da la luz, casi negro en las caras. Es lo
+       que le da VOLUMEN. Un borde de un color plano es una línea, no un canto.
+     · **El bisel negro.** Entre el metal y la pantalla encendida hay un anillo
+       de negro, en cualquier teléfono del mundo. Aquí la captura tocaba el
+       metal directamente, y esa junta imposible es una de las cosas que hacían
+       que el aparato se leyera como dibujado.
+     · **La barra de estado.** Va DELANTE de la captura, no encima. Si la isla
+       se pusiera sobre la cabecera de la aplicación taparía el buscador, y una
+       pastilla negra tapando un control se lee como un fallo de maquetación.
+     · **La isla.** Lo que dice «esto es un teléfono actual» sin mirar dos
+       veces.
+     · **La zona de la rayita.** Debajo de la barra de pestañas de la captura,
+       una franja del MISMO color que ella con la rayita de inicio dentro — el
+       hueco que iOS reserva de verdad bajo cualquier barra de pestañas. Ver
+       `.lp-iphone-inicio`.
+     · **Los botones del canto.** Dos marcas de nada que asoman por los
+       laterales. Solo se notan si faltan.
+
+   Todo con reglas: ni una imagen que descargar y nítido a cualquier tamaño.
+
+   ── LA PROPORCIÓN, que es lo que estaba mal ─────────────────────────────────
+   El aparato no tiene alto propio: mide lo que suman el canto, la barra de
+   estado, la captura y la zona de la rayita. Con las capturas de antes
+   (proporción 1,63) el total salía a 1,72 de alto por ancho — y un iPhone de
+   verdad anda por 2,06. Ese 17 % de menos es exactamente «demasiado ancho»: el
+   aparato se leía como una tableta pequeña, no como un teléfono.
+
+   Las capturas vienen ahora del script a 1,73 —el tope que da el material
+   crudo de hoy, ver `recortar-capturas.ps1`— y con la barra y la rayita el
+   aparato queda en 1,925. No es el 2,06 exacto: para eso hay que volver a
+   tomar la captura de la dieta con la ventana más alta, y ese día esto sube
+   solo, porque el alto sigue saliendo del contenido.
+
+   ── UNA medida, y de ella salen las diez ────────────────────────────────────
+   Un teléfono no se escala como una caja: si el de 200 px y el de 250 px llevan
+   el mismo radio de 36, el pequeño parece una pastilla y el grande una tarjeta.
+   Todo —el canto, el radio, la muesca, la barra de estado, los botones— es una
+   PROPORCIÓN del ancho del aparato, y las proporciones son las de un iPhone de
+   verdad: esquina al 15,5 % del ancho, isla al 30 %.
+
+   Así que cada sitio que pone un teléfono declara UNA variable, `--tel`, que es
+   lo que mide de ancho. Lo demás sale solo. (Con consultas de contenedor esto
+   se leería del propio elemento, pero eso obliga a un contenedor extra por
+   teléfono para poder consultarlo, y no compensa por una variable.)
+
+   ── Y la sombra va en `filter` ──────────────────────────────────────────────
+   No en `box-shadow`: tiene que seguir el contorno redondeado del aparato y no
+   el de su caja, o se ve el rectángulo de la sombra asomando por las esquinas.
+   Es lo que despega el teléfono del portátil sobre el que se apoya — sin ella,
+   dos superficies solapadas y casi del mismo tono se leen como una sola pieza
+   mal recortada.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-iphone {
+  --tel: 250px;
+  /* El canto real de un iPhone es más fino que esto. Se engorda un pelo porque
+     a 200 px de ancho un canto de dos píxeles y medio desaparece, y con él la
+     sensación de que hay un aparato. */
+  --canto: calc(var(--tel) * 0.026);
+  /* El bisel negro entre el metal y la pantalla encendida. Fino de verdad: a
+     190 px de aparato son dos píxeles, que es justo lo que se ve en el de
+     verdad — y lo que faltaba para que la captura no tocara el metal. */
+  --bisel: calc(var(--tel) * 0.012);
+  /* La esquina, más abierta que antes (14,5 % → 15,5 %). Es la proporción de un
+     teléfono actual, y es lo primero que delata a un marco dibujado: con la
+     esquina corta el aparato se lee como una tableta pequeña. */
+  --radio: calc(var(--tel) * 0.155);
+  /* Al 13,5 % y no al 12,5: en un iPhone real la zona de estado —con la isla
+     dentro— se lleva ~15 % del ancho, y la barra corta dejaba la isla besando
+     la captura. */
+  --barra: calc(var(--tel) * 0.135);
+  /* La isla: 30 % de ancho por 8,5 % de alto, despegada un 2,8 % del canto de
+     arriba. Son las proporciones del aparato de verdad. */
+  --isla-w: calc(var(--tel) * 0.3);
+  --isla-h: calc(var(--tel) * 0.085);
+  --isla-top: calc(var(--tel) * 0.028);
+
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--tel);
+  padding: var(--canto);
+  border-radius: var(--radio);
+  /* ── El canto ──────────────────────────────────────────────────────────────
+     Aquí hubo un degradado de siete paradas que iba del gris claro al negro
+     cuatro veces, buscando un torneado. A tamaño de portada eso no se lee como
+     metal: se lee como un arcoíris gris, y es lo que hacía que el aparato
+     pareciera dibujado.
+
+     Un canto de titanio es casi de un solo tono. Lo que le da volumen no es el
+     degradado, son las DOS ARISTAS: la de arriba, que recoge la luz, y la de
+     abajo, más oscura que la cara. Eso son los dos filetes de dentro; el fondo
+     apenas cambia. */
+  background:
+    /* Los dos flancos, donde el canto se curva y deja de mirar a la luz. Es lo
+       que redondea el perfil sin tener que dibujar un arcoíris gris. */
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 6%,
+      rgba(0, 0, 0, 0) 94%, rgba(0, 0, 0, 0.55) 100%
+    ),
+    linear-gradient(170deg, #333a44 0%, #232931 40%, #1b2027 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.65),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.5);
+  filter:
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 28px 54px rgba(0, 0, 0, 0.7));
+}
+
+/* ── Los botones del canto ───────────────────────────────────────────────────
+   Tres a la izquierda (silencio, subir, bajar) y uno a la derecha (encendido),
+   que es como están puestos de verdad. Se notan solo si faltan: un teléfono con
+   los cantos lisos se lee como un dibujo de un teléfono. */
+.lp-iphone-botones > i {
+  position: absolute;
+  width: calc(var(--tel) * 0.009);
+  border-radius: calc(var(--tel) * 0.006);
+  background: linear-gradient(90deg, #191d23, #6e7885);
+}
+.lp-iphone-botones > i:nth-child(1) { left: calc(var(--tel) * -0.004); top: 15%; height: 3.6%; }
+.lp-iphone-botones > i:nth-child(2) { left: calc(var(--tel) * -0.004); top: 22%; height: 6.4%; }
+.lp-iphone-botones > i:nth-child(3) { left: calc(var(--tel) * -0.004); top: 30%; height: 6.4%; }
+.lp-iphone-botones > i:nth-child(4) {
+  left: auto; right: calc(var(--tel) * -0.004); top: 25%; height: 9%;
+  background: linear-gradient(270deg, #191d23, #6e7885);
+}
+
+/* La pantalla es ahora DOS cajas, y no es un capricho de marcado: la de fuera
+   es el bisel negro —el anillo que en cualquier teléfono separa el metal del
+   panel encendido— y la de dentro (`.lp-iphone-lcd`) es el panel. Con una sola
+   caja el bisel solo podía ser un borde, y un borde no redondea su cara de
+   dentro: la esquina de la captura quedaba sin su radio concéntrico. */
+.lp-iphone-pantalla {
+  position: relative;
+  overflow: hidden;
+  padding: var(--bisel);
+  /* El radio de dentro es el de fuera menos el canto. Cualquier otra cosa deja
+     una esquina que no es concéntrica con la de fuera, y eso se ve. */
+  border-radius: calc(var(--radio) - var(--canto));
+  background: #000;
+}
+
+.lp-iphone-lcd {
+  position: relative;
+  overflow: hidden;
+  /* Y otro escalón del radio, por lo mismo de siempre: concéntrico o se ve. */
+  border-radius: calc(var(--radio) - var(--canto) - var(--bisel));
+  /* El mismo tono que el lienzo de la aplicación en la captura (#101318 medido
+     del archivo): si no coincide, entre la barra de estado y la imagen aparece
+     una raya y el teléfono se parte en dos. */
+  background: #101318;
+}
+
+/* ── La isla ─────────────────────────────────────────────────────────────────
+   Aquí colgaba una MUESCA del canto de arriba —una pestaña negra pegada al
+   borde, con su auricular y su cámara dentro—. Estaba bien dibujada y era el
+   teléfono equivocado: eso es el aparato de 2018, y la silueta de la muesca es
+   justo lo que el ojo usa para fechar un teléfono de un vistazo. En una portada
+   que vende una aplicación de móvil, enseñar el de hace seis años dice
+   exactamente lo que no hay que decir.
+
+   La isla es una pastilla DESPEGADA: negra, flotando sobre la pantalla, con la
+   cámara dentro y a la derecha. Y va delante de la captura, así que la barra de
+   estado tiene que dejarle sitio en medio — la hora a un lado, los iconos al
+   otro. */
+.lp-iphone-isla {
+  position: absolute; z-index: 2;
+  top: var(--isla-top); left: 50%; translate: -50% 0;
+  width: var(--isla-w); height: var(--isla-h);
+  border-radius: var(--r-pill);
+  background: #000;
+  display: flex; align-items: center; justify-content: flex-end;
+  padding-right: calc(var(--isla-h) * 0.28);
+}
+/* La cámara. Un punto de nada con su reflejo, que es lo que hace que la isla se
+   lea como hardware y no como una pastilla negra puesta encima. */
+.lp-iphone-isla > i {
+  width: calc(var(--isla-h) * 0.42); height: calc(var(--isla-h) * 0.42);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #2f3f50 0%, #0a0d11 68%);
+}
+
+.lp-iphone-barra {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  height: var(--barra);
+  padding-inline: calc(var(--tel) * 0.085);
+  font-family: var(--font-display); font-weight: 700;
+  font-size: calc(var(--tel) * 0.042);
+  color: var(--text);
+}
+.lp-iphone-hora { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+
+/* ── Los tres iconos, en UN dibujo ───────────────────────────────────────────
+   Cobertura, wifi y batería. El trío es lo que el ojo reconoce sin leer —lleva
+   mirándolo años— y por eso con la batería sola aquello no parecía una barra de
+   estado, sino una franja con dos cosas sueltas.
+
+   El SVG viene de `LandingPage.jsx` con su `viewBox`, así que aquí solo hay que
+   decirle cuánto mide. Se dibujaron con cajas y no salía: a 10 px de alto, un
+   borde de píxel y medio sobre una medida que es un `clamp()` cae siempre a
+   mitad de píxel, y eso se ve como suciedad en el canto. El wifi era el peor —
+   media elipse con el borde igual de grueso arriba que en los lados, que es
+   justo lo que un arco de wifi no es.
+
+   `currentColor`: hereda la tinta de la barra y no hay un color más que
+   mantener. */
+/* El alto, y es lo único que hay que afinar aquí. Estuvo al 4,8 % del ancho del
+   aparato y los tres iconos salían más altos que la hora que tienen enfrente —
+   en un teléfono de verdad pasa al revés: la hora manda y los iconos son
+   pequeños. Al 3,6 % la barra vuelve a leerse como una barra de estado y no
+   como tres dibujos puestos ahí. */
+.lp-iphone-estado {
+  display: block;
+  height: calc(var(--tel) * 0.036);
+  width: auto;
+  color: var(--text);
+}
+
+.lp-iphone-img { display: block; width: 100%; height: auto; }
+
+/* ── LA ZONA DE LA RAYITA ────────────────────────────────────────────────────
+   Aquí estuvo escrito, con razón, que la rayita de inicio NO iba: la captura
+   llegaba recortada a ras de la barra de pestañas, sin el hueco que el sistema
+   reserva debajo, y dibujarla encima de las etiquetas era tapar contenido.
+
+   El hueco existe ahora, y se dibuja aquí en vez de venir en el archivo: una
+   franja del MISMO color que la barra de pestañas de la captura (#10151b,
+   medido del archivo — si baila un tono, se ve la costura), con la rayita
+   dentro. Es exactamente lo que hay bajo la barra de pestañas de cualquier
+   aplicación de iOS, y es además parte de la PROPORCIÓN: sin esta franja el
+   aparato vuelve a quedarse corto. */
+.lp-iphone-inicio {
+  display: block;
+  position: relative;
+  height: calc(var(--tel) * 0.115);
+  background: #10151b;
+}
+.lp-iphone-inicio::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--tel) * 0.034);
+  translate: -50% 0;
+  width: calc(var(--tel) * 0.34);
+  height: max(3px, calc(var(--tel) * 0.014));
+  border-radius: var(--r-pill);
+  background: rgba(232, 236, 241, 0.38);
+}
+
+/* El cristal. La misma diagonal de luz que la ventana del portátil y por el
+   mismo motivo: un panel de verdad no devuelve la misma luz en las dos
+   esquinas. Va por encima de todo —isla incluida— porque el reflejo está en el
+   vidrio y la isla está debajo. */
+.lp-iphone-brillo {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.015) 28%,
+    rgba(255, 255, 255, 0) 52%
+  );
+}
+
+/* ── EL ANCHO DEL TELÉFONO DEL HÉROE, Y POR QUÉ ESTÁ AQUÍ ────────────────────
+   Porque `.lp-iphone` declara `--tel: 250px` unas líneas más arriba, y quien lo
+   quiera cambiar tiene que escribirlo DESPUÉS: las dos reglas apuntan al mismo
+   elemento con la misma especificidad —una clase—, así que no decide el peso,
+   decide el orden. Puesta junto a `.lp-hero-escena`, novecientas líneas antes,
+   esta declaración no hacía absolutamente nada y el aparato salía siempre a 250,
+   que en una ventana de 720 px era más ancho que un tercio de la pantalla que
+   venía a acompañar.
+
+   El aparato crece con la ventana porque lo que tiene que ser creíble entre las
+   dos piezas es la RELACIÓN de tamaños, que es lo que dice cuál de las dos es la
+   pantalla grande. Un cuarto del ancho de la ventana, de un monitor a una
+   tableta.
+
+   (`.lp-par-movil` tiene el mismo problema y no se toca aquí: su declaración
+   también queda por delante, así que los pares llevan el teléfono a 250 px desde
+   siempre y la sección está ajustada a ojo con esa medida puesta. Cambiarlo es
+   retocar dos secciones que hoy se ven bien, y eso no es parte de esto.) */
+.lp-hero-movil { --tel: clamp(150px, 17.5vw, 252px); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LOS PLANES
+   --------------------------------------------------------------------------
+   Aquí había tres tarjetas apretadas a ancho completo, con el nombre del plan
+   en versalita de 10 px, la cifra en medio y el botón al final del todo, detrás
+   de la lista. Funcionaba y se leía como una tabla de la aplicación puesta en
+   la portada. Cuatro cosas la convierten en una tabla de precios de verdad:
+
+     · **Aire y ancho tasado.** Tres columnas a 1200 px son tres carteles; a
+       1080 son tres tarjetas que se comparan de un vistazo, que es el único
+       gesto que se hace aquí. Lo que sobra a los lados no es sitio perdido: es
+       lo que hace que las tres se miren juntas.
+     · **El nombre en grande.** Un plan se elige por su nombre y su cifra. En
+       versalita de 10 px el nombre era un encabezado de columna; a tamaño de
+       título es lo primero que se lee de la tarjeta.
+     · **El botón ENCIMA de la lista.** Quien decide lo hace con el nombre, la
+       cifra y poco más; la lista de abajo la lee el que duda. Con el botón al
+       final, el gesto quedaba al otro lado de la letra pequeña.
+     · **Y la cifra en CURSIVA.** Es el remate de los titulares de esta página
+       —lo único que la separa de un número de tabla— traído al sitio donde de
+       verdad se decide.
+
+   ── Lo que NO se ha copiado ────────────────────────────────────────────────
+   El interruptor mensual/anual. Es la pieza más vistosa de cualquier tabla de
+   precios y aquí sería un decorado: en `plan_limits` no hay ni una fila anual,
+   así que el interruptor solo podría enseñar el mismo precio dos veces o
+   inventarse un descuento. El día que existan las filas, la pieza cabe aquí sin
+   tocar nada más.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ══ EL INTERRUPTOR MES / AÑO ═══════════════════════════════════════════════
+   Un carril, no dos botones sueltos: son las dos caras de una misma pregunta y
+   separados se leen como dos acciones distintas. Mismo gesto que `.segmented`
+   dentro de la aplicación, con la piel de la portada — y `aria-pressed` como
+   única fuente de qué está elegido, que es lo que ya hace el de dentro y lo que
+   además lo cuenta un lector de pantalla sin ayuda.
+
+   Va centrado y con aire por arriba porque cuelga del titular de la sección, no
+   de las tarjetas: se contesta una vez y luego se comparan los peldaños ya en
+   esa moneda. */
+.lp-switch {
+  margin-top: clamp(24px, 3vw, 34px);
+  margin-inline: auto;
+  width: fit-content;
+
+  /* Dos columnas IGUALES, aunque «Al año · 2 meses gratis» ocupe más que «Al
+     mes». Es la condición para que la brasa que se desliza pueda medir un 50 %
+     fijo: con columnas del ancho de su contenido tendría que medirse en
+     JavaScript y volver a medirse cada vez que cambie el texto del ahorro.
+     El lado corto queda con aire de sobra, que además es lo que hace que el
+     carril parezca un control y no dos palabras juntas. */
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+
+  position: relative; isolation: isolate;
+  padding: 5px; border-radius: var(--r-pill);
+  background: var(--canvas-alt); border: 1px solid var(--hairline);
+}
+/* La brasa. `z-index: -1` la manda detrás de los botones y el `isolation` del
+   carril impide que siga bajando hasta detrás del fondo de la sección. */
+.lp-switch-marca {
+  position: absolute; z-index: -1;
+  top: 5px; bottom: 5px; left: 5px;
+  width: calc(50% - 5px);
+  border-radius: var(--r-pill);
+  background: var(--accent); box-shadow: var(--shadow-xs);
+  /* `--normal` y no `--fast`: el recorrido es largo —medio carril— y a 0,16 s se
+     ve como un salto. Y no `--slow`, que es el ritmo de las entradas de pantalla
+     y aquí respondería tarde a un clic. Los tokens ya traen su curva dentro. */
+  transition: translate var(--normal);
+}
+.lp-switch.is-anual .lp-switch-marca { translate: 100% 0; }
+
+.lp-switch-item {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border: 0; border-radius: var(--r-pill);
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+  transition: color var(--fast);
+}
+.lp-switch-item:hover { color: var(--text); }
+/* Solo el color: el fondo lo pone la brasa de arriba, que llega deslizándose.
+   Si el botón activo pintara también el suyo, se verían los dos a la vez
+   durante la transición. */
+.lp-switch-item[aria-pressed='true'] { color: var(--accent-on); }
+
+/* El ahorro viaja DENTRO del botón del anual y no al lado del carril: es lo que
+   se gana pulsando ahí, y separado habría que unir las dos cosas leyendo.
+
+   Sobre la brasa hace falta contraste al revés que el resto de la página, así
+   que el papel de fondo y tinta se intercambian: la etiqueta se recorta EN la
+   brasa en vez de posarse encima. */
+.lp-switch-ahorro {
+  padding: 3px 7px; border-radius: var(--r-pill);
+  background: var(--accent-on); color: var(--accent);
+  /* Hereda el tamaño del botón: `--fs-2xs` ya es el escalón más pequeño de la
+     escala y lo que separa la etiqueta del texto es el fondo, no la altura.
+
+     Y sin `letter-spacing`, al revés que el botón que la contiene: el espaciado
+     de las versales separa LETRAS, y aquí dentro no hay ninguna. Aplicado a
+     «−17 %» solo abre huecos entre las cifras y las desune. */
+  letter-spacing: 0;
+  transition: background var(--fast), color var(--fast);
+}
+/* Mientras el anual NO está elegido, la etiqueta se posa sobre el carril negro.
+   Aquí era brasa maciza con el texto oscuro dentro —un botón rojo en mitad de
+   un carril apagado, que pedía un clic que no era— y el propio dueño lo señaló.
+   Pasa a los DOS TONOS de la brasa, como en la referencia: tinte de fondo y la
+   cifra en brasa. Se lee como información, no como otro botón. */
+.lp-switch:not(.is-anual) .lp-switch-ahorro {
+  background: var(--accent-soft); color: var(--accent);
+}
+
+/* ── La entrada de una tarjeta ───────────────────────────────────────────────
+   Cada tarjeta lleva su propio `Entra` con un retraso por columna (ver el
+   mapa de planes en `LandingPage.jsx`). El movimiento no es el fundido genérico
+   de `.lp-reveal`: sube Y ASIENTA —una pizca de escala— para que se lea como
+   una carta que aterriza en su sitio. En fila entran una detrás de otra; en la
+   columna de un teléfono, cada una al llegar a ella.
+
+   `:not(.is-in)` y no la clase a secas: la regla encendida de `.lp-reveal`
+   tiene su misma especificidad y quedaría por delante o por detrás según el
+   orden del archivo — así el estado apagado no puede pisar al encendido. */
+.lp-plan.lp-reveal:not(.is-in) { transform: translateY(34px) scale(0.94); }
+/* Más lenta que el fundido de serie (0,7 s): el disparo llega tarde a
+   propósito —ver `OBSERVA_TARDE`—, así que el recorrido se ve entero y a
+   este tamaño 0,7 s parecería un parpadeo. El retraso por columna llega en
+   línea desde `Entra` y no se toca aquí. */
+.lp-plan.lp-reveal { transition-duration: 0.85s; }
+
+.lp-plan-grid {
+  margin-top: clamp(32px, 4.5vw, 58px);
+  margin-inline: auto;
+  /* 1200 y no 1080 desde que son cuatro planes y no tres: a 1080 las tarjetas
+     salían a 253 px, que es menos de lo que necesita «Sin permanencia · baja
+     cuando quieras» sin partirse en tres líneas. `auto-fit` sigue decidiendo
+     cuántas caben, así que en una ventana estrecha se reparten solas. */
+  max-width: 1200px;
+  display: grid; gap: clamp(14px, 1.6vw, 22px);
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+  align-items: stretch;
+}
+/* ══ La tarjeta de un plan ═══════════════════════════════════════════════════
+   Es lo último que se mira antes de decidir, así que es la única superficie de
+   la página que se ilumina. Tres cosas a la vez y ninguna sobra:
+
+     · SUBE. Cuatro píxeles. Una tarjeta de plan es algo que se ELIGE, y una
+       superficie que no acusa el puntero se lee como un cartel, no como una
+       opción. Va en `translate` y no en `transform` completo: la propiedad
+       separada se anima sin forzar una capa de composición por cada tarjeta.
+
+     · SE ENCIENDE. Un degradado radial que entra por el canto de arriba, en un
+       pseudo-elemento detrás del contenido. En el fondo no puede ir: tendría que
+       aparecer y desaparecer cambiando el color de la tarjeta, y eso es un
+       parpadeo. `isolation: isolate` es lo que mantiene ese `z-index: -1` dentro
+       de la tarjeta en vez de mandarlo detrás de la sección entera.
+
+     · Y EL CANTO. De filete a canto marcado, que es lo que dibuja el contorno
+       cuando la sombra ya no toca porque la tarjeta está sobre franja.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.lp-plan {
+  /* En una variable porque la tarjeta destacada tiene que sumarle EXACTAMENTE
+     lo que se sale por arriba: si no coinciden, las tres cifras dejan de estar
+     a la misma altura y una tabla de precios con los precios desalineados es
+     justo lo que no se puede comparar de un vistazo. */
+  --plan-aire: clamp(26px, 2.6vw, 34px);
+  --plan-sale: 12px;
+
+  position: relative; isolation: isolate;
+  background: var(--canvas-alt); border: 1px solid var(--hairline);
+  border-radius: var(--lp-r-lg);
+  padding: var(--plan-aire) clamp(20px, 2.2vw, 28px);
+  display: flex; flex-direction: column;
+  transition: border-color var(--fast), translate var(--fast), box-shadow var(--fast);
+}
+.is-band .lp-plan { background: var(--canvas); }
+
+.lp-plan::before {
+  content: ''; position: absolute; inset: 0; z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(115% 75% at 50% 0%, var(--accent-soft) 0%, transparent 68%);
+  opacity: 0; transition: opacity var(--fast);
+}
+.lp-plan:hover::before { opacity: 1; }
+.lp-plan:hover {
+  border-color: var(--hairline-strong);
+  translate: 0 -4px;
+  box-shadow: var(--shadow-lg);
+}
+
+/* El gratuito llega ya encendido, con el canto en brasa y su etiqueta. Es el
+   punto de entrada del producto entero: si la sección tiene un foco, es este.
+
+   Y además SOBRESALE por arriba y por abajo. Un canto encendido distingue una
+   tarjeta cuando se la mira; que rompa la línea de las otras dos la distingue
+   antes de mirarla, que es cuando hay que distinguirla. */
+.lp-plan.is-primero {
+  border-color: var(--accent);
+  margin-block: calc(var(--plan-sale) * -1);
+  padding-block: calc(var(--plan-aire) + var(--plan-sale));
+}
+.lp-plan.is-primero::before { opacity: 0.6; }
+.lp-plan.is-primero:hover::before { opacity: 1; }
+
+/* La etiqueta, a caballo del canto de arriba. Dentro de la tarjeta era una
+   pastilla más entre el nombre y la cifra; montada sobre el borde es lo que
+   señala una tarjeta desde el otro lado de la sección. */
+.lp-plan-tag {
+  position: absolute; z-index: 1;
+  top: 0; left: 50%; translate: -50% -50%;
+  padding: 5px 14px; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
+}
+
+.lp-plan-name {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700;
+  letter-spacing: -0.022em; color: var(--text);
+}
+/* El alto reservado no es un capricho de maquetación: los tres `blurb` no miden
+   lo mismo y sin él la cifra de una tarjeta cae una línea por debajo de la de
+   al lado. Tres precios desalineados en una tabla de precios no se comparan de
+   un vistazo, que es lo único que se viene a hacer aquí. */
+.lp-plan-blurb {
+  margin-top: 6px; min-height: 2.9em;
+  font-size: var(--fs-sm); color: var(--text-tertiary); line-height: var(--lh-base);
+}
+
+/* LA CIFRA: es el contenido de esta tarjeta y tiene que verse desde lejos, así
+   que va en la voz de las cifras —troquelada, peso alto, interletraje cerrado y
+   dígitos de ancho fijo— y a tamaño de titular, no de dato. La cursiva es el
+   remate de los titulares de la página, y es lo que la separa de un número de
+   tabla. */
+.lp-plan-price {
+  margin-top: clamp(18px, 2vw, 26px);
+  display: flex; align-items: baseline; gap: 5px; line-height: 1;
+}
+.lp-plan-price > em {
+  font-family: var(--font-display); font-style: italic; font-weight: 800;
+  font-size: clamp(2.4rem, 4.2vw, 3.1rem);
+  letter-spacing: -0.045em; font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.lp-plan-price > .per {
+  font-family: var(--font); font-size: var(--fs-sm);
+  font-weight: 500; color: var(--text-tertiary); letter-spacing: 0;
+}
+/* La línea de debajo de la cifra. Va en la voz troquelada y no en cuerpo de
+   texto: es una condición de la compra, no una frase. Solo existe en el modo
+   anual —el cargo real junto a la cifra mensualizada—; el resto de letra
+   pequeña que hubo aquí se fue, ver el comentario en `LandingPage.jsx`. */
+.lp-plan-nota {
+  margin-top: var(--s3);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+
+/* El botón, a todo el ancho de la tarjeta y encima de la lista. Un botón
+   pequeño alineado a la izquierda dentro de una tarjeta de plan se lee como un
+   enlace más; a lo ancho es lo que la tarjeta viene a pedir. */
+.lp-plan > .lp-btn {
+  margin-top: clamp(20px, 2.2vw, 28px);
+  width: 100%; height: 46px;
+}
+
+/* Las tres líneas de cada plan. Las dos primeras son las dos únicas columnas que
+   separan un plan de otro; la tercera dice que no hay más, y va con la misma
+   marca que las otras a propósito: en una lista de plan, una línea sin marca se
+   lee como una nota al pie y esto no es una nota al pie.
+
+   La marca es una PALOMA y ya no un punto. Un punto enumera —dice «hay tres
+   cosas»— y una paloma afirma —dice «esto lo tienes»—, que es lo que hace la
+   lista de una tabla de precios. */
+.lp-plan-list {
+  list-style: none;
+  margin-top: clamp(20px, 2.2vw, 28px);
+  padding-top: clamp(18px, 2vw, 24px);
+  border-top: 1px solid var(--hairline);
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+.lp-plan-list > li {
+  display: flex; align-items: flex-start; gap: var(--s3);
+  font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base);
+}
+.lp-plan-list > li > svg { flex-shrink: 0; margin-top: 0.18em; color: var(--accent); }
+
+/* Centrado y con el ancho tasado de la rejilla: es el pie de la tabla, no un
+   párrafo de la sección. */
+.lp-plan-foot {
+  margin: clamp(26px, 3vw, 40px) auto 0;
+  text-align: center;
+  font-size: var(--fs-sm); color: var(--text-tertiary); line-height: var(--lh-base);
+  max-width: 72ch;
+}
+/* ── Dudas ───────────────────────────────────────────────────────────────────
+   Numeradas. El número no es adorno: convierte diez filas idénticas en una lista
+   con principio y final, y deja ver de un vistazo cuánto queda por leer. */
+
+.lp-faq-list { margin-top: clamp(24px, 3.5vw, 44px); display: flex; flex-direction: column; }
+.lp-faq-item { border-top: 1px solid var(--hairline); }
+.lp-faq-item:last-child { border-bottom: 1px solid var(--hairline); }
+.lp-faq-q {
+  position: relative; cursor: pointer; list-style: none;
+  display: flex; align-items: baseline; gap: var(--s4);
+  padding: var(--s5) var(--s6) var(--s5) 0;
+  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.012em;
+  transition: color var(--fast);
+}
+/* La respuesta al puntero: el número y el galón se encienden a tinta plena.
+   (La transición de color del bloque existía sin ningún :hover que la
+   disparase — una pregunta clicable que no respondía al puntero.) */
+.lp-faq-q:hover > .lp-faq-n { color: var(--text); }
+.lp-faq-q:hover::after { border-color: var(--text); }
+.lp-faq-q::-webkit-details-marker { display: none; }
+.lp-faq-n {
+  flex-shrink: 0; width: 2.4em;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0.1em; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  transition: color var(--fast);
+}
+/* La cifra de la que está abierta se enciende, y es la única brasa de esta
+   sección: aquí no hay ni una captura ni un icono al que dársela, y una lista de
+   cinco preguntas en tiza entera no dice en cuál se está. Ver el reparto de la
+   tinta por secciones en el encabezado de `LandingPage.jsx`. */
+.lp-faq-item[open] > .lp-faq-q > .lp-faq-n {
+  color: var(--accent);
+  text-shadow: 0 0 18px var(--brasa-luz);
+}
+/* La punta de flecha, con dos cantos y un giro: sin icono que descargar y gira
+   sola al abrir, que es lo que dice si hay algo más debajo. */
+.lp-faq-q::after {
+  content: ''; position: absolute; right: 6px; top: 50%;
+  width: 9px; height: 9px; margin-top: -7px;
+  border-right: 1.5px solid var(--text-tertiary);
+  border-bottom: 1.5px solid var(--text-tertiary);
+  transform: rotate(45deg);
+  transition: transform var(--fast), border-color var(--fast);
+}
+.lp-faq-item[open] > .lp-faq-q::after { transform: rotate(225deg); margin-top: -2px; }
+.lp-faq-a {
+  padding: 0 var(--s6) var(--s5) calc(2.4em + var(--s4));
+  font-size: var(--fs-sm); color: var(--text-secondary);
+  line-height: var(--lh-loose); max-width: 74ch;
+}
+
+/* ── El cierre: la losa ──────────────────────────────────────────────────────
+   El único bloque de la página con el lienzo invertido: tiza de fondo y grafito
+   encima, que es el par que pinta un botón primario del producto llevado al
+   tamaño de una sección. Después de siete secciones sobre negro es imposible
+   pasarla por alto, que es exactamente lo que se le pide al último botón de una
+   página larga —y no hace falta ningún color para conseguirlo—.
+
+   Dentro se invierte todo: el rótulo, el titular con su remate y el botón, que
+   pasa a hierro sobre tiza. */
+
+.lp-slab {
+  padding: clamp(44px, 7vw, 96px) clamp(24px, 5vw, 72px);
+  background: var(--accent); color: var(--accent-on);
+  border-radius: var(--lp-r-xl);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: var(--s4);
+}
+.lp-slab > .lp-kicker { color: var(--accent-on); opacity: 0.6; }
+.lp-slab h2 { max-width: 20ch; }
+.lp-slab h2, .lp-slab h2 em { color: var(--accent-on); }
+.lp-slab > p {
+  font-size: var(--fs-md); line-height: 1.5; max-width: 52ch;
+  color: var(--accent-on); opacity: 0.75;
+}
+.lp-slab > .lp-btn { margin-top: var(--s2); }
+.lp-slab-note {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--accent-on); opacity: 0.55;
+}
+
+/* ── El pie ──────────────────────────────────────────────────────────────────
+   Con columnas, y no con tres enlaces en una línea. Un pie con columnas dice
+   «esto es un producto con secciones»; una línea suelta dice «esto es una página
+   de aterrizaje». Además es donde va a mirar quien busca las condiciones. */
+
+/* Y el pie cede por abajo lo que ocupa la barra de inicio del teléfono. Es el
+   otro lado de `viewport-fit=cover`: sin esto, la línea del copyright queda
+   debajo de la rayita del iPhone. En un ordenador `env()` vale 0 y el pie
+   respira exactamente lo mismo que cualquier otra sección. */
+.lp-foot {
+  border-top: 1px solid var(--hairline);
+  padding-bottom: calc(var(--lp-air) + env(safe-area-inset-bottom, 0px));
+}
+.lp-foot-grid {
+  display: grid; gap: var(--s6) var(--s4);
+  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 0.8fr));
+}
+.lp-foot-brand { display: flex; flex-direction: column; gap: var(--s3); max-width: 34ch; }
+.lp-foot-brand > p { font-size: var(--fs-sm); color: var(--text-tertiary); line-height: var(--lh-base); }
+.lp-foot-col { display: flex; flex-direction: column; gap: var(--s2); align-items: flex-start; }
+.lp-foot-col > h3 {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-tertiary); margin-bottom: var(--s1);
+}
+.lp-foot-col > a {
+  font-size: var(--fs-sm); color: var(--text-secondary); text-decoration: none;
+  transition: color var(--fast);
+}
+.lp-foot-col > a:hover { color: var(--text); }
+.lp-foot-end {
+  display: block; margin-top: var(--s6); padding-top: var(--s4);
+  border-top: 1px solid var(--hairline);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+
+/* ── Y en pantallas estrechas ────────────────────────────────────────────── */
+
+@media (max-width: 1040px) {
+  /* Las secciones de dos columnas pasan a una, y la pieza va DEBAJO del
+     discurso — en vertical, «primero lo que se cuenta» es siempre el orden
+     bueno. Aquí la captura gana ancho en vez de perderlo, que es justo lo que
+     hay que conseguir: es lo único que hay que poder mirar de cerca. */
+  .lp-mas-in { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+
+  /* Los pares, en columna. Y la vuelta del segundo se deshace: en vertical no
+     hay dos lados que alternar, y dejarla puesta solo conseguiría que un par
+     empezara por los aparatos y el otro por el texto. */
+  .lp-par,
+  .lp-par.is-vuelta { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+  .lp-par.is-vuelta > .lp-par-say { order: 0; }
+  .lp-par.is-vuelta > .lp-par-art { order: 0; }
+  .lp-par-h { max-width: 22ch; }
+  /* Y el aire entre pares baja: en una columna ya hay un cambio de eje que
+     separa uno de otro, y el hueco de 148 px se lee como un salto. */
+  .lp-pares { gap: clamp(56px, 9vw, 96px); }
+
+  /* La secuencia se parte AQUÍ y no en el corte de móvil, que es donde estaba:
+     su columna de texto se lleva el 31 % del ancho y encima cede 62 px a la
+     bolita del raíl, así que a 900 px de ventana la frase de cada paso se
+     quedaba en 150 px —cuatro palabras por línea— mientras la pantalla de al
+     lado tenía sitio de sobra. En una columna, el discurso recupera el ancho
+     entero y la pantalla baja debajo. */
+  .lp-ruta-paso { grid-template-columns: minmax(0, 1fr); gap: var(--s5); }
+  .lp-ruta-art { justify-content: flex-start; padding-left: 62px; }
+
+  .lp-foot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Justo donde las tres tarjetas de plan dejan de caber en una fila (tres
+   columnas de 250 px más sus huecos, más el gutter). En cuanto se parten,
+   sobresalir no distingue nada —no hay línea que romper— y solo deja dos huecos
+   desiguales. */
+@media (max-width: 880px) {
+  .lp-plan.is-primero { --plan-sale: 0px; }
+}
+
+@media (max-width: 860px) {
+  /* Tres anclas no caben al lado de dos botones, y de las tres cosas que hay en
+     la barra la que no puede faltar es la de empezar. */
+  .lp-nav { display: none; }
+}
+
+@media (max-width: 700px) {
+  /* ══════════════════════════════════════════════════════════════════════════
+     EL PAR EN UN TELÉFONO: UNA ESCENA, NO TRES BLOQUES
+     --------------------------------------------------------------------------
+     Aquí se apilaban tres objetos sueltos, a sangre y separados por setenta
+     píxeles: la ventana ocupando la pantalla entera, debajo la nota de cristal,
+     y debajo del todo el teléfono. Bajando en fila y sin tocarse, que es
+     exactamente lo contrario de lo que un par existe para decir — que la
+     ventana y el teléfono son la MISMA cosa vista desde los dos extremos.
+
+     Lo que hay ahora es la escena del escritorio en pequeño y en vertical: la
+     ventana arriba, la nota pegada a su canto de abajo como una franja del
+     mismo objeto, y el teléfono apoyado en la esquina de las dos. Se toca todo,
+     así que se lee como una pieza y no como una lista.
+
+     ── Y SE ACABÓ EL SANGRADO ────────────────────────────────────────────────
+     Las piezas salían por los dos cantos de la pantalla para recuperar los
+     cuarenta píxeles del gutter. No los recuperaban de nada: la captura de
+     dentro está clavada a 770 px y se pasea, así que cuarenta píxeles más de
+     hueco solo enseñan cuarenta píxeles más de una imagen que hay que arrastrar
+     igual. A cambio dejaba cinco tarjetas de esquina redondeada besando los dos
+     biseles y la escena descuadrada del texto que la presenta.
+
+     ══ Y EL SEGUNDO PAR NO SE ESTABA ENTERANDO DE NADA ═══════════════════════
+
+     Esto de aquí decía `.lp-par-art`, a secas. Y el par vuelto lleva
+     `.lp-par.is-vuelta .lp-par-art { flex-direction: row-reverse }` escrito
+     arriba, que pesa más por especificidad — o sea que gana esté donde esté, y
+     ninguna regla de este bloque lo tocaba. Resultado en un teléfono de 390:
+
+       · la dieta se quedaba EN FILA, con la ventana encogida a 233 px de ancho
+         —una captura de 770 metida en 233— y el aparato al lado;
+       · y el teléfono, con el margen negativo que aquí se le pone para que suba
+         a apoyarse en la ventana, subía 161 px sobre una fila que ya no existía:
+         se plantaba ENCIMA DEL PÁRRAFO de la sección, tapando cuatro líneas de
+         texto;
+       · y la nota salía por el canto derecho a ocho píxeles del bisel.
+
+     Por eso todas las reglas de la escena nombran las dos formas del par. No es
+     repetir por gusto: es que la vuelta se declara con dos clases y aquí hay que
+     deshacerla con dos.
+
+     ══ Y LA ESCENA DEL HÉROE ENTRA POR AQUÍ ══════════════════════════════════
+
+     Porque es la MISMA escena: una ventana de escritorio con el teléfono del
+     cliente mordiéndole un canto. Lo único que la distingue en un monitor es la
+     escala —980 px de ventana en vez de 770— y en un teléfono de 390 esa
+     diferencia no existe: las dos se resuelven con el mismo problema delante,
+     que es meter dos aparatos de proporción opuesta en una columna sin que se
+     lean como dos bloques apilados.
+
+     Así que las reglas se comparten en vez de escribirse otra vez. Si mañana la
+     escena vertical se ajusta, se ajusta en las dos a la vez — que es justo lo
+     que no pasa cuando se duplica un bloque de maqueta.
+     ══════════════════════════════════════════════════════════════════════════ */
+  .lp-par-art,
+  .lp-par.is-vuelta .lp-par-art,
+  .lp-hero-escena {
+    /* ── Las dos medidas de las que cuelga toda la escena ──────────────────
+       `--tel-esc` es el ancho del teléfono, y manda porque es la pieza que no
+       puede encoger sin dejar de parecer un teléfono. El tope de 108 px no es
+       redondo: es lo que hace que el aparato mida ~0,78 del alto de la ventana
+       —la misma relación que en un monitor— en toda la franja, de 320 px a 700.
+       Sin él, a 700 el teléfono crecía con el `vw` mientras la ventana estaba
+       clavada por su tope de alto, y acababa siendo el objeto MÁS GRANDE de un
+       par que existe para enseñar una pantalla de ordenador.
+
+       `--asoma` es cuánto sobresalen por debajo de la ventana el teléfono y la
+       nota. Uno solo para los dos, y ese es el punto: con dos números la escena
+       terminaba en tres cantos escalonados y un hueco negro en medio —la nota
+       flotando en la nada, que es justo lo que se veía—. Con uno, la escena
+       tiene una línea de suelo. */
+    --tel-esc: min(24vw, 108px);
+    --asoma: 22px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-inline: 0;
+  }
+  /* ══════════════════════════════════════════════════════════════════════════
+     LA VENTANA DEJA SITIO AL TELÉFONO, COMO EN UN MONITOR
+     --------------------------------------------------------------------------
+     Esto es lo que faltaba, y explica los dos intentos anteriores. Puesta al
+     ancho entero, la ventana no deja NI UN PÍXEL donde poner el aparato, así que
+     el teléfono solo podía ir en dos sitios y los dos estaban mal: encima —y se
+     comía la captura, las dos son oscuras y salía una sola mancha— o debajo,
+     que es lo de la última foto: un teléfono estrecho y alto colgando de una
+     esquina, con un hueco muerto del tamaño de media pantalla al lado y la nota
+     flotando por su cuenta en la esquina de enfrente. Tres piezas con tres
+     alineaciones distintas y un agujero en medio.
+
+     En un monitor esto no pasa porque la ventana NO ocupa la fila entera: el
+     teléfono se apoya en su canto derecho y sobresale por fuera. Es la misma
+     solución aquí: la ventana se queda en el 80 % y el 20 % que suelta es
+     exactamente donde vive el aparato. La escena pasa de 510 px de alto a 220 y
+     no queda un hueco sin usar.
+
+     Se pierde un poco de captura visible —del 45 % de la imagen al 36 %— y no
+     importa: lo que hay que arrastrar se arrastra igual, y a cambio se entiende
+     de un vistazo que son dos pantallas de lo mismo y no dos secciones.
+
+     ── Y el hueco que suelta se mide con el TELÉFONO, no con un 80 % ─────────
+     Un porcentaje fijo solo cuadra al ancho en el que se eligió. El teléfono
+     tiene tope (108 px), así que a 700 px de ventana ocupaba el 16 % y la
+     ventana el 80: sobraba un 4 % y los dos aparatos dejaban de tocarse, que es
+     lo único que el par no puede permitirse. Restando el ancho del propio
+     teléfono, el mordisco es SIEMPRE el 28 % de lo que mide — igual en un
+     teléfono de 320 que en una tableta de 700. */
+  .lp-par-desk,
+  .lp-par.is-vuelta .lp-par-desk,
+  .lp-hero-desk {
+    width: calc(100% - var(--tel-esc) * 0.72);
+  }
+  .lp-par-desk,
+  .lp-hero-desk { align-self: flex-start; }
+  .lp-par.is-vuelta .lp-par-desk { align-self: flex-end; }
+
+  /* ── EL TELÉFONO, EN LA ESQUINA Y POR FUERA ──────────────────────────────
+     Alineado al canto contrario del de la ventana, así que le muerde el borde y
+     el resto se sale — que es exactamente lo que hace en el escritorio. El
+     mordisco sale de la cuenta y no de un número escrito: 80 % de ventana más
+     30 % de teléfono son 110, o sea que siempre se solapan un 10 % del ancho,
+     igual en un teléfono de 320 que en una tableta de 700.
+
+     ── Y el margen negativo se calcula con el ALTO ──────────────────────────
+     Un teléfono mide 1,925 veces su ancho —el canto, el bisel, la barra de
+     estado, una captura del script (que las dos vienen con la misma proporción)
+     y la zona de la rayita; la cuenta está en `.lp-iphone`— y lo que hay que
+     decidir es cuánto ASOMA por debajo de la ventana, no cuánto sube. Eso es
+     `--asoma`, y lo comparte con la nota: las dos cosas que sobresalen lo hacen
+     por la misma línea.
+
+     El ancho ya no se decide aquí: lo pone `--tel-esc` en la escena, porque la
+     ventana también lo necesita para saber cuánto sitio soltar. Aquí solo se
+     recoge. */
+  .lp-par-movil,
+  .lp-par.is-vuelta .lp-par-movil,
+  .lp-hero-movil {
+    --tel: var(--tel-esc);
+    align-self: flex-end;
+    margin: calc(var(--asoma) - var(--tel) * 1.925) 0 0;
+    z-index: 1;
+  }
+  .lp-par.is-vuelta .lp-par-movil { align-self: flex-start; }
+
+  /* ══ LA NOTA: PEGADA AL CANTO, NO FLOTANDO EN LA NADA ═══════════════════
+     Sigue siendo la misma pieza —absoluta, colgada del canto de abajo de la
+     ventana, medio dentro y medio fuera, y con su vaivén—. Lo que cambia es
+     cuánto sobresale y por dónde, que es de donde venía el agujero.
+
+     ── Sobresale lo mismo que el teléfono ────────────────────────────────────
+     Colgaba de su propio alto (`--alto / -2`, o sea 37 px) mientras el aparato
+     de enfrente asomaba 40, y la nota medía 74 px porque `--alto` se los
+     imponía aunque su texto ocupara menos. Entre las dos dejaban una franja
+     negra de sesenta píxeles bajo la ventana con la nota sola dentro y un
+     hueco vacío hasta el teléfono: exactamente «la tarjeta puesta ahí en la
+     nada». Ahora asoma `--asoma`, igual que el teléfono, y el alto lo decide su
+     texto.
+
+     ── Y se alinea con la VENTANA, no con el bisel del móvil ─────────────────
+     Salía 12 px por fuera del canto de la ventana. En un monitor eso es una
+     nota despegándose de la pantalla; en un teléfono, donde la ventana ya está
+     pegada al gutter, es una tarjeta a ocho píxeles del bisel — y en el par
+     vuelto, saliéndose por el otro lado. A ras del canto: cruza el borde de
+     abajo, que es el que la hace capa, y no el de los lados, que es el que la
+     hace descuadre.
+
+     ── Y ABULTA MENOS, que es lo que seguía sin estar bien ──────────────────
+     Con la cita a 13 px seguía siendo una tarjeta de 175 × 66 sobre una ventana
+     de 283 × 227: una nota al pie ocupando el 25 % de la pantalla que anota, y
+     puesta encima de las dos primeras filas de la tabla. Baja al cuerpo más
+     pequeño de la escala y con él baja todo lo demás —dos líneas de 15 px en
+     vez de dos de 18—, así que la tarjeta pasa a medir unos 50 px de alto y
+     tapa una fila en vez de tres.
+
+     El 58 % es del ancho de la VENTANA, no de la escena, así que se estrecha
+     con ella y nunca llega al teléfono. Y el tope en píxeles evita lo
+     contrario: que en una tableta de 700 la nota se estire hasta parecer un
+     párrafo con marco. */
+  .lp-par-art .lp-chapa,
+  .lp-par.is-vuelta .lp-chapa {
+    left: 0; right: auto;
+    bottom: calc(var(--asoma) * -1);
+    min-height: 0;
+    width: min(178px, 58%);
+    padding: var(--s2) 11px;
+    gap: 2px;
+  }
+  /* Y en el par vuelto sale por el canto de la derecha, o sea al lado contrario
+     del teléfono, igual que en un monitor. */
+  .lp-par.is-vuelta .lp-chapa {
+    left: auto; right: 0;
+  }
+  .lp-par-art .lp-chapa-dice { font-size: var(--fs-2xs); line-height: 1.38; }
+  /* El rótulo se queda con su icono pero pierde el aire: a este tamaño, seis
+     píxeles entre la chapa y el nombre son los mismos seis que separan las dos
+     líneas de la cita, y la nota deja de leerse como dos cosas. */
+  .lp-par-art .lp-chapa-rotulo { gap: 5px; }
+  .lp-par-art .lp-chapa-rotulo > svg { width: 11px; height: 11px; }
+
+  /* El fulgor se estira con la escena: con la proporción fija se quedaba en una
+     mancha apaisada flotando en el hueco entre la ventana y el teléfono, que es
+     justo donde no hay nada que iluminar. */
+  .lp-par-art > .lp-fulgor,
+  .lp-hero-escena > .lp-fulgor {
+    width: 124%; height: 92%;
+    aspect-ratio: auto;
+  }
+
+  /* Y la rejilla de fichas pasa a una columna: dos por dos en 390 px son
+     cuatro cajas de 170 con la frase partida en cinco líneas. */
+  .lp-mas-grid { grid-template-columns: minmax(0, 1fr); }
+
+  /* ══ La secuencia, en columna y con el raíl puesto ═══════════════════════
+     El raíl se queda: es lo único que dice que los tres pasos van en orden, y
+     en vertical es donde mejor funciona. Lo que cambia es que la pantalla de
+     cada paso baja debajo de su discurso y se lleva el ancho entero de la caja
+     de lectura — pero DENTRO de ella. A sangre, las tres capturas se comían la
+     pantalla de canto a canto y la sección se leía como tres pantallazos
+     pegados uno detrás de otro, sin aire entre ellos ni con el texto. */
+  .lp-ruta-art {
+    margin-inline: 0;
+    padding-left: 0;
+    justify-content: flex-start;
+  }
+  .lp-ruta-art > .lp-plana { width: 100%; }
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     LA CAPTURA SE VE ENTERA, Y AQUÍ SE ACABA EL ZOOM
+     --------------------------------------------------------------------------
+     Aquí hubo dos intentos de lo mismo y los dos fallaban por el mismo lado.
+
+     El argumento era bueno: una captura de escritorio de 770 px metida en los
+     283 de la ventana de un par lleva la letra al 37 %, o sea que la tabla de
+     series y las cifras de la semana dejan de leerse. Así que la imagen no
+     encogía: se pintaba al DOBLE del hueco (`min(--nat, 200%)`) y se paseaba
+     dentro de una caja con `overflow-x: auto` y un tope de alto de 52 vw.
+
+     ══ Y lo que se veía en un teléfono de 390 ════════════════════════════════
+
+     La mitad izquierda de la captura y poco más: 283 de 566 px de ancho y 203
+     de 333 de alto. O sea el 30 % de la imagen, cortada por el canto derecho a
+     media tabla y por abajo a media fila. La sesión de Legs A enseñaba el
+     título, un ejercicio y dos números.
+
+     El fallo no es el número —ni 200 % ni 150 %—, es la premisa: **una captura
+     que hay que arrastrar para ver no es una demostración**. En una portada
+     nadie arrastra nada, porque para querer arrastrar hay que haber visto antes
+     que merece la pena, y lo que se ve antes es un trozo. Y el corte tampoco se
+     lee como «esto sigue»: se lee como una imagen mal puesta, que es
+     exactamente lo que dijo el primero que la vio en un móvil.
+
+     ══ Lo que hay ahora: nada ════════════════════════════════════════════════
+
+     Sin regla. La imagen vuelve a la base (`width: 100 %`, `height: auto`) y la
+     ventana enseña la pantalla ENTERA, con su proporción: 283 × 166 en los
+     pares, 350 × 206 en la secuencia. Más pequeña de lo que se podía leer, y a
+     cambio se reconoce de un vistazo qué es cada una — que es lo único que una
+     portada tiene que conseguir en un teléfono.
+
+     Y el tope de alto se va con ello: existía para que una imagen clavada a 770
+     px no dejara la ventana más alta que ancha. Fijada al ancho del hueco, la
+     proporción la trae la propia captura y la ventana no puede perder la forma.
+
+     ── Lo que esto NO arregla ────────────────────────────────────────────────
+     Que la letra de dentro es pequeña. Eso no se arregla con CSS: se arregla en
+     `scripts/recortar-capturas.ps1`, sacando recortes más CERRADOS —media
+     pantalla en vez de la pantalla entera— para que lo que llegue al teléfono
+     ya venga con menos cosas dentro. Mientras tanto, entera y pequeña es mejor
+     que grande y a trozos.
+
+     El aviso de «Desliza →» se queda en `display: none` (regla base): ya no
+     hay nada que deslizar, y sacarlo del marcado es tocar el componente para
+     borrar una línea que no pinta.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* El único botón que queda en el cuerpo de la página es el del cierre, y ahí
+     ancho completo es lo que toca. (El de la barra no se entera: es hijo de un
+     `span` que ya se ajusta a su contenido, así que su 100 % es su propio
+     ancho.) El del héroe se fue — ver `HERO` en `LandingPage.jsx`. */
+  .lp-btn { width: 100%; }
+
+  /* ── El héroe deja de empezar a media pantalla ───────────────────────────
+     El aire de arriba se mide en `8vh`, o sea que cuanto más alto es el
+     teléfono más sitio se gasta en no enseñar nada: en un móvil corriente eran
+     67 px de hueco encima del rótulo, más los 58 de la barra y los 64 de la
+     sección. Ciento noventa píxeles —un cuarto de la pantalla— antes de la
+     primera letra de la página.
+
+     ══ Y EL HÉROE VUELVE A MEDIR UNA PANTALLA, con la escena clavada al canto ══
+
+     Esto lleva tres versiones en una semana y la historia importa para no
+     volver atrás:
+
+       1. Sin corte (el original): el héroe crecía con su contenido y la
+          sección siguiente entraba ENTERA en la primera pantalla — «de
+          primeras se ve demasiado».
+       2. Pantalla entera con la escena suelta: el aire sobrante se aparcaba
+          entre el texto y la escena. Trescientos píxeles de nada — «un poco
+          raro».
+       3. Lo de ahora, que es la 2 con sus dos fallos arreglados:
+
+          · La escena va CLAVADA al canto de abajo (la caja del corte la
+            empuja), así que del pliegue para abajo solo asoma la franja
+            VACÍA de la banda siguiente — se ve que hay más sin ver el qué,
+            que es exactamente lo que hace el héroe en un monitor.
+          · Y el teléfono crece (28 vw contra los 24 del resto de escenas),
+            porque el hueco de la versión 2 no era solo del estirón: era de
+            una escena pequeña en una pantalla grande. Solo aquí — los pares
+            se quedan con su medida, que está ajustada a su columna.
+
+     El héroe mide la pantalla como MÍNIMO, no exacto: en un teléfono corto o
+     apaisado donde el titular y la escena no caben, crece con su contenido en
+     vez de recortar la letra.
+
+     ══ 4. Y LA ESCENA SE DA LA VUELTA: el TELÉFONO manda ════════════════════
+
+     La versión 3 seguía sin convencer, y el motivo era de composición, no de
+     medidas: la escena del héroe en un teléfono era la del monitor encogida —
+     una ventana apaisada con un teléfono de 124 px apoyado en el canto. Dos
+     piezas pequeñas en la parte de abajo de una pantalla VERTICAL, o sea aire
+     por todas partes.
+
+     Quien mira esto lo mira DESDE un teléfono, y la mitad de la promesa que le
+     toca de cerca es la del suyo: la escena se invierte. El aparato pasa a ser
+     la pieza grande (47 vw, el doble que antes) y sube desde el canto de abajo
+     con dos tercios a la vista; la ventana del entrenador se queda detrás, a
+     la izquierda y más baja — presente, porque la promesa son las DOS
+     pantallas, pero de fondo. Es la misma jerarquía que el titular: primero el
+     que entrena, después el panel.
+
+     La maqueta es una rejilla de una celda con las dos piezas superpuestas
+     (los `grid-area`), que es lo que permite que cada una se ancle a su
+     esquina sin márgenes negativos encadenados. El fulgor es absoluto y ni se
+     entera. Los pares NO cambian: su escena en columna cuenta otra cosa —la
+     ventana con el detalle— y está ajustada a su sitio. */
+  .lp-hero {
+    padding-top: var(--s6);
+    height: auto;
+    min-height: calc(100vh - var(--header-h) - clamp(28px, 5vh, 56px));
+    min-height: calc(100svh - var(--header-h) - clamp(28px, 5vh, 56px));
+  }
+  .lp-hero-corte {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+  .lp-hero-escena {
+    --tel-esc: min(47vw, 200px);
+    display: grid;
+    /* Un tercio del aparato se va por detrás de la franja siguiente: es lo que
+       hace que suba DESDE el canto en vez de estar posado encima. */
+    margin-bottom: calc(var(--tel-esc) * -0.65);
+  }
+  .lp-hero-escena > .lp-hero-desk,
+  .lp-hero-escena > .lp-hero-movil {
+    grid-area: 1 / 1;
+  }
+  .lp-hero-desk {
+    width: min(92%, 340px);
+    justify-self: start;
+    align-self: end;
+    /* Por encima de la línea del corte (el 0.65 de arriba) con un poco de
+       aire: la ventana se ve entera; el que se corta es el aparato. */
+    margin-bottom: calc(var(--tel-esc) * 0.75);
+  }
+  .lp-hero-movil {
+    justify-self: end;
+    align-self: end;
+    margin: 0 2% 0 0;
+  }
+  /* La pastilla de la barra se centra en la parte VISIBLE de la ventana, no en
+     la ventana entera: centrada de verdad caía justo debajo del aparato y
+     quedaba cortada a media palabra — «HO» se lee como un recorte mal hecho,
+     no como una oclusión. El aparato arranca a media ventana, así que el
+     centro del trozo visible anda por el cuarto. */
+  .lp-hero-desk .lp-shot-tab { left: 26%; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DONDE NO HAY NADA QUE CORTAR, EL CANTO SE VA
+   --------------------------------------------------------------------------
+   El héroe mide una pantalla y recorta lo que se salga por abajo. Eso vale
+   mientras haya escena de sobra que recortar, y en una ventana ANCHA Y BAJA
+   —media pantalla de un portátil, un monitor apaisado— no la hay: el titular a
+   dos líneas, la frase y el precio ya se comen el hueco entero y el recorte
+   pasaría de morder la escena a morder la letra. Cortar una imagen es el
+   efecto; cortar un titular es un fallo.
+
+   Así que aquí el héroe vuelve a crecer con su contenido, la caja de recorte
+   deja de recortar y el aire de abajo se pone otra vez — si no, la franja
+   siguiente quedaría pegada a una escena que ya no acaba en ningún sitio.
+
+   Aquí estuvo también el teléfono (`max-width: 700px`, con una coma), con el
+   argumento de que la escena en columna cabía entera y el canto cortaba aire.
+   Ya no: la portada se abre sobre todo desde un teléfono, y el corte es
+   justamente lo que le da al héroe su forma. La escena se clava ahora al canto
+   y el canto muerde — ver el bloque de 700 px, donde vive con el resto de la
+   escena vertical. El `min-width` de aquí es lo que evita que las dos reglas
+   se pisen: un teléfono APAISADO (ancho y bajo) cae en esta, que es la que le
+   toca, porque en apaisado la letra tampoco deja nada que cortar.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 701px) and (max-height: 640px) {
+  .lp-hero { height: auto; min-height: 0; padding-bottom: var(--lp-air); }
+  .lp-hero-corte { overflow: visible; }
+}
+
+@media (max-width: 560px) {
+  /* «Entrar» se va de la barra: con el logotipo y el botón de alta no caben tres
+     cosas sin que la marca parta en dos líneas, y de las dos la que no puede
+     faltar es la de empezar. Quien ya tiene cuenta la encuentra en el pie, y el
+     propio botón de alta lleva a la misma pantalla. */
+  .lp-nav-link.is-plain { display: none; }
+
+  /* ══ Y LA BARRA SE APRIETA, que es lo que le faltaba ═════════════════════
+     Quitar «Entrar» deja dos cosas, y las dos son intocables: la marca y el
+     botón de empezar. El problema es que ninguna de las dos ENCOGE —las dos
+     llevan `white-space: nowrap`— así que en cuanto no caben no se parten: se
+     salen, y `overflow-x: clip` se come el final del botón. En un teléfono de
+     360 px sobraban ocho píxeles y en uno de 320 faltaban treinta.
+
+     Se recorta de donde no cuesta nada: dos puntos de tipografía de la marca,
+     el hueco entre el logotipo y su nombre, y el relleno del botón. Con eso el
+     conjunto baja unos treinta píxeles y entra hasta en el teléfono más
+     estrecho que se sigue usando. */
+  .lp-bar-in { gap: var(--s3); }
+  .lp-brand { gap: var(--s2); font-size: var(--fs-base); }
+  .lp-bar-cta > .lp-btn.is-sm { padding-inline: 15px; }
+
+  /* Y el rótulo del héroe, por lo mismo. Es el más largo de la página con
+     diferencia —«Gestión de clientes para entrenadores», treinta y siete
+     caracteres troquelados y con interletraje abierto— y en un teléfono no cabe
+     en una línea: parte en dos y deja la muesca de la cinta métrica flotando a
+     la altura de la primera, que no se lee como un rótulo de dos líneas sino
+     como algo descolocado. Un punto menos y el interletraje cerrado lo meten
+     entero, y es el único de la página que lo necesita: los de las secciones son
+     de dos palabras. */
+  .lp-eyebrow { font-size: var(--fs-2xs); letter-spacing: 0.1em; }
+
+  /* ══ EL RAÍL, ESTRECHADO ═════════════════════════════════════════════════
+     La parada mide 37 px y el discurso le cede 62 de sangría. En un monitor son
+     cinco puntos porcentuales del ancho; en 390 px son el 16 % de la pantalla
+     gastado en un hueco, y con él la frase de cada paso se queda en 300 px y se
+     parte en el doble de líneas.
+
+     Baja a 32 y 50. El número sigue cabiendo —son dos cifras—, la línea sigue
+     cayendo por su centro (de ahí que los tres números tengan que moverse
+     juntos: 32/2 = 16, y ahí es donde va el raíl) y el texto recupera doce
+     píxeles por línea. */
+  .lp-ruta-n { width: 32px; height: 32px; }
+  .lp-ruta-say { padding-left: 50px; }
+  /* Y el tramo, con la misma cuenta y los números de la bolita pequeña: baja de
+     su canto (30) y llega al centro de la siguiente (14). */
+  .lp-ruta-paso::before {
+    left: 16px; top: 30px;
+    height: calc(100% - 30px + var(--paso-gap) + 14px);
+  }
+
+  /* La sangría de la respuesta tiene que caer bajo la primera letra de la
+     pregunta, y para eso los dos números tienen que medir lo mismo. En `em` no
+     medían: la cifra va a 11 px y la respuesta a 13, así que el mismo `1.9em`
+     valía 21 px arriba y 25 abajo y la columna salía descuadrada cuatro
+     píxeles. En un ordenador no se ve; con la respuesta a media pantalla de
+     ancho, sí. En píxeles no hay dos cuentas. */
+  .lp-faq-q { gap: var(--s3); font-size: var(--fs-base); }
+  .lp-faq-n { width: 21px; }
+  .lp-faq-a { padding-left: calc(21px + var(--s3)); }
+
+  /* El pie, en una columna. Y con más hueco entre enlaces: a 13 px y pegados de
+     ocho en ocho, cada enlace es una diana de dieciocho píxeles de alto — la
+     mitad de lo que ocupa un dedo, con los de arriba y abajo a tiro. */
+  .lp-foot-grid { grid-template-columns: 1fr; }
+  .lp-foot-col { gap: var(--s3); }
+  .lp-foot-col > a { padding-block: 2px; }
+}
+
+/* ==========================================================================
+   La tarjeta sola en la pantalla
+   --------------------------------------------------------------------------
+   Una tarjeta centrada sobre el lienzo, con la marca encima. Fue durante mucho
+   tiempo la forma de entrar y de recuperar la contraseña; esas dos se han ido a
+   `.acceso`, aquí abajo, porque tienen que parecerse a la portada.
+
+   Lo que queda usándola es la pantalla de consentimiento del cliente
+   (`ConsentGate`), y ahí sigue siendo lo correcto: quien la ve YA tiene sesión,
+   está dentro de la aplicación y con su tema puesto, y lo único que tiene que
+   hacer es leer un texto y decir que sí. Un escaparate de dos columnas alrededor
+   solo le añadiría discurso a un consentimiento, que es justo lo que no puede
+   llevar. */
+
+/* La pareja vh/svh, como en la portada: con la barra de Safari desplegada,
+   `100vh` mide más que la pantalla visible y la tarjeta quedaba baja. */
+.login { min-height: 100vh; min-height: 100svh; display: grid; place-items: center; padding: var(--s4); }
+
+.login-card { position: relative; width: 100%; max-width: 392px; }
+
+.login-head {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  text-align: center; padding-bottom: var(--s2);
+}
+.login-title { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.022em; }
+/* El enlace discreto centrado bajo un botón. Lo usa también `GettingStarted`
+   dentro de la aplicación: es la forma que tiene el proyecto de decir «y si no,
+   esto otro» sin poner un segundo botón que compita con el primero. */
+.login-alt { align-self: center; color: var(--text-secondary); }
+
+/* ==========================================================================
+   Acceso
+   --------------------------------------------------------------------------
+   La pantalla que va justo detrás de la portada, y por eso va del mismo color:
+   `useNoche` pone aquí el mismo lienzo de `.lp-noche`, y el botón de envío es
+   el mismo `.lp-btn` que se acaba de pulsar para llegar.
+
+   Aquí hubo una tarjeta de 392 px centrada en mitad de la pantalla, sobre el
+   tema del usuario, con el logotipo grande encima. Funcionaba, pero después de
+   una portada negra con titulares de ochenta píxeles se leía como el formulario
+   de otra aplicación: la costura entre las dos pantallas se veía.
+
+   Dos columnas: a la izquierda lo que se está a punto de conseguir —una frase y
+   tres hechos— y a la derecha el formulario. La de la izquierda no es adorno:
+   es lo que sostiene el momento entre «me interesa» y «escribo mi correo», que
+   es donde se pierde a la gente.
+   ========================================================================== */
+
+/* Barra arriba, contenido en medio y pie abajo. Era una rejilla de un solo
+   hueco con todo centrado; con la marca fuera de la columna hacen falta tres
+   filas, y el contenido se centra en lo que sobra con `margin: auto` — que en
+   una columna flexible es exactamente eso: reparte el aire que queda. */
+.acceso {
+  position: relative;
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  padding: clamp(16px, 2.4vw, 28px) clamp(20px, 4vw, 44px) clamp(20px, 2.4vw, 32px);
+  background: var(--canvas);
+  overflow: hidden;
+}
+
+/* La fila de la barra y la del pie: lo mismo a los dos extremos. */
+.acceso-fila {
+  position: relative;
+  width: 100%; max-width: 1080px; margin-inline: auto;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+}
+
+.acceso-bar { position: relative; padding-bottom: clamp(24px, 4vw, 48px); }
+
+.acceso-foot {
+  position: relative;
+  padding-top: clamp(24px, 3vw, 40px);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.acceso-foot-links { display: flex; align-items: center; gap: var(--s4); }
+.acceso-foot a {
+  color: var(--text-tertiary); text-decoration: none;
+  transition: color var(--fast);
+}
+.acceso-foot a:hover { color: var(--text); }
+
+/* ══ La luz, que ahora es la MISMA que la del héroe ═════════════════════════
+   Aquí había una mancha blanca y centrada, y hacía la mitad del trabajo: decía
+   «aquí hay luz» sin decir de qué tipo. La portada, en cambio, se ilumina con
+   dos fuentes —una cálida que manda y una fría que rellena enfrente—, que es lo
+   que se hace para fotografiar un objeto de metal y lo que le da volumen a un
+   negro plano.
+
+   Esta pantalla es literalmente el fotograma siguiente al de la portada: se
+   pulsa un botón allí y se aterriza aquí. Con una luz blanca y otra de dos
+   temperaturas, ese corte se ve — no como un fallo, sino como que son dos
+   páginas de sitios distintos. Ahora son la misma lámpara.
+
+   La cálida cae detrás de la columna que habla y la fría detrás de la tarjeta,
+   y no al revés: el formulario tiene que leerse neutro. Un campo de contraseña
+   con un rescoldo naranja encima parece un aviso. */
+.acceso::before {
+  content: '';
+  /* Centrado sobre el contenido, no colgado del canto de arriba: aquí no hay
+     una primera pantalla que iluminar como en el héroe, hay UN objeto en mitad
+     de la página, y la luz tiene que estar detrás de él. */
+  position: absolute; top: 50%; left: 50%; translate: -50% -50%;
+  width: 150vw; height: 900px;
+  background:
+    radial-gradient(36% 42% at 30% 42%, var(--brasa-luz) 0%, transparent 64%),
+    radial-gradient(32% 38% at 72% 56%, var(--acero-luz) 0%, transparent 66%),
+    radial-gradient(
+      50% 50% at 50% 50%,
+      rgba(232, 236, 241, 0.055) 0%,
+      rgba(232, 236, 241, 0.02) 40%,
+      transparent 72%
+    );
+  pointer-events: none;
+}
+
+.acceso-in {
+  position: relative;
+  /* El aire que sobra entre la barra y el pie, repartido. */
+  margin: auto;
+  width: 100%; max-width: 1010px;
+  display: grid;
+  /* La tarjeta no crece con la pantalla: un formulario de dos campos a 600 px
+     de ancho no se lee mejor, se lee peor. Lo que crece es la columna que
+     habla. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 408px);
+  gap: clamp(32px, 6vw, 76px);
+  align-items: center;
+}
+
+/* Entra, igual que la portada. Son dos elementos y medio segundo, pero es la
+   diferencia entre una pantalla que aparece y una que se abre. */
+.acceso-in > * { animation: lp-entra 0.7s var(--ease) both; }
+.acceso-in > *:nth-child(2) { animation-delay: 120ms; }
+
+.acceso-say { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s3); }
+
+.acceso-lema {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(2rem, 3.8vw, 3.1rem);
+  line-height: 1.02; letter-spacing: -0.038em;
+  text-wrap: balance;
+  /* La tinta, DECLARADA y no heredada — por el mismo motivo que en `.lp h1`, y
+     aquí ya se pagó: en una prueba de pintado esta frase salió a un tercio de su
+     luz, con el rótulo de encima y los tres hechos de debajo bien. Es de lo más
+     caro de encontrar porque el CSS del titular no tiene nada que mirar. En la
+     pieza más grande de la pantalla, heredar no compensa. */
+  color: var(--text);
+}
+/* ── El remate: la LUMBRE, no la tinta ──────────────────────────────────────
+   Estaba pintado de rojo plano, que es la única cosa de estas dos pantallas que
+   se había quedado con la receta vieja. La portada dejó de teñir la letra
+   precisamente porque a este tamaño el color no acentúa una palabra: la APLANA
+   —el peso se pierde y el remate compite con el titular en vez de rematarlo—.
+
+   Aquí pasaba lo mismo y encima con una consecuencia peor: es la única palabra
+   roja de la pantalla, así que el ojo iba a ella antes que al formulario.
+
+   Lo que hay ahora es lo de la portada: la letra en tiza plena y la temperatura
+   detrás. Ver `.lp h1 em` para el porqué de `text-shadow` y no una mancha. */
+.acceso-lema em {
+  font-style: italic;
+  text-shadow: 0 0 28px var(--brasa-luz), 0 0 72px var(--brasa-luz);
+}
+
+.acceso-puntos {
+  list-style: none; display: flex; flex-direction: column; gap: var(--s3);
+  /* Colgados de un filete, que es lo que los separa del titular sin meter otro
+     bloque de aire entre los dos. */
+  padding-top: var(--s5); border-top: 1px solid var(--hairline);
+  align-self: stretch;
+}
+.acceso-puntos > li {
+  position: relative; padding-left: var(--s5); max-width: 42ch;
+  font-size: var(--fs-sm); color: var(--text-secondary); line-height: var(--lh-base);
+}
+/* El punto en brasa, y es la única tinta de la pantalla. Son tres marcas de
+   siete píxeles: el tamaño exacto al que el color no aplana nada porque no hay
+   nada que aplanar —solo tiene que verse—, que es la regla con la que la
+   portada reparte esta tinta. En gris de relleno, los tres hechos que sostienen
+   el momento de escribir un correo se leían como una lista de la compra. */
+.acceso-puntos > li::before {
+  content: ''; position: absolute; left: 0; top: 0.52em;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--brasa-luz);
+}
+
+.acceso-form { display: flex; justify-content: center; }
+
+/* ══ La tarjeta ═════════════════════════════════════════════════════════════
+   Era la `.card` del producto tal cual: canto de 10 px, superficie plana y
+   veintidós píxeles de relleno. Dentro de la aplicación está bien —es una caja
+   más entre veinte— pero aquí es el ÚNICO objeto de la pantalla, y un único
+   objeto sobre un lienzo negro tiene que tener peso: superficie levantada, el
+   canto abierto del escaparate y una sombra larga de verdad. Es la misma pieza
+   que la ventana que enmarca las capturas de la portada, y a propósito. */
+.acceso-card {
+  position: relative; width: 100%; max-width: 408px;
+  background: var(--surface-raised);
+  border-color: var(--hairline-strong);
+  border-radius: var(--lp-r-lg);
+  padding: clamp(22px, 3.2vw, 30px);
+  box-shadow: 0 34px 70px rgba(0, 0, 0, 0.55);
+}
+/* ── Y el canto de arriba, encendido ────────────────────────────────────────
+   Una línea de un píxel que se enciende en el centro y se apaga hacia las dos
+   esquinas. Es el mismo recurso con el que la tarjeta del plan gratuito se
+   distingue de las otras dos en la portada, y aquí hace algo parecido: sobre un
+   lienzo casi negro, una caja con filete gris por los cuatro lados es una caja;
+   con el canto de arriba iluminado se lee como una superficie que está DEBAJO
+   de una luz, que es lo que la escena de esta pantalla dice que hay.
+
+   Va en un pseudo-elemento y no en el `border` porque un borde no se puede
+   degradar: tiene un color y lo tiene entero. */
+.acceso-card::before {
+  content: '';
+  position: absolute; inset: 0 22% auto; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  /* Muy bajo a propósito. Una raya roja nítida cruzando el canto de arriba de un
+     formulario no se lee como una luz: se lee como un aviso, y es el último
+     sitio de la aplicación donde se puede insinuar que algo va mal. A esta
+     opacidad se ve que el canto está encendido y no se ve la raya. */
+  opacity: 0.4;
+  pointer-events: none;
+}
+.acceso-card-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: var(--s1); }
+.acceso-title {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700;
+  letter-spacing: -0.022em;
+}
+.acceso-go { width: 100%; margin-top: var(--s1); }
+
+/* ══ Entrar con Google ═══════════════════════════════════════════════════════
+   Mismo alto y mismo canto que el botón de envío, y el fondo al revés: aquel es
+   tiza plena porque es lo que se viene a hacer; este es una superficie con
+   filete porque es el otro camino, no el segundo paso. Dos botones sólidos
+   seguidos obligarían a elegir entre dos cosas que parecen igual de
+   importantes, y no lo son: el que trae a la gente aquí es el correo.
+
+   La marca va por `BrandMark`, que carga el archivo OFICIAL de
+   `public/brands/google.svg` — la «G» a color, la única pieza de estas dos
+   pantallas que se permite unos colores que no son los del producto. Y se
+   permiten porque no son decoración: son la marca de un tercero, y teñirla para
+   que «encaje» con la página deja de ser su logotipo (ver
+   `public/brands/README.md`).
+
+   El resto del botón sí es de aquí: la letra en versalita troquelada como todos
+   los de la portada, y el mismo alto y el mismo canto que el de envío. */
+.acceso-google {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s3);
+  width: 100%; height: 52px; padding-inline: var(--s5);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color var(--fast), border-color var(--fast), transform var(--fast);
+}
+.acceso-google:hover:not(:disabled) {
+  background: var(--surface-raised);
+  border-color: var(--text-tertiary);
+}
+.acceso-google:active:not(:disabled) { transform: scale(0.985); }
+.acceso-google:disabled { opacity: 0.55; cursor: default; }
+
+/* La raya con la «o» en medio. Es lo que dice que arriba y abajo son dos
+   caminos ALTERNATIVOS y no dos pasos de uno solo — sin ella, un botón encima
+   de un campo de correo se lee como el primero de una secuencia. */
+.acceso-o {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-block: calc(var(--s1) * -1);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.acceso-o::before,
+.acceso-o::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--hairline);
+}
+/* El desvío de debajo del botón. Lleva `.btn` para que sea un blanco de pulsar
+   en condiciones, pero un botón CON FONDO justo debajo del botón de entrar son
+   dos botones, y solo uno de los dos es lo que se ha venido a hacer aquí. Se le
+   quita el relleno y se le pone la raya del enlace, que es lo que es. */
+.acceso-alt {
+  align-self: center;
+  background: transparent;
+  color: var(--text-secondary);
+  text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: var(--hairline-strong);
+}
+.acceso-alt:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text); text-decoration-color: currentColor;
+}
+.acceso-fine { text-align: center; }
+/* Las condiciones y la privacidad salían con el azul de enlace del navegador, y
+   es la única tinta de marca en dos pantallas donde no hay ninguna. Se leen
+   igual con la raya debajo. */
+.acceso-fine a { color: var(--text-secondary); text-underline-offset: 2px; }
+.acceso-fine a:hover { color: var(--text); }
+
+@media (max-width: 860px) {
+  /* Una columna, y la que habla se queda en la marca y la frase. Los tres
+     hechos se van: en vertical empujan el formulario fuera de la pantalla, y lo
+     que hay que ver al abrir esto en un móvil es dónde se escribe el email. */
+  .acceso-in { grid-template-columns: minmax(0, 1fr); gap: var(--s6); justify-items: center; }
+  .acceso-say { align-items: center; text-align: center; gap: var(--s4); }
+  .acceso-puntos { display: none; }
+  .acceso-lema { font-size: clamp(1.7rem, 7.4vw, 2.3rem); }
+}
+

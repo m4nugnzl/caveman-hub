@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ExternalLink, FolderPlus, Link2, Share2 } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { Field, Notice, Panel, Switch } from '@/components/ui/primitives';
+import { BotonAccion, Field, Notice, Panel, Switch } from '@/components/ui/primitives';
 
 /**
  * La carpeta compartida de ESTE cliente, en su ficha.
@@ -90,7 +90,9 @@ export const ClientDrive = ({ client }) => {
 
     if (!res.ok) {
       setAviso({ tone: 'error', text: res.error });
-      return null;
+      /* `false` y no `null`: es lo que le dice al botón que no confirme con un
+         tic. Ver `BotonAccion`. */
+      return false;
     }
 
     const siguiente = {
@@ -146,7 +148,7 @@ export const ClientDrive = ({ client }) => {
       action={
         folder ? (
           <a
-            className="btn btn-quiet btn-sm"
+            className="btn btn-secondary btn-sm"
             href={folder.url}
             target="_blank"
             rel="noreferrer noopener"
@@ -156,9 +158,9 @@ export const ClientDrive = ({ client }) => {
         ) : (
           /* El botón explícito, para cuando lo que quieres es la carpeta EN SÍ:
              abrirla y llenarla tú desde Drive. Para todo lo demás se crea sola. */
-          <button type="button" className="btn btn-quiet btn-sm" disabled={busy} onClick={asegurar}>
-            <FolderPlus size={14} /> {busy ? 'Creando…' : 'Crear su carpeta'}
-          </button>
+          <BotonAccion className="btn btn-secondary btn-sm" icon={FolderPlus} onClick={asegurar}>
+            Crear su carpeta
+          </BotonAccion>
         )
       }
     >
@@ -239,16 +241,15 @@ export const ClientDrive = ({ client }) => {
         otra — solo mira los permisos y añade el que falta.
       */}
       {folder && client.email && (
-        <button
-          type="button"
+        <BotonAccion
           className="btn btn-plain btn-sm"
           style={{ alignSelf: 'flex-start' }}
-          disabled={busy}
+          icon={Share2}
           title={`Repasar el permiso de ${client.email}`}
           onClick={asegurar}
         >
-          <Share2 size={13} /> {busy ? 'Compartiendo…' : 'Volver a compartir con él'}
-        </button>
+          Volver a compartir con él
+        </BotonAccion>
       )}
 
       {folder && !client.email && (

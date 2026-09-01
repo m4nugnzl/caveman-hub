@@ -43,9 +43,28 @@ export const ClientPrivacy = ({ client }) => {
     entre sí; ver `domain/privacy.js`.
   */
   const [consent, setConsent] = useState(null);
+  /* No es lo mismo «no consta» que «no se ha podido leer», y decir lo primero
+     cuando pasa lo segundo es acusar a alguien de no haber consentido. */
+  const [estadoRoto, setEstadoRoto] = useState(false);
 
+  /*
+    El error NO se traga (regla 13 de `CLAUDE.md`), y aquí hubo un motivo caro
+    para escribirlo: `client_consents` tenía su política de lectura pero no el
+    `GRANT SELECT` que la hace evaluable, así que esta llamada devolvía siempre
+    `42501` y el estado se quedaba en `null` — o sea, «no ha consentido nunca».
+    La pantalla lo decía con chapa de aviso a quien acababa de aceptar, y como
+    RETIRAR solo se ofrece cuando consta, el derecho a retirarlo quedó apagado
+    durante todo ese tiempo sin un solo error a la vista. Lo arregla la migración
+    0088; esto es para que la próxima vez se vea.
+  */
   const leerEstado = useCallback(async () => {
-    const { data } = await supabase.rpc('consent_state', { p_client: client.id });
+    const { data, error } = await supabase.rpc('consent_state', { p_client: client.id });
+    if (error) {
+      console.error('consent_state:', error.message);
+      setEstadoRoto(true);
+      return;
+    }
+    setEstadoRoto(false);
     setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
   }, [client.id]);
 
@@ -108,7 +127,7 @@ export const ClientPrivacy = ({ client }) => {
         {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         <ShieldCheck size={15} />
         <span className="grow">Mis datos y privacidad</span>
-        {!active && <span className="badge badge-warn">sin consentimiento</span>}
+        {!active && !estadoRoto && <span className="badge badge-warn">sin consentimiento</span>}
       </button>
 
       {open && (
@@ -123,7 +142,12 @@ export const ClientPrivacy = ({ client }) => {
 
           <div className="card-inset col gap-2">
             <span className="section-label">Estado</span>
-            {active ? (
+            {estadoRoto ? (
+              <span className="t-sm t-secondary">
+                No hemos podido consultar tu consentimiento ahora mismo. Vuelve a entrar en un
+                rato; si sigue igual, díselo a tu entrenador.
+              </span>
+            ) : active ? (
               <span className="t-sm">
                 Diste tu consentimiento el <strong>{shortDate(consent.at)}</strong>.
               </span>
@@ -149,7 +173,10 @@ export const ClientPrivacy = ({ client }) => {
               <Download size={14} /> {busy ? 'Preparando…' : 'Descargar mis datos'}
             </button>
 
-            {active ? (
+            {/* Sin saber el estado no se ofrece ni darlo ni retirarlo: las dos
+                acciones escriben una fila en la prueba, y escribirla a ciegas
+                es peor que esperar. Descargar sí, que no depende de esto. */}
+            {estadoRoto ? null : active ? (
               <button type="button" className="btn btn-danger btn-sm" onClick={withdraw}>
                 Retirar consentimiento
               </button>

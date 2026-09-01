@@ -1,0 +1,579 @@
+/* ==========================================================================
+   El chasis
+   --------------------------------------------------------------------------
+   La cabecera, la barra lateral con la cartera, las pestañas del cliente y
+   el cuerpo. Lo que no cambia al navegar.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Cabecera y navegación
+   ========================================================================== */
+
+.app-header {
+  min-height: var(--header-h); padding: var(--s2) var(--s5);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid var(--hairline);
+  position: sticky; top: 0; z-index: 100;
+}
+
+/* Aquí se documentaba LA REGLA de la cabecera —una fila de marcas de graduación
+   bajo la línea, como el canto de una cinta métrica—, que ya no se pinta: la
+   cabecera no tiene ningún `::after` y `--rule` solo lo consume la portada.
+   El comentario describía una pieza inexistente, que es peor que no documentar
+   nada: manda a buscar código que no está. */
+
+.brand { display: flex; align-items: center; gap: 10px; }
+/* El nombre va TROQUELADO, como el rótulo de una máquina: versalita, peso alto y
+   el interletraje abierto de la etiqueta de sección. Era una palabra en negrita
+   con el tracking cerrado, indistinguible del título de cualquier tarjeta —y en
+   una interfaz sin color de marca, la voz de la marca tiene que estar en la
+   letra o no está en ninguna parte. */
+.brand-name {
+  font-size: var(--fs-sm); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+}
+.brand-sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── La caja de búsqueda de la cabecera ────────────────────────────────────
+   Ocupa el hueco que tenía el conmutador de rol, que se fue al menú de cuenta
+   (ver `components/Header.jsx`). Se dibuja como un campo aunque sea un botón: es
+   lo que hace que se entienda que ahí se escribe, sin necesidad de que haya un
+   `<input>` de verdad esperando en cada pantalla.
+
+   La tecla escrita al final no es decoración. Un atajo que no se anuncia no lo
+   descubre nadie, y este es el que ahorra más tiempo de toda la aplicación. */
+/* El botón de buscar: con las demás acciones de la esquina, no un falso campo
+   ancho (ver `Header.jsx`). Con cuerpo de control —altura de la fila, fondo
+   hundido— para que se encuentre sin buscarlo: la primera versión compacta se
+   quedaba en una etiqueta suelta. */
+.omnibox {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--s2);
+  height: 36px; padding: 0 var(--s2) 0 12px;
+  font: inherit; font-size: var(--fs-sm); font-weight: 550; text-align: left;
+  color: var(--text-secondary); cursor: pointer;
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  transition: border-color var(--fast), color var(--fast), background-color var(--fast);
+}
+.omnibox > svg { color: var(--text-tertiary); transition: color var(--fast); }
+.omnibox:hover {
+  border-color: var(--hairline-strong); color: var(--text);
+  background: var(--fill-subtle);
+}
+.omnibox:hover > svg { color: var(--text-secondary); }
+
+/* En el móvil el botón se encoge a su icono: en 390 px, la marca, la búsqueda
+   y el avatar no caben en una línea. La tecla también se va — no hay teclado
+   que pulsar. */
+@media (max-width: 640px) {
+  .omnibox { width: 36px; padding: 0; justify-content: center; }
+  .omnibox-label, .omnibox > .kbd { display: none; }
+  .brand > div { display: none; }
+}
+
+/* En la cabecera del móvil/tableta el buscador se arrima a la esquina de las
+   acciones: la marca a un lado, el trabajo al otro. */
+.app-header .omnibox { margin-left: auto; }
+
+/* ── Tecla ─────────────────────────────────────────────────────────────────
+   Monoespaciada a propósito: es un valor que se teclea literalmente, que es el
+   único papel que tiene esa voz en todo el producto. */
+.kbd {
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 600;
+  line-height: 1; padding: 4px 5px; border-radius: var(--r-xs);
+  background: var(--fill); color: var(--text-tertiary);
+  border: 1px solid var(--edge); flex-shrink: 0; white-space: nowrap;
+}
+
+/* Un conmutador, no un subrayado de documento: las pestañas van dentro de un
+   carril y la activa se levanta en relieve. */
+.tabs {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--fill-subtle); border-radius: var(--r-pill);
+  width: fit-content; max-width: 100%; align-self: flex-start;
+  margin-bottom: var(--s6); overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  font-family: inherit; padding: 7px 14px;
+  background: transparent; border: 0; color: var(--text-secondary);
+  font-weight: 600; font-size: var(--fs-sm); border-radius: var(--r-pill);
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; cursor: pointer; position: relative;
+  transition: color var(--fast), background-color var(--fast);
+}
+.tab:hover { color: var(--text); }
+/* `.active` la pone react-router en los NavLink; `aria-selected` la ponían las
+   pestañas de botón. Se aceptan las dos para que un `<a>` y un `<button>` se
+   vean idénticos. */
+.tab[aria-selected='true'], .tab.active {
+  color: var(--text); background: var(--surface); box-shadow: var(--shadow-sm);
+  animation: marca-entra var(--fast) both;
+}
+/* La marca de «aquí estás» FUNDE al aparecer en vez de teletransportarse.
+   Solo opacidad: varios de estos pseudos llevan un transform de centrado que
+   una animación de transform pisaría. Deslizarla entre destinos exigiría
+   medir cajas desde JS (FLIP); no lo vale para una raya de 3 px. Y no hay
+   salida: el pseudo muere con la clase, no hay a qué colgarla. */
+@keyframes marca-entra { from { opacity: 0; } }
+/* Los NavLink son enlaces: hay que quitarles el subrayado y heredar el tamaño. */
+a.tab { text-decoration: none; font-size: var(--fs-sm); }
+
+.tab:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ==========================================================================
+   EL CHASIS — la aplicación con barra lateral
+   --------------------------------------------------------------------------
+   ══ Qué sustituye ═══════════════════════════════════════════════════════════
+
+   El panel del entrenador apilaba TRES franjas horizontales antes del contenido:
+   la cabecera, las dos pestañas primarias y —dentro de un cliente— el subnivel
+   con su carril de secciones. En una pantalla de trabajo eso gastaba altura en
+   cromo, escondía el contexto (el nombre del cliente quedaba a media pantalla) y
+   se leía como una página web con pestañas, no como una aplicación.
+
+   Ahora el panel son DOS OBJETOS de la misma familia sobre el lienzo — no
+   franjas de borde a borde, muebles con su cristal, su canto y su radio, como
+   la barra de la portada:
+
+   · LA BARRA LATERAL, que hace una cosa: navegar. Cuatro franjas, y ninguna
+     cambia según dónde estés:
+       - la marca, arriba;
+       - las PUERTAS del nivel primario —Hoy · Clientes · Ingresos ·
+         Calendario—;
+       - LA CARTERA (`.sidebar-cartera`), la lista entera de clientes con un
+         punto en quien te espera. Es la única franja que desplaza;
+       - y el pie (`.sidebar-foot`), con ajustes siempre a la vista.
+
+     Aquí vivió un PANEL INTERCAMBIABLE: la barra no apilaba los dos planos,
+     CAMBIABA de plano —fuera de un cliente el primario, dentro el cliente
+     entero con sus secciones—. Mantenía la pantalla por debajo de diez
+     opciones, y el precio era que entrar en alguien borraba el resto de la
+     aplicación: ni las otras catorce personas, ni Hoy, ni los ingresos. Dos
+     entrenadores lo describieron igual sin haber hablado entre ellos —«zonas
+     que se interconectan y marean»—, y de ahí sale este cambio. Lo del cliente
+     abierto bajó al área de trabajo (`.client-head`), pegado a su nombre.
+
+   · LA BARRA DE HERRAMIENTAS (`.shell-top`), alineada con la columna de
+     contenido: la búsqueda a la izquierda y la cuenta arriba a la derecha,
+     que es donde vive el avatar en TODOS los modos y tamaños. Son las mismas
+     piezas que monta la cabecera del móvil (`Header.jsx` exporta `Omnibox` y
+     `HeaderActions` para que no puedan divergir).
+
+   La navegación no cambia de contenido, cambia de GEOMETRÍA: las mismas
+   entradas, las mismas rutas, el mismo filtro de secciones por servicio. Por
+   eso este bloque no toca `routes.jsx`.
+
+   ══ Solo en escritorio ══════════════════════════════════════════════════════
+
+   Por debajo de 1024 px ni la barra ni la de herramientas existen y navega lo
+   que ya funcionaba: la cabecera compacta arriba, la barra del pulgar abajo y
+   el carril de secciones del cliente en su subnivel. No se inventa un cajón
+   hamburguesa: esconder la navegación detrás de un botón es peor que enseñarla
+   en el borde que el pulgar ya alcanza.
+
+   En escritorio, la franja de cabecera desaparece —una franja entera para un
+   buscador y un avatar era cromo vacío— vía `body:has(.sidebar)`: el mismo
+   mecanismo de estado en CSS que ya usan las casillas
+   (`:has(.pick-input:checked)`), aplicado al chasis. Así la cabecera sigue
+   siendo UNA pieza montada en un solo sitio, y quién se ve dónde lo decide la
+   hoja de estilos, no un booleano repartido por el árbol.
+   ========================================================================== */
+
+.shell { display: flex; align-items: stretch; min-height: 100dvh; }
+/* El aire de la noche sobre el lienzo del panel: la luz cálida arriba a la
+   derecha y la fría rellenando el otro canto, como en el héroe de la portada.
+   Sobre papel los dos tokens son transparentes y esto no pinta nada. */
+.shell-main {
+  flex: 1; min-width: 0;
+  background:
+    radial-gradient(46% 30% at 82% -4%, var(--brasa-aire), transparent 70%),
+    radial-gradient(40% 26% at 6% -4%, var(--acero-aire), transparent 70%);
+  background-repeat: no-repeat;
+}
+.sidebar { display: none; }
+/* Fuera del escritorio la barra de herramientas no existe: la cabecera de
+   siempre ya monta las mismas piezas. */
+.shell-top { display: none; }
+
+@media (min-width: 1024px) {
+  /* La franja de cabecera no existe en el chasis: sus dos piezas útiles viven
+     en `.shell-top`. El mecanismo es el de siempre, `:has` como estado en CSS
+     —igual que las casillas (`:has(.pick-input:checked)`)—, y va DENTRO de
+     esta media query a propósito: la barra está en el DOM en todos los
+     tamaños, y sin el corte el móvil se quedaría sin cabecera. */
+  body:has(.sidebar) .app-header { display: none; }
+
+  /* Aquí se escondía la puerta de ajustes del menú de cuenta, porque la barra
+     tenía la suya al pie. Eran dos filas para una idea y una de ellas —el
+     círculo con tus iniciales— no hacía nada; ahora la única puerta es el menú,
+     dentro de tu nombre, en las dos geometrías. Ver `AccountMenu`. */
+
+  /* ── La barra es un OBJETO, no una franja ────────────────────────────────
+     Despegada de los cantos, con su radio y su cristal: la misma factura que
+     la barra de la portada, puesta de pie. Una columna gris pegada al borde es
+     el mueble de cualquier aplicación de administración; esto tiene que leerse
+     como una pieza del producto. Flota con `sticky` y mide el alto de la
+     ventana menos su margen, así que el panel interior desplaza y el objeto
+     —marca y pie incluidos— no. */
+  /* El mueble de cristal flotante: al dueño le gusta, y se queda. */
+  .sidebar {
+    display: flex; flex-direction: column; gap: var(--s3);
+    width: 256px; flex-shrink: 0;
+    position: sticky; top: var(--s3);
+    height: calc(100dvh - var(--s3) * 2);
+    margin: var(--s3) 0 var(--s3) var(--s3);
+    padding: var(--s3);
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-sm);
+    /* Sin `overflow: hidden`: el menú de la cuenta se abre hacia ARRIBA desde el
+       pie y con la barra recortando se quedaba dentro, invisible —era la mitad
+       de por qué pulsar tu avatar no parecía hacer nada—. Lo que puede
+       desbordar es la cartera, y esa se recorta ella sola (`overflow-y: auto`
+       con `min-height: 0`); el resto son filas de la altura de la barra. */
+    overflow: visible;
+  }
+
+  /* ── La barra de herramientas: la de la portada, tumbada ─────────────────
+     El mismo cristal, el mismo canto y el mismo `top` que la barra lateral:
+     dos objetos de la misma familia, alineados por arriba. Dentro, las DOS
+     piezas útiles de la cabecera —buscar y la cuenta—, así el avatar sigue
+     arriba a la derecha en todos los modos. Se alinea con la columna de
+     contenido (`--max-w` menos el aire lateral de `.layout`) para no ser una
+     franja: es un mueble del contenido, no del borde. */
+  .shell-top {
+    position: sticky; top: var(--s3); z-index: 80;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: var(--s4);
+    width: calc(100% - var(--s5) * 2);
+    max-width: calc(var(--max-w) - var(--s5) * 2);
+    margin: var(--s3) auto 0;
+    min-height: 48px; padding: 0 var(--s3);
+    background: var(--surface-glass);
+    backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+  }
+
+
+  /* La puerta de vuelta a la lista solo hace falta sin barra lateral. */
+  .shell .cliente-cab-volver { display: none; }
+
+  /* Con la barra de herramientas encima, menos aire propio. */
+  .shell .layout { padding-top: var(--s6); }
+}
+
+/* ── La miga: dónde estás, retenido por la barra pegajosa ──────────────────
+   La cabecera de la pantalla se va al bajar; esto se queda. La hoja abierta va
+   en tinta plena y su contexto —el nombre del cliente, «Ajustes»— en
+   secundaria: se lee el final primero, que es lo que se quiere saber. No son
+   enlaces: nombran, no navegan. Vive dentro de `.shell-top`, así que fuera del
+   escritorio no existe. */
+.crumb {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s2);
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary);
+}
+.crumb-part { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb-part:last-child { color: var(--text); flex-shrink: 0; }
+/* Con una sola parte no hay contexto delante: la hoja no debe encogerse. Con
+   dos, lo que cede es el contexto (el nombre largo), nunca la hoja. */
+.crumb-part:only-child { flex-shrink: 1; }
+.crumb-sep { color: var(--text-tertiary); flex-shrink: 0; font-weight: 500; }
+
+.sidebar-brand {
+  display: flex; align-items: center;
+  padding: var(--s1) var(--s2) 0;
+}
+
+/* ── La cartera: la única franja que desplaza ──────────────────────────────
+   La marca, las cuatro puertas y el pie se quedan quietos por muchos clientes
+   que haya; lo que rueda es esto. `min-height: 0` es lo que se lo permite
+   dentro de un flex: sin él la franja crece con su contenido y quien tiene
+   cuarenta clientes empuja los ajustes fuera de la barra. */
+.sidebar-cartera {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--s1);
+  animation: sidebar-cartera-in var(--fast) var(--ease) both;
+}
+@keyframes sidebar-cartera-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+/* El rótulo de la franja, en troquelada: nombra la tanda que viene debajo sin
+   competir con las puertas de arriba, que es exactamente el papel que los
+   tokens le dan a la versalita. Su cifra, en voz baja y tabular, como todas. */
+.sidebar-group {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s2) var(--s1);
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+.sidebar-group-n { font-variant-numeric: tabular-nums; font-weight: 600; opacity: 0.75; }
+
+/* ── Una persona de la cartera ─────────────────────────────────────────────
+   Vestida de destino —misma caja, misma marca de brasa al estar abierta— pero
+   hablando MÁS BAJO: peso normal en vez de seminegrita, y un pelo menos de
+   alto. Son quince y las puertas cuatro; sin esa diferencia la barra se lee
+   como una lista de diecinueve cosas todas igual de importantes.
+
+   Sin icono a propósito. Quince avatares seguidos son quince manchas de color
+   compitiendo entre sí, y lo que hay que leer aquí es un nombre. */
+.side-client {
+  padding-top: 6px; padding-bottom: 6px;
+  font-weight: 500;
+}
+.side-client-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* El punto de «ha entregado y espera respuesta»: la misma señal que la chapa
+   de «Hoy», aunque no la misma cuenta — la chapa suma la bandeja entera y esto
+   marca solo las tareas `awaited` (ver `domain/portfolio.js`).
+
+   Va en el ACENTO y no en el ámbar. Lo que espera tu respuesta es una tarea, no
+   una avería: el acento es lo tocable y dónde estás, y esto es las dos cosas.
+   El ámbar se queda para lo que juzga un dato, que es lo único que debería
+   poder pararte. */
+.side-dot {
+  margin-left: auto; flex-shrink: 0;
+  width: 6px; height: 6px; border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+/* El pie: la puerta de ajustes, anclada abajo. Sin filete: dentro de un panel
+   de cristal, las zonas las separa el ESPACIO — cada línea de más convierte la
+   barra en una rejilla.
+
+   `margin-top: auto` y no la franja de arriba estirando: con clientes es la
+   cartera la que ocupa el hueco, pero un entrenador recién registrado no tiene
+   cartera y sin esto los ajustes le quedaban pegados a las cuatro puertas, a
+   media barra, con medio metro de cristal vacío debajo. */
+.sidebar-foot { margin-top: auto; padding-top: var(--s2); }
+
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+
+/* ── Un destino de la barra ────────────────────────────────────────────────
+   La marca de «estás aquí» es LA BRASA: una regleta de tres milímetros en el
+   canto izquierdo del destino activo. Es la primera pieza del producto que la
+   lleva y fija su gramática: pequeña, estructural, una por plano de navegación.
+   El resto del estado lo dice la tinta, como siempre —el activo pasa a tinta
+   plena sobre un relleno sutil, sin color—. */
+.side-link {
+  position: relative;
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 8px 10px 8px 14px; border-radius: var(--r-md);
+  font-size: var(--fs-sm); font-weight: 600;
+  color: var(--text-secondary); text-decoration: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background-color var(--fast), color var(--fast);
+}
+.side-link > svg { flex-shrink: 0; color: var(--text-tertiary); transition: color var(--fast); }
+.side-link:hover { background: var(--fill-subtle); color: var(--text); }
+.side-link:hover > svg { color: var(--text-secondary); }
+.side-link.active { background: var(--accent-soft); color: var(--text); }
+.side-link.active > svg { color: var(--text); }
+.side-link.active::before {
+  content: '';
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 15px; border-radius: var(--r-pill);
+  background: var(--accent);
+  animation: marca-entra var(--fast) both;
+}
+
+/* ── El recuento de una puerta ─────────────────────────────────────────────
+   «Hoy» lleva la bandeja —lo que espera respuesta, la MISMA cuenta que calcula
+   el dominio para la pantalla y la cartera— y «Clientes» el tamaño de la
+   cartera. El pendiente va en ámbar porque es trabajo, no un dato; el neutro,
+   en voz baja y tabular, como cualquier cifra del producto. Sin nada que
+   contar no se pinta: un cero permanente es cromo. */
+.side-count {
+  margin-left: auto; flex-shrink: 0;
+  /* Las DOS variantes —pastilla y cifra desnuda— comparten caja exacta:
+     mismo alto, mismo ancho mínimo, mismo padding. Antes cada una medía lo
+     suyo y los números de filas vecinas no compartían centro. La cifra se
+     centra por línea (`line-height` = alto de la caja), que es lo que ancla
+     el ojo digital al medio con más fiabilidad que el centrado geométrico
+     del flex — los dígitos no tienen descendentes y el flex los dejaba un
+     pelo bajos. */
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 18px; padding: 0 7px;
+  line-height: 18px;
+  font-size: var(--fs-xs); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+/* Cuántas cosas te esperan. RELLENA y no tintada: la fila activa de la barra
+   ya lleva el acento como fondo tenue, así que una chapa de `accent-soft`
+   encima de ella se disolvería justo el día que más se mira —cuando estás en
+   Inicio—. Rellena mide 18 px y no compite con nada. */
+.side-count.is-warn {
+  border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  font-weight: 700;
+}
+
+/* ── La PUERTA del pie ─────────────────────────────────────────────────────
+   Ajustes es una salida, no una sección: habla en tinta terciaria para no
+   pesar lo que pesan los destinos —vestida igual que ellos se confundía con
+   ellos— y recupera la tinta al pasar por encima, como todo. Cuando estás
+   DENTRO de Ajustes es un destino activo normal y se marca como tal, brasa
+   incluida.
+
+   Aquí vivieron otras dos —«‹ Clientes», que era la vuelta a la lista, y «Ver
+   su portal»— y las dos eran consecuencia del plano intercambiable: si entrar
+   en un cliente borra la lista, hace falta una puerta de vuelta. Con la
+   cartera puesta no hay de dónde volver, y el portal se ha ido con el resto de
+   lo del cliente a su cabecera. */
+.sidebar-foot .side-link:not(.active) { color: var(--text-tertiary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CABECERA DEL CLIENTE — fija, igual en las cinco pestañas
+   --------------------------------------------------------------------------
+   Quién es, en qué semana va, si te espera y qué paga, con las dos acciones
+   que valen desde cualquier pestaña, y debajo las cinco pestañas planas. Es la
+   misma pieza en escritorio y en móvil: en el móvil el nombre se convierte en
+   el selector de cliente y aparece la flecha de vuelta (no hay barra lateral),
+   y las pestañas las lleva la barra del pulgar.
+
+   Sin superficie ni radio: la barra y las herramientas ya son dos muebles de
+   cristal. Un filete y aire. Y NUNCA un segundo carril debajo: lo que cuelga
+   de una sección vuelve con `.migas`.
+   ══════════════════════════════════════════════════════════════════════════ */
+.cliente-cab {
+  display: flex; flex-direction: column; gap: var(--s3);
+  margin-bottom: var(--s6); padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--hairline);
+}
+.cliente-cab-fila {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s3) var(--s4); flex-wrap: wrap;
+}
+.cliente-cab-quien { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.cliente-cab-nombre {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720;
+  letter-spacing: -0.028em; line-height: var(--lh-tight);
+}
+.cliente-cab-selector { display: none; }
+.cliente-cab-volver { display: none; }
+.cliente-cab-meta {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+/* «Te espera»: la señal marca lo que aguarda respuesta — pequeña, un punto y
+   dos palabras, nunca una superficie. */
+.cliente-cab-espera {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 2px 9px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+}
+.cliente-cab-espera::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cliente-cab-acciones { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; flex-wrap: wrap; }
+.cliente-cab-tabs.tabs { margin-bottom: 0; }
+
+@media (max-width: 1023.98px) {
+  .cliente-cab-nombre { display: none; }
+  .cliente-cab-quien {
+    display: grid; grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--s2) var(--s2); align-items: center;
+  }
+  .cliente-cab-volver { display: inline-flex; }
+  .cliente-cab-selector { display: block; min-width: 0; }
+  /* El botón del selector no encogía a su celda: con nombre y subtítulo largos
+     medía 241 px dentro de un hueco de 110 y se salía POR ENCIMA de «Ver como
+     …», que a 430 px quedaba tapado y no se podía pulsar. Sus dos rótulos ya
+     saben recortarse con puntos suspensivos; les faltaba el tope. */
+  .cliente-cab-selector > div,
+  .cliente-cab-selector .btn { max-width: 100%; }
+  .cliente-cab-meta { grid-column: 1 / -1; }
+  .cliente-cab { padding-bottom: var(--s3); margin-bottom: var(--s5); }
+}
+
+/* ── La miga: de dónde cuelga esta pantalla, y sus hermanas ────────────────
+   Solo en las pantallas que cuelgan de una pestaña (análisis, check-in, fotos,
+   estudio, calendario). «← Revisiones» vuelve; las hermanas cambian de
+   herramienta sin volver. */
+.migas { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; font-size: var(--fs-sm); }
+.migas-volver {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px 5px 7px; border-radius: var(--r-md);
+  background: var(--fill-subtle); color: var(--text); font-weight: 650; text-decoration: none;
+  transition: background-color var(--fast);
+}
+.migas-volver:hover { background: var(--fill); }
+.migas-sep { width: 1px; height: 18px; background: var(--hairline-strong); }
+.migas-hermanos { display: flex; gap: var(--s1); }
+.migas-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px; border-radius: var(--r-md);
+  color: var(--text-secondary); font-weight: 600; text-decoration: none;
+  transition: background-color var(--fast), color var(--fast);
+}
+.migas-link:hover { background: var(--fill-subtle); color: var(--text); }
+.migas-link.active { color: var(--text); background: var(--fill); }
+
+/* La semana por la que va cada persona, al lado de su nombre en la barra. */
+.side-client-week {
+  margin-left: auto; flex-shrink: 0;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  letter-spacing: 0.04em; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aquí hubo una regla que escondía los iconos de las pestañas entre 1024 y
+   1280 px. Hacía falta cuando las secciones de un cliente eran SEIS: con icono
+   medían unos 666 px, el hueco es de unos 550, y `.tabs` desplazaba en
+   horizontal sin barra —o sea que en un portátil de 13" las dos últimas
+   existían y no se veían—.
+
+   Con cuatro miden unos 415 y caben con holgura, así que la regla sobraba: se
+   quedaba escondiendo iconos sin motivo. Que agrupar las secciones borre una
+   regla defensiva es la señal de que la agrupación era el arreglo de verdad y
+   esto solo tapaba el síntoma. */
+
+/* Aquí vivió el SALUDO del portal, que era una tarjeta con el avatar, la semana
+   activa y el peso actual. Se ha ido con sus cuatro clases: el saludo sigue
+   estando, pero como título de la pantalla de inicio (`PageHead` en
+   `Client/ClientStart.jsx`), no como una pieza con superficie propia. Lo que
+   contaba a su derecha —el peso— es la primera cifra del resumen de debajo. */
+
+/* ── El modo preview ───────────────────────────────────────────────────────
+   Cuando el entrenador mira el portal de un cliente tiene que saberlo en todo
+   momento y poder salir desde cualquier pantalla. Una barra pegada bajo la
+   cabecera, en superficie INVERTIDA —tinta sobre papel, tiza sobre hierro—:
+   no es un estado ni lleva color, es el máximo contraste del tema, como el
+   botón primario. La brasa no pinta nada aquí: marca «dónde estás» en la
+   navegación, no un modo. Debajo de la cabecera (z 90 < 100) y de modales. */
+.preview-bar {
+  position: sticky; top: var(--header-h); z-index: 90;
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: 36px; padding: var(--s1) var(--s5);
+  background: var(--accent); color: var(--accent-on);
+  font-size: var(--fs-sm);
+}
+.preview-bar > svg { flex-shrink: 0; }
+.preview-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-exit {
+  margin-left: auto; flex-shrink: 0;
+  font: inherit; font-size: var(--fs-xs); font-weight: 650;
+  padding: 4px 10px; border-radius: var(--r-sm); cursor: pointer;
+  background: transparent; color: inherit;
+  border: 1px solid var(--accent-soft);
+  transition: background-color var(--fast);
+}
+.preview-exit:hover { background: var(--accent-soft); }
+@media (max-width: 640px) { .preview-bar { padding: var(--s1) var(--s4); } }
+

@@ -16,7 +16,13 @@ import { Subjetivo } from '@/components/ui/Subjetivo';
  * lo demás: los kilos que suben con la fatiga por las nubes no cuentan la
  * misma historia que los que suben descansado.
  */
-export const SensacionesPopup = ({ open, onClose, microcycles, preguntas = [], etiqueta = (w) => `S${w}` }) => {
+/*
+  `titulo` y `escrito` son los dos únicos textos que cambian de persona según
+  quién mire: el entrenador lee «cómo lo lleva» y «lo que escribió»; el cliente,
+  «cómo lo llevas» y «lo que escribiste». El valor por defecto es el del
+  entrenador, así que su pantalla no cambia.
+*/
+export const SensacionesPopup = ({ open, onClose, microcycles, preguntas = [], etiqueta = (w) => `S${w}`, titulo = 'Cómo lo lleva', escrito = 'Lo que escribió' }) => {
   const sesiones = useMemo(
     () => allSessions(microcycles).filter((s) => s.feedback && preguntas.some((q) => String(s.feedback[q.id] ?? '').trim() !== '')),
     [microcycles, preguntas]
@@ -43,7 +49,7 @@ export const SensacionesPopup = ({ open, onClose, microcycles, preguntas = [], e
   const notas = [...sesiones].reverse().filter((s) => s.clientNote?.trim());
 
   return (
-    <Modal open={open} size="lg" title="Cómo lo lleva" onClose={onClose}>
+    <Modal open={open} size="lg" title={titulo} onClose={onClose}>
       {sesiones.length === 0 ? (
         <p className="t-sm t-tertiary">Todavía no ha contado nada al acabar ninguna sesión.</p>
       ) : (
@@ -65,7 +71,7 @@ export const SensacionesPopup = ({ open, onClose, microcycles, preguntas = [], e
           )}
           {notas.length > 0 && (
             <section className="bloque-seccion">
-              <h3 className="bloque-titulo">Lo que escribió</h3>
+              <h3 className="bloque-titulo">{escrito}</h3>
               <ul className="sensaciones-notas">
                 {notas.map((s) => (
                   <li key={s.id || `${s.weekNumber}-${s.date}`}>

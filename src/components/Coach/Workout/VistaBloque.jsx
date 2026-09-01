@@ -1,26 +1,24 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Dumbbell, GripVertical, Pencil, Plus, RotateCw, Settings2, Trash2, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, GripVertical, Layers, Pencil, Plus, RotateCw, Trash2, Wand2 } from 'lucide-react';
 
 import {
   blockPlan,
   blockSummary,
-  blocksOf,
   fillableWeeksOfDay,
   isCurrentBlock,
   structureOfBlock,
   untrainedWeeksOfDay,
-  weeksOfBlock,
 } from '@/domain/blocks';
-import { executedSessions } from '@/domain/sessions';
-import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, isRestDay, rotatingSlots } from '@/domain/training';
+import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, isRestDay, rotatingSlots } from '@/domain/training';
 import { metricColor } from '@/domain/metrics';
-import { localeNumber, shortDate } from '@/lib/dates';
+import { localeNumber } from '@/lib/dates';
 import { clampInt } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { HistorialPopup } from './HistorialPopup';
 import { VolumenPopup } from './VolumenPopup';
+import { LineaDeBloques } from './LineaDeBloques';
 import { WeeklySplitEditor } from './WeeklySplitEditor';
 
 /**
@@ -105,7 +103,7 @@ const AltaEnHoja = ({ dayName, library, onAdd, onRecordar, onCerrar }) => {
         <button type="submit" className="btn btn-primary btn-sm" disabled={!form.name.trim()}>
           Añadir
         </button>
-        <button type="button" className="btn btn-quiet btn-sm" onClick={onCerrar}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCerrar}>
           Listo
         </button>
       </div>
@@ -113,100 +111,8 @@ const AltaEnHoja = ({ dayName, library, onAdd, onRecordar, onCerrar }) => {
   );
 };
 
-/* ══ LA LÍNEA DE TIEMPO ══════════════════════════════════════════════════════ */
-
-/**
- * Los bloques de esta persona, de izquierda a derecha, y dentro sus semanas.
- *
- * Cada tramo crece con sus semanas, así que un bloque de ocho pesa el doble
- * que uno de cuatro y la línea se lee como tiempo. El abierto lleva el borde;
- * los demás van en voz baja. Al final, en el bloque en curso, la semana de
- * más y el bloque de más: cada «+» al final de lo que alarga.
- */
-const LineaDeBloques = ({ program, bloque, contexto, semanaEnCurso, unidad, unidades, onIrBloque, onIrSemana, onNuevaSemana, onNuevoBloque, onRenombrarBloque, onAjustes }) => {
-  const bloques = blocksOf(program);
-  const microcycles = program?.microcycles || [];
-
-  return (
-    <nav className="linea" aria-label="Bloques del programa">
-      <ol className="linea-tramos">
-        {bloques.map((b, i) => {
-          const esEste = b.id === bloque.id;
-          const r = blockSummary(program, b);
-          const semanas = weeksOfBlock(program, b);
-          const cifras = [r.kg > 0 && `${localeNumber(r.kg)} kg`, r.adherencia !== null && `${r.adherencia} % de lo pautado`].filter(Boolean).join(' · ');
-          const cuando = `${r.desde ? shortDate(r.desde) : 'sin fechas'}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`;
-
-          return (
-            <li key={b.id} className={`linea-tramo${esEste ? ' is-on' : ''}${r.abierto ? ' is-abierto' : ''}`} style={{ flexGrow: Math.max(2, semanas.length) }}>
-              {esEste ? (
-                /* El tramo abierto ES la cabecera del bloque: el nombre se
-                   escribe aquí, y no se repite en ningún titular encima. */
-                <div className="linea-cab is-este">
-                  <span className="linea-n">B{i + 1}</span>
-                  <input
-                    key={b.id}
-                    className="linea-nombre is-campo"
-                    defaultValue={b.name}
-                    size={Math.max(6, b.name.length + 1)}
-                    aria-label="Nombre del bloque"
-                    onBlur={(e) => {
-                      const nombre = e.target.value.trim();
-                      if (nombre && nombre !== b.name) onRenombrarBloque(b.id, nombre);
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-                  />
-                  <span className="linea-cuando">{[cuando, contexto].filter(Boolean).join(' · ')}</span>
-                </div>
-              ) : (
-                <button type="button" className="linea-cab" onClick={() => onIrBloque(b)} title={`Ir a ${b.name}${cifras ? ` · ${cifras}` : ''}`}>
-                  <span className="linea-n">B{i + 1}</span>
-                  <span className="linea-nombre">{b.name}</span>
-                  <span className="linea-cuando">{cuando}</span>
-                </button>
-              )}
-
-              <div className="linea-semanas" role="list" aria-label={`${unidades} de ${b.name}`}>
-                {semanas.map((w) => {
-                  const micro = findMicrocycle(microcycles, w) || {};
-                  const hecha = executedSessions(micro).length > 0;
-                  const estado = w === semanaEnCurso ? 'is-curso' : hecha ? 'is-hecha' : '';
-                  const n = w - b.fromWeek + 1;
-                  const titulo = `${unidad} ${n}${micro.date ? ` · ${shortDate(micro.date)}` : ''}${w === semanaEnCurso ? ' · en curso' : hecha ? ' · entrenada' : ' · por hacer'}`;
-                  return esEste ? (
-                    <button key={w} type="button" role="listitem" className={`linea-semana${estado ? ` ${estado}` : ''}`} onClick={() => onIrSemana(w)} title={`Abrir ${titulo}`}>
-                      {n}
-                    </button>
-                  ) : (
-                    <span key={w} role="listitem" className={`linea-semana${estado ? ` ${estado}` : ''}`} title={titulo}>
-                      {n}
-                    </span>
-                  );
-                })}
-                {esEste && r.abierto && (
-                  <button type="button" className="linea-semana is-nueva" onClick={onNuevaSemana} aria-label={`Añadir ${unidad.toLowerCase()}`} title={`Añadir ${unidad.toLowerCase()} ${semanas.length + 1}`}>
-                    <Plus size={11} />
-                  </button>
-                )}
-              </div>
-            </li>
-          );
-        })}
-
-        {onNuevoBloque && (
-          <li className="linea-tramo is-siguiente">
-            <button type="button" className="linea-mas" onClick={onNuevoBloque} title="Cierra el bloque abierto y empieza el siguiente">
-              <Plus size={14} aria-hidden="true" /> bloque
-            </button>
-          </li>
-        )}
-      </ol>
-      <button type="button" className="btn btn-icon btn-icon-compact linea-ajustes" onClick={onAjustes} aria-label="Ajustes del programa" title="Ajustes: tipo de ciclo, patrón, fecha de inicio y protocolo">
-        <Settings2 size={16} />
-      </button>
-    </nav>
-  );
-};
+/* ══ LA LÍNEA DE TIEMPO ══ vive en `LineaDeBloques.jsx`: la usan el plan del
+   entrenador y el portal del cliente, con y sin poder tocarla. ═══════════ */
 
 /* ══ EL VOLUMEN ══════════════════════════════════════════════════════════════ */
 
@@ -470,7 +376,7 @@ export const VistaBloque = ({
       <button type="submit" className="btn btn-primary btn-sm" disabled={!(nuevaHoja || '').trim()}>
         Añadir
       </button>
-      <button type="button" className="btn btn-quiet btn-sm" onClick={() => setNuevaHoja(null)}>
+      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNuevaHoja(null)}>
         Cancelar
       </button>
     </form>
@@ -533,7 +439,7 @@ export const VistaBloque = ({
         <div className="bloque-plan">
           {linea}
           <EmptyState
-            icon={Dumbbell}
+            icon={Layers}
             title={`«${bloque.name}» todavía no tiene hojas`}
             message={
               esActual

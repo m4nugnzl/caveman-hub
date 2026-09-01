@@ -10,7 +10,7 @@
  * título, contexto en voz baja), a la DERECHA qué puedes hacer con ello—.
  *
  * Esto es esa línea para el resto de pantallas. Un solo tipo de botón (el
- * silencioso, `btn-quiet`), un primario como mucho, los enlaces como texto
+ * silencioso, `btn-secondary`), un primario como mucho, los enlaces como texto
  * (`cab-accion`) y lo que se hace poco dentro de un «···» (`MenuAcciones`).
  *
  * @param titulo    Lo que se está mirando cuando no lo dice la pestaña («Semana 4»).

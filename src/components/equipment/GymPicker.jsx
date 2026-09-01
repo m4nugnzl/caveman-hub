@@ -3,7 +3,9 @@ import { Camera, Check, Plus, X } from 'lucide-react';
 
 import { UNSORTED, groupOptions } from '@/domain/equipment';
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
+import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import { Notice } from '@/components/ui/primitives';
+import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 
 /**
  * Subir las fotos de la maquinaria de un gimnasio.
@@ -54,8 +56,17 @@ export const GymPicker = ({ clientId, onUpload, disabled = false }) => {
 
   const elegir = () => inputRef.current?.click();
 
+  /* En el envoltorio y no solo en el recuadro: cuando ya hay fotos el recuadro
+     no existe, y arrastrar otra máquina encima de las que se ven es donde se
+     espera poder soltarla. */
+  const soltar = useArrastreDeFicheros(lote.addFiles, !lote.busy && !disabled);
+  const marcarBloque = soltar.encima && lote.items.length > 0;
+
   return (
-    <div className="col gap-3">
+    <div
+      className={`col gap-3 zona-soltable${marcarBloque ? ' is-encima' : ''}`}
+      {...soltar.props}
+    >
       <input
         ref={inputRef}
         type="file"
@@ -73,18 +84,18 @@ export const GymPicker = ({ clientId, onUpload, disabled = false }) => {
       {lote.error && <Notice tone="warn">{lote.error}</Notice>}
 
       {lote.items.length === 0 ? (
-        <button
-          type="button"
-          className="btn btn-dashed btn-block photo-drop"
-          onClick={elegir}
+        <ZonaDeSoltar
+          icon={Camera}
+          encima={soltar.encima}
           disabled={disabled}
+          titulo="Trae las fotos del gimnasio"
+          sub="Suéltalas aquí, o pulsa para buscarlas"
+          onClick={elegir}
         >
-          <Camera size={26} />
-          <span>Elegir las fotos del gimnasio</span>
           <span className="t-xs t-tertiary">
-            Una a cada máquina · puedes seleccionarlas todas a la vez
+            Una a cada máquina · todas de una vez
           </span>
-        </button>
+        </ZonaDeSoltar>
       ) : (
         <>
           <div className="upload-grid">

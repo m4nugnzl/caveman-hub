@@ -1,3 +1,5 @@
+import { abrirZip, desescapar } from './zip';
+
 /**
  * Leer un `.xlsx` sin dependencias.
  *
@@ -8,6 +10,9 @@
  * entrada y expresiones regulares para sacar las celdas. La alternativa era
  * SheetJS —cientos de kilobytes al paquete, y su versión al día ya no se publica
  * en npm— para obtener exactamente esto.
+ *
+ * La caja —abrir el ZIP, sacar una entrada, desescapar el XML— vive aparte, en
+ * `domain/zip.js`: es exactamente la misma que la de un `.docx`.
  *
  * ══ Las dos trampas, que no son el ZIP ═════════════════════════════════════
  *
@@ -39,83 +44,17 @@
  * nota. Se entrega ya troceado, que además es lo que la hoja era.
  */
 
+/*
+  Terminan la frase de quien las pinta —«Mesociclo 3.xlsx: no es un .xlsx por
+  dentro…»—, así que empiezan en minúscula y sin sujeto. Y ninguna dice ya «pega
+  la rutina»: ese camino se cerró (ver `Coach/Import/useSheetSource`).
+*/
 const SIN_SOPORTE =
-  'Este navegador no puede abrir ficheros .xlsx. Prueba a pegar la rutina, o ábrela en tu hoja de cálculo y guárdala como CSV.';
+  'este navegador no sabe abrir ficheros .xlsx. Ábrelo en tu hoja de cálculo y guárdalo como .csv.';
 const NO_ES_XLSX =
-  'Ese fichero no es un .xlsx. Si es un .xls antiguo, ábrelo y guárdalo como .xlsx; si es otra cosa, pega la rutina directamente.';
-
-const FIN_DIRECTORIO = 0x06054b50;
-const ENTRADA_CENTRAL = 0x02014b50;
-
-/* ── El ZIP ──────────────────────────────────────────────────────────────── */
-
-/**
- * Las entradas del directorio central.
- *
- * Se lee por el FINAL y no por el principio: el directorio central es el único
- * índice fiable de un ZIP —las cabeceras locales pueden mentir sobre el tamaño
- * cuando el fichero se escribió en streaming— y vive al final, detrás de un
- * marcador que hay que buscar hacia atrás porque le puede seguir un comentario.
- */
-const leerDirectorio = (dv, bytes) => {
-  let fin = -1;
-  const limite = Math.max(0, bytes.length - 66000);
-  for (let i = bytes.length - 22; i >= limite; i -= 1) {
-    if (dv.getUint32(i, true) === FIN_DIRECTORIO) {
-      fin = i;
-      break;
-    }
-  }
-  if (fin < 0) throw new Error(NO_ES_XLSX);
-
-  const total = dv.getUint16(fin + 10, true);
-  const entradas = new Map();
-  let p = dv.getUint32(fin + 16, true);
-
-  for (let i = 0; i < total; i += 1) {
-    if (p + 46 > bytes.length || dv.getUint32(p, true) !== ENTRADA_CENTRAL) throw new Error(NO_ES_XLSX);
-    const nombreLen = dv.getUint16(p + 28, true);
-    const extraLen = dv.getUint16(p + 30, true);
-    const comentarioLen = dv.getUint16(p + 32, true);
-    entradas.set(new TextDecoder().decode(bytes.subarray(p + 46, p + 46 + nombreLen)), {
-      metodo: dv.getUint16(p + 10, true),
-      comprimido: dv.getUint32(p + 20, true),
-      offset: dv.getUint32(p + 42, true),
-    });
-    p += 46 + nombreLen + extraLen + comentarioLen;
-  }
-  return entradas;
-};
-
-/** El contenido de una entrada, ya en texto. */
-const extraer = async (dv, bytes, entrada) => {
-  if (!entrada) return '';
-  /* El nombre y los extras se vuelven a medir en la cabecera LOCAL: sus
-     longitudes no tienen por qué coincidir con las del directorio central. */
-  const desde =
-    entrada.offset + 30 + dv.getUint16(entrada.offset + 26, true) + dv.getUint16(entrada.offset + 28, true);
-  const crudo = bytes.subarray(desde, desde + entrada.comprimido);
-
-  if (entrada.metodo === 0) return new TextDecoder().decode(crudo);
-  if (entrada.metodo !== 8) throw new Error(NO_ES_XLSX);
-  if (typeof DecompressionStream === 'undefined') throw new Error(SIN_SOPORTE);
-
-  const flujo = new Blob([crudo]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Response(flujo).text();
-};
+  'no es un .xlsx por dentro, aunque su nombre lo diga. Ábrelo en tu hoja de cálculo y vuelve a guardarlo.';
 
 /* ── El XML ──────────────────────────────────────────────────────────────── */
-
-/* `&amp;` el último: al revés, `&amp;lt;` se convertiría en `<`. */
-const desescapar = (s) =>
-  String(s)
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(Number.parseInt(h, 16)))
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&amp;/g, '&');
 
 /**
  * Formatos de fecha que Excel trae de fábrica y no declara en `styles.xml`.
@@ -275,12 +214,7 @@ const leerHoja = (xml, cadenas, formatos) => {
  * @returns {Promise<{ name: string, rows: string[][] }[]>}
  */
 export const readWorkbook = async (buffer) => {
-  const bytes = new Uint8Array(buffer);
-  if (bytes.length < 22 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new Error(NO_ES_XLSX);
-
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const entradas = leerDirectorio(dv, bytes);
-  const dame = (nombre) => extraer(dv, bytes, entradas.get(nombre));
+  const dame = abrirZip(buffer, { roto: NO_ES_XLSX, sinSoporte: SIN_SOPORTE });
 
   const xmlCadenas = await dame('xl/sharedStrings.xml');
   const cadenas = [...xmlCadenas.matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) =>
@@ -370,3 +304,15 @@ export const SPREADSHEET_ACCEPT = '.xlsx,.csv,.tsv,.txt,text/csv,text/tab-separa
 
 /** ¿Hay que abrirlo como libro, o es texto y se lee tal cual? */
 export const isWorkbookFile = (fileName) => /\.xlsx$/i.test(String(fileName || ''));
+
+/**
+ * El Excel de antes de 2007, que es OTRO formato: binario, y no se parece en
+ * nada al ZIP con XML que lee esto (ver la cabecera del archivo).
+ *
+ * Existe como pregunta propia porque quien se muda de Excel llega con él más a
+ * menudo de lo que parece —una hoja que lleva doce años pasando de ordenador en
+ * ordenador nunca se volvió a guardar—, y sin distinguirlo lo único que se le
+ * puede decir es «no he sabido encontrar nada ahí», que suena a que el programa
+ * no funciona cuando lo que pasa es que hay que guardarlo otra vez.
+ */
+export const isLegacyWorkbookFile = (fileName) => /\.xls$/i.test(String(fileName || ''));

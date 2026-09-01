@@ -171,7 +171,7 @@ export const DietNotes = ({ notes: raw, onChange }) => {
           <div className="row">
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="btn btn-secondary btn-sm"
               /*
                 La nueva se guarda con un cuerpo de partida y no vacía: una pauta
                 sin cuerpo no sobrevive a `notesToStorage`, así que añadir una en

@@ -119,8 +119,13 @@ export const GettingStarted = () => {
         </div>
       </div>
 
-      {/* EL PASO: uno, con su porqué y su botón. */}
-      <div className="card-inset col gap-2">
+      {/* EL PASO: uno, con su porqué y su botón.
+
+         Sin caja propia: la guía entera ya es una tarjeta y el paso ocupa casi
+         toda su superficie, así que la caja hundida no separaba el paso de nada
+         —solo repetía el marco un tono más oscuro—. Lo que lo separa del resto
+         es el aire y que su botón sea el único primario de la tarjeta. */}
+      <div className="col gap-2">
         <span className="t-sm" style={{ fontWeight: 650 }}>
           {actual.titulo}
         </span>

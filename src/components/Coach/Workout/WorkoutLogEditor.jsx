@@ -9,8 +9,8 @@ import {
   ChevronDown,
   CalendarDays,
   Copy,
-  Dumbbell,
-  FileSpreadsheet,
+  FileUp,
+  Layers,
   Plus,
   Trash2,
   Users,
@@ -158,7 +158,7 @@ export const WorkoutLogEditor = () => {
   const [altaAbierta, setAltaAbierta] = useState(false);
   /* «Copiar un día de otro cliente»: la hoja se abre desde el menú del día. */
   const [importAbierto, setImportAbierto] = useState(false);
-  /* «Traer de un Excel»: la rutina que el cliente trae de fuera, pegada o subida. */
+  /* «Traer de un fichero»: la rutina que el cliente trae de fuera. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
   /* Qué día tiene abierto el campo de indicación SIN texto todavía (teléfono).
      Se guarda el nombre del día, no un booleano: al cambiar de día, el campo
@@ -367,7 +367,7 @@ export const WorkoutLogEditor = () => {
   if (program === undefined) {
     return fallo ? (
       <EmptyState
-        icon={Dumbbell}
+        icon={Layers}
         title="No se ha podido cargar el programa"
         message="Parece un problema de conexión. No se ha perdido nada: vuelve a intentarlo."
         action={
@@ -378,7 +378,7 @@ export const WorkoutLogEditor = () => {
       />
     ) : (
       <EmptyState
-        icon={Dumbbell}
+        icon={Layers}
         title="Cargando el programa…"
         message="Un momento: estamos trayendo los microciclos de este cliente."
       />
@@ -499,12 +499,12 @@ export const WorkoutLogEditor = () => {
     return (
       <div className="stack">
         <EmptyState
-          icon={Dumbbell}
+          icon={Layers}
           title="Este cliente no tiene programa todavía"
           message={
             hayDeQuienTraer
-              ? 'Empieza de cero, sube el Excel en el que ya tengas su rutina, o trae el programa de alguien a quien ya se lo tengas montado.'
-              : 'Empieza de cero, o sube el Excel en el que ya tengas escrita su rutina.'
+              ? 'Empieza de cero, trae el fichero donde ya tengas su rutina —un Excel, un Word o un PDF—, o trae el programa de alguien a quien ya se lo tengas montado.'
+              : 'Empieza de cero, o trae el fichero donde ya tengas escrita su rutina: un Excel, un Word o un PDF.'
           }
           action={
             <div className="row wrap gap-2">
@@ -525,7 +525,7 @@ export const WorkoutLogEditor = () => {
                 className="btn btn-secondary btn-lg"
                 onClick={() => setPegarAbierto(true)}
               >
-                <FileSpreadsheet size={17} /> Traer de un Excel
+                <FileUp size={17} /> Traer de un fichero
               </button>
               {hayDeQuienTraer && (
                 <button
@@ -1075,7 +1075,7 @@ export const WorkoutLogEditor = () => {
                     } },
                     null,
                     hayDeQuienTraer && { icon: Users, label: 'Traer el programa de otro cliente', run: () => setCopyOpen(true) },
-                    { icon: FileSpreadsheet, label: 'Traer de un Excel', run: () => setPegarAbierto(true) },
+                    { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
                   ].filter(Boolean)}
                 />
                 )}
@@ -1347,7 +1347,7 @@ export const WorkoutLogEditor = () => {
             </>
           ) : (
             <EmptyState
-              icon={Dumbbell}
+              icon={Layers}
               title={`${unidad} ${enBloque(nav.week)} sin días`}
               message="Añade un día en la columna de la izquierda para empezar a programar."
             />

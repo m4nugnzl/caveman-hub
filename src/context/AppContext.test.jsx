@@ -187,7 +187,13 @@ describe('AppProvider', () => {
     // que dejar rastro, o tres semanas después nadie sabe si el pico de la S3
     // fue una decisión o un despiste. Va dentro del propio bloque
     // (`block.log`), así que no hay columna ni migración nuevas.
-    expect(Object.keys(visto.app).length).toBe(206);
+    //
+    // Y 207 desde `updateProfileName`. `profiles.full_name` se leía en cinco
+    // sitios y no se escribía en ninguno: quien no lo tuviera relleno de antes
+    // veía «Buenos días, m4nugnzl@gmail.com» cada mañana sin ninguna forma de
+    // arreglarlo desde dentro. Vive en el menú de cuenta, que es donde se busca
+    // el nombre de uno y donde además se estaba viendo el problema.
+    expect(Object.keys(visto.app).length).toBe(207);
   });
 
   /*

@@ -105,8 +105,14 @@ import { LogoMark } from '@/components/ui/Logo';
  *
  *   1. **Negro fijo.** `.lp-noche` mientras la página está montada, vía
  *      `lib/useNoche.js` —el mismo gancho que usa el acceso—.
- *   2. **Una sola tinta: la brasa.** El rojo del disco de 25 kg del logotipo
- *      (`--brasa`, en `styles/tokens.css`). Pinta lo que SEÑALA y nada más.
+ *   2. **Una sola tinta: la señal.** `--accent`, la misma del producto: entrar
+ *      aquí y entrar en la aplicación no cambia de color. Pinta lo que SEÑALA y
+ *      nada más.
+ *
+ *      La brasa —el rojo del disco de 25 kg del logotipo— se queda donde esta
+ *      página siempre dijo que tenía que estar el color: en la LUZ de detrás
+ *      (`--brasa-luz`), no en la tinta. Una cálida que rellena y una fría que
+ *      manda, que es la iluminación de dos fuentes de toda la vida.
  *
  *      Y no aparece igual en todas las secciones, que es lo que la convertía en
  *      un tic: estaba la misma lumbre detrás del mismo remate en cursiva, siete
@@ -328,7 +334,7 @@ const HERO = {
  * el par existe para enseñar.
  *
  * ── El número, y por qué está ──────────────────────────────────────────────
- * `01` y `02`, en brasa. Es lo único de color de esta sección y hace dos cosas a
+ * `01` y `02`, en la señal. Es lo único de color de esta sección y hace dos cosas a
  * la vez: dice que hay un orden —esto no es una rejilla de funciones— y le da a
  * la sección su propia manera de llevar la tinta, distinta de la lumbre de los
  * titulares y de los azulejos de las fichas.
@@ -1440,7 +1446,7 @@ export const LandingPage = () => {
               role="group"
               aria-label="Cada cuánto pagas"
             >
-              {/* La brasa que se desliza. Es un elemento y no el fondo del botón
+              {/* La señal que se desliza. Es un elemento y no el fondo del botón
                   activo porque un color que aparece y desaparece en dos sitios
                   se lee como dos cosas encendiéndose; uno que se mueve se lee
                   como UNA elección cambiando de sitio, que es lo que es. Va

@@ -101,7 +101,7 @@ export const FoodEquivalences = ({
               {onSwap && (
                 <button
                   type="button"
-                  className="btn btn-quiet btn-sm"
+                  className="btn btn-secondary btn-sm"
                   onClick={() => onSwap(item)}
                   aria-label={`Cambiar ${food.name} por ${racion(item)} de ${item.food.name}`}
                 >

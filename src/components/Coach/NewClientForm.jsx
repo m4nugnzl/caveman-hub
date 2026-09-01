@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { UserPlus } from 'lucide-react';
 
-import { Field, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
+import { BotonAccion, Field, Notice, Panel, SectionTitle, useAccionDeBoton } from '@/components/ui/primitives';
 
 const EMPTY_FORM = { name: '', email: '', phone: '', gender: 'Hombre', plan: '' };
 
@@ -15,26 +15,29 @@ const EMPTY_FORM = { name: '', email: '', phone: '', gender: 'Hombre', plan: '' 
  */
 export const NewClientForm = ({ onCreate, onCancel }) => {
   const [form, setForm] = useState(EMPTY_FORM);
-  const [busy, setBusy] = useState(false);
+  /* El giro y el tic del botón de guardar; ver `BotonAccion`. */
+  const alta = useAccionDeBoton();
   const [error, setError] = useState(null);
 
   const set = (key) => (event) => setForm((f) => ({ ...f, [key]: event.target.value }));
 
-  const submit = async (event) => {
+  const submit = (event) => {
     event.preventDefault();
     if (!form.name.trim()) return;
 
-    setBusy(true);
-    setError(null);
-    const result = await onCreate({ ...form, name: form.name.trim() });
-    setBusy(false);
+    /* Lo lanza el `onSubmit` y no el clic: a un formulario se le da a Enter. */
+    return alta.lanzar(async () => {
+      setError(null);
+      const result = await onCreate({ ...form, name: form.name.trim() });
 
-    if (result?.ok) {
-      setForm(EMPTY_FORM);
-      onCancel();
-    } else {
+      if (result?.ok) {
+        setForm(EMPTY_FORM);
+        onCancel();
+        return true;
+      }
       setError(result?.error || 'No se pudo crear el cliente.');
-    }
+      return false;
+    });
   };
 
   return (
@@ -72,9 +75,14 @@ export const NewClientForm = ({ onCreate, onCancel }) => {
       </div>
 
       <div className="row gap-2 wrap">
-        <button type="submit" className="btn btn-primary" disabled={busy || !form.name.trim()}>
-          {busy ? 'Creando…' : 'Guardar cliente'}
-        </button>
+        <BotonAccion
+          type="submit"
+          className="btn btn-primary"
+          estado={alta.estado}
+          disabled={!form.name.trim()}
+        >
+          Guardar cliente
+        </BotonAccion>
         <button type="button" className="btn btn-secondary" onClick={onCancel}>
           Cancelar
         </button>

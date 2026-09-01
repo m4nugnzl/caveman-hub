@@ -31,7 +31,7 @@ export const MenuAcciones = ({ label = null, items, alineado = 'derecha', ariaLa
     <div ref={ref} className="menu-acciones">
       <button
         type="button"
-        className={clase || (label ? 'btn btn-quiet btn-sm' : 'btn btn-icon')}
+        className={clase || (label ? 'btn btn-secondary btn-sm' : 'btn btn-icon')}
         aria-haspopup="menu"
         aria-expanded={abierto}
         aria-label={label || ariaLabel || 'Más acciones'}

@@ -138,7 +138,7 @@ export const AnthropometryPanel = ({
         <MetricRow>
           <MetricCard
             title="Último peso"
-            subtitle={weights[weights.length - 1].date}
+            subtitle={shortDate(weights[weights.length - 1].date)}
             value={fmt(weights[weights.length - 1].value, { decimals: 1 })}
             unit="kg"
             color={metricColor('weight')}
@@ -146,7 +146,7 @@ export const AnthropometryPanel = ({
           <MetricCard
             title="Media últimos 3"
             subtitle={rolling ? `${rolling.count} ${rolling.count === 1 ? 'pesaje' : 'pesajes'}` : 'sin datos'}
-            value={rolling ? rolling.average : '—'}
+            value={rolling ? fmt(rolling.average, { decimals: 1 }) : '—'}
             unit={rolling ? 'kg' : ''}
             color={metricColor('weight')}
           />
@@ -163,7 +163,7 @@ export const AnthropometryPanel = ({
             <MetricCard
               title="Ritmo semanal"
               subtitle="promedio por semana"
-              value={`${rate > 0 ? '+' : ''}${rate}`}
+              value={`${rate > 0 ? '+' : ''}${fmt(rate, { decimals: 2 })}`}
               unit="kg"
               color={metricColor('rate')}
             />
@@ -189,10 +189,27 @@ export const AnthropometryPanel = ({
           una sentada. Eso es un botón y un asistente, no un apartado de la
           página ocupando sitio los otros seis días.
         */
+        /*
+          ══ Y en el portal no va, porque ya está arriba ══════════════════════
+
+          En «Mi revisión» esto pintaba «Entregar mi revisión» a media pantalla
+          de «Entregar mi semana» —el botón grande de `ClientWeek`—, y los dos
+          abrían EL MISMO asistente. Dos nombres casi iguales para un gesto
+          hacen dudar de si son dos cosas distintas y de cuál es la buena: es
+          exactamente el fallo que la unificación del asistente vino a quitar,
+          y que sobrevivió aquí porque el botón se monta desde este lado.
+
+          El gesto vive donde está la semana que se entrega. Y de paso se cierra
+          un camino que no debía existir: reabrir el asistente con la semana ya
+          entregada la reenvía, y una reentrega borra de la pantalla la
+          respuesta que el entrenador ya había escrito.
+        */
         action={
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setAsistente(true)}>
-            <Camera size={14} /> {isClient ? 'Entregar mi revisión' : 'Nueva revisión'}
-          </button>
+          isClient ? null : (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setAsistente(true)}>
+              <Camera size={14} /> Nueva revisión
+            </button>
+          )
         }
       />
 

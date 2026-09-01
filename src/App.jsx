@@ -46,6 +46,7 @@ const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/Protoc
 const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
 const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
 const PlanPanel = lazyRoute(() => import('@/components/Coach/Settings/PlanPanel').then((m) => ({ default: m.PlanPanel })));
+const ProfilePanel = lazyRoute(() => import('@/components/Coach/Settings/ProfilePanel').then((m) => ({ default: m.ProfilePanel })));
 const SupportPanel = lazyRoute(() => import('@/components/Coach/Settings/SupportPanel').then((m) => ({ default: m.SupportPanel })));
 const WorkoutLogEditor = lazyRoute(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
 const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
@@ -437,6 +438,10 @@ export default function App() {
                   <Route path="integraciones" element={<IntegrationsCatalogue />} />
                   <Route path="copia" element={<BackupPanel />} />
                   <Route path="equipo" element={<TeamPanel />} />
+                  {/* Tu nombre y con qué correo entras. Se lee en cinco sitios
+                      —el saludo, el pie de la barra, el equipo, el historial y
+                      la radiografía— y hasta ahora no se escribía en ninguno. */}
+                  <Route path="perfil" element={<ProfilePanel />} />
                   <Route path="plan" element={<PlanPanel />} />
                   <Route path="ayuda" element={<SupportPanel />} />
                 </Route>

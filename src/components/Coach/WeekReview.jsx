@@ -20,6 +20,7 @@ import {
 import { nutritionTrack, reviewTimeline, timelineSummary } from '@/domain/timeline';
 import { clientWeek, exerciseHistory, latestActiveWeek } from '@/domain/week';
 import { localeNumber, shortDate, todayISO } from '@/lib/dates';
+import { modifierKey } from '@/lib/platform';
 import { useElementWidth } from '@/lib/useElementWidth';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { Delta } from '@/components/ui/metrics';
@@ -367,6 +368,29 @@ export const WeekReview = () => {
     [semanas, serie, revisiones, porSemana, activeClient?.startDate]
   );
 
+  /*
+    ══ Cuál de los dos estados se escribe en las pastillas ═════════════════════
+
+    La regla de la tira ya estaba bien pensada: solo habla lo que tiene algo que
+    decir, porque «catorce cerrada seguidas no informan; una sin cerrar sí». Lo
+    que le faltaba era el caso en que la excepción NO es excepción.
+
+    Con alguien que no tiene ni una semana cerrada —el que acaba de empezar, o el
+    que llevabas sin atender— la condición se cumple en todas, y la tira sale con
+    quince «sin cerrar» seguidas. Quince repeticiones de lo mismo informan
+    exactamente igual que las catorce «cerrada» que la regla evitaba: nada. Y
+    encima parten la tira en dos renglones y la convierten en la pieza más pesada
+    de la tarjeta, por delante de la cifra.
+
+    Así que la regla se aplica a sí misma: se etiqueta SIEMPRE la minoría. Si la
+    mayoría está sin cerrar, lo que informa es cuál sí lo está.
+  */
+  const marcaMinoria = useMemo(() => {
+    const sinCerrar = linea.filter((f) => !f.reviewed && f.week < semanaDeLaCola).length;
+    const cerradas = linea.filter((f) => f.reviewed).length;
+    return sinCerrar <= cerradas ? 'sin-cerrar' : 'cerrada';
+  }, [linea, semanaDeLaCola]);
+
   /* Lo que pesa esta semana, lo que se ha movido y lo que lleva acumulado. Sale
      de la propia línea: con el peso de todas las semanas delante, «desde el
      inicio» es una resta y no una consulta. */
@@ -644,10 +668,18 @@ export const WeekReview = () => {
     const totalDeFase = avance && avance.total ? Math.ceil(avance.total / 7) : null;
     return [
       fase.title,
+      /* ── Por qué no dice «semana 8 de 12» ─────────────────────────────────
+         Porque en esta pantalla ya hay otras tres cifras de semana —la del
+         programa en la cabecera del cliente («Semana 16 · en curso»), la que
+         estás revisando en el título de aquí al lado, y la misma del programa
+         en la barra lateral («S16»)—, y esta cuarta hablaba de algo distinto:
+         cuántas semanas llevas DENTRO DE LA FASE. Escrita como «semana 8 de
+         12» y a tres palabras de un «Semana 15», se leía como si una de las dos
+         estuviera mal. El posesivo la ancla a su fase y deja de competir. */
       semanaDeFase && totalDeFase
-        ? `semana ${semanaDeFase} de ${totalDeFase}`
+        ? `${semanaDeFase}.ª de sus ${totalDeFase} semanas`
         : semanaDeFase
-          ? `semana ${semanaDeFase}`
+          ? `${semanaDeFase}.ª semana de la fase`
           : null,
       /* Y el aviso de que la etapa se acaba, solo si el entrenador le puso
          fecha de fin. No decide nada ni propone nada: dice que la fecha que él
@@ -670,7 +702,6 @@ export const WeekReview = () => {
     en memoria y se encoge sola al cerrar cada una (ver `pendingReviews`).
   */
   const pasada = useMemo(() => pendingReviews({ clients, checkIns }), [clients, checkIns]);
-  const posicion = pasada.findIndex((p) => p.client.id === activeClient?.id) + 1;
   const siguiente = pasada.find((p) => p.client.id !== activeClient?.id) || null;
   const navigate = useNavigate();
   const idxPasada = pasada.findIndex((p) => p.client.id === activeClient?.id);
@@ -770,7 +801,11 @@ export const WeekReview = () => {
         vive pegado a la cifra que juzga.
       */}
       <Mando
-        titulo={`Semana ${semana}`}
+        /* «Semana 15» a secas competía con el «Semana 16 · en curso» de la
+           cabecera del cliente: dos cifras de semana, una encima de otra, sin
+           nada que dijera que una es la del programa y la otra la que tienes
+           abierta. El verbo lo resuelve sin añadir una línea. */
+        titulo={`Revisando la semana ${semana}`}
         contexto={[
           datos.weekStart && `del ${shortDate(datos.weekStart)}`,
           bloque,
@@ -780,11 +815,13 @@ export const WeekReview = () => {
           .join(' · ')}
         acciones={
           <>
-            {pasada.length > 1 && posicion > 0 && (
-              <span className="badge">
-                {posicion} de {pasada.length}
-              </span>
-            )}
+            {/* Aquí iba «{posicion} de {pasada.length}». Se ha quitado porque lo
+                dice ya la bandeja de treinta píxeles más abajo, y mejor: cuenta
+                sobre `pasada`, la MISMA lista, y las dos se pintan bajo la misma
+                condición (`pasada.length > 1`), así que la chapa nunca aparecía
+                sin la bandeja debajo. Además engañaba de sitio: vivía pegada a
+                las flechas, que cambian de SEMANA, mientras ella contaba
+                PERSONAS — dos ejes distintos en el mismo rincón. */}
             <div className="revision-paso" role="group" aria-label="Cambiar de semana">
               <button
                 type="button"
@@ -828,7 +865,12 @@ export const WeekReview = () => {
             ))}
           </ul>
           <span className="bandeja-teclas" aria-hidden="true">
-            <kbd className="kbd">J</kbd><kbd className="kbd">K</kbd> siguiente · <kbd className="kbd">R</kbd> responder · <kbd className="kbd">⌘↵</kbd> cerrar
+            {/* La modificadora, según el sistema: `⌘` en Apple y `Ctrl` en el
+                resto (`lib/platform.js`). Estaba escrita a mano como «⌘↵», así
+                que en Windows la aplicación anunciaba una tecla que ese teclado
+                no tiene — el atajo funcionaba con Ctrl desde el principio, lo
+                que mentía era el rótulo. */}
+            <kbd className="kbd">J</kbd><kbd className="kbd">K</kbd> siguiente · <kbd className="kbd">R</kbd> responder · <kbd className="kbd">{modifierKey()} ↵</kbd> cerrar
           </span>
         </nav>
       )}
@@ -906,19 +948,27 @@ export const WeekReview = () => {
                   type="button"
                   role="tab"
                   aria-selected={fila.week === semana}
+                  /* `is-hecha` la ponía la tira gemela de Entreno
+                     (`WorkoutLogEditor`) y aquí no, aunque las dos pintan la
+                     misma pastilla y el CSS ya tenía el estado escrito. Con la
+                     marca, una semana cerrada se reconoce por el color aunque no
+                     lleve palabra. */
                   className={`hoja-semana${fila.week === semana ? ' is-on' : ''}${
-                    fila.week === semanaDeLaCola ? ' is-curso' : ''
+                    fila.week === semanaDeLaCola ? ' is-curso' : fila.reviewed ? ' is-hecha' : ''
                   }`}
                   onClick={() => irA(fila.week)}
                 >
                   <span className="hoja-semana-n">S{fila.week}</span>
-                  {/* Solo hablan las que tienen algo que decir: la que la
-                      pasada pide y las que se quedaron sin cerrar. Catorce
-                      «cerrada» seguidas no informan; una «sin cerrar» sí. */}
+                  {/* Solo habla la minoría (ver `marcaMinoria`): la que la pasada
+                      pide, y después o las cerradas o las que no lo están, las
+                      que sean menos. Repetir el mismo estado quince veces no
+                      informa más que repetirlo catorce. */}
                   {fila.week === semanaDeLaCola ? (
                     <span className="hoja-semana-estado">pendiente</span>
-                  ) : !fila.reviewed && fila.week < semanaDeLaCola ? (
+                  ) : marcaMinoria === 'sin-cerrar' && !fila.reviewed && fila.week < semanaDeLaCola ? (
                     <span className="hoja-semana-estado">sin cerrar</span>
+                  ) : marcaMinoria === 'cerrada' && fila.reviewed ? (
+                    <span className="hoja-semana-estado">cerrada</span>
                   ) : null}
                 </button>
               ))}

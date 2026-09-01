@@ -49,8 +49,22 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
 
   const kcals = targets.targetKcals ?? (macros.total > 0 ? Math.round(macros.total) : null);
   const derived = !targets.targetKcals && macros.total > 0;
+  /*
+    El descuadre lo ve SOLO quien puede cuadrarlo.
+
+    Es un aviso de que las dos cifras del plan no casan —«los macros suman 1.863
+    kcal, por debajo del objetivo de 1.950»— y eso es una corrección dirigida a
+    quien programa. Al cliente se le pintaba igual, en naranja y bajo el título
+    de su dieta: le señalaba un fallo del trabajo de su entrenador que él no
+    puede tocar, en la pantalla que existe para que se fíe de lo que le han
+    pautado. Con `editable` en false no se enseña, que es exactamente la misma
+    condición con la que aparece o no el lápiz de al lado.
+  */
   const mismatch =
-    targets.targetKcals && macros.total > 0 && Math.abs(macros.total - targets.targetKcals) > 60;
+    editable &&
+    targets.targetKcals &&
+    macros.total > 0 &&
+    Math.abs(macros.total - targets.targetKcals) > 60;
 
   if (editing) {
     return (

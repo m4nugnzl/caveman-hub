@@ -1,5 +1,5 @@
-import { useId, useState } from 'react';
-import { Check, CheckCircle2, ChevronRight, Info, Plus, TriangleAlert, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { Check, CheckCircle2, ChevronRight, Info, Loader2, Plus, TriangleAlert, XCircle } from 'lucide-react';
 
 /**
  * Primitivas de presentación compartidas.
@@ -616,6 +616,27 @@ export const WeekPicker = ({
   const texto = chipLabel || ((week) => `${prefix} ${week}`);
   const activa = (week) => (multiple ? value.includes(week) : week === value);
 
+  /*
+    Cuando el carril no cabe, se abre por la semana ABIERTA.
+
+    Con siete semanas en un teléfono se ven cuatro, y las que se quedan fuera
+    son las últimas: justo la que se está mirando y el «+ Semana 8» que hay
+    detrás — o sea, la semana en curso y el gesto de empezar la siguiente. El
+    carril arrancaba en la 1, que es la única que nadie busca.
+
+    Se mueve el `scrollLeft` del propio carril y no se usa `scrollIntoView`:
+    ese arrastraría también la página, y la lista puede estar a media pantalla.
+    Solo al montar; después manda el dedo.
+  */
+  const carril = useRef(null);
+  useEffect(() => {
+    const caja = carril.current;
+    if (!caja || caja.scrollWidth <= caja.clientWidth) return;
+    const chip = caja.querySelector('[aria-pressed="true"]');
+    if (!chip) return;
+    caja.scrollLeft = chip.offsetLeft - (caja.clientWidth - chip.offsetWidth) / 2;
+  }, []);
+
   return (
     /*
       `group` + `aria-pressed`, NO `tablist`/`tab`. El patrón de tabs exige un
@@ -624,7 +645,7 @@ export const WeekPicker = ({
       que un lector de pantalla anunciaba dos estados. Es el mismo contrato que ya
       usa `SegmentedControl`, y `aria-pressed` cubre igual la selección múltiple.
     */
-    <div className={wrap ? 'rail-wrap' : 'rail'} role="group" aria-label={label}>
+    <div className={wrap ? 'rail-wrap' : 'rail'} role="group" aria-label={label} ref={carril}>
       {weeks.map((week) => (
         <button
           key={week}
@@ -701,5 +722,182 @@ export const RenombrarEnSitio = ({ value, onRename, onDone, variante = '', label
         onBlur={confirmar}
       />
     </form>
+  );
+};
+
+/**
+ * ══ EL BOTÓN QUE TARDA ══════════════════════════════════════════════════════
+ *
+ * Un botón cuya acción va al servidor: se pulsa, trabaja, y confirma.
+ *
+ * ── El problema que resuelve ────────────────────────────────────────────────
+ * Cada sitio se lo montaba a mano y casi siempre igual de mal: se cambiaba el
+ * RÓTULO por «Guardando…». «Cerrar y pasar a Marta →» pasaba a una palabra, o
+ * sea que el botón se encogía a la mitad justo al soltarlo y volvía a crecer al
+ * terminar — dos saltos de tamaño en el elemento que se acaba de tocar. Y lo
+ * peor: al acabar no confirmaba nada. Volvía a su estado inicial, que es
+ * exactamente lo mismo que se ve cuando no ha pasado nada.
+ *
+ * ── Los tres estados, y por qué son tres ────────────────────────────────────
+ *   REPOSO   el icono, si lo tiene.
+ *   OCUPADO  el giro ocupa el hueco del icono. El rótulo no se mueve.
+ *   HECHO    un tic durante 900 ms, DONDE ha ocurrido — no en una esquina.
+ *
+ * Los 900 ms no son un adorno: son la diferencia entre «se ha guardado» y «no
+ * sé si le he dado». Un aviso en la esquina contraria de la pantalla obliga a
+ * mirar a otro sitio para enterarse de algo que pasó bajo el dedo.
+ *
+ * ── El contrato con quien lo usa ────────────────────────────────────────────
+ * `onClick` puede ser asíncrono. Si devuelve `false` —o revienta— el botón
+ * vuelve a reposo SIN tic: fallar no se celebra. Contar QUÉ ha fallado sigue
+ * siendo de quien llama, que es quien tiene el mensaje; esto solo se encarga de
+ * no mentir.
+ *
+ * Y no se puede pulsar dos veces: mientras trabaja está deshabilitado, pero sin
+ * apagarse —un botón al 40 % en mitad de su propio trabajo parece averiado—.
+ */
+/**
+ * La máquina de los tres estados, suelta.
+ *
+ * ── Por qué existe aparte del botón ─────────────────────────────────────────
+ * Porque la mitad de los botones que tardan son el `submit` de un formulario, y
+ * ahí quien decide cuándo empieza el trabajo NO es el clic: es el `onSubmit`
+ * del formulario —que también se dispara con Enter dentro de un campo—. Un
+ * botón que se gobernara solo desde su `onClick` dejaría a esa mitad sin giro y
+ * sin tic, o peor, obligaría a convertirlos en `type="button"` y a perder el
+ * Enter, que es como se rellena un formulario de verdad.
+ *
+ * Así que el formulario llama a `lanzar(...)` desde su `onSubmit` y le pasa el
+ * `estado` al botón. El resto de sitios no se entera de que esto existe: usa
+ * `BotonAccion` con su `onClick` y ya.
+ */
+export const useAccionDeBoton = () => {
+  const [estado, setEstado] = useState('reposo');
+  /*
+    El tic vive 900 ms, y en ese tiempo la fila puede haberse ido. Sin esta
+    guarda, `setEstado` sobre un componente ya desmontado.
+
+    ── Y se ENCIENDE al montar, no solo se apaga al desmontar ────────────────
+    Escrito como `useEffect(() => () => { vivo.current = false }, [])` esto está
+    roto en desarrollo, y lo estuvo: `StrictMode` monta, desmonta y vuelve a
+    montar cada componente a propósito, así que la limpieza corre una vez nada
+    más arrancar y el testigo se queda apagado PARA SIEMPRE. Efecto visible: el
+    botón entraba en «ocupado» y no salía nunca.
+  */
+  const vivo = useRef(true);
+  useEffect(() => {
+    vivo.current = true;
+    return () => {
+      vivo.current = false;
+    };
+  }, []);
+
+  /*
+    ── Por qué el cerrojo es un `ref` y no el propio estado ───────────────────
+    La primera versión leía el estado DENTRO del actualizador para decidir si
+    arrancar: `setEstado((previo) => { arranca = previo === 'reposo'; … })`. Es
+    una función de actualización con efecto lateral, y `StrictMode` las invoca
+    DOS VECES a propósito para destapar justo eso: la segunda pasada leía ya
+    «ocupado», ponía `arranca` a falso y el trabajo no llegaba a lanzarse nunca.
+
+    Desde fuera se veía como un botón que entra en «ocupado» y se queda ahí, sin
+    petición ninguna a la red. Un `ref` no pasa por el reconciliador y por tanto
+    no se ejecuta dos veces.
+  */
+  const enMarcha = useRef(false);
+
+  const lanzar = useCallback(async (trabajo, ...args) => {
+    /* Doble pulsación: la segunda no vuelve a lanzar el trabajo. */
+    if (enMarcha.current) return undefined;
+    enMarcha.current = true;
+    setEstado('ocupado');
+
+    /*
+      Qué cuenta como fracaso, en las tres formas que usa este proyecto:
+      reventar, devolver `false`, o devolver el `{ ok: false }` que devuelven las
+      acciones del contexto. Sin la tercera, un enlace de invitación que el
+      servidor rechaza salía con un tic verde — que es peor que no confirmar
+      nada, porque afirma algo falso.
+    */
+    let salida;
+    let bien = true;
+    try {
+      salida = await trabajo?.(...args);
+      bien = salida !== false && !(salida && typeof salida === 'object' && salida.ok === false);
+    } catch {
+      bien = false;
+    }
+
+    enMarcha.current = false;
+
+    if (!vivo.current) return salida;
+    if (!bien) {
+      setEstado('reposo');
+      return salida;
+    }
+    setEstado('hecho');
+    setTimeout(() => {
+      if (vivo.current) setEstado('reposo');
+    }, 900);
+    return salida;
+  }, []);
+
+  return { estado, lanzar };
+};
+
+export const BotonAccion = ({
+  icon: Icon,
+  /* Dónde vive el hueco. Delante casi siempre; detrás cuando el icono es una
+     flecha que ANTICIPA a dónde lleva pulsar —«Cerrar y pasar a Marta →»—, que
+     leída delante del rótulo diría otra cosa. */
+  alFinal = false,
+  children,
+  onClick,
+  /* Gobernado desde fuera (formularios). Sin esto, el botón se gobierna solo. */
+  estado: estadoFuera,
+  className = 'btn btn-secondary',
+  disabled = false,
+  ...rest
+}) => {
+  const propio = useAccionDeBoton();
+  const estado = estadoFuera ?? propio.estado;
+
+  const pulsar = (e) => propio.lanzar(onClick, e);
+
+  const marca = (
+    <span
+      className={`btn-glifo${!Icon && estado === 'reposo' ? ' is-hueco' : ''}`}
+      aria-hidden="true"
+    >
+      {estado === 'ocupado' ? (
+        <Loader2 size={14} className="spin" />
+      ) : estado === 'hecho' ? (
+        <Check size={14} />
+      ) : Icon ? (
+        <Icon size={14} />
+      ) : null}
+    </span>
+  );
+
+  return (
+    <button
+      type="button"
+      {...rest}
+      className={`${className}${Icon ? '' : ' is-sin-icono'}`}
+      data-estado={estado}
+      aria-busy={estado === 'ocupado'}
+      disabled={disabled || estado !== 'reposo'}
+      /* Sin `onClick` el botón es el `submit` de un formulario: quien lanza el
+         trabajo es el `onSubmit`, y engancharse también aquí lo haría dos
+         veces. */
+      onClick={onClick ? pulsar : undefined}
+    >
+      {!alFinal && marca}
+      {/* El rótulo va envuelto, y no suelto: en los botones SIN icono el giro se
+          pone encima y el rótulo se apaga, y para apagar algo hay que poder
+          seleccionarlo — un texto suelto dentro del botón no es un elemento. */}
+      <span className="btn-rotulo">{children}</span>
+      {alFinal && marca}
+    </button>
   );
 };

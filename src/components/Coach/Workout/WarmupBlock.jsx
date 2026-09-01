@@ -265,7 +265,7 @@ export const WarmupEditor = ({ drills = [], onChange }) => {
 
       <button
         type="button"
-        className="btn btn-dashed"
+        className="btn btn-secondary"
         onClick={() => onChange([...list, emptyDrill()])}
       >
         <Plus size={15} /> Añadir ejercicio

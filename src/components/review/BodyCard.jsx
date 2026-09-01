@@ -4,7 +4,11 @@ import { Images, Ruler } from 'lucide-react';
 import { clientPath } from '@/routes';
 import { Fold } from '@/components/ui/primitives';
 import { Delta } from '@/components/ui/metrics';
-import { Tarjeta } from '@/components/dashboard/Tarjeta';
+/* Los dos tramos que pueden quedarse sin nada —lo que te cuenta y sus fotos—
+   decían el vacío con una frase gris suelta, cada uno de una forma. Es lo que
+   `TarjetaVacia` vino a quitar: un vacío tiene que leerse como un sitio que
+   todavía no se ha llenado, no como algo que ha fallado. */
+import { Tarjeta, TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import { ComparisonData } from '@/components/review/ComparisonData';
 import { PhotoContactSheet } from '@/components/review/PhotoContactSheet';
 import { PhotoStrip } from '@/components/review/PhotoStrip';
@@ -119,11 +123,11 @@ export const BodyCard = ({
         )}
 
         {!hayRespuestas && (
-          <p className="t-sm t-tertiary">
+          <TarjetaVacia>
             {preguntas.length === 0
               ? 'No le haces ninguna pregunta al entregar la semana. Se configuran en Ajustes › Protocolo.'
               : `${nombre} no contestó a tus preguntas esta semana.`}
-          </p>
+          </TarjetaVacia>
         )}
       </div>
 
@@ -171,10 +175,10 @@ export const BodyCard = ({
             </Fold>
           </>
         ) : (
-          <p className="t-sm t-tertiary">
+          <TarjetaVacia>
             Todavía no ha subido ninguna foto. Sin ellas, la báscula decide sola — y no distingue
             un estancamiento de una recomposición.
-          </p>
+          </TarjetaVacia>
         )}
       </div>
 

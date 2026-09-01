@@ -9,7 +9,10 @@ import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
 import { todayISO } from '@/lib/dates';
 import { Avatar } from '@/components/ui/Avatar';
-import { EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
+import { BotonAccion, EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
+/* Un bloque sin nada que enseñar se dice con `TarjetaVacia` en todo el producto;
+   aquí era una frase gris dentro de un panel por lo demás vacío. */
+import { TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import { ArchivedClients } from './ArchivedClients';
 import { NewClientForm } from './NewClientForm';
 import { inviteMessage, useInvite } from './useInvite';
@@ -29,13 +32,60 @@ import { inviteMessage, useInvite } from './useInvite';
  * `<button>`: dentro hay una acción propia, y un botón dentro de otro es HTML
  * inválido y una trampa con el teclado.
  */
+/**
+ * Lo poco que se sabe de alguien sin entrar en su ficha, y NADA cuando no se
+ * sabe nada.
+ *
+ * ══ Por qué esto es una frase y no cuatro columnas ═════════════════════════
+ *
+ * Hubo una versión con columnas fijas —semana del bloque, la semana en siete
+ * casillas, último entreno y peso, con su rótulo arriba—. Se probó contra la
+ * cuenta de demostración, que está llena, y se veía bien. Contra una cartera de
+ * verdad, no: media cartera son clientes recién dados de alta, sin programa, sin
+ * pesajes y sin portal, así que las columnas salían llenas de rayas y de
+ * casillas grises vacías —que además se leen como un esqueleto de carga— y la
+ * lista pasó de tranquila a rota.
+ *
+ * La lección, escrita aquí para que no se repita: **la densidad solo es una
+ * virtud si el dato existe**. Una columna reserva su hueco esté lleno o no; una
+ * frase no aparece si no tiene nada que decir, y por eso el cliente nuevo se ve
+ * exactamente igual de limpio que antes.
+ *
+ * Van dos hechos como mucho, y ninguno se repite de otro sitio: la semana del
+ * bloque ya está al lado de su nombre en la barra lateral, y lo que le falta ya
+ * lo dice su frase. Aquí solo cuándo entrenó por última vez y cuánto pesa.
+ */
+const Nota = ({ row }) => {
+  const peso = row.checkIn?.average;
+  const dias = row.sinceTraining;
+
+  const partes = [
+    dias === 0 ? 'entrenó hoy' : dias === 1 ? 'entrenó ayer' : dias > 0 ? `entrenó hace ${dias} d` : null,
+    peso === null || peso === undefined
+      ? null
+      : `${peso.toLocaleString('es-ES', { maximumFractionDigits: 1 })} kg`,
+  ].filter(Boolean);
+
+  if (partes.length === 0) return null;
+  return <span className="fila-nota">{partes.join(' · ')}</span>;
+};
+
 const TaskRow = ({ row, trainer, onOpen, action }) => {
   const { client } = row;
-  /* El punto de brasa: «esta persona espera algo de ti». Es la marca
-     estructural del producto —la misma tinta que señala la sección activa y el
-     día de hoy— y NO un estado: qué es lo que espera lo dice el texto de al
-     lado, en tinta. Quien está al día no lleva nada. */
-  const espera = row.alerts.length > 0;
+  /*
+    El punto: «esto no puede esperar». Va en ámbar, con el resto del semáforo.
+
+    ══ Y marca lo GRAVE, no «tiene algo» ═══════════════════════════════════════
+    Se encendía con `alerts.length > 0`, y en una cartera normal eso es todo el
+    mundo: siempre hay alguien sin fotos desde hace once días o sin fecha de
+    renovación. Diez filas con el mismo punto no ordenan nada — solo enseñan a
+    no mirarlo, que es justo lo contrario de para lo que está.
+
+    Ahora solo lo llevan las de gravedad ALTA: sin rutina, sin un solo entreno
+    anotado, un cobro vencido. Lo demás lo cuenta la frase de al lado, que es
+    donde cabe decir qué es exactamente.
+  */
+  const espera = row.alerts.some((a) => a.severity === 'alta');
 
   return (
     <div className="task-row">
@@ -72,18 +122,20 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
         </span>
       </span>
 
+      <Nota row={row} />
+
       {/* La acción que cierra ESTA tarea. Va por encima de la capa de clic, así
           que pulsarla no abre al cliente. Botón y no chip: hace algo, no marca
           dónde estás (la misma regla que en `TaskInbox` y `ReviewQueue`). */}
       {action && (
-        <button
-          type="button"
+        <BotonAccion
           className="btn btn-secondary btn-sm"
+          icon={action.icon}
           onClick={action.onClick}
           title={action.title}
         >
-          <action.icon size={12} /> {action.label}
-        </button>
+          {action.label}
+        </BotonAccion>
       )}
 
       <ChevronRight size={15} className="chevron" aria-hidden="true" />
@@ -232,8 +284,47 @@ export const ClientPortfolio = () => {
   }
 
   /* Si ningún cliente tiene un check-in cerrado de verdad, «responder check-ins»
-     está aproximando, y hay que decirlo en lugar de fingir precisión. */
-  const approximate = visible.length > 0 && visible.every((r) => !r.review.exact);
+     está aproximando, y hay que decirlo en lugar de fingir precisión.
+
+     ── Pero solo cuando de verdad hay una avería ────────────────────────────
+     La condición se cumple en TODA cuenta que aún no ha recibido su primer
+     check-in, es decir, todas las nuevas — así que el aviso azul era lo primero
+     que veía cada entrenador el primer día, para siempre, contando una
+     imprecisión que no puede corregir y que no le pide nada. Un aviso que no se
+     puede cerrar ni resolver deja de ser un aviso.
+
+     Se queda el caso en que la entrega no está activa (la tabla falta de
+     verdad), que sí es una avería y sí tiene remedio: escribirnos. */
+  const approximate = visible.length > 0 && checkInsActivos === false && visible.every((r) => !r.review.exact);
+
+  /*
+    ══ LA CARENCIA COMPARTIDA SE DICE UNA VEZ ══════════════════════════════════
+
+    Diez clientes recién dados de alta comparten la misma primera alerta, así
+    que la lista repetía «Sin acceso a su portal» diez veces, una debajo de cada
+    nombre, con diez puntos idénticos al lado. Una frase que sale en todas las
+    filas no distingue ninguna: deja de ser información y pasa a ser un reproche
+    de fondo — y encima tapa lo que sí es propio de cada persona.
+
+    Cuando tres o más comparten su primera alerta, esa alerta sube UNA vez a una
+    línea de arriba, con su remedio, y desaparece de las filas. Debajo, cada
+    quien vuelve a decir lo suyo: la siguiente alerta que tenga, o «al día».
+
+    Tres y no dos: con dos todavía se leen como dos casos, y quitarlo de la fila
+    escondería algo que la fila puede permitirse decir.
+  */
+  const carencia = (() => {
+    const cuenta = new Map();
+    for (const r of visible) {
+      const primera = r.alerts[0];
+      if (primera) cuenta.set(primera.id, (cuenta.get(primera.id) || 0) + 1);
+    }
+    let mejor = null;
+    for (const [id, n] of cuenta) if (n >= 3 && (!mejor || n > mejor.n)) mejor = { id, n };
+    if (!mejor) return null;
+    const muestra = visible.find((r) => r.alerts[0]?.id === mejor.id).alerts[0];
+    return { ...mejor, label: muestra.label };
+  })();
 
   /* Cuántos necesitan algo. Las TAREAS están en «Hoy»; aquí solo se dice cuánta
      gente tiene algo abierto, para no obligar a contar la lista. */
@@ -347,16 +438,24 @@ export const ClientPortfolio = () => {
           camino: sus clientes entregan desde el portal. */}
       {approximate && (
         <Notice tone="info">
-          {checkInsActivos === false ? (
+          «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana, así que es una
+          aproximación. La entrega de check-ins todavía no está activa en tu cuenta; escríbenos desde
+          Ajustes → Ayuda y la activamos.
+        </Notice>
+      )}
+
+      {/* La carencia que comparten. Una línea, y no diez. */}
+      {carencia && (
+        <Notice tone="info">
+          {carencia.id === 'no_account' ? (
             <>
-              «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana, así que es
-              una aproximación. La entrega de check-ins todavía no está activa en tu cuenta;
-              escríbenos desde Ajustes → Ayuda y la activamos.
+              A <b>{carencia.n} de tus clientes</b> les falta el enlace de acceso: hasta que lo
+              tengan no pueden entrar ni apuntar nada. Se manda desde el botón «Invitar» de su fila.
             </>
           ) : (
             <>
-              «Por revisar» se está deduciendo de los pesajes y las fotos de cada semana. Pasará a
-              ser exacto en cuanto tus clientes entreguen su primer check-in desde su portal.
+              A <b>{carencia.n} clientes</b> les pasa lo mismo: {carencia.label.toLowerCase()}. Sale
+              aquí una vez en lugar de debajo de cada nombre.
             </>
           )}
         </Notice>
@@ -419,21 +518,41 @@ export const ClientPortfolio = () => {
           filetes. Sueltas sobre el lienzo eran tiras flotando; juntas son la
           plantilla del equipo, que es lo que esta pantalla es. */}
       <div className="task-rows roster">
-        {visible.map((row) => (
-          <TaskRow
-            key={row.client.id}
-            row={{ ...row, why: row.alerts[0]?.label || "Al día" }}
-            trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
-            onOpen={() => open(row.client.id)}
-            action={null}
-          />
-        ))}
+        {visible.map((row) => {
+          /* Lo que le pasa a ESTA persona y no a media cartera. Si comparte la
+             carencia de arriba, la fila cuenta lo siguiente que tenga. */
+          const propias = carencia ? row.alerts.filter((a) => a.id !== carencia.id) : row.alerts;
+          /* Y el remedio va donde ocurre: quien no tiene acceso lleva su botón
+             de invitar en la fila, en lugar de una frase que no hace nada. */
+          const invitable = carencia?.id === 'no_account' && row.alerts.some((a) => a.id === 'no_account');
+          return (
+            <TaskRow
+              key={row.client.id}
+              row={{ ...row, alerts: propias, why: propias[0]?.label || 'Al día' }}
+              trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
+              onOpen={() => open(row.client.id)}
+              action={
+                invitable
+                  ? {
+                      icon: Send,
+                      /* El rótulo ya no cambia: el giro y el tic los pone
+                         `BotonAccion` en el hueco del icono, así que la fila no
+                         se mueve mientras el servidor contesta. */
+                      label: 'Invitar',
+                      title: `Copiar el enlace de acceso de ${row.client.name}`,
+                      onClick: () => invitar(row.client),
+                    }
+                  : null
+              }
+            />
+          );
+        })}
       </div>
 
       {visible.length === 0 && (
 
         <Panel>
-          <p className="t-sm t-secondary">Ningún cliente coincide con la búsqueda.</p>
+          <TarjetaVacia>Ningún cliente coincide con la búsqueda.</TarjetaVacia>
         </Panel>
       )}
 

@@ -10,7 +10,15 @@ import {
   validateAttachment,
 } from '@/domain/attachments';
 import { recentIssues } from '@/lib/diagnostics';
-import { EmptyState, Field, Loading, Notice, PageHead } from '@/components/ui/primitives';
+import {
+  BotonAccion,
+  EmptyState,
+  Field,
+  Loading,
+  Notice,
+  PageHead,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 
 /**
  * Ayuda: escribir a soporte y seguir el hilo.
@@ -113,7 +121,7 @@ export const SupportPanel = () => {
         <Notice tone="error">
           No se ha podido cargar. {error}
           {' '}
-          <button type="button" className="btn btn-sm" onClick={recargar}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={recargar}>
             Reintentar
           </button>
         </Notice>
@@ -339,28 +347,30 @@ const AdjuntoMensaje = ({ path, url }) => {
 const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }) => {
   const [body, setBody] = useState('');
   const [adjunto, setAdjunto] = useState(null);
-  const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
+  /* El giro y el tic del botón de enviar. Lo lanza el `onSubmit` y no el clic,
+     porque a un hilo se contesta con Enter tanto como con el ratón. */
+  const envio = useAccionDeBoton();
 
   const estado = ESTADOS[ticket.status] || ESTADOS.open;
   const ultimo = ticket.messages[ticket.messages.length - 1];
 
-  const enviar = async (event) => {
+  const enviar = (event) => {
     event.preventDefault();
     const limpio = body.trim();
     if (!limpio) return;
 
-    setEnviando(true);
-    const fallo = await onReply(limpio, adjunto);
-    setEnviando(false);
-
-    if (fallo) {
-      setError(fallo);
-      return;
-    }
-    setBody('');
-    setAdjunto(null);
-    setError('');
+    envio.lanzar(async () => {
+      const fallo = await onReply(limpio, adjunto);
+      if (fallo) {
+        setError(fallo);
+        return false;
+      }
+      setBody('');
+      setAdjunto(null);
+      setError('');
+      return true;
+    });
   };
 
   return (
@@ -417,15 +427,17 @@ const TicketRow = ({ ticket, isSupport, myId, open, onToggle, onReply, onClose }
                 placeholder={isSupport ? 'Responder…' : 'Añadir algo más…'}
               />
               <div className="row gap-2 wrap">
-                <button
+                <BotonAccion
                   type="submit"
                   className="btn btn-primary btn-sm"
-                  disabled={enviando || !body.trim()}
+                  icon={Send}
+                  estado={envio.estado}
+                  disabled={!body.trim()}
                 >
-                  <Send size={14} /> {enviando ? 'Enviando…' : 'Enviar'}
-                </button>
-                <Adjunto file={adjunto} onChange={setAdjunto} disabled={enviando} />
-                <button type="button" className="btn btn-sm" onClick={onClose}>
+                  Enviar
+                </BotonAccion>
+                <Adjunto file={adjunto} onChange={setAdjunto} disabled={envio.estado !== 'reposo'} />
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
                   Cerrar hilo
                 </button>
               </div>
@@ -485,7 +497,8 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [adjunto, setAdjunto] = useState(null);
-  const [enviando, setEnviando] = useState(false);
+  /* El giro y el tic del botón de enviar. Lo lanza el `onSubmit`. */
+  const envio = useAccionDeBoton();
   const [error, setError] = useState('');
 
   /*
@@ -510,11 +523,11 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
 
   const valido = falta === null;
 
-  const enviar = async (event) => {
+  const enviar = (event) => {
     event.preventDefault();
     if (!valido) return;
 
-    setEnviando(true);
+    envio.lanzar(async () => {
     /*
       El contexto lo recoge la aplicación, no se le pregunta al usuario.
 
@@ -548,9 +561,12 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
         fallos: recentIssues().slice(0, 6),
       },
     });
-    setEnviando(false);
-
-    if (fallo) setError(fallo);
+      if (fallo) {
+        setError(fallo);
+        return false;
+      }
+      return true;
+    });
   };
 
   return (
@@ -589,12 +605,17 @@ const NuevoTicket = ({ onCancel, onSend, plan }) => {
 
       {/* Debajo de «Qué pasa» y no al final del formulario: es parte de contar lo
           que pasa, no un trámite posterior al envío. */}
-      <Adjunto file={adjunto} onChange={setAdjunto} disabled={enviando} />
+      <Adjunto file={adjunto} onChange={setAdjunto} disabled={envio.estado !== 'reposo'} />
 
       <div className="row gap-2 wrap">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!valido || enviando}>
-          {enviando ? 'Enviando…' : 'Enviar'}
-        </button>
+        <BotonAccion
+          type="submit"
+          className="btn btn-primary btn-sm"
+          estado={envio.estado}
+          disabled={!valido}
+        >
+          Enviar
+        </BotonAccion>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
           Cancelar
         </button>

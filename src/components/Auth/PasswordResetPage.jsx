@@ -3,7 +3,7 @@ import { KeyRound } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
 import { MIN_PASSWORD, traduceAuthError } from '@/lib/authErrors';
-import { Field, Notice, Panel } from '@/components/ui/primitives';
+import { BotonAccion, Field, Notice, Panel, useAccionDeBoton } from '@/components/ui/primitives';
 import { Acceso } from '@/components/Auth/Acceso';
 
 /**
@@ -44,7 +44,9 @@ export const PasswordResetPage = () => {
   const [hasSession, setHasSession] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
-  const [busy, setBusy] = useState(false);
+  /* El giro del botón de guardar. No lleva tic: al terminar, la pantalla
+     entera cambia a «hecho», que confirma mucho mejor que un icono. */
+  const guardado = useAccionDeBoton();
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -82,16 +84,20 @@ export const PasswordResetPage = () => {
       return;
     }
 
-    setBusy(true);
-    try {
-      const { error: err } = await supabase.auth.updateUser({ password });
-      if (err) setError(traduceAuthError(err.message));
-      else setDone(true);
-    } catch (e) {
-      setError(e?.message || 'No se pudo conectar. Comprueba tu conexión.');
-    } finally {
-      setBusy(false);
-    }
+    guardado.lanzar(async () => {
+      try {
+        const { error: err } = await supabase.auth.updateUser({ password });
+        if (err) {
+          setError(traduceAuthError(err.message));
+          return false;
+        }
+        setDone(true);
+        return true;
+      } catch (e) {
+        setError(e?.message || 'No se pudo conectar. Comprueba tu conexión.');
+        return false;
+      }
+    });
   };
 
   /* Solo hay formulario mientras se puede escribir la contraseña. En los otros dos
@@ -174,9 +180,13 @@ export const PasswordResetPage = () => {
               )}
             </Field>
 
-            <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
-              {busy ? 'Guardando…' : 'Guardar y entrar'}
-            </button>
+            <BotonAccion
+              type="submit"
+              className="btn btn-primary btn-block"
+              estado={guardado.estado}
+            >
+              Guardar y entrar
+            </BotonAccion>
           </>
         )}
 

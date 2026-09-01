@@ -1,0 +1,3377 @@
+/* ==========================================================================
+   La revisión
+   --------------------------------------------------------------------------
+   El asistente, la barra de cierre, el visor, la hoja de contactos y las
+   cuatro tarjetas de la revisión. La pantalla más grande del producto.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   El asistente de revisión
+   --------------------------------------------------------------------------
+   Entregar la semana son tres cosas seguidas y de distinta naturaleza:
+   confirmar el peso, medirse si el entrenador lo pide, y hacerse las fotos.
+   Todo junto eran veinte campos y un diálogo dentro de otro.
+
+   Aquí cada paso hace UNA pregunta. Lo único que hay que añadir de cromo es lo
+   que dice cuántos quedan: sin eso, «Siguiente» es una puerta a un número
+   desconocido de pantallas, que es lo que hace abandonar un formulario partido.
+   ========================================================================== */
+
+.wiz { display: flex; flex-direction: column; gap: var(--s4); }
+
+/* El carril de pasos, con la cinta de medir debajo: aquí SÍ hay una escala —el
+   avance— y es la misma firma que marca el eje de días de «Hoy». */
+.wiz-rail {
+  list-style: none; margin: 0; padding: 0 0 var(--s3);
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+  position: relative;
+}
+.wiz-rail::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+  background: var(--hairline);
+}
+.wiz-mark { display: flex; align-items: center; gap: var(--s2); color: var(--text-tertiary); }
+.wiz-mark-n {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--fill); color: var(--text-tertiary);
+  transition: background var(--fast), color var(--fast);
+}
+.wiz-mark-k { font-size: var(--fs-sm); font-weight: 550; }
+/* El paso actual, en tiza. Los ya hechos con su visto y en texto normal: siguen
+   contando —dicen cuánto se lleva— pero no compiten con el que toca. */
+.wiz-mark.is-on { color: var(--text); }
+.wiz-mark.is-on > .wiz-mark-n { background: var(--accent); color: var(--accent-on); }
+.wiz-mark.is-on > .wiz-mark-k { font-weight: 700; }
+.wiz-mark.is-done { color: var(--text-secondary); }
+.wiz-mark.is-done > .wiz-mark-n { background: var(--positive-soft); color: var(--positive); }
+
+/* El panel se remonta al cambiar de paso (`key`), así que esta animación se
+   reproduce sola y da la dirección del movimiento. */
+.wiz-panel { display: flex; flex-direction: column; gap: var(--s4); animation: wiz-entra 0.22s var(--ease) both; }
+@keyframes wiz-entra {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.wiz-foot { display: flex; justify-content: flex-end; }
+.wiz-badge { margin-left: var(--s2); }
+
+/* El peso es la cifra del paso, así que se escribe en grande. */
+.input-hero { font-size: 1.1rem; }
+/* La semana es un número de dos dígitos: una caja del ancho del contenido, no
+   una que ocupe media fila. */
+.input-week { width: 92px; }
+.input-measure { width: 58px; }
+
+.measure-grid { display: grid; gap: var(--s2); grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+.measure-cell { padding: 8px 12px; }
+/* Con el dedo, 58 px de caja y 38 de alto son un blanco que se falla trece
+   veces seguidas —seis pliegues y siete perímetros—. Más ancha (la letra ya
+   va a 16 px en táctil) y con la celda más alta, cada fila pasa de 44. */
+@media (hover: none) {
+  .input-measure { width: 76px; }
+  .measure-cell { padding-top: 10px; padding-bottom: 10px; }
+}
+
+/* La suma de pliegues y el % que sale de ella. Va tintada porque es un
+   resultado calculado, no un campo más. */
+.folds-sum {
+  background: var(--info-soft); border: 1px solid var(--info);
+  border-radius: var(--r-md); padding: 12px 16px;
+}
+.folds-sum-k { color: var(--data-blue); font-weight: 700; }
+.folds-sum-v { font-size: 1.25rem; }
+
+/* «Paso 2 de 4», solo donde los nombres de los pasos se esconden: con círculos
+   numerados a secas, el total deja de decirse y «Siguiente» vuelve a ser una
+   puerta a un número desconocido de pantallas. */
+.wiz-count { display: none; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+@media (max-width: 560px) {
+  /* En vertical, cinco pasos con su nombre no caben en una línea; con el nombre
+     fuera, los números solos siguen diciendo por dónde vas. */
+  .wiz-rail { gap: var(--s2) var(--s3); }
+  .wiz-mark:not(.is-on) > .wiz-mark-k { display: none; }
+  .wiz-count { display: block; }
+}
+
+/* ── Avisos del cliente ────────────────────────────────────────────────────
+   ══ Por qué NO son `card-inset` ════════════════════════════════════════════
+
+   Lo eran, y se veían como recuadros grises pegados unos a otros con el texto
+   en dos tamaños diminutos: el título a 13 px y la explicación a 10, sobre un
+   fondo que casi no se distingue del panel. A eso se le añadía que no se podían
+   quitar, así que se acumulaban.
+
+   Un aviso es una NOTIFICACIÓN, y la forma que todo el mundo reconoce ya está
+   inventada: una tarjeta con su propia superficie —que flota sobre el fondo, no
+   se hunde en él—, el texto legible, y una equis para quitarla.
+
+   ── La equis va DENTRO de la tarjeta, no al lado ───────────────────────────
+   Un botón fuera obligaría a que la tarjeta dejara sitio para él y a que el
+   destino se encogiera. Aquí la tarjeta entera navega y la equis se superpone
+   en la esquina, que es donde la busca el pulgar. */
+.alert-card {
+  position: relative;
+  display: flex;
+  /* La tarjeta puede ser ella misma el enlace —los pendientes lo son— y
+     entonces hereda el subrayado y el azul del navegador. El reset va aquí y no
+     solo en el interior, que es donde faltaba. */
+  color: inherit;
+  text-decoration: none;
+  background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--fast), box-shadow var(--fast);
+}
+.alert-card:hover { box-shadow: var(--shadow-sm); }
+.alert-card:active { transform: scale(0.99); }
+
+.alert-hit {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s3);
+  /* Sitio a la derecha para la equis, y solo cuando la hay. */
+  padding: var(--s3) var(--s4);
+  color: inherit; text-decoration: none;
+}
+.alert-card:not(.is-todo) > .alert-hit { padding-right: 40px; }
+
+.alert-hit > .say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+/* 15 px, no 13: es la línea que se lee. La de debajo baja a 13, no a 10 —a ese
+   tamaño el gris terciario deja de leerse en un móvil con brillo bajo. */
+.alert-hit > .say > .t { font-size: var(--fs-base); font-weight: 640; letter-spacing: -0.01em; }
+.alert-hit > .say > .h { font-size: var(--fs-sm); color: var(--text-secondary); }
+.alert-hit > .go { flex-shrink: 0; color: var(--text-tertiary); }
+
+/* Lo pendiente se distingue por el CANTO, no por el fondo: teñir la superficie
+   convertiría una lista de tres cosas por hacer en tres manchas de color. Y en
+   la señal, no en el ámbar: una tarea que espera no es una avería. */
+.alert-card.is-todo { border-color: var(--accent); }
+.alert-card.is-todo .go { color: var(--accent); }
+
+.alert-x {
+  position: absolute; top: 6px; right: 6px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 0; background: none; cursor: pointer;
+  color: var(--text-tertiary);
+  transition: background-color var(--fast), color var(--fast);
+}
+.alert-x:hover { background: var(--fill); color: var(--text); }
+
+/* ==========================================================================
+   La radiografía de la plataforma
+   --------------------------------------------------------------------------
+   Dos piezas, y las dos salen del mismo par de hechos: es la pantalla que más
+   tarda en contestar de toda la aplicación —dieciocho tablas y las dos
+   funciones de catálogo— y la más larga de recorrer.
+   ========================================================================== */
+
+/* ── El informe mientras se vuelve a leer ───────────────────────────────────
+   Cambiar la ventana lo vuelve a pedir entero. En esos segundos el chip ya
+   dice «7 días» y debajo siguen las cifras de 30: el peor estado de un informe
+   no es estar vacío, es contestar con seguridad a otra pregunta. Se apaga —con
+   `aria-busy` puesto, que es la mitad que no se ve— y no se bloquea el ratón:
+   un informe viejo se puede seguir leyendo mientras llega el nuevo, siempre
+   que no se pueda confundir con él. */
+.is-releyendo { opacity: 0.45; transition: opacity var(--fast); }
+
+/* ── El carril de pestañas del detalle ──────────────────────────────────────
+   Dentro de cada pestaña hay tablas largas —la de cuentas sola pasa de una
+   pantalla—, así que al llegar al final el carril quedaba tres pantallas más
+   arriba, por encima de los seis indicadores. La misma factura que `.page-nav`
+   y por la misma razón: es un OBJETO de cristal que flota, no una franja
+   pegada al papel. Baja lo que mide la cabecera, que es la referencia que ya
+   usan el índice del protocolo y el estudio de fotos. */
+.tab-rail {
+  position: sticky; top: calc(var(--header-h) + var(--s2)); z-index: 40;
+  padding: var(--s1);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+/* Dentro del cristal el carril no lleva su propio relleno: dos fondos, uno
+   dentro del otro y casi del mismo radio, se leen como una caja doble. */
+.tab-rail .segmented { background: transparent; padding: 0; }
+
+/* ── El embudo ─────────────────────────────────────────────────────────────
+   Reutiliza el medidor (`.meter-*`) y solo cambia lo que aquí es distinto: sus
+   rótulos son frases enteras —«Le dio acceso al portal»— y no nombres de
+   músculo de una palabra, así que a 124 px partían en dos líneas y el escalón
+   dejaba de leerse como un escalón. */
+.embudo { display: flex; flex-direction: column; gap: var(--s2); }
+.embudo .meter-label { width: 158px; }
+/* La caída, en su columna. Ancho fijo para que las cinco queden alineadas: en
+   una escalera, lo que se compara de un vistazo es esta cifra, y con el ancho
+   al contenido cada una empezaría en un sitio. */
+.embudo-caida { width: 86px; flex-shrink: 0; text-align: right; }
+.embudo-pie { margin-top: var(--s3); }
+
+@media (max-width: 900px) {
+  .embudo .meter-label { width: 118px; }
+  .embudo-caida { width: 74px; }
+}
+@media (max-width: 640px) {
+  /* Aquí el rótulo ya se pone a lo ancho por la regla de `.meter-label`, así
+     que la caída deja de necesitar columna: se va detrás de la barra. */
+  .embudo .meter-label { width: 100%; }
+  .embudo-caida { width: auto; }
+}
+/* ==========================================================================
+   EL CIERRE — la barra acoplada abajo de una revisión
+   --------------------------------------------------------------------------
+   Ver `review/ReviewDecision.jsx`. Cerrar la semana de alguien es una acción
+   sobre TODA la página, así que vive donde vive una acción de página: acoplada
+   al canto de abajo, siempre alcanzable, sin robarle sitio a lo que se está
+   mirando.
+
+   ── Y «sin robarle sitio» es literal ────────────────────────────────────────
+   Medía ciento ochenta píxeles. En un portátil eso es un cuarto de la pantalla
+   tapado por el formulario, permanentemente, mientras intentas leer la semana
+   que el formulario te pide juzgar. Llevaba dos rótulos en versalita, la línea
+   de las cifras de hoy —que ya está en la tarjeta del plan, tres centímetros más
+   arriba—, seis fichas de diff con tachados en rojo, un carril de tres modos,
+   una caja de dos renglones y el botón.
+
+   Ahora es UNA FILA: qué le cambias · qué le dices · cerrar. El detalle del diff
+   se despliega cuando se pide y la caja de escribir crece al escribir, así que
+   la barra mide lo que estás usando y no lo que podrías usar.
+
+   ── `sticky` y no `fixed` ───────────────────────────────────────────────────
+   Es el último hijo del documento, así que se queda pegado al canto de abajo
+   mientras se recorre la revisión y ATERRIZA al llegar al final, en su sitio, en
+   vez de quedarse flotando encima del último bloque para siempre. Y al ser parte
+   del flujo mide lo que mide la página: ni hace falta un relleno inferior de
+   mentira ni se sale del ancho del contenido, que es de donde salen las barras
+   fijas que tapan la última fila de una tabla.
+
+   El cristal es lo que hace legible que el contenido pasa POR DEBAJO: sin él, la
+   barra parecería el pie de la página y no se entendería que se desplaza. */
+.cierre {
+  position: sticky;
+  bottom: var(--s4);
+  z-index: 30;
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  background: var(--surface-glass);
+  /* Más desenfoque y menos canto: lo que tiene que decir esta barra es «el
+     contenido pasa POR DEBAJO», y eso lo dice el desenfoque. El canto marcado lo
+     convertía en una caja flotante que parte en dos la tarjeta que tape. */
+  backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-float);
+}
+.cierre.is-vacio { gap: 4px; padding: var(--s4); }
+
+/* ── Y solo flota la que PIDE algo ─────────────────────────────────────────
+   Los tres estados de esta barra compartían el `sticky`, y dos de ellos no
+   tienen nada que pedir: «nada que cerrar» y «semana cerrada» solo informan.
+   El resultado es que en una semana ya contestada —que es el estado normal de
+   casi toda la cartera— una barra de cristal iba tapando el contenido durante
+   todo el recorrido para no decir nada nuevo, y en la captura de un portátil se
+   come justo el subtítulo del bloque que hay debajo.
+
+   Al pie del flujo, quietas, siguen diciendo lo mismo y en el sitio donde se
+   busca: al final de la revisión. Sin cristal ni sombra flotante, porque ya no
+   hay nada pasando por debajo de lo que avisar. */
+.cierre.is-vacio,
+.cierre.is-cerrada {
+  position: static;
+  background: var(--surface);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Cuando ya está cerrada ────────────────────────────────────────────────
+   La barra deja de preguntar y pasa a informar: cuándo se cerró, qué le llegó, y
+   reabrir en voz baja a la derecha. Seguía enseñando «¿qué le cambias?» y
+   «Cerrar la semana» después de haber contestado, así que la pantalla parecía
+   trabajo pendiente para siempre y volver a pulsar reescribía encima. */
+.cierre.is-cerrada {
+  flex-direction: row; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+}
+.cierre-visto {
+  flex-shrink: 0; color: var(--positive);
+}
+.cierre-dicho { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+/* Lo que le llegó, con la misma voz que la cita del cliente: es lo que dijo una
+   persona, aunque esa persona seas tú. */
+.cierre-nota {
+  font-size: var(--fs-sm); color: var(--text-secondary); font-style: italic;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* La fila. Tres zonas: lo que tocas, lo que escribes y el botón. La del medio es
+   la que se estira, porque es la única cuyo contenido no tiene un ancho propio. */
+/* ── UNA SOLA FILA, y todo a la misma altura ───────────────────────────────
+   Cuatro zonas y ningún renglón de más: lo que le has tocado · lo que le dices ·
+   qué se va a guardar · cerrar.
+
+   Medía cien píxeles porque el acuse iba en su propio renglón debajo del
+   compositor. Cien píxeles ACOPLADOS al canto de abajo es un dedo de pantalla
+   que la revisión no recupera nunca, y esta barra no tiene nada que decir que
+   necesite dos alturas: es una fila de herramientas.
+
+   La clave de que se lea como UNA pieza y no como tres cosas puestas al lado es
+   que el compositor y el botón miden EXACTAMENTE lo mismo de alto (`--cierre-h`)
+   y comparten sus dos cantos. Cuando no coincidían —38 y 42— la barra parecía
+   montada a mano. */
+.cierre-fila {
+  --cierre-h: 40px;
+  display: flex; align-items: center; gap: var(--s3);
+}
+
+.cierre-cambios { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; }
+
+/* El recuento de cambios. Es lo único del diff que se ve siempre: cerrar una
+   semana creyendo que no le has tocado nada cuando le has bajado los hidratos no
+   puede pasar. Con el canto marcado porque SE PULSA — el resto del acuse es
+   texto, y esto es la puerta al detalle. */
+.cierre-resumen {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: var(--r-pill);
+  border: 1px solid var(--hairline-strong); background: var(--surface);
+  font-family: inherit; font-size: var(--fs-xs); font-weight: 600;
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: background var(--fast), color var(--fast);
+}
+.cierre-resumen:hover { background: var(--fill-subtle); color: var(--text); }
+.cierre-resumen:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cierre-resumen > .n {
+  font-family: var(--font-display); font-weight: 800; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cierre-resumen > .chevron { transition: transform var(--fast); color: var(--text-tertiary); }
+.cierre-resumen[aria-expanded='false'] > .chevron { transform: rotate(180deg); }
+
+/* «Su plan sigue igual» / «Primera revisión»: el mismo sitio que el recuento,
+   pero sin canto, porque no se pulsa. */
+.cierre-nada {
+  font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap;
+}
+
+/* El detalle, desplegado. Va ARRIBA de la fila y no debajo: la barra crece hacia
+   el contenido, así que abrirlo nunca mueve el botón de cerrar de donde estaba.
+   Con tope de alto porque reprogramar una semana produce quince líneas, y quince
+   líneas en una barra acoplada son la barra entera. */
+.cierre-detalle {
+  display: flex; flex-direction: column; gap: var(--s2);
+  max-height: 34vh; overflow-y: auto;
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+/* Lo que tiene puesto AHORA, al pie del detalle: es la base contra la que se lee
+   todo lo de arriba, y aquí sí hace falta —en la fila era una línea de cifras
+   repitiendo la tarjeta del plan que hay tres centímetros más arriba—. */
+.cierre-ahora {
+  padding-top: var(--s2); border-top: 1px solid var(--hairline);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+
+.cierre-dices { flex: 1; min-width: 0; }
+
+/* ── EL COMPOSITOR ─────────────────────────────────────────────────────────
+   La forma de cualquier caja de mensaje: el campo ocupa el ancho y los modos van
+   acoplados a su canto derecho, dentro de la misma caja.
+
+   Las tres formas de contestar eran un carril segmentado DELANTE del campo, en
+   su misma fila. Los dos son elásticos, así que al aparecer el campo del enlace
+   el carril se recortaba y «Enlace» quedaba medio tapado — justo el botón que
+   acababas de pulsar. Metidos dentro de la caja no hay nada que repartir: los
+   iconos miden lo que miden y el campo se queda con el resto. */
+.compositor {
+  display: flex; align-items: flex-end; gap: 2px;
+  min-height: var(--cierre-h, 40px);
+  padding: 4px 4px 4px 0;
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface);
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.compositor:focus-within {
+  border-color: var(--hairline-strong);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.compositor-campo { flex: 1; min-width: 0; display: flex; }
+
+/* El campo, a sangre dentro del compositor: su canto es el de la caja. Y una
+   sola fila que crece al escribir — dos filas fijas gastan alto permanentemente
+   para un texto que la mitad de las veces no se escribe, y esto está acoplado al
+   canto de abajo: cada píxel se lo quita a la revisión.
+
+   `field-sizing` es lo que la hace crecer sola y todavía no está en todos los
+   navegadores; donde no está, la caja se queda en su renglón y se desplaza al
+   escribir, que es lo que hace hoy cualquier caja de un renglón. */
+.cierre-campo {
+  flex: 1; min-width: 0;
+  min-height: 34px; max-height: 132px;
+  padding: 8px 4px 8px 12px;
+  border: 0; background: none; resize: none;
+  font-family: inherit; font-size: var(--fs-base); color: var(--text);
+  field-sizing: content;
+}
+.cierre-campo:focus { outline: none; }
+.cierre-campo::placeholder { color: var(--text-tertiary); }
+
+/* Grabar no es un campo: es una acción. Se pinta como el resto del compositor
+   —a sangre, sin canto propio— para que la caja no cambie de forma al cambiar de
+   modo, que es lo que haría un botón con su relleno macizo ahí dentro. */
+.cierre-grabar {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; min-height: 34px; padding: 0 12px;
+  border: 0; background: none; cursor: pointer;
+  font-family: inherit; font-size: var(--fs-base); font-weight: 600;
+  color: var(--accent); text-align: left;
+  border-radius: var(--r-sm);
+}
+.cierre-grabar:hover { background: var(--fill-subtle); }
+
+.compositor-modos { display: flex; gap: 2px; flex-shrink: 0; }
+.compositor-modo {
+  display: grid; place-items: center;
+  width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-tertiary); cursor: pointer;
+  transition: background var(--fast), color var(--fast);
+}
+.compositor-modo:hover { background: var(--fill-subtle); color: var(--text-secondary); }
+.compositor-modo[aria-pressed='true'] { background: var(--fill); color: var(--text); }
+.compositor-modo:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+/* El acuse: qué se va a guardar cuando pulses. En la MISMA fila y justo antes
+   del botón, que es lo que se lee de camino a pulsarlo.
+
+   Tuvo su propio renglón bajo el compositor, y eso costaba veintiún píxeles de
+   barra acoplada para una frase de cuatro palabras. En dos líneas se hace más
+   grande, no más claro. */
+.cierre-acuse {
+  flex: 0 1 auto; min-width: 0; max-width: 26ch;
+  text-align: right; line-height: 1.25;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+/* Cuando lo que vas a cerrar no es lo que la pasada está pidiendo. En tinta de
+   aviso y no de estado: no está mal hecho —cerrar una semana vieja es legítimo—
+   pero hay que enterarse antes de pulsar, no después de que el cliente siga en
+   la lista. */
+.cierre-acuse.is-aviso { color: var(--warning); max-width: 34ch; }
+
+/* ── El botón de cerrar ──────────────────────────────────────────────────────
+   Del ALTO EXACTO del compositor, y por eso está aquí y no se deja al relleno
+   de `.btn`: los dos son los extremos de la misma fila, y con 38 contra 42 la
+   barra se leía montada a mano. La misma razón por la que su canto es el mismo
+   `--r-md`.
+
+   Y sin icono de visto: un visto es «esto ya está hecho», y aquí lo que se hace
+   es PASAR — se cierra la semana y se va al siguiente de la pasada. La flecha lo
+   dice y además anticipa el salto. */
+.cierre-cerrar {
+  flex-shrink: 0;
+  height: var(--cierre-h, 40px); padding-inline: var(--s4);
+  font-size: var(--fs-sm);
+}
+
+/* Lo grabado, esperando a que se cierre la semana. Con su canto y su fondo
+   hundido porque es un ARCHIVO que ya existe, no un campo que se rellena. */
+.cierre-clip {
+  flex: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap; min-width: 0;
+  padding: 6px var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+  font-size: var(--fs-sm);
+}
+
+@media (max-width: 1080px) {
+  /* Cuatro zonas en una fila necesitan unos mil cien píxeles: por debajo, el
+     compositor se queda en cien y deja de ser un sitio donde escribir. El
+     recuento, el acuse y el botón comparten el primer renglón —lo que has
+     tocado, lo que se guarda y el gesto de guardarlo— y el compositor se lleva
+     el segundo, entero. */
+  .cierre-fila { flex-wrap: wrap; }
+  .cierre-cambios { order: 1; }
+  .cierre-acuse { order: 2; margin-left: auto; max-width: none; }
+  .cierre-cerrar { order: 3; }
+  .cierre-dices { order: 4; flex: 1 0 100%; }
+}
+
+@media (max-width: 640px) {
+  .cierre {
+    bottom: 0;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    /* El asa del iPhone se come los últimos veinte píxeles: sin esto, el botón de
+       cerrar la semana queda justo debajo de ella y se pulsa a la tercera. */
+    padding-bottom: calc(var(--s3) + var(--safe-b));
+  }
+  /* El botón a todo lo ancho y el último: es el destino táctil que hace falta
+     cuando la barra vive a un dedo del borde de la pantalla, y el orden de un
+     móvil es el de la lectura —lo que hay, lo que escribes, y ya. */
+  .cierre-fila { --cierre-h: 42px; }
+  .cierre-dices { order: 2; }
+  .cierre-acuse { order: 3; text-align: left; margin-left: 0; }
+  .cierre-cerrar { order: 4; flex: 1 0 100%; justify-content: center; }
+}
+
+/* El diff en fichas (`.diff-inline` / `.diff-chip`) se ha ido con la barra alta
+   que lo pedía. Seis píldoras con tachados en rojo y cifras en verde son mucho
+   ruido para un acuse de recibo, y encima había que cortarlas a cuatro; lo que
+   la barra necesitaba no era otra maqueta del diff, era enseñar el recuento y
+   desplegar la lista de siempre cuando se pide. Ver `PlanChanges`. */
+
+/* ── La vista previa del grabador ──────────────────────────────────────────
+   Lo que se ve aquí es exactamente lo que se graba (ver `ReviewTake`). Con tope
+   de altura porque una pantalla compartida a 16/9 dentro de un diálogo alto
+   empuja los controles de grabar y parar fuera de la vista, que son los dos
+   únicos botones que importan mientras dura. */
+.take-preview {
+  display: block; width: 100%; max-height: 46vh;
+  object-fit: contain;
+  border-radius: var(--r-md); border: 1px solid var(--edge);
+  background: var(--surface-sunken);
+}
+
+/* ==========================================================================
+   EL VISOR — una foto a pantalla completa
+   --------------------------------------------------------------------------
+   Ver `photos/Gallery.jsx`. Se comporta como la galería de un móvil, y por eso
+   no lleva cromo que explique nada: la foto ocupa lo que puede, y lo único que
+   se pinta encima son la X, las dos flechas y el pie.
+
+   El fondo es negro casi opaco y NO es un token de superficie: aquí no hay tema
+   claro ni oscuro que respetar, hay una foto que hay que mirar. Un fondo claro
+   detrás de una foto de gimnasio le baja el contraste a la propia foto, que es
+   lo único que importa en esta capa.
+   ========================================================================== */
+
+.visor {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--s3);
+  padding: var(--s5);
+  background: rgba(0, 0, 0, 0.92);
+  /* Con el dedo, el gesto es de este elemento y no del navegador: sin esto,
+     arrastrar de lado dispara el «atrás» de algunos navegadores móviles a la
+     mitad de pasar una foto. */
+  touch-action: none;
+}
+
+.visor-marco {
+  display: flex; flex-direction: column; gap: var(--s3);
+  align-items: center; justify-content: center;
+  margin: 0; min-width: 0; max-width: 100%;
+}
+
+.visor-marco > img {
+  display: block;
+  max-width: 100%;
+  /* Alto de la ventana menos el pie y los márgenes. En `vh` y no en `%` porque
+     el contenedor es flexible y un porcentaje sobre altura automática no acota
+     nada — la foto se salía por abajo y el pie quedaba fuera de la pantalla. */
+  max-height: calc(100vh - 140px);
+  object-fit: contain;
+  border-radius: var(--r-md);
+  /* Sobre negro, una foto con fondo oscuro se funde con el lienzo y parece que
+     está cortada. El canto tenue le devuelve el borde. */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+.visor-pie {
+  display: flex; align-items: baseline; justify-content: center; gap: var(--s3);
+  flex-wrap: wrap;
+  max-width: 100%;
+  font-size: var(--fs-sm);
+  /* Literal y no token: esta capa no tiene tema. */
+  color: rgba(255, 255, 255, 0.82);
+}
+.visor-pie > .t-tertiary { color: rgba(255, 255, 255, 0.5); }
+
+/* Los tres controles, con la misma forma: un círculo translúcido que solo se ve
+   sobre la foto. Uno para cerrar y dos para pasar. */
+.visor-cerrar,
+.visor-paso {
+  position: absolute;
+  display: grid; place-items: center;
+  width: 42px; height: 42px;
+  border: 0; border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background var(--fast);
+}
+.visor-cerrar:hover,
+.visor-paso:hover { background: rgba(255, 255, 255, 0.24); }
+
+.visor-cerrar { top: var(--s4); right: var(--s4); }
+.visor-paso.is-prev { left: var(--s4); }
+.visor-paso.is-next { right: var(--s4); }
+
+@media (max-width: 560px) {
+  .visor { padding: var(--s3); }
+  /* Las flechas bajan al pie: en un móvil se pasa con el dedo, y a media altura
+     tapan justo el centro de la foto. */
+  .visor-paso { top: auto; bottom: calc(var(--s4) + var(--safe-b)); }
+  .visor-marco > img { max-height: calc(100vh - 190px); }
+}
+
+/* La miniatura de una máquina se pulsa. El resto de la ficha —el selector de
+   grupo, el borrar— sigue siendo suyo; lo que se abre es la imagen. */
+.gym-shot-open {
+  display: block; width: 100%; padding: 0;
+  border: 0; background: none; cursor: zoom-in;
+  border-radius: var(--r-md);
+}
+.gym-shot-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ==========================================================================
+   LA HOJA DE CONTACTOS — los tres ángulos y sus dos épocas, a la vez
+   --------------------------------------------------------------------------
+   Las fotos se enseñaban de una en una: chips para elegir el ángulo, y para ver
+   la espalda había que dejar de ver el frontal. Un entrenador mira los tres.
+
+   Aquí están los seis a la vez y pequeños —es una hoja de contactos, no una
+   exposición— y cualquiera se abre a pantalla completa en el visor, que es
+   donde se mira de verdad (`photos/Gallery.jsx`).
+   ========================================================================== */
+
+.contactos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
+.contacto { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.contacto-par { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+
+/* Cada foto es un botón: se llega con el tabulador y se abre con Intro. */
+.contacto-foto {
+  display: block; width: 100%; padding: 0;
+  border: 0; background: none; cursor: zoom-in; border-radius: var(--r-sm);
+}
+.contacto-foto img {
+  display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: var(--r-sm); background: var(--surface-sunken);
+  border: 1px solid var(--edge);
+}
+.contacto-foto:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* El hueco de la que no existe: se dice que falta en vez de descuadrar el par. */
+.contacto-hueco {
+  display: grid; place-items: center; aspect-ratio: 3 / 4; padding: var(--s2);
+  text-align: center; border-radius: var(--r-sm);
+  border: 1px dashed var(--hairline-strong);
+}
+
+@media (max-width: 720px) {
+  /* Tres columnas de dos fotos en un móvil son seis fotos de 50 px: no se ve
+     nada. En una sola columna, cada par ocupa el ancho y se recorre bajando. */
+  .contactos { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+}
+
+/* ==========================================================================
+   LA REVISIÓN — cuatro tarjetas y una decisión
+   --------------------------------------------------------------------------
+   Ver la cabecera de `Coach/WeekReview.jsx`.
+
+   ── Qué se cambió, y por qué ────────────────────────────────────────────────
+   La pantalla era «un documento»: ni una superficie, todo separado por filetes
+   de un píxel y rotulado con la misma versalita diminuta. Doce rótulos del mismo
+   tamaño y del mismo gris —PESO MEDIO DE LA SEMANA, ENTRENO, NUTRICIÓN, CUERPO,
+   CALORÍAS, PROTEÍNA…— es una pantalla SIN jerarquía: nada empieza, nada manda,
+   y el ojo no tiene por dónde entrar. El resto del producto usa tarjetas; ésta
+   era la única que no, y por eso se leía como un borrador de sí misma.
+
+   Ahora son cuatro tarjetas a lo ancho, cada una con su título de verdad y su
+   frase, en el orden en que se lee una revisión:
+
+       ┌ Cómo va ─────────── la cifra y LA gráfica ─────────────────┐
+       ┌ Su cuerpo ───────── qué te cuenta, cómo se ve, sus medidas ┐
+       ┌ Su entreno ──────── qué levantó, serie a serie ────────────┐
+       ┌ Su plan ─────────── con qué comía y cuánto andaba ─────────┐
+       ═ la barra con la que se cierra ═════════════════════════════
+
+   Y no hay rejilla de dos columnas: eran cuatro días de ejercicios contra cinco
+   cifras, así que la columna estrecha quedaba con un palmo de blanco tan alto
+   como la lista de al lado. A lo ancho, cada bloque ocupa lo que tiene que decir.
+   ========================================================================== */
+
+/* ── CÓMO VA: la cifra y su gráfica, en la misma tarjeta ───────────────────
+   La cifra ES la lectura de un punto de esa curva, así que separarlas obligaba
+   a mirar dos sitios para leer un dato. */
+
+.revision-hero { display: flex; flex-direction: column; gap: var(--s5); }
+/* Aquí vivió un `justify-content: space-between` para el veredicto, que era la
+   segunda pieza de esta fila. Con la tarjeta a lo ancho, «entre los dos» quiere
+   decir «en las dos esquinas»: el veredicto acababa a mil doscientos píxeles de
+   la cifra que juzga. Ahora va dentro de la propia línea de la cifra y esta
+   cabecera tiene un solo bloque. */
+.revision-hero-say { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+.revision-hero-cifra {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  line-height: 1;
+}
+.revision-hero-cifra > .u {
+  font-size: var(--fs-md); font-weight: 600; color: var(--text-tertiary);
+}
+
+/* Lo que califica a la cifra, seguido y en una línea. Eran cuatro casillas con
+   su rótulo y su nota cada una; dicho de corrido ocupa un renglón y se lee como
+   lo que es: una aclaración, no cuatro datos. */
+.revision-hero-meta {
+  font-size: var(--fs-sm); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══ LA GRÁFICA — dos bandas sobre el mismo eje, y es el mando ═════════════
+   Ver `review/ReviewChart.jsx`.
+
+   Tenía las dos bandas bien elegidas y las dibujaba sin ninguna de las tres
+   cosas que hacen legible un gráfico: sin rejilla, sin eje y sin relleno. El
+   único número era un «82 – 78 kg» de diez píxeles en una esquina, así que un
+   punto a media altura no se podía LEER —había que estimarlo interpolando de
+   cabeza entre dos extremos escritos en otro sitio— y la línea, de dos píxeles
+   sobre un lienzo vacío, flotaba en vez de apoyarse en su eje.
+
+   Todo eso lo tenía ya `ui/charts.jsx` desde el primer día. Ésta era la única
+   gráfica del producto que se lo había saltado. */
+
+.revision-grafica { min-width: 0; }
+.grafica { display: flex; flex-direction: column; gap: var(--s2); }
+.grafica-svg { display: block; width: 100%; overflow: visible; }
+
+/* La rejilla y los números del canal izquierdo: la diferencia entre leer un
+   valor y estimarlo. Los mismos tonos que el resto de los gráficos, para que
+   dos instrumentos del producto no tengan dos rejillas distintas. */
+.grafica-rejilla > line { stroke: var(--hairline); stroke-width: 1; }
+.grafica-eje > text {
+  font-size: var(--fs-2xs); fill: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La marca de la semana elegida: la regleta de brasa del producto, la misma que
+   el canto de la barra lateral y la raya de la pestaña activa, aquí de arriba
+   abajo para atar las dos bandas con la tira de semanas.
+
+   Fue una banda rellena de `--brasa-soft` con el ancho de una columna, y ese
+   ancho es el hueco entre semanas: con pocas semanas y una tarjeta ancha son
+   trescientos píxeles de color sobre los datos. Ver `review/ReviewChart.jsx`. */
+.grafica-marca {
+  stroke: var(--accent); stroke-width: 2; stroke-linecap: round;
+}
+
+.banda-rotulo {
+  font-size: var(--fs-2xs); font-weight: 700; fill: var(--text-tertiary);
+  letter-spacing: var(--tracking-stencil);
+}
+
+/* El área bajo la curva. Es lo que apoya la línea en su eje y la convierte en
+   una magnitud en vez de en un alambre. */
+.banda-area { opacity: var(--area-opacity); }
+
+.banda-trazo { stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.banda-punto { transition: r var(--fast); }
+.banda-punto.is-now { stroke: var(--surface); stroke-width: 2.5; }
+.banda-corte { stroke: var(--hairline-strong); stroke-width: 1; }
+
+/* La escalera, sin suavizar: suavizarla la convertiría en una rampa, y una
+   rampa dice que el objetivo fue bajando poco a poco — que no pasó. */
+.banda-escalera { stroke-width: 2.25; stroke-linejoin: miter; stroke-linecap: butt; }
+/* Y el punto de cada peldaño, que es donde TÚ cambiaste algo. */
+.banda-escalon { stroke: var(--surface); stroke-width: 1.5; }
+
+/* ── El eje horizontal, que además se pulsa ────────────────────────────────
+   Son las mismas columnas del dibujo, con los mismos márgenes, así que la marca
+   de la semana 20 cae bajo su punto. Marcas pequeñas y no cajas anchas: una caja
+   llena del ancho de la columna se lee como un bloque de datos, no como un
+   botón. */
+.grafica-tira { display: grid; gap: 2px; }
+.grafica-semana {
+  padding: 4px 0 6px; border: 0; background: none; cursor: pointer;
+  border-radius: var(--r-sm); position: relative;
+  font-family: inherit; font-size: var(--fs-2xs); font-weight: 600;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+  transition: color var(--fast), background var(--fast);
+}
+.grafica-semana:hover { background: var(--fill-subtle); color: var(--text-secondary); }
+.grafica-semana:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.grafica-semana.is-now { color: var(--text); font-weight: 700; }
+/* La marca de «aquí estás», la misma que la barra lateral y el día de hoy. */
+.grafica-semana.is-now::after {
+  content: ''; position: absolute; left: 25%; right: 25%; bottom: 0;
+  height: 2px; border-radius: 2px; background: var(--accent);
+}
+/* Y un punto para las semanas que ya contestaste. */
+.grafica-semana.is-hecha:not(.is-now)::after {
+  content: ''; position: absolute; left: 50%; bottom: 2px;
+  width: 3px; height: 3px; margin-left: -1.5px; border-radius: 50%;
+  background: currentColor; opacity: 0.5;
+}
+
+/* ── La lectura de la semana elegida ───────────────────────────────────────
+   Lo que valen sus dos bandas, dicho con palabras. Sin esto, elegir una semana
+   movía una raya y no decía nada: había que bajar al tablero a averiguar qué
+   punto se acababa de señalar. */
+.grafica-lectura {
+  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
+  padding-top: var(--s2); border-top: 1px solid var(--hairline);
+  font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+}
+.grafica-lectura > .s {
+  font-family: var(--font-display); font-weight: 650; color: var(--text);
+}
+.grafica-lectura > .v { font-weight: 650; }
+/* Y si ese fue uno de los peldaños. Es la marca que convierte el dibujo en el
+   registro de tus decisiones, dicha con palabras para quien no mira el punto. */
+.grafica-lectura > .n { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── EL MAPA: todo su proceso, en el alto de dos líneas de texto ───────────
+   Ver `review/TimelineSpine.jsx`. Es el pie de la gráfica y NO otra gráfica:
+   sale solo cuando la ventana recorta de verdad, y entonces dice qué trozo del
+   proceso se está mirando de cerca. Con veinte semanas o menos no hay recorte y
+   no se pinta — que es lo que impide volver a tener dos dibujos de la misma
+   curva en la misma pantalla, uno encima del otro.
+
+   Va en voz baja a propósito: hundido, con su rótulo, y sin ningún número. Aquí
+   no se lee un valor, se lee una FORMA; el valor está tres centímetros más
+   arriba, grande y con su eje. */
+.espina {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--s3) var(--s3) var(--s2);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.espina-grafico { display: block; width: 100%; overflow: visible; }
+.espina > svg { cursor: grab; touch-action: pan-y; }
+.espina > svg:active { cursor: grabbing; }
+
+.espina-trazo {
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; opacity: 0.3;
+}
+.espina-trazo.is-now { stroke-width: 2.25; opacity: 1; }
+.espina-ventana { fill: var(--accent-soft); }
+/* Las semanas que ya contestaste: el rastro del trabajo hecho. */
+.espina-hito { fill: var(--text-tertiary); opacity: 0.45; }
+.espina-cursor { stroke: var(--accent); stroke-width: 1; opacity: 0.7; }
+.espina-punto { stroke: var(--surface-sunken); stroke-width: 2; }
+/* ── EL PIE DE UN GRÁFICO PEQUEÑO ──────────────────────────────────────────
+   Los dos extremos de la escala, uno a cada canto y en tinta terciaria: es lo
+   que convierte un dibujo en un instrumento con el que se puede leer un valor.
+   La espina de la revisión, la recta de un ejercicio y la forma de su historial
+   lo tenían escrito por separado, y son el mismo pie. */
+.espina-pie {
+  display: flex; justify-content: space-between;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+
+/* ══ LA PÁGINA: dos columnas, como Entreno, Dieta y Resumen ════════════════
+   Lo que PASÓ esa semana a la izquierda —cómo va, el cuerpo, el entreno— y a la
+   derecha lo que le tenías puesto y lo que decidiste las semanas anteriores.
+   Misma columna (300 px), misma calle (--s5) y mismo ancho de trabajo que las
+   pantallas de al lado: saltar de pestaña no mueve ningún canto. */
+.shell .layout:has(.revision-pagina),
+.shell .layout:has(.ficha-pagina) { max-width: var(--max-w-trabajo); }
+.revision-pagina { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; max-width: 100%; }
+.revision { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; min-width: 0; }
+.revision-trabajo { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.revision-lado { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; position: sticky; top: var(--s5); }
+@media (max-width: 1199.98px) {
+  .revision { grid-template-columns: 1fr; }
+  .revision-lado { position: static; }
+}
+/* Las flechas de semana del mando, juntas: son un solo control con dos
+   sentidos, no dos botones. */
+.revision-paso { display: inline-flex; gap: 2px; }
+/* Dos puertas de texto en la cabecera de una tarjeta, separadas por su calle. */
+.tarjeta-acciones { display: inline-flex; align-items: baseline; gap: var(--s4); flex-wrap: wrap; }
+.tarjeta-meta.is-warn { color: var(--warning); }
+/* La cifra con su variación en la misma línea, en la columna del plan. */
+.palanca-v.is-fila { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+/* La tira de fotos, ancha sin ser una foto por columna: cada semana con foto
+   mide lo que mide una miniatura y no un doceavo de la tarjeta. */
+.tira-marco { display: flex; }
+.tira-marco > .tira { grid-auto-columns: 96px; grid-template-columns: none !important; grid-auto-flow: column; }
+
+/* El título de un bloque de rango grande. Vive con `.panel-head` y no con el
+   tablero porque lo puede pedir cualquier pantalla. */
+.panel-head-titulo {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg); font-weight: 680; letter-spacing: -0.022em;
+  line-height: var(--lh-tight);
+}
+
+/* ── EL DÍA, con sus ejercicios dentro ─────────────────────────────────────
+   Una semana de entreno se lee POR SESIONES —«el lunes hizo esto»— y no como
+   una lista suelta de ejercicios. El día es el sitio donde el entrenador los
+   tiene en la cabeza. */
+
+/* Sin hueco: sus hijos son pliegues, y `.fold + .fold` ya trae su filete y su
+   aire. Con `--s5` encima, seis días se leían como seis tarjetas sueltas. */
+.dias { display: flex; flex-direction: column; }
+/* Aquí vivía la cabecera de un día: su nombre en versalita, la fecha, el estado
+   empujado a la derecha y el día no entrenado en voz baja. Cinco clases, y ahora
+   las pone `Fold` —título, resumen y galón— porque el día se pliega: su línea
+   dice «Push A · lun 11 · 18 de 18 series · sube en 3» y los ejercicios se abren
+   al tocarla. Ver `review/TrainingCard.jsx`.
+
+   Lo que se pierde es el matiz del día no entrenado, que era la única de las
+   cinco que decía algo por sí sola. Lo dice ahora el resumen con palabras, que
+   además se lee sin abrir nada. */
+
+/* Lo que escribió al terminar, pegado a su día. Es de lo más leído de la
+   pantalla y vivía enterrado dentro del editor de rutina. */
+.dia-nota {
+  font-size: var(--fs-sm); color: var(--text-secondary); font-style: italic;
+  padding: var(--s2) var(--s3);
+  border-left: 2px solid var(--accent); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--fill-subtle);
+}
+
+/* ── LA FILA DE UN EJERCICIO: tope · salto · chispa · series ──────────────
+   Ver . Fue una tarjeta por ejercicio con su gráfica
+   deslizable, en rejilla de cuatro: con ocho ejercicios eran dos filas de
+   tarjetas del mismo peso y nada se podía comparar en vertical. Una revisión
+   se lee por columnas —¿cuánto?, ¿sube?, ¿qué anotó?—, y eso es una tabla, la
+   misma forma que la hoja de Entreno. */
+.ejerc-tabla { display: flex; flex-direction: column; }
+.ejerc-fila {
+  display: grid; align-items: center; gap: var(--s3);
+  grid-template-columns: minmax(140px, 1.4fr) 130px 88px 90px minmax(160px, 1fr) 16px;
+  width: 100%; padding: 8px var(--s2); margin: 0 calc(-1 * var(--s2));
+  border: 0; border-radius: var(--r-sm); background: none;
+  font-family: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: background var(--fast);
+}
+.ejerc-fila + .ejerc-fila { box-shadow: inset 0 1px 0 var(--hairline); }
+.ejerc-fila:hover:not(:disabled) { background: var(--fill-subtle); }
+.ejerc-fila:disabled { cursor: default; }
+.ejerc-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ejerc-fila-nombre { font-weight: 650; font-size: var(--fs-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ejerc-fila.is-saltado .ejerc-fila-nombre { color: var(--text-tertiary); font-weight: 500; }
+.ejerc-fila-tope { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ejerc-fila-tope > .v { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em; }
+.ejerc-fila-tope > .u { font-size: var(--fs-2xs); font-weight: 600; color: var(--text-tertiary); }
+.ejerc-fila-tope > .reps { font-size: var(--fs-xs); color: var(--text-secondary); padding-left: 3px; }
+.ejerc-fila-salto { display: flex; min-width: 0; }
+.ejerc-fila-chispa { display: block; height: 22px; min-width: 0; }
+.ejerc-fila-chispa > svg { display: block; width: 100%; height: 22px; }
+.ejerc-fila-series { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; }
+.ejerc-fila-chevron { color: var(--text-tertiary); opacity: 0; transition: opacity var(--fast); }
+.ejerc-fila:hover:not(:disabled) .ejerc-fila-chevron { opacity: 1; }
+@media (max-width: 1023.98px) {
+  .ejerc-fila { grid-template-columns: minmax(120px, 1fr) 110px 80px 16px; }
+  .ejerc-fila-chispa, .ejerc-fila-series { display: none; }
+}
+
+/* ── Lo que anotó esa semana ──────────────────────────────────────────────
+   En fichas y no en texto corrido: `45×8 45×8 45×6` seguido se lee como un
+   número de nueve dígitos; separadas, se cuentan de un vistazo. */
+.serie {
+  display: inline-flex; align-items: baseline; gap: 1px;
+  padding: 2px 5px; border-radius: var(--r-xs);
+  background: var(--fill-subtle);
+  font-size: var(--fs-2xs); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text-secondary);
+  white-space: nowrap;
+}
+.serie > .x { color: var(--text-tertiary); padding: 0 1px; font-weight: 400; }
+.serie > .rir { padding-left: 3px; color: var(--text-tertiary); font-weight: 500; }
+/* La serie tope. Con cinco por sesión, la que decide si progresó es una sola, y
+   marcarla convierte la comparación entre semanas en una ficha por tarjeta. */
+.serie.is-tope {
+  background: var(--fill); color: var(--text); font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+.serie-mas { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+
+
+
+/* ── El plan de nutrición de esa semana ────────────────────────────────────
+   A lo ancho, que es como se leen cinco cifras del mismo asunto: de un barrido.
+   El color de un macro es del DATO —es el mismo con el que se dibuja en la
+   dieta— y por eso se pinta en el RÓTULO y no en la cifra: en la cifra
+   competiría con el resto de la pantalla, y el rótulo es lo que hay que
+   reconocer de un vistazo. */
+
+.plan {
+  display: grid; gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+}
+.macro { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-items: flex-start; }
+.macro > .k {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+.macro > .v {
+  display: flex; align-items: baseline; gap: 3px;
+  font-size: var(--fs-lg); font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+}
+.macro.is-mayor > .v {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl); letter-spacing: -0.025em;
+}
+.macro > .v > .u { font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); }
+/* El hueco del delta se reserva siempre: sin él, la fila de cifras baila media
+   línea según cuántas hayan cambiado esta semana. */
+.macro > .d { display: flex; min-height: 18px; align-items: center; }
+
+/* El cardio es una PAUTA —«3 días de 25 min»—, no una magnitud, y por eso no
+   entra en la rejilla de cifras. */
+.plan-cardio {
+  padding-top: var(--s3); border-top: 1px solid var(--hairline);
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.plan-cardio > .k {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+  margin-right: var(--s2);
+}
+
+/* ── La tira de fotos, semana a semana ─────────────────────────────────────
+   Ver `review/PhotoStrip.jsx`. Una columna por semana de la ventana y en el
+   mismo orden que la gráfica; lo que ata las dos piezas es la semana elegida,
+   marcada igual en las dos. */
+
+/* ══ SU CUERPO — tres tramos, y solo el último se pliega ═══════════════════
+   Ver `review/BodyCard.jsx`. Fueron tres pliegues iguales uno detrás de otro, y
+   eso enterraba las dos cosas que más deciden: lo que el cliente escribe y sus
+   fotos. Lo que escribe pesa más que medio kilo de báscula y salía como una fila
+   de menú con una flecha; una foto se juzga mirándola, no decidiendo si merece
+   la pena abrirla. */
+
+.cuerpo-tramo { display: flex; flex-direction: column; gap: var(--s3); }
+.cuerpo-tramo + .cuerpo-tramo {
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+}
+
+/* ── La cita ───────────────────────────────────────────────────────────────
+   Lo único de toda la revisión escrito por una persona. Con su filete al canto y
+   su tipografía, que es como se lee lo que alguien dice — y no como una fila de
+   datos más. El rótulo va DEBAJO, como pie: primero se lee lo que dijo y luego a
+   qué contestaba, que es el orden en que importa. */
+.citas { display: flex; flex-direction: column; gap: var(--s3); }
+.cita {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--s2) 0 var(--s2) var(--s4);
+  border-left: 2px solid var(--accent);
+}
+.cita > blockquote {
+  font-size: var(--fs-md); line-height: var(--lh-base); color: var(--text);
+  text-wrap: pretty;
+}
+.cita > figcaption {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+
+/* ── Las escalas ───────────────────────────────────────────────────────────
+   En fila y no en renglones: se COMPARAN entre ellas —«duerme mal y encima está
+   más estresado»— y una lista vertical obliga a leerlas de una en una. Es la
+   misma rejilla que los macros del plan, a propósito: las dos son «cinco cifras
+   del mismo asunto». */
+.escalas {
+  display: grid; gap: var(--s3) var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+}
+.escala { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.escala > .k {
+  font-size: var(--fs-xs); color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.escala > .v {
+  display: flex; align-items: baseline; gap: 4px;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg); font-weight: 700; line-height: 1;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.escala > .v > .u { font-size: var(--fs-2xs); font-weight: 600; color: var(--text-tertiary); }
+/* El hueco se reserva: sin él, la fila baila media línea según cuántas se hayan
+   movido esta semana. */
+.escala > .d { display: flex; min-height: 18px; align-items: center; }
+
+.tira { display: grid; gap: 4px; }
+.tira-semana {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 3px 2px; border: 0; background: none; cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background var(--fast);
+}
+.tira-semana:hover { background: var(--fill-subtle); }
+.tira-semana:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.tira-foto { display: block; width: 100%; }
+.tira-foto img {
+  display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: var(--r-sm);
+  /* Las que no se están revisando van apagadas: la tira es una escala, y ocho
+     fotos al mismo contraste compiten entre ellas en vez de situar una. */
+  filter: grayscale(0.35); opacity: 0.6;
+  transition: filter var(--fast), opacity var(--fast);
+}
+.tira-semana:hover .tira-foto img { filter: none; opacity: 0.85; }
+.tira-semana.is-now .tira-foto img {
+  filter: none; opacity: 1;
+  box-shadow: 0 0 0 2px var(--text);
+}
+.tira-sinfoto {
+  display: block; width: 100%; aspect-ratio: 3 / 4;
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--hairline);
+  background: var(--surface-sunken);
+}
+.tira-num {
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.tira-semana.is-now > .tira-num { color: var(--text); font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL HISTORIAL DE UN EJERCICIO — un registro, con la fecha al canto
+   --------------------------------------------------------------------------
+   Ver `review/ExerciseSheet.jsx`. La forma sale de la referencia que mandó el
+   entrenador, y es la correcta por un motivo que no es de gusto: un historial
+   de entrenamiento es un REGISTRO, y un registro se lee hacia abajo con la
+   fecha al canto haciendo de índice.
+
+        AGO  ●┌──────────────────────────────┐
+         17  ││ Semana 24 · 22 repeticiones  │
+             ││ 242,5 × 2  @7   ← su tope    │
+             ││ 195   × 4  @3                │
+             │└──────────────────────────────┘
+
+   Lo que le falta a la referencia y se añade aquí: la cabecera con la tendencia
+   —el registro cuenta qué pasó cada día, no si eso va a alguna parte— y la
+   serie tope marcada, porque con cinco series por sesión la que decide si
+   progresó es una sola.
+   ========================================================================== */
+
+/* La cabecera: la pregunta con la que se abre esta ficha —«¿esto va a alguna
+   parte?»— a la izquierda, y la forma de la carga a la derecha. En dos columnas
+   y no apiladas: son la misma respuesta dicha en cifra y en dibujo, y una encima
+   de otra se leían como dos apartados. */
+.hist-cabecera {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
+  align-items: center; gap: var(--s5);
+  padding: var(--s4);
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: var(--surface-sunken);
+}
+.hist-cabecera-say { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.hist-recorrido { display: flex; align-items: baseline; gap: var(--s2); }
+.hist-recorrido > .v {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.hist-recorrido > .v > .a { color: var(--text-tertiary); padding: 0 8px; font-weight: 400; }
+.hist-recorrido > .u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-tertiary); }
+
+/* La forma, en su recuadro. Una línea a sangre en mitad de una cabecera se lee
+   como un filete decorativo; con su caja y sus dos extremos rotulados se lee
+   como el instrumento que es. */
+.hist-forma {
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--edge);
+}
+.hist-forma-pie {
+  display: flex; justify-content: space-between;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+
+@media (max-width: 620px) {
+  .hist-cabecera { grid-template-columns: minmax(0, 1fr); }
+}
+
+.hist { display: flex; flex-direction: column; list-style: none; }
+
+/* La fecha al canto y la tarjeta a la derecha, con el raíl entre las dos. El
+   canto es de ancho fijo: si se ajustara al contenido, «3 MAY» y «17 AGO»
+   moverían la línea del raíl de un alto a otro. */
+.hist-alto {
+  position: relative;
+  display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: var(--s3);
+  padding-bottom: var(--s3);
+}
+/* La línea, que nace en el primer punto y muere en el último: un raíl que
+   asoma por los dos cantos parece cortado. */
+.hist-alto::before {
+  content: ''; position: absolute; left: 57px; top: 0; bottom: 0;
+  width: 1px; background: var(--hairline);
+}
+.hist-alto:first-child::before { top: 16px; }
+.hist-alto:last-child::before { bottom: auto; height: 16px; }
+.hist-alto:only-child::before { display: none; }
+/* El punto del raíl. Hueco en todas menos en la última, que es donde se aterriza
+   y la que se está revisando: en un registro de veinte sesiones, veinte puntos
+   macizos idénticos no señalan ninguna. */
+.hist-alto::after {
+  content: ''; position: absolute; left: 54px; top: 12px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--hairline-strong);
+}
+.hist-alto.is-ultima::after { background: var(--accent); box-shadow: none; }
+.hist-alto.is-ultima > .hist-tarjeta { border-color: var(--hairline-strong); }
+
+.hist-canto {
+  display: flex; flex-direction: column; align-items: flex-end;
+  padding-top: 6px; text-align: right; line-height: 1.1;
+}
+.hist-canto > .mes {
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary);
+ letter-spacing: 0;
+}
+.hist-canto > .dia {
+  font-family: var(--font-display);
+  font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+/* La tarjeta va hundida —fondo rebajado, un filete, ninguna sombra—: se lee
+   como el recuadro de un registro impreso y no como algo que se pueda pulsar. */
+.hist-tarjeta {
+  margin-left: var(--s4);
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: var(--surface-sunken);
+}
+.hist-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.hist-head > .s { font-size: var(--fs-sm); font-weight: 650; }
+.hist-head > .r { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+.hist-series { display: flex; flex-direction: column; list-style: none; }
+/* Los kilos a la derecha de su columna y las repeticiones a la izquierda de la
+   suya: así 97,5 y 100 caen con las unidades una sobre otra, y dos sesiones se
+   comparan bajando la vista. */
+.hist-serie {
+  display: grid; grid-template-columns: 58px 14px 30px 42px minmax(0, 1fr);
+  align-items: baseline; gap: 2px; padding: 2px 0;
+  font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.hist-serie > .kg { text-align: right; font-weight: 600; }
+.hist-serie > .x { text-align: center; color: var(--text-tertiary); }
+.hist-serie > .reps { text-align: left; font-weight: 600; }
+.hist-serie > .rir {
+  padding-left: var(--s2); font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+/* Dicho con su nombre y no solo en negrita: en un registro de cinco filas, «la
+   que está más oscura» no es una explicación de nada. */
+.hist-serie > .tag {
+  justify-self: start; margin-left: var(--s3);
+  padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-tertiary);
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700;
+ letter-spacing: 0;
+}
+/* La serie tope. Con cinco por sesión, la que decide si progresó es una sola, y
+   marcarla convierte la comparación entre semanas en una fila por bloque. */
+.hist-serie.is-tope { color: var(--text); }
+.hist-serie.is-tope > .kg { font-weight: 800; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INICIO — las cuatro colas
+   --------------------------------------------------------------------------
+   Cada cola es una tarjeta que se PULSA: rótulo, la cifra grande, lo que la
+   cifra significa en voz baja y el verbo. La abierta lleva el canto de brasa —
+   la marca de «aquí», como la pestaña activa—; la vacía se retira: sin
+   superficie, canto discontinuo y «Al día», para que las que tienen algo sean
+   las únicas que pesan. Es la regla de superficie del producto aplicada a la
+   portada: solo lleva tarjeta lo que se puede pulsar para decidir.
+   ══════════════════════════════════════════════════════════════════════════ */
+.colas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
+.cola {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s4) var(--s4) var(--s3);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--fast), box-shadow var(--fast), background-color var(--fast);
+}
+.cola:hover:not(:disabled) { border-color: var(--hairline-strong); box-shadow: var(--shadow-md); }
+.cola.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow-md); }
+.cola:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cola.is-vacia { cursor: default; background: transparent; box-shadow: none; border-style: dashed; }
+.cola-k {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+.cola-n {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 720;
+  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.cola.is-vacia .cola-n { color: var(--text-tertiary); }
+.cola-n > small {
+  font-family: var(--font); font-size: var(--fs-xs); font-weight: 500;
+  letter-spacing: -0.01em; color: var(--text-tertiary); min-width: 0;
+}
+.cola-verbo { font-size: var(--fs-sm); font-weight: 650; color: var(--text); }
+.cola.is-vacia .cola-verbo { color: var(--text-tertiary); font-weight: 500; }
+@media (max-width: 900px) { .colas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* La cola abierta a la izquierda; la semana y lo que ha pasado, a la derecha. */
+.inicio {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: var(--s5); align-items: start;
+}
+.inicio-lado { display: flex; flex-direction: column; gap: var(--s4); position: sticky; top: var(--s5); }
+@media (max-width: 1023.98px) {
+  .inicio { grid-template-columns: 1fr; }
+  .inicio-lado { position: static; }
+}
+.tramite-head { display: flex; align-items: center; gap: var(--s2); }
+.task-respuesta { flex-basis: 100%; }
+.task-row > .who > .name > .badge { margin-left: var(--s2); vertical-align: middle; }
+
+/* La agenda de la semana: un rótulo por día, hoy en brasa, lo pasado en rojo. */
+.agenda { display: flex; flex-direction: column; gap: var(--s3); }
+.agenda-dia { display: flex; flex-direction: column; }
+.agenda-k {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+  padding-bottom: 4px;
+}
+.agenda-dia.is-hoy .agenda-k { color: var(--accent); }
+.agenda-dia.is-vencido .agenda-k { color: var(--negative); }
+.agenda-fila { display: flex; align-items: center; gap: var(--s2); padding: 7px 0; border-top: 1px solid var(--hairline); }
+.agenda-que { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.agenda-que > .title { font-size: var(--fs-sm); font-weight: 550; }
+.agenda-que > .title.is-hecho { text-decoration: line-through; color: var(--text-tertiary); }
+.agenda-que > .sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* Lo que ha pasado: filas cortas, sin tarjeta, el nombre y qué hizo. */
+.actividad { display: flex; flex-direction: column; }
+.actividad-fila {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; padding: 7px 0;
+  background: none; border: 0; border-top: 1px solid var(--hairline);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.actividad-fila:first-child { border-top: 0; }
+.actividad-fila:hover > .who { color: var(--text); }
+.actividad-fila > .who { font-size: var(--fs-sm); font-weight: 600; flex-shrink: 0; transition: color var(--fast); }
+.actividad-fila > .what {
+  font-size: var(--fs-sm); color: var(--text-secondary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.actividad-fila .detail { color: var(--text-tertiary); }
+
+/* ── Dentro de un cliente, el titular de cada pestaña baja de rango ─────────
+   La cabecera del cliente ya dice quién y la pestaña ya dice qué; el «Resumen»
+   a 38 px debajo de la pestaña «Resumen» lo decía por tercera vez. Se demota a
+   título de sección sin tocar cada pantalla: son hermanas de la cabecera
+   dentro de `.layout`. La cursiva del remate se mantiene, más pequeña. */
+.cliente-cab ~ * .section-head h1 {
+  font-size: var(--fs-lg);
+  letter-spacing: -0.022em;
+}
+.cliente-cab ~ * .section-head { padding-bottom: var(--s3); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ENTRENO — el editor a tres columnas
+   --------------------------------------------------------------------------
+   Semanas y días a la izquierda (quietos, pegajosos), el día en el centro, el
+   histórico del ejercicio en foco a la derecha. Por debajo de 1200 px el
+   histórico baja debajo del día; por debajo de 1024 la columna izquierda se
+   retira y navegan los chips de siempre (`.day-rail.solo-movil`).
+   ══════════════════════════════════════════════════════════════════════════ */
+.entreno {
+  display: grid; grid-template-columns: 188px minmax(0, 1fr) 248px;
+  gap: var(--s5); align-items: start;
+}
+.entreno-lado { display: flex; flex-direction: column; gap: var(--s4); position: sticky; top: var(--s5); }
+.entreno-centro { min-width: 0; }
+.day-rail.solo-movil { display: none; }
+@media (max-width: 1199.98px) {
+  .entreno { grid-template-columns: 188px minmax(0, 1fr); }
+  .entreno .historial { grid-column: 2; }
+}
+@media (max-width: 1023.98px) {
+  .entreno { grid-template-columns: 1fr; }
+  .entreno-lado { display: none; }
+  .entreno .historial { grid-column: auto; }
+  .day-rail.solo-movil { display: flex; }
+}
+
+/* La lista de la columna izquierda: la misma gramática que la barra lateral. */
+.lado-lista { display: flex; flex-direction: column; gap: 2px; }
+.lado-lista > .section-label { padding: 0 10px var(--s1); }
+.lado-item {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 7px 10px 7px 14px; border-radius: var(--r-md);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
+  color: var(--text-secondary); background: transparent; border: 0; cursor: pointer;
+  position: relative; transition: background-color var(--fast), color var(--fast);
+}
+.lado-item:hover { background: var(--fill-subtle); color: var(--text); }
+.lado-item.is-on { background: var(--fill-subtle); color: var(--text); }
+.lado-item.is-on::before {
+  content: ''; position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 15px; border-radius: var(--r-pill); background: var(--accent);
+}
+.lado-item.is-nueva { color: var(--text-tertiary); font-weight: 500; }
+.lado-item.is-nueva:hover { color: var(--text); }
+.lado-item-nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lado-item > small {
+  margin-left: auto; font-size: var(--fs-2xs); font-weight: 700; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* El ejercicio en foco: un canto de brasa a la izquierda, nada más. */
+.exercise.is-focused { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* El histórico: sin tarjeta, sobre el lienzo, como lo que se consulta. */
+.historial {
+  display: flex; flex-direction: column; gap: var(--s3);
+  position: sticky; top: var(--s5);
+  padding: var(--s4); border-radius: var(--r-lg);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.historial-head { display: flex; flex-direction: column; gap: 4px; }
+.historial-nombre { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em; }
+.historial-recorrido { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+.historial-recorrido > .v {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720;
+  letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.historial-recorrido > .v > .a { color: var(--text-tertiary); font-weight: 500; margin: 0 4px; }
+.historial-recorrido > .u { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 500; }
+.historial-forma { height: 44px; }
+.historial-semanas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.historial-semanas > li {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: var(--s2);
+  padding: 6px 0; border-top: 1px solid var(--hairline);
+  font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
+}
+.historial-semanas > li > .s { font-family: var(--font-display); font-weight: 700; color: var(--text-tertiary); }
+.historial-semanas > li > .series { color: var(--text); font-weight: 550; line-height: 1.45; }
+.historial-semanas > li.is-actual > .s { color: var(--accent); }
+
+/* La columna izquierda del editor: un poco más ancha, y el bloque del programa
+   sin su resumen —en 200 px el resumen se corta y no dice nada—. */
+@media (min-width: 1024px) {
+  .entreno { grid-template-columns: 212px minmax(0, 1fr) 248px; }
+  .entreno-lado .fold-sum { display: none; }
+}
+/* Con las semanas en la columna izquierda, el selector de la barra del
+   microciclo diría lo mismo a un palmo: solo se pinta sin esa columna. */
+@media (min-width: 1024px) {
+  .entreno-centro > .card-inset > .rail,
+  .entreno-centro > .card-inset > .rail-wrap { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA HOJA DE SERIES — el día como tabla (escritorio)
+   --------------------------------------------------------------------------
+   Una fila por serie y las columnas siempre en el mismo sitio: OBJETIVO
+   (reps · rir) | HIZO (kg · reps · rir). Sin cajas: celdas hundidas sobre la
+   tarjeta del día, separadas por aire. La repetición real por debajo del
+   objetivo va en negativo; la que cumple, en positivo. Es lo que se lee sin
+   leer. El ejercicio en foco lleva el canto de brasa, como en todo el producto.
+   ══════════════════════════════════════════════════════════════════════════ */
+.hoja { display: flex; flex-direction: column; gap: var(--s5); }
+.hoja-vacia { padding: var(--s4) 0; }
+.hoja-ej { display: flex; flex-direction: column; gap: var(--s2); padding-left: var(--s3); margin-left: calc(var(--s3) * -1); border-left: 3px solid transparent; }
+.hoja-ej.is-focused { border-left-color: var(--accent); }
+.hoja-ej-head { display: flex; align-items: baseline; gap: var(--s2); min-height: 26px; }
+.hoja-ej-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); width: 16px; }
+.hoja-ej-nombre { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em; }
+.hoja-ej-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.hoja-ej-acciones { margin-left: auto; display: flex; gap: 2px; align-self: center; opacity: 0.35; transition: opacity var(--fast); }
+.hoja-ej:hover .hoja-ej-acciones, .hoja-ej:focus-within .hoja-ej-acciones, .hoja-ej.is-focused .hoja-ej-acciones { opacity: 1; }
+
+.hoja-tabla { display: flex; flex-direction: column; gap: 3px; }
+.hoja-fila { display: grid; gap: 3px; align-items: center; }
+.hoja-tabla.is-rir .hoja-fila { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 22px; }
+.hoja-tabla.is-sin-rir .hoja-fila { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 22px; }
+.hoja-fila.is-grupo { margin-bottom: -1px; }
+.hoja-grupo {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+  text-align: center; padding: 2px 0; border-bottom: 1px solid var(--hairline);
+}
+.hoja-tabla.is-rir .hoja-grupo.is-objetivo { grid-column: 2 / 4; }
+.hoja-tabla.is-rir .hoja-grupo.is-hecho { grid-column: 4 / 7; }
+.hoja-tabla.is-sin-rir .hoja-grupo.is-objetivo { grid-column: 2 / 3; }
+.hoja-tabla.is-sin-rir .hoja-grupo.is-hecho { grid-column: 3 / 6; }
+.hoja-fila.is-head > span {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); text-align: center;
+}
+.hoja-num { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); text-align: center; }
+.hoja-fila.is-hecha .hoja-num { color: var(--text-secondary); }
+.hoja-celda {
+  width: 100%; min-width: 0; height: 30px; padding: 0 6px;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: center;
+  font-variant-numeric: tabular-nums; color: var(--text);
+  background: var(--surface-sunken); border: 1px solid transparent; border-radius: var(--r-sm);
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.hoja-celda::placeholder { color: var(--text-tertiary); font-weight: 500; }
+.hoja-celda:hover { border-color: var(--hairline-strong); }
+.hoja-celda:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.hoja-celda.is-corta { color: var(--negative); }
+.hoja-celda.is-cumple { color: var(--positive); }
+/* La misma celda cuando NO se escribe (el reparto por comida en el portal del
+   cliente): mantiene la caja para que las columnas no bailen al cambiar de
+   lado, y pierde el fondo hundido y el borde al pasar por encima, que son las
+   dos señales de «aquí se escribe». */
+.hoja-celda.is-lectura {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--text-secondary);
+}
+.hoja-x {
+  width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: var(--r-xs); color: var(--text-tertiary); cursor: pointer;
+  opacity: 0; transition: opacity var(--fast), color var(--fast);
+}
+.hoja-fila:hover .hoja-x:not(:disabled), .hoja-fila:focus-within .hoja-x:not(:disabled) { opacity: 1; }
+.hoja-x:hover:not(:disabled) { color: var(--negative); }
+.hoja-mas {
+  align-self: flex-start; margin-left: 25px;
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-tertiary); font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
+}
+.hoja-mas:hover { background: var(--fill-subtle); color: var(--text); }
+.hoja-nota { display: flex; flex-direction: column; gap: 4px; padding-left: 25px; }
+
+/* La columna izquierda: «en curso» en brasa; el histórico, en monoespaciada. */
+.lado-item > small.is-curso { color: var(--accent); text-transform: none; letter-spacing: 0; }
+.historial-semanas > li > .series { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+
+/* ══ ENTRENO: la pantalla es la hoja ═══════════════════════════════════════
+   Sin título de página ni tarjeta de semana ni cabecera de día: columna de
+   semanas y días, la hoja a todo el ancho, el histórico al lado. Lo demás
+   está en «Detalles» (panel lateral) y en el menú de la barra. La página se
+   sale del ancho de lectura: una hoja de series quiere anchura, no medida.
+
+   Ese ancho lo comparte con Dieta (`--max-w-trabajo`). Aquí ponía
+   `max-width: none` y Dieta se quedaba en la medida de lectura, así que al
+   saltar de una a otra —que es un clic en las pestañas del cliente— la columna
+   se movía medio palmo en un monitor grande. Ancho de trabajo, sí; distinto de
+   la pantalla de al lado, no. */
+.shell .layout:has(.entreno-pagina),
+.shell .layout:has(.dieta-pagina),
+/* El Resumen del ENTRENADOR, no el portal: allí esta hoja es un bloque más de
+   una pantalla que tiene avisos y entregas encima y debajo, y ensanchar la
+   página entera por ella movería todo lo demás. */
+.shell .layout:has(.resumen-pagina:not(.is-portal)) { max-width: var(--max-w-trabajo); }
+.entreno-pagina { display: flex; flex-direction: column; gap: var(--s4); }
+.entreno-pagina .entreno { grid-template-columns: 200px minmax(0, 1fr) 260px; }
+.entreno-hoja {
+  min-width: 0; display: flex; flex-direction: column; gap: var(--s4);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg);
+  padding: var(--s4) var(--s5) var(--s5); box-shadow: var(--shadow-sm);
+}
+.hoja-barra {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  padding-bottom: var(--s3); border-bottom: 1px solid var(--hairline);
+}
+.hoja-barra-say { display: flex; align-items: baseline; gap: var(--s3); min-width: 0; flex-wrap: wrap; }
+.hoja-barra-titulo { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.022em; }
+.hoja-barra-meta { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.hoja-barra-acciones { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; }
+.hoja-menu { position: relative; }
+.hoja-menu .popover { top: calc(100% + 4px); min-width: 240px; }
+.hoja-alta { padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+.lado-alta { display: flex; gap: var(--s1); padding: 4px 0 0 10px; }
+.lado-alta .input { min-width: 0; flex: 1; }
+@media (max-width: 1199.98px) { .entreno-pagina .entreno { grid-template-columns: 200px minmax(0, 1fr); } }
+@media (max-width: 1023.98px) {
+  .entreno-pagina .entreno { grid-template-columns: 1fr; }
+  .entreno-hoja { padding: var(--s3) var(--s3) var(--s4); }
+}
+/* La nota de un ejercicio es una línea o dos, no un folio. */
+.hoja-nota .textarea { min-height: 52px; }
+
+/* ══ LA BARRA, DENTRO DE UN CLIENTE ════════════════════════════════════════
+   La persona, sus secciones y el árbol de semanas y días. Misma gramática
+   que la cartera: enlaces sin caja, la marca de brasa en el activo. */
+.sidebar-cliente { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s1); }
+.sidebar-group-link { margin-left: auto; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-tertiary); text-decoration: none; }
+.sidebar-group-link:hover { color: var(--text); }
+.sidebar-cliente-quien { padding: 0 var(--s1) var(--s2); }
+.side-tree { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 var(--s2) 22px; }
+.side-tree-item {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 5px 8px 5px 10px; border-radius: var(--r-sm);
+  font: inherit; font-size: var(--fs-sm); font-weight: 500; text-align: left;
+  color: var(--text-secondary); background: transparent; border: 0; cursor: pointer; text-decoration: none;
+  position: relative; transition: background-color var(--fast), color var(--fast);
+}
+.side-tree-item:hover { background: var(--fill-subtle); color: var(--text); }
+.side-tree-item.is-on { color: var(--text); font-weight: 650; }
+.side-tree-item.is-on::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 13px; border-radius: var(--r-pill); background: var(--accent);
+}
+.side-tree-item.is-nueva { color: var(--text-tertiary); }
+.side-tree-item.is-nueva:hover { color: var(--text); }
+.side-tree-nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-tree-item > small { margin-left: auto; font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.side-tree-item > small.is-curso { color: var(--accent); }
+.side-tree-dias { display: flex; flex-direction: column; gap: 1px; padding-left: 14px; border-left: 1px solid var(--hairline); margin: 2px 0 4px 10px; }
+.side-tree-alta { padding: 2px 0 2px 10px; }
+
+/* Entreno sin columna intermedia: la hoja y la comparativa. */
+.entreno-pagina .entreno { grid-template-columns: minmax(0, 1fr) 330px; }
+@media (max-width: 1199.98px) { .entreno-pagina .entreno { grid-template-columns: 1fr; } }
+
+/* ══ LA COMPARATIVA ════════════════════════════════════════════════════════
+   Sesiones en columnas, series en filas; la última columna es la semana
+   abierta. Kilos que suben en positivo, que bajan en negativo. */
+.comparativa {
+  display: flex; flex-direction: column; gap: var(--s3);
+  position: sticky; top: var(--s5);
+  padding: var(--s4); border-radius: var(--r-lg);
+  background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--shadow-sm);
+}
+.side-tree-semana { display: flex; flex-direction: column; }
+.side-tree-item.is-dia { font-size: var(--fs-sm); padding-top: 4px; padding-bottom: 4px; }
+
+/* Los días como pestañas de la hoja: cambiar de entrenamiento es un clic aquí. */
+.hoja-dias { display: flex; align-items: center; gap: 2px; min-width: 0; flex-wrap: wrap; }
+.hoja-dias::-webkit-scrollbar { display: none; }
+.hoja-dia {
+  padding: 6px 12px; border-radius: var(--r-md); border: 0; background: transparent;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-base); font-weight: 650; letter-spacing: -0.015em;
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast);
+}
+.hoja-dia:hover { color: var(--text); background: var(--fill-subtle); }
+.hoja-dia.is-on { color: var(--text); background: var(--fill); }
+.hoja-dia.is-nuevo { color: var(--text-tertiary); font-weight: 500; font-family: var(--font); font-size: var(--fs-sm); }
+.hoja-dia-alta { display: flex; gap: var(--s1); padding-left: 6px; }
+.hoja-contexto { font-size: var(--fs-sm); color: var(--text-tertiary); margin-top: calc(var(--s3) * -1); }
+/* Nada de la hoja puede empujar la página hacia los lados. */
+.entreno-pagina, .entreno-hoja, .comparativa { min-width: 0; max-width: 100%; }
+.comparativa { overflow: hidden; }
+/* Arrastrar: el asa del ejercicio y las pestañas de día. */
+.hoja-asa { width: 18px; height: 22px; padding: 0; border: 0; background: transparent; color: var(--text-tertiary); cursor: grab; display: inline-flex; align-items: center; justify-content: center; opacity: 0.5; margin-left: -6px; }
+.hoja-asa:hover { opacity: 1; color: var(--text); }
+.hoja-asa:active { cursor: grabbing; }
+.hoja-ej.is-dragging { opacity: 0.45; }
+.hoja-ej.is-drop-target { box-shadow: inset 0 2px 0 var(--accent); }
+.hoja-dia { cursor: grab; }
+.hoja-dia:active { cursor: grabbing; }
+.hoja-dia.is-dragging { opacity: 0.45; }
+.hoja-dia.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* ══ EL MARCO FIJO (ago 2026, decidido con el dueño) ═══════════════════════
+   La barra lateral no cambia nunca: puertas, cartera, buscar arriba y la
+   cuenta abajo. La barra de arriba desaparece en escritorio: repetía la
+   cabecera y separaba de la barra dos cosas que son suyas. */
+@media (min-width: 1024px) {
+  .shell-top { display: none; }
+  .shell .layout { padding-top: var(--s6); }
+}
+.sidebar-buscar { padding: 0 var(--s1) var(--s1); }
+.sidebar-buscar .omnibox { width: 100%; height: 34px; }
+.sidebar-buscar .omnibox-label { flex: 1; }
+.sidebar-foot { display: flex; flex-direction: column; gap: var(--s2); }
+
+/* ══ LA TIRA DE SEMANAS ═══════════════════════════════════════════════════
+   Pastillas con estado: hecha (✓), en curso (brasa), montada (gris). La
+   abierta lleva tinta plena. */
+.hoja-barra.is-dias { padding-bottom: var(--s2); border-bottom: 0; margin-top: calc(var(--s2) * -1); }
+.hoja-semanas { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.hoja-semanas::-webkit-scrollbar { display: none; }
+.hoja-semana {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 11px; border-radius: var(--r-md); border: 1px solid transparent;
+  background: var(--surface-sunken); color: var(--text-secondary);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
+}
+.hoja-semana:hover { color: var(--text); border-color: var(--hairline-strong); }
+.hoja-semana.is-on { background: var(--accent); color: var(--accent-on); }
+.hoja-semana-n { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.hoja-semana-estado { font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.02em; color: var(--text-tertiary); }
+.hoja-semana.is-hecha .hoja-semana-estado { color: var(--positive); }
+.hoja-semana.is-curso .hoja-semana-estado { color: var(--accent); letter-spacing: 0; font-size: 9px; }
+.hoja-semana.is-on .hoja-semana-estado { color: var(--accent-on); opacity: 0.8; }
+.hoja-semana.is-nueva { background: transparent; border-style: dashed; border-color: var(--hairline-strong); color: var(--text-tertiary); font-weight: 500; }
+.hoja-semana.is-nueva:hover { color: var(--text); border-color: var(--text-tertiary); }
+.hoja-contexto { margin: 0; margin-left: auto; flex-shrink: 0; }
+/* ── La progresión: semanas en filas, series en columnas ───────────────────
+   Cada serie son tres minicolumnas (kg · reps · rir). Se lee hacia abajo. */
+.comparativa-head { display: flex; flex-direction: column; gap: 4px; }
+.comparativa-menu { position: relative; }
+.comparativa-menu .popover { left: 0; right: auto; min-width: 220px; top: calc(100% + 4px); }
+.comparativa-elegir {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  padding: 2px 6px 2px 0; border: 0; border-radius: var(--r-sm); background: transparent;
+  font: inherit; color: var(--text); cursor: pointer; text-align: left;
+}
+.comparativa-elegir:hover:not(:disabled) { color: var(--text); }
+.comparativa-elegir:disabled { cursor: default; }
+.comparativa-elegir > svg { color: var(--text-tertiary); flex-shrink: 0; }
+.comparativa-nombre { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-item.is-on { color: var(--text); }
+.comparativa-forma { display: flex; flex-direction: column; gap: 6px; }
+.comparativa-tope { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+.comparativa-tope > .v { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums; }
+.comparativa-tope > .u { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.comparativa-tabla { display: flex; flex-direction: column; gap: 2px; }
+.comparativa-fila { display: grid; gap: 2px; align-items: center; }
+.comparativa-serie {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: 0;
+  color: var(--text-secondary); text-align: center; padding-bottom: 2px; border-bottom: 1px solid var(--hairline-strong);
+}
+.comparativa-fila.is-head > span { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: 0.04em; color: var(--text-tertiary); text-align: center; }
+.comparativa-semana { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); padding-left: 2px; }
+.comparativa-fila.is-actual .comparativa-semana { color: var(--accent); }
+.comparativa-fila.is-actual > .comparativa-celda { box-shadow: inset 0 -1px 0 var(--accent); }
+.comparativa-celda {
+  height: 26px; display: flex; align-items: center; justify-content: center;
+  border-radius: 3px; background: var(--surface-sunken);
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.comparativa-celda.is-kg { color: var(--text); font-weight: 600; }
+.comparativa-celda.is-sube { color: var(--positive); }
+.comparativa-celda.is-baja { color: var(--negative); }
+.comparativa-celda.is-vacia { color: var(--text-tertiary); background: transparent; }
+.entreno-pagina .entreno { grid-template-columns: minmax(0, 1fr) 400px; }
+.comparativa-fila.is-series { margin-bottom: 1px; }
+
+/* ══ LAS ACCIONES DE LA CABECERA DEL CLIENTE: texto, no botones ════════════
+   Dos verbos al lado del nombre no necesitan caja: uno en tinta secundaria y
+   el principal en tinta plena con su flecha. Los botones de caja quedan para
+   los formularios. */
+.cab-accion {
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text); background: transparent; border: 0; padding: 6px 4px; cursor: pointer;
+  text-decoration: none; border-radius: var(--r-sm); transition: color var(--fast);
+}
+.cab-accion:hover { color: var(--text); }
+.cab-accion.is-principal { color: var(--text); }
+.cab-accion.is-principal:hover { color: var(--text); }
+.cab-accion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cliente-cab-acciones { gap: var(--s4); }
+
+/* ══ LA BARRA, PULIDA ══════════════════════════════════════════════════════
+   Menos aire entre piezas, la cartera en voz más baja, el activo con más
+   presencia, y el pie con la cuenta a la altura de Ajustes. */
+@media (min-width: 1024px) {
+  .sidebar { padding: var(--s3) var(--s2) var(--s2); gap: var(--s2); }
+}
+.sidebar-brand { padding: var(--s1) var(--s2) var(--s2); }
+.sidebar-buscar { padding: 0 0 var(--s1); }
+.sidebar-buscar .omnibox { height: 32px; background: var(--fill-subtle); border-color: transparent; }
+.sidebar-buscar .omnibox:hover { border-color: var(--hairline-strong); }
+.side-link { padding: 7px 10px 7px 14px; }
+.sidebar-group { padding: var(--s3) var(--s2) var(--s1); }
+.side-client { padding-top: 5px; padding-bottom: 5px; font-weight: 500; color: var(--text-secondary); }
+.side-client.active { font-weight: 650; }
+.side-client-week { font-size: 9px; opacity: 0.8; }
+.sidebar-foot { gap: 0; padding-top: var(--s1); border-top: 1px solid var(--hairline); }
+
+
+/* ══ LAS SEMANAS, CON MUCHAS ═══════════════════════════════════════════════ */
+.hoja-semanas { display: flex; align-items: center; gap: 4px; min-width: 0; position: relative; }
+.hoja-semanas-tira { display: flex; align-items: center; gap: 4px; min-width: 0; flex-wrap: wrap; }
+.hoja-semanas-tira::-webkit-scrollbar { display: none; }
+.hoja-semana.is-todas { background: transparent; color: var(--text-secondary); padding-left: 6px; gap: 3px; }
+.hoja-semana.is-todas:hover { color: var(--text); }
+.hoja-semanas-todas { left: 0; right: auto; top: calc(100% + 6px); display: grid; grid-template-columns: repeat(4, auto); gap: 4px; padding: var(--s2); min-width: 0; }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA PAREJA PEQUEÑA: primario y normal, de la misma altura
+   --------------------------------------------------------------------------
+   Aquí vivía `btn-quiet`, un TERCER tratamiento para el peso NORMAL: canto fino
+   y sin relleno, abierto para la hoja y la cabecera del cliente. Su comentario
+   decía «dos y solo dos» y el de `controles.css` dice «cuatro pesos y ninguno
+   más» — dos sistemas llamándose cada uno «el sistema».
+
+   La consecuencia se veía sin abrir el CSS: la acción no principal salía con
+   relleno gris en Hoy, con canto fino en la hoja y como texto suelto en una
+   fila, según qué pantalla. Tres formas para el mismo rango es lo mismo que
+   ninguna, que es justo lo que ya decía `controles.css` cuando retiró
+   `btn-tinted`. Manda el sistema documentado: `btn-quiet` pasa a
+   `btn-secondary` en sus 35 sitios y desaparece de aquí.
+
+   Lo que SÍ se queda es la altura pareja, y ahora alcanza también al normal.
+   La regla igualaba `btn-primary` y `btn-quiet` a 30 px con radio `--r-md`,
+   pero un `btn-secondary btn-sm` se quedaba en el `btn-sm` de siempre —5 px de
+   relleno y radio `--r-sm`—, así que un primario y un secundario pequeños uno
+   al lado del otro no medían lo mismo ni tenían el mismo canto. Conviven así en
+   Hoy, en el asistente de revisión, en el calendario y en media docena más.
+   ══════════════════════════════════════════════════════════════════════════ */
+.btn-sm.btn-secondary, .btn-sm.btn-primary { height: 30px; padding: 0 11px; font-size: var(--fs-sm); font-weight: 600; border-radius: var(--r-md); }
+.cliente-cab-acciones { gap: var(--s2); }
+.menu-acciones { position: relative; }
+.menu-acciones .btn-icon { width: 30px; height: 30px; box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text-secondary); }
+.menu-acciones .btn-icon:hover { background: var(--fill-subtle); color: var(--text); }
+.menu-acciones-popover { top: calc(100% + 4px); min-width: 240px; }
+.menu-sep { border: 0; border-top: 1px solid var(--hairline); margin: 4px 0; }
+
+/* ── Las semanas: una pastilla es un estado, no un botón más ─────────────── */
+.hoja-semana {
+  height: 30px; padding: 0 10px; gap: 7px; border-radius: var(--r-md);
+  background: transparent; box-shadow: inset 0 0 0 1px var(--hairline); border: 0;
+  color: var(--text-secondary); font-size: var(--fs-sm); font-weight: 600;
+}
+.hoja-semana:hover { box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text); }
+.hoja-semana.is-on { background: var(--fill); box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text); }
+.hoja-semana-n { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; }
+.hoja-semana-estado { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-tertiary); }
+.hoja-semana.is-hecha .hoja-semana-estado { color: var(--positive); }
+.hoja-semana.is-curso .hoja-semana-estado { color: var(--accent); font-weight: 600; font-size: var(--fs-xs); letter-spacing: 0; text-transform: none; }
+.hoja-semana.is-curso .hoja-semana-estado::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 5px; vertical-align: 1px; }
+.hoja-semana.is-on .hoja-semana-estado { opacity: 1; }
+.hoja-semana.is-nueva { box-shadow: inset 0 0 0 1px var(--hairline); border: 0; color: var(--text-tertiary); font-weight: 500; }
+.hoja-semana.is-nueva:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.hoja-semana.is-todas { box-shadow: none; }
+.hoja-barra.is-dias .hoja-barra-acciones { gap: var(--s2); }
+.hoja-contexto { margin-right: var(--s2); }
+
+/* ── Las notas de la hoja, en voz baja ────────────────────────────────────── */
+.hoja-nota .section-label { color: var(--text-tertiary); }
+.hoja-nota .textarea { min-height: 44px; font-size: var(--fs-sm); }
+
+/* ── Los paneles laterales: secciones con título, no un formulario suelto ── */
+.panel-secciones { display: flex; flex-direction: column; gap: var(--s5); }
+.panel-seccion { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
+.panel-seccion:first-child { padding-top: 0; border-top: 0; }
+.panel-seccion-titulo { font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em; }
+.panel-seccion .card-tight, .panel-seccion .card { padding: 0; border: 0; box-shadow: none; background: transparent; }
+
+/* ── El panel del día, con aire ────────────────────────────────────────────
+   Lo que se toca a menudo a la vista (nombre, sesiones, indicación); lo demás
+   plegado con su resumen. Las secciones plegables van sin título propio: el
+   pliegue ES el título. */
+.panel-secciones { gap: var(--s6); }
+.panel-seccion { gap: var(--s4); padding-top: var(--s5); }
+.panel-seccion.is-plegable { padding-top: var(--s3); gap: 0; }
+.panel-seccion .fold { border: 0; background: transparent; padding: 0; }
+.panel-seccion .fold-head { padding-left: 0; padding-right: 0; }
+.panel-seccion .fold-body { padding-left: 0; padding-right: 0; }
+.panel-seccion .textarea { min-height: 76px; }
+.menu-acciones .hoja-semana.is-nueva, .menu-acciones .hoja-dia.is-nuevo { display: inline-flex; align-items: center; }
+/* Los menús de «+ sesión» y «+ Día» se abren DENTRO de estas filas: sin
+   overflow recortado, y las filas envuelven en vez de desplazar. */
+.hoja-barra, .hoja-semanas, .hoja-semanas-tira, .hoja-dias { overflow: visible; }
+.menu-acciones .hoja-semana.is-nueva, .menu-acciones .hoja-dia.is-nuevo { cursor: pointer; }
+
+
+/* El calentamiento, en una línea encima de la hoja. */
+.hoja-calentamiento {
+  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); font-size: var(--fs-sm);
+}
+.hoja-calentamiento-k {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+.hoja-calentamiento-lista { display: flex; gap: var(--s3); flex-wrap: wrap; min-width: 0; color: var(--text); font-weight: 550; }
+.hoja-calentamiento-item > small { color: var(--text-tertiary); font-weight: 500; font-variant-numeric: tabular-nums; }
+.hoja-calentamiento-vacio { color: var(--text-tertiary); }
+.hoja-calentamiento-acciones { margin-left: auto; display: inline-flex; gap: var(--s3); }
+.hoja-calentamiento-acciones .hoja-calentamiento-editar { margin-left: 0; }
+.hoja-calentamiento-editar {
+  margin-left: auto; background: transparent; border: 0; padding: 0;
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); cursor: pointer;
+}
+.hoja-calentamiento-editar:hover { color: var(--text); }
+
+
+/* ── Lo que contó, a la vista: chips de una palabra y una cifra ─────────── */
+.hoja-feedback { display: inline-flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.hoja-feedback-chip {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary);
+  padding: 2px 8px; border-radius: var(--r-pill); background: var(--surface-sunken);
+}
+.hoja-feedback-chip > b { font-family: var(--font-display); font-weight: 700; font-variant-numeric: tabular-nums; color: inherit; }
+.hoja-barra.is-dias .hoja-contexto { display: inline-flex; align-items: center; gap: var(--s2); }
+
+/* La papelera de la fila: silenciosa hasta que se pasa por encima. */
+.hoja-papelera { width: 30px; height: 30px; color: var(--text-tertiary); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.hoja-papelera:hover:not(:disabled) { color: var(--negative); background: var(--negative-soft); box-shadow: none; }
+
+/* ── El panel de la semana ─────────────────────────────────────────────── */
+.semana-cifras { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+.semana-cifra { display: flex; flex-direction: column; gap: 2px; }
+.semana-cifra > .v { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums; }
+.semana-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
+.semana-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.semana-sesion { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken); }
+.semana-sesion-fila { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.semana-sesion-fecha { font-weight: 650; }
+.semana-sesion-dato { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.semana-sesion-dato.is-ok { color: var(--positive); }
+.semana-sesion-dato.is-corto { color: var(--negative); }
+.semana-sesion-nota { font-size: var(--fs-sm); color: var(--text-secondary); font-style: italic; }
+
+
+/* ── Lo subjetivo, como barras ─────────────────────────────────────────── */
+.subjetivo { display: flex; flex-direction: column; gap: 6px; }
+.subjetivo-fila { display: grid; grid-template-columns: 64px minmax(0, 1fr) 44px; gap: var(--s2); align-items: center; }
+.subjetivo-k { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.subjetivo-barra { height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.subjetivo-relleno { display: block; height: 100%; border-radius: 3px; background: var(--text-secondary); }
+.subjetivo-v { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.subjetivo-v > small { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 500; }
+.comparativa-subjetivo { display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+
+/* La papelera: la misma pieza en la fila del ejercicio, en el día y en la semana. */
+.hoja-papelera { width: 26px; height: 26px; box-shadow: none; background: transparent; color: var(--text-tertiary); opacity: 0.6; }
+.hoja-papelera:hover:not(:disabled) { opacity: 1; }
+
+/* La indicación del día, bajo el calentamiento y en la misma voz. */
+.hoja-indicacion { display: flex; align-items: baseline; gap: var(--s3); padding: var(--s2) var(--s3); border-radius: var(--r-md); background: var(--surface-sunken); margin-top: calc(var(--s2) * -1); }
+.hoja-indicacion-texto { flex: 1; min-width: 0; background: transparent; border: 0; padding: 0; font: inherit; font-size: var(--fs-sm); color: var(--text); resize: none; min-height: 22px; line-height: 1.5; }
+.hoja-indicacion-texto:focus { outline: none; }
+.hoja-indicacion-texto::placeholder { color: var(--text-tertiary); }
+.hoja-indicacion-mas { align-self: flex-start; margin-top: calc(var(--s2) * -1); background: transparent; border: 0; padding: 2px var(--s3); font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); cursor: pointer; }
+.hoja-indicacion-mas:hover { color: var(--text); }
+
+/* La fecha de una sesión se edita en la semana. */
+.semana-sesion-fecha { font: inherit; font-weight: 650; background: transparent; border: 0; padding: 0; color: var(--text); color-scheme: inherit; }
+.semana-sesion-fecha:focus { outline: none; box-shadow: inset 0 -1px 0 var(--accent); }
+
+
+/* ══ LA VENTANA DEL BLOQUE ═════════════════════════════════════════════════
+   Pestañas de bloques arriba; nombre y cifras; la estructura; los días con lo
+   que llevan; las semanas con su tonelaje como barra. Se mira, y se salta. */
+.bloque { display: flex; flex-direction: column; gap: var(--s5); }
+/* El cuándo, DENTRO del rótulo pero fuera del troquel: la fecha sitúa la
+   medida, no la nombra, y troquelada gasta el doble de ancho por el
+   interletraje. Ver `dashboard/TarjetaSensaciones`. */
+.bloque-titulo > .cuando {
+  margin-left: 6px; font-family: var(--font); font-size: var(--fs-xs); font-weight: 500;
+  text-transform: none; letter-spacing: 0; color: var(--text-tertiary);
+}
+.bloque-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
+.bloque-cifra { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--surface-sunken); }
+.bloque-cifra > .v { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums; }
+.bloque-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
+.bloque-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.bloque-seccion { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
+.bloque-titulo { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
+@media (max-width: 760px) { .bloque-cifras { grid-template-columns: repeat(2, 1fr); } }
+
+
+/* ── La columna derecha: progresión arriba, cómo lo llevó debajo ──────────── */
+.entreno-lado-derecho { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.entreno-lado-derecho .comparativa { position: static; }
+.como-lo-llevo { gap: var(--s3); }
+.como-lo-llevo .comparativa-head { flex-direction: row; align-items: baseline; justify-content: space-between; }
+.comparativa-ampliar {
+  align-self: flex-start; background: transparent; border: 0; padding: 0;
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); cursor: pointer;
+}
+.comparativa-ampliar:hover { color: var(--text); }
+
+/* ── La progresión, en grande ─────────────────────────────────────────────── */
+.progresion { display: flex; flex-direction: column; gap: var(--s5); }
+.bloque-cifras.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.progresion-tabla { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.progresion-fila { display: grid; gap: 3px; align-items: center; min-width: 520px; }
+.progresion-fila.is-head > span { font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); text-align: center; padding-bottom: 3px; border-bottom: 1px solid var(--hairline); }
+.progresion-fila.is-head > span:first-child, .progresion-fila.is-head > span:nth-child(2) { text-align: left; }
+.progresion-sem { font-family: var(--font-display); font-weight: 700; color: var(--text); }
+.progresion-fila.is-actual .progresion-sem { color: var(--accent); }
+.progresion-fecha { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.progresion-celda {
+  display: flex; align-items: baseline; justify-content: center; gap: 1px; height: 30px; border-radius: var(--r-sm);
+  background: var(--surface-sunken); font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.progresion-celda > b { font-weight: 600; color: var(--text); }
+.progresion-celda > small { font-size: 9.5px; color: var(--text-tertiary); margin-left: 2px; }
+.progresion-celda.is-sube > b { color: var(--positive); }
+.progresion-celda.is-baja > b { color: var(--negative); }
+.progresion-celda.is-vacia { background: transparent; color: var(--text-tertiary); }
+
+/* ── La ventana del bloque: dos pantallas que se deslizan ─────────────────── */
+
+
+/* ── La cabecera de las tarjetas laterales: rótulo, título pulsable, paso ── */
+.lado-cab { display: flex; flex-direction: column; gap: 2px; }
+.lado-cab-fila { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-width: 0; }
+.lado-titulo {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
+  background: transparent; border: 0; padding: 2px 0; border-radius: var(--r-xs);
+  font: inherit; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em;
+  color: var(--text); cursor: pointer; transition: color var(--fast);
+}
+.lado-titulo::after { content: ' ↗'; font-family: var(--font); font-weight: 500; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.lado-titulo:hover:not(:disabled) { color: var(--text); }
+.lado-titulo:hover:not(:disabled)::after { color: var(--text); }
+.lado-titulo:disabled { cursor: default; }
+.lado-titulo:disabled::after { content: ''; }
+.lado-paso { display: inline-flex; gap: 1px; flex-shrink: 0; }
+.lado-paso .btn-icon { color: var(--text-tertiary); }
+.sensaciones-notas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.sensaciones-notas > li { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: var(--s3); font-size: var(--fs-sm); }
+.sensaciones-nota-fecha { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.sensaciones-nota-texto { color: var(--text-secondary); font-style: italic; }
+.bloque-cifras.is-1 { grid-template-columns: 1fr; }
+.bloque-cifras.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bloque-cifras.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+
+
+/* ── Abrir un bloque nuevo ─────────────────────────────────────────────────── */
+.nuevo-bloque { display: flex; flex-direction: column; gap: var(--s4); }
+.nuevo-bloque-opciones { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.nuevo-bloque-opciones > legend { margin-bottom: var(--s2); }
+.nuevo-bloque-opcion {
+  display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3); cursor: pointer;
+  border: 1px solid var(--hairline); border-radius: var(--r-md); transition: border-color var(--fast), background-color var(--fast);
+}
+.nuevo-bloque-opcion:hover { background: var(--fill-subtle); }
+.nuevo-bloque-opcion.is-on { border-color: var(--accent); }
+.nuevo-bloque-opcion > input { margin-top: 3px; accent-color: var(--accent); }
+.nuevo-bloque-opcion > span { display: flex; flex-direction: column; gap: 2px; }
+.nuevo-bloque-opcion strong { font-weight: 650; }
+.nuevo-bloque-opcion small { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── El cambio de bloque, en la gráfica de la revisión ─────────────────────── */
+.grafica-cambio > line { stroke: var(--text-tertiary); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
+.grafica-cambio > text {
+  font-family: var(--font-display); font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  fill: var(--text-tertiary);
+}
+
+/* ── El desplegable de bloques: cada fila entra; a la derecha, ver y editar ── */
+.hoja-nuevo-bloque { color: var(--text-secondary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL MANDO — la fila de una pantalla del cliente, con la gramática de Entreno
+   --------------------------------------------------------------------------
+   Izquierda: dónde estás (pestañas, título, contexto en voz baja). Derecha:
+   qué puedes hacer (silenciosos, un primario, enlaces como texto, «···»).
+   Sustituye al titular de pantalla dentro de un cliente: la cabecera ya dice
+   quién y la pestaña ya dice qué. Ver `ui/Mando.jsx`.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mando {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  min-height: 30px; flex-wrap: wrap;
+}
+.mando-izq { display: flex; align-items: center; gap: var(--s3); min-width: 0; flex-wrap: wrap; }
+.mando-titulo {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720;
+  letter-spacing: -0.022em; line-height: 1.2;
+}
+.mando-contexto { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.mando-acciones { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; flex-wrap: wrap; }
+.mando-acciones .cab-accion { padding: 6px 2px; }
+.mando-acciones .save-indicator { margin-right: var(--s1); }
+
+/* Las pestañas de la fila: la misma pastilla que los días de Entreno. */
+.mando-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; flex-wrap: wrap; }
+.mando-tab {
+  padding: 6px 12px; border-radius: var(--r-md); border: 0; background: transparent;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-base); font-weight: 650; letter-spacing: -0.015em;
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast);
+}
+.mando-tab:hover { color: var(--text); background: var(--fill-subtle); }
+.mando-tab.is-on { color: var(--text); background: var(--fill); }
+.mando-tabs .mando-tab:first-child { margin-left: -12px; }
+
+/* Un ajuste dentro de un menú: la marca delante dice si está puesto. */
+.menu-item-toggle .menu-check { opacity: 0; flex-shrink: 0; }
+.menu-item-toggle.is-on .menu-check { opacity: 1; }
+
+/* ══ DIETA: el menú a lo ancho y el objetivo al lado ══════════════════════ */
+.dieta-pagina { min-width: 0; }
+.dieta { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
+.dieta-menu { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.dieta-lado { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; position: sticky; top: var(--s5); }
+.dieta-lado .card { padding: var(--s4); }
+@media (max-width: 1023.98px) {
+  .dieta { grid-template-columns: 1fr; }
+  .dieta-lado { position: static; }
+  /*
+    En el PORTAL, y solo en una columna, el objetivo va DELANTE del menú.
+
+    Al entrenador le manda el menú: es donde trabaja, y el objetivo le acompaña
+    al lado. Al cliente le manda el objetivo —es la cifra contra la que lee todo
+    lo demás, y cabe en media pantalla—; poniéndolo detrás, en el teléfono había
+    que pasar el menú entero para ver cuántas calorías le han puesto. En dos
+    columnas no hace falta: ahí se ven los dos a la vez.
+  */
+  .dieta-pagina.is-portal .dieta-lado { order: -1; }
+}
+
+/* ══ LA HOJA DE DIETA: comidas como secciones, igual que los ejercicios ═══ */
+.dieta-hoja {
+  display: flex; flex-direction: column; gap: var(--s5);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg);
+  padding: var(--s4) var(--s5) var(--s5); box-shadow: var(--shadow-sm); min-width: 0;
+}
+.comida { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.comida + .comida { padding-top: var(--s5); border-top: 1px solid var(--hairline); }
+.comida-cab { display: flex; align-items: baseline; gap: var(--s2); min-height: 26px; flex-wrap: wrap; }
+.comida-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); width: 16px; }
+.comida-nombre { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em; min-width: 0; }
+.comida-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.comida-acciones { margin-left: auto; align-self: center; display: flex; gap: 2px; opacity: 0.45; transition: opacity var(--fast); }
+.comida:hover .comida-acciones, .comida:focus-within .comida-acciones { opacity: 1; }
+.comida-acciones .menu-acciones .btn-icon { box-shadow: none; width: 26px; height: 26px; }
+
+/* La línea del objetivo y la de la nota: la misma franja que el calentamiento. */
+.comida-objetivo, .comida-nota {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); font-size: var(--fs-sm);
+}
+.comida-objetivo-k {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+  min-width: 56px;
+}
+.comida-objetivo-campo { display: inline-flex; align-items: center; gap: 5px; }
+.comida-objetivo-campo > span { font-size: var(--fs-2xs); font-weight: 700; color: var(--text-tertiary); }
+.comida-nota-texto { flex: 1; min-width: 0; background: transparent; border: 0; padding: 0; font: inherit; font-size: var(--fs-sm); color: var(--text); }
+.comida-nota-texto:focus { outline: none; }
+.comida-nota-texto::placeholder { color: var(--text-tertiary); }
+.comida-nota-mas { align-self: flex-start; background: transparent; border: 0; padding: 0 var(--s3); font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); cursor: pointer; }
+.comida-nota-mas:hover { color: var(--text); }
+.comida-nota-lectura { font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap; }
+
+/* Las opciones como pestañas, la misma pastilla que los días. */
+.comida-opciones { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.comida-opciones-tabs { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0; }
+.comida-opcion {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 5px 10px; border-radius: var(--r-md); border: 0; background: transparent;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 650; letter-spacing: -0.01em;
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast);
+}
+.comida-opcion > small { font-family: var(--font); font-size: var(--fs-2xs); font-weight: 600; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.comida-opcion:hover { color: var(--text); background: var(--fill-subtle); }
+.comida-opcion.is-on { color: var(--text); background: var(--fill); }
+.comida-opcion.is-nueva { color: var(--text-tertiary); font-family: var(--font); font-weight: 500; }
+.comida-opciones-acciones { display: flex; align-items: center; flex-shrink: 0; }
+.comida-opciones-acciones .menu-acciones .btn-icon { box-shadow: none; width: 26px; height: 26px; }
+.comida-alta { padding-top: var(--s1); }
+
+/* La suma: lo puesto y lo pedido, en el color de si cuadra. */
+.food-row.is-suma { background: transparent; box-shadow: inset 0 1px 0 var(--hairline-strong); border-radius: 0; margin-top: 2px; }
+.food-row.is-suma > .name > .txt { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
+.food-row.is-suma > .n, .food-row.is-suma > .kcal { font-weight: 700; color: var(--text); }
+.food-row.is-suma small { font-size: var(--fs-2xs); font-weight: 550; color: var(--text-tertiary); }
+.food-row.is-suma > .is-ok { color: var(--positive); }
+.food-row.is-suma > .is-over { color: var(--negative); }
+.food-row.is-suma > .is-under { color: var(--warning); }
+
+/* El asa de cada comida y el arrastre entre ellas. */
+.comida-cab { align-items: center; }
+.comida .hoja-asa { align-self: center; }
+.comida.is-dragging { opacity: 0.45; }
+.comida.is-drop-target { box-shadow: inset 0 2px 0 var(--accent); }
+
+
+/* La tabla sin alimentos todavía. */
+.food-vacia { padding: 6px var(--s3); }
+/* ══ EL PLAN DEL DÍA, arriba de la hoja de dieta ═══════════════════════════
+   La tabla donde se reparte: celdas de la hoja, cabecera troquelada, cifras a
+   la derecha. Una pieza, sin cajas de color ni anillos. */
+.plan-dia { display: flex; flex-direction: column; gap: var(--s3); padding-bottom: var(--s4); border-bottom: 1px solid var(--hairline); }
+
+.plan-dia-tabla { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.plan-dia-fila {
+  display: grid; align-items: center; gap: var(--s2);
+  grid-template-columns: 20px minmax(140px, 1fr) 64px 52px 52px 52px minmax(120px, 1.2fr) 64px;
+  padding: 0 var(--s3); min-width: 100%; width: max-content;
+}
+.plan-dia-fila.is-cab {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary); padding-bottom: 2px;
+}
+.plan-dia-fila > .is-num { text-align: right; font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
+.plan-dia-fila > .is-num > .hoja-celda { text-align: center; }
+.plan-dia-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); }
+.plan-dia-nombre {
+  background: transparent; border: 0; padding: 0; text-align: left; cursor: pointer;
+  font: inherit; font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em; color: var(--text);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.plan-dia-nombre:hover { color: var(--text); }
+.plan-dia-fila > .is-peso { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.plan-dia-fila > .is-peso > small { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; width: 34px; text-align: right; flex-shrink: 0; }
+.plan-dia-barra { flex: 1; height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.plan-dia-barra-fill { display: block; height: 100%; border-radius: inherit; background: var(--text-tertiary); transition: width var(--fast); }
+.plan-dia-suma { font-weight: 700; color: var(--text-secondary); }
+.plan-dia-suma.is-ok { color: var(--positive); }
+.plan-dia-suma.is-over { color: var(--negative); }
+.plan-dia-suma.is-under { color: var(--warning); }
+.plan-dia-fila.is-total { padding-top: 6px; margin-top: 2px; box-shadow: inset 0 1px 0 var(--hairline-strong); }
+.plan-dia-fila.is-total > .is-nombre { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
+.plan-dia-fila.is-total > .is-num { font-weight: 700; color: var(--text); }
+.plan-dia-lectura { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.plan-dia-lectura.is-ok { color: var(--positive); }
+.plan-dia-lectura.is-over { color: var(--negative); }
+
+/* ══ LA VENTANA DEL DÍA (Dieta): anillo, cifras y el plan ═════════════════ */
+.plan-dia { padding-bottom: 0; border-bottom: 0; }
+
+/* ══ LA TIRA DEL DÍA y el mini reparto de macros (Dieta) ═══════════════════ */
+.macro-mini { display: inline-flex; width: 64px; height: 5px; border-radius: 3px; overflow: hidden; gap: 1px; flex-shrink: 0; vertical-align: middle; }
+.macro-mini > span { display: block; height: 100%; }
+
+/* El plan del día: columnas de opciones y reparto. */
+.plan-dia-fila { grid-template-columns: 20px minmax(130px, 1fr) 64px 52px 52px 52px minmax(110px, 1fr) minmax(120px, 0.9fr) 64px; }
+
+/* ══ EL DÍA, encima de las comidas: cuánto lleva del objetivo ══════════════ */
+.dia-resumen {
+  display: flex; align-items: center; gap: var(--s5); width: 100%;
+  padding: var(--s3) var(--s4); margin: 0 0 var(--s2); border: 0; border-radius: var(--r-md);
+  background: var(--surface-sunken); font: inherit; color: var(--text); cursor: pointer; text-align: left;
+  transition: background-color var(--fast);
+}
+.dia-resumen:hover { background: var(--fill-subtle); }
+.dia-resumen:hover .dia-resumen-mas { color: var(--text); }
+.dia-resumen-mas { flex-shrink: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); transition: color var(--fast); white-space: nowrap; }
+
+/* La cabecera de una comida: lo que suma contra lo que pide, en color. */
+.comida-kcal { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; margin-left: var(--s1); }
+.comida-kcal > b { font-weight: 700; color: var(--text); }
+.comida-kcal.is-ok > b { color: var(--positive); }
+.comida-kcal.is-over > b { color: var(--negative); }
+.comida-kcal.is-under > b { color: var(--warning); }
+
+/* ══ LA VENTANA DEL DÍA, pulida: cuatro cifras iguales con su barra ═══════ */
+.plan-dia-fila { grid-template-columns: 20px minmax(120px, 1fr) 64px 52px 52px 52px minmax(120px, 1fr) minmax(150px, 1fr) 64px; }
+.plan-dia-fila > .is-peso { padding-left: var(--s3); }
+.plan-dia-fila > .is-num > .hoja-celda { height: 28px; }
+
+/* ── Macros del día: rótulo que dice qué es, y con qué opciones se suma ──── */
+.dia-resumen { flex-direction: column; align-items: stretch; gap: var(--s3); cursor: default; }
+.dia-resumen:hover { background: var(--surface-sunken); }
+.dia-resumen-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+.dia-resumen-rotulo { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.dia-resumen-sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.dia-resumen-mas.cab-accion { padding: 0; font-size: var(--fs-xs); }
+
+/* ══ EL PLAN DEL DÍA, tercera vuelta: una tabla, todo alineado ════════════ */
+.plan-dia-tabla { overflow-x: visible; gap: 2px; }
+.plan-dia-fila { grid-template-columns: 18px minmax(120px, 1fr) 72px 60px 60px 60px 72px; width: auto; min-width: 0; padding: 0 var(--s2); }
+.plan-dia-fila > .is-peso { padding-left: var(--s2); font-size: var(--fs-xs); color: var(--text-tertiary); text-align: right; font-variant-numeric: tabular-nums; }
+.plan-dia-fila.is-cab > .is-peso { text-align: right; }
+.plan-dia-fila > .is-num > .hoja-celda { height: 30px; }
+.plan-dia-fila.is-plan { padding-bottom: 6px; margin-bottom: 2px; box-shadow: inset 0 -1px 0 var(--hairline); }
+.plan-dia-fila.is-plan > .is-nombre { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
+.plan-dia-fila.is-plan > .is-num { font-weight: 700; color: var(--text-secondary); }
+.plan-dia-fila.is-total { padding-top: 8px; margin-top: 4px; }
+.plan-dia-fila.is-suma { padding-top: 6px; padding-bottom: 6px; border-radius: var(--r-sm); background: var(--surface-sunken); margin-top: 2px; }
+.plan-dia-fila.is-suma > .is-nombre { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
+.plan-dia-fila.is-suma > .is-nombre > small { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 4px; }
+.plan-dia-fila.is-suma > .is-num { font-weight: 700; color: var(--text); }
+.plan-dia-fila.is-suma > .is-num.is-ok { color: var(--positive); }
+.plan-dia-fila.is-suma > .is-num.is-over { color: var(--negative); }
+.plan-dia-fila.is-suma > .is-num.is-under { color: var(--warning); }
+.plan-dia-lectura.is-under { color: var(--warning); }
+@media (max-width: 599.98px) { .plan-dia-tabla { overflow-x: auto; } .plan-dia-fila { width: max-content; min-width: 100%; } }
+
+/* ── Las acciones de una comida y de su opción, a la vista ───────────────── */
+.comida-acciones .btn-icon, .comida-opciones-acciones .btn-icon { width: 26px; height: 26px; box-shadow: none; color: var(--text-tertiary); }
+.comida-acciones .btn-icon:hover, .comida-opciones-acciones .btn-icon:hover { color: var(--text); }
+.comida-opciones-acciones { gap: 2px; opacity: 0.45; transition: opacity var(--fast); }
+.comida:hover .comida-opciones-acciones, .comida:focus-within .comida-opciones-acciones { opacity: 1; }
+.comida-opciones-k { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); margin-right: var(--s1); }
+.comida-nombre { font-size: var(--fs-lg); }
+.comida-n { font-size: var(--fs-sm); }
+
+/* ══ RENOMBRAR SIN CAMBIAR DE ASPECTO: la casilla es el propio título ═════
+   El nombre de una comida y la pestaña de un día se editan en su sitio, con la
+   misma letra y el mismo tamaño; lo único que cambia es un subrayado de acento.
+   Antes salía una caja de formulario y el título saltaba de forma. */
+.comida-nombre.is-editable { cursor: text; }
+.comida-nombre.is-editable:hover { color: var(--text); }
+.dia-anillo:hover { background: var(--fill-subtle); }
+.dia-anillo .donut-center > .v { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 720; letter-spacing: -0.02em; }
+.dia-anillo.is-ok .donut-center > .v { color: var(--positive); }
+.dia-anillo.is-over .donut-center > .v { color: var(--negative); }
+.dia-anillo.is-under .donut-center > .v { color: var(--warning); }
+.dia-anillo-nombre { display: flex; align-items: center; gap: 6px; font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em; margin-top: 4px; max-width: 100%; }
+.dia-anillo-nombre > .plan-dia-n { width: auto; }
+.dia-anillo-kcal { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.dia-anillo-kcal > b { font-weight: 700; color: var(--text); }
+.dia-anillo-macros { display: flex; justify-content: center; gap: var(--s2); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+.dia-anillo-opciones { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+
+/* ── La SUMA: el objetivo debajo de la cifra, en su columna ───────────────
+   «37/40» en dos tamaños se leía como dos columnas desalineadas; apilados,
+   la cifra queda en el eje de la columna y el objetivo, en voz baja, debajo. */
+
+/* ── Los anillos del día: siempre a todo el ancho, y con más aire ────────── */
+.dia-anillos { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s3); }
+.dia-anillo { padding: var(--s5) var(--s3) var(--s4); gap: 8px; box-shadow: inset 0 0 0 1px var(--hairline); }
+.dia-anillo:hover { box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.dia-anillo-nombre { margin-top: 6px; font-size: var(--fs-md); }
+.dia-anillo-kcal { font-size: var(--fs-sm); }
+.dia-anillo-macros { padding-top: 2px; }
+.dia-anillo-opciones { padding-top: 2px; }
+
+/* ── Equivalencias: lo que se aleja en kcal, y la ración que las iguala ─── */
+.equiv-kcal { display: block; }
+.equiv-kcal-usar { background: transparent; border: 0; padding: 0; font: inherit; color: var(--text-secondary); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.equiv-kcal-usar:hover { color: var(--text); }
+
+/* ══ (repuesto) El reparto en el mismo eje, los desvíos por macro y los macros del día ═ */
+.plan-dia-fila > .is-num { text-align: center; }
+.plan-dia-fila.is-cab > .is-num { text-align: center; }
+.dia-desvio-macro { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); white-space: nowrap; }
+.dia-desvio-macro > i { width: 6px; height: 6px; border-radius: 2px; }
+.dia-desvio-macro.is-ok { color: var(--positive); }
+.dia-desvio-macro.is-over { color: var(--negative); }
+.dia-desvio-macro.is-under { color: var(--warning); }
+
+/* ── La tabla de alimentos: P · C · G · KCAL centradas, también la SUMA ────
+   A la derecha, «37/40» no caía bajo el «14» de arriba y se leía torcido;
+   centradas, la cifra de cada fila y la de la suma comparten eje. */
+.food-head > span:nth-child(4), .food-head > span:nth-child(5), .food-head > span:nth-child(6), .food-head > span:nth-child(7) { text-align: center; }
+.food-row > .n, .food-row > .kcal { text-align: center; }
+
+/* ── Los anillos del día: sin cajas; una fila de columnas separadas por filete ─ */
+.dia-anillos { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; }
+.dia-anillo {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: var(--s3) var(--s3) var(--s2);
+  border: 0; border-radius: var(--r-md); background: transparent; box-shadow: none; font: inherit; color: var(--text); cursor: pointer; text-align: center;
+  transition: background-color var(--fast);
+}
+.dia-anillo + .dia-anillo { box-shadow: inset 1px 0 0 var(--hairline); }
+.dia-anillo:hover { background: var(--fill-subtle); box-shadow: inset 1px 0 0 var(--hairline); }
+.dia-anillo:first-child:hover { box-shadow: none; }
+.dia-anillo .donut-center > .u, .dia-anillo .donut-center > .s { font-size: 9px; }
+
+/* ══ RENOMBRAR EN SU SITIO: la misma casilla en Dieta y en Entreno ═══════════
+   Antes eran dos: en Dieta la casilla ERA el título —sin caja, con un subrayado
+   de acento— y en Entreno salía un recuadro gris con relleno que, encima, se
+   fijaba al largo del nombre original y lo recortaba al escribir («Push A» se
+   quedaba en «ush A»).
+
+   Ahora es una sola: hereda la letra de lo que sustituye —el título de la comida
+   o la pestaña del día—, no pinta caja y crece con lo escrito. Lo único que
+   aparece al editar es el subrayado. */
+.renombrar { display: inline-flex; align-items: center; min-width: 0; }
+.renombrar-input {
+  appearance: none; -webkit-appearance: none; box-sizing: content-box; margin: 0; padding: 0;
+  height: auto; border: 0; border-radius: 0; background: transparent; line-height: normal;
+  font: inherit; font-family: var(--font-display); color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.renombrar-input:focus, .renombrar-input:focus-visible { outline: none; box-shadow: inset 0 -2px 0 var(--accent); }
+
+/* En Dieta ocupa el sitio de `.comida-nombre`; en Entreno, el de `.hoja-dia` —y
+   el relleno de la pestaña va en el formulario, no en la casilla, para que el
+   subrayado ciña el texto igual que en Dieta y la fila no dé un salto. */
+.renombrar.is-comida .renombrar-input { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
+.renombrar.is-dia { padding: 6px 12px; }
+.renombrar.is-dia .renombrar-input { font-size: var(--fs-base); font-weight: 650; letter-spacing: -0.015em; }
+
+/* ── Los anillos del día, en fila: faltaba declarar la rejilla ────────────
+   `.dia-anillos` traía `grid-template-columns` pero no `display: grid`, así que
+   el contenedor seguía siendo un bloque y cada anillo caía debajo del anterior.
+   Con la rejilla puesta vuelven a leerse como una fila de columnas; el hueco
+   entre filas es por si un día tiene más comidas de las que caben a lo ancho. */
+.dia-anillos { display: grid; row-gap: var(--s4); }
+
+
+/* ── La SUMA, como la lista de equivalencias ──────────────────────────────
+   «37/40» en una línea no cabe en una columna de 42 px: cada celda se salía de
+   su columna, la fila entera pedía `max-content` y las cifras dejaban de caer
+   bajo su encabezado —de ahí que la suma se leyera torcida respecto a los
+   alimentos que resume—. Y con las cuatro cifras en negrita y en color a la
+   vez, verde incluido cuando cuadra, la fila de cierre gritaba más que la tabla.
+
+   Se hace lo que ya se hacía en las equivalencias de un alimento: «250 kcal
+   (+18)» pone la ración en tinta de dato y la diferencia debajo, en cuerpo
+   menor y en color. Aquí igual —la cifra arriba, en el eje de su columna, y el
+   objetivo debajo en voz baja—, así que el color vive en la línea pequeña y
+   solo cuando hay algo que corregir: lo que cuadra no se pinta. */
+.food-row.is-suma > .n, .food-row.is-suma > .kcal {
+  font-weight: 650; color: var(--text); line-height: 1.2;
+}
+.food-row.is-suma small {
+  display: block; font-size: var(--fs-2xs); font-weight: 550; color: var(--text-tertiary);
+}
+.food-row.is-suma > .is-over small { color: var(--negative); }
+.food-row.is-suma > .is-under small { color: var(--warning); }
+
+/* En móvil la tabla se parte en dos filas y cada cifra recupera su letra
+   («P 37»); ahí el objetivo vuelve a la línea, que es donde hay ancho. */
+@media (max-width: 640px) {
+  .food-row.is-suma small { display: inline; }
+}
+
+/* ── Equivalencias: las dos cifras del cambio, y sus diferencias ──────────
+   La ración se elige cuadrando el macro del grupo Y las kcal, así que debajo
+   del nombre van las dos. En tinta de dato: el color es solo de las
+   diferencias, que es lo que hay que mirar. */
+.equiv-row > .who > .sub > .sep { padding: 0 5px; opacity: 0.5; }
+.equiv-row > .who > .sub > .dif { font-weight: 700; margin-left: 3px; font-variant-numeric: tabular-nums; }
+.equiv-row > .who > .sub > .dif.is-mas { color: var(--negative); }
+.equiv-row > .who > .sub > .dif.is-menos { color: var(--warning); }
+
+/* ══ LA TIRA DEL DÍA: cuatro columnas de cifras, sin gráfico ════════════════
+   Aquí hubo un anillo con una barra, luego cuatro barras de progreso y luego un
+   medidor de desvío con eje central. Los tres estorbaban por la misma razón: no
+   hay nada que dibujar. Son cuatro diferencias de una o dos cifras, y «−9 g»
+   ya es el gráfico —escrito ocupa menos y se entiende antes—.
+
+   Lo que sí hacía falta era leer las cuatro columnas en horizontal, y para eso
+   las cuatro cifras van del MISMO tamaño: el tamaño extra de las kcal empujaba
+   su renglón hacia abajo y era lo que se veía torcido. Ahora rótulo con rótulo,
+   cifra con cifra y diferencia con diferencia.
+
+   El total queda a un lado del filete y los tres macros que lo descomponen al
+   otro. El color vive en la línea de la diferencia y solo cuando se sale del
+   margen: cuatro cifras en verde por cuadrar son la misma señal cuatro veces y
+   dejan de ser señal. */
+.medidores { display: grid; grid-template-columns: 1.15fr repeat(3, minmax(0, 1fr)); gap: var(--s5); align-items: start; }
+
+.medidor { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.medidor > .k {
+  display: flex; align-items: center; gap: 5px; min-width: 0;
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary);
+}
+.medidor > .k > i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.medidor > .v { font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; }
+.medidor > .v > b {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.025em; color: var(--text);
+}
+.medidor > .v > small { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.medidor > .lectura { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.medidor.is-over > .lectura { color: var(--negative); }
+.medidor.is-under > .lectura { color: var(--warning); }
+
+/* El total, a un lado del filete; de qué está hecho, al otro. */
+.medidor.is-total { padding-right: var(--s5); border-right: 1px solid var(--hairline); }
+
+@media (max-width: 899.98px) {
+  .medidores { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4) var(--s5); }
+  .medidor.is-total { grid-column: 1 / -1; padding-right: 0; padding-bottom: var(--s3); border-right: 0; border-bottom: 1px solid var(--hairline); }
+}
+@media (max-width: 519.98px) {
+  .medidores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ── La ventana del día, de una pieza: entra sin deslizar ─────────────────
+   Se quedaba unos cien píxeles por encima del alto del diálogo (86vh) y el
+   último bloque pedía rueda. Lo primero fue quitar la repetición —los macros
+   del día al pie decían lo mismo que la fila «SUMAN» de la tabla—; el resto es
+   apretar lo que estaba holgado sin bajar de tamaños legibles: las cuatro
+   cifras de cabecera, el aire entre secciones y el anillo de cada comida. */
+.dia-ventana .bloque-cifra { padding: var(--s2) var(--s3); gap: 1px; }
+.dia-ventana .bloque-cifra > .v { font-size: var(--fs-lg); }
+.dia-ventana .bloque-cifra > .v > small { font-size: var(--fs-sm); }
+.dia-ventana .bloque-cifra > .k { font-size: var(--fs-2xs); line-height: 1.35; }
+.dia-ventana .bloque-seccion { gap: var(--s2); padding-top: var(--s3); }
+.dia-ventana .dia-anillo { padding: var(--s2) var(--s3); gap: 3px; }
+.dia-ventana .dia-anillo-nombre { margin-top: 2px; font-size: var(--fs-base); }
+.dia-ventana .dia-anillo-kcal { font-size: var(--fs-xs); }
+.dia-ventana .dia-anillo-macros, .dia-ventana .dia-anillo-opciones { padding-top: 0; }
+
+/* ── Los ajustes del plan: un panel, no una lista de texto ────────────────
+   Eran cuatro líneas marcables en el «···»: las dos primeras son una elección
+   con dos caras y parecían dos interruptores independientes, lo marcado salía
+   en el color de acento —así que lo PUESTO se leía como un aviso y lo apagado
+   como lo normal— y ninguna decía qué hace.
+
+   Aquí el tipo de plan es un carril de dos opciones con su explicación debajo,
+   y lo que sí son interruptores tiene interruptor y letra pequeña. */
+.ajustes-plan { min-width: 304px; padding: var(--s3); }
+.ajustes-plan-grupo { display: flex; flex-direction: column; gap: var(--s2); }
+.ajustes-plan-k {
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+.ajustes-plan-pie { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.4; }
+.ajustes-plan .menu-sep { margin: var(--s3) 0; }
+.ajustes-plan .switch-row + .switch-row { margin-top: var(--s3); }
+
+/* Añadir comida: al pie de la lista, separado de la última comida lo mismo que
+   las comidas entre sí. */
+.dieta-alta { display: flex; }
+
+/* ══ EL PIE DE LA BARRA: quién eres, y dentro lo tuyo ══════════════════════
+   Había dos filas para una sola idea —«Ajustes» con su engranaje y, debajo, un
+   círculo con tus iniciales— y el círculo estaba roto: su menú se abre pegado
+   al botón y hacia abajo, pero el botón vive al fondo de la columna, así que el
+   menú caía fuera de la ventana y encima la barra lo recortaba con su
+   `overflow`. Pulsar tu propio avatar no hacía absolutamente nada.
+
+   Ahora es UNA fila del ancho de la barra, con la misma caja y el mismo gesto
+   que un destino: avatar, tu nombre, tu rol y el gancho de que ahí hay algo que
+   se abre. Y se abre hacia ARRIBA, que es a donde hay sitio. Dentro va lo tuyo
+   —ajustes, tutorial, tema, salir—, que es donde se busca la configuración de
+   uno en cualquier aplicación con barra. */
+.sidebar-foot { margin-top: auto; padding-top: var(--s2); border-top: 1px solid var(--hairline); }
+.sidebar-foot > .row.is-fila { width: 100%; gap: var(--s1); }
+.sidebar-foot .account { flex: 1; min-width: 0; }
+
+.account-fila {
+  width: 100%; min-width: 0;
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 6px 8px; border: 0; border-radius: var(--r-md);
+  background: transparent; font: inherit; color: var(--text-secondary);
+  cursor: pointer; text-align: left;
+  transition: background-color var(--fast), color var(--fast);
+}
+.account-fila:hover { background: var(--fill-subtle); color: var(--text); }
+.account-fila[aria-expanded='true'] { background: var(--fill-subtle); color: var(--text); }
+.account-fila > svg { flex-shrink: 0; color: var(--text-tertiary); }
+.account-fila .account-avatar { width: 28px; height: 28px; flex-shrink: 0; font-size: var(--fs-2xs); }
+
+.account-fila-quien { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.account-fila-quien > .nm {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.account-fila-quien > .rol { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+
+/* El menú, hacia arriba y del ancho de la fila: cuelga de ella, no de una
+   esquina. */
+.account.is-fila .account-menu { top: auto; bottom: calc(100% + 6px); right: 0; left: 0; min-width: 0; }
+
+/* ── Un solo canto izquierdo en toda la barra ─────────────────────────────
+   La marca arrancaba a 8 px, la búsqueda a 12, los iconos de los destinos a 14
+   y el rótulo «Cartera» otra vez a 8: cuatro cantos distintos en una columna
+   de 256 px, que es de esas cosas que no se saben ver pero se notan. Ahora
+   todo lo que se lee empieza en el mismo sitio. */
+.sidebar-brand { padding: var(--s1) 14px var(--s2); }
+.sidebar-group { padding: var(--s3) 14px var(--s1); }
+.sidebar-buscar .omnibox { padding-left: 14px; }
+.account-fila { padding: 6px 10px 6px 14px; }
+.account-fila .account-avatar { width: 24px; height: 24px; }
+
+/* ══ PLAN POR MACROS: sin menú, el objetivo ES la pantalla ═════════════════
+   Con «por macros» la columna ancha se quedaba con las pautas y nada más —media
+   pantalla en blanco— mientras lo único que de verdad se pauta, el objetivo,
+   vivía apretado en la columna estrecha de al lado. Esa columna existe para
+   ACOMPAÑAR a un menú, y aquí no hay menú al que acompañar.
+
+   Sin menú no hay dos columnas: una sola, en el orden en que se decide —el
+   objetivo, la actividad que va con él y, debajo, lo que le explicas— y con el
+   ancho de un documento, que es lo que es esta pantalla cuando no hay comidas
+   que montar. */
+.dieta-objetivos, .dieta-actividad { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* `align-items: stretch` explícito: `.dieta` trae `align-items: start` para su
+   rejilla de dos columnas, y en un contenedor flex eso significa que los hijos
+   se encogen a su contenido — la pantalla entera se quedaba en media columna. */
+.dieta.is-macros {
+  display: flex; flex-direction: column; align-items: stretch;
+  gap: var(--s5); max-width: 980px;
+}
+.dieta.is-macros > .dieta-lado { order: -1; position: static; gap: var(--s4); }
+.dieta.is-macros .dieta-lado .card { padding: var(--s5); }
+/* Uno ocupa la fila entera; dos —entreno y descanso— se la reparten. Lo decide
+   `auto-fit`, así que no hace falta que el JSX sepa cuántos hay. */
+.dieta.is-macros .dieta-objetivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s4); }
+.dieta.is-macros .dieta-actividad { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s4); align-items: start; }
+
+/* ══ LAS PAUTAS: se leen como lo que son, texto escrito a mano ══════════════
+   Cada pauta era una tarjeta gris dentro de un panel dentro de la columna, y
+   dentro de ella una casilla de título con su recuadro y un área de texto con
+   el suyo, su barra de desplazamiento y el asa de redimensionar en la esquina.
+   Cuatro superficies encajadas para enseñar dos frases, y una pauta ya escrita
+   seguía viéndose como los campos vacíos que hay que rellenar.
+
+   Lo que se escribe aquí lo lee el cliente TAL CUAL, así que aquí también tiene
+   que leerse como texto: el título en la letra de los títulos, el cuerpo en
+   prosa y sin caja, separadas entre sí por un filete —igual que las comidas de
+   la hoja— en vez de por otra tarjeta. El campo ES el texto, que es lo mismo
+   que hacen la nota de una comida y el renombrado en su sitio. */
+.pautas { display: flex; flex-direction: column; }
+.pauta { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) 0; }
+.pauta + .pauta { border-top: 1px solid var(--hairline); }
+.pauta:first-child { padding-top: var(--s1); }
+
+.pauta-cab { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+
+.pauta-titulo, .pauta-cuerpo {
+  width: 100%; min-width: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  font: inherit; color: var(--text); resize: none;
+}
+.pauta-titulo:focus, .pauta-cuerpo:focus,
+.pauta-titulo:focus-visible, .pauta-cuerpo:focus-visible { outline: none; }
+
+.pauta-titulo {
+  flex: 1;
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* El sitio del título se anuncia SOLO mientras se escribe la pauta: un
+   «Título (opcional)» permanente encima de cada una convierte la tanda en un
+   formulario, que es de lo que venimos. */
+.pauta-titulo::placeholder { color: transparent; }
+.pauta:hover .pauta-titulo::placeholder,
+.pauta:focus-within .pauta-titulo::placeholder { color: var(--text-tertiary); }
+
+/* Prosa: el alto lo pone el contenido (lo ajusta `DietNotes`), no un recuadro
+   con rueda, y las mayúsculas de tinta secundaria son las de un párrafo. */
+.pauta-cuerpo {
+  font-size: var(--fs-sm); line-height: 1.6; color: var(--text-secondary);
+  white-space: pre-wrap; overflow: hidden;
+}
+.pauta-cuerpo::placeholder { color: var(--text-tertiary); }
+
+/* Mover y borrar, de uvas a peras: atenuadas hasta que pasas por encima, como
+   en la cabecera de una comida. */
+.pauta-acciones { display: flex; align-items: center; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity var(--fast); }
+.pauta:hover .pauta-acciones, .pauta:focus-within .pauta-acciones { opacity: 1; }
+.pauta-acciones .btn-icon { width: 26px; height: 26px; box-shadow: none; color: var(--text-tertiary); }
+.pauta-acciones .btn-icon:hover:not(:disabled) { color: var(--text); }
+.pauta-acciones .btn-icon:disabled { opacity: 0.3; }
+
+/* El aire de la tanda: la caja que las contiene ya no necesita el suyo dentro,
+   porque cada pauta trae el propio. */
+.pautas > .t-sm, .pautas > .row { padding: var(--s2) 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL RESUMEN — UN MOSAICO DE TARJETAS
+   --------------------------------------------------------------------------
+   Cuarto intento, y el que se queda. Antes: diez cajas apiladas sin jerarquía,
+   una hoja con tramos, tres bloques a lo largo de dos metros de página, y dos
+   hojas en pestañas con una columna al lado. La última fallaba por lo mismo que
+   la primera pero al revés —para ver el entreno había que dejar de ver el
+   cuerpo— y su columna lateral era una tabla de laboratorio.
+
+   Un mosaico no obliga a elegir: cada asunto es una tarjeta, las tarjetas miden
+   lo que pesan y lo que manda ocupa el ancho entero.
+
+   ── Qué hace que no parezca un laboratorio ─────────────────────────────────
+   Que cada tarjeta tenga UNA FORMA y que la forma sea del dato: el medidor del
+   ritmo, la escalera bajo la curva del peso, la franja de macros, la tabla de
+   la rutina con su barra de tonelaje, los medidores del volumen con la marca
+   del MRV, las barras de lo subjetivo. Siete instrumentos porque son siete
+   medidas. Ninguna lleva icono decorativo: con icono, ocho tarjetas se leen
+   como un menú. Ver `dashboard/Dashboard.jsx`.
+   ══════════════════════════════════════════════════════════════════════════ */
+.resumen-pagina { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; max-width: 100%; }
+
+/* La misma forma que Entreno y Dieta: el trabajo a lo ancho y, al lado, lo que
+   se decidió una vez y se consulta muchas. La columna es la de Dieta, y la
+   calle entre las dos también (`--s5`): con `--s4` la columna de trabajo medía
+   seis píxeles más que en Dieta, así que al saltar de una pestaña a otra —que
+   es un clic— el canto de las tarjetas se movía. */
+/* ══════════════════════════════════════════════════════════════════════════
+   EL PANEL SE MIDE CONTRA SU HUECO, NO CONTRA LA VENTANA
+   --------------------------------------------------------------------------
+   Este panel se monta en DOS sitios con anchos muy distintos: la página del
+   entrenador (hasta 1.516 px de hueco) y el portal del cliente, que vive en
+   `layout-narrow` —1.000 px fijos— tenga el monitor el tamaño que tenga.
+
+   Con medias consultas normales, las reglas preguntaban por el ancho de la
+   VENTANA, y la ventana no sabe nada del hueco. Salían dos fallos del mismo
+   error, y ninguno era un caso raro:
+
+     · En «Mi progreso», con el navegador a 1920, la respuesta era «hay sitio de
+       sobra» aunque al cliente le quedaran 634 px: la trayectoria se dibujaba
+       en 69 px de ancho y «47 sesione…» se cortaba a media palabra.
+     · En el entrenador con la ventana a 1280 —un portátil cualquiera— el
+       mosaico mide 646 px y seguía repartiéndose en dos tercios y un tercio:
+       «Desde que empezó» se quedaba en 200 px, con el mismo recorte.
+
+   Con consultas de CONTENEDOR cada pieza pregunta por el sitio que de verdad
+   tiene delante, así que las dos caras se colocan solas y no hay un bloque de
+   excepciones para el portal. Son tres contenedores anidados, uno por decisión:
+
+     panel   → ¿caben el trabajo y la columna del plan, uno al lado del otro?
+     mosaico → ¿caben tarjetas de dos tercios y un tercio, o va todo a fila?
+     tarjeta → dentro de UNA tarjeta, ¿cabe su contenido en dos mitades?
+
+   Se escriben en positivo —de estrecho a ancho— porque así el caso pobre es el
+   de partida y lo que se añade es sitio, no excepciones.
+   ══════════════════════════════════════════════════════════════════════════ */
+.resumen-pagina { container-type: inline-size; container-name: panel; }
+
+/* La misma forma que Entreno y Dieta: el trabajo a lo ancho y, al lado, lo que
+   se decidió una vez y se consulta muchas. La columna es la de Dieta, y la
+   calle entre las dos también (`--s5`): con `--s4` la columna de trabajo medía
+   seis píxeles más que en Dieta, así que al saltar de una pestaña a otra —que
+   es un clic— el canto de las tarjetas se movía. */
+.resumen { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5); align-items: start; }
+.resumen-lado { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+/* 940 = los 300 de la columna, la calle de 22 y 618 para el trabajo, que es lo
+   que pide la tabla del entreno sin comprimir ninguna cifra. */
+@container panel (min-width: 940px) {
+  .resumen { grid-template-columns: minmax(0, 1fr) 300px; }
+  .resumen-lado { position: sticky; top: var(--s5); }
+}
+
+/* ── El mando, solo donde dice algo nuevo ───────────────────────────────────
+   Su contexto es el plan y desde cuándo, y por debajo de 1024 px eso ya lo dice
+   el selector de cliente de la cabecera (`.cliente-cab-selector`) treinta
+   píxeles más arriba: se leía «Trimestral · 240 € · desde 18 may» dos veces
+   seguidas. Aquí el mando no lleva acciones —a diferencia de Entreno y Dieta—,
+   así que sin esa línea no queda nada que enseñar y la fila sobra entera. En el
+   portal no se pinta siquiera: lo que paga no es asunto suyo (ver `Dashboard`).
+   Ésta sí es de VENTANA: la cabecera con la que se duplica es del marco. */
+@media (max-width: 1023.98px) {
+  .resumen-pagina > .mando { display: none; }
+}
+
+/* ══ DESDE QUE EMPEZÓ: cuatro cifras, la historia contada ═════════════════ */
+.desde { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); flex: 1; }
+/* Cuatro cifras en línea cuando la tarjeta ocupa la fila entera; dos por dos
+   cuando ocupa un tercio. 520 es lo que miden cuatro casillas sin que «desde el
+   18 may» tenga que recortarse con puntos suspensivos. */
+@container tarjeta (min-width: 520px) {
+  .desde { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* Cada cifra en su casilla hundida: cuatro números sueltos en una tarjeta se
+   leían flotando; en casillas se leen como cuatro medidas. */
+.desde-cifra {
+  display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0;
+  padding: var(--s3) var(--s3); border-radius: var(--r-md); background: var(--surface-sunken);
+}
+.desde-v {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700;
+  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.desde-v > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
+.desde-k { font-size: var(--fs-xs); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dentro de una ventana, lo desplegado no lleva filete arriba: el título de la
+   ventana ya separa. */
+.afondo.is-ventana { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* ══ EL ENTRENO: la curva del tonelaje y el anillo del volumen ═══════════
+   La curva pesa más que el anillo: el tiempo pide recorrido horizontal. */
+/* Los dos tramos miden lo mismo y sus pies quedan a la misma altura: el
+   gráfico llena su alto y las barras del volumen se reparten el suyo. */
+/* Uno debajo del otro de partida; en paralelo cuando la tarjeta da para que la
+   mitad estrecha pase de 250 px, que es lo que necesitan el nombre del músculo,
+   su barra y su cifra sin comerse la barra. */
+.entreno-par { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s6); align-items: stretch; }
+@container tarjeta (min-width: 660px) {
+  .entreno-par { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+}
+.entreno-par > .hoja-tramo > .tarjeta-pie { margin-top: auto; }
+.entreno-par > .hoja-tramo > figure { flex: 1; }
+.subjetivo.is-volumen { flex: 1; justify-content: space-between; }
+/* El volumen con las barras de escala de «Cómo lo lleva»: el mismo idioma para
+   el mismo tipo de dato —un valor sobre su tope—. Los nombres de músculo son
+   más largos que «Fatiga», así que la columna del rótulo crece. */
+.subjetivo.is-volumen .subjetivo-fila { grid-template-columns: 118px minmax(0, 1fr) 52px; }
+.subjetivo.is-volumen .subjetivo-k { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+/* ══ LA CARGA DE UN EJERCICIO: la curva y, debajo, cada semana como se dice ═ */
+.carga { display: flex; flex-direction: column; gap: var(--s3); }
+.carga-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.carga-fila {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) 76px; gap: var(--s3); align-items: baseline;
+  padding: 6px 0; border-top: 1px solid var(--hairline);
+}
+.carga-sem { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; color: var(--text-secondary); }
+.carga-fila.is-actual .carga-sem { color: var(--accent); }
+.carga-series { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.carga-tope { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.carga-tope > small { font-family: var(--font); font-size: var(--fs-2xs); font-weight: 500; color: var(--text-tertiary); }
+.carga-tope.is-sube { color: var(--positive); }
+.carga-tope.is-baja { color: var(--negative); }
+
+/* DOCE columnas, para que las tarjetas puedan medir lo que pesan: dos tercios
+   para lo que lleva un eje de semanas, un tercio para una lista o un anillo, y
+   una fila de tres tercios para lo que se compara entre sí. Con dos columnas
+   iguales todo medía lo mismo y el panel se leía como un informe.
+
+   Estirar y no alinear al principio: las tarjetas de una fila miden lo mismo
+   aunque una lleve el doble de filas. Con alturas distintas, una fila se lee
+   como piezas sueltas que casualmente están al lado. */
+.mosaico {
+  container-type: inline-size; container-name: mosaico;
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--s5); min-width: 0;
+}
+.mosaico > .tarjeta, .mosaico-celda > .tarjeta { height: 100%; }
+/* La celda que se mide para dibujar la gráfica a píxel real: tiene que ocupar
+   lo mismo que la tarjeta que lleva dentro, y saltar con ella al desplegarse. */
+.mosaico-celda { min-width: 0; }
+.mosaico > .mosaico-celda:has(> .is-abierta) { grid-column: 1 / -1; }
+/* De partida, UN CARRIL: cada tarjeta a fila entera. Un tercio de un mosaico
+   estrecho son 200 px, y ahí no cabe ni «47 sesiones / 4 a la semana». */
+.mosaico > .tarjeta, .mosaico-celda { grid-column: span 12; }
+/* `is-12` dice lo mismo que el reparto de partida, y se queda escrito: el
+   vocabulario de la rejilla es 12·8·6·4, y una tarjeta que pide la fila entera
+   lo declara en su JSX en vez de heredarlo por casualidad. */
+.mosaico > .is-12, .mosaico-celda.is-12 { grid-column: span 12; }
+/* 900 es donde un tercio pasa de 200 a 280 px, que es lo que necesita la
+   columna de cifras para no partir ninguna en dos líneas. */
+@container mosaico (min-width: 900px) {
+  .mosaico > .is-8, .mosaico-celda.is-8 { grid-column: span 8; }
+  .mosaico > .is-6, .mosaico-celda.is-6 { grid-column: span 6; }
+  .mosaico > .is-4, .mosaico-celda.is-4 { grid-column: span 4; }
+}
+/* Desplegada «a fondo»: lo que despliega son tablas semana a semana, y en dos
+   tercios no caben. La vecina baja a la fila siguiente. */
+.mosaico > .tarjeta.is-abierta { grid-column: 1 / -1; }
+
+.tarjeta {
+  /* Contenedor: lo que va DENTRO —las cifras en línea, la cuenta al lado de su
+     dibujo, la curva junto al volumen— se decide con el sitio de esta tarjeta,
+     que cambia según ocupe un tercio, dos o la fila entera. */
+  container-type: inline-size; container-name: tarjeta;
+  display: flex; flex-direction: column; gap: var(--s4); min-width: 0;
+  padding: var(--s5) var(--s5) var(--s6);
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+}
+
+/* La cabecera: de qué va a la izquierda, qué se puede hacer a la derecha. Sin
+   filete debajo —seis tarjetas serían seis rayas más— y sin icono. */
+.tarjeta-cab {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap; min-height: 20px;
+}
+.tarjeta-cab > .cab-accion, .tarjeta-cab > a.cab-accion { display: inline-flex; align-items: center; gap: 6px; }
+/* El rótulo de una tarjeta pesa más que una troquelada suelta: es lo único que
+   dice de qué va, y a tinta terciaria seis tarjetas seguidas no se distinguen
+   del pie de página de la de al lado. */
+.tarjeta-cuerpo { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; flex: 1; }
+.tarjeta-meta { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.tarjeta-pie { font-size: var(--fs-xs); color: var(--text-tertiary); }
+/* La salida de una tarjeta, al pie y pegada abajo: así en una fila de tres,
+   los tres enlaces quedan a la misma altura aunque las listas midan distinto. */
+.tarjeta-pie-accion { margin-top: auto; padding-top: var(--s2); display: flex; }
+.tarjeta-pie-accion > .cab-accion { margin-left: -4px; }
+
+/* El vacío: en el centro y con su salida, no una frase gris en una esquina. Con
+   dos tarjetas así el panel entero parecía roto. */
+.tarjeta.is-vacia > .tarjeta-cuerpo { flex: 1; justify-content: center; }
+.tarjeta-hueco {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  padding: var(--s5) var(--s4); text-align: center;
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-md);
+}
+.tarjeta-hueco > p { font-size: var(--fs-sm); color: var(--text-tertiary); max-width: 42ch; }
+
+/* ══ CÓMO VA — la tarjeta que manda ═══════════════════════════════════════
+   Es la primera de la pantalla y tiene que leerse como tal. Lo hacía con una
+   tinta: fondo tintado de brasa y borde rojizo, es decir, la única tarjeta
+   coloreada de la aplicación — y encima la que más veces enseña una carencia
+   («no hay un objetivo declarado»), así que el color no decía «esto es lo
+   importante», decía «esto va mal».
+
+   Ahora manda como manda una hoja sobre una mesa: sube una superficie y cierra
+   con un filete de verdad. Sin gastar color, y sin que una advertencia dentro
+   de ella parezca una alarma. */
+.comova {
+  background-color: var(--surface-raised);
+  border-color: var(--hairline-strong);
+  box-shadow: var(--shadow-sm);
+  gap: var(--s4);
+}
+/* Dentro, dos mitades: la cuenta a la izquierda y la misma cuenta dibujada a
+   la derecha. La lectura no encoge por debajo de lo que pide su frase. */
+.comova-cuerpo { display: flex; flex-direction: column; gap: var(--s4); flex: 1; }
+/* La cuenta y su dibujo, uno debajo del otro salvo que quepan al lado. 640 es
+   lo que hace falta para que la cuenta no baje de sus 280 px y a la trayectoria
+   le queden 300 largos: por debajo, «80,7 → 76,9 → 75» partía en dos líneas y
+   la curva se quedaba en un garabato. */
+.comova-cuerpo.con-trayecto { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5); align-items: center; }
+@container tarjeta (min-width: 640px) {
+  .comova-cuerpo.con-trayecto { grid-template-columns: minmax(280px, 5fr) minmax(0, 6fr); }
+}
+.comova-lectura { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.trayecto { min-width: 0; margin: 0; }
+.comova-cifra {
+  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 680;
+  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.comova-cifra > small { font-family: var(--font); font-size: var(--fs-sm); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
+/* Sin tendencia todavía: la cifra existe como hueco y se apaga, para que se vea
+   que ahí va un número y no que falta media tarjeta. */
+.comova-cifra.is-muda { color: var(--text-tertiary); }
+
+/* El juicio: la frase con su marca. El color va aquí y en la aguja del medidor
+   —son las dos cosas que juzgan— y no en la cifra, que es del peso. */
+.comova-juicio { display: flex; align-items: flex-start; gap: var(--s2); margin: 0; min-width: 0; }
+.comova-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.comova-say > strong { font-size: var(--fs-base); font-weight: 650; line-height: 1.35; }
+.comova-marca {
+  flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: var(--fill); color: var(--text-tertiary);
+}
+.comova-juicio.is-good > .comova-marca { background: var(--positive-soft); color: var(--positive); }
+.comova-juicio.is-warn > .comova-marca { background: var(--warning-soft); color: var(--warning); }
+.comova-juicio.is-bad > .comova-marca { background: var(--negative-soft); color: var(--negative); }
+.comova-detalle { font-size: var(--fs-sm); color: var(--text-secondary); line-height: 1.55; max-width: 78ch; }
+
+/* La fase, al pie y detrás de un filete: es el criterio con el que se juzga todo
+   lo de arriba, no un dato más. */
+.comova-fase {
+  display: flex; flex-direction: column; gap: 6px;
+  padding-top: var(--s3); border-top: 1px solid var(--hairline);
+}
+/* El aspecto de la barra ya no se decide aquí: la fase tiene su variante junto
+   a la propia barra (`.plan-bar.is-fase`), porque el roadmap dibuja esta misma
+   fase y las dos tienen que decirlo igual. */
+.comova-fase-say { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.comova-fase-say > strong { color: var(--text); font-weight: 650; }
+
+/* ══ LA PROYECCIÓN DE LA FASE ═════════════════════════════════════════════
+   Tres pesos en fila —dónde empezó, dónde está y dónde acaba si sigue así— con
+   una flecha entre ellos. Sustituye a un medidor que enseñaba el ritmo semanal
+   por cuarta vez en la misma tarjeta: el ritmo ya lo sabes mirando la báscula
+   dos veces, y lo que no se puede calcular de cabeza es el final. */
+.proyeccion {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; align-items: flex-start; gap: var(--s5); flex-wrap: wrap;
+}
+/* ── La trayectoria dibujada (`Trayectoria.jsx`) ──────────────────────────
+   Lo sólido es lo pesado; lo punteado, adonde va; la marca, el objetivo. */
+.trayecto-area { opacity: var(--area-opacity); }
+.trayecto-prevista { stroke-width: 2; stroke-dasharray: 3 5; stroke-linecap: round; opacity: 0.7; }
+.trayecto-fin { fill: var(--surface); stroke-width: 2; }
+.trayecto-hoy { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.trayecto-hoy-k text, text.trayecto-hoy-k { fill: var(--text-secondary); font-size: 10px; font-weight: 700; letter-spacing: 0.04em; }
+.trayecto-v {
+  fill: var(--text); font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.trayecto-objetivo { stroke: var(--positive); stroke-width: 2; stroke-linecap: round; }
+.trayecto-objetivo-k { fill: var(--positive); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.proyeccion-hito { display: flex; flex-direction: column; gap: 2px; min-width: 0; position: relative; }
+/* La flecha entre hitos, dibujada por el hueco y no por un elemento: así al
+   envolver en móvil no queda una flecha huérfana al principio de la fila. */
+.proyeccion-hito + .proyeccion-hito::before {
+  content: '→';
+  position: absolute; left: calc(var(--s5) * -0.5); top: 6px;
+  transform: translateX(-50%);
+  color: var(--text-tertiary); font-size: var(--fs-sm);
+}
+.proyeccion-v {
+  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 680;
+  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+/* Hoy es el único que lleva la tinta del peso: los otros dos son una fecha
+   pasada y una cuenta, no una medida. */
+.proyeccion-hito.is-hoy > .proyeccion-v { color: var(--text); }
+.proyeccion-k { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ══ PESO ═════════════════════════════════════════════════════════════════ */
+.peso-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+.peso-say { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.peso-cifra {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 680;
+  letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.peso-cifra > small { font-family: var(--font); font-size: var(--fs-sm); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
+/* Cuántos pesajes lleva: dice si el promedio es de fiar, no cómo va nadie. */
+.peso-meta { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; }
+
+/* ══ ESTA SEMANA: el anillo y tres recuentos ══════════════════════════════
+   Un anillo para la cifra que más dice a media semana —cuánto de lo pautado
+   está anotado— y filas para lo demás. Cuatro anillos serían cuatro relojes. */
+.semana-cuerpo { display: flex; align-items: center; gap: var(--s5); flex: 1; }
+.anillo { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--s1); flex-shrink: 0; }
+.anillo > svg { transform: rotate(-90deg); }
+.anillo-fondo { fill: none; stroke: var(--fill); }
+.anillo-traza { fill: none; stroke: var(--anillo-color, var(--accent)); stroke-linecap: round; transition: stroke-dasharray var(--normal); }
+.anillo-centro { position: absolute; top: 0; left: 0; width: 82px; height: 82px; display: grid; place-items: center; }
+.anillo-v {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 720;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1;
+}
+.anillo-v > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); letter-spacing: 0; }
+.anillo-k { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
+.semana-filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.semana-fila {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  padding: 7px 0; border-top: 1px solid var(--hairline);
+}
+.semana-fila:first-child { border-top: 0; padding-top: 0; }
+.semana-k { font-size: var(--fs-sm); color: var(--text-secondary); }
+.semana-v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.semana-v > small { font-family: var(--font); font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 500; }
+.semana-estado { font-size: var(--fs-sm); font-weight: 600; text-align: right; min-width: 0; }
+/* «Espera tu respuesta»: la señal, como el punto de la cartera. */
+.semana-estado.is-espera { color: var(--accent); }
+.semana-estado.is-mudo { color: var(--text-tertiary); font-weight: 500; }
+
+/* ══ LA FUERZA: los ejercicios que más han movido ═════════════════════════
+   Nombre, curva, dónde está, cuánto ha subido: la misma fila que las medidas,
+   porque es la misma pregunta —cada cosa contra sí misma—. */
+.fuerza-filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fuerza-fila, .medida {
+  display: grid; grid-template-columns: minmax(0, 1fr) 64px auto auto;
+  gap: var(--s2) var(--s3); align-items: center;
+  padding: 7px 0; border-top: 1px solid var(--hairline);
+}
+.fuerza-fila:first-child { border-top: 0; padding-top: 0; }
+.fuerza-k, .medida-k {
+  font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fuerza-linea, .medida-linea { min-width: 0; }
+.fuerza-v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right;
+}
+.fuerza-v > small { font-family: var(--font); font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 500; }
+
+/* ══ CON QUÉ: las palancas, en filas ══════════════════════════════════════ */
+.plan-macros { padding-bottom: var(--s1); }
+.palancas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.palancas > li { min-width: 0; display: flex; flex-direction: column; }
+/* La fila puede ser un `div`, un enlace o un botón —según se pueda ir a donde
+   se cambia—, así que todo lo de aquí vale para los tres: se desviste el botón
+   y se le quita el subrayado al enlace. */
+.palanca {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0; width: 100%;
+  padding: var(--s2) 8px; margin-inline: -8px; border-top: 1px solid var(--hairline);
+  border-left: 0; border-right: 0; border-bottom: 0; border-radius: var(--r-sm);
+  background: none; font: inherit; color: inherit; text-align: left; text-decoration: none;
+}
+.palancas > li:first-child > .palanca { border-top: 0; padding-top: 0; }
+/* Pulsable: la flecha se ve siempre —apagada— porque una puerta que solo se
+   anuncia al pasar el ratón no existe para el dedo ni para el teclado. */
+.palanca.is-puerta { cursor: pointer; transition: background var(--fast); }
+.palanca.is-puerta:hover { background: var(--fill-subtle); }
+.palanca.is-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.palanca.is-puerta:hover .palanca-ir,
+.palanca.is-puerta:focus-visible .palanca-ir { opacity: 1; color: var(--accent); }
+.palanca-v.is-texto { font-family: var(--font); font-size: var(--fs-base); font-weight: 600; letter-spacing: -0.01em; }
+.palanca-k {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2);
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+.palanca-ir { font-weight: 500; opacity: 0.45; transition: opacity var(--fast), color var(--fast); }
+.palanca-v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 680;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+}
+.palanca-v > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary); }
+.palanca-s { font-size: var(--fs-xs); color: var(--text-tertiary); overflow-wrap: anywhere; }
+/* Una palanca que se pulsa: la fila entera es el botón, sin caja, y se enciende
+   al pasar como cualquier fila pulsable del producto. */
+.palanca.is-pulsable { padding: 0; }
+.palanca-boton {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; min-width: 0;
+  padding: var(--s2) var(--s2); margin: 0 calc(-1 * var(--s2)); width: calc(100% + 2 * var(--s2));
+  border: 0; background: none; border-radius: var(--r-sm);
+  font-family: inherit; color: inherit; text-align: left; cursor: pointer;
+  transition: background var(--fast);
+}
+.palanca-boton:hover { background: var(--fill-subtle); }
+.palanca-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ══ MEDIDAS ══════════════════════════════════════════════════════════════
+   Filas y no barras: una cintura de 84 cm y un brazo de 38 no comparten escala,
+   así que una barra diría que la cintura es «más» que el brazo. Lo que se
+   compara es cada uno consigo mismo, y eso lo dice su píldora. */
+.medidas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.medida:first-child { border-top: 0; padding-top: 0; }
+.medida-v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.medida-v > small { font-family: var(--font); font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 500; }
+
+/* ══ ENTRENAMIENTO: la progresión de una rutina ═══════════════════════════ */
+.entreno-barra { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+/* Las rutinas, como los días de la hoja de Entreno: las mismas pastillas. */
+.hoja-rutinas { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; min-width: 0; }
+.entreno-barra .hoja-dia:first-child { margin-left: -12px; }
+
+/* Una fila por semana, una columna por grupo con lo hecho sobre lo pautado, y el
+   tonelaje con su barra. Tabla y no gráfico: la pregunta es «cuántas series de
+   pecho llevaba en la S9 y cuántas ahora», y eso son cifras que se comparan en
+   vertical. Cinco curvas cruzándose obligarían a pasar el ratón por encima para
+   acabar leyendo el mismo número.
+
+   `--cols` lo pone la tarjeta: son los grupos que de verdad tiene esa rutina, y
+   cambian de un Push a un Pierna. */
+.rutina-tabla { --cols: 4; display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.rutina-fila {
+  display: grid;
+  grid-template-columns: 56px repeat(var(--cols), minmax(0, 1fr)) minmax(120px, 1.4fr);
+  gap: 3px; align-items: center; min-width: 460px;
+}
+.rutina-fila.is-head > span {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
+  text-align: center; padding-bottom: 4px; border-bottom: 1px solid var(--hairline);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rutina-fila.is-head > span:first-child { text-align: left; }
+.rutina-sem { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; color: var(--text-secondary); }
+/* La semana en curso, en brasa: es contra la que se compara al montar la
+   siguiente. */
+.rutina-fila.is-actual .rutina-sem { color: var(--accent); }
+
+.rutina-celda {
+  display: flex; align-items: baseline; justify-content: center; gap: 1px;
+  padding: 6px 4px; border-radius: var(--r-xs);
+  background: var(--surface-sunken); font-variant-numeric: tabular-nums;
+}
+.rutina-celda > b { font-size: var(--fs-sm); font-weight: 650; }
+.rutina-celda > small { font-size: 9.5px; color: var(--text-tertiary); }
+/* Un grupo que esa semana no tocaba: se deja el hueco, no se pinta un cero. */
+.rutina-celda.is-vacia { background: transparent; }
+.rutina-celda.is-vacia > b { color: var(--text-tertiary); font-weight: 500; }
+
+/* El tonelaje es la única MAGNITUD de la tabla —lo demás son recuentos—, así que
+   es lo único que lleva barra: la cifra dice cuánto y la barra, cuánto comparado
+   con su mejor semana. */
+.rutina-ton {
+  position: relative; display: flex; align-items: center; justify-content: flex-end;
+  padding: 6px var(--s2); border-radius: var(--r-xs);
+  background: var(--surface-sunken); overflow: hidden;
+}
+.rutina-barra {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: color-mix(in srgb, var(--data-violet) 24%, transparent);
+}
+.rutina-ton > b {
+  position: relative; font-family: var(--font-display); font-size: var(--fs-sm);
+  font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+/* ══ CÓMO LO LLEVA ════════════════════════════════════════════════════════
+   Dos momentos de la misma pregunta —al cerrar la semana y al acabar de
+   entrenar— separados por un filete, no dos tarjetas: «ha hecho el 95 % de sus
+   series» y «lleva tres semanas con la fatiga en 9» es una conclusión distinta
+   de cada una por separado. */
+.sensaciones-tramo { display: flex; flex-direction: column; gap: var(--s2); }
+.sensaciones-tramo + .sensaciones-tramo { padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+
+/* ── Un KPI dentro de una ventana ──────────────────────────────────────────
+   Para el dato que hay que tener pero que no merece una curva: una línea con su
+   rótulo, su cifra y la frase que dice cuándo importa. */
+.popup-kpi {
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr);
+  gap: var(--s2) var(--s3); align-items: baseline; margin: 0;
+  padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken);
+}
+.popup-kpi > .k {
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+.popup-kpi > .v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.popup-kpi > .s { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── Los anchos ────────────────────────────────────────────────────────────
+   Una sola columna cuando dos dejarían de caber: por debajo de eso, la tabla de
+   la rutina y la gráfica del peso se quedan sin eje. */
+/* Lo del mosaico y lo de dentro de cada tarjeta ya no se decide aquí: se decide
+   con el hueco de cada uno, arriba, junto a sus contenedores. Aquí solo queda
+   lo que de verdad es del TELÉFONO —el aire de la tarjeta y el cuerpo de la
+   cifra grande—, que no depende de dónde esté montado el panel sino de que la
+   pantalla se sostiene con una mano. */
+@media (max-width: 767.98px) {
+  .tarjeta { padding: var(--s4) var(--s4) var(--s4); }
+  .comova-cifra { font-size: var(--fs-xl); }
+  .semana-cuerpo { gap: var(--s4); }
+}
+
+/* ── LAS CIFRAS DE UN BLOQUE, EN EL MÓVIL ──────────────────────────────────
+   Cuatro columnas en 430 px dejan un rótulo de tres palabras en cinco
+   renglones. Se parten en 2×2, que es la misma regla que ya sigue la fila de
+   métricas y por el mismo motivo.
+
+   Va AQUÍ, al final, y no junto a `.bloque-cifras`: allí la media query está
+   escrita ANTES de los modificadores `.is-3` y `.is-4`, así que con la misma
+   especificidad ganaban ellos y el corte no hacía nada en las ventanas que los
+   usan. */
+@media (max-width: 759.98px) {
+  .bloque-cifras.is-3,
+  .bloque-cifras.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ══ LO QUE CUENTA CADA SEMANA, una fila por pregunta ═════════════════════
+   Cinco escalas en un mismo eje eran una madeja de curvas del mismo grosor
+   cruzándose entre el 4 y el 9, con una leyenda que había que ir mirando para
+   saber cuál era cuál: se veía que «algo se mueve» y no se sacaba un dato.
+
+   Separadas, cada una tiene su carril y se leen en VERTICAL, que es la pregunta
+   de verdad — «¿el hambre subió cuando bajó el sueño, o antes?»—, imposible con
+   las cinco superpuestas. */
+.tendencias { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+/* El carril de la línea va ACOTADO y no estirado: sobre novecientos píxeles,
+   una escala de 1 a 10 en treinta de alto sale casi horizontal y la tendencia
+   —que es lo único que se viene a mirar— desaparece. A 260 px la misma serie
+   tiene pendiente. */
+.tendencia {
+  display: grid; grid-template-columns: minmax(0, 1fr) 260px 58px auto;
+  gap: var(--s3); align-items: center;
+  padding: var(--s2) 0; border-top: 1px solid var(--hairline);
+}
+.tendencia:first-child { border-top: 0; }
+.tendencia-k {
+  font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tendencia-linea { min-width: 0; }
+.tendencia-v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap;
+  text-align: right;
+}
+.tendencia-v > small { font-family: var(--font); font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 500; }
+@media (max-width: 599.98px) {
+  .tendencia { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .tendencia-linea { grid-column: 1 / -1; order: 3; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LOS DOS BLOQUES QUE SE DESPLIEGAN
+   --------------------------------------------------------------------------
+   «Peso», «Medidas» y «Cómo lo lleva» abrían LA MISMA ventana, y otras tres del
+   entreno igual: tres puertas al mismo cuarto no son tres cosas, son una mal
+   partida. Ahora son dos bloques con dos profundidades, y la segunda se abre EN
+   SU SITIO — un modal para mirar un detalle tapa justamente aquello con lo que
+   se compara. Es el gesto del calentamiento de Entreno y de las pautas de Dieta.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Dos tramos de un bloque, uno al lado del otro: son la misma lectura desde dos
+   sitios y en fila obligan a recordar el primero mientras se lee el segundo. */
+.hoja-par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s5); align-items: start; }
+.hoja-tramo { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+
+/* Lo desplegado va detrás de un filete y con más aire que el resumen: es otra
+   profundidad, no más de lo mismo. */
+.afondo {
+  display: flex; flex-direction: column; gap: var(--s5);
+  margin-top: var(--s3); padding-top: var(--s5);
+  border-top: 1px solid var(--hairline);
+}
+.afondo-tramo { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+
+/* ══ LA TABLA SEMANA A SEMANA ═════════════════════════════════════════════
+   La hoja de series de Entreno aplicada al cuerpo: una fila por semana con el
+   peso, lo que tenía puesto y lo que contestó. «Bajó 600 g la semana que le subí
+   los pasos y con el hambre en 3» es una frase que antes había que reconstruir
+   cruzando tres pantallas, y aquí se lee en una fila. */
+/* `--planes` son las columnas de lo que le pusiste (kcal, pasos) que tienen
+   algo dentro, y `--cols` las escalas del check-in. Las dos las escribe
+   `PanelCuerpo` al pintar: una columna entera de puntos no es un dato, así que
+   no se reserva sitio para ella y lo que sobra se reparte entre las que sí. */
+.semanas-tabla { --cols: 4; --planes: 2; display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.semanas-fila {
+  display: grid;
+  grid-template-columns: 92px 96px repeat(var(--planes), minmax(0, 1fr)) repeat(var(--cols), minmax(0, 0.7fr));
+  gap: 3px; align-items: center; min-width: 560px;
+}
+.semanas-fila.is-head > span {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
+  text-align: center; padding-bottom: 4px; border-bottom: 1px solid var(--hairline);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.semanas-fila.is-head > span:first-child { text-align: left; }
+.semanas-sem {
+  display: flex; align-items: baseline; gap: 5px;
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700;
+  color: var(--text-secondary);
+}
+.semanas-sem > small { font-family: var(--font); font-size: var(--fs-2xs); font-weight: 500; color: var(--text-tertiary); }
+.semanas-celda {
+  display: flex; align-items: baseline; justify-content: center; gap: 4px;
+  padding: 6px 4px; border-radius: var(--r-xs);
+  background: var(--surface-sunken);
+  font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+}
+.semanas-celda.is-vacia { background: transparent; color: var(--text-tertiary); }
+.semanas-celda.is-peso > b { font-weight: 650; }
+/* El único color de la tabla: si esa semana subió o bajó. Lo demás son cifras
+   que se comparan en vertical y no necesitan tinta. */
+.semanas-celda > small.is-baja { color: var(--positive); font-weight: 650; }
+.semanas-celda > small.is-sube { color: var(--negative); font-weight: 650; }
+
+/* ══ EL VOLUMEN POR MÚSCULO EN EL TIEMPO ══════════════════════════════════
+   El mismo dato que el medidor de arriba pero semana a semana, que es donde se
+   ve si un grupo se está quedando atrás. Una rejilla de cifras y no ocho barras:
+   lo que se compara es una fila consigo misma, de izquierda a derecha. */
+.volumen-tabla { --cols: 8; display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+.volumen-fila {
+  display: grid; grid-template-columns: 150px repeat(var(--cols), minmax(0, 1fr));
+  gap: 3px; align-items: center; min-width: 520px;
+}
+.volumen-fila.is-head > span {
+  font-family: var(--font-display); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
+  text-align: center; padding-bottom: 4px; border-bottom: 1px solid var(--hairline);
+}
+.volumen-fila.is-head > span:first-child { text-align: left; }
+.volumen-k {
+  font-size: var(--fs-sm); color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.volumen-celda {
+  padding: 6px 4px; border-radius: var(--r-xs); text-align: center;
+  background: var(--surface-sunken);
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.volumen-celda.is-vacia { background: transparent; color: var(--text-tertiary); font-weight: 500; }
+/* Pasarse del MRV es lo único que hay que ver de un vistazo en esta rejilla. */
+.volumen-celda.is-pasado { background: var(--negative-soft); color: var(--negative); }
+
+@media (max-width: 899.98px) {
+  .hoja-par { grid-template-columns: 1fr; }
+}
+
+/* La tabla de la carga nació en la tarjeta lateral de Entreno, que mide 260 px.
+   Suelta en un bloque de mil trescientos, cada celda de kg se va a ciento
+   cuarenta y la columna deja de leerse como columna: la vista tiene que saltar
+   de un número al de abajo por encima de un palmo de vacío. Se acota. */
+.afondo .comparativa-tabla { max-width: 860px; }
+
+/* ══ LA FICHA: la persona a lo ancho, la relación al lado ══════════════════
+   Ver . Era una hoja de ocho bloques con índice, dos
+   rótulos de grupo, un pliegue y tres avisos: dos mil píxeles para encontrar
+   cuándo cobra. Ahora es la misma forma que el resto del cliente: lo que sabes
+   de él —quién es, sus condicionantes, lo que te contó, su gimnasio— a lo
+   ancho, y lo administrativo —su alta, su cobro, su acceso, su carpeta, sus
+   datos— en la columna de al lado, que es lo que se consulta cada mes. */
+.ficha-pagina { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; max-width: 100%; }
+.ficha { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s5); align-items: start; min-width: 0; }
+.ficha-trabajo { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.ficha-lado { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+/* Los formularios de la columna (importe, cada cuánto, próximo cobro, estado)
+   se apilan: a 340 px no caben cuatro en fila. */
+.ficha-lado .row-end.wrap { flex-direction: column; align-items: stretch; gap: var(--s3); }
+.ficha-lado .row-end.wrap:has(> .field > .field-hint) { margin-bottom: 0; }
+.ficha-lado .row-end.wrap > .field > .field-hint { position: static; }
+/* Y en cada paso del alta, el botón de contenido baja debajo del texto en vez
+   de estrujarlo contra el canto. */
+.ficha-lado .step-row > .row.between > .checkbox-row.grow { flex-basis: 100%; }
+.ficha-lado .card { padding: var(--s4); }
+@media (max-width: 1199.98px) {
+  .ficha { grid-template-columns: 1fr; }
+}
+
+/* El aviso del alta, en una línea: era un cartel naranja de siete renglones y
+   la columna entera se leía desde él. Es una condición, no una alarma. */
+.alta-aviso { display: flex; gap: 6px; align-items: flex-start; color: var(--warning); line-height: var(--lh-base); }
+.alta-aviso > svg { flex-shrink: 0; margin-top: 3px; }
+.alta-aviso a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Las semanas de la revisión: las mismas pastillas que la hoja de Entreno,
+   pero todas a la vista —envuelven en vez de desplazarse—: aquí el selector
+   es el mando de la pantalla y no puede esconder semanas. */
+.revision-semanas { flex-wrap: wrap; overflow: visible; }
+

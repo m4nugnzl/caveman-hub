@@ -492,3 +492,87 @@ Elimina patrones genéricos de IA (degradados púrpura/azul trillados, bordes si
 
 ### Security Check (`security-review`)
 Garantiza la sanitización de entradas, previene fugas de memoria y evita exponer claves de API o credenciales de Supabase en el cliente.
+
+---
+
+# 25. CRITERIOS DE DISEÑO FRONTEND
+
+Resumen de la skill `frontend-design` (plugin oficial `frontend-design@claude-plugins-official`).
+Aplica a cualquier UI nueva o rediseño de una existente.
+
+### 1. Anclar el diseño en el sujeto
+Antes de diseñar, fijar el sujeto concreto, su audiencia y el único trabajo que hace
+la pantalla. Las decisiones distintivas salen del mundo del propio producto (su
+material, su vocabulario, sus artefactos), no de un catálogo de estilos genérico.
+Diseñar siempre con contenido real, no con relleno.
+
+### 2. Evitar los defaults de IA
+Hay tres estéticas en las que converge el diseño generado por IA y que deben
+evitarse salvo que el encargo las pida explícitamente:
+
+1. Fondo crema (~#F4F1EA) + serif de alto contraste + acento terracota.
+2. Fondo casi negro + un único acento verde ácido o bermellón.
+3. Layout tipo periódico: filetes finos, `border-radius: 0`, columnas densas.
+
+Son defaults, no decisiones. Cuando el encargo deja un eje libre, no se gasta esa
+libertad en uno de ellos. Cuando el encargo sí fija una dirección, manda el encargo.
+
+### 3. La tipografía lleva la personalidad
+Emparejar de forma deliberada una fuente de display (usada con moderación) y una
+de texto, más una utilitaria para datos o pies si hace falta. Escala tipográfica
+clara, con pesos, anchos y espaciados intencionados. La tipografía es parte
+memorable del diseño, no un vehículo neutro.
+
+### 4. La estructura es información
+Numeraciones, antetítulos, separadores y etiquetas deben codificar algo cierto del
+contenido, no decorarlo. Los marcadores `01 / 02 / 03` solo valen si el contenido
+es realmente una secuencia. Cuestionar cada recurso estructural antes de usarlo.
+
+### 5. Movimiento deliberado
+Decidir dónde —y si— la animación sirve al contenido: secuencia de carga, reveal
+al hacer scroll, micro-interacciones de hover, atmósfera ambiental. Un momento
+orquestado rinde más que efectos dispersos; el exceso de animación es precisamente
+lo que delata un diseño generado.
+
+### 6. Un solo elemento firma
+Concentrar la audacia en un único elemento memorable y mantener todo lo demás
+callado y disciplinado. Recortar cualquier adorno que no sirva al encargo.
+La complejidad debe ir a la altura de la visión: lo maximalista exige ejecución
+elaborada; lo minimalista exige precisión en espaciado, tipo y detalle.
+
+### 7. Proceso en dos pasadas
+Primero un plan compacto de tokens antes de escribir código:
+
+- **Color** — la paleta como 4–6 valores hex con nombre.
+- **Tipo** — las familias para 2+ roles (display, texto, utilitaria).
+- **Layout** — concepto en una frase, comparando alternativas con wireframes ASCII.
+- **Firma** — el único elemento por el que se recordará la pantalla.
+
+Después, revisar el plan contra el encargo: si alguna parte es lo que saldría para
+cualquier pantalla parecida, se revisa y se explica qué cambió y por qué. Solo
+entonces se escribe el código, derivando cada color y cada decisión tipográfica
+del plan revisado. Iterar en el razonamiento; enseñar al usuario solo lo que ya
+tiene confianza de que le va a gustar.
+
+### 8. Suelo de calidad, sin anunciarlo
+Responsive hasta móvil, foco de teclado visible, `prefers-reduced-motion`
+respetado. Autocrítica durante la construcción, con capturas si el entorno lo
+permite. Regla de Chanel: antes de salir, quitarse un accesorio.
+
+### 9. CSS: cuidado con la especificidad
+Es fácil generar clases que se anulan entre sí (un selector por tipo como
+`.section` contra uno por elemento como `.cta`). Ocurre sobre todo con paddings
+y márgenes entre secciones.
+
+### 10. El texto es material de diseño
+Las palabras están para hacer la interfaz más fácil de entender y de usar:
+
+- Escribir desde el lado del usuario. Nombrar las cosas por lo que la persona
+  controla y reconoce, nunca por cómo está construido el sistema.
+- Voz activa. Un control dice qué pasa al usarlo: «Guardar cambios», no «Enviar».
+- Una acción conserva su nombre en todo el flujo: el botón «Publicar» produce un
+  aviso «Publicado». El vocabulario de la interfaz es la señalización del producto.
+- Errores y estados vacíos son dirección, no ambiente: explican qué pasó y cómo
+  arreglarlo, sin disculparse y sin vaguedad. Una pantalla vacía es una invitación.
+- Registro conversacional: verbos llanos, mayúscula solo inicial, sin relleno.
+  Cada elemento hace exactamente un trabajo; nada duplica funciones en silencio.

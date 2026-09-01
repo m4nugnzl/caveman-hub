@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, Dumbbell, Salad, Waves } from 'lucide-react';
+import { Copy, Layers, Salad, Waves } from 'lucide-react';
 
 import { unitLabelPlural } from '@/domain/training';
 import { Field, Notice, OptionCard, Panel } from '@/components/ui/primitives';
@@ -166,7 +166,7 @@ export const CopyToClientPanel = ({
         <Field label="Qué se copia">
           <div className="opt-group">
             <OptionCard
-              icon={Dumbbell}
+              icon={Layers}
               label="Entrenamiento"
               hint={`Estructura semanal, ${weekCount} ${unitLabelPlural(cycleType)}, tipo de ciclo y su calentamiento.`}
               checked={training}

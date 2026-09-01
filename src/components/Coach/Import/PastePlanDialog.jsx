@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Dumbbell, FileSpreadsheet, Layers, Salad } from 'lucide-react';
+import { Layers, Salad, UploadCloud } from 'lucide-react';
 
 import { dietSummary, foodNames } from '@/domain/dietSheet';
 import { matchFoodNames, pendingMatches } from '@/domain/foodMatch';
+import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import {
   Field,
   Fold,
@@ -12,6 +13,7 @@ import {
   Switch,
 } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
+import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 
 import { ACCEPT, useSheetSource } from './useSheetSource';
 import { RoutinePreview, aBorrador, aplicarCambio, contarSeries, toEditableDays } from './RoutinePreview';
@@ -27,7 +29,7 @@ import {
 } from './DietPreview';
 
 /**
- * Traer el plan de fuera: se pega o se sube, y se mira antes de crear nada.
+ * Traer el plan de fuera: se suelta el fichero, y se mira antes de crear nada.
  *
  * ══ Por qué UN diálogo para el entreno y la dieta ══════════════════════════
  *
@@ -42,16 +44,23 @@ import {
  * que se puede traer: quien abre esto desde la pantalla de nutrición con un
  * libro que además trae la rutina puede traérsela, y lo contrario también.
  *
- * ══ Pegar y subir no son lo mismo, y las dos hacen falta ═══════════════════
+ * ══ Aquí hubo un cuadro para pegar el plan como texto ══════════════════════
  *
- * **Pegar** gana cuando la hoja ya está abierta: es un gesto, y Excel entrega
- * el texto tal y como se ve.
+ * Y era lo primero de la pantalla: ocupaba media ventana, y el fichero era un
+ * botón pequeño debajo con el rótulo «…o sube los ficheros» —tres puntos
+ * delante de la acción que hace casi todo el mundo—. Se le dio la vuelta al
+ * peso primero, y después se retiró del todo, porque el argumento que lo
+ * sostenía no se cumplía: pegar gana cuando la hoja ya está abierta, sí, pero
+ * quien se muda de Excel no copia filas, coge el libro y lo suelta encima.
  *
- * **Subir** gana en todo lo demás, y por un motivo que solo se ve al abrir un
- * libro de verdad: un `.xlsx` de entrenamiento tiene quince pestañas y pegando
- * se llega a una cada vez, sabiendo de antemano cuál. Subiéndolo se ven todas
- * con lo que hay dentro de cada una. Y en PDF —que es como media profesión
- * manda la dieta— pegar exige saber que se puede.
+ * Y pegar era peor de lo que parecía, por un motivo que solo se ve al abrir un
+ * libro de verdad: un `.xlsx` de entrenamiento tiene quince pestañas, y pegando
+ * se llega a una cada vez sabiendo de antemano cuál. Soltándolo se ven todas con
+ * lo que hay dentro de cada una.
+ *
+ * Lo que queda es una sola puerta: `.soltar` (en `styles/controles.css`), que
+ * acepta que se arrastre el fichero hasta ella. Y lo que costaba tener dos —dos
+ * estados de fuente, dos formas de leerlos— se lo ahorra `useSheetSource`.
  *
  * ══ Lo que no entra ════════════════════════════════════════════════════════
  *
@@ -60,19 +69,13 @@ import {
  * De la dieta, nada se inventa: un alimento que no se reconoce se pregunta.
  */
 
-const EJEMPLO_RUTINA = `Copia las filas en tu Excel (o en Sheets, Numbers o una tabla de Word) y pégalas aquí.
-Puedes seleccionar la hoja entera: lo que no sea el plan se descarta.
-
-También vale escrito a mano:
-  Día 1 · Push
-  Press banca 4x8-10 RIR2`;
-
-const EJEMPLO_DIETA = `Copia aquí tu dieta: la hoja entera, o el texto del PDF.
-
-  COMIDA 1
-  OPCIÓN 1
-  - 100g Avena
-  - 1 Plátano`;
+/*
+  Las cuatro extensiones que se saben leer, dichas como se ven en el explorador
+  de archivos. `.tsv` y `.txt` también entran (ver `ACCEPT`) y no se enseñan:
+  quien tiene uno lo suelta igual, y cuatro pastillas ya son el límite de lo que
+  se lee de un vistazo.
+*/
+const FORMATOS = ['.xlsx', '.docx', '.pdf', '.csv'];
 
 /** Qué trae una hoja, dicho en una línea. */
 export const resumenDeHoja = (hoja) => {
@@ -144,6 +147,11 @@ export const PastePlanDialog = ({
   const [hojasAbiertas, setHojasAbiertas] = useState(false);
   const [traer, setTraer] = useState({ rutina: true, dieta: true });
   const [edicion, setEdicion] = useState(null);
+
+  /* Va en el bloque entero y no solo en el recuadro: quien arrastra apunta a la
+     ventana, y soltar dos píxeles por debajo no puede significar «no ha pasado
+     nada» —ahí el navegador abriría el fichero en otra pestaña—. */
+  const soltar = useArrastreDeFicheros(fuente.abrirFicheros, !fuente.abriendo);
 
   /*
     ══ Lo editable se deriva de lo leído, y se rehace cuando lo leído cambia ═══
@@ -472,6 +480,23 @@ export const PastePlanDialog = ({
           onChange={(e) => fuente.abrirFicheros(e.target.files)}
         />
 
+        {/*
+          Va ARRIBA del todo, pegado a la puerta por la que ha entrado el
+          fichero: es lo primero que hay que leer y lleva la instrucción para
+          volver a intentarlo. Cada línea es un fichero —soltar cuatro y que
+          fallen dos es un caso normal— y en un solo párrafo se leerían como una
+          frase sola.
+        */}
+        {fuente.fallo && (
+          <Notice tone="error">
+            <span className="col gap-1">
+              {fuente.fallo.split('\n').map((linea) => (
+                <span key={linea}>{linea}</span>
+              ))}
+            </span>
+          </Notice>
+        )}
+
         {libro ? (
           <>
             <div className="row between wrap gap-3">
@@ -482,6 +507,7 @@ export const PastePlanDialog = ({
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
+                disabled={fuente.abriendo}
                 onClick={() => fuente.ficheroRef.current?.click()}
               >
                 Usar otros ficheros
@@ -499,89 +525,86 @@ export const PastePlanDialog = ({
               Como las hojas con algo dentro vienen ya marcadas, el caso normal
               no necesita abrirlo: se lee el resumen y se pasa a revisar.
             */}
-            <Fold
-              icon={Layers}
-              title="Hojas del libro"
-              summary={`${fuente.elegidas.length} de ${libro.hojas.length} elegidas`}
-              open={hojasAbiertas}
-              onToggle={() => setHojasAbiertas((v) => !v)}
-            >
-              <SheetPicker
-                hojas={libro.hojas}
-                elegidas={fuente.elegidas}
-                onToggle={fuente.alternarHoja}
-              />
-            </Fold>
+            {/* Con una sola hoja no hay nada que elegir, y un pliegue que dice
+                «1 de 1 elegida» es un control que solo puede desmarcar lo único
+                que hay. Es el caso del PDF suelto, que es un libro de una hoja. */}
+            {libro.hojas.length > 1 && (
+              <Fold
+                icon={Layers}
+                title="Hojas del libro"
+                summary={`${fuente.elegidas.length} de ${libro.hojas.length} elegidas`}
+                open={hojasAbiertas}
+                onToggle={() => setHojasAbiertas((v) => !v)}
+              >
+                <SheetPicker
+                  hojas={libro.hojas}
+                  elegidas={fuente.elegidas}
+                  onToggle={fuente.alternarHoja}
+                />
+              </Fold>
+            )}
           </>
         ) : (
-          <Field
-            label={foco === 'dieta' ? 'Pega aquí tu dieta' : 'Pega aquí tu rutina'}
-            hint={
-              foco === 'dieta'
-                ? 'Vale la hoja de cálculo o el texto de un PDF. Los macros de cada alimento los pongo yo.'
-                : 'No se guardan los kilos ni las repeticiones que ya estén anotadas: solo el plan.'
-            }
-          >
-            {(props) => (
-              <textarea
-                {...props}
-                className="textarea"
-                rows={hayAlgo ? 4 : 8}
-                value={fuente.texto}
-                placeholder={foco === 'dieta' ? EJEMPLO_DIETA : EJEMPLO_RUTINA}
-                onChange={(e) => fuente.escribir(e.target.value)}
-              />
-            )}
-          </Field>
-        )}
-
-        {!libro && (
-          <div className="row wrap gap-3">
-            <button
-              type="button"
-              className="btn btn-secondary"
+          <div className="traer" {...soltar.props}>
+            <ZonaDeSoltar
+              icon={UploadCloud}
+              encima={soltar.encima}
+              ocupado={fuente.abriendo}
+              titulo={
+                fuente.abriendo
+                  ? 'Abriendo el fichero…'
+                  : foco === 'dieta'
+                    ? 'Trae el PDF o la hoja de tu dieta'
+                    : 'Trae el Excel de tu rutina'
+              }
+              sub={
+                fuente.abriendo
+                  ? 'Estoy leyendo todas sus pestañas'
+                  : 'Suéltalo aquí, o pulsa para buscarlo en tu ordenador'
+              }
               onClick={() => fuente.ficheroRef.current?.click()}
             >
-              <FileSpreadsheet size={15} /> …o sube los ficheros
-            </button>
-            <span className="t-xs t-tertiary">
-              Vale un <strong>.xlsx</strong> con todas sus pestañas, un .csv o un{' '}
-              <strong>.pdf</strong>, y puedes elegir <strong>varios a la vez</strong> —el Excel del
-              entreno y el PDF de la dieta son el mismo plan—. El .xls de antes de 2007 hay que
-              guardarlo antes como .xlsx.
-            </span>
+              {!fuente.abriendo && (
+                <span className="soltar-formatos">
+                  {FORMATOS.map((f) => (
+                    <span className="badge" key={f}>
+                      {f}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </ZonaDeSoltar>
+
+            {/* El aviso del .xls vivía aquí y se ha ido: ahora lo dice el error
+                del propio fichero, que es cuando importa (ver `porQueNoSeLee`). */}
+            <p className="traer-nota">
+              <strong>Varios a la vez</strong>: el Excel del entreno y el PDF de la dieta son el
+              mismo plan. Entiendo las formas habituales de escribir una rutina y una dieta, y lo
+              que salga lo verás entero para corregirlo antes de crear nada.
+            </p>
           </div>
         )}
 
-        {fuente.abriendo && <Loading label="Abriendo el fichero…" />}
-        {fuente.fallo && <Notice tone="error">{fuente.fallo}</Notice>}
+        {/* Con un libro delante, abrir otro tarda y no hay zona que lo diga: el
+            recuadro grande solo existe mientras no hay nada leído. */}
+        {libro && fuente.abriendo && <Loading label="Abriendo el fichero…" />}
 
-        {!libro && fuente.texto.trim() && !hayRutina && !hayDieta && !hayMacros && (
-          <Notice tone="warn">
-            No he sabido encontrar nada ahí. Si es una rutina, comprueba que has copiado también la
-            fila de cabecera —la que dice «Ejercicio», «Series», «Reps»—; si es una dieta, la que
-            dice «Alimento» y «Gramos», o los títulos de cada comida.
-          </Notice>
-        )}
-
+        {/*
+          Un fichero abierto del que no sale nada. Se dice qué busco, porque lo
+          que casi siempre falta es la fila de cabecera: sin ella una tabla de
+          números no se distingue de otra cualquiera. Y con varias hojas se dice
+          además que se pueden marcar otras, que es el arreglo más rápido.
+        */}
         {libro && !hayRutina && !hayDieta && !hayMacros && !fuente.abriendo && (
           <Notice tone="warn">
-            Ninguna de las hojas marcadas trae algo que sepa leer. Marca otra, o abre la que quieras
-            traer, cópiala y pégala aquí.
+            No he sabido encontrar un plan ahí. Si es una rutina, busco una fila de cabecera —la
+            que dice «Ejercicio», «Series», «Reps»—; si es una dieta, la que dice «Alimento» y
+            «Gramos», o los títulos de cada comida.
+            {libro.hojas.length > 1 && ' Prueba también a marcar otra hoja.'}
           </Notice>
         )}
 
         {secciones.map((clave) => encontrado[clave])}
-
-        {!libro && !fuente.texto.trim() && (
-          <p className="t-sm t-tertiary">
-            <Dumbbell size={14} className="icon-inline" />
-            Entiendo las dos formas habituales de escribir una rutina —una columna con el número de
-            series, o un bloque de columnas por serie— y las de una dieta: opciones en columnas,
-            menús numerados o la lista escrita de un PDF. Lo que salga se puede corregir antes de
-            crear nada.
-          </p>
-        )}
       </div>
     </Modal>
   );

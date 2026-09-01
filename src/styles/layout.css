@@ -1,0 +1,221 @@
+/* ==========================================================================
+   El armazón
+   --------------------------------------------------------------------------
+   Filas, columnas, rejillas, carriles y el ancho de la página. Ninguna
+   regla de aquí pinta nada: solo coloca.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Layout
+   ========================================================================== */
+
+.row { display: flex; align-items: center; gap: var(--s3); }
+.row-top { display: flex; align-items: flex-start; gap: var(--s3); }
+/* ══ Alinea los INPUTS, no las cajas ═════════════════════════════════════════
+
+   La intención estaba bien y la implementación no llegaba. `justify-content:
+   flex-end` empuja al fondo el ÚLTIMO hijo del campo, y cuando ese hijo es la
+   línea de ayuda —«Lo que te paga cada ciclo», «Qué significa que suba»— lo que
+   queda pegado abajo es el texto, no la casilla: el input del campo con ayuda
+   sube tanto como mida esa línea y se descuadra respecto a los de al lado.
+
+   Es lo que pasaba en el cobro de la ficha y en el editor de preguntas del
+   protocolo, las dos filas de la aplicación donde un campo lleva ayuda y sus
+   vecinos no.
+
+   La ayuda sale del flujo vertical: cuelga bajo el campo con posición absoluta,
+   así que no empuja nada y todos los inputs comparten borde inferior. El hueco
+   para leerla se reserva en la FILA, que es quien sabe que hay alguna.
+
+   ── Y aquí `:has()` sí, al revés que en las casillas ────────────────────────
+   Los controles de elección evitan `:has()` a propósito, porque si no se
+   resolviera una opción marcada se vería igual que una sin marcar — el fallo
+   cambiaría lo que se entiende. Aquí lo peor que pasa es que una línea de ayuda
+   quede 20 px más cerca de lo de abajo. No es lo mismo, y el precio de la
+   alternativa —que cada fila se acuerde de declararlo a mano, en seis sitios
+   hoy y en el séptimo que alguien añada mañana— sí se paga siempre.
+   ═════════════════════════════════════════════════════════════════════════════ */
+.row-end { display: flex; align-items: flex-end; gap: var(--s3); }
+.row-end > .field { align-self: stretch; justify-content: flex-end; position: relative; }
+.row-end > .field > .field-hint,
+.row-end > .field > .field-error {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+}
+.row-end:has(> .field > .field-hint),
+.row-end:has(> .field > .field-error) { margin-bottom: 20px; }
+
+/* ── En estrecho, la fila de campos ENVUELVE de verdad ──────────────────────
+   `.grow` es `flex: 1 1 0%`, y el salto de línea se decide con la base: con
+   base 0 nunca salta, así que `.wrap` en estas filas era decorativo y los
+   cuatro campos del alta compartían 366 px a ~65 px cada uno. El suelo de
+   `flex-basis` es el que GoalCard ya ponía a mano (`minWidth: 180`), hecho
+   sistema: por debajo de 150 px un campo con etiqueta no se puede leer ni
+   tocar, así que ahí salta a la línea siguiente.
+
+   Y la ayuda vuelve al flujo: colgada en absoluto con 20 px reservados (una
+   línea) se montaba sobre la segunda fila de campos al envolver. */
+@media (max-width: 640px) {
+  .row-end { flex-wrap: wrap; }
+  .row-end > .grow, .row-end > .field { flex-basis: min(150px, 100%); }
+  .row-end > .field > .field-hint,
+  .row-end > .field > .field-error { position: static; }
+  .row-end:has(> .field > .field-hint),
+  .row-end:has(> .field > .field-error) { margin-bottom: 0; }
+}
+.col { display: flex; flex-direction: column; gap: var(--s3); }
+.wrap { flex-wrap: wrap; }
+.between { justify-content: space-between; }
+.center { justify-content: center; }
+.grow { flex: 1; min-width: 0; }
+.shrink-0 { flex-shrink: 0; }
+.self-start { align-self: flex-start; }
+
+.gap-1 { gap: var(--s1); }
+.gap-2 { gap: var(--s2); }
+.gap-3 { gap: var(--s3); }
+.gap-4 { gap: var(--s4); }
+.gap-5 { gap: var(--s5); }
+.gap-6 { gap: var(--s6); }
+
+.stack { display: flex; flex-direction: column; gap: var(--s6); }
+.stack-sm { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* ── Rail: fila de chips que se desplaza ───────────────────────────────────
+   Oculta la barra de scroll por estética, y eso tiene un precio: lo que no cabe
+   desaparece SIN NINGUNA PISTA de que está ahí. Pasó dos veces —el ángulo
+   «Espalda» se cortaba en las tarjetas de subida de 150 px, y 3 de las 6
+   herramientas del estudio no se veían en la barra lateral—, así que:
+
+     · el degradado del borde derecho avisa de que hay más a la derecha;
+     · `.rail-wrap` es la variante que ENVUELVE en varias líneas, para cuando el
+       contenedor es estrecho y todas las opciones tienen que estar visibles.
+
+   Regla: si las opciones son excluyentes y hay que verlas todas para elegir,
+   `rail-wrap`. Si es una lista larga que se recorre (semanas, clientes), `rail`. */
+.rail {
+  display: flex; gap: var(--s2); overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none; -ms-overflow-style: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+}
+.rail::-webkit-scrollbar { display: none; }
+
+/* Sin desplazamiento no hay nada que insinuar: fuera el degradado. */
+.rail-wrap {
+  display: flex; flex-wrap: wrap; gap: var(--s2);
+  overflow: visible; mask-image: none; -webkit-mask-image: none;
+}
+
+/* ── Por qué `minmax(min(Npx, 100%), 1fr)` y no `minmax(Npx, 1fr)` ─────────
+   Es el fallo que hacía que en el móvil se viera «lo mismo pero cortado».
+
+   `minmax(300px, 1fr)` dice: esta columna mide 300 px COMO MÍNIMO. Cuando el
+   contenedor mide menos —una tarjeta de 334 px dentro de una pantalla de 390—,
+   la columna sigue midiendo 300 y la rejilla se sale por la derecha. Y como
+   `body` lleva `overflow-x: hidden` para que la página no baile, lo que se sale
+   no se puede alcanzar deslizando: se CORTA, sin más.
+
+   `min(300px, 100%)` cambia el mínimo por «300 px, o el ancho disponible si es
+   menor». En una pantalla ancha se comporta exactamente igual que antes; en una
+   estrecha la columna se encoge en vez de desbordar.
+
+   Esto vale para las doce rejillas `auto-fit`/`auto-fill` del proyecto. Si añades
+   otra, sigue el mismo patrón. */
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(158px, 100%), 1fr)); gap: var(--s3); }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: var(--s4); }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: var(--s4); }
+
+.layout { max-width: var(--max-w); margin: 0 auto; padding: var(--s5) var(--s5) var(--s7); }
+/* El portal del cliente no vive en el shell, así que lleva su propio aire de
+   noche (los mismos tokens; sobre papel, transparentes). */
+.layout-narrow {
+  max-width: 1000px;
+  background:
+    radial-gradient(56% 24% at 78% 0%, var(--brasa-aire), transparent 70%),
+    radial-gradient(48% 20% at 6% 0%, var(--acero-aire), transparent 70%);
+  background-repeat: no-repeat;
+}
+
+/* ══ LA ENTRADA DE PANTALLA ══════════════════════════════════════════════════
+   La coreografía de la portada, traducida al producto: al montar una pantalla,
+   sus bloques de primer nivel entran en una cascada corta —cada uno un poco
+   después que el anterior— y ahí se acaba. Nada de aparecer al hacer scroll:
+   eso es del escaparate, donde la página se recorre una vez; en una herramienta
+   que se abre cincuenta veces al día, el movimiento solo puede estar en el
+   momento de llegar, y tiene que haber terminado antes de que la mano llegue al
+   primer control.
+
+   Se anima `.layout > .stack > *` —los bloques de primer nivel de una pantalla,
+   que es el mismo árbol en casi todas— y no cada tarjeta anidada: una cascada
+   dentro de otra se lee como parpadeo. El tope de retraso existe porque una
+   pantalla con doce bloques no puede tardar medio segundo en estar entera.
+
+   `backwards` mantiene cada bloque invisible durante su retraso; sin él, los
+   últimos se pintan, desaparecen y vuelven — el parpadeo clásico de las
+   cascadas hechas a medias. Quien pide menos movimiento no ve nada de esto. */
+@keyframes pantalla-entra {
+  from { opacity: 0; transform: translateY(10px); }
+}
+/* ── Y también dentro de Ajustes ─────────────────────────────────────────────
+   El selector pedía que el `.stack` colgara DIRECTAMENTE del lienzo, y en
+   Ajustes cuelga de `.settings-body` (la lista de apartados va al lado). Así
+   que el área entera —Plan, Protocolo, Equipo, Integraciones…— era la única
+   del producto que aparecía de golpe: cambiar de apartado se sentía distinto a
+   cambiar de pantalla, sin ninguna razón de diseño detrás. Es el mismo tramo
+   del árbol un nivel más adentro, así que va la misma cascada. */
+@media (prefers-reduced-motion: no-preference) {
+  .layout > .stack > *,
+  .settings-body > .stack > * { animation: pantalla-entra 0.4s var(--ease) backwards; }
+  .layout > .stack > *:nth-child(2),
+  .settings-body > .stack > *:nth-child(2) { animation-delay: 50ms; }
+  .layout > .stack > *:nth-child(3),
+  .settings-body > .stack > *:nth-child(3) { animation-delay: 100ms; }
+  .layout > .stack > *:nth-child(4),
+  .settings-body > .stack > *:nth-child(4) { animation-delay: 150ms; }
+  .layout > .stack > *:nth-child(n + 5),
+  .settings-body > .stack > *:nth-child(n + 5) { animation-delay: 190ms; }
+}
+
+/* ══ EL ESQUELETO DE ARRANQUE ════════════════════════════════════════════════
+   Lo que se ve mientras llegan la sesión y los datos (ver `ui/AppSkeleton`).
+   Huesos con las proporciones de una pantalla, sin imitar a ninguna: mientras
+   carga no se sabe si quien entra es entrenador o cliente.
+
+   El pulso es de OPACIDAD y no de posición —nada se mueve— y desaparece entero
+   con `prefers-reduced-motion`. */
+.boot { min-height: 100vh; display: flex; flex-direction: column; }
+.boot-top {
+  height: var(--header-h); flex-shrink: 0;
+  display: flex; align-items: center; gap: var(--s4);
+  padding: 0 var(--s5);
+  border-bottom: 1px solid var(--hairline);
+}
+.boot-main {
+  width: 100%; max-width: var(--max-w); margin: 0 auto;
+  padding: var(--s6) var(--s5);
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+
+.bone { display: block; background: var(--fill); border-radius: var(--r-md); }
+@media (prefers-reduced-motion: no-preference) {
+  .bone { animation: bone-pulse 1.1s ease-in-out infinite alternate; }
+}
+@keyframes bone-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+.boot-search { flex: 1; max-width: 440px; height: 34px; margin-left: var(--s4); }
+.boot-avatar { width: 32px; height: 32px; border-radius: 50%; margin-left: auto; flex-shrink: 0; }
+.boot-title { width: min(220px, 60%); height: 30px; }
+.boot-sub { width: min(320px, 80%); height: 13px; border-radius: var(--r-xs); }
+.boot-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: var(--s4); margin-top: var(--s3);
+}
+.boot-card { height: 110px; border-radius: var(--r-lg); }
+.boot-panel { height: 260px; border-radius: var(--r-lg); margin-top: var(--s2); }
+

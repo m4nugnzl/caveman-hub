@@ -16,6 +16,29 @@ const kg = (v) => `${v > 0 ? '+' : ''}${Number(v).toLocaleString('es-ES', { maxi
 const peso = (v) => localeNumber(v, { maximumFractionDigits: 1 });
 
 /**
+ * El veredicto, dicho para quien lo lee.
+ *
+ * `domain/reading.js` es el motor de lectura DEL ENTRENADOR: sus textos hablan
+ * de decisiones que solo él puede tomar. Casi todos valen igual para el cliente
+ * —«la tendencia es poco fiable», «faltan semanas»— porque describen los datos.
+ * El de «no hay objetivo» no: dice «es lo primero que conviene fijar», y el
+ * cliente no puede fijar nada. Lo veía en su portada, en la tarjeta grande y en
+ * rojo: un reproche por algo que no está en su mano, en la pantalla que existe
+ * para enseñarle que va bien.
+ *
+ * Se traduce aquí, que es donde se pinta, y no en el dominio: allí duplicaría
+ * cada hallazgo en dos idiomas para una excepción. Lo que no está en la tabla
+ * se dice tal cual.
+ */
+const PARA_EL_CLIENTE = {
+  'no-goal': {
+    title: 'Tu entrenador aún no ha fijado tu objetivo',
+    detail:
+      'En cuanto decida si toca bajar, subir o mantener, aquí verás semana a semana si vas en rumbo. Mientras tanto, tus cifras están todas registradas.',
+  },
+};
+
+/**
  * CÓMO VA — la tarjeta que manda en el panel.
  *
  * ══ Lo que dice: dónde va a acabar ═════════════════════════════════════════
@@ -60,6 +83,7 @@ export const TarjetaComoVa = ({
   isClient = false,
   onAbrirFases,
 }) => {
+  const dicho = (isClient && veredicto && PARA_EL_CLIENTE[veredicto.id]) || veredicto;
   const tono = veredicto?.tone || 'unknown';
   const Icono = MARCA[tono] || CircleHelp;
 
@@ -119,7 +143,7 @@ export const TarjetaComoVa = ({
               <Icono size={13} strokeWidth={2.5} />
             </span>
             <span className="comova-say">
-              <strong>{veredicto?.title || (proyeccion ? 'Sin veredicto' : 'Todavía no hay nada que leer')}</strong>
+              <strong>{dicho?.title || (proyeccion ? 'Sin veredicto' : 'Todavía no hay nada que leer')}</strong>
               {proyeccion && proyeccion.objetivo !== null ? (
                 <span className="comova-detalle">
                   {proyeccion.desvio === 0
@@ -127,7 +151,7 @@ export const TarjetaComoVa = ({
                     : `Acaba ${kg(Math.abs(proyeccion.desvio))} kg ${proyeccion.desvio > 0 ? 'por encima' : 'por debajo'} de los ${peso(proyeccion.objetivo)} kg que buscabas${objetivoSemanal ? `, a ${kg(objetivoSemanal)} kg por semana` : ''}.`}
                 </span>
               ) : (
-                veredicto?.detail && <span className="comova-detalle">{veredicto.detail}</span>
+                dicho?.detail && <span className="comova-detalle">{dicho.detail}</span>
               )}
             </span>
           </p>

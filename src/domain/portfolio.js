@@ -444,6 +444,21 @@ export const clientStatus = (
  * acción dos veces es mejor que darla por hecha sin saberlo.
  */
 export const reviewState = (row, today = todayISO()) => {
+  /*
+    ══ Sin cuenta enlazada no hay nada que revisar ════════════════════════════
+
+    Y salía en la cola igualmente, como «Sin subir»: la aplicación reclamaba un
+    check-in a alguien que ni siquiera puede entrar a entregarlo. Es reprocharle
+    al entrenador el resultado de un paso que la propia pantalla le está pidiendo
+    dos bloques más abajo —«Dar acceso al portal»—, y encima ensucia la única
+    cifra que tiene que significar trabajo de verdad.
+
+    Lo que hay que hacer con esta persona es invitarla, y eso ya está en su sitio:
+    la alerta `no_account`, que es la primera de todas, y el trámite «Dar acceso
+    al portal». Aquí, `off`.
+  */
+  if (!row?.client?.clientProfileId) return 'off';
+
   const periodo = currentCheckInPeriod(row?.client?.preferences, row?.client?.startDate, today);
   if (!periodo || !periodo.isDue) return 'off';
 

@@ -1,0 +1,422 @@
+/* ==========================================================================
+   Lo estrecho
+   --------------------------------------------------------------------------
+   Los cortes de tableta y móvil que afectan a varias zonas a la vez. Va
+   DESPUÉS de todas ellas a propósito: son sobreescrituras.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 1180px) {
+  .studio { grid-template-columns: 248px minmax(0, 1fr); }
+  .studio-controls { grid-column: 1 / -1; }
+  .studio-side { position: static; max-height: none; }
+}
+
+@media (max-width: 900px) {
+  .layout { padding: var(--s4) var(--s4) var(--s6); }
+  .card { padding: var(--s4); }
+  .studio { grid-template-columns: minmax(0, 1fr); }
+  .comparison-grid { grid-template-columns: 1fr; }
+  /* Siete columnas que se comprimen, no siete columnas fijas que se desplazan:
+     a este ancho todavía caben unos 90 px por día, que es lo que necesita
+     «Empuje A». Por debajo de 640 px ya no caben y la rejilla pasa a filas. */
+  .split-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .exercise-name { width: 146px; }
+
+  .meter-label { width: 92px; font-size: var(--fs-xs); }
+  /* Por debajo de este ancho, media fila deja de ser legible: todo a una
+     columna, y «media» y «completa» dejan de distinguirse. Su botón en las
+     herramientas de edición tampoco distingue nada: fuera. */
+  .grid-slots { grid-template-columns: 1fr; }
+  .slot-btn.slot-span { display: none; }
+}
+
+@media (max-width: 640px) {
+  :root { --s5: 16px; --s6: 24px; --s7: 32px; --fs-2xl: 2rem; --fs-xl: 1.5rem; }
+  .app-header { padding: var(--s2) var(--s4); }
+  .layout { padding: var(--s3) var(--s3) var(--s6); }
+  .modal-body, .modal-header, .modal-footer { padding-left: var(--s4); padding-right: var(--s4); }
+  .modal-footer .btn { flex: 1; }
+
+  /* ── El diálogo se ancla abajo: es una hoja ────────────────────────────────
+     Centrado era una tarjeta flotando con 16 px de fondo a cada lado y el botón
+     primario a media pantalla; con el teclado abierto, directamente fuera del
+     alcance. Anclado al borde inferior el pie queda a la altura del pulgar y el
+     teclado empuja la hoja hacia arriba en vez de taparla.
+
+     La pareja `vh`/`svh` es la de la portada (ver EL ALTO DE VERDAD): con la
+     barra de Safari desplegada, `92vh` mide más que la pantalla visible y el
+     pie caía detrás de ella. `--safe-b` por la raya del gesto del iPhone. */
+  .modal-backdrop { place-items: end center; padding: 0; }
+  .modal {
+    max-width: none;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    max-height: 92vh; max-height: 92svh;
+    padding-bottom: var(--safe-b);
+    animation: modal-sube 0.28s var(--ease);
+  }
+  /* La hoja anclada se va por abajo, no encogiendo: `modal-baja` deshace a
+     `modal-sube` igual que `modal-sale` deshace a `sheet` en escritorio. */
+  .modal-backdrop[data-state='closing'] > .modal { animation: modal-baja var(--fast) both; }
+
+  .exercise { flex-wrap: wrap; row-gap: var(--s2); }
+  .exercise-name { width: auto; flex: 1; }
+
+  /* ── Las series se REPARTEN, no se desplazan ─────────────────────────────
+     El carril era un `overflow-x: auto` con celdas de 168 px fijos: cuatro series
+     son 700 px, así que en el móvil solo se veían dos y había que arrastrar
+     dentro de cada ejercicio, con quince ejercicios en la pantalla. Es el gesto
+     más repetido de la aplicación y era el peor resuelto.
+
+     Ahora envuelven de dos en dos. `min-width` deja que caigan a una por línea en
+     pantallas muy estrechas en vez de estrangular los tres campos. */
+  .set-lane { flex-basis: 100%; order: 10; }
+  /* Y de dos en dos, no de una en una: con la base de diseño (168 px) en un
+     carril de ~330 caía una tarjeta por fila, y un día de 6 ejercicios × 4
+     series eran cinco pantallas y media de scroll — medido a 390 px. A 132 px
+     de base caben dos por fila (~160 al crecer) y el día ocupa la mitad; la
+     cabecera de la tarjeta ya sabe envolver cuando el RIR pide sitio (5542). */
+  .set-cell { flex-basis: 132px; }
+  /* Con una serie por fila, el botón de añadir compartía línea con la última y la
+     dejaba visiblemente más estrecha que las demás: cuatro series iguales y una
+     recortada. En su propia fila, a lo ancho, además dice mejor lo que hace. */
+  .set-add { flex: 1 0 100%; min-height: 40px; }
+
+  /* ── La estructura semanal, en filas ─────────────────────────────────────
+     Siete columnas no caben de ninguna manera en 366 px: a 52 px por día no
+     entra el nombre de un solo entrenamiento. En filas cabe todo y además se
+     lee en el orden en que se piensa la semana, de lunes a domingo hacia abajo. */
+  .split-grid { grid-template-columns: minmax(0, 1fr); gap: var(--s1); }
+  .split-day { flex-direction: row; align-items: center; gap: var(--s3); }
+  .split-day > .name { width: 34px; flex-shrink: 0; text-align: left; }
+  .split-day > .value,
+  .split-day > .split-value { flex: 1; min-width: 0; text-align: left; padding: 8px var(--s3); }
+
+  .meter-row { flex-wrap: wrap; }
+  .meter-label { width: 100%; text-align: left; }
+  .grid-auto { grid-template-columns: 1fr 1fr; }
+  .studio-canvas { max-height: 42vh; }
+  .row-meta { min-width: 0; }
+
+  .folio-grid { grid-template-columns: 1fr; }
+  /* Baja una grada de la escala de cifras, apretado incluido. */
+  .tile > .v { font-size: var(--fs-lg); letter-spacing: -0.025em; }
+  .slot-tools { top: -11px; right: 2px; }
+}
+
+/* ── Veredicto en la ficha de la cartera ───────────────────────────────────
+   La ficha contaba lo que FALTA —días sin entrenar, check-in a medias— y ninguna
+   de esas líneas decía si el cliente progresa. Un cliente sin alertas y estancado
+   seis semanas se veía idéntico a uno que va perfecto.
+
+   Va por encima de los datos y con la franja de color al canto: es la conclusión,
+   y las cifras de debajo son de dónde sale. */
+.folio-verdict {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 7px var(--s3); border-radius: var(--r-sm);
+  font-size: var(--fs-sm); font-weight: 650;
+  background: var(--fill-subtle); color: var(--text-secondary);
+}
+.folio-verdict > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.folio-verdict.is-good { background: var(--positive-soft); color: var(--positive); }
+.folio-verdict.is-warn { background: var(--warning-soft); color: var(--warning); }
+.folio-verdict.is-bad { background: var(--negative-soft); color: var(--negative); }
+
+
+/* ══ LA RUTINA DEL CLIENTE, EN ESCRITORIO ═══════════════════════════════════
+   La sesión es un DOCUMENTO, y un documento tiene medida.
+
+   El portal usa la medida de trabajo (1.560 px) porque su inicio es un mosaico
+   de dos columnas que la aprovecha. La rutina no: es una columna de ejercicios
+   con tres campos por serie, y a 1.440 px eso dejaba una tarjeta de mil
+   cuatrocientos píxeles con la tabla acabándose a la mitad —contenido a la
+   izquierda y medio panel vacío a la derecha, que es exactamente lo que se lee
+   como «cortado»—.
+
+   Así que la sesión se queda en 720 px, que es lo que piden un nombre de
+   ejercicio y sus tres columnas, y el sobrante se usa para lo que antes iba
+   apretado encima de la tira: en qué bloque estás y cuánto llevas hecho en él.
+   Las dos columnas se CENTRAN: manda la medida, no el monitor, así que un
+   monitor de 1.920 no separa las dos columnas hasta los bordes.
+
+   La medida la lleva la PÁGINA y no el cuerpo. Centrar solo las dos columnas
+   dejaba el titular «Mi rutina» y el aviso del alta cruzando los 1.560 px
+   mientras la sesión de debajo medía 1.044: un escalón a media pantalla que se
+   lee como dos páginas pegadas. Con el `:has()` la manda el marco —el mismo
+   recurso con el que el chasis del entrenador estrecha sus pantallas de
+   trabajo— y todo lo de la ruta comparte borde izquierdo y derecho.
+
+   El corte es 1.100 y no el 1.024 del chasis a propósito: las dos columnas
+   suman 1.044 px con su hueco, y meterlas en 1.024 sería apretarlas justo por
+   debajo de su medida. Por debajo, una sola columna y el costado detrás de la
+   sesión, que en el teléfono es donde no estorba. */
+.rutina-cuerpo { display: flex; flex-direction: column; gap: var(--s4); }
+.rutina-centro { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.rutina-lado { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+@media (min-width: 1100px) {
+  .layout-portal:has(.rutina-portal) { max-width: 1108px; }
+  .rutina-cuerpo {
+    display: grid; grid-template-columns: minmax(0, 1fr) 300px;
+    gap: var(--s5); align-items: start;
+  }
+  /* Se queda a la vista mientras se baja por los ejercicios: es la referencia
+     contra la que se mide lo que estás haciendo. */
+  .rutina-lado { position: sticky; top: var(--s5); }
+}
+
+/* En un monitor grande, el costado ENSANCHA con la página.
+   La progresión de un ejercicio es una tabla —una fila por semana, tres
+   minicolumnas por serie— y en 300 px sus cifras se tocan unas con otras. Es
+   el mismo crecimiento que el costado del entrenador, que va de 260 a 400
+   según el ancho: aquí de 300 a 360, con la página abriendo lo justo para
+   pagarlo. Por debajo no cambia nada, y el nivel del plan agradece igual los
+   140 px de más para sus columnas de hojas. */
+@media (min-width: 1440px) {
+  .layout-portal:has(.rutina-portal) { max-width: 1240px; }
+  .rutina-cuerpo { grid-template-columns: minmax(0, 1fr) 360px; }
+}
+/* Y el último escalón, el mismo con el que se queda el costado del entrenador:
+   400 px son los que necesitan las cinco series de la progresión para que
+   «102,5 · 8 · 2» de una columna no toque el de la siguiente. */
+@media (min-width: 1600px) {
+  .layout-portal:has(.rutina-portal) { max-width: 1320px; }
+  .rutina-cuerpo { grid-template-columns: minmax(0, 1fr) 400px; }
+}
+
+/* ── La barra del guardado al entrenar (portal del cliente) ─────────────────
+   El estado del guardado y el «X de Y series» vivían arriba del todo de la
+   rutina: por el cuarto ejercicio ya habían salido de pantalla, y un «No se
+   guardó» a mitad de entreno era invisible — el cliente seguía apuntando kilos
+   que no llegaban a ninguna parte. Fija abajo, donde está el pulgar y donde
+   se mira entre serie y serie.
+
+   Se llama `.save-bar` y no «session bar» a propósito: el editor de rutina del
+   entrenador YA tiene una `.session-bar` (el selector de sesiones del día), y
+   la primera versión de esta barra usó ese nombre — la redefinición dejó
+   aquella invisible en escritorio y clavada abajo en el móvil.
+
+   Solo existe en el chasis móvil: en escritorio la cabecera se ve sin scroll.
+   Fija abajo y apoyada sobre la barra del pulgar, como lo estuvo la de la
+   revisión en curso antes de que la revisión cupiera en una sola pantalla. */
+.save-bar { display: none; }
+@media (max-width: 1023.98px) {
+  .save-bar {
+    position: fixed; left: 0; right: 0; z-index: 60;
+    bottom: calc(var(--bottombar-h) + var(--safe-b));
+    display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+    padding: 8px var(--s4);
+    background: var(--surface-glass);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--edge);
+    box-shadow: 0 -4px 20px rgba(20, 24, 28, 0.1);
+  }
+  /* El hueco para que la última fila de la sesión no quede debajo de la barra. */
+  .save-pad { padding-bottom: 64px; }
+}
+
+
+/* ── El antes y el después de una revisión ─────────────────────────────────
+   Lo retirado tachado y en rojo, lo nuevo en verde. El color NO dice si el
+   cambio es bueno —bajar calorías puede ser lo correcto—: dice qué salió y qué
+   entró, que es lo que se busca al mirar una revisión de hace dos meses.
+
+   Con `font-variant-numeric` para que dos cifras de distinto ancho no bailen al
+   compararlas una debajo de otra.
+   ========================================================================== */
+/* ── Lo que sale y lo que entra ────────────────────────────────────────────
+   Lo de antes en voz baja, lo de ahora a plena tinta. Y nada más: ni tachado ni
+   rojo ni verde.
+
+   Los tuvo, y era la razón de que este bloque «quedase feo». El tachado en rojo
+   sobre verde es la maqueta de un `diff` de código, y esto no es código: es lo
+   que le has cambiado a una persona. En una lista de seis renglones eso son doce
+   manchas de color compitiendo entre ellas, y encima el color MIENTE — bajarle
+   las calorías puede ser exactamente lo correcto, y salía en rojo tachado.
+
+   El contraste de peso hace el mismo trabajo sin decir nada de más: lo apagado
+   es lo que había, lo firme es lo que hay. Es lo mismo que hace el resto del
+   producto para distinguir un dato vigente de uno viejo. */
+.diff-out {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.diff-in {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Y la rejilla en la que se leen ────────────────────────────────────────
+   Rótulo a la izquierda, lo que le pasó a la derecha, y TODAS las líneas
+   iguales: la cifra del plan, el día reprogramado y el ejercicio al que le
+   subiste una serie.
+
+   Había tres formas distintas en el mismo bloque —una fila envolvente, un
+   recuento con signos y un sangrado de 100 px escrito a mano en el JSX—, así
+   que doce cambios seguidos eran tres tablas encajadas. Y el sangrado a mano
+   reventaba justo donde este diff vive ahora: la columna de 368 px de la
+   revisión, donde «Hack Squat / 2 / 3 series» se partía en tres renglones.
+
+   La columna del rótulo cede antes que la del dato: un nombre largo se parte,
+   pero «280 g → 240 g» no puede quedarse sin sitio. */
+/* Renglones con su filete, como un extracto: cada línea es un movimiento y se
+   cuentan bajando la vista. Con solo un hueco de 5 px entre ellas, seis cambios
+   eran un párrafo. */
+.diff-list { display: flex; flex-direction: column; }
+
+.diff-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s4);
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: var(--fs-sm);
+}
+.diff-row + .diff-row, .diff-group + .diff-row { border-top: 1px solid var(--hairline); }
+.diff-what { color: var(--text-secondary); min-width: 0; overflow-wrap: anywhere; }
+/* A la DERECHA y con cifras tabulares: seis cambios seguidos alinean sus flechas
+   y sus valores en dos columnas invisibles, y entonces la lista se lee de un
+   barrido en vez de renglón a renglón. */
+.diff-vals {
+  display: flex; align-items: baseline; justify-content: flex-end; gap: 6px;
+  min-width: 0; white-space: nowrap;
+}
+
+/* Un tramo del programa —«S1 · Torso»— con lo que entró y lo que salió en su
+   misma línea. Encabeza SIEMPRE a los suyos: sin él, «Hack Squat 2 → 3 series»
+   no dice de qué semana habla. */
+.diff-group { display: flex; flex-direction: column; }
+.diff-group + .diff-group, .diff-row + .diff-group { border-top: 1px solid var(--hairline); }
+/* Sin versalita: lleva dentro los NOMBRES de los ejercicios que entraron y
+   salieron, y en mayúsculas «Hack Squat» deja de ser un nombre. */
+.diff-where {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2);
+  padding: 7px 0 3px;
+  font-family: var(--font-display);
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text);
+}
+/* Las filas de un grupo cuelgan de su rótulo. El sangrado es de la rejilla y no
+   del JSX, que es lo que lo hace resistir una columna estrecha. */
+.diff-group > .diff-row { padding-left: var(--s3); }
+.diff-group > .diff-row:first-of-type { border-top: 0; }
+
+/* La respuesta de una revisión: el comentario y el vídeo son la misma cosa, así
+   que se agrupan con una marca a la izquierda en vez de quedar como dos
+   elementos sueltos de la fila. */
+.review-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--edge);
+}
+
+/* ── La campana de avisos del cliente ──────────────────────────────────────
+   Reutiliza la caja del menú de cuenta —misma forma, mismo sitio, mismo gesto—
+   y solo añade el contador. Aparece únicamente cuando hay algo que decir: una
+   campana permanentemente vacía enseña a ignorarla. */
+.bell { position: relative; }
+.bell-dot {
+  position: absolute; top: -3px; right: -3px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: var(--r-pill);
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--font-display); font-size: 9.5px; font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  /* El canto del fondo de la cabecera, para que el contador no se funda con el
+     avatar de al lado cuando se solapan. */
+  box-shadow: 0 0 0 2px var(--surface-glass);
+}
+
+/* ── El vídeo de una revisión, antes de pulsarlo ───────────────────────────
+   Una FILA, no un marco de 16:9. El marco vacío ocupaba media pantalla de móvil
+   y en la lista de revisiones hay uno por semana: cuatro rectángulos con su
+   botón de play en medio para ver, como mucho, el de arriba.
+
+   Sin reproducir, un vídeo es un enlace: se dice como tal y el marco aparece al
+   pulsarlo. */
+.video-row {
+  display: flex; align-items: stretch; gap: 1px;
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--edge); overflow: hidden;
+}
+.video-row-play {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 9px var(--s3); border: 0; cursor: pointer;
+  background: var(--surface-sunken); color: var(--text);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; text-align: left;
+  transition: background-color var(--fast);
+}
+.video-row-play:hover { background: var(--fill-subtle); }
+.video-row-play > .mark {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-on);
+}
+/* La salida a su aplicación: un icono al final, no una segunda fila que repite
+   la acción principal con otras palabras. */
+.video-row-out {
+  display: grid; place-items: center; width: 40px; flex-shrink: 0;
+  background: var(--surface-sunken); color: var(--text-tertiary);
+  transition: color var(--fast), background-color var(--fast);
+}
+.video-row-out:hover { background: var(--fill-subtle); color: var(--text); }
+
+/* ── El reproductor, allá donde se abra ────────────────────────────────────
+   `aspect-ratio` en el contenedor: el hueco lo reserva el marco antes de cargar
+   nada, así que la página no da un salto cuando el vídeo aparece. */
+.video-frame {
+  position: relative; width: 100%; aspect-ratio: 16 / 9;
+  border-radius: var(--r-md); overflow: hidden;
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.video-frame > iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* ── La semana del check-in: SIETE columnas, siempre ───────────────────────
+   Iba en `grid-auto`, que se adapta al ancho con un mínimo de 158 px por celda:
+   por debajo de unos 1.100 px la semana se partía en dos filas, y una semana
+   partida en dos deja de leerse como una semana — hay que contar para saber qué
+   día es cuál.
+
+   Siete columnas iguales pase lo que pase. Lo que va dentro es un día de tres
+   letras y un número, así que estrecharse es exactamente lo correcto. */
+.checkin-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.checkin-week > .card-inset { padding: var(--s2) 6px; min-width: 0; }
+/* A esta anchura, el nombre del día y la píldora de «hoy» no caben en la misma
+   línea: la etiqueta se queda y el «hoy» lo dice el canto. */
+.checkin-week .section-label { font-size: var(--fs-2xs); letter-spacing: 0.04em; }
+.checkin-week .badge { display: none; }
+/* Aquí la cifra baja a tamaño de TEXTO, así que sale de la escala y no se
+   aprieta: a 13 px el interletraje de una cifra de 28 pega los dígitos. */
+.checkin-week .metric-value { font-size: var(--fs-sm); letter-spacing: normal; }
+.checkin-week .input { padding-left: 2px; padding-right: 2px; }
+/* Con el pulgar, la casilla del día necesita alto de verdad; la letra a 16 px
+   ya la pone el bloque de campos táctiles (ver Ergonomía táctil). */
+@media (hover: none) { .checkin-week .input { min-height: 40px; } }
+
+/* «Hoy» sin píldora: un canto de BRASA, la marca de «aquí estás» que comparte
+   todo el producto —la sección activa, el día de hoy en la regla—. */
+.checkin-week > .card-inset.is-today {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+@media (max-width: 560px) {
+  /* En un móvil, siete columnas de 44 px no admiten una casilla de texto. Se
+     parten en dos filas de cuatro y tres, que sigue leyéndose como una semana
+     porque el orden se conserva. */
+  .checkin-week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+

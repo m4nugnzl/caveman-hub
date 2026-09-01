@@ -14,7 +14,7 @@ import {
 import { useActions } from '@/context/AppContext';
 import { dateOnly, dateTime } from '@/lib/dates';
 import { BrandMark } from '@/components/ui/BrandMark';
-import { Loading, Notice, Panel } from '@/components/ui/primitives';
+import { BotonAccion, Loading, Notice, Panel } from '@/components/ui/primitives';
 
 /** Un paso con su estado, igual que en Notion: el orden aquí es obligado. */
 const Step = ({ index, title, hint, done, children }) => (
@@ -144,16 +144,19 @@ export const StripeSettings = ({ onChanged }) => {
       'save',
       saveIntegration({ id: integration?.id, provider: 'stripe', config: {}, label: 'Stripe' })
     );
-    if (!outcome.ok) return;
+    /* Devuelve si ha ido o no: es lo que decide si el botón confirma con un tic
+       o vuelve a su sitio sin celebrar nada. Ver `BotonAccion`. */
+    if (!outcome.ok) return false;
 
     if (key.trim()) {
       const stored = await run('save', setIntegrationToken(outcome.id, key.trim()));
-      if (!stored.ok) return;
+      if (!stored.ok) return false;
       setKey('');
     }
     await refresh();
     onChanged?.();
     setFeedback({ tone: 'success', text: 'Guardado.' });
+    return true;
   };
 
   const call = async (action) => {
@@ -169,10 +172,11 @@ export const StripeSettings = ({ onChanged }) => {
 
   const saveHook = async () => {
     const outcome = await run('hook', setWebhookSecret(integration.id, hookSecret.trim()));
-    if (!outcome.ok) return;
+    if (!outcome.ok) return false;
     setHookSecret('');
     await refresh();
     setFeedback({ tone: 'success', text: 'Webhook configurado. Stripe ya puede avisar.' });
+    return true;
   };
 
   if (!ready) {
@@ -319,14 +323,14 @@ export const StripeSettings = ({ onChanged }) => {
                     autoComplete="off"
                     aria-label="Secreto de firma del webhook"
                   />
-                  <button
-                    type="button"
+                  <BotonAccion
                     className="btn btn-secondary btn-sm"
+                    icon={Webhook}
                     onClick={saveHook}
-                    disabled={!hookSecret.trim() || busy === 'hook'}
+                    disabled={!hookSecret.trim()}
                   >
-                    <Webhook size={13} /> {busy === 'hook' ? 'Guardando…' : 'Guardar el secreto'}
-                  </button>
+                    Guardar el secreto
+                  </BotonAccion>
                 </div>
 
                 {/*
@@ -368,9 +372,9 @@ export const StripeSettings = ({ onChanged }) => {
         </div>
 
         <footer className="integration-foot">
-          <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={busy === 'save'}>
-            {busy === 'save' ? 'Guardando…' : 'Guardar'}
-          </button>
+          <BotonAccion className="btn btn-primary btn-sm" onClick={save}>
+            Guardar
+          </BotonAccion>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -389,7 +393,7 @@ export const StripeSettings = ({ onChanged }) => {
           </button>
           <button
             type="button"
-            className="btn btn-tinted btn-sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => call('sync')}
             disabled={!canRun || busy === 'sync'}
           >

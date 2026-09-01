@@ -253,7 +253,7 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
         <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || edadMal}>
           Guardar
         </button>
-        <button type="button" className="btn btn-quiet btn-sm" onClick={onCancel}>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
           Cancelar
         </button>
         {!limpio && <span className="t-xs t-tertiary">El nombre no puede quedar vacío.</span>}
@@ -322,7 +322,7 @@ const Identidad = ({ client, weight, onUpdate }) => {
         !editando && (
           <button
             type="button"
-            className="btn btn-quiet btn-sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => setEditando(true)}
           >
             Editar
@@ -575,7 +575,7 @@ const PortalAccess = ({ client }) => {
             */}
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="btn btn-secondary btn-sm"
               onClick={reemitir}
               disabled={busy}
             >
@@ -814,7 +814,7 @@ const StepRow = ({
         {step.link && !editando && (
           <button
             type="button"
-            className="btn btn-quiet btn-sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => {
               setDraft(url || '');
               setEditando(true);
@@ -1025,7 +1025,7 @@ const StepRow = ({
             />
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="btn btn-secondary btn-sm"
               style={{ alignSelf: 'flex-start' }}
               disabled={subiendo}
               onClick={() => input.current?.click()}
@@ -1045,7 +1045,7 @@ const StepRow = ({
             </button>
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="btn btn-secondary btn-sm"
               onClick={() => {
                 setEditando(false);
                 setError('');
@@ -1056,7 +1056,7 @@ const StepRow = ({
             {(url || file) && (
               <button
                 type="button"
-                className="btn btn-quiet btn-sm"
+                className="btn btn-secondary btn-sm"
                 onClick={() => {
                   /* Quitar lo que haya: solo hay una de las dos cosas, así que se
                      limpian las dos y da igual cuál estuviera puesta. */
@@ -1161,7 +1161,7 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
           <span className={`badge ${complete ? 'badge-ok' : ''}`}>
             {complete ? <Check size={11} /> : null} {done} de {total}
           </span>
-          <button type="button" className="btn btn-quiet btn-sm" onClick={onProbar}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
             <Eye size={14} /> Ver su alta
           </button>
         </div>
@@ -1339,7 +1339,7 @@ export const ClientFile = () => {
             <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'calendario')}>
               Su calendario →
             </Link>
-            <DownloadAnamnesis client={activeClient} className="btn btn-quiet btn-sm" />
+            <DownloadAnamnesis client={activeClient} className="btn btn-secondary btn-sm" />
           </>
         }
       />

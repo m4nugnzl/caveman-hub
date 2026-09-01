@@ -1,0 +1,1746 @@
+/* ==========================================================================
+   Los ajustes y el taller
+   --------------------------------------------------------------------------
+   Cuenta, configuración, integraciones, el estudio de fotos y el
+   protocolo. Lo que se toca de tarde en tarde.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Menú de cuenta
+   --------------------------------------------------------------------------
+   Identidad, el atajo a ajustes, el tema y salir. Llegó a ser el índice entero
+   de la configuración y el interruptor del modo preview; las dos cosas se
+   fueron a donde se buscan (el pie de la barra y el propio cliente) y el menú
+   volvió a ser un menú de cuenta.
+   ========================================================================== */
+
+.account { position: relative; }
+
+.account-btn {
+  border: 0; background: transparent; padding: 0; cursor: pointer;
+  border-radius: 50%; display: grid; place-items: center;
+}
+.account-btn:hover .account-avatar { box-shadow: 0 0 0 2px var(--accent); }
+
+.account-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.02em;
+  background: var(--accent-soft); color: var(--accent);
+  transition: box-shadow var(--fast);
+}
+
+.account-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  min-width: 232px;
+  display: flex; flex-direction: column; gap: 1px;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md);
+  box-shadow: var(--shadow-float);
+  padding: var(--s2);
+  /* El mismo gesto que `.popover`: es la misma pieza con otro traje. */
+  animation: pop 0.16s var(--ease);
+}
+.account-menu[data-state='closing'] { animation: pop-sale var(--fast) both; }
+
+.account-head { padding: var(--s2) var(--s3) var(--s3); }
+.account-head > .name {
+  display: block; font-size: var(--fs-sm); font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.account-head > .sub { display: block; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.account-item {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 8px var(--s3); border: 0; border-radius: var(--r-sm);
+  background: transparent; color: inherit; font: inherit; font-size: var(--fs-sm);
+  text-align: left; text-decoration: none; cursor: pointer; width: 100%;
+  transition: background-color var(--fast);
+}
+.account-item:hover { background: var(--fill-subtle); }
+.account-item > svg { color: var(--text-tertiary); flex-shrink: 0; }
+.account-item.active { background: var(--accent-soft); color: var(--accent); }
+.account-item.active > svg { color: var(--accent); }
+.account-item.is-danger { color: var(--negative); }
+.account-item.is-danger > svg { color: var(--negative); }
+.account-item.is-danger:hover { background: var(--negative-soft); }
+
+/* ==========================================================================
+   Configuración
+   --------------------------------------------------------------------------
+   Lista de apartados a la izquierda, contenido a la derecha. En móvil la lista
+   pasa arriba en horizontal: una columna de 200 px sobre 390 px de ancho no deja
+   sitio para el contenido.
+   ========================================================================== */
+
+.settings { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: var(--s4); align-items: start; }
+.settings-nav { display: flex; flex-direction: column; gap: var(--s1); }
+.settings-body { min-width: 0; }
+
+/* ── Las tandas de la lista ────────────────────────────────────────────────
+   Los apartados van agrupados por asunto (`group`, en `routes.jsx`) bajo un
+   rótulo troquelado — la voz de etiqueta de todo el producto—. Ayuda no es un
+   apartado más: va como pie con su filete, la misma gramática que el pie de la
+   barra lateral. */
+.settings-group { display: flex; flex-direction: column; gap: var(--s1); }
+.settings-group + .settings-group { margin-top: var(--s3); }
+.settings-group > .k {
+  font-size: var(--fs-xs); font-weight: 700;
+ letter-spacing: 0;
+  color: var(--text-tertiary);
+  padding: 0 var(--s3) 2px;
+}
+.settings-group.is-foot { border-top: 1px solid var(--hairline); padding-top: var(--s2); }
+
+/* El activo lleva LA REGLETA de brasa en el canto izquierdo: la misma marca de
+   «aquí estás» que la barra lateral y las pestañas. La tinta se queda en tinta. */
+.settings-link {
+  position: relative;
+  display: flex; align-items: flex-start; gap: var(--s3);
+  padding: var(--s3);
+  border-radius: var(--r-md); text-decoration: none; color: inherit;
+  transition: background-color var(--fast);
+}
+.settings-link:hover { background: var(--fill-subtle); }
+.settings-link.active { background: var(--fill-subtle); }
+.settings-link.active > svg { color: var(--text); }
+.settings-link.active::before {
+  content: '';
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 17px; border-radius: var(--r-pill);
+  background: var(--accent);
+  animation: marca-entra var(--fast) both;
+}
+.settings-link > svg { color: var(--text-tertiary); flex-shrink: 0; margin-top: 1px; }
+.settings-link > .who { min-width: 0; }
+.settings-link > .who > .name { display: block; font-size: var(--fs-sm); font-weight: 650; }
+.settings-link > .who > .sub { display: block; font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; }
+
+@media (max-width: 860px) {
+  .settings { grid-template-columns: minmax(0, 1fr); }
+  .settings-nav { flex-direction: row; overflow-x: auto; gap: var(--s2); }
+  .settings-nav::-webkit-scrollbar { display: none; }
+  /* En el carril horizontal las tandas se disuelven: los rótulos no caben y
+     una fila que se desplaza ya no se lee por grupos. `display: contents`
+     deja los enlaces como hijos directos del carril. */
+  .settings-group { display: contents; }
+  .settings-group > .k { display: none; }
+  .settings-link { flex-direction: column; align-items: center; text-align: center; min-width: 96px; }
+  .settings-link > .who > .sub { display: none; }
+  /* En fila, la regleta pasa al canto de ARRIBA: en el izquierdo se leería
+     como el canto del elemento anterior. */
+  .settings-link.active::before {
+    left: 50%; top: 0; transform: translateX(-50%);
+    width: 17px; height: 3px;
+  }
+}
+
+/* Aquí vivió la elección de tema con vista previa de los dos lienzos: dos
+   miniaturas para elegir claro u oscuro viéndolo en vez de leyendo la palabra.
+   Era una sección entera de Ajustes para un ajuste que ya estaba en el menú de
+   la cuenta, y se retiró con su pantalla (ver el comentario de la ruta
+   `apariencia` en `App.jsx`). El conmutador que se queda no necesita CSS propio.
+   Sus 34 líneas se van con ella: CSS sin JSX que lo use no falla en ningún
+   sitio, simplemente pesa. */
+
+/* ==========================================================================
+   Catálogo de integraciones
+   ========================================================================== */
+
+/* Azulejo del logotipo. Fondo claro fijo: el negro de Notion sobre fondo oscuro
+   se pierde, y teñirlo para que «encaje» deja de ser el logotipo de Notion. */
+.brand-monogram {
+  display: grid; place-items: center;
+  font-size: var(--fs-md); font-weight: 800;
+  font-family: var(--font-display, var(--font));
+}
+
+.brand-tile {
+  display: grid; place-items: center; flex-shrink: 0;
+  border-radius: var(--r-md);
+  background: #ffffff;
+  box-shadow: var(--shadow-xs), inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+/* El logotipo que YA TRAE su fondo (el icono morado de Stripe) llena el azulejo
+   hasta el canto: con el margen claro alrededor quedaba un cuadrado redondeado
+   dentro de otro, con dos radios distintos a 42 px. El azulejo pasa a ser solo
+   el recorte —de ahí `overflow: hidden`— y el canto interior se queda para que
+   el morado no flote sin borde sobre el hierro. Ver `ui/BrandMark.jsx`. */
+.brand-tile.is-bleed {
+  background: transparent;
+  overflow: hidden;
+}
+.brand-tile.is-bleed > img { border-radius: inherit; }
+
+/* ══ CONECTAR UNA INTEGRACIÓN ════════════════════════════════════════════════
+   La pantalla de antes de conectar, que no es la misma que la de después.
+
+   Era una sola para los dos estados: cabecera con el botón arriba a la derecha,
+   párrafo de qué es esto y bloque del permiso, todo a la vez. Un muro con el
+   botón flotando en una esquina — y con frases que sobran en uno de los dos
+   estados, como explicarle a quien ya lo tiene conectado qué permisos se piden.
+
+   Aquí conectar es lo que es: una decisión que se toma UNA vez. Marca, qué hace,
+   tres pasos y un botón. Nada más, y en ese orden. */
+.connect { padding: var(--s6) var(--s5); }
+@media (min-width: 640px) {
+  .connect { padding: var(--s7) var(--s6); }
+}
+
+/* El titular a tamaño de titular. Es lo único de esta tarjeta que compite con la
+   cabecera de la pantalla, y tiene que hacerlo: la pantalla se llama
+   «Integraciones» y esto es de qué va la que estás mirando. */
+.connect-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+/* ── Los tres pasos ─────────────────────────────────────────────────────────
+   Numerados y unidos por un hilo, porque son una SECUENCIA y no una lista de
+   ventajas: contestan «¿y esto qué me va a hacer?», que es la pregunta con la
+   que uno está mirando el botón sin pulsarlo.
+
+   El hilo va de disco a disco (`::before` sobre el `li`, no sobre el número) y
+   se corta en el último: una raya que sigue por debajo del final sugiere un
+   cuarto paso que no existe. */
+.pitch { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pitch > li {
+  position: relative;
+  display: flex; align-items: flex-start; gap: var(--s3);
+  padding-bottom: var(--s4);
+}
+.pitch > li:last-child { padding-bottom: 0; }
+.pitch > li:not(:last-child)::before {
+  content: '';
+  position: absolute; left: 11px; top: 26px; bottom: 4px;
+  width: 1px; background: var(--hairline);
+}
+.pitch > li > .n {
+  position: relative; z-index: 1; flex-shrink: 0;
+  width: 23px; height: 23px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--fill); color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
+}
+
+/* ── La letra pequeña, plegada ──────────────────────────────────────────────
+   Lo que contesta el susto de la pantalla de Google —«quiere acceder a tu Google
+   Drive»— tiene que estar a mano y no delante: desplegada empujaba el botón por
+   debajo del pliegue y convertía una decisión de dos líneas en un documento.
+
+   Sin caja ni fondo: es una nota al pie, no un bloque más. Lo único que la marca
+   es el triángulo del navegador y que el resumen se subraya al pasar. */
+.fineprint > summary {
+  cursor: pointer; width: fit-content;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  transition: color var(--fast);
+}
+.fineprint > summary:hover { color: var(--text-secondary); text-decoration: underline; }
+.fineprint > p {
+  margin: var(--s2) 0 0;
+  font-size: var(--fs-xs); color: var(--text-secondary); max-width: 62ch;
+}
+.fineprint code {
+  font-family: var(--font-mono); font-size: 0.92em;
+  background: var(--fill-subtle); border-radius: var(--r-xs); padding: 1px 4px;
+}
+
+.provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: var(--s3); }
+
+.provider {
+  position: relative; isolation: isolate;
+  display: flex; flex-direction: column; gap: var(--s2);
+  background: var(--surface-sunken); border-radius: var(--r-lg); padding: var(--s4);
+  transition: box-shadow var(--fast);
+}
+.provider:hover { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.provider:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+/* Lo que aún no existe se ve, pero apagado y sin invitar a pulsarlo. */
+.provider.is-planned { opacity: 0.72; }
+.provider.is-planned:hover { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
+
+.provider-hit {
+  position: absolute; inset: 0; z-index: 0;
+  border: 0; background: transparent; padding: 0; cursor: pointer;
+}
+.provider > *:not(.provider-hit) { position: relative; z-index: 1; pointer-events: none; }
+
+.provider-head { display: flex; align-items: center; gap: var(--s3); }
+.provider-head > .who { flex: 1; min-width: 0; }
+.provider-head > .who > .name { display: block; font-size: var(--fs-base); font-weight: 650; }
+.provider-head > .who > .sub {
+  display: block; font-size: var(--fs-xs); font-weight: 650;
+ letter-spacing: 0; color: var(--text-tertiary);
+}
+.provider-what { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.45; }
+
+/* El pie de una tarjeta conectada: cuándo sincronizó y el botón de volver a
+   hacerlo. El botón recupera el puntero por encima del `provider-hit` — la
+   regla de arriba se lo quita a todo lo que no sea el propio overlay. */
+.provider-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-top: var(--s1); }
+.provider-meta { font-size: var(--fs-2xs); color: var(--text-tertiary); min-width: 0; }
+.provider-foot > .btn { pointer-events: auto; }
+
+/* «Conectar →» en la tarjeta que aún no lo está. No es un botón —la tarjeta
+   entera ya lo es— sino el cartel de lo que pasa al pulsarla: sin él, una
+   tarjeta «Disponible» terminaba en su frase y nada decía que hiciera algo.
+
+   La flecha se adelanta al pasar por encima. Es el único movimiento de la
+   rejilla y dura lo que un parpadeo: no adorna, confirma que eso lleva a otro
+   sitio antes de pulsarlo. */
+.provider-cta {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: auto;
+  font-size: var(--fs-xs); font-weight: 650; color: var(--text-secondary);
+  transition: color var(--fast);
+}
+.provider-cta > svg { transition: transform var(--fast); }
+.provider:hover .provider-cta { color: var(--text); }
+.provider:hover .provider-cta > svg { transform: translateX(2px); }
+
+/* El hueco de la insignia mientras se pregunta el estado. Reserva su alto para
+   que la cabecera no dé un salto al llegar la respuesta, y no dibuja nada: una
+   insignia gris de relleno se leería como un estado más. */
+.badge-hueco { display: block; height: 22px; flex-shrink: 0; }
+
+/* La rejilla las estira a la misma altura (`align-items: stretch` por defecto),
+   así que el pie de todas cae a la misma línea aunque una frase ocupe dos
+   renglones y otra uno. Es lo que hace que la tanda se lea como una tanda y no
+   como cuatro tarjetas de alturas distintas. */
+.provider > .provider-what { flex: 1; }
+
+.is-girando { animation: girar 1s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+
+/* ==========================================================================
+   Integraciones
+   --------------------------------------------------------------------------
+   Una tarjeta por servicio, con su marca arriba y los pasos dentro en el orden en
+   que hay que darlos. Antes era un formulario plano de ocho campos donde todo
+   parecía opcional y simultáneo, y no se sabía por dónde empezar.
+   ========================================================================== */
+
+.integration {
+  display: flex; flex-direction: column;
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden;
+}
+
+.integration-head {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s4);
+  background: linear-gradient(120deg, var(--fill-subtle), var(--surface) 70%);
+}
+.integration-logo {
+  width: 46px; height: 46px; border-radius: var(--r-md); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--surface); box-shadow: var(--shadow-sm);
+}
+.integration-head > .who { flex: 1; min-width: 0; }
+.integration-head > .who > .name { display: block; font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em; }
+.integration-head > .who > .sub { display: block; font-size: var(--fs-xs); color: var(--text-secondary); }
+
+.integration-body { display: flex; flex-direction: column; }
+
+/* Paso numerado. El número pasa a marca de verificación al cumplirse, que es lo
+   que convierte «rellena esto» en «vas por aquí». */
+.step { display: flex; gap: var(--s3); padding: var(--s4); position: relative; }
+.step-mark {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  font-size: var(--fs-xs); font-weight: 700;
+  background: var(--fill); color: var(--text-tertiary);
+}
+.step.is-done > .step-mark { background: var(--positive-soft); color: var(--positive); }
+
+/* La fase EN CURSO del roadmap.
+   ---------------------------------------------------------------------------
+   El bloque `.step` nació para los asistentes de integración, donde solo hay dos
+   estados: hecho y por hacer. Un roadmap tiene tres, y el que falta es el que
+   más importa —dónde está la persona hoy—.
+
+   El realce es un fondo tenue y una marca con borde, no un color de alarma: la
+   fase de hoy es la normal, no una incidencia. El color de la marca lo pone el
+   componente con el tono de la dirección (definición / mantenimiento / volumen),
+   así que aquí solo se prepara el hueco. */
+.step.is-current { background: var(--surface-sunken); border-radius: var(--r-md); }
+.step.is-current > .step-mark { background: transparent; box-shadow: inset 0 0 0 2px currentColor; }
+.step.is-current .step-head > strong { font-weight: 700; }
+
+.step-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.step-head { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+.step-head > strong { font-size: var(--fs-base); font-weight: 650; }
+.step-head > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* Un valor largo que hay que llevarse a otra pestaña (una URL de webhook). Va en
+   monoespaciada porque se compara carácter a carácter, y con scroll propio: si
+   creciera la caja rompería el ancho del panel. El botón de copiar es lo que se
+   usa de verdad; el texto está para poder verificar que es lo que se espera. */
+.copyable {
+  display: flex; align-items: center; gap: var(--s2);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3);
+}
+.copyable > code {
+  flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-secondary);
+  scrollbar-width: none;
+}
+.copyable > code::-webkit-scrollbar { display: none; }
+
+/* Lista de eventos a suscribir. Un `code` por línea porque el nombre exacto es lo
+   que hay que teclear en Stripe, y equivocarse en un punto lo deja sin llegar. */
+.event-list { display: flex; flex-direction: column; gap: var(--s1); }
+.event-list > li {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.event-list code {
+  font-family: var(--font-mono); font-size: var(--fs-xs);
+  color: var(--text); background: var(--fill);
+  padding: 1px var(--s1); border-radius: var(--r-sm);
+}
+
+.integration-notes {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: var(--s3) var(--s4);
+  background: var(--warning-soft); color: var(--warning);
+}
+
+.integration-foot {
+  display: flex; flex-wrap: wrap; gap: var(--s2);
+  padding: var(--s4); background: var(--surface-sunken);
+}
+
+/* Fila de conciliación: el nombre de Notion y los clientes a los que puede
+   corresponder. */
+.match-row {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--s3);
+}
+.match-row > .who { flex: 1; min-width: 140px; }
+.match-row > .who > .name { display: block; font-size: var(--fs-base); font-weight: 650; }
+.match-row > .who > .sub { display: block; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+
+/* Los enlaces del subnivel son chips. El estado activo lo marca react-router con
+   la clase `active`, igual que `aria-pressed` marca los chips que son botones. */
+a.chip { text-decoration: none; }
+a.chip.active { background: var(--accent); color: var(--accent-on); }
+
+
+/* ── Barra superior del estudio ────────────────────────────────────────────
+   Las decisiones sobre el documento —composición, proporción, descargar— en
+   horizontal y arriba. Antes compartían panel con las herramientas de anotación
+   en una columna de 290 px: seis decisiones de tres naturalezas distintas
+   apiladas, y el lienzo enterrado entre dos muros de controles. */
+.studio-bar {
+  display: flex; align-items: flex-end; flex-wrap: wrap; gap: var(--s4);
+  background: var(--surface); border-radius: var(--r-lg);
+  padding: var(--s3) var(--s4); box-shadow: var(--shadow-sm);
+}
+.studio-bar-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+/* `margin-left: auto` empuja la descarga al extremo: es el final del proceso y
+   conviene que esté lejos de las opciones para no pulsarla por inercia. */
+.studio-bar-end { display: flex; align-items: center; gap: var(--s3); margin-left: auto; flex-wrap: wrap; }
+
+/* ── Lectura de la semana ──────────────────────────────────────────────────
+   Frases con gravedad, no gráficos. La marca de la izquierda lleva el color:
+   el texto se queda en el color normal para que se pueda leer seguido, porque
+   cuatro frases teñidas de cuatro colores no se leen, se escanean. */
+.reading { display: flex; flex-direction: column; gap: var(--s2); list-style: none; }
+.read {
+  display: flex; gap: var(--s3); align-items: flex-start; width: 100%;
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  font-family: inherit; text-align: left; border: 0;
+}
+.read-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.read-body > strong { font-size: var(--fs-base); font-weight: 650; }
+
+.read-mark {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; margin-top: 1px;
+}
+.read.is-good > .read-mark { background: var(--positive-soft); color: var(--positive); }
+.read.is-warn > .read-mark { background: var(--warning-soft); color: var(--warning); }
+.read.is-bad > .read-mark { background: var(--negative-soft); color: var(--negative); }
+.read.is-unknown > .read-mark { background: var(--fill); color: var(--text-tertiary); }
+
+/* Lo grave se distingue también sin color: una franja al canto, para quien no
+   distingue el rojo del ámbar. */
+.read.is-bad { box-shadow: inset 3px 0 0 var(--negative); }
+.read.is-warn { box-shadow: inset 3px 0 0 var(--warning); }
+
+.goal-set { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; color: var(--text-tertiary); }
+.goal-set > .k {
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0;
+}
+
+/* Un punto de aviso en el título de un tramo: dice qué ventana merece abrirse
+   ANTES de abrirla, que es lo que evita entrar en las cuatro por si acaso.
+
+   Aquí vivió la barra de pestañas del análisis —`.ev-tabs`, una ficha por
+   pregunta— y se ha ido con su pantalla: las cuatro preguntas ya no son las
+   pestañas de una página aparte, son las cuatro piezas del resumen, y cada una
+   abre su ventana desde su propio título. De aquella barra solo sobrevive esta
+   señal, que era lo único que no se podía deducir mirando. */
+/* `inline-block` y no `inline`: dentro de una fila flex daba igual —un hijo de
+   flex se blockifica solo—, pero en el enlace de la cabecera de un bloque el
+   punto es un `span` vacío en línea, y a un inline no se le puede dar alto ni
+   ancho: se pintaba de cero por cero, o sea no se pintaba. */
+.ev-dot { display: inline-block; vertical-align: middle; width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.ev-dot.is-warn { background: var(--warning); }
+.ev-dot.is-bad { background: var(--negative); }
+
+/* ── Selector de composición ───────────────────────────────────────────────
+   Cuatro FORMAS, así que se eligen viendo la forma. Antes eran cuatro chips de
+   texto y había que traducir cada nombre a la figura que produce.
+
+   El dibujo se hace con divs: ninguna librería de iconos trae estas cuatro
+   figuras, y con `grid` la miniatura ES el layout — una composición nueva se
+   describe con una línea de CSS. */
+.lay-picker { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.lay {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: var(--s2) var(--s3); border: 0; cursor: pointer;
+  background: var(--fill-subtle); border-radius: var(--r-md);
+  color: var(--text-secondary); font-family: inherit;
+  transition: background-color var(--fast), color var(--fast), box-shadow var(--fast);
+}
+.lay:hover { background: var(--fill); color: var(--text); }
+.lay[aria-pressed='true'] {
+  background: var(--accent-soft); color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.lay-label { font-size: var(--fs-2xs); font-weight: 650; white-space: nowrap; }
+
+/* La miniatura. `currentColor` con poca opacidad para los huecos: así hereda el
+   estado del botón —gris en reposo, verde al estar activo— sin una regla por
+   estado. */
+.lay-glyph { display: grid; gap: 2px; width: 30px; height: 22px; }
+.lay-glyph > i { background: currentColor; opacity: 0.45; border-radius: 1.5px; }
+.lay[aria-pressed='true'] .lay-glyph > i { opacity: 0.75; }
+
+.lay-glyph.is-pair { grid-template-columns: 1fr 1fr; }
+.lay-glyph.is-matrix { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; }
+.lay-glyph.is-grid { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+
+/* El deslizador no son dos fotos al lado: es UNA con un corte móvil encima, y la
+   miniatura lo dice con un solo hueco partido por una línea. */
+.lay-glyph.is-slider { display: block; position: relative; }
+.lay-glyph.is-slider > i {
+  position: absolute; inset: 0; opacity: 0.45;
+  border-radius: 1.5px;
+}
+.lay-glyph.is-slider::after {
+  content: ''; position: absolute; top: -2px; bottom: -2px; left: 50%;
+  width: 2px; margin-left: -1px; background: currentColor; border-radius: 1px;
+}
+
+/* ── Barra de herramientas del estudio ─────────────────────────────────────
+   Iconos agrupados en un único bloque, no seis chips con texto. Con texto solo
+   cabían tres de las seis en la columna lateral y las otras desaparecían sin
+   dejar rastro; y leer seis etiquetas cada vez que quieres trazar una línea es
+   trabajo que el icono ahorra.
+
+   Los separadores marcan los grupos: encuadrar no es anotar, una regla que cruza
+   el montaje no es una línea entre dos puntos, y el texto abre un campo. */
+.toolbar {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+  background: var(--surface-sunken); border-radius: var(--r-md); padding: 3px;
+}
+.toolbar-group { display: flex; align-items: center; gap: 2px; }
+.toolbar-sep { width: 1px; height: 18px; background: var(--hairline-strong); margin: 0 4px; }
+
+.tool {
+  width: 32px; height: 30px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: var(--r-sm); cursor: pointer;
+  background: transparent; color: var(--text-secondary);
+  transition: background-color var(--fast), color var(--fast);
+}
+.tool:hover { background: var(--fill); color: var(--text); }
+.tool[aria-pressed='true'] { background: var(--accent); color: var(--accent-on); }
+
+/* ── Página pública de una revisión ────────────────────────────────────────
+   La abre el cliente desde WhatsApp, normalmente en el móvil y sin sesión. Una
+   sola tarjeta centrada, sin barras ni menús: no hay nada más que hacer aquí. */
+.review-page {
+  min-height: 100vh; min-height: 100svh; /* pareja vh/svh, ver `.login` */
+  display: grid; place-items: start center;
+  padding: var(--s5) var(--s4) var(--s7);
+}
+.review-card {
+  width: 100%; max-width: 620px;
+  display: flex; flex-direction: column; gap: var(--s5);
+  background: var(--surface); border-radius: var(--r-lg);
+  padding: var(--s5); box-shadow: var(--shadow-sm);
+  position: relative;
+}
+/* ── Privacidad y condiciones ──────────────────────────────────────────────
+   Un documento para leer, no una pantalla de aplicación: medida de línea corta,
+   párrafos separados y jerarquía marcada por el tamaño, no por cajas. Es el
+   único sitio del proyecto donde hay prosa larga de verdad. */
+.legal { max-width: 68ch; line-height: var(--lh-loose); }
+.legal h1 { font-size: var(--fs-xl); }
+.legal h2 { font-size: var(--fs-md); }
+.legal p, .legal li { font-size: var(--fs-base); color: var(--text-secondary); }
+.legal p + p { margin-top: var(--s3); }
+.legal ul { display: flex; flex-direction: column; gap: var(--s2); padding-left: 1.15em; }
+.legal li { list-style: disc; }
+.legal a { color: var(--accent); font-weight: 600; }
+.legal code { font-size: var(--fs-sm); background: var(--fill-subtle); padding: 1px 5px; border-radius: var(--r-xs); }
+.legal-url { font-weight: 600; color: var(--text); }
+
+/* El hueco por rellenar. Va en rojo y con fondo: tiene que ser imposible
+   publicar el documento sin verlo. */
+.legal-hueco {
+  background: var(--negative-soft); color: var(--negative);
+  padding: 0 6px; border-radius: var(--r-xs); font-weight: 600;
+}
+
+/* ── Plan ──────────────────────────────────────────────────────────────────
+   La cifra manda. Lo que decide un cambio de plan aquí no es comparar listas de
+   ventajas: es quedarse sin sitio, así que lo primero que se ve es cuántos
+   clientes llevas, en el tamaño de una cifra principal y en Archivo —el dato ES
+   el contenido, que es la regla de la fuente en este proyecto—.
+
+   Los planes van debajo como una escala de peldaños, no como tres tarjetas
+   compitiendo: solo cambia una cosa entre ellos y ponerlos en columnas obligaría
+   a leer tres veces lo mismo para encontrarla. */
+/* ── El héroe: quién eres y cuánto te queda ────────────────────────────────
+   Rótulo del plan y estado arriba, la cifra con su unidad EN LÍNEA —el número
+   solo, con la unidad debajo, dejaba una columna estrecha y un hueco a la
+   derecha— y la barra a todo lo ancho cerrando el bloque.
+
+   Lleva la lumbre. La doctrina dice que es para «la tarjeta que contiene la
+   decisión» y como mucho una por pantalla: aquí no compite con nadie y esta ES
+   la pantalla de una decisión —seguir o cambiar de peldaño—. */
+.plan-hero { display: flex; flex-direction: column; gap: var(--s4); }
+.plan-hero-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.plan-count-row { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.plan-count {
+  font-family: var(--font-display); font-size: var(--fs-2xl);
+  font-weight: 700; line-height: 1; letter-spacing: -0.03em;
+}
+.plan-count-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* ── La escala: UN bloque con peldaños, no N tarjetas ──────────────────────
+   Eran tres tarjetas sueltas con 8 px entre ellas, que es exactamente la forma
+   de «tres productos compitiendo» que esta pantalla dice no querer. Una lista
+   agrupada —la misma que el resto del producto (`.list`)— las convierte en lo
+   que son: los peldaños de una misma escala, y estás en uno.
+
+   Cada peldaño: nombre y para quién · tope · precio y acción. Tres columnas que
+   se apilan en móvil, donde el precio pasa a la izquierda con el resto. */
+.plan-tier {
+  position: relative;
+  display: grid; align-items: center; gap: var(--s2) var(--s4);
+  grid-template-columns: minmax(min(220px, 100%), 2fr) auto auto;
+  padding: var(--s4);
+}
+.list-head + .plan-tier::before,
+.plan-tier + .plan-tier::before {
+  content: ''; position: absolute; top: 0; left: var(--s4); right: var(--s4);
+  height: 1px; background: var(--hairline);
+}
+/* El tuyo, marcado como se marca lo elegido en una lista agrupada
+   (`.list-row.is-active`): relleno, no un anillo. El anillo de antes se comía
+   los separadores de las filas de al lado. */
+.plan-tier.is-current { background: var(--accent-soft); }
+.plan-tier-main { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.plan-tier-name { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650; }
+.plan-tier-cap { color: var(--text-secondary); white-space: nowrap; }
+.plan-tier-buy { display: flex; align-items: center; gap: var(--s3); justify-content: flex-end; }
+.plan-tier-money { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.plan-price { font-family: var(--font-display); font-weight: 650; white-space: nowrap; }
+/* El cargo real y el ahorro, debajo de la cifra mensualizada. `planPrice` exige
+   que el total esté a la vista al lado del importe por mes, y esta es esa línea. */
+.plan-price-note { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; }
+
+/* ── EL PELDAÑO QUE SE TE SEÑALA ───────────────────────────────────────────
+   La única superficie encendida de la pantalla, y por eso la lumbre: es el mismo
+   recurso con el que la portada distingue una tarjeta de plan de las demás, y
+   aquí hace exactamente el mismo trabajo. Una sola por pantalla, como la lumbre
+   — dos peldaños encendidos no señalan ninguno.
+
+   No es una decoración a la que le tocara el turno: solo se enciende el
+   siguiente que se puede comprar, solo si añade algo, y solo a quien puede
+   contratarlo (ver `PlanPanel.jsx`). */
+.plan-tier.is-pick {
+  background-image: radial-gradient(120% 140% at 100% 0%, var(--brasa-luz), transparent 60%);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  border-radius: var(--r-md);
+}
+/* Sin filete encima: el canto de la señal ya cierra la fila por arriba, y la línea
+   de la lista cruzándolo lo parte en dos. */
+.plan-tier.is-pick::before,
+.plan-tier.is-pick + .plan-tier::before { display: none; }
+
+/* La chapa. La misma que marca la tarjeta destacada de la portada, en pequeño:
+   troquelada, la señal y su tinta. */
+.plan-tag {
+  padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+ letter-spacing: 0; white-space: nowrap;
+}
+
+/* Y el motivo, cruzando la fila entera por debajo: es lo que convierte la chapa
+   en un argumento en vez de en un cartel. */
+.plan-tier-why {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text);
+}
+
+/* Lo que este peldaño AÑADE sobre el tuyo. Palomas y no puntos, que es la
+   distinción de la portada: un punto enumera, una paloma afirma. En fila y
+   envolviendo —no en columna— porque son tres o cuatro cosas cortas y una
+   columna de cuatro renglones dentro de una fila de lista la convierte en una
+   tarjeta. */
+.plan-gain {
+  list-style: none; display: flex; flex-wrap: wrap;
+  gap: 2px var(--s3); margin-top: 3px;
+}
+.plan-gain > li {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.plan-gain > li > svg { color: var(--accent); flex-shrink: 0; }
+
+/* El pie de la escala: lo que quita el miedo. En tinta terciaria y con el ancho
+   tasado — es una condición de la compra, no una sección. */
+.plan-foot { max-width: 62ch; font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
+
+@media (max-width: 700px) {
+  /* Una sola columna: el precio debajo del nombre, y el botón a lo ancho, que es
+     donde llega el pulgar. */
+  .plan-tier { grid-template-columns: 1fr; }
+  .plan-tier-buy { justify-content: space-between; }
+  /* Con la fila en una columna, la cifra deja de tener un canto derecho al que
+     alinearse: el bloque de dinero abre por la izquierda como todo lo demás. */
+  .plan-tier-money { align-items: flex-start; }
+}
+
+/* La barra: lo que se lee es «cuánto me queda», y una longitud se compara de un
+   vistazo mejor que un ángulo. En rojo al llegar al tope porque a partir de ahí
+   el siguiente alta falla — no es un matiz de color, es un cambio de estado. */
+.plan-bar {
+  height: 6px; border-radius: var(--r-pill); background: var(--fill);
+  overflow: hidden; width: 100%;
+}
+
+/* Los topes secundarios del héroe (asientos, disco): mismos materiales que la
+   barra de clientes pero en fila propia y más finos — informan sin competir
+   con la cifra grande, que es la que decide el cambio de plan.
+
+   El filete de arriba es el único de la tarjeta y está ganado: separa lo que
+   DECIDE (la cifra y su barra) de lo que solo informa. Sin él, tres barras
+   seguidas se leen como tres datos del mismo peso. */
+.plan-meters {
+  display: grid; gap: var(--s3) var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+}
+.plan-meter { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.plan-meter .plan-bar { height: 4px; }
+.plan-bar-fill {
+  display: block; height: 100%; border-radius: var(--r-pill);
+  background: var(--accent); transition: width var(--fast);
+}
+.plan-bar-fill.is-full { background: var(--negative); }
+
+/* ── La misma barra contando una FASE, que no es una carga ─────────────────
+   El medidor de arriba dice «cuánto me queda de lo que he comprado», y su tinta
+   plena está ganada: es la cifra que decide si cambias de plan. La fase no
+   decide nada, solo sitúa —por dónde va el tramo—, y con el mismo relleno
+   pintaba una franja de tinta negra a lo ancho de la tarjeta que manda, que era
+   el elemento más pesado del Resumen para lo menos accionable que hay en él.
+
+   Más fina y con la lumbre: si la brasa como tinta dice «aquí estás», aquí dice
+   «por aquí vas». La usan el pie de «Cómo va» y el roadmap, que son la misma
+   fase contada en dos sitios. */
+.plan-bar.is-fase { height: 4px; background: var(--fill-subtle); }
+.plan-bar.is-fase > .plan-bar-fill { background: var(--text-secondary); }
+
+/* ══ EL MOVIMIENTO DE ESTA PANTALLA ══════════════════════════════════════════
+   Dos, y las dos por el mismo motivo: el movimiento cuenta algo que el estado
+   final ya no puede contar.
+
+   · La barra CRECE hasta donde estás. Una barra pintada de golpe es una forma;
+     una barra que se llena es un recorrido, y el recorrido es justo el dato
+     («voy por aquí de lo que me cabe»). Nace en el momento de llegar y termina
+     antes de que la mano llegue a ningún control, que es la única ventana que
+     la doctrina de arriba concede dentro del producto.
+
+   · El PRECIO cambia al cambiar de mes a año. Ahí el movimiento no adorna: es
+     el acuse de recibo del interruptor. Sin él, tocar «Al año» repinta tres
+     cifras en silencio y hay que compararlas con las que uno recordaba.
+     Se dispara con un `key` en el JSX —React remonta el elemento y la animación
+     vuelve a correr—, no con una clase que haya que quitar y poner.
+
+   Ninguna se repite ni late: pasan una vez y se acaban. Y las dos desaparecen
+   enteras para quien pide menos movimiento. */
+@keyframes plan-bar-crece { from { width: 0; } }
+@keyframes plan-precio-cambia { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* `backwards` para que la barra esté a cero durante el retraso en vez de
+     aparecer llena y encogerse. El retraso la deja entrar después de que su
+     tarjeta haya aterrizado. */
+  .plan-bar-fill { animation: plan-bar-crece 0.65s var(--ease) 0.2s backwards; }
+  /* `--normal` ya trae su curva dentro (`0.26s var(--ease)`), así que añadir
+     `var(--ease)` detrás mete DOS funciones de tiempo en el atajo y el
+     navegador tira la declaración entera — la animación no correría y nada lo
+     diría. Es el mismo uso que hacen los cierres de modal y popover. */
+  .plan-price { animation: plan-precio-cambia var(--normal); }
+}
+
+/* ── Lo que se guarda de ti, en la invitación ──────────────────────────────
+   Cuatro puntos con icono, no un párrafo legal. La diferencia importa: el texto
+   tiene que informar de verdad, y un bloque de prosa en un móvil se salta entero
+   —con lo que el consentimiento deja de ser informado y deja de valer—.
+
+   `align-items: flex-start` porque el icono acompaña a la primera línea, no se
+   centra sobre un texto que en móvil ocupa tres. */
+.consent-list { display: flex; flex-direction: column; gap: var(--s4); list-style: none; }
+.consent-list li { display: flex; align-items: flex-start; gap: var(--s3); }
+.consent-icon {
+  width: 30px; height: 30px; border-radius: var(--r-md); flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+/* La casilla sí alinea arriba: su etiqueta es una frase larga que envuelve. */
+.consent-list + .checkbox-row { align-items: flex-start; }
+
+.review-head { display: flex; justify-content: center; }
+.review-title { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; }
+.review-video { width: 100%; border-radius: var(--r-md); background: var(--fill); display: block; }
+
+/* ── Grabación de la revisión ─────────────────────────────────────────────── */
+.rec-live {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-sm); font-weight: 700; color: var(--negative);
+  font-variant-numeric: tabular-nums;
+}
+.rec-live > svg { fill: currentColor; animation: rec-pulse 1.4s ease-in-out infinite; }
+@keyframes rec-pulse { 50% { opacity: 0.25; } }
+
+/* Elegir qué se graba: dos opciones grandes con su consecuencia escrita, en vez
+   de dos botones iguales entre los que hay que adivinar la diferencia. */
+.rec-choice { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: var(--s3); }
+
+.rec-option {
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+  padding: var(--s4); border: 0; border-radius: var(--r-lg);
+  background: var(--surface-sunken); color: inherit; font: inherit;
+  text-align: left; cursor: pointer;
+  transition: box-shadow var(--fast), background-color var(--fast);
+}
+.rec-option:hover:not(:disabled) { background: var(--fill-subtle); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.rec-option:disabled { opacity: 0.45; cursor: not-allowed; }
+.rec-option > svg { color: var(--data-rose); }
+.rec-option > strong { font-size: var(--fs-base); font-weight: 650; }
+.rec-option > span { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.4; }
+
+/* Escenario de la vista previa. Fondo oscuro porque el vídeo se compone sobre
+   negro y así el borde del lienzo no baila. */
+.rec-stage { position: relative; border-radius: var(--r-md); overflow: hidden; background: var(--fill); }
+.rec-canvas { width: 100%; display: block; border-radius: var(--r-md); background: var(--fill); }
+.rec-stage.is-draggable .rec-canvas { cursor: grab; touch-action: none; }
+.rec-stage.is-draggable .rec-canvas:active { cursor: grabbing; }
+
+.rec-hint {
+  position: absolute; left: 50%; bottom: var(--s3); transform: translateX(-50%);
+  font-size: var(--fs-2xs); font-weight: 650;
+  padding: 4px 10px; border-radius: var(--r-pill);
+  background: var(--surface); box-shadow: var(--shadow-float);
+  pointer-events: none; white-space: nowrap;
+}
+
+.rec-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: var(--s3); }
+
+/* ── Calendario ────────────────────────────────────────────────────────────
+   Semanas completas de lunes a domingo. Los días de los meses vecinos se pintan
+   atenuados en vez de dejarse en blanco: un check-in que cae en uno de ellos
+   pertenece a una semana que existe, y un hueco lo escondería. */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+
+.cal-dow {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--tracking-stencil); color: var(--text-tertiary); text-align: center;
+  padding-bottom: 2px;
+}
+
+.cal-day {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  min-height: 62px; padding: 5px 3px;
+  background: var(--surface-sunken); border: 0; border-radius: var(--r-sm);
+  cursor: pointer; font: inherit; color: inherit;
+  transition: background-color var(--fast), box-shadow var(--fast);
+}
+.cal-day:hover { background: var(--fill); }
+.cal-day.is-outside { opacity: 0.4; }
+/* «Hoy» en brasa, como en el resto del producto. */
+.cal-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.cal-day.is-open { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.cal-day > .n { font-size: var(--fs-sm); font-weight: 650; font-variant-numeric: tabular-nums; }
+
+.cal-checkin {
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 1;
+  padding: 2px 5px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-checkin.is-done { background: var(--positive-soft); color: var(--positive); }
+
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.cal-dot.is-done { opacity: 0.35; }
+
+/* La leyenda de la rejilla: solo existe en el móvil, que es donde la píldora
+   de check-in pierde su palabra (abajo) y las marcas se quedan sin explicar. */
+.cal-legend { display: none; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* Qué significa cada color, en fila. El color viene del dato (domain/calendar)
+   por style, como en las celdas: aquí solo hay forma. */
+.cal-key { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); }
+.cal-key-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-tertiary);
+}
+
+/* ── El tablero de la semana ───────────────────────────────────────────────
+   Siete columnas, y en cada una las tarjetas del día con el canto izquierdo del
+   color de su tipo. En el mes los eventos son puntos; aquí, que hay sitio, se
+   lee de quién son y qué son sin tocar nada.
+
+   La tarjeta tiene DOS líneas y el orden importa: arriba de quién es —en el
+   color del tipo, que es lo que se busca— y debajo qué es, en tinta plena. Ver
+   `components/calendar/WeekBoard.jsx`. */
+.wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s2); }
+
+/* La columna NO tiene fondo, y es la decisión que ordena el tablero.
+   Con él eran siete cajas hundidas con tarjetas dentro —cajas dentro de cajas—
+   y el ojo contaba catorce objetos donde hay cuatro citas. Sin él, lo único que
+   se dibuja es lo que existe: la tarjeta. El día se toca igual, y al pasar por
+   encima aparece la superficie para decir que la columna entera es el botón. */
+.wk-day {
+  display: flex; flex-direction: column; gap: var(--s3);
+  min-height: 118px; min-width: 0; padding: var(--s2) 6px var(--s3);
+  background: transparent; border: 0; border-radius: var(--r-md);
+  cursor: pointer; font: inherit; color: inherit; text-align: left;
+  transition: background-color var(--fast), box-shadow var(--fast);
+}
+.wk-day:hover { background: var(--surface-sunken); }
+.wk-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+.wk-dow {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
+  padding-inline: 2px;
+}
+.wk-dow > b {
+  color: var(--text); font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums; margin-left: 4px;
+}
+.wk-day.is-today .wk-dow > b { color: var(--accent); }
+
+.wk-cards { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+
+.wk-card {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  padding: 6px var(--s2) 7px 8px; border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  border-left: 3px solid transparent; /* el color lo pone el dato, por style */
+  overflow: hidden;
+}
+/* Con la columna en hover, la tarjeta sube un escalón para no fundirse con ella. */
+.wk-day:hover .wk-card { background: var(--fill); }
+.wk-card.is-done { opacity: 0.45; }
+.wk-card.is-done .wk-card-what { text-decoration: line-through; }
+
+/* La línea de arriba: de quién, o de qué tipo. Lleva el color porque es la que
+   distingue una tarjeta de la de al lado. */
+.wk-card-when {
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Y la de abajo: qué es. En tinta plena, que es la que se lee despacio. */
+.wk-card-what {
+  font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* La hoja del día reutiliza la tarjeta a tamaño de lectura. */
+.wk-card.is-sheet {
+  gap: 2px; font-size: var(--fs-sm); padding: var(--s2) var(--s3);
+}
+
+/* El hueco de un día sin nada.
+   Se dibuja SIEMPRE, no al pasar el ratón: en táctil el hover no existe, y un
+   día libre es información —es donde cabe una cita—, no un vacío. */
+.wk-add {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 44px; border-radius: var(--r-sm);
+  border: 1px dashed var(--hairline-strong); color: var(--text-tertiary);
+  font-size: var(--fs-xs); font-weight: 700;
+ letter-spacing: 0;
+  opacity: 0.5; transition: opacity var(--fast);
+}
+.wk-day:hover .wk-add { opacity: 1; }
+
+@media (max-width: 640px) {
+  .cal { gap: 3px; }
+  .cal-day { min-height: 52px; padding: 4px 2px; }
+  /* A 390 px no cabe la palabra: el punto de color basta para saber que toca. */
+  .cal-checkin { font-size: 0; padding: 3px; }
+  .cal-legend { display: block; }
+
+  /* En el teléfono la semana no cabe en columnas: se vuelve agenda, un día por
+     fila, con el rótulo a la izquierda y sus tarjetas al lado. */
+  .wk { display: flex; flex-direction: column; gap: var(--s1); }
+  /* `min-height: 44px` y no `0`: la fila entera es el botón que abre ese día
+     —para ver lo que tiene o añadir algo— y como agenda medía 35 px de alto,
+     por debajo del mínimo del dedo. Es alto mínimo, no fijo: un día con tres
+     tarjetas sigue creciendo. */
+  .wk-day { flex-direction: row; align-items: center; gap: var(--s3); min-height: 44px; padding: var(--s2) var(--s3); }
+  .wk-dow { flex: 0 0 58px; }
+  .wk-cards { flex: 1; flex-direction: row; flex-wrap: wrap; gap: var(--s1); }
+  /* Apaisada: de quién y qué, en la misma línea. Apilar dos renglones por cada
+     tarjeta convertiría un lunes con tres citas en media pantalla. */
+  .wk-card { flex-direction: row; align-items: baseline; gap: 6px; max-width: 100%; padding: 4px var(--s2) 4px 7px; }
+  .wk-card-when { flex: 0 0 auto; }
+  .wk-add { min-height: 0; padding: 2px 8px; border: 0; opacity: 0.5; justify-content: flex-start; }
+}
+
+/* ==========================================================================
+   Photo Studio
+   ========================================================================== */
+
+.studio { display: grid; grid-template-columns: 256px minmax(0, 1fr) 288px; gap: var(--s4); align-items: start; }
+.studio-col { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.studio-side { position: sticky; top: calc(var(--header-h) + var(--s4)); max-height: calc(100vh - var(--header-h) - var(--s5)); overflow-y: auto; }
+
+/* Por debajo de este ancho las tres columnas no caben sin estrangular el lienzo,
+   que es lo único que de verdad importa de esta pantalla. Se apilan, y las
+   laterales dejan de ser pegajosas: en una sola columna, «sticky» significa que un
+   panel te persigue tapando el trabajo. */
+@media (max-width: 1180px) {
+  .studio { grid-template-columns: minmax(0, 1fr); }
+  .studio-side { position: static; max-height: none; overflow: visible; }
+  /* El lienzo primero: en vertical, el orden de lectura es el orden de la página. */
+  .studio-col:nth-child(2) { order: -1; }
+}
+
+/* ── Pestañas del panel del estudio ────────────────────────────────────────
+   Sustituyen a tres paneles apilados que medían más de mil píxeles de alto en una
+   columna de 272: lo de abajo quedaba fuera de la pantalla. Y los tres no se usan
+   a la vez —encuadrar, anotar y decidir qué fotos entran son tres momentos—, así
+   que mostrarlos siempre obligaba a saltarse dos. */
+.studio-tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px;
+  background: var(--surface-sunken); border-radius: var(--r-md); padding: 3px;
+}
+.studio-tab {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 4px; border: 0; cursor: pointer; position: relative;
+  background: transparent; border-radius: var(--r-sm); font-family: inherit;
+  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-secondary);
+  transition: background-color var(--fast), color var(--fast);
+}
+.studio-tab:hover { background: var(--fill); color: var(--text); }
+.studio-tab[aria-pressed='true'] { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-xs); }
+.studio-tab > .ev-dot { position: absolute; top: 5px; right: 5px; }
+.studio-tab-count {
+  position: absolute; top: 3px; right: 3px;
+  min-width: 15px; height: 15px; padding: 0 3px;
+  display: grid; place-items: center; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  font-size: 9px; font-weight: 700;
+}
+
+.studio-canvas-wrap { background: var(--canvas-alt); border-radius: var(--r-md); padding: var(--s3); display: grid; place-items: center; overflow: hidden; }
+.studio-canvas { max-width: 100%; max-height: 66vh; width: auto; height: auto; border-radius: var(--r-sm); box-shadow: var(--shadow-lg); touch-action: none; }
+.studio-canvas.mode-pan { cursor: grab; }
+.studio-canvas.mode-pan:active { cursor: grabbing; }
+.studio-canvas.mode-draw { cursor: crosshair; }
+.studio-canvas.mode-slider { cursor: ew-resize; }
+
+/* ── Cobertura del historial de fotos ──────────────────────────────────────
+   Una marca por semana con un punto por ángulo. Las semanas VACÍAS ocupan su
+   sitio: es todo el asunto de la pieza —un historial al que le faltan los huecos
+   no es un historial, es una selección— y por eso no se filtran.
+
+   Envuelve en varias líneas en vez de desplazarse: un año son 52 marcas y lo que
+   se quiere ver es el patrón de los huecos, que en un carril horizontal solo se
+   ve a trozos. */
+.coverage {
+  display: flex; flex-direction: column; gap: var(--s2);
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); padding: var(--s4);
+}
+.coverage-strip { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.coverage-week {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  min-width: 30px; padding: 5px 4px 6px;
+  border-radius: var(--r-sm); background: var(--surface-sunken);
+  border: 1px solid var(--edge);
+}
+.coverage-week > .w {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text-secondary);
+}
+.coverage-week > .dots { display: flex; gap: 2px; }
+.coverage-week > .dots > .dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--hairline-strong);
+}
+.coverage-week > .dots > .dot.is-on { background: var(--positive); }
+
+.coverage-week.is-full { border-color: var(--positive); }
+.coverage-week.is-partial { border-color: var(--warning); }
+/* La semana sin fotos es un hueco, y se dibuja como tal: discontinua y sin
+   fondo. Se ve que existe y que está vacía, que es el dato. */
+.coverage-week.is-empty { background: transparent; border-style: dashed; }
+.coverage-week.is-empty > .w { color: var(--text-tertiary); opacity: 0.6; }
+
+.week-folder { border-radius: var(--r-md); overflow: hidden; background: var(--surface-sunken); }
+.week-folder-head {
+  font-family: inherit; width: 100%; display: flex; align-items: center; gap: var(--s2);
+  padding: 9px 11px; background: transparent; border: 0; color: var(--text);
+  font-weight: 600; font-size: var(--fs-sm); cursor: pointer; text-align: left;
+}
+.week-folder-head:hover { background: var(--fill); }
+.week-folder-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(68px, 100%), 1fr)); gap: 6px; padding: 8px; }
+
+.photo-thumb {
+  position: relative; border: 2px solid transparent; border-radius: var(--r-sm);
+  overflow: hidden; background: var(--canvas-alt); aspect-ratio: 3 / 4; padding: 0; cursor: pointer;
+  transition: border-color var(--fast), transform var(--fast);
+}
+.photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.photo-thumb:hover { transform: translateY(-2px); }
+.photo-thumb[aria-pressed='true'] { border-color: var(--accent); }
+.photo-thumb-tag { position: absolute; inset: auto 0 0 0; background: rgba(10, 12, 15, 0.7); color: #fff; font-size: 0.58rem; font-weight: 600; padding: 2px 4px; text-align: center; }
+.photo-thumb-slot { position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: var(--accent-on); font-size: 0.6rem; font-weight: 800; display: grid; place-items: center; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL ARCHIVO DE FOTOS — carpetas por semana
+   --------------------------------------------------------------------------
+   Ver `photos/PhotoArchive.jsx`. El mismo modelo mental que una carpeta del
+   ordenador, que es como el entrenador las tiene en la cabeza.
+
+   Es primo de `.week-folder` —el panel de carpetas del estudio— y no el mismo:
+   allí las miniaturas son de 68 px y sirven para ASIGNAR un hueco del collage,
+   así que caben treinta en un panel lateral. Aquí se MIRAN, y una foto de
+   progreso a 68 px no se mira: se adivina.
+   ========================================================================== */
+
+.carpetas { display: flex; flex-direction: column; gap: var(--s3); }
+
+.carpeta {
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: var(--surface); overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.carpeta-head {
+  display: flex; align-items: baseline; gap: var(--s3);
+  width: 100%; padding: var(--s3) var(--s4);
+  border: 0; background: none; cursor: pointer; text-align: left; color: inherit;
+  transition: background var(--fast);
+}
+.carpeta-head:hover { background: var(--fill-subtle); }
+.carpeta-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.carpeta-head > svg { color: var(--text-tertiary); flex-shrink: 0; align-self: center; }
+.carpeta-head > .nombre {
+  font-family: var(--font-display);
+  font-size: var(--fs-md); font-weight: 680; letter-spacing: -0.02em;
+}
+.carpeta-head > .fecha { font-size: var(--fs-xs); color: var(--text-tertiary); }
+/* Una foto de progreso sin el peso de ese día es media información. */
+.carpeta-head > .peso {
+  font-family: var(--font-display);
+  font-size: var(--fs-sm); font-weight: 700; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.carpeta-head > .cuenta {
+  margin-left: auto; font-size: var(--fs-xs); color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.carpeta-body {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fill, minmax(min(148px, 100%), 1fr));
+  padding: 0 var(--s4) var(--s4);
+}
+
+.archivo-foto { position: relative; min-width: 0; }
+.archivo-abrir {
+  display: block; width: 100%; padding: 0;
+  border: 0; background: var(--surface-sunken); cursor: zoom-in;
+  border-radius: var(--r-md); overflow: hidden; position: relative;
+  aspect-ratio: 3 / 4;
+  transition: transform var(--fast), box-shadow var(--fast);
+}
+.archivo-abrir img { width: 100%; height: 100%; object-fit: cover; }
+.archivo-abrir:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.archivo-abrir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.archivo-hueco {
+  display: grid; place-items: center; height: 100%;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+/* Qué ángulo es. Al pie de la foto y no al lado: con seis en fila, un rótulo
+   fuera del recuadro obliga a contar de dos en dos para saber cuál es cuál. */
+.archivo-tag {
+  position: absolute; inset: auto 0 0 0;
+  padding: 3px 6px; text-align: center;
+  background: linear-gradient(transparent, rgba(9, 11, 13, 0.72));
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700;
+ letter-spacing: 0;
+}
+/* Borrar aparece al pasar por encima: una papelera sobre cada foto de una
+   cuadrícula de treinta es una cuadrícula de papeleras. */
+.archivo-borrar {
+  position: absolute; top: 6px; right: 6px;
+  opacity: 0; transition: opacity var(--fast);
+}
+.archivo-foto:hover .archivo-borrar,
+.archivo-borrar:focus-visible { opacity: 1; }
+
+.slot-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.adjust-row { display: grid; grid-template-columns: 72px 1fr 44px; align-items: center; gap: var(--s2); font-size: var(--fs-sm); }
+.adjust-row .value { color: var(--text-tertiary); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ── Subida por lotes ──────────────────────────────────────────────────────
+   Una tarjeta por archivo elegido: miniatura, qué ángulo es y en qué estado
+   está. Antes era un diálogo por foto, y un check-in son tres. */
+.upload-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); gap: var(--s3); }
+
+.upload-card {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--s2);
+  background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--s2);
+  transition: box-shadow var(--fast), opacity var(--fast);
+}
+.upload-card > img {
+  width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: var(--r-sm); background: var(--fill); display: block;
+}
+.upload-card.is-uploading { opacity: 0.6; }
+.upload-card.is-done { box-shadow: inset 0 0 0 1.5px var(--positive); }
+.upload-card.is-error { box-shadow: inset 0 0 0 1.5px var(--negative); }
+
+.upload-state {
+  display: flex; align-items: center; gap: 4px;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.upload-card.is-done > .upload-state { color: var(--positive); font-weight: 650; }
+.upload-card.is-error > .upload-state { color: var(--negative); white-space: normal; }
+
+.upload-drop {
+  position: absolute; top: calc(var(--s2) + 4px); right: calc(var(--s2) + 4px);
+  width: 24px; height: 24px;
+  background: var(--surface); box-shadow: var(--shadow-sm);
+}
+
+/* ── Tabla de la comparativa ────────────────────────────────────────────────
+   Antes / después / cambio, con las columnas alineadas y cifras tabulares: es
+   lo que convierte «se ve mejor» en «cintura −5 cm». */
+.compare-table { display: flex; flex-direction: column; }
+
+.compare-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 78px 78px 92px;
+  align-items: center; gap: var(--s2);
+  padding: 7px var(--s2);
+  font-variant-numeric: tabular-nums;
+}
+.compare-row + .compare-row { box-shadow: inset 0 1px 0 var(--hairline); }
+.compare-row.is-head {
+  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
+  box-shadow: none;
+}
+.compare-row > .k { font-size: var(--fs-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compare-row > .v { font-size: var(--fs-sm); font-weight: 650; text-align: right; white-space: nowrap; }
+.compare-row.is-head > .v, .compare-row.is-head > .d { font-weight: 700; }
+.compare-row > .d { display: flex; justify-content: flex-end; }
+
+@media (max-width: 640px) {
+  .compare-row { grid-template-columns: minmax(0, 1fr) 60px 60px 76px; gap: 4px; }
+  .compare-row > .k, .compare-row > .v { font-size: var(--fs-xs); }
+}
+
+.swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; transition: transform var(--fast); }
+.swatch:hover { transform: scale(1.12); }
+.swatch[aria-pressed='true'] { transform: scale(1.2); border-color: var(--text); }
+
+.comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+.photo-card { position: relative; border-radius: var(--r-md); overflow: hidden; background: var(--canvas-alt); aspect-ratio: 3 / 4; box-shadow: var(--shadow-sm); }
+.photo-card img { width: 100%; height: 100%; object-fit: cover; }
+.photo-label {
+  position: absolute; bottom: 9px; left: 9px; right: 9px;
+  background: rgba(10, 12, 15, 0.72); color: #fff;
+  backdrop-filter: blur(10px);
+  padding: 6px 10px; border-radius: var(--r-sm);
+  font-size: var(--fs-sm); font-weight: 600;
+}
+
+/* ==========================================================================
+   El protocolo: notas, calentamiento y feedback
+   --------------------------------------------------------------------------
+   Todo lo que el entrenador enciende en Ajustes → Protocolo. El porqué del
+   modelo está en `domain/protocol.js`.
+   ========================================================================== */
+
+/* ── La nota ───────────────────────────────────────────────────────────────
+   Del entrenador al cliente, y del cliente a su cuaderno. La misma forma con el
+   canto de distinto color: son el mismo gesto en direcciones opuestas, y
+   dibujarlas distinto haría pensar que son cosas diferentes. */
+.coach-note {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: var(--s3) var(--s4);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  border-left: 3px solid var(--info);
+}
+.coach-note.is-client { border-left-color: var(--data-teal); }
+.coach-note > p { font-size: var(--fs-sm); color: var(--text); white-space: pre-wrap; }
+
+/* ── El bloque de feedback ─────────────────────────────────────────────── */
+.feedback-block { display: flex; flex-direction: column; gap: var(--s3); }
+.feedback-list { display: flex; flex-direction: column; gap: var(--s4); }
+
+.feedback-q { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.feedback-q > .k {
+  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+}
+.feedback-q > .k > .hint { font-weight: 500; color: var(--text-tertiary); font-size: var(--fs-xs); }
+.feedback-text {
+  font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap;
+  padding: var(--s2) var(--s3); background: var(--surface-sunken); border-radius: var(--r-sm);
+}
+
+/* ── La escala ─────────────────────────────────────────────────────────────
+   Una fila de botones y no un deslizador: en un móvil, arrastrar con precisión
+   sobre 30 px devuelve un número que nadie ha querido decir. Aquí cada valor es
+   su propio objetivo y se contesta con un toque.
+
+   `1fr` por paso en vez de un ancho fijo: la escala puede ser de 1 a 5 o de 0 a
+   10 —lo decide el entrenador— y en los dos casos tiene que ocupar el ancho
+   entero sin sobrar ni desbordar. */
+.scale-picker { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; }
+
+.scale-step {
+  min-height: 42px; padding: 0 2px;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-sunken); color: var(--text-tertiary);
+  border: 1px solid var(--edge); border-radius: var(--r-sm);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
+}
+button.scale-step:hover { border-color: var(--hairline-strong); color: var(--text); }
+.scale-step.is-on { color: var(--accent-on); border-color: transparent; }
+/* En lectura los pasos no elegidos son contexto, no opciones. */
+span.scale-step { cursor: default; opacity: 0.55; }
+span.scale-step.is-on { opacity: 1; }
+
+/* ── Calentamiento ─────────────────────────────────────────────────────── */
+/* ── Calentamiento y movilidad ─────────────────────────────────────────────
+   ══ Lo que ve el cliente ═══════════════════════════════════════════════════
+
+   Una lista de ejercicios donde el vídeo es una PROPIEDAD del ejercicio, no un
+   destino aparte. Antes cada uno con vídeo llevaba debajo una banda del ancho
+   del panel con un botón dentro: para diez segundos de una movilidad eso es un
+   cartel, y con cinco ejercicios, cinco carteles.
+
+   Ahora la fila entera abre el vídeo y lo que lo anuncia es una miniatura con su
+   triángulo, como en cualquier lista de reproducción. El reproductor se abre
+   dentro del propio ejercicio, no encima de la pantalla. */
+
+.warmup {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+}
+.warmup-list { display: flex; flex-direction: column; gap: 2px; list-style: none; }
+.warmup-item { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.warmup-item + .warmup-item { border-top: 1px solid var(--hairline); }
+
+/* La fila. Es un botón cuando hay vídeo y un span cuando no, pero mide y se
+   alinea igual en los dos casos: una lista donde las filas con vídeo tienen otra
+   altura se lee como dos listas. */
+.warmup-hit {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; min-width: 0; text-align: left;
+  padding: var(--s2) 0; border: 0; background: none; font: inherit; color: inherit;
+  cursor: pointer; border-radius: var(--r-sm);
+  transition: opacity var(--fast);
+}
+.warmup-hit.is-plain { cursor: default; }
+.warmup-hit:not(.is-plain):hover { opacity: 0.72; }
+
+/* ── La miniatura ────────────────────────────────────────────────────────
+   Un rectángulo negro con un triángulo dentro leía como el botón de YouTube:
+   una marca ajena dentro de un producto que no gasta ni una tinta en marca.
+
+   Lo que hay que decir es «aquí hay un vídeo», y en un móvil eso se dice como lo
+   dice iOS: el hueco donde iría el fotograma, y encima un disco claro con el
+   triángulo. El play FLOTA sobre el medio, no es el medio.
+
+   Radio de tarjeta y no círculo, para que siga leyéndose como un fotograma y no
+   como un botón suelto. */
+.warmup-thumb {
+  position: relative;
+  width: 44px; height: 30px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--fill-strong);
+  border: 1px solid var(--edge);
+  color: var(--text);
+}
+/* El disco se dibuja con la sombra del propio icono: un elemento menos y
+   siempre centrado con él. */
+.warmup-thumb > svg {
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 0 0 5px var(--surface), var(--shadow-xs);
+  margin-left: 1px;
+}
+
+.warmup-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.warmup-say > .nm {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  font-size: var(--fs-sm); font-weight: 650; min-width: 0;
+}
+/* La prescripción no es una píldora: es parte del nombre —«movilidad de cadera,
+   2 × 10»—. Como píldora competía con él y hacía la lista más alta. */
+.warmup-say > .nm > .dose {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--text-tertiary);
+  letter-spacing: -0.01em;
+}
+.warmup-say > .note { font-size: var(--fs-xs); color: var(--text-secondary); }
+
+.warmup-go { flex-shrink: 0; color: var(--text-tertiary); display: grid; place-items: center; }
+
+/* El reproductor, dentro del ejercicio y sangrado a la altura del texto: así se
+   lee como parte de él y no como un bloque suelto entre dos ejercicios.
+
+   El ancho va en AUTO: el marco del reproductor trae 100 % desde su propia
+   regla, y con el margen izquierdo encima el total pasaba del contenedor — el
+   vídeo se salía del recuadro por la derecha. */
+.warmup-item > .video-frame {
+  width: auto;
+  margin: 0 0 var(--s2) calc(42px + var(--s3));
+}
+
+/* ══ Lo que edita el entrenador ═════════════════════════════════════════════
+
+   Eran cuatro campos en una fila —ejercicio, prescripción, vídeo, indicaciones—
+   con el mismo tamaño y el mismo peso, así que el NOMBRE, que es de lo que se
+   habla, medía lo mismo que la URL de un vídeo. Con cinco ejercicios eran veinte
+   casillas idénticas.
+
+   Ahora cada ejercicio es una ficha con jerarquía: el nombre grande arriba con
+   su dosis al lado, y debajo, en gris, lo que lo acompaña. */
+
+.warmup-edit {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+}
+.warmup-edit-top { display: flex; align-items: flex-start; gap: var(--s3); }
+/* El nombre y la dosis: lo que define el ejercicio, en la primera línea. La
+   dosis es corta por definición, así que no compite por el ancho. */
+.warmup-edit-name { flex: 1; min-width: 0; display: flex; gap: var(--s2); }
+.warmup-edit-name > .input { font-weight: 650; }
+.warmup-edit-name > .input.dose {
+  width: 92px; flex-shrink: 0; text-align: center;
+  font-family: var(--font-display); font-variant-numeric: tabular-nums;
+}
+.warmup-edit-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+.warmup-edit-more {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+/* Qué va a pasar con ese enlace, dicho al escribirlo. Sin esto, un enlace de
+   Drive parece que se va a poder ver dentro y no se sabe hasta abrirlo. */
+.warmup-edit-video { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.warmup-edit-video.is-ok { color: var(--positive); }
+
+
+/* ── El registro sesión a sesión ───────────────────────────────────────────
+   Un gráfico de promedios contesta «¿va a más o a menos?» y borra justo lo que
+   hace falta cuando ves un pico: qué día fue y qué escribió ese día. Esto es el
+   registro; la serie es la lectura. */
+.log-list { display: flex; flex-direction: column; list-style: none; }
+
+.log-entry {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: start; gap: var(--s3);
+  padding: var(--s3) 0;
+}
+.log-entry + .log-entry { border-top: 1px solid var(--hairline); }
+
+.log-when { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.log-when > .d { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; }
+.log-when > .s {
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.log-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.log-answers { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* La respuesta, con su etiqueta pegada al número. Una fila de cifras sueltas
+   obliga a recordar el orden de las preguntas; con la etiqueta delante se lee
+   sin cabecera, que es lo que hace falta en una lista larga. */
+.log-answer {
+  display: inline-flex; align-items: baseline; gap: 4px;
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--fill-subtle);
+  font-size: var(--fs-2xs);
+}
+.log-answer > .k {
+  font-family: var(--font-display); font-weight: 700;
+ letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+.log-answer > .v { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+.log-answer.is-text {
+  font-size: var(--fs-xs); color: var(--text-secondary);
+  border-radius: var(--r-sm); padding: 3px 8px; max-width: 100%;
+}
+/* La píldora de escala es un BOTÓN: su pregunta entera vivía solo en `title`,
+   que en una pantalla táctil no existe — «FAT 7» era indescifrable desde el
+   móvil. Tocarla despliega la leyenda en su propia línea (base 100% dentro
+   del flex con envoltorio); una hoja modal para una frase sería ceremonia. */
+button.log-answer { border: 0; cursor: pointer; color: inherit; -webkit-tap-highlight-color: transparent; }
+button.log-answer:hover { background: var(--fill); }
+.log-q { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.log-note {
+  display: flex; align-items: flex-start; gap: 5px;
+  font-size: var(--fs-xs); color: var(--text-secondary);
+  padding-left: 2px;
+}
+.log-note > svg { flex-shrink: 0; margin-top: 3px; color: var(--info); }
+.log-note.is-client > svg { color: var(--data-teal); }
+
+.log-tonnage {
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  /* La fecha pasa a encabezar la entrada: en 366 px, una columna de 84 px para la
+     fecha deja el resto sin sitio para las respuestas. */
+  .log-entry { grid-template-columns: minmax(0, 1fr) auto; }
+  .log-when { grid-column: 1 / -1; flex-direction: row; align-items: baseline; gap: var(--s2); }
+  .log-body { grid-column: 1 / -1; }
+}
+
+/* ── Ajustes → Protocolo ───────────────────────────────────────────────── */
+
+/* ── El índice (PageNav) ───────────────────────────────────────────────────
+   Cinco anclas pegajosas que dan mapa a un panel que antes eran ocho bloques
+   apilados sin uno, con la cuenta de lo que hay puesto en cada apartado.
+
+   ── Es un OBJETO, no una franja ─────────────────────────────────────────────
+   La misma factura que la barra lateral y la de herramientas: cristal, canto y
+   radio. Era una franja del color del lienzo con un filete abajo, que sobre una
+   columna de tarjetas se lee como una costura suelta; y el cristal de la familia
+   ya resuelve lo que aquel fondo opaco venía a resolver —que el contenido no se
+   transparente— sin fingir que el índice es parte del papel.
+
+   ── El `top`, que estaba mal ────────────────────────────────────────────────
+   Iba pegado a `top: 0` con `z-index: 40`, y encima hay una cabecera pegajosa
+   (`.app-header`, z-index 100, 58 px) en móvil y la barra de herramientas
+   (`.shell-top`, z-index 80) en escritorio: el índice se metía DEBAJO de ellas y
+   desaparecía justo al desplazar, que es cuando servía. Baja lo que mide la
+   cabecera, que es la referencia que ya usan el estudio de fotos y el subnivel. */
+.page-nav {
+  position: sticky; top: calc(var(--header-h) + var(--s2)); z-index: 40;
+  display: flex; align-items: center; gap: var(--s1);
+  padding: var(--s1);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none;
+}
+.page-nav::-webkit-scrollbar { display: none; }
+
+.page-nav-link {
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  /* A partes iguales: cinco apartados que son cinco decisiones del mismo peso,
+     y repartidos no hay que apuntar a una pastilla de ancho variable. */
+  flex: 1 1 0; min-width: 0;
+  padding: 7px var(--s3); border-radius: var(--r-md);
+  font-size: var(--fs-xs); font-weight: 650; text-decoration: none;
+  color: var(--text-tertiary); white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast);
+}
+.page-nav-link:hover { background: var(--fill-subtle); color: var(--text); }
+/* El apartado en el que se está. Tinta plena sobre relleno, que es la forma que
+   ya tiene lo seleccionado en el resto del producto (`.chip[aria-pressed]`). */
+.page-nav-link.is-here { background: var(--accent); color: var(--accent-on); }
+
+/* La cuenta de lo que hay puesto ahí. En monoespaciada porque es una cifra que
+   se compara con las de al lado, y a esa comparación le estorba que el «1» mida
+   menos que el «4». */
+.page-nav-link > .n {
+  flex-shrink: 0;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-secondary);
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
+}
+.page-nav-link.is-here > .n { background: transparent; color: var(--accent-on); opacity: 0.75; }
+
+/* ── Cada tanda del protocolo ──────────────────────────────────────────────
+   Encabezado y tarjetas más juntos entre sí (`--s4`) de lo que están las tandas
+   entre ellas (el `--s6` del `.stack` que las contiene): es lo que hace que un
+   apartado se lea como un grupo y no como cuatro tarjetas seguidas.
+
+   El `scroll-margin-top` deja sitio a la cabecera Y al índice pegajoso al llegar
+   por ancla — antes eran 64 px planos, que es menos de lo que miden las dos, así
+   que el ancla dejaba el encabezado tapado. El mismo número que la constante
+   `LINEA` de `PageNav.jsx`, que decide qué apartado va marcado. */
+.page-section {
+  display: flex; flex-direction: column; gap: var(--s4);
+}
+
+/* El hueco que deja el ancla al saltar, en UNA regla para los dos que lo
+   necesitan: el apartado con encabezado y tarjetas (`.page-section`) y la
+   sección que es una sola tarjeta y solo quiere ser un destino —el cuestionario,
+   la salud y el gimnasio en «Tu alta»—. Escrito dos veces, uno de los dos se
+   quedaría corto el día que cambie la cabecera y el ancla dejaría el título
+   tapado, que es un fallo que no da ningún error. */
+.page-section,
+.anchored {
+  scroll-margin-top: calc(var(--header-h) + 78px);
+}
+/* Y un respiro más entre apartados que dentro de uno: 44 px contra 16 dejan el
+   grupo hecho sin gastar un filete. La doctrina de los bloques ya dice por qué
+   no se separa con líneas —cinco apartados serían cinco costuras, y en el tema
+   claro eso es una hoja de cálculo—; aquí separa el aire. */
+.page-section + .page-section { margin-top: var(--s3); }
+
+.proto-presets {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  gap: var(--s2);
+}
+.proto-preset {
+  position: relative;
+  display: flex; flex-direction: column; gap: 3px; align-items: flex-start; text-align: left;
+  padding: var(--s3) var(--s5) var(--s3) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1.5px solid transparent;
+  font: inherit; color: var(--text); cursor: pointer;
+  transition: border-color var(--fast), background var(--fast);
+}
+.proto-preset:hover { border-color: var(--hairline-strong); }
+.proto-preset[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
+.proto-preset > .nm { font-size: var(--fs-sm); font-weight: 650; }
+.proto-preset > .hint { font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; }
+
+/* El tic del perfil elegido. El estado lo llevaba solo el canto, y un gris
+   contra otro en una rejilla de cuatro cajas iguales es la diferencia más fácil
+   de no ver; con marca es el mismo gesto que el de las opciones (`.opt-card`). */
+.proto-preset > .mark {
+  position: absolute; top: var(--s2); right: var(--s2);
+  width: 18px; height: 18px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent); color: var(--accent-on);
+  opacity: 0; transform: scale(0.7);
+  transition: opacity var(--fast), transform var(--fast);
+}
+.proto-preset[aria-pressed='true'] > .mark { opacity: 1; transform: scale(1); }
+
+/* ── Los bloques del check-in ──────────────────────────────────────────────
+   Nombre a la izquierda, las tres posiciones a la derecha y lo que significa la
+   elegida debajo, cruzando las dos columnas. Era una columna apilada dentro de
+   un `.card-inset`, y con dos bloques iguales eso son seis líneas de texto
+   seguidas antes de llegar al primer mando. */
+.proto-blocks { display: flex; flex-direction: column; gap: var(--s2); }
+.proto-block {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2) var(--s4);
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.proto-block > .say { grid-column: 1 / -1; }
+
+/* `.proto-module` ya no existe: era una caja que se iluminaba al marcar, con una
+   casilla del sistema operativo dentro. Dos formas de decir lo mismo, y la de
+   dentro pintada por el navegador. Ahora cada módulo es una `.opt-card`, que ES
+   el control. */
+.proto-modules { display: flex; flex-direction: column; gap: 2px; list-style: none; }
+
+.proto-list { display: flex; flex-direction: column; gap: 2px; list-style: none; }
+.proto-q {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+.proto-q > .n {
+  width: 22px; height: 22px; flex-shrink: 0;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--fill); color: var(--text-tertiary);
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+}
+
+.proto-toggle {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; padding: 0; border: 0; background: transparent;
+  font: inherit; font-size: var(--fs-sm); font-weight: 650; color: var(--text);
+  cursor: pointer; text-align: left;
+}
+.proto-toggle:hover { color: var(--text-secondary); }
+
+@media (max-width: 640px) {
+  .warmup-edit { flex-direction: column; }
+  .warmup-edit-tools { flex-direction: row; align-self: flex-end; }
+
+  /* Los tres botones táctiles miden 40 px cada uno: en la misma línea que el
+     texto dejaban la etiqueta de la pregunta en 53 px, donde no cabe ni
+     «Esfuerzo». Bajan a su propia línea, alineados a la derecha. */
+  .proto-q { flex-wrap: wrap; }
+  .proto-q > .col { flex-basis: calc(100% - 34px); }
+  .proto-q > .row { margin-left: auto; }
+
+  /* Cinco apartados a partes iguales en 366 px salen a 60 px, donde no cabe «La
+     aplicación» ni recortada. Cada pastilla mide lo suyo y el índice se
+     desplaza, que es la regla del `.rail`: si la lista es larga y se recorre, se
+     recorre. */
+  .page-nav-link { flex: 0 0 auto; }
+
+  /* Nombre y mandos, uno debajo del otro: el carril de tres posiciones mide
+     unos 200 px y al lado no queda ancho para leer «Perímetros corporales». */
+  .proto-block { grid-template-columns: minmax(0, 1fr); }
+  /* Diez pasos en 366 px salen a 33 px: se dejan caer a dos filas antes que
+     estrangularlos hasta que el número no se lea. */
+  .scale-picker { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(min(38px, 100%), 1fr)); }
+}
+

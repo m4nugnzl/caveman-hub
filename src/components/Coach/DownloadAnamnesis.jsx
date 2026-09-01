@@ -28,7 +28,7 @@ import { anamnesisHtml } from '@/lib/anamnesisDoc';
  * datos van de la memoria del navegador al disco y nada más, que en un documento
  * de salud es exactamente lo que hay que poder decir.
  */
-export const DownloadAnamnesis = ({ client, label = 'Descargar su ficha', className = 'btn btn-quiet btn-sm' }) => {
+export const DownloadAnamnesis = ({ client, label = 'Descargar su ficha', className = 'btn btn-secondary btn-sm' }) => {
   const { conditions, equipment, anthropometry } = useData();
 
   const descargar = () => {

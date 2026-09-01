@@ -1,9 +1,19 @@
 /**
  * Una tanda de respuestas de escala, como barras.
  *
- * Una fila por pregunta: la palabra, una barra de 1 a 10 con el color de la
- * pregunta, y la cifra. Se lee sin comparar números: la fatiga alta es una
- * barra larga; el dolor bajo, una corta.
+ * Una fila por pregunta: la palabra, una barra de 1 a 10 y la cifra. Se lee sin
+ * comparar números: la fatiga alta es una barra larga; el dolor bajo, una corta.
+ *
+ * ── La barra no lleva el color de la pregunta, y la cifra sí ────────────────
+ * Lo llevaba, y el color de una pregunta es su IDENTIDAD, no su valor: «Dolor
+ * 3/10» —una respuesta excelente— salía pintado de rojo y «Fatiga 8/10» de
+ * naranja, porque ese es el color con el que cada una se dibuja en su gráfica.
+ * Sobre doscientos píxeles de relleno eso no se lee como una serie, se lee como
+ * un juicio, y encima al revés en las preguntas que van al revés.
+ *
+ * El largo ya dice el valor. El color de serie se queda en la cifra, que es
+ * donde sigue haciendo su trabajo —atar esta fila con su línea en la gráfica
+ * del mismo popup— y ocupa catorce píxeles en vez de doscientos.
  *
  * ── Vive en `ui/` porque lo subjetivo se pregunta en DOS sitios ─────────────
  * Al acabar una sesión (`SESSION_QUESTIONS`) y al cerrar la semana en el
@@ -30,7 +40,7 @@ export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null }) => {
           <div key={q.id} className="subjetivo-fila" title={q.label}>
             <span className="subjetivo-k">{q.short || q.label}</span>
             <span className="subjetivo-barra" aria-hidden="true">
-              <span className="subjetivo-relleno" style={{ width: `${pct}%`, background: q.color || 'var(--text-secondary)' }} />
+              <span className="subjetivo-relleno" style={{ width: `${pct}%` }} />
             </span>
             <span className="subjetivo-v" style={q.color ? { color: q.color } : undefined}>
               {valor}

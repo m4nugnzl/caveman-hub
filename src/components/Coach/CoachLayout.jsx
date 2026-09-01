@@ -6,8 +6,8 @@ import { useActions, useApp } from '@/context/AppContext';
 import { feeLabel, paymentState } from '@/domain/billing';
 import { buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
 import { clientProtocol } from '@/domain/protocol';
-import { latestActiveWeek } from '@/domain/week';
-import { dayMonthMaybeYear } from '@/lib/dates';
+import { semanaDeAhora } from '@/domain/week';
+import { dayMonthMaybeYear, todayISO } from '@/lib/dates';
 import {
   COACH_CLIENT,
   COACH_HOME,
@@ -118,13 +118,15 @@ export const CoachLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const hoy = todayISO();
   const hasClients = clients.length > 0;
   const onClient = Boolean(clientId);
 
   /*
-    La semana por la que va: la última en la que hay algo registrado, que es la
-    misma por la que entra la revisión (`latestActiveWeek`). Del cliente abierto
-    se tiene el programa entero; si aún no ha llegado, la más alta del resumen.
+    La semana por la que va, y es LA MISMA que dice el resto de la aplicación:
+    `semanaDeAhora` (ver `domain/week.js`). Antes esto usaba `latestActiveWeek`,
+    que solo mira los microciclos montados, y por eso la cabecera podía decir
+    «Semana 10» mientras el contenido de esa misma pantalla decía «Semana 18».
   */
   const programaAbierto = clientId ? workoutData[clientId] : null;
   const historiaAbierta = clientId ? anthropometry[clientId]?.history : null;
@@ -138,16 +140,18 @@ export const CoachLayout = () => {
      otro cliente o una foto subida por ahí no tienen por qué recalcular esto. */
   const semanaActiva = useMemo(() => {
     if (!clientId) return null;
-    if (programaAbierto?.microcycles?.length) {
-      return latestActiveWeek({
-        microcycles: programaAbierto.microcycles,
+    return (
+      semanaDeAhora({
+        startDate: inicioAbierto,
+        today: hoy,
+        microcycles: programaAbierto?.microcycles || [],
         history: historiaAbierta || [],
         photos: fotosAbiertas,
-        startDate: inicioAbierto,
-      });
-    }
-    return resumenAbierto?.weekNumber || null;
-  }, [clientId, programaAbierto, historiaAbierta, fotosAbiertas, inicioAbierto, resumenAbierto]);
+      }) ||
+      resumenAbierto?.weekNumber ||
+      null
+    );
+  }, [clientId, programaAbierto, historiaAbierta, fotosAbiertas, inicioAbierto, resumenAbierto, hoy]);
 
   /*
     ── El recuento de la bandeja, en la puerta de «Hoy» ────────────────────────
@@ -407,6 +411,16 @@ export const CoachLayout = () => {
             <nav className="sidebar-nav" aria-label="Tus clientes">
               {cartera.map((cliente) => {
                 const abierto = cliente.id === clientId;
+                /* El mismo reloj que la cabecera. Aquí se leía
+                   `training[id].weekNumber`, que era un TERCER número sobre la
+                   misma persona: la barra podía decir S10 mientras su ficha
+                   decía 18. Sin fecha de alta no hay tiempo que contar y se cae
+                   a lo que sepa el resumen del programa. */
+                const semanaSuya =
+                  semanaDeAhora({ startDate: cliente.startDate, today: hoy }) ||
+                  training[cliente.id]?.weekNumber ||
+                  training[cliente.id]?.microcycleCount ||
+                  0;
                 return (
                   <NavLink
                     key={cliente.id}
@@ -417,8 +431,8 @@ export const CoachLayout = () => {
                     <span className="side-client-name">{cliente.name}</span>
                     {/* La semana por la que va, como en cualquier lista de atletas seria:
                         el estado de cada persona se ve sin entrar. */}
-                    {(training[cliente.id]?.weekNumber || training[cliente.id]?.microcycleCount) > 0 && !bandeja.esperando.has(cliente.id) && (
-                      <span className="side-client-week">S{training[cliente.id].weekNumber || training[cliente.id].microcycleCount}</span>
+                    {semanaSuya > 0 && !bandeja.esperando.has(cliente.id) && (
+                      <span className="side-client-week">S{semanaSuya}</span>
                     )}
                     {/* Sin número: aquí la pregunta es a quién, no a cuántos, y
                         catorce cifras seguidas son una tabla. */}
@@ -493,7 +507,12 @@ export const CoachLayout = () => {
                   </h1>
                   <div className="cliente-cab-selector">{selector}</div>
                   <p className="cliente-cab-meta">
-                    {semanaActiva && <span>Semana {semanaActiva}</span>}
+                    {/* «En curso» no es adorno: debajo, la revisión habla de la
+                        semana que YA ha terminado —la 18 cuando aquí pone 19—,
+                        y dos números seguidos sin decir de qué son se leen como
+                        un fallo. Con esto, cada uno dice lo suyo: aquí, por
+                        dónde va; ahí abajo, cuál estás contestando. */}
+                    {semanaActiva && <span>Semana {semanaActiva} · en curso</span>}
                     {bandeja.esperando.has(activeClient.id) && (
                       <span className="cliente-cab-espera">Te espera</span>
                     )}
@@ -503,7 +522,7 @@ export const CoachLayout = () => {
                 <div className="cliente-cab-acciones">
                   <button
                     type="button"
-                    className="btn btn-quiet btn-sm"
+                    className="btn btn-secondary btn-sm"
                     onClick={() => setViewMode('client')}
                     title="Ver la aplicación como la ve esta persona"
                   >

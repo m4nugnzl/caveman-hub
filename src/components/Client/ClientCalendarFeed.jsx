@@ -4,7 +4,7 @@ import { CalendarPlus, Check, Copy, RefreshCw, X } from 'lucide-react';
 import { useActions } from '@/context/AppContext';
 import { shortDate } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { Notice, Panel } from '@/components/ui/primitives';
+import { BotonAccion, Notice, Panel } from '@/components/ui/primitives';
 
 /**
  * «Mi calendario» — el portal del cliente.
@@ -83,8 +83,12 @@ export const ClientCalendarFeed = ({ client }) => {
     setError(null);
     const res = await createCalendarFeed(clientId);
     setOcupado(false);
-    if (!res.ok) return setError(res.error);
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
     setFeed({ url: res.url, lastFetchedAt: null, fetchCount: 0 });
+    return true;
   };
 
   const rotar = async () => {
@@ -219,14 +223,9 @@ export const ClientCalendarFeed = ({ client }) => {
             </>
           ) : (
             <div className="col gap-2" style={{ alignItems: 'flex-start' }}>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={crear}
-                disabled={ocupado}
-              >
-                <CalendarPlus size={14} /> {ocupado ? 'Creando…' : 'Crear mi enlace'}
-              </button>
+              <BotonAccion className="btn btn-primary btn-sm" icon={CalendarPlus} onClick={crear}>
+                Crear mi enlace
+              </BotonAccion>
               <span className="t-xs t-tertiary">
                 Es un enlace privado y solo tuyo. Puedes anularlo cuando quieras.
               </span>

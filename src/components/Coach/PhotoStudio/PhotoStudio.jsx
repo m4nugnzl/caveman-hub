@@ -203,7 +203,7 @@ export const PhotoStudio = () => {
         <Notice
           tone="warn"
           action={
-            <button type="button" className="btn btn-quiet btn-sm" onClick={refreshPhotoUrls}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={refreshPhotoUrls}>
               Recargar imágenes
             </button>
           }
@@ -409,7 +409,7 @@ export const PhotoStudio = () => {
           action={
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="btn btn-secondary btn-sm"
               onClick={() => setGrabarAbierto(true)}
             >
               Abrir el grabador

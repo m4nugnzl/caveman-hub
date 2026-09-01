@@ -3,7 +3,14 @@ import { HeartPulse, Plus } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
 import { AREAS, MAX_DETAIL, MAX_LABEL, activeConditions, areaShort } from '@/domain/conditions';
-import { Field, Notice, Panel, SegmentedControl } from '@/components/ui/primitives';
+import {
+  BotonAccion,
+  Field,
+  Notice,
+  Panel,
+  SegmentedControl,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 
 /**
  * Lo que el cliente declara de su salud.
@@ -39,7 +46,8 @@ export const IntakeHealth = ({ client }) => {
   const { addCondition } = useActions();
 
   const [form, setForm] = useState({ label: '', area: 'training', detail: '' });
-  const [guardando, setGuardando] = useState(false);
+  /* El giro y el tic del botón de añadir; ver `BotonAccion`. */
+  const alta = useAccionDeBoton();
   const [fallo, setFallo] = useState(null);
   /*
     Lo último añadido, para poder decirlo.
@@ -54,28 +62,28 @@ export const IntakeHealth = ({ client }) => {
   const limpio = form.label.trim();
   const declarados = activeConditions(conditions);
 
-  const anadir = async (e) => {
+  const anadir = (e) => {
     e.preventDefault();
-    if (!limpio || guardando) return;
+    if (!limpio) return;
 
-    setGuardando(true);
-    setFallo(null);
-    setUltimo('');
-    /* `severity` va a lo suyo y no se ofrece: ver la cabecera. */
-    const res = await addCondition(client.id, {
-      label: limpio,
-      area: form.area,
-      detail: form.detail.trim(),
-      severity: 'note',
+    alta.lanzar(async () => {
+      setFallo(null);
+      setUltimo('');
+      /* `severity` va a lo suyo y no se ofrece: ver la cabecera. */
+      const res = await addCondition(client.id, {
+        label: limpio,
+        area: form.area,
+        detail: form.detail.trim(),
+        severity: 'note',
+      });
+      if (!res.ok) {
+        setFallo(res.error);
+        return false;
+      }
+      setUltimo(limpio);
+      setForm({ label: '', area: form.area, detail: '' });
+      return true;
     });
-    setGuardando(false);
-
-    if (!res.ok) {
-      setFallo(res.error);
-      return;
-    }
-    setUltimo(limpio);
-    setForm({ label: '', area: form.area, detail: '' });
   };
 
   return (
@@ -160,9 +168,15 @@ export const IntakeHealth = ({ client }) => {
         </Field>
 
         <div className="row gap-2">
-          <button type="submit" className="btn btn-secondary btn-sm" disabled={!limpio || guardando}>
-            <Plus size={14} /> {guardando ? 'Guardando…' : 'Añadir'}
-          </button>
+          <BotonAccion
+            type="submit"
+            className="btn btn-secondary btn-sm"
+            icon={Plus}
+            estado={alta.estado}
+            disabled={!limpio}
+          >
+            Añadir
+          </BotonAccion>
           {declarados.length === 0 && (
             <span className="row gap-2 t-xs t-tertiary" style={{ alignSelf: 'center' }}>
               <HeartPulse size={13} /> Si no tienes nada, puedes seguir sin rellenarlo.

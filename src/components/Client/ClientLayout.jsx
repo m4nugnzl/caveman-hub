@@ -22,8 +22,20 @@ export const ClientLayout = () => {
   const { activeClient, isCoach } = useApp();
   const { pathname } = useLocation();
 
-  /* El saludo y la privacidad son de la PORTADA, no del marco. Ver abajo. */
-  const esInicio = pathname === '/mi' || pathname.startsWith('/mi/inicio') || pathname.startsWith('/mi/rutina');
+  /*
+    El calendario y la privacidad son de «Mi progreso», no del marco. Ver abajo.
+
+    ── Y ya no también de la rutina ────────────────────────────────────────────
+    `/mi/rutina` estaba en esta lista desde que pasó a ser la primera pestaña, y
+    con ello volvía el fallo que estos dos paneles vinieron a arreglar: quien
+    bajaba del todo en su rutina —en el gimnasio, entre serie y serie— se
+    encontraba «Mi calendario» y «Mis datos y privacidad» debajo del último
+    ejercicio. Ser la primera pestaña no la convierte en la pantalla de los
+    asuntos administrativos; la convierte en la de entrenar.
+
+    La portada de esos dos es «Mi progreso», que es la que se abre con calma.
+  */
+  const esInicio = pathname === '/mi' || pathname.startsWith('/mi/inicio');
 
   // Un perfil de cliente sin ficha vinculada no tiene datos que mostrar. Antes
   // esto tumbaba la app entera al leer `activeClient.id` sobre undefined.

@@ -25,7 +25,16 @@ import {
 } from '@/domain/roadmap';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt } from '@/lib/num';
-import { EmptyState, Field, Notice, Panel, SectionTitle, Switch } from '@/components/ui/primitives';
+import {
+  BotonAccion,
+  EmptyState,
+  Field,
+  Notice,
+  Panel,
+  SectionTitle,
+  Switch,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 
 /**
  * El roadmap del cliente: el plan por tramos, con el de hoy destacado.
@@ -130,7 +139,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     const problema = validateFork(phases, forkForm.phaseId, forkForm.options);
     if (problema) {
       setError(problema);
-      return;
+      return false;
     }
 
     setBusy(true);
@@ -139,10 +148,11 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
 
     if (!res.ok) {
       setError(res.error);
-      return;
+      return false;
     }
     setForkForm(null);
     setError('');
+    return true;
   };
 
   /* Elegir crea la fase y borra los caminos. El porqué del orden —y de que un
@@ -172,7 +182,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     const problema = validatePhase(phases, form, form.id || null);
     if (problema) {
       setError(problema);
-      return;
+      return false;
     }
 
     /*
@@ -186,7 +196,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
       setError(
         'Esta fase tiene un cruce planteado y sin fecha de fin no habría día en el que decidir. Descarta el cruce o déjale un final.'
       );
-      return;
+      return false;
     }
 
     setBusy(true);
@@ -197,10 +207,11 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
 
     if (!res.ok) {
       setError(res.error);
-      return;
+      return false;
     }
     setForm(null);
     setError('');
+    return true;
   };
 
   const borrar = async (id) => {
@@ -462,6 +473,9 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 
 /** Alta y edición. El mismo formulario para las dos: los campos son idénticos. */
 const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
+  /* El giro y el tic del botón de guardar. `busy` sigue existiendo porque lo
+     comparten las otras acciones del recorrido; esto es solo de este botón. */
+  const envio = useAccionDeBoton();
   const set = (patch) => onChange({ ...value, ...patch });
   const meta = directionById(value.direction);
   // Sin fecha de fin, la fase queda abierta. Es un estado, no un campo vacío.
@@ -472,7 +486,13 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) 
   const semanasActuales = phaseWeeks(value.startsOn, value.endsOn);
 
   return (
-    <form className="card-inset col gap-3" onSubmit={onSubmit}>
+    <form
+      className="card-inset col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        envio.lanzar(() => onSubmit(e));
+      }}
+    >
       <span className="section-label">{value.id ? 'Editar fase' : 'Nueva fase'}</span>
 
       <Field label="Nombre">
@@ -608,12 +628,12 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) 
          guardar no hacía nada. */}
       {error && <Notice tone="error">{error}</Notice>}
       <div className="row gap-2 row-end">
-        <button type="button" className="btn" onClick={onCancel}>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
           Cancelar
         </button>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Guardando…' : 'Guardar fase'}
-        </button>
+        <BotonAccion type="submit" className="btn btn-primary" estado={envio.estado} disabled={busy}>
+          Guardar fase
+        </BotonAccion>
       </div>
     </form>
   );
@@ -793,6 +813,7 @@ const RoadCard = ({ option, weight, onChoose, busy }) => {
  * una en una; si al elegirlo hay que retocarlas, se retoca la fase.
  */
 const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
+  const envio = useAccionDeBoton();
   const { options } = value;
 
   const setOption = (index, patch) =>
@@ -807,7 +828,13 @@ const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) =
     onChange({ ...value, options: options.filter((_, i) => i !== index) });
 
   return (
-    <form className="card-inset col gap-4" onSubmit={onSubmit}>
+    <form
+      className="card-inset col gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        envio.lanzar(() => onSubmit(e));
+      }}
+    >
       <div className="col gap-1">
         <span className="section-label">El cruce</span>
         <span className="t-xs t-secondary">
@@ -846,12 +873,12 @@ const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) =
          guardar no hacía nada. */}
       {error && <Notice tone="error">{error}</Notice>}
       <div className="row gap-2 row-end">
-        <button type="button" className="btn" onClick={onCancel}>
+        <button type="button" className="btn btn-secondary" onClick={onCancel}>
           Cancelar
         </button>
-        <button type="submit" className="btn btn-primary" disabled={busy}>
-          {busy ? 'Guardando…' : 'Guardar el cruce'}
-        </button>
+        <BotonAccion type="submit" className="btn btn-primary" estado={envio.estado} disabled={busy}>
+          Guardar el cruce
+        </BotonAccion>
       </div>
     </form>
   );
@@ -869,7 +896,7 @@ const RoadFields = ({ option, index, onChange, onRemove }) => {
       {onRemove && (
         <div className="row gap-2 between">
           <span className="section-label">Camino {index + 1}</span>
-          <button type="button" className="btn btn-sm" onClick={onRemove}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onRemove}>
             Quitar
           </button>
         </div>

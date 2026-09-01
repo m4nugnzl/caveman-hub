@@ -1,0 +1,1148 @@
+/* ==========================================================================
+   Lo que se toca
+   --------------------------------------------------------------------------
+   Enlaces, los cuatro botones, campos, avisos, vacíos, ventanas y menús.
+   Si algo responde al dedo, su estilo vive aquí.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Enlaces
+   --------------------------------------------------------------------------
+   ══ Por qué existe esta clase ══════════════════════════════════════════════
+
+   Porque no existía, y cada enlace se la inventaba: había nueve escritos a mano
+   con `style={{ color: 'var(--data-blue)' }}` —abrir un adjunto, ver la revisión
+   en vídeo, el enlace de la guía de inicio, los entregables del alta…—.
+
+   Eso rompía la regla que ordena todo el producto: EL CROMO NO TIENE COLOR, el
+   color es del dato. Un enlace es cromo, y estaba gastando el azul del disco de
+   20 —una de las nueve tintas reservadas para distinguir series— en decir «esto
+   se puede pulsar». `verify-styles` no lo veía porque `--data-blue` es un token
+   perfectamente válido; lo que estaba mal era dónde se usaba.
+
+   Aquí un enlace se distingue como se distinguen los enlaces desde que existe el
+   texto subrayado: por el subrayado. La tinta es la del texto, así que funciona
+   igual sobre papel y sobre hierro, y no gasta ni una de las nueve.
+   ========================================================================== */
+
+.link {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  /* Separado del texto y fino: un subrayado pegado a las descendentes de una
+     «g» o una «p» las corta y el enlace se lee peor que sin él. */
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--hairline-strong);
+  transition: text-decoration-color var(--fast);
+}
+.link:hover { text-decoration-color: var(--accent); }
+/* El icono que acompaña —el cuadrado de «se abre fuera», la cámara de vídeo— no
+   se subraya: no es texto y el subrayado bajo un glifo cuadrado lo emborrona. */
+.link > svg { text-decoration: none; flex-shrink: 0; }
+
+/* ==========================================================================
+   Botones
+   ========================================================================== */
+
+.btn {
+  font-family: inherit; font-size: var(--fs-base); font-weight: 600; letter-spacing: -0.01em;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  padding: 9px 16px; border-radius: var(--r-md); border: 0;
+  background: var(--fill); color: var(--text); cursor: pointer;
+  transition: background-color var(--fast), transform var(--fast), opacity var(--fast);
+  white-space: nowrap; -webkit-tap-highlight-color: transparent;
+  /* Un botón nunca va subrayado, sea `<button>` o `<a>`. Hasta la portada todos
+     eran `<button>` y el navegador no subrayaba nada; el primer `<Link className="btn">`
+     salió con la raya del enlace debajo del texto. */
+  text-decoration: none;
+}
+.btn:active:not(:disabled) { transform: scale(0.975); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* ══ CUATRO PESOS, Y NINGUNO MÁS ═════════════════════════════════════════════
+   Había ocho variantes por cuatro tamaños. Treinta y dos botones posibles es
+   lo mismo que ninguno: en la misma pantalla convivían cuatro rellenos
+   distintos y ninguno decía cuál era LA acción. Los cuatro que quedan se
+   ordenan de arriba abajo y se pueden nombrar en una frase:
+
+     ACCIÓN    (`btn-primary`)   una por pantalla. El único relleno sólido.
+     NORMAL    (`btn-secondary`) todo lo demás que es una caja.
+     CALLADA   (`btn-plain`)     dentro de una fila o una cabecera; sin caja
+                                 hasta que se pasa por encima.
+     PELIGRO   (`btn-danger`)    texto rojo; nunca es la acción de la pantalla.
+
+   ── Y las tres que se fueron ────────────────────────────────────────────────
+   `btn-tinted` era un quinto peso entre la acción y la normal, y nadie —ni
+   quien lo escribió— sabía cuándo tocaba cuál; sus dos usos eran secundarios de
+   toda la vida. `btn-pill` no era un peso: convertía cualquier botón en otro
+   botón, y no lo usaba nadie. Y `btn-dashed` no era un botón sino un HUECO —el
+   recuadro de puntos de «arrastra una foto aquí»—: eso lo dice ahora
+   `.soltar` (ver «Traer un fichero»), que es el sitio donde de verdad significa
+   algo.  */
+.btn-primary { background: var(--accent); color: var(--accent-on); box-shadow: var(--shadow-xs); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+/* ── NORMAL: canto fino, sin relleno ────────────────────────────────────────
+   Se rellenaba con `--fill`, y eso solo funcionaba dentro de una tarjeta. Sobre
+   el lienzo —donde viven `.mando` y `.hoja-barra`, que no tienen fondo propio—
+   el relleno queda a 1,07:1 del fondo: un botón que no se ve. De ahí salió
+   `btn-quiet`, un segundo tratamiento para este mismo peso, y con él la
+   incoherencia de que la acción normal se viera distinta según la pantalla.
+
+   El canto es el tratamiento que sobrevive a los dos fondos, así que se queda
+   este y `btn-quiet` desaparece. Sigue sin llegar a los 3:1 que pide WCAG para
+   el borde de un control (1,33 sobre lienzo, 1,49 sobre tarjeta): subir
+   `--hairline-strong` es una decisión de tokens que afecta a más piezas y no
+   se toma aquí. */
+.btn-secondary { background: transparent; box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.btn-secondary:hover:not(:disabled) { background: var(--fill-subtle); }
+.btn-plain { background: transparent; color: var(--accent); padding: 7px 9px; }
+.btn-plain:hover:not(:disabled) { background: var(--fill-subtle); }
+.btn-danger { background: var(--negative-soft); color: var(--negative); }
+
+.btn-sm { padding: 5px 11px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
+.btn-lg { padding: 12px 22px; font-size: var(--fs-md); }
+.btn-block { width: 100%; }
+
+.btn-icon { width: 32px; height: 32px; padding: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-tertiary); }
+.btn-icon:hover:not(:disabled) { background: var(--fill); color: var(--text); }
+.btn-icon-danger:hover:not(:disabled) { background: var(--negative-soft); color: var(--negative); }
+/* La variante compacta: equis y lápices que viven DENTRO de una fila o sobre
+   una miniatura, donde la caja de 32 px desplazaba el contenido. Iban con
+   `width/height` en línea, y un estilo en línea le gana a cualquier media
+   query: el bloque de ergonomía táctil no podía agrandarlos. Como clase, en
+   táctil crecen a 36 (ver Ergonomía táctil). */
+.btn-icon-compact { width: 26px; height: 26px; }
+
+/* El desplegable de serie de un gráfico: ancho de diseño, pero nunca más que
+   su tarjeta — fijado en línea a 190 px forzaba el envoltorio en 390 px. */
+.chart-select { width: 190px; max-width: 100%; }
+
+/* Las fotos del cliente, en rejilla fluida. `min()` por lo de siempre: ver
+   «minmax(min(Npx, 100%), 1fr)» arriba. */
+.client-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));
+  gap: var(--s2);
+}
+
+/* ==========================================================================
+   Formularios
+   ========================================================================== */
+
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field-label { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.field-hint { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.field-error { font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+
+.input, .select, .textarea {
+  font-family: inherit; font-size: var(--fs-base); font-weight: 500;
+  width: 100%; min-width: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--r-md); color: var(--text);
+  padding: 9px 12px;
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.input:hover, .select:hover, .textarea:hover { border-color: var(--hairline-strong); }
+.input:focus, .select:focus, .textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.input::placeholder, .textarea::placeholder { color: var(--text-tertiary); }
+.input-center { text-align: center; font-weight: 600; }
+.input-sm { padding: 5px 9px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
+.textarea { resize: vertical; min-height: 86px; }
+
+.select {
+  appearance: none; padding-right: 32px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 16px) center, calc(100% - 11px) center;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+/* La unidad pegada al campo: «60 €», «10000 pasos».
+
+   Va DENTRO del recuadro y no como texto de ayuda debajo porque es parte de lo
+   que se está escribiendo, no una aclaración: quien teclea 60 tiene que ver que
+   son euros sin bajar la vista. El símbolo no es un elemento pulsable, así que
+   se marca `aria-hidden` en el JSX — el campo ya lo dice en su etiqueta. */
+.input-suffix { position: relative; display: flex; align-items: center; min-width: 0; }
+.input-suffix > .input { padding-right: 34px; }
+.input-suffix > span {
+  position: absolute; right: 12px;
+  font-size: var(--fs-sm); color: var(--text-tertiary); pointer-events: none;
+}
+
+/* Dentro de una fila de lista el desplegable no debe estirarse ni pesar más que
+   el nombre que tiene al lado. */
+.select-sm {
+  width: auto; flex-shrink: 0;
+  padding: 5px 28px 5px 9px; font-size: var(--fs-sm); border-radius: var(--r-sm);
+  background-position: calc(100% - 13px) center, calc(100% - 9px) center;
+}
+
+/* ══ LAS TRES COSAS QUE ERAN UNA CASILLA ═════════════════════════════════════
+
+   `.checkbox-row` era el único patrón que había, y debajo convivían tres gestos
+   que no se parecen en nada:
+
+     1. ELEGIR QUÉ INCLUIR — «copiar entrenamiento, dieta y calentamiento», «qué
+        módulos existen para este cliente». Son opciones con nombre, explicación
+        y consecuencias; una de ellas sustituye doce semanas de programa.
+     2. ENCENDER UNA OPCIÓN — «dos dietas distintas», «fase abierta». Un ajuste
+        con dos estados y sin más.
+     3. MARCAR UNA TAREA — los pasos del alta, el consentimiento. Ahí una casilla
+        ES lo correcto y sigue siéndolo.
+
+   Los tres se pintaban igual: el tic del sistema operativo con una cadena de
+   texto al lado. Y el tic del sistema operativo no es del producto —cambia de
+   forma entre Windows, macOS y Android, no respeta el radio ni el color de nada,
+   y con `accent-color` lo único que se podía tocar era el relleno—.
+
+   Ahora son tres formas distintas para tres gestos distintos. Las tres montan
+   sobre un `<input>` de verdad, escondido pero no `display: none`: es lo que
+   mantiene el teclado, el foco y el lector de pantalla funcionando solos. Lo que
+   se dibuja es un hermano suyo.
+
+   ── Por qué el estado marcado viene por CLASE y no por `:has()` ─────────────
+   Se escribió primero con `:has(.pick-input:checked)`, que es más elegante y
+   trae una dependencia que no compensa: `:has()` no se usaba en ninguna otra
+   regla de la hoja, y si algún día no se resuelve, el fallo no es un borde feo
+   —es que **una opción marcada se ve exactamente igual que una sin marcar**.
+   Marcar «Dieta» y que la tarjeta no cambie lleva a pulsarla otra vez y a
+   copiar lo que no era.
+
+   El estado ya lo conoce React, que es quien lo pinta. Pasarlo como clase
+   (`is-on`) lo hace explícito y no depende de nada. El foco sí usa
+   `:focus-within`, que está en todos los navegadores desde 2017 y cuyo peor
+   caso —quedarse sin anillo— no cambia lo que se entiende de la pantalla.
+   ═════════════════════════════════════════════════════════════════════════════ */
+
+/* El input real, fuera de la vista y dentro del árbol de accesibilidad. */
+.pick-input {
+  position: absolute; opacity: 0; pointer-events: none;
+  width: 1px; height: 1px; margin: 0;
+}
+
+/* ── 1. Elegir qué incluir: la tarjeta ──────────────────────────────────── */
+
+.opt-card {
+  display: flex; align-items: flex-start; gap: var(--s3);
+  position: relative;
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  border: 1.5px solid transparent;
+  cursor: pointer; user-select: none;
+  transition: border-color var(--fast), background var(--fast);
+}
+
+/*
+  ══ Cuando la lista de opciones convive con otros controles ═════════════════
+
+  La tarjeta mide lo que mida su línea de ayuda, y esa línea es una frase entera:
+  «Estructura semanal, 4 semanas, tipo de ciclo y su calentamiento» estiraba la
+  caja a lo ancho de la pantalla en un panel donde al lado solo hay un
+  desplegable y dos botones. Tres rectángulos enormes para tres opciones de dos
+  palabras.
+
+  El tope va en el GRUPO y no en `.opt-card`, porque no es propiedad de la
+  tarjeta: donde la lista ES el contenido de la pantalla —los módulos de Ajustes
+  → Protocolo— lo correcto es que ocupe el ancho del panel. Aquí la lista es un
+  campo más de una fila, y tiene que pesar como un campo.
+*/
+.opt-group { display: flex; flex-direction: column; gap: var(--s2); max-width: 26rem; }
+.opt-card:hover { border-color: var(--hairline-strong); }
+.opt-card.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.opt-card.is-off { opacity: 0.45; cursor: not-allowed; }
+/* El anillo de foco lo lleva la tarjeta, porque el input no se ve. Sin esto,
+   recorrer la lista con el tabulador no marca nada en ningún sitio. */
+.opt-card:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* La marca: un cuadro que se rellena. No es el tic del sistema — es el mismo
+   radio y el mismo acento que el resto de controles. */
+.opt-card > .mark {
+  flex-shrink: 0;
+  width: 20px; height: 20px; margin-top: 1px;
+  display: grid; place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1.5px solid var(--hairline-strong);
+  color: transparent;
+  transition: background var(--fast), border-color var(--fast), color var(--fast);
+}
+.opt-card.is-on > .mark {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-on);
+}
+
+.opt-card > .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.opt-card > .body > .nm {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+}
+.opt-card > .body > .hint {
+  font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.35;
+}
+
+/* En fila, para listas de opciones cortas sin explicación (los módulos de un
+   cliente concreto). Mide lo que mide su texto en vez de estirarse. */
+.opt-card.is-inline { width: auto; padding: var(--s2) var(--s3); align-items: center; }
+.opt-card.is-inline > .mark { width: 17px; height: 17px; margin-top: 0; }
+
+/* ── 2. Encender una opción: el interruptor ─────────────────────────────── */
+
+.switch-row {
+  display: flex; align-items: flex-start; gap: var(--s3);
+  position: relative;
+  cursor: pointer; user-select: none;
+}
+.switch-row.is-off { opacity: 0.45; cursor: not-allowed; }
+/* Encendido no cambia (el acento ya dice «activo»); apagado se oscurece un
+   punto para responder al puntero. */
+.switch-row:hover:not(.is-off):not(.is-on) > .track { background: var(--hairline-strong); }
+
+.switch-row > .track {
+  flex-shrink: 0;
+  width: 38px; height: 22px; margin-top: 1px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--fill-strong);
+  transition: background var(--fast);
+}
+.switch-row > .track::before {
+  content: ''; display: block;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--surface); box-shadow: var(--shadow-xs);
+  transition: transform var(--fast);
+}
+.switch-row.is-on > .track { background: var(--accent); }
+.switch-row.is-on > .track::before { transform: translateX(16px); }
+.switch-row:focus-within > .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.switch-row > .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.switch-row > .body > .nm { font-size: var(--fs-sm); font-weight: 550; color: var(--text); }
+.switch-row > .body > .hint { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.35; }
+
+/* ── 3. Marcar una tarea: la casilla, dibujada por nosotros ─────────────── */
+
+.checkbox-row {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font-size: var(--fs-sm); color: var(--text-secondary); cursor: pointer; user-select: none;
+}
+.checkbox-row input[type='checkbox'] {
+  appearance: none; -webkit-appearance: none;
+  flex-shrink: 0; position: relative;
+  /* 18px de caja con 3px de margen alrededor: el blanco táctil llega a 24, que
+     es lo mínimo cómodo en el móvil, sin que el cuadro se vea gigante. */
+  width: 18px; height: 18px; margin: 3px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1.5px solid var(--hairline-strong);
+  cursor: pointer;
+  transition: background var(--fast), border-color var(--fast);
+}
+.checkbox-row input[type='checkbox']:hover { border-color: var(--accent); }
+.checkbox-row input[type='checkbox']:checked {
+  background: var(--accent); border-color: var(--accent);
+}
+/* El tic, dibujado: dos lados de un cuadrado girados 45°. No hay imagen ni
+   fuente de iconos de por medio, así que no puede desaparecer al fallar una
+   descarga ni desalinearse con el texto. */
+.checkbox-row input[type='checkbox']:checked::after {
+  content: ''; position: absolute;
+  left: 5px; top: 1px; width: 4px; height: 9px;
+  border: solid var(--accent-on); border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+/* El tic ENTRA. Marcar una tarea es la única casilla de la aplicación que
+   celebra algo —las otras dos formas encienden opciones— y aparecer de golpe
+   hace dudar de si se ha marcado la fila que se pulsó.
+
+   La escala arranca en 0.3 y no en 0 porque un tic que nace de la nada parpadea;
+   naciendo pequeño se lee el gesto. El `rotate(45deg)` va en las dos puntas del
+   fotograma: sin él, el tic gira mientras crece y parece un aspa. */
+@media (prefers-reduced-motion: no-preference) {
+  .checkbox-row input[type='checkbox']:checked::after { animation: tic-entra 0.18s var(--ease); }
+}
+@keyframes tic-entra {
+  from { opacity: 0; transform: rotate(45deg) scale(0.3); }
+  to { opacity: 1; transform: rotate(45deg) scale(1); }
+}
+
+/* ── La casilla con etiqueta de dos líneas ──────────────────────────────────
+   `.checkbox-row` centra su contenido, que es lo correcto con una sola línea de
+   texto y lo que descuadra la casilla en cuanto hay una explicación debajo: el
+   cuadro se va al centro del BLOQUE, o sea a media altura entre el título y su
+   letra pequeña, y deja de pertenecer a ninguno de los dos.
+
+   Se resolvía con `alignItems: 'flex-start'` escrito en línea en cada sitio, y
+   ahí el cuadro se iba 2,6 px por DEBAJO del centro óptico de la primera línea:
+   los 3 px de margen que le dan blanco táctil arriba y abajo no se compensan
+   contra una línea de 18,85 px (13 px × 1,45). Es poco y se nota — es el motivo
+   de que los pasos del alta se leyeran torcidos.
+
+   Anulando el margen SUPERIOR el cuadro centra en 9 px contra los 9,4 de la
+   línea. El de los lados se queda: es el que separa del texto y el que da
+   blanco al dedo. */
+.checkbox-row.is-block { align-items: flex-start; }
+.checkbox-row.is-block > input[type='checkbox'] { margin-top: 0; }
+
+/* ── La fila de un paso del alta ────────────────────────────────────────────
+   Casi toda la fila es una etiqueta de casilla, o sea que casi toda la fila se
+   puede pulsar — y nada lo decía: el cursor cambiaba sobre el texto y la
+   superficie se quedaba quieta, que es la señal de algo que NO responde. El
+   canto se marca al pasar por encima; el fondo no se toca, porque un hundido
+   que cambia de tono compite con la tarjeta que lo contiene.
+
+   Un paso ya hecho baja el canto en vez de subirlo: la lista existe para
+   enseñar lo que FALTA, y lo terminado tiene que dejar de pedir la vista. */
+.step-row { transition: border-color var(--fast); }
+.step-row:hover { border-color: var(--hairline-strong); }
+.step-row.is-done { border-color: var(--hairline); }
+
+/* Un bloque que sustituye a otro en su sitio: leer ⇄ editar. Solo opacidad —
+   desplazar lo que aparece donde ya había algo se lee como un salto, no como una
+   transición. */
+@media (prefers-reduced-motion: no-preference) {
+  .swap-in { animation: fade 0.2s var(--ease); }
+}
+
+/* ══ LO QUE TIENE QUE ENTREGAR EL CLIENTE ════════════════════════════════════
+   Una lista NUMERADA y no una de casillas, y la diferencia importa: una casilla
+   invita a pulsarla, y aquí no hay nada que pulsar —se marcan solas cuando la
+   cosa está hecha—. El número dice además el ORDEN, que es la otra mitad de lo
+   que se viene a preguntar.
+
+   ── Por qué `chore` y no `task`, que es como se llamaba ─────────────────────
+   Porque `.task` YA EXISTE, mil líneas más arriba: es el grupo plegable de la
+   bandeja de «Hoy» (`.task-head`, `.task-rows`, `.task-row`). Dos bloques
+   distintos con el mismo nombre en la misma hoja no conviven, gana el último —y
+   ganaba éste—, así que los grupos de «Hoy» venían heredando de aquí un canto,
+   un radio menor y un `align-items: center` que en una columna encoge las filas
+   de dentro y las centra. Un fallo silencioso en una pantalla que ni se toca al
+   trabajar en el alta, que es la peor clase.
+
+   El nombre en singular no es capricho: aquí una fila es una ENTREGA del cliente
+   («súbeme las fotos del gimnasio»), y allí una TAREA del entrenador. Nombres
+   distintos para cosas distintas es lo que impide que vuelva a pasar. */
+.chore-list { list-style: none; display: flex; flex-direction: column; gap: var(--s2); margin: 0; padding: 0; }
+
+.chore {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge);
+}
+
+/* El disco del número. Con el acento porque es lo siguiente que hay que hacer;
+   hecho, baja a tinta apagada y deja de pedir la vista. */
+.chore-mark {
+  flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: var(--fs-xs); font-weight: 700;
+  background: var(--accent); color: var(--accent-on);
+}
+.chore-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.chore-title { font-size: var(--fs-sm); font-weight: 600; }
+
+/*
+  Lo hecho NO se tacha: se apaga.
+
+  El tachado dice «esto ya no vale» y aquí lo que dice es «esto ya está» — son
+  cosas distintas, y una respuesta entregada sigue valiendo. Bajar el tono deja
+  ver lo que llevas sin que compita con lo que falta.
+*/
+.chore.is-done { background: transparent; border-color: transparent; }
+.chore.is-done > .chore-mark { background: var(--positive-soft); color: var(--positive); }
+.chore.is-done > .chore-say > .chore-title { color: var(--text-tertiary); font-weight: 500; }
+
+/* ══ ELEGIR QUÉ SE LE PREGUNTA (Ajustes → Protocolo → El alta) ═══════════════
+   Diecinueve casillas repartidas en dos columnas, cada una con una pista de
+   distinto largo y un botón «Obligatoria» a su derecha. Sin caja, cada fila
+   medía lo que midiera su texto: los botones caían a nueve alturas distintas y
+   la lista se leía como una pared de piezas sueltas.
+
+   La caja iguala la altura y ancla el botón, que es lo único que hacía falta:
+   con las filas a la misma altura, dos columnas vuelven a leerse como una tabla
+   y no como un montón. */
+.ask-row {
+  display: flex; align-items: center; gap: var(--s3);
+  min-height: 54px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  transition: border-color var(--fast);
+}
+.ask-row:hover { border-color: var(--hairline-strong); }
+/* Encendida, el canto lo dice: es lo que distingue de un vistazo lo que se
+   pregunta de lo que no, sin tener que mirar dentro de cada casilla. */
+.ask-row.is-on { border-color: var(--hairline-strong); background: var(--surface); }
+
+.ask-row > .checkbox-row { flex: 1; min-width: 0; }
+/* La pista, a UNA línea. Es un recordatorio, no una explicación: dejándola
+   crecer, la fila que la tiene mide el doble que la de al lado y vuelve el
+   desorden que esta caja arregla. */
+.ask-hint {
+  display: block; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ask-req { flex-shrink: 0; }
+
+/* ══ LA TARJETA DE ARRANQUE DEL CLIENTE ══════════════════════════════════════
+   La única del portal que se abre con algo sin hacer que bloquea lo demás: sin
+   sus respuestas no hay rutina, y sin rutina el resto son pantallas vacías. Con
+   el aspecto de un aviso cualquiera se leía como opcional — y quedaba debajo del
+   recordatorio de pesajes, que es lo que pasó de verdad.
+
+   El canto de brasa es la misma tinta que marca el día de hoy y la sección
+   activa. Aquí dice lo mismo: es donde estás. */
+.intake-start { border-color: var(--accent); box-shadow: inset 3px 0 0 0 var(--accent); }
+.intake-start-title {
+  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em;
+}
+
+/* ══ EL CUESTIONARIO DE ALTA ══════════════════════════════════════════════════
+   Es el formulario más largo que ve un cliente —hasta diecinueve campos— y el
+   único que rellena una persona que no conoce la aplicación. Lo que sigue es lo
+   que lo separa de un formulario de administración.
+
+   ── La barra de avance ─────────────────────────────────────────────────────
+   «7 de 10» dicho con una cifra es un dato; dicho con una barra es una promesa
+   de que se acaba. En un formulario que se puede dejar a medias y retomar, saber
+   cuánto queda es lo que decide si se retoma. */
+.form-progress {
+  height: 4px; border-radius: 999px; overflow: hidden;
+  background: var(--fill);
+}
+/* Tinta secundaria y no plena: son cuatro píxeles a todo el ancho, y en negro
+   pesaban más que el rótulo que los explica. Un progreso informa, no decide. */
+.form-progress > i {
+  display: block; height: 100%;
+  background: var(--text-secondary);
+  transition: width var(--slow);
+}
+
+/* ── Cada tanda, en su propia caja ──────────────────────────────────────────
+   Un filete no bastaba. Catorce campos con sus etiquetas, sus pistas y sus
+   rótulos, todos sobre la misma superficie, se leen como una tirada: la vista no
+   encuentra dónde empieza una pregunta y acaba otra, y el conjunto parece
+   desordenado aunque cada pieza esté en su sitio.
+
+   Con la caja, cada tanda es un objeto: dos o tres objetos se recorren, catorce
+   campos no. Es la misma jerarquía que usa la ficha del entrenador —bloque,
+   rótulo troquelado, contenido— así que además el cliente ve su formulario
+   ordenado igual que su entrenador ve la ficha que sale de él. */
+.form-block {
+  padding: var(--s4);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+/* Una tanda con TODO contestado deja de pedir la vista: mismo hundido, canto
+   apagado. No se colapsa ni se esconde —se vuelve a ella a corregir— pero en una
+   pantalla de cuatro tandas hay que poder ver de un vistazo cuál queda. */
+.form-block.is-full { border-color: transparent; }
+
+/* El número de la tanda: dice cuántas quedan sin tener que contarlas.
+   El selector es descendiente y no hijo directo porque el rótulo comparte fila
+   con la cuenta de la tanda («3/5»), así que va dentro de un `.row between`. */
+.form-block .section-label > .n {
+  display: inline-grid; place-items: center;
+  width: 18px; height: 18px; margin-right: 6px; border-radius: 50%;
+  background: var(--fill); color: var(--text-tertiary);
+  font-size: var(--fs-2xs); font-weight: 700;
+}
+
+/* Cuántas de esta tanda están contestadas. En monoespaciada por lo mismo que el
+   contador del índice: son cifras que se comparan entre tandas, y a esa
+   comparación le estorba que el «1» mida menos que el «4». */
+.tanda-n {
+  display: flex; align-items: center; gap: 3px; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
+  color: var(--text-tertiary);
+}
+.form-block.is-full .tanda-n { color: var(--positive); }
+
+/* ── La barra de guardar del cuestionario ───────────────────────────────────
+   Pegada al pie de la ventana mientras se rellena. El motivo está en
+   `IntakeQuestions.jsx`: el único botón vivía al final de cinco pantallas de
+   móvil, así que contestar tres preguntas y salir perdía las tres sin un solo
+   aviso.
+
+   Mismo cristal que el índice de las pantallas largas (`.page-nav`), y por lo
+   mismo: flota por encima del contenido y tiene que dejar ver que hay algo
+   debajo sin transparentarlo.
+
+   `bottom` cuenta con la barra del pulgar: por debajo de 1024 px hay una
+   navegación fija abajo (`.bottombar`) y una barra pegada al borde se metería
+   justo detrás de ella — o sea, el botón de guardar tapado por los destinos, que
+   es el mismo fallo que la barra inferior ya documenta en su propio bloque. */
+.form-bar {
+  position: sticky; bottom: var(--s2); z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--fast);
+}
+/* Con algo sin mandar, el canto lo dice. Es el mismo acento que marca el día de
+   hoy y la sección activa: aquí significa «esto está vivo». */
+.form-bar.is-dirty { border-color: var(--warning); }
+
+@media (max-width: 1023.98px) {
+  .form-bar { bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s2)); }
+}
+
+/* ── Las fotos de la maquinaria de su gimnasio ──────────────────────────────
+   Miniaturas pequeñas y muchas: lo que se mira es la FORMA de la máquina para
+   reconocerla, no su detalle. A 150 px caben seis por fila en escritorio y dos
+   en un teléfono, que es lo que convierte cuarenta fotos en algo que se recorre
+   de un vistazo en vez de en un scroll.
+
+   `auto-fill` y no `auto-fit`: con tres fotos en una fila de seis huecos, el
+   segundo las estiraría hasta ocupar el ancho entero y tres máquinas se verían
+   gigantes al lado de las seis del grupo de al lado. Aquí el tamaño tiene que
+   ser el mismo en todos los grupos. */
+.gym-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
+  gap: var(--s2);
+}
+
+.gym-shot {
+  position: relative; margin: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  border-radius: var(--r-md); overflow: hidden;
+}
+/* Descendiente y no hijo directo: desde que la foto se pulsa para abrirla
+   grande, va envuelta en un botón (`.gym-shot-open`) y `> img` dejó de
+   alcanzarla. Sin la proporción, cada foto salía a su tamaño natural y la
+   rejilla se volvía un mosaico de alturas distintas con los selectores de grupo
+   bailando a media altura. */
+.gym-shot img {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: var(--r-md); background: var(--fill);
+}
+.gym-shot > figcaption { padding: 0 2px; }
+/* El selector de grupo debajo de cada foto. Pequeño y a ancho completo: es la
+   etiqueta de la imagen, no un control de formulario, así que tiene que caber en
+   la columna de 150 px sin obligar a la rejilla a ensancharse. */
+.select-xs {
+  width: 100%; min-width: 0;
+  font-size: var(--fs-2xs); padding: 3px 6px; height: auto;
+}
+/* La pieza que no se pudo firmar. Ocupa lo mismo que una foto para que la
+   rejilla no se descoloque, y dice por qué en vez de enseñar un cuadro roto. */
+.gym-shot-missing {
+  display: grid; place-items: center; text-align: center;
+  aspect-ratio: 4 / 3; padding: var(--s2);
+  border-radius: var(--r-md); background: var(--fill);
+}
+
+/* Borrar aparece al pasar por encima. En el móvil no hay «encima», así que ahí
+   está siempre: una acción que no se puede alcanzar con el dedo no existe. */
+.gym-shot-del {
+  position: absolute; top: 4px; right: 4px;
+  display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  border: 0; cursor: pointer;
+  /* Tinta clara FIJA sobre el velo oscuro, en los dos temas: lo que hay debajo
+     es una fotografía y no la superficie de la aplicación, así que `--accent-on`
+     —que se vuelve tinta oscura en tema oscuro— desaparecería. Mismo trato que
+     `.photo-thumb-tag`, que resuelve este caso desde el estudio de fotos. */
+  background: var(--scrim); color: #fff;
+  opacity: 0; transition: opacity var(--fast);
+}
+.gym-shot:hover > .gym-shot-del,
+.gym-shot-del:focus-visible { opacity: 1; }
+@media (hover: none) {
+  .gym-shot-del { opacity: 1; }
+}
+
+/* El icono que gira mientras sube. Un `Loader2` quieto no dice «estoy
+   trabajando»: dice «me he colgado». */
+@media (prefers-reduced-motion: no-preference) {
+  .spin { animation: girar 1s linear infinite; }
+}
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+.checkbox-row input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.checkbox-row input[type='checkbox']:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.range { width: 100%; accent-color: var(--accent); cursor: pointer; }
+.range:hover { accent-color: var(--accent-hover); }
+
+/* ══ EL RECTÁNGULO VACÍO, que estaba en toda la aplicación ═══════════════════
+   El carril es `inline-flex`, o sea que mide lo que miden sus opciones… salvo
+   cuando cuelga de una COLUMNA, que es donde vive la mitad de las veces: dentro
+   de un `.field`, dentro de un `.col`, dentro de la tarjeta del acceso. Ahí el
+   contenedor lo estira a lo ancho, y como las opciones no crecen, dos botones de
+   cien píxeles se quedaban pegados a la izquierda de un carril gris de
+   cuatrocientos. Los otros trescientos eran un rectángulo hueco, sin nada
+   dentro, presidiendo el formulario. Y el patrón está en once sitios.
+
+   `width: fit-content` es todo el arreglo: el carril mide lo que mide su
+   contenido y deja de haber hueco que llenar. Donde ya iba en una fila no cambia
+   nada, porque ahí nunca se estiró. Y no toca la alineación vertical, que es lo
+   que sí habría roto un `align-self`.
+
+   ── Y `.is-full` para cuando el ancho completo SÍ es lo correcto ────────────
+   Que es un caso y está identificado: dos pestañas que encabezan una tarjeta
+   —entrar y crear cuenta— y que hacen de título. Ahí, media tarjeta vacía al
+   lado de las pestañas se lee como que falta algo; repartidas a mitades se leen
+   como lo que son. Va por bandera y no por defecto: con tres opciones dentro de
+   una tarjeta de mil píxeles, «ancho completo» son tres botones de trescientos
+   treinta, que es el problema de partida al revés. */
+.segmented {
+  display: inline-flex; gap: 2px; background: var(--fill-subtle);
+  padding: 3px; border-radius: var(--r-md);
+  width: fit-content; max-width: 100%;
+  overflow-x: auto; scrollbar-width: none;
+}
+.segmented.is-full { width: 100%; }
+.segmented::-webkit-scrollbar { display: none; }
+/* `flex-grow` para que en `.is-full` las opciones se repartan el carril, y
+   `flex-shrink: 0` para que cuando hay seis y no caben el carril se arrastre en
+   vez de apretarlas unas contra otras. */
+.segmented-item {
+  flex: 1 0 auto;
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 600;
+  padding: 6px 14px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: background-color var(--fast), color var(--fast);
+}
+.segmented-item:hover { color: var(--text); }
+.segmented-item[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs); }
+.segmented-item[aria-pressed='true'].tone-accent { background: var(--accent); color: var(--accent-on); }
+
+.chip {
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 600;
+  padding: 5px 12px; border-radius: var(--r-pill);
+  background: var(--fill-subtle); border: 0; color: var(--text-secondary);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background-color var(--fast), color var(--fast);
+}
+.chip:hover { background: var(--fill); color: var(--text); }
+.chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-on); }
+.chip-dashed { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); background: transparent; }
+.chip-dashed:hover { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
+
+/* ── El carril de días, que se arrastra ──────────────────────────────────────
+   El orden de estos chips es el orden de la semana del cliente, así que se
+   cambia aquí, donde se ve.
+
+   ══ El asa no es la zona de agarre, es el cartel ═══════════════════════════
+   Se arrastra la pastilla ENTERA — un asa que hubiera que acertar dentro de 28
+   px de alto sería más difícil de dar que la pastilla—. El asa está porque el
+   cursor de agarre no lo descubre nadie: hay que pasar por encima para verlo, y
+   en un teléfono no hay «por encima». Un gesto que no se sospecha no existe.
+
+   ══ Lo que se ve al arrastrar ══════════════════════════════════════════════
+   El que viaja se LEVANTA (sombra y por encima del resto) en vez de atenuarse:
+   sigue al puntero, así que es la pieza que se está mirando. Los de en medio se
+   apartan dejando el hueco — y esa es la explicación del gesto: al ver el sitio
+   abrirse ya sabes qué pasa al soltar. La transición es de ellos; el que viaja
+   no la lleva, porque tiene que ir pegado al dedo.
+
+   El chip de «+ Día» no arrastra: no es un día, es un botón. */
+.day-rail .chip:not(.chip-dashed) {
+  cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  transition: background-color var(--fast), color var(--fast), transform var(--normal);
+}
+.day-rail .chip:not(.chip-dashed):active { cursor: grabbing; }
+.day-rail .chip.is-dragging {
+  position: relative; z-index: 2;
+  cursor: grabbing; box-shadow: var(--shadow-md);
+  transition: none;
+}
+.day-rail .chip.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* El asa: presente siempre —es lo que anuncia el gesto— pero en voz baja, para
+   que el nombre del día siga siendo lo que se lee. */
+.chip-grip { opacity: 0.4; transition: opacity var(--fast); }
+.chip:hover > .chip-grip { opacity: 0.75; }
+
+/* En el teléfono, los días se quedan PEGADOS arriba al bajar por el que está
+   abierto: cambiar de Empuje a Pierna no debería exigir volver a subir cuatro
+   pantallas. Sangra hasta los cantos (el negativo deshace el padding del
+   layout) y lleva el cristal de las barras para que el contenido se lea
+   pasando por debajo. Solo en el teléfono: en escritorio la página es corta
+   y una fila pegajosa sería una barra más. */
+@media (max-width: 640px) {
+  .day-rail {
+    position: sticky; top: 0; z-index: 40;
+    margin: 0 calc(-1 * var(--s3));
+    padding: var(--s2) var(--s3);
+    background: var(--surface-glass);
+    backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border-bottom: 1px solid var(--hairline);
+  }
+}
+
+/* Cuántos clientes hay detrás de un filtro. Va dentro del chip, subordinado a
+   su etiqueta: es un apoyo para elegir, no un dato que se lea por sí solo.
+   Estaba resuelto con `style={{ opacity: 0.75 }}` repetido en el JSX. */
+.chip-count {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums; opacity: 0.72;
+}
+
+/* Una aclaración dentro del chip, subordinada a su etiqueta — «Espalda · sin
+   fotos»—. En opacidad y no en un gris fijo para que funcione igual con el chip
+   en reposo y marcado, que invierten la tinta. */
+.chip-note { font-size: var(--fs-xs); font-weight: 500; opacity: 0.6; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
+  background: var(--fill); color: var(--text-secondary);
+}
+.badge-ok { background: var(--positive-soft); color: var(--positive); }
+.badge-warn { background: var(--warning-soft); color: var(--warning); }
+.badge-bad { background: var(--negative-soft); color: var(--negative); }
+.badge-info { background: var(--info-soft); color: var(--info); }
+
+/* ==========================================================================
+   Traer un fichero
+   --------------------------------------------------------------------------
+   La puerta grande de «Traer un plan de fuera».
+
+   ── Por qué existe ──────────────────────────────────────────────────────────
+   Esa pantalla ofrecía sus dos caminos con el peso al revés: el cuadro de pegar
+   ocupaba media ventana y era lo primero, y el fichero era un botón pequeño
+   debajo con el rótulo «…o sube los ficheros» —unos puntos suspensivos delante
+   de la acción que hace casi todo el mundo—. Quien se muda de Excel no copia
+   filas: coge el libro y lo suelta.
+
+   Así que el fichero pasó a ser la superficie grande, y admite el gesto que la
+   gente ya hace: arrastrarlo encima. Pegar se quedó un tiempo debajo, tras una
+   costura, y después se retiró del todo: seguía sin usarlo nadie.
+
+   ── Y aquí vivió `.photo-drop` ──────────────────────────────────────────────
+   Era esta misma idea escrita antes y solo para las fotos, en `ajustes.css`: un
+   `btn-secondary` alto con tres líneas dentro. La misma pregunta —«dame el
+   archivo»— contestada de dos maneras en el mismo producto, y ninguna de las dos
+   aceptaba que se le soltara nada encima.
+
+   Ya no existe: las tres puertas del producto —traer un plan, las fotos de una
+   revisión y las máquinas de un gimnasio— son esta clase, pintadas desde
+   `components/ui/ZonaDeSoltar.jsx`.
+   ========================================================================== */
+.traer { display: flex; flex-direction: column; gap: var(--s4); }
+
+/* ── El bloque que acepta lo que se suelte ──────────────────────────────────
+   El recuadro grande solo existe mientras no hay nada: en cuanto hay tres fotos
+   puestas, lo que se ve es la rejilla, y arrastrar la cuarta encima de ellas es
+   justo donde se espera poder soltarla. Entonces el acuse de recibo lo da el
+   bloque entero. Con `outline` y no con canto para que no descoloque un píxel
+   de la rejilla al encenderse. */
+.zona-soltable.is-encima {
+  outline: 2px solid var(--accent);
+  outline-offset: 8px;
+  border-radius: var(--r-md);
+}
+
+/* El canto es sólido y no de puntos a propósito: `btn-dashed` ya se retiró una
+   vez de este proyecto (ver «CUATRO PESOS» arriba) y el recuadro punteado es
+   justo el adorno del que venimos. Lo que dice «suéltalo aquí» es el tamaño. */
+.soltar {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: 100%; padding: var(--s6) var(--s4);
+  border: 0; border-radius: var(--r-lg);
+  background: var(--surface-sunken);
+  box-shadow: inset 0 0 0 1.5px var(--hairline-strong);
+  color: var(--text); font-family: inherit; text-align: center; cursor: pointer;
+  transition: background var(--fast), box-shadow var(--fast);
+}
+.soltar:hover:not(:disabled) {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.soltar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Mientras abre el fichero no se apaga: un bloque al 40 % en mitad de su propio
+   trabajo parece averiado, igual que en `.btn[data-estado='ocupado']`. */
+.soltar:disabled { cursor: default; }
+
+/* ── Con el fichero encima ──────────────────────────────────────────────────
+   El único momento de esta pantalla que pide movimiento: hay algo colgando del
+   cursor y hace falta decir «sí, aquí». El mismo tratamiento que el hover, un
+   punto más fuerte, para que se lea como el final del gesto y no como otra cosa
+   distinta que acaba de aparecer. */
+.soltar.is-encima {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.soltar-icono {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; margin-bottom: var(--s1);
+  border-radius: var(--r-md);
+  background: var(--fill); color: var(--text-secondary);
+  transition: background var(--fast), color var(--fast), transform var(--fast);
+}
+.soltar:hover:not(:disabled) .soltar-icono,
+.soltar.is-encima .soltar-icono { background: var(--accent); color: var(--accent-on); }
+@media (prefers-reduced-motion: no-preference) {
+  .soltar.is-encima .soltar-icono { transform: translateY(-2px) scale(1.06); }
+}
+
+.soltar-titulo { font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.01em; }
+.soltar-sub { font-size: var(--fs-sm); color: var(--text-secondary); }
+.soltar-formatos {
+  display: inline-flex; flex-wrap: wrap; justify-content: center;
+  gap: 5px; margin-top: 6px;
+}
+
+/* Aquí vivió `.traer-costura`, la línea con «o pégalo como texto» en medio que
+   separaba la zona del cuadro de pegar. Se fue con el cuadro. */
+.traer-nota {
+  max-width: 54ch; margin: 0 auto; text-align: center;
+  font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.5;
+}
+
+@media (max-width: 599.98px) {
+  .soltar { padding: var(--s5) var(--s3); }
+  .soltar-icono { width: 40px; height: 40px; }
+  .soltar-titulo { font-size: var(--fs-base); }
+}
+
+/* ==========================================================================
+   Avisos y vacíos
+   ========================================================================== */
+
+.notice {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  padding: var(--s3) var(--s4); border-radius: var(--r-md);
+  font-size: var(--fs-sm); background: var(--fill-subtle); color: var(--text-secondary);
+}
+.notice-error { background: var(--negative-soft); color: var(--negative); }
+.notice-success { background: var(--positive-soft); color: var(--positive); }
+.notice-info { background: var(--info-soft); color: var(--info); }
+.notice-warn { background: var(--warning-soft); color: var(--warning); }
+
+.empty {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+  text-align: center; padding: var(--s7) var(--s5); color: var(--text-secondary);
+}
+/* El azulejo del icono va en brasa —el mismo tratamiento que las fichas de «lo
+   que además trae» de la portada—. Un vacío es una invitación a actuar, y es el
+   único sitio del producto donde la calidez no le quita protagonismo a ningún
+   dato: no hay datos todavía. */
+.empty-icon {
+  width: 58px; height: 58px; border-radius: var(--r-lg);
+  display: grid; place-items: center; background: var(--fill); color: var(--text-secondary);
+}
+.empty h3 { font-size: var(--fs-md); color: var(--text); }
+.empty p { font-size: var(--fs-sm); max-width: 44ch; }
+
+.save-indicator { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); font-weight: 600; }
+.save-indicator.is-saving { color: var(--warning); }
+.save-indicator.is-saved { color: var(--text-tertiary); }
+.save-indicator.is-error { color: var(--negative); }
+.save-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+/* La carga en línea (`<Loading/>`, ui/primitives). Sobria a propósito: texto
+   pequeño y tres puntos que laten en cascada, nada que compita con el
+   esqueleto del arranque. Bajo menos movimiento, la regla global los deja en
+   un ciclo. */
+.loading { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); color: var(--text-tertiary); }
+.loading-dots { display: inline-flex; gap: 4px; }
+.loading-dots > span {
+  width: 4px; height: 4px; border-radius: 50%; background: currentColor;
+  animation: loading-late 1.2s ease-in-out infinite;
+}
+.loading-dots > span:nth-child(2) { animation-delay: 0.15s; }
+.loading-dots > span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes loading-late { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+/* ==========================================================================
+   Modal y menús
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--scrim);
+  backdrop-filter: blur(var(--scrim-blur)) saturate(1.3); -webkit-backdrop-filter: blur(var(--scrim-blur)) saturate(1.3);
+  display: grid; place-items: center; padding: var(--s4);
+  animation: fade 0.2s var(--ease);
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+.modal {
+  background: var(--surface); border-radius: var(--r-xl); box-shadow: var(--shadow-lg);
+  /* El canto obligatorio de toda superficie (tokens.css): en hierro la sombra
+     sobre grafito es invisible y sin borde el modal flotaba sin contorno. */
+  border: 1px solid var(--edge);
+  width: 100%; max-width: 440px; max-height: min(86vh, 880px);
+  display: flex; flex-direction: column; overflow: hidden;
+  animation: sheet 0.3s var(--ease);
+}
+@keyframes sheet { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+/* La entrada de la hoja móvil: sube desde abajo, sin escala — una hoja anclada
+   al borde no «aparece», llega. */
+@keyframes modal-sube { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.modal-lg { max-width: 880px; }
+
+/* ── EL PANEL LATERAL ──────────────────────────────────────────────────────
+   El detalle que se consulta SIN salir de lo que se estaba mirando: entra por
+   el canto derecho, del alto de la ventana, y deja el trabajo visible al lado.
+   Ver el comentario de `size="side"` en `ui/Modal.jsx`.
+
+   El velo se aclara hasta casi nada y pierde el desenfoque a propósito: su
+   trabajo aquí no es tapar —tapar es lo que había que arreglar— sino recoger la
+   pulsación de fuera para cerrar. Sigue habiendo contraste suficiente para que
+   se vea qué está activo, y el canto del panel hace el resto. */
+.modal-backdrop.is-side {
+  place-items: stretch; justify-items: end; padding: 0;
+  background: rgba(10, 12, 15, 0.18);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.modal-side {
+  max-width: 460px; max-height: none; height: 100%;
+  border-radius: 0; border-right: 0; border-top: 0; border-bottom: 0;
+  animation: panel-entra var(--normal) var(--ease) both;
+}
+@keyframes panel-entra { from { transform: translateX(24px); opacity: 0; } }
+.modal-backdrop.is-side[data-state='closing'] > .modal-side {
+  animation: panel-sale var(--fast) both;
+}
+@keyframes panel-sale { to { transform: translateX(24px); opacity: 0; } }
+
+/* En el móvil no hay «al lado»: la pantalla entera es el detalle, así que la
+   hoja ocupa el ancho y sube desde abajo, que es el gesto de siempre. */
+@media (max-width: 720px) {
+  .modal-side {
+    max-width: 100%; height: auto; max-height: 88vh;
+    border-radius: var(--r-xl) var(--r-xl) 0 0; border: 1px solid var(--edge);
+    animation: modal-sube var(--normal) var(--ease) both;
+  }
+  .modal-backdrop.is-side { place-items: end stretch; }
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4) var(--s5); }
+.modal-title { font-size: var(--fs-md); font-weight: 650; }
+/* `overscroll-behavior`: al llegar al final del cuerpo, el gesto de scroll no
+   se encadena al fondo bloqueado — sin él, iOS «rebota» la página de detrás y
+   al cerrar aparece desplazada. */
+.modal-body { padding: 0 var(--s5) var(--s5); overflow-y: auto; overscroll-behavior: contain; }
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: var(--s2);
+  padding: var(--s4) var(--s5); border-top: 1px solid var(--hairline); flex-wrap: wrap;
+}
+
+/* ── Bienvenida ────────────────────────────────────────────────────────────
+   El cuerpo de cada paso reutiliza `.empty` —icono en círculo, título y párrafo
+   de 44ch, centrados—, que es exactamente la misma forma. Lo único propio es el
+   pie: el indicador de posición a la izquierda y la navegación a la derecha.
+
+   `.modal-footer` alinea a la derecha, así que el pie ocupa el ancho entero y
+   reparte por dentro. Envuelve en móvil, donde «Crear mi primer cliente» y
+   «Atrás» no caben en una línea junto a los puntos. */
+.tour-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); width: 100%; flex-wrap: wrap;
+}
+.tour-dots { display: inline-flex; align-items: center; gap: 6px; }
+.tour-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--fill-strong); transition: background-color var(--fast), width var(--fast);
+}
+/* El paso actual es una cápsula, no un punto más oscuro: en tema claro la
+   diferencia de color sola casi no se ve. */
+.tour-dot.is-on { width: 18px; border-radius: var(--r-pill); background: var(--accent); }
+
+.popover {
+  position: absolute; z-index: 60; background: var(--surface);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md); padding: 5px; min-width: 208px;
+  /* El mínimo de 208 px cuelga a veces de un campo estrecho (el autocompletar
+     del alta de ejercicio): sin tope, en 390 px se salía de la pantalla. */
+  max-width: calc(100vw - 2 * var(--s4));
+  box-shadow: var(--shadow-lg); animation: pop 0.16s var(--ease);
+}
+@keyframes pop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
+.popover-right { right: 0; }
+
+/* ── La salida ─────────────────────────────────────────────────────────────
+   Cada overlay entra con cuidado y hasta ahora desaparecía de un corte: React
+   no puede animar lo que desmonta. `useDismissable` (lib/useDismissable.js)
+   retrasa el desmonte y marca la raíz con `data-state="closing"`; estas reglas
+   son la otra mitad. Selectores de ATRIBUTO y no clases nuevas: el estado de un
+   ciclo de vida no es una clase de la pieza.
+
+   La salida dura `--fast` aunque la entrada fuera más lenta: abrir presenta y
+   puede recrearse; cerrar es obedecer, y se obedece rápido. `both` retiene el
+   último fotograma para que no haya un parpadeo entre el fin de la animación y
+   el desmonte real. */
+@keyframes fade-sale { to { opacity: 0; } }
+@keyframes modal-sale { to { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@keyframes modal-baja { to { opacity: 0; transform: translateY(24px); } }
+@keyframes pop-sale { to { opacity: 0; transform: scale(0.97); } }
+
+.modal-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
+.modal-backdrop[data-state='closing'] > .modal { animation: modal-sale var(--fast) both; }
+.popover[data-state='closing'] { animation: pop-sale var(--fast) both; }
+
+.menu-item {
+  font-family: inherit; width: 100%;
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 8px 10px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--text);
+  font-size: var(--fs-base); font-weight: 500; text-align: left; cursor: pointer;
+  transition: background-color var(--fast);
+}
+.menu-item:hover { background: var(--fill-subtle); }
+.menu-item-danger { color: var(--negative); }
+
+
+/* ══ EL HUECO DEL GLIFO: lo que hace que un botón no cambie de forma ════════
+   Ver `BotonAccion` en `ui/primitives.jsx`.
+
+   Un botón que tarda enseñaba «Guardando…» en lugar de su rótulo, y con eso
+   pasaba de «Cerrar y pasar a Marta →» a una palabra: se encogía a la mitad
+   justo cuando el dedo acababa de soltarlo, y al terminar volvía a crecer. Dos
+   saltos de tamaño en el elemento que se acaba de pulsar.
+
+   Ahora el rótulo no se toca. Lo que cambia es un hueco de ancho fijo delante
+   de él —donde ya vive el icono, si lo hay— y ahí se turnan el icono, el giro y
+   el tic. Los botones sin icono no reservan el hueco en reposo: lo abren al
+   pulsarlos, con la misma transición que todo lo demás, así que el crecimiento
+   se lee como el acuse de recibo y no como un salto. */
+.btn-glifo {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; flex-shrink: 0; overflow: hidden;
+  transition: width var(--fast), margin-right var(--fast);
+}
+.btn-glifo.is-hueco { width: 0; margin-right: calc(var(--s2) * -1); }
+.btn-rotulo { display: inline-flex; align-items: center; gap: var(--s2); transition: opacity var(--fast); }
+
+/* ── Y los que NO tienen icono ─────────────────────────────────────────────
+   Ahí no hay hueco que ocupar, y abrir uno hacía crecer el botón 23 px al
+   pulsarlo: justo lo que esto venía a evitar. Así que el giro se pone ENCIMA y
+   el rótulo se apaga. La caja no se mueve un píxel —el rótulo sigue ocupando su
+   sitio, solo que invisible— y el giro queda centrado en el botón entero. */
+.btn.is-sin-icono { position: relative; }
+.btn.is-sin-icono[data-estado='ocupado'] > .btn-rotulo,
+.btn.is-sin-icono[data-estado='hecho'] > .btn-rotulo { opacity: 0; }
+.btn.is-sin-icono[data-estado='ocupado'] > .btn-glifo,
+.btn.is-sin-icono[data-estado='hecho'] > .btn-glifo {
+  position: absolute; inset: 0; width: auto; margin: 0;
+}
+/* Mientras trabaja y al confirmar no se pulsa, pero tampoco se apaga: un botón
+   al 40 % de opacidad en mitad de su propio trabajo parece averiado. */
+.btn[data-estado='ocupado']:disabled,
+.btn[data-estado='hecho']:disabled { opacity: 1; cursor: default; }
+.btn[data-estado='hecho'] > .btn-glifo { color: var(--positive); }
+.btn-primary[data-estado='hecho'] > .btn-glifo { color: inherit; }

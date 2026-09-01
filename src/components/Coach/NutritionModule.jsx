@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Copy, FileSpreadsheet, Footprints, HeartPulse, Plus } from 'lucide-react';
+import { Copy, FileUp, Footprints, HeartPulse, Plus } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import {
@@ -127,8 +127,8 @@ export const NutritionModule = () => {
   const save = saveStatus('nutrition', activeClient.id);
 
   const [dietView, setDietView] = useState('training');
-  /* «Traer de un Excel»: la dieta que el cliente trae de fuera, pegada o subida
-     —y, si el mismo fichero la trae, también su rutina—. */
+  /* «Traer de un fichero»: la dieta que el cliente trae de fuera —y, si el
+     mismo fichero la trae, también su rutina—. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
   /* Reordenar comidas arrastrándolas por el asa, como los ejercicios de la
      hoja de Entreno: quién se arrastra y sobre quién se está soltando. */
@@ -268,7 +268,7 @@ export const NutritionModule = () => {
           run: traerLaOtra,
         },
         null,
-        { icon: FileSpreadsheet, label: 'Traer de un Excel o PDF', run: () => setPegarAbierto(true) },
+        { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
       ]}
     />
   );
@@ -340,8 +340,8 @@ export const NutritionModule = () => {
             {/* Con plan por macros no hay comidas que añadir: lo único que se
                 puede traer es una dieta de fuera, y ese botón se queda aquí. */}
             {!cerrado && (
-              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setPegarAbierto(true)}>
-                Traer de un Excel o PDF
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPegarAbierto(true)}>
+                Traer de un fichero
               </button>
             )}
             {/*

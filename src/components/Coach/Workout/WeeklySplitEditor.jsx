@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { WEEK_DAYS, isRestDay } from '@/domain/training';
 
 /**
@@ -28,10 +30,43 @@ import { WEEK_DAYS, isRestDay } from '@/domain/training';
  *
  * @param days  Las hojas del bloque, para ofrecerlas en el selector.
  */
+/*
+  ══ Y CUANDO NO HAY REPARTO, NO SE PINTAN SIETE CAJAS VACÍAS ═════════════════
+
+  Un bloque recién montado no tiene ningún día asignado, así que esta fila salía
+  como SIETE desplegables idénticos que decían «Descanso». Ocupaba noventa
+  píxeles a lo ancho de la pantalla más importante del producto para no contar
+  nada: siete veces la misma palabra no es una semana, es un formulario en
+  blanco. Y peor, leído rápido dice lo contrario de lo que pasa —parece que le
+  has programado siete días de descanso a propósito.
+
+  Así que el vacío o invita o desaparece: una frase que dice lo que hay y el
+  botón que lo arregla. Los siete selectores siguen ahí, a un clic, y en cuanto
+  UN día tiene hoja vuelven solos —a partir de ahí la rejilla sí cuenta algo.
+*/
 const DESCANSO = 'Descanso';
 
 export const WeeklySplitEditor = ({ split, onChange, days = [], disabled = false }) => {
   const nombres = days.map((d) => d.dayName);
+  const sinRepartir = WEEK_DAYS.every((d) => isRestDay(split?.[d] ?? DESCANSO));
+  const [abierto, setAbierto] = useState(false);
+
+  if (sinRepartir && !abierto) {
+    return (
+      <p className="split-vacia">
+        <span>
+          {nombres.length === 0
+            ? 'Todavía no hay hojas que repartir.'
+            : 'Ninguna hoja tiene día asignado: el cliente las ve todas juntas.'}
+        </span>
+        {!disabled && nombres.length > 0 && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAbierto(true)}>
+            Repartirlas por días
+          </button>
+        )}
+      </p>
+    );
+  }
 
   return (
     <div className="split-grid">

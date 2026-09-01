@@ -1,0 +1,217 @@
+/* ==========================================================================
+   La voz
+   --------------------------------------------------------------------------
+   Rótulos, títulos de sección y de tarjeta, y las utilidades de texto. Qué
+   grita y qué no se decide aquí.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Tipografía
+   ========================================================================== */
+
+.t-secondary { color: var(--text-secondary); }
+.t-tertiary { color: var(--text-tertiary); }
+/* Una línea que avisa sin ser un aviso. Para lo que está mal en UNA fila de una
+   lista —«sin compartir: no tiene correo»— donde un `Notice` arriba obligaría a
+   recordar de quién hablaba mientras se baja a buscarlo. */
+.t-warning { color: var(--warning); }
+.t-2xs { font-size: var(--fs-2xs); }
+.t-xs { font-size: var(--fs-xs); }
+.t-sm { font-size: var(--fs-sm); }
+.t-md { font-size: var(--fs-md); }
+.t-strong { font-weight: 650; }
+
+/* ── Una frase por ancho ───────────────────────────────────────────────────
+   Para textos que tienen versión completa y versión de bolsillo (el aviso del
+   plan fue el primero: seis líneas en móvil, en todas las pantallas). El corte
+   es el del armazón, 720 px. Son para TEXTO en línea; una caja que cambie por
+   ancho tiene su sitio en la media query de su componente, no aquí. */
+.solo-movil { display: none; }
+@media (max-width: 720px) {
+  .solo-escritorio { display: none; }
+  .solo-movil { display: inline; }
+}
+
+/* ── Icono dentro de una frase ─────────────────────────────────────────────
+   Para un icono de lucide que va EN LÍNEA con texto (una etiqueta, una nota).
+   Estaba copiado a mano como `style` en una veintena de sitios, con el ajuste
+   vertical divergiendo entre -1 y -2 px según quién lo copiara. En `em` se
+   escala con el cuerpo del texto en el que va, que es lo que el número suelto
+   no hacía. */
+.icon-inline { display: inline; vertical-align: -0.16em; margin-right: 0.32em; }
+
+/* Texto que conserva los saltos de línea tal y como se escribieron: notas del
+   entrenador, respuestas, pautas. También estaba repetido como `style` inline. */
+.pre-wrap { white-space: pre-wrap; }
+
+/* ── La etiqueta troquelada ────────────────────────────────────────────────
+   Encabezado de columna / etiqueta de sección: 10-11px, versalita, peso alto y
+   el interletraje muy abierto. Es la serigrafía de un disco o el rótulo de una
+   máquina, y es lo que ordena la pantalla ahora que el cromo no puede usar
+   color para hacerlo.
+
+   El tracking sale de `--tracking-stencil` y no de un número suelto porque el
+   mismo valor aparece en una docena de reglas: si diverge, unas etiquetas leen
+   como rótulo y otras como texto pequeño en mayúsculas, que no es lo mismo. */
+/* ══ LA ETIQUETA TROQUELADA, y las ocho que eran la misma ══════════════════
+   La versalita que estructura la pantalla ahora que el cromo no puede usar
+   color. Estaba escrita OCHO veces, byte por byte, repartida por seis mil
+   líneas: el rótulo de un bloque, el de una bandeja, el de una baldosa de la
+   ficha, el de una tarjeta de dato, el de una serie, el de una comida y el del
+   estudio de fotos. Ninguna copia estaba mal — el problema es que si alguien
+   cambia el interletraje del troquel, siete sitios no se enteran.
+
+   Son un dibujo y no ocho, así que se dicen una vez. La fuente ya la reparte la
+   lista de Archivo de arriba, con estas mismas ocho dentro.                  */
+/* El bloque de declaraciones se había PERDIDO al juntar las cinco en una: la
+   lista de selectores seguía por la coma, se comía el comentario de abajo y
+   acababa en `.section-label.is-group`, cuyas dos declaraciones eran las únicas
+   que se aplicaban. Resultado: la troquelada dejó de ser troquelada en toda la
+   aplicación —ni versalita, ni interletraje, ni peso— y el rótulo de cada
+   tarjeta pasó a leerse como texto pequeño gris, por debajo de las etiquetas
+   que sí llevan su propio `text-transform` dentro (`.palanca-k`,
+   `.bloque-titulo`). La jerarquía quedó del revés.
+
+   ── Y por qué el título de una tarjeta de métrica está en esta lista ────────
+   Porque era la SEGUNDA forma de titular una tarjeta. En Cobros convivían las
+   dos a treinta píxeles: «Recurrente al mes» en caja normal arriba y «POR
+   COBRAR» troquelado justo debajo, las dos diciendo de qué va la caja que
+   tienen delante. Con dos, el ojo no aprende ninguna —entrar en una pantalla
+   nueva y saber al instante qué es un rótulo deja de ser posible—, y no había
+   una regla que dijera cuándo tocaba cada una: tocaba la que usara el
+   componente con el que estuviera hecha la tarjeta.
+
+   Ahora el rótulo de una tarjeta es UNO. Los cuatro rangos siguen siendo los
+   de `ui/primitives` —pantalla, tanda, bloque, pieza—; lo que se ha ido es la
+   variante que no era un rango, solo otro componente. */
+.section-label,
+.tray-title,
+.stat-label,
+.set-cell-tag,
+.ficha-fact > .k {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+
+/* ── El título de una tarjeta, en frase ────────────────────────────────────
+   Lo que titula una caja se lee como un título, no como un rótulo grabado:
+   caja normal, tinta plena y en la voz de Archivo. La versalita se queda
+   para lo que de verdad es etiqueta —cabeceras de columna, el nombre de una
+   tanda—, que es donde no compite con nada. */
+.tarjeta-cab > .section-label,
+.metric-title,
+.widget-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-base); font-weight: 640; letter-spacing: -0.012em;
+  text-transform: none; color: var(--text);
+}
+
+/* La misma troquelada, un punto más grande y en tinta plena: es el nombre de una
+   TANDA de bloques, no el de uno. Ver `GroupHead` en `ui/primitives.jsx`. */
+.section-label.is-group { font-size: var(--fs-xs); color: var(--text); }
+
+.group-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.group-head p { font-size: var(--fs-sm); color: var(--text-secondary); margin-top: 3px; }
+
+/* ── La cabecera de una pantalla ───────────────────────────────────────────
+   Cómo se llama esto y qué se hace aquí. El `h1` es el título de la pantalla:
+   antes ninguna del panel tenía uno y la jerarquía empezaba en `h2`, colgando de
+   la nada. Ver `PageHead` en `ui/primitives.jsx`. */
+/* ══ LA PORTADA DE PANTALLA ══════════════════════════════════════════════════
+   La cabecera de una pantalla ya no es una línea de texto sobre una pila de
+   tarjetas: es su PORTADA. Titular a tamaño de titular (38 px, la voz de la
+   portada pública traída adentro), el remate en cursiva de Archivo para la
+   parte humana —«Hoy, martes 19», «Hola, Marta»— y debajo el canto que la
+   remata: un filete y LA REGLA, las marcas de graduación que son la firma del
+   producto.
+
+   La regla vivía en la cabecera pegajosa, «enmarcando la jornada»; la cabecera
+   ya no existe en escritorio y su papel lo hereda esto, que es lo que ahora
+   enmarca cada pantalla. Sigue siendo UNA aparición por pantalla: no es una
+   textura, es el canto del instrumento. */
+.section-head {
+  position: relative;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--hairline);
+}
+.section-head h1, .section-head h2 {
+  font-family: var(--font-display); font-size: var(--fs-2xl);
+  font-weight: 720; letter-spacing: -0.028em; line-height: var(--lh-tight);
+}
+/* El remate: cursiva de verdad (fuente, no sesgo sintético) y tinta
+   secundaria. Para la parte humana del título, no para un segundo título. */
+.section-head h1 em, .section-head h2 em {
+  font-style: italic; font-weight: 560;
+  color: var(--text-secondary); letter-spacing: -0.012em;
+}
+.section-head p { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+.section-title {
+  display: flex; align-items: center; gap: var(--s2);
+  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.018em; min-width: 0;
+}
+
+/* ── El aire de un `h3` dentro de un bloque ────────────────────────────────
+   `.section-title` solo llevaba tipografía: ni un margen. Con un apartado por
+   bloque no se notaba; con cuatro —los que tiene la radiografía— cada título
+   sale pegado a lo que acaba encima y a lo que empieza debajo, y un título
+   pegado a lo de arriba NO titula: se lee como una línea más de aquello.
+
+   Por arriba, solo cuando no es lo primero del bloque: si lo es, el aire ya lo
+   pone la cabecera del panel. Y como los dos son márgenes de hermanos en flujo
+   normal, se solapan en vez de sumarse — no hay que restar nada a mano.
+
+   Asimétrico a propósito, y bastante: 22 px por arriba contra 8 por abajo. Un
+   título tiene que estar más cerca de lo que nombra que de lo que lo precede,
+   o el ojo lo agrupa con el apartado anterior. Repartir el aire a partes
+   iguales es el error clásico de esto. */
+.section-title-row { margin-bottom: var(--s2); }
+.section-title-row:not(:first-child) { margin-top: var(--s5); }
+
+/* El nombre de un día del microciclo. Vivía como `style={{ fontSize:
+   'var(--fs-lg)' }}` escrito a mano en DOS archivos —el editor del entrenador y
+   la rutina del cliente—, que es la forma más barata de que dentro de un mes
+   midan cosas distintas. */
+.day-name { font-size: var(--fs-lg); }
+
+/* ── La cabecera de un BLOQUE ──────────────────────────────────────────────
+   No la de la pantalla —esa es `.section-head`, y hay una sola por pantalla—
+   sino la de cada pieza de dentro. Ver `Panel` en `ui/primitives.jsx`.
+
+   El título va en etiqueta troquelada y no en `<h2>`, y eso es lo que deja la
+   jerarquía en TRES niveles y no en seis: el `h1` de la pantalla, la troquelada
+   del bloque y el `h3` de un sub-bloque. Antes había cinco formas de titular un
+   bloque y ninguna era la de al lado.
+
+   ── Y NO lleva filete debajo ────────────────────────────────────────────
+   Se probó con uno y convierte la pantalla en una rejilla de tabla: seis bloques
+   son seis líneas horizontales más, y en el tema claro eso ya es una hoja de
+   cálculo. La troquelada separa por sí sola —es diminuta, en versalita y en
+   tinta terciaria— y lo único que necesita es aire.
+
+   Tampoco lleva la REGLA, que sería lo primero que uno piensa: los tokens dicen
+   que solo aparece donde de verdad hay una escala, y repetirla en la cabecera de
+   cada bloque la convertiría en textura. Un adorno que sale siempre deja de
+   significar «aquí se mide». */
+.panel-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  margin-bottom: var(--s3);
+}
+.panel-head-say { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.panel-head-sub { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* Un bloque sin relleno propio —una lista a sangre— necesita que su cabecera lo
+   tenga, o el título queda pegado al canto de la tarjeta. */
+.card-flush > .panel-head { padding: var(--s4) var(--s4) 0; margin-bottom: var(--s3); }
+

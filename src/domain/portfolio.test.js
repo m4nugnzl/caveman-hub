@@ -332,7 +332,15 @@ describe('la cola de revisiones', () => {
   const LUNES = '2026-08-17';
 
   const fila = (name, { weekday = 3, everyWeeks = 1, startDate = '2026-08-17' } = {}, review = {}, checkIn = {}) => ({
-    client: { id: name, name, startDate, preferences: { checkin: { weekday, everyWeeks } } },
+    /* Con cuenta enlazada, que es el caso normal: sin ella no se le puede
+       reclamar nada porque no puede ni entrar a entregarlo. */
+    client: {
+      id: name,
+      name,
+      startDate,
+      clientProfileId: 'user-1',
+      preferences: { checkin: { weekday, everyWeeks } },
+    },
     review: { exact: true, submittedAt: null, reviewedAt: null, pending: false, id: 'ci', ...review },
     checkIn: { count: 0, target: 3, weekStart: LUNES, ...checkIn },
     severity: 'baja',
@@ -340,6 +348,19 @@ describe('la cola de revisiones', () => {
 
   it('sin día elegido no se reclama nada', () => {
     expect(reviewState(fila('Sin día', { weekday: null }), HOY)).toBe('off');
+  });
+
+  /*
+    Salía como «Sin subir», y era la aplicación reclamándole un check-in a
+    alguien que no puede ni entrar a entregarlo — mientras dos bloques más abajo
+    le pedía al entrenador justamente que le diera acceso. Lo que hay que hacer
+    con esta persona es invitarla, y de eso ya se encarga la alerta `no_account`.
+  */
+  it('sin cuenta enlazada no se le reclama nada, aunque le tocara', () => {
+    const row = fila('Franco');
+    row.client.clientProfileId = null;
+    expect(reviewState(row, HOY)).toBe('off');
+    expect(reviewQueue([row], HOY)).toEqual([]);
   });
 
   /* El jueves por la mañana nadie ha hecho el check-in del jueves. Antes del día

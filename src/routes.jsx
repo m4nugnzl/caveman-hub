@@ -12,6 +12,7 @@ import {
   Ruler,
   Salad,
   Home,
+  UserRound,
   Users,
   UsersRound,
   Wallet,
@@ -386,6 +387,27 @@ export const SETTINGS_SECTIONS = [
     ocupada por la pantalla de facturación, que se abre una vez al mes. La suya
     es «Suscripción», que además es la que dice de qué va sin abrirla.
   */
+  /*
+    Tu perfil: tu nombre y con qué correo entras.
+
+    Va la primera de «Tu cuenta» porque es la más elemental de las dos —quién
+    eres antes que cuánto pagas— y porque es la que tiene arreglo si algo está
+    mal. Hasta ahora no existía en ninguna parte: `profiles.full_name` se leía en
+    cinco sitios y no se escribía en ninguno, así que quien entrara con Google o
+    dejara el nombre en blanco en el alta se quedaba con su correo de nombre y
+    sin forma de corregirlo.
+
+    Y NO es un ítem del menú de la cuenta, que fue el primer intento: un ajuste
+    que se toca una vez no puede ocupar el primer renglón de un menú que se abre
+    a diario. El menú lleva a Ajustes; los campos están detrás de esa puerta.
+  */
+  {
+    path: 'perfil',
+    label: 'Perfil',
+    icon: UserRound,
+    hint: 'Tu nombre y con qué correo entras',
+    group: 'Tu cuenta',
+  },
   {
     path: 'plan',
     label: 'Suscripción',

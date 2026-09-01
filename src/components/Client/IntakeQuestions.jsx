@@ -10,7 +10,14 @@ import {
   isRequired,
 } from '@/domain/intakeForm';
 import { MAX_FIELD, customAnswers, examplePlaceholder } from '@/domain/profile';
-import { Field, Notice, NumberInput, Panel } from '@/components/ui/primitives';
+import {
+  BotonAccion,
+  Field,
+  Notice,
+  NumberInput,
+  Panel,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 
 /** Una respuesta cuenta si tiene algo dentro. El mismo criterio que `formProgress`. */
 const puesto = (valor) => valor !== undefined && valor !== null && valor !== '';
@@ -134,7 +141,8 @@ export const IntakeQuestions = ({ client }) => {
   /* El borrador arranca con lo ya contestado: volver a la pantalla tiene que
      enseñar lo que puso, no un formulario en blanco que invita a repetirlo. */
   const [borrador, setBorrador] = useState(() => ({ ...perfil, custom: { ...propias } }));
-  const [guardando, setGuardando] = useState(false);
+  /* El giro y el tic del botón de guardar; ver `BotonAccion`. */
+  const guardado = useAccionDeBoton();
   const [aviso, setAviso] = useState(null);
   /*
     ¿Hay algo escrito y sin mandar?
@@ -171,36 +179,37 @@ export const IntakeQuestions = ({ client }) => {
 
   const valorDe = (field) => (field.custom ? borrador.custom?.[field.id] : borrador[field.id]);
 
-  const guardar = async (e) => {
+  const guardar = (e) => {
     e.preventDefault();
-    setGuardando(true);
-    setAviso(null);
+    guardado.lanzar(async () => {
+      setAviso(null);
 
-    /*
-      Se manda SOLO lo que este formulario pregunta, no el borrador entero.
+      /*
+        Se manda SOLO lo que este formulario pregunta, no el borrador entero.
 
-      El borrador arrastra lo que ya había en el perfil —incluido lo que apuntó
-      el entrenador y que aquí ni se pinta—, y devolvérselo tal cual sería
-      escribirlo otra vez con el valor que tuviera al abrir la pantalla. Mandando
-      solo lo preguntado, la mezcla de `set_client_profile` hace lo que dice.
-    */
-    const respuestas = {};
-    for (const id of form.asked) respuestas[id] = borrador[id] ?? null;
-    if (form.custom.length > 0) {
-      respuestas.custom = {
-        ...propias,
-        ...Object.fromEntries(form.custom.map((q) => [q.id, borrador.custom?.[q.id] ?? null])),
-      };
-    }
+        El borrador arrastra lo que ya había en el perfil —incluido lo que apuntó
+        el entrenador y que aquí ni se pinta—, y devolvérselo tal cual sería
+        escribirlo otra vez con el valor que tuviera al abrir la pantalla. Mandando
+        solo lo preguntado, la mezcla de `set_client_profile` hace lo que dice.
+      */
+      const respuestas = {};
+      for (const id of form.asked) respuestas[id] = borrador[id] ?? null;
+      if (form.custom.length > 0) {
+        respuestas.custom = {
+          ...propias,
+          ...Object.fromEntries(form.custom.map((q) => [q.id, borrador.custom?.[q.id] ?? null])),
+        };
+      }
 
-    const res = await saveClientProfile(client.id, respuestas);
-    setGuardando(false);
-    if (res.ok) setTocado(false);
-    setAviso(
-      res.ok
-        ? { tone: 'success', text: 'Guardado. Puedes volver y cambiarlo cuando quieras.' }
-        : { tone: 'error', text: res.error }
-    );
+      const res = await saveClientProfile(client.id, respuestas);
+      if (res.ok) setTocado(false);
+      setAviso(
+        res.ok
+          ? { tone: 'success', text: 'Guardado. Puedes volver y cambiarlo cuando quieras.' }
+          : { tone: 'error', text: res.error }
+      );
+      return res.ok;
+    });
   };
 
   return (
@@ -306,13 +315,17 @@ export const IntakeQuestions = ({ client }) => {
                 ? 'Lo tienes todo contestado.'
                 : `Te faltan ${progreso.total - progreso.done} por contestar. Puedes dejarlo a medias.`}
           </span>
-          <button
+          {/* El rótulo ya no hace de indicador: «Guardado» en reposo era un
+              estado disfrazado de acción. Ahora dice siempre lo que hace y el
+              tic del botón confirma cuando ocurre. */}
+          <BotonAccion
             type="submit"
             className="btn btn-primary btn-sm shrink-0"
-            disabled={guardando || !tocado}
+            estado={guardado.estado}
+            disabled={!tocado}
           >
-            {guardando ? 'Guardando…' : tocado ? 'Guardar' : 'Guardado'}
-          </button>
+            Guardar
+          </BotonAccion>
         </div>
       </form>
     </Panel>

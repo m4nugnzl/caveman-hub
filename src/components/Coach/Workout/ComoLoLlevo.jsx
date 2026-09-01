@@ -7,17 +7,30 @@ import { Subjetivo } from '@/components/ui/Subjetivo';
  * habla de un ejercicio; esto habla de la sesión entera. Si no hay sesión o
  * no contó nada, no se pinta una tarjeta vacía.
  */
-export const ComoLoLlevo = ({ sesion, preguntas = [], fecha = null, onAmpliar = null }) => {
+/*
+  `rotulo` y `pista` existen porque esta tarjeta la ven los dos lados y la
+  persona de la que habla cambia: el entrenador lee «cómo lo llevó» y el
+  cliente, «cómo lo llevas». Es lo único que cambia entre las dos, así que son
+  dos textos con el valor del entrenador por defecto y no un `audience`.
+*/
+export const ComoLoLlevo = ({
+  sesion,
+  preguntas = [],
+  fecha = null,
+  onAmpliar = null,
+  rotulo = 'Cómo lo llevó',
+  pista = 'Ver cómo lo lleva, sesión a sesión',
+}) => {
   if (!sesion?.feedback) return null;
   const hay = preguntas.some((q) => String(sesion.feedback[q.id] ?? '').trim() !== '');
   if (!hay && !sesion.clientNote?.trim()) return null;
 
   return (
-    <aside className="comparativa como-lo-llevo" aria-label="Cómo lo llevó">
+    <aside className="comparativa como-lo-llevo" aria-label={rotulo}>
       <div className="lado-cab">
-        <span className="section-label">Cómo lo llevó</span>
+        <span className="section-label">{rotulo}</span>
         <div className="lado-cab-fila">
-          <button type="button" className="lado-titulo" onClick={onAmpliar} disabled={!onAmpliar} title="Ver cómo lo lleva, sesión a sesión">
+          <button type="button" className="lado-titulo" onClick={onAmpliar} disabled={!onAmpliar} title={pista}>
             {fecha ? `Sesión del ${fecha}` : 'Esta sesión'}
           </button>
         </div>

@@ -29,6 +29,7 @@ import { RangeChips } from '@/components/ui/ChartCard';
 import { Delta, MetricCard, MetricRow } from '@/components/ui/metrics';
 import { ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import {
+  BotonAccion,
   EmptyState,
   Field,
   Fold,
@@ -531,7 +532,6 @@ export const Seguridad = ({ hallazgos = [], aviso = null, onAceptar, dias }) => 
   const [soloPendientes, setSoloPendientes] = useState(true);
   const [elegidas, setElegidas] = useState(() => new Set());
   const [motivo, setMotivo] = useState('');
-  const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState(null);
 
   const visibles = hallazgos.filter((h) => {
@@ -556,9 +556,7 @@ export const Seguridad = ({ hallazgos = [], aviso = null, onAceptar, dias }) => 
   };
 
   const enviar = async () => {
-    setGuardando(true);
     const hecho = await onAceptar({ claves: [...elegidas], motivo: motivo.trim(), dias });
-    setGuardando(false);
 
     /*
       ══ Solo se limpia si de verdad se guardó ═══════════════════════════════
@@ -573,17 +571,18 @@ export const Seguridad = ({ hallazgos = [], aviso = null, onAceptar, dias }) => 
     */
     if (!hecho) {
       setResultado({ fallo: true });
-      return;
+      return false;
     }
 
     setResultado(hecho);
     setElegidas(new Set());
     setMotivo('');
+    return true;
   };
 
   /* El motivo es obligatorio y el botón lo dice estando apagado. Es la misma
      regla que impone el CHECK de la 0074 y que exige `--aceptar-nuevos`. */
-  const puedeEnviar = elegidas.size > 0 && motivo.trim().length >= 3 && !guardando;
+  const puedeEnviar = elegidas.size > 0 && motivo.trim().length >= 3;
 
   return (
     <Panel
@@ -677,9 +676,9 @@ export const Seguridad = ({ hallazgos = [], aviso = null, onAceptar, dias }) => 
             />
           </Field>
 
-          <button type="button" className="btn btn-primary" onClick={enviar} disabled={!puedeEnviar}>
-            {guardando ? 'Guardando…' : `Aceptar ${elegidas.size}`}
-          </button>
+          <BotonAccion className="btn btn-primary" onClick={enviar} disabled={!puedeEnviar}>
+            Aceptar {elegidas.size}
+          </BotonAccion>
         </>
       )}
 

@@ -107,6 +107,18 @@ export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
               </button>
               {CAMPOS.map((campo) => {
                 const ofrece = campo.key === 'carbs' && faltaCarbs && sugerido !== null;
+                /* Sin `onTarget` esto se LEE y no se escribe: es la misma tabla
+                   en el portal del cliente, donde el reparto por comida es lo
+                   que le han pautado y no algo que él decida. Se pinta con la
+                   misma celda para que las columnas no se muevan de sitio al
+                   cambiar de lado. */
+                if (!onTarget) {
+                  return (
+                    <span key={campo.key} className="is-num">
+                      <span className="hoja-celda is-lectura">{target[campo.key] ?? '—'}</span>
+                    </span>
+                  );
+                }
                 return (
                   <span key={campo.key} className="is-num">
                     <input

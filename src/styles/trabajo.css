@@ -1,0 +1,1237 @@
+/* ==========================================================================
+   Las hojas de trabajo
+   --------------------------------------------------------------------------
+   Tablas, el editor de rutina, el recorrido del alta, el cliente
+   registrando y las dietas. Las pantallas donde se PROGRAMA.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Tablas
+   ========================================================================== */
+
+.table-scroll { overflow-x: auto; }
+/* En el chasis móvil, una tabla de siete columnas SIEMPRE desborda, y sin
+   ninguna señal las columnas de más allá no existen para quien no descubra
+   que aquello se desplaza — la misma trampa que ya resolvió `.rail` con su
+   degradado de canto, así que es el mismo degradado. */
+@media (max-width: 1023.98px) {
+  .table-scroll {
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  }
+}
+.table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.table th {
+  color: var(--text-tertiary); font-weight: 650; font-size: var(--fs-2xs);
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  text-align: left; padding: 0 10px 8px; white-space: nowrap;
+}
+.table td { padding: 9px 10px; border-top: 1px solid var(--hairline); }
+.table .num { text-align: center; }
+.table .right { text-align: right; }
+/* Tres papeles de celda que se repetían escritos a mano en el JSX del historial
+   de antropometría. Aquí el color sí es del dato: el peso y el % graso son dos
+   series distintas y se leen con la tinta con la que se dibujan en la analítica. */
+.cell-strong { font-weight: 700; }
+.cell-weight { font-weight: 800; color: var(--data-amber); }
+.cell-pct { font-weight: 700; color: var(--data-blue); }
+.table-compact td, .table-compact th { padding: 6px 9px; }
+
+/* ── Una cabecera que ordena ───────────────────────────────────────────────
+   El botón va DENTRO del `th`, no un `onClick` en la celda: una celda con
+   manejador no entra en el recorrido del tabulador, así que con el teclado la
+   tabla no se podría ordenar en absoluto. Hereda toda la tipografía de la
+   cabecera para que una columna ordenable y una que no se lean igual — lo único
+   que las distingue es la flecha, y solo cuando sirve de algo.
+
+   La flecha se ve SIEMPRE en la columna activa y solo al apuntar en las demás:
+   seis flechas encendidas a la vez son seis cosas que parecen estar pasando. Y
+   en pantalla táctil no hay `hover`, así que la activa no puede depender de él. */
+.th-orden {
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
+  background: none; border: 0; padding: 0; margin: 0;
+  display: inline-flex; align-items: center; gap: 4px;
+  cursor: pointer;
+  transition: color var(--fast);
+}
+.th-orden:hover { color: var(--text); }
+.th-orden > svg { opacity: 0; flex-shrink: 0; transition: opacity var(--fast); }
+.th-orden:hover > svg { opacity: 0.5; }
+.table th[aria-sort='ascending'] > .th-orden,
+.table th[aria-sort='descending'] > .th-orden { color: var(--text); }
+.table th[aria-sort='ascending'] > .th-orden > svg,
+.table th[aria-sort='descending'] > .th-orden > svg { opacity: 1; }
+.table tfoot td { border-top: 1px solid var(--hairline-strong); font-weight: 650; color: var(--text); }
+
+/* ==========================================================================
+   Editor de rutina
+   ========================================================================== */
+
+/* La fecha del microciclo, en voz baja: sin caja hasta que se toca. Es un dato
+   que se corrige de vez en cuando, no un formulario permanente. */
+.mcb-fecha { align-items: center; }
+.mcb-fecha .input {
+  background: transparent; border-color: transparent;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.mcb-fecha .input:hover { border-color: var(--edge); }
+.mcb-fecha .input:focus { background: var(--surface-sunken); border-color: var(--hairline-strong); }
+
+/* La barra de la sesión: una FILA del panel, no una caja hundida dentro de la
+   tarjeta del día. La regla es la misma que en la barra lateral: dentro de una
+   superficie, las zonas las separa el espacio — cada caja de más se lee como
+   una caja dentro de una caja. */
+.session-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+
+/* Cabecera del día: ZONA del panel, no tarjeta dentro de la tarjeta. Llevó
+   superficie y borde propios con el argumento de que aplanarla le quitaba
+   jerarquía; la jerarquía la dan ahora el cuerpo del nombre, la barra de
+   reparto muscular y las métricas — tinta y dato, no cromo. (El `overflow`
+   tiene que quedarse visible: aquí dentro vive el menú ⋮, que es un
+   `position: absolute` y se cortaría.) */
+/* ── Dónde estaba la veta ──────────────────────────────────────────────────
+   Aquí vivía una tira de 3 px con el degradado del color de marca, encabezando
+   la cabecera del día, el saludo del cliente y la tarjeta de acceso. Se ha
+   retirado por dos motivos, y el segundo es el que importa:
+
+   1. Ya no puede existir: era el acento tumbado, y el acento dejó de tener
+      color. En acromático quedaba una barra gris sin significado.
+   2. Encabezaba esas tres piezas «porque son las que abren cada contexto», que
+      es una razón de composición, no del oficio. La firma nueva —LA REGLA, las
+      marcas de graduación de una cinta métrica— solo aparece donde de verdad se
+      mide algo: el canto de la cabecera y el carril de días de «Hoy». Un adorno
+      que solo sale cuando significa algo deja de ser adorno.
+
+   Las tres piezas se distinguen ahora por su canto, que es lo que hace un
+   instrumento. */
+.day-head {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: var(--s4);
+  position: relative;
+}
+
+/* El icono, sin caja: una pastilla con sombra dentro del panel era la tercera
+   superficie apilada de la misma cabecera. */
+.day-icon {
+  display: grid; place-items: center; flex-shrink: 0;
+  color: var(--accent);
+}
+
+/* Grupo de métricas del día (ejercicios / series / tonelaje). */
+/* ── El reparto del día ────────────────────────────────────────────────────
+   Una barra proporcional y su leyenda, con los colores de músculo de la
+   analítica. Antes eran distintivos sueltos: había que leerlos todos y sumar
+   mentalmente para saber si el día estaba equilibrado. La barra contesta eso sin
+   leer nada, y la leyenda da la cifra exacta a quien la necesite. */
+.day-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; max-width: 420px; }
+/* En el teléfono la cabecera del día se queda con lo que se decide ahí —el
+   nombre, moverlo, su menú—. El reparto por músculo y los contadores son
+   lectura de programación fina: en 390 px eran media pantalla de cifras antes
+   del primer ejercicio, y el índice ya dice el músculo de cada uno. */
+@media (max-width: 640px) {
+  .day-head .day-icon { display: none; }
+  .day-volume { display: none; }
+}
+.day-volume > .bar {
+  display: flex; height: 6px; border-radius: var(--r-pill); overflow: hidden;
+  background: var(--fill-subtle);
+}
+/* Una hebra de 1 px no se ve como un color, se ve como suciedad en el borde. */
+.day-volume > .bar > span { min-width: 3px; }
+
+.day-vol-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-2xs); color: var(--text-secondary); white-space: nowrap;
+}
+.day-vol-item > .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.day-vol-item > strong { color: var(--text); font-variant-numeric: tabular-nums; }
+
+.day-stats {
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5);
+  background: var(--surface); border-radius: var(--r-md);
+  padding: var(--s2) var(--s4);
+  box-shadow: var(--shadow-xs);
+}
+.day-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.day-stat > .v { line-height: 1.1; }
+/* En el teléfono los contadores sobran (ver el bloque de `.day-volume`): el
+   completado ya lo dice la franja de la sesión, justo debajo. DESPUÉS de la
+   base a propósito — antes perdía el empate de cascada y no escondía nada. */
+@media (max-width: 640px) { .day-stats { display: none; } }
+
+/* Fila de ejercicio: superficie propia con sombra, no un relleno plano. Con
+   ocho ejercicios seguidos, el relleno plano los fundía en un bloque. */
+/* `flex-wrap` en la base y no solo en el móvil: la nota del ejercicio ocupa la
+   línea entera (`.exercise-note`), así que necesita poder bajar de fila en
+   cualquier ancho. No cambia nada mientras no haya nota — el nombre tiene ancho
+   fijo y el carril de series encoge (`min-width: 0`) en vez de envolver. */
+.exercise {
+  background: var(--surface); border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s3); padding: var(--s3);
+  transition: box-shadow var(--fast), transform var(--fast);
+}
+.exercise:hover { box-shadow: var(--shadow-sm); }
+.exercise.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent), var(--shadow-md); }
+.exercise.is-dragging { opacity: 0.4; }
+
+.drag-handle {
+  cursor: grab; color: var(--text-tertiary); display: grid; place-items: center;
+  flex-shrink: 0; background: none; border: 0; padding: 4px; touch-action: none;
+}
+.drag-handle:hover { color: var(--text); }
+.drag-handle:active { cursor: grabbing; }
+
+/* ── Reordenar SIN arrastre ─────────────────────────────────────────────────
+   El arrastre es drag & drop de HTML5, que en una pantalla táctil directamente
+   no dispara, y el atajo Alt+flechas necesita teclado: en el móvil no había
+   NINGÚN camino para mover un ejercicio o un alimento. Los días ya lo habían
+   resuelto con sus flechas (`DayHeader`); este es el mismo gesto para las dos
+   listas que faltaban.
+
+   Solo existe en táctil: con ratón el asa ya hace esto mejor, y dos botones
+   más por fila en una lista de quince ejercicios son ruido. Donde salen los
+   botones, el asa se esconde — ahí es un adorno que no arrastra nada. */
+.touch-reorder { display: none; gap: 2px; flex-shrink: 0; }
+@media (hover: none) {
+  .exercise > .touch-reorder { display: inline-flex; }
+  .exercise > .drag-handle { display: none; }
+}
+/* En la tabla de comidas los botones solo caben en el reflujo de dos filas
+   (≤640): ninguna celda libre mide más de 26 px, así que reclaman una tercera
+   fila para ellos. Solo la ve el entrenador editando en táctil; en la rejilla
+   ancha de escritorio un hijo extra rompería la colocación automática. */
+@media (hover: none) and (max-width: 640px) {
+  .food-row > .touch-reorder { display: inline-flex; grid-area: 3 / 1 / 4 / 6; justify-self: start; }
+  .food-row > .drag-handle { display: none; }
+  .food-row > .name { padding-left: 0; }
+}
+
+/* ==========================================================================
+   Roadmap: el proceso como un recorrido
+   --------------------------------------------------------------------------
+   Un carril vertical que atraviesa las fases, con un nodo por tramo y la tarjeta
+   al lado. No es decoración: **el color del carril es el de la dirección de esa
+   fase**, así que de un vistazo se lee la secuencia entera —definición, mantener,
+   volumen— sin tener que leer ninguna palabra.
+
+   ── Por qué un bloque propio y no `.step` ─────────────────────────────────
+   `.step` es de los asistentes de integración y tiene DOS estados: hecho y por
+   hacer. Un recorrido tiene tres, y el que falta —dónde estás hoy— es el que más
+   importa. Además allí la línea que une es un separador gris y aquí es el dato.
+
+   ── El acabado ────────────────────────────────────────────────────────────
+   Superficies suaves, esquinas generosas y color contenido: el acento se gasta
+   entero en el tramo actual, y el pasado se apaga en vez de teñirse. Un mapa
+   donde todo brilla no señala nada. */
+
+.rmap { display: flex; flex-direction: column; }
+
+.rmap-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: var(--s3);
+  position: relative;
+  padding-bottom: var(--s4);
+}
+.rmap-item:last-child { padding-bottom: 0; }
+
+/* El tramo de carril que baja hasta la fase siguiente. Se pinta desde el nodo,
+   no entre tarjetas, para que no se corte al crecer una nota larga. */
+.rmap-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 14px; top: 30px; bottom: -2px; width: 2px;
+  border-radius: 1px;
+  background: var(--fase, var(--hairline));
+  opacity: 0.35;
+}
+/* Lo que aún no ha llegado va punteado: es plan, no recorrido. */
+.rmap-item.is-future:not(:last-child)::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--hairline) 0 4px,
+    transparent 4px 8px
+  );
+  opacity: 1;
+}
+
+.rmap-node {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: grid; place-items: center; flex-shrink: 0;
+  font-size: var(--fs-2xs); font-weight: 700;
+  color: var(--fase, var(--text-tertiary));
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--fase, var(--hairline));
+  z-index: 1;
+}
+.rmap-item.is-past > .rmap-node { background: var(--fase, var(--fill)); color: var(--surface); }
+.rmap-item.is-future > .rmap-node {
+  color: var(--text-tertiary);
+  box-shadow: inset 0 0 0 2px var(--hairline);
+}
+/* Dónde estás: halo del color de la fase. Es lo único que se resalta. */
+.rmap-item.is-current > .rmap-node {
+  box-shadow: inset 0 0 0 2px var(--fase, var(--accent)), 0 0 0 5px color-mix(in srgb, var(--fase, var(--accent)) 18%, transparent);
+}
+
+.rmap-card {
+  position: relative;
+  background: var(--surface-sunken);
+  border-radius: var(--r-lg);
+  padding: var(--s3) var(--s4);
+  display: flex; flex-direction: column; gap: var(--s2);
+  min-width: 0;
+}
+.rmap-item.is-current > .rmap-card {
+  background: var(--surface);
+  box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--edge);
+}
+.rmap-item.is-past > .rmap-card { opacity: 0.62; }
+
+.rmap-head { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+.rmap-head > strong { font-size: var(--fs-base); font-weight: 650; }
+.rmap-when { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* Las acciones aparecen al pasar por encima o al enfocar con el teclado, en la
+   píldora flotante que ya usan las piezas del resumen. Dos botones fijos por
+   fila convertían la lista en una barra de herramientas con datos al lado. */
+.rmap-card > .slot-tools,
+.rmap-fork > .slot-tools { opacity: 0; transition: opacity var(--fast); }
+.rmap-item:hover .slot-tools,
+.rmap-item:focus-within .slot-tools { opacity: 1; }
+@media (hover: none) {
+  .rmap-card > .slot-tools,
+  .rmap-fork > .slot-tools { opacity: 1; }
+}
+
+/* ── El cruce: donde el carril se abre ──────────────────────────────────────
+   Su nodo pierde el número y se gira 45°. Los números cuentan un recorrido —uno,
+   dos, tres—; un cruce no tiene número porque todavía no se sabe cuál va a ser, y
+   el rombo dice eso sin una palabra. El icono se contragira para no quedar
+   torcido. */
+.rmap-item.is-fork > .rmap-node {
+  border-radius: var(--r-sm);
+  transform: rotate(45deg);
+  color: var(--text-tertiary);
+  box-shadow: inset 0 0 0 2px var(--hairline);
+}
+.rmap-item.is-fork > .rmap-node > svg { transform: rotate(-45deg); }
+
+.rmap-fork {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--s2);
+  min-width: 0;
+}
+/* La línea de la decisión pesa menos que el título de una fase: un cruce no es
+   una parada del recorrido, es la bisagra entre dos. Lo que hay que leer aquí
+   son los caminos, y con el mismo cuerpo que las fases les robaba el turno. */
+.rmap-item.is-fork .rmap-head > strong {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Los caminos, en paralelo. Uno debajo de otro se leerían como dos fases
+   encadenadas, que es exactamente lo contrario de lo que son. */
+.rmap-roads {
+  display: flex; flex-wrap: wrap; align-items: stretch;
+  gap: var(--s2);
+}
+
+/* La conjunción. Es lo único que se ha añadido para decir que son alternativas
+   —«volumen O definición»— y hace el trabajo que haría un corchete de árbol sin
+   la geometría, que es la que se rompe al envolver o al aparecer un tercero. */
+.rmap-or {
+  align-self: center;
+  flex: 0 0 auto;
+  font-size: var(--fs-xs);
+  font-style: italic;
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+/*
+  Un camino no tiene superficie: es un contorno punteado sobre el fondo.
+
+  Es la diferencia de MATERIAL con las fases, que sí son tarjetas, y dice «esto
+  está decidido y esto todavía no» sin una palabra. Es el mismo punteado del
+  carril de las fases futuras y del botón del final: plan, no recorrido.
+*/
+.rmap-road {
+  flex: 1 1 200px;
+  display: flex; flex-direction: column; gap: var(--s2);
+  align-items: flex-start;
+  min-width: 0;
+  padding: var(--s3);
+  border-radius: var(--r-lg);
+  background: transparent;
+  border: 1px dashed var(--hairline);
+  transition: border-color var(--fast), background-color var(--fast);
+}
+/* Al acercarse, el contorno se cierra y toma la tinta de su dirección: el gesto
+   de elegir enseña de qué color va a ser la fase que aparezca arriba. */
+.rmap-road:hover,
+.rmap-road:focus-within {
+  border-style: solid;
+  border-color: var(--fase, var(--edge));
+  background: var(--surface-sunken);
+}
+/* Las acciones, alineadas abajo aunque un «si» ocupe dos líneas y el otro una:
+   dos botones a distinta altura convierten la elección en dos preguntas. */
+.rmap-road > .btn { margin-top: auto; }
+
+/*
+  La condición, arriba. Es la frase que se lee para elegir, así que NO es un pie
+  de foto: va a 13 px y en el gris de texto secundario, un escalón por debajo del
+  nombre y no tres. Puesta como antetítulo de 10 px en terciario —que es donde
+  acabó al primer intento— el bloque pedía decidir escondiendo aquello de lo que
+  depende la decisión.
+*/
+.rmap-road-when {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.rmap-road-name { font-size: var(--fs-base); font-weight: 650; }
+
+/* La invitación al final del carril. Punteada y sin relleno: lo que ofrece no
+   existe todavía, y un botón sólido aquí competiría con las fases de arriba. */
+.rmap-tail {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.rmap-tail > svg { justify-self: center; }
+.rmap-tail > span {
+  padding: var(--s2) var(--s3);
+  border: 1px dashed var(--hairline);
+  border-radius: var(--r-lg);
+}
+.rmap-tail:hover { color: var(--accent); }
+.rmap-tail:hover > span { border-color: var(--accent); }
+
+/* Cada camino dentro del formulario, sobre la superficie de arriba para
+   despegarse del hundido de `.card-inset`. */
+.rmap-road-fields {
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--edge);
+}
+
+@media (max-width: 640px) {
+  .rmap-item { grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); }
+  .rmap-item:not(:last-child)::before { left: 11px; top: 26px; }
+  .rmap-node { width: 24px; height: 24px; }
+  .rmap-tail { grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); }
+  /* En columna, y la «o» centrada entre los dos. Dejar que envolvieran solos
+     dejaba la conjunción colgando al final de la primera fila. */
+  .rmap-roads { flex-direction: column; }
+  .rmap-or { align-self: center; }
+}
+
+.exercise-index {
+  width: 26px; height: 26px; border-radius: var(--r-sm); flex-shrink: 0;
+  display: grid; place-items: center; font-weight: 700; font-size: var(--fs-xs);
+}
+
+/* Identidad del ejercicio: nombre arriba, y debajo el músculo y el objetivo de
+   repeticiones en la misma línea, en gris pequeño.
+   --------------------------------------------------------------------------
+   El objetivo estaba antes DENTRO de cada celda de serie, repetido cuatro veces
+   y al mismo tamaño que los datos: competía con los kilos y quedaba impostado.
+   En la práctica el objetivo es del ejercicio ("4×8-10"), no de cada serie, así
+   que vive aquí una sola vez. */
+.exercise-name { width: 208px; flex-shrink: 0; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.exercise-name > .name {
+  font-weight: 600; font-size: var(--fs-base);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.exercise-meta {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); color: var(--text-tertiary); min-width: 0;
+}
+.exercise-meta > .muscle { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.exercise-meta > .dot { opacity: 0.5; }
+
+/* ── De cuándo son las cifras apagadas de los campos ───────────────────────
+   Registrando, cada casilla vacía lleva de marcador lo que se levantó la vez
+   anterior en esa misma serie. Un número gris dentro de un hueco no dice de
+   cuándo es, así que el ejercicio lo dice una vez y no cuatro.
+
+   Va en versalita como el resto de las etiquetas del producto: es un rótulo, no
+   un dato, y ninguno de los dos puede confundirse con el otro. */
+.exercise-meta > .prev-hint {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exercise-meta > .prev-hint::before { content: '· '; }
+
+/* ── La nota de UN ejercicio ───────────────────────────────────────────────
+   La indicación del día enmarca la sesión entera; esto es la corrección de un
+   movimiento concreto, y por eso se lee pegada a él.
+
+   Ocupa la línea entera de la ficha en vez del hueco que queda en la fila: entre
+   el nombre y las series caben tres palabras, y quitarle ancho a las celdas
+   —donde se teclea— para meter texto sería cambiar lo que más se usa por lo que
+   menos.
+
+   Programando es un campo; entrenando es una cita, con el mismo canto de color
+   que `.coach-note` para que se reconozca como «esto lo dice tu entrenador». */
+.exercise-note { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.exercise-note.is-read {
+  flex-direction: row; align-items: flex-start; gap: 7px;
+  padding: var(--s2) var(--s3);
+  background: var(--surface-sunken); border-radius: var(--r-sm);
+  border-left: 3px solid var(--info); color: var(--info);
+}
+.exercise-note.is-read > p {
+  font-size: var(--fs-sm); color: var(--text); white-space: pre-wrap; min-width: 0;
+}
+.exercise-note.is-read > svg { flex-shrink: 0; margin-top: 2px; }
+
+/* Pedir la nota: un texto pequeño dentro de la línea del músculo, no un icono
+   más en la fila. Aparece solo mientras no hay nota. */
+.note-add {
+  border: 0; background: transparent; cursor: pointer; font: inherit;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary);
+ letter-spacing: 0;
+  padding: 1px 5px; border-radius: var(--r-sm); white-space: nowrap;
+  transition: color var(--fast), background var(--fast);
+}
+.note-add::before { content: '· '; }
+.note-add:hover { color: var(--accent); background: var(--accent-soft); }
+.exercise-meta .target-summary { font-weight: 650; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* Botón de igualar objetivos. Discreto y con el valor escrito dentro: un atajo que
+   reescribe las tres series tiene que decir a qué las va a poner ANTES de pulsarlo,
+   no después. */
+.target-level {
+  border: 0; background: transparent; cursor: pointer; font: inherit;
+  font-size: var(--fs-2xs); font-weight: 650; color: var(--accent);
+  padding: 1px 5px; border-radius: var(--r-sm);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.target-level:hover { background: var(--accent-soft); text-decoration: none; }
+.exercise-meta > .target-fixed { color: var(--info); font-weight: 650; white-space: nowrap; }
+
+/* ── El carril de series: ENVUELVE, no se desplaza ─────────────────────────
+   Era un `overflow-x: auto` con celdas de 168 px fijos. Cuatro series son 700 px,
+   así que por debajo de eso —una tableta, un portátil pequeño, cualquier móvil—
+   parte de las series quedaban fuera y había que arrastrar DENTRO del ejercicio,
+   con quince ejercicios en la pantalla. Es el gesto más repetido de la
+   aplicación y era el peor resuelto.
+
+   La solución no lleva ningún punto de ruptura, y por eso está aquí y no en un
+   `@media`: `flex: 1 0 168px` da como base el ancho con el que la celda se
+   diseñó —el que deja que «102,5» quepa entero en el campo de kilos—, sin
+   encogimiento. La fila mete las celdas que caben, baja el resto y luego las
+   estira para llenar el hueco: cuatro en un escritorio, tres en una tableta, una
+   en un móvil estrecho.
+
+   Repartirlas por porcentaje (media fila, un tercio) sería más simple y está
+   mal: en 390 px daba campos de 38 px y los kilos se salían de su propia caja.
+   El ancho no lo decide una fracción de la pantalla, lo decide el dato que hay
+   que poder leer. */
+.set-lane { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--s2); padding: 2px 0; }
+
+/* ── El índice del teléfono: una fila por ejercicio ─────────────────────────
+   El modo de programar en pantalla pequeña (ver ExerciseList): la fila enseña
+   lo que hay que poder LEER —nombre, músculo, «4 series × 8-10»— y tocarla
+   abre la hoja donde se toca. Objetivo táctil completo: la fila entera. */
+.exercise-row {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; min-height: 58px; padding: var(--s2) var(--s3);
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); box-shadow: var(--shadow-xs);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.exercise-row:active { background: var(--fill-subtle); }
+.exercise-row-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.exercise-row-name > .name {
+  font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.exercise-row-name > .sum { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.exercise-row > .chevron { color: var(--text-tertiary); flex-shrink: 0; }
+
+/* Carril de REGISTRO (cliente): rejilla que reparte el ancho, no carril que se
+   desliza. Cuatro celdas de 168 px desbordaban y salía una barra de scroll
+   horizontal que además escondía las series 3 y 4 — en el móvil, para siempre.
+   `auto-fit` las pone en fila si caben y las baja de línea si no. */
+.set-lane.is-log {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(146px, 100%), 1fr));
+  overflow: visible;
+}
+/* El ancho lo manda la rejilla; si no, el `width` de la celda gana y vuelve el
+   desbordamiento por otro camino. */
+.set-lane.is-log > .set-cell { width: auto; }
+
+/* Por debajo de esto la fila deja de ser una fila: el nombre pasa arriba a todo
+   el ancho y las series ocupan la línea siguiente. Es el ancho al que el nombre
+   fijo de 208 px empieza a estrangular las celdas. */
+@media (max-width: 760px) {
+  /* `flex-wrap` ya está en la base, por la nota del ejercicio. Aquí lo que
+     cambia es que el nombre suelte su ancho fijo, que es lo que hace bajar de
+     línea a las series. */
+  .exercise-name { width: auto; flex: 1 1 60%; }
+  .set-lane.is-log { flex: 1 1 100%; }
+}
+
+/* Celda de serie.
+   --------------------------------------------------------------------------
+   El objetivo de repeticiones es POR SERIE: hay pirámides, series descendentes
+   y aproximaciones, y forzar un único rango para todo el ejercicio quita
+   información real. Lo que estaba mal no era que existiera, sino su PESO: tenía
+   el mismo tamaño que los kilos y competía con ellos.
+   Aquí vive en la cabecera de la celda, pequeño y en cian, subordinado a los
+   tres valores que se registran. El campo del ejercicio sigue existiendo como
+   atajo para rellenar todas de golpe. */
+.set-cell {
+  display: flex; flex-direction: column; gap: 5px;
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  padding: 6px 8px 8px;
+  /* Ver `.set-lane`: la base es el ancho de diseño, sin encoger. En el carril de
+     registro del cliente, que es una rejilla, las propiedades flex se ignoran y
+     manda la plantilla de columnas. */
+  flex: 1 0 168px; width: auto;
+}
+.set-cell-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 20px; }
+
+/* La cabecera envuelve: con el módulo de RIR encendido hay DOS objetivos —el
+   rango y el esfuerzo— y en una tarjeta de 168 px no caben en una línea junto al
+   número de serie. Envolver es preferible a encoger las casillas hasta que las
+   cifras no se lean. */
+.set-cell-head { flex-wrap: wrap; }
+
+.set-cell-target { display: flex; align-items: center; gap: 3px; min-width: 0; }
+
+.set-cell-target > .tag { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 650; }
+.set-cell-target .input {
+  width: 48px; padding: 1px 3px;
+  font-size: var(--fs-xs); font-weight: 650; text-align: center;
+  color: var(--info); background: var(--info-soft);
+  border: 1.5px solid transparent; border-radius: var(--r-xs);
+}
+.set-cell-target .input:focus { border-color: var(--info); box-shadow: none; }
+.set-cell-target > .fixed { font-size: var(--fs-xs); font-weight: 650; color: var(--info); }
+
+/* La equis de quitar la serie. `.btn.set-x` y no `.set-x` a secas: los mínimos
+   táctiles del chasis se declaran sobre `.btn` más abajo, y con la misma
+   especificidad ganarían por orden — la equis quedaría de 44 de alto y 12 de
+   ancho. Con dos clases, aquí se manda. */
+.btn.set-x { padding: 0; min-width: 0; min-height: 0; color: var(--text-tertiary); flex-shrink: 0; }
+/* En táctil, la edición rápida de una serie —el gesto del entrenador entre
+   cliente y cliente— necesita blancos reales: la equis con caja, el objetivo
+   de reps/RIR más ancho (la letra a 16 px ya la pone el bloque de campos) y
+   los kg/reps/rir con alto de dedo. */
+@media (hover: none) {
+  .btn.set-x { width: 34px; height: 34px; min-height: 34px; }
+  .set-cell-target .input { width: 64px; padding: 5px 4px; }
+  .set-cell-col .input { min-height: 40px; }
+}
+.set-cell-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.set-cell-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.set-cell-col > .unit {
+  font-size: var(--fs-xs); letter-spacing: 0;
+  font-weight: 650; color: var(--text-tertiary); text-align: center;
+}
+.set-cell-col .input {
+  width: 100%; padding: 7px 2px; text-align: center;
+  font-size: var(--fs-base); font-weight: 650; border-radius: var(--r-xs);
+  background: var(--surface); border: 1.5px solid transparent;
+  box-shadow: var(--shadow-xs);
+}
+.set-cell-col .input:focus { border-color: var(--accent); box-shadow: none; }
+
+.set-add {
+  width: 44px; flex-shrink: 0;
+  box-shadow: inset 0 0 0 1.5px var(--hairline-strong);
+  border-radius: var(--r-md); background: transparent; border: 0;
+  color: var(--text-tertiary); display: grid; place-items: center; cursor: pointer;
+  transition: box-shadow var(--fast), color var(--fast);
+}
+.set-add:hover { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
+
+/* ==========================================================================
+   El cliente registrando
+   --------------------------------------------------------------------------
+   Programar y registrar son dos trabajos distintos y por eso tienen dos formas,
+   no dos tamaños. El entrenador recorre ejercicios comparando estructuras: fila
+   con carril de tarjetas. El cliente escribe doce números de un mismo ejercicio:
+   ficha con TABLA de series. El porqué largo está en `Workout/SetCell.jsx`.
+   ========================================================================== */
+
+/* La ficha es una columna en CUALQUIER ancho, no una fila que se dobla por
+   debajo de 640 px con `flex-wrap` y un `order: 10`. Si la forma correcta es la
+   columna, se declara: lo otro se sostenía con dos apaños que había que leer
+   para entender por qué el nombre acababa arriba. */
+/* Rejilla de dos columnas y no una columna a secas: en columna, el número del
+   ejercicio se quedaba solo en su propia línea, gastando un renglón entero para
+   decir «1». Aquí el número y el nombre comparten la primera fila y la tabla
+   ocupa la segunda de lado a lado, que es como se lee una ficha. */
+.exercise.is-log {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s3) var(--s3);
+  padding: var(--s3) var(--s4) var(--s4);
+}
+.exercise.is-log > .exercise-name { width: auto; flex: none; }
+.exercise.is-log > .set-table { grid-column: 1 / -1; }
+/* La nota también cruza la ficha entera. Su `flex-basis: 100%` no significa
+   nada dentro de un grid: sin esta línea caía en la columna del número, la
+   ensanchaba hasta el ancho de la cita y el título quedaba despegado del
+   número en cuanto el ejercicio llevaba nota. */
+.exercise.is-log > .exercise-note { grid-column: 1 / -1; }
+
+/* ── La tabla, con MEDIDA: una serie no crece con el monitor ───────────────
+   La tabla ocupaba el ancho entero de la ficha, y sus tres columnas de valor
+   son `1fr`: en el portal del cliente —que a partir de 1440 px usa la medida
+   de trabajo, 1560— eso son cajas de más de trescientos píxeles para escribir
+   «102,5». Un campo de tres cifras del tamaño de un párrafo no se lee como un
+   campo; se lee como un error de maquetación, y encima aleja el kilo de las
+   repeticiones lo suficiente como para tener que mover la vista entre dos
+   números que se apuntan juntos.
+
+   520 px es lo que piden los cinco: 26 del número, 42 del objetivo y tres
+   campos de unos 130, que es donde una cifra sigue siendo cómoda con el ratón
+   y de sobra con el dedo. Por debajo de esa medida —el teléfono, y la columna
+   del entrenador cuando programa— la regla no hace nada: la tabla ya es más
+   estrecha. Es un techo, no un ancho. */
+.set-table { display: flex; flex-direction: column; gap: 2px; width: 100%; max-width: 520px; }
+
+/* Cinco columnas: la serie, su objetivo y los tres valores que se registran.
+   Las dos primeras son fijas y estrechas porque su contenido no crece —«4» y
+   «8-10»—; lo que se reparte el resto son los campos, que es donde se escribe. */
+.set-row {
+  display: grid;
+  grid-template-columns: 26px 42px repeat(3, minmax(0, 1fr));
+  align-items: center; gap: var(--s2);
+}
+
+/* La cabecera: las etiquetas UNA vez por ejercicio. Era lo que llevaba cada
+   tarjeta por dentro, y apiladas en el móvil repetían «KG REPS RIR» cuatro
+   veces por ejercicio. */
+.set-row.is-head {
+  padding-bottom: 2px;
+  font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary); text-align: center;
+}
+
+.set-row-tag {
+  display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: 50%;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--fill); color: var(--text-tertiary);
+}
+/* Hecha: la marca sustituye al número. En una lista de cuatro, el orden ya lo da
+   la posición; lo que no se sabe de un vistazo es cuáles faltan. */
+.set-row.is-done > .set-row-tag { background: var(--positive-soft); color: var(--positive); }
+
+.set-row-target {
+  text-align: center; font-size: var(--fs-xs); font-weight: 650;
+  color: var(--info); font-variant-numeric: tabular-nums;
+}
+/* El RIR pedido, dentro de la misma celda del objetivo y un punto más apagado:
+   es la parte opcional de «lo que te pido», y quien no programa por RIR nunca la
+   ve (ver el módulo `rir` en `domain/protocol.js`). */
+.set-row-target > .rir { font-weight: 550; opacity: 0.75; }
+
+
+/* 42 px de alto: es un campo que se rellena de pie, con una mano y a veces con
+   el dedo mojado. El mínimo táctil recomendado es 44 y aquí el objetivo real es
+   toda la celda de la rejilla, que es más alta que el propio borde. */
+.set-row > .input { min-height: 42px; padding: 8px 4px; font-weight: 650; }
+
+/* ── Barra de progreso de la sesión ────────────────────────────────────────
+   Cuántas series llevas, sin una cifra más: la cifra exacta ya está en la
+   píldora de al lado y lo que aporta la barra es la proporción de un vistazo. */
+.progress { height: 5px; border-radius: var(--r-pill); background: var(--fill); overflow: hidden; }
+.progress > span {
+  display: block; height: 100%; border-radius: inherit;
+  background: var(--accent); transition: width var(--normal);
+}
+
+/* ── La tira de la semana ──────────────────────────────────────────────────
+   Las sesiones de la semana, con su día, su nombre entero y cuánto llevas de
+   cada una. Es a la vez la estructura y la navegación: antes eran dos piezas
+   —una rejilla de siete días que solo informaba y una lista de días debajo— y
+   ninguna hacía el trabajo completo.
+
+   Rejilla con `auto-fit` y no `flex`: con cuatro sesiones en tres columnas, la
+   cuarta se queda en su columna en vez de estirarse a lo ancho de la fila. */
+.day-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr));
+  gap: var(--s2);
+}
+
+.day-pill {
+  display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
+  min-width: 0; padding: 8px var(--s3); text-align: left;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md);
+  font: inherit; color: var(--text); cursor: pointer;
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.day-pill:hover { border-color: var(--hairline-strong); }
+.day-pill[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.day-pill > .lead {
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+.day-pill > .lead > .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+/* «Hoy» en brasa: la misma tinta que marca la sección activa y el día de hoy
+   en la regla de «Hoy». Una sola gramática para «aquí estás». */
+.day-pill.is-today > .lead { color: var(--accent); }
+.day-pill.is-today > .lead > .dot { background: var(--accent); }
+
+.day-pill > .nm {
+  max-width: 100%; font-size: var(--fs-sm); font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.day-pill > .pg { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.day-pill.is-done > .pg { color: var(--positive); font-weight: 650; }
+
+.split-grid { display: grid; grid-template-columns: repeat(7, minmax(90px, 1fr)); gap: var(--s2); }
+.split-day { display: flex; flex-direction: column; gap: 5px; }
+.split-day > .name { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil); color: var(--text-tertiary); text-align: center; }
+.split-day > .value {
+  border-radius: var(--r-sm); padding: 9px 5px;
+  font-size: var(--fs-sm); font-weight: 600; text-align: center;
+  background: var(--fill-subtle); color: var(--text-tertiary);
+}
+.split-day > .value.is-training { background: var(--accent-soft); color: var(--accent); }
+
+/* ── La cadena de un ciclo rotativo ─────────────────────────────────────────
+   Empuje → Tirón → Descanso ↺. No es una rejilla de siete columnas porque un
+   ciclo rotativo no tiene casillas fijas: tiene un orden que se repite. El
+   porqué entero, en `ui/CycleChain.jsx`.
+
+   Envuelve en varias líneas —un 5/1 son seis casillas— y las flechas viajan con
+   su casilla, así que al envolver no queda ninguna flecha huérfana al principio
+   de una fila. */
+.cycle-chain { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); list-style: none; }
+.cycle-step { display: flex; align-items: center; gap: var(--s2); }
+.cycle-step > .link { color: var(--text-tertiary); flex-shrink: 0; }
+/* El remate del bucle, más apagado que las flechas: dice «vuelta a empezar», no
+   «y ahora esto». */
+.cycle-step > .link.is-loop { opacity: 0.55; }
+
+.cycle-slot {
+  display: flex; flex-direction: column; gap: 2px;
+  min-width: 92px; padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--accent-soft); color: var(--accent);
+}
+.cycle-slot > .lead {
+  display: flex; align-items: center; gap: 4px;
+  font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
+ letter-spacing: 0;
+  opacity: 0.75;
+}
+.cycle-slot > .nm {
+  font-size: var(--fs-sm); font-weight: 650;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El descanso, apagado y sin tinta de acento: es parte de la estructura, pero no
+   es a lo que se viene. */
+.cycle-slot.is-rest { background: var(--fill-subtle); color: var(--text-tertiary); }
+
+/* La misma rejilla cuando se EDITA: el código de color no cambia porque no es
+   decoración —dice qué días tienen algo programado—, solo cambia el soporte, de
+   un rótulo a una casilla. Estaba resuelto con un `style` escrito a mano en el
+   editor, que además tenía su propia idea de qué es descanso. */
+.split-value {
+  font-size: var(--fs-sm);
+  background: var(--surface-sunken); border-color: var(--hairline); color: var(--text-secondary);
+}
+.split-value.is-training { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+/* ── Franja de resumen nutricional ──────────────────────────────────────────
+   Anillo con las kcal en el centro y, al lado, una barra por macro con sus
+   gramos y su porcentaje. Sale de la referencia: en una sola fila se ve el
+   total y el reparto, sin tener que leer cuatro tarjetas.
+   ========================================================================== */
+/* ── Total del día: cifra + barra segmentada + iconos ───────────────────────
+   La misma forma que en el resumen. Es una cifra con su reparto, y a lo ancho
+   caben las tres etiquetas sin comprimir nada. */
+.macro-summary { display: flex; flex-direction: column; gap: var(--s3); }
+
+.macro-summary-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
+.macro-summary-head > .figure { display: flex; align-items: baseline; gap: 5px; }
+/* Tamaño, peso e interletraje: en la voz de una cifra, arriba. */
+.macro-summary-head > .figure > .v { font-variant-numeric: tabular-nums; line-height: 1; }
+.macro-summary-head > .figure > .u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-tertiary); }
+.macro-summary-head > .caption { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.macro-bar { display: flex; height: 9px; border-radius: var(--r-pill); overflow: hidden; gap: 2px; }
+.macro-bar-lg { height: 13px; }
+.macro-bar > div { transition: width var(--normal); }
+
+.macro-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
+.macro-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); }
+.macro-legend-item > .k { color: var(--text-secondary); }
+.macro-legend-item > .g { font-weight: 650; font-variant-numeric: tabular-nums; }
+.macro-legend-item > .p {
+  font-size: var(--fs-xs); font-weight: 650; color: var(--text-tertiary);
+  background: var(--fill); border-radius: var(--r-pill); padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Reparto de una comida o de una opción: anillo + leyenda ────────────────
+   El anillo ES el reparto (un arco por macro, proporcional a sus kcal), no un
+   aro lleno decorativo. Se usa aquí y no en el total del día porque lo que se
+   compara son varias piezas pequeñas entre sí. */
+.macro-ring { display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap; }
+
+.donut { position: relative; flex-shrink: 0; }
+.donut-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1.05; text-align: center;
+}
+.donut-center > .v { font-variant-numeric: tabular-nums; }
+.donut-center > .u { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.donut-center > .s { font-size: var(--fs-2xs); color: var(--text-tertiary); margin-top: 2px; }
+
+.macro-ring-side { display: flex; flex-direction: column; gap: var(--s2); flex: 1; min-width: 190px; }
+
+/* Una COLUMNA por macro. En filas, el nombre, los gramos y el porcentaje quedaban
+   a distancias distintas del anillo y la vista saltaba de un lado a otro; en
+   columnas cada macro es un bloque compacto y los tres se comparan de una pasada
+   horizontal, la misma dirección en la que se lee el anillo. */
+.macro-ring-legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+
+.macro-cell {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  padding-left: var(--s3);
+  box-shadow: inset 1.5px 0 0 var(--hairline);
+}
+.macro-cell > .k {
+  display: flex; align-items: center; gap: 5px;
+  font-size: var(--fs-xs); font-weight: 700;
+  letter-spacing: 0; color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.macro-cell > .k > .dot { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.macro-cell > .g { font-variant-numeric: tabular-nums; line-height: 1.1; }
+.macro-cell > .p { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .macro-summary-head > .figure > .v { font-size: var(--fs-xl); letter-spacing: -0.028em; }
+  .macro-legend { gap: var(--s2) var(--s4); }
+  .macro-legend-item { font-size: var(--fs-xs); }
+}
+
+/* ==========================================================================
+   Dietas
+   ========================================================================== */
+
+
+
+/* ── El objetivo de una comida ─────────────────────────────────────────────
+   Cuatro barras con el color de su macro, al lado del anillo de la opción.
+
+   Lo ven los DOS, y no es lo mismo para cada uno: al cliente le dice lo que se
+   espera de esa comida —su prescripción, que antes no veía por ninguna parte— y
+   al entrenador le añade una columna con la desviación de lo que ha montado.
+
+   ── Por qué barras y no solo cifras ────────────────────────────────────────
+   Porque «40 de 45» y «120 de 500» son la misma resta y no el mismo problema. La
+   barra dice la PROPORCIÓN, que es lo que decide si hay que tocar algo. Las
+   cifras se quedan para después de haberlo decidido. */
+/* ANCHO PROPIO Y SIN CRECER, y no es un detalle: con `flex: 1` este bloque se
+   comía todo el ancho sobrante de la tarjeta, empujaba la tabla de alimentos
+   fuera de su sitio y los nombres se quedaban en dos letras. Mide lo que mide y
+   deja el resto a lo que hay debajo. */
+
+/* Etiqueta, barra de ancho FIJO y las dos cifras. Fijo porque lo que se compara
+   es el relleno de una fila con el de la de al lado, y eso exige que las cuatro
+   midan lo mismo; 72 px basta para distinguir un 60 % de un 90 %. */
+
+
+/* El carril entero avisa de lo que la barra no puede: llena y con borde verde es
+   que cuadra; llena y roja es que se ha pasado. Sin esto, «100 %» y «140 %» se
+   pintaban exactamente igual, que era lo que hacía imposible ver el exceso. */
+
+/* La cifra repite lo que dice el carril, con la precisión que el carril no da. */
+
+/* La sugerencia de hidratos: se ve que HAY un número propuesto y que todavía no
+   está escrito. Sin esto, un `placeholder` gris se lee como un hueco vacío. */
+.input.is-suggested::placeholder { color: var(--accent); opacity: 0.85; font-weight: 650; }
+
+/* La pauta escrita de una comida —«esto cocínalo a la plancha», «el yogur, de
+   la marca X»—.
+   ---------------------------------------------------------------------------
+   Iba sin fondo ni borde para no convertir el menú en una hoja de altas. Salió
+   mal: sin marco no se lee como un sitio donde escribir, se lee como texto de
+   relleno, y quien no lo sabía no lo usaba nunca.
+
+   Ahora tiene fondo hundido y su icono. Sigue siendo discreto —no compite con
+   los alimentos— pero se ve que es un campo. */
+/* Un solo cerco: el campo de dentro no tiene marco propio, así que tampoco debe
+   pintar el suyo al enfocarse — se veían los dos, uno dentro del otro. */
+
+/* ── Los alimentos, como tabla con encabezado ───────────────────────────────
+   Antes cada fila llevaba escrito «P 38  C 85  G 8». Repetir las etiquetas en
+   todas las filas es ruido: con cinco alimentos son quince letras que no
+   informan de nada, y hacían que las cifras se leyeran como texto en vez de como
+   una columna.
+
+   Ahora las etiquetas están UNA vez, en el encabezado, con el color de su macro
+   —los mismos del anillo de arriba, así que la tabla y el gráfico se leen como
+   una sola cosa—. Las filas solo llevan números, alineados en columna y en cifras
+   tabulares, que es lo que permite compararlos de un barrido vertical.
+
+   La plantilla de columnas se define una vez y la comparten encabezado, filas y
+   total: ninguna posibilidad de que se desalineen. */
+/* Si la tabla no cabe, se DESPLAZA; no se estruja.
+   ---------------------------------------------------------------------------
+   El nombre del alimento tenía `minmax(0, 1fr)`, así que era la única columna
+   que podía ceder y cedía hasta cero: entre los 640 px del diseño de móvil y el
+   ancho al que la tabla entera cabe, «Copos de avena» se quedaba en «C…».
+
+   Con un mínimo en el nombre, lo que sobra deja de tener a quién quitarle sitio
+   y la tabla se sale por el lado — que se ve, se arrastra y no pierde nada. */
+.food-table { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+
+.food-row,
+.food-head {
+  display: grid;
+  /* La primera columna es el asa de arrastre, como en la lista de ejercicios.
+     Al consultar no hay asa y el hueco se queda vacío, que es lo correcto: la
+     tabla del cliente y la del entrenador quedan alineadas entre sí. */
+  grid-template-columns: 20px minmax(132px, 1fr) 112px repeat(3, 42px) 60px 26px;
+  align-items: center;
+  gap: var(--s2);
+  padding: 8px var(--s3);
+  /*
+    ── Por qué `max-content` y no basta con el mínimo de la columna ──────────
+    La fila es hija de un contenedor flex EN COLUMNA, y ahí el ancho lo impone
+    el contenedor: la fila se estira a lo que haya y nunca reclama lo que
+    necesita. Poner un mínimo en la columna del nombre no cambiaba eso, y por
+    eso «Copos de avena» seguía quedándose en «C…».
+
+    `width: max-content` hace que la fila pida lo que ocupa de verdad, y
+    `min-width: 100%` que no se encoja por debajo del contenedor cuando sobra
+    sitio. Lo que no cabe se desplaza en `.food-table`, que para eso tiene su
+    `overflow-x`.
+  */
+  width: max-content;
+  min-width: 100%;
+}
+
+.food-head {
+  padding-bottom: 2px;
+  font-size: var(--fs-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: var(--tracking-stencil);
+  color: var(--text-tertiary);
+}
+.food-head > span:not(:first-child) { text-align: right; }
+/* Menos «Alimento», que titula la única columna de TEXTO y por tanto se alinea
+   con ella. A la derecha de una columna elástica quedaba a media tabla de los
+   nombres que encabeza —muy lejos en escritorio, donde esa columna se lleva
+   todo el sobrante— y la fila de rótulos parecía descolocada un puesto. */
+.food-head > span:nth-child(2) { text-align: left; }
+
+.food-row {
+  background: var(--surface-sunken);
+  border-radius: var(--r-md);
+  transition: background-color var(--fast);
+  font-variant-numeric: tabular-nums;
+}
+.food-row:hover { background: var(--fill-subtle); }
+
+/* El nombre lleva dentro sus botones —equivalencias y editar—, así que la celda
+   flex y los puntos suspensivos bajan al texto: si recortara la celda entera,
+   un nombre largo se tragaría el botón — que en la vista del cliente es la
+   única puerta a sus equivalencias. */
+.food-row > .name {
+  min-width: 0;
+  display: flex; align-items: center; gap: 2px;
+  font-size: var(--fs-base); font-weight: 550;
+}
+.food-row > .name > .txt {
+  min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* En gris de terciario para no competir con los datos de la fila: es una puerta,
+   no un dato. Al pasar por encima toma el acento, que es lo que dice «esto se
+   pulsa» sin ocupar más sitio. Vale para los dos: equivalencias y editar. */
+.food-row > .name > .btn-icon { color: var(--text-tertiary); flex-shrink: 0; }
+.food-row > .name > .btn-icon:hover { color: var(--accent); }
+/* El alimento al que el entrenador le quitó las equivalencias: el icono sigue
+   —es su herramienta y el diálogo es donde se revierte— pero apagado, para ver
+   de un barrido a cuáles les quitó el margen. Solo lo ve él: al cliente ese
+   botón directamente no se le pinta. */
+.equiv-btn.is-off { opacity: 0.35; }
+/* ══ LA CELDA DE LA CANTIDAD: UNA SOLA CAJA ═══════════════════════════════
+   Llevaba DOS piezas —la casilla y la medida— pegadas al borde derecho, y dos
+   elementos de ancho variable en el mismo borde no forman columna nunca: el
+   alimento sin unidad empujaba su número a la derecha y el de «vaso» a la
+   izquierda. Se probó a fijar los dos anchos y quedaba alineado, pero seguían
+   siendo dos recuadros en 112 px y una opción sin usar escrita en cada fila.
+
+   El error de fondo era tratar la medida como un CONTROL: la unidad de un
+   alimento se decide una vez, al añadirlo, y a partir de ahí solo se lee. Lo que
+   la columna tiene que enseñar es «100 g», no un selector por fila.
+
+   Así que la medida se mete DENTRO del campo con `.input-suffix`, que es el
+   patrón que esta misma pantalla ya usa dos tarjetas más arriba («9000 pasos»).
+   Una caja por fila, del mismo ancho siempre: no queda nada que desalinear. */
+.food-row > .grams { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.food-row > .grams > .unit { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+
+/* El ancho es fijo y no del contenido: es lo que mantiene la columna de cifras
+   siendo una columna. La cifra se alinea a la DERECHA, contra su unidad, que es
+   como se lee «100 g» y no «100      g». */
+.cantidad { width: 96px; flex-shrink: 0; }
+.cantidad > .input { padding-right: 36px; text-align: right; }
+
+/* La medida dentro del campo. Cuando se puede cambiar es un botón con fondo
+   —para que se note que se pulsa, que es lo que un texto suelto no dice— y
+   cuando no, el `<span>` gris de siempre, en el mismo sitio y con la misma
+   silueta: no se promete una acción que no existe. */
+/* `right: 6px` + `padding-inline: 6px` deja el texto a 12 px del borde, que es
+   exactamente donde `.input-suffix > span` pone el de las filas sin unidad: así
+   la «g» cae en la misma vertical se pueda pulsar o no. */
+.cantidad > .ud {
+  position: absolute; right: 6px;
+  padding: 2px 6px; border: 0; border-radius: 5px;
+  font-family: inherit; font-size: var(--fs-2xs); font-weight: 700;
+  background: var(--fill); color: var(--text-secondary); cursor: pointer;
+  transition: background-color var(--fast), color var(--fast);
+}
+.cantidad > .ud:hover { background: var(--fill-strong); color: var(--text); }
+.cantidad > .ud:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* La medida: al consultar, una palabra gris detrás del número; al editar, un
+   desplegable. Se mantiene en `fs-2xs` y gris para que no compita con la cifra
+   —el contenido de esta tabla son números, y el control que los acompaña no
+   puede pesar más que ellos—. */
+/* El conmutador de la medida, en la columna de cantidad.
+   ---------------------------------------------------------------------------
+   Era un `<select>` nativo con ancho fijo. Se fue por tres motivos, y ninguno
+   es de gusto: entre dos opciones un desplegable cobra un clic de más; su menú
+   lo pinta el SISTEMA, así que en medio de una tabla oscura se abría un
+   rectángulo del tema de Windows; y el ancho tenía que ser fijo para que su
+   opción más larga —«Definir unidad…», que era una ACCIÓN metida entre dos
+   medidas— no empujara la casilla de la cantidad fuera de la rejilla.
+
+   Ahora es la primitiva de siempre en talla mini: las dos opciones a la vista,
+   un toque para cambiar y el tema de la aplicación. La acción se fue al lápiz
+   de la fila, que abría ese mismo diálogo. */
+/* La casilla llena su caja: el ancho lo manda `.cantidad` y no el contenido,
+   así la cifra termina en el mismo píxel en todas las filas —también cuando el
+   dedo sube la letra a 16 px. */
+.food-row > .grams > .cantidad > .input { width: 100%; }
+
+/* El asa de arrastre en una fila que es una rejilla, no un flex. */
+.food-row > .drag-handle { padding: 0; }
+.food-row.is-dragging { opacity: 0.4; }
+.food-row.is-drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+/* La cifra al consultar ocupa el hueco de la casilla y se alinea a la derecha,
+   que es donde termina el número de las filas que sí se editan. */
+.food-row > .grams > .fixed { font-size: var(--fs-sm); font-weight: 650; text-align: right; }
+.food-row > .n { text-align: right; font-size: var(--fs-sm); color: var(--text-secondary); }
+.food-row > .kcal {
+  text-align: right;
+  font-size: var(--fs-sm); font-weight: 700; color: var(--warning);
+}
+
+/* ── Las equivalencias de un alimento, en su diálogo ────────────────────────
+   La lista de intercambios de consulta: cada fila es una ración («250 g» o
+   «1,5 manzanas») con sus kcal debajo del nombre. La cantidad es el dato que se
+   viene a buscar, así que va en el peso fuerte y en cifras tabulares; las kcal
+   en el gris del subtítulo, presentes pero sin competir.
+
+   Con tope de alto y su propio desplazamiento: la fruta tiene una docena de
+   intercambios y el diálogo no puede crecer más que la pantalla del móvil. */
+.equiv-list {
+  list-style: none; margin: 0; padding: 2px;
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 52vh; overflow-y: auto;
+}
+.equiv-row {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 8px var(--s3);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+}
+.equiv-row > .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.equiv-row > .who > .name {
+  display: block; min-width: 0;
+  font-size: var(--fs-base); font-weight: 550;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.equiv-row > .who > .sub { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.equiv-row > .amount {
+  flex-shrink: 0;
+  font-size: var(--fs-sm); font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sin sitio para siete columnas: dos filas. Arriba el nombre y las kcal, abajo
+   la cantidad y los macros. Al desaparecer el encabezado, cada cifra recupera su
+   letra —pero solo aquí, donde hace falta para no dejarla huérfana. */
+@media (max-width: 640px) {
+  .food-head { display: none; }
+
+  .food-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) 26px;
+    row-gap: 5px;
+    /* `width: max-content` es de la tabla ancha de escritorio, donde la fila
+       exige su sitio y el contenedor se desplaza. Aquí la fila ya se replegó a
+       dos líneas: heredarlo convertía cada comida en su propio scroll
+       horizontal en cuanto un alimento tenía el nombre largo. */
+    width: auto;
+    min-width: 0;
+  }
+  /* El asa comparte celda con el nombre, delante de él: en dos filas no hay
+     columna que dedicarle, y al lado del nombre es donde se busca. */
+  .food-row > .drag-handle { grid-area: 1 / 1 / 2 / 2; }
+  .food-row > .name { grid-area: 1 / 1 / 2 / 4; padding-left: 22px; }
+  .food-row > .kcal { grid-area: 1 / 4 / 2 / 5; }
+  .food-row > .del { grid-area: 1 / 5 / 2 / 6; }
+  .food-row > .grams { grid-area: 2 / 1 / 3 / 2; justify-content: flex-start; }
+  /* En el teléfono la fila se parte en dos líneas y la cantidad comparte
+     renglón con los tres macros: los 96 px del escritorio se comen la P. Aquí
+     la caja se ciñe a lo que necesita —hay una sola por línea, así que no hay
+     ninguna columna que defender—. */
+  .cantidad { width: 74px; }
+  .cantidad > .input { padding-right: 30px; }
+  .cantidad > .ud { right: 4px; padding-inline: 5px; }
+  .food-row > .n.is-p { grid-area: 2 / 2 / 3 / 3; }
+  .food-row > .n.is-c { grid-area: 2 / 3 / 3 / 4; }
+  .food-row > .n.is-f { grid-area: 2 / 4 / 3 / 5; }
+  .food-row > .n { text-align: left; font-size: var(--fs-xs); }
+  .food-row > .n::before { content: attr(data-macro) ' '; color: var(--text-tertiary); font-weight: 700; }
+}
+

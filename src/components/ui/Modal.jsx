@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 import { useDismissable } from '@/lib/useDismissable';
@@ -119,7 +120,27 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
 
   if (!mounted) return null;
 
-  return (
+  /*
+    ══ Por qué se pinta en la RAÍZ del documento y no donde se declara ═════════
+
+    Porque `position: fixed` no siempre se mide contra la ventana: cualquier
+    antepasado con `transform`, `filter` o `backdrop-filter` se convierte en su
+    marco de referencia. La barra lateral lleva `backdrop-filter: blur(20px)`
+    —es el cristal del chasis—, así que un diálogo abierto desde dentro de ella
+    —el de tu nombre, en el menú de cuenta— no salía centrado en la pantalla:
+    salía centrado DENTRO de la barra, en una columna de 256 px, con el velo
+    tapando solo esa columna.
+
+    No es una rareza de esa pantalla: le pasaría a cualquier diálogo que se abra
+    desde cualquier sitio con cristal, y el fallo se ve tarde porque el diálogo
+    *funciona*, solo que en el rincón equivocado. Con el portal, el marco de
+    referencia es siempre el mismo —la raíz— y deja de depender de dónde se
+    declare.
+
+    El árbol de React no cambia: los eventos siguen burbujeando hasta quien lo
+    montó, las refs siguen valiendo y el foco atrapado sigue funcionando igual.
+  */
+  const contenido = (
     <div
       ref={ref}
       className={`modal-backdrop${size === 'side' ? ' is-side' : ''}`}
@@ -149,4 +170,11 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
       </div>
     </div>
   );
+
+  /* Sin documento no hay dónde portar: el build prerenderiza la portada con
+     `renderToStaticMarkup` (ver `scripts/prerender.mjs`) y ahí `createPortal`
+     revienta. En el servidor el diálogo se queda donde se declara, que es
+     exactamente lo que hacía antes de esto y no cambia ni un byte del HTML
+     generado, porque en la portada no hay ninguno abierto. */
+  return typeof document === 'undefined' ? contenido : createPortal(contenido, document.body);
 };

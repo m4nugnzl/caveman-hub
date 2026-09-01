@@ -61,10 +61,13 @@ const FoodTableHead = ({ editable }) => (
     <span />
     <span>Alimento</span>
     <span>Cantidad</span>
-    {MACRO_META.map(({ key, short, color }) => (
-      <span key={key} style={{ color }}>
-        {short}
-      </span>
+    {/* Las tres letras van en la tinta de cualquier otro encabezado de columna.
+        El color de cada macro está ganado donde DISTINGUE una serie de otra —la
+        barra del objetivo, el anillo del día, la gráfica—, y aquí no distingue
+        nada: las columnas ya están separadas y rotuladas. Coloreadas eran la
+        cuarta repetición de la misma leyenda en la misma pantalla. */}
+    {MACRO_META.map(({ key, short }) => (
+      <span key={key}>{short}</span>
     ))}
     <span>Kcal</span>
     {/* Y la última es la de borrar, que solo existe al editar. */}
@@ -284,65 +287,86 @@ const FoodRow = ({
 
       <span className="grams" title={equivalencia}>
         {editable ? (
-          <input
-            type="text"
-            inputMode="decimal"
-            className="input input-sm input-center"
-            style={{ width: 46 }}
-            value={valor ?? ''}
-            onChange={(e) => alEscribir(e.target.value)}
-            aria-label={
-              porUnidades ? `${food.unitLabel} de ${food.name}` : `Gramos de ${food.name}`
-            }
-          />
+          /*
+            ══ LA CANTIDAD Y SU MEDIDA SON UNA SOLA CAJA ═══════════════════════
+
+            Y no dos, que es de donde venían todos los problemas de esta celda.
+
+            Primero fue un `<select>` nativo: caja con flecha, menú pintado por el
+            SISTEMA —un rectángulo de Windows en medio de una tabla oscura— y un
+            clic de más para elegir entre dos cosas. Después un conmutador con
+            las dos opciones a la vista, y ahí aparecieron dos fallos peores: dos
+            recuadros distintos en una celda de 112 px, y sobre todo que la
+            columna dejaba de estar alineada porque «vaso» es más ancho que «ud».
+
+            El error de fondo era tratar esto como un CONTROL cuando el 95 % del
+            tiempo es un DATO: la unidad de un alimento se decide una vez, al
+            añadirlo, y a partir de ahí solo se lee. Lo que hay que enseñar es
+            «100 g» y «1 ud», no un selector permanente por fila.
+
+            Así que la medida se mete DENTRO del campo, que es el patrón que esta
+            misma pantalla ya usa dos tarjetas más arriba —«9000 pasos»— y el que
+            usa el resto del producto (`.input-suffix`). Una caja por fila, todas
+            del mismo ancho, nada que desalinear, y la unidad donde se lee sin
+            mover el ojo.
+
+            Cuando hay algo que elegir, esa medida es un botón que conmuta —dos
+            opciones no necesitan un menú— y lleva fondo para que se note que se
+            puede pulsar. Cuando no lo hay, es texto gris: mismo sitio, misma
+            silueta, sin prometer una acción que no existe.
+          */
+          <span className="input-suffix cantidad">
+            <input
+              type="text"
+              inputMode="decimal"
+              className="input input-sm"
+              value={valor ?? ''}
+              onChange={(e) => alEscribir(e.target.value)}
+              aria-label={
+                porUnidades ? `${food.unitLabel} de ${food.name}` : `Gramos de ${food.name}`
+              }
+            />
+            {sePuede ? (
+              <button
+                type="button"
+                className="ud"
+                onClick={() => onSetDisplay(porUnidades ? 'grams' : 'units')}
+                title={
+                  porUnidades
+                    ? `Contarlo en gramos${equivalencia ? ` · ${equivalencia}` : ''}`
+                    : `Contarlo en ${food.unitLabel}${equivalencia ? ` · ${equivalencia}` : ''}`
+                }
+                aria-label={`Medida de ${food.name}: ${
+                  porUnidades ? food.unitLabel : 'gramos'
+                }. Cambiar a ${porUnidades ? 'gramos' : food.unitLabel}`}
+              >
+                {porUnidades ? abreviar(food.unitLabel) : 'g'}
+              </button>
+            ) : (
+              <span aria-hidden="true">g</span>
+            )}
+          </span>
         ) : (
           <span className="fixed">{valor}</span>
         )}
 
         {/*
-          La medida, como desplegable.
-          ────────────────────────────────────────────────────────────────────
-          Por defecto gramos, y se cambia abriéndolo. Un desplegable dice por sí
-          solo que hay más de una opción detrás, que es lo que fallaba en los
-          primeros intentos —una palabra suelta o un subrayado no lo dicen—.
+          ── Y «Definir unidad…» ya no está en ninguna parte de esta celda ────
+          Estaba dentro del desplegable original, y era la razón de que hubiera
+          un desplegable: una ACCIÓN metida entre dos medidas, que además
+          obligaba a un ancho fijo para que su texto largo no empujara la
+          casilla fuera de la rejilla.
 
-          ── El ancho es fijo A PROPÓSITO ─────────────────────────────────────
-          Un `select` se dimensiona por su opción MÁS LARGA, y aquí hay una que
-          lo es («Definir unidad…»). Sin ancho fijo estiraba la columna hasta
-          empujar la casilla de la cantidad fuera de la rejilla, y el número
-          desaparecía. Cerrado solo se lee la opción elegida —«g», «ud»—, que
-          siempre es corta; la larga se ve entera al desplegarlo, que es donde
-          hace falta.
+          No hacía falta: definir la unidad abre `FoodDialog`, que es justo lo
+          que hace el lápiz que esta misma fila ya lleva al lado del nombre
+          —«Editar macros y unidad»—. Dos puertas a la misma pantalla, y una de
+          ellas deformaba la tabla. De paso desaparece un fallo latente: esa
+          opción se pintaba con `mio` a secas, y guardar el diálogo llama a
+          `onEditFood`, que en la vista del cliente no existe.
         */}
-        {editable && (sePuede || mio) ? (
-          <select
-            className="select unit-select"
-            value={porUnidades ? 'units' : 'grams'}
-            aria-label={`Medida de ${food.name}`}
-            title={equivalencia}
-            onChange={(e) => {
-              /*
-                «Definir» no es una medida, es una acción: abre el diálogo y no
-                se queda seleccionada. Como el `value` lo manda el alimento y no
-                el evento, el desplegable vuelve solo a lo que estaba.
-              */
-              if (e.target.value === 'define') setEditando(true);
-              else onSetDisplay(e.target.value);
-            }}
-          >
-            <option value="grams">g</option>
-            {sePuede && <option value="units">{abreviar(food.unitLabel)}</option>}
-            {/* Definir la unidad escribe en la biblioteca igual que los macros,
-                así que no aparece en un alimento que no es tuyo. Lo que SÍ se
-                puede es elegir en cuál de las dos medidas se lee esta entrada:
-                eso vive en la dieta y es de quien la monta. */}
-            {mio && (
-              <option value="define">
-                {sePuede ? `Cambiar ${food.unitLabel}…` : 'Definir unidad…'}
-              </option>
-            )}
-          </select>
-        ) : (
+        {/* Al consultar no hay campo: la medida es una palabra gris detrás de la
+            cifra, que es como se lee un plan que no se toca. */}
+        {!editable && (
           <span className="unit">{porUnidades ? abreviar(food.unitLabel) : 'g'}</span>
         )}
       </span>
@@ -488,7 +512,7 @@ const FoodDialog = ({ food, onClose, onSetDisplay, onSave }) => {
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn btn-quiet" onClick={onClose}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancelar
           </button>
           <button type="submit" form="food-form" className="btn btn-primary" disabled={!valido}>

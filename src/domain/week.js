@@ -29,7 +29,7 @@ import { round, toNum } from '@/lib/num';
 import { weekAdherence } from './analytics';
 import { linearTrend } from './analytics';
 import { weeklyCheckIn } from './anthropometry';
-import { groupByWeek, photoWeek, weekStartOfProgramWeek } from './photos';
+import { groupByWeek, photoWeek, weekFromStart, weekStartOfProgramWeek } from './photos';
 import { executedSessions, sessionSetCount, sessionTonnage } from './sessions';
 import { countSets, findMicrocycle, weekTonnage, estimatedOneRm } from './training';
 
@@ -461,6 +461,54 @@ export const latestActiveWeek = ({
   }
 
   return ordenadas[0].weekNumber;
+};
+
+/**
+ * ══ UN SOLO RELOJ ═══════════════════════════════════════════════════════════
+ *
+ * En qué semana va un cliente AHORA. Una sola respuesta, para toda la
+ * aplicación.
+ *
+ * ── El fallo que arregla ────────────────────────────────────────────────────
+ * Había tres relojes andando a la vez sobre la misma persona:
+ *
+ *   · la cabecera de su ficha usaba `latestActiveWeek`, que solo mira los
+ *     MICROCICLOS MONTADOS — con diez semanas programadas nunca pasa de 10;
+ *   · la barra lateral usaba `training[id].weekNumber`, otro número más;
+ *   · y la revisión abre la semana que pide el calendario de check-ins, que
+ *     avanza con la cadencia esté programada o no.
+ *
+ * En la ficha de un cliente que empezó el 1 de mayo eso se veía así: la
+ * cabecera decía «Semana 10» y, dos centímetros más abajo, el contenido de la
+ * misma pantalla decía «Semana 18». Ninguno de los dos mentía y por eso era
+ * peor: obliga a averiguar cuál de los dos vale, cada vez.
+ *
+ * ── Cuál gana, y por qué ────────────────────────────────────────────────────
+ * El tiempo transcurrido, no lo programado. «Semana 18» es un hecho sobre la
+ * persona —lleva 18 semanas contigo— y es el eje sobre el que corren sus
+ * check-ins, sus pesajes y sus fotos. «Semana 10» es un hecho sobre TU trabajo:
+ * hasta dónde has montado. Que el programa se quede corto es una respuesta
+ * sobre ti, y esconderla detrás del reloj del cliente es justo lo que hacía que
+ * un cliente parado pareciera al día.
+ *
+ * Lo programado no se pierde: la semana DENTRO de su bloque la sigue diciendo
+ * Entreno, en su sitio y con su nombre (ver `weekInBlock`).
+ *
+ * Sin fecha de alta no hay tiempo transcurrido que contar, y entonces sí manda
+ * lo montado: se cae a `latestActiveWeek`.
+ */
+export const semanaDeAhora = ({
+  startDate = null,
+  today = null,
+  microcycles = [],
+  history = [],
+  photos = [],
+} = {}) => {
+  if (startDate && today) {
+    const n = weekFromStart(startDate, today);
+    if (Number.isFinite(n) && n >= 1) return n;
+  }
+  return latestActiveWeek({ microcycles, history, photos, startDate });
 };
 
 /**

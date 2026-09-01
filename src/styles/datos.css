@@ -1,0 +1,258 @@
+/* ==========================================================================
+   El dato dibujado
+   --------------------------------------------------------------------------
+   Métricas, la semana de un cliente, gráficos y medidores. Es la única
+   zona donde el color significa algo.
+
+   Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
+   IMPORTA — esta hoja lleva años acumulando remates que dependen de ir
+   detrás de lo que corrigen. Mover un archivo de sitio cambia lo que se ve.
+   ========================================================================== */
+/* ==========================================================================
+   Métricas — el corazón del sistema
+   ========================================================================== */
+
+/* Píldora de variación: flecha + porcentaje, verde si mejora y rosa si empeora.
+   Es el motivo que más se repite en la referencia y el que da lectura inmediata
+   a cada cifra. */
+.delta {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: var(--fs-xs); font-weight: 650;
+  padding: 2px 7px; border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.delta-good { background: var(--positive-soft); color: var(--positive); }
+.delta-bad { background: var(--negative-soft); color: var(--negative); }
+.delta-flat { background: var(--fill); color: var(--text-tertiary); }
+
+/* Tarjeta de métrica: etiqueta → cifra → delta → gráfico. Siempre este orden. */
+.metric-card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: var(--s4) var(--s4) var(--s2);
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: var(--s2);
+  min-width: 0;
+}
+.metric-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.metric-sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.metric-figure { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+/* Tamaño, peso e interletraje: en la voz de una cifra, arriba. Aquí, lo
+   único que es de esta tarjeta. */
+.metric-value { line-height: 1; }
+.metric-unit { font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); }
+.metric-foot { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ==========================================================================
+   Su semana — lo que hizo, lo que entregó, tu respuesta
+   --------------------------------------------------------------------------
+   Ver `Coach/WeekReview.jsx`. Aquí solo hay tres piezas, y a propósito: la
+   pantalla se compone con `Panel`, `MetricRow` y `MetricCard`, que ya existen.
+   Una pantalla nueva que trae veinte clases nuevas es exactamente cómo se llegó
+   a tener cincuenta familias.
+   ========================================================================== */
+
+/* El carril de días. Una rejilla y no una tabla: en el móvil las tres columnas
+   se apilan sin que haya que decidir cuál se corta. */
+.week-days { display: flex; flex-direction: column; }
+.week-day {
+  display: grid;
+  grid-template-columns: minmax(88px, auto) 1fr auto;
+  align-items: baseline; gap: var(--s2) var(--s3);
+  padding: var(--s3) 0;
+  border-top: 1px solid var(--hairline);
+}
+.week-day:first-child { border-top: 0; padding-top: 0; }
+
+.week-day-name { font-family: var(--font-display); font-weight: 650; }
+.week-day-facts { font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0; }
+.week-day-when { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; }
+
+/* El día que no se entrenó. En tinta terciaria y NO en el rojo de aviso: que
+   alguien se salte un día es información, no una alarma — y en cuanto se pinta
+   de rojo, una semana con dos descansos parece una urgencia. */
+.week-day.is-missing > .week-day-name { color: var(--text-tertiary); font-weight: 500; }
+.week-day.is-missing > .week-day-facts { color: var(--text-tertiary); font-style: italic; }
+
+/* Lo que escribió, debajo de su día y ocupando la fila entera. */
+.week-day-note,
+.week-quote {
+  grid-column: 1 / -1;
+  font-size: var(--fs-sm); color: var(--text-secondary);
+  padding-left: var(--s3);
+  border-left: 2px solid var(--hairline-strong);
+}
+.week-quote > strong { font-family: var(--font-display); color: var(--text); margin-right: var(--s2); }
+
+/* ── LA COMPARATIVA de un check-in ─────────────────────────────────────────
+   Dos fotos del mismo ángulo, a la misma altura y del mismo tamaño: comparar
+   exige que lo único que cambie sea el cuerpo.
+
+   Sustituye a las cuatro miniaturas de 54 px que había en «Su semana» dentro de
+   la tarjeta de métrica. Aquéllas decían «hay fotos» —un recuento— y para ver
+   algo había que abrir el estudio, elegir el par a mano y volver.
+
+   `aspect-ratio` fijo y `object-fit: cover` para que una foto vertical y otra
+   apaisada no descoloquen la fila: sin eso, la del móvil en horizontal encogía
+   a la mitad y las dos dejaban de ser comparables. */
+/* ── EL PAR DE FOTOS, con tope ─────────────────────────────────────────────
+   Sin él, en la columna de lectura de una revisión —unos 890 px— cada foto sale
+   a 435 px de ancho, y con proporción 3/4 eso son casi 600 px de alto: un MURO
+   que hay que recorrer entero para llegar a lo siguiente. A 720 px el par mide
+   350 por foto, que sigue siendo de sobra para ver una semana. Grandes de verdad
+   se ven en el estudio, que es para lo que está. */
+.shot-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3);
+  align-items: start; max-width: 720px;
+}
+.shot { display: flex; flex-direction: column; gap: 6px; min-width: 0; margin: 0; }
+.shot > img {
+  width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: var(--r-md); border: 1px solid var(--edge);
+  background: var(--surface-sunken);
+}
+/* El hueco de la primera vez: canto punteado, como la casilla vacía de la fila
+   de métricas. Dice «aquí cabrá una», que es distinto de «aquí falta algo». */
+.shot-empty {
+  display: grid; place-items: center; aspect-ratio: 3 / 4; padding: var(--s3);
+  text-align: center;
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-md);
+}
+
+@media (max-width: 560px) {
+  .week-day { grid-template-columns: 1fr auto; }
+  .week-day-facts { grid-column: 1 / -1; }
+}
+
+/* ── LA FILA de métricas ───────────────────────────────────────────────────
+   Dos o cuatro columnas, nunca tres. El porqué está en `MetricRow`
+   (`ui/metrics.jsx`); aquí solo está el reparto.
+
+   Columnas EXACTAS y no `auto-fit`: con `auto-fit`, la misma tarjeta mide una
+   cosa en la ficha y otra en el portal según cuántas hermanas tenga, y entonces
+   dos cifras del mismo producto dejan de poder compararse de un vistazo. */
+.metric-row { display: grid; gap: var(--s3); }
+.metric-row.is-1 { grid-template-columns: minmax(0, 1fr); }
+.metric-row.is-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.metric-row.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* La casilla vacía. Canto punteado y nada dentro: dice «aquí cabe otra», que es
+   distinto de «aquí falta algo». Sin ella, tres tarjetas dejaban un hueco mudo a
+   la derecha que se lee como un fallo de carga. */
+.metric-slot {
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--r-lg);
+  min-height: 96px;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--s3);
+}
+
+/* En el móvil la fila de cuatro se parte en 2×2 y no en una columna de cuatro:
+   apiladas se pierde justo lo que la fila existe para dar, que es comparar dos
+   cifras sin desplazar. Y a 390 px TAMBIÉN es 2×2: hubo un corte a 420 que las
+   apilaba en una columna, y cuatro cifras cortas («2 sesiones», «40 series»)
+   pasaban a gastar pantalla y media — se vio recorriendo el panel del
+   entrenador a 390 px, donde «Su semana» era más ficha de métrica que semana.
+   Una etiqueta larga envuelve dentro de su media celda, que es más barato. */
+@media (max-width: 720px) {
+  .metric-row.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* A dos columnas, quien abre renglón es quien no lleva filete —y la de abajo
+     necesita aire por arriba, que en una sola fila lo daba el filete vertical.
+
+     Y el canal se estrecha: 22 px a cada lado se comen un tercio de una columna
+     de 160 px, y entonces «12.400» parte en dos renglones. */
+}
+@media (max-width: 420px) {
+  .metric-slot { display: none; }
+}
+
+/* Widget compacto (las tarjetas flotantes "Sleep Time / Weight / Body Fat"). */
+.widget {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--s3) var(--s4) var(--s3);
+  box-shadow: var(--shadow-md);
+  display: flex; flex-direction: column; gap: var(--s1);
+  min-width: 0;
+}
+.widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.widget-sub { font-size: var(--fs-xs); color: var(--text-tertiary); letter-spacing: 0; }
+.widget-value { line-height: 1.1; }
+.widget-spark { margin-top: var(--s1); }
+
+/* Las barras de un `Sparkline`. Ver la cabecera del bloque `bars` en
+   `charts.jsx`: cajas y no SVG, para que el redondeo sean píxeles de verdad a
+   cualquier ancho. Extremo del dato redondeado y base cuadrada, que es la regla
+   de los gráficos del informe. */
+.spark-bars { display: flex; align-items: flex-end; gap: 2px; width: 100%; }
+.spark-bar { flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
+
+.stat {
+  background: var(--surface); border-radius: var(--r-md); padding: var(--s4);
+  display: flex; flex-direction: column; gap: 3px; min-width: 0; box-shadow: var(--shadow-sm);
+}
+.stat-center { align-items: center; text-align: center; }
+.stat-value { line-height: 1.1; overflow-wrap: anywhere; }
+.stat-sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ==========================================================================
+   Gráficos
+   ========================================================================== */
+
+/* `pan-y`: el gráfico lee el dedo (ver charts.jsx) pero el scroll vertical de
+   la página sigue siendo del navegador — sin esto, tocar la curva atascaba el
+   desplazamiento. */
+.chart { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+.chart-grid line { stroke: var(--hairline); stroke-width: 1; }
+/* El eje NO usa `--tracking-stencil` aunque sea una escala: sus etiquetas van una
+   al lado de otra en un ancho fijo, y el interletraje del rótulo troquelado las
+   haría chocar en cuanto el gráfico tenga doce semanas. La versalita basta para
+   emparentarlo con el resto. */
+.chart-axis text { fill: var(--text-tertiary); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.chart-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chart-cursor { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+
+/* Recta de tendencia. Más fina que los datos y semitransparente: explica la línea,
+   no compite con ella.
+
+   `is-weak` (r² bajo) va discontinua y casi transparente, y eso es lo importante:
+   una recta sólida sobre datos dispersos afirma una certeza que no existe. Que se
+   vea distinta es la única forma de que el gráfico no mienta. */
+.chart-trend { stroke-width: 1.5; opacity: 0.55; stroke-linecap: round; fill: none; }
+.chart-trend.is-weak { opacity: 0.3; stroke-dasharray: 5 4; }
+
+/* Banda de objetivo: el fondo contra el que se leen los datos. Va en tinta y no
+   en el acento porque es lo único de la aplicación donde el cromo se mete DENTRO
+   de un gráfico: una banda de color detrás de las series compite con ellas, y con
+   el acento en azul competiría además con `--data-blue`. La marca de la semana
+   elegida sí sigue en el acento (`.grafica-marca`): es una raya de 2 px, no una
+   superficie, y ahí señalar dónde estás es justo su trabajo. */
+.chart-band { fill: var(--text); opacity: 0.06; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: var(--s4); font-size: var(--fs-xs); color: var(--text-secondary); }
+.chart-swatch { width: 11px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+.chart-empty {
+  display: grid; place-items: center; text-align: center;
+  color: var(--text-tertiary); font-size: var(--fs-sm);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  padding: var(--s5) var(--s4);
+}
+
+.meter-row { display: flex; align-items: center; gap: var(--s3); }
+.meter-label { width: 124px; flex-shrink: 0; font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); text-align: right; }
+.meter-track { flex: 1; min-width: 0; position: relative; height: 22px; background: var(--fill-subtle); border-radius: var(--r-sm); overflow: hidden; }
+.meter-fill {
+  height: 100%; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
+  font-size: var(--fs-xs); font-weight: 650; color: var(--text-inverse);
+  transition: width var(--normal);
+  /* El color por DEFECTO de una barra de datos, y va aquí a propósito: una
+     pantalla no puede escribir `var(--data-*)` —lo prohíbe `npm run verify`,
+     porque el color es del dato y se declara una vez— pero la hoja de estilos
+     sí, que es donde vive el sistema. Los tres consumidores que sí distinguen
+     series (volumen por músculo, ingresos) lo pisan en línea; el que dibuja una
+     sola serie ya no tiene que inventarse un color ni quedarse sin él. */
+  background: var(--data-blue);
+}
+.meter-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--negative); opacity: 0.5; z-index: 2; }
+

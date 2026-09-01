@@ -13,7 +13,15 @@ import {
   resolvedConditions,
 } from '@/domain/conditions';
 import { shortDate, todayISO } from '@/lib/dates';
-import { Field, Fold, Notice, Panel, SegmentedControl } from '@/components/ui/primitives';
+import {
+  BotonAccion,
+  Field,
+  Fold,
+  Notice,
+  Panel,
+  SegmentedControl,
+  useAccionDeBoton,
+} from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -32,25 +40,26 @@ import { useToast } from '@/components/ui/ToastProvider';
 const Alta = ({ existing, onAdd, onCancel }) => {
   const [form, setForm] = useState({ label: '', area: 'training', severity: 'note', since: '', detail: '' });
   const [error, setError] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  /* El giro y el tic del botón de añadir; ver `BotonAccion`. */
+  const alta = useAccionDeBoton();
 
   const limpio = form.label.trim();
   const sugerencias = catalogFor(form.area, existing);
 
-  const guardar = async (e) => {
+  const guardar = (e) => {
     e.preventDefault();
-    if (!limpio || guardando) return;
+    if (!limpio) return;
 
-    setGuardando(true);
-    setError('');
-    const res = await onAdd({ ...form, label: limpio, detail: form.detail.trim() });
-    setGuardando(false);
-
-    if (!res.ok) {
-      setError(res.error);
-      return;
-    }
-    setForm({ label: '', area: form.area, severity: 'note', since: '', detail: '' });
+    alta.lanzar(async () => {
+      setError('');
+      const res = await onAdd({ ...form, label: limpio, detail: form.detail.trim() });
+      if (!res.ok) {
+        setError(res.error);
+        return false;
+      }
+      setForm({ label: '', area: form.area, severity: 'note', since: '', detail: '' });
+      return true;
+    });
   };
 
   return (
@@ -145,10 +154,15 @@ const Alta = ({ existing, onAdd, onCancel }) => {
       </Field>
 
       <div className="row gap-2">
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!limpio || guardando}>
-          {guardando ? 'Guardando…' : 'Añadir'}
-        </button>
-        <button type="button" className="btn btn-quiet btn-sm" onClick={onCancel}>
+        <BotonAccion
+          type="submit"
+          className="btn btn-primary btn-sm"
+          estado={alta.estado}
+          disabled={!limpio}
+        >
+          Añadir
+        </BotonAccion>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCancel}>
           Cerrar
         </button>
       </div>
@@ -260,7 +274,7 @@ export const ConditionsPanel = ({ client }) => {
       className="col gap-3"
       action={
         !abriendo && (
-          <button type="button" className="btn btn-quiet btn-sm" onClick={() => setAbriendo(true)}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAbriendo(true)}>
             <Plus size={13} /> Añadir
           </button>
         )

@@ -126,8 +126,16 @@ export const ClientDataPanel = ({ client }) => {
   const [consent, setConsent] = useState(null);
   useEffect(() => {
     let vivo = true;
-    supabase.rpc('consent_state', { p_client: client.id }).then(({ data }) => {
-      if (vivo) setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
+    /* Con `error` a la vista: sin el `GRANT SELECT` de la 0088 esta llamada
+       devolvía 42501 en silencio y el panel daba por no consentido a todo el
+       mundo. Un permiso que falta no puede parecer un dato. */
+    supabase.rpc('consent_state', { p_client: client.id }).then(({ data, error }) => {
+      if (!vivo) return;
+      if (error) {
+        console.error('consent_state:', error.message);
+        return;
+      }
+      setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
     });
     return () => {
       vivo = false;
@@ -222,7 +230,7 @@ export const ClientDataPanel = ({ client }) => {
       <div className="row wrap gap-2">
         <button
           type="button"
-          className="btn btn-quiet btn-sm"
+          className="btn btn-secondary btn-sm"
           onClick={download}
           disabled={busy !== null}
         >
@@ -266,7 +274,7 @@ export const ClientDataPanel = ({ client }) => {
             </button>
             <button
               type="button"
-              className="btn btn-quiet btn-sm"
+              className="btn btn-secondary btn-sm"
               onClick={() => {
                 setConfirming(false);
                 setTyped('');

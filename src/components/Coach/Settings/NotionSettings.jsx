@@ -23,7 +23,7 @@ import {
   notionDatabaseId,
 } from '@/domain/integrations';
 import { BrandMark } from '@/components/ui/BrandMark';
-import { EmptyState, Loading, Notice, Panel } from '@/components/ui/primitives';
+import { BotonAccion, EmptyState, Loading, Notice, Panel } from '@/components/ui/primitives';
 
 /**
  * Un paso del proceso, con su estado.
@@ -193,17 +193,20 @@ export const NotionSettings = ({ onChanged }) => {
     // El id se normaliza al guardar: se pega la URL entera y se queda lo que vale.
     const clean = { ...config, databaseId: notionDatabaseId(config.databaseId) || config.databaseId };
     const outcome = await run('save', saveIntegration({ id: integration?.id, config: clean, label: 'Notion' }));
-    if (!outcome.ok) return;
+    /* Devuelve si ha ido o no: es lo que decide si el botón confirma con un tic
+       o vuelve a su sitio sin celebrar nada. Ver `BotonAccion`. */
+    if (!outcome.ok) return false;
 
     if (token.trim()) {
       const stored = await run('save', setIntegrationToken(outcome.id, token.trim()));
-      if (!stored.ok) return;
+      if (!stored.ok) return false;
       setToken('');
     }
     setConfig(clean);
     await refresh();
     onChanged?.();
     setFeedback({ tone: 'success', text: 'Guardado.' });
+    return true;
   };
 
   const test = async () => {
@@ -445,9 +448,9 @@ export const NotionSettings = ({ onChanged }) => {
         )}
 
         <footer className="integration-foot">
-          <button type="button" className="btn btn-primary btn-sm" onClick={save} disabled={busy === 'save'}>
-            {busy === 'save' ? 'Guardando…' : 'Guardar'}
-          </button>
+          <BotonAccion className="btn btn-primary btn-sm" onClick={save}>
+            Guardar
+          </BotonAccion>
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -466,7 +469,7 @@ export const NotionSettings = ({ onChanged }) => {
           </button>
           <button
             type="button"
-            className="btn btn-tinted btn-sm"
+            className="btn btn-secondary btn-sm"
             onClick={() => sync('sync')}
             disabled={!canRun || busy === 'sync'}
           >

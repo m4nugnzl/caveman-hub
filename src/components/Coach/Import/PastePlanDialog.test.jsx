@@ -9,6 +9,7 @@ import { foodNames } from '@/domain/dietSheet';
 import { RoutinePreview, toEditableDays } from './RoutinePreview';
 import { DietPreview, FoodMatchList, aPlanDeDieta, resolverCon, toEditableDiet } from './DietPreview';
 import { SheetPicker } from './PastePlanDialog';
+import { ACCEPT, porQueNoSeLee } from './useSheetSource';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -360,5 +361,47 @@ describe('lo que se guarda es lo que se ha revisado', () => {
       .flatMap((v) => v.meals)
       .flatMap((m) => [m.id, ...m.options.flatMap((o) => [o.id, ...o.foods.map((f) => f.id)])]);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+/**
+ * ══ Por qué esto se prueba ═════════════════════════════════════════════════
+ *
+ * Porque es el único sitio de la importación donde el acierto ES la frase. Un
+ * `.xls` no reventaba: se leía como texto, salía ruido binario y el aviso
+ * hablaba de filas de cabecera. La prueba fija que cada caso diga lo suyo, y
+ * sobre todo que `.xlsx` —que termina en `xls` más una equis— no acabe nunca
+ * en el mensaje del formato viejo.
+ */
+describe('porQueNoSeLee', () => {
+  it('deja pasar lo que sabe abrir', () => {
+    const buenos = ['rutina.xlsx', 'RUTINA.XLSX', 'plan.docx', 'plan.csv', 'plan.tsv', 'dieta.pdf', 'a.txt'];
+    for (const nombre of buenos) expect(porQueNoSeLee(nombre)).toBe(null);
+  });
+
+  it('a los formatos de antes de 2007 les dice qué hacer, no que no funcionan', () => {
+    /* Y cada uno con SU programa: mandar a Word a quien trae un .xls es un
+       consejo que no se puede seguir. */
+    expect(porQueNoSeLee('rutina.xls')).toContain('.xlsx');
+    expect(porQueNoSeLee('rutina.xls')).toContain('Excel');
+    expect(porQueNoSeLee('dieta.doc')).toContain('.docx');
+    expect(porQueNoSeLee('dieta.doc')).toContain('Word');
+  });
+
+  it('reconoce las hojas y documentos de los otros programas', () => {
+    expect(porQueNoSeLee('plan.numbers')).toContain('Expórtalo');
+    expect(porQueNoSeLee('plan.pages')).toContain('Expórtalo');
+    expect(porQueNoSeLee('plan.ods')).toContain('Expórtalo');
+  });
+
+  it('y de lo demás dice qué sí vale', () => {
+    expect(porQueNoSeLee('foto.png')).toContain('un Excel, un Word, un PDF');
+    expect(porQueNoSeLee('rutina')).toContain('un Excel, un Word, un PDF');
+  });
+
+  it('los formatos viejos entran en el selector: se eligen y se explican, en vez de salir en gris', () => {
+    expect(ACCEPT).toContain('.xls,');
+    expect(ACCEPT).toContain('.doc,');
+    expect(ACCEPT).toContain('.docx,');
   });
 });

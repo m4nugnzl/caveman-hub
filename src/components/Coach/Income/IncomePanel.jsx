@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, CalendarClock, Receipt, TrendingUp, Users } from 'lucide-react';
+import { CalendarClock, Receipt, TrendingUp, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabaseClient';
 import { mapPaymentFromDb } from '@/lib/mappers';
+import { traduceDbError } from '@/lib/dbErrors';
 import {
   FORECAST_MONTHS,
   HISTORY_MONTHS,
@@ -96,6 +97,24 @@ const FilaDeCobro = ({ fila, onPaid }) => (
   </div>
 );
 
+/**
+ * Qué se le dice a un entrenador cuando el histórico no ha podido cargarse.
+ *
+ * Lo de leer no es lo mismo que lo de guardar, y `traduceDbError` está escrito
+ * para lo segundo («no tienes permiso para GUARDAR esto»), así que el caso de
+ * permisos se dice aquí con las palabras de esta pantalla. Para todo lo demás
+ * —sin red, migración sin aplicar— la traducción compartida ya es la correcta y
+ * no se duplica.
+ */
+const mensajeDeCarga = (err) => {
+  const code = err?.code || '';
+  const message = err?.message || '';
+  if (code === '42501' || /row-level security|permission denied/i.test(message)) {
+    return 'No se ha podido leer tu histórico de cobros: esta cuenta no tiene permiso sobre esos datos. Lo de arriba —lo recurrente y lo que está por cobrar— sale de tus clientes y sí es correcto. Si esto no debería pasar, escríbenos desde Ajustes → Ayuda.';
+  }
+  return traduceDbError(err) || 'No se ha podido cargar el histórico de cobros.';
+};
+
 export const IncomePanel = () => {
   const { clients, markClientPaid } = useApp();
   const toast = useToast();
@@ -132,8 +151,19 @@ export const IncomePanel = () => {
       /* Se dice qué ha fallado y se deja la pantalla en pie: el recurrente y los
          cobros pendientes salen de `clients`, que ya está cargado, así que la
          mitad útil de la pantalla funciona sin esto. Vaciar todo por un fallo del
-         histórico sería castigar lo que sí se puede contestar. */
-      setError(err.message || 'No se ha podido cargar el histórico de cobros.');
+         histórico sería castigar lo que sí se puede contestar.
+
+         ── Pero lo que se dice es una frase, no el error de Postgres ─────────
+         Aquí se pintaba `err.message` tal cual, y por eso esta pantalla llegó a
+         enseñarle a un entrenador «permission denied for table client_payments».
+         Eso no es un mensaje: es una traza. No dice qué ha pasado en sus
+         términos, no dice qué hacer, y de paso publica el nombre de una tabla.
+
+         El texto técnico no se pierde —va a la consola, que es donde sirve para
+         algo— y en pantalla queda lo que la persona necesita: qué se ha quedado
+         sin cargar, qué SÍ es fiable de lo que está viendo, y qué hacer. */
+      console.error('client_payments:', err);
+      setError(mensajeDeCarga(err));
       setPayments([]);
       return;
     }
@@ -282,14 +312,17 @@ export const IncomePanel = () => {
           sub="Lo vencido y lo que vence hoy. El botón es el mismo gesto que en «Hoy» y en la ficha."
         />
 
+        {/* Sin nada vencido esto era un vacío de 370 px con su icono y su
+            titular, justo debajo de cuatro cifras que en una cuenta nueva
+            valen 0 € — media pantalla dedicada a decir que no hay nada. Estar
+            al día es una buena noticia y ocupa una línea. */}
         {tablero.pending.length === 0 ? (
-          <Panel tight>
-            <EmptyState
-              icon={Banknote}
-              title="No hay nada pendiente"
-              message="Ningún cobro ha vencido. Los que renuevan en los próximos días salen más abajo."
-            />
-          </Panel>
+          <p className="t-sm t-secondary">
+            Nadie te debe nada ahora mismo.
+            {tablero.soon.length > 0
+              ? ` ${tablero.soon.length === 1 ? 'Uno renueva' : `${tablero.soon.length} renuevan`} en los próximos días, aquí debajo.`
+              : ''}
+          </p>
         ) : (
           <Panel tight>
             <div className="list">
