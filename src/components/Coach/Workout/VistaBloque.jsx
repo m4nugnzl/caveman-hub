@@ -8,14 +8,16 @@ import {
   isCurrentBlock,
   structureOfBlock,
   untrainedWeeksOfDay,
+  weeksOfBlock,
 } from '@/domain/blocks';
-import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, isRestDay, rotatingSlots } from '@/domain/training';
+import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, isRestDay, rotatingSlots } from '@/domain/training';
+import { executedSessions, resumenDeEntrada, sessionSetCount, ultimaSesionDeHoja } from '@/domain/sessions';
 import { metricColor } from '@/domain/metrics';
-import { localeNumber } from '@/lib/dates';
+import { localeNumber, weekdayName } from '@/lib/dates';
 import { clampInt } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
+import { EmptyState, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
 import { HistorialPopup } from './HistorialPopup';
 import { VolumenPopup } from './VolumenPopup';
 import { LineaDeBloques } from './LineaDeBloques';
@@ -262,6 +264,28 @@ export const VistaBloque = ({
   const [altaEn, setAltaEn] = useState(null);
   const [ventana, setVentana] = useState(null); // 'historial' | 'volumen'
   /*
+    ── Dos densidades: leer y trabajar ──────────────────────────────────────
+    Programar veinte series de un tirón y repasar el plan con calma piden aires
+    distintos. «Compacta» encoge filas y letra para meter más hoja en pantalla;
+    se recuerda en este navegador, como la guía de Inicio, porque es una
+    preferencia de la mesa de trabajo, no un dato del cliente.
+  */
+  const [densidad, setDensidad] = useState(() => {
+    try {
+      return localStorage.getItem('caveman-densidad-hoja') === 'compacta' ? 'compacta' : 'comoda';
+    } catch {
+      return 'comoda';
+    }
+  });
+  const cambiarDensidad = (id) => {
+    setDensidad(id);
+    try {
+      localStorage.setItem('caveman-densidad-hoja', id);
+    } catch {
+      /* Sin almacenamiento, la preferencia dura la sesión. Suficiente. */
+    }
+  };
+  /*
     El arrastre: qué viaja —una hoja entera o un ejercicio dentro de la suya—
     y sobre qué está. El mismo `draggable` de la hoja de series: el asa
     arranca, la pieza de destino recibe. Un ejercicio solo se suelta dentro de
@@ -311,6 +335,23 @@ export const VistaBloque = ({
   const enBloque = (w) => w - bloque.fromWeek + 1;
   const etiqueta = (w) => `${unidad.charAt(0)}${enBloque(w)}`;
   const rellenarTodo = () => porRellenar.forEach(({ dayName, semanas: ws }) => onRellenar(dayName, ws));
+
+  /*
+    ══ LA HOJA VERAZ: lo hecho al lado del plan ═══════════════════════════════
+    La hoja decía «4 × 6-8» y ahí se acababa: lo que la persona HIZO vivía en
+    otra pestaña, y revisar el plan era saltar entre las dos. Ahora cada hoja
+    dice si esta semana está hecha, a medias o pendiente —el semáforo, pegado a
+    su rótulo—, y cada ejercicio lleva debajo, en fantasma, lo de la última vez:
+    kilos y repeticiones reales. Es la rejilla veraz que hace panel al documento.
+    Solo en el bloque actual con la semana en curso dentro: en un bloque cerrado
+    la hoja es archivo y el semáforo mentiría.
+  */
+  const semanasBloque = weeksOfBlock(program, bloque);
+  const enCursoAqui = esActual && Number.isFinite(semanaEnCurso) && semanasBloque.includes(semanaEnCurso);
+  const microEnCurso = enCursoAqui ? findMicrocycle(program?.microcycles || [], semanaEnCurso) : null;
+  const diaDe = (fecha) => (fecha ? weekdayName(`${fecha}T00:00:00Z`) : null);
+  const resumenTexto = (r) =>
+    [r.kg !== null ? `${localeNumber(r.kg)} kg` : null, r.reps.join('·')].filter(Boolean).join(' · ');
 
   /* ── El arrastre ───────────────────────────────────────────────────────── */
   const soltar = () => {
@@ -389,6 +430,7 @@ export const VistaBloque = ({
       semanaEnCurso={semanaEnCurso}
       unidad={unidad}
       unidades={unidades}
+      conHorizonte
       onIrBloque={onIrBloque}
       onIrSemana={onIrSemana}
       onNuevaSemana={onNuevaSemana}
@@ -480,6 +522,17 @@ export const VistaBloque = ({
               {resumen.series ?? 0} series por {unidad.toLowerCase()}
               {esActual && plan.sessions.length > 1 ? ' · arrastra por el asa para ordenar' : ''}
             </span>
+            <span className="plan-densidad">
+              <SegmentedControl
+                label="Densidad de la hoja"
+                value={densidad}
+                onChange={cambiarDensidad}
+                options={[
+                  { id: 'comoda', label: 'Cómoda', hint: 'Con aire, para leer el plan' },
+                  { id: 'compacta', label: 'Compacta', hint: 'Más filas por pantalla, para programar de un tirón' },
+                ]}
+              />
+            </span>
           </div>
 
           {/*
@@ -506,11 +559,46 @@ export const VistaBloque = ({
             )}
           </div>
 
-          <div className={`plan-rejilla${arrastre ? ` is-arrastrando-${arrastre.tipo}` : ''}`} role="list">
+          <div
+            className={`plan-rejilla${arrastre ? ` is-arrastrando-${arrastre.tipo}` : ''}${densidad === 'compacta' ? ' is-compacta' : ''}`}
+            role="list"
+          >
             {plan.sessions.map((hoja, index) => {
               const cerrada = untrainedWeeksOfDay(program, bloque, hoja.dayName).length === 0;
               const cae = cuandoCae(hoja.dayName);
               const piezaHoja = { tipo: 'hoja', hoja: hoja.dayName, index };
+
+              /* Lo hecho esta semana con esta hoja, y la última vez del bloque
+                 para el fantasma de quien aún no la ha tocado. */
+              const sesionesSemana = microEnCurso
+                ? executedSessions(microEnCurso).filter((s) => s.dayName === hoja.dayName)
+                : [];
+              const ultimaDeSemana =
+                sesionesSemana.length > 0
+                  ? sesionesSemana.reduce((a, b) =>
+                      String(a.date || '').localeCompare(String(b.date || '')) >= 0 ? a : b
+                    )
+                  : null;
+              const seriesHechas = sesionesSemana.reduce((n, s) => n + sessionSetCount(s), 0);
+              const pasada = enCursoAqui
+                ? ultimaSesionDeHoja(
+                    program?.microcycles || [],
+                    semanasBloque.filter((w) => w < semanaEnCurso),
+                    hoja.dayName
+                  )
+                : null;
+              const estadoHoja = !enCursoAqui
+                ? null
+                : seriesHechas === 0
+                  ? { tono: 'aun', texto: `aún no esta ${unidad.toLowerCase()}` }
+                  : seriesHechas >= hoja.series
+                    ? {
+                        tono: 'ok',
+                        texto: `hecha${diaDe(ultimaDeSemana?.date) ? ` el ${diaDe(ultimaDeSemana.date)}` : ''}`,
+                      }
+                    : /* «1/20» y no «1 de 20 series»: la columna es estrecha y el
+                         encabezado de arriba ya dice que son series. */
+                      { tono: 'warn', texto: `a medias · ${seriesHechas}/${hoja.series}` };
 
               return (
                 <section className={`plan-col${marcas(piezaHoja)}`} role="listitem" key={hoja.dayName} {...(esActual ? receptor(piezaHoja) : {})}>
@@ -537,6 +625,11 @@ export const VistaBloque = ({
                       <span className="plan-col-sub">
                         {[cae, `${hoja.series} series`, cuenta(hoja.exercises.length, 'ejercicio', 'ejercicios')].filter(Boolean).join(' · ')}
                       </span>
+                      {estadoHoja && (
+                        /* El semáforo de la semana, pegado al rótulo que juzga:
+                           hecha · a medias · aún no. */
+                        <span className={`plan-col-estado is-${estadoHoja.tono}`}>{estadoHoja.texto}</span>
+                      )}
                     </div>
                     <MenuAcciones
                       clase="btn btn-icon btn-icon-compact plan-col-menu"
@@ -556,6 +649,10 @@ export const VistaBloque = ({
                   <ol className="plan-ejs">
                     {hoja.exercises.map((ex, i) => {
                       const piezaEj = { tipo: 'ej', hoja: hoja.dayName, index: i, nombre: ex.name };
+                      /* La verdad bajo la pauta: lo de esta semana si existe, y
+                         si no, la última vez del bloque como fantasma. */
+                      const real = ultimaDeSemana ? resumenDeEntrada(ultimaDeSemana, ex.name) : null;
+                      const fantasma = !real && pasada ? resumenDeEntrada(pasada, ex.name) : null;
                       return (
                         <li className={`plan-ej${marcas(piezaEj)}`} key={ex.id} {...(cerrada ? {} : receptor(piezaEj))}>
                           <span className="plan-ej-nombre" title={ex.name}>
@@ -604,6 +701,18 @@ export const VistaBloque = ({
                               </button>
                             </span>
                           </span>
+                          {(real || fantasma) && (
+                            <span
+                              className={`plan-ej-real${real ? (real.series >= ex.series ? ' is-ok' : ' is-warn') : ''}`}
+                              title={
+                                real
+                                  ? `Lo registrado esta ${unidad.toLowerCase()}: su mayor peso y las repeticiones serie a serie`
+                                  : 'Lo registrado la última vez que entrenó esta hoja en el bloque'
+                              }
+                            >
+                              {real ? resumenTexto(real) : `la vez pasada: ${resumenTexto(fantasma)}`}
+                            </span>
+                          )}
                         </li>
                       );
                     })}

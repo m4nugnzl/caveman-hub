@@ -54,7 +54,11 @@ export const useCloseReview = () => {
   const toast = useToast();
 
   const close = useCallback(
-    async ({ clientId, name, checkInId = null, weekStart, notes = SIN_CAMBIOS }) => {
+    /* `restantes`: cuántas revisiones quedan en la pasada DESPUÉS de esta. Es
+       opcional porque no todos los que cierran conocen la cola; cuando llega,
+       el acuse cuenta el trabajo acabándose — que es la mitad de la gracia de
+       una bandeja. */
+    async ({ clientId, name, checkInId = null, weekStart, notes = SIN_CAMBIOS, restantes = null }) => {
       /* Sin la entrega del cliente no existe fila en `check_ins`, pero la cola sí
          lo da por listo. Se crea y se marca revisada en el mismo gesto: si has
          mirado su semana, esa semana existe — la haya entregado él o no. */
@@ -73,8 +77,16 @@ export const useCloseReview = () => {
       if (!res.ok) return res;
 
       const creada = !checkInId;
+      const cola =
+        restantes === null
+          ? ''
+          : restantes === 0
+            ? ' No queda ninguna por revisar.'
+            : restantes === 1
+              ? ' Queda 1 por revisar.'
+              : ` Quedan ${restantes} por revisar.`;
       toast({
-        text: `Semana de ${name} cerrada.`,
+        text: `Semana de ${name} cerrada.${cola}`,
         action: {
           label: 'Deshacer',
           onClick: () => (creada ? deleteCheckIn(id) : unreviewCheckIn(id)),
@@ -106,7 +118,7 @@ export const useCloseReview = () => {
    * huérfano.
    */
   const closeWithVideo = useCallback(
-    async ({ clientId, name, checkInId = null, weekStart, url }) => {
+    async ({ clientId, name, checkInId = null, weekStart, url, restantes = null }) => {
       const video = parseVideoUrl(url);
       if (!video) return { ok: false, error: VIDEO_URL_HINT };
 
@@ -119,7 +131,7 @@ export const useCloseReview = () => {
       if (!res.ok) return res;
 
       publishUpdate(clientId, 'review');
-      return close({ clientId, name, checkInId, weekStart, notes: 'Te lo explico en el vídeo.' });
+      return close({ clientId, name, checkInId, weekStart, notes: 'Te lo explico en el vídeo.', restantes });
     },
     [createReviewUrl, publishUpdate, close]
   );
@@ -148,7 +160,7 @@ export const useCloseReview = () => {
    * posibles, porque el cliente la lee y se va a buscar algo que no existe.
    */
   const closeWithRecording = useCallback(
-    async ({ clientId, name, checkInId = null, weekStart, blob, mimeType }) => {
+    async ({ clientId, name, checkInId = null, weekStart, blob, mimeType, restantes = null }) => {
       const subida = await uploadReview({ clientId, blob, mimeType, label: `revision-${name}` });
       if (!subida.ok) return subida;
 
@@ -161,7 +173,7 @@ export const useCloseReview = () => {
       if (!enlace.ok) return enlace;
 
       publishUpdate(clientId, 'review');
-      return close({ clientId, name, checkInId, weekStart, notes: 'Te lo explico en el vídeo.' });
+      return close({ clientId, name, checkInId, weekStart, notes: 'Te lo explico en el vídeo.', restantes });
     },
     [uploadReview, createReviewLink, publishUpdate, close]
   );

@@ -281,6 +281,19 @@ export const Today = () => {
   const abierta = colas.find((c) => c.id === elegida && tieneGente(c)) || colas.find(tieneGente) || null;
   const pendientes = colas.reduce((n, c) => n + c.n, 0);
 
+  /*
+    ── Solo lo vivo es tarjeta ────────────────────────────────────────────────
+    Una cola a cero decía «0 · nadie · Al día» a plena tarjeta: dos cajas del
+    escaparate gastadas en anunciar que no hay nada. Las vacías se retiran de la
+    rejilla y se funden en un renglón que premia («Revisiones y cobros, al
+    día.»); si mañana tienen trabajo, vuelven a ser tarjeta solas.
+  */
+  const vivas = colas.filter(tieneGente);
+  const NOMBRE_ALDIA = { revisar: 'revisiones', programar: 'rutinas', senales: 'entrenos', cobrar: 'cobros' };
+  const alDia = colas.filter((c) => !tieneGente(c)).map((c) => NOMBRE_ALDIA[c.id] || c.label.toLowerCase());
+  const fraseAlDia =
+    alDia.length > 1 ? `${alDia.slice(0, -1).join(', ')} y ${alDia[alDia.length - 1]}` : alDia[0] || '';
+
   /* ── La agenda de la semana y la actividad reciente ────────────────────── */
   const [agendaEvents, setAgendaEvents] = useState([]);
   useEffect(() => {
@@ -337,6 +350,8 @@ export const Today = () => {
       checkInId: reviewId,
       weekStart: checkIns[clientId]?.weekStart,
       notes: notas,
+      /* El acuse cuenta la cola vaciarse: los listos menos el que se cierra. */
+      restantes: Math.max(0, (colas.find((c) => c.id === 'revisar')?.n || 1) - 1),
     });
     setError(res?.ok === false ? res.error : null);
     /* Se devuelve para que el botón de la cola sepa si confirmar con un tic o
@@ -391,30 +406,44 @@ export const Today = () => {
       {error && <Notice tone="error">{error}</Notice>}
       <GettingStarted />
 
-      {/* ── Las cuatro colas ──────────────────────────────────────────────── */}
-      <div className="colas" role="tablist" aria-label="Qué tienes que hacer">
-        {colas.map((cola) => {
-          const activa = abierta?.id === cola.id;
-          return (
-            <button
-              key={cola.id}
-              type="button"
-              role="tab"
-              aria-selected={activa}
-              className={`cola${activa ? ' is-on' : ''}${tieneGente(cola) ? '' : ' is-vacia'}`}
-              disabled={!tieneGente(cola)}
-              onClick={() => setElegida(cola.id)}
-            >
-              <span className="cola-k">{cola.label}</span>
-              <span className="cola-n">
-                {cola.n}
-                <small>{cola.n === 0 ? 'nadie' : cola.sub}</small>
-              </span>
-              <span className="cola-verbo">{cola.n > 0 ? `${cola.verbo} →` : tieneGente(cola) ? 'Recordar →' : 'Al día'}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Las colas con trabajo; las demás, un renglón ──────────────────── */}
+      {vivas.length > 0 && (
+        <div
+          className="colas"
+          style={{ '--colas-n': vivas.length }}
+          role="tablist"
+          aria-label="Qué tienes que hacer"
+        >
+          {vivas.map((cola) => {
+            const activa = abierta?.id === cola.id;
+            return (
+              <button
+                key={cola.id}
+                type="button"
+                role="tab"
+                aria-selected={activa}
+                className={`cola${activa ? ' is-on' : ''}`}
+                onClick={() => setElegida(cola.id)}
+              >
+                <span className="cola-k">{cola.label}</span>
+                {/* En la rejilla solo hay colas con gente: el matiz de «0» es el de
+                    «por revisar» con entregas aún sin subir, y eso ya lo dice su sub. */}
+                <span className="cola-n">
+                  {cola.n}
+                  <small>{cola.sub}</small>
+                </span>
+                <span className="cola-verbo">{cola.n > 0 ? cola.verbo : 'Recordar'}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {vivas.length > 0 && fraseAlDia && (
+        <p className="aldia-linea">
+          <Check size={14} aria-hidden="true" />
+          {fraseAlDia[0].toUpperCase() + fraseAlDia.slice(1)}, al día.
+        </p>
+      )}
 
       <div className="inicio">
         <section className="col gap-5">
@@ -465,7 +494,14 @@ export const Today = () => {
             className="col gap-3"
           >
             {semana.total === 0 ? (
-              <TarjetaVacia>Nada apuntado en la agenda hasta el domingo.</TarjetaVacia>
+              /* Sin caja punteada: enmarcaba la ausencia. El vacío dice lo que
+                 hay y ofrece el gesto; la invitación es el contenido. */
+              <div className="vacio-invita">
+                <p>Nada apuntado hasta el domingo.</p>
+                <button type="button" className="cab-accion is-puerta" onClick={() => navigate('/calendario')}>
+                  Apuntar algo
+                </button>
+              </div>
             ) : (
               <div className="agenda">
                 {semana.vencidos.length > 0 && (

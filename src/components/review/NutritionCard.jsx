@@ -90,8 +90,8 @@ export const NutritionCard = ({ track = [], selected, client }) => {
       span={12}
       vacia={sinPlan}
       accion={
-        <Link className="cab-accion" to={clientPath(client?.id, 'nutricion')}>
-          Su dieta →
+        <Link className="cab-accion is-puerta" to={clientPath(client?.id, 'nutricion')}>
+          Su dieta
         </Link>
       }
     >
@@ -125,8 +125,8 @@ export const NutritionCard = ({ track = [], selected, client }) => {
 
       {puedeAjustar && (
         <footer className="tarjeta-pie-accion">
-          <button type="button" className="cab-accion is-principal" aria-haspopup="dialog" onClick={() => setAjustando(true)}>
-            Ajustar la dieta →
+          <button type="button" className="cab-accion is-principal is-puerta" aria-haspopup="dialog" onClick={() => setAjustando(true)}>
+            Ajustar la dieta
           </button>
         </footer>
       )}

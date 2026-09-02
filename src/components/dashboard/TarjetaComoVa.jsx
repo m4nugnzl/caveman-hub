@@ -108,8 +108,8 @@ export const TarjetaComoVa = ({
          adivinar que abre el roadmap. Ahora se llama como la ventana que abre,
          que es la regla del resto de puertas del panel («Ver a fondo →»). */
       accion={
-        <button type="button" className="cab-accion" aria-haspopup="dialog" onClick={onAbrirFases}>
-          {isClient ? 'Tus fases' : 'Sus fases'} →
+        <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={onAbrirFases}>
+          {isClient ? 'Tus fases' : 'Sus fases'}
         </button>
       }
     >

@@ -642,7 +642,7 @@ const ArchiveRow = ({ client }) => {
       </span>
       <button
         type="button"
-        className="cab-accion"
+        className="cab-accion is-puerta"
         disabled={busy}
         onClick={() => {
           setBusy(true);
@@ -1337,7 +1337,7 @@ export const ClientFile = () => {
         acciones={
           <>
             <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'calendario')}>
-              Su calendario →
+              Su calendario
             </Link>
             <DownloadAnamnesis client={activeClient} className="btn btn-secondary btn-sm" />
           </>

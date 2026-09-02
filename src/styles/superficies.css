@@ -427,7 +427,9 @@ button.task-head:hover > .chevron { color: var(--text); }
    una tercera cosa la partiría en dos líneas por una curiosidad. */
 .roster .fila-nota {
   position: relative; margin-left: auto; flex-shrink: 0; pointer-events: none;
-  font-size: var(--fs-xs); color: var(--text-tertiary);
+  /* Tinta secundaria, no terciaria: es la única señal de vida de la fila y a
+     2,9:1 era una curiosidad; ahora se puede LEER la cartera de un vistazo. */
+  font-size: var(--fs-xs); color: var(--text-secondary);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* Con la nota empujando a la derecha, el botón ya no necesita su propio empuje:
@@ -632,3 +634,15 @@ button.task-head:hover > .chevron { color: var(--text); }
 .searchbox > .input { padding-left: 34px; width: 230px; }
 @media (max-width: 560px) { .searchbox, .searchbox > .input { width: 100%; } }
 
+
+/* ══ EL BOTÓN DE LA FILA SE CALLA ══════════════════════════════════════════
+   Ocho «Invitar» idénticos en columna convertían la cartera en un impreso: el
+   botón repetido era el nuevo muro, como antes lo fueron las frases. La
+   carencia ya está dicha una vez arriba; el remedio aparece al acercarse a la
+   fila (o al llegar con el teclado), y donde no hay cursor —el móvil— se queda
+   siempre a la vista. El que está trabajando o confirmando no se esconde. */
+.roster .task-row > .btn { opacity: 0; transition: opacity var(--fast); }
+.roster .task-row:hover > .btn,
+.roster .task-row:focus-within > .btn,
+.roster .task-row > .btn:not([data-estado='reposo']) { opacity: 1; }
+@media (hover: none) { .roster .task-row > .btn { opacity: 1; } }

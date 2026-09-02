@@ -411,95 +411,106 @@
   .bloque-lado { position: static; }
 }
 
-/* ══ LA LÍNEA DE TIEMPO: un tramo por bloque, una marca por semana ═════════
-   Cada tramo crece con sus semanas (flex-grow = semanas), así que la línea se
-   lee como tiempo. El abierto lleva el borde, su nombre se escribe en él y
-   sus marcas son botones; los demás van en voz baja y se entra pulsando su
-   cabecera. Es la cabecera del bloque: encima no va ningún titular. */
-.linea { display: flex; align-items: flex-start; gap: var(--s2); min-width: 0; }
-.linea-tramos { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--s2); min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
-.linea-ajustes { flex-shrink: 0; margin-top: var(--s2); color: var(--text-tertiary); }
+/* ══ LA CINTA: un tramo por bloque, una celda por semana ═══════════════════
+   Los bloques dejaron de ser tarjetas. Cuatro recuadros del mismo peso se
+   leían como cuatro pestañas, y el ciclo es tiempo: ahora es UNA cinta, con
+   el ancho de cada tramo puesto por sus semanas (`flexGrow` en
+   `LineaDeBloques`) y una celda por semana que cuenta su estado — hecha
+   rellena, en curso en acento, por hacer hueca. Los nombres bajan a una
+   leyenda bajo la cinta; las fechas y cifras de cada bloque, a su título. */
+.linea { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.linea-fila { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.linea-cinta { list-style: none; margin: 0; padding: 0; display: flex; gap: 10px; min-width: 0; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.linea-cinta::-webkit-scrollbar { display: none; }
+.linea-ajustes { flex-shrink: 0; color: var(--text-tertiary); }
 .linea-ajustes:hover { color: var(--text); }
-.linea-cab.is-este { cursor: default; }
-.linea-nombre.is-campo {
-  width: auto; max-width: 100%; font-size: var(--fs-lg); font-weight: 720; letter-spacing: -0.022em; line-height: 1.2;
-  background: transparent; border: 0; border-radius: var(--r-sm); padding: 1px 6px; margin-left: -6px;
+.cinta-bloque { flex: 1 1 0; min-width: 0; display: flex; }
+/* El tramo que no se está mirando es UNA puerta: se entra pulsando cualquier
+   punto, y sus celdas hablan en voz baja hasta que el cursor se acerca. */
+.cinta-ir { display: flex; min-width: 0; flex: 1; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: var(--r-pill); }
+.cinta-ir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cinta-semanas { display: flex; gap: 3px; flex: 1; min-width: 0; }
+.cinta-semana {
+  flex: 1 1 0; min-width: 20px; height: 24px; padding: 0; border: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: inherit; font-family: var(--font-display); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary); background: transparent;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong); border-radius: var(--r-xs);
+  transition: background-color var(--fast), color var(--fast), box-shadow var(--fast), opacity var(--fast);
+}
+/* Los extremos de cada tramo se redondean del todo: el bloque se lee como una
+   cápsula segmentada sin necesidad de caja. */
+.cinta-semanas > :first-child { border-top-left-radius: var(--r-pill); border-bottom-left-radius: var(--r-pill); }
+.cinta-semanas > :last-child { border-top-right-radius: var(--r-pill); border-bottom-right-radius: var(--r-pill); }
+/* Rellena con el escalón fuerte: con `--fill` a secas, sobre papel la celda
+   hecha quedaba a un pelo del lienzo y la cinta se leía vacía. */
+.cinta-semana.is-hecha { background: var(--fill-strong); color: var(--text-secondary); box-shadow: none; }
+.cinta-semana.is-curso { background: var(--accent); color: var(--accent-on); box-shadow: none; }
+button.cinta-semana { cursor: pointer; }
+button.cinta-semana:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-tertiary); }
+button.cinta-semana.is-curso:hover { color: var(--accent-on); filter: brightness(1.08); box-shadow: none; }
+.cinta-semana.is-nueva { flex: 0 0 auto; min-width: 26px; border-radius: var(--r-pill); box-shadow: inset 0 0 0 1px var(--hairline); color: var(--text-tertiary); }
+.cinta-semana.is-nueva:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.cinta-bloque:not(.is-on) .cinta-semana { opacity: 0.75; }
+.cinta-ir:hover .cinta-semana { opacity: 1; }
+/* El bloque de más: un hueco al final, del alto de la cinta. */
+.cinta-bloque.is-siguiente { flex: 0 0 auto; }
+.cinta-mas {
+  display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 12px;
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-pill); background: transparent;
+  font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary); cursor: pointer;
+  transition: color var(--fast), border-color var(--fast), background-color var(--fast);
+}
+.cinta-mas:hover { color: var(--text); border-color: var(--text-tertiary); background: var(--fill-subtle); }
+
+/* ── La leyenda y el horizonte, bajo la cinta ──────────────────────────────
+   «B1 Adaptación · B2 Acumulación · B3 Intensificación — estás aquí, semana
+   2 de 4», y a la derecha cuánto le queda al ciclo. El seleccionado escribe
+   su nombre aquí (encima no hay ningún titular) y los demás son puertas. */
+.linea-pie { display: flex; align-items: baseline; gap: var(--s1) var(--s5); flex-wrap: wrap; padding: 0 var(--s1); min-width: 0; }
+.linea-nombres { display: flex; align-items: baseline; flex-wrap: wrap; min-width: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.linea-nombre { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; padding: 0; border: 0; background: transparent; font: inherit; color: var(--text-tertiary); }
+button.linea-nombre { cursor: pointer; transition: color var(--fast); }
+button.linea-nombre:hover { color: var(--text); }
+.linea-nombres > * + *::before { content: '·'; margin: 0 var(--s2); color: var(--text-tertiary); }
+.linea-n { font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em; }
+.linea-nombre.is-on { color: var(--text); font-weight: 650; }
+.linea-nombre.is-on .linea-n { color: var(--accent); }
+.linea-nombre-texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linea-aqui { font-weight: 650; color: var(--text); white-space: nowrap; }
+.linea-cuando { color: var(--text-tertiary); font-weight: 500; }
+.linea-cuando::before { content: '·'; margin: 0 var(--s2) 0 3px; }
+/* El nombre del seleccionado se edita donde se lee: un campo fantasma.
+   `field-sizing: content` lo ciñe a lo escrito; donde no exista, manda el
+   `size` del JSX y sobra un poco de aire a la derecha, que no rompe nada. */
+.linea-campo {
+  width: auto; max-width: 100%; field-sizing: content;
+  font: inherit; font-weight: 650; color: var(--text);
+  background: transparent; border: 0; border-radius: var(--r-xs); padding: 0 4px; margin: 0 -4px;
   transition: background-color var(--fast);
 }
-.linea-nombre.is-campo:hover { background: var(--fill-subtle); }
-.linea-nombre.is-campo:focus { outline: none; background: var(--fill-subtle); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
-.linea-tramo.is-on .linea-cuando { white-space: normal; }
-.linea-tramos::-webkit-scrollbar { display: none; }
-.linea-tramo {
-  flex: 1 1 0; min-width: 132px; display: flex; flex-direction: column; gap: var(--s2);
-  padding: var(--s2) var(--s3) var(--s3); border-radius: var(--r-md);
-  background: var(--surface-sunken); border: 1px solid transparent;
-  transition: border-color var(--fast), background-color var(--fast);
+.linea-campo:hover { background: var(--fill-subtle); }
+.linea-campo:focus { outline: none; background: var(--fill-subtle); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+/* El horizonte del ciclo: cuánto queda —en acento, que es la otra mitad de
+   «estás aquí»— y qué viene detrás, en voz baja. */
+.linea-horizonte {
+  margin: 0 0 0 auto;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-/* El ancho de un tramo lo pone su número de semanas (`flexGrow` en
-   `LineaDeBloques`), y eso es lo que hace que la línea se lea como tiempo. Pero
-   el tramo ABIERTO es además la cabecera del bloque —lleva su nombre, editable,
-   y la línea de contexto— y con dos semanas contra las cuatro de los cerrados le
-   tocaban 200 px: el nombre salía como «Inten…» y el contexto se partía en cinco
-   renglones. Un suelo lo arregla sin tocar la proporción de los demás; lo que no
-   quepa se arrastra, que es lo que la línea ya hace desde el primer día. */
-.linea-tramo.is-on {
-  background: var(--surface); border-color: var(--edge); box-shadow: var(--shadow-sm);
-  min-width: 252px;
-}
-.linea-tramo:not(.is-on):hover { border-color: var(--hairline-strong); }
-.linea-cab {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--s2); align-items: baseline;
-  width: 100%; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; color: var(--text); cursor: pointer; min-width: 0;
-}
-.linea-tramo.is-on .linea-cab { cursor: default; }
-.linea-n { grid-row: 1 / 3; align-self: start; font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em; color: var(--text-tertiary); padding-top: 3px; }
-.linea-tramo.is-on .linea-n { color: var(--accent); }
-.linea-nombre { font-family: var(--font-display); font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.015em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; color: var(--text-secondary); transition: color var(--fast); }
-.linea-tramo.is-on .linea-nombre { color: var(--text); }
-.linea-tramo:not(.is-on) .linea-cab:hover .linea-nombre { color: var(--text); }
-.linea-cuando { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Las semanas: casillas del mismo tamaño, hechas rellenas, en curso en brasa,
-   por hacer vacías. En el bloque abierto son puertas. */
-.linea-semanas { display: flex; flex-wrap: wrap; gap: 3px; }
-.linea-semana {
-  display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 18px; border-radius: var(--r-xs);
-  font: inherit; font-family: var(--font-display); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: var(--text-tertiary); background: transparent; box-shadow: inset 0 0 0 1px var(--hairline-strong); border: 0; padding: 0;
-  transition: background-color var(--fast), color var(--fast), box-shadow var(--fast);
-}
-.linea-semana.is-hecha { background: var(--fill); color: var(--text-secondary); box-shadow: none; }
-.linea-semana.is-curso { background: var(--accent); color: var(--accent-on); box-shadow: none; }
-button.linea-semana { cursor: pointer; }
-button.linea-semana:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-tertiary); }
-button.linea-semana.is-curso:hover { color: var(--accent-on); filter: brightness(1.08); box-shadow: none; }
-.linea-semana.is-nueva { box-shadow: inset 0 0 0 1px var(--hairline); color: var(--text-tertiary); }
-.linea-semana.is-nueva:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
-/* El bloque de más: un tramo vacío al final, con el peso de un hueco. */
-.linea-tramo.is-siguiente { flex: 0 0 auto; min-width: 0; background: transparent; border: 1px dashed var(--hairline-strong); justify-content: center; padding: var(--s2); }
-.linea-tramo.is-siguiente:hover { border-color: var(--text-tertiary); background: var(--fill-subtle); }
-.linea-mas {
-  display: inline-flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--s2) var(--s3);
-  border: 0; background: transparent; font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary); cursor: pointer;
-}
-.linea-mas:hover { color: var(--text); }
+.linea-horizonte > b { color: var(--accent); font-weight: 650; }
 
-/* ── La línea, con el dedo ─────────────────────────────────────────────────
+/* ── La cinta, con el dedo ─────────────────────────────────────────────────
    Nació en el plan del entrenador, que es una pantalla de ratón, y desde que
-   el portal del cliente la usa también se abre en un teléfono. Ahí, tal cual,
-   pedía dos cosas imposibles: acertar en una marca de semana de 22 × 18 px, y
-   leer «Acumula…» y «Intensif…» en tramos de 106 px.
-
-   La marca sube al mínimo de los controles de lista y el tramo pide el ancho
-   que hace falta para que quepa el nombre de un bloque. Lo que no cabe se
-   arrastra, que es lo que la línea ya hacía: `.linea-tramos` tiene su
-   `overflow-x` desde el primer día, y `LineaDeBloques` la deja abierta por el
-   bloque en curso — el que importa está a la vista y la historia queda a la
-   izquierda, en el sitio donde el tiempo la puso. */
+   el portal del cliente la usa también se abre en un teléfono. Una celda de
+   24 px no se acierta con el pulgar: sube al mínimo de los controles de
+   lista. Lo que no cabe se arrastra — `.linea-cinta` tiene su `overflow-x`
+   desde el primer día, y `LineaDeBloques` la deja abierta por el final: el
+   bloque que importa a la vista y la historia a la izquierda, donde el
+   tiempo la puso. */
 @media (max-width: 1023.98px) {
-  .linea-semana { min-width: 34px; height: 34px; font-size: var(--fs-xs); border-radius: var(--r-sm); }
-  .linea-tramo { min-width: 172px; }
-  .linea-cab { padding: 2px 0; }
+  .cinta-semana { min-width: 34px; height: 38px; font-size: var(--fs-xs); }
+  .linea-horizonte { margin-left: 0; white-space: normal; }
 }
 
 /* ── Los tramos: rótulo, contexto en voz baja, y su acción a la derecha ──── */
@@ -843,13 +854,11 @@ button.linea-semana.is-curso:hover { color: var(--accent-on); filter: brightness
    tamaño de una tarjeta no se lee como «aquí cabe algo»: se lee como algo que
    se ha roto al cargar. En reposo es una superficie apagada sin contorno; el
    contorno aparece al pasar por encima, que es cuando significa algo. */
-.linea-tramo.is-siguiente,
 .plan-col-mas {
   border: 1px solid transparent;
   background: var(--fill-subtle);
   transition: background-color var(--fast), border-color var(--fast), color var(--fast);
 }
-.linea-tramo.is-siguiente:hover,
 .plan-col-mas:hover {
   border-color: var(--hairline-strong);
   background: var(--fill);
@@ -940,3 +949,61 @@ a.title:hover { text-decoration: underline; }
   font-size: var(--fs-sm); color: var(--text-secondary);
 }
 
+
+/* ══ LA HOJA VERAZ ═════════════════════════════════════════════════════════
+   El plan con la verdad al lado. El semáforo de la hoja va pegado a su rótulo
+   —hecha · a medias · aún no— y bajo cada pauta, lo registrado en fantasma:
+   tinta terciaria para no pisar el plan, y el punto juzga solo cuando hay
+   juicio (cumplió o le faltó), como manda la ley del color. */
+.plan-col-estado {
+  display: block; font-size: var(--fs-2xs); font-weight: 600;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.plan-col-estado::before {
+  content: ''; display: inline-block; width: 6px; height: 6px;
+  border-radius: 50%; margin-right: 5px; vertical-align: 1px;
+  background: transparent; border: 1px solid var(--text-tertiary);
+}
+.plan-col-estado.is-ok { color: var(--positive); }
+.plan-col-estado.is-ok::before { background: var(--positive); border-color: var(--positive); }
+.plan-col-estado.is-warn { color: var(--warning); }
+.plan-col-estado.is-warn::before { background: var(--warning); border-color: var(--warning); }
+
+.plan-ej-real {
+  display: block; font-size: var(--fs-2xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plan-ej-real.is-ok::before,
+.plan-ej-real.is-warn::before {
+  content: ''; display: inline-block; width: 5px; height: 5px;
+  border-radius: 50%; margin-right: 5px; vertical-align: 1px;
+}
+.plan-ej-real.is-ok::before { background: var(--positive); }
+.plan-ej-real.is-warn::before { background: var(--warning); }
+
+/* ══ DOS DENSIDADES: leer y trabajar ═══════════════════════════════════════
+   «Compacta» es la mesa de programar: filas más bajas, letra un punto menor y
+   menos aire entre hojas — un tercio más de plan por pantalla sin quitar nada
+   (la verdad en fantasma sigue ahí, que es la gracia). El conmutador vive en
+   la cabecera de «Hojas» y se recuerda por navegador. */
+.plan-densidad { margin-left: auto; }
+.plan-rejilla.is-compacta { gap: var(--s3) 0; }
+.plan-rejilla.is-compacta .plan-col { gap: var(--s1); }
+.plan-rejilla.is-compacta .plan-ej { padding: 2px 0; gap: 0; }
+.plan-rejilla.is-compacta .plan-ej-nombre { font-size: var(--fs-xs); }
+.plan-rejilla.is-compacta .plan-series,
+.plan-rejilla.is-compacta .plan-reps { font-size: var(--fs-xs); padding-top: 1px; padding-bottom: 1px; }
+.plan-rejilla.is-compacta .plan-col-sub { font-size: var(--fs-2xs); }
+@media (max-width: 700px) { .plan-densidad { display: none; } }
+
+/* ══ LA CELEBRACIÓN SOBRIA DEL PR ══════════════════════════════════════════
+   Un récord se celebra UNA vez y en trescientos milisegundos: la chapa entra
+   con un pop y se queda quieta. Nada de confeti ni bucles — la fiesta de esta
+   casa es corta. `prefers-reduced-motion` la apaga con la regla global. */
+@keyframes pr-aparece {
+  from { transform: scale(0.55); }
+  to { transform: scale(1); }
+}
+.set-row.is-record > .set-row-tag { animation: pr-aparece 0.3s var(--ease); }

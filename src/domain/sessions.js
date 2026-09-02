@@ -557,6 +557,59 @@ export function previousSetKey(exerciseName, setIndex) {
   return `${exerciseName}#${setIndex}`;
 }
 
+// ── La hoja veraz: lo hecho al lado del plan ───────────────────────────────
+
+/**
+ * La última sesión ejecutada de una hoja dentro de unas semanas concretas.
+ *
+ * Es la materia prima del «fantasma» del plan: bajo la pauta de cada ejercicio
+ * se enseña lo que la persona hizo la última vez que tocó esa hoja, y para eso
+ * hay que encontrar esa vez. Se queda con la más reciente por semana y, dentro
+ * de la semana, por fecha — el mismo criterio de `previousSetsBefore`.
+ *
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @param {number[]} weeks — en qué semanas buscar (las del bloque, normalmente)
+ * @param {string} dayName
+ */
+export const ultimaSesionDeHoja = (microcycles, weeks, dayName) => {
+  const quiero = new Set(weeks || []);
+  let mejor = null;
+  for (const micro of microcycles || []) {
+    if (!quiero.has(micro.weekNumber)) continue;
+    for (const session of executedSessions(micro)) {
+      if (session.dayName !== dayName) continue;
+      const candidata = { ...session, weekNumber: micro.weekNumber };
+      if (
+        !mejor ||
+        candidata.weekNumber > mejor.weekNumber ||
+        (candidata.weekNumber === mejor.weekNumber &&
+          String(candidata.date || '').localeCompare(String(mejor.date || '')) > 0)
+      ) {
+        mejor = candidata;
+      }
+    }
+  }
+  return mejor;
+};
+
+/**
+ * Lo que hizo con UN ejercicio en una sesión, listo para leerse en una línea:
+ * el mayor peso que movió y sus repeticiones serie a serie («80 kg · 8·8·7»).
+ * Empareja por nombre, como `previousSetsBefore`, y por el mismo motivo.
+ * Devuelve `null` si esa sesión no registró nada del ejercicio.
+ */
+export const resumenDeEntrada = (session, exerciseName) => {
+  const entry = (session?.entries || []).find((e) => e.name === exerciseName);
+  const sets = (entry?.sets || []).filter(isSetLogged);
+  if (sets.length === 0) return null;
+  const kgs = sets.map((s) => toNum(s.kg)).filter((kg) => kg !== null && kg > 0);
+  return {
+    kg: kgs.length > 0 ? Math.max(...kgs) : null,
+    reps: sets.map((s) => toNum(s.reps)),
+    series: sets.length,
+  };
+};
+
 // ── La mejor marca, para saber cuándo hay un récord ────────────────────────
 
 /**

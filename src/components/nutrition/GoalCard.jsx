@@ -128,10 +128,7 @@ export const GoalCard = ({
     <article className="card row between wrap gap-3">
       <span className="col grow" style={{ gap: 2, minWidth: 0 }}>
         {Etiqueta}
-        {/* Con el objetivo puesto no hace falta decir nada más: se explica solo.
-            El texto solo aparece cuando NO hay nada, que es cuando hay que decir
-            qué se puede poner ahí. */}
-        {!puesto && <span className="t-sm t-secondary">Sin definir.</span>}
+        {/* Con el objetivo puesto no hace falta decir nada más: se explica solo. */}
         {puesto && !numeric && (
           <span className="t-sm pre-wrap">
             {puesto}
@@ -140,6 +137,22 @@ export const GoalCard = ({
       </span>
 
       <span className="row gap-2 shrink-0">
+        {/* Vacía, la tarjeta no constata la ausencia («Sin definir.») sino que
+            ofrece el gesto — y lo ofrece EN EL SITIO DEL VALOR, a la derecha,
+            para que la tarjeta vacía y la llena compartan esqueleto y las dos
+            cajas de la fila queden alineadas. */}
+        {!puesto && editable && (
+          <button
+            type="button"
+            className="cab-accion is-puerta"
+            onClick={() => {
+              setDraft('');
+              setEditing(true);
+            }}
+          >
+            Definir
+          </button>
+        )}
         {/* La cifra se dice como en el resto del producto: «11.000», no
             «11000». Se guarda como texto y se pintaba tal cual, así que los
             mismos pasos salían con punto de millar en el Resumen y sin él
@@ -150,7 +163,9 @@ export const GoalCard = ({
             {unit && <span className="t-sm t-tertiary">{unit}</span>}
           </strong>
         )}
-        {editable && (
+        {/* El lápiz solo con algo puesto: vacío, «Definir →» ya es la única
+            entrada y dos controles para el mismo gesto se estorban. */}
+        {editable && puesto && (
           <button
             type="button"
             className="btn btn-icon"

@@ -149,9 +149,10 @@ export const DietNotes = ({ notes: raw, onChange }) => {
 
       <Panel tight className="pautas">
         {notes.length === 0 && (
-          <p className="t-sm t-tertiary">
-            Nada escrito todavía. Aquí van las indicaciones que no caben en una cifra: por qué el
-            plan es así, qué hacer los días que se salta, cómo afecta una patología.
+          /* Una línea, no un párrafo: el botón de abajo ya es la invitación y
+             el ejemplo largo hacía del vacío la pieza más grande del bloque. */
+          <p className="t-sm t-secondary">
+            Lo que no cabe en una cifra: por qué el plan es así, o qué hacer el día que se salta.
           </p>
         )}
 

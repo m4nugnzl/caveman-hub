@@ -128,11 +128,11 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
       span={12}
       accion={
         <Link
-          className="cab-accion"
+          className="cab-accion is-puerta"
           to={clientPath(client?.id, 'rutina')}
           state={{ revisionDe: client?.id, revisionNombre: client?.name }}
         >
-          Su rutina →
+          Su rutina
         </Link>
       }
     >

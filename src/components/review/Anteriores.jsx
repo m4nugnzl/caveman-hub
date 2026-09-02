@@ -69,8 +69,8 @@ export const Anteriores = ({ rows = [], onVerTodas, onAbrir }) => {
       vacia={rows.length === 0}
       accion={
         rows.length > 0 ? (
-          <button type="button" className="cab-accion" aria-haspopup="dialog" onClick={onVerTodas}>
-            Ver todas →
+          <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={onVerTodas}>
+            Ver todas
           </button>
         ) : null
       }

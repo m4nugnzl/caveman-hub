@@ -23,6 +23,7 @@ import {
   untrainedWeeksOfDay,
   weekChangesOfBlock,
   weekLabel,
+  horizonteDeBloque,
   weeksAheadOfBlock,
   weeksOfBlock,
 } from './blocks';
@@ -493,5 +494,42 @@ describe('el bloque en cifras', () => {
     const cerrado = { ...p, blocks: [{ id: 'a', name: 'A', fromWeek: 1, toWeek: 2 }, { id: 'b', name: 'B', fromWeek: 3, toWeek: null }] };
     expect(blockSummary(cerrado, blocksOf(cerrado)[0]).abierto).toBe(false);
     expect(blockSummary(cerrado, blocksOf(cerrado)[1]).semanas).toBe(0);
+  });
+});
+
+describe('el horizonte del bloque', () => {
+  const dosBloques = programa([1, 2, 3, 4, 5, 6], {
+    blocks: [
+      { id: 'a', name: 'Acumulación', fromWeek: 1, toWeek: 4 },
+      { id: 'b', name: 'Intensificación', fromWeek: 5, toWeek: null },
+    ],
+  });
+
+  it('dice cuánto queda y qué viene detrás', () => {
+    const h = horizonteDeBloque(dosBloques, 2);
+    expect(h.bloque.name).toBe('Acumulación');
+    expect(h.restantes).toBe(2);
+    expect(h.siguiente.name).toBe('Intensificación');
+    expect(h.abierto).toBe(false);
+  });
+
+  it('en el bloque abierto no hay siguiente y lo dice', () => {
+    const h = horizonteDeBloque(dosBloques, 6);
+    expect(h.bloque.name).toBe('Intensificación');
+    expect(h.restantes).toBe(0);
+    expect(h.siguiente).toBeNull();
+    expect(h.abierto).toBe(true);
+  });
+
+  it('el bloque sintético del final no cuenta como plan', () => {
+    const cerrados = programa([1, 2], { blocks: [{ id: 'a', name: 'A', fromWeek: 1, toWeek: 2 }] });
+    const h = horizonteDeBloque(cerrados, 2);
+    expect(h.siguiente).toBeNull();
+  });
+
+  it('sin semana en curso, o fuera de lo escrito, no hay horizonte', () => {
+    expect(horizonteDeBloque(dosBloques, null)).toBeNull();
+    expect(horizonteDeBloque(dosBloques, 9)).toBeNull();
+    expect(horizonteDeBloque({ microcycles: [] }, 1)).toBeNull();
   });
 });

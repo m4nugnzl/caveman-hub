@@ -117,6 +117,7 @@ export const ReviewDecision = ({
   cerrada = null,
   cargandoBase = false,
   siguiente = null,
+  restantes = null,
   aviso = null,
   onClosed = () => {},
 }) => {
@@ -194,6 +195,8 @@ export const ReviewDecision = ({
       name: client.name,
       checkInId: pendiente?.id || null,
       weekStart: pendiente?.weekStart || weekStart,
+      /* El acuse cuenta la bandeja vaciarse; quién queda lo sabe la pantalla. */
+      restantes,
     };
 
     setEnviando(true);

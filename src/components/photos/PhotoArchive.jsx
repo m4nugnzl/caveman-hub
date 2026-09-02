@@ -154,8 +154,8 @@ export const PhotoArchive = () => {
             {/* El estudio es la herramienta COMPARATIVA, y se abre desde aquí:
                 el archivo es donde se elige qué merece la pena comparar. */}
             {suyas.length > 1 && (
-              <Link className="cab-accion" to={clientPath(activeClient.id, 'revision/estudio')}>
-                Comparar en el estudio →
+              <Link className="cab-accion is-puerta" to={clientPath(activeClient.id, 'revision/estudio')}>
+                Comparar en el estudio
               </Link>
             )}
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setSubiendo(true)}>

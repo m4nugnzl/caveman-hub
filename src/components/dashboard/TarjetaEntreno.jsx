@@ -95,8 +95,8 @@ export const TarjetaEntreno = ({ program, microcycles, cycleType, latestWeek, is
       span={12}
       vacia={vacio}
       accion={
-        <button type="button" className="cab-accion" aria-haspopup="dialog" onClick={onAbrir}>
-          Ver a fondo →
+        <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={onAbrir}>
+          Ver a fondo
         </button>
       }
     >

@@ -48,10 +48,16 @@
    Botones
    ========================================================================== */
 
+/* ── La píldora ─────────────────────────────────────────────────────────────
+   El botón es la única pieza tocable que seguía en radio de tarjeta. Las
+   pestañas van en carril de píldoras, los chips son píldoras, la semana en
+   curso es una píldora: lo que se pulsa, en esta casa, es redondo — y las
+   maquetas aprobadas del rediseño lo fijan así. El radio pleno además separa
+   de un vistazo el control de la superficie: una tarjeta nunca es píldora. */
 .btn {
   font-family: inherit; font-size: var(--fs-base); font-weight: 600; letter-spacing: -0.01em;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
-  padding: 9px 16px; border-radius: var(--r-md); border: 0;
+  padding: 9px 16px; border-radius: var(--r-pill); border: 0;
   background: var(--fill); color: var(--text); cursor: pointer;
   transition: background-color var(--fast), transform var(--fast), opacity var(--fast);
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
@@ -103,11 +109,12 @@
 .btn-plain:hover:not(:disabled) { background: var(--fill-subtle); }
 .btn-danger { background: var(--negative-soft); color: var(--negative); }
 
-.btn-sm { padding: 5px 11px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
+.btn-sm { padding: 5px 12px; font-size: var(--fs-sm); }
 .btn-lg { padding: 12px 22px; font-size: var(--fs-md); }
 .btn-block { width: 100%; }
 
-.btn-icon { width: 32px; height: 32px; padding: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-tertiary); }
+/* El de icono hereda la píldora y, cuadrado como es, sale círculo. */
+.btn-icon { width: 32px; height: 32px; padding: 0; background: transparent; color: var(--text-tertiary); }
 .btn-icon:hover:not(:disabled) { background: var(--fill); color: var(--text); }
 .btn-icon-danger:hover:not(:disabled) { background: var(--negative-soft); color: var(--negative); }
 /* La variante compacta: equis y lápices que viven DENTRO de una fila o sobre

@@ -434,6 +434,35 @@ export const weeksAheadOfBlock = (program, block, currentWeek = null) => {
   return desde.length > 0 ? desde : weeks.slice(-1);
 };
 
+/**
+ * El HORIZONTE del ciclo: cuánto le queda al bloque por el que va la persona y
+ * qué viene detrás. Es el dato que alimenta la frase de la línea de bloques
+ * («A Intensificación le quedan 2 semanas · después, nada programado») — el
+ * entrenador tenía que deducirlo contando pastillas y leyendo fechas.
+ *
+ * Devuelve `null` sin semana en curso o si el programa no tiene esa semana
+ * escrita: sin «estás aquí» no hay horizonte que contar.
+ */
+export const horizonteDeBloque = (program, semanaEnCurso) => {
+  if (semanaEnCurso === null || semanaEnCurso === undefined) return null;
+  const bloque = blockOfWeek(program, semanaEnCurso);
+  const semanas = weeksOfBlock(program, bloque);
+  if (semanas.length === 0 || semanaEnCurso < semanas[0] || semanaEnCurso > semanas[semanas.length - 1]) {
+    return null;
+  }
+  const lista = blocksOf(program);
+  const i = lista.findIndex((b) => b.id === bloque.id);
+  /* El bloque sintético que `blocksOf` abre al final no es un plan: detrás de
+     él no hay nada programado. */
+  const siguiente = lista[i + 1] && !String(lista[i + 1].id).startsWith('b_auto_') ? lista[i + 1] : null;
+  return {
+    bloque,
+    restantes: semanas[semanas.length - 1] - semanaEnCurso,
+    siguiente,
+    abierto: bloque.toWeek === null || bloque.toWeek === undefined,
+  };
+};
+
 /* ══════════════════════════════════════════════════════════════════════════
    LA BITÁCORA DEL BLOQUE
    ══════════════════════════════════════════════════════════════════════════

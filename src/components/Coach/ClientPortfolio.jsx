@@ -450,7 +450,7 @@ export const ClientPortfolio = () => {
           {carencia.id === 'no_account' ? (
             <>
               A <b>{carencia.n} de tus clientes</b> les falta el enlace de acceso: hasta que lo
-              tengan no pueden entrar ni apuntar nada. Se manda desde el botón «Invitar» de su fila.
+              tengan no pueden entrar ni apuntar nada. Se manda desde su fila, con «Invitar».
             </>
           ) : (
             <>

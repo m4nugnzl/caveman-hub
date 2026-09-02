@@ -48,12 +48,12 @@ export const TarjetaCuerpo = ({
       accion={
         <div className="tarjeta-acciones">
           {aFotos && (
-            <Link className="cab-accion" to={aFotos}>
-              {isClient ? 'Tus fotos →' : 'Sus fotos →'}
+            <Link className="cab-accion is-puerta" to={aFotos}>
+              {isClient ? 'Tus fotos' : 'Sus fotos'}
             </Link>
           )}
-          <button type="button" className="cab-accion" aria-haspopup="dialog" onClick={onAbrir}>
-            Ver a fondo →
+          <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={onAbrir}>
+            Ver a fondo
           </button>
         </div>
       }

@@ -59,6 +59,9 @@ export const GettingStarted = () => {
 
   const [cerrado, setCerrado] = useState(() => leerCerrado(userId));
   const [verTodo, setVerTodo] = useState(false);
+  /* «Seguir» despliega la tarjeta completa desde la línea plegada; no se
+     recuerda entre visitas a propósito: al volver, vuelve la línea. */
+  const [desplegada, setDesplegada] = useState(false);
   const { busy: invitando, send: invitar, result: invite } = useInvite();
 
   /* Que haya tocado su protocolo alguna vez: se mira si existe la clave, no si
@@ -75,6 +78,17 @@ export const GettingStarted = () => {
   const actual = onboardingCurrent(pasos);
   const { hechos, total } = onboardingProgress(pasos);
 
+  /*
+    ── La guía deja el trono ──────────────────────────────────────────────────
+    Mientras el entrenador está empezando, la guía es la pantalla. Pero en
+    cuanto alguien tiene programa —la señal de que el arranque ya rodó— seguía
+    ocupando el primer lugar de Inicio para siempre, por encima del trabajo del
+    día. Con el arranque rodado se pliega a una línea: sigue diciendo cuánto
+    queda y se puede desplegar, pero el trono es de las colas.
+  */
+  const rodado = pasos.some((p) => p.id === 'programar' && p.sabido && p.hecho);
+  const pendientes = total - hechos;
+
   /* Sin nada pendiente, la guía sobra. No hay que cerrarla: se va. */
   if (cerrado || !actual) return null;
 
@@ -87,6 +101,29 @@ export const GettingStarted = () => {
          pantalla por ello sería mucho peor. */
     }
   };
+
+  if (rodado && !desplegada) {
+    return (
+      <div className="guia-linea">
+        <Compass size={15} aria-hidden="true" />
+        <span>
+          Puesta en marcha: {pendientes === 1 ? 'te queda 1 paso' : `te quedan ${pendientes} pasos`}
+        </span>
+        <button type="button" className="cab-accion is-puerta" onClick={() => setDesplegada(true)}>
+          Seguir
+        </button>
+        <button
+          type="button"
+          className="btn btn-icon"
+          onClick={ocultar}
+          aria-label="Ocultar la guía"
+          title="Ocultar"
+        >
+          <X size={15} />
+        </button>
+      </div>
+    );
+  }
 
   /* A dónde lleva cada paso. El de invitar no navega: se resuelve aquí mismo. */
   const ir = () => {

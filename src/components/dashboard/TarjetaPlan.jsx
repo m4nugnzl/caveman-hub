@@ -37,11 +37,9 @@ const Palanca = ({ k, valor, sub, a = null, texto = false }) => {
     <>
       <span className="palanca-k">
         {k}
-        {a && (
-          <span className="palanca-ir" aria-hidden="true">
-            →
-          </span>
-        )}
+        {/* La flecha es un dibujo de CSS (`--mask-flecha`), no un glifo: el
+            span vacío es el lienzo donde se pinta. */}
+        {a && <span className="palanca-ir" aria-hidden="true" />}
       </span>
       <span className={`palanca-v${texto ? ' is-texto' : ''}`}>{valor}</span>
       {sub && <span className="palanca-s">{sub}</span>}

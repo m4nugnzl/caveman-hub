@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { bestSetsBefore, isRecord, mergePlanWithSession, previousSetKey, previousSetsBefore } from './sessions';
+import {
+  bestSetsBefore,
+  isRecord,
+  mergePlanWithSession,
+  previousSetKey,
+  previousSetsBefore,
+  resumenDeEntrada,
+  ultimaSesionDeHoja,
+} from './sessions';
 
 describe('mergePlanWithSession — los dos objetivos vienen del plan', () => {
   /*
@@ -143,5 +151,51 @@ describe('bestSetsBefore / isRecord — el listón de cada ejercicio', () => {
     expect(isRecord({ kg: '90', reps: '5' }, best)).toBe(false);
     expect(isRecord({ kg: '', reps: '5' }, best)).toBe(false);
     expect(isRecord({ kg: '100', reps: '5' }, null)).toBe(false);
+  });
+});
+
+describe('ultimaSesionDeHoja / resumenDeEntrada — la hoja veraz', () => {
+  const semana = (weekNumber, date, sets, dayName = 'Push') => ({
+    id: `m${weekNumber}`,
+    weekNumber,
+    date,
+    days: [{ dayName, exercises: [] }],
+    sessions: [
+      {
+        id: `s${weekNumber}`,
+        date,
+        dayName,
+        entries: [{ exerciseId: `e${weekNumber}`, name: 'Press', muscle: 'Pecho', sets }],
+      },
+    ],
+  });
+
+  const micros = [
+    semana(1, '2026-03-02', [{ kg: '80', reps: '8' }, { kg: '80', reps: '7' }]),
+    semana(2, '2026-03-09', [{ kg: '85', reps: '8' }, { kg: '82,5', reps: '8' }]),
+    semana(3, '2026-03-16', [{ kg: '', reps: '' }]),
+  ];
+
+  it('encuentra la última ejecutada dentro de las semanas pedidas', () => {
+    expect(ultimaSesionDeHoja(micros, [1, 2], 'Push').weekNumber).toBe(2);
+    expect(ultimaSesionDeHoja(micros, [1], 'Push').weekNumber).toBe(1);
+  });
+
+  it('ni otra hoja ni semanas fuera del rango cuentan', () => {
+    expect(ultimaSesionDeHoja(micros, [1, 2], 'Pull')).toBeNull();
+    expect(ultimaSesionDeHoja(micros, [], 'Push')).toBeNull();
+  });
+
+  it('resume un ejercicio con su mayor peso y sus repeticiones', () => {
+    const s = ultimaSesionDeHoja(micros, [1, 2], 'Push');
+    expect(resumenDeEntrada(s, 'Press')).toEqual({ kg: 85, reps: [8, 8], series: 2 });
+  });
+
+  it('sin nada registrado no hay resumen', () => {
+    const vacia = ultimaSesionDeHoja(micros, [3], 'Push');
+    /* La semana 3 existe pero sus series están en blanco: la sesión cuenta como
+       ejecutada solo si `executedSessions` la devuelve; el resumen, no. */
+    expect(vacia === null || resumenDeEntrada(vacia, 'Press') === null).toBe(true);
+    expect(resumenDeEntrada(null, 'Press')).toBeNull();
   });
 });

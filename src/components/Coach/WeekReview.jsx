@@ -901,8 +901,8 @@ export const WeekReview = () => {
             span={12}
             className="revision-hero"
             accion={
-              <button type="button" className="cab-accion" aria-haspopup="dialog" onClick={() => setVentana('cuerpo')}>
-                Ver a fondo →
+              <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={() => setVentana('cuerpo')}>
+                Ver a fondo
               </button>
             }
           >
@@ -1100,6 +1100,10 @@ export const WeekReview = () => {
         base={base}
         cargandoBase={cargandoRevisiones}
         siguiente={siguiente}
+        /* Los que quedarán en la pasada tras cerrar a este: si él está en la
+           lista se descuenta; si entraste a una semana fuera de la cola, la
+           pasada no cambia. */
+        restantes={Math.max(0, pasada.length - (idxPasada >= 0 ? 1 : 0))}
         aviso={aviso}
         onClosed={recargar}
       />

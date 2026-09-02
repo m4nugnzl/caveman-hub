@@ -581,3 +581,35 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
      Safari al enfocar un CAMPO, y ahí ya no hay campo sino dos botones. */
 }
 
+
+/* ══ LA PUESTA EN MARCHA, PLEGADA ══════════════════════════════════════════
+   Con el arranque rodado la guía deja el trono de Inicio y queda en un
+   renglón: brújula, cuánto falta, «Seguir» que la despliega y el aspa de
+   siempre. Sin tarjeta: es un aviso de paso, no trabajo del día. */
+.guia-linea {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  color: var(--text-secondary); font-size: var(--fs-sm);
+}
+.guia-linea > svg { color: var(--accent); flex-shrink: 0; }
+.guia-linea .btn-icon { margin-left: auto; }
+
+/* ══ EL RENGLÓN DE «AL DÍA» ════════════════════════════════════════════════
+   Las colas sin trabajo ya no gastan tarjeta: se funden en esta línea, que
+   premia en vez de ocupar. El tic va en verde porque es un juicio —esto está
+   bien—, no cromo. */
+.aldia-linea {
+  display: flex; align-items: center; gap: var(--s2);
+  margin: calc(-1 * var(--s3)) 0 0; padding: 0 var(--s1);
+  color: var(--text-secondary); font-size: var(--fs-sm);
+}
+.aldia-linea > svg { color: var(--positive); flex-shrink: 0; }
+
+/* ══ EL VACÍO QUE INVITA ═══════════════════════════════════════════════════
+   Sin caja punteada: la frase dice lo que hay y el gesto está al lado. La
+   caja solo enmarcaba ausencia (ver TarjetaVacia para el caso general: aquí
+   hay una ACCIÓN clara, y entonces la invitación es el contenido). */
+.vacio-invita { display: flex; flex-direction: column; gap: var(--s1); padding: var(--s1) 0 var(--s2); }
+.vacio-invita > p { margin: 0; color: var(--text-secondary); font-size: var(--fs-sm); }
+.vacio-invita > .cab-accion { align-self: flex-start; padding-left: 0; }

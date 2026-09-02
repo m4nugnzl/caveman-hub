@@ -68,6 +68,22 @@
    SOLO donde de verdad hay una escala: el canto inferior de la cabecera, la
    línea base de los gráficos y el eje de días de «Hoy». Repetirla como adorno la
    convertiría en textura y dejaría de significar «aquí se mide».
+
+   ── Una firma por pantalla ──────────────────────────────────────────────────
+   Cada pantalla tiene UN elemento por el que se recuerda, y todo lo demás baja
+   la voz para servirlo. La tabla, para no discutirla dos veces:
+
+     Inicio    → el saludo con su cuenta de trabajo («8 cosas por hacer»)
+     Clientes  → la cartera: cara, nombre y una señal de vida por fila
+     Entreno   → la hoja veraz (pauta + semáforo + fantasma de lo hecho)
+     Revisión  → la cifra con su veredicto («60,9 kg · ↓ 1 kg»)
+     Dieta     → la cifra de kcal con su barra de macros
+     Portal    → la sesión de hoy, con la vez anterior en fantasma
+
+   La prueba: taparse la firma con la mano — el resto tiene que verse tranquilo
+   y de un solo peso. Lo que compita con la firma de su pantalla (otra caja del
+   mismo tamaño, un segundo primario, un vacío que grita) es lo primero que se
+   recorta.
    ========================================================================== */
 
 :root {
@@ -355,6 +371,15 @@
   --shadow-md: 0 6px 20px -8px rgba(18, 24, 38, 0.15), 0 1px 3px rgba(18, 24, 38, 0.05);
   --shadow-lg: 0 16px 36px -14px rgba(18, 24, 38, 0.24), 0 3px 8px rgba(18, 24, 38, 0.07);
   --shadow-float: 0 10px 28px -8px rgba(18, 24, 38, 0.2);
+
+  /* ── La flecha de las puertas ────────────────────────────────────────────
+     El dibujo único de «esto lleva a algún sitio»: la misma pluma que los
+     iconos de lucide, pintada con `mask` para heredar la tinta de su texto.
+     Sustituye a la «→» tecleada, que salía con el peso y el espaciado que
+     tocara según la negrita de al lado. Se usa desde `.cab-accion.is-puerta`,
+     `.cola-verbo` y `.palanca-ir`; quien necesite otra puerta, que beba de
+     aquí y no vuelva a teclear el glifo. */
+  --mask-flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='m12 5 7 7-7 7'/%3E%3C/svg%3E");
 
   /* ── Movimiento ── */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);

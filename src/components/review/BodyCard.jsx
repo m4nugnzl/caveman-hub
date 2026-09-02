@@ -122,13 +122,20 @@ export const BodyCard = ({
           </div>
         )}
 
-        {!hayRespuestas && (
-          <TarjetaVacia>
-            {preguntas.length === 0
-              ? 'No le haces ninguna pregunta al entregar la semana. Se configuran en Ajustes › Protocolo.'
-              : `${nombre} no contestó a tus preguntas esta semana.`}
-          </TarjetaVacia>
-        )}
+        {!hayRespuestas &&
+          (preguntas.length === 0 ? (
+            /* Sin preguntas configuradas la casa no riñe ni manda a buscar el
+               ajuste: invita con el gesto al lado. La caja punteada queda para
+               el vacío que se llenará solo (él no contestó). */
+            <div className="vacio-invita">
+              <p>Aún no le preguntas nada al entregar la semana.</p>
+              <Link className="cab-accion is-puerta" to="/ajustes/protocolo">
+                Elegir preguntas
+              </Link>
+            </div>
+          ) : (
+            <TarjetaVacia>{`${nombre} no contestó a tus preguntas esta semana.`}</TarjetaVacia>
+          ))}
       </div>
 
       {/* ── 2 · CÓMO SE VE ──────────────────────────────────────────────────
@@ -167,8 +174,8 @@ export const BodyCard = ({
                   <span className="t-xs t-tertiary">
                     El collage y el vídeo de comparación son del estudio.
                   </span>
-                  <Link className="cab-accion" to={clientPath(client?.id, 'revision/estudio')}>
-                    El estudio →
+                  <Link className="cab-accion is-puerta" to={clientPath(client?.id, 'revision/estudio')}>
+                    El estudio
                   </Link>
                 </div>
               </div>
@@ -211,8 +218,8 @@ export const BodyCard = ({
             )}
             {/* Anotar es ENTRAR datos —cuando le mides tú—, y va al lado de las
                 medidas, no como botón de cabecera de toda la tarjeta. */}
-            <Link className="cab-accion" to={clientPath(client?.id, 'revision')}>
-              Anotar pesajes y medidas →
+            <Link className="cab-accion is-puerta" to={clientPath(client?.id, 'revision')}>
+              Anotar pesajes y medidas
             </Link>
           </div>
         </Fold>

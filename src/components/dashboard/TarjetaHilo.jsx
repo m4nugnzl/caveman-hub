@@ -151,8 +151,8 @@ export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisio
       vacia={corto.length === 0}
       accion={
         corto.length > 0 ? (
-          <button type="button" className="cab-accion" onClick={() => setAbierto(true)}>
-            Tres meses →
+          <button type="button" className="cab-accion is-puerta" onClick={() => setAbierto(true)}>
+            Tres meses
           </button>
         ) : null
       }
