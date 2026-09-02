@@ -371,19 +371,25 @@ export const PlanPanel = () => {
           </span>
         </div>
 
-        <div
-          className="plan-bar"
-          role="progressbar"
-          aria-valuenow={clients}
-          aria-valuemin={0}
-          aria-valuemax={maxClients || clients}
-          aria-label="Clientes usados de tu plan"
-        >
-          <span
-            className={`plan-bar-fill${quedan === 0 ? ' is-full' : ''}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        {/* La barra solo existe con TOPE: un medidor sin techo se pintaba
+            lleno al 100 % en acento, y una barra llena se lee como «límite
+            alcanzado» — justo lo contrario de «sin tope». Sin techo, la cifra
+            y su frase ya lo dicen todo. */}
+        {maxClients != null && (
+          <div
+            className="plan-bar"
+            role="progressbar"
+            aria-valuenow={clients}
+            aria-valuemin={0}
+            aria-valuemax={maxClients}
+            aria-label="Clientes usados de tu plan"
+          >
+            <span
+              className={`plan-bar-fill${quedan === 0 ? ' is-full' : ''}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        )}
 
         {/*
           Los otros dos topes del plan, en voz más baja: la cifra que decide un

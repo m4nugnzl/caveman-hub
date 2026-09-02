@@ -73,7 +73,12 @@ export const ProfilePanel = () => {
 
   return (
     <div className="stack">
-      <PageHead title="Perfil" sub="Quién eres dentro de la aplicación" />
+      {/* El rol viaja en el subtítulo, como en Equipo («entras como dueño»):
+          suelto al pie de la pantalla era una frase huérfana sin superficie. */}
+      <PageHead
+        title="Perfil"
+        sub={`Quién eres dentro de la aplicación: entras como ${profileRole === 'coach' ? 'entrenador' : 'cliente'}.`}
+      />
 
       {estado?.error && <Notice tone="error">{estado.error}</Notice>}
       {estado?.ok && (
@@ -114,10 +119,6 @@ export const ProfilePanel = () => {
           )}
         </div>
       </Panel>
-
-      <p className="t-sm t-tertiary">
-        Entras como {profileRole === 'coach' ? 'entrenador' : 'cliente'}.
-      </p>
     </div>
   );
 };

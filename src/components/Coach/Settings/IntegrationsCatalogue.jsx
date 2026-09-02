@@ -106,7 +106,12 @@ const ProviderCard = ({ provider, estado, ready, busy, onOpen, onSync }) => {
             <Check size={11} /> Conectado
           </span>
         ) : (
-          <span className="badge badge-info">Disponible</span>
+          /* Sin chapa: «Disponible» la llevaban TODAS las tarjetas de una
+             cuenta recién abierta, y un estado que no varía no informa — tres
+             chips idénticos eran ruido en la línea que se mira primero. Que se
+             puede conectar ya lo dice el pie («Conectar →»); la chapa queda
+             para lo que sí distingue: Pronto, Conectado, Con un fallo. */
+          <span className="badge-hueco" aria-hidden="true" />
         )}
       </header>
 
