@@ -646,3 +646,23 @@ button.task-head:hover > .chevron { color: var(--text); }
 .roster .task-row:focus-within > .btn,
 .roster .task-row > .btn:not([data-estado='reposo']) { opacity: 1; }
 @media (hover: none) { .roster .task-row > .btn { opacity: 1; } }
+
+
+/* ══ LA TAREA DE COBROS ════════════════════════════════════════════════════
+   La cabecera de la pantalla cuando aún no puede contar dinero: la cifra de
+   fichas sin tarifa con su gesto al lado. Es una tarea y habla como las colas
+   de Inicio —cifra grande, matiz en voz baja—, no como una métrica a cero. */
+.cobros-tarea { display: flex; align-items: center; gap: var(--s4); }
+.cobros-tarea > .cifra {
+  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 800;
+  letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.cobros-tarea > p { margin: 0; font-weight: 650; max-width: 52ch; }
+.cobros-tarea > p > span {
+  display: block; font-weight: 400; font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.cobros-tarea > .btn { margin-left: auto; flex-shrink: 0; }
+@media (max-width: 640px) {
+  .cobros-tarea { flex-wrap: wrap; }
+  .cobros-tarea > .btn { margin-left: 0; }
+}

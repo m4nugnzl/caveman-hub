@@ -1329,11 +1329,12 @@ export const ClientFile = () => {
 
   return (
     <div className="ficha-pagina">
-      {/* La fila de mando: sin titular —la pestaña ya dice «Perfil»—, el
-          contexto en voz baja y, a la derecha, su calendario como enlace de
-          texto y la anamnesis para llevar. Lo demás se edita bloque a bloque. */}
+      {/* La fila de mando: sin titular —la pestaña ya dice «Perfil»— y, a la
+          derecha, su calendario como enlace de texto y la anamnesis para
+          llevar. Sin contexto a propósito: el plan y la antigüedad ya se leen
+          dos dedos más abajo, bajo su nombre en «Quién es», y aquí eran el
+          mismo dato dicho dos veces en la misma pantalla. */}
       <Mando
-        contexto={identitySubtitle(activeClient, dayMonthMaybeYear(activeClient.startDate))}
         acciones={
           <>
             <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'calendario')}>

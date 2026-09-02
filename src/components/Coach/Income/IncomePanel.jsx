@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarClock, Receipt, TrendingUp, Users } from 'lucide-react';
+import { CalendarClock, Check, Receipt, TrendingUp, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
@@ -231,23 +231,66 @@ export const IncomePanel = () => {
     res.apunte.then(() => cargar(meses));
   };
 
+  /*
+    ── Solo lo vivo es tarjeta, también aquí ──────────────────────────────────
+    La misma ley que las colas de Inicio: una cifra de cabecera existe si su
+    dato de fondo existe. «Cobrado este mes: 0 €» es información cuando hay un
+    histórico detrás (un mes flojo se ve); en una cuenta sin un solo cobro es
+    una tarjeta gastada en anunciar que no hay nada — y en la demo eran las
+    cuatro. Vivo no significa «mayor que cero»: significa que hay tarifas, hay
+    histórico, hay vencimientos o hay fechas.
+  */
+  const hayTarifas = recurrente.counted > 0;
+  const hayHistorico = payments !== null && totales.count > 0;
+  const hayVencimientos = tablero.pending.length > 0 || tablero.soon.length > 0;
+  const hayPrevision = prevision.some((mes) => mes.total > 0);
+  const cifrasVivas = hayTarifas || hayHistorico || hayVencimientos || hayPrevision;
+
   return (
     <div className="stack">
       <PageHead
-        title="Ingresos"
+        title="Cobros"
         sub="Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman Hub: eso está en Ajustes."
       />
 
       {error && <Notice tone="error">{error}</Notice>}
 
       {/*
-        Las cuatro cifras de cabecera, en el orden en que se preguntan: cuánto
-        vale la cartera, cuánto ha entrado este mes, cuánto falta por cobrar y
-        cuánto toca el mes que viene. Dos de compromiso y dos de hecho — y el
+        ── La tarea, cuando la pantalla aún no puede contar nada ──────────────
+        Sin una sola tarifa anotada no hay recurrente, ni previsión, ni
+        recordatorio: la única verdad útil de la pantalla es esa carencia, y se
+        dice UNA vez, como tarea con su gesto — no como cuatro ceros con una
+        nota al pie. Con tarifas a medias, la nota discreta del final sigue
+        haciendo ese trabajo.
+      */}
+      {clients.length > 0 && !hayTarifas && recurrente.missing > 0 && (
+        <Panel tight>
+          <div className="cobros-tarea">
+            <span className="cifra">{recurrente.missing}</span>
+            <p>
+              {recurrente.missing === 1 ? 'ficha sin tarifa' : 'fichas sin tarifa'}
+              <span>
+                Sin tarifa no hay previsión ni recordatorio: es lo único que esta pantalla necesita de
+                ti hoy. Se anota en cada ficha, en «Cobro».
+              </span>
+            </p>
+            <Link className="btn btn-primary btn-sm" to="/clientes">
+              Poner tarifas
+            </Link>
+          </div>
+        </Panel>
+      )}
+
+      {/*
+        Las cifras de cabecera, en el orden en que se preguntan: cuánto vale la
+        cartera, cuánto ha entrado este mes, cuánto falta por cobrar y cuánto
+        toca el mes que viene. Dos de compromiso y dos de hecho — y el
         subtítulo de cada una dice de cuál se trata, porque mezclarlas es el
         error que convierte una previsión en un ingreso.
       */}
+      {cifrasVivas && (
       <MetricRow>
+        {hayTarifas && (
         <MetricCard
           title="Recurrente al mes"
           subtitle="Previsión, no cobrado"
@@ -258,6 +301,8 @@ export const IncomePanel = () => {
               : `De los ${recurrente.counted} clientes con tarifa anotada.`
           }
         />
+        )}
+        {hayHistorico && (
         <MetricCard
           title="Cobrado este mes"
           subtitle="Hecho"
@@ -272,6 +317,8 @@ export const IncomePanel = () => {
               : 'Todavía no has apuntado ningún cobro este mes.'
           }
         />
+        )}
+        {hayVencimientos && (
         <MetricCard
           title="Por cobrar"
           subtitle="Vencido y de hoy"
@@ -283,12 +330,14 @@ export const IncomePanel = () => {
               : 'Nadie te debe nada ahora mismo.'
           }
         />
+        )}
         {/*
           La cuarta es la única que mira hacia delante, y es la que decide si hay
           que hacer algo: un mes que viene flojo se arregla buscando gente ahora,
           no cuando llegue. El recurrente no lo dice —promedia— y el histórico
           tampoco, porque todavía no ha pasado.
         */}
+        {hayPrevision && (
         <MetricCard
           title="Toca cobrar el mes que viene"
           subtitle="Previsión"
@@ -299,38 +348,49 @@ export const IncomePanel = () => {
               : 'Ningún cobro con fecha en ese mes.'
           }
         />
+        )}
       </MetricRow>
+      )}
 
       {/*
         Lo que hay que cobrar va inmediatamente después de las cifras y antes que
         cualquier gráfico: es lo único de esta pantalla que es TRABAJO. Un
         histórico se mira; una deuda se reclama.
-      */}
-      <section className="stack">
-        <GroupHead
-          title="Por cobrar"
-          sub="Lo vencido y lo que vence hoy. El botón es el mismo gesto que en «Hoy» y en la ficha."
-        />
 
-        {/* Sin nada vencido esto era un vacío de 370 px con su icono y su
-            titular, justo debajo de cuatro cifras que en una cuenta nueva
-            valen 0 € — media pantalla dedicada a decir que no hay nada. Estar
-            al día es una buena noticia y ocupa una línea. */}
-        {tablero.pending.length === 0 ? (
-          <p className="t-sm t-secondary">
-            Nadie te debe nada ahora mismo.
-            {tablero.soon.length > 0
-              ? ` ${tablero.soon.length === 1 ? 'Uno renueva' : `${tablero.soon.length} renuevan`} en los próximos días, aquí debajo.`
-              : ''}
+        ── Y al día, la sección entera es un renglón ─────────────────────────
+        Sin nada vencido ni renovaciones cerca, el titular «Por cobrar» con una
+        frase huérfana debajo era enseñar el hueco: la buena noticia se dice con
+        el mismo renglón con tic que Inicio (`.aldia-linea`), y la sección solo
+        se monta cuando hay filas que enseñar.
+      */}
+      {!hayVencimientos ? (
+        <p className="aldia-linea">
+          <Check size={14} aria-hidden="true" />
+          Nada vencido ni por cobrar: al día.
+        </p>
+      ) : (
+      <section className="stack">
+        {tablero.pending.length > 0 && (
+          <>
+            <GroupHead
+              title="Por cobrar"
+              sub="Lo vencido y lo que vence hoy. El botón es el mismo gesto que en «Hoy» y en la ficha."
+            />
+            <Panel tight>
+              <div className="list">
+                {tablero.pending.map((fila) => (
+                  <FilaDeCobro key={fila.client.id} fila={fila} onPaid={cobrar} />
+                ))}
+              </div>
+            </Panel>
+          </>
+        )}
+        {tablero.pending.length === 0 && (
+          <p className="aldia-linea">
+            <Check size={14} aria-hidden="true" />
+            Nada vencido: {tablero.soon.length === 1 ? 'uno renueva' : `${tablero.soon.length} renuevan`} en
+            los próximos días, aquí debajo.
           </p>
-        ) : (
-          <Panel tight>
-            <div className="list">
-              {tablero.pending.map((fila) => (
-                <FilaDeCobro key={fila.client.id} fila={fila} onPaid={cobrar} />
-              ))}
-            </div>
-          </Panel>
         )}
 
         {tablero.soon.length > 0 && (
@@ -354,6 +414,7 @@ export const IncomePanel = () => {
           </Panel>
         )}
       </section>
+      )}
 
       {/*
         La previsión va ANTES del histórico porque se puede actuar sobre ella y
@@ -384,6 +445,22 @@ export const IncomePanel = () => {
         </section>
       )}
 
+      {/*
+        ── El histórico vacío no se dibuja ────────────────────────────────────
+        Una gráfica de doce meses a cero es una línea plana con eje 0–1: el
+        dibujo de nada. Sin un solo cobro, la sección entera es una invitación
+        de dos renglones — los apuntes nacen al marcar «Cobrado», o los trae
+        una integración. La gráfica, el total y el reparto por cliente vuelven
+        con el primer apunte, que es cuando significan algo.
+      */}
+      {payments !== null && totales.count === 0 && !error ? (
+        <div className="vacio-invita">
+          <p>Todavía no hay ningún cobro apuntado. Nacen al marcar «Cobrado» — o los trae una integración.</p>
+          <Link className="cab-accion is-puerta" to="/ajustes/integraciones">
+            Conectar una integración
+          </Link>
+        </div>
+      ) : (
       <section className="stack">
         <GroupHead title="Lo que ha entrado" sub="El histórico de cobros, apuntados a mano o traídos por una integración." />
 
@@ -463,6 +540,7 @@ export const IncomePanel = () => {
           </>
         )}
       </section>
+      )}
 
       {/*
         El reparto por periodicidad va el último porque contesta la pregunta más
@@ -503,11 +581,11 @@ export const IncomePanel = () => {
       )}
 
       {/*
-        La nota del final y no un aviso arriba: quien no tiene ninguna tarifa
-        anotada ve una pantalla llena de ceros, y eso ya lo dice. Lo que hace
-        falta es saber dónde se arregla.
+        La nota del final y no un aviso arriba, y solo con tarifas A MEDIAS:
+        sin ninguna, la tarea de cabecera ya lo dice con su gesto, y repetirlo
+        aquí sería decirlo dos veces en la misma pantalla.
       */}
-      {recurrente.missing > 0 && (
+      {hayTarifas && recurrente.missing > 0 && (
         <Notice tone="info">
           A {recurrente.missing} {recurrente.missing === 1 ? 'cliente' : 'clientes'} les falta la tarifa o la
           periodicidad en su ficha, así que no cuentan en el recurrente. Se anota en su ficha, en «Cobro».
