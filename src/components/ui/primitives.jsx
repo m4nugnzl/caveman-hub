@@ -370,7 +370,9 @@ export const SaveIndicator = ({ status, error, onRetry }) => {
  */
 export const Loading = ({ label = 'Cargando…' }) => (
   <p className="loading" role="status">
-    <span className="loading-dots" aria-hidden="true">
+    {/* Las tres barras del logotipo, latiendo: la marca en los momentos
+        muertos en vez de un spinner de cualquier aplicación. */}
+    <span className="loading-barras" aria-hidden="true">
       <span />
       <span />
       <span />

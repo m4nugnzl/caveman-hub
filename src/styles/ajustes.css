@@ -907,6 +907,18 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .cal-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .cal-dot.is-done { opacity: 0.35; }
 
+/* El evento solitario se nombra en su celda —«Marta · videollamada»— con el
+   punto de su tipo delante; con varios, los puntos de siempre y el nombre en
+   la hoja del día. Un punto anónimo obligaba a tocar para saber si el día
+   importaba. */
+.cal-uno {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-secondary);
+  overflow: hidden; white-space: nowrap;
+}
+.cal-uno > .cal-dot { flex-shrink: 0; }
+.cal-uno.is-done { opacity: 0.45; text-decoration: line-through; }
+
 /* La leyenda de la rejilla: solo existe en el móvil, que es donde la píldora
    de check-in pierde su palabra (abajo) y las marcas se quedan sin explicar. */
 .cal-legend { display: none; font-size: var(--fs-xs); color: var(--text-tertiary); }
@@ -937,6 +949,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   .cal-day { min-height: 52px; padding: 4px 2px; }
   /* A 390 px no cabe la palabra: el punto de color basta para saber que toca. */
   .cal-checkin { font-size: 0; padding: 3px; }
+  .cal-uno { font-size: 0; gap: 0; }
   .cal-legend { display: block; }
 }
 

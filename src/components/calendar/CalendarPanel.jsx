@@ -368,7 +368,7 @@ export const CalendarPanel = ({ audience = 'client' }) => {
   const reclama = Boolean(periodo?.isDue) && !entregada;
 
   return (
-    <div className="stack">
+    <div className="stack cascada">
       {/* El cliente conserva su titular; para el entrenador la miga ya dice
           «Calendario» y queda la línea de contexto. */}
       {isClient ? (
@@ -639,16 +639,28 @@ export const CalendarPanel = ({ audience = 'client' }) => {
                   </span>
                 )}
 
-                <span className="cal-dots">
-                  {dayEvents.slice(0, 4).map((event) => (
-                    <span
-                      key={event.id}
-                      className={`cal-dot${event.done ? ' is-done' : ''}`}
-                      style={{ background: kindMeta(event.kind).color }}
-                      title={event.title}
-                    />
-                  ))}
-                </span>
+                {/* Un solo evento se NOMBRA; con varios, los puntos cuentan y
+                    el nombre espera a la hoja del día. */}
+                {dayEvents.length === 1 ? (
+                  <span
+                    className={`cal-uno${dayEvents[0].done ? ' is-done' : ''}`}
+                    title={dayEvents[0].title}
+                  >
+                    <span className="cal-dot" style={{ background: kindMeta(dayEvents[0].kind).color }} />
+                    {dayEvents[0].title}
+                  </span>
+                ) : (
+                  <span className="cal-dots">
+                    {dayEvents.slice(0, 4).map((event) => (
+                      <span
+                        key={event.id}
+                        className={`cal-dot${event.done ? ' is-done' : ''}`}
+                        style={{ background: kindMeta(event.kind).color }}
+                        title={event.title}
+                      />
+                    ))}
+                  </span>
+                )}
               </button>
             );
           })}

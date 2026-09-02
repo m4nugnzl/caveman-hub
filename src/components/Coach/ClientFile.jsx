@@ -1328,7 +1328,7 @@ export const ClientFile = () => {
   };
 
   return (
-    <div className="ficha-pagina">
+    <div className="ficha-pagina cascada">
       {/* La fila de mando: sin titular —la pestaña ya dice «Perfil»— y, a la
           derecha, su calendario como enlace de texto y la anamnesis para
           llevar. Sin contexto a propósito: el plan y la antigüedad ya se leen

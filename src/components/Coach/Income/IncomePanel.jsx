@@ -247,7 +247,7 @@ export const IncomePanel = () => {
   const cifrasVivas = hayTarifas || hayHistorico || hayVencimientos || hayPrevision;
 
   return (
-    <div className="stack">
+    <div className="stack cascada">
       <PageHead
         title="Cobros"
         sub="Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman Hub: eso está en Ajustes."

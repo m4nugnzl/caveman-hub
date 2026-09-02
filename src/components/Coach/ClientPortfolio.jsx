@@ -331,7 +331,7 @@ export const ClientPortfolio = () => {
   const tareas = visible.filter((r) => r.alerts.length > 0).length;
 
   return (
-    <div className="stack">
+    <div className="stack cascada">
       <PageHead
         title="Clientes"
         sub={`${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'} · ${

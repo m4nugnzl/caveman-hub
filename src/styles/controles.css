@@ -821,6 +821,31 @@
 .badge-bad { background: var(--negative-soft); color: var(--negative); }
 .badge-info { background: var(--info-soft); color: var(--info); }
 
+/* ── El estado que NO juzga: punto + rótulo, sin cápsula ───────────────────
+   Para los estados de flujo —«Ahora», «Nuevo»— que no dicen bien ni mal:
+   solo dónde está una cosa en su recorrido. Encapsularlos los disfrazaba de
+   veredicto y sumaba píldoras a pantallas que ya tienen las del semáforo,
+   que son las únicas con derecho a cápsula (juzgan; ver `.delta` en
+   `datos.css` para la regla entera: estado que juzga en cápsula, dato y
+   flujo en tinta).
+
+   `is-aqui` lleva el punto en brasa porque «ahora / estás aquí» es
+   literalmente el único trabajo de esa tinta (ver tokens). Un hueco donde
+   conviven flujo y semáforo («En prueba» al lado de «Sin pagar») conserva la
+   píldora para todos: un mismo hueco no cambia de forma según el valor. */
+.estado {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); font-weight: 700; white-space: nowrap;
+  color: var(--text-secondary);
+}
+.estado::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text-tertiary); flex-shrink: 0;
+}
+.estado.is-info::before { background: var(--info); }
+.estado.is-aqui { color: var(--text); }
+.estado.is-aqui::before { background: var(--brasa); }
+
 /* ==========================================================================
    Traer un fichero
    --------------------------------------------------------------------------
@@ -961,19 +986,26 @@
 .save-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 
-/* La carga en línea (`<Loading/>`, ui/primitives). Sobria a propósito: texto
-   pequeño y tres puntos que laten en cascada, nada que compita con el
-   esqueleto del arranque. Bajo menos movimiento, la regla global los deja en
-   un ciclo. */
+/* La carga en línea (`<Loading/>`, ui/primitives). Eran tres puntos genéricos
+   —el spinner de cualquier aplicación—; ahora laten LAS TRES BARRAS del
+   logotipo, a escala de texto y en la tinta de al lado: la marca trabajando
+   en los momentos muertos, sin disco rojo (un punto rojo latiendo se leería
+   como un aviso). Sobria igual: nada que compita con el esqueleto del
+   arranque, y bajo menos movimiento la regla global la deja quieta. */
 .loading { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); color: var(--text-tertiary); }
-.loading-dots { display: inline-flex; gap: 4px; }
-.loading-dots > span {
-  width: 4px; height: 4px; border-radius: 50%; background: currentColor;
-  animation: loading-late 1.2s ease-in-out infinite;
+.loading-barras { display: inline-flex; align-items: flex-end; gap: 2.5px; height: 12px; }
+.loading-barras > span {
+  width: 3px; border-radius: 1px; background: currentColor;
+  transform-origin: bottom;
+  animation: loading-late 1.1s var(--ease) infinite;
 }
-.loading-dots > span:nth-child(2) { animation-delay: 0.15s; }
-.loading-dots > span:nth-child(3) { animation-delay: 0.3s; }
-@keyframes loading-late { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+.loading-barras > span:nth-child(1) { height: 6px; }
+.loading-barras > span:nth-child(2) { height: 9px; animation-delay: 0.14s; }
+.loading-barras > span:nth-child(3) { height: 12px; animation-delay: 0.28s; }
+@keyframes loading-late {
+  0%, 100% { opacity: 0.3; transform: scaleY(0.6); }
+  50% { opacity: 1; transform: scaleY(1); }
+}
 
 /* ==========================================================================
    Modal y menús

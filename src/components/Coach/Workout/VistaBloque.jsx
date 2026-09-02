@@ -477,7 +477,7 @@ export const VistaBloque = ({
 
   if (plan.sessions.length === 0) {
     return (
-      <div className="bloque-pagina">
+      <div className="bloque-pagina cascada">
         <div className="bloque-plan">
           {linea}
           <EmptyState
@@ -498,7 +498,7 @@ export const VistaBloque = ({
   }
 
   return (
-    <div className="bloque-pagina">
+    <div className="bloque-pagina cascada">
       {/* ══ EL PLAN ═══════════════════════════════════════════════════════ */}
       <div className="bloque-plan">
         {linea}

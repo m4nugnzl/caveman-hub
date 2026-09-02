@@ -378,6 +378,11 @@ button.task-head:hover > .chevron { color: var(--text); }
 }
 .task-row:hover { background: var(--fill-subtle); }
 .task-row:focus-within { box-shadow: 0 0 0 2px var(--accent); }
+/* El chevron se acerca al pasar: el mismo empujón de 2 px que la flecha de
+   las puertas (`--mask-flecha`), para que toda pieza que lleva a algún sitio
+   responda con el mismo gesto en toda la casa. */
+.task-row > .chevron { transition: transform var(--fast); }
+.task-row:hover > .chevron { transform: translateX(2px); }
 
 /* La capa de clic: cubre la fila POR DEBAJO del contenido, así que la acción y
    el resto de lo que haya dentro siguen siendo pulsables. Envolver la fila en un

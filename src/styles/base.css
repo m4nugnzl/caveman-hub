@@ -223,3 +223,18 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
+
+/* ══ LA CASCADA: cómo se presenta una pantalla ═════════════════════════════
+   El sistema de movimiento existía (--fast/--normal/--slow) y ninguna
+   pantalla lo usaba para PRESENTARSE: todo montaba de golpe. Esta es la única
+   coreografía de entrada de la casa — los hijos directos del contenedor de
+   pantalla suben un escalón con 55 ms de escalera, y a partir del quinto
+   entran juntos: una cascada es un gesto, no un desfile. `--slow` porque no
+   responde a un gesto: presenta. La preferencia de menos movimiento la apaga
+   entera (la regla global de arriba). */
+.cascada > * { animation: cascada-entra var(--slow) both; }
+.cascada > *:nth-child(2) { animation-delay: 55ms; }
+.cascada > *:nth-child(3) { animation-delay: 110ms; }
+.cascada > *:nth-child(4) { animation-delay: 165ms; }
+.cascada > *:nth-child(n + 5) { animation-delay: 220ms; }
+@keyframes cascada-entra { from { opacity: 0; transform: translateY(7px); } }

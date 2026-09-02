@@ -82,6 +82,26 @@ export const BodyCard = ({
   /* Solo las semanas con foto: la tira enseña cómo SE VE, y una semana sin foto
      no enseña nada. */
   const conFoto = weeks.filter((s) => s.photo);
+  /*
+    ── La historia en tres fotos ──────────────────────────────────────────────
+    Con historial largo, la tira entera son diez miniaturas del mismo tamaño:
+    una enumeración, no una historia. Se cura a la narrativa del progreso —la
+    PRIMERA, la MITAD y la ÚLTIMA— que es como se cuenta un cambio físico; el
+    archivo completo sigue a un pliegue («Compararlas de cerca») y en «Sus
+    fotos». La semana que se está revisando, si tiene foto, no puede quedarse
+    fuera: ocupa el sitio de la mitad.
+  */
+  const tresFotos = (() => {
+    if (conFoto.length <= 4) return conFoto;
+    const primera = conFoto[0];
+    const ultima = conFoto[conFoto.length - 1];
+    const elegida = conFoto.find((s) => s.week === selected);
+    const mitad =
+      elegida && elegida !== primera && elegida !== ultima
+        ? elegida
+        : conFoto[Math.floor(conFoto.length / 2)];
+    return [primera, mitad, ultima];
+  })();
 
   /* Lo que escribió, ya contestado. Una pregunta sin respuesta no abre cita: una
      cita vacía dice que no dijo nada, y lo que pasó es que no le preguntaste. */
@@ -147,16 +167,18 @@ export const BodyCard = ({
         <div className="row between wrap gap-3">
           <span className="section-label">Cómo se ve</span>
           <span className="t-xs t-tertiary">
-            {deEstaSemana > 0
-              ? `${deEstaSemana} de esta semana`
-              : 'esta semana no ha subido ninguna'}
+            {tresFotos.length < conFoto.length
+              ? `la primera, la mitad y la última de sus ${conFoto.length} semanas con foto`
+              : deEstaSemana > 0
+                ? `${deEstaSemana} de esta semana`
+                : 'esta semana no ha subido ninguna'}
           </span>
         </div>
 
         {conFoto.length > 0 ? (
           <>
             <div className="tira-marco">
-              <PhotoStrip weeks={conFoto} selected={selected} onSelect={onSelect} onPhoto={onPhoto} />
+              <PhotoStrip weeks={tresFotos} selected={selected} onSelect={onSelect} onPhoto={onPhoto} />
             </div>
 
             <Fold

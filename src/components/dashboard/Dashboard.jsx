@@ -192,7 +192,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       {!isClient && <Mando contexto={contexto} />}
 
       <div className="resumen">
-        <div className="mosaico">
+        <div className="mosaico cascada">
           <TarjetaComoVa
             goal={goal}
             canEditGoal={!isClient}

@@ -19,24 +19,24 @@
    comparten el matiz y cambian solo luz y saturación, así que una persona es
    «la naranja» en los dos.
    ========================================================================== */
-/* ── Por qué el tono baja a un susurro ──────────────────────────────────────
-   La idea de dar a cada persona un tono estable es buena y se queda: reconocer
-   a Nerea de un vistazo entre veinte filas es exactamente lo que hace un color
-   en una cara. Lo que estaba mal era la SATURACIÓN.
+/* ── La tercera calibración del tono ────────────────────────────────────────
+   Nació a 48 % —diez manchas de colores plenos compitiendo con las gráficas—
+   y se bajó a 14 %, donde dejó de gritar… y también de verse: en las capturas
+   reales la cartera volvía a ser diez monedas grises, que es justo lo que el
+   tono vino a arreglar. Las maquetas aprobadas del rediseño fijan el punto
+   medio, y el reparto correcto es POR PIEZA, no un número único:
 
-   A 48 % la lista de clientes eran diez manchas de colores plenos —morado,
-   naranja, verde oliva, magenta, turquesa— y eso rompía la regla que ordena
-   todo el producto: el cromo no tiene color, el color es del dato. Diez caras
-   de colores plenos gastan el círculo cromático entero en el sitio donde menos
-   falta hace, y compiten con las series de un gráfico que está a un palmo.
+     · el FONDO se queda casi callado (teñido, no pintado): es superficie, y
+       la regla del cromo le alcanza;
+     · las INICIALES llevan el matiz con claridad: son el dato —quién es— y
+       un glifo de dos letras no compite con ninguna serie de un gráfico.
 
-   Bajando a 14 % el tono SIGUE identificando —dos caras contiguas nunca son el
-   mismo gris— pero deja de gritar: se lee como una familia de grises apenas
-   teñidos, que es lo que tiene que ser un fondo de iniciales. */
+   Así Marta es visiblemente «la violeta» en la cartera, en el hilo y en la
+   agenda, sin que ninguna caja se pinte de color. */
 .avatar {
   --av-h: 24;
-  --av-bg: hsl(var(--av-h) 14% 90%);
-  --av-fg: hsl(var(--av-h) 16% 34%);
+  --av-bg: hsl(var(--av-h) 34% 90%);
+  --av-fg: hsl(var(--av-h) 42% 33%);
   position: relative; flex-shrink: 0; overflow: hidden;
   display: inline-grid; place-items: center;
   width: 30px; height: 30px; border-radius: var(--r-sm);
@@ -47,8 +47,8 @@
 }
 .avatar[data-tono] { background: var(--av-bg); color: var(--av-fg); }
 [data-theme='dark'] .avatar {
-  --av-bg: hsl(var(--av-h) 9% 26%);
-  --av-fg: hsl(var(--av-h) 14% 82%);
+  --av-bg: hsl(var(--av-h) 18% 21%);
+  --av-fg: hsl(var(--av-h) 42% 80%);
 }
 .avatar > img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .avatar.is-xs { width: 24px; height: 24px; border-radius: var(--r-xs); font-size: 9px; }

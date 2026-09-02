@@ -390,7 +390,7 @@ export const Today = () => {
   }
 
   return (
-    <div className="stack">
+    <div className="stack cascada">
       <PageHead
         title={saludo(profileName)}
         sub={[

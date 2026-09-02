@@ -789,7 +789,7 @@ export const WeekReview = () => {
   const posterior = vecina(1);
 
   return (
-    <div className="revision-pagina">
+    <div className="revision-pagina cascada">
       {/*
         La fila de mando, la misma que en Entreno y Dieta: a la izquierda qué
         semana es y en voz baja de cuándo, contra qué etapa y si espera

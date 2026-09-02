@@ -386,7 +386,7 @@ export const CoachCalendar = () => {
   }
 
   return (
-    <div className="stack">
+    <div className="stack cascada">
       <PageHead
         title="Agenda"
         sub="Quién te entrega y qué tienes agendado, con toda tu cartera junta."
@@ -456,16 +456,30 @@ export const CoachCalendar = () => {
                   </span>
                 )}
 
-                <span className="cal-dots">
-                  {dayEvents.slice(0, 4).map((event) => (
-                    <span
-                      key={event.id}
-                      className={`cal-dot${event.done ? ' is-done' : ''}`}
-                      style={{ background: kindMeta(event.kind).color }}
-                      title={event.title}
-                    />
-                  ))}
-                </span>
+                {/* Un solo evento se NOMBRA —«Marta · videollamada»—; con
+                    varios, los puntos cuentan y el nombre espera a la hoja del
+                    día. Un punto anónimo obligaba a tocar para saber si el día
+                    importaba. */}
+                {dayEvents.length === 1 ? (
+                  <span
+                    className={`cal-uno${dayEvents[0].done ? ' is-done' : ''}`}
+                    title={dayEvents[0].title}
+                  >
+                    <span className="cal-dot" style={{ background: kindMeta(dayEvents[0].kind).color }} />
+                    {nombreCorto(nombres.get(dayEvents[0].clientId))} · {dayEvents[0].title}
+                  </span>
+                ) : (
+                  <span className="cal-dots">
+                    {dayEvents.slice(0, 4).map((event) => (
+                      <span
+                        key={event.id}
+                        className={`cal-dot${event.done ? ' is-done' : ''}`}
+                        style={{ background: kindMeta(event.kind).color }}
+                        title={event.title}
+                      />
+                    ))}
+                  </span>
+                )}
               </button>
             );
           })}
