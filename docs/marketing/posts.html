@@ -1,0 +1,96 @@
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&display=swap">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #333; font-family: "Archivo", system-ui, sans-serif; }
+
+  .post {
+    width: 1080px; height: 1350px; position: relative; overflow: hidden;
+    background: #0b0d10; color: #e9ecf2; padding: 72px 76px;
+    display: flex; flex-direction: column;
+    margin: 40px auto;
+  }
+  /* La luz de brasa: el color está DETRÁS, la letra queda en tiza. */
+  .post::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(80% 55% at 50% 88%, rgba(236, 106, 82, 0.16), transparent 65%),
+      radial-gradient(60% 40% at 12% 0%, rgba(139, 155, 255, 0.05), transparent 70%);
+    pointer-events: none;
+  }
+  .post > * { position: relative; }
+
+  .marca { display: flex; align-items: center; gap: 14px; }
+  .marca .bars { display: inline-flex; align-items: flex-end; gap: 3.5px; height: 26px; }
+  .marca .bars i { width: 6px; background: #e9ecf2; border-radius: 1.5px; display: block; }
+  .marca .nombre { font-size: 21px; font-weight: 800; letter-spacing: 0.14em; }
+  .marca .punto { width: 9px; height: 9px; border-radius: 50%; background: #ec6a52; margin-left: 2px; }
+
+  .claim {
+    margin-top: 84px;
+    font-size: 104px; font-weight: 800; font-stretch: 90%;
+    letter-spacing: -0.025em; line-height: 0.99;
+  }
+  .sub {
+    margin-top: 30px; max-width: 780px;
+    font-size: 30px; font-weight: 500; line-height: 1.4; color: #9aa3b2;
+  }
+  .sub b { color: #e9ecf2; font-weight: 650; }
+
+  .ventana {
+    margin-top: auto;
+    border: 1px solid rgba(233, 236, 242, 0.14); border-radius: 22px;
+    overflow: hidden; background: #0b0d10;
+    box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.8);
+    height: 640px; position: relative;
+  }
+  .ventana img { position: absolute; display: block; }
+
+  .pie { margin-top: 34px; display: flex; align-items: baseline; }
+  .pie .frase { font-size: 22px; font-weight: 600; color: #9aa3b2; }
+  .pie .num { margin-left: auto; font-size: 22px; font-weight: 700; color: #5c6472; font-variant-numeric: tabular-nums; }
+
+  /* recortes de cada ventana: la captura de 1440 ampliada y colocada */
+  .p1 .ventana img { width: 1930px; left: -380px; top: -600px; }
+  .p2 .ventana img { width: 1182px; left: -238px; top: -156px; }
+  .p3 .ventana img { width: 1922px; left: -387px; top: -200px; }
+</style>
+
+<!-- ═══ POST 1 · la hoja veraz ═══ -->
+<div class="post p1" id="post-1">
+  <div class="marca">
+    <span class="bars"><i style="height:12px"></i><i style="height:19px"></i><i style="height:26px"></i></span>
+    <span class="nombre">CAVEMAN HUB</span>
+    <span class="punto"></span>
+  </div>
+  <h1 class="claim">Tu Excel no sabe<br>si lo hizo.</h1>
+  <p class="sub">La hoja de Caveman Hub sí: <b>la pauta, lo hecho y su semáforo</b> — en la misma celda, sin cambiar de pestaña.</p>
+  <div class="ventana"><img src="v-entreno.png" alt=""></div>
+  <div class="pie"><span class="frase">La primera app para entrenadores de verdad.</span><span class="num">01</span></div>
+</div>
+
+<!-- ═══ POST 2 · la bandeja ═══ -->
+<div class="post p2" id="post-2">
+  <div class="marca">
+    <span class="bars"><i style="height:12px"></i><i style="height:19px"></i><i style="height:26px"></i></span>
+    <span class="nombre">CAVEMAN HUB</span>
+    <span class="punto"></span>
+  </div>
+  <h1 class="claim">Doce revisiones.<br>Una tarea.</h1>
+  <p class="sub"><b>J</b> avanza, <b>K</b> vuelve, <b>Ctrl + Enter</b> cierra y pasa al siguiente. La bandeja se vacía sin soltar el teclado.</p>
+  <div class="ventana"><img src="v-revision.png" alt=""></div>
+  <div class="pie"><span class="frase">La primera app para entrenadores de verdad.</span><span class="num">02</span></div>
+</div>
+
+<!-- ═══ POST 3 · el inicio al día ═══ -->
+<div class="post p3" id="post-3">
+  <div class="marca">
+    <span class="bars"><i style="height:12px"></i><i style="height:19px"></i><i style="height:26px"></i></span>
+    <span class="nombre">CAVEMAN HUB</span>
+    <span class="punto"></span>
+  </div>
+  <h1 class="claim">Abres,<br>y sabes qué hacer.</h1>
+  <p class="sub">Solo lo vivo es tarjeta. Lo que está bien no ocupa sitio: <b>«Revisiones y cobros, al día.»</b></p>
+  <div class="ventana"><img src="v-hoy.png" alt=""></div>
+  <div class="pie"><span class="frase">La primera app para entrenadores de verdad.</span><span class="num">03</span></div>
+</div>
