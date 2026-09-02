@@ -17,10 +17,6 @@ import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Avatar } from '@/components/ui/Avatar';
-/* El vacío de un bloque es `TarjetaVacia` en todo el producto —35 sitios—, y en
-   los dos paneles de esta columna era una frase gris suelta: justo lo que ese
-   componente vino a quitar. Ver su comentario en `dashboard/Tarjeta`. */
-import { TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import {
   BotonAccion,
   EmptyState,
@@ -526,7 +522,12 @@ export const Today = () => {
 
           <Panel title="Actividad" sub="Últimas 48 horas" className="col gap-3">
             {actividad.length === 0 ? (
-              <TarjetaVacia>Nadie ha registrado nada en dos días.</TarjetaVacia>
+              /* La última caja punteada del panel, a frase: el marco enmarcaba
+                 la ausencia y no ofrecía nada. Quien lleva días sin entrenar ya
+                 tiene su cola arriba; aquí basta con decirlo. */
+              <div className="vacio-invita">
+                <p>Nadie ha registrado nada en dos días.</p>
+              </div>
             ) : (
               <div className="actividad">
                 {actividad.map((event) => {

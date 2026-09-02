@@ -19,7 +19,7 @@ import { clientPath } from '@/routes';
 import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
-import { KindLegend, WeekBoard } from './WeekBoard';
+import { KindLegend } from './WeekBoard';
 
 /** «jueves 20 de agosto» → «Jueves 20 de agosto». Es un título; se le pone mayúscula. */
 const tituloDeDia = (date) => {
@@ -303,6 +303,60 @@ export const CoachCalendar = () => {
     [byDate, nombres, revisiones]
   );
 
+  /*
+    ── «Lo próximo»: la semana, dicha en personas ─────────────────────────────
+    Aquí hubo un tablero de siete casillas («Esta semana»), y su caso normal
+    era enseñar siete cajas punteadas de «Libre» encima de un mes que ya
+    enseñaba esa misma semana: el vacío decorando, dos veces. La agenda de un
+    entrenador son personas que entregan y citas con fecha; eso se dice como
+    lista —«Sáb 5 · Marta y Javier entregan su semana»— y cada fila abre la
+    hoja de su día, el mismo gesto que pulsar la celda del mes.
+
+    Sale de las celdas ya cargadas (el mes a la vista más la semana en curso):
+    no pide nada nuevo, y por eso el alcance es «lo que hay a la vista», no un
+    horizonte inventado.
+  */
+  const proximo = useMemo(() => {
+    const dias = celdas
+      .filter((cell) => cell.date >= today)
+      .sort((a, b) => (a.date < b.date ? -1 : 1));
+    const filas = [];
+    for (const cell of dias) {
+      const entregan = revisiones.get(cell.date) || [];
+      if (entregan.length > 0) {
+        const nombres2 = entregan.map((c) => nombreCorto(c.name));
+        filas.push({
+          id: `prox-rev-${cell.date}`,
+          date: cell.date,
+          quien:
+            entregan.length === 1
+              ? entregan[0].name
+              : entregan.length === 2
+                ? `${nombres2[0]} y ${nombres2[1]}`
+                : `${entregan.length} entregas`,
+          que:
+            entregan.length === 1
+              ? 'entrega su semana'
+              : entregan.length === 2
+                ? 'entregan su semana'
+                : `${nombres2.slice(0, 2).join(', ')} y ${entregan.length - 2} más`,
+        });
+      }
+      for (const event of byDate.get(cell.date) || []) {
+        if (event.done) continue;
+        filas.push({
+          id: `prox-ev-${event.id}`,
+          date: cell.date,
+          quien: event.title,
+          que: `${nombres.get(event.clientId) || 'Cliente'} · ${kindMeta(event.kind).label}`,
+        });
+      }
+    }
+    return filas;
+  }, [celdas, revisiones, byDate, nombres, today]);
+  /* Las seis primeras: es un costado, no un archivo. Si hay más, se dice. */
+  const proximoVisible = proximo.slice(0, 6);
+
   const act = async (promise) => {
     const result = await promise;
     if (result?.ok === false) setError(result.error);
@@ -346,18 +400,7 @@ export const CoachCalendar = () => {
       )}
       {error && <Notice tone="error">{error}</Notice>}
 
-      <WeekBoard
-        title="Esta semana"
-        action={<KindLegend kinds={EVENT_KINDS} />}
-        cells={week}
-        onOpenDay={setOpenDay}
-        emptyLabel={unavailable ? null : 'Libre'}
-        cardsFor={(cell) => cardsDe(cell.date)}
-        labelFor={(cell, cards) =>
-          `${tituloDeDia(cell.date)}, ${cards.length === 0 ? 'sin nada' : `${cards.length} cosas`}`
-        }
-      />
-
+      <div className="agenda-pagina">
       <Panel
         title={monthLabel(cursor.year, cursor.month)}
         action={
@@ -428,8 +471,54 @@ export const CoachCalendar = () => {
           })}
         </div>
 
-        <p className="cal-legend">Toca un día para ver quién entrega y agendar algo.</p>
+        <div className="cal-pie">
+          <p className="cal-legend">Toca un día para ver quién entrega y agendar algo.</p>
+          <KindLegend kinds={EVENT_KINDS} />
+        </div>
       </Panel>
+
+      {/*
+        El costado: lo que viene, con nombre. Cada fila abre la hoja de su día
+        — el mismo gesto que pulsar la celda del mes, dicho en legible.
+      */}
+      <aside className="agenda-lado" aria-label="Lo próximo en la agenda">
+        <Panel tight title="Lo próximo" className="col gap-1">
+          {proximoVisible.length === 0 ? (
+            <div className="vacio-invita">
+              <p>Nada por delante en este mes.</p>
+              <button type="button" className="cab-accion is-puerta" onClick={() => setOpenDay(today)}>
+                Apuntar algo
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="list">
+                {proximoVisible.map((fila) => (
+                  <button
+                    type="button"
+                    key={fila.id}
+                    className="list-row prox-fila"
+                    onClick={() => setOpenDay(fila.date)}
+                  >
+                    <span className="prox-cuando">
+                      <b>{Number(fila.date.slice(8, 10))}</b>
+                      <span>{weekdayName(fila.date)?.slice(0, 3) || ''}</span>
+                    </span>
+                    <span className="list-row-label">
+                      <span className="title">{fila.quien}</span>
+                      <span className="sub">{fila.que}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {proximo.length > proximoVisible.length && (
+                <p className="t-xs t-tertiary">Y {proximo.length - proximoVisible.length} más, en el mes.</p>
+              )}
+            </>
+          )}
+        </Panel>
+      </aside>
+      </div>
 
       {openDay && (
         <AgendaSheet

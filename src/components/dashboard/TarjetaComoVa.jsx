@@ -138,6 +138,16 @@ export const TarjetaComoVa = ({
             </ol>
           )}
 
+          {/*
+            ── El veredicto — salvo cuando lo que falta es el objetivo ─────────
+            «No hay un objetivo declarado», con su marca de aviso y sus dos
+            frases, era la casa riñendo por algo que se arregla en los tres
+            chips de aquí debajo. Cuando quien mira PUEDE ponerlo, el hueco se
+            dice como pregunta con el gesto («¿Qué busca?») y el sermón sobra;
+            el cliente, que no puede fijar nada, sigue leyendo su versión
+            traducida.
+          */}
+          {!(canEditGoal && !goal && veredicto?.id === 'no-goal') && (
           <p className={`comova-juicio is-${tono}`}>
             <span className="comova-marca" aria-hidden="true">
               <Icono size={13} strokeWidth={2.5} />
@@ -155,6 +165,7 @@ export const TarjetaComoVa = ({
               )}
             </span>
           </p>
+          )}
 
           {/*
             Sin objetivo, lo único que hay que hacer: ponerlo. Los tres chips aquí
@@ -164,7 +175,7 @@ export const TarjetaComoVa = ({
           {canEditGoal && !goal && (
             <div className="goal-set" role="group" aria-label="Objetivo del cliente">
               <Target size={13} />
-              <span className="k">Busca</span>
+              <span className="k">¿Qué busca?</span>
               {GOAL_DIRECTIONS.map((d) => (
                 <button
                   key={d.id}

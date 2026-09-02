@@ -1744,3 +1744,36 @@ button.log-answer:hover { background: var(--fill); }
   .scale-picker { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(min(38px, 100%), 1fr)); }
 }
 
+
+
+/* ══ LA AGENDA DEL ENTRENADOR: el mes manda, el costado dice quién ═════════
+   El tablero de siete casillas se retiró de esta pantalla (sigue en el
+   calendario de un cliente): su caso normal era una fila de cajas punteadas
+   de «Libre» repitiendo la semana que el mes ya enseña. Lo que viene se dice
+   como lista, en personas y fechas, y cada fila abre la hoja de su día. */
+.agenda-pagina { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
+.agenda-lado { min-width: 0; position: sticky; top: var(--s5); }
+@media (max-width: 1023.98px) {
+  .agenda-pagina { grid-template-columns: 1fr; }
+  /* En el teléfono, lo próximo va delante: es la pregunta con la que se abre
+     una agenda, y el mes es el archivo. */
+  .agenda-lado { position: static; order: -1; }
+}
+.prox-fila {
+  width: 100%; border: 0; background: transparent; font: inherit; text-align: left;
+  cursor: pointer; border-radius: var(--r-sm);
+  transition: background-color var(--fast);
+}
+.prox-fila:hover { background: var(--fill-subtle); }
+.prox-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.prox-cuando { flex-shrink: 0; width: 40px; text-align: center; line-height: 1.15; }
+.prox-cuando > b {
+  display: block; font-family: var(--font-display); font-size: var(--fs-md); font-weight: 800;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+}
+.prox-cuando > span {
+  font-size: var(--fs-2xs); font-weight: 650; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+/* El pie del mes: la instrucción a un lado y la leyenda de colores al otro. */
+.cal-pie { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
