@@ -19,7 +19,7 @@ import { clientPath } from '@/routes';
 import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
 import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
-import { KindLegend } from './WeekBoard';
+import { KindLegend } from './KindLegend';
 
 /** «jueves 20 de agosto» → «Jueves 20 de agosto». Es un título; se le pone mayúscula. */
 const tituloDeDia = (date) => {

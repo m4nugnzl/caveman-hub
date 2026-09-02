@@ -919,85 +919,18 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   font-size: var(--fs-2xs); font-weight: 650; color: var(--text-tertiary);
 }
 
-/* ── El tablero de la semana ───────────────────────────────────────────────
-   Siete columnas, y en cada una las tarjetas del día con el canto izquierdo del
-   color de su tipo. En el mes los eventos son puntos; aquí, que hay sitio, se
-   lee de quién son y qué son sin tocar nada.
-
-   La tarjeta tiene DOS líneas y el orden importa: arriba de quién es —en el
-   color del tipo, que es lo que se busca— y debajo qué es, en tinta plena. Ver
-   `components/calendar/WeekBoard.jsx`. */
-.wk { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s2); }
-
-/* La columna NO tiene fondo, y es la decisión que ordena el tablero.
-   Con él eran siete cajas hundidas con tarjetas dentro —cajas dentro de cajas—
-   y el ojo contaba catorce objetos donde hay cuatro citas. Sin él, lo único que
-   se dibuja es lo que existe: la tarjeta. El día se toca igual, y al pasar por
-   encima aparece la superficie para decir que la columna entera es el botón. */
-.wk-day {
-  display: flex; flex-direction: column; gap: var(--s3);
-  min-height: 118px; min-width: 0; padding: var(--s2) 6px var(--s3);
-  background: transparent; border: 0; border-radius: var(--r-md);
-  cursor: pointer; font: inherit; color: inherit; text-align: left;
-  transition: background-color var(--fast), box-shadow var(--fast);
-}
-.wk-day:hover { background: var(--surface-sunken); }
-.wk-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); }
-
-.wk-dow {
-  font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
-  letter-spacing: var(--tracking-stencil); color: var(--text-tertiary);
-  padding-inline: 2px;
-}
-.wk-dow > b {
-  color: var(--text); font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums; margin-left: 4px;
-}
-.wk-day.is-today .wk-dow > b { color: var(--accent); }
-
-.wk-cards { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
-
+/* ── La tarjeta del día ────────────────────────────────────────────────────
+   Del tablero de la semana queda solo la TARJETA: la ficha con el canto del color de su
+   tipo, que la hoja del día usa para decir «este día tiene revisión». La
+   rejilla de siete columnas se retiró con `WeekBoard` — sus dos pantallas
+   dicen ahora «Lo próximo» como lista (`.prox-fila`). */
 .wk-card {
-  display: flex; flex-direction: column; gap: 1px; min-width: 0;
-  padding: 6px var(--s2) 7px 8px; border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  font-size: var(--fs-sm); padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   background: var(--surface-sunken);
   border-left: 3px solid transparent; /* el color lo pone el dato, por style */
   overflow: hidden;
 }
-/* Con la columna en hover, la tarjeta sube un escalón para no fundirse con ella. */
-.wk-day:hover .wk-card { background: var(--fill); }
-.wk-card.is-done { opacity: 0.45; }
-.wk-card.is-done .wk-card-what { text-decoration: line-through; }
-
-/* La línea de arriba: de quién, o de qué tipo. Lleva el color porque es la que
-   distingue una tarjeta de la de al lado. */
-.wk-card-when {
-  font-size: var(--fs-2xs); font-weight: 700; line-height: 1.2;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* Y la de abajo: qué es. En tinta plena, que es la que se lee despacio. */
-.wk-card-what {
-  font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* La hoja del día reutiliza la tarjeta a tamaño de lectura. */
-.wk-card.is-sheet {
-  gap: 2px; font-size: var(--fs-sm); padding: var(--s2) var(--s3);
-}
-
-/* El hueco de un día sin nada.
-   Se dibuja SIEMPRE, no al pasar el ratón: en táctil el hover no existe, y un
-   día libre es información —es donde cabe una cita—, no un vacío. */
-.wk-add {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 44px; border-radius: var(--r-sm);
-  border: 1px dashed var(--hairline-strong); color: var(--text-tertiary);
-  font-size: var(--fs-xs); font-weight: 700;
- letter-spacing: 0;
-  opacity: 0.5; transition: opacity var(--fast);
-}
-.wk-day:hover .wk-add { opacity: 1; }
 
 @media (max-width: 640px) {
   .cal { gap: 3px; }
@@ -1005,22 +938,6 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   /* A 390 px no cabe la palabra: el punto de color basta para saber que toca. */
   .cal-checkin { font-size: 0; padding: 3px; }
   .cal-legend { display: block; }
-
-  /* En el teléfono la semana no cabe en columnas: se vuelve agenda, un día por
-     fila, con el rótulo a la izquierda y sus tarjetas al lado. */
-  .wk { display: flex; flex-direction: column; gap: var(--s1); }
-  /* `min-height: 44px` y no `0`: la fila entera es el botón que abre ese día
-     —para ver lo que tiene o añadir algo— y como agenda medía 35 px de alto,
-     por debajo del mínimo del dedo. Es alto mínimo, no fijo: un día con tres
-     tarjetas sigue creciendo. */
-  .wk-day { flex-direction: row; align-items: center; gap: var(--s3); min-height: 44px; padding: var(--s2) var(--s3); }
-  .wk-dow { flex: 0 0 58px; }
-  .wk-cards { flex: 1; flex-direction: row; flex-wrap: wrap; gap: var(--s1); }
-  /* Apaisada: de quién y qué, en la misma línea. Apilar dos renglones por cada
-     tarjeta convertiría un lunes con tres citas en media pantalla. */
-  .wk-card { flex-direction: row; align-items: baseline; gap: 6px; max-width: 100%; padding: 4px var(--s2) 4px 7px; }
-  .wk-card-when { flex: 0 0 auto; }
-  .wk-add { min-height: 0; padding: 2px 8px; border: 0; opacity: 0.5; justify-content: flex-start; }
 }
 
 /* ==========================================================================

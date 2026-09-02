@@ -26,7 +26,7 @@ import { addDays, daysBetween, shortDate, todayISO, weekdayName } from '@/lib/da
 import { Modal } from '@/components/ui/Modal';
 import { Notice, PageHead, Panel, SegmentedControl } from '@/components/ui/primitives';
 import { Mando } from '@/components/ui/Mando';
-import { KindLegend, WeekBoard } from './WeekBoard';
+import { KindLegend } from './KindLegend';
 
 /** «jueves 20 de agosto» → «Jueves 20 de agosto». Es un título; se le pone mayúscula. */
 const tituloDeDia = (date) => {
@@ -88,7 +88,7 @@ const DaySheet = ({
     <Modal title={tituloDeDia(date)} onClose={onClose}>
       <div className="col gap-4">
         {isCheckIn && (
-          <div className="wk-card is-sheet" style={{ borderColor: kindMeta('checkin').color }}>
+          <div className="wk-card" style={{ borderColor: kindMeta('checkin').color }}>
             <strong>Revisión{isMoved ? ' · movida a este día' : ''}</strong>
             <span className="t-xs t-tertiary">
               {checkInDone ? 'Entregada' : kindMeta('checkin').hint}
@@ -504,42 +504,76 @@ export const CalendarPanel = ({ audience = 'client' }) => {
       </Panel>
 
       {/*
-        ══ Esta semana ═══════════════════════════════════════════════════════
-        La semana en curso con sus eventos CON NOMBRE. Es la pregunta con la que
-        se abre un calendario y antes no la contestaba nadie: había que pescarla
-        entre treinta y cinco celdas de puntos de colores.
+        ══ Lo próximo ════════════════════════════════════════════════════════
+        Lo que viene, como lista con fecha. Aquí hubo un tablero de siete
+        casillas («Esta semana») cuyo caso normal era una fila de cajas
+        punteadas de «Libre» encima de un mes que ya enseña esa semana — el
+        mismo patrón que retiró la agenda del entrenador, y con él se va el
+        tablero entero de la casa. La revisión que viene ya la dice en grande
+        el panel de arriba; esto lista lo demás, y cada fila abre su día.
       */}
-      <WeekBoard
-        title="Esta semana"
-        action={<KindLegend kinds={EVENT_KINDS} />}
-        cells={week}
-        onOpenDay={abrirDia}
-        emptyLabel={unavailable ? null : 'Libre'}
-        labelFor={(cell) =>
-          `${tituloDeDia(cell.date)}${weekCheckIns.has(cell.date) ? ', día de revisión' : ''}`
-        }
-        cardsFor={(cell) => {
-          /* La revisión primero: es lo único del día que tiene fecha de
-             entrega. Los eventos vienen ya ordenados por `eventsByDate`. */
-          const done = submittedWeeks.has(cell.weekStart);
-          return [
-            weekCheckIns.has(cell.date) && {
-              id: `revision-${cell.date}`,
-              kind: 'checkin',
-              when: 'Revisión',
-              what: done ? 'Entregada' : 'Peso y fotos',
-              done,
-            },
-            ...(byDate.get(cell.date) || []).map((event) => ({
-              id: event.id,
-              kind: event.kind,
-              when: kindMeta(event.kind).label,
-              what: event.title,
-              done: event.done,
-            })),
-          ].filter(Boolean);
-        }}
-      />
+      <Panel tight title="Lo próximo" action={<KindLegend kinds={EVENT_KINDS} />} className="col gap-1">
+        {(() => {
+          const vistas = new Map();
+          for (const cell of [...week, ...grid]) if (!vistas.has(cell.date)) vistas.set(cell.date, cell);
+          const filas = [];
+          for (const cell of [...vistas.values()].sort((a, b) => (a.date < b.date ? -1 : 1))) {
+            if (cell.date < today) continue;
+            const esRevision = weekCheckIns.has(cell.date) || checkInDays.has(cell.date);
+            if (esRevision && !submittedWeeks.has(cell.weekStart)) {
+              filas.push({
+                id: `prox-rev-${cell.date}`,
+                date: cell.date,
+                quien: 'Revisión',
+                que: pide.join(', '),
+              });
+            }
+            for (const event of byDate.get(cell.date) || []) {
+              if (event.done) continue;
+              filas.push({
+                id: `prox-ev-${event.id}`,
+                date: cell.date,
+                quien: event.title,
+                que: kindMeta(event.kind).label,
+              });
+            }
+          }
+          const visibles = filas.slice(0, 6);
+          if (visibles.length === 0) {
+            return (
+              <div className="vacio-invita">
+                <p>Nada por delante en este mes{isClient ? '' : ' aparte de sus revisiones'}.</p>
+                {!unavailable && (
+                  <button type="button" className="cab-accion is-puerta" onClick={() => abrirDia(today)}>
+                    Apuntar algo
+                  </button>
+                )}
+              </div>
+            );
+          }
+          return (
+            <>
+              <div className="list">
+                {visibles.map((fila) => (
+                  <button type="button" key={fila.id} className="list-row prox-fila" onClick={() => abrirDia(fila.date)}>
+                    <span className="prox-cuando">
+                      <b>{Number(fila.date.slice(8, 10))}</b>
+                      <span>{weekdayName(fila.date)?.slice(0, 3) || ''}</span>
+                    </span>
+                    <span className="list-row-label">
+                      <span className="title">{fila.quien}</span>
+                      <span className="sub">{fila.que}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {filas.length > visibles.length && (
+                <p className="t-xs t-tertiary">Y {filas.length - visibles.length} más, en el mes.</p>
+              )}
+            </>
+          );
+        })()}
+      </Panel>
 
       {/*
         ══ El mes ════════════════════════════════════════════════════════════
