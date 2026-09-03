@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { blocksOf, lastWeekNumber } from '@/domain/blocks';
-import { unitLabel } from '@/domain/training';
+import { unitIsFeminine, unitLabel } from '@/domain/training';
 import { Modal } from '@/components/ui/Modal';
 
 /**
@@ -20,11 +20,17 @@ export const NuevoBloqueDialog = ({ open, onClose, program, cliente, onAbrir }) 
   const unidad = unitLabel(cliente?.cycleType || 'weekly');
   const dias = (program?.microcycles || []).find((m) => m.weekNumber === ultima)?.days?.map((d) => d.dayName) || [];
   const [nombre, setNombre] = useState(`Bloque ${bloques.length + 1}`);
-  const [misma, setMisma] = useState(true);
+  /* De dónde salen los días de la primera sesión: de los de ahora, de nada, o
+     de una hoja de cálculo. */
+  const [desde, setDesde] = useState('misma');
 
   const abrir = (e) => {
     e.preventDefault();
-    onAbrir({ name: nombre.trim() || null, keepStructure: misma });
+    onAbrir({
+      name: nombre.trim() || null,
+      keepStructure: desde === 'misma',
+      desdeFichero: desde === 'fichero',
+    });
     onClose();
   };
 
@@ -32,23 +38,41 @@ export const NuevoBloqueDialog = ({ open, onClose, program, cliente, onAbrir }) 
     <Modal open={open} title="Nuevo bloque" onClose={onClose}>
       <form className="nuevo-bloque" onSubmit={abrir}>
         <p className="t-sm t-secondary">
-          «{actual.name}» se cierra en {unidad.toLowerCase()} {ultima} y se queda como está: sus semanas siguen ahí para leerlas y compararlas. Lo que cambies a partir de ahora ya es del bloque nuevo, y en sus revisiones se verá como un cambio.
+          «{actual.name}» se cierra en {unidad.toLowerCase()} {ultima} y se queda como está: lo que lleva dentro sigue ahí para leerlo y compararlo. Lo que cambies a partir de ahora ya es del bloque nuevo, y en sus revisiones se verá como un cambio.
         </p>
         <label className="field">
           <span className="label">Nombre</span>
           <input className="input" value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </label>
+        {/*
+          ── Y la tercera: que la traiga la hoja ──────────────────────────────
+          Un bloque nuevo es un cambio de rutina, y muchos cambios de rutina ya
+          están escritos en un Excel antes de entrar aquí —el mismo con el que
+          se trabajaba antes de la aplicación—. Sin esta opción había que abrir
+          el bloque, borrar el día en blanco y buscar «Traer de un fichero» en
+          el menú de la hoja: tres pasos para el gesto más normal del mundo.
+          Abre el mismo importador que el resto de la casa y se llama igual.
+        */}
         <fieldset className="nuevo-bloque-opciones">
-          <legend className="label">Primera {unidad.toLowerCase()}</legend>
-          <label className={`nuevo-bloque-opcion${misma ? ' is-on' : ''}`}>
-            <input type="radio" name="estructura" checked={misma} onChange={() => setMisma(true)} />
+          <legend className="label">
+            {unitIsFeminine(cliente?.cycleType) ? 'Primera' : 'Primer'} {unidad.toLowerCase()}
+          </legend>
+          <label className={`nuevo-bloque-opcion${desde === 'misma' ? ' is-on' : ''}`}>
+            <input type="radio" name="estructura" checked={desde === 'misma'} onChange={() => setDesde('misma')} />
             <span>
               <strong>Con los mismos días</strong>
               <small>{dias.length > 0 ? dias.join(' · ') : 'Los del bloque actual'}, sin ejercicios: se rellenan de nuevo.</small>
             </span>
           </label>
-          <label className={`nuevo-bloque-opcion${!misma ? ' is-on' : ''}`}>
-            <input type="radio" name="estructura" checked={!misma} onChange={() => setMisma(false)} />
+          <label className={`nuevo-bloque-opcion${desde === 'fichero' ? ' is-on' : ''}`}>
+            <input type="radio" name="estructura" checked={desde === 'fichero'} onChange={() => setDesde('fichero')} />
+            <span>
+              <strong>Traer de un fichero</strong>
+              <small>Subes tu Excel y los días del bloque salen de él. También lee Word, PDF y CSV.</small>
+            </span>
+          </label>
+          <label className={`nuevo-bloque-opcion${desde === 'cero' ? ' is-on' : ''}`}>
+            <input type="radio" name="estructura" checked={desde === 'cero'} onChange={() => setDesde('cero')} />
             <span>
               <strong>Desde cero</strong>
               <small>Un solo día en blanco, para montar otra estructura.</small>

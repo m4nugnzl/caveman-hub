@@ -100,8 +100,10 @@ export const PlanDelBloque = ({ program, bloque, cliente, unidad, unidades, onAb
               <ol className="plan-ejs">
                 {hoja.exercises.map((ex) => (
                   <li className="plan-ej" key={ex.id}>
-                    <span className="plan-ej-nombre">{ex.name}</span>
-                    <span className="plan-ej-fila">
+                    <span className="plan-ej-nombre" title={ex.name}>
+                      {ex.name}
+                    </span>
+                    <span className="plan-ej-pauta">
                       <span className="plan-series is-lectura">{ex.series}</span>
                       <span className="plan-por" aria-hidden="true">
                         ×

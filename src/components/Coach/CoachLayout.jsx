@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, UserPlus } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, Eye, UserPlus } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
 import { feeLabel, paymentState } from '@/domain/billing';
@@ -507,12 +507,12 @@ export const CoachLayout = () => {
                   </h1>
                   <div className="cliente-cab-selector">{selector}</div>
                   <p className="cliente-cab-meta">
-                    {/* «En curso» no es adorno: debajo, la revisión habla de la
-                        semana que YA ha terminado —la 18 cuando aquí pone 19—,
-                        y dos números seguidos sin decir de qué son se leen como
-                        un fallo. Con esto, cada uno dice lo suyo: aquí, por
+                    {/* «En curso» no es adorno: debajo, la revisión habla del
+                        microciclo que YA ha terminado —el 18 cuando aquí pone
+                        19—, y dos números seguidos sin decir de qué son se leen
+                        como un fallo. Con esto, cada uno dice lo suyo: aquí, por
                         dónde va; ahí abajo, cuál estás contestando. */}
-                    {semanaActiva && <span>Semana {semanaActiva} · en curso</span>}
+                    {semanaActiva && <span>Microciclo {semanaActiva} · en curso</span>}
                     {bandeja.esperando.has(activeClient.id) && (
                       <span className="cliente-cab-espera">Te espera</span>
                     )}
@@ -526,10 +526,27 @@ export const CoachLayout = () => {
                     onClick={() => setViewMode('client')}
                     title="Ver la aplicación como la ve esta persona"
                   >
+                    {/* Cada una con su signo: el ojo, que te pone en su sitio;
+                        el calendario marcado, que es el de «Revisiones» —el
+                        destino al que lleva—. Sin ellos eran dos cápsulas
+                        idénticas y anónimas en una banda vacía. */}
+                    <Eye size={14} aria-hidden="true" />
                     Ver como {activeClient.name.split(/\s+/)[0]}
                   </button>
                   {!isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') && (
-                    <Link className="btn btn-primary btn-sm" to={clientPath(clientId, 'semana')}>
+                    /*
+                      Primario SOLO si esta persona espera respuesta. La regla de
+                      la casa es «un relleno sólido por pantalla», y este botón
+                      —que vive en las cinco pestañas— la rompía en cualquier
+                      pantalla con primario propio: dos azules diciendo «esto es
+                      lo importante». Condicionado, el azul pasa a ser señal: si
+                      lo ves encendido, hay una entrega esperándote detrás.
+                    */
+                    <Link
+                      className={`btn ${bandeja.esperando.has(activeClient.id) ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      to={clientPath(clientId, 'semana')}
+                    >
+                      <CalendarCheck size={14} aria-hidden="true" />
                       Revisar semana
                     </Link>
                   )}

@@ -82,7 +82,7 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
             {trend.points.length > 1 && <Sparkline points={trend.points} color={metricColor('topKg')} height={34} />}
           </div>
 
-          <div className="comparativa-tabla" role="table" aria-label={`${name}: kilos, repeticiones y RIR por serie, semana a semana`}>
+          <div className="comparativa-tabla" role="table" aria-label={`${name}: kilos, repeticiones y RIR por serie, microciclo a microciclo`}>
             <div className="comparativa-fila is-series" role="row" style={{ gridTemplateColumns: columnas }}>
               <span />
               {Array.from({ length: series }, (_, i) => (
@@ -128,7 +128,7 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
               </div>
             ))}
           </div>
-          {trend.stalled >= 3 && <p className="t-xs t-tertiary">{trend.stalled} semanas sin superar el tope.</p>}
+          {trend.stalled >= 3 && <p className="t-xs t-tertiary">{trend.stalled} microciclos sin superar el tope.</p>}
         </>
       )}
     </aside>

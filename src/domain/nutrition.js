@@ -682,3 +682,86 @@ export const optionGaps = (meal) => {
     };
   });
 };
+
+/**
+ * REESCALAR EL MENÚ al objetivo que el entrenador acaba de poner.
+ *
+ * ══ Qué es y qué no es ══════════════════════════════════════════════════════
+ *
+ * No es una propuesta: el número lo puso el entrenador al cambiar el objetivo.
+ * Esto es la aritmética que venía haciendo a mano después — recuadrar los
+ * gramos de cada opción de cada comida—, que con tres comidas de cuatro
+ * alternativas son veinte filas cada dos o tres semanas.
+ *
+ * ══ Las reglas ══════════════════════════════════════════════════════════════
+ *
+ *   · LA PROTEÍNA NO SE TOCA. Un alimento cuya energía es proteína en más de
+ *     la mitad (pollo, claras, pescado blanco…) es una fuente de proteína, y
+ *     en un ajuste calórico la proteína se mantiene: se escalan hidratos y
+ *     grasas, que es como se ajusta una dieta de verdad.
+ *   · LO QUE SE CUENTA POR UNIDADES NO SE TOCA. «1 plátano» no puede volverse
+ *     0,8 plátanos; si el entrenador quiere quitarlo, lo quita él.
+ *   · CADA OPCIÓN A SU PROPORCIÓN. Todas las alternativas de una comida bajan
+ *     en la misma proporción que el día, así que siguen siendo equivalentes
+ *     entre sí después del ajuste.
+ *   · REDONDEO DE COCINA: a 5 g desde 25 g, al gramo por debajo. Un menú con
+ *     «87,3 g de arroz» no lo pesa nadie.
+ *
+ * ── Cuándo se rinde, y lo dice ──────────────────────────────────────────────
+ * Una opción hecha solo de proteína y unidades no tiene de dónde recortar; y
+ * un factor fuera de 0,25–4 ya no es un ajuste, es otra dieta. Esas opciones
+ * se quedan como están y salen en `sinTocar`, para que la vista previa lo
+ * cuente en vez de callar.
+ *
+ * @returns `{ meals, cambios, sinTocar, ratio }`, o `null` si no hay nada que
+ *   reescalar (sin objetivo previo, sin cambio, o sin ningún gramo que mover).
+ */
+export const rescaleMeals = (meals = [], { fromKcals, toKcals } = {}) => {
+  const from = toNum0(fromKcals);
+  const to = toNum0(toKcals);
+  if (!from || !to || from === to || meals.length === 0) return null;
+  const ratio = to / from;
+
+  const cambios = [];
+  const sinTocar = [];
+
+  /* Lo fijo: la fuente de proteína y lo contado por unidades. */
+  const fija = (f) => {
+    if (f.showAs === 'units') return true;
+    const m = foodMacros(f);
+    return m.kcal > 0 && (m.protein * 4) / m.kcal >= 0.5;
+  };
+
+  const nuevas = meals.map((meal) => ({
+    ...meal,
+    options: (meal.options || []).map((option, optIndex) => {
+      const total = optionMacros(option).kcal;
+      if (total <= 0) return option;
+
+      const kcalFijas = (option.foods || []).filter(fija).reduce((n, f) => n + foodMacros(f).kcal, 0);
+      const kcalVariables = total - kcalFijas;
+      /* El factor de lo variable: lo que tiene que moverse para que la opción
+         entera quede en su proporción, con lo fijo quieto. */
+      const factor = kcalVariables > 1 ? (total * ratio - kcalFijas) / kcalVariables : null;
+
+      if (factor === null || factor < 0.25 || factor > 4) {
+        sinTocar.push({ meal: meal.name, option: optIndex + 1 });
+        return option;
+      }
+
+      const foods = (option.foods || []).map((f) => {
+        if (fija(f)) return f;
+        const gramos = toNum0(f.grams) * factor;
+        const paso = gramos >= 25 ? 5 : 1;
+        const nuevos = Math.max(paso, Math.round(gramos / paso) * paso);
+        if (nuevos === toNum0(f.grams)) return f;
+        cambios.push({ meal: meal.name, option: optIndex + 1, food: f.name, from: toNum0(f.grams), to: nuevos });
+        return { ...f, grams: nuevos };
+      });
+      return { ...option, foods };
+    }),
+  }));
+
+  if (cambios.length === 0) return null;
+  return { meals: nuevas, ratio, cambios, sinTocar };
+};

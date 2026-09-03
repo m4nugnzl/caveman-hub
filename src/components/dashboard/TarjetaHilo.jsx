@@ -23,9 +23,9 @@ import { Tarjeta, TarjetaVacia } from './Tarjeta';
  * está descargado para pintar el Resumen.
  *
  * ── La forma ────────────────────────────────────────────────────────────────
- * Una tarjeta del mosaico con las dos últimas semanas y una ventana con tres
- * meses. Un evento es una fila: el día, un punto del color de su clase, qué
- * pasó y una cifra. Sin iconos: el color y la frase ya lo dicen.
+ * Una tarjeta del mosaico con las cinco últimas cosas que pasaron y una ventana
+ * con los tres meses enteros. Un evento es una fila: el día, un punto del color
+ * de su clase, qué pasó y una cifra. Sin iconos: el color y la frase ya lo dicen.
  */
 const KINDS = {
   ...ACTIVITY_KINDS,
@@ -35,9 +35,11 @@ const KINDS = {
   respuesta: { id: 'respuesta', label: 'Tu respuesta', color: 'var(--brasa)' },
 };
 
-/* La tarjeta enseña la última semana y como mucho ocho filas: con dos semanas
-   enteras la columna derecha medía el doble que el mosaico. Lo demás, en la
-   ventana. */
+/* La ventana del hilo: tres meses, los mismos que abre «Tres meses». Es una
+   sola consulta para las dos vistas — ver el comentario de `TarjetaHilo`. */
+const DIAS = 90;
+/* Y la tarjeta enseña su cabeza: las cinco últimas cosas que pasaron. Con más,
+   la columna derecha medía el doble que el mosaico. El resto, en la ventana. */
 const MAX_CORTO = 5;
 
 const recorta = (texto, max = 90) => {
@@ -135,14 +137,28 @@ const Lista = ({ eventos, hoy }) => (
 
 export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisiones, hoy, span = 4 }) => {
   const [abierto, setAbierto] = useState(false);
-  const corto = useMemo(
-    () => hiloDeCliente({ client, program, anthro, photos, checkIns, revisiones, hoy, days: 7 }).slice(0, MAX_CORTO),
+  /*
+    UN solo hilo, y la tarjeta enseña su cabeza.
+
+    Antes eran dos consultas: la tarjeta pedía SIETE DÍAS y la ventana tres
+    meses. Y con una semana tranquila —que las hay, y son la mitad— salía una
+    tarjeta con su rótulo, su puerta y UNA fila debajo: casi toda marco. El
+    vacío formal solo salta con cero eventos, así que uno o dos caían en la
+    tierra de nadie que se lee como avería.
+
+    «Lo último» no deja de existir porque esta semana haya sido tranquila. Se
+    piden los tres meses y se enseñan las cinco últimas cosas que pasaron, con
+    la fecha de cada fila diciendo cuándo fue —que ya la lleva, y `dayLabel`
+    pone «Jueves 12 ago» en cuanto se sale de la semana—. Así la tarjeta tiene
+    siempre el cuerpo que su cabecera promete.
+
+    De paso es una consulta menos: la ventana ya no recalcula, reparte.
+  */
+  const hilo = useMemo(
+    () => hiloDeCliente({ client, program, anthro, photos, checkIns, revisiones, hoy, days: DIAS }),
     [client, program, anthro, photos, checkIns, revisiones, hoy]
   );
-  const largo = useMemo(
-    () => (abierto ? hiloDeCliente({ client, program, anthro, photos, checkIns, revisiones, hoy, days: 90 }) : []),
-    [abierto, client, program, anthro, photos, checkIns, revisiones, hoy]
-  );
+  const corto = hilo.slice(0, MAX_CORTO);
 
   return (
     <Tarjeta
@@ -158,16 +174,16 @@ export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisio
       }
     >
       {corto.length === 0 ? (
-        <TarjetaVacia>Nada esta semana: ni entrenos, ni pesajes, ni fotos.</TarjetaVacia>
+        <TarjetaVacia>Nada en tres meses: ni entrenos, ni pesajes, ni fotos.</TarjetaVacia>
       ) : (
         <ListaCorta eventos={corto} hoy={hoy} />
       )}
 
       <Modal open={abierto} title={`${client.name} · los últimos tres meses`} onClose={() => setAbierto(false)} size="side">
-        {largo.length === 0 ? (
+        {hilo.length === 0 ? (
           <p className="t-sm t-tertiary">Nada en los últimos tres meses.</p>
         ) : (
-          <Lista eventos={largo} hoy={hoy} />
+          <Lista eventos={hilo} hoy={hoy} />
         )}
       </Modal>
     </Tarjeta>

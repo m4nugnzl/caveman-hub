@@ -643,6 +643,58 @@ export const answerTrend = ({ checkIns = [], questions = [], weekStart = null, w
 };
 
 /**
+ * LO QUE PASÓ CON LO QUE CAMBIASTE: el resultado de tu último cierre.
+ *
+ * ══ El tramo del bucle que faltaba ══════════════════════════════════════════
+ *
+ * Cada revisión cerrada guarda su foto del plan y `reviewHistory` ya calcula el
+ * diff contra la anterior. Lo que nadie juntaba era ese diff con la báscula: la
+ * pantalla nunca decía qué pasó DESPUÉS de tu último cambio, y esa es la primera
+ * pregunta de toda revisión. Aquí se junta — y nada más: un hecho («le bajaste
+ * 150 kcal») al lado de otro hecho («−0,5 kg desde entonces»). La conclusión es
+ * del entrenador; esta casa no receta.
+ *
+ * ── Cuándo calla ────────────────────────────────────────────────────────────
+ * · Sin revisión cerrada, o cerrada sin ningún cambio: no hubo experimento.
+ * · Sin ninguna semana posterior en la línea: todavía no ha pasado nada.
+ * · `delta` es null si no hay pesaje a un lado u otro del cierre — la pantalla
+ *   lo dice («aún sin pesajes desde entonces») en vez de inventar un cero.
+ *
+ * @param rows     `reviewHistory` — de la más reciente a la más antigua.
+ * @param timeline `reviewTimeline` — una fila por semana, con su peso.
+ */
+export const afterLastClose = ({ rows = [], timeline = [] } = {}) => {
+  const ultima = rows[0];
+  if (!ultima?.weekStart) return null;
+
+  /* Los cambios de cifra sin los de texto: «2 días de HIIT → 3» no tiene
+     dirección y aquí lo que se enseña es un delta. Los de texto y los de
+     estructura cuentan en el «y N cambios más». */
+  const cifras = (ultima.changes || []).filter((c) => !c.text);
+  const resto = (ultima.changes || []).length - cifras.length + (ultima.structure || []).length;
+  if (cifras.length === 0 && resto === 0) return null;
+
+  const i = timeline.findIndex((fila) => fila.weekStart === ultima.weekStart);
+  if (i < 0 || i >= timeline.length - 1) return null;
+
+  /* El peso al cerrar: el último pesaje HASTA esa semana incluida. Y el de
+     ahora: el último desde entonces. Comparar contra huecos daría «sin cambio»
+     en alguien que lleva tres semanas moviéndose. */
+  const alCerrar = [...timeline.slice(0, i + 1)].reverse().find((fila) => fila.weight !== null) || null;
+  const despues = [...timeline.slice(i + 1)].reverse().find((fila) => fila.weight !== null) || null;
+
+  return {
+    weekStart: ultima.weekStart,
+    week: timeline[i].week,
+    changes: cifras,
+    otherCount: resto,
+    weeksSince: timeline[timeline.length - 1].week - timeline[i].week,
+    delta:
+      alCerrar && despues ? Math.round((despues.weight - alCerrar.weight) * 10) / 10 : null,
+  };
+};
+
+/**
  * LA PASADA: a quién le debes una respuesta ahora mismo.
  *
  * ══ Por qué esto es una lista y no un modo ═════════════════════════════════

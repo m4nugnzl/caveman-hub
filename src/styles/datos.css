@@ -12,18 +12,29 @@
    Métricas — el corazón del sistema
    ========================================================================== */
 
-/* Píldora de variación: flecha + porcentaje, verde si mejora y rosa si empeora.
-   Es el motivo que más se repite en la referencia y el que da lectura inmediata
-   a cada cifra. */
+/* ── El veredicto de una cifra: TINTA, no cápsula ──────────────────────────
+   Flecha + cuánto, al lado de la cifra. Fue una píldora con fondo suave, y su
+   propio comentario confesaba el origen: «el motivo que más se repite en la
+   referencia». Ese es exactamente el problema — es el motivo que más se
+   repite en TODOS los paneles generados, el nuestro y el de cualquiera
+   (repfy lleva la misma cápsula al lado de las mismas cifras).
+
+   Ahora el veredicto se escribe: el color del semáforo como tinta, la cifra
+   tabular, y la dirección la dibuja la flecha. Los tres valores del semáforo
+   pasan de 4,5:1 como texto en los dos temas (está comprobado en sus tokens),
+   así que la cápsula no aportaba contraste: solo bulto.
+
+   La píldora queda para el ESTADO de una cosa —«Vencida», «Al día»—, que es
+   su único trabajo legítimo. La regla, para no discutirla dos veces:
+   estado en cápsula, dato en tinta. */
 .delta {
   display: inline-flex; align-items: center; gap: 2px;
-  font-size: var(--fs-xs); font-weight: 650;
-  padding: 2px 7px; border-radius: var(--r-pill);
+  font-size: var(--fs-xs); font-weight: 700;
   white-space: nowrap;
 }
-.delta-good { background: var(--positive-soft); color: var(--positive); }
-.delta-bad { background: var(--negative-soft); color: var(--negative); }
-.delta-flat { background: var(--fill); color: var(--text-tertiary); }
+.delta-good { color: var(--positive); }
+.delta-bad { color: var(--negative); }
+.delta-flat { color: var(--text-tertiary); }
 
 /* Tarjeta de métrica: etiqueta → cifra → delta → gráfico. Siempre este orden. */
 .metric-card {

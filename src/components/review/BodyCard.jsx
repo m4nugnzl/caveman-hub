@@ -46,7 +46,16 @@ import { PhotoStrip } from '@/components/review/PhotoStrip';
  * es ANOTAR datos y va dentro del pliegue de las medidas, al lado de ellas.
  */
 
-/** «Sueño 3 de 5, antes 4». Las escalas se comparan; por eso van en fila. */
+/**
+ * «Sueño 3 de 5, ↓1». Las escalas se comparan; por eso van en fila.
+ *
+ * ── Solo habla la que se MUEVE ─────────────────────────────────────────────
+ * Cada escala quieta decía «igual que antes» debajo, y con cinco quietas era
+ * la misma frase cinco veces en fila — justo el patrón que este mismo producto
+ * prohíbe en las pastillas de semana (la regla de la minoría de
+ * `marcaMinoria`). La quieta calla; si TODAS están quietas, una sola línea lo
+ * dice por todas (ver más abajo).
+ */
 const Escala = ({ fila }) => (
   <div className="escala">
     <span className="k">{fila.label}</span>
@@ -55,11 +64,7 @@ const Escala = ({ fila }) => (
       <span className="u">de {fila.max}</span>
     </span>
     <span className="d">
-      {fila.delta !== null && fila.delta !== 0 ? (
-        <Delta value={fila.delta} decimals={0} />
-      ) : (
-        fila.from !== null && <span className="t-2xs t-tertiary">igual que antes</span>
-      )}
+      {fila.delta !== null && fila.delta !== 0 && <Delta value={fila.delta} decimals={0} />}
     </span>
   </div>
 );
@@ -111,6 +116,14 @@ export const BodyCard = ({
   /* Y las escalas que contestó ESTA semana. Las de valor nulo son preguntas
      activas sin respuesta, y no hay nada que enseñar de ellas. */
   const escalas = tendencia.filter((fila) => fila.value !== null && fila.value !== undefined);
+  /* Si NINGUNA se movió respecto a la entrega anterior, se dice UNA vez y no
+     cinco: hace falta que al menos una tenga con qué compararse (`from`) —la
+     primera entrega no está «igual que antes», está sola— y que ninguna de las
+     comparables se haya movido. */
+  const todoIgual =
+    escalas.length > 0 &&
+    escalas.some((fila) => fila.from !== null && fila.from !== undefined) &&
+    escalas.every((fila) => fila.delta === null || fila.delta === 0);
 
   const hayRespuestas = escalas.length > 0 || dichos.length > 0;
   const nombre = client?.name?.split(' ')[0] || 'Tu cliente';
@@ -135,11 +148,16 @@ export const BodyCard = ({
         )}
 
         {escalas.length > 0 && (
-          <div className="escalas">
-            {escalas.map((fila) => (
-              <Escala fila={fila} key={fila.id} />
-            ))}
-          </div>
+          <>
+            <div className="escalas">
+              {escalas.map((fila) => (
+                <Escala fila={fila} key={fila.id} />
+              ))}
+            </div>
+            {todoIgual && (
+              <span className="t-2xs t-tertiary">Todo igual que en su entrega anterior.</span>
+            )}
+          </>
         )}
 
         {!hayRespuestas &&

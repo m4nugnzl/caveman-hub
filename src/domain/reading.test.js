@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildWeeklySeries } from './analytics';
-import { readingHeadline, sortedReading, weeklyReading, weightTrend } from './reading';
+import { readingHeadline, sortedReading, weeklyReading, weekSignals, weightTrend } from './reading';
 
 /** Pesajes semanales con ruido diario, para las pruebas de tendencia. */
 const history = ({ start = 80, perWeek = 0, weeks = 8, weekJitter = null }) => {
@@ -104,5 +104,54 @@ describe('weeklyReading', () => {
   it('ordena por gravedad: lo que hay que mirar, primero', () => {
     const findings = read(history({ perWeek: -0.5, weeks: 2 }), 'cut');
     expect(sortedReading(findings)[0].tone).toBe('bad');
+  });
+});
+
+describe('las señales de la semana (weekSignals)', () => {
+  const serieDe = (pesos) => pesos.map((weight, i) => ({ label: `S${i + 1}`, week: `w${i + 1}`, weight }));
+  const goalBajar = { direction: 'cut', ratePct: 0.5 };
+
+  it('cuenta la racha contra el rumbo y la juzga por su largo', () => {
+    const dos = weekSignals({ goal: goalBajar, series: serieDe([80, 79.5, 79.8, 80.1]) });
+    expect(dos.find((s) => s.id === 'racha')).toMatchObject({ tone: 'warn' });
+    expect(dos.find((s) => s.id === 'racha').text).toContain('2 semanas seguidas subiendo');
+
+    const tres = weekSignals({ goal: goalBajar, series: serieDe([80, 79.5, 79.8, 80.1, 80.3]) });
+    expect(tres.find((s) => s.id === 'racha')).toMatchObject({ tone: 'bad' });
+  });
+
+  it('una semana plana o a favor corta la racha, y sin objetivo calla', () => {
+    expect(weekSignals({ goal: goalBajar, series: serieDe([80, 80.4, 80.4]) })).toEqual([]);
+    expect(weekSignals({ goal: null, series: serieDe([80, 80.5, 81]) })).toEqual([]);
+  });
+
+  it('señala la hoja sin entrenar dos semanas, sin reprochar lo que no estaba en el plan', () => {
+    const micro = (weekNumber, conSesion) => ({
+      weekNumber,
+      days: [{ dayName: 'Pierna', exercises: [] }],
+      sessions: conSesion
+        ? [{ dayName: 'Pierna', date: '2026-08-0' + weekNumber, entries: [{ sets: [{ weight: 100, reps: 8 }] }] }]
+        : [],
+    });
+    const micros = [micro(1, true), micro(2, false), micro(3, false)];
+    const señales = weekSignals({ microcycles: micros, semana: 3 });
+    expect(señales.find((s) => s.id === 'sin-entrenar-Pierna')).toMatchObject({ tone: 'warn' });
+    expect(señales.find((s) => s.id === 'sin-entrenar-Pierna').text).toContain('2 semanas sin entrenar Pierna');
+  });
+
+  it('la escala que salta sale sin juicio, y nunca más de tres señales', () => {
+    const tendencia = [
+      { id: 'hambre', label: 'Hambre', value: 8, max: 10, delta: 3 },
+      { id: 'sueno', label: 'Sueño', value: 7, max: 10, delta: 1 },
+      { id: 'estres', label: 'Estrés', value: 9, max: 10, delta: 2 },
+      { id: 'animo', label: 'Ánimo', value: 2, max: 10, delta: -4 },
+    ];
+    const señales = weekSignals({ goal: goalBajar, series: serieDe([80, 80.4, 80.8]), tendencia });
+    expect(señales.length).toBeLessThanOrEqual(3);
+    const hambre = señales.find((s) => s.id === 'escala-hambre');
+    expect(hambre).toMatchObject({ tone: 'unknown' });
+    expect(hambre.text).toBe('Hambre 8/10, +3 esta semana');
+    /* La de un punto no salta. */
+    expect(señales.find((s) => s.id === 'escala-sueno')).toBeUndefined();
   });
 });

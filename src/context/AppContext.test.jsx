@@ -193,7 +193,17 @@ describe('AppProvider', () => {
     // veía «Buenos días, m4nugnzl@gmail.com» cada mañana sin ninguna forma de
     // arreglarlo desde dentro. Vive en el menú de cuenta, que es donde se busca
     // el nombre de uno y donde además se estaba viendo el problema.
-    expect(Object.keys(visto.app).length).toBe(207);
+    //
+    // Y 208 desde `deleteBlock`: abrir un bloque se podía y deshacerlo no, así
+    // que un «+ bloque» de más se quedaba para siempre en la cinta. Quita el
+    // corte, no el entreno —sus semanas pasan al bloque de al lado—, y por eso
+    // no se resuelve con el borrado de semanas que ya había.
+    //
+    // Y 209 desde `applyRescaledMeals`: escribir el menú que la vista previa
+    // del reescalado acaba de enseñar (el cálculo es de `rescaleMeals`, en el
+    // dominio). Es también el camino del «Deshacer»: volver a escribir el menú
+    // anterior.
+    expect(Object.keys(visto.app).length).toBe(209);
   });
 
   /*

@@ -49,7 +49,7 @@ export const ClientRoutineRoute = () => {
 
   return (
     <div className="stack">
-      <PageHead title="Mi rutina" sub="Lo que toca esta semana, y dónde apuntas lo que levantas." />
+      <PageHead title="Mi rutina" sub="Lo que toca este microciclo, y dónde apuntas lo que levantas." />
       {/* Lo que su entrenador espera de él antes de empezar: la rutina es la
           primera pantalla del portal, así que el alta pendiente se pide aquí. */}
       <IntakePrompt client={activeClient} />

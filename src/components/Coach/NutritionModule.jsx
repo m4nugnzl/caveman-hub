@@ -14,6 +14,7 @@ import {
 } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { clientProtocol, isModuleOn, toggleModule } from '@/domain/protocol';
+import { toNum0 } from '@/lib/num';
 import { SaveIndicator } from '@/components/ui/primitives';
 import { Mando, MandoTab, MandoTabs } from '@/components/ui/Mando';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
@@ -27,6 +28,7 @@ import { DietNotes } from '@/components/nutrition/DietNotes';
 import { DiaPopup } from '@/components/nutrition/DiaPopup';
 import { DiaResumen } from '@/components/nutrition/DiaResumen';
 import { GoalCard } from '@/components/nutrition/GoalCard';
+import { ReescalarMenu } from '@/components/nutrition/ReescalarMenu';
 import { PastePlanDialog } from './Import/PastePlanDialog';
 import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 
@@ -90,6 +92,7 @@ export const NutritionModule = () => {
     retrySave,
     updateNutrition,
     updateNutritionTargets,
+    applyRescaledMeals,
     setHasDayVariants,
     addMeal,
     removeMeal,
@@ -135,6 +138,10 @@ export const NutritionModule = () => {
   const [arrastre, setArrastre] = useState({ desde: null, sobre: null });
   /* La ventana del día: se abre desde la tarjeta del objetivo de una variante. */
   const [diaAbierto, setDiaAbierto] = useState(null);
+  /* El reescalado ofrecido tras cambiar el objetivo de kcal: {variant, from, to}.
+     Se ofrece, no se aplica: el objetivo ya quedó guardado y esta ventana solo
+     pone encima la aritmética de recuadrar el menú (ver `ReescalarMenu`). */
+  const [reescala, setReescala] = useState(null);
   /* La opción abierta en cada comida, por id: el resumen del día suma con ellas. */
   const [elegidas, setElegidas] = useState({});
   const variant = plan.hasDayVariants ? dietView : 'default';
@@ -200,6 +207,20 @@ export const NutritionModule = () => {
   const avisarCopia = (nombre, texto) => {
     if (!nombre) return;
     toast({ text: `${texto} en ${otraVariante.label.toLowerCase()}.` });
+  };
+
+  /**
+   * Guardar el objetivo de una variante y, si sus kcal cambiaron y hay menú,
+   * OFRECER el reescalado. Ofrecer: el objetivo ya está guardado pase lo que
+   * pase, y cerrar la ventana deja el menú intacto para cuadrarlo a mano.
+   */
+  const guardarObjetivo = (v) => (fields) => {
+    const antes = toNum0(targetsFor(plan, v).targetKcals);
+    updateNutritionTargets(activeClient.id, v, fields);
+    const despues = toNum0(fields.targetKcals);
+    if (cerrado && antes && despues && antes !== despues && mealsForVariant(plan, v).length > 0) {
+      setReescala({ variant: v, from: antes, to: despues });
+    }
   };
 
   /** Al elegir o crear un alimento se guarda también en la biblioteca del coach. */
@@ -576,7 +597,7 @@ export const NutritionModule = () => {
                 title="Objetivo · Días de entreno"
                 editable
                 onAbrir={cerrado ? () => setDiaAbierto('training') : null}
-                onSave={(fields) => updateNutritionTargets(activeClient.id, 'training', fields)}
+                onSave={guardarObjetivo('training')}
               />
               <MacroTargetCard
                 plan={plan}
@@ -584,7 +605,7 @@ export const NutritionModule = () => {
                 title="Objetivo · Días de descanso"
                 editable
                 onAbrir={cerrado ? () => setDiaAbierto('rest') : null}
-                onSave={(fields) => updateNutritionTargets(activeClient.id, 'rest', fields)}
+                onSave={guardarObjetivo('rest')}
               />
             </>
           ) : (
@@ -594,7 +615,7 @@ export const NutritionModule = () => {
               title="Objetivo · Diario"
               editable
               onAbrir={cerrado ? () => setDiaAbierto('default') : null}
-              onSave={(fields) => updateNutritionTargets(activeClient.id, 'default', fields)}
+              onSave={guardarObjetivo('default')}
             />
           )}
           </div>
@@ -624,6 +645,35 @@ export const NutritionModule = () => {
                 window.setTimeout(() => document.getElementById(`comida-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
               }}
               onClose={() => setDiaAbierto(null)}
+            />
+          )}
+
+          {/*
+            La vista previa del reescalado, si se acaba de cambiar el objetivo.
+            Lee el plan YA guardado —por eso no recibe el campo tecleado— y no
+            escribe nada hasta «Aplicar», que lleva su «Deshacer»: el menú
+            anterior se captura entero y volver es reponerlo.
+          */}
+          {reescala && (
+            <ReescalarMenu
+              plan={plan}
+              variant={reescala.variant}
+              fromKcals={reescala.from}
+              toKcals={reescala.to}
+              onClose={() => setReescala(null)}
+              onApply={(mealsNuevas) => {
+                const viejas = mealsForVariant(plan, reescala.variant);
+                const { variant: v, to } = reescala;
+                applyRescaledMeals(activeClient.id, v, mealsNuevas);
+                setReescala(null);
+                toast({
+                  text: `Menú reajustado al objetivo de ${to} kcal.`,
+                  action: {
+                    label: 'Deshacer',
+                    onClick: () => applyRescaledMeals(activeClient.id, v, viejas),
+                  },
+                });
+              }}
             />
           )}
 

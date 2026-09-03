@@ -155,8 +155,37 @@ export const setColor = (i) => SET_COLORS[i % SET_COLORS.length];
  * 'weekly'   = estructura atada a los días de la semana natural.
  * 'rotating' = ciclo tipo "2 entreno / 1 descanso" que se repite sin fin.
  */
-export const unitLabel = (cycleType) => (cycleType === 'rotating' ? 'Sesión' : 'Semana');
-export const unitLabelPlural = (cycleType) => (cycleType === 'rotating' ? 'sesiones' : 'semanas');
+/*
+  ── Se llama MICROCICLO, y se llama igual en los dos tipos de ciclo ─────────
+  La unidad que se repite tuvo dos nombres a la vez: «sesión» aquí y «ciclo»
+  en la vista del bloque, que además chocaba con el «tipo de ciclo» de los
+  ajustes y con el macro/mesociclo de cualquier libro. Una vuelta al patrón es
+  un MICROCICLO, y así lo llama ya la propia estructura de datos
+  (`program.microcycles`).
+
+  Y después tuvo DOS: «Semana» en ciclo natural y «Microciclo» en rotativo. La
+  misma pieza cambiaba de nombre según un ajuste, así que la misma pantalla —el
+  plan del bloque— se leía distinta en dos clientes; y la palabra «semana»
+  aparecía además con su OTRO significado —la del calendario, la del check-in,
+  la de las fotos— sin nada que las distinguiera. Ahora la unidad de
+  entrenamiento se llama MICROCICLO siempre, y «semana» queda para el
+  calendario, que es lo único que de verdad lo es.
+
+  Las funciones siguen recibiendo `cycleType`: lo que cambia es el NOMBRE, no la
+  mecánica —en 'weekly' el microciclo sigue atado a los días de la semana
+  natural y en 'rotating' a la vuelta del patrón—, y el día que haya una unidad
+  más no habrá que tocar sus cien sitios de llamada.
+*/
+/* eslint-disable no-unused-vars */
+export const unitLabel = (cycleType) => 'Microciclo';
+export const unitLabelPlural = (cycleType) => 'microciclos';
+/** «este microciclo»: quien escriba una frase con la unidad dentro tiene que
+    poder concordarla. Hoy siempre masculino; sigue siendo una pregunta y no una
+    constante porque la frase la arma quien llama. */
+export const unitIsFeminine = (cycleType) => false;
+/** La inicial de la unidad para las etiquetas cortas: «M3». */
+export const unitInitial = (cycleType) => 'M';
+/* eslint-enable no-unused-vars */
 
 /**
  * El patrón rotativo, saneado. Un patrón corrupto —texto, nulo, un cero— no

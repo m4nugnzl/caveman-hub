@@ -391,6 +391,10 @@ export const clientStatus = (
     daysToPayment,
     checkIn,
     weeksProgrammed: resumen.microcycleCount,
+    /* La «S14» que la barra lateral ya pone al lado del nombre. Se expone para
+       que la plantilla de Clientes diga LA MISMA semana que el riel: dos
+       cálculos de «en qué semana va» acabarían discrepando. */
+    weekNumber: resumen.weekNumber,
     sessionCount: resumen.sessionCount,
     alerts,
     // La gravedad del cliente es la de su peor alerta: es lo que decide su

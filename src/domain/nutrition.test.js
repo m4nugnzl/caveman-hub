@@ -21,6 +21,8 @@ import {
   mealTargetsTotal,
   moveItem,
   notesToStorage,
+  optionMacros,
+  rescaleMeals,
   unitsLabel,
 } from './nutrition';
 
@@ -575,5 +577,86 @@ describe('isEmptyDiet', () => {
     expect(isEmptyDiet({ ...emptyNutrition(), habitsNotes: ['Bebe 2 L de agua'] })).toBe(false);
     // Una cadena en blanco no es un objetivo: es el campo tocado y vaciado.
     expect(isEmptyDiet({ ...emptyNutrition(), stepsGoal: '   ' })).toBe(true);
+  });
+});
+
+describe('reescalar el menú (rescaleMeals)', () => {
+  const alimento = (name, grams, per100, extra = {}) => ({
+    id: name,
+    name,
+    grams,
+    proteinPer100: per100.p,
+    carbsPer100: per100.c,
+    fatsPer100: per100.g,
+    unitLabel: null,
+    unitGrams: null,
+    showAs: 'grams',
+    ...extra,
+  });
+
+  /* Un día simple: pollo (proteína), arroz (hidrato), aceite… y un plátano por
+     unidades. Solo arroz y aceite pueden moverse. */
+  const comidas = () => [
+    {
+      id: 'm1',
+      name: 'Comida 1',
+      options: [
+        {
+          id: 'o1',
+          foods: [
+            alimento('Pollo', 150, { p: 23, c: 0, g: 2 }),
+            alimento('Arroz', 100, { p: 3, c: 78, g: 1 }),
+            alimento('Aceite', 20, { p: 0, c: 0, g: 100 }),
+            alimento('Plátano', 120, { p: 1, c: 23, g: 0 }, { showAs: 'units', unitGrams: 120, unitLabel: 'ud' }),
+          ],
+        },
+      ],
+    },
+  ];
+
+  it('escala hidratos y grasas; proteína y unidades quedan quietas', () => {
+    const res = rescaleMeals(comidas(), { fromKcals: 2500, toKcals: 2250 });
+    expect(res).not.toBeNull();
+    const foods = res.meals[0].options[0].foods;
+    expect(foods.find((f) => f.name === 'Pollo').grams).toBe(150);
+    expect(foods.find((f) => f.name === 'Plátano').grams).toBe(120);
+    expect(foods.find((f) => f.name === 'Arroz').grams).toBeLessThan(100);
+    /* Redondeo de cocina: a 5 g por encima de 25. */
+    expect(foods.find((f) => f.name === 'Arroz').grams % 5).toBe(0);
+    /* Y el resultado se acerca a la proporción pedida (±3 % por el redondeo). */
+    const antes = comidas()[0].options[0];
+    const despues = res.meals[0].options[0];
+    const objetivo = (2250 / 2500) * optionMacros(antes).kcal;
+    expect(Math.abs(optionMacros(despues).kcal - objetivo)).toBeLessThan(objetivo * 0.03);
+  });
+
+  it('cada cambio queda apuntado para la vista previa', () => {
+    const res = rescaleMeals(comidas(), { fromKcals: 2500, toKcals: 2250 });
+    const arroz = res.cambios.find((c) => c.food === 'Arroz');
+    expect(arroz).toMatchObject({ meal: 'Comida 1', from: 100 });
+    expect(res.cambios.every((c) => c.food !== 'Pollo' && c.food !== 'Plátano')).toBe(true);
+  });
+
+  it('una opción sin nada que recortar se queda como está y se dice', () => {
+    const soloProteina = [
+      {
+        id: 'm1',
+        name: 'Cena',
+        options: [{ id: 'o1', foods: [alimento('Merluza', 200, { p: 17, c: 0, g: 2 })] }],
+      },
+    ];
+    expect(rescaleMeals(soloProteina, { fromKcals: 2000, toKcals: 1800 })).toBeNull();
+
+    /* Y mezclada con una comida escalable, sale en `sinTocar`. */
+    const res = rescaleMeals([...soloProteina, ...comidas()], { fromKcals: 2500, toKcals: 2250 });
+    expect(res.sinTocar).toContainEqual({ meal: 'Cena', option: 1 });
+  });
+
+  it('sin objetivo previo, sin cambio o con factor desorbitado, no reescala', () => {
+    expect(rescaleMeals(comidas(), { fromKcals: null, toKcals: 2000 })).toBeNull();
+    expect(rescaleMeals(comidas(), { fromKcals: 2500, toKcals: 2500 })).toBeNull();
+    /* Pedir un cuarto de las calorías no es un ajuste: la opción no se toca. */
+    const res = rescaleMeals(comidas(), { fromKcals: 2500, toKcals: 300 });
+    expect(res).toBeNull();
   });
 });

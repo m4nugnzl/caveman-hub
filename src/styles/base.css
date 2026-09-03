@@ -81,6 +81,43 @@
     U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* ── LA ANCHA: Archivo Expanded, la voz de las cifras y las portadas ────────
+   La misma familia estirada a su eje de anchura (wdth 125), que el subconjunto
+   de arriba no trae. Es la letra de un dorsal o del rótulo de una máquina: los
+   números anchos y de asta recta son la cara más «del oficio» que tiene esta
+   fuente, y son lo que separa una cifra de este producto de la misma cifra en
+   cualquier panel generado con la sans por defecto.
+
+   Habla en DOS sitios y en ninguno más: las cifras (el dato es el contenido) y
+   el titular-portada de cada pantalla. Los rótulos, el cuerpo y los controles
+   se quedan en la Archivo normal: si la ancha hablara en todas partes dejaría
+   de ser una voz y pasaría a ser un disfraz.
+
+   El mismo trato que sus hermanas: variable 400-900, autoalojada, `swap`, y el
+   subconjunto extendido solo si la página lo pide. Son 34 KB por archivo.
+   Misma licencia OFL (public/fonts/OFL.txt). */
+@font-face {
+  font-family: 'Archivo Expanded';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/archivo-ancha-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Archivo Expanded';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/archivo-ancha-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 /* `scroll-behavior` en la RAÍZ: es lo que hace suaves los saltos de ancla (el
@@ -154,23 +191,37 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
    tamaño: el peso y el apretado vienen con él. Por debajo de 20 px no se
    aprieta nada (`.row-value`), porque a tamaño de texto Archivo ya va bien.
 
-     17 px  ·  -0,020em
-     20 px  ·  -0,025em
-     28 px  ·  -0,028em
-     38 px  ·  -0,030em                                                      */
+   ── Y la voz es LA ANCHA ────────────────────────────────────────────────────
+   Archivo Expanded (ver su @font-face arriba): el dato es el contenido, y se
+   dice con la letra de dorsal. El apretado baja a la mitad del que llevaba la
+   redonda — una expandida ya ocupa su anchura por diseño, y con el tracking
+   de la estrecha las astas se tocaban.
+
+   LA EXCEPCIÓN: la cifra en BANDADA. Donde varias cifras grandes comparten
+   fila dentro de una misma tarjeta —la proyección, el recorrido con flecha,
+   las baldosas de «Desde que empezó»— la ancha se amontona y sus diagonales
+   largas (el 7, el 4) leen como texto torcido. Esas vuelven a la voz normal;
+   el porqué está en `.desde-v` (revision.css). La ancha es para la cifra
+   héroe que va sola:
+
+     18 px  ·  -0,010em
+     22 px  ·  -0,012em
+     30 px  ·  -0,015em
+     42 px  ·  -0,018em                                                      */
 .day-stat > .v, .donut-center > .v, .macro-cell > .g,
-.widget-value, .metric-value, .stat-value, .tile > .v,
+.widget-value, .metric-value, .stat-value, .tile > .v, .row-value,
 .revision-hero-cifra > .v, .macro-summary-head > .figure > .v {
+  font-family: var(--font-ancha);
   font-weight: 680;
 }
 .day-stat > .v, .donut-center > .v, .macro-cell > .g {
-  font-size: var(--fs-md); letter-spacing: -0.02em;
+  font-size: var(--fs-md); letter-spacing: -0.01em;
 }
-.widget-value { font-size: var(--fs-lg); letter-spacing: -0.025em; }
-.metric-value, .stat-value, .tile > .v { font-size: var(--fs-xl); letter-spacing: -0.028em; }
+.widget-value { font-size: var(--fs-lg); letter-spacing: -0.012em; }
+.metric-value, .stat-value, .tile > .v { font-size: var(--fs-xl); letter-spacing: -0.015em; }
 .metric-value.is-hero,
 .revision-hero-cifra > .v,
-.macro-summary-head > .figure > .v { font-size: var(--fs-2xl); letter-spacing: -0.03em; }
+.macro-summary-head > .figure > .v { font-size: var(--fs-2xl); letter-spacing: -0.018em; }
 
 /* El foco de teclado va en BRASA: es literalmente «aquí estás», que es el único
    trabajo de esa tinta, y hace el anillo visible sobre cualquier superficie de

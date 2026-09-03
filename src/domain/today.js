@@ -268,8 +268,15 @@ export const groupByDay = (events, today = todayISO()) => {
  * las marcas vacías deja de ser una escala.
  */
 export const activityScale = (events, today = todayISO(), days = DEFAULT_WINDOW) => {
+  /* También el reparto por tipo: la escala se dibuja apilada con los colores
+     del dato, y sin el desglose cada columna sería una cifra muda. */
   const counts = new Map();
-  for (const event of events) counts.set(event.date, (counts.get(event.date) || 0) + 1);
+  for (const event of events) {
+    const dia = counts.get(event.date) || { count: 0, kinds: {} };
+    dia.count += 1;
+    dia.kinds[event.kind] = (dia.kinds[event.kind] || 0) + 1;
+    counts.set(event.date, dia);
+  }
 
   const base = new Date(`${today}T00:00:00Z`);
   const out = [];
@@ -277,7 +284,8 @@ export const activityScale = (events, today = todayISO(), days = DEFAULT_WINDOW)
     const d = new Date(base);
     d.setUTCDate(d.getUTCDate() - back);
     const date = d.toISOString().slice(0, 10);
-    out.push({ date, count: counts.get(date) || 0, isToday: back === 0 });
+    const dia = counts.get(date);
+    out.push({ date, count: dia?.count || 0, kinds: dia?.kinds || {}, isToday: back === 0 });
   }
   return out;
 };

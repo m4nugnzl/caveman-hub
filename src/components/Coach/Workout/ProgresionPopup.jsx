@@ -52,7 +52,7 @@ export const ProgresionPopup = ({ open, onClose, microcycles, name, weekNumber ,
             emptyMessage="Sin series con kilos todavía."
           />
 
-          <div className="progresion-tabla" role="table" aria-label={`${name}: todas las semanas`}>
+          <div className="progresion-tabla" role="table" aria-label={`${name}: todos los microciclos`}>
             <div className="progresion-fila is-head" role="row" style={{ gridTemplateColumns: `56px 88px repeat(${series}, minmax(0, 1fr))` }}>
               <span>Sem.</span>
               <span>Fecha</span>

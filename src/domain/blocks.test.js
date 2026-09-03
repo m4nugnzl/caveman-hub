@@ -12,6 +12,7 @@ import {
   blockSummary,
   blocksOf,
   currentBlock,
+  deleteBlockFrom,
   describeBlockChange,
   fillableWeeksOfDay,
   logBlockChange,
@@ -90,6 +91,51 @@ describe('semanas y bloques', () => {
     expect(blockOfWeek(conMas, 5).id).toBe(b2.id);
     expect(weeksOfBlock(conMas, b1)).toEqual([1, 2, 3]);
     expect(weeksOfBlock(conMas, b2)).toEqual([4, 5]);
+  });
+
+  it('quitar un bloque pasa sus semanas al anterior, sin borrar ninguna', () => {
+    const { program } = openNextBlock(programa([1, 2, 3]));
+    const conMas = { ...program, microcycles: [...program.microcycles, { weekNumber: 4 }, { weekNumber: 5 }] };
+    const [, b2] = blocksOf(conMas);
+    const sinB2 = deleteBlockFrom(conMas, b2.id);
+
+    expect(blocksOf(sinB2)).toHaveLength(1);
+    expect(sinB2.microcycles).toHaveLength(5);
+    expect(weeksOfBlock(sinB2, blocksOf(sinB2)[0])).toEqual([1, 2, 3, 4, 5]);
+    /* Era el abierto: el anterior se reabre y suelta su copia congelada. */
+    expect(blocksOf(sinB2)[0]).toMatchObject({ toWeek: null });
+    expect(blocksOf(sinB2)[0].weeklySplit).toBeUndefined();
+  });
+
+  it('quitar el primero deja sus semanas en el siguiente', () => {
+    const { program } = openNextBlock(programa([1, 2, 3]));
+    const conMas = { ...program, microcycles: [...program.microcycles, { weekNumber: 4 }] };
+    const [b1] = blocksOf(conMas);
+    const sinB1 = deleteBlockFrom(conMas, b1.id);
+
+    expect(blocksOf(sinB1)).toHaveLength(1);
+    expect(blocksOf(sinB1)[0]).toMatchObject({ fromWeek: 1, toWeek: null });
+    expect(weeksOfBlock(sinB1, blocksOf(sinB1)[0])).toEqual([1, 2, 3, 4]);
+  });
+
+  it('quitar uno de en medio lo funde con el anterior y junta su bitácora', () => {
+    const blocks = [
+      { id: 'a', name: 'A', fromWeek: 1, toWeek: 3, log: [{ id: 'l1', at: '2026-01-01' }] },
+      { id: 'b', name: 'B', fromWeek: 4, toWeek: 6, log: [{ id: 'l2', at: '2026-02-01' }] },
+      { id: 'c', name: 'C', fromWeek: 7, toWeek: null },
+    ];
+    const p = deleteBlockFrom(programa([1, 2, 3, 4, 5, 6, 7], { blocks }), 'b');
+
+    expect(p.blocks.map((b) => b.id)).toEqual(['a', 'c']);
+    expect(p.blocks[0]).toMatchObject({ fromWeek: 1, toWeek: 6 });
+    expect(p.blocks[0].log.map((e) => e.id)).toEqual(['l1', 'l2']);
+    expect(blockOfWeek(p, 5).id).toBe('a');
+  });
+
+  it('con un solo bloque no hay nada que quitar', () => {
+    const p = programa([1, 2]);
+    expect(deleteBlockFrom(p, blocksOf(p)[0].id)).toBe(p);
+    expect(deleteBlockFrom(p, 'no-existe')).toBe(p);
   });
 
   it('se renombra sin tocar lo demás', () => {

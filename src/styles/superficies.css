@@ -49,6 +49,19 @@
   background-image: radial-gradient(120% 90% at 0% 0%, var(--luz), transparent 55%);
 }
 
+/* ── LA LUZ ES HOY ─────────────────────────────────────────────────────────
+   La segunda lumbre de la casa, con otra fuente: no el «esto es lo de hoy»
+   ambiental de `.card-lumbre`, sino la luz que SALE DEL ÚLTIMO DATO — fría,
+   porque es de la señal — y nace en la esquina donde ese dato vive: una curva
+   acaba abajo a la derecha. Viste los HEROES que leen (el «Cómo va» del
+   Resumen, la cifra de la Revisión); las dos hojas que se escriben —Entreno y
+   Dieta— no la llevan: allí la firma es la hoja misma, y dos firmas por
+   pantalla no señalan nada. Sobre papel el token es alfa cero y esta regla no
+   pinta nada: una hoja impresa no lleva focos. Ver `--lumbre-dato`. */
+.lumbre-dato {
+  background-image: radial-gradient(50% 65% at 92% 88%, var(--lumbre-dato), transparent 70%);
+}
+
 .card-inset {
   background: var(--surface-sunken);
   border: 1px solid var(--edge);
@@ -329,26 +342,80 @@ button.task-head:hover > .chevron { color: var(--text); }
 
 .task-rows { display: flex; flex-direction: column; gap: 2px; }
 
-/* ── EL ROSTER: la variante de la cartera ──────────────────────────────────
-   Una tarjeta corrida con una fila por persona, separadas por filetes. Es la
-   diferencia entre una pila de tiras sueltas y la plantilla del equipo: el
-   canto y el filete hacen el trabajo que en la bandeja de «Hoy» hace el panel
-   que la envuelve. La inicial crece —aquí es la cara de la fila, no un adorno—
-   y la fila respira un punto más. */
-.roster {
-  gap: 0;
+/* ══ LA PLANTILLA: la cartera como libro de registro ═══════════════════════
+   Sustituye al «roster», que era una lista de frases: diez nombres con una
+   línea gris debajo y todo el dato del producto —la serie de pesos, la semana
+   del bloque, el último entreno— guardado sin enseñar. Una pantalla que se
+   llama «Clientes» y no enseña la señal de vida de los clientes es la mitad
+   del aire que tenía la casa.
+
+   Es una TABLA de verdad y no una rejilla imitándola: cabecera troquelada en
+   voz terciaria, filetes entre filas, numerales tabulares (los pone `base.css`
+   para toda tabla) y las columnas de dato al ancho de su contenido, pegadas a
+   la derecha. La primera columna es la persona y cede; las demás miden.
+
+   Las columnas solo existen si la cartera puede llenarlas y la celda sin dato
+   calla — la regla completa y su historia están en `FilaCliente`
+   (`ClientPortfolio.jsx`), que es quien decide qué columnas vienen. */
+.plantilla {
   background: var(--surface);
   border: 1px solid var(--edge);
   border-radius: var(--r-lg);
-  padding: var(--s2);
+  padding: var(--s2) var(--s4);
   box-shadow: var(--shadow-sm);
+  overflow-x: auto;
 }
-.roster > .task-row { padding: var(--s3); }
-.roster > .task-row + .task-row { border-top: 1px solid var(--hairline); border-top-left-radius: 0; border-top-right-radius: 0; }
-.roster > .task-row:has(+ .task-row) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.roster .task-row > .mark {
-  width: 38px; height: 38px; border-radius: var(--r-md);
-  font-size: var(--fs-xs);
+.plantilla > table { width: 100%; border-collapse: collapse; }
+.plantilla th {
+  padding: var(--s3);
+  text-align: left; white-space: nowrap;
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+.plantilla td { padding: var(--s3); vertical-align: middle; }
+.plantilla tbody tr + tr > td { border-top: 1px solid var(--hairline); }
+/* La fila entera es la puerta (el teclado entra por el nombre, que es botón). */
+.plantilla tbody tr { cursor: pointer; transition: background-color var(--fast); }
+.plantilla tbody tr:hover { background: var(--fill-subtle); }
+.plantilla tbody tr:hover .chevron { transform: translateX(2px); }
+.plantilla .chevron { color: var(--text-tertiary); transition: transform var(--fast); }
+
+/* Las columnas de dato: al ancho del contenido y a la derecha, que es como se
+   alinean las cifras en cualquier libro de cuentas. */
+.plantilla .p-celda, .plantilla .p-peso, .plantilla .p-accion { width: 1px; white-space: nowrap; text-align: right; }
+.plantilla th.p-semana, .plantilla th.p-peso, .plantilla th.p-entreno { text-align: right; }
+.plantilla .p-celda { font-size: var(--fs-sm); color: var(--text-secondary); }
+/* La celda que avisa: lleva demasiado sin entrenar. La frase de la fila calla
+   para no hacer eco (ver `ClientPortfolio`), así que el juicio va aquí. */
+.plantilla .p-entreno.is-tarde { color: var(--warning); font-weight: 650; }
+
+/* Quién: cara + nombre + su frase. El único hueco que cede al estrecharse. */
+.plantilla .p-persona { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.plantilla .p-cara { width: 38px; height: 38px; border-radius: var(--r-md); font-size: var(--fs-xs); flex-shrink: 0; }
+.plantilla .p-who { min-width: 0; }
+.plantilla .p-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plantilla .p-abrir {
+  background: none; border: 0; padding: 0; font: inherit; color: inherit;
+  font-size: var(--fs-base); font-weight: 600; cursor: pointer; text-align: left;
+}
+.plantilla .p-sub {
+  display: block; font-size: var(--fs-2xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* El peso: la chispa de tres meses y la cifra, en la voz de las cifras. */
+.plantilla .p-chispa { display: inline-block; width: 96px; vertical-align: middle; margin-right: var(--s3); }
+.plantilla .p-kg { font-size: var(--fs-sm); font-weight: 650; vertical-align: middle; }
+
+/* En estrecho las columnas se retiran por orden de curiosidad: primero el
+   entreno, luego la semana y la chispa. El peso —la señal de vida— aguanta
+   hasta el final, y el desbordamiento horizontal del envoltorio es la red. */
+@media (max-width: 899.98px) {
+  .plantilla .p-entreno { display: none; }
+}
+@media (max-width: 719.98px) {
+  .plantilla .p-semana { display: none; }
+  .plantilla .p-chispa { display: none; }
 }
 
 /* ── Por qué esta fila SE PARTE en dos líneas ──────────────────────────────
@@ -422,26 +489,11 @@ button.task-head:hover > .chevron { color: var(--text); }
 .task-row > .btn { position: relative; flex-shrink: 0; }
 .task-row > .chevron { position: relative; color: var(--text-tertiary); flex-shrink: 0; pointer-events: none; }
 
-/* ── La nota de una fila de la cartera ─────────────────────────────────────
-   Cuándo entrenó y cuánto pesa, pegado a la derecha y en voz baja. No es una
-   columna: no reserva sitio, así que la fila de quien todavía no tiene nada se
-   ve exactamente igual de limpia que antes de existir esto. Ver `Nota` en
-   `ClientPortfolio.jsx` para por qué no son columnas.
-
-   En estrecho desaparece: ahí el nombre y su frase ya ocupan la fila entera, y
-   una tercera cosa la partiría en dos líneas por una curiosidad. */
-.roster .fila-nota {
-  position: relative; margin-left: auto; flex-shrink: 0; pointer-events: none;
-  /* Tinta secundaria, no terciaria: es la única señal de vida de la fila y a
-     2,9:1 era una curiosidad; ahora se puede LEER la cartera de un vistazo. */
-  font-size: var(--fs-xs); color: var(--text-secondary);
-  font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-/* Con la nota empujando a la derecha, el botón ya no necesita su propio empuje:
-   dos `margin-left: auto` en la misma fila se reparten el hueco y separarían la
-   nota del botón por media pantalla. */
-.roster .task-row:has(.fila-nota) > .btn { margin-left: 0; }
-@media (max-width: 899.98px) { .roster .fila-nota { display: none; } }
+/* La «nota de fila» de la cartera (`.fila-nota`) vivió aquí: cuándo entrenó y
+   cuánto pesa como coletilla a la derecha, porque las columnas estaban
+   prohibidas tras el fracaso de la primera tabla. La plantilla la jubiló al
+   resolver aquello por la otra punta — las columnas existen solo si la cartera
+   las llena. */
 
 /* ── El tablero cuando no caben cuatro columnas ────────────────────────────
    Era un carril horizontal: cuatro columnas de 270 px que sumaban 1.100 y se
@@ -659,8 +711,8 @@ button.task-head:hover > .chevron { color: var(--text); }
    de Inicio —cifra grande, matiz en voz baja—, no como una métrica a cero. */
 .cobros-tarea { display: flex; align-items: center; gap: var(--s4); }
 .cobros-tarea > .cifra {
-  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 800;
-  letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums;
+  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 800;
+  letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums;
 }
 .cobros-tarea > p { margin: 0; font-weight: 650; max-width: 52ch; }
 .cobros-tarea > p > span {

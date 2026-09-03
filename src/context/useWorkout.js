@@ -21,6 +21,7 @@ import {
 import { buildSessionFromPlan, isSetLogged, sessionsOf, withSessionSet } from '@/domain/sessions';
 import {
   blocksAfterInsertingWeek,
+  deleteBlockFrom,
   logBlockChange as logBlockChangeIn,
   openNextBlock,
   programAfterRemovingWeek,
@@ -973,6 +974,19 @@ export const useWorkout = ({
   );
 
   /**
+   * Quita un bloque: sus semanas pasan al de al lado y no se borra ninguna.
+   * Ver `deleteBlockFrom` — lo que se deshace es el corte, no el entreno. Va
+   * inmediato: es una decisión de estructura, no un tecleo.
+   */
+  const deleteBlock = useCallback(
+    (clientId, blockId) => {
+      applyWorkout(clientId, (cd) => deleteBlockFrom(cd, blockId));
+      track('bloque_quitado');
+    },
+    [applyWorkout]
+  );
+
+  /**
    * Apunta un cambio de plan en la bitácora de su bloque.
    *
    * El reloj y el generador de ids viven aquí y no en el dominio, que es puro y
@@ -1468,6 +1482,7 @@ export const useWorkout = ({
     appendMicrocycle,
     startBlock,
     renameBlock,
+    deleteBlock,
     logBlockChange,
     removeMicrocycle,
     restoreMicrocycle,

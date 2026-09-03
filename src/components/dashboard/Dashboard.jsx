@@ -210,7 +210,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
             fases={fases}
             hoy={hoy}
             history={history}
-            pesoActual={pesoActual}
             trend={trend}
             veredicto={direccion}
             isClient={isClient}

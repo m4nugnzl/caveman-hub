@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  afterLastClose,
   answerTrend,
   deliverableWeeks,
   jsonbSize,
@@ -875,5 +876,73 @@ describe('reviewableWeeks', () => {
 
   it('sin nada devuelve una lista vacía, no un hueco', () => {
     expect(reviewableWeeks({})).toEqual([]);
+  });
+});
+
+describe('lo que pasó con lo que cambiaste (afterLastClose)', () => {
+  const linea = (filas) =>
+    filas.map(([week, weekStart, weight]) => ({ week, weekStart, weight, kcals: null, photo: null, reviewed: false }));
+
+  const cierre = (weekStart, changes = [], structure = []) => ({ weekStart, changes, structure });
+
+  it('junta el diff del último cierre con la respuesta del peso', () => {
+    const res = afterLastClose({
+      rows: [cierre('2026-08-24', [{ key: 'kcals', from: 2400, to: 2250, unit: ' kcal', text: false }])],
+      timeline: linea([
+        [3, '2026-08-17', 80.4],
+        [4, '2026-08-24', 80.0],
+        [5, '2026-08-31', 79.5],
+      ]),
+    });
+    expect(res).toMatchObject({ week: 4, delta: -0.5, weeksSince: 1, otherCount: 0 });
+    expect(res.changes).toHaveLength(1);
+  });
+
+  it('calla sin cierre, sin cambios o sin semanas posteriores', () => {
+    const filas = linea([
+      [4, '2026-08-24', 80.0],
+      [5, '2026-08-31', 79.5],
+    ]);
+    expect(afterLastClose({ rows: [], timeline: filas })).toBeNull();
+    /* Cerrada sin tocar nada: no hubo experimento del que contar el resultado. */
+    expect(afterLastClose({ rows: [cierre('2026-08-24')], timeline: filas })).toBeNull();
+    /* El cierre es la última semana de la línea: todavía no ha pasado nada. */
+    expect(
+      afterLastClose({
+        rows: [cierre('2026-08-31', [{ key: 'steps', from: 8000, to: 10000, text: false }])],
+        timeline: filas,
+      })
+    ).toBeNull();
+  });
+
+  it('sin pesajes a un lado del cierre, delta es null y no un cero', () => {
+    const res = afterLastClose({
+      rows: [cierre('2026-08-24', [{ key: 'kcals', from: 2400, to: 2250, text: false }])],
+      timeline: linea([
+        [4, '2026-08-24', 80.0],
+        [5, '2026-08-31', null],
+      ]),
+    });
+    expect(res.delta).toBeNull();
+    expect(res.weeksSince).toBe(1);
+  });
+
+  it('los cambios de texto no llevan delta: van al recuento', () => {
+    const res = afterLastClose({
+      rows: [
+        cierre(
+          '2026-08-24',
+          [{ key: 'cardio', from: '2 días', to: '3 días', text: true }],
+          [{ area: 'entreno', kind: 'add', label: 'Hack' }]
+        ),
+      ],
+      timeline: linea([
+        [4, '2026-08-24', 80.0],
+        [5, '2026-08-31', 79.6],
+      ]),
+    });
+    expect(res.changes).toHaveLength(0);
+    expect(res.otherCount).toBe(2);
+    expect(res.delta).toBe(-0.4);
   });
 });

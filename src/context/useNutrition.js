@@ -133,6 +133,19 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
    * se hace igualmente para que compartir `id` entre listas nunca llegue a ser
    * una suposición sobre la que alguien construya.
    */
+  /**
+   * Sustituir el menú de una variante por uno ya calculado.
+   *
+   * Existe para el reescalado al objetivo nuevo: el cálculo vive en el dominio
+   * (`rescaleMeals`), la vista previa lo enseña, y esto solo escribe lo que el
+   * entrenador acaba de aprobar. Quien llama guarda el menú anterior, porque
+   * el «Deshacer» es volver a llamar aquí con él.
+   */
+  const applyRescaledMeals = useCallback(
+    (clientId, variant, meals) => applyMeals(clientId, variant, () => meals),
+    [applyMeals]
+  );
+
   const copyVariantMeals = useCallback(
     (clientId, from, to) => {
       if (from === to) return false;
@@ -600,6 +613,7 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     updateNutrition,
     updateNutritionTargets,
     setHasDayVariants,
+    applyRescaledMeals,
     copyVariantMeals,
     copyMealToVariant,
     copyOptionToVariant,

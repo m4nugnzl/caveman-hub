@@ -1060,6 +1060,10 @@
    todo el sobrante— y la fila de rótulos parecía descolocada un puesto. */
 .food-head > span:nth-child(2) { text-align: left; }
 
+/* La LOSA, y es una decisión del dueño: cada alimento con su caja hundida.
+   Se probó el renglón con filete (la gramática de `.plan-ej`, sesión del
+   3 sep) y lo prefirió así — la caja por fila se queda. Lo que sobrevivió de
+   aquel intento es el filete fuerte bajo la cabecera de la comida. */
 .food-row {
   background: var(--surface-sunken);
   border-radius: var(--r-md);

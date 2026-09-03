@@ -31,6 +31,8 @@ import {
   dayHasOwnDrills,
   indexAfterMove,
   findMicrocycle,
+  unitInitial,
+  unitIsFeminine,
   unitLabel,
   unitLabelPlural,
   weekTonnage,
@@ -43,6 +45,7 @@ import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/doma
 import { EmptyState, RenombrarEnSitio, SaveIndicator } from '@/components/ui/primitives';
 import { ConditionsNote } from '@/components/conditions/ConditionsNote';
 import { EquipmentNote } from '@/components/equipment/EquipmentNote';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { deepClone } from '@/lib/ids';
 import { WarmupEditor } from './WarmupBlock';
@@ -65,6 +68,7 @@ import { NuevoBloqueDialog } from './NuevoBloqueDialog';
 import {
   BLOCK_CHANGE,
   blockOfWeek,
+  blocksOf,
   blockPlan,
   isCurrentBlock,
   lastWeekNumber,
@@ -112,6 +116,7 @@ export const WorkoutLogEditor = () => {
     appendMicrocycle,
     startBlock,
     renameBlock,
+    deleteBlock,
     logBlockChange,
     cloneMicrocycle,
     removeMicrocycle,
@@ -160,6 +165,9 @@ export const WorkoutLogEditor = () => {
   const [importAbierto, setImportAbierto] = useState(false);
   /* «Traer de un fichero»: la rutina que el cliente trae de fuera. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
+  /* La importación que viene de abrir un bloque nuevo: retira el día en blanco
+     con el que nace, como se hace al montar el programa desde cero. */
+  const [importarLimpio, setImportarLimpio] = useState(false);
   /* Qué día tiene abierto el campo de indicación SIN texto todavía (teléfono).
      Se guarda el nombre del día, no un booleano: al cambiar de día, el campo
      vacío de aquel no debe aparecer abierto en este. Mismo patrón que la nota
@@ -285,6 +293,7 @@ export const WorkoutLogEditor = () => {
   );
   const sesionesDeLaSemana = useMemo(() => executedSessions(nav.microcycle || {}), [nav.microcycle]);
   const toast = useToast();
+  const confirm = useConfirm();
 
   /**
    * Cambia un día de sitio y deja abierto EL MISMO que estabas editando.
@@ -451,7 +460,8 @@ export const WorkoutLogEditor = () => {
            contra una semana que no está creada no falla, no hace nada. */
         const desdeCero = microcycles.length === 0;
         const semana = desdeCero ? startProgram(activeClient.id) : nav.week;
-        importDays(activeClient.id, semana, days, { dropEmptyDays: desdeCero });
+        importDays(activeClient.id, semana, days, { dropEmptyDays: desdeCero || importarLimpio });
+        setImportarLimpio(false);
         if (desdeCero) irA(semana);
       }}
       foods={alimentosDisponibles}
@@ -481,7 +491,10 @@ export const WorkoutLogEditor = () => {
         nuevos.forEach((food) => upsertLibraryFood(food));
         importDiet(activeClient.id, plan);
       }}
-      onClose={() => setPegarAbierto(false)}
+      onClose={() => {
+        setPegarAbierto(false);
+        setImportarLimpio(false);
+      }}
     />
   );
 
@@ -602,6 +615,13 @@ export const WorkoutLogEditor = () => {
   */
   const unidad = unitLabel(cycleType);
   const unidades = unitLabelPlural(cycleType);
+  /* La unidad cambia de género —la semana, el microciclo— y estas frases la
+     llevan dentro: «ninguna semana montada» / «ningún microciclo montado». */
+  const fem = unitIsFeminine(cycleType);
+  const ningun = fem ? 'ninguna' : 'ningún';
+  const montada = fem ? 'montada' : 'montado';
+  const todas = fem ? 'todas las' : 'todos los';
+  const un = fem ? 'una' : 'uno';
   /*
     ── El bloque ──────────────────────────────────────────────────────────────
     La tira enseña las semanas DEL BLOQUE de la semana abierta, no todas: un
@@ -613,7 +633,37 @@ export const WorkoutLogEditor = () => {
   const semanasDelBloque = weeksOfBlock(program, bloque);
   /* Las semanas se cuentan dentro del bloque: el bloque 2 empieza por la S1. */
   const enBloque = (w) => weekInBlock(program, w).n;
-  const etiqueta = (w) => weekLabel(program, w, unidad.charAt(0));
+  const etiqueta = (w) => weekLabel(program, w, unitInitial(cycleType));
+
+  /*
+    ── Quitar un bloque ───────────────────────────────────────────────────────
+    Abrirlos se podía; deshacerlo, no: un «+ bloque» de más se quedaba para
+    siempre en la cinta. Se pregunta antes y se dice A DÓNDE van sus semanas,
+    porque lo que se quita es la SEPARACIÓN y no el entrenamiento (ver
+    `deleteBlockFrom`). Después no hay nada que navegar: las semanas no cambian
+    de número, así que la abierta sigue abierta —ahora dentro del bloque que la
+    ha recogido—.
+  */
+  const quitarBloque = async (b) => {
+    const lista = blocksOf(program);
+    const i = lista.findIndex((x) => x.id === b.id);
+    if (lista.length < 2 || i === -1) return;
+    const destino = i > 0 ? lista[i - 1] : lista[1];
+    const suyas = weeksOfBlock(program, b).length;
+    const cuantas = suyas === 1 ? `su ${unidad.toLowerCase()}` : `sus ${suyas} ${unidades.toLowerCase()}`;
+    const ok = await confirm({
+      title: `¿Quitar «${b.name}»?`,
+      message:
+        suyas > 0
+          ? `${cuantas.charAt(0).toUpperCase()}${cuantas.slice(1)} ${suyas === 1 ? 'pasa' : 'pasan'} a «${destino.name}» con todo lo registrado dentro: no se borra ningún entrenamiento. Lo que se deshace es la separación entre los dos bloques.`
+          : `No tiene ${ningun} ${unidad.toLowerCase()} ${montada}: no se pierde nada.`,
+      confirmLabel: 'Quitar el bloque',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    deleteBlock(activeClient.id, b.id);
+    toast({ text: suyas > 0 ? `«${b.name}» quitado: ${cuantas} ${suyas === 1 ? 'está' : 'están'} en «${destino.name}».` : `«${b.name}» quitado.` });
+  };
   /* El calentamiento es de cada día: lo que se hace antes de ESE entreno. */
   /* El mismo resolutor que usa el portal del cliente: lo propio del día y, si no lo
      tiene, lo del programa (heredado de antes de que el calentamiento fuera por día). */
@@ -670,7 +720,7 @@ export const WorkoutLogEditor = () => {
     irA(removeMicrocycle(activeClient.id, nav.week) || 1);
     if (!cycle) return;
     toast({
-      text: `${unidad} ${enBloque(cycle.weekNumber)} eliminada.`,
+      text: `${unidad} ${enBloque(cycle.weekNumber)} ${fem ? 'eliminada' : 'eliminado'}.`,
       duration: 10000,
       action: {
         label: 'Deshacer',
@@ -741,7 +791,7 @@ export const WorkoutLogEditor = () => {
   /** El aviso de que no queda dónde escribir: se dice, no se traga. */
   const sinSitio = (dayName) => {
     toast({
-      text: `«${dayName}» ya está entrenado en todas las ${unidades} de este bloque, así que no he cambiado nada. Añade una ${unidad.toLowerCase()} más o abre un bloque nuevo.`,
+      text: `«${dayName}» ya está entrenado en ${todas} ${unidades} de este bloque, así que no he cambiado nada. Añade ${un} ${unidad.toLowerCase()} más o abre un bloque nuevo.`,
       duration: 8000,
     });
   };
@@ -823,7 +873,7 @@ export const WorkoutLogEditor = () => {
        semana. No debería llegar aquí —la pantalla vacía va antes—, pero un
        aviso vale más que un alta que no hace nada. */
     if (ws.length === 0) {
-      toast({ text: `Este bloque todavía no tiene ninguna ${unidad.toLowerCase()}. Añade una y vuelve a intentarlo.` });
+      toast({ text: `Este bloque todavía no tiene ${ningun} ${unidad.toLowerCase()}. Añade ${un} y vuelve a intentarlo.` });
       return;
     }
     ws.forEach((w) => addDay(activeClient.id, w, nombre));
@@ -856,7 +906,7 @@ export const WorkoutLogEditor = () => {
     if (quitadas.length > 0) apuntarEnBloque(nombre, quitadas, { kind: BLOCK_CHANGE.HOJA_MENOS, que: nombre });
     if (saltadas > 0) {
       toast({
-        text: `«${nombre}» se ha quitado de las ${unidades} sin entrenar; se conserva en ${saltadas} con sesión anotada.`,
+        text: `«${nombre}» se ha quitado de ${todas} ${unidades} sin entrenar; se conserva en ${saltadas} con sesión anotada.`,
         duration: 8000,
       });
     }
@@ -872,7 +922,14 @@ export const WorkoutLogEditor = () => {
   const rellenarConLaPlantilla = (dayName, semanas) => {
     const origen = diaDe(blockPlan(program, bloque).reference, dayName);
     const plantilla = origen?.exercises || [];
-    if (plantilla.length === 0) return;
+    /* Sin plantilla no hay nada que copiar, y callarse era el fallo: el botón
+       se pulsaba y no pasaba nada —ni cambio ni aviso—. La vista ya no ofrece
+       ponerla cuando el bloque está en blanco (`VistaBloque`); esto es el
+       cinturón, para que ninguna otra puerta pueda volver a fallar en silencio. */
+    if (plantilla.length === 0) {
+      toast({ text: `«${dayName}» no tiene ejercicios que copiar: escríbele el primero.` });
+      return;
+    }
     semanas.forEach((w) => {
       if (!diaDe(w, dayName)) addDay(activeClient.id, w, dayName);
       if ((diaDe(w, dayName)?.exercises || []).length > 0) return;
@@ -880,7 +937,7 @@ export const WorkoutLogEditor = () => {
     });
     apuntarEnBloque(dayName, semanas, {
       kind: BLOCK_CHANGE.PLANTILLA,
-      que: semanas.map((w) => `${unidad.charAt(0)}${enBloque(w)}`).join(', '),
+      que: semanas.map((w) => `${unitInitial(cycleType)}${enBloque(w)}`).join(', '),
     });
     toast({ text: `${dayName}: plantilla puesta en ${cuantasUnidades(semanas.length)}.` });
   };
@@ -952,6 +1009,7 @@ export const WorkoutLogEditor = () => {
           onAbrirHoja={(dayName) => irA(nav.week, Math.max(0, nav.days.findIndex((d) => d.dayName === dayName)), 'hoja')}
           onIrSemana={(w) => irA(w, 0, 'hoja')}
           onRenombrarBloque={(id, nombre) => renameBlock(activeClient.id, id, nombre)}
+          onQuitarBloque={quitarBloque}
           onNuevaSemana={() => irA(appendMicrocycle(activeClient.id), 0, 'bloque')}
           onNuevoBloque={() => setNuevoBloque(true)}
           onAnadirEjercicio={anadirEjercicioAlBloque}
@@ -964,6 +1022,7 @@ export const WorkoutLogEditor = () => {
           onQuitarHoja={quitarHojaDelBloque}
           onMoverHoja={moverHojaDelBloque}
           onRellenar={rellenarConLaPlantilla}
+          onTraerFichero={() => setPegarAbierto(true)}
           onRecordarEjercicio={upsertLibraryExercise}
           onSplit={(dia, valor) => updateWeeklySplit(activeClient.id, dia, valor)}
           onAjustes={() => setPanel('programa')}
@@ -1030,7 +1089,7 @@ export const WorkoutLogEditor = () => {
                           irA(w);
                         }}
                       >
-                        <span className="hoja-semana-n">{unidad.charAt(0)}{enBloque(w)}</span>
+                        <span className="hoja-semana-n">{unitInitial(cycleType)}{enBloque(w)}</span>
                         {w === semanaEnCurso ? <span className="hoja-semana-estado">en curso</span> : hecha ? <span className="hoja-semana-estado">hecha</span> : null}
                       </button>
                     );
@@ -1053,7 +1112,7 @@ export const WorkoutLogEditor = () => {
                       onClick={() => (abierta ? setPanel('semana') : irA(w))}
                       title={abierta ? `Qué hizo en ${unidad.toLowerCase()} ${enBloque(w)}` : `${unidad} ${enBloque(w)}${micro.date ? ` · empieza el ${shortDate(micro.date)}` : ''}`}
                     >
-                      <span className="hoja-semana-n">{unidad.charAt(0)}{enBloque(w)}</span>
+                      <span className="hoja-semana-n">{unitInitial(cycleType)}{enBloque(w)}</span>
                       {w === semanaEnCurso ? <span className="hoja-semana-estado">en curso</span> : hecha ? <span className="hoja-semana-estado">hecha</span> : null}
                     </button>
                   );
@@ -1468,7 +1527,16 @@ export const WorkoutLogEditor = () => {
           onClose={() => setNuevoBloque(false)}
           program={program}
           cliente={activeClient}
-          onAbrir={({ name, keepStructure }) => irA(startBlock(activeClient.id, { name, keepStructure }))}
+          onAbrir={({ name, keepStructure, desdeFichero }) => {
+            irA(startBlock(activeClient.id, { name, keepStructure }));
+            /* Del diálogo al importador sin escalas: el bloque nace con un día
+               en blanco que es andamio, y `importarLimpio` hace que la
+               importación lo retire igual que hace en el estado vacío. */
+            if (desdeFichero) {
+              setImportarLimpio(true);
+              setPegarAbierto(true);
+            }
+          }}
         />
       )}
 

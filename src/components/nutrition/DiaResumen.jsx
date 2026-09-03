@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 import { optionMacros } from '@/domain/nutrition';
 import { toNum0 } from '@/lib/num';
 import { MACRO_META, Medidor, opcionElegida } from './macros';
@@ -41,6 +43,36 @@ const lecturaDe = (real, objetivo) => {
 };
 
 export const DiaResumen = ({ meals, targets, elegidas = {}, onAbrir }) => {
+  /*
+    ══ PEGAJOSO mientras se cuadra ════════════════════════════════════════════
+
+    Cuadrar el día se hace ABAJO —tecleando gramos en la comida 3— y este
+    resumen vivía solo arriba: el efecto de cada cambio quedaba fuera de
+    pantalla, que es justo el acuse de recibo que esta pieza existe para dar.
+    Ahora se queda pegado bajo la cabecera mientras la hoja está a la vista,
+    y al pegarse se comprime a una línea (la clase `is-pegada`): las cifras
+    contra su objetivo, sin el rótulo ni las lecturas.
+
+    El centinela mide si el resumen está en su sitio natural o pegado: es un
+    hilo de 1 px justo encima, y cuando sale por arriba del hueco que deja la
+    cabecera fija (58 px) es que el resumen ya está pegado. `IntersectionObserver`
+    y no scroll: no dispara en cada píxel.
+  */
+  const [pegada, setPegada] = useState(false);
+  const centinela = useRef(null);
+  useEffect(() => {
+    const el = centinela.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([entrada]) => setPegada(!entrada.isIntersecting), {
+      /* El margen es el alto de la cabecera fija (--header-h, 58 px) más el
+         respiro con el que se pega el resumen: por encima de esa línea, el
+         centinela «no se ve» aunque siga dentro de la ventana. */
+      rootMargin: '-66px 0px 0px 0px',
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
   const real = meals.reduce(
     (acc, meal) => {
       const m = optionMacros(opcionElegida(meal, elegidas));
@@ -56,7 +88,9 @@ export const DiaResumen = ({ meals, targets, elegidas = {}, onAbrir }) => {
   const hayAlternativas = meals.some((meal) => (meal.options || []).length > 1);
 
   return (
-    <section className="dia-resumen" aria-label="Macros del día">
+    <>
+    <i ref={centinela} className="dia-centinela" aria-hidden="true" />
+    <section className={`dia-resumen${pegada ? ' is-pegada' : ''}`} aria-label="Macros del día">
       <header className="dia-resumen-cab">
         <span className="dia-resumen-rotulo">
           <span className="section-label">Macros del día</span>
@@ -91,5 +125,6 @@ export const DiaResumen = ({ meals, targets, elegidas = {}, onAbrir }) => {
         })}
       </div>
     </section>
+    </>
   );
 };

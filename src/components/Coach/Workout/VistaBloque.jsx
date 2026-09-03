@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, GripVertical, Layers, Pencil, Plus, RotateCw, Trash2, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
 
 import {
   blockPlan,
@@ -10,18 +10,19 @@ import {
   untrainedWeeksOfDay,
   weeksOfBlock,
 } from '@/domain/blocks';
-import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, isRestDay, rotatingSlots } from '@/domain/training';
+import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, rotatingSlots, unitInitial, unitIsFeminine, unitLabel, unitLabelPlural } from '@/domain/training';
 import { executedSessions, resumenDeEntrada, sessionSetCount, ultimaSesionDeHoja } from '@/domain/sessions';
+import { strengthByExercise } from '@/domain/reading';
 import { metricColor } from '@/domain/metrics';
 import { localeNumber, weekdayName } from '@/lib/dates';
 import { clampInt } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { EmptyState, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
+import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { HistorialPopup } from './HistorialPopup';
 import { VolumenPopup } from './VolumenPopup';
 import { LineaDeBloques } from './LineaDeBloques';
-import { WeeklySplitEditor } from './WeeklySplitEditor';
+import { EstructuraDelMicrociclo } from './EstructuraDelMicrociclo';
 
 /**
  * EL BLOQUE: el plan a la izquierda, con qué se juzga a la derecha.
@@ -192,6 +193,50 @@ const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
   );
 };
 
+/* ══ LA PROGRESIÓN: qué se mueve y qué lleva semanas clavado ════════════════
+   La hoja veraz dice qué se HIZO; esto dice qué ejercicios no se MUEVEN, que
+   es lo que se va a buscar al montar el microciclo siguiente y hasta ahora
+   exigía abrir la progresión uno a uno. Sale de `strengthByExercise` —el mismo
+   1RM estimado que usa la lectura del Resumen— filtrado a los ejercicios de
+   ESTE bloque. Señala; qué hacer con ellos es cosa del entrenador. */
+const TarjetaProgresion = ({ filas, unidades }) => {
+  const suben = filas.filter((f) => f.dir === 'up').length;
+  const clavados = filas.filter((f) => f.dir === 'flat');
+  const bajan = filas.filter((f) => f.dir === 'down');
+  const quietos = [...bajan, ...clavados];
+
+  return (
+    <section className="lado-tarjeta" aria-label="Progresión de los ejercicios">
+      <div className="lado-cab">
+        <span className="section-label">Progresión</span>
+        <div className="lado-cab-fila">
+          <span className="lado-titulo is-texto">
+            sube en {suben} de {filas.length}
+          </span>
+          {quietos.length > 0 && (
+            <span className="lado-aviso" title={`Sin mejorar su 1RM estimado en ${unidades} seguidos`}>
+              {quietos.length} sin moverse
+            </span>
+          )}
+        </div>
+      </div>
+      {quietos.length > 0 && (
+        <ul className="progresion-quietos">
+          {quietos.slice(0, 5).map((f) => (
+            <li key={f.name} title={`${f.name}: 1RM estimado ${f.dir === 'down' ? 'a la baja' : 'plano'} en sus últimos ${f.weeks} entrenamientos`}>
+              <span className="n">{f.name}</span>
+              <span className={`d${f.dir === 'down' ? ' is-baja' : ''}`}>
+                {f.dir === 'down' ? 'a la baja' : `${f.weeks} sin subir`}
+              </span>
+            </li>
+          ))}
+          {quietos.length > 5 && <li className="progresion-mas">y {quietos.length - 5} más</li>}
+        </ul>
+      )}
+    </section>
+  );
+};
+
 /* ══ EL BLOQUE EN CIFRAS ═════════════════════════════════════════════════════ */
 
 const TarjetaCifras = ({ resumen, unidad, unidades, onAmpliar }) => (
@@ -243,6 +288,7 @@ export const VistaBloque = ({
   onIrBloque,
   onFechaSemana,
   onRenombrarBloque,
+  onQuitarBloque,
   onNuevaSemana,
   onNuevoBloque,
   onAnadirEjercicio,
@@ -258,33 +304,14 @@ export const VistaBloque = ({
   onRecordarEjercicio,
   onSplit,
   onAjustes,
+  /* Abre el diálogo de traer el plan de un fichero. Como en la línea de
+     bloques: la acción existe si —y solo si— llega su manejador. */
+  onTraerFichero,
 }) => {
   const [nuevaHoja, setNuevaHoja] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   const [altaEn, setAltaEn] = useState(null);
   const [ventana, setVentana] = useState(null); // 'historial' | 'volumen'
-  /*
-    ── Dos densidades: leer y trabajar ──────────────────────────────────────
-    Programar veinte series de un tirón y repasar el plan con calma piden aires
-    distintos. «Compacta» encoge filas y letra para meter más hoja en pantalla;
-    se recuerda en este navegador, como la guía de Inicio, porque es una
-    preferencia de la mesa de trabajo, no un dato del cliente.
-  */
-  const [densidad, setDensidad] = useState(() => {
-    try {
-      return localStorage.getItem('caveman-densidad-hoja') === 'compacta' ? 'compacta' : 'comoda';
-    } catch {
-      return 'comoda';
-    }
-  });
-  const cambiarDensidad = (id) => {
-    setDensidad(id);
-    try {
-      localStorage.setItem('caveman-densidad-hoja', id);
-    } catch {
-      /* Sin almacenamiento, la preferencia dura la sesión. Suficiente. */
-    }
-  };
   /*
     El arrastre: qué viaja —una hoja entera o un ejercicio dentro de la suya—
     y sobre qué está. El mismo `draggable` de la hoja de series: el asa
@@ -298,26 +325,24 @@ export const VistaBloque = ({
   const esActual = isCurrentBlock(program, bloque);
   const cycleType = cliente?.cycleType || 'weekly';
   const rotativo = cycleType === 'rotating';
-  /* La unidad del bloque: la SEMANA natural o el CICLO —una vuelta al patrón—.
-     No «sesión»: en la hoja de series una sesión es un entrenamiento, y «109
-     series por sesión» era mentira. Son por ciclo. */
-  const unidad = rotativo ? 'Ciclo' : 'Semana';
-  const unidades = rotativo ? 'ciclos' : 'semanas';
+  /* La unidad del bloque: la SEMANA natural o el MICROCICLO —una vuelta al
+     patrón—. Ni «sesión» (en la hoja de series una sesión es un entrenamiento,
+     y «109 series por sesión» era mentira) ni «ciclo» a secas, que es lo que
+     se elige en Ajustes. Ver `unitLabel`. */
+  const unidad = unitLabel(cycleType);
+  const unidades = unitLabelPlural(cycleType);
+  /* «aún no esta semana» / «aún no este microciclo». */
+  const fem = unitIsFeminine(cycleType);
+  const este = fem ? 'esta' : 'este';
+  const todas = fem ? 'todas las' : 'todos los';
   const estructura = structureOfBlock(program, bloque);
   const resumen = blockSummary(program, bloque);
   const grupos = volumenPorGrupo(plan.sessions);
 
-  /*
-    La estructura, dicha en una línea al lado de su editor. En rotativo el
-    editor es la cadena del patrón —donde caen los descansos—.
-  */
+  /* La estructura del bloque: en rotativo, la cadena del patrón —donde caen
+     los descansos—; en semana natural, el reparto por días. */
   const slots = rotativo ? rotatingSlots(cliente?.cyclePattern, plan.sessions.map((s) => ({ dayName: s.dayName }))) : [];
-  const descansos = slots.filter((s) => s.rest).length;
   const split = estructura.weeklySplit || {};
-  const diasDeEntreno = WEEK_DAYS.filter((d) => !isRestDay(split[d])).length;
-  const estructuraTexto = rotativo
-    ? `ciclo de ${cuenta(slots.length, 'día', 'días')} · ${slots.length - descansos} de entreno, ${descansos} de descanso`
-    : `${diasDeEntreno} de entreno, ${7 - diasDeEntreno} de descanso`;
 
   /* Cuándo cae cada hoja: los días de la semana que la llevan, o su sitio en el ciclo. */
   const cuandoCae = (dayName) => {
@@ -326,14 +351,89 @@ export const VistaBloque = ({
     return dias.length > 0 ? dias.join(' · ') : null;
   };
 
-  /* Las hojas que están por rellenar, para el gesto de una sola vez. */
+  /*
+    ══ V-01 · LA REJILLA SE ORDENA POR EL MICROCICLO ═════════════════════════
+
+    El ritmo del microciclo era texto en la franja de arriba y la rejilla lo
+    ignoraba: columnas idénticas en el orden de la lista. Ahora las columnas se
+    ordenan por dónde caen y cada una lleva su día rotulado, así que la
+    estructura del microciclo ES el orden de la rejilla y no una leyenda que
+    traducir.
+
+    ── Y los descansos NO bajan aquí ─────────────────────────────────────────
+    Llegaron a ocupar su propia muesca rayada entre columnas, para «dibujar el
+    ritmo». Pero esta rejilla es lo que hay que PROGRAMAR, y un día de descanso
+    no se programa: eran cuatro cicatrices verticales en medio del plan que no
+    se podían pulsar, no se podían llenar y no llevaban nada dentro. El ritmo ya
+    lo enseña la franja de arriba, que es su sitio —ahí las casillas libres son
+    huecos de verdad, con algo que elegir dentro—, y aquí los números de día
+    (D1, D4, D7) siguen contando dónde cae cada hoja sin gastar una columna en
+    lo que no la necesita.
+
+    Solo cuando la estructura se conoce: en rotativo la dicta el patrón; en
+    semana natural, el reparto de días si lo hay. Sin reparto, `null` y la
+    rejilla plana de siempre — inventar un orden sería mentir.
+
+    Una hoja repetida en el microciclo (Push el lunes y el jueves) se pinta UNA
+    vez, en su primer día; sus otros días ya los dice su subtítulo. Y la que la
+    estructura no nombra va al final, sin día: existe en el plan aunque el ciclo
+    no la recoja.
+  */
+  const piezasRejilla = (() => {
+    const porNombre = new Map(plan.sessions.map((hoja, index) => [hoja.dayName, { hoja, index }]));
+    const usadas = new Set();
+    const piezas = [];
+    const mete = (nombre, dia) => {
+      if (!porNombre.has(nombre) || usadas.has(nombre)) return;
+      usadas.add(nombre);
+      piezas.push({ dia, ...porNombre.get(nombre) });
+    };
+
+    if (rotativo && slots.length > 0) {
+      slots.forEach((slot, i) => {
+        if (!slot.rest) mete(slot.name, `D${i + 1}`);
+      });
+    } else if (!rotativo && WEEK_DAYS.some((d) => split[d] && porNombre.has(split[d]))) {
+      for (const d of WEEK_DAYS) {
+        if (split[d] && porNombre.has(split[d])) mete(split[d], d.slice(0, 3));
+      }
+    } else {
+      return null;
+    }
+
+    for (const hoja of plan.sessions) mete(hoja.dayName, null);
+    return piezas;
+  })();
+
+  /*
+    Las hojas que están por rellenar, para el gesto de una sola vez.
+
+    ── Y solo las que TIENEN de dónde copiar ─────────────────────────────────
+    «Poner la plantilla» copia los ejercicios del microciclo de referencia del
+    bloque (`rellenarConLaPlantilla`). En un bloque recién abierto ese
+    microciclo está tan en blanco como los demás, así que el botón salía igual,
+    se pulsaba, y no pasaba NADA: ni cambio ni aviso. Un botón que no hace nada
+    es peor que no tener botón, porque el que lo pulsa se queda pensando que ha
+    fallado la aplicación.
+
+    Ahora la franja pregunta antes: si hay plantilla, ofrece ponerla; si no la
+    hay —el bloque entero está vacío—, ofrece las dos rutas que de verdad
+    existen (escribirlo aquí, o traer el fichero donde ya está escrito).
+  */
+  /* `plan.sessions` se lee del microciclo de REFERENCIA, así que sus ejercicios
+     son literalmente la plantilla: si esa hoja no tiene ninguno, no hay nada
+     que copiar a las demás. */
+  const conPlantilla = (dayName) =>
+    ((plan.sessions.find((s) => s.dayName === dayName)?.exercises) || []).length > 0;
   const porRellenar = plan.sessions
     .map((s) => ({ dayName: s.dayName, semanas: fillableWeeksOfDay(program, bloque, s.dayName) }))
-    .filter((s) => s.semanas.length > 0);
+    .filter((s) => s.semanas.length > 0 && conPlantilla(s.dayName));
   const semanasPorRellenar = [...new Set(porRellenar.flatMap((s) => s.semanas))].sort((a, b) => a - b);
+  /* El bloque en blanco: ninguna hoja tiene un solo ejercicio. */
+  const bloqueVacio = plan.sessions.every((s) => (s.exercises || []).length === 0);
 
   const enBloque = (w) => w - bloque.fromWeek + 1;
-  const etiqueta = (w) => `${unidad.charAt(0)}${enBloque(w)}`;
+  const etiqueta = (w) => `${unitInitial(cycleType)}${enBloque(w)}`;
   const rellenarTodo = () => porRellenar.forEach(({ dayName, semanas: ws }) => onRellenar(dayName, ws));
 
   /*
@@ -436,15 +536,40 @@ export const VistaBloque = ({
       onNuevaSemana={onNuevaSemana}
       onNuevoBloque={esActual ? onNuevoBloque : null}
       onRenombrarBloque={onRenombrarBloque}
+      onQuitarBloque={onQuitarBloque}
       onAjustes={onAjustes}
-      contexto={[cuenta(plan.sessions.length, 'hoja', 'hojas'), estructuraTexto, esActual ? null : 'cerrado'].filter(Boolean).join(' · ')}
+      /* «4 hojas · 4 de entreno, 3 de descanso» era el dibujo de abajo dicho en
+         palabras: la franja de la semana enseña dónde cae cada hoja y las
+         columnas se cuentan solas. Aquí queda lo que no se ve en ningún sitio:
+         que el bloque está cerrado. */
+      contexto={esActual ? null : 'cerrado'}
     />
   );
+
+  /*
+    ── Sin fila de mando encima ──────────────────────────────────────────────
+    Llegó a haberla, con «+ bloque» y el engranaje, copiando la de Dieta. Dos
+    cosas iban mal: separaba la acción de añadir un bloque de los bloques —el
+    botón no tocaba por ningún sitio lo que crea—, y empujaba la hoja del plan
+    medio pliegue hacia abajo, así que arrancaba por debajo de las tarjetas del
+    costado y las dos columnas de la pantalla ya no empezaban a la misma altura.
+    Sus dos acciones viven ahora donde actúan, dentro de la línea de bloques.
+  */
+
+  /* La progresión de los ejercicios de ESTE bloque, solo en el actual: en un
+     bloque cerrado la hoja es archivo y ya no hay microciclo que montar. Con
+     menos de 3 entrenamientos por ejercicio, `strengthByExercise` calla solo. */
+  const progresion = esActual
+    ? strengthByExercise(program?.microcycles || []).filter((f) =>
+        plan.sessions.some((h) => (h.exercises || []).some((ex) => ex.name === f.name))
+      )
+    : [];
 
   const costado = (
     <aside className="bloque-lado" aria-label="Con qué se juzga el bloque">
       <TarjetaCifras resumen={resumen} unidad={unidad} unidades={unidades} onAmpliar={() => setVentana('historial')} />
       {plan.sessions.length > 0 && <TarjetaVolumen grupos={grupos} unidad={unidad} onAmpliar={() => setVentana('volumen')} />}
+      {progresion.length > 0 && <TarjetaProgresion filas={progresion} unidades={unidades} />}
     </aside>
   );
 
@@ -479,7 +604,9 @@ export const VistaBloque = ({
     return (
       <div className="bloque-pagina cascada">
         <div className="bloque-plan">
-          {linea}
+          <div className="plan-hoja">
+            <section className="plan-seccion">{linea}</section>
+          </div>
           <EmptyState
             icon={Layers}
             title={`«${bloque.name}» todavía no tiene hojas`}
@@ -499,73 +626,109 @@ export const VistaBloque = ({
 
   return (
     <div className="bloque-pagina cascada">
-      {/* ══ EL PLAN ═══════════════════════════════════════════════════════ */}
-      <div className="bloque-plan">
-        {linea}
+      {/*
+        ══ EL PLAN: UNA HOJA, TRES SECCIONES ══════════════════════════════
 
-        {esActual && semanasPorRellenar.length > 0 && (
-          <div className="plan-hueco">
+        Esto fue un titular suelto, una franja suelta y una rejilla de tarjetas
+        sueltas, las tres sobre el lienzo. Y al lado, Dieta y Resumen: una fila
+        de mando en voz baja y UNA caja que lo contiene todo, con sus secciones
+        separadas por filete dentro. La misma casa con dos formas de montar una
+        hoja, y Entreno cantaba justamente por ser la distinta.
+
+        Ahora es la gramática de la hoja de dieta, con las mismas piezas: el
+        bloque y su carril, el reparto del microciclo, y las hojas. Tres
+        secciones de una caja, no tres cajas.
+      */}
+      <div className="bloque-plan">
+        <div className="plan-hoja">
+          <section className="plan-seccion">{linea}</section>
+
+        {/*
+          ══ EL HUECO: dos huecos distintos, dos ofertas distintas ═══════════
+
+          Si el bloque tiene plantilla, lo que falta es copiarla a los
+          microciclos en blanco: una frase y el botón que lo hace.
+
+          Si NO la tiene —el bloque entero está vacío—, no hay nada que copiar,
+          y el botón de la plantilla se pulsaba sin efecto ni aviso. Lo que hace
+          falta ahí son las dos rutas de verdad: escribirlo en la hoja, o traer
+          el fichero donde ya está escrito. Es el mismo par que ofrece el vacío
+          del programa entero (`WorkoutLogEditor`), en el sitio donde ahora hace
+          falta.
+        */}
+        {esActual && bloqueVacio && (
+          <div className="plan-hueco plan-seccion">
             <span>
-              {semanasPorRellenar.map(etiqueta).join(', ')} {semanasPorRellenar.length === 1 ? 'está' : 'están'} sin ejercicios.
+              «{bloque.name}» no tiene ningún ejercicio todavía:{' '}
+              {plan.sessions.length === 1
+                ? `su hoja «${plan.sessions[0].dayName}» está en blanco`
+                : `sus ${plan.sessions.length} hojas están en blanco`}
+              .
             </span>
-            <button type="button" className="btn btn-primary btn-sm" onClick={rellenarTodo}>
-              <Wand2 size={14} /> Poner la plantilla
-            </button>
+            <div className="plan-hueco-acciones">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setAltaEn(plan.sessions[0].dayName)}>
+                <Plus size={14} /> Escribir el primero
+              </button>
+              {onTraerFichero && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onTraerFichero}>
+                  <FileUp size={14} /> Traer de un fichero
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        {/* ── Las hojas, todas ──────────────────────────────────────────── */}
-        <section className="plan-tramo">
-          <div className="plan-tramo-cab">
-            <h3 className="plan-titulo">Hojas</h3>
-            <span className="plan-tramo-meta">
-              {resumen.series ?? 0} series por {unidad.toLowerCase()}
-              {esActual && plan.sessions.length > 1 ? ' · arrastra por el asa para ordenar' : ''}
+        {esActual && !bloqueVacio && semanasPorRellenar.length > 0 && (
+          <div className="plan-hueco plan-seccion">
+            <span>
+              {semanasPorRellenar.map(etiqueta).join(', ')} {semanasPorRellenar.length === 1 ? 'está' : 'están'} sin ejercicios.
             </span>
-            <span className="plan-densidad">
-              <SegmentedControl
-                label="Densidad de la hoja"
-                value={densidad}
-                onChange={cambiarDensidad}
-                options={[
-                  { id: 'comoda', label: 'Cómoda', hint: 'Con aire, para leer el plan' },
-                  { id: 'compacta', label: 'Compacta', hint: 'Más filas por pantalla, para programar de un tirón' },
-                ]}
-              />
-            </span>
+            <div className="plan-hueco-acciones">
+              <button type="button" className="btn btn-primary btn-sm" onClick={rellenarTodo}>
+                <Wand2 size={14} /> Poner la plantilla
+              </button>
+            </div>
           </div>
+        )}
 
-          {/*
-            Dónde cae cada hoja, justo encima de las hojas: en la semana
-            natural se ELIGE día a día; en rotativo lo dicta el patrón, que
-            se enseña como cadena y se cambia en Ajustes.
-          */}
+        {/*
+          ── Dónde cae cada hoja: su propia sección ────────────────────────
+          En la semana natural se ELIGE día a día; en rotativo lo dicta el
+          patrón, que se cambia en Ajustes. Aquí hubo un rótulo «Hojas» con su
+          contador de series y un conmutador de densidad, y entre los tres
+          empujaban el plan medio pliegue hacia abajo para no decir nada nuevo.
+        */}
+        <section className="plan-seccion">
           <div className="plan-estructura">
-            <span className="plan-estructura-k">{rotativo ? 'El ciclo' : 'La semana'}</span>
-            {rotativo ? (
-              <ol className="ciclo-tira" aria-label="El ciclo, día a día">
-                {slots.map((slot, i) => (
-                  <li key={slot.key} className={`ciclo-dia${slot.rest ? ' is-descanso' : ''}`} title={`Día ${i + 1}: ${slot.rest ? 'descanso' : slot.name}`}>
-                    <span className="ciclo-dia-n">{i + 1}</span>
-                    <span className="ciclo-dia-nombre">{slot.rest ? 'descanso' : slot.name}</span>
-                  </li>
-                ))}
-                <li className="ciclo-dia is-vuelta" aria-label="y vuelta a empezar" title="Y vuelta a empezar">
-                  <RotateCw size={12} aria-hidden="true" />
-                </li>
-              </ol>
-            ) : (
-              <WeeklySplitEditor split={estructura.weeklySplit} days={plan.sessions.map((s) => ({ dayName: s.dayName }))} disabled={!esActual} onChange={onSplit} />
-            )}
+            {/* «Microciclo» y no «Los días»: es la unidad que se programa, se
+                llama igual en los dos tipos de ciclo, y así el rótulo de la
+                franja y el del carril de arriba nombran la misma cosa. */}
+            <span className="plan-estructura-k">Microciclo</span>
+            <EstructuraDelMicrociclo
+              rotativo={rotativo}
+              split={estructura.weeklySplit}
+              slots={slots}
+              hojas={plan.sessions.map((s) => s.dayName)}
+              disabled={!esActual}
+              onSplit={onSplit}
+              onMoverHoja={onMoverHoja}
+            />
           </div>
+        </section>
 
+        {/* ── Las hojas, todas ──────────────────────────────────────────── */}
+        <section className="plan-seccion" aria-label="Las hojas del bloque">
           <div
-            className={`plan-rejilla${arrastre ? ` is-arrastrando-${arrastre.tipo}` : ''}${densidad === 'compacta' ? ' is-compacta' : ''}`}
+            className={`plan-rejilla${piezasRejilla ? ' is-ciclo' : ''}`}
             role="list"
           >
-            {plan.sessions.map((hoja, index) => {
+            {(piezasRejilla || plan.sessions.map((hoja, index) => ({ hoja, index, dia: null }))).map((pieza) => {
+              const { hoja, index, dia } = pieza;
               const cerrada = untrainedWeeksOfDay(program, bloque, hoja.dayName).length === 0;
-              const cae = cuandoCae(hoja.dayName);
+              /* Con el día ya rotulado encima, el «D2» del subtítulo sería el
+                 mismo dato dos veces; en semana natural se queda, porque una
+                 hoja puede caer en dos días y el rótulo solo lleva el primero. */
+              const cae = rotativo && dia ? null : cuandoCae(hoja.dayName);
               const piezaHoja = { tipo: 'hoja', hoja: hoja.dayName, index };
 
               /* Lo hecho esta semana con esta hoja, y la última vez del bloque
@@ -590,7 +753,11 @@ export const VistaBloque = ({
               const estadoHoja = !enCursoAqui
                 ? null
                 : seriesHechas === 0
-                  ? { tono: 'aun', texto: `aún no esta ${unidad.toLowerCase()}` }
+                  ? /* «aún no» a secas: la frase entera («aún no este
+                       microciclo») no cabía en una columna de 150 px y salía
+                       truncada en media rejilla. La unidad ya la dice la
+                       franja de arriba; la frase completa va en el title. */
+                    { tono: 'aun', texto: 'aún no', title: `Aún no ${este} ${unidad.toLowerCase()}` }
                   : seriesHechas >= hoja.series
                     ? {
                         tono: 'ok',
@@ -601,7 +768,17 @@ export const VistaBloque = ({
                       { tono: 'warn', texto: `a medias · ${seriesHechas}/${hoja.series}` };
 
               return (
-                <section className={`plan-col${marcas(piezaHoja)}`} role="listitem" key={hoja.dayName} {...(esActual ? receptor(piezaHoja) : {})}>
+                /* El semáforo sube también a la CLASE de la columna: en la
+                   rejilla del ciclo se pinta como filo superior, y la palabra
+                   se queda porque lleva lo que el color no puede («el martes»,
+                   «17/19»). */
+                <section
+                  className={`plan-col${estadoHoja ? ` is-${estadoHoja.tono}` : ''}${marcas(piezaHoja)}`}
+                  role="listitem"
+                  key={hoja.dayName}
+                  {...(esActual ? receptor(piezaHoja) : {})}
+                >
+                  {dia && <span className="plan-col-dia">{dia}</span>}
                   <header className="plan-col-cab">
                     {esActual && plan.sessions.length > 1 && (
                       <button type="button" className="hoja-asa plan-asa" aria-label={`Arrastrar ${hoja.dayName} para ordenar`} title="Arrastra para cambiarla de sitio" {...asa(piezaHoja, hoja.dayName)}>
@@ -622,13 +799,20 @@ export const VistaBloque = ({
                           {hoja.dayName}
                         </button>
                       )}
-                      <span className="plan-col-sub">
-                        {[cae, `${hoja.series} series`, cuenta(hoja.exercises.length, 'ejercicio', 'ejercicios')].filter(Boolean).join(' · ')}
-                      </span>
+                      {/*
+                        Dónde cae y cuántas series, y se acabó. El tercer dato
+                        —«7 ejercicios»— no cabía en una columna estrecha y
+                        cortaba la línea en «7 ejer…»: se cuenta solo mirando
+                        las filas de debajo, y de esta pantalla lo que importa
+                        es el reparto y el VOLUMEN.
+                      */}
+                      <span className="plan-col-sub">{[cae, `${hoja.series} series`].filter(Boolean).join(' · ')}</span>
                       {estadoHoja && (
                         /* El semáforo de la semana, pegado al rótulo que juzga:
                            hecha · a medias · aún no. */
-                        <span className={`plan-col-estado is-${estadoHoja.tono}`}>{estadoHoja.texto}</span>
+                        <span className={`plan-col-estado is-${estadoHoja.tono}`} title={estadoHoja.title}>
+                          {estadoHoja.texto}
+                        </span>
                       )}
                     </div>
                     <MenuAcciones
@@ -649,21 +833,63 @@ export const VistaBloque = ({
                   <ol className="plan-ejs">
                     {hoja.exercises.map((ex, i) => {
                       const piezaEj = { tipo: 'ej', hoja: hoja.dayName, index: i, nombre: ex.name };
-                      /* La verdad bajo la pauta: lo de esta semana si existe, y
-                         si no, la última vez del bloque como fantasma. */
+                      /*
+                        ── UNA FILA, UN RENGLÓN ────────────────────────────────
+                        El nombre iba arriba y la pauta debajo, y encima el
+                        nombre envolvía cuando era largo: cada ejercicio medía
+                        dos o tres renglones según el nombre que le tocara, así
+                        que el tercer ejercicio de una hoja no caía a la misma
+                        altura que el tercero de la de al lado. Con seis hojas
+                        en fila, eso deja de ser una rejilla y pasa a ser seis
+                        listas sueltas.
+
+                        Ahora la fila es una: nombre a la izquierda —cortado
+                        con puntos suspensivos, nunca envuelto— y la pauta
+                        pegada a la derecha, en su carril. Alto fijo, así que
+                        la fila N de todas las hojas está en la misma línea y
+                        la pantalla vuelve a leerse como la tabla que es.
+
+                        Lo registrado ya no ocupa su propio renglón: era el
+                        tercero y el que descuadraba, porque solo lo tienen los
+                        ejercicios ya entrenados. Se queda como punto de color
+                        —cumplió o le faltó— con los kilos y las repeticiones
+                        en el título.
+                      */
                       const real = ultimaDeSemana ? resumenDeEntrada(ultimaDeSemana, ex.name) : null;
                       const fantasma = !real && pasada ? resumenDeEntrada(pasada, ex.name) : null;
+                      const hecho = real ? (real.series >= ex.series ? 'ok' : 'warn') : null;
+                      const dicho = real
+                        ? `${ex.name} · ${este} ${unidad.toLowerCase()}: ${resumenTexto(real)}`
+                        : fantasma
+                          ? `${ex.name} · la vez pasada: ${resumenTexto(fantasma)}`
+                          : ex.name;
                       return (
                         <li className={`plan-ej${marcas(piezaEj)}`} key={ex.id} {...(cerrada ? {} : receptor(piezaEj))}>
-                          <span className="plan-ej-nombre" title={ex.name}>
-                            {!cerrada && hoja.exercises.length > 1 && (
-                              <button type="button" className="hoja-asa plan-asa is-ej" aria-label={`Arrastrar ${ex.name} para ordenar`} title="Arrastra para cambiarlo de sitio" {...asa(piezaEj, ex.name)}>
-                                <GripVertical size={12} />
-                              </button>
+                          {!cerrada && hoja.exercises.length > 1 && (
+                            <button type="button" className="hoja-asa plan-asa is-ej" aria-label={`Arrastrar ${ex.name} para ordenar`} title="Arrastra para cambiarlo de sitio" {...asa(piezaEj, ex.name)}>
+                              <GripVertical size={12} />
+                            </button>
+                          )}
+                          {/*
+                            ── V-02 · TRES TINTAS ─────────────────────────────
+                            El nombre en tinta plena, la pauta en secundaria y,
+                            debajo del nombre, LO REGISTRADO en terciaria: lo de
+                            este microciclo si ya entrenó (con su punto), y si
+                            no, lo de la vez pasada como fantasma. Antes vivía
+                            solo en el title; un dato que hay que sobrevolar
+                            para leer no acompaña ninguna decisión. El alto de
+                            la fila es fijo con o sin registro, así que la fila
+                            N de todas las hojas sigue en la misma línea.
+                          */}
+                          <span className="plan-ej-texto">
+                            <span className={`plan-ej-nombre${hecho ? ` is-${hecho}` : ''}`} title={dicho}>
+                              {ex.name}
+                            </span>
+                            {(real || fantasma) && (
+                              <span className="plan-ej-real">{resumenTexto(real || fantasma)}</span>
                             )}
-                            {ex.name}
                           </span>
-                          <span className="plan-ej-fila">
+                          <span className="plan-ej-pauta">
                             <input
                               className="plan-series"
                               inputMode="numeric"
@@ -690,29 +916,17 @@ export const VistaBloque = ({
                                 if (reps !== (ex.targetReps ?? '')) onReps(hoja.dayName, ex.name, reps);
                               }}
                             />
-                            <span className="plan-ej-acciones">
-                              <button
-                                type="button"
-                                className="btn btn-icon btn-icon-compact btn-icon-danger"
-                                aria-label={`Quitar ${ex.name}`}
-                                onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </span>
                           </span>
-                          {(real || fantasma) && (
-                            <span
-                              className={`plan-ej-real${real ? (real.series >= ex.series ? ' is-ok' : ' is-warn') : ''}`}
-                              title={
-                                real
-                                  ? `Lo registrado esta ${unidad.toLowerCase()}: su mayor peso y las repeticiones serie a serie`
-                                  : 'Lo registrado la última vez que entrenó esta hoja en el bloque'
-                              }
-                            >
-                              {real ? resumenTexto(real) : `la vez pasada: ${resumenTexto(fantasma)}`}
-                            </span>
-                          )}
+                          {/* La papelera no gasta ancho: se posa encima del
+                              carril de la pauta al acercarse a la fila. */}
+                          <button
+                            type="button"
+                            className="btn btn-icon btn-icon-compact btn-icon-danger plan-ej-quitar"
+                            aria-label={`Quitar ${ex.name}`}
+                            onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </li>
                       );
                     })}
@@ -722,7 +936,7 @@ export const VistaBloque = ({
                     {cerrada ? (
                       /* Sin sitio donde escribir: todas sus repeticiones están
                          entrenadas. Se dice en una palabra, no en una frase. */
-                      <span className="plan-col-cerrada" title={`Ya entrenada en todas las ${unidades} de este bloque`}>
+                      <span className="plan-col-cerrada" title={`Ya entrenada en ${todas} ${unidades} de este bloque`}>
                         entrenada
                       </span>
                     ) : altaEn === hoja.dayName ? (
@@ -738,7 +952,7 @@ export const VistaBloque = ({
                         type="button"
                         className="plan-alta-abrir"
                         onClick={() => setAltaEn(hoja.dayName)}
-                        title={`Se añade a las ${unidades} de este bloque que aún no se han entrenado`}
+                        title={`Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado`}
                       >
                         <Plus size={12} aria-hidden="true" /> ejercicio
                       </button>
@@ -759,21 +973,33 @@ export const VistaBloque = ({
               );
             })}
 
-            {/* La hoja de más: una columna al final, que es donde iría —la
-                misma regla que «+ bloque» al final de la línea—. */}
-            {esActual && (
-              <section className={`plan-col is-nueva${nuevaHoja === null ? '' : ' is-abierta'}`} role="listitem">
-                {nuevaHoja === null ? (
-                  <button type="button" className="plan-col-mas" onClick={() => setNuevaHoja('')} aria-label="Añadir una hoja" title="Añadir una hoja al bloque">
-                    <Plus size={15} aria-hidden="true" />
-                  </button>
-                ) : (
-                  altaDeHoja
-                )}
-              </section>
-            )}
           </div>
+
+          {/*
+            ══ «+ hoja»: al final de la lista, a la izquierda ════════════════
+
+            Fue una columna de más al final de la rejilla, y con cuatro hojas
+            repartiéndose el ancho acababa siendo un «+» solo contra el canto
+            derecho de la pantalla, pegado a las tarjetas del costado: leído
+            desde lejos no era «añade una hoja aquí», era un botón perdido en la
+            esquina. Ahora es lo que esta casa pone para añadir uno más de lo que
+            se está listando —el mismo botón, en el mismo sitio, que el «+ comida»
+            de la hoja de dieta (`.dieta-alta`)—: al final de la lista y contra
+            el margen izquierdo, que es por donde se lee.
+          */}
+          {esActual && (
+            <div className="plan-alta-hoja">
+              {nuevaHoja === null ? (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNuevaHoja('')}>
+                  <Plus size={14} aria-hidden="true" /> hoja
+                </button>
+              ) : (
+                altaDeHoja
+              )}
+            </div>
+          )}
         </section>
+        </div>
       </div>
 
       {/* ══ EL COSTADO: con qué se juzga ══════════════════════════════════ */}

@@ -426,7 +426,9 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 
         <div className="rmap-head">
           <strong>{phase.title}</strong>
-          {current && <span className="badge badge-info">Ahora</span>}
+          {/* «Ahora» es «estás aquí», que es el trabajo de la brasa — no un
+              veredicto, así que no va en píldora (ver `.estado`). */}
+          {current && <span className="estado is-aqui">Ahora</span>}
         </div>
 
         <div className="rmap-when row gap-2 wrap">

@@ -1,6 +1,6 @@
 import { Check, CircleHelp, Target, TriangleAlert } from 'lucide-react';
 
-import { GOAL_DIRECTIONS, targetRateKg } from '@/domain/goals';
+import { GOAL_DIRECTIONS } from '@/domain/goals';
 import { phaseProgress, phaseProjection } from '@/domain/roadmap';
 import { metricColor } from '@/domain/metrics';
 import { localeNumber, shortDate } from '@/lib/dates';
@@ -77,7 +77,6 @@ export const TarjetaComoVa = ({
   fases,
   hoy,
   history,
-  pesoActual,
   trend,
   veredicto,
   isClient = false,
@@ -95,13 +94,13 @@ export const TarjetaComoVa = ({
     ? phaseProjection({ phase: fase, history, perWeek: trend.ok ? trend.perWeek : null, goal, date: hoy })
     : null;
 
-  const objetivoSemanal = targetRateKg(goal, pesoActual);
-
   return (
     <Tarjeta
       rotulo={isClient ? 'Cómo vas' : 'Cómo va'}
       span={8}
-      className="comova"
+      /* `lumbre-dato`: la luz que sale del último dato, en el hero que lee.
+         Una por pantalla; de día no pinta nada (ver superficies.css). */
+      className="comova lumbre-dato"
       /* La puerta dice a DÓNDE lleva, no dónde estás. Ponía el nombre de la fase
          («Definición →») y eso fallaba dos veces: repetía por tercera vez una
          palabra que ya está en el pie de esta misma tarjeta, y no dejaba
@@ -155,10 +154,13 @@ export const TarjetaComoVa = ({
             <span className="comova-say">
               <strong>{dicho?.title || (proyeccion ? 'Sin veredicto' : 'Todavía no hay nada que leer')}</strong>
               {proyeccion && proyeccion.objetivo !== null ? (
+                /* Corto a propósito: el ritmo ya lo dice el veredicto de al
+                   lado y el objetivo ya está dibujado en la trayectoria — la
+                   frase larga los repetía a ambos y el hero era un párrafo. */
                 <span className="comova-detalle">
                   {proyeccion.desvio === 0
-                    ? `Acaba justo en los ${peso(proyeccion.objetivo)} kg que buscabas.`
-                    : `Acaba ${kg(Math.abs(proyeccion.desvio))} kg ${proyeccion.desvio > 0 ? 'por encima' : 'por debajo'} de los ${peso(proyeccion.objetivo)} kg que buscabas${objetivoSemanal ? `, a ${kg(objetivoSemanal)} kg por semana` : ''}.`}
+                    ? `acaba clavado en el objetivo (${peso(proyeccion.objetivo)} kg)`
+                    : `acaba ${kg(Math.abs(proyeccion.desvio))} kg ${proyeccion.desvio > 0 ? 'sobre' : 'bajo'} el objetivo (${peso(proyeccion.objetivo)} kg)`}
                 </span>
               ) : (
                 dicho?.detail && <span className="comova-detalle">{dicho.detail}</span>

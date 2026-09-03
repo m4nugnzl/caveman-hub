@@ -11,7 +11,7 @@ import {
 
 import { useApp, useSession } from '@/context/AppContext';
 import { TRAMITES_INICIO, buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
-import { ACTIVITY_KINDS, buildActivity } from '@/domain/today';
+import { ACTIVITY_KINDS, activityScale, buildActivity, dayLabel } from '@/domain/today';
 import { kindMeta } from '@/domain/calendar';
 import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
@@ -322,18 +322,24 @@ export const Today = () => {
   }, [agendaEvents, clients, today]);
 
   /*
-    ── Cinco, y por qué se recortó de ocho ────────────────────────────────────
-    Esta columna es LECTURA —lo que ha pasado, la agenda— y la de al lado es el
-    trabajo. Con ocho entradas la columna secundaria acababa siendo la más larga
-    de la pantalla: la vista quedaba desequilibrada y lo importante parecía lo
-    de la derecha. Cinco cubren las últimas horas, que es lo que un feed de
-    «últimas 48 horas» tiene que contestar; el resto es historia y vive en la
-    ficha de cada uno.
+    ── El hilo de las dos semanas, una sola vez ───────────────────────────────
+    Alimenta las DOS piezas del panel: el pulso (el histograma por día) y las
+    filas de abajo. Antes la ventana era de 48 horas, y una cartera con
+    movimiento la semana pasada enseñaba «nadie ha registrado nada» — el
+    producto tenía los datos y la pantalla los negaba.
+
+    Las filas siguen siendo cinco y por lo mismo de siempre: esta columna es
+    LECTURA y la de al lado es el trabajo; con más entradas la secundaria
+    acababa siendo la más larga de la pantalla. Lo que quede más atrás de las
+    cinco lo cuenta el pulso en agregado, y la historia entera vive en la ficha
+    de cada uno.
   */
-  const actividad = useMemo(
-    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today, 2).slice(0, 5),
+  const eventos = useMemo(
+    () => buildActivity({ clients, training, anthropometry, progressPhotos, checkIns }, today),
     [clients, training, anthropometry, progressPhotos, checkIns, today]
   );
+  const pulso = useMemo(() => activityScale(eventos, today), [eventos, today]);
+  const actividad = eventos.slice(0, 5);
 
   /* ── Acciones ──────────────────────────────────────────────────────────── */
   const open = (clientId, section) => navigate(clientPath(clientId, section));
@@ -520,38 +526,118 @@ export const Today = () => {
             )}
           </Panel>
 
-          <Panel title="Actividad" sub="Últimas 48 horas" className="col gap-3">
+          <Panel title="Actividad" sub="Últimas dos semanas" className="col gap-3">
             {actividad.length === 0 ? (
               /* La última caja punteada del panel, a frase: el marco enmarcaba
                  la ausencia y no ofrecía nada. Quien lleva días sin entrenar ya
-                 tiene su cola arriba; aquí basta con decirlo. */
+                 tiene su cola arriba; aquí basta con decirlo. Tampoco se dibuja
+                 el pulso a cero: catorce muescas vacías son un esqueleto, no un
+                 dato. */
               <div className="vacio-invita">
-                <p>Nadie ha registrado nada en dos días.</p>
+                <p>Nadie ha registrado nada en dos semanas.</p>
               </div>
             ) : (
-              <div className="actividad">
-                {actividad.map((event) => {
-                  const kind = ACTIVITY_KINDS[event.kind];
-                  return (
-                    <button
-                      key={event.id}
-                      type="button"
-                      className="actividad-fila"
-                      onClick={() => open(event.clientId, kind.section)}
-                    >
-                      <span className="feed-dot" style={{ background: kind.color }} aria-hidden="true" />
-                      <span className="who">{event.clientName}</span>
-                      <span className="what">
-                        {event.title}
-                        {event.detail && <span className="detail"> · {event.detail}</span>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              <>
+                {/* EL PULSO: el histograma de `activityScale`, que el dominio
+                    califica de firma y llevaba huérfano — se calculaba y ninguna
+                    pantalla lo dibujaba. Un día por columna, apilado con los
+                    colores del dato (los mismos puntos del hilo), y debajo LA
+                    REGLA: aquí hay una escala de verdad, que es donde los
+                    tokens la permiten. Un hueco en mitad de la tira es una
+                    cartera parada, y se ve antes de leer una sola línea. */}
+                <Pulso dias={pulso} today={today} />
+                <div className="actividad">
+                  {actividad.map((event) => {
+                    const kind = ACTIVITY_KINDS[event.kind];
+                    return (
+                      <button
+                        key={event.id}
+                        type="button"
+                        className="actividad-fila"
+                        onClick={() => open(event.clientId, kind.section)}
+                      >
+                        <span className="feed-dot" style={{ background: kind.color }} aria-hidden="true" />
+                        <span className="who">{event.clientName}</span>
+                        <span className="what">
+                          {event.title}
+                          {event.detail && <span className="detail"> · {event.detail}</span>}
+                        </span>
+                        {/* Con la ventana a dos semanas, el cuándo ya no se
+                            sobreentiende: cada fila lleva el suyo. */}
+                        <span className="cuando">{dayLabel(event.date, today)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </Panel>
         </aside>
+      </div>
+    </div>
+  );
+};
+
+/* El orden de apilado y los nombres del pulso. El orden es fijo para que dos
+   días con lo mismo se dibujen igual; los nombres existen porque «Fotos» ya es
+   plural y un pluralizador ingenuo escribiría «fotoss» en el título. */
+const ORDEN_PULSO = ['session', 'weight', 'photo', 'checkin'];
+const NOMBRES_PULSO = {
+  session: ['entreno', 'entrenos'],
+  weight: ['pesaje', 'pesajes'],
+  photo: ['fotos', 'fotos'],
+  checkin: ['check-in', 'check-ins'],
+};
+
+const tituloDeDia = (dia, today) => {
+  if (dia.count === 0) return `${dayLabel(dia.date, today)} · sin registros`;
+  const partes = ORDEN_PULSO.filter((k) => dia.kinds[k]).map(
+    (k) => `${dia.kinds[k]} ${NOMBRES_PULSO[k][dia.kinds[k] === 1 ? 0 : 1]}`
+  );
+  return `${dayLabel(dia.date, today)} · ${partes.join(', ')}`;
+};
+
+/**
+ * El pulso de la cartera: cuántos registros hubo cada día de la ventana.
+ *
+ * La columna es una PILA por tipo —entrenos, pesajes, fotos, check-ins— con los
+ * colores del dato, y el día sin nada deja una muesca a ras de suelo: el cero
+ * ocupa su sitio, como en las barras del `Sparkline`, porque una escala a la
+ * que le faltan las marcas vacías deja de ser una escala. El detalle de cada
+ * día va en su título; el «hoy» del pie lleva la brasa, que para eso está.
+ */
+const Pulso = ({ dias, today }) => {
+  const tope = Math.max(...dias.map((d) => d.count), 1);
+  const total = dias.reduce((n, d) => n + d.count, 0);
+  return (
+    <div
+      className="pulso"
+      role="img"
+      aria-label={`${total} ${total === 1 ? 'registro' : 'registros'} en las últimas dos semanas`}
+    >
+      <div className="pulso-dias">
+        {dias.map((dia) => (
+          <span key={dia.date} className="pulso-dia" title={tituloDeDia(dia, today)}>
+            {dia.count === 0 ? (
+              <span className="pulso-muesca" />
+            ) : (
+              <span className="pulso-pila" style={{ height: `${(dia.count / tope) * 100}%` }}>
+                {ORDEN_PULSO.filter((k) => dia.kinds[k]).map((k) => (
+                  <span
+                    key={k}
+                    className="pulso-tramo"
+                    style={{ flexGrow: dia.kinds[k], background: ACTIVITY_KINDS[k].color }}
+                  />
+                ))}
+              </span>
+            )}
+          </span>
+        ))}
+      </div>
+      <div className="pulso-eje" aria-hidden="true" />
+      <div className="pulso-pie" aria-hidden="true">
+        <span>hace dos semanas</span>
+        <span className="pulso-hoy">hoy</span>
       </div>
     </div>
   );

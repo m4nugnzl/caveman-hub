@@ -131,7 +131,7 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
           type="button"
           className="btn btn-plain btn-sm"
           onClick={() => onCreate(todayISO())}
-          title="Solo si tu cliente ha repetido este día dentro de la misma semana"
+          title="Solo si tu cliente ha repetido este día dentro del mismo microciclo"
         >
           <CalendarPlus size={14} /> Otra sesión
         </button>

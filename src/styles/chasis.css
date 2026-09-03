@@ -462,9 +462,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   gap: var(--s3) var(--s4); flex-wrap: wrap;
 }
 .cliente-cab-quien { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+/* El nombre es la portada del cliente: habla en la ancha, como todo titular
+   de pantalla (ver `.section-head h1` en tipografia.css). */
 .cliente-cab-nombre {
-  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720;
-  letter-spacing: -0.028em; line-height: var(--lh-tight);
+  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720;
+  letter-spacing: -0.015em; line-height: var(--lh-tight);
 }
 .cliente-cab-selector { display: none; }
 .cliente-cab-volver { display: none; }

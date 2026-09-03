@@ -637,7 +637,7 @@ export const Seguridad = ({ hallazgos = [], aviso = null, onAceptar, dias }) => 
                 <div className="grow" style={{ minWidth: 0 }}>
                   <div className="row gap-2 wrap" style={{ alignItems: 'baseline' }}>
                     <strong>{h.objeto}</strong>
-                    {h.nuevo && <span className="badge badge-info">Nuevo</span>}
+                    {h.nuevo && <span className="estado is-info">Nuevo</span>}
                   </div>
                   <p className="t-sm t-secondary">{h.detalle}</p>
                   {h.aceptado && (

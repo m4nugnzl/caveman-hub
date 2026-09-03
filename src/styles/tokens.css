@@ -37,7 +37,8 @@
    lienzo y 6,6:1 con el blanco encima. Aquí el acento TAMBIÉN es texto —la
    pestaña abierta, un enlace, la semana en curso— y por eso se descartó el azul
    de sistema de iOS (#007AFF), que se queda en 3,8:1 y no vale como texto. De
-   noche sube a #8B9BFF por el mismo motivo, al revés.
+   noche se corre a #5B8DF7 —más claro por el mismo motivo, al revés, y fuera
+   de la banda lavanda; el porqué está en el bloque del tema oscuro—.
 
    ── De dónde sale la paleta de datos ────────────────────────────────────────
    De los DISCOS. Rojo 25, azul 20, amarillo 15, verde 10, blanco 5: son los
@@ -123,6 +124,15 @@
      marketing, no de medida. */
   --edge: rgba(18, 24, 38, 0.09);
 
+  /* ── El canto de lo que se TOCA ──────────────────────────────────────────
+     Solo para controles: el borde del botón secundario, de los campos y de los
+     selects. Existe porque el canto de separar (`--hairline`/`--hairline-strong`)
+     está calibrado para filetes —no debe gritar— y un control lo necesita al
+     mínimo de WCAG (3:1) para leerse como algo pulsable. Subir los hairlines
+     habría engordado todos los separadores de la casa; esto solo afila lo que
+     se pulsa o se escribe. 3,35:1 sobre blanco y 3,13:1 sobre el lienzo. */
+  --edge-control: #848d9b;
+
   /* ── Texto ── */
   --text: #12151a;
   --text-secondary: #5b6270;
@@ -172,6 +182,16 @@
   --brasa-soft: rgba(196, 69, 46, 0.1);
   --brasa-on: #ffffff;
   --brasa-luz: rgba(214, 96, 60, 0.13);
+
+  /* ── LA LUZ ES HOY (piel «la lumbre», 3 sep 2026) ────────────────────────
+     La segunda luz de la casa, con otra fuente: no ambienta — SALE DEL ÚLTIMO
+     DATO. Es fría porque es de la señal, no de la brasa, y nace en la esquina
+     donde ese dato vive (una curva acaba abajo a la derecha). Dos reglas que
+     salieron de verla montada: se siente antes de verse (las intensidades se
+     rebajaron a la mitad al primer vistazo del dueño), y NUNCA se anima.
+     Sobre papel, alfa cero: una hoja impresa no lleva focos. */
+  --lumbre-dato: rgba(59, 73, 223, 0);
+  --lumbre-halo: rgba(59, 73, 223, 0);
 
   /* El AIRE: la iluminación de dos fuentes de la portada —una cálida que manda
      y una fría que rellena—, en versión de trabajo, sobre el lienzo del panel.
@@ -265,6 +285,12 @@
     'Segoe UI', Inter, Roboto, system-ui, sans-serif;
 
   --font-display: var(--font);
+
+  /* LA ANCHA: Archivo estirada a wdth 125 (ver el @font-face en `base.css`).
+     Es la voz de las CIFRAS y de la PORTADA de cada pantalla — y de nada más:
+     el dorsal y el rótulo de la máquina, no el cuerpo del manual. Cae a la
+     Archivo normal mientras carga o si falta el glifo. */
+  --font-ancha: 'Archivo Expanded', var(--font);
 
   /* Tercera voz, con un solo uso: los valores que se copian y pegan literalmente
      —una URL de webhook, un id, el nombre exacto de un evento—. Ahí la
@@ -486,8 +512,14 @@
      abre por los dos y no solo por uno porque aclarar la tarjeta hasta separarla
      sola la habría acercado al gris medio, y entonces el texto secundario pierde
      el contraste que sí tenía. */
-  --canvas: #0b0d10;
-  --canvas-alt: #111419;
+  /* Un punto más hondo desde la piel «la lumbre» (3 sep 2026): con luz dentro
+     de las tarjetas, el lienzo tiene que ceder oscuridad para que la luz tenga
+     de dónde salir. Baja solo la mesa; la hoja se queda, así que el escalón
+     mesa/hoja se abre (1,19→1,21:1, medido) y el aire de arriba pasa a verse
+     — cerca del negro las proporciones se mueven poco y la profundidad la dan
+     la luz y el aire, no el escalón. */
+  --canvas: #090b0e;
+  --canvas-alt: #0f1216;
   --surface: #1c2027;
   --surface-raised: #242932;
   --surface-sunken: #14171c;
@@ -504,18 +536,36 @@
      acompaña en vez de sostener él solo. */
   --edge: rgba(214, 224, 244, 0.14);
 
+  /* El canto de control, sobre hierro: 3,26:1 contra la tarjeta —que es el
+     fondo más claro sobre el que se posa un control— y 3,88:1 contra el
+     lienzo. Sólido y no alfa a propósito: un borde translúcido cambia de
+     contraste según lo que tenga debajo, y este existe para garantizar uno. */
+  --edge-control: #66707e;
+
   --text: #e9ecf2;
   --text-secondary: #a2a9b7;
   --text-tertiary: #7f8796;
   --text-inverse: #10131a;
 
-  /* La tiza, literal. Un botón primario sobre hierro es un rectángulo de tiza
-     con la letra en grafito: es el máximo contraste que la pantalla puede dar. */
-  --accent: #8b9bff;
-  --accent-hover: #a6b2ff;
-  --accent-soft: rgba(139, 155, 255, 0.14);
+  /* ── El acento de noche: COBALTO, no lavanda ─────────────────────────────
+     Fue #8B9BFF, un índigo aclarado que caía de lleno en la banda violeta — el
+     matiz en el que converge todo panel oscuro generado con IA. Se comprobó
+     con repfy.app delante (capturas/referencias/repfy): su morado y nuestro
+     lavanda, en una captura a distancia, eran la misma app. El azul se corre
+     hacia el cobalto: sigue siendo la señal fría del producto y deja de ser
+     el color de todo el mundo.
+
+     No baja hasta el cielo porque esa franja es de `--data-blue` (#59b4e6):
+     el acento queda más saturado y menos luminoso que la serie, para que una
+     raya de gráfica no se lea como un botón. Contrastes del nuevo valor:
+     6,1:1 como texto sobre el lienzo, 5,1:1 sobre la tarjeta y 6:1 con el
+     grafito de `accent-on` encima — todos por encima del 4,5:1 que exige
+     usarlo como texto (la pestaña abierta, un enlace). */
+  --accent: #5b8df7;
+  --accent-hover: #7da5f9;
+  --accent-soft: rgba(91, 141, 247, 0.14);
   --accent-on: #10131a;
-  --luz: rgba(139, 155, 255, 0.1);
+  --luz: rgba(91, 141, 247, 0.1);
 
   /* La brasa de la portada, literal: sobre la noche no hace falta oscurecerla
      (5,1:1 como texto sobre el lienzo). `--brasa-on` es hierro y no blanco: el
@@ -525,10 +575,15 @@
   --brasa-on: #1a1816;
   --brasa-luz: rgba(236, 106, 82, 0.15);
 
+  /* La luz del dato, de noche: apenas — se siente antes de verse. */
+  --lumbre-dato: rgba(111, 155, 238, 0.065);
+  --lumbre-halo: rgba(141, 179, 255, 0.14);
+
   /* El aire de la noche: apenas se distingue, y es justo lo que se pide de una
-     luz bien puesta (ver la portada). */
-  --brasa-aire: rgba(123, 137, 255, 0.05);
-  --acero-aire: rgba(111, 165, 238, 0.045);
+     luz bien puesta (ver la portada). Un punto arriba desde la piel «la
+     lumbre»: sobre el lienzo más hondo, el valor viejo desaparecía del todo. */
+  --brasa-aire: rgba(91, 141, 247, 0.065);
+  --acero-aire: rgba(111, 165, 238, 0.055);
 
   /* Los mismos discos, subidos de luz para mantener el contraste sobre hierro
      sin volverse fosforitos. */
@@ -556,8 +611,8 @@
   --negative-soft: rgba(236, 97, 86, 0.15);
   --warning: #f28d4a;
   --warning-soft: rgba(242, 141, 74, 0.16);
-  --info: #8b9bff;
-  --info-soft: rgba(139, 155, 255, 0.14);
+  --info: #5b8df7;
+  --info-soft: rgba(91, 141, 247, 0.14);
 
   --data-amber-soft: rgba(232, 188, 85, 0.16);
 

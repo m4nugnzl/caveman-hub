@@ -5,10 +5,12 @@ import { ChevronRight, Layers, Plus, Search, Send, UserPlus, X } from 'lucide-re
 import { useApp } from '@/context/AppContext';
 import { traeALaVista } from '@/lib/motion';
 import { buildPortfolio } from '@/domain/portfolio';
+import { semanaDeAhora } from '@/domain/week';
 import { memberName } from '@/domain/team';
 import { clientPath } from '@/routes';
-import { todayISO } from '@/lib/dates';
+import { localeNumber, todayISO } from '@/lib/dates';
 import { Avatar } from '@/components/ui/Avatar';
+import { Sparkline } from '@/components/ui/charts';
 import { BotonAccion, EmptyState, Notice, PageHead, Panel, SectionTitle } from '@/components/ui/primitives';
 /* Un bloque sin nada que enseñar se dice con `TarjetaVacia` en todo el producto;
    aquí era una frase gris dentro de un panel por lo demás vacío. */
@@ -18,59 +20,55 @@ import { NewClientForm } from './NewClientForm';
 import { inviteMessage, useInvite } from './useInvite';
 
 /**
- * Un cliente dentro de una tarea.
+ * La serie de pesajes de una persona, lista para la chispa de su fila: los
+ * últimos tres meses como números pelados. Doce semanas y no el histórico
+ * entero porque la chispa mide 90 px: más puntos ahí no son más información,
+ * son ruido de un píxel.
+ */
+const serieDePeso = (anthro) =>
+  (anthro?.history || [])
+    .filter((h) => h.date && Number.isFinite(Number(h.weight)))
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-12)
+    .map((h) => Number(h.weight));
+
+/** El último peso que se le conoce: la media de esta semana si existe, y si no
+    el último pesaje de la serie. */
+const pesoDe = (row, serie) => row.checkIn?.average ?? (serie.length ? serie[serie.length - 1] : null);
+
+/**
+ * Una persona de la plantilla: quién es, en qué semana va, su peso con la
+ * chispa de tres meses, y cuándo entrenó.
  *
- * ── Por qué una fila y no una ficha ─────────────────────────────────────────
- * La ficha del tablero contaba cuatro datos de cada cliente —entreno, peso,
- * check-in, cobro— porque el tablero no decía qué hacer y había que deducirlo
- * leyendo. Aquí el grupo YA dice qué hay que hacer, así que la fila solo tiene
- * que decir quién es y por qué está en esta lista. Cuatro cifras por persona,
- * repetidas en cinco grupos, serían la pantalla ilegible que había.
+ * ══ Por qué AHORA sí es una fila de libro y no una frase ════════════════════
+ *
+ * Hubo una versión con columnas fijas y fracasó: contra una cartera de verdad
+ * —media cartera recién dada de alta— las columnas salían llenas de rayas y de
+ * casillas grises que se leían como un esqueleto de carga. La lección quedó
+ * escrita: **la densidad solo es una virtud si el dato existe**. La respuesta
+ * de entonces fue retirar las columnas y dejar una frase.
+ *
+ * Pero la frase tenía el defecto contrario: el producto GUARDA la serie de
+ * pesos, la semana del bloque y el último entreno de cada persona, y la
+ * pantalla que se llama «Clientes» no enseñaba nada de eso — diez nombres con
+ * una línea gris debajo, con el mismo aire que una lista de contactos.
+ *
+ * La síntesis respeta la lección sin pagar su precio, con dos reglas:
+ *
+ *   1. LA COLUMNA EXISTE SI LA CARTERA PUEDE LLENARLA. Si nadie tiene un
+ *      programa, la columna de semana no se dibuja; si nadie se pesa, no hay
+ *      columna de peso. Una cartera nueva ve exactamente la lista limpia de
+ *      antes, y las columnas van apareciendo conforme la cartera vive.
+ *   2. LA CELDA VACÍA CALLA. Quien no tiene el dato no enseña una raya ni una
+ *      casilla gris: enseña nada, y su fila sigue diciendo lo suyo en la
+ *      frase. El esqueleto de carga era el dibujo del hueco, no el hueco.
  *
  * ── La fila entera abre al cliente ──────────────────────────────────────────
- * Con una capa de clic por debajo del contenido, no envolviendo todo en un
- * `<button>`: dentro hay una acción propia, y un botón dentro de otro es HTML
- * inválido y una trampa con el teclado.
+ * El clic va en la fila (`<tr>`) y el teclado en el nombre, que es un botón de
+ * verdad: así no hay botones anidados y la celda de la acción corta la
+ * propagación para que «Invitar» no abra la ficha.
  */
-/**
- * Lo poco que se sabe de alguien sin entrar en su ficha, y NADA cuando no se
- * sabe nada.
- *
- * ══ Por qué esto es una frase y no cuatro columnas ═════════════════════════
- *
- * Hubo una versión con columnas fijas —semana del bloque, la semana en siete
- * casillas, último entreno y peso, con su rótulo arriba—. Se probó contra la
- * cuenta de demostración, que está llena, y se veía bien. Contra una cartera de
- * verdad, no: media cartera son clientes recién dados de alta, sin programa, sin
- * pesajes y sin portal, así que las columnas salían llenas de rayas y de
- * casillas grises vacías —que además se leen como un esqueleto de carga— y la
- * lista pasó de tranquila a rota.
- *
- * La lección, escrita aquí para que no se repita: **la densidad solo es una
- * virtud si el dato existe**. Una columna reserva su hueco esté lleno o no; una
- * frase no aparece si no tiene nada que decir, y por eso el cliente nuevo se ve
- * exactamente igual de limpio que antes.
- *
- * Van dos hechos como mucho, y ninguno se repite de otro sitio: la semana del
- * bloque ya está al lado de su nombre en la barra lateral, y lo que le falta ya
- * lo dice su frase. Aquí solo cuándo entrenó por última vez y cuánto pesa.
- */
-const Nota = ({ row }) => {
-  const peso = row.checkIn?.average;
-  const dias = row.sinceTraining;
-
-  const partes = [
-    dias === 0 ? 'entrenó hoy' : dias === 1 ? 'entrenó ayer' : dias > 0 ? `entrenó hace ${dias} d` : null,
-    peso === null || peso === undefined
-      ? null
-      : `${peso.toLocaleString('es-ES', { maximumFractionDigits: 1 })} kg`,
-  ].filter(Boolean);
-
-  if (partes.length === 0) return null;
-  return <span className="fila-nota">{partes.join(' · ')}</span>;
-};
-
-const TaskRow = ({ row, trainer, onOpen, action }) => {
+const FilaCliente = ({ row, serie, semana, trainer, columnas, onOpen, action }) => {
   const { client } = row;
   /*
     El punto: «esto no puede esperar». Va en ámbar, con el resto del semáforo.
@@ -86,60 +84,108 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
     donde cabe decir qué es exactamente.
   */
   const espera = row.alerts.some((a) => a.severity === 'alta');
+  const peso = pesoDe(row, serie);
+  const dias = row.sinceTraining;
+  /* Cuando lleva demasiado sin entrenar, quien lo dice es la CELDA con su
+     tinta de aviso — la frase de la fila ya no lo repite (ver el filtro del
+     eco en la pantalla). El semáforo juzga; la columna solo mide. */
+  const tarde = row.alerts.some((a) => a.id === 'stale_training');
+  const conSub = Boolean(row.headline?.text || row.why || trainer !== null);
 
   return (
-    <div className="task-row">
-      <button
-        type="button"
-        className="task-hit"
-        onClick={onOpen}
-        aria-label={`Abrir la ficha de ${client.name}`}
-      />
-
-      <Avatar name={client.name} src={client.avatar} size="md" className="mark" />
-
-      <span className="who">
-        <span className="name">
-          {client.name}
-          {espera && <span className="task-wait" aria-hidden="true" />}
-        </span>
-        <span className="sub">
-          {/* El veredicto de la semana delante de todo: es lo único que el
-              entrenador quiere saber de cada persona de un vistazo. Lo demás
-              —lo que falta, quién la lleva— va detrás, en voz baja. */}
-          {row.headline?.text && (
-            <span className={`veredicto is-${row.headline.tone || 'neutral'}`}>{row.headline.text}</span>
+    <tr onClick={onOpen}>
+      <td>
+        {/* El flex va en un envoltorio y no en el `td`: una celda con
+            `display: flex` deja de ser celda y rompe el reparto de la tabla. */}
+        <span className="p-persona">
+        <Avatar name={client.name} src={client.avatar} size="md" className="p-cara" />
+        <span className="p-who">
+          <span className="p-name">
+            <button
+              type="button"
+              className="p-abrir"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen();
+              }}
+              aria-label={`Abrir la ficha de ${client.name}`}
+            >
+              {client.name}
+            </button>
+            {espera && <span className="task-wait" aria-hidden="true" />}
+          </span>
+          {conSub && (
+          <span className="p-sub">
+            {/* El veredicto de la semana delante de todo: es lo único que el
+                entrenador quiere saber de cada persona de un vistazo. Lo demás
+                —lo que falta, quién la lleva— va detrás, en voz baja. */}
+            {row.headline?.text && (
+              <span className={`veredicto is-${row.headline.tone || 'neutral'}`}>{row.headline.text}</span>
+            )}
+            {row.headline?.text && (row.why || trainer !== null) ? ' · ' : ''}
+            {[
+              row.why,
+              /* El entrenador responsable solo aparece si hay equipo: en un equipo
+                 de uno, escribir su propio nombre en cada fila es ruido. */
+              trainer !== null ? (trainer ? memberName(trainer) : 'sin asignar') : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
           )}
-          {row.headline?.text && (row.why || trainer !== null) ? ' · ' : ''}
-          {[
-            row.why,
-            /* El entrenador responsable solo aparece si hay equipo: en un equipo
-               de uno, escribir su propio nombre en cada fila es ruido. */
-            trainer !== null ? (trainer ? memberName(trainer) : 'sin asignar') : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
         </span>
-      </span>
+        </span>
+      </td>
 
-      <Nota row={row} />
-
-      {/* La acción que cierra ESTA tarea. Va por encima de la capa de clic, así
-          que pulsarla no abre al cliente. Botón y no chip: hace algo, no marca
-          dónde estás (la misma regla que en `TaskInbox` y `ReviewQueue`). */}
-      {action && (
-        <BotonAccion
-          className="btn btn-secondary btn-sm"
-          icon={action.icon}
-          onClick={action.onClick}
-          title={action.title}
-        >
-          {action.label}
-        </BotonAccion>
+      {columnas.semana && (
+        <td className="p-celda p-semana">{semana > 0 ? `S${semana}` : null}</td>
       )}
 
-      <ChevronRight size={15} className="chevron" aria-hidden="true" />
-    </div>
+      {columnas.peso && (
+        <td className="p-peso">
+          {/* La chispa lleva la MISMA tinta que «El cuerpo» en su resumen: es
+              la misma serie, dibujada pequeña. Con menos de dos pesajes no hay
+              forma que enseñar y la celda calla. */}
+          {serie.length >= 2 && (
+            <span className="p-chispa" aria-hidden="true">
+              <Sparkline points={serie} height={20} />
+            </span>
+          )}
+          {peso !== null && peso !== undefined && (
+            <span className="row-value p-kg">
+              {localeNumber(peso, { maximumFractionDigits: 1 })} kg
+            </span>
+          )}
+        </td>
+      )}
+
+      {columnas.entreno && (
+        <td className={`p-celda p-entreno${tarde ? ' is-tarde' : ''}`}>
+          {/* El verbo lo pone la cabecera de la columna; la celda solo dice
+              cuándo. */}
+          {dias === 0 ? 'hoy' : dias === 1 ? 'ayer' : dias > 0 ? `hace ${dias} d` : null}
+        </td>
+      )}
+
+      {/* La acción que cierra la tarea de ESTA fila corta la propagación: pedir
+          el enlace de alguien no es querer entrar en su ficha. Botón y no chip:
+          hace algo, no marca dónde estás. La flecha solo donde no hay botón —
+          es la señal de «se puede entrar», y el botón ya la da. */}
+      <td className="p-accion" onClick={(e) => e.stopPropagation()}>
+        {action ? (
+          <BotonAccion
+            className="btn btn-secondary btn-sm"
+            icon={action.icon}
+            onClick={action.onClick}
+            title={action.title}
+          >
+            {action.label}
+          </BotonAccion>
+        ) : (
+          <ChevronRight size={15} className="chevron" aria-hidden="true" />
+        )}
+      </td>
+    </tr>
   );
 };
 
@@ -225,6 +271,15 @@ export const ClientPortfolio = () => {
   /* Abrir un cliente es NAVEGAR, no cambiar de pestaña: queda en el historial, el
      botón atrás vuelve a la cartera y el enlace se puede compartir. */
   const open = (clientId) => navigate(clientPath(clientId, 'resumen'));
+
+  /* La serie de pesos de cada uno, calculada una vez por render y no una vez
+     por fila: la usan la chispa Y la decisión de si la columna existe. Vive
+     antes del retorno de la cartera vacía porque un hook no puede ser
+     condicional. */
+  const series = useMemo(
+    () => new Map(visible.map((r) => [r.client.id, serieDePeso(anthropometry[r.client.id])])),
+    [visible, anthropometry]
+  );
 
   /* La lógica de invitar vive en `useInvite`: la comparten esta pantalla y la
      ficha del cliente, y las tres cosas que hay que hacer bien —pedir el token,
@@ -329,6 +384,27 @@ export const ClientPortfolio = () => {
   /* Cuántos necesitan algo. Las TAREAS están en «Hoy»; aquí solo se dice cuánta
      gente tiene algo abierto, para no obligar a contar la lista. */
   const tareas = visible.filter((r) => r.alerts.length > 0).length;
+
+  /* La semana de cada uno, LA MISMA que pinta el riel de la barra lateral: la
+     de la relación (`semanaDeAhora`) y, si no hay fecha de alta que la dé, la
+     del programa. Calcularla de otra forma aquí pondría dos números distintos
+     a diez centímetros — que es justo lo que pasó, y esta línea es la cura. */
+  const semanaDe = (row) =>
+    semanaDeAhora({ startDate: row.client.startDate, today }) || row.weekNumber || null;
+
+  /* Qué columnas puede llenar ESTA cartera (la regla 1 de `FilaCliente`): las
+     que nadie puede llenar no se dibujan, y una cartera recién estrenada ve la
+     lista limpia de siempre. Se decide sobre lo VISIBLE: filtrar por un
+     entrenador cuyos clientes aún no arrancaron limpia también las columnas. */
+  const columnas = {
+    semana: visible.some((r) => semanaDe(r) > 0),
+    peso: visible.some((r) => {
+      const serie = series.get(r.client.id) || [];
+      return serie.length >= 2 || pesoDe(r, serie) != null;
+    }),
+    entreno: visible.some((r) => r.sinceTraining !== null),
+  };
+  const conCabecera = columnas.semana || columnas.peso || columnas.entreno;
 
   return (
     <div className="stack cascada">
@@ -514,39 +590,80 @@ export const ClientPortfolio = () => {
         su nombre dice: tus clientes, en orden de urgencia, con lo que le pasa a
         cada uno escrito al lado. Se busca a alguien y se entra.
       */}
-      {/* El ROSTER: una tarjeta corrida con una fila por persona, separadas por
-          filetes. Sueltas sobre el lienzo eran tiras flotando; juntas son la
-          plantilla del equipo, que es lo que esta pantalla es. */}
-      <div className="task-rows roster">
-        {visible.map((row) => {
-          /* Lo que le pasa a ESTA persona y no a media cartera. Si comparte la
-             carencia de arriba, la fila cuenta lo siguiente que tenga. */
-          const propias = carencia ? row.alerts.filter((a) => a.id !== carencia.id) : row.alerts;
-          /* Y el remedio va donde ocurre: quien no tiene acceso lleva su botón
-             de invitar en la fila, en lugar de una frase que no hace nada. */
-          const invitable = carencia?.id === 'no_account' && row.alerts.some((a) => a.id === 'no_account');
-          return (
-            <TaskRow
-              key={row.client.id}
-              row={{ ...row, alerts: propias, why: propias[0]?.label || 'Al día' }}
-              trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
-              onOpen={() => open(row.client.id)}
-              action={
-                invitable
-                  ? {
-                      icon: Send,
-                      /* El rótulo ya no cambia: el giro y el tic los pone
-                         `BotonAccion` en el hueco del icono, así que la fila no
-                         se mueve mientras el servidor contesta. */
-                      label: 'Invitar',
-                      title: `Copiar el enlace de acceso de ${row.client.name}`,
-                      onClick: () => invitar(row.client),
-                    }
-                  : null
-              }
-            />
-          );
-        })}
+      {/* LA PLANTILLA: la cartera como libro de registro. Una tabla de verdad
+          —cabecera troquelada, filetes, numerales tabulares— porque esto ES una
+          tabla: la señal de vida de cada persona en columnas que solo existen
+          si la cartera puede llenarlas (el porqué, en `FilaCliente`). */}
+      <div className="plantilla">
+        <table>
+          {conCabecera && (
+            <thead>
+              <tr>
+                <th scope="col">Cliente</th>
+                {columnas.semana && (
+                  <th scope="col" className="p-semana" title="La semana del programa en la que va">
+                    Semana
+                  </th>
+                )}
+                {columnas.peso && (
+                  <th scope="col" className="p-peso" title="Su serie de pesajes de los últimos tres meses">
+                    Peso
+                  </th>
+                )}
+                {columnas.entreno && (
+                  <th scope="col" className="p-entreno">
+                    Entrenó
+                  </th>
+                )}
+                <th scope="col" aria-label="Abrir o invitar" />
+              </tr>
+            </thead>
+          )}
+          <tbody>
+            {visible.map((row) => {
+              /* Lo que le pasa a ESTA persona y no a media cartera. Si comparte la
+                 carencia de arriba, la fila cuenta lo siguiente que tenga. */
+              const propias = carencia ? row.alerts.filter((a) => a.id !== carencia.id) : row.alerts;
+              /* «12 días sin entrenar» en la frase y «hace 12 d» en la celda es
+                 la misma cosa dicha dos veces a un palmo. Si la columna existe,
+                 la frase calla y el aviso lo da la celda con su tinta; la
+                 alerta SIGUE en `alerts` para el punto de espera. Y ojo: callar
+                 el eco no es estar «Al día» — eso solo se dice sin alertas. */
+              const sinEco = columnas.entreno ? propias.filter((a) => a.id !== 'stale_training') : propias;
+              /* Y el remedio va donde ocurre: quien no tiene acceso lleva su botón
+                 de invitar en la fila, en lugar de una frase que no hace nada. */
+              const invitable = carencia?.id === 'no_account' && row.alerts.some((a) => a.id === 'no_account');
+              return (
+                <FilaCliente
+                  key={row.client.id}
+                  row={{
+                    ...row,
+                    alerts: propias,
+                    why: sinEco[0]?.label || (propias.length === 0 ? 'Al día' : null),
+                  }}
+                  serie={series.get(row.client.id) || []}
+                  semana={semanaDe(row)}
+                  columnas={columnas}
+                  trainer={showTrainers ? memberById.get(row.client.assignedTo) : null}
+                  onOpen={() => open(row.client.id)}
+                  action={
+                    invitable
+                      ? {
+                          icon: Send,
+                          /* El rótulo ya no cambia: el giro y el tic los pone
+                             `BotonAccion` en el hueco del icono, así que la fila no
+                             se mueve mientras el servidor contesta. */
+                          label: 'Invitar',
+                          title: `Copiar el enlace de acceso de ${row.client.name}`,
+                          onClick: () => invitar(row.client),
+                        }
+                      : null
+                  }
+                />
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {visible.length === 0 && (

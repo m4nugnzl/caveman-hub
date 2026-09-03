@@ -97,7 +97,9 @@ export const HistorialPopup = ({ open, onClose, program, bloque, semanaEnCurso, 
                 </div>
                 <dl className="historial-cifras">
                   <div>
-                    <dt>series/{unidad.toLowerCase().slice(0, 3)}</dt>
+                    {/* «series/micro»: cortar por tres letras dejaba
+                        «series/mic», que no es palabra. */}
+                    <dt>series/micro</dt>
                     <dd>{r.series ?? '—'}</dd>
                   </div>
                   <div>

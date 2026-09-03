@@ -111,6 +111,56 @@ export const renameBlockIn = (program, blockId, name) => ({
 });
 
 /**
+ * QUITAR UN BLOQUE: se deshace la SEPARACIÓN, no el entrenamiento.
+ *
+ * ══ Por qué no borra semanas ═══════════════════════════════════════════════
+ * Un bloque no es un contenedor de datos: es un CORTE en la línea de semanas
+ * —«de aquí en adelante entrena otra cosa»—. Casi siempre se quita porque el
+ * corte cayó donde no tocaba: un «+ bloque» de más, un cambio de rutina que al
+ * final no fue tal. Llevarse por delante ocho semanas de entrenamientos
+ * registrados sería contestar a otra pregunta. Así que sus semanas pasan
+ * enteras al bloque de al lado —el de antes, o el de después si era el
+ * primero— y para borrar una semana ya está el borrado de semanas.
+ *
+ * ── La bitácora se junta con la de su destino ──────────────────────────────
+ * Lo apuntado es de esas semanas, que siguen ahí. Se mezcla por fecha y se
+ * recorta al mismo tope.
+ *
+ * ── Si el que se va era el abierto, el anterior se reabre ──────────────────
+ * Y suelta su copia congelada: la estructura viva del programa es la de las
+ * semanas que quedan, que son justo las del bloque quitado.
+ *
+ * Siempre queda al menos un bloque: con uno solo no hay corte que deshacer.
+ */
+export const deleteBlockFrom = (program, blockId) => {
+  const lista = blocksOf(program);
+  const i = lista.findIndex((b) => b.id === blockId);
+  if (lista.length < 2 || i === -1) return program;
+
+  const fuera = lista[i];
+  const abierto = fuera.toWeek === null || fuera.toWeek === undefined;
+  const resto = lista.filter((_, j) => j !== i);
+  /* Absorbe el de delante; si el que se va era el primero, el de detrás. */
+  const destino = i > 0 ? i - 1 : 0;
+
+  return {
+    ...program,
+    blocks: resto.map((b, j) => {
+      if (j !== destino) return b;
+      const log = [...(b.log || []), ...(fuera.log || [])]
+        .sort((a, z) => String(a.at || '').localeCompare(String(z.at || '')))
+        .slice(-MAX_BITACORA);
+      const juntos = log.length > 0 ? { log } : {};
+      if (i === 0) return { ...b, ...juntos, fromWeek: fuera.fromWeek };
+      if (!abierto) return { ...b, ...juntos, toWeek: fuera.toWeek };
+      /* Vuelve a ser el abierto: sin `toWeek` y sin estructura congelada. */
+      const { weeklySplit: _ws, mobilityDrills: _md, ...limpio } = b;
+      return { ...limpio, ...juntos, toWeek: null };
+    }),
+  };
+};
+
+/**
  * Los rangos, cuando las semanas se renumeran.
  *
  * Borrar una semana renumera las que vienen detrás (`removeMicrocycle`), y

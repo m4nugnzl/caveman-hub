@@ -7,9 +7,10 @@ import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
 import { checkinQuestions, clientProtocol } from '@/domain/protocol';
-import { readingHeadline, weeklyReading, weightTrend } from '@/domain/reading';
+import { readingHeadline, weeklyReading, weekSignals, weightTrend } from '@/domain/reading';
 import { effectiveGoal, phaseAt, phaseProgress } from '@/domain/roadmap';
 import {
+  afterLastClose,
   answerTrend,
   pendingReviews,
   planSnapshot,
@@ -142,6 +143,22 @@ const PanelCuerpo = lazyRoute(() => import('@/components/dashboard/PanelCuerpo')
  * pintarlo de gris con color sería afirmar algo que nadie ha calculado.
  */
 const TONO_BADGE = { good: 'badge-ok', warn: 'badge-warn', bad: 'badge-bad' };
+
+/**
+ * Un cambio del plan, dicho en corto para la línea de «tras tu último cierre»:
+ * «−150 kcal», «+2.000 pasos». Los que estrenan o pierden valor no tienen dos
+ * cifras que restar y se dicen con su nombre; el sufijo es la unidad, y si el
+ * campo no la tiene (los pasos), su propio nombre en voz baja.
+ */
+const cambioEnCorto = (c) => {
+  const sufijo = c.unit && c.unit.trim() ? c.unit : ` ${c.label.toLowerCase()}`;
+  if (c.from !== null && c.to !== null) {
+    const d = c.to - c.from;
+    return `${d > 0 ? '+' : '−'}${localeNumber(Math.abs(d))}${sufijo}`;
+  }
+  if (c.to === null) return `${c.label.toLowerCase()} fuera`;
+  return `${c.label.toLowerCase()}: ${localeNumber(c.to)}${c.unit || ''}`;
+};
 
 export const WeekReview = () => {
   const {
@@ -767,6 +784,21 @@ export const WeekReview = () => {
   );
   const textos = useMemo(() => preguntas.filter((q) => q.kind === 'text'), [preguntas]);
 
+  /*
+    ══ LO QUE PASÓ CON TU ÚLTIMO CAMBIO, y LAS SEÑALES ═══════════════════════
+
+    Las dos piezas que cierran el bucle, y ninguna receta nada (la doctrina está
+    en `domain/reading.js`): `afterLastClose` junta el diff del último cierre
+    —que `reviewHistory` ya calculaba— con la respuesta del peso desde entonces;
+    `weekSignals` reúne hasta tres hechos que cualifican al veredicto — la
+    racha contra el rumbo, la hoja sin entrenar, la escala que salta.
+  */
+  const tras = useMemo(() => afterLastClose({ rows: revisiones, timeline: linea }), [revisiones, linea]);
+  const senales = useMemo(
+    () => weekSignals({ goal, series: serie, tendencia, microcycles, semana }),
+    [goal, serie, tendencia, microcycles, semana]
+  );
+
   if (!activeClient) return null;
 
   if (semanas.length === 0) {
@@ -859,7 +891,9 @@ export const WeekReview = () => {
                   aria-current={p.client.id === activeClient.id ? 'page' : undefined}
                 >
                   <Avatar name={p.client.name} src={p.client.avatar} size="xs" />
-                  <span>{p.client.name.split(/s+/)[0]}</span>
+                  {/* `\s+`, no `s+`: sin la barra se partía por la LETRA ese y
+                      «Alex Vessel» salía como «Alex Ve» en la bandeja. */}
+                  <span>{p.client.name.split(/\s+/)[0]}</span>
                 </Link>
               </li>
             ))}
@@ -899,7 +933,9 @@ export const WeekReview = () => {
           <Tarjeta
             rotulo="Cómo va"
             span={12}
-            className="revision-hero"
+            /* `lumbre-dato`: la luz que sale del último dato, en el hero que
+               lee. Una por pantalla; de día no pinta nada (superficies.css). */
+            className="revision-hero lumbre-dato"
             accion={
               <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={() => setVentana('cuerpo')}>
                 Ver a fondo
@@ -930,6 +966,49 @@ export const WeekReview = () => {
                 )}
               </p>
               <p className="revision-hero-meta">{contexto}</p>
+
+              {/*
+                ══ LO QUE PASÓ CON LO QUE CAMBIASTE ══════════════════════════
+                El tramo del bucle que faltaba: el diff de tu último cierre y
+                la respuesta del peso desde entonces, un hecho al lado del
+                otro. Sin pesajes posteriores se dice — inventar un cero sería
+                afirmar que no se movió.
+              */}
+              {tras && (
+                <p className="revision-tras">
+                  Tras tu último cierre (
+                  {[
+                    ...tras.changes.map(cambioEnCorto),
+                    tras.otherCount > 0
+                      ? `${tras.otherCount} ${tras.otherCount === 1 ? 'cambio más' : 'cambios más'} en el plan`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                  ):{' '}
+                  {tras.delta === null ? (
+                    'aún sin pesajes desde entonces'
+                  ) : tras.delta === 0 ? (
+                    'el peso no se ha movido desde entonces'
+                  ) : (
+                    <b>{`${tras.delta > 0 ? '+' : '−'}${localeNumber(Math.abs(tras.delta))} kg desde entonces`}</b>
+                  )}
+                  .
+                </p>
+              )}
+
+              {/* Las señales: hasta tres hechos que cualifican al veredicto.
+                  Solo la racha lleva semáforo — se juzga contra el objetivo
+                  que puso el entrenador; el resto son datos sin juicio. */}
+              {senales.length > 0 && (
+                <p className="revision-senales">
+                  {senales.map((s) => (
+                    <span key={s.id} className={s.tone !== 'unknown' ? `is-${s.tone}` : undefined}>
+                      {s.text}
+                    </span>
+                  ))}
+                </p>
+              )}
             </div>
 
             {/*

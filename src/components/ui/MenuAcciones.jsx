@@ -34,7 +34,12 @@ export const MenuAcciones = ({ label = null, items, alineado = 'derecha', ariaLa
         className={clase || (label ? 'btn btn-secondary btn-sm' : 'btn btn-icon')}
         aria-haspopup="menu"
         aria-expanded={abierto}
-        aria-label={label || ariaLabel || 'Más acciones'}
+        /* `ariaLabel` MANDA sobre `label`: quien pasa los dos lo hace porque el
+           rótulo visible no se basta —«+ comida» frente a «Añadir comida», o un
+           rótulo que no es texto sino dos piezas («LUN · Push A»), que como
+           nombre accesible saldría convertido en un objeto—. Iba al revés y los
+           tres sitios que pasaban `ariaLabel` con `label` lo tenían ignorado. */
+        aria-label={ariaLabel || label || 'Más acciones'}
         onClick={() => setAbierto((v) => !v)}
       >
         {label ? (

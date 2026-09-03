@@ -725,6 +725,32 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── LO QUE PASÓ CON LO QUE CAMBIASTE ──────────────────────────────────────
+   El tramo del bucle que faltaba: el diff del último cierre y la respuesta del
+   peso, en una línea bajo la cifra. Un hecho al lado de otro hecho — la
+   conclusión es del entrenador. El delta hereda la voz de los datos (tabular);
+   el «desde entonces» va en secundaria porque ES la frase que se lee. */
+.revision-tras {
+  margin: 0; font-size: var(--fs-sm); color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.revision-tras > b { font-weight: 650; color: var(--text); }
+
+/* ── LAS SEÑALES: los hechos que cualifican al veredicto ───────────────────
+   Tres como mucho (`weekSignals`), separadas por punto medio. Solo la racha
+   lleva semáforo —se juzga contra el objetivo que puso el entrenador—; el
+   resto son hechos y van en tinta. */
+.revision-senales {
+  margin: 0; display: flex; flex-wrap: wrap; gap: 4px var(--s3);
+  font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
+}
+.revision-senales > span { color: var(--text-secondary); font-weight: 550; }
+.revision-senales > span.is-warn { color: var(--warning); }
+.revision-senales > span.is-bad { color: var(--negative); }
+.revision-senales > span:not(:first-child)::before {
+  content: '·'; margin-right: var(--s3); color: var(--text-tertiary); font-weight: 400;
+}
+
 /* ══ LA GRÁFICA — dos bandas sobre el mismo eje, y es el mando ═════════════
    Ver `review/ReviewChart.jsx`.
 
@@ -1012,8 +1038,8 @@
   font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
 .macro.is-mayor > .v {
-  font-family: var(--font-display);
-  font-size: var(--fs-xl); letter-spacing: -0.025em;
+  font-family: var(--font-ancha);
+  font-size: var(--fs-xl); letter-spacing: -0.015em;
 }
 .macro > .v > .u { font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); }
 /* El hueco del delta se reserva siempre: sin él, la fila de cifras baila media
@@ -1182,6 +1208,8 @@
 .hist-cabecera-say { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .hist-recorrido { display: flex; align-items: baseline; gap: var(--s2); }
 .hist-recorrido > .v {
+  /* Voz normal: es un recorrido de dos cifras con flecha, la misma bandada
+     que la proyección (ver `.desde-v`). */
   font-family: var(--font-display);
   font-size: var(--fs-xl); font-weight: 700; letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums; line-height: 1;
@@ -1326,8 +1354,8 @@
 }
 .cola-n {
   display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
-  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 720;
-  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
+  font-family: var(--font-ancha); font-size: var(--fs-2xl); font-weight: 720;
+  letter-spacing: -0.018em; line-height: 1; font-variant-numeric: tabular-nums;
 }
 .cola-n > small {
   font-family: var(--font); font-size: var(--fs-xs); font-weight: 500;
@@ -1366,6 +1394,28 @@
 .agenda-que > .title.is-hecho { text-decoration: line-through; color: var(--text-tertiary); }
 .agenda-que > .sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
+/* ══ EL PULSO: la cartera de un vistazo ════════════════════════════════════
+   El histograma de `activityScale`, la firma que el dominio calculaba y nadie
+   dibujaba. Catorce días, una columna por día apilada con los colores del dato
+   —los mismos puntos del hilo de abajo— y a ras de suelo, LA REGLA: es uno de
+   los tres sitios donde los tokens la permiten, porque aquí hay una escala de
+   verdad. El «hoy» del pie va en brasa: decir «estás aquí» es su único
+   trabajo. */
+.pulso { display: flex; flex-direction: column; gap: 3px; }
+.pulso-dias { display: flex; align-items: flex-end; gap: 3px; height: 44px; }
+.pulso-dia {
+  flex: 1; min-width: 0; height: 100%;
+  display: flex; flex-direction: column; justify-content: flex-end;
+}
+/* Extremo del dato redondeado, base cuadrada: la regla de todas las barras. */
+.pulso-pila { display: flex; flex-direction: column; border-radius: 2px 2px 0 0; overflow: hidden; }
+.pulso-tramo { min-height: 2px; }
+/* El día sin nada: el cero ocupa su sitio, como en las barras del Sparkline. */
+.pulso-muesca { height: 2px; border-radius: 1px; background: var(--fill-strong); }
+.pulso-eje { height: 5px; background: var(--rule); }
+.pulso-pie { display: flex; justify-content: space-between; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.pulso-pie > .pulso-hoy { color: var(--brasa); font-weight: 700; }
+
 /* Lo que ha pasado: filas cortas, sin tarjeta, el nombre y qué hizo. */
 .actividad { display: flex; flex-direction: column; }
 .actividad-fila {
@@ -1382,6 +1432,11 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .actividad-fila .detail { color: var(--text-tertiary); }
+/* El cuándo de cada fila: con la ventana a dos semanas ya no se sobreentiende. */
+.actividad-fila > .cuando {
+  margin-left: auto; flex-shrink: 0;
+  font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap;
+}
 
 /* ── Dentro de un cliente, el titular de cada pestaña baja de rango ─────────
    La cabecera del cliente ya dice quién y la pestaña ya dice qué; el «Resumen»
@@ -1458,6 +1513,7 @@
 .historial-nombre { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em; }
 .historial-recorrido { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
 .historial-recorrido > .v {
+  /* Voz normal: recorrido de dos cifras, misma bandada que `.hist-recorrido`. */
   font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720;
   letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums;
 }
@@ -1738,7 +1794,7 @@
 .menu-item.is-on { color: var(--text); }
 .comparativa-forma { display: flex; flex-direction: column; gap: 6px; }
 .comparativa-tope { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
-.comparativa-tope > .v { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums; }
+.comparativa-tope > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
 .comparativa-tope > .u { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .comparativa-tabla { display: flex; flex-direction: column; gap: 2px; }
 .comparativa-fila { display: grid; gap: 2px; align-items: center; }
@@ -1830,6 +1886,38 @@
    ══════════════════════════════════════════════════════════════════════════ */
 .btn-sm.btn-secondary, .btn-sm.btn-primary { height: 30px; padding: 0 12px; font-size: var(--fs-sm); font-weight: 600; border-radius: var(--r-pill); }
 .cliente-cab-acciones { gap: var(--s2); }
+
+/* ── Las dos acciones de la cabecera del cliente ────────────────────────────
+   «Ver como Javier» y «Revisar semana» eran dos cápsulas de 999 px con canto de
+   control, sueltas en una banda vacía y sin nada que las distinguiera entre sí
+   más que el texto. Y en esa MISMA fila todo lo demás —las semanas de la hoja,
+   el botón del «···»— va a `--r-md` con filete de pelo: eran las dos únicas
+   piezas de otra familia, y por eso se leían como pegadas.
+
+   Se igualan a la familia de la barra: el mismo alto, el mismo radio, el mismo
+   canto y la misma manera de encenderse al pasar por encima. La voz baja a
+   secundaria —son acciones de contexto, no la acción de la pantalla— y cada una
+   lleva su signo, que es lo que las vuelve reconocibles de un vistazo en vez de
+   dos rectángulos que hay que leer.
+
+   El primario NO se toca: cuando esa persona espera respuesta, «Revisar semana»
+   se rellena de azul y se sale de este tratamiento a propósito. Es la única
+   señal de la cabecera. */
+/* La FORMA es de las dos, y no cambia al encenderse una: cuando «Revisar
+   semana» pasa a primario solo cambia el relleno. Si el radio dependiera del
+   peso, la misma fila tendría una cápsula y un rectángulo según hubiera
+   entrega pendiente o no. */
+.cliente-cab-acciones > .btn {
+  height: 30px; padding: 0 11px; gap: 7px; border-radius: var(--r-md);
+}
+.cliente-cab-acciones > .btn.btn-secondary {
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  color: var(--text-secondary);
+}
+.cliente-cab-acciones > .btn.btn-secondary > svg { color: var(--text-tertiary); transition: color var(--fast); }
+.cliente-cab-acciones > .btn.btn-secondary:hover:not(:disabled) { background: var(--fill-subtle); color: var(--text); }
+.cliente-cab-acciones > .btn.btn-secondary:hover:not(:disabled) > svg { color: var(--text); }
+
 .menu-acciones { position: relative; }
 .menu-acciones .btn-icon { width: 30px; height: 30px; box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text-secondary); }
 .menu-acciones .btn-icon:hover { background: var(--fill-subtle); color: var(--text); }
@@ -1924,7 +2012,7 @@
 /* ── El panel de la semana ─────────────────────────────────────────────── */
 .semana-cifras { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
 .semana-cifra { display: flex; flex-direction: column; gap: 2px; }
-.semana-cifra > .v { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums; }
+.semana-cifra > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
 .semana-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
 .semana-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .semana-sesion { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken); }
@@ -1976,7 +2064,7 @@
 }
 .bloque-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
 .bloque-cifra { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--surface-sunken); }
-.bloque-cifra > .v { font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums; }
+.bloque-cifra > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
 .bloque-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
 .bloque-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .bloque-seccion { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
@@ -2032,6 +2120,27 @@
 .lado-titulo:hover:not(:disabled)::after { color: var(--text); }
 .lado-titulo:disabled { cursor: default; }
 .lado-titulo:disabled::after { content: ''; }
+/* El mismo título cuando NO es una puerta: dato, no botón, y sin la flecha. */
+.lado-titulo.is-texto { cursor: default; }
+.lado-titulo.is-texto::after { content: ''; }
+
+/* ── La progresión del bloque: lo que lleva semanas clavado ────────────────
+   Filas de nombre y estado, en la voz baja del costado. «A la baja» va en
+   ámbar y no en rojo: es una señal para el microciclo siguiente, no un
+   vencimiento. */
+.progresion-quietos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.progresion-quietos > li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2);
+  padding: 5px 0; border-top: 1px solid var(--hairline); min-width: 0;
+}
+.progresion-quietos > li:first-child { border-top: 0; }
+.progresion-quietos .n {
+  font-size: var(--fs-sm); font-weight: 550; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.progresion-quietos .d { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.progresion-quietos .d.is-baja { color: var(--warning); font-weight: 600; }
+.progresion-quietos .progresion-mas { color: var(--text-tertiary); font-size: var(--fs-2xs); justify-content: flex-start; }
 .lado-paso { display: inline-flex; gap: 1px; flex-shrink: 0; }
 .lado-paso .btn-icon { color: var(--text-tertiary); }
 .sensaciones-notas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }
@@ -2136,7 +2245,13 @@
 }
 .comida { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
 .comida + .comida { padding-top: var(--s5); border-top: 1px solid var(--hairline); }
-.comida-cab { display: flex; align-items: baseline; gap: var(--s2); min-height: 26px; flex-wrap: wrap; }
+/* La cabecera de la comida con filete FUERTE debajo, como el rótulo de una
+   hoja de Entreno (`.plan-col-cab`): la comida es una sección de la hoja, y
+   se le nota — es la otra mitad de C-03. */
+.comida-cab {
+  display: flex; align-items: baseline; gap: var(--s2); min-height: 26px; flex-wrap: wrap;
+  padding-bottom: var(--s2); border-bottom: 1px solid var(--hairline-strong);
+}
 .comida-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); width: 16px; }
 .comida-nombre { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em; min-width: 0; }
 .comida-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
@@ -2184,6 +2299,7 @@
 
 /* La suma: lo puesto y lo pedido, en el color de si cuadra. */
 .food-row.is-suma { background: transparent; box-shadow: inset 0 1px 0 var(--hairline-strong); border-radius: 0; margin-top: 2px; }
+.food-row.is-suma:hover { background: transparent; }
 .food-row.is-suma > .name > .txt { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0; color: var(--text-tertiary); }
 .food-row.is-suma > .n, .food-row.is-suma > .kcal { font-weight: 700; color: var(--text); }
 .food-row.is-suma small { font-size: var(--fs-2xs); font-weight: 550; color: var(--text-tertiary); }
@@ -2279,6 +2395,35 @@
 .dia-resumen-rotulo { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .dia-resumen-sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .dia-resumen-mas.cab-accion { padding: 0; font-size: var(--fs-xs); }
+
+/* ══ Y PEGAJOSO mientras se cuadra ═════════════════════════════════════════
+   Cuadrar se hace abajo —tecleando gramos en la comida 3— y el efecto de cada
+   cambio se lee aquí: el resumen se queda pegado bajo la cabecera mientras la
+   hoja está a la vista. Al pegarse (`is-pegada`, la pone el centinela de
+   `DiaResumen`) se comprime a UNA línea: fuera el rótulo y las lecturas,
+   cifras más cortas, y sombra para despegarse de lo que pasa por debajo.
+   El fondo pasa a superficie plena: el hundido es translúcido respecto a la
+   hoja y pegado dejaría leerse las filas a través. */
+.dia-resumen {
+  position: sticky; top: calc(var(--header-h) + var(--s2)); z-index: 5;
+}
+.dia-resumen.is-pegada {
+  background: var(--surface);
+  box-shadow: var(--shadow-md), inset 0 0 0 1px var(--edge);
+  gap: 0; padding-top: var(--s2); padding-bottom: var(--s2);
+}
+.dia-resumen.is-pegada .dia-resumen-cab { display: none; }
+.dia-resumen.is-pegada .medidores { display: flex; align-items: baseline; gap: var(--s5); }
+.dia-resumen.is-pegada .medidor { flex-direction: row; align-items: baseline; gap: var(--s2); }
+.dia-resumen.is-pegada .medidor > .lectura { display: none; }
+.dia-resumen.is-pegada .medidor > .v > b { font-size: var(--fs-md); }
+.dia-resumen.is-pegada .medidor.is-total { padding-right: var(--s5); border-right: 1px solid var(--hairline); padding-bottom: 0; border-bottom: 0; }
+.dia-centinela { display: block; height: 1px; margin-top: -1px; visibility: hidden; }
+/* En el teléfono no se pega: la cabecera fija no existe igual y media pantalla
+   de resumen encima del pulgar es peor que subir a mirar. */
+@media (max-width: 1023.98px) {
+  .dia-resumen { position: static; }
+}
 
 /* ══ EL PLAN DEL DÍA, tercera vuelta: una tabla, todo alineado ════════════ */
 .plan-dia-tabla { overflow-x: visible; gap: 2px; }
@@ -2742,8 +2887,27 @@
   .resumen-pagina > .mando { display: none; }
 }
 
-/* ══ DESDE QUE EMPEZÓ: cuatro cifras, la historia contada ═════════════════ */
-.desde { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); flex: 1; }
+/* ══ DESDE QUE EMPEZÓ: cuatro cifras, la historia contada ═════════════════
+   Esta tarjeta ocupa un tercio al lado de «Cómo va», que ocupa dos y es MUCHO
+   más alta —lleva una curva—; el mosaico iguala las alturas de la fila, así que
+   aquí siempre sobra alto.
+
+   Estuvo centrado (`align-content: center`) por un motivo que ya no existe: las
+   cifras eran cuatro cajas hundidas, y estiradas se volvían cuatro losas
+   enormes con un número perdido dentro. Desde que las cajas se fueron —ver
+   TRES SUPERFICIES en `piezas.css`— lo que estira son celdas transparentes
+   separadas por filete, y centrarlas era justo lo que se veía mal: un bloque
+   pequeño flotando en medio de una tarjeta grande, con un agujero arriba y otro
+   abajo.
+
+   Estirado, ese mismo alto se reparte entre las dos filas y las cuatro cifras
+   quedan en cuatro CUADRANTES que llenan la tarjeta. El aire deja de ser un
+   hueco y pasa a ser la separación entre cuatro medidas. */
+.desde {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2); flex: 1; align-content: stretch;
+}
 /* Cuatro cifras en línea cuando la tarjeta ocupa la fila entera; dos por dos
    cuando ocupa un tercio. 520 es lo que miden cuatro casillas sin que «desde el
    18 may» tenga que recortarse con puntos suspensivos. */
@@ -2756,6 +2920,10 @@
   display: flex; flex-direction: column; justify-content: center; gap: 3px; min-width: 0;
   padding: var(--s3) var(--s3); border-radius: var(--r-md); background: var(--surface-sunken);
 }
+/* En la voz NORMAL a propósito, y no en la ancha: aquí las cifras van en
+   bandada —cuatro baldosas juntas— y los dígitos expandidos, con las
+   diagonales largas del 7 y del 4, amontonados parecen inclinados. La ancha
+   es para la cifra héroe que va sola; la bandada baja la voz. */
 .desde-v {
   font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 700;
   letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap;
@@ -2906,8 +3074,8 @@
 .comova-lectura { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
 .trayecto { min-width: 0; margin: 0; }
 .comova-cifra {
-  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 680;
-  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
+  font-family: var(--font-ancha); font-size: var(--fs-2xl); font-weight: 680;
+  letter-spacing: -0.018em; line-height: 1; font-variant-numeric: tabular-nums;
 }
 .comova-cifra > small { font-family: var(--font); font-size: var(--fs-sm); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
 /* Sin tendencia todavía: la cifra existe como hueco y se apaga, para que se vea
@@ -2915,10 +3083,19 @@
 .comova-cifra.is-muda { color: var(--text-tertiary); }
 
 /* El juicio: la frase con su marca. El color va aquí y en la aguja del medidor
-   —son las dos cosas que juzgan— y no en la cifra, que es del peso. */
-.comova-juicio { display: flex; align-items: flex-start; gap: var(--s2); margin: 0; min-width: 0; }
-.comova-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.comova-say > strong { font-size: var(--fs-base); font-weight: 650; line-height: 1.35; }
+   —son las dos cosas que juzgan— y no en la cifra, que es del peso.
+
+   ── En UNA línea, no en párrafo ──────────────────────────────────────────
+   Era título en cuerpo de texto y detalle debajo: tres renglones de prosa en
+   el hero («ocupa demasiado, mucho texto» — dicho con la captura delante).
+   Ahora veredicto y detalle van seguidos en la misma línea —el veredicto en
+   su tinta de semáforo, el detalle en voz baja— y envuelven solo si no caben. */
+.comova-juicio { display: flex; align-items: center; gap: var(--s2); margin: 0; min-width: 0; }
+.comova-say { display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s3); min-width: 0; }
+.comova-say > strong { font-size: var(--fs-sm); font-weight: 700; line-height: 1.35; }
+.comova-juicio.is-good .comova-say > strong { color: var(--positive); }
+.comova-juicio.is-warn .comova-say > strong { color: var(--warning); }
+.comova-juicio.is-bad .comova-say > strong { color: var(--negative); }
 .comova-marca {
   flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -2927,7 +3104,7 @@
 .comova-juicio.is-good > .comova-marca { background: var(--positive-soft); color: var(--positive); }
 .comova-juicio.is-warn > .comova-marca { background: var(--warning-soft); color: var(--warning); }
 .comova-juicio.is-bad > .comova-marca { background: var(--negative-soft); color: var(--negative); }
-.comova-detalle { font-size: var(--fs-sm); color: var(--text-secondary); line-height: 1.55; max-width: 78ch; }
+.comova-detalle { font-size: var(--fs-sm); color: var(--text-tertiary); line-height: 1.5; max-width: 78ch; }
 
 /* La fase, al pie y detrás de un filete: es el criterio con el que se juzga todo
    lo de arriba, no un dato más. */
@@ -2946,9 +3123,15 @@
    una flecha entre ellos. Sustituye a un medidor que enseñaba el ritmo semanal
    por cuarta vez en la misma tarjeta: el ritmo ya lo sabes mirando la báscula
    dos veces, y lo que no se puede calcular de cabeza es el final. */
+/* UNA línea, sin excepción. Con `wrap`, el tercer hito —cuyo pie «en 4
+   semanas, si sigue así» es el más ancho— se bajaba a una segunda línea en la
+   columna de 280 px, la tarjeta crecía, y el mosaico estiraba con ella a sus
+   dos vecinas: «Desde que empezó» y «Lo último» quedaban enormes y huecas por
+   culpa de este salto. Los hitos tienen `min-width: 0`, así que lo que cede
+   al apretarse es el PIE (envuelve dentro de su columna), nunca la cifra. */
 .proyeccion {
   list-style: none; margin: 0; padding: 0;
-  display: flex; align-items: flex-start; gap: var(--s5); flex-wrap: wrap;
+  display: flex; align-items: flex-start; gap: var(--s5); flex-wrap: nowrap;
 }
 /* ── La trayectoria dibujada (`Trayectoria.jsx`) ──────────────────────────
    Lo sólido es lo pesado; lo punteado, adonde va; la marca, el objetivo. */
@@ -2972,22 +3155,36 @@
   transform: translateX(-50%);
   color: var(--text-tertiary); font-size: var(--fs-sm);
 }
+/* ── UN héroe, no tres (piel «la lumbre», 3 sep 2026) ─────────────────────
+   Los tres pesos iban a la misma voz (30 px) y la jerarquía la ponía solo la
+   tinta — y en la captura real se leía como tres cifras iguales compitiendo.
+   El prototipo aprobado lo resuelve por TAMAÑO: «hoy» es el único héroe, en
+   la ancha; el de partida es memoria y va en voz baja; el proyectado es la
+   cuenta y habla en acento. La fila se alinea por la BASE de las cifras, que
+   es como se leen tres números de cuerpos distintos. */
+.proyeccion { align-items: baseline; }
 .proyeccion-v {
-  font-family: var(--font-display); font-size: var(--fs-2xl); font-weight: 680;
-  letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 650;
+  letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
 }
-/* Hoy es el único que lleva la tinta del peso: los otros dos son una fecha
-   pasada y una cuenta, no una medida. */
-.proyeccion-hito.is-hoy > .proyeccion-v { color: var(--text); }
+.proyeccion-hito.is-hoy > .proyeccion-v {
+  font-family: var(--font-ancha); font-size: var(--fs-2xl); font-weight: 780;
+  letter-spacing: -0.025em; color: var(--text);
+}
+/* El proyectado es a donde VA: la señal, no un recuerdo. */
+.proyeccion-hito:last-child > .proyeccion-v { color: var(--accent); font-weight: 700; }
 .proyeccion-k { font-size: var(--fs-xs); color: var(--text-tertiary); }
+/* La flecha, a la altura de las cifras también con cuerpos distintos: se
+   ancla por abajo (el pie de cada hito mide lo mismo), no por arriba. */
+.proyeccion-hito + .proyeccion-hito::before { top: auto; bottom: 22px; }
 
 /* ══ PESO ═════════════════════════════════════════════════════════════════ */
 .peso-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
 .peso-say { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .peso-cifra {
-  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 680;
-  letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums;
+  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 680;
+  letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums;
 }
 .peso-cifra > small { font-family: var(--font); font-size: var(--fs-sm); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
 /* Cuántos pesajes lleva: dice si el promedio es de fiar, no cómo va nadie. */

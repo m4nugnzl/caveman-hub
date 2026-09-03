@@ -629,8 +629,8 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 }
 .plan-count-row { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .plan-count {
-  font-family: var(--font-display); font-size: var(--fs-2xl);
-  font-weight: 700; line-height: 1; letter-spacing: -0.03em;
+  font-family: var(--font-ancha); font-size: var(--fs-2xl);
+  font-weight: 700; line-height: 1; letter-spacing: -0.018em;
 }
 .plan-count-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 

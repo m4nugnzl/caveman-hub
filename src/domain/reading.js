@@ -45,7 +45,8 @@ import { round } from '@/lib/num';
 import { linearTrend, metricPoints, weekAdherence } from './analytics';
 import { RATE_VERDICTS, directionById, rateVerdict, targetRateKg } from './goals';
 import { effectiveGoal } from './roadmap';
-import { exerciseNames, exerciseProgression } from './training';
+import { exerciseNames, exerciseProgression, findMicrocycle } from './training';
+import { executedSessions, sessionSetCount } from './sessions';
 import { weekEntries } from './anthropometry';
 
 /**
@@ -393,6 +394,103 @@ export const weeklyReading = ({
   }
 
   return findings;
+};
+
+/**
+ * SEÑALES DE LA SEMANA: los hechos que cualifican al veredicto, en una tira.
+ *
+ * ══ Señales, no recetas ═════════════════════════════════════════════════════
+ *
+ * El veredicto dice «fuera de rumbo» y se queda ahí; los hechos que lo rodean
+ * —cuántas semanas lleva así, qué escala se ha disparado, qué parte del plan no
+ * está tocando— había que pescarlos por tres bloques. Aquí se juntan los que la
+ * aplicación ya sabe, y NINGUNO dice qué hacer con él: la misma doctrina que
+ * `weeklyReading` («la decisión es de quien cobra por tomarla»).
+ *
+ * Tres como mucho, y solo cuando los hay: una tira de señales que siempre está
+ * llena deja de ser una tira de señales.
+ *
+ *   1. LA RACHA — semanas seguidas moviéndose contra el objetivo declarado. Se
+ *      juzga (semáforo) porque el objetivo lo puso el entrenador: la señal solo
+ *      dice que lleva N semanas pasando.
+ *   2. LO QUE NO ENTRENA — una hoja del plan sin ejecutar dos o más semanas.
+ *   3. LA ESCALA QUE SALTA — una respuesta que se movió dos o más puntos de
+ *      golpe. Sin color: la app no sabe si más hambre es mala noticia o señal
+ *      de que el déficit por fin muerde. Lo sabe quien la lee.
+ *
+ * @param goal        `effectiveGoal(...)` — o null, y la racha calla.
+ * @param series      `buildWeeklySeries` — de donde salen los pesos semanales.
+ * @param tendencia   `answerTrend(...)` — las escalas con su delta.
+ * @param microcycles los microciclos del programa.
+ * @param semana      la semana de programa que se está revisando.
+ */
+export const weekSignals = ({
+  goal = null,
+  series = [],
+  tendencia = [],
+  microcycles = [],
+  semana = null,
+} = {}) => {
+  const out = [];
+
+  // ── 1 · La racha contra el rumbo ─────────────────────────────────────────
+  const sign = goal ? directionById(goal.direction)?.sign : null;
+  if (sign) {
+    const pesos = metricPoints(series, 'weight').map((p) => p.value);
+    let racha = 0;
+    for (let i = pesos.length - 1; i > 0; i -= 1) {
+      const delta = pesos[i] - pesos[i - 1];
+      /* Contra el objetivo es moverse en el sentido CONTRARIO al declarado; una
+         semana plana corta la racha sin abrir otra. */
+      if (delta * sign < 0) racha += 1;
+      else break;
+    }
+    if (racha >= 2) {
+      out.push({
+        id: 'racha',
+        tone: racha >= 3 ? 'bad' : 'warn',
+        text: `${racha} semanas seguidas ${sign < 0 ? 'subiendo' : 'bajando'} de peso`,
+      });
+    }
+  }
+
+  // ── 2 · La hoja que no entrena ───────────────────────────────────────────
+  const micro = Number.isFinite(semana) ? findMicrocycle(microcycles, semana) : null;
+  for (const day of micro?.days || []) {
+    let sinEntrenar = 0;
+    for (let w = semana; w >= 1; w -= 1) {
+      const m = findMicrocycle(microcycles, w);
+      /* Una semana donde esa hoja no existía no cuenta ni corta: no se le puede
+         reprochar no entrenar lo que no estaba en el plan. */
+      if (!m || !(m.days || []).some((d) => d.dayName === day.dayName)) continue;
+      const hecho = executedSessions(m).some(
+        (s) => s.dayName === day.dayName && sessionSetCount(s) > 0
+      );
+      if (hecho) break;
+      sinEntrenar += 1;
+    }
+    if (sinEntrenar >= 2) {
+      out.push({
+        id: `sin-entrenar-${day.dayName}`,
+        tone: 'warn',
+        text: `${sinEntrenar} semanas sin entrenar ${day.dayName}`,
+      });
+    }
+  }
+
+  // ── 3 · La escala que salta ──────────────────────────────────────────────
+  for (const fila of tendencia) {
+    if (fila.delta !== null && Math.abs(fila.delta) >= 2) {
+      out.push({
+        id: `escala-${fila.id}`,
+        tone: 'unknown',
+        text: `${fila.label} ${fila.value}/${fila.max}, ${fila.delta > 0 ? '+' : '−'}${Math.abs(fila.delta)} esta semana`,
+      });
+    }
+  }
+
+  /* Las más graves delante, y nunca más de tres: la cuarta señal ya no señala. */
+  return out.sort((a, b) => TONE_RANK[a.tone] - TONE_RANK[b.tone]).slice(0, 3);
 };
 
 /** Orden de gravedad, para poner delante lo que hay que mirar. */

@@ -144,14 +144,21 @@
   padding-bottom: var(--s4);
   border-bottom: 1px solid var(--hairline);
 }
+/* La portada habla en LA ANCHA: el titular de pantalla es el dorsal de la
+   jornada — «Buenas noches», «Clientes», el nombre del cliente — y es junto a
+   las cifras el único sitio donde la expandida tiene permiso. El apretado
+   baja con el cambio de anchura (ver la escala de la cifra en `base.css`). */
 .section-head h1, .section-head h2 {
-  font-family: var(--font-display); font-size: var(--fs-2xl);
-  font-weight: 720; letter-spacing: -0.028em; line-height: var(--lh-tight);
+  font-family: var(--font-ancha); font-size: var(--fs-2xl);
+  font-weight: 740; letter-spacing: -0.016em; line-height: var(--lh-tight);
 }
 /* El remate: cursiva de verdad (fuente, no sesgo sintético) y tinta
-   secundaria. Para la parte humana del título, no para un segundo título. */
+   secundaria. Para la parte humana del título, no para un segundo título.
+   VUELVE a la Archivo normal a propósito: la expandida no tiene cursiva en
+   casa y el navegador la sesgaría con matriz — y además el par
+   ancha-romana / estrecha-cursiva es justo el contraste que remata. */
 .section-head h1 em, .section-head h2 em {
-  font-style: italic; font-weight: 560;
+  font-family: var(--font); font-style: italic; font-weight: 560;
   color: var(--text-secondary); letter-spacing: -0.012em;
 }
 .section-head p { font-size: var(--fs-sm); color: var(--text-secondary); }
