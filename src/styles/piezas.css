@@ -408,6 +408,10 @@
 /* La pastilla del bloque abierto es la única que no se pulsa para ir a ningún
    sitio: ya estás en ella. */
 .hoja-semana.is-on { cursor: default; }
+/* Lo entrenado lo dice la CIFRA en verde, no la palabra: con ocho microciclos
+   hechos, «entrenado» salía siete veces seguidas y partía la fila en dos
+   renglones. Es el mismo verde con el que la hoja de series dice «hecha». */
+.linea .hoja-semana.is-hecha .hoja-semana-n { color: var(--positive); }
 /* Renombrar el bloque ocupa el sitio de su pastilla, y con su misma altura. */
 .linea-fila .renombrar-input { height: 30px; }
 

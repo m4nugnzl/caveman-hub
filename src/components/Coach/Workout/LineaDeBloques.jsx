@@ -263,19 +263,26 @@ export const LineaDeBloques = ({
                 aria-selected={false}
                 className={`hoja-semana${estado}`}
                 onClick={() => onIrSemana(w)}
-                title={`Abrir ${unidad} ${n}${iso ? ` · empieza el ${shortDate(iso)}` : ''}`}
+                title={`Abrir ${unidad} ${n}${iso ? ` · empieza el ${shortDate(iso)}` : ''}${
+                  w === semanaEnCurso ? ' · en curso' : hecha ? ' · entrenado' : ' · por hacer'
+                }`}
               >
+                {/*
+                  La palabra, SOLO en el que está en curso.
+
+                  Con ocho microciclos entrenados la fila decía «entrenado»
+                  siete veces seguidas y saltaba a dos renglones: siete
+                  repeticiones de la misma palabra no cuentan siete cosas,
+                  cuentan una y la ocupan siete veces. Lo entrenado lo dice la
+                  cifra en verde —el mismo verde con el que esta casa dice
+                  «hecho» en la hoja de series— y la palabra se guarda para el
+                  único que necesita nombrarse.
+                */}
                 <span className="hoja-semana-n">
                   {inicial}
                   {n}
                 </span>
-                {w === semanaEnCurso ? (
-                  <span className="hoja-semana-estado">en curso</span>
-                ) : hecha ? (
-                  <span className="hoja-semana-estado">entrenado</span>
-                ) : iso ? (
-                  <span className="hoja-semana-estado">{shortDate(iso)}</span>
-                ) : null}
+                {w === semanaEnCurso && <span className="hoja-semana-estado">en curso</span>}
               </button>
             );
           })}
