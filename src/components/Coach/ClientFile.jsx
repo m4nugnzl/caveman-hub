@@ -1252,7 +1252,7 @@ const Alta = ({ client, estado, intake, steps, progress, carpeta, onProbar, onUp
  * tacto; otra voz.
  */
 const CeldaPulso = ({ rotulo, valor, frase, tono, children, onClick }) => (
-  <button type="button" className="pulso-celda" onClick={onClick}>
+  <button type="button" className="ficha-pulso-celda" onClick={onClick}>
     <span className="k">{rotulo}</span>
     <span className="v">{valor}</span>
     {children}
@@ -1381,14 +1381,16 @@ export const ClientFile = () => {
         arreglar.
 
         Como banda son cuatro datos que se leen de un vistazo, no caen nunca al
-        fondo, y cada uno abre por el canto derecho la hoja donde se toca. La
-        hoja lateral no tapa: el pulso sigue delante mientras se edita.
+        fondo, y cada uno abre la hoja donde se toca. Esa hoja entraba por el
+        canto derecho «para no tapar el pulso», y era un argumento falso: detrás
+        no hay nada que comparar mientras se escribe un importe. Ahora se abre
+        CENTRADA, como todo lo que se decide (ver «LAS HOJAS» más abajo).
 
         Las celdas que no existen no se pintan: sin pasos de alta no hay alta que
         seguir, y sin Drive conectado no hay carpeta. La banda es lo que esta
         asesoría tiene, no una plantilla con huecos.
       */}
-      <div className="pulso">
+      <div className="ficha-pulso">
         {pasosDelAlta.length > 0 && (
           <CeldaPulso
             rotulo="Alta"

@@ -1512,33 +1512,19 @@
 /* El ejercicio en foco: un canto de brasa a la izquierda, nada más. */
 .exercise.is-focused { box-shadow: inset 3px 0 0 var(--accent); }
 
-/* El histórico: sin tarjeta, sobre el lienzo, como lo que se consulta. */
-.historial {
-  display: flex; flex-direction: column; gap: var(--s3);
-  position: sticky; top: var(--s5);
-  padding: var(--s4); border-radius: var(--r-lg);
-  background: var(--surface-sunken); border: 1px solid var(--edge);
-}
-.historial-head { display: flex; flex-direction: column; gap: 4px; }
-.historial-nombre { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em; }
-.historial-recorrido { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
-.historial-recorrido > .v {
-  /* Voz normal: recorrido de dos cifras, misma bandada que `.hist-recorrido`. */
-  font-family: var(--font-display); font-size: var(--fs-xl); font-weight: 720;
-  letter-spacing: -0.028em; line-height: 1; font-variant-numeric: tabular-nums;
-}
-.historial-recorrido > .v > .a { color: var(--text-tertiary); font-weight: 500; margin: 0 4px; }
-.historial-recorrido > .u { font-size: var(--fs-sm); color: var(--text-secondary); font-weight: 500; }
-.historial-forma { height: 44px; }
-.historial-semanas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.historial-semanas > li {
-  display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: var(--s2);
-  padding: 6px 0; border-top: 1px solid var(--hairline);
-  font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
-}
-.historial-semanas > li > .s { font-family: var(--font-display); font-weight: 700; color: var(--text-tertiary); }
-.historial-semanas > li > .series { color: var(--text); font-weight: 550; line-height: 1.45; }
-.historial-semanas > li.is-actual > .s { color: var(--accent); }
+/* AQUÍ VIVÍA UN SEGUNDO `.historial`, y estaba muerto.
+   Era la tarjeta pegajosa del histórico de un ejercicio, retirada hace tiempo:
+   ni `.historial-head`, ni `.historial-recorrido`, ni `.historial-forma`
+   aparecían ya en un solo JSX. Pero seguía compilando, y como `piezas.css`
+   —donde vive el histórico de VERDAD (`HistorialPopup`)— se carga DESPUÉS,
+   lo que había aquí solo servía para confundir a quien leyera: decía que
+   `.historial-semanas` es una columna flex cuando en pantalla es una rejilla
+   de dos, y que `.historial` es pegajoso y hundido cuando no lo es.
+
+   Segundo caso del mismo fallo que `.pulso` (ver `.ficha-pulso`): dos piezas
+   distintas con el mismo nombre y la última carga gana. `verify-styles.mjs`
+   no ve ni una cosa ni la otra — comprueba que toda clase usada exista, no
+   que una definida se use ni que dos bloques choquen. */
 
 /* La columna izquierda del editor: un poco más ancha, y el bloque del programa
    sin su resumen —en 200 px el resumen se corta y no dice nada—. */
@@ -1644,9 +1630,11 @@
 .hoja-mas:hover { background: var(--fill-subtle); color: var(--text); }
 .hoja-nota { display: flex; flex-direction: column; gap: 4px; padding-left: 25px; }
 
-/* La columna izquierda: «en curso» en brasa; el histórico, en monoespaciada. */
+/* La columna izquierda: «en curso» en brasa. */
 .lado-item > small.is-curso { color: var(--accent); text-transform: none; letter-spacing: 0; }
-.historial-semanas > li > .series { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+/* Aquí había un remate más de aquella tarjeta muerta: `.historial-semanas > li >
+   .series`. El histórico de verdad pinta `<li class="historial-semana">` y
+   ningún `.series` dentro, así que no alcanzaba a nada. */
 
 /* ══ ENTRENO: la pantalla es la hoja ═══════════════════════════════════════
    Sin título de página ni tarjeta de semana ni cabecera de día: columna de
@@ -2116,7 +2104,11 @@
   margin-left: 6px; font-family: var(--font); font-size: var(--fs-xs); font-weight: 500;
   text-transform: none; letter-spacing: 0; color: var(--text-tertiary);
 }
-.bloque-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
+/* Solo la rejilla: el REPARTO lo pone cada uso con su `is-1…is-4`, y el reparto
+   por defecto más el `gap` los fija `piezas.css` («Este bloque»), que se carga
+   después. Aquí decía `repeat(4, …)` con `gap: var(--s3)` y ninguna de las dos
+   llegaba a pintarse — la caja sin modificador sale a dos columnas y sin hueco. */
+.bloque-cifras { display: grid; }
 .bloque-cifra { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--surface-sunken); }
 .bloque-cifra > .v { line-height: 1; font-variant-numeric: tabular-nums; }
 .bloque-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
@@ -2465,10 +2457,13 @@
 .plan-dia { display: flex; flex-direction: column; gap: var(--s3); padding-bottom: var(--s4); border-bottom: 1px solid var(--hairline); }
 
 .plan-dia-tabla { display: flex; flex-direction: column; gap: 3px; overflow-x: auto; }
+/* Lo que sobrevive de la PRIMERA escritura de esta fila: la rejilla, el centrado
+   y el hueco. El reparto de columnas y la caja (`padding`, `min-width`, `width:
+   max-content` para desplazarse en horizontal) los reescribió entera la tercera
+   vuelta —ver abajo—, así que aquí eran letra muerta: la tabla ya no se
+   desplaza, cabe. */
 .plan-dia-fila {
   display: grid; align-items: center; gap: var(--s2);
-  grid-template-columns: 20px minmax(140px, 1fr) 64px 52px 52px 52px minmax(120px, 1.2fr) 64px;
-  padding: 0 var(--s3); min-width: 100%; width: max-content;
 }
 .plan-dia-fila.is-cab {
   font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil);
@@ -2505,8 +2500,11 @@
 .macro-mini { display: inline-flex; width: 64px; height: 5px; border-radius: 3px; overflow: hidden; gap: 1px; flex-shrink: 0; vertical-align: middle; }
 .macro-mini > span { display: block; height: 100%; }
 
-/* El plan del día: columnas de opciones y reparto. */
-.plan-dia-fila { grid-template-columns: 20px minmax(130px, 1fr) 64px 52px 52px 52px minmax(110px, 1fr) minmax(120px, 0.9fr) 64px; }
+/* El reparto de columnas de la fila del plan del día NO está aquí, aunque este
+   sitio lo estuvo reclamando: se reescribió tres veces en esta misma hoja y solo
+   valía la última («EL PLAN DEL DÍA, tercera vuelta», más abajo). Las dos
+   primeras eran rejillas de nueve columnas que ya no pintaba nadie, y leerlas
+   hacía creer que la tabla tiene nueve cuando tiene siete. */
 
 /* ══ EL DÍA, encima de las comidas: cuánto lleva del objetivo ══════════════ */
 .dia-resumen {
@@ -2526,9 +2524,9 @@
 .comida-kcal.is-over > b { color: var(--negative); }
 .comida-kcal.is-under > b { color: var(--warning); }
 
-/* ══ LA VENTANA DEL DÍA, pulida: cuatro cifras iguales con su barra ═══════ */
-.plan-dia-fila { grid-template-columns: 20px minmax(120px, 1fr) 64px 52px 52px 52px minmax(120px, 1fr) minmax(150px, 1fr) 64px; }
-.plan-dia-fila > .is-peso { padding-left: var(--s3); }
+/* ══ LA VENTANA DEL DÍA, pulida: cuatro cifras iguales con su barra ═══════
+   Aquí estaba la SEGUNDA reescritura del reparto de columnas y del sangrado del
+   peso; las dos las pisa la tercera vuelta, más abajo. Ver el aviso de arriba. */
 .plan-dia-fila > .is-num > .hoja-celda { height: 28px; }
 
 /* ── Macros del día: rótulo que dice qué es, y con qué opciones se suma ──── */
@@ -3841,7 +3839,7 @@ button.objetivo:active { transform: scale(0.994); }
 
      · la fila de mando lleva la ANATOMÍA (`.anatomia`) — los cuatro hechos y
        cómo contactarle;
-     · el PULSO (`.pulso`) — en qué punto está contigo, en cuatro datos que se
+     · el PULSO (`.ficha-pulso`) — en qué punto está contigo, en cuatro datos que se
        leen de un vistazo y abren su hoja lateral al pulsarlos;
      · el CUERPO (`.ficha-cuerpo`) — lo que necesitas para programarle.
 
@@ -3998,7 +3996,19 @@ button.objetivo:active { transform: scale(0.994); }
 
    Es además la única superficie del cuerpo de la ficha, o sea la firma de la
    pantalla: un elemento, y lo demás callado. */
-.pulso {
+/* `ficha-pulso` y no `pulso` a secas: ese nombre ya era de otro. Lo estrenó la
+   escala de catorce días de «Hoy» (ver `.pulso` arriba y el comentario de
+   `jornada.css`), y al reutilizarlo aquí esta regla —que va después en la
+   hoja— se lo comía: la tarjeta «Actividad» de Inicio dejaba de ser una
+   columna flex y pasaba a ser esta rejilla, así que sus catorce barras se
+   metían en una columna de 190 px, el eje se iba a la de al lado, el «hoy» del
+   pie caía en la segunda fila a media anchura y encima le salía un canto
+   redondeado que nunca tuvo. Media tarjeta en blanco por un nombre repetido.
+
+   `verify-styles.mjs` no lo pilla: comprueba que toda clase usada exista, no
+   que dos bloques distintos definan la misma. Al bautizar una pieza, buscarla
+   antes en la hoja. */
+.ficha-pulso {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 1px; min-width: 0;
   background: var(--hairline);
@@ -4006,33 +4016,33 @@ button.objetivo:active { transform: scale(0.994); }
 }
 /* La celda ES el dato y la celda es el control, así que se enciende entera al
    pasar en vez de llevar un botón dentro. Ver la ley de los gestos. */
-.pulso-celda {
+.ficha-pulso-celda {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
   min-width: 0; text-align: left; font: inherit; cursor: pointer;
   background: var(--surface); border: 0; border-radius: 0;
   padding: var(--s4) var(--s5);
   transition: background-color var(--fast);
 }
-.pulso-celda:hover { background: var(--fill-subtle); }
+.ficha-pulso-celda:hover { background: var(--fill-subtle); }
 /* Hacia dentro: el contenedor recorta, y un foco por fuera se comería el canto
    redondeado de las celdas de las esquinas. */
-.pulso-celda:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-@media (hover: none) { .pulso-celda:hover { background: var(--surface); } }
-.pulso-celda > .k {
+.ficha-pulso-celda:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (hover: none) { .ficha-pulso-celda:hover { background: var(--surface); } }
+.ficha-pulso-celda > .k {
   font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--text-tertiary);
 }
-.pulso-celda > .v {
+.ficha-pulso-celda > .v {
   font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650;
   letter-spacing: -0.015em; line-height: 1.2;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* El juicio va pegado a la cifra que valora y en voz pequeña: es la única tinta
    de color de la banda. Ver la ley del color en `tokens.css`. */
-.pulso-celda > .veredicto { font-size: var(--fs-xs); font-weight: 500; }
+.ficha-pulso-celda > .veredicto { font-size: var(--fs-xs); font-weight: 500; }
 /* La barra del alta: dentro de su celda y a todo el ancho, entre la fracción y
    la frase. Es el único dato de la banda que además tiene forma. */
-.pulso-celda > .form-progress { width: 100%; margin: 2px 0 1px; }
+.ficha-pulso-celda > .form-progress { width: 100%; margin: 2px 0 1px; }
 
 /* ── Las hojas de la ficha ─────────────────────────────────────────────────
    A 460 px no caben cuatro campos en fila (importe, cada cuánto, próximo cobro,
