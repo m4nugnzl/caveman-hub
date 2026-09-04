@@ -27,6 +27,31 @@ import {
   horizonteDeBloque,
   weeksAheadOfBlock,
   weeksOfBlock,
+  blockSessionOf,
+  blockSessionsOf,
+  buildOverride,
+  describeOverride,
+  hasBlockPlan,
+  blockOverridesOf,
+  overrideSpan,
+  setOverrideSpanIn,
+  planOfDay,
+  planOfWeek,
+  promoteOverrideIn,
+  removeOverrideIn,
+  setBlockSessionsIn,
+  updateBlockSessionIn,
+  resolvedMicrocycles,
+  addBlockSessionIn,
+  removeBlockSessionFrom,
+  renameBlockSessionIn,
+  moveBlockSessionIn,
+  addBlockExerciseIn,
+  removeBlockExerciseIn,
+  restoreBlockExerciseIn,
+  moveBlockExerciseIn,
+  setBlockExerciseSetsIn,
+  setBlockExerciseTargetIn,
 } from './blocks';
 
 const programa = (semanas, extra = {}) => ({
@@ -577,5 +602,451 @@ describe('el horizonte del bloque', () => {
     expect(horizonteDeBloque(dosBloques, null)).toBeNull();
     expect(horizonteDeBloque(dosBloques, 9)).toBeNull();
     expect(horizonteDeBloque({ microcycles: [] }, 1)).toBeNull();
+  });
+});
+
+/* ══ EL PLAN DENTRO DEL BLOQUE ═══════════════════════════════════════════ */
+
+const ejercicio = (id, name, series = 3) => ({
+  id,
+  name,
+  muscle: 'Pecho',
+  sets: Array.from({ length: series }, () => ({ kg: '', reps: '', rir: '', targetReps: '8-10', targetRir: '' })),
+});
+
+const conPlan = (overrides = []) => ({
+  weeklySplit: {},
+  mobilityDrills: [],
+  blocks: [
+    {
+      id: 'b1',
+      name: 'Acumulación',
+      fromWeek: 1,
+      toWeek: null,
+      sessions: [{ dayName: 'Push', exercises: [ejercicio('a', 'Press banca'), ejercicio('b', 'Fondos')] }],
+      /* Los cambios son del BLOQUE y llevan su tramo. Los de estas pruebas
+         valen solo en el microciclo 2, que es el caso puntual. */
+      overrides,
+    },
+  ],
+  microcycles: [
+    { weekNumber: 1, days: [{ dayName: 'Push', exercises: [] }] },
+    { weekNumber: 2, days: [{ dayName: 'Push', exercises: [] }] },
+  ],
+});
+
+describe('la convivencia de las dos lecturas', () => {
+  it('sin plan en el bloque, manda el día del microciclo', () => {
+    const p = {
+      microcycles: [{ weekNumber: 1, days: [{ dayName: 'Push', exercises: [ejercicio('x', 'Remo')] }] }],
+    };
+    expect(hasBlockPlan(blocksOf(p)[0])).toBe(false);
+    expect(planOfDay(p, 1, 'Push').exercises[0].name).toBe('Remo');
+  });
+
+  it('con plan en el bloque, manda el bloque aunque el microciclo esté en blanco', () => {
+    expect(planOfDay(conPlan(), 1, 'Push').exercises.map((e) => e.name)).toEqual(['Press banca', 'Fondos']);
+  });
+
+  it('una hoja que el bloque no tiene no se inventa', () => {
+    expect(planOfDay(conPlan(), 1, 'Legs')).toBeNull();
+  });
+
+  it('planOfWeek devuelve las hojas en el orden del bloque', () => {
+    expect(planOfWeek(conPlan(), 2).map((d) => d.dayName)).toEqual(['Push']);
+  });
+});
+
+describe('las excepciones de un microciclo', () => {
+  it('una baja quita el ejercicio solo en su microciclo', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'b', exercise: null, sobre: 'Fondos' });
+    const p = conPlan([o]);
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Press banca']);
+    expect(planOfDay(p, 1, 'Push').exercises).toHaveLength(2);
+  });
+
+  it('un cambio sustituye en su sitio', () => {
+    const o = buildOverride({
+      fromWeek: 2,
+      toWeek: 2,
+      dayName: 'Push',
+      targetId: 'a',
+      exercise: ejercicio('a2', 'Press inclinado', 4),
+      sobre: 'Press banca',
+    });
+    const hojas = planOfDay(conPlan([o]), 2, 'Push').exercises;
+    expect(hojas.map((e) => e.name)).toEqual(['Press inclinado', 'Fondos']);
+    expect(hojas[0].sets).toHaveLength(4);
+  });
+
+  it('un alta entra donde se le dice, y sin sitio va al final', () => {
+    const enMedio = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', exercise: ejercicio('c', 'Face pull'), index: 1 });
+    expect(planOfDay(conPlan([enMedio]), 2, 'Push').exercises.map((e) => e.name)).toEqual([
+      'Press banca',
+      'Face pull',
+      'Fondos',
+    ]);
+
+    const alFinal = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', exercise: ejercicio('c', 'Face pull') });
+    expect(planOfDay(conPlan([alFinal]), 2, 'Push').exercises.map((e) => e.name)).toEqual([
+      'Press banca',
+      'Fondos',
+      'Face pull',
+    ]);
+  });
+
+  it('una excepción sobre un ejercicio que ya no está en el bloque se ignora', () => {
+    const huerfana = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'no_existe', exercise: null, sobre: 'Aperturas' });
+    expect(planOfDay(conPlan([huerfana]), 2, 'Push').exercises).toHaveLength(2);
+  });
+
+  it('las de otra hoja no se aplican aquí', () => {
+    const deOtra = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Pull', targetId: 'a', exercise: null, sobre: 'Press banca' });
+    expect(planOfDay(conPlan([deOtra]), 2, 'Push').exercises).toHaveLength(2);
+  });
+});
+
+describe('deshacer y ascender una excepción', () => {
+  it('quitarla devuelve el microciclo al plan del bloque', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'b', exercise: null, sobre: 'Fondos' });
+    const p = removeOverrideIn(conPlan([o]), 'b1', o.id);
+    expect(planOfDay(p, 2, 'Push').exercises).toHaveLength(2);
+    expect(blockOverridesOf(blocksOf(p)[0])).toHaveLength(0);
+  });
+
+  it('ascenderla la mete en el bloque y la borra del microciclo', () => {
+    const o = buildOverride({
+      fromWeek: 2,
+      toWeek: 2,
+      dayName: 'Push',
+      targetId: 'a',
+      exercise: ejercicio('a2', 'Press inclinado', 4),
+      sobre: 'Press banca',
+    });
+    const p = promoteOverrideIn(conPlan([o]), 'b1', o.id);
+
+    /* Ahora es el plan: lo ven los DOS microciclos. */
+    expect(planOfDay(p, 1, 'Push').exercises.map((e) => e.name)).toEqual(['Press inclinado', 'Fondos']);
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Press inclinado', 'Fondos']);
+    expect(blockOverridesOf(blocksOf(p)[0])).toHaveLength(0);
+  });
+
+  it('el ejercicio conserva su id al subir: sus registros apuntan ahí', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: ejercicio('a2', 'Press inclinado'), sobre: 'Press banca' });
+    const p = promoteOverrideIn(conPlan([o]), 'b1', o.id);
+    expect(planOfDay(p, 2, 'Push').exercises[0].id).toBe('a2');
+  });
+
+  it('sin plan en el bloque no hay nada que ascender', () => {
+    const p = { microcycles: [{ weekNumber: 1, days: [], overrides: [] }] };
+    expect(promoteOverrideIn(p, 1, 'lo-que-sea')).toBe(p);
+  });
+});
+
+describe('escribir el plan del bloque', () => {
+  it('setBlockSessionsIn pone las hojas', () => {
+    const p = setBlockSessionsIn(conPlan(), 'b1', [{ dayName: 'Legs', exercises: [] }]);
+    expect(blockSessionsOf(blocksOf(p)[0]).map((s) => s.dayName)).toEqual(['Legs']);
+  });
+
+  it('updateBlockSessionIn cambia una hoja y deja las demás', () => {
+    const base = setBlockSessionsIn(conPlan(), 'b1', [
+      { dayName: 'Push', exercises: [ejercicio('a', 'Press banca')] },
+      { dayName: 'Pull', exercises: [ejercicio('z', 'Remo')] },
+    ]);
+    const p = updateBlockSessionIn(base, 'b1', 'Push', (h) => ({ ...h, exercises: [] }));
+    expect(blockSessionOf(blocksOf(p)[0], 'Push').exercises).toHaveLength(0);
+    expect(blockSessionOf(blocksOf(p)[0], 'Pull').exercises).toHaveLength(1);
+  });
+});
+
+describe('cómo se cuenta una excepción', () => {
+  it('la baja, el alta y la sustitución se dicen distinto', () => {
+    expect(describeOverride(buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: null, sobre: 'Fondos' }))).toBe(
+      '− Fondos'
+    );
+    expect(describeOverride(buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', exercise: ejercicio('c', 'Face pull') }))).toBe(
+      '+ Face pull'
+    );
+    expect(
+      describeOverride(
+        buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: ejercicio('c', 'Press inclinado'), sobre: 'Press banca' })
+      )
+    ).toBe('Press inclinado en lugar de Press banca');
+  });
+
+  it('un cambio de series se dice por su nombre, que es lo que cambió de sitio', () => {
+    expect(
+      describeOverride(
+        buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: ejercicio('a', 'Press banca', 5), sobre: 'Press banca' })
+      )
+    ).toBe('Press banca');
+  });
+});
+
+describe('los microciclos con su plan puesto', () => {
+  it('sin ningún bloque migrado devuelve los MISMOS objetos', () => {
+    const p = { microcycles: [{ weekNumber: 1, days: [{ dayName: 'Push', exercises: [] }] }] };
+    expect(resolvedMicrocycles(p)).toBe(p.microcycles);
+  });
+
+  it('con plan, cada microciclo lleva las hojas del bloque', () => {
+    const micros = resolvedMicrocycles(conPlan());
+    expect(micros[0].days.map((d) => d.dayName)).toEqual(['Push']);
+    expect(micros[0].days[0].exercises.map((e) => e.name)).toEqual(['Press banca', 'Fondos']);
+  });
+
+  it('y las excepciones de esa semana, solo en esa semana', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'b', exercise: null, sobre: 'Fondos' });
+    const micros = resolvedMicrocycles(conPlan([o]));
+    expect(micros[0].days[0].exercises).toHaveLength(2);
+    expect(micros[1].days[0].exercises).toHaveLength(1);
+  });
+
+  it('conserva los kilos que esa semana tuviera escritos dentro del plan', () => {
+    /*
+      Los datos antiguos guardan la ejecución dentro del plan y `legacySession`
+      los saca de ahí. El plan del bloque va limpio —lo comparten todas sus
+      semanas—, así que al resolver hay que devolverle a cada una lo suyo o el
+      histórico desaparece de la analítica sin decir nada.
+    */
+    const p = conPlan();
+    p.microcycles[0].days = [
+      {
+        dayName: 'Push',
+        exercises: [
+          {
+            id: 'a',
+            name: 'Press banca',
+            muscle: 'Pecho',
+            sets: [
+              { kg: '80', reps: '8', rir: '2', targetReps: '8-10' },
+              { kg: '80', reps: '7', rir: '1', targetReps: '8-10' },
+              { kg: '', reps: '', rir: '', targetReps: '8-10' },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const micros = resolvedMicrocycles(p);
+    const banca = micros[0].days[0].exercises.find((e) => e.name === 'Press banca');
+    expect(banca.sets.map((s) => s.kg)).toEqual(['80', '80', '']);
+    expect(banca.sets.map((s) => s.reps)).toEqual(['8', '7', '']);
+    /* Y el objetivo sigue siendo el del bloque, que es el plan. */
+    expect(banca.sets[0].targetReps).toBe('8-10');
+    /* La otra semana no hereda nada. */
+    expect(micros[1].days[0].exercises[0].sets.every((s) => s.kg === '')).toBe(true);
+  });
+
+  it('empareja por nombre cuando el id ya no es el mismo', () => {
+    const p = conPlan();
+    p.microcycles[0].days = [
+      {
+        dayName: 'Push',
+        exercises: [
+          { id: 'otro_id', name: 'Press banca', muscle: 'Pecho', sets: [{ kg: '60', reps: '10', rir: '', targetReps: '8-10' }] },
+        ],
+      },
+    ];
+    expect(resolvedMicrocycles(p)[0].days[0].exercises[0].sets[0].kg).toBe('60');
+  });
+});
+
+describe('editar el plan del bloque', () => {
+  it('añade una hoja al final, y no la duplica', () => {
+    const p = addBlockSessionIn(conPlan(), 'b1', 'Legs');
+    expect(blockSessionsOf(blocksOf(p)[0]).map((s) => s.dayName)).toEqual(['Push', 'Legs']);
+    expect(blockSessionsOf(blocksOf(addBlockSessionIn(p, 'b1', 'Legs'))[0])).toHaveLength(2);
+  });
+
+  it('quitar una hoja se lleva sus excepciones y deja las de las demás', () => {
+    const suya = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: null, sobre: 'Press banca' });
+    const ajena = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Legs', targetId: 'z', exercise: null, sobre: 'Prensa' });
+    const base = addBlockSessionIn(conPlan([suya, ajena]), 'b1', 'Legs');
+
+    const p = removeBlockSessionFrom(base, 'b1', 'Push');
+    expect(blockSessionsOf(blocksOf(p)[0]).map((s) => s.dayName)).toEqual(['Legs']);
+    expect(blockOverridesOf(blocksOf(p)[0]).map((o) => o.dayName)).toEqual(['Legs']);
+  });
+
+  it('renombrar una hoja se lleva sus excepciones con ella', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: null, sobre: 'Press banca' });
+    const p = renameBlockSessionIn(conPlan([o]), 'b1', 'Push', 'Empuje A');
+
+    expect(blockSessionsOf(blocksOf(p)[0])[0].dayName).toBe('Empuje A');
+    expect(blockOverridesOf(blocksOf(p)[0])[0].dayName).toBe('Empuje A');
+    /* Y sigue resolviéndose: la excepción no se ha quedado colgando. */
+    expect(planOfDay(p, 2, 'Empuje A').exercises).toHaveLength(1);
+  });
+
+  it('un nombre en blanco no renombra nada', () => {
+    const p = conPlan();
+    expect(renameBlockSessionIn(p, 'b1', 'Push', '   ')).toBe(p);
+  });
+
+  it('mueve una hoja de sitio', () => {
+    const base = addBlockSessionIn(addBlockSessionIn(conPlan(), 'b1', 'Pull'), 'b1', 'Legs');
+    const p = moveBlockSessionIn(base, 'b1', 2, 0);
+    expect(blockSessionsOf(blocksOf(p)[0]).map((s) => s.dayName)).toEqual(['Legs', 'Push', 'Pull']);
+  });
+
+  it('un movimiento imposible no toca nada', () => {
+    const p = conPlan();
+    expect(moveBlockSessionIn(p, 'b1', 0, 9).blocks[0].sessions).toEqual(p.blocks[0].sessions);
+  });
+});
+
+describe('editar los ejercicios de una hoja del bloque', () => {
+  const hoja = (p) => blockSessionOf(blocksOf(p)[0], 'Push').exercises;
+
+  it('un gesto, UNA escritura: el cambio lo ven todos los microciclos', () => {
+    const p = addBlockExerciseIn(conPlan(), 'b1', 'Push', ejercicio('c', 'Face pull'));
+    expect(planOfDay(p, 1, 'Push').exercises.map((e) => e.name)).toEqual(['Press banca', 'Fondos', 'Face pull']);
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Press banca', 'Fondos', 'Face pull']);
+  });
+
+  it('quitar y devolver a su sitio', () => {
+    const quitado = removeBlockExerciseIn(conPlan(), 'b1', 'Push', 'a');
+    expect(hoja(quitado).map((e) => e.name)).toEqual(['Fondos']);
+
+    const vuelto = restoreBlockExerciseIn(quitado, 'b1', 'Push', ejercicio('a', 'Press banca'), 0);
+    expect(hoja(vuelto).map((e) => e.name)).toEqual(['Press banca', 'Fondos']);
+  });
+
+  it('mueve un ejercicio dentro de su hoja', () => {
+    const p = moveBlockExerciseIn(conPlan(), 'b1', 'Push', 1, 0);
+    expect(hoja(p).map((e) => e.name)).toEqual(['Fondos', 'Press banca']);
+  });
+
+  it('subir series copia el objetivo de la última, y bajar quita por el final', () => {
+    const sube = setBlockExerciseSetsIn(conPlan(), 'b1', 'Push', 'a', 5);
+    expect(hoja(sube)[0].sets).toHaveLength(5);
+    expect(hoja(sube)[0].sets.every((s) => s.targetReps === '8-10')).toBe(true);
+
+    expect(hoja(setBlockExerciseSetsIn(conPlan(), 'b1', 'Push', 'a', 1))[0].sets).toHaveLength(1);
+  });
+
+  it('las series se quedan entre 1 y 12', () => {
+    expect(hoja(setBlockExerciseSetsIn(conPlan(), 'b1', 'Push', 'a', 0))[0].sets).toHaveLength(1);
+    expect(hoja(setBlockExerciseSetsIn(conPlan(), 'b1', 'Push', 'a', 40))[0].sets).toHaveLength(12);
+  });
+
+  it('el objetivo de repeticiones va a todas las series', () => {
+    const p = setBlockExerciseTargetIn(conPlan(), 'b1', 'Push', 'a', '5-7');
+    expect(hoja(p)[0].sets.every((s) => s.targetReps === '5-7')).toBe(true);
+    /* Y solo al suyo. */
+    expect(hoja(p)[1].sets.every((s) => s.targetReps === '8-10')).toBe(true);
+  });
+
+  it('lo escrito en el bloque NO pisa la excepción de un microciclo', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: ejercicio('a2', 'Press inclinado'), sobre: 'Press banca' });
+    const p = setBlockExerciseSetsIn(conPlan([o]), 'b1', 'Push', 'a', 6);
+
+    expect(planOfDay(p, 1, 'Push').exercises[0].sets).toHaveLength(6);
+    /* El microciclo 2 sigue con lo suyo: para eso es una excepción. */
+    expect(planOfDay(p, 2, 'Push').exercises[0].name).toBe('Press inclinado');
+  });
+});
+
+describe('el tramo de un cambio', () => {
+  /* Cinco microciclos para que un tramo tenga dónde empezar y dónde acabar. */
+  const cinco = (overrides = []) => ({
+    weeklySplit: {},
+    mobilityDrills: [],
+    blocks: [
+      {
+        id: 'b1',
+        name: 'Acumulación',
+        fromWeek: 1,
+        toWeek: null,
+        sessions: [{ dayName: 'Push', exercises: [ejercicio('a', 'Press banca'), ejercicio('b', 'Fondos')] }],
+        overrides,
+      },
+    ],
+    microcycles: [1, 2, 3, 4, 5].map((weekNumber) => ({ weekNumber, days: [{ dayName: 'Push', exercises: [] }] })),
+  });
+
+  const cambio = (extra) =>
+    buildOverride({
+      dayName: 'Push',
+      targetId: 'a',
+      exercise: ejercicio('a2', 'Press inclinado'),
+      sobre: 'Press banca',
+      ...extra,
+    });
+
+  const nombresEn = (p, w) => planOfDay(p, w, 'Push').exercises.map((e) => e.name);
+
+  it('«solo este microciclo» vale en uno y en ninguno más', () => {
+    const p = cinco([cambio({ fromWeek: 3, toWeek: 3 })]);
+    expect(nombresEn(p, 2)).toEqual(['Press banca', 'Fondos']);
+    expect(nombresEn(p, 3)).toEqual(['Press inclinado', 'Fondos']);
+    expect(nombresEn(p, 4)).toEqual(['Press banca', 'Fondos']);
+  });
+
+  it('«unas semanas» vale en su tramo y se acaba solo', () => {
+    /* El caso que faltaba: probar un ejercicio tres microciclos. Antes había
+       que escribirlo tres veces, una por microciclo. */
+    const p = cinco([cambio({ fromWeek: 2, toWeek: 4 })]);
+    expect(nombresEn(p, 1)).toEqual(['Press banca', 'Fondos']);
+    for (const w of [2, 3, 4]) expect(nombresEn(p, w)).toEqual(['Press inclinado', 'Fondos']);
+    expect(nombresEn(p, 5)).toEqual(['Press banca', 'Fondos']);
+  });
+
+  it('«de aquí en adelante» no toca lo anterior, y no se acaba', () => {
+    const p = cinco([cambio({ fromWeek: 3, toWeek: null })]);
+    expect(nombresEn(p, 2)).toEqual(['Press banca', 'Fondos']);
+    for (const w of [3, 4, 5]) expect(nombresEn(p, w)).toEqual(['Press inclinado', 'Fondos']);
+  });
+
+  it('alargar la prueba no obliga a reescribir nada', () => {
+    const o = cambio({ fromWeek: 3, toWeek: 3 });
+    const p = setOverrideSpanIn(cinco([o]), 'b1', o.id, { toWeek: 5 });
+    for (const w of [3, 4, 5]) expect(nombresEn(p, w)).toEqual(['Press inclinado', 'Fondos']);
+  });
+
+  it('y quitarle el fin lo deja «hasta que lo cambies»', () => {
+    const o = cambio({ fromWeek: 2, toWeek: 3 });
+    const p = setOverrideSpanIn(cinco([o]), 'b1', o.id, { toWeek: null });
+    expect(nombresEn(p, 5)).toEqual(['Press inclinado', 'Fondos']);
+  });
+
+  it('dos cambios sobre el mismo ejercicio: manda el último que se hizo', () => {
+    const viejo = cambio({ fromWeek: 1, toWeek: null, at: '2026-01-01T00:00:00.000Z' });
+    const nuevo = buildOverride({
+      dayName: 'Push',
+      targetId: 'a',
+      exercise: ejercicio('a3', 'Press declinado'),
+      sobre: 'Press banca',
+      fromWeek: 4,
+      toWeek: null,
+      at: '2026-02-01T00:00:00.000Z',
+    });
+    /* A propósito en el orden equivocado dentro del array: lo que ordena es
+       `at`, no dónde se guardó. */
+    const p = cinco([nuevo, viejo]);
+    expect(nombresEn(p, 3)).toEqual(['Press inclinado', 'Fondos']);
+    expect(nombresEn(p, 4)).toEqual(['Press declinado', 'Fondos']);
+  });
+
+  it('cómo se dice cada tramo', () => {
+    expect(overrideSpan(cambio({ fromWeek: 3, toWeek: 3 }))).toBe('solo M3');
+    expect(overrideSpan(cambio({ fromWeek: 2, toWeek: 4 }))).toBe('M2–M4');
+    expect(overrideSpan(cambio({ fromWeek: 3, toWeek: null }))).toBe('desde M3');
+  });
+
+  it('ascender un cambio lo mete en la línea base, y entonces vale para todos', () => {
+    const o = cambio({ fromWeek: 4, toWeek: 4 });
+    const p = promoteOverrideIn(cinco([o]), 'b1', o.id);
+    /* La línea base la ven TODOS sus microciclos, los anteriores incluidos: es
+       la única puerta que toca el pasado, y por eso se pide a propósito. */
+    for (const w of [1, 3, 5]) expect(nombresEn(p, w)).toEqual(['Press inclinado', 'Fondos']);
+    expect(blockOverridesOf(blocksOf(p)[0])).toHaveLength(0);
+  });
+
+  it('un cambio de otra hoja no se cuela', () => {
+    const p = cinco([buildOverride({ dayName: 'Pull', targetId: 'a', exercise: null, fromWeek: 1, toWeek: null })]);
+    expect(nombresEn(p, 3)).toEqual(['Press banca', 'Fondos']);
   });
 });

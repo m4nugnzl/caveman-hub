@@ -69,7 +69,11 @@ export const ProgresionPopup = ({ open, onClose, microcycles, name, weekNumber ,
                   if (!set) return <span key={i} className="progresion-celda is-vacia">·</span>;
                   const kg = numero(set.kg);
                   const antes = numero(sesiones[fila - 1]?.sets[i]?.kg);
-                  const tono = kg !== null && antes !== null ? (kg > antes ? 'is-sube' : kg < antes ? 'is-baja' : '') : '';
+                  /* Los mismos tres estados que la tarjeta que abre esta
+                     ventana: bajada en rojo, igual en voz baja, subida en tinta
+                     plena. */
+                  const tono =
+                    kg === null || antes === null ? '' : kg < antes ? 'is-baja' : kg > antes ? '' : 'is-igual';
                   return (
                     <span key={i} className={`progresion-celda${tono ? ` ${tono}` : ''}`}>
                       <b>{set.kg ?? '—'}</b>×{set.reps ?? '—'}

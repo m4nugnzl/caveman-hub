@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ExternalLink, FolderPlus, Link2, Share2 } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { BotonAccion, Field, Notice, Panel, Switch } from '@/components/ui/primitives';
+import { BotonAccion, Field, Notice, Switch } from '@/components/ui/primitives';
 
 /**
  * La carpeta compartida de ESTE cliente, en su ficha.
@@ -38,15 +38,30 @@ import { BotonAccion, Field, Notice, Panel, Switch } from '@/components/ui/primi
  * «podrías conectar Drive» en la ficha de cada cliente es publicidad puesta en
  * medio del trabajo. Quien quiera conectarlo lo encuentra en el catálogo.
  */
-export const ClientDrive = ({ client }) => {
+
+/**
+ * El estado de su carpeta, leído UNA vez por ficha.
+ *
+ * ══ Por qué es un hook y no estado privado del panel ═══════════════════════
+ *
+ * Porque ahora hay tres sitios que necesitan la misma respuesta y antes cada uno
+ * iba a buscarla por su cuenta: la celda de «Carpeta» del pulso —que tiene que
+ * decir si existe sin abrir nada—, esta hoja, y los pasos del alta que ofrecen
+ * subir un archivo (`loadClientFolder` se llamaba también desde `Alta`). Era la
+ * misma fila de `client_folders` leída dos veces al abrir cualquier ficha.
+ *
+ * `conectado` va aparte de `folder`: son dos preguntas distintas —si Drive
+ * existe en esta cuenta y si esta persona ya tiene carpeta— y confundirlas es lo
+ * que hacía que una integración borrada dejara una fila huérfana pintando un
+ * panel imposible.
+ */
+export const useClientDrive = (client) => {
   const { loadIntegration, loadClientFolder, runDrive, setClientFolder } = useActions();
 
   const [integrationId, setIntegrationId] = useState(null);
   const [folder, setFolder] = useState(null);
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState(null);
-  const [ask, setAsk] = useState('');
-  const [editandoAsk, setEditandoAsk] = useState(false);
 
   /*
     Dos lecturas y no una: la integración dice si esto existe, la carpeta si ya
@@ -55,6 +70,10 @@ export const ClientDrive = ({ client }) => {
     huérfana— y separarlas dejaría un parpadeo con el bloque a medias.
   */
   useEffect(() => {
+    /* La pantalla llama a este hook antes de saber si el cliente ha cargado
+       —los hooks no pueden ir detrás de un `return null`—, así que sin id no se
+       pregunta nada: sería una consulta por un cliente que no existe. */
+    if (!client?.id) return undefined;
     let vivo = true;
 
     Promise.all([loadIntegration('google_drive'), loadClientFolder(client.id)]).then(
@@ -62,16 +81,13 @@ export const ClientDrive = ({ client }) => {
         if (!vivo) return;
         setIntegrationId(integracion?.hasToken ? integracion.integration.id : null);
         setFolder(carpeta.ok ? carpeta.folder : null);
-        setAsk(carpeta.ok ? carpeta.folder?.ask || '' : '');
       }
     );
 
     return () => {
       vivo = false;
     };
-  }, [client.id, loadIntegration, loadClientFolder]);
-
-  if (!integrationId) return null;
+  }, [client?.id, loadIntegration, loadClientFolder]);
 
   /**
    * Asegurarse de que la carpeta existe, y devolverla.
@@ -83,6 +99,7 @@ export const ClientDrive = ({ client }) => {
    * pide.
    */
   const asegurar = async () => {
+    if (!integrationId) return false;
     setBusy(true);
     setAviso(null);
     const res = await runDrive({ action: 'folder', integrationId, clientId: client.id });
@@ -108,7 +125,7 @@ export const ClientDrive = ({ client }) => {
         tone: 'warn',
         text: client.email
           ? `No se ha podido compartir con ${client.email}: comprueba que la dirección es correcta.`
-          : 'La carpeta está lista, pero no se le puede compartir: no tiene correo en su ficha, arriba en «Quién es».',
+          : 'La carpeta está lista, pero no se le puede compartir: no tiene correo en su ficha. Ponlo en «Editar», arriba.',
       });
     }
     return siguiente;
@@ -140,13 +157,29 @@ export const ClientDrive = ({ client }) => {
     }
   };
 
+  return { conectado: Boolean(integrationId), folder, busy, aviso, asegurar, cambiar };
+};
+
+/**
+ * La hoja de «Carpeta»: lo que hay detrás de su celda del pulso.
+ *
+ * Ya no lleva `Panel` propio —el título lo pone la hoja— ni carga nada: recibe
+ * el estado del hook de arriba, que es quien habla con Drive.
+ */
+export const ClientDrive = ({ client, drive }) => {
+  const { folder, busy, aviso, asegurar, cambiar } = drive;
+  const [ask, setAsk] = useState(folder?.ask || '');
+  const [editandoAsk, setEditandoAsk] = useState(false);
+
   return (
-    <Panel
-      title="Su carpeta"
-      sub="Dentro de tu Drive, en «Caveman Hub». Tú le dejas ahí lo suyo y, si quieres, él te deja lo que le pidas."
-      className="col gap-3"
-      action={
-        folder ? (
+    <div className="col gap-3">
+      <p className="t-sm t-secondary">
+        Dentro de tu Drive, en «Caveman Hub». Tú le dejas ahí lo suyo y, si quieres, él te deja lo
+        que le pidas.
+      </p>
+
+      <div className="row wrap gap-2">
+        {folder ? (
           <a
             className="btn btn-secondary btn-sm"
             href={folder.url}
@@ -161,9 +194,28 @@ export const ClientDrive = ({ client }) => {
           <BotonAccion className="btn btn-secondary btn-sm" icon={FolderPlus} onClick={asegurar}>
             Crear su carpeta
           </BotonAccion>
-        )
-      }
-    >
+        )}
+
+        {/*
+          Repasar el permiso, cuando ya hay carpeta y hay a quién.
+
+          Es la salida de un callejón real: la carpeta nacía sin compartir porque
+          el cliente no tenía correo, y a partir de ahí no quedaba ningún botón
+          con el que intentarlo otra vez. Llama a la misma acción que crearla, que
+          no crea otra — solo mira los permisos y añade el que falta.
+        */}
+        {folder && client.email && (
+          <BotonAccion
+            className="btn btn-plain btn-sm"
+            icon={Share2}
+            title={`Repasar el permiso de ${client.email}`}
+            onClick={asegurar}
+          >
+            Volver a compartir con él
+          </BotonAccion>
+        )}
+      </div>
+
       {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
 
       {!folder && (
@@ -224,40 +276,22 @@ export const ClientDrive = ({ client }) => {
         ) : (
           <button
             type="button"
-            className="btn btn-plain btn-sm"
-            style={{ alignSelf: 'flex-start' }}
-            onClick={() => setEditandoAsk(true)}
+            className="btn btn-plain btn-sm drive-ask"
+            onClick={() => {
+              setAsk(folder.ask || '');
+              setEditandoAsk(true);
+            }}
           >
             <Link2 size={13} /> {folder.ask ? `«${folder.ask}»` : 'Decirle qué tiene que dejar'}
           </button>
         ))}
 
-      {/*
-        Repasar el permiso, cuando ya hay carpeta y hay a quién.
-
-        Es la salida de un callejón real: la carpeta nacía sin compartir porque el
-        cliente no tenía correo, y a partir de ahí no quedaba ningún botón con el
-        que intentarlo otra vez. Llama a la misma acción que crearla, que no crea
-        otra — solo mira los permisos y añade el que falta.
-      */}
-      {folder && client.email && (
-        <BotonAccion
-          className="btn btn-plain btn-sm"
-          style={{ alignSelf: 'flex-start' }}
-          icon={Share2}
-          title={`Repasar el permiso de ${client.email}`}
-          onClick={asegurar}
-        >
-          Volver a compartir con él
-        </BotonAccion>
-      )}
-
       {folder && !client.email && (
         <p className="t-xs t-warning">
           Él no puede abrirla: no tiene correo en su ficha, así que no hay a quién compartírsela.
-          Ponlo arriba, en «Quién es», y vuelve aquí.
+          Ponlo en «Editar», arriba, y vuelve aquí.
         </p>
       )}
-    </Panel>
+    </div>
   );
 };

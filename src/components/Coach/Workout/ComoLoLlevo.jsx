@@ -26,13 +26,15 @@ export const ComoLoLlevo = ({
   if (!hay && !sesion.clientNote?.trim()) return null;
 
   return (
-    <aside className="comparativa como-lo-llevo" aria-label={rotulo}>
+    <aside className={`comparativa como-lo-llevo${onAmpliar ? ' tarjeta-puerta' : ''}`} aria-label={rotulo}>
+      {/* La tarjeta entera abre su ventana. Ver «LA TARJETA-PUERTA». */}
+      {onAmpliar && (
+        <button type="button" className="task-hit" onClick={onAmpliar} aria-label={pista} title={pista} />
+      )}
       <div className="lado-cab">
         <span className="section-label">{rotulo}</span>
         <div className="lado-cab-fila">
-          <button type="button" className="lado-titulo" onClick={onAmpliar} disabled={!onAmpliar} title={pista}>
-            {fecha ? `Sesión del ${fecha}` : 'Esta sesión'}
-          </button>
+          <span className="lado-titulo">{fecha ? `Sesión del ${fecha}` : 'Esta sesión'}</span>
         </div>
       </div>
       <Subjetivo preguntas={preguntas} answers={sesion.feedback} />

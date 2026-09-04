@@ -79,7 +79,11 @@ export const TarjetaDesde = ({ history, microcycles, program, startDate, hoy, is
           {isClient ? 'Con tus primeros pesajes y sesiones, aquí verás cuánto has cambiado.' : 'Con dos pesajes o dos sesiones, aquí se cuenta cuánto ha cambiado.'}
         </TarjetaVacia>
       ) : (
-        <ul className="desde">
+        /* El reparto en columnas lo decide CUÁNTAS cifras hay, y por eso viaja
+           en el marcado: con dos, dos columnas dejaban una sola fila estirada a
+           lo alto de la tarjeta; con tres, una huérfana debajo. Las reglas
+           están en `revision.css` (columnas) y `piezas.css` (filetes). */
+        <ul className="desde" data-cifras={cifras.length}>
           {cifras.map((c) => (
             <li className="desde-cifra" key={c.id}>
               <span className="desde-v" style={c.color ? { color: c.color } : undefined}>

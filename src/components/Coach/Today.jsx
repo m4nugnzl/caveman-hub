@@ -563,8 +563,10 @@ export const Today = () => {
                           {event.detail && <span className="detail"> · {event.detail}</span>}
                         </span>
                         {/* Con la ventana a dos semanas, el cuándo ya no se
-                            sobreentiende: cada fila lleva el suyo. */}
-                        <span className="cuando">{dayLabel(event.date, today)}</span>
+                            sobreentiende: cada fila lleva el suyo, al final de
+                            la frase y no contra el canto (ver `.actividad-fila
+                            > .cuando`). */}
+                        <span className="cuando">· {dayLabel(event.date, today)}</span>
                       </button>
                     );
                   })}

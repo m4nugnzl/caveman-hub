@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, HeartPulse, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Check, RotateCcw, Trash2, X } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
 import {
@@ -269,13 +269,22 @@ export const ConditionsPanel = ({ client }) => {
 
   return (
     <Panel
+      desnudo
+      rango="bloque"
       title="Condicionantes"
-      sub="Lesiones, patologías, alergias: lo que limita lo que le puedes poner."
-      className="col gap-3"
+      /* La frase solo cuando no hay ninguno: con la lista delante, «lesiones,
+         patologías, alergias» es el pie de foto de algo que ya se ve. */
+      sub={
+        vigentes.length === 0
+          ? 'Lesiones, patologías y alergias. Lo que pongas te sale al montar su rutina y su dieta, según a qué afecte.'
+          : undefined
+      }
       action={
         !abriendo && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAbriendo(true)}>
-            <Plus size={13} /> Añadir
+          /* El mismo verbo en acento que los bloques de al lado: en el cuerpo de
+             la ficha hay UN traje para «esto se toca». Ver la ley de los gestos. */
+          <button type="button" className="cab-accion is-puerta" onClick={() => setAbriendo(true)}>
+            Añadir
           </button>
         )
       }
@@ -288,24 +297,6 @@ export const ConditionsPanel = ({ client }) => {
           onAdd={(fields) => addCondition(client.id, fields)}
           onCancel={() => setAbriendo(false)}
         />
-      )}
-
-      {vigentes.length === 0 && !abriendo && (
-        /*
-          El estado vacío dice para qué sirve esto, no «no hay nada». Es el único
-          bloque de la ficha cuyo valor no se adivina del título: quien lee
-          «Condicionantes» y ve una lista vacía no sabe todavía que lo que apunte
-          aquí le va a salir al programar, que es toda la razón de rellenarlo.
-        */
-        <div className="card-inset col gap-2">
-          <span className="row gap-2 t-sm t-secondary">
-            <HeartPulse size={15} /> Todavía no has apuntado ninguno.
-          </span>
-          <span className="t-xs t-tertiary">
-            Lo que pongas aquí te sale al montar su rutina y al montar su dieta, según a qué afecte.
-            Es lo que hoy vive en tu cabeza o en el PDF de su anamnesis.
-          </span>
-        </div>
       )}
 
       {vigentes.length > 0 && (

@@ -6,7 +6,11 @@ import {
   FileText,
   FolderOpen,
   Link2,
+  Mail,
   Paperclip,
+  Pencil,
+  Phone,
+  Plus,
   Send,
   TriangleAlert,
   Upload,
@@ -20,12 +24,11 @@ import { useApp } from '@/context/AppContext';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
 import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '@/domain/billing';
 import { latestWeight } from '@/domain/anthropometry';
-import { MAX_AGE, MIN_AGE, age, birthDateForAge, identityFacts, identitySubtitle } from '@/domain/ficha';
+import { MAX_AGE, MIN_AGE, age, birthDateForAge, identityFacts } from '@/domain/ficha';
 import { onboardingState } from '@/domain/onboardingState';
 import { PROFILE_GROUPS, cleanProfile } from '@/domain/profile';
-import { dayMonthMaybeYear, shortDate } from '@/lib/dates';
-import { Avatar } from '@/components/ui/Avatar';
-import { toNum } from '@/lib/num';
+import { shortDate } from '@/lib/dates';
+import { fmt, toNum } from '@/lib/num';
 import {
   clientIntake,
   clientSteps,
@@ -44,15 +47,15 @@ import {
   Field,
   Notice,
   NumberInput,
-  Panel,
   SegmentedControl,
 } from '@/components/ui/primitives';
 import { Mando } from '@/components/ui/Mando';
+import { Modal } from '@/components/ui/Modal';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConditionsPanel } from '@/components/conditions/ConditionsPanel';
-import { ClientDataPanel } from './ClientDataPanel';
-import { ClientDrive } from './ClientDrive';
+import { ClientDataPanel, DatosPersonalesPie, useConsent } from './ClientDataPanel';
+import { ClientDrive, useClientDrive } from './ClientDrive';
 import { EquipmentPanel } from '@/components/equipment/EquipmentPanel';
 import { CustomAnswers } from './CustomAnswers';
 import { DownloadAnamnesis } from './DownloadAnamnesis';
@@ -261,127 +264,89 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
     </form>
   );
 };
-
 /**
- * Quién es: la cabecera de la ficha.
+ * La anatomía: los cuatro hechos de la persona, en la fila de mando.
  *
- * ══ Por qué la ficha empieza por un retrato y no por un formulario ══════════
+ * ══ Por qué esto ya no es una tarjeta ══════════════════════════════════════
  *
- * Porque era cinco tarjetas idénticas apiladas —alta, datos, cobro, acceso,
- * datos personales— y ninguna decía de quién estabas leyendo. El nombre solo
- * aparecía en el selector del marco, o sea fuera de la pantalla, así que la
- * ficha de Marta y la de Javier eran el mismo dibujo. Y esto es lo que más va a
- * crecer: con los condicionantes y los parámetros del entrenador detrás, sin
- * una cabecera que ancle a la persona serían nueve tarjetas de scroll.
+ * Fue «Quién es»: un panel con la inicial, el nombre, la línea de plan y
+ * antigüedad y una rejilla de cuatro hechos. Y estaba diciendo por segunda vez
+ * lo que la cabecera del cliente dice cien píxeles más arriba — la misma
+ * inicial, el mismo nombre y, literalmente, la misma cadena: `identitySubtitle`
+ * compone «Sin plan · desde 11 ago» con los mismos dos campos y en el mismo
+ * orden que el subtítulo del selector (`CoachLayout`). Una ficha que abre
+ * repitiéndose gasta su mejor franja en no decir nada nuevo.
  *
- * La inicial, el nombre y la línea de voz baja son la misma gramática que la
- * tarjeta de la lista de clientes, porque son la misma persona: esto es esa
- * tarjeta, abierta.
+ * Lo que sí era suyo son los cuatro hechos, y suben a la fila de mando, que
+ * estaba vacía: `Mando` se llamaba sin título y sin contexto, o sea una banda de
+ * botones flotando a la derecha encima de un panel. Ahora esa fila dice lo que
+ * hay que saber de esta persona antes de decidir nada —34 años, 178 cm, 81,4 kg,
+ * hombre— y a la derecha, lo que se puede hacer con ella.
  *
- * ══ Los cuatro hechos, y por qué el peso está entre ellos sin guardarse ═════
+ * ══ El hueco invita; no se pinta como una raya ═════════════════════════════
  *
- * Edad, altura, peso y sexo son lo que se mira antes de decidir nada. Los tres
- * primeros no estaban en ninguna parte de la aplicación; el cuarto sí, escondido
- * en una fila de texto.
+ * Los cuatro hechos se preguntan siempre y el hueco informa (`domain/ficha.js`),
+ * pero cuatro guiones en fila no informan: parecen una pantalla rota. En un
+ * cliente recién dado de alta, la tira más ancha de la ficha era «— — — —».
  *
- * El peso se LEE del histórico de pesajes y no se copia aquí. `clients` llegó a
- * tener una columna `current_weight` y la 0048 tuvo que borrarla porque enseñaba
- * el valor congelado del día que alguien dejó de rellenarla mientras la serie
- * decía otra cosa. Un dato viejo con etiqueta de actual es peor que un hueco.
+ * Así que lo que falta se junta en UN gesto —«+ Altura, Peso»— que abre el mismo
+ * editor. Sigue diciendo qué no le has tomado, y además ofrece tomarlo.
  *
- * ══ Lo que está sin poner NO se pinta ══════════════════════════════════════
- *
- * Salvo en los cuatro hechos, que son la anatomía de una persona y cuyo hueco
- * informa (`domain/ficha.js`). Las filas de abajo —correo, teléfono, plan— solo
- * salen si tienen valor. Antes cada hueco decía «sin poner» en gris, y con cuatro
- * filas se aguantaba; con las quince que vienen detrás, la ficha de alguien
- * recién dado de alta sería una columna de grises que nadie va a rellenar por
- * leerla. El hueco se ofrece una vez, en «Editar».
+ * ── Y el aviso del sexo se va con él ────────────────────────────────────────
+ * El cartel ámbar de «sin el sexo, los pliegues usan la fórmula de hombre» era
+ * la tercera alarma encendida en la ficha de alguien que acaba de entrar y al
+ * que no le pasa nada: solo está vacío. La condición no se pierde —viaja en el
+ * signo del hueco y el cartel entero está dentro del editor, que es donde se
+ * arregla— pero deja de gritar desde una pantalla donde no hay nada roto.
  */
-const Identidad = ({ client, weight, onUpdate }) => {
-  const [editando, setEditando] = useState(false);
-
+const Anatomia = ({ client, weight, onEditar }) => {
   const facts = identityFacts({ client, weight });
-  /*
-    El PLAN no está aquí, y estuvo: salía en la línea de voz baja del retrato y
-    otra vez como fila, a diez píxeles. Dos veces el mismo dato en el mismo
-    bloque no es redundancia inofensiva —hace dudar de si son dos cosas
-    distintas—. Se queda arriba, que es donde acompaña a la antigüedad y donde ya
-    lo dice el selector de cliente del marco.
-  */
-  const filas = [
-    ['Correo', client.email],
-    ['Teléfono', client.phone],
-  ].filter(([, valor]) => valor);
+  const puestos = facts.filter((f) => f.value);
+  const faltan = facts.filter((f) => !f.value);
+  const faltaSexo = faltan.some((f) => f.id === 'gender');
 
   return (
-    <Panel
-      title="Quién es"
-      className="col gap-4"
-      action={
-        !editando && (
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setEditando(true)}
-          >
-            Editar
-          </button>
-        )
-      }
-    >
-      <div className="ficha-head">
-        <Avatar name={client.name} src={client.avatar} size="lg" className="folio-mark" />
-        <span className="who">
-          <span className="name">{client.name}</span>
-          <span className="sub">
-            {identitySubtitle(client, dayMonthMaybeYear(client.startDate))}
-          </span>
+    <div className="anatomia">
+      {puestos.map((fact) => (
+        /* Sin etiqueta: las unidades ya la dicen —«34 años», «178 cm», «81,4 kg»,
+           «Hombre»—. La etiqueta viaja en el título para quien la necesite. */
+        <span key={fact.id} className="anatomia-dato" title={fact.label}>
+          {fact.value}
         </span>
-      </div>
+      ))}
 
-      {editando ? (
-        <div className="swap-in">
-          <ClientEditor
-            client={client}
-            onCancel={() => setEditando(false)}
-            onSave={(fields) => {
-              onUpdate(fields);
-              setEditando(false);
-            }}
-          />
-        </div>
-      ) : (
-        <div className="swap-in col gap-4">
-          <div className="ficha-facts">
-            {facts.map((fact) => (
-              <div key={fact.id} className="ficha-fact">
-                <span className="k">{fact.label}</span>
-                <span className={`v${fact.value ? '' : ' is-empty'}`}>{fact.value ?? '—'}</span>
-              </div>
-            ))}
-          </div>
-
-          {filas.length > 0 && (
-            <div className="col gap-2 t-sm">
-              {filas.map(([label, valor]) => (
-                <div key={label} className="row between gap-2">
-                  <span className="t-secondary">{label}</span>
-                  <span style={{ fontWeight: 600 }}>{valor}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!client.gender && (
-            <Notice tone="warn">
-              Sin el sexo, el % graso por pliegues se calcula con la fórmula de hombre. Ponlo aquí y
-              los pliegues pasan a usar la que toca.
-            </Notice>
-          )}
-        </div>
+      {faltan.length > 0 && (
+        <button
+          type="button"
+          className="anatomia-hueco"
+          onClick={onEditar}
+          title={
+            faltaSexo
+              ? 'Sin el sexo, el % graso por pliegues se calcula con la fórmula de hombre.'
+              : undefined
+          }
+        >
+          {faltaSexo ? <TriangleAlert size={12} /> : <Plus size={12} />}
+          {faltan.map((f) => f.label).join(', ')}
+        </button>
       )}
-    </Panel>
+
+      {/* El correo y el teléfono de una ficha son para escribirle y para
+          llamarle. Estaban como dos filas de texto plano que había que copiar a
+          mano; aquí se pulsan. */}
+      {client.email && (
+        <a className="anatomia-contacto" href={`mailto:${client.email}`} title="Escribirle">
+          <Mail size={13} />
+          {client.email}
+        </a>
+      )}
+      {client.phone && (
+        <a className="anatomia-contacto" href={`tel:${client.phone.replace(/\s+/g, '')}`} title="Llamarle">
+          <Phone size={13} />
+          {client.phone}
+        </a>
+      )}
+    </div>
   );
 };
 
@@ -403,6 +368,16 @@ const Identidad = ({ client, weight, onUpdate }) => {
  * La bandeja de «Hoy» conserva su atajo, porque ahí es donde se despacha lo
  * vencido sin entrar en nadie. Esto es el sitio donde se mira y se corrige.
  *
+ * ── Y por qué ya no es una tarjeta, sino la hoja de una celda del pulso ─────
+ * Porque el cobro se decía TRES veces en la misma pantalla: la chapa de la
+ * cabecera del cliente, el segmentado «Al día / Pendiente» y el cartel rojo de
+ * «vencido hace 28 días». Y lo que se pregunta al abrir una ficha —«¿cuánto y
+ * cuándo me paga?»— es una CIFRA, no un formulario de cuatro controles.
+ *
+ * Ahora la cifra está arriba, en su celda del pulso, y esto es lo que hay
+ * detrás al pulsarla. El formulario no ha cambiado: ha dejado de ocupar media
+ * columna para contestar algo que cabe en una línea.
+ *
  * ── Y por qué la fecha se puede escribir a mano ─────────────────────────────
  * Porque `next_payment_date` la escriben también las integraciones desde el
  * servidor al conciliar con Notion o Stripe. Quien no tenga ninguna conectada
@@ -416,7 +391,7 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
   const siguiente = nextPaymentAfter(client.nextPaymentDate, client.billingPeriod);
 
   return (
-    <Panel title="Cobro" className="col gap-4">
+    <div className="col gap-4">
 
       {/*
         ══ Cuánto, antes que cuándo ═══════════════════════════════════════════
@@ -448,7 +423,20 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
                 center={false}
                 placeholder="60"
                 value={client.feeAmount ?? ''}
-                onChange={(v) => onUpdate({ feeAmount: toNum(v) })}
+                /*
+                  El ÚNICO campo de la ficha que se teclea contra la base, y por
+                  eso el único que va con debounce. Todo lo demás de esta
+                  pantalla —identidad, perfil— se edita en un borrador y se
+                  guarda con un botón; aquí no, porque son cuatro controles
+                  sueltos y un «Guardar» para cuatro controles que ya se
+                  entienden solos sería un paso de más.
+
+                  Con `immediate` —que es el valor de serie de `updateClient`—
+                  cada dígito de «1250» era un PATCH a Postgres. La cola acumula
+                  los parches por cliente (ver `useClients`), así que agruparlos
+                  no pierde ninguno, y `flushAll` los suelta al cerrar la pestaña.
+                */
+                onChange={(v) => onUpdate({ feeAmount: toNum(v) }, { immediate: false })}
               />
               <span aria-hidden="true">€</span>
             </div>
@@ -519,7 +507,7 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
         {!periodo && 'Sin periodicidad, la fecha la llevas tú. '}
         Con Notion o Stripe conectados, estado y fecha se actualizan solos.
       </p>
-    </Panel>
+    </div>
   );
 };
 
@@ -1076,23 +1064,33 @@ const StepRow = ({
 };
 
 /**
- * El alta de este cliente.
+ * El alta de este cliente: lo que hay detrás de su celda del pulso.
  *
  * Los pasos son los que el entrenador haya decidido en Ajustes → Protocolo. Si no
  * ha decidido nada, son los dos que la aplicación traía de siempre; si ha
- * decidido que no quiere ninguno, este panel no aparece — que es exactamente la
- * diferencia entre proponer una forma de trabajar e imponerla.
+ * decidido que no quiere ninguno, no hay ni celda ni hoja — que es exactamente
+ * la diferencia entre proponer una forma de trabajar e imponerla.
+ *
+ * ══ Lo que se sabe del alta ya no se calcula dos veces ═════════════════════
+ *
+ * El reparto (`intake`), los pasos y el progreso los calcula la pantalla y
+ * bajan por props: la celda del pulso y esta hoja tienen que estar de acuerdo
+ * sobre cuántos pasos hay y cuántos van hechos, y dos llamadas a
+ * `intakeProgress` con los mismos datos son dos sitios donde equivocarse.
+ *
+ * ══ Y las revisiones se piden al ABRIR, no al entrar en la ficha ═══════════
+ *
+ * Antes este bloque estaba siempre montado, así que `listReviewLinks` salía a la
+ * base cada vez que alguien miraba la ficha de cualquiera —aunque no fuese a
+ * tocar el alta—. Dentro de la hoja, la consulta sale cuando de verdad hay algo
+ * que enlazar. La carpeta ya ni siquiera se pide aquí: la trae la pantalla, que
+ * la necesita también para la celda de «Carpeta», y era la misma fila leída dos
+ * veces (ver `useClientDrive`).
  */
-const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
-  const { listReviewLinks, uploadIntakeFile, loadClientFolder, driveFiles, driveUpload } = useApp();
-  const intake = clientIntake(client.preferences);
-  const steps = intakeSteps(intake);
-  const { done, total, complete } = intakeProgress(client, intake, estado);
+const Alta = ({ client, estado, intake, steps, progress, carpeta, onProbar, onUpdate, onPreferences }) => {
+  const { listReviewLinks, uploadIntakeFile, driveFiles, driveUpload } = useApp();
+  const { done, total, complete } = progress;
   const [revisiones, setRevisiones] = useState([]);
-  /* Su carpeta de Drive, si su entrenador la ha montado. Se lee de la base —una
-     fila de `client_folders`— así que no cuesta ninguna llamada a Google: eso
-     solo pasa cuando alguien pide ver lo que hay dentro. */
-  const [carpeta, setCarpeta] = useState(null);
 
   /* Solo se piden si hay algún paso que admita contenido: sin eso, la consulta
      no tendría dónde usarse. Los revocados se caen — ofrecer un enlace muerto es
@@ -1119,19 +1117,6 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
     };
   }, [client.id, admiteEnlace, listReviewLinks]);
 
-  /* Misma condición que las revisiones: sin ningún paso que admita contenido, la
-     carpeta no tendría dónde ofrecerse. */
-  useEffect(() => {
-    if (!admiteEnlace) return undefined;
-    let vivo = true;
-    loadClientFolder(client.id).then((res) => {
-      if (vivo && res.ok) setCarpeta(res.folder);
-    });
-    return () => {
-      vivo = false;
-    };
-  }, [client.id, admiteEnlace, loadClientFolder]);
-
   if (total === 0) return null;
 
   const toggle = (step, valor) => {
@@ -1141,50 +1126,29 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
   };
 
   return (
-    <Panel
-      title="Alta"
-      className="col gap-4"
-      action={
-        /*
-          ══ «Ver su alta» va aquí y está SIEMPRE ═════════════════════════════
-
-          Nació dentro del aviso de «todavía no le has invitado», y ahí estaba mal
-          por dos motivos: solo aparecía en el hueco entre crear un cliente e
-          invitarle —que dura un rato— y desaparecía justo cuando más se quiere,
-          que es después de cambiar lo que se le pide para ver cómo le queda.
-
-          El marco ya tiene un «Ver su portal» permanente en la cabecera del
-          cliente, pero deja a uno en el INICIO del cliente. Éste va a su alta,
-          que es lo que se acaba de configurar aquí.
-        */
-        <div className="row gap-2">
-          <span className={`badge ${complete ? 'badge-ok' : ''}`}>
-            {complete ? <Check size={11} /> : null} {done} de {total}
-          </span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
-            <Eye size={14} /> Ver su alta
-          </button>
-        </div>
-      }
-    >
+    <div className="col gap-4">
       {/*
-        La misma barra que ve él en su portal.
+        ══ «Ver su alta» está SIEMPRE ═══════════════════════════════════════
 
-        No es decoración duplicada: es que las dos pantallas hablen el mismo
-        idioma sobre lo mismo. El cliente ve una barra que dice cuánto lleva; el
-        entrenador veía una cifra —«3 de 9»— que hay que leer y comparar. Con
-        nueve pasos, «cómo va el alta de este» es una pregunta de un vistazo, y un
-        vistazo es lo que una barra contesta y una fracción no.
+        Nació dentro del aviso de «todavía no le has invitado», y ahí estaba mal
+        por dos motivos: solo aparecía en el hueco entre crear un cliente e
+        invitarle —que dura un rato— y desaparecía justo cuando más se quiere,
+        que es después de cambiar lo que se le pide para ver cómo le queda.
+
+        El marco ya tiene un «Ver su portal» permanente en la cabecera del
+        cliente, pero deja a uno en el INICIO del cliente. Éste va a su alta,
+        que es lo que se acaba de configurar aquí.
+
+        La barra de progreso NO se repite: la lleva la celda del pulso, que sigue
+        a la vista con la hoja abierta —para eso entra por el canto y no tapa—.
       */}
-      <div
-        className="form-progress"
-        role="progressbar"
-        aria-valuenow={done}
-        aria-valuemin={0}
-        aria-valuemax={total}
-        aria-label="Pasos del alta terminados"
-      >
-        <i style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+      <div className="row between wrap gap-2">
+        <span className={`badge ${complete ? 'badge-ok' : ''}`}>
+          {complete ? <Check size={11} /> : null} {done} de {total}
+        </span>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
+          <Eye size={14} /> Ver su alta
+        </button>
       </div>
 
       {/*
@@ -1269,10 +1233,32 @@ const Alta = ({ client, estado, onProbar, onUpdate, onPreferences }) => {
           />
         ))}
       </div>
-
-    </Panel>
+    </div>
   );
 };
+
+/**
+ * Una celda del pulso.
+ *
+ * Es un dato con su frase y un gesto: se lee sin abrir nada, y abre su hoja al
+ * pulsarla. La frase de abajo lleva el juicio —`veredicto`, el mismo de toda la
+ * casa— y por eso es lo único con color aquí: la ley del color dice que el
+ * semáforo va pegado a la cifra que valora, y no en el borde de una tarjeta.
+ *
+ * ── Por qué no es `.tile` ───────────────────────────────────────────────────
+ * Porque `.tile` es la voz de una CIFRA —30 px, tabulares, para «4 sin
+ * entrenar»— y aquí la mitad de los valores son palabras: «Con cuenta», «Sin
+ * crear». A 30 px, cuatro palabras en fila gritan. Misma superficie y mismo
+ * tacto; otra voz.
+ */
+const CeldaPulso = ({ rotulo, valor, frase, tono, children, onClick }) => (
+  <button type="button" className="pulso-celda" onClick={onClick}>
+    <span className="k">{rotulo}</span>
+    <span className="v">{valor}</span>
+    {children}
+    <span className={`veredicto${tono ? ` is-${tono}` : ''}`}>{frase}</span>
+  </button>
+);
 
 export const ClientFile = () => {
   const {
@@ -1286,13 +1272,25 @@ export const ClientFile = () => {
     openClientView,
   } = useApp();
   const toast = useToast();
+  /* Qué hoja está abierta: `identidad`, `alta`, `cobro`, `acceso` o `carpeta`.
+     Una sola, y en un solo estado: dos banderas independientes acabarían con dos
+     hojas abiertas a la vez el día que alguien añada la tercera. */
+  const [hoja, setHoja] = useState(null);
+  const cerrar = () => setHoja(null);
+
+  /* Su carpeta y si hay Drive, leído una vez para toda la pantalla: lo usan la
+     celda de «Carpeta», su hoja y los pasos del alta que ofrecen subir algo. */
+  const drive = useClientDrive(activeClient || { id: null });
+  /* El consentimiento lo lee la pantalla porque lo enseña el PIE, que está a la
+     vista; la hoja de datos personales solo lo usa detrás. */
+  const consent = useConsent(activeClient?.id);
 
   /* El marco ya redirige cuando el id no existe; esto solo cubre el instante
      entre montar la ruta y tener el cliente cargado. */
   if (!activeClient) return null;
 
   /* Leído de su serie de pesajes, no de una copia guardada en la ficha. Ver el
-     comentario de `Identidad` y la migración 0048. */
+     comentario de `Anatomia` y la migración 0048. */
   const peso = latestWeight(anthropometry[activeClient.id]?.history || []);
   /*
     Entrar en su portal por donde importa.
@@ -1312,9 +1310,14 @@ export const ClientFile = () => {
     checkIn: checkIns?.[activeClient.id],
   });
 
-  /* Los pasos del alta se cuentan aquí y no dentro de `Alta`: la columna de
-     al lado y el bloque tienen que estar de acuerdo sobre si hay alta o no. */
-  const pasosDelAlta = intakeSteps(clientIntake(activeClient.preferences));
+  /* El alta se cuenta AQUÍ y una sola vez: la celda del pulso y la hoja tienen
+     que estar de acuerdo sobre cuántos pasos hay y cuántos van hechos. */
+  const intake = clientIntake(activeClient.preferences);
+  const pasosDelAlta = intakeSteps(intake);
+  const progresoDelAlta = intakeProgress(activeClient, intake, estadoDelAlta);
+
+  const pago = paymentState(activeClient);
+  const periodo = billingPeriod(activeClient.billingPeriod);
 
   /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
      y tiene que dejar la misma señal, se pulse donde se pulse. */
@@ -1327,116 +1330,264 @@ export const ClientFile = () => {
     });
   };
 
+  const editar = (fields, opciones) => updateClient(activeClient.id, fields, opciones);
+
   return (
     <div className="ficha-pagina cascada">
-      {/* La fila de mando: sin titular —la pestaña ya dice «Perfil»— y, a la
-          derecha, su calendario como enlace de texto y la anamnesis para
-          llevar. Sin contexto a propósito: el plan y la antigüedad ya se leen
-          dos dedos más abajo, bajo su nombre en «Quién es», y aquí eran el
-          mismo dato dicho dos veces en la misma pantalla. */}
+      {/*
+        ══ LA FILA DE MANDO LLEVA LA ANATOMÍA ════════════════════════════════
+
+        Estaba vacía: `Mando` sin título y sin contexto, o sea dos botones
+        flotando a la derecha de una banda de aire, encima del panel que repetía
+        el nombre que ya dice la cabecera del cliente. Ahora esta línea contesta
+        lo que se pregunta al abrir la ficha de alguien —qué años tiene, cuánto
+        mide, cuánto pesa y cómo contactarle— y la derecha sigue siendo lo que se
+        puede hacer con él. La misma gramática que las otras cuatro pestañas.
+      */}
       <Mando
         acciones={
           <>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setHoja('identidad')}
+            >
+              <Pencil size={13} /> Editar
+            </button>
             <Link className="cab-accion is-principal" to={clientPath(activeClient.id, 'calendario')}>
               Su calendario
             </Link>
             <DownloadAnamnesis client={activeClient} className="btn btn-secondary btn-sm" />
           </>
         }
+      >
+        <Anatomia
+          client={activeClient}
+          weight={peso}
+          onEditar={() => setHoja('identidad')}
+        />
+      </Mando>
+
+      {/*
+        ══ EL PULSO: en qué punto está esta persona contigo ══════════════════
+
+        Era una columna de 340 px con cuatro tarjetas —alta, cobro, acceso,
+        carpeta— y tenía tres problemas a la vez. Pesaban lo mismo que los ocho
+        paneles de al lado, así que nada destacaba. Contestaban con formularios
+        preguntas que son cifras: «¿cuánto me paga?» se leía en cuatro cajas de
+        texto. Y por debajo de 1200 px la columna caía al FONDO de la página, o
+        sea que en un portátil pequeño «cuándo cobra» volvía a estar a dos mil
+        píxeles de scroll — justo el defecto que las dos columnas venían a
+        arreglar.
+
+        Como banda son cuatro datos que se leen de un vistazo, no caen nunca al
+        fondo, y cada uno abre por el canto derecho la hoja donde se toca. La
+        hoja lateral no tapa: el pulso sigue delante mientras se edita.
+
+        Las celdas que no existen no se pintan: sin pasos de alta no hay alta que
+        seguir, y sin Drive conectado no hay carpeta. La banda es lo que esta
+        asesoría tiene, no una plantilla con huecos.
+      */}
+      <div className="pulso">
+        {pasosDelAlta.length > 0 && (
+          <CeldaPulso
+            rotulo="Alta"
+            valor={`${progresoDelAlta.done} de ${progresoDelAlta.total}`}
+            frase={progresoDelAlta.complete ? 'Terminada' : 'Pasos por cerrar'}
+            tono={progresoDelAlta.complete ? 'good' : ''}
+            onClick={() => setHoja('alta')}
+          >
+            {/*
+              La misma barra que ve él en su portal. No es decoración duplicada:
+              es que las dos pantallas hablen el mismo idioma sobre lo mismo. El
+              cliente ve cuánto lleva; el entrenador veía una fracción que hay que
+              leer y comparar, y con nueve pasos «cómo va el alta de este» es una
+              pregunta de un vistazo — que es lo que contesta una barra.
+            */}
+            <span
+              className="form-progress"
+              role="progressbar"
+              aria-valuenow={progresoDelAlta.done}
+              aria-valuemin={0}
+              aria-valuemax={progresoDelAlta.total}
+              aria-label="Pasos del alta terminados"
+            >
+              <i
+                style={{
+                  width: `${progresoDelAlta.total ? (progresoDelAlta.done / progresoDelAlta.total) * 100 : 0}%`,
+                }}
+              />
+            </span>
+          </CeldaPulso>
+        )}
+
+        <CeldaPulso
+          rotulo="Cobro"
+          /* La pregunta económica de un entrenador es «cuánto y cada cuánto», y
+             en una línea. El formulario que la escribe está detrás. */
+          valor={
+            activeClient.feeAmount
+              ? `${fmt(activeClient.feeAmount, { unit: ' €' })}${periodo?.short ? ` / ${periodo.short}` : ''}`
+              : 'Sin importe'
+          }
+          frase={pago.state === 'no_date' && !activeClient.feeAmount ? 'Ponle lo que te paga' : pago.label}
+          tono={pago.tone === 'bad' ? 'bad' : pago.tone === 'warn' ? 'warn' : ''}
+          onClick={() => setHoja('cobro')}
+        />
+
+        <CeldaPulso
+          rotulo="Acceso"
+          valor={activeClient.clientProfileId ? 'Con cuenta' : 'Sin invitar'}
+          /*
+            Sin tono: que alguien recién dado de alta no tenga aún su enlace no es
+            una avería, es el minuto uno. El ámbar de esta línea era la cuarta
+            alarma encendida en una ficha donde no pasaba nada.
+          */
+          frase={
+            activeClient.clientProfileId ? 'Entra a su portal' : 'Mándale su enlace de entrada'
+          }
+          onClick={() => setHoja('acceso')}
+        />
+
+        {drive.conectado && (
+          <CeldaPulso
+            rotulo="Carpeta"
+            valor={drive.folder ? 'Creada' : 'Sin crear'}
+            frase={
+              drive.folder
+                ? drive.folder.uploads
+                  ? 'Él también puede dejar cosas'
+                  : 'Solo dejas tú'
+                : 'Se crea sola al usarla'
+            }
+            onClick={() => setHoja('carpeta')}
+          />
+        )}
+      </div>
+
+      {/*
+        ══ EL CUERPO: una hoja, no cinco tarjetas ════════════════════════════
+
+        Con datos de verdad —diecinueve campos, veintitrés fotos— la rejilla de
+        tarjetas se veía como lo que era: cinco cajas con cinco cantos, cinco
+        fondos, cinco subtítulos explicando de qué iba cada una y cinco botones
+        de editar, todas contestando a LA MISMA pregunta —«¿qué sé de esta
+        persona antes de montarle el programa?»—. El dibujo pesaba más que el
+        dato, y las cajas acababan a alturas distintas.
+
+        Aquí no hay más que un asunto, así que hay una sola superficie. Los
+        bloques son `desnudo`: rótulo, su gesto callado a la derecha y el
+        contenido, separados por aire y un filete. El orden es el de trabajo — lo
+        que le VETA algo, lo que te contó de su entreno, lo que te contó de su
+        comida, lo que le preguntaste tú, y su gimnasio al final, que es lo que
+        se consulta desde su rutina y no desde aquí.
+      */}
+      <div className="ficha-cuerpo">
+        <ConditionsPanel client={activeClient} />
+
+        {PROFILE_GROUPS.map((grupo) => (
+          <ProfileBlock
+            key={grupo.id}
+            client={activeClient}
+            group={grupo.id}
+            onSave={(profile) => editar({ profile: cleanProfile(profile) })}
+          />
+        ))}
+
+        <CustomAnswers client={activeClient} />
+
+        <EquipmentPanel client={activeClient} onSaveProfile={(profile) => editar({ profile })} />
+      </div>
+
+      <DatosPersonalesPie
+        client={activeClient}
+        consent={consent}
+        onAbrir={() => setHoja('datos')}
       />
 
       {/*
-        ══ DOS COLUMNAS, como el resto del cliente ═══════════════════════════
+        ══ LAS HOJAS ════════════════════════════════════════════════════════
 
-        Era una hoja de ocho bloques con un índice de cuatro apartados, dos
-        rótulos de grupo, un pliegue y tres avisos: dos mil píxeles para
-        contestar «¿cuándo cobra?». Y era la única pestaña que no tenía la forma
-        de las otras cuatro —el trabajo a lo ancho, lo que se consulta al lado—.
+        Todo lo que esta ficha EDITA se abre en el CENTRO, y siempre igual: un
+        gesto, un sitio.
 
-        A la IZQUIERDA, la PERSONA: quién es, lo que le condiciona, lo que te
-        contó y su gimnasio. Se lee entero una vez, el día que le montas la
-        rutina y la dieta. A la DERECHA, la RELACIÓN: su alta —mientras dure—,
-        su cobro, su acceso, su carpeta y sus datos. Es lo que se consulta cada
-        mes, y a un vistazo desde cualquier punto de la columna de al lado.
+        Estuvo por el canto derecho, con el argumento de que el importe o los
+        pasos del alta se deciden mirando lo que hay debajo. No se sostenía: la
+        ficha no enseña el importe en ningún otro sitio, ni los pasos del alta,
+        así que detrás del panel no había nada con lo que comparar — solo la
+        misma ficha, tapada a medias y en una columna estrecha.
 
-        El índice, los rótulos de grupo, el aviso de bienvenida y el pliegue de
-        la anamnesis se van: con dos columnas ya no hay tres pantallas que
-        recorrer, y una ficha vacía se ve vacía sin que nadie lo explique.
+        `side` es para MIRAR un detalle sin soltar el trabajo (ver `ui/Modal`, y
+        la progresión de un ejercicio o lo que pasó en una semana, que sí lo
+        son). Aquí se DECIDE, y decidir pide el centro y el velo: es la misma
+        regla que ya seguían los ajustes del programa en `WorkoutLogEditor` y la
+        que ahora sigue también el objetivo de la dieta.
       */}
-      <div className="ficha">
-        <div className="ficha-trabajo">
-          <Identidad
+      <Modal open={hoja === 'identidad'} title="Quién es" onClose={cerrar}>
+        <div className="hoja-ficha">
+          <ClientEditor
             client={activeClient}
-            weight={peso}
-            onUpdate={(fields) => updateClient(activeClient.id, fields)}
+            onCancel={cerrar}
+            onSave={(fields) => {
+              editar(fields);
+              cerrar();
+            }}
           />
 
-          {/* Lo que condiciona lo que le puedes poner. Es lo único de esta
-              columna que además AVISA —sale por su cuenta en su rutina y en su
-              dieta— y por eso va justo debajo de quién es. */}
-          <ConditionsPanel client={activeClient} />
+          {/* El aviso vive aquí, que es donde se arregla: el desplegable del sexo
+              está a dos dedos. En la ficha era un cartel ámbar sobre algo que no
+              está roto. */}
+          {!activeClient.gender && (
+            <Notice tone="warn">
+              Sin el sexo, el % graso por pliegues se calcula con la fórmula de hombre. Ponlo aquí y
+              los pliegues pasan a usar la que toca.
+            </Notice>
+          )}
+        </div>
+      </Modal>
 
-          {/* Los bloques del perfil, a dos columnas: filas cortas de etiqueta y
-              valor que a ancho completo dejan un río de blanco en el centro. */}
-          <div className="grid-2">
-            {PROFILE_GROUPS.map((grupo) => (
-              <ProfileBlock
-                key={grupo.id}
-                client={activeClient}
-                group={grupo.id}
-                onSave={(profile) => updateClient(activeClient.id, { profile: cleanProfile(profile) })}
-              />
-            ))}
-          </div>
-
-          <CustomAnswers client={activeClient} />
-
-          {/* Su maquinaria, al final: es lo último que se rellena y lo que se
-              consulta desde su RUTINA, no desde aquí. */}
-          <EquipmentPanel
+      <Modal open={hoja === 'alta'} size="lg" title="Su alta" onClose={cerrar}>
+        <div className="hoja-ficha">
+          <Alta
             client={activeClient}
-            onSaveProfile={(profile) => updateClient(activeClient.id, { profile })}
+            estado={estadoDelAlta}
+            intake={intake}
+            steps={pasosDelAlta}
+            progress={progresoDelAlta}
+            carpeta={drive.folder}
+            onProbar={probarSuPortal}
+            onUpdate={editar}
+            onPreferences={(siguiente) =>
+              updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(siguiente))
+            }
           />
+        </div>
+      </Modal>
 
-          {/* Sus datos personales —consentimiento, exportar, borrar— son de la
-              PERSONA, y al final: es lo que se hace cuando entra o sale. */}
+      <Modal open={hoja === 'cobro'} title="Cobro" onClose={cerrar}>
+        <div className="hoja-ficha">
+          <Cobro client={activeClient} onUpdate={editar} onMarkPaid={marcarCobrado} />
+        </div>
+      </Modal>
+
+      <Modal open={hoja === 'acceso'} title="Acceso y baja" onClose={cerrar}>
+        <div className="hoja-ficha col gap-3">
+          <PortalAccess client={activeClient} />
+          <ArchiveRow client={activeClient} />
+        </div>
+      </Modal>
+
+      <Modal open={hoja === 'datos'} size="lg" title="Datos personales" onClose={cerrar}>
+        <div className="hoja-ficha">
           <ClientDataPanel client={activeClient} />
         </div>
+      </Modal>
 
-        <aside className="ficha-lado">
-          {/*
-            El alta, la primera de la columna y solo mientras exista: es una
-            FASE, no una propiedad. Manda mientras dura y desaparece entera
-            cuando no le pides nada (`Alta` devuelve null con cero pasos).
-          */}
-          {pasosDelAlta.length > 0 && (
-            <Alta
-              client={activeClient}
-              estado={estadoDelAlta}
-              onProbar={probarSuPortal}
-              onUpdate={(fields) => updateClient(activeClient.id, fields)}
-              onPreferences={(intake) =>
-                updateClientPreferences(activeClient.id, 'intake', intakeToPreferences(intake))
-              }
-            />
-          )}
-
-          <Cobro
-            client={activeClient}
-            onUpdate={(fields) => updateClient(activeClient.id, fields)}
-            onMarkPaid={marcarCobrado}
-          />
-
-          <Panel title="Acceso y baja" className="col gap-3">
-            <PortalAccess client={activeClient} />
-            <ArchiveRow client={activeClient} />
-          </Panel>
-
-          {/* La carpeta compartida con él, si tienes Drive conectado. Sin Drive
-              no se pinta nada (ver `ClientDrive`). */}
-          <ClientDrive client={activeClient} />
-        </aside>
-      </div>
+      <Modal open={hoja === 'carpeta'} title="Su carpeta" onClose={cerrar}>
+        <div className="hoja-ficha">
+          <ClientDrive client={activeClient} drive={drive} />
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -463,9 +463,15 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .cliente-cab-quien { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
 /* El nombre es la portada del cliente: habla en la ancha, como todo titular
-   de pantalla (ver `.section-head h1` en tipografia.css). */
+   de pantalla (ver `.section-head h1` en tipografia.css).
+
+   Y en el PESO DE TITULAR (740), no en el de cifra: iba en 720, que a 30 px es
+   la misma receta con la que se dibujaba una cifra de tarjeta —`.comparativa-tope`
+   estaba a un panel de distancia con el mismo cuerpo y el mismo peso—, y un
+   nombre indistinguible de un dato deja de leerse como portada. Las cifras
+   bajan a 680 en la escala de `base.css`; lo que titula sube a 740. */
 .cliente-cab-nombre {
-  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720;
+  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 740;
   letter-spacing: -0.015em; line-height: var(--lh-tight);
 }
 .cliente-cab-selector { display: none; }

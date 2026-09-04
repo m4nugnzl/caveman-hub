@@ -30,7 +30,6 @@ import {
   drillsForDay,
   dayHasOwnDrills,
   indexAfterMove,
-  findMicrocycle,
   unitInitial,
   unitIsFeminine,
   unitLabel,
@@ -64,18 +63,18 @@ import { VistaBloque } from './VistaBloque';
 import { ComoLoLlevo } from './ComoLoLlevo';
 import { ProgresionPopup } from './ProgresionPopup';
 import { SensacionesPopup } from './SensacionesPopup';
-import { NuevoBloqueDialog } from './NuevoBloqueDialog';
+import { DefinirBloque } from './DefinirBloque';
 import {
   BLOCK_CHANGE,
   blockOfWeek,
   blocksOf,
-  blockPlan,
+  overridesAt,
+  overrideSpan,
   isCurrentBlock,
   lastWeekNumber,
-  untrainedWeeksOfDay,
+  resolvedMicrocycles,
   weekInBlock,
   weekLabel,
-  weeksAheadOfBlock,
   weeksOfBlock,
 } from '@/domain/blocks';
 import { executedSessions } from '@/domain/sessions';
@@ -114,10 +113,29 @@ export const WorkoutLogEditor = () => {
     removeSession,
     startProgram,
     appendMicrocycle,
-    startBlock,
+    startBlockWithPlan,
     renameBlock,
     deleteBlock,
     logBlockChange,
+    addBlockSheet,
+    removeBlockSheet,
+    renameBlockSheet,
+    moveBlockSheet,
+    addBlockExercise,
+    removeBlockExercise,
+    restoreBlockExercise,
+    moveBlockExercise,
+    setBlockExerciseSets,
+    setBlockExerciseTarget,
+    updatePlanExercise,
+    removePlanExercise,
+    addPlanExercise,
+    overridePlanExercise,
+    removePlanExerciseOnly,
+    dropOverride,
+    promoteOverride,
+    addOverride,
+    setOverrideSpan,
     cloneMicrocycle,
     removeMicrocycle,
     restoreMicrocycle,
@@ -129,17 +147,9 @@ export const WorkoutLogEditor = () => {
     moveDay,
     removeDay,
     restoreDay,
-    addExercise,
     addExercises,
-    removeExercise,
-    restoreExercise,
-    moveExercise,
-    setExerciseNote,
     updateExerciseSet,
     updateExerciseTarget,
-    setExerciseSetCount,
-    addExerciseSetSlot,
-    removeExerciseSetSlot,
     upsertLibraryExercise,
     nutrition,
     replicateClient,
@@ -226,7 +236,16 @@ export const WorkoutLogEditor = () => {
       vivo = false;
     };
   }, [program, activeClient.id, ensureProgram, intento]);
-  const microcycles = useMemo(() => program?.microcycles || [], [program]);
+  /*
+    Los microciclos CON SU PLAN PUESTO: el plan es del bloque y cada semana
+    lleva encima sus excepciones (`domain/blocks`). Mientras un bloque no tenga
+    su plan dentro esto devuelve los mismos objetos, así que la pantalla se
+    comporta exactamente igual hasta que se migre.
+
+    Las ESCRITURAS no pasan por aquí: van al contexto, que trabaja sobre el
+    programa guardado. Esto es lo que se lee.
+  */
+  const microcycles = useMemo(() => resolvedMicrocycles(program), [program]);
   /* El calentamiento del PROGRAMA. Se lee en tres sitios —su pliegue, el aviso
      de lo que se copia y el día que hereda—, así que se nombra una vez. */
   const drills = program?.mobilityDrills || [];
@@ -577,8 +596,9 @@ export const WorkoutLogEditor = () => {
     —debajo de todo lo que ellas mismas ordenan, y por tanto invisibles—.
 
     Ahora el reparto de la semana, que es lo único de ahí que se toca al
-    plantear, ABRE el plan del bloque; y esto se abre por el canto derecho
-    desde «ajustes», que es donde se busca lo que se configura una vez.
+    plantear, ABRE el plan del bloque; y esto se abre en un diálogo desde el
+    engranaje de la línea de bloques, que es donde se busca lo que se
+    configura una vez.
   */
   const ajustesDelPrograma = (
     <CycleSettings
@@ -620,8 +640,6 @@ export const WorkoutLogEditor = () => {
   const fem = unitIsFeminine(cycleType);
   const ningun = fem ? 'ninguna' : 'ningún';
   const montada = fem ? 'montada' : 'montado';
-  const todas = fem ? 'todas las' : 'todos los';
-  const un = fem ? 'una' : 'uno';
   /*
     ── El bloque ──────────────────────────────────────────────────────────────
     La tira enseña las semanas DEL BLOQUE de la semana abierta, no todas: un
@@ -763,185 +781,90 @@ export const WorkoutLogEditor = () => {
 
   /*
     ══════════════════════════════════════════════════════════════════════════
-    ESCRIBIR EN EL BLOQUE, NO EN LA CELDA
+    ESCRIBIR EN EL BLOQUE
     ══════════════════════════════════════════════════════════════════════════
 
-    Lo que se pauta desde la vista «Bloque» no es de una semana: es del bloque,
-    que es lo que un bloque significa (`domain/blocks`). Así que cada gesto de
-    ahí se reparte a sus semanas, con dos cuidados:
+    El plan es del bloque, así que cada gesto de esta vista es UNA escritura.
 
-      · Nunca a una sesión YA ENTRENADA (`untrainedWeeksOfDay`). Añadirle un
-        ejercicio a alguien que ya cerró esa semana no es programar: es
-        cambiarle el pasado, y encima lo deja contado como que se saltó una
-        serie que nunca tuvo delante.
-      · Cada semana lleva SU copia del ejercicio, con su propio id
-        (`cloneExerciseAsTemplate`). El id es lo único que mira
-        `log_session_set` para saber dónde anotar, así que repetirlo entre
-        semanas cruzaría los registros. Es la misma razón por la que
-        `cloneDays` reidentifica.
+    ── Lo que había, y por qué se ha ido ─────────────────────────────────────
+    Antes el plan vivía copiado en cada microciclo, así que un cambio había que
+    REPARTIRLO a los que quedaban por entrenar, con una copia del ejercicio por
+    microciclo y su propio identificador. De ahí salían tres cosas que ya no
+    existen: el reparto, el aviso de «no queda dónde escribir» —cuando todos los
+    microciclos del bloque estaban entrenados, el cambio no cabía en ninguno— y
+    el rellenado con la plantilla, porque ya no hay huecos que rellenar: un
+    microciclo nuevo nace con el plan del bloque puesto.
 
-    Y por eso los ejercicios se localizan por NOMBRE y no por id: «Press banca»
-    de la semana 3 y el de la 4 son el mismo ejercicio del plan y dos objetos
-    distintos.
+    ── Lo entrenado no corre peligro ─────────────────────────────────────────
+    Vive en las sesiones registradas, que esto no toca. Cambiar el plan no
+    reescribe lo que alguien ya levantó; solo cambia lo que le toca hacer.
+
+    ── La migración va sola ──────────────────────────────────────────────────
+    Estas funciones escriben a través de `applyPlan`, que sube el plan al bloque
+    antes de tocarlo si todavía no estaba (`domain/blocksMigration`). Es
+    idempotente: la primera vez migra, las demás no hacen nada.
   */
-  const diaDe = (w, dayName) => (findMicrocycle(microcycles, w)?.days || []).find((d) => d.dayName === dayName) || null;
-  const escribiblesDe = (dayName) => untrainedWeeksOfDay(program, bloque, dayName);
-  const cuantasUnidades = (n) => `${n} ${n === 1 ? unidad.toLowerCase() : unidades}`;
-
-  /** El aviso de que no queda dónde escribir: se dice, no se traga. */
-  const sinSitio = (dayName) => {
-    toast({
-      text: `«${dayName}» ya está entrenado en ${todas} ${unidades} de este bloque, así que no he cambiado nada. Añade ${un} ${unidad.toLowerCase()} más o abre un bloque nuevo.`,
-      duration: 8000,
-    });
-  };
 
   /*
     ── La bitácora ───────────────────────────────────────────────────────────
-    Todo cambio que mueve el VOLUMEN del plan se apunta en su bloque: qué, en
-    qué hoja, cuándo y —lo que más importa— con qué alcance. `bloque` es lo
-    escrito desde el plan, que va a todas sus semanas por entrenar y lo deja
-    uniforme; `semana` es lo tocado en una hoja concreta, que la saca de la
-    plantilla a propósito. Ni uno ni otro parten el bloque: eso se decide a
-    mano. Ver `logBlockChange` en `domain/blocks`.
+    Lo que se escribe aquí es del PLAN, así que su alcance es siempre el bloque
+    entero. El alcance «semana» queda para la excepción, que se hace desde la
+    hoja. Ver `logBlockChange` en `domain/blocks`.
   */
   const apuntar = (entry) => logBlockChange(activeClient.id, bloque.id, entry);
-  const apuntarEnBloque = (hoja, semanas, entry) =>
-    apuntar({ alcance: semanas.length === semanasDelBloque.length ? 'bloque' : 'semana', semanas, hoja, ...entry });
+  const apuntarEnBloque = (hoja, entry) => apuntar({ alcance: 'bloque', semanas: [], hoja, ...entry });
 
   const anadirEjercicioAlBloque = (dayName, exercise) => {
-    const ws = escribiblesDe(dayName);
-    if (ws.length === 0) return sinSitio(dayName);
-    ws.forEach((w) => addExercise(activeClient.id, w, dayName, cloneExerciseAsTemplate(exercise)));
-    apuntarEnBloque(dayName, ws, { kind: BLOCK_CHANGE.EJERCICIO_MAS, que: exercise.name });
-    toast({ text: `«${exercise.name}» añadido a ${dayName} en ${cuantasUnidades(ws.length)}.` });
+    addBlockExercise(activeClient.id, bloque.id, dayName, cloneExerciseAsTemplate(exercise));
+    apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.EJERCICIO_MAS, que: exercise.name });
+    toast({ text: `«${exercise.name}» añadido a ${dayName}.` });
   };
 
   const quitarEjercicioDelBloque = (dayName, name) => {
-    const donde = escribiblesDe(dayName)
-      .map((w) => {
-        const lista = diaDe(w, dayName)?.exercises || [];
-        const index = lista.findIndex((ex) => ex.name === name);
-        return index < 0 ? null : { w, index, exercise: lista[index] };
-      })
-      .filter(Boolean);
-    if (donde.length === 0) return sinSitio(dayName);
-
-    donde.forEach(({ w, exercise }) => removeExercise(activeClient.id, w, dayName, exercise.id));
-    apuntarEnBloque(dayName, donde.map((d) => d.w), { kind: BLOCK_CHANGE.EJERCICIO_MENOS, que: name });
+    const quitado = removeBlockExercise(activeClient.id, bloque.id, dayName, name);
+    if (!quitado) return;
+    apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.EJERCICIO_MENOS, que: name });
     toast({
-      text: `«${name}» quitado de ${dayName} en ${cuantasUnidades(donde.length)}.`,
+      text: `«${name}» quitado de ${dayName}.`,
       action: {
         label: 'Deshacer',
-        onClick: () => donde.forEach(({ w, exercise, index }) => restoreExercise(activeClient.id, w, dayName, exercise, index)),
+        onClick: () => restoreBlockExercise(activeClient.id, bloque.id, dayName, quitado.exercise, quitado.index),
       },
     });
   };
 
-  const moverEjercicioDelBloque = (dayName, name, delta) => {
-    escribiblesDe(dayName).forEach((w) => {
-      const lista = diaDe(w, dayName)?.exercises || [];
-      const from = lista.findIndex((ex) => ex.name === name);
-      const to = from + delta;
-      if (from < 0 || to < 0 || to >= lista.length) return;
-      moveExercise(activeClient.id, w, dayName, from, to);
-    });
-  };
+  const moverEjercicioDelBloque = (dayName, name, delta) =>
+    moveBlockExercise(activeClient.id, bloque.id, dayName, name, delta);
 
   const seriesDelBloque = (dayName, name, n, antes) => {
-    const ws = escribiblesDe(dayName);
-    if (ws.length === 0) return sinSitio(dayName);
-    ws.forEach((w) => {
-      const ex = (diaDe(w, dayName)?.exercises || []).find((e) => e.name === name);
-      if (ex) setExerciseSetCount(activeClient.id, w, dayName, ex.id, n);
-    });
-    apuntarEnBloque(dayName, ws, { kind: BLOCK_CHANGE.SERIES, que: name, de: antes, a: n });
+    setBlockExerciseSets(activeClient.id, bloque.id, dayName, name, n);
+    apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.SERIES, que: name, de: antes, a: n });
   };
 
-  const repsDelBloque = (dayName, name, reps) => {
-    const ws = escribiblesDe(dayName);
-    if (ws.length === 0) return sinSitio(dayName);
-    ws.forEach((w) => {
-      const ex = (diaDe(w, dayName)?.exercises || []).find((e) => e.name === name);
-      if (ex) updateExerciseTarget(activeClient.id, w, dayName, ex.id, reps);
-    });
-  };
+  const repsDelBloque = (dayName, name, reps) =>
+    setBlockExerciseTarget(activeClient.id, bloque.id, dayName, name, reps);
 
   const anadirHojaAlBloque = (nombre) => {
-    const ws = weeksAheadOfBlock(program, bloque, semanaEnCurso);
-    /* Un bloque sin ninguna montada no tiene dónde poner la sesión: primero la
-       semana. No debería llegar aquí —la pantalla vacía va antes—, pero un
-       aviso vale más que un alta que no hace nada. */
-    if (ws.length === 0) {
-      toast({ text: `Este bloque todavía no tiene ${ningun} ${unidad.toLowerCase()}. Añade ${un} y vuelve a intentarlo.` });
-      return;
-    }
-    ws.forEach((w) => addDay(activeClient.id, w, nombre));
-    apuntarEnBloque(nombre, ws, { kind: BLOCK_CHANGE.HOJA_MAS, que: nombre });
-    toast({ text: `«${nombre}» añadida en ${cuantasUnidades(ws.length)}.` });
+    addBlockSheet(activeClient.id, bloque.id, nombre);
+    apuntarEnBloque(nombre, { kind: BLOCK_CHANGE.HOJA_MAS, que: nombre });
+    toast({ text: `«${nombre}» añadida al bloque.` });
   };
 
-  /* Renombrar y reordenar valen para TODAS sus semanas, entrenadas incluidas:
-     no cambian lo que se hizo, solo cómo se llama y en qué orden se lee. */
-  const renombrarHojaDelBloque = (de, a) => semanasDelBloque.forEach((w) => renameDay(activeClient.id, w, de, a));
-  const moverHojaDelBloque = (from, to) =>
-    semanasDelBloque.forEach((w) => {
-      const nombre = findMicrocycle(microcycles, w)?.days?.[from]?.dayName;
-      if (nombre) moveDay(activeClient.id, w, nombre, to);
-    });
-
-  /* Quitar un día del bloque respeta lo entrenado: donde hay sesión anotada se
-     queda, y se dice en cuántas. Lo usan la vista y la ventana del bloque. */
-  const quitarHojaDelBloque = (nombre) => {
-    let saltadas = 0;
-    const quitadas = [];
-    semanasDelBloque.forEach((w) => {
-      const micro = findMicrocycle(microcycles, w);
-      if (executedSessions(micro || {}).some((ss) => ss.dayName === nombre)) saltadas += 1;
-      else {
-        removeDay(activeClient.id, w, nombre);
-        quitadas.push(w);
-      }
-    });
-    if (quitadas.length > 0) apuntarEnBloque(nombre, quitadas, { kind: BLOCK_CHANGE.HOJA_MENOS, que: nombre });
-    if (saltadas > 0) {
-      toast({
-        text: `«${nombre}» se ha quitado de ${todas} ${unidades} sin entrenar; se conserva en ${saltadas} con sesión anotada.`,
-        duration: 8000,
-      });
-    }
-  };
+  const renombrarHojaDelBloque = (de, a) => renameBlockSheet(activeClient.id, bloque.id, de, a);
+  const moverHojaDelBloque = (from, to) => moveBlockSheet(activeClient.id, bloque.id, from, to);
 
   /*
-    ── El hueco que deja «+ semana» ──────────────────────────────────────────
-    Continuar el programa crea la semana siguiente con los días VACÍOS
-    (`appendMicrocycle`), así que dentro de un bloque vivo siempre hay sesiones
-    por rellenar. Esto las rellena con la plantilla: solo las que están en
-    blanco —nunca pisa nada escrito— y con una copia propia por semana.
+    Quitar una hoja del bloque quita el PLAN, no lo entrenado: las sesiones que
+    se hicieran de ella siguen en sus microciclos y se siguen leyendo. Antes
+    había que ir microciclo a microciclo saltándose los que tuvieran sesión
+    anotada, y avisar de en cuántos se quedaba; ahora el plan y el registro
+    están separados de verdad y no hay nada que esquivar.
   */
-  const rellenarConLaPlantilla = (dayName, semanas) => {
-    const origen = diaDe(blockPlan(program, bloque).reference, dayName);
-    const plantilla = origen?.exercises || [];
-    /* Sin plantilla no hay nada que copiar, y callarse era el fallo: el botón
-       se pulsaba y no pasaba nada —ni cambio ni aviso—. La vista ya no ofrece
-       ponerla cuando el bloque está en blanco (`VistaBloque`); esto es el
-       cinturón, para que ninguna otra puerta pueda volver a fallar en silencio. */
-    if (plantilla.length === 0) {
-      toast({ text: `«${dayName}» no tiene ejercicios que copiar: escríbele el primero.` });
-      return;
-    }
-    semanas.forEach((w) => {
-      if (!diaDe(w, dayName)) addDay(activeClient.id, w, dayName);
-      if ((diaDe(w, dayName)?.exercises || []).length > 0) return;
-      addExercises(activeClient.id, w, dayName, plantilla.map(cloneExerciseAsTemplate));
-    });
-    apuntarEnBloque(dayName, semanas, {
-      kind: BLOCK_CHANGE.PLANTILLA,
-      que: semanas.map((w) => `${unitInitial(cycleType)}${enBloque(w)}`).join(', '),
-    });
-    toast({ text: `${dayName}: plantilla puesta en ${cuantasUnidades(semanas.length)}.` });
+  const quitarHojaDelBloque = (nombre) => {
+    removeBlockSheet(activeClient.id, bloque.id, nombre);
+    apuntarEnBloque(nombre, { kind: BLOCK_CHANGE.HOJA_MENOS, que: nombre });
+    toast({ text: `«${nombre}» quitada del bloque. Lo que se entrenó de ella se conserva.` });
   };
-
   /*
     ── Y lo que se toca desde la HOJA ────────────────────────────────────────
     Aquí el alcance es siempre una semana: es el gesto de «a éste, esta semana,
@@ -952,13 +875,52 @@ export const WorkoutLogEditor = () => {
   const apuntarEnLaHoja = (entry) =>
     nav.day && apuntar({ alcance: 'semana', semanas: [nav.week], hoja: nav.day.dayName, ...entry });
 
-  /** Una serie más o una menos en la hoja abierta, contada en la bitácora. */
+  /* La excepción de este microciclo sobre un ejercicio, si la hay. Se busca
+     por el id del ejercicio que se está viendo, que es el de la excepción
+     cuando la hay y el del bloque cuando no.
+
+     Se pregunta al BLOQUE y no al microciclo: las excepciones viven en
+     `block.overrides` con su tramo puesto, y `overridesAt` es quien sabe
+     cuáles de ellas están vigentes esta semana (ver `domain/blocks`). */
+  /* El alta dice cuántos microciclos dura; aquí se traduce a hasta cuál. Sin
+     número, entra en el plan del bloque y no lleva tramo. */
+  const tramoDeAlta = ({ semanas } = {}) =>
+    semanas === undefined ? {} : { hasta: semanas === null ? null : nav.week + Math.max(0, semanas - 1) };
+
+  const laExcepcionDe = (exId) =>
+    overridesAt(bloque, nav.week, nav.day?.dayName).find((o) => o.exercise?.id === exId) || null;
+
+  /**
+   * Una serie más o una menos desde la hoja abierta.
+   *
+   * Va al PLAN —al bloque, o a la excepción de esta semana si el ejercicio solo
+   * existía ahí—, que es donde vive lo que se está viendo. Antes escribía en el
+   * día del microciclo, que era la copia del plan de esa semana; con el plan en
+   * el bloque, escribir ahí sería escribir donde ya nadie lee.
+   */
   const seriesDeLaHoja = (exId, delta, setIdx) => {
     const ex = (nav.day?.exercises || []).find((e) => e.id === exId);
     if (!ex) return;
     const antes = (ex.sets || []).length;
-    if (delta > 0) addExerciseSetSlot(activeClient.id, nav.week, nav.day.dayName, exId);
-    else removeExerciseSetSlot(activeClient.id, nav.week, nav.day.dayName, exId, setIdx);
+    if (delta < 0 && antes <= 1) return;
+
+    updatePlanExercise(
+      activeClient.id,
+      nav.week,
+      nav.day.dayName,
+      exId,
+      (suyo) => {
+        const sets = [...(suyo.sets || [])];
+        if (delta > 0) {
+          const ultima = sets[sets.length - 1];
+          sets.push({ kg: '', reps: '', rir: '', targetReps: ultima?.targetReps || '', targetRir: ultima?.targetRir || '' });
+        } else {
+          sets.splice(Number.isInteger(setIdx) ? setIdx : sets.length - 1, 1);
+        }
+        return { ...suyo, sets };
+      },
+      { immediate: false }
+    );
     apuntarEnLaHoja({ kind: BLOCK_CHANGE.SERIES, que: ex.name, de: antes, a: antes + delta });
   };
 
@@ -1021,7 +983,6 @@ export const WorkoutLogEditor = () => {
           onRenombrarHoja={renombrarHojaDelBloque}
           onQuitarHoja={quitarHojaDelBloque}
           onMoverHoja={moverHojaDelBloque}
-          onRellenar={rellenarConLaPlantilla}
           onTraerFichero={() => setPegarAbierto(true)}
           onRecordarEjercicio={upsertLibraryExercise}
           onSplit={(dia, valor) => updateWeeklySplit(activeClient.id, dia, valor)}
@@ -1333,19 +1294,91 @@ export const WorkoutLogEditor = () => {
                 onFocusExercise={setFocoEjercicio}
                 showRir={isModuleOn(protocol, 'rir')}
                 showNotes={isModuleOn(protocol, 'coachNote')}
-                onNoteChange={(exId, note) => setExerciseNote(activeClient.id, nav.week, nav.day.dayName, exId, note)}
-                onMove={(from, to) => moveExercise(activeClient.id, nav.week, nav.day.dayName, from, to)}
+                /*
+                  ── La excepción de este microciclo ──────────────────────
+                  Un ejercicio que no es el del bloque sino el de esta semana.
+                  La hoja lo marca y ofrece las dos salidas: volver al plan, o
+                  ascenderlo y que pase a ser el plan de todos.
+                */
+                excepcionDe={(ex) => laExcepcionDe(ex.id)}
+                /* «solo M3», «M2–M4», «desde M3»: el tramo con la numeración
+                   del bloque, que es la que se lee en toda la pantalla. */
+                tramoDe={(o) => overrideSpan(o, bloque, etiqueta)}
+                onAlargar={(exId) => {
+                  const o = laExcepcionDe(exId);
+                  if (!o) return;
+                  /* Dos microciclos más, o sin fin si ya llegaba al último. */
+                  const fin = o.toWeek === null || o.toWeek === undefined ? null : o.toWeek + 2;
+                  setOverrideSpan(activeClient.id, bloque.id, o.id, { toWeek: fin });
+                  toast({
+                    text: fin === null ? 'Sin fin: se queda hasta que lo cambies.' : `Ahora dura hasta ${etiqueta(fin)}.`,
+                    action: { label: 'Deshacer', onClick: () => setOverrideSpan(activeClient.id, bloque.id, o.id, { toWeek: o.toWeek }) },
+                  });
+                }}
+                /* Crear la excepción sin cambiar nada: copia el ejercicio a este
+                   microciclo tal y como está, y a partir de ahí lo que se toque
+                   en esa fila se queda aquí. */
+                onSacarDeLaPlantilla={(exId, { semanas } = {}) => {
+                  /* `semanas` es cuántos microciclos dura el cambio: 1 el
+                     puntual, varios la prueba, `null` sin fin —«de aquí en
+                     adelante»—. Empieza siempre en el que estás, así que lo ya
+                     entrenado no se toca. */
+                  const hasta = semanas === null ? null : nav.week + Math.max(0, (semanas || 1) - 1);
+                  overridePlanExercise(activeClient.id, nav.week, nav.day.dayName, exId, (suyo) => suyo, { hasta });
+                  const cuanto =
+                    hasta === null
+                      ? 'de aquí en adelante'
+                      : hasta === nav.week
+                        ? `solo en este ${unidad.toLowerCase()}`
+                        : `hasta ${etiqueta(hasta)}`;
+                  toast({ text: `Lo que le cambies a partir de ahora vale ${cuanto}.` });
+                }}
+                onRemoveOnly={(exId) => {
+                  removePlanExerciseOnly(activeClient.id, nav.week, nav.day.dayName, exId);
+                  toast({ text: `Quitado solo en este ${unidad.toLowerCase()}. El bloque no se ha tocado.` });
+                }}
+                onVolverAlBloque={(exId) => {
+                  const o = laExcepcionDe(exId);
+                  if (o) dropOverride(activeClient.id, bloque.id, o.id);
+                }}
+                onAplicarAlBloque={(exId) => {
+                  const o = laExcepcionDe(exId);
+                  if (!o) return;
+                  promoteOverride(activeClient.id, bloque.id, o.id);
+                  toast({ text: `Aplicado al bloque: ahora es el plan de todos sus ${unidades}.` });
+                }}
+                onNoteChange={(exId, note) =>
+                  updatePlanExercise(
+                    activeClient.id,
+                    nav.week,
+                    nav.day.dayName,
+                    exId,
+                    (suyo) => ({ ...suyo, coachNote: note }),
+                    { immediate: false }
+                  )
+                }
+                onMove={(from, to) => {
+                  const nombre = nav.day.exercises[from]?.name;
+                  if (nombre) moveBlockExercise(activeClient.id, bloque.id, nav.day.dayName, nombre, to - from);
+                }}
                 onRemove={(exId) => {
-                  const index = nav.day.exercises.findIndex((ex) => ex.id === exId);
-                  const exercise = nav.day.exercises[index];
-                  removeExercise(activeClient.id, nav.week, nav.day.dayName, exId);
-                  if (!exercise) return;
-                  apuntarEnLaHoja({ kind: BLOCK_CHANGE.EJERCICIO_MENOS, que: exercise.name });
                   const { week } = nav;
                   const { dayName } = nav.day;
+                  const quitado = removePlanExercise(activeClient.id, week, dayName, exId);
+                  if (!quitado) return;
+                  apuntarEnLaHoja({ kind: BLOCK_CHANGE.EJERCICIO_MENOS, que: quitado.exercise.name });
                   toast({
-                    text: `«${exercise.name}» eliminado.`,
-                    action: { label: 'Deshacer', onClick: () => restoreExercise(activeClient.id, week, dayName, exercise, index) },
+                    text:
+                      quitado.donde === 'excepcion'
+                        ? `«${quitado.exercise.name}» ya no es una excepción de este microciclo.`
+                        : `«${quitado.exercise.name}» quitado del bloque.`,
+                    action: {
+                      label: 'Deshacer',
+                      onClick: () =>
+                        quitado.donde === 'excepcion'
+                          ? addOverride(activeClient.id, quitado.blockId, quitado.override)
+                          : restoreBlockExercise(activeClient.id, quitado.blockId, dayName, quitado.exercise, quitado.index),
+                    },
                   });
                 }}
                 onSetChange={(exId, setIdx, field, value) => {
@@ -1382,8 +1415,9 @@ export const WorkoutLogEditor = () => {
                     <AddExerciseForm
                       enHoja
                       library={ejerciciosDisponibles}
-                      onAdd={(exercise) => {
-                        addExercise(activeClient.id, nav.week, nav.day.dayName, exercise);
+                      onAlcance
+                      onAdd={(exercise, alcance) => {
+                        addPlanExercise(activeClient.id, nav.week, nav.day.dayName, exercise, tramoDeAlta(alcance));
                         apuntarEnLaHoja({ kind: BLOCK_CHANGE.EJERCICIO_MAS, que: exercise.name });
                       }}
                       onRememberExercise={upsertLibraryExercise}
@@ -1395,8 +1429,9 @@ export const WorkoutLogEditor = () => {
                 <div className="hoja-alta">
                   <AddExerciseForm
                     library={ejerciciosDisponibles}
-                    onAdd={(exercise) => {
-                        addExercise(activeClient.id, nav.week, nav.day.dayName, exercise);
+                    onAlcance
+                    onAdd={(exercise, alcance) => {
+                        addPlanExercise(activeClient.id, nav.week, nav.day.dayName, exercise, tramoDeAlta(alcance));
                         apuntarEnLaHoja({ kind: BLOCK_CHANGE.EJERCICIO_MAS, que: exercise.name });
                       }}
                     onRememberExercise={upsertLibraryExercise}
@@ -1445,7 +1480,7 @@ export const WorkoutLogEditor = () => {
           clients={clients}
           activeClient={activeClient}
           targetDayName={nav.day.dayName}
-          onImport={(exercises) => exercises.forEach((exercise) => addExercise(activeClient.id, nav.week, nav.day.dayName, exercise))}
+          onImport={(exercises) => exercises.forEach((exercise) => addPlanExercise(activeClient.id, nav.week, nav.day.dayName, exercise))}
           onClose={() => setImportAbierto(false)}
         />
       )}
@@ -1522,36 +1557,43 @@ export const WorkoutLogEditor = () => {
       </Modal>
 
       {nuevoBloque && (
-        <NuevoBloqueDialog
+        <DefinirBloque
           open
           onClose={() => setNuevoBloque(false)}
           program={program}
-          cliente={activeClient}
-          onAbrir={({ name, keepStructure, desdeFichero }) => {
-            irA(startBlock(activeClient.id, { name, keepStructure }));
-            /* Del diálogo al importador sin escalas: el bloque nace con un día
-               en blanco que es andamio, y `importarLimpio` hace que la
-               importación lo retire igual que hace en el estado vacío. */
-            if (desdeFichero) {
-              setImportarLimpio(true);
-              setPegarAbierto(true);
-            }
+          library={ejerciciosDisponibles}
+          onTraerFichero={() => {
+            setNuevoBloque(false);
+            setImportarLimpio(true);
+            setPegarAbierto(true);
           }}
+          onAbrir={(bloqueNuevo) => irA(startBlockWithPlan(activeClient.id, bloqueNuevo))}
         />
       )}
 
       {/*
-        Los ajustes del programa: lo que se decide una vez por cliente. Por el
-        canto derecho y no en la pantalla del bloque, donde estuvieron
-        estorbando al final, plegados y por tanto invisibles.
+        Los ajustes del programa: lo que se decide una vez por cliente. Fuera de
+        la pantalla del bloque, donde estuvieron estorbando al final, plegados y
+        por tanto invisibles — pero en un DIÁLOGO y no por el canto derecho: el
+        panel lateral va del alto de la ventana y esto ocupa un tercio, así que
+        dejaba dos tercios de columna vacía; y `side` está para mirar un detalle
+        sin soltar el trabajo, no para decidir. Aquí se decide.
       */}
-      <Modal open={panel === 'programa'} size="side" title="Ajustes del programa" onClose={() => setPanel(null)}>
-        <div className="panel-secciones">
-          <section className="panel-seccion">{ajustesDelPrograma}</section>
-        </div>
+      <Modal open={panel === 'programa'} title="Ajustes del programa" onClose={() => setPanel(null)}>
+        {ajustesDelPrograma}
       </Modal>
 
-      <Modal open={panel === 'calentamiento' && Boolean(nav.day)} size="side" title={nav.day ? `Calentamiento de ${nav.day.dayName}` : ''} onClose={() => setPanel(null)}>
+      {/*
+        El calentamiento del día se ESCRIBE, así que va centrado y no por el
+        canto derecho: la misma regla que los ajustes del programa de aquí
+        arriba —«`side` está para mirar un detalle sin soltar el trabajo, no para
+        decidir»— y que las hojas de la ficha del cliente. Detrás no hay nada con
+        lo que comparar mientras se teclea: el calentamiento no sale en la hoja.
+
+        `lg` porque es una lista de ejercicios con su vídeo, y en 440 px cada
+        fila se parte en tres.
+      */}
+      <Modal open={panel === 'calentamiento' && Boolean(nav.day)} size="lg" title={nav.day ? `Calentamiento de ${nav.day.dayName}` : ''} onClose={() => setPanel(null)}>
         {nav.day && (
           <div className="panel-secciones">
             <section className="panel-seccion">

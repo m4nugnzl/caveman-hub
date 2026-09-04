@@ -275,7 +275,7 @@ const FoodRow = ({
         {editable && onEditFood && mio && (
           <button
             type="button"
-            className="btn btn-icon btn-icon-compact"
+            className="btn btn-plain btn-icon btn-icon-compact"
             onClick={() => setEditando(true)}
             aria-label={`Editar ${food.name}`}
             title="Editar macros y unidad"

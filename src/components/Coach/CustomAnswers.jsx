@@ -45,21 +45,21 @@ export const CustomAnswers = ({ client }) => {
   if (filas.length === 0) return null;
 
   return (
-    <Panel
-      title="Lo que le preguntaste tú"
-      sub="Sus respuestas a las preguntas propias de tu cuestionario."
-      className="col gap-2"
-    >
-      {filas.map((fila) => (
-        <div key={fila.id} className="row between wrap gap-2 t-sm">
-          <span className="t-secondary" style={{ minWidth: 0 }}>
-            {fila.label}
-          </span>
-          <span style={{ fontWeight: 600, textAlign: 'right' }}>
-            {typeof fila.valor === 'boolean' ? (fila.valor ? 'Sí' : 'No') : fila.valor}
-          </span>
-        </div>
-      ))}
+    /* Los mismos pares apilados que los bloques del perfil: son respuestas a
+       preguntas, y una pregunta larga contra su respuesta en la misma línea es
+       lo que rompía la tabla de al lado. El subtítulo se va: quien lee «lo que
+       le preguntaste tú» no necesita que se lo expliquen otra vez. */
+    <Panel desnudo rango="bloque" title="Lo que le preguntaste tú">
+      <div className="pares">
+        {filas.map((fila) => (
+          <div key={fila.id} className="par">
+            <span className="k">{fila.label}</span>
+            <span className="v">
+              {typeof fila.valor === 'boolean' ? (fila.valor ? 'Sí' : 'No') : fila.valor}
+            </span>
+          </div>
+        ))}
+      </div>
     </Panel>
   );
 };

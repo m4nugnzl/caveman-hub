@@ -33,8 +33,7 @@ const peso = (v) => localeNumber(v, { maximumFractionDigits: 1 });
 const PARA_EL_CLIENTE = {
   'no-goal': {
     title: 'Tu entrenador aún no ha fijado tu objetivo',
-    detail:
-      'En cuanto decida si toca bajar, subir o mantener, aquí verás semana a semana si vas en rumbo. Mientras tanto, tus cifras están todas registradas.',
+    detail: 'En cuanto lo fije, aquí verás semana a semana si vas en rumbo.',
   },
 };
 

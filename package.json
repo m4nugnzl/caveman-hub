@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "verify": "node scripts/verify-styles.mjs",
     "backup": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/backup.mjs",
+    "ensayo:plan": "vite-node scripts/ensayo-plan-bloque.mjs",
     "radiografia": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/radiografia.mjs",
     "catalogo": "node scripts/generar-catalogo.mjs",
     "restore": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/restore.mjs",

@@ -1,7 +1,6 @@
 import { isModuleOn, modulesFor, toggleModule } from '@/domain/protocol';
 import { clampInt } from '@/lib/num';
-import { dayMonthMaybeYear } from '@/lib/dates';
-import { Field, OptionCard, SegmentedControl } from '@/components/ui/primitives';
+import { Field, SegmentedControl, Switch } from '@/components/ui/primitives';
 
 const CYCLE_OPTIONS = [
   { id: 'weekly', label: 'Semanal', hint: 'Atada a lunes–domingo' },
@@ -9,57 +8,47 @@ const CYCLE_OPTIONS = [
 ];
 
 /**
- * La estructura del programa: un PLIEGUE, y la configuración dentro.
+ * Los ajustes del programa: lo que se decide UNA VEZ por cliente.
  *
- * ══ De tarjeta a línea, y de línea a pliegue ════════════════════════════════
+ * ══ De tarjeta a línea, de línea a pliegue, de pliegue a panel ═════════════
  *
  * Empezó siendo la primera tarjeta de la pantalla —icono en caja, titular,
  * cadena del patrón, botón— para algo que se configura una vez por cliente. Eso
  * era demasiado peso, así que pasó a una línea de voz baja que abría una
- * VENTANA. Y ese fue el error siguiente: una ventana modal tapa la pantalla y se
- * lleva el foco, y esto no viene de fuera — es el contexto del programa que se
- * está mirando. Se cambia el tipo de ciclo mirando los días que ya hay puestos.
+ * ventana; luego a la primera sección de un panel lateral del alto de la
+ * pantalla. Y el panel lateral fallaba por dos motivos: un carril a plomo con
+ * el contenido acabado al tercio deja dos tercios de columna vacía, y `side`
+ * está para MIRAR un detalle sin soltar el trabajo —el histórico de un
+ * ejercicio— no para decidir. Esto se decide: es un diálogo.
  *
- * Ahora es la primera sección del panel de Ajustes, abierta: un panel que se
- * abre para esto no necesita un pliegue dentro. La cadena del ciclo ya no se
- * repite aquí —está en la pantalla del bloque, encima de las hojas—; el panel
- * dice lo que hay en una línea y deja los campos que lo cambian.
+ * ══ La gramática es la de «Ajustes del plan» ═══════════════════════════════
+ *
+ * La dieta ya tenía este mismo artefacto (`nutrition/AjustesPlan`): rótulo de
+ * grupo en voz baja, el carril de dos opciones con su explicación debajo —que
+ * cambia según cuál esté puesta—, un filete, y lo que son interruptores puestos
+ * como interruptores. Aquí se repite tal cual, que es lo que hace que las dos
+ * pantallas se lean como el mismo producto.
+ *
+ * Los módulos ESTABAN como `OptionCard`, y esa es la confusión que el propio
+ * `ui/primitives` advierte: una tarjeta marcable dice «esto entra en la
+ * operación que vas a lanzar» y un interruptor dice «esto queda así a partir de
+ * ahora». Cinco tarjetas en dos columnas desiguales leían como una lista de
+ * opciones de un asistente; son preferencias.
  *
  * Recibe por `children` lo que cada estructura añade (la planificación semanal
  * cuando el ciclo es semanal): así el editor no tiene que saber qué hay dentro
  * de la configuración.
  */
-export const CycleSettings = ({
-  client,
-  onChange,
-  protocol,
-  onProtocolChange,
-  resumenExtra,
-  children,
-}) => {
+export const CycleSettings = ({ client, onChange, protocol, onProtocolChange, children }) => {
   const cycleType = client.cycleType || 'weekly';
   const pattern = client.cyclePattern || { train: 2, rest: 1 };
 
-  /* Lo que el pliegue dice estando CERRADO. `resumenExtra` es lo que aporta
-     cada estructura —los días de entreno de la semana natural—: lo pone quien
-     pasa el editor de dentro, para que esto no tenga que saber qué lleva. */
-  const resumen = [
-    cycleType === 'weekly' ? 'Semana natural' : 'Ciclo rotativo',
-    cycleType === 'rotating' &&
-      `${pattern.train} entreno · ${pattern.rest} descanso`,
-    client.startDate && `empieza el ${dayMonthMaybeYear(client.startDate)}`,
-    resumenExtra,
-  ]
-    .filter(Boolean)
-    .join('  ·  ');
-
   return (
-    <div className="col gap-5">
-        <div className="col gap-1">
-          <h3 className="panel-seccion-titulo">Estructura</h3>
-          <span className="t-sm t-tertiary">{resumen}</span>
-        </div>
-        <div className="row wrap gap-5">
+    <div className="col gap-4">
+      <div className="col gap-3">
+        <span className="section-label">Cómo se estructura</span>
+
+        <div className="row-end wrap">
           {/*
             ══ Cuándo empieza esta persona ═════════════════════════════════════
 
@@ -96,82 +85,94 @@ export const CycleSettings = ({
               label="Tipo de estructura"
             />
           </Field>
-
-          {cycleType === 'rotating' && (
-            <>
-              <Field label="Días de entreno" className="shrink-0">
-                {(props) => (
-                  <input
-                    {...props}
-                    type="text"
-                    inputMode="numeric"
-                    className="input input-center"
-                    style={{ width: 84 }}
-                    value={pattern.train}
-                    onChange={(e) =>
-                      onChange({
-                        cyclePattern: { ...pattern, train: clampInt(e.target.value, 1, 14, 1) },
-                      })
-                    }
-                  />
-                )}
-              </Field>
-              <Field label="Días de descanso" className="shrink-0">
-                {(props) => (
-                  <input
-                    {...props}
-                    type="text"
-                    inputMode="numeric"
-                    className="input input-center"
-                    style={{ width: 84 }}
-                    value={pattern.rest}
-                    onChange={(e) =>
-                      onChange({
-                        cyclePattern: { ...pattern, rest: clampInt(e.target.value, 0, 14, 0) },
-                      })
-                    }
-                  />
-                )}
-              </Field>
-            </>
-          )}
         </div>
 
-        {children}
-
-        {/*
-          ══ Los módulos, AQUÍ y no solo en Ajustes ═══════════════════════════
-
-          Vivían únicamente en Ajustes → Protocolo. Como concepto está bien —el
-          entrenador decide qué existe en su app— pero como sitio era invisible:
-          nadie va a una pantalla de ajustes a buscar una casilla que no sabe
-          que existe. El síntoma exacto fue «das la opción de pautar RIR pero
-          no veo dónde se hace en la rutina».
-
-          Así que la decisión se toma donde se nota. Ajustes → Protocolo sigue
-          siendo la lista completa y el sitio para dejarlo puesto de una vez
-          para todos; esto es el interruptor a mano, para ESTE cliente, en la
-          pantalla donde acabas de echarlo en falta.
-        */}
-        <fieldset className="col gap-2" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend className="section-label">Qué se usa con este cliente</legend>
+        {cycleType === 'rotating' && (
           <div className="row wrap gap-4">
-            {/* Solo los de ENTRENAMIENTO: esta pantalla es la rutina, y el de
-                equivalencias tiene su interruptor a mano en la dieta. */}
-            {modulesFor('training').map((mod) => (
-              <OptionCard
-                key={mod.id}
-                inline
-                label={mod.label}
-                checked={isModuleOn(protocol, mod.id)}
-                onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
-              />
-            ))}
+            <Field label="Días de entreno" className="shrink-0">
+              {(props) => (
+                <input
+                  {...props}
+                  type="text"
+                  inputMode="numeric"
+                  className="input input-center"
+                  style={{ width: 84 }}
+                  value={pattern.train}
+                  onChange={(e) =>
+                    onChange({
+                      cyclePattern: { ...pattern, train: clampInt(e.target.value, 1, 14, 1) },
+                    })
+                  }
+                />
+              )}
+            </Field>
+            <Field label="Días de descanso" className="shrink-0">
+              {(props) => (
+                <input
+                  {...props}
+                  type="text"
+                  inputMode="numeric"
+                  className="input input-center"
+                  style={{ width: 84 }}
+                  value={pattern.rest}
+                  onChange={(e) =>
+                    onChange({
+                      cyclePattern: { ...pattern, rest: clampInt(e.target.value, 0, 14, 0) },
+                    })
+                  }
+                />
+              )}
+            </Field>
           </div>
-          <span className="t-2xs t-tertiary">
-            Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
-          </span>
-        </fieldset>
+        )}
+
+        {/* La explicación del carril, debajo y en voz baja: cambia con lo que
+            esté puesto, igual que en los ajustes de la dieta. */}
+        <p className="t-xs t-tertiary">
+          {cycleType === 'weekly'
+            ? 'Sus semanas van de lunes a domingo, y cada día del microciclo cae en un día de la semana.'
+            : 'Su ciclo se repite sin fin, sin atarse al calendario: los días se numeran dentro del ciclo.'}
+        </p>
+
+        {children}
+      </div>
+
+      <hr className="menu-sep" />
+
+      {/*
+        ══ Los módulos, AQUÍ y no solo en Ajustes ═══════════════════════════
+
+        Vivían únicamente en Ajustes → Protocolo. Como concepto está bien —el
+        entrenador decide qué existe en su app— pero como sitio era invisible:
+        nadie va a una pantalla de ajustes a buscar una casilla que no sabe
+        que existe. El síntoma exacto fue «das la opción de pautar RIR pero
+        no veo dónde se hace en la rutina».
+
+        Así que la decisión se toma donde se nota. Ajustes → Protocolo sigue
+        siendo la lista completa —con la explicación de cada uno— y el sitio
+        para dejarlo puesto de una vez para todos; esto es el interruptor a
+        mano, para ESTE cliente, en la pantalla donde acabas de echarlo en
+        falta. Por eso aquí van solo los rótulos: la letra pequeña de allí
+        habla de «las preguntas que elijas abajo», y ese abajo no existe aquí.
+      */}
+      <fieldset className="col gap-3" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="section-label">Qué se usa con este cliente</legend>
+        {/* Solo los de ENTRENAMIENTO: esta pantalla es la rutina, y el de
+            equivalencias tiene su interruptor a mano en la dieta. */}
+        <div className="col gap-3">
+          {modulesFor('training').map((mod) => (
+            <Switch
+              key={mod.id}
+              label={mod.label}
+              checked={isModuleOn(protocol, mod.id)}
+              onChange={() => onProtocolChange(toggleModule(protocol, mod.id))}
+            />
+          ))}
+        </div>
+        <span className="t-2xs t-tertiary">
+          Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
+        </span>
+      </fieldset>
     </div>
   );
 };

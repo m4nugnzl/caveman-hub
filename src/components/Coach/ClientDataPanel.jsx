@@ -41,6 +41,90 @@ const AUDIT_LABEL = {
 };
 const AUDIT_ACTION = { INSERT: 'creado', UPDATE: 'modificado', DELETE: 'borrado' };
 
+/**
+ * El estado del consentimiento de este cliente.
+ *
+ * Sale de `client_consents` vía `consent_state` (migración 0050), que es donde
+ * vive la prueba. Antes se leía de las preferencias del cliente, o sea del OTRO
+ * sistema de consentimiento, y podía contradecir a la puerta.
+ *
+ * Es un hook porque lo pide el PIE de la ficha —una línea que hay que poder leer
+ * sin abrir nada— y no el panel, que ahora vive dentro de una hoja.
+ */
+export const useConsent = (clientId) => {
+  const [consent, setConsent] = useState(null);
+
+  useEffect(() => {
+    let vivo = true;
+    /* Con `error` a la vista: sin el `GRANT SELECT` de la 0088 esta llamada
+       devolvía 42501 en silencio y el panel daba por no consentido a todo el
+       mundo. Un permiso que falta no puede parecer un dato. */
+    supabase.rpc('consent_state', { p_client: clientId }).then(({ data, error }) => {
+      if (!vivo) return;
+      if (error) {
+        console.error('consent_state:', error.message);
+        return;
+      }
+      setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [clientId]);
+
+  return consent;
+};
+
+/**
+ * El consentimiento, dicho en una chapa.
+ *
+ * En modo lectura y sin botón: lo da el cliente desde su portal, y un
+ * consentimiento que marca el entrenador por él no es un consentimiento.
+ */
+export const ChapaDeConsentimiento = ({ client, consent }) => {
+  if (consent && !consent.granted) {
+    /* Retirado: es lo más importante que puede decir esta línea. Significa que
+       hay que dejar de tratar sus datos, así que se dice en rojo y con la fecha,
+       no como «pendiente». */
+    return <span className="badge badge-bad">Retirado el {shortDate(consent.at)}</span>;
+  }
+  if (consent) return <span className="badge badge-ok">Dado el {shortDate(consent.at)}</span>;
+  if (client.clientProfileId) {
+    return <span className="badge badge-warn">Pendiente de que lo acepte</span>;
+  }
+  /* Sin ámbar: que alguien recién dado de alta no haya aceptado nada no es un
+     aviso —todavía no tiene dónde—, y en ámbar era una alarma más encendida en
+     una ficha donde no pasa nada. */
+  return <span className="badge">Aún no tiene acceso al portal</span>;
+};
+
+/**
+ * El pie de la ficha: una línea, no un bloque.
+ *
+ * ══ Por qué esto dejó de ser una tarjeta ═══════════════════════════════════
+ *
+ * Porque es lo que se hace el día que alguien ENTRA o SALE —descargar lo suyo,
+ * mirar quién le tocó los datos, borrarle— y estaba ocupando el mismo rango que
+ * sus lesiones al final de todas las fichas: un rótulo, una chapa, un párrafo
+ * legal, un enlace y dos botones, uno de ellos rojo. Seis piezas para algo que
+ * casi nunca se usa, debajo de lo que se usa siempre.
+ *
+ * Queda la única parte que sí hay que poder leer de un vistazo —si consintió— y
+ * una puerta. Lo demás está detrás.
+ */
+export const DatosPersonalesPie = ({ client, consent, onAbrir }) => (
+  <footer className="ficha-pie">
+    <span className="row gap-2">
+      <ShieldAlert size={13} className="icon-inline" />
+      Datos personales
+    </span>
+    <ChapaDeConsentimiento client={client} consent={consent} />
+    <button type="button" className="cab-accion is-puerta" onClick={onAbrir}>
+      Descargar o borrar sus datos
+    </button>
+  </footer>
+);
+
 export const ClientDataPanel = ({ client }) => {
   const { exportClientData, deleteClientCompletely, loadAuditLog } = useActions();
   const { plan } = useSession();
@@ -120,57 +204,14 @@ export const ClientDataPanel = ({ client }) => {
   };
 
   const nameMatches = typed.trim().toLowerCase() === client.name.trim().toLowerCase();
-  /* Sale de `client_consents` vía `consent_state` (migración 0050), que es
-     donde vive la prueba. Antes se leía de las preferencias del cliente, o sea
-     del OTRO sistema de consentimiento, y podía contradecir a la puerta. */
-  const [consent, setConsent] = useState(null);
-  useEffect(() => {
-    let vivo = true;
-    /* Con `error` a la vista: sin el `GRANT SELECT` de la 0088 esta llamada
-       devolvía 42501 en silencio y el panel daba por no consentido a todo el
-       mundo. Un permiso que falta no puede parecer un dato. */
-    supabase.rpc('consent_state', { p_client: client.id }).then(({ data, error }) => {
-      if (!vivo) return;
-      if (error) {
-        console.error('consent_state:', error.message);
-        return;
-      }
-      setConsent(consentFromRow(Array.isArray(data) ? data[0] : data));
-    });
-    return () => {
-      vivo = false;
-    };
-  }, [client.id]);
 
   return (
-    <div className="card-inset col gap-3">
-      <span className="section-label">
-        <ShieldAlert size={12} className="icon-inline" />Datos personales
-      </span>
+    <div className="col gap-3">
 
       {feedback && <Notice tone={feedback.tone}>{feedback.text}</Notice>}
 
-      {/*
-        El estado del consentimiento, en modo lectura. Aquí no hay botón para
-        darlo: lo da el cliente desde su portal, y un consentimiento que marca el
-        entrenador por él no es un consentimiento.
-      */}
-      <div className="row between wrap gap-2">
-        <span className="t-xs t-secondary">Consentimiento de datos</span>
-        {consent && !consent.granted ? (
-          /* Retirado: es lo más importante que puede decir esta línea. Significa
-             que hay que dejar de tratar sus datos, así que se dice en rojo y con
-             la fecha, no como «pendiente». */
-          <span className="badge badge-bad">Retirado el {shortDate(consent.at)}</span>
-        ) : consent ? (
-          <span className="badge badge-ok">Dado el {shortDate(consent.at)}</span>
-        ) : (
-          <span className="badge badge-warn">
-            {client.clientProfileId ? 'Pendiente de que lo acepte' : 'Aún no tiene acceso al portal'}
-          </span>
-        )}
-      </div>
-
+      {/* El consentimiento lo dice el pie de la ficha, que es donde se lee sin
+          abrir esto. Repetirlo aquí sería el mismo dato a dos clics de sí mismo. */}
       <p className="t-xs t-tertiary">
         Tu cliente puede pedirte todo lo que guardas de él, y puede pedirte que lo borres. Son
         datos de salud: las dos cosas son obligatorias, no un favor.

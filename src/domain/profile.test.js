@@ -125,7 +125,14 @@ describe('cleanProfile', () => {
 describe('fieldText', () => {
   it.each([
     ['experience', 'adv', '3 a 5 años', 'la etiqueta de la opción, no su id'],
-    ['sleepHours', 6.5, '6.5 h', 'la cifra con su unidad'],
+    /* Coma decimal, no punto: la cifra se escribe en el idioma de la aplicación
+       como todas las demás. Salía con el punto de JavaScript, y al lado del
+       «53,9 kg» de la cabecera eran dos ortografías del mismo tipo de dato. */
+    ['sleepHours', 6.5, '6,5 h', 'la cifra con su unidad, en español'],
+    /* Y con los decimales que declara el catálogo: los minutos de una sesión no
+       tienen mitades, así que «100.12 min» era falsa precisión traída del
+       cuestionario. */
+    ['sessionMinutes', 100.12, '100 min', 'redondeado a lo que declara el campo'],
     ['coachedBefore', true, 'Sí', 'el booleano en palabras'],
     ['trainingWindow', '6:00-7:45', '6:00-7:45', 'el texto tal cual'],
   ])('%s = %s → «%s» (%s)', (id, valor, esperado) => {

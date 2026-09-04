@@ -294,17 +294,28 @@ export const weeklyReading = ({
       tone: 'unknown',
       evidence: 'direction',
       title: 'No hay un objetivo declarado',
-      detail:
-        'Sin saber si se busca bajar, subir o mantener, ninguna cifra de esta pantalla se puede leer como buena o mala. Es lo primero que conviene fijar.',
+      /* ── Una línea, y ya ────────────────────────────────────────────────
+         Estos `detail` se escribieron para una lista de hallazgos —«Lectura de
+         la semana», que ya no existe— y el único sitio donde se pintan es el
+         hero de «Cómo va», en una columna de unos 300 px al lado de la curva.
+         Ahí, dos frases son cinco renglones de prosa en la tarjeta que manda.
+
+         Lo que se recorta es siempre lo mismo: el consejo (esta app no receta),
+         y lo que el título de al lado ya dice. Queda el POR QUÉ, que es lo único
+         que el número no cuenta solo. Regla para los que vengan: una frase, y
+         que quepa en dos renglones estrechos. */
+      detail: 'Sin dirección declarada, ninguna cifra se lee como buena o mala.',
     });
   } else if (!trend.ok) {
     findings.push({
       id: 'no-trend',
       tone: 'unknown',
       evidence: 'direction',
-      title: `Faltan semanas para hablar de tendencia (${trend.weeks} de ${trend.needed})`,
-      detail:
-        'Con menos de cuatro semanas de pesajes, la variación que se ve es sobre todo agua y glucógeno. La dirección real aparece a partir de la cuarta.',
+      /* El título envolvía en dos renglones y el primero de ellos no decía nada
+         («Faltan semanas para hablar de…»). El titular es que todavía no hay
+         tendencia; el conteo, entre paréntesis, dice cuánto falta. */
+      title: `Aún no hay tendencia (${trend.weeks} de ${trend.needed} semanas)`,
+      detail: 'Lo que se mueve en menos de cuatro semanas es sobre todo agua.',
     });
   } else {
     const verdict = rateVerdict({ goal, actualKg: trend.perWeek, weight: lastWeight });
@@ -320,8 +331,8 @@ export const weeklyReading = ({
         title: `${meta.label}: ${trend.perWeek > 0 ? '+' : ''}${localeNumber(trend.perWeek)} kg/semana`,
         detail:
           direction.sign === 0
-            ? `El objetivo es mantener el peso, con un margen de ±${localeNumber(verdict.tolerance)} kg por semana. Media de las últimas ${trend.weeks} semanas.`
-            : `Objetivo: ${target > 0 ? '+' : ''}${localeNumber(target)} kg/semana (${goal.ratePct} % del peso corporal). Media de las últimas ${trend.weeks} semanas.`,
+            ? `Objetivo: mantener, ±${localeNumber(verdict.tolerance)} kg/semana. Media de ${trend.weeks} semanas.`
+            : `Objetivo: ${target > 0 ? '+' : ''}${localeNumber(target)} kg/semana (${goal.ratePct} % del peso). Media de ${trend.weeks} semanas.`,
       });
     }
 
@@ -332,8 +343,7 @@ export const weeklyReading = ({
         tone: 'unknown',
         evidence: 'direction',
         title: `La tendencia es poco fiable (r² ${trend.r2})`,
-        detail:
-          'Los pesajes están muy dispersos alrededor de la recta, así que la pendiente puede cambiar bastante con una semana más. Pesarse más días de la semana, siempre en las mismas condiciones, es lo que la estabiliza.',
+        detail: 'Los pesajes están muy dispersos: con una semana más, la pendiente puede cambiar bastante.',
       });
     }
   }

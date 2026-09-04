@@ -40,6 +40,13 @@
   transition: text-decoration-color var(--fast);
 }
 .link:hover { text-decoration-color: var(--accent); }
+
+/* Un enlace que es BOTÓN por dentro —porque no navega, hace algo— tiene que
+   leerse como enlace. Sin esto se quedaba el cromo del navegador: fondo gris,
+   borde en relieve y la tipografía del sistema, o sea tres píldoras en medio de
+   una frase. Es el mismo `.link`, solo que quitándole lo que el agente de
+   usuario pinta por su cuenta. */
+button.link { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
 /* El icono que acompaña —el cuadrado de «se abre fuera», la cámara de vídeo— no
    se subraya: no es texto y el subrayado bajo un glifo cuadrado lo emborrona. */
 .link > svg { text-decoration: none; flex-shrink: 0; }
@@ -59,7 +66,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   padding: 9px 16px; border-radius: var(--r-pill); border: 0;
   background: var(--fill); color: var(--text); cursor: pointer;
-  transition: background-color var(--fast), transform var(--fast), opacity var(--fast);
+  transition: background-color var(--fast), transform var(--fast), opacity var(--fast), box-shadow var(--fast);
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
   /* Un botón nunca va subrayado, sea `<button>` o `<a>`. Hasta la portada todos
      eran `<button>` y el navegador no subrayaba nada; el primer `<Link className="btn">`
@@ -122,6 +129,42 @@
    query: el bloque de ergonomía táctil no podía agrandarlos. Como clase, en
    táctil crecen a 36 (ver Ergonomía táctil). */
 .btn-icon-compact { width: 26px; height: 26px; }
+
+/* ── EL LÁPIZ Y SUS PARIENTES: la acción callada, en el color que le toca ───
+   `btn-icon` es una FORMA (caja cuadrada), no un peso, pero fijaba también la
+   tinta: `--text-tertiary`, el gris de los datos apagados. Con eso el lápiz de
+   editar —que es una invitación a tocar algo, no un dato— salía del mismo color
+   que un pie de tabla, y solo en el hover se enteraba uno de que era un botón.
+   En una cabecera con aire alrededor, eso es un trazo suelto flotando en el
+   blanco.
+
+   Por la ley del color de la casa el azul es lo que invita; el semáforo juzga.
+   Editar invita. Así que el lápiz se escribe con el peso que ya existía para
+   esto —CALLADA (`btn-plain`): sin caja hasta que se pasa por encima— y ahora
+   `btn-icon` deja de pisarle el color. Es exactamente el juego que ya hacía
+   `.slot-btn` en las piezas del resumen y del plan de trabajo (reposo apagado,
+   `--accent-soft` al pasar), así que las tres formas de ofrecer «editar» del
+   producto pasan a comportarse igual.
+
+   Sigue siendo OPT-IN: las equis de cerrar, los pasos ‹ › y los cierres de
+   diálogo son `btn-icon` a secas y se quedan en gris — no invitan a nada, están
+   ahí por si acaso. */
+/* En REPOSO el lápiz va callado, como cualquier `btn-icon`. Lo estuvo en
+   acento, y estaba mal por una razón que solo se vio al ponerlo en su sitio:
+   desde que la TARJETA entera es la puerta, la tarjeta es la que se enciende,
+   y un lápiz azul dentro de ella compite con la pieza que manda. El acento es
+   para lo que es el blanco grande; el lápiz es el pequeño de al lado.
+
+   Lo que sí conserva es el COLOR AL TOCARLO —al pasar, al enfocar con el
+   teclado y al pulsar—, y ahí está la diferencia con un `btn-icon` a secas: el
+   lápiz se enciende en acento porque invita a hacer algo, mientras que una equis
+   o un paso ‹ › se encienden en gris porque no invitan a nada. Mismo gesto que
+   el resto de puertas del producto: `--accent-wash` de fondo (ver «LO QUE SE
+   PULSA SE ENCIENDE» en `revision.css`). */
+.btn-plain.btn-icon { color: var(--text-tertiary); }
+.btn-plain.btn-icon:hover:not(:disabled),
+.btn-plain.btn-icon:focus-visible:not(:disabled),
+.btn-plain.btn-icon:active:not(:disabled) { background: var(--accent-wash); color: var(--accent); }
 
 /* El desplegable de serie de un gráfico: ancho de diseño, pero nunca más que
    su tarjeta — fijado en línea a 190 px forzaba el envoltorio en 390 px. */

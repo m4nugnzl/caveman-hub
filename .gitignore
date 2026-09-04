@@ -68,3 +68,6 @@ supabase/.branches
 # Estado local de `wrangler dev` (cachés y temporales del emulador). Se
 # regenera solo; commitearlo meteria binarios de una maquina concreta.
 /.wrangler
+
+# Copias que dejan los scripts antes de escribir (no son del repositorio).
+_copia-antes-del-plan-*.json

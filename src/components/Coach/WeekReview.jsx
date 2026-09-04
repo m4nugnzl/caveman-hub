@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
+import { resolvedMicrocycles } from '@/domain/blocks';
 import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
@@ -205,8 +206,10 @@ export const WeekReview = () => {
   /* Los `|| []` van dentro de un `useMemo`: un literal nuevo en cada render
      invalidaría todas las memorias de abajo y esta pantalla recalcularía la
      semana entera al escribir cada letra de la respuesta. */
+  /* Con el plan del bloque ya puesto en cada semana; sin bloques migrados son
+     los mismos objetos. Ver `resolvedMicrocycles`. */
   const microcycles = useMemo(
-    () => workoutData[activeClient?.id]?.microcycles || [],
+    () => resolvedMicrocycles(workoutData[activeClient?.id]),
     [workoutData, activeClient?.id]
   );
   const history = useMemo(

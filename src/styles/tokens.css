@@ -151,6 +151,17 @@
   --accent: #3b49df;
   --accent-hover: #2f3ac2;
   --accent-soft: rgba(59, 73, 223, 0.08);
+  /* ── El tinte de al pasar ────────────────────────────────────────────────
+     `--accent-soft` es el relleno de lo ACTIVO —la pestaña puesta, el día
+     abierto, el plan contratado—, y para eso funciona porque casi siempre lleva
+     texto de acento encima que hace el trabajo. Como tinte de hover no vale, y
+     se vio midiéndolo: sobre una tarjeta grande el 8/14 % se lee, pero detrás de
+     un título de dos palabras es el mismo color que la tarjeta. De ahí salía
+     que la caja de pasos «se encendiera» y el título de al lado no.
+     Este es el mismo azul, con el cuerpo suficiente para leerse en un trozo
+     pequeño. Sobre papel hace falta menos alfa que sobre grafito: un tinte
+     claro sobre blanco se ve antes que uno oscuro sobre casi negro. */
+  --accent-wash: rgba(59, 73, 223, 0.10);
   --accent-on: #ffffff;
 
   /* La LUZ de la señal: la misma temperatura como iluminación y no como tinta,
@@ -398,14 +409,13 @@
   --shadow-lg: 0 16px 36px -14px rgba(18, 24, 38, 0.24), 0 3px 8px rgba(18, 24, 38, 0.07);
   --shadow-float: 0 10px 28px -8px rgba(18, 24, 38, 0.2);
 
-  /* ── La flecha de las puertas ────────────────────────────────────────────
-     El dibujo único de «esto lleva a algún sitio»: la misma pluma que los
-     iconos de lucide, pintada con `mask` para heredar la tinta de su texto.
-     Sustituye a la «→» tecleada, que salía con el peso y el espaciado que
-     tocara según la negrita de al lado. Se usa desde `.cab-accion.is-puerta`,
-     `.cola-verbo` y `.palanca-ir`; quien necesite otra puerta, que beba de
-     aquí y no vuelva a teclear el glifo. */
-  --mask-flecha: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14'/%3E%3Cpath d='m12 5 7 7-7 7'/%3E%3C/svg%3E");
+  /* ── Aquí vivía la flecha de las puertas ─────────────────────────────────
+     Un «→» dibujado con `mask` que colgaba de todo lo que llevaba a algún
+     sitio. Se ha ido entero: lo que se pulsa se dice con el COLOR, que es la
+     señal que el producto ya usaba para el lápiz de editar y para el hueco de
+     «Definir», y las piezas que tienen caja propia —tarjetas y filas— se
+     encienden solas. Ver «LO QUE SE PULSA SE ENCIENDE» en `revision.css`.
+     No volver a meter aquí un glifo ni un dibujo de flecha. */
 
   /* ── Movimiento ── */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
@@ -564,6 +574,7 @@
   --accent: #5b8df7;
   --accent-hover: #7da5f9;
   --accent-soft: rgba(91, 141, 247, 0.14);
+  --accent-wash: rgba(91, 141, 247, 0.22);
   --accent-on: #10131a;
   --luz: rgba(91, 141, 247, 0.1);
 

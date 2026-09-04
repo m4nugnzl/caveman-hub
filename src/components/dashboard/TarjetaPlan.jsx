@@ -37,9 +37,9 @@ const Palanca = ({ k, valor, sub, a = null, texto = false }) => {
     <>
       <span className="palanca-k">
         {k}
-        {/* La flecha es un dibujo de CSS (`--mask-flecha`), no un glifo: el
-            span vacío es el lienzo donde se pinta. */}
-        {a && <span className="palanca-ir" aria-hidden="true" />}
+        {/* Aquí colgaba la flecha de la fila. Ya no: una palanca que lleva a
+            algún sitio lo dice con su rótulo en acento y encendiéndose entera
+            al pasar. Ver «LO QUE SE PULSA SE ENCIENDE» en `revision.css`. */}
       </span>
       <span className={`palanca-v${texto ? ' is-texto' : ''}`}>{valor}</span>
       {sub && <span className="palanca-s">{sub}</span>}

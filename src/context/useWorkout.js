@@ -20,6 +20,31 @@ import {
 } from '@/domain/training';
 import { buildSessionFromPlan, isSetLogged, sessionsOf, withSessionSet } from '@/domain/sessions';
 import {
+  blockOfWeek,
+  buildOverride,
+  overridePlanExerciseIn,
+  planOfDay,
+  removePlanExerciseIn,
+  removePlanExerciseOnlyIn,
+  updatePlanExerciseIn,
+  wherePlanExercise,
+  blockSessionOf,
+  blocksOf,
+  addBlockExerciseIn,
+  addBlockSessionIn,
+  moveBlockExerciseIn,
+  moveBlockSessionIn,
+  promoteOverrideIn,
+  putOverrideIn,
+  removeBlockExerciseIn,
+  removeBlockSessionFrom,
+  removeOverrideIn,
+  renameBlockSessionIn,
+  restoreBlockExerciseIn,
+  setBlockExerciseSetsIn,
+  setBlockExerciseTargetIn,
+  setBlockSessionsIn,
+  setOverrideSpanIn,
   blocksAfterInsertingWeek,
   deleteBlockFrom,
   logBlockChange as logBlockChangeIn,
@@ -27,6 +52,7 @@ import {
   programAfterRemovingWeek,
   renameBlockIn,
 } from '@/domain/blocks';
+import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
 
 /*
@@ -1004,6 +1030,318 @@ export const useWorkout = ({
     [applyWorkout]
   );
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     EL PLAN DEL BLOQUE
+     ══════════════════════════════════════════════════════════════════════════
+
+     El plan es del bloque y se escribe UNA vez (`domain/blocks`). Antes cada
+     cambio había que repartirlo a las semanas del bloque por entrenar, con una
+     copia del ejercicio por semana; ahora un gesto es una escritura.
+
+     ── La migración va aquí, y es perezosa ─────────────────────────────────
+     Ningún programa nace con el plan dentro del bloque: lo tienen todos en sus
+     microciclos. `migrateBlockPlans` lo sube —y anota como excepción lo que
+     cada semana tuviera distinto— y es idempotente, así que se puede llamar en
+     cada escritura sin comprobar nada. La primera vez que se toca el plan de un
+     cliente, su programa pasa al modelo nuevo; las demás no hacen nada.
+
+     No hay migración de golpe sobre todos los clientes a propósito: la lectura
+     ya contesta por los dos modelos (`planOfDay`), así que nadie tiene que
+     esperar a nadie. Antes de lanzarla en frío está `npm run ensayo:plan`.
+  */
+  const applyPlan = useCallback(
+    (clientId, updater, options) =>
+      applyWorkout(clientId, (cd) => updater(migrateBlockPlans(cd).program), options),
+    [applyWorkout]
+  );
+
+  /** Sube el plan de este cliente al bloque, sin cambiar nada más. */
+  const migratePlanToBlock = useCallback(
+    (clientId) => applyPlan(clientId, (cd) => cd),
+    [applyPlan]
+  );
+
+
+  /**
+   * ABRIR UN BLOQUE CON SU PLAN YA DENTRO.
+   *
+   * ══ Lo que hacía `startBlock`, y por qué no basta ═══════════════════════
+   * Cerraba el bloque y creaba el microciclo siguiente con las hojas VACÍAS
+   * —el propio diálogo lo decía: «sin ejercicios: se rellenan de nuevo»— y te
+   * dejaba dentro de esa semana para componerlo ahí. O sea: el momento en el
+   * que un bloque se define no existía. Se definía por acumulación.
+   *
+   * Esto recibe el bloque ENTERO —sus hojas con sus ejercicios, su
+   * calentamiento y, si se ha pedido, su duración prevista— y lo deja escrito
+   * de una vez. El microciclo que abre lleva solo los nombres de las hojas: el
+   * plan ya no vive ahí.
+   *
+   * ── La duración es OPCIONAL, y por defecto no hay ─────────────────────
+   * Una rutina de hipertrofia se monta y se queda hasta que hay motivo para
+   * cambiarla. `plannedWeeks` solo se guarda cuando de verdad hay un plan con
+   * fecha; sin él, el bloque está abierto y punto.
+   */
+  const startBlockWithPlan = useCallback(
+    (clientId, { name = null, sessions = [], mobilityDrills = null, plannedWeeks = null } = {}) => {
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      if (current.microcycles.length === 0) return startProgram(clientId);
+
+      const weekNumber = nextWeekNumber(current.microcycles);
+      const last = current.microcycles[current.microcycles.length - 1];
+
+      applyPlan(clientId, (cd) => {
+        const { program, block } = openNextBlock(cd, { name });
+        return {
+          ...program,
+          blocks: program.blocks.map((b) =>
+            b.id !== block.id
+              ? b
+              : {
+                  ...b,
+                  sessions,
+                  ...(Array.isArray(mobilityDrills) ? { mobilityDrills } : {}),
+                  ...(plannedWeeks ? { plannedWeeks } : {}),
+                }
+          ),
+          microcycles: [
+            ...program.microcycles,
+            buildMicrocycle({
+              weekNumber,
+              /* Solo los nombres: el plan es del bloque. Se conservan porque
+                 media aplicación sigue recorriendo `days` mientras conviven
+                 las dos lecturas. */
+              days: sessions.map((s) => ({ dayName: s.dayName, exercises: [] })),
+              date: fechaSiguienteCiclo(clientId, last),
+            }),
+          ],
+        };
+      });
+
+      track('bloque_abierto');
+      return weekNumber;
+    },
+    [applyPlan, fechaSiguienteCiclo, startProgram, workoutRef]
+  );
+
+  /** Pone el plan entero de un bloque: es lo que hace «definir el bloque». */
+  const setBlockPlan = useCallback(
+    (clientId, blockId, sessions) => applyPlan(clientId, (cd) => setBlockSessionsIn(cd, blockId, sessions)),
+    [applyPlan]
+  );
+
+  const addBlockSheet = useCallback(
+    (clientId, blockId, dayName) => applyPlan(clientId, (cd) => addBlockSessionIn(cd, blockId, dayName)),
+    [applyPlan]
+  );
+
+  const removeBlockSheet = useCallback(
+    (clientId, blockId, dayName) => applyPlan(clientId, (cd) => removeBlockSessionFrom(cd, blockId, dayName)),
+    [applyPlan]
+  );
+
+  const renameBlockSheet = useCallback(
+    (clientId, blockId, de, a) =>
+      applyPlan(clientId, (cd) => renameBlockSessionIn(cd, blockId, de, a), { immediate: false }),
+    [applyPlan]
+  );
+
+  const moveBlockSheet = useCallback(
+    (clientId, blockId, from, to) => applyPlan(clientId, (cd) => moveBlockSessionIn(cd, blockId, from, to)),
+    [applyPlan]
+  );
+
+  const addBlockExercise = useCallback(
+    (clientId, blockId, dayName, exercise) =>
+      applyPlan(clientId, (cd) => addBlockExerciseIn(cd, blockId, dayName, exercise)),
+    [applyPlan]
+  );
+
+  /*
+    ── Por NOMBRE, y resuelto aquí dentro ──────────────────────────────────
+    Los ejercicios se localizan por nombre y no por id: es la regla de la casa
+    —dos «Press banca» de dos microciclos son el mismo ejercicio del plan y dos
+    objetos distintos— y además evita un problema de orden. Quien llama tiene
+    delante el programa de ANTES de migrar, donde el ejercicio del bloque
+    todavía no existe y por tanto no tiene id que pasar. Resolviendo aquí, tras
+    la migración, siempre se apunta al ejercicio de verdad.
+  */
+  const enLaHoja = (cd, blockId, dayName) =>
+    blockSessionOf(
+      blocksOf(cd).find((b) => b.id === blockId),
+      dayName
+    )?.exercises || [];
+
+  /** Quita un ejercicio del plan y devuelve cuál era y dónde estaba, para
+      poder deshacerlo. `null` si no estaba. */
+  const removeBlockExercise = useCallback(
+    (clientId, blockId, dayName, name) => {
+      let quitado = null;
+      applyPlan(clientId, (cd) => {
+        const lista = enLaHoja(cd, blockId, dayName);
+        const index = lista.findIndex((ex) => ex.name === name);
+        if (index < 0) return cd;
+        quitado = { exercise: lista[index], index };
+        return removeBlockExerciseIn(cd, blockId, dayName, lista[index].id);
+      });
+      return quitado;
+    },
+    [applyPlan]
+  );
+
+  const restoreBlockExercise = useCallback(
+    (clientId, blockId, dayName, exercise, index) =>
+      applyPlan(clientId, (cd) => restoreBlockExerciseIn(cd, blockId, dayName, exercise, index)),
+    [applyPlan]
+  );
+
+  /** Lo mueve `delta` puestos dentro de su hoja. */
+  const moveBlockExercise = useCallback(
+    (clientId, blockId, dayName, name, delta) =>
+      applyPlan(clientId, (cd) => {
+        const lista = enLaHoja(cd, blockId, dayName);
+        const from = lista.findIndex((ex) => ex.name === name);
+        const to = from + delta;
+        if (from < 0 || to < 0 || to >= lista.length) return cd;
+        return moveBlockExerciseIn(cd, blockId, dayName, from, to);
+      }),
+    [applyPlan]
+  );
+
+  /* `immediate: false` en los dos que se teclean: subir series de tres en tres
+     o escribir «8-10» letra a letra no son tres guardados. */
+  const setBlockExerciseSets = useCallback(
+    (clientId, blockId, dayName, name, count) =>
+      applyPlan(
+        clientId,
+        (cd) => {
+          const suyo = enLaHoja(cd, blockId, dayName).find((ex) => ex.name === name);
+          return suyo ? setBlockExerciseSetsIn(cd, blockId, dayName, suyo.id, count) : cd;
+        },
+        { immediate: false }
+      ),
+    [applyPlan]
+  );
+
+  const setBlockExerciseTarget = useCallback(
+    (clientId, blockId, dayName, name, targetReps) =>
+      applyPlan(
+        clientId,
+        (cd) => {
+          const suyo = enLaHoja(cd, blockId, dayName).find((ex) => ex.name === name);
+          return suyo ? setBlockExerciseTargetIn(cd, blockId, dayName, suyo.id, targetReps) : cd;
+        },
+        { immediate: false }
+      ),
+    [applyPlan]
+  );
+
+
+  /* ── Y lo que se toca desde la HOJA ────────────────────────────────────
+     Se escribe donde ese ejercicio VIVE —el bloque, o la excepción de esa
+     semana si solo existía ahí— porque lo normal es que un cambio se quede.
+     Para lo puntual están las dos de abajo, que dejan el bloque como está.
+     Ver . */
+  const updatePlanExercise = useCallback(
+    (clientId, weekNumber, dayName, exerciseId, fn, options) =>
+      applyPlan(clientId, (cd) => updatePlanExerciseIn(cd, weekNumber, dayName, exerciseId, fn), options),
+    [applyPlan]
+  );
+
+  /**
+   * Lo quita del plan y devuelve con qué se deshace.
+   *
+   * `donde` dice de dónde salió, porque deshacerlo no es lo mismo en los dos
+   * casos: un ejercicio del bloque vuelve a su sitio en el bloque; uno que solo
+   * existía como excepción de esa semana vuelve poniendo la excepción otra vez.
+   */
+  const removePlanExercise = useCallback(
+    (clientId, weekNumber, dayName, exerciseId) => {
+      let quitado = null;
+      applyPlan(clientId, (cd) => {
+        const { donde, bloque, override } = wherePlanExercise(cd, weekNumber, dayName, exerciseId);
+        const hoja = planOfDay(cd, weekNumber, dayName);
+        const index = (hoja?.exercises || []).findIndex((ex) => ex.id === exerciseId);
+        if (index < 0) return cd;
+        quitado = { exercise: hoja.exercises[index], index, donde, blockId: bloque?.id ?? null, override: override ?? null };
+        return removePlanExerciseIn(cd, weekNumber, dayName, exerciseId);
+      });
+      return quitado;
+    },
+    [applyPlan]
+  );
+
+  /** El mismo cambio, pero SOLO en ese microciclo: crea la excepción. */
+  const overridePlanExercise = useCallback(
+    (clientId, weekNumber, dayName, exerciseId, fn, { hasta = weekNumber } = {}) =>
+      applyPlan(clientId, (cd) =>
+        overridePlanExerciseIn(cd, weekNumber, dayName, exerciseId, fn, { at: new Date().toISOString(), hasta })
+      ),
+    [applyPlan]
+  );
+
+  const removePlanExerciseOnly = useCallback(
+    (clientId, weekNumber, dayName, exerciseId, { hasta = weekNumber } = {}) =>
+      applyPlan(clientId, (cd) =>
+        removePlanExerciseOnlyIn(cd, weekNumber, dayName, exerciseId, { at: new Date().toISOString(), hasta })
+      ),
+    [applyPlan]
+  );
+
+  /**
+   * Un ejercicio nuevo desde la hoja, con su tramo.
+   *
+   * `hasta` dice hasta qué microciclo vale: el mismo (lo puntual), otro más
+   * adelante (unas semanas de prueba) o `undefined` para que entre en la línea
+   * base del bloque y lo vean todos, que es lo que se quiere casi siempre.
+   */
+  const addPlanExercise = useCallback(
+    (clientId, weekNumber, dayName, exercise, { hasta = undefined } = {}) =>
+      applyPlan(clientId, (cd) => {
+        const bloque = blockOfWeek(cd, weekNumber);
+        if (hasta === undefined) return addBlockExerciseIn(cd, bloque.id, dayName, exercise);
+        return putOverrideIn(
+          cd,
+          bloque.id,
+          buildOverride({ dayName, exercise, fromWeek: weekNumber, toWeek: hasta, at: new Date().toISOString() })
+        );
+      }),
+    [applyPlan]
+  );
+
+  /* ── Los cambios del bloque y su tramo ──────────────────────────────────
+     El id y el reloj los pone esta capa, como en la bitácora: el dominio es
+     puro. Y todos toman el bloque, no el microciclo: un cambio puede durar
+     varias semanas, así que no es de ninguna en particular. */
+  const addOverride = useCallback(
+    (clientId, blockId, override) =>
+      applyPlan(clientId, (cd) => putOverrideIn(cd, blockId, { ...override, at: override.at || new Date().toISOString() })),
+    [applyPlan]
+  );
+
+  const dropOverride = useCallback(
+    (clientId, blockId, overrideId) => applyPlan(clientId, (cd) => removeOverrideIn(cd, blockId, overrideId)),
+    [applyPlan]
+  );
+
+  /**
+   * Alarga o acorta un cambio: «esto lo dejo dos semanas más», «que se quede».
+   *
+   * Es lo que hace que una prueba no haya que reescribirla para que dure otro
+   * microciclo, que era justo lo que no se podía cuando el cambio vivía dentro
+   * de una semana.
+   */
+  const setOverrideSpan = useCallback(
+    (clientId, blockId, overrideId, tramo) =>
+      applyPlan(clientId, (cd) => setOverrideSpanIn(cd, blockId, overrideId, tramo)),
+    [applyPlan]
+  );
+
+  /** «Esto ya no es una prueba»: el cambio pasa a la línea base del bloque. */
+  const promoteOverride = useCallback(
+    (clientId, blockId, overrideId) => applyPlan(clientId, (cd) => promoteOverrideIn(cd, blockId, overrideId)),
+    [applyPlan]
+  );
+
   /**
    * Elimina una semana/sesión completa y RENUMERA las restantes para que la
    * secuencia siga siendo continua (borrar la 2 de 1-2-3 deja 1-2, no 1-3).
@@ -1484,6 +1822,28 @@ export const useWorkout = ({
     renameBlock,
     deleteBlock,
     logBlockChange,
+    migratePlanToBlock,
+    startBlockWithPlan,
+    setBlockPlan,
+    addBlockSheet,
+    removeBlockSheet,
+    renameBlockSheet,
+    moveBlockSheet,
+    addBlockExercise,
+    removeBlockExercise,
+    restoreBlockExercise,
+    moveBlockExercise,
+    setBlockExerciseSets,
+    setBlockExerciseTarget,
+    updatePlanExercise,
+    removePlanExercise,
+    overridePlanExercise,
+    removePlanExerciseOnly,
+    addPlanExercise,
+    addOverride,
+    setOverrideSpan,
+    dropOverride,
+    promoteOverride,
     removeMicrocycle,
     restoreMicrocycle,
     cloneMicrocycle,

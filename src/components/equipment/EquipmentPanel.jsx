@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dumbbell, ExternalLink, Link2, Trash2, X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
 import { muscleColor } from '@/domain/training';
@@ -52,6 +52,8 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
      porque no es un dato de la persona sino una decisión tuya sobre dónde viven
      sus fotos. Ver `COACH_FIELDS` en `domain/profile.js`. */
   const [editandoCarpeta, setEditandoCarpeta] = useState(false);
+  /* La zona de soltar, pedida a mano cuando el bloque ya tiene fotos. */
+  const [subiendo, setSubiendo] = useState(false);
   const [enlace, setEnlace] = useState('');
 
   const carpeta = fieldText(client.profile, 'gymFolder');
@@ -97,33 +99,57 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
     setFallo(res.ok ? null : res.error);
   };
 
+  const vacio = tandas.length === 0;
+
   return (
     <Panel
+      desnudo
+      rango="bloque"
       title="Su maquinaria"
-      sub="Las máquinas que tiene delante. Es lo que decide qué le puedes prescribir."
-      className="col gap-3"
+      sub={vacio ? 'Las máquinas que tiene delante. Es lo que decide qué le puedes prescribir.' : undefined}
       action={
         !editandoCarpeta && (
-          <div className="row gap-2">
+          /*
+            Tres verbos en columna bajo el rótulo, no tres iconos en fila contra
+            el canto derecho: un «+», una flecha y un eslabón sueltos a mil
+            píxeles del título no dicen de qué bloque son ni qué hacen, y había
+            que pasar el ratón por encima para averiguarlo.
+
+            ── Con fotos, la zona de soltar se PIDE ───────────────────────────
+            Estaba siempre: un blanco del ancho de la pantalla, con su icono y
+            sus tres frases, encima de las veintitrés fotos que ya están
+            subidas. Con el bloque lleno lo que se viene a hacer es MIRARLO —se
+            programa con estas fotos delante—, no a subir la veinticuatro.
+          */
+          <div className="bloque-verbos">
+            {!vacio && (
+              <button
+                type="button"
+                className="cab-accion is-puerta"
+                onClick={() => setSubiendo((v) => !v)}
+              >
+                {subiendo ? 'Cerrar' : 'Añadir fotos'}
+              </button>
+            )}
             {carpeta && (
               <a
-                className="btn btn-secondary btn-sm"
+                className="cab-accion is-puerta"
                 href={carpeta}
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                <ExternalLink size={13} /> Abrir carpeta
+                Abrir carpeta
               </a>
             )}
             <button
               type="button"
-              className="btn btn-plain btn-sm"
+              className="cab-accion is-puerta"
               onClick={() => {
                 setEnlace(carpeta || '');
                 setEditandoCarpeta(true);
               }}
             >
-              <Link2 size={13} /> {carpeta ? 'Cambiar' : 'Enlazar carpeta'}
+              {carpeta ? 'Cambiar carpeta' : 'Enlazar carpeta'}
             </button>
           </div>
         )
@@ -183,26 +209,33 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
         El lote, con el mismo aparato que las fotos de una revisión: se eligen
         todas, se ven antes de mandarlas, se dice qué es cada una y se suben en
         serie sabiendo cuál falló. Ver `GymPicker`.
-      */}
-      <GymPicker
-        clientId={client.id}
-        onUpload={({ clientId, file, muscleGroup }) =>
-          addEquipment(clientId, { file, muscleGroup })
-        }
-      />
 
-      {tandas.length === 0 ? (
-        <div className="card-inset col gap-2">
-          <span className="row gap-2 t-sm t-secondary">
-            <Dumbbell size={15} /> Todavía no hay fotos de su gimnasio.
-          </span>
-          <span className="t-xs t-tertiary">
-            Pídeselas y súbelas de golpe: puedes decir después de qué es cada una. Las tendrás
-            delante al montarle la rutina, en vez de en otra pestaña.
-            {carpeta && ' Tu carpeta de fuera sigue enlazada arriba.'}
-          </span>
-        </div>
-      ) : (
+        Sin fotos está abierto —el vacío INVITA, y aquí la invitación es la zona
+        de soltar—; con fotos lo abre el «+» de la cabecera.
+      */}
+      {(vacio || subiendo) && (
+        <GymPicker
+          clientId={client.id}
+          onUpload={({ clientId, file, muscleGroup }) =>
+            addEquipment(clientId, { file, muscleGroup })
+          }
+        />
+      )}
+
+      {/*
+        ══ El vacío se dice UNA vez ══════════════════════════════════════════
+
+        Aquí había una segunda caja —«Todavía no hay fotos de su gimnasio», y
+        debajo la invitación a pedírselas— pegada justo bajo la zona de soltar,
+        que ya dice «Trae las fotos del gimnasio · suéltalas aquí · una a cada
+        máquina». Dos invitaciones al mismo gesto, a diez píxeles, y la segunda
+        sin ningún botón: la ficha de alguien recién dado de alta llevaba dos
+        vacíos seguidos donde bastaba con el que se puede pulsar.
+
+        La única frase que aportaba algo —para qué sirven estas fotos— es
+        exactamente lo que hace el subtítulo del bloque, y ahí ya estaba dicha.
+      */}
+      {!vacio && (
         <div className="col gap-4">
           {tandas.map((tanda) => (
             <div key={tanda.group} className="col gap-2">
@@ -273,7 +306,7 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
         </div>
       )}
 
-      {tandas.length > 0 && (
+      {!vacio && (
         <p className="t-xs t-tertiary">
           {equipmentHeadline(equipment)}. Las ves al montar su rutina sin salir de la pantalla.
         </p>

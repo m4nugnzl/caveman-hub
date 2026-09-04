@@ -246,6 +246,45 @@ export const IncomePanel = () => {
   const hayPrevision = prevision.some((mes) => mes.total > 0);
   const cifrasVivas = hayTarifas || hayHistorico || hayVencimientos || hayPrevision;
 
+  /*
+    ── Por cobrar: la tinta es de la CIFRA, no de la lista ────────────────────
+    El rojo lo decidía `pending.length`, y esas dos cosas no son la misma: un
+    cliente vencido al que le falta la tarifa en su ficha suma cero, así que la
+    tarjeta pintaba «0 €» en rojo. Es el semáforo juzgando un cero — un reproche
+    por algo que no ha pasado, en la tinta que esta casa reserva para lo que va
+    mal de verdad. Una deuda de cero euros no es una deuda.
+
+    Y cuando no queda nada que sumar —todos los vencidos sin tarifa— la cifra
+    tampoco es cero: es que NO SE SABE. Eso se dice con la raya, la misma que
+    usa el histórico mientras carga, y el pie explica qué falta para poder
+    contarlo. Un cero ahí sería decir que no te deben nada, que es falso.
+  */
+  const porCobrar = tablero.overdueTotal + tablero.dueTotal;
+  const sinTarifa = tablero.pending.filter((fila) => !fila.amount).length;
+
+  const pieDePorCobrar = () => {
+    const n = tablero.pending.length;
+    if (n === 0) return 'Nadie te debe nada ahora mismo.';
+
+    const quienes = n === 1 ? '1 cliente.' : `${n} clientes.`;
+    /* «Otros 0 renuevan en unos días» es contar una ausencia: si no hay nadie
+       cerca de renovar, la frase no existe. */
+    const luego =
+      tablero.soon.length === 0
+        ? ''
+        : tablero.soon.length === 1
+          ? ' Otro renueva en unos días.'
+          : ` Otros ${tablero.soon.length} renuevan en unos días.`;
+    const falta =
+      sinTarifa === 0
+        ? ''
+        : sinTarifa === 1
+          ? ' A uno le falta la tarifa en su ficha, así que lo suyo no entra en la suma.'
+          : ` A ${sinTarifa} les falta la tarifa en su ficha, así que lo suyo no entra en la suma.`;
+
+    return `${quienes}${luego}${falta}`;
+  };
+
   return (
     <div className="stack cascada">
       <PageHead
@@ -322,13 +361,9 @@ export const IncomePanel = () => {
         <MetricCard
           title="Por cobrar"
           subtitle="Vencido y de hoy"
-          value={money(tablero.overdueTotal + tablero.dueTotal)}
-          color={tablero.pending.length > 0 ? 'var(--negative)' : undefined}
-          foot={
-            tablero.pending.length > 0
-              ? `${tablero.pending.length} ${tablero.pending.length === 1 ? 'cliente' : 'clientes'}. Otros ${tablero.soon.length} renuevan en unos días.`
-              : 'Nadie te debe nada ahora mismo.'
-          }
+          value={tablero.pending.length > 0 && porCobrar === 0 ? '—' : money(porCobrar)}
+          color={porCobrar > 0 ? 'var(--negative)' : undefined}
+          foot={pieDePorCobrar()}
         />
         )}
         {/*

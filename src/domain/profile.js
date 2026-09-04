@@ -43,7 +43,7 @@
  * 8 KB compartido entre otros cuatro sistemas.
  */
 
-import { toNum } from '@/lib/num';
+import { fmt, toNum } from '@/lib/num';
 /* El mismo filtro de enlaces que usan los pasos del alta. Dos comprobaciones de
    'esto es una URL segura' es una de más. */
 import { safeLink } from './intake';
@@ -72,12 +72,12 @@ export const PROFILE_GROUPS = [
   {
     id: 'training',
     label: 'Cómo entrena',
-    sub: 'Con qué cuentas al montarle el programa.',
+    sub: 'Con qué cuentas al montarle el programa. Sale de su cuestionario.',
   },
   {
     id: 'nutrition',
     label: 'Cómo come',
-    sub: 'Su día a día con la comida, antes de tocarle nada.',
+    sub: 'Su día a día con la comida, antes de tocarle nada. Sale de su cuestionario.',
   },
 ];
 
@@ -133,6 +133,7 @@ export const PROFILE_FIELDS = [
     label: 'Días que puede entrenar',
     kind: 'number',
     unit: 'días',
+    decimals: 1,
     hint: 'Lo que él dice que tiene. Lo que le programas va en su rutina.',
   },
   {
@@ -141,6 +142,7 @@ export const PROFILE_FIELDS = [
     label: 'Duración de la sesión',
     kind: 'number',
     unit: 'min',
+    decimals: 0,
   },
   {
     id: 'trainingWindow',
@@ -182,6 +184,7 @@ export const PROFILE_FIELDS = [
     label: 'Duerme',
     kind: 'number',
     unit: 'h',
+    decimals: 1,
     hint: 'El techo de lo que puede recuperar. Se mira antes de subirle el volumen.',
   },
 
@@ -192,6 +195,7 @@ export const PROFILE_FIELDS = [
     label: 'Comidas al día',
     kind: 'number',
     unit: 'comidas',
+    decimals: 0,
   },
   {
     id: 'mealTimes',
@@ -244,6 +248,7 @@ export const PROFILE_FIELDS = [
     label: 'Pasos al día',
     kind: 'number',
     unit: 'pasos',
+    decimals: 0,
     hint: 'Los que da ahora. Su objetivo se pone en la nutrición.',
   },
 ];
@@ -417,7 +422,18 @@ export const fieldText = (profile, id) => {
 
   if (field.kind === 'yesno') return valor ? 'Sí' : 'No';
   if (field.kind === 'choice') return field.options.find((o) => o.id === valor)?.label || null;
-  if (field.kind === 'number') return field.unit ? `${valor} ${field.unit}` : String(valor);
+  /*
+    El número, en el idioma de la aplicación y con los decimales que tiene
+    sentido enseñar. Salía crudo —«false», no: «100.12 min», «11.13 pasos»,
+    «6.7 h»— porque se interpolaba tal cual: punto decimal de JavaScript, sin
+    separador de millar y con toda la basura que trajera el cuestionario. Al
+    lado de un «53,9 kg» de la cabecera eran dos ortografías del mismo tipo de
+    dato en la misma pantalla. `decimals` lo declara el catálogo: los minutos
+    de una sesión no tienen decimales y las horas de sueño sí.
+  */
+  if (field.kind === 'number') {
+    return fmt(valor, { decimals: field.decimals ?? 0, unit: field.unit ? ` ${field.unit}` : '' });
+  }
   return String(valor);
 };
 

@@ -109,17 +109,39 @@ export const LineaDeBloques = ({
   const horizonte = conHorizonte ? horizonteDeBloque(program, semanaEnCurso) : null;
   const fraseHorizonte = (() => {
     if (!horizonte) return null;
+    /* El horizonte es del bloque por el que VA la persona. Mirando otro —uno
+       cerrado del historial— contaba lo del abierto debajo de su nombre, así
+       que la línea decía «cerrado · abierto · 3 microciclos». */
+    if (horizonte.bloque?.id !== bloque?.id) return null;
     const { restantes, siguiente, abierto: sigueAbierto } = horizonte;
+
+    /*
+      ── Un bloque abierto no tiene horizonte, y decirlo era el error ─────────
+      Aquí se contaba lo que le «quedaba» al bloque abierto —«va por su último
+      microciclo escrito», «le quedan 2 escritos»— como si tuviera un final al
+      que acercarse. No lo tiene: una rutina se monta y dura hasta que hay
+      motivo para cambiarla, así que lo que quedaba por contar era en realidad
+      lo que todavía no se ha escrito.
+
+      Un bloque abierto dice lo único que es cierto: que está abierto, y cuánto
+      lleva. El horizonte se queda para los cerrados, que sí tienen final y sí
+      tienen algo detrás.
+    */
+    if (sigueAbierto) {
+      const cuantos = horizonte.bloque ? weeksOfBlock(program, horizonte.bloque).length : 0;
+      return ['abierto', cuantos > 0 ? `${cuantos} ${cuantos === 1 ? unidadBaja : unidadesBajas}` : null]
+        .filter(Boolean)
+        .join(' · ');
+    }
+
     const cuanto =
       restantes === 0
-        ? sigueAbierto
-          ? `va por su último ${unidadBaja} escrito`
-          : `acaba este ${unidadBaja}`
-        : `${restantes === 1 ? `le queda 1 ${unidadBaja}` : `le quedan ${restantes} ${unidadesBajas}`}${
-            sigueAbierto ? (restantes === 1 ? ' escrito' : ' escritos') : ''
-          }`;
-    const despues = sigueAbierto ? null : siguiente ? `después, ${siguiente.name}` : 'después, nada programado';
-    return [cuanto, despues].filter(Boolean).join(' · ');
+        ? `acaba este ${unidadBaja}`
+        : restantes === 1
+          ? `le queda 1 ${unidadBaja}`
+          : `le quedan ${restantes} ${unidadesBajas}`;
+    const despues = siguiente ? `después, ${siguiente.name}` : 'después, nada programado';
+    return [cuanto, despues].join(' · ');
   })();
 
   /*

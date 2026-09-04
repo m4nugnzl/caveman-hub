@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Wand2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileUp, GripVertical, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import {
   blockPlan,
   blockSummary,
-  fillableWeeksOfDay,
+  hasBlockPlan,
   isCurrentBlock,
   structureOfBlock,
   untrainedWeeksOfDay,
@@ -163,13 +163,17 @@ const BarrasVolumen = ({ grupos }) => {
 const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
   const pasados = grupos.filter((m) => m.mrv && m.valor > m.mrv).length;
   return (
-    <section className="lado-tarjeta" aria-label="Volumen por grupo">
+    <section className={`lado-tarjeta${grupos.length > 0 ? ' tarjeta-puerta' : ''}`} aria-label="Volumen por grupo">
+      {/* La tarjeta entera abre su ventana. Ver «LA TARJETA-PUERTA». */}
+      {grupos.length > 0 && (
+        <button type="button" className="task-hit" onClick={onAmpliar} aria-label="Todos los grupos contra su MRV" title="Todos los grupos contra su MRV" />
+      )}
       <div className="lado-cab">
         <span className="section-label">Volumen por {unidad.toLowerCase()}</span>
         <div className="lado-cab-fila">
-          <button type="button" className="lado-titulo" onClick={onAmpliar} disabled={grupos.length === 0} title="Todos los grupos contra su MRV">
+          <span className="lado-titulo">
             {cuenta(grupos.length, 'grupo', 'grupos')}
-          </button>
+          </span>
           {pasados > 0 && (
             <span className="lado-aviso" title="Grupos por encima de su MRV estimado">
               {pasados} sobre el MRV
@@ -240,13 +244,19 @@ const TarjetaProgresion = ({ filas, unidades }) => {
 /* ══ EL BLOQUE EN CIFRAS ═════════════════════════════════════════════════════ */
 
 const TarjetaCifras = ({ resumen, unidad, unidades, onAmpliar }) => (
-  <section className="lado-tarjeta" aria-label="El bloque en cifras">
+  <section className="lado-tarjeta tarjeta-puerta" aria-label="El bloque en cifras">
+    {/* La tarjeta entera abre su ventana. Ver «LA TARJETA-PUERTA». */}
+    <button
+      type="button"
+      className="task-hit"
+      onClick={onAmpliar}
+      aria-label="El historial de todos los bloques, con su gráfica"
+      title="El historial de todos los bloques, con su gráfica"
+    />
     <div className="lado-cab">
       <span className="section-label">Este bloque</span>
       <div className="lado-cab-fila">
-        <button type="button" className="lado-titulo" onClick={onAmpliar} title="El historial de todos los bloques, con su gráfica">
-          {cuenta(resumen.semanas, unidad.toLowerCase(), unidades)}
-        </button>
+        <span className="lado-titulo">{cuenta(resumen.semanas, unidad.toLowerCase(), unidades)}</span>
       </div>
     </div>
     <div className="bloque-cifras is-2">
@@ -300,7 +310,6 @@ export const VistaBloque = ({
   onRenombrarHoja,
   onQuitarHoja,
   onMoverHoja,
-  onRellenar,
   onRecordarEjercicio,
   onSplit,
   onAjustes,
@@ -406,35 +415,18 @@ export const VistaBloque = ({
   })();
 
   /*
-    Las hojas que están por rellenar, para el gesto de una sola vez.
-
-    ── Y solo las que TIENEN de dónde copiar ─────────────────────────────────
-    «Poner la plantilla» copia los ejercicios del microciclo de referencia del
-    bloque (`rellenarConLaPlantilla`). En un bloque recién abierto ese
-    microciclo está tan en blanco como los demás, así que el botón salía igual,
-    se pulsaba, y no pasaba NADA: ni cambio ni aviso. Un botón que no hace nada
-    es peor que no tener botón, porque el que lo pulsa se queda pensando que ha
-    fallado la aplicación.
-
-    Ahora la franja pregunta antes: si hay plantilla, ofrece ponerla; si no la
-    hay —el bloque entero está vacío—, ofrece las dos rutas que de verdad
-    existen (escribirlo aquí, o traer el fichero donde ya está escrito).
+    ── El plan del bloque ya no deja huecos ────────────────────────────────
+    Aquí se calculaba qué microciclos estaban sin ejercicios y si había
+    plantilla de la que copiarlos. Con el plan DENTRO del bloque no hay hueco:
+    un microciclo nuevo lo lleva puesto. Queda solo saber si este bloque tiene
+    ya su plan, que es lo que decide si el andamio del modelo viejo se pinta.
   */
-  /* `plan.sessions` se lee del microciclo de REFERENCIA, así que sus ejercicios
-     son literalmente la plantilla: si esa hoja no tiene ninguno, no hay nada
-     que copiar a las demás. */
-  const conPlantilla = (dayName) =>
-    ((plan.sessions.find((s) => s.dayName === dayName)?.exercises) || []).length > 0;
-  const porRellenar = plan.sessions
-    .map((s) => ({ dayName: s.dayName, semanas: fillableWeeksOfDay(program, bloque, s.dayName) }))
-    .filter((s) => s.semanas.length > 0 && conPlantilla(s.dayName));
-  const semanasPorRellenar = [...new Set(porRellenar.flatMap((s) => s.semanas))].sort((a, b) => a - b);
+  const conPlanPropio = hasBlockPlan(bloque);
   /* El bloque en blanco: ninguna hoja tiene un solo ejercicio. */
   const bloqueVacio = plan.sessions.every((s) => (s.exercises || []).length === 0);
 
   const enBloque = (w) => w - bloque.fromWeek + 1;
   const etiqueta = (w) => `${unitInitial(cycleType)}${enBloque(w)}`;
-  const rellenarTodo = () => porRellenar.forEach(({ dayName, semanas: ws }) => onRellenar(dayName, ws));
 
   /*
     ══ LA HOJA VERAZ: lo hecho al lado del plan ═══════════════════════════════
@@ -678,18 +670,17 @@ export const VistaBloque = ({
           </div>
         )}
 
-        {esActual && !bloqueVacio && semanasPorRellenar.length > 0 && (
-          <div className="plan-hueco plan-seccion">
-            <span>
-              {semanasPorRellenar.map(etiqueta).join(', ')} {semanasPorRellenar.length === 1 ? 'está' : 'están'} sin ejercicios.
-            </span>
-            <div className="plan-hueco-acciones">
-              <button type="button" className="btn btn-primary btn-sm" onClick={rellenarTodo}>
-                <Wand2 size={14} /> Poner la plantilla
-              </button>
-            </div>
-          </div>
-        )}
+        {/*
+          ── «Poner la plantilla» se ha ido ───────────────────────────────────
+          Aquí había una franja que avisaba de los microciclos sin ejercicios y
+          ofrecía copiarles la plantilla. Existía porque el plan vivía copiado
+          en cada microciclo y los nuevos nacían en blanco: había huecos, y
+          alguien tenía que taparlos.
+
+          El plan es del bloque, así que un microciclo nuevo YA lo lleva puesto.
+          No hay hueco que rellenar, no hay plantilla que copiar, y el gesto que
+          más se repetía deja de existir en vez de hacerse más cómodo.
+        */}
 
         {/*
           ── Dónde cae cada hoja: su propia sección ────────────────────────
@@ -724,7 +715,10 @@ export const VistaBloque = ({
           >
             {(piezasRejilla || plan.sessions.map((hoja, index) => ({ hoja, index, dia: null }))).map((pieza) => {
               const { hoja, index, dia } = pieza;
-              const cerrada = untrainedWeeksOfDay(program, bloque, hoja.dayName).length === 0;
+              /* Una hoja del bloque no se "cierra": el plan se escribe una vez
+                 y lo entrenado vive en las sesiones, que no se tocan. El tope
+                 solo existe mientras el plan siga copiado por microciclo. */
+              const cerrada = !conPlanPropio && untrainedWeeksOfDay(program, bloque, hoja.dayName).length === 0;
               /* Con el día ya rotulado encima, el «D2» del subtítulo sería el
                  mismo dato dos veces; en semana natural se queda, porque una
                  hoja puede caer en dos días y el rótulo solo lleva el primero. */
@@ -807,6 +801,22 @@ export const VistaBloque = ({
                         es el reparto y el VOLUMEN.
                       */}
                       <span className="plan-col-sub">{[cae, `${hoja.series} series`].filter(Boolean).join(' · ')}</span>
+                      {/*
+                        ── Dónde se aparta esta hoja del plan ──────────────────
+                        Los microciclos que tienen una excepción sobre ella. No
+                        es un aviso —una excepción no es un fallo, es una
+                        decisión— así que va en tinta terciaria con su
+                        asterisco, y nunca en semáforo: el semáforo de esta
+                        columna ya dice si la hoja está hecha.
+                      */}
+                      {conPlanPropio && hoja.difieren.length > 0 && (
+                        <span
+                          className="plan-col-excepcion"
+                          title={`Con una excepción en ${hoja.difieren.map(etiqueta).join(', ')}`}
+                        >
+                          ✱ {hoja.difieren.map(etiqueta).join(' · ')}
+                        </span>
+                      )}
                       {estadoHoja && (
                         /* El semáforo de la semana, pegado al rótulo que juzga:
                            hecha · a medias · aún no. */

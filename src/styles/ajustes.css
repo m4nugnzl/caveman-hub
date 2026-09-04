@@ -448,33 +448,13 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    conviene que esté lejos de las opciones para no pulsarla por inercia. */
 .studio-bar-end { display: flex; align-items: center; gap: var(--s3); margin-left: auto; flex-wrap: wrap; }
 
-/* ── Lectura de la semana ──────────────────────────────────────────────────
-   Frases con gravedad, no gráficos. La marca de la izquierda lleva el color:
-   el texto se queda en el color normal para que se pueda leer seguido, porque
-   cuatro frases teñidas de cuatro colores no se leen, se escanean. */
-.reading { display: flex; flex-direction: column; gap: var(--s2); list-style: none; }
-.read {
-  display: flex; gap: var(--s3); align-items: flex-start; width: 100%;
-  padding: var(--s3); border-radius: var(--r-md);
-  background: var(--surface-sunken);
-  font-family: inherit; text-align: left; border: 0;
-}
-.read-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.read-body > strong { font-size: var(--fs-base); font-weight: 650; }
-
-.read-mark {
-  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
-  display: grid; place-items: center; margin-top: 1px;
-}
-.read.is-good > .read-mark { background: var(--positive-soft); color: var(--positive); }
-.read.is-warn > .read-mark { background: var(--warning-soft); color: var(--warning); }
-.read.is-bad > .read-mark { background: var(--negative-soft); color: var(--negative); }
-.read.is-unknown > .read-mark { background: var(--fill); color: var(--text-tertiary); }
-
-/* Lo grave se distingue también sin color: una franja al canto, para quien no
-   distingue el rojo del ámbar. */
-.read.is-bad { box-shadow: inset 3px 0 0 var(--negative); }
-.read.is-warn { box-shadow: inset 3px 0 0 var(--warning); }
+/* Aquí vivía «Lectura de la semana» —`.reading` y sus `.read`—: las cuatro
+   conclusiones juntas en un panel, cada una con enlace a su prueba. Esa lista
+   se retiró cuando cada pregunta pasó a tener su ventana, y el componente que
+   la pintaba (`Hallazgos.jsx`) se quedó sin nadie que lo importara. Se ha ido
+   con su hoja de estilo: lo único de aquella pieza que sigue vivo es el punto
+   de aviso (`.ev-dot`, aquí abajo). El cálculo, entero y con sus pruebas, sigue
+   en `domain/reading.js`. */
 
 .goal-set { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; color: var(--text-tertiary); }
 .goal-set > .k {
@@ -628,10 +608,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   gap: var(--s3); flex-wrap: wrap;
 }
 .plan-count-row { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
-.plan-count {
-  font-family: var(--font-ancha); font-size: var(--fs-2xl);
-  font-weight: 700; line-height: 1; letter-spacing: -0.018em;
-}
+.plan-count { line-height: 1; }
 .plan-count-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
 /* ── La escala: UN bloque con peldaños, no N tarjetas ──────────────────────

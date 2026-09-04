@@ -1,6 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { useApp } from '@/context/AppContext';
+import { resolvedMicrocycles } from '@/domain/blocks';
 import { PageHead } from '@/components/ui/primitives';
 import { ClientRoutine } from './ClientRoutine';
 import { IntakePrompt } from './IntakePrompt';
@@ -40,7 +41,21 @@ export const ClientRoutineRoute = () => {
     [logSessionSet]
   );
 
-  const program = workoutData[activeClient.id];
+  /*
+    El programa CON EL PLAN PUESTO: el plan es del bloque y cada microciclo lleva
+    encima sus excepciones (`resolvedMicrocycles`). Se resuelve aquí, en la
+    frontera, y no en la vista: así el cliente ve la rutina que le toca sin que
+    ninguna de sus piezas tenga que saber que existen los bloques —que además es
+    vocabulario del entrenador, no suyo—.
+
+    Mientras ningún bloque tenga su plan dentro devuelve los mismos objetos, así
+    que el portal se comporta exactamente igual hasta que se migre.
+  */
+  const guardado = workoutData[activeClient.id];
+  const program = useMemo(
+    () => (guardado ? { ...guardado, microcycles: resolvedMicrocycles(guardado) } : guardado),
+    [guardado]
+  );
   /* Solo para elegir la semana abierta: la lista de semanas ya no viaja a la
      vista, que las saca del programa tramo a tramo (ver `LineaDeBloques`). */
   const weeks = (program?.microcycles || []).map((m) => m.weekNumber);

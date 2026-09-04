@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ExternalLink, Pencil } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 import {
   MAX_FIELD,
@@ -140,15 +140,34 @@ export const ProfileBlock = ({ client, group, onSave }) => {
     setEditando(false);
   };
 
+  const vacio = filas.length === 0;
+
   return (
     <Panel
+      desnudo
+      rango="bloque"
       title={meta.label}
-      sub={meta.sub}
-      className="col gap-3"
+      /* La frase de qué va esto solo cuando NO hay nada: con contenido, el
+         contenido lo explica mejor y la frase es un renglón de más en una
+         pantalla que ya tenía seis. */
+      sub={vacio ? meta.sub : undefined}
       action={
         !editando && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={abrir}>
-            <Pencil size={13} /> {filas.length > 0 ? 'Editar' : 'Rellenar'}
+          /*
+            ══ Un verbo, no un botón ═══════════════════════════════════════
+
+            Pasó por las dos formas equivocadas: primero una píldora con canto
+            —cuatro idénticas en la misma franja, pesando más que los datos que
+            editan— y después un lápiz suelto pegado al canto derecho, a mil
+            píxeles del título al que pertenecía y sin nada que lo sujetase.
+
+            Debajo del rótulo y como palabra en acento es lo que la casa ya usa
+            para un verbo suelto (`cab-accion.is-puerta`, ver la ley de los
+            gestos): está donde se lee el bloque, no lleva cromo, y dice lo que
+            hace sin que haya que adivinar un icono.
+          */
+          <button type="button" className="cab-accion is-puerta" onClick={abrir}>
+            {vacio ? 'Rellenar' : 'Editar'}
           </button>
         )
       }
@@ -179,41 +198,40 @@ export const ProfileBlock = ({ client, group, onSave }) => {
             </button>
           </div>
         </form>
-      ) : filas.length > 0 ? (
-        <div className="col gap-2 t-sm swap-in">
+      ) : !vacio ? (
+        /*
+          ══ Pares apilados, no una tabla de dos columnas ═══════════════════
+
+          Eran filas de «etiqueta a la izquierda, valor en negrita a la derecha»,
+          y con datos de verdad se rompían: «A qué hora puede» contra «Hay días
+          que entreno a las 7am y otros días tipo 1:30» dejaba la etiqueta
+          aplastada contra el canto y el valor ocupando la fila entera. Diez filas
+          así, cada una partida por un sitio distinto, es lo que hacía que este
+          bloque se leyera como una hoja de cálculo mal exportada.
+
+          Con el rótulo encima del valor, cada dato ocupa una celda de la misma
+          anchura, los largos envuelven dentro de la suya y la rejilla se lee de
+          un vistazo. Es la misma voz que la anatomía de la cabecera.
+        */
+        <div className="pares swap-in">
           {filas.map((fila) => (
-            <div key={fila.id} className="row between gap-2">
-              <span className="t-secondary">{fila.label}</span>
+            <div key={fila.id} className="par">
+              <span className="k">{fila.label}</span>
               {/* Un enlace se pulsa. Guardado y no abrible sería pedirle a
                   alguien que copie una URL a mano desde una ficha — y el filtro
                   de `cleanProfile` garantiza que solo llega aquí lo que empieza
                   por http(s), así que el `href` no puede ejecutar nada. */}
               {fieldById(fila.id)?.kind === 'link' ? (
-                <a
-                  className="row gap-1"
-                  href={fila.text}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  style={{ minWidth: 0 }}
-                >
-                  <ExternalLink size={12} />
-                  <span
-                    style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  >
-                    Abrir
-                  </span>
+                <a className="v row gap-1" href={fila.text} target="_blank" rel="noreferrer noopener">
+                  <ExternalLink size={12} /> Abrir
                 </a>
               ) : (
-                <span style={{ fontWeight: 600, textAlign: 'right' }}>{fila.text}</span>
+                <span className="v">{fila.text}</span>
               )}
             </div>
           ))}
         </div>
-      ) : (
-        /* Una línea, no una tarjeta de estado vacío. Son tres bloques seguidos y
-           tres tarjetas diciendo lo mismo serían media pantalla de nada. */
-        <p className="t-xs t-tertiary">Sin rellenar. Sale de lo que te cuenta en su cuestionario.</p>
-      )}
+      ) : null}
     </Panel>
   );
 };

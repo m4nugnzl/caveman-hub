@@ -1037,10 +1037,8 @@
   font-size: var(--fs-lg); font-weight: 700; line-height: 1;
   font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
 }
-.macro.is-mayor > .v {
-  font-family: var(--font-ancha);
-  font-size: var(--fs-xl); letter-spacing: -0.015em;
-}
+/* `.macro.is-mayor > .v` sube al escalón de 30 px en la escala de `base.css`:
+   ahí está la voz entera —ancha, peso y apretado— y no se repite aquí. */
 .macro > .v > .u { font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); }
 /* El hueco del delta se reserva siempre: sin él, la fila de cifras baila media
    línea según cuántas hayan cambiado esta semana. */
@@ -1354,8 +1352,7 @@
 }
 .cola-n {
   display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
-  font-family: var(--font-ancha); font-size: var(--fs-2xl); font-weight: 720;
-  letter-spacing: -0.018em; line-height: 1; font-variant-numeric: tabular-nums;
+  line-height: 1; font-variant-numeric: tabular-nums;
 }
 .cola-n > small {
   font-family: var(--font); font-size: var(--fs-xs); font-weight: 500;
@@ -1432,10 +1429,23 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .actividad-fila .detail { color: var(--text-tertiary); }
-/* El cuándo de cada fila: con la ventana a dos semanas ya no se sobreentiende. */
+/* ── El cuándo: al final de la frase, no contra el canto ───────────────────
+   Con la ventana a dos semanas el día ya no se sobreentiende, así que cada fila
+   lleva el suyo. Iba con `margin-left: auto`, o sea clavado al canto derecho, y
+   eso convertía cada fila en una TABLA de dos columnas: «Alex Vessel · 73 kg» a
+   la izquierda, «Hoy» a trescientos píxeles, y un vacío en medio. Una tabla de
+   dos columnas se lee cuando la de la derecha se compara —importes, fechas de
+   vencimiento—; aquí no se compara nada, se lee un renglón.
+
+   Así que el día es la última pieza de la frase, con el mismo punto volado y la
+   misma voz que el detalle: lo que sobra queda DETRÁS del texto, que es aire
+   normal de una línea corta, y no un hueco dentro de ella. */
 .actividad-fila > .cuando {
-  margin-left: auto; flex-shrink: 0;
-  font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap;
+  /* El hueco de la fila son 8 px y el punto volado ya trae su espacio detrás:
+     sin recortar la mitad, el `·` queda descentrado —8 px por delante, 4 por
+     detrás— y un separador torcido es de lo poco que se ve a simple vista. */
+  flex-shrink: 0; margin-left: -4px;
+  font-size: var(--fs-sm); color: var(--text-tertiary); white-space: nowrap;
 }
 
 /* ── Dentro de un cliente, el titular de cada pestaña baja de rango ─────────
@@ -1560,6 +1570,21 @@
 .hoja-ej-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary); width: 16px; }
 .hoja-ej-nombre { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em; }
 .hoja-ej-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── La excepción de un microciclo ──────────────────────────────────────────
+   Este ejercicio no es el del bloque: es el de esta semana. Se marca con un
+   filete izquierdo y la palabra, en voz baja, y SIN semáforo — en esta hoja el
+   color ya significa «repeticiones por debajo del objetivo» y no puede tener un
+   segundo trabajo. Además una excepción no es un fallo: es información. */
+.hoja-ej:has(.hoja-ej-excepcion) { border-left-color: var(--hairline-strong); border-left-style: dashed; }
+.hoja-ej-excepcion {
+  display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2);
+  margin-left: var(--s2);
+  font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+.hoja-ej-excepcion .ast { font-weight: 700; }
+.hoja-ej-excepcion .link { font-size: var(--fs-xs); }
 .hoja-ej-acciones { margin-left: auto; display: flex; gap: 2px; align-self: center; opacity: 0.35; transition: opacity var(--fast); }
 .hoja-ej:hover .hoja-ej-acciones, .hoja-ej:focus-within .hoja-ej-acciones, .hoja-ej.is-focused .hoja-ej-acciones { opacity: 1; }
 
@@ -1794,7 +1819,7 @@
 .menu-item.is-on { color: var(--text); }
 .comparativa-forma { display: flex; flex-direction: column; gap: 6px; }
 .comparativa-tope { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
-.comparativa-tope > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
+.comparativa-tope > .v { line-height: 1; font-variant-numeric: tabular-nums; }
 .comparativa-tope > .u { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .comparativa-tabla { display: flex; flex-direction: column; gap: 2px; }
 .comparativa-fila { display: grid; gap: 2px; align-items: center; }
@@ -1812,8 +1837,32 @@
   font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
 }
 .comparativa-celda.is-kg { color: var(--text); font-weight: 600; }
-.comparativa-celda.is-sube { color: var(--positive); }
+/* ── Solo la BAJADA lleva tinta ────────────────────────────────────────────
+   La subida iba en verde, y en una progresión bien llevada eso es casi cada
+   celda: veinte de veinticuatro en cuanto alguien sube un kilo por semana. Un
+   semáforo que se enciende en verde en todas partes deja de ser un semáforo y
+   pasa a ser el color del fondo — y de paso metía una tercera tinta en una
+   tarjeta que ya tiene la del dato (la línea) y la del gesto (el baño azul).
+
+   Que suba es lo esperado, y ya lo cuentan los números al bajar por la columna,
+   el chip de «+11 desde B1·M1» y la propia línea. Lo que hay que ver sin
+   buscarlo es la semana en que alguien BAJÓ: ahora es lo único teñido de la
+   tabla, así que salta a la primera. Es la ley de la casa —resaltar, no
+   decorar— aplicada a una rejilla de cifras.
+
+   ── Pero progresar hay que poder verlo ─────────────────────────────────────
+   Sin nada que distinga una subida de un plantón, la tabla se lee como seis
+   filas de cifras iguales y hay que restar a mano para saber si el ejercicio
+   va a alguna parte. La diferencia vuelve, pero en TINTA y no en color: lo que
+   subió se queda en tinta plena y lo que se quedó igual baja a la voz
+   secundaria. La columna de kilos va en negro mientras se progresa y se apaga
+   justo en el microciclo en que alguien se atascó, que es la pregunta.
+
+   Un valor y su contrario dichos con la misma tinta a dos intensidades pesan
+   lo justo: se ve de un vistazo y no compite con el rojo, que sigue siendo lo
+   único teñido. Tres estados, un color. */
 .comparativa-celda.is-baja { color: var(--negative); }
+.comparativa-celda.is-kg.is-igual { color: var(--text-secondary); }
 .comparativa-celda.is-vacia { color: var(--text-tertiary); background: transparent; }
 .entreno-pagina .entreno { grid-template-columns: minmax(0, 1fr) 400px; }
 .comparativa-fila.is-series { margin-bottom: 1px; }
@@ -1824,8 +1873,13 @@
    los formularios. */
 .cab-accion {
   font: inherit; font-size: var(--fs-sm); font-weight: 600; letter-spacing: -0.01em;
-  color: var(--text); background: transparent; border: 0; padding: 6px 4px; cursor: pointer;
-  text-decoration: none; border-radius: var(--r-sm); transition: color var(--fast);
+  /* 6 px a los lados y no 4: el tinte de al pasar necesita algo de aire para no
+     salir pegado a las letras. Sin margen negativo — hay media docena de sitios
+     que ya ajustan el suyo (`.tarjeta-pie-accion`, `.vacio-invita`) y compondría
+     con ellos. */
+  color: var(--text); background: transparent; border: 0; padding: 6px 6px; cursor: pointer;
+  text-decoration: none; border-radius: var(--r-sm);
+  transition: color var(--fast), background-color var(--fast), box-shadow var(--fast);
 }
 .cab-accion:hover { color: var(--text); }
 .cab-accion.is-principal { color: var(--text); }
@@ -2012,7 +2066,7 @@
 /* ── El panel de la semana ─────────────────────────────────────────────── */
 .semana-cifras { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
 .semana-cifra { display: flex; flex-direction: column; gap: 2px; }
-.semana-cifra > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
+.semana-cifra > .v { line-height: 1; font-variant-numeric: tabular-nums; }
 .semana-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
 .semana-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .semana-sesion { display: flex; flex-direction: column; gap: var(--s2); padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken); }
@@ -2064,7 +2118,7 @@
 }
 .bloque-cifras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
 .bloque-cifra { display: flex; flex-direction: column; gap: 2px; padding: var(--s3) var(--s4); border-radius: var(--r-md); background: var(--surface-sunken); }
-.bloque-cifra > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 720; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
+.bloque-cifra > .v { line-height: 1; font-variant-numeric: tabular-nums; }
 .bloque-cifra > .v > small { font-size: var(--fs-md); color: var(--text-tertiary); font-weight: 600; }
 .bloque-cifra > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .bloque-seccion { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
@@ -2074,7 +2128,36 @@
 
 /* ── La columna derecha: progresión arriba, cómo lo llevó debajo ──────────── */
 .entreno-lado-derecho { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
-.entreno-lado-derecho .comparativa { position: static; }
+/* ── `relative`, y NUNCA `static`: aquí dentro hay una puerta ───────────────
+   Esta regla existe para que la progresión no se pegue arriba: en esta columna
+   hay dos tarjetas apiladas y `.comparativa` viene con `position: sticky` de
+   fábrica. Cancelarlo está bien; cancelarlo con `static` era una avería seria y
+   silenciosa.
+
+   Las dos tarjetas de esta columna son TARJETAS-PUERTA, y la puerta es un botón
+   absoluto con `inset: 0` que se apoya en que su tarjeta sea un bloque
+   contenedor (`.tarjeta-puerta { position: relative }`). Este selector tiene dos
+   clases y aquél una, así que ganaba: la tarjeta dejaba de ser bloque
+   contenedor y el botón se medía contra el ÚLTIMO ancestro posicionado — que en
+   esta pantalla no existe, así que contra la página entera. Y `overflow: hidden`
+   no lo recortaba, porque a un absoluto no lo recorta un contenedor que no es su
+   bloque contenedor.
+
+   El resultado era un botón invisible del tamaño de la pantalla, dos de hecho
+   —la progresión y «cómo lo llevó»—: cualquier clic en cualquier sitio caía en
+   él, el cursor estuviera donde estuviera contaba como «encima de la tarjeta»
+   —de ahí el azul permanente— y el globo de «Ver toda la progresión» salía en
+   mitad de la nada.
+
+   `relative` cancela el pegado exactamente igual y conserva el bloque
+   contenedor. Si algún día hace falta volver a tocar el `position` de una
+   tarjeta-puerta, el valor seguro es `relative`; `static` la rompe.
+
+   Y con `top: auto`, que no es un detalle: `.comparativa` trae `top: var(--s5)`
+   para su pegado, y un `top` que `static` ignoraba pasa a ser un desplazamiento
+   real en cuanto el elemento es `relative`. Sin esto la tarjeta bajaría 16 px
+   sobre su hueco, dejando un vacío arriba y comiéndose lo de abajo. */
+.entreno-lado-derecho .comparativa { position: relative; top: auto; }
 .como-lo-llevo { gap: var(--s3); }
 .como-lo-llevo .comparativa-head { flex-direction: row; align-items: baseline; justify-content: space-between; }
 .comparativa-ampliar {
@@ -2099,8 +2182,11 @@
 }
 .progresion-celda > b { font-weight: 600; color: var(--text); }
 .progresion-celda > small { font-size: 9.5px; color: var(--text-tertiary); margin-left: 2px; }
-.progresion-celda.is-sube > b { color: var(--positive); }
+/* Sin verde, igual que la tarjeta de la que esta ventana es la versión grande
+   (ver `.comparativa-celda.is-baja`): las dos leen la misma tabla y tienen que
+   teñir lo mismo, o al ampliar cambia el significado del color. */
 .progresion-celda.is-baja > b { color: var(--negative); }
+.progresion-celda.is-igual > b { color: var(--text-secondary); }
 .progresion-celda.is-vacia { background: transparent; color: var(--text-tertiary); }
 
 /* ── La ventana del bloque: dos pantallas que se deslizan ─────────────────── */
@@ -2109,20 +2195,77 @@
 /* ── La cabecera de las tarjetas laterales: rótulo, título pulsable, paso ── */
 .lado-cab { display: flex; flex-direction: column; gap: 2px; }
 .lado-cab-fila { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-width: 0; }
+/* El título ya no es un control: es tipografía. Quien abre la ventana es la
+   TARJETA entera (ver «LA TARJETA-PUERTA» abajo), así que aquí no queda ni
+   cursor, ni caja, ni estado propio. */
 .lado-titulo {
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
-  background: transparent; border: 0; padding: 2px 0; border-radius: var(--r-xs);
-  font: inherit; font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em;
-  color: var(--text); cursor: pointer; transition: color var(--fast);
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-md); letter-spacing: -0.02em;
+  color: var(--text); transition: color var(--fast);
 }
-.lado-titulo::after { content: ' ↗'; font-family: var(--font); font-weight: 500; font-size: var(--fs-xs); color: var(--text-tertiary); }
-.lado-titulo:hover:not(:disabled) { color: var(--text); }
-.lado-titulo:hover:not(:disabled)::after { color: var(--text); }
-.lado-titulo:disabled { cursor: default; }
-.lado-titulo:disabled::after { content: ''; }
-/* El mismo título cuando NO es una puerta: dato, no botón, y sin la flecha. */
-.lado-titulo.is-texto { cursor: default; }
-.lado-titulo.is-texto::after { content: ''; }
+/* El título que abre una ventana lo dice ENCENDIÉNDOSE, no colgando un dibujo
+   de su derecha. Aquí había un «↗» tecleado —a --fs-xs y peso 500 en `--font`,
+   pegado a un título a --fs-md y peso 700 en `--font-display`: otro tamaño,
+   otra familia y otro peso, así que leía como llamada a pie de página—. Ver
+   «LO QUE SE PULSA SE ENCIENDE». */
+/* ══ LA TARJETA-PUERTA: la caja entera abre su ventana ═════════════════════
+   Estas tarjetas de costado —el objetivo de macros, la progresión de un
+   ejercicio, el volumen por grupo, el bloque en cifras, cómo lo llevó— existen
+   para abrir su ventana grande. La puerta era el TÍTULO: un blanco del ancho de
+   dos palabras dentro de una caja de 300 px que no hacía nada.
+
+   Ahora la puerta es la caja, igual que la tarjeta de objetivo de la dieta, y
+   con eso las dos columnas de nutrición hacen por fin lo mismo. Se gana además
+   una parada de tabulador menos por tarjeta y un blanco de dedo enorme.
+
+   ── Cómo, sin anidar botones ────────────────────────────────────────────────
+   Con la capa de clic que ya usa la cartera de «Hoy» (`.task-hit`): un botón
+   absoluto que cubre la tarjeta POR DEBAJO del contenido. Envolver la tarjeta
+   entera en un <button> no vale, porque dentro hay otros —el lápiz del
+   objetivo, los pasos ‹ › de la progresión— y anidarlos es HTML inválido.
+
+   El contenido se pinta encima y deja pasar el clic; los controles de verdad se
+   lo devuelven con `pointer-events: auto`. El precio es que dentro de estas
+   tarjetas no se puede seleccionar texto con el ratón: son paneles de cifras,
+   no documentos, y es el mismo trato que ya tienen las filas de «Hoy». */
+/* Este `relative` NO es cosmético y no se puede pisar: es el bloque contenedor
+   contra el que se mide la puerta. Una regla de dos clases que ponga `static`
+   aquí gana por especificidad y suelta el botón contra la página entera —un
+   botón invisible a pantalla completa que se come todos los clics—. Pasó con
+   `.entreno-lado-derecho .comparativa`; está contado allí. Para desactivar un
+   `sticky` heredado, `relative`. */
+.tarjeta-puerta { position: relative; transition: background-color var(--fast), border-color var(--fast); }
+.tarjeta-puerta > :not(.task-hit) { position: relative; pointer-events: none; }
+.tarjeta-puerta button:not(.task-hit),
+.tarjeta-puerta a[href],
+.tarjeta-puerta input,
+.tarjeta-puerta select,
+.tarjeta-puerta textarea { pointer-events: auto; }
+.tarjeta-puerta > .task-hit { cursor: pointer; }
+
+/* El encendido, el mismo que el de la tarjeta de objetivo. La excepción del
+   `:has()`: con el cursor sobre el lápiz la tarjeta NO se enciende — ahí el
+   clic no abre la ventana, y encenderla estaría prometiendo lo que no va a
+   pasar.
+
+   ── El baño es del RATÓN; el teclado tiene su anillo ───────────────────────
+   Los dos estados compartían declaración, y con el foco eso se ve como una
+   tarjeta que se quedó encendida sola. No es teórico: al cerrar la ventana, el
+   `Modal` devuelve el foco a lo que la abrió (`previouslyFocused.focus()`), y
+   si se cerró con Esc el navegador cuenta esa vuelta como teclado — así que la
+   tarjeta se quedaba bañada en azul hasta pulsar en otro sitio, anunciando un
+   «pasa algo aquí» sobre una caja quieta.
+
+   El baño es la respuesta al cursor: dura lo que dura el cursor encima. El
+   teclado ya tiene su forma de decir dónde está —el anillo de abajo, que es el
+   mismo de toda la aplicación— y no necesita repetirlo con relleno, canto y
+   título a la vez. */
+.tarjeta-puerta:hover:not(:has(button:not(.task-hit):hover)) {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+}
+.tarjeta-puerta:hover:not(:has(button:not(.task-hit):hover)) > .lado-cab .lado-titulo { color: var(--accent); }
+.tarjeta-puerta:has(> .task-hit:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ── La progresión del bloque: lo que lleva semanas clavado ────────────────
    Filas de nombre y estado, en la voz baja del costado. «A la baja» va en
@@ -2730,6 +2873,75 @@
    que montar. */
 .dieta-objetivos, .dieta-actividad { display: flex; flex-direction: column; gap: var(--s3); }
 
+/* ══ EL OBJETIVO DE ACTIVIDAD: la tarjeta entera es el control ═════════════
+   Los pasos y el cardio son un dato que se cambia de una vez, así que la caja
+   no lleva botón dentro: la caja ES el botón.
+
+   Y sin flecha: cuando lo que se pulsa es la caja entera, la caja ya se puede
+   ENCENDER —fondo, canto y cifra en acento—, así que una flecha encima dice dos
+   veces lo mismo, y lo dice en 12 px y en una esquina. Las palancas de «El
+   plan» llevan la suya porque son filas dentro de una lista y no tienen caja
+   propia que iluminar; aquí sí la hay. */
+.objetivo { display: flex; flex-direction: column; gap: 4px; }
+button.objetivo {
+  width: 100%; text-align: left; font: inherit; color: inherit;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--fast), border-color var(--fast), box-shadow var(--fast);
+}
+/* El canto también se tiñe: la tarjeta ya nace con `border`, así que aquí basta
+   con cambiarle el color —nada se mueve— y el gesto queda idéntico al del
+   título y al del verbo, que se lo pintan con `box-shadow` porque nacen sin
+   canto. */
+button.objetivo:hover,
+button.objetivo:focus-visible { background: var(--accent-wash); border-color: var(--accent); }
+button.objetivo:hover .objetivo-c,
+button.objetivo:focus-visible .objetivo-c { color: var(--accent); }
+button.objetivo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.objetivo:active { transform: scale(0.994); }
+
+.objetivo-fila { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+/* El rótulo se queda con todo el sobrante y el valor con lo justo: así la
+   tarjeta vacía y la llena alinean su columna derecha. */
+.objetivo-fila > .section-label { flex: 1 1 auto; min-width: 0; }
+.objetivo-v { flex: none; display: flex; align-items: baseline; gap: 5px; }
+.objetivo-c { font-size: 1.25rem; font-variant-numeric: tabular-nums; transition: color var(--fast); }
+.objetivo-u { font-size: var(--fs-sm); color: var(--text-tertiary); }
+/* El hueco por llenar, en el color que invita — no en el gris de un dato
+   apagado, que es lo que un objetivo sin poner NO es. */
+.objetivo-p { font-size: var(--fs-sm); font-weight: 600; color: var(--accent); }
+
+/* Sin ratón no hay «al pasar», y una caja que solo se anuncia al pasar no
+   existe para el dedo: el canto del control es el estado de reposo. Es lo mismo
+   que hace la dieta con las asas y las equis de sus filas. */
+@media (hover: none) {
+  button.objetivo { border-color: var(--edge-control); }
+}
+
+/* ── Y cómo se teclea, en su ventana ───────────────────────────────────────
+   Un objetivo de pasos es LA cifra de esta persona, así que se escribe al
+   tamaño y con la letra con la que luego se lee, con el icono del objetivo a la
+   izquierda y su unidad dentro. Un campo de formulario normal para el único
+   dato de una ventana es desperdiciar la ventana. */
+.objetivo-campo > .input {
+  height: 58px;
+  padding-left: 44px; padding-right: 68px;
+  font-family: var(--font-ancha); font-weight: 680;
+  /* `--fs-xl` (30 px, «cifra de tarjeta») y no `--fs-2xl`: los 42 px de la cifra
+     principal no respiran dentro de un recuadro de 58, y esto es el valor de una
+     tarjeta, no el titular de una pantalla. */
+  font-size: var(--fs-xl); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.objetivo-campo > .objetivo-campo-icono {
+  position: absolute; left: 15px;
+  color: var(--text-tertiary); pointer-events: none;
+}
+.objetivo-campo > span { right: 16px; font-size: var(--fs-sm); }
+/* El marcador de posición no compite con lo escrito: es un ejemplo, no un
+   valor, y a 1,75 rem en negrita gritaría más que la cifra de verdad. */
+.objetivo-campo > .input::placeholder {
+  font-family: var(--font); font-size: var(--fs-base); font-weight: 400;
+}
+
 /* `align-items: stretch` explícito: `.dieta` trae `align-items: start` para su
    rejilla de dos columnas, y en un contenedor flex eso significa que los hijos
    se encogen a su contenido — la pantalla entera se quedaba en media columna. */
@@ -2905,14 +3117,45 @@
    hueco y pasa a ser la separación entre cuatro medidas. */
 .desde {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: grid; grid-template-columns: minmax(0, 1fr);
   gap: var(--s2); flex: 1; align-content: stretch;
 }
-/* Cuatro cifras en línea cuando la tarjeta ocupa la fila entera; dos por dos
-   cuando ocupa un tercio. 520 es lo que miden cuatro casillas sin que «desde el
-   18 may» tenga que recortarse con puntos suspensivos. */
+/* ── Y cuántas columnas, que depende de cuántas cifras haya ────────────────
+   El 2×2 estaba escrito como si siempre fueran cuatro, y casi nunca lo son: la
+   cintura falta hasta que hay dos perímetros y las sesiones hasta que hay una
+   anotada. Con TRES salían dos arriba y una huérfana en un cuadrante, con el de
+   al lado en blanco; con DOS, una única fila que `stretch` estiraba a lo alto
+   de toda la tarjeta —dos números flotando en medio con un agujero arriba y
+   otro abajo, que es justo el fallo que el 2×2 vino a arreglar.
+
+   La regla es la misma de siempre —llenar la tarjeta sin dejar huecos— y para
+   eso el reparto tiene que mirar el número. Con dos piezas, BANDA y CUADRANTE,
+   salen los cuatro casos sin un solo hueco:
+
+       una          dos            tres           cuatro
+     ┌───────┐   ┌───────┐   ┌───────────┐   ┌─────┬─────┐
+     │       │   │       │   │   banda   │   │     │     │
+     │ banda │   ├───────┤   ├─────┬─────┤   ├─────┼─────┤
+     │       │   │       │   │     │     │   │     │     │
+     └───────┘   └───────┘   └─────┴─────┘   └─────┴─────┘
+
+   La de tres es la que decide el diseño: en 2×2 dejaba una huérfana con el
+   cuadrante de al lado en blanco, y en tres columnas los rótulos («desde el 13
+   ago») no caben. Con la primera cifra —siempre la que más pesa, el peso— de
+   canto a canto y las otras dos debajo, la tarjeta se llena y además dice cuál
+   manda. Nunca tres columnas en la tarjeta estrecha. */
+.desde[data-cifras='3'],
+.desde[data-cifras='4'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.desde[data-cifras='3'] .desde-cifra:first-child { grid-column: 1 / -1; }
+/* Todas en línea cuando la tarjeta ocupa la fila entera: ahí el alto es poco y
+   el ancho sobra, así que la fila única es la que llena. 520 es lo que miden
+   cuatro casillas sin que «desde el 18 may» tenga que recortarse con puntos
+   suspensivos. */
 @container tarjeta (min-width: 520px) {
-  .desde { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .desde[data-cifras='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .desde[data-cifras='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .desde[data-cifras='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .desde[data-cifras='3'] .desde-cifra:first-child { grid-column: auto; }
 }
 /* Cada cifra en su casilla hundida: cuatro números sueltos en una tarjeta se
    leían flotando; en casillas se leen como cuatro medidas. */
@@ -2930,6 +3173,25 @@
 }
 .desde-v > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
 .desde-k { font-size: var(--fs-xs); color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── La cifra de la banda, una grada por encima ────────────────────────────
+   Solo en la de tres, y solo en la primera. La banda le daba a esa cifra el
+   doble de SITIO sin darle más PESO —mismo cuerpo que las dos de abajo—, así
+   que la mitad de arriba se leía como un estante vacío con un número en la
+   esquina. Subida una grada, el espacio queda justificado y la tarjeta dice de
+   un vistazo cuál de las tres manda: una cifra grande y dos pequeñas.
+
+   La familia NO cambia: la ancha es para la cifra héroe de «Cómo va», que va
+   sola en su tarjeta; aquí las dos de abajo siguen en bandada y dos caras
+   distintas dentro de la misma tarjeta se notan. */
+.desde[data-cifras='3'] .desde-cifra:first-child .desde-v { font-size: var(--fs-2xl); }
+.desde[data-cifras='3'] .desde-cifra:first-child .desde-v > small { font-size: var(--fs-sm); }
+/* Cuando la tarjeta ocupa la fila entera no hay banda —las tres van en línea—,
+   así que tampoco hay héroe: las tres vuelven a la misma voz. */
+@container tarjeta (min-width: 520px) {
+  .desde[data-cifras='3'] .desde-cifra:first-child .desde-v { font-size: var(--fs-xl); }
+  .desde[data-cifras='3'] .desde-cifra:first-child .desde-v > small { font-size: var(--fs-xs); }
+}
 
 /* Dentro de una ventana, lo desplegado no lleva filete arriba: el título de la
    ventana ya separa. */
@@ -3073,10 +3335,7 @@
 }
 .comova-lectura { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
 .trayecto { min-width: 0; margin: 0; }
-.comova-cifra {
-  font-family: var(--font-ancha); font-size: var(--fs-2xl); font-weight: 680;
-  letter-spacing: -0.018em; line-height: 1; font-variant-numeric: tabular-nums;
-}
+.comova-cifra { line-height: 1; font-variant-numeric: tabular-nums; }
 .comova-cifra > small { font-family: var(--font); font-size: var(--fs-sm); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
 /* Sin tendencia todavía: la cifra existe como hueco y se apaga, para que se vea
    que ahí va un número y no que falta media tarjeta. */
@@ -3089,8 +3348,13 @@
    Era título en cuerpo de texto y detalle debajo: tres renglones de prosa en
    el hero («ocupa demasiado, mucho texto» — dicho con la captura delante).
    Ahora veredicto y detalle van seguidos en la misma línea —el veredicto en
-   su tinta de semáforo, el detalle en voz baja— y envuelven solo si no caben. */
-.comova-juicio { display: flex; align-items: center; gap: var(--s2); margin: 0; min-width: 0; }
+   su tinta de semáforo, el detalle en voz baja— y envuelven solo si no caben.
+
+   La marca se alinea con la PRIMERA línea y no con el centro del bloque: iba
+   centrada y cuando el veredicto envolvía —la columna de la lectura mide 300 px
+   al lado de la curva— el disco quedaba a media altura del párrafo, señalando
+   un renglón cualquiera en vez del titular. */
+.comova-juicio { display: flex; align-items: flex-start; gap: var(--s2); margin: 0; min-width: 0; }
 .comova-say { display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px var(--s3); min-width: 0; }
 .comova-say > strong { font-size: var(--fs-sm); font-weight: 700; line-height: 1.35; }
 .comova-juicio.is-good .comova-say > strong { color: var(--positive); }
@@ -3168,10 +3432,10 @@
   letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
 }
-.proyeccion-hito.is-hoy > .proyeccion-v {
-  font-family: var(--font-ancha); font-size: var(--fs-2xl); font-weight: 780;
-  letter-spacing: -0.025em; color: var(--text);
-}
+/* El héroe lo hace el TAMAÑO —42 px contra los 22 de sus vecinos— y la tinta
+   plena. El peso lo pone la escala de `base.css` como cualquier otra cifra: iba
+   en 780 y era el valor más alto de la aplicación, un rango que no existe. */
+.proyeccion-hito.is-hoy > .proyeccion-v { color: var(--text); }
 /* El proyectado es a donde VA: la señal, no un recuerdo. */
 .proyeccion-hito:last-child > .proyeccion-v { color: var(--accent); font-weight: 700; }
 .proyeccion-k { font-size: var(--fs-xs); color: var(--text-tertiary); }
@@ -3182,10 +3446,7 @@
 /* ══ PESO ═════════════════════════════════════════════════════════════════ */
 .peso-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
 .peso-say { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
-.peso-cifra {
-  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 680;
-  letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums;
-}
+.peso-cifra { line-height: 1; font-variant-numeric: tabular-nums; }
 .peso-cifra > small { font-family: var(--font); font-size: var(--fs-sm); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
 /* Cuántos pesajes lleva: dice si el promedio es de fiar, no cómo va nadie. */
 .peso-meta { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; }
@@ -3257,23 +3518,28 @@
   background: none; font: inherit; color: inherit; text-align: left; text-decoration: none;
 }
 .palancas > li:first-child > .palanca { border-top: 0; padding-top: 0; }
-/* Pulsable: la flecha se ve siempre —apagada— porque una puerta que solo se
-   anuncia al pasar el ratón no existe para el dedo ni para el teclado. */
-.palanca.is-puerta { cursor: pointer; transition: background var(--fast); }
-.palanca.is-puerta:hover { background: var(--fill-subtle); }
+/* Pulsable: la FILA entera es la puerta, así que la fila entera es lo que se
+   enciende —fondo al pasar, cifra en acento—. Llevaba además una flecha
+   apagada al 45 % en su carril derecho, que se ha ido con todas las demás; lo
+   que queda en reposo para el dedo y el teclado es su rótulo en acento:
+   pequeño, permanente y suficiente para decir que la fila lleva a algún sitio.
+   Ver «LO QUE SE PULSA SE ENCIENDE». */
+.palanca.is-puerta { cursor: pointer; transition: background var(--fast), box-shadow var(--fast); }
+.palanca.is-puerta:hover { background: var(--accent-wash); }
 .palanca.is-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.palanca.is-puerta:hover .palanca-ir,
-.palanca.is-puerta:focus-visible .palanca-ir { opacity: 1; color: var(--accent); }
+.palanca.is-puerta > .palanca-k { color: var(--accent); }
+.palanca.is-puerta:hover > .palanca-v,
+.palanca.is-puerta:focus-visible > .palanca-v { color: var(--accent); }
 .palanca-v.is-texto { font-family: var(--font); font-size: var(--fs-base); font-weight: 600; letter-spacing: -0.01em; }
 .palanca-k {
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2);
   font-size: var(--fs-xs); font-weight: 700;
   letter-spacing: 0; color: var(--text-tertiary);
 }
-.palanca-ir { font-weight: 500; opacity: 0.45; transition: opacity var(--fast), color var(--fast); }
 .palanca-v {
   font-family: var(--font-display); font-size: var(--fs-md); font-weight: 680;
   letter-spacing: -0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere;
+  transition: color var(--fast);
 }
 .palanca-v > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary); }
 .palanca-s { font-size: var(--fs-xs); color: var(--text-tertiary); overflow-wrap: anywhere; }
@@ -3555,29 +3821,235 @@
    de un número al de abajo por encima de un palmo de vacío. Se acota. */
 .afondo .comparativa-tabla { max-width: 860px; }
 
-/* ══ LA FICHA: la persona a lo ancho, la relación al lado ══════════════════
-   Ver . Era una hoja de ocho bloques con índice, dos
-   rótulos de grupo, un pliegue y tres avisos: dos mil píxeles para encontrar
-   cuándo cobra. Ahora es la misma forma que el resto del cliente: lo que sabes
-   de él —quién es, sus condicionantes, lo que te contó, su gimnasio— a lo
-   ancho, y lo administrativo —su alta, su cobro, su acceso, su carpeta, sus
-   datos— en la columna de al lado, que es lo que se consulta cada mes. */
+/* ══ LA FICHA: la anatomía arriba, el pulso a lo ancho, la persona debajo ══
+   Fue una hoja de ocho bloques con índice; después, dos columnas —la persona a
+   lo ancho y la relación en una banda de 340 px al lado—. Las dos columnas
+   arreglaron el scroll y dejaron tres defectos que se ven en cuanto se abre la
+   ficha de alguien recién dado de alta:
+
+   1. Doce tarjetas del mismo peso. «Quién es» pesaba exactamente lo mismo que
+      «Su carpeta»: misma superficie, mismo radio, mismo rótulo. Sin jerarquía,
+      la pantalla era una rejilla de cajas grises.
+   2. La franja de arriba estaba VACÍA —`Mando` sin título ni contexto— mientras
+      el panel de debajo repetía el avatar, el nombre y la misma cadena de
+      «plan · desde» que ya dice la cabecera del cliente cien píxeles más arriba.
+   3. Y por debajo de 1200 px la columna caía al FONDO, o sea que en un portátil
+      pequeño «¿cuándo cobra?» volvía a estar a dos mil píxeles — justo lo que
+      las dos columnas venían a arreglar.
+
+   Ahora son tres franjas y ninguna columna:
+
+     · la fila de mando lleva la ANATOMÍA (`.anatomia`) — los cuatro hechos y
+       cómo contactarle;
+     · el PULSO (`.pulso`) — en qué punto está contigo, en cuatro datos que se
+       leen de un vistazo y abren su hoja lateral al pulsarlos;
+     · el CUERPO (`.ficha-cuerpo`) — lo que necesitas para programarle.
+
+   Lo administrativo ya no compite por el ancho: vive en hojas que entran por el
+   canto y no tapan lo que hay debajo. */
 .ficha-pagina { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; max-width: 100%; }
-.ficha { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s5); align-items: start; min-width: 0; }
-.ficha-trabajo { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
-.ficha-lado { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
-/* Los formularios de la columna (importe, cada cuánto, próximo cobro, estado)
-   se apilan: a 340 px no caben cuatro en fila. */
-.ficha-lado .row-end.wrap { flex-direction: column; align-items: stretch; gap: var(--s3); }
-.ficha-lado .row-end.wrap:has(> .field > .field-hint) { margin-bottom: 0; }
-.ficha-lado .row-end.wrap > .field > .field-hint { position: static; }
-/* Y en cada paso del alta, el botón de contenido baja debajo del texto en vez
-   de estrujarlo contra el canto. */
-.ficha-lado .step-row > .row.between > .checkbox-row.grow { flex-basis: 100%; }
-.ficha-lado .card { padding: var(--s4); }
-@media (max-width: 1199.98px) {
-  .ficha { grid-template-columns: 1fr; }
+/* ── El cuerpo: una hoja de bloques desnudos ───────────────────────────────
+   Cinco tarjetas contestando a la misma pregunta no separaban nada: sumaban
+   cinco cantos, cinco fondos y cinco sombras a una pantalla que ya venía llena
+   de datos, y acababan a alturas distintas. Lo que separa aquí es el aire y un
+   filete; la caja sobraba. */
+.ficha-cuerpo { display: flex; flex-direction: column; min-width: 0; }
+.bloque-desnudo { min-width: 0; }
+/* ── El rótulo A UN LADO, los datos al otro ────────────────────────────────
+   Con el rótulo encima y el gesto contra el canto derecho pasaban dos cosas
+   feas a la vez. El verbo quedaba a mil píxeles del bloque al que pertenece,
+   suelto y sin nada que lo sujetase. Y los datos se repartían el ancho ENTERO
+   de trabajo, así que cada valor —«Sí», «6,7 h»— nadaba en una celda de casi
+   cuatrocientos píxeles: la sección se veía desparramada por más aire que le
+   pusiéramos.
+
+   En dos columnas se arreglan las dos: el rótulo y su verbo forman una unidad a
+   la izquierda, y los datos ocupan una banda más estrecha donde las columnas se
+   leen como columnas. Es la disposición de una hoja de ajustes, y aquí el
+   bloque es exactamente eso: un asunto con su contenido al lado.
+
+   El AIRE separa los bloques; el filete solo lo confirma. */
+.ficha-cuerpo > .bloque-desnudo {
+  display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--s5);
+  padding: var(--s6) 0; border-top: 1px solid var(--hairline);
 }
+.ficha-cuerpo > .bloque-desnudo:first-child { border-top: 0; padding-top: var(--s4); }
+/* En la columna del rótulo, el título, su frase y su verbo se apilan y se
+   pegan al principio: son una sola cosa —de qué va esto y qué puedes hacerle—. */
+.ficha-cuerpo .panel-head {
+  flex-direction: column; align-items: flex-start; gap: var(--s2);
+  margin-bottom: 0; align-self: start;
+}
+.ficha-cuerpo .panel-head-say { min-width: 0; }
+.ficha-cuerpo .panel-head-titulo { line-height: 1.15; }
+/* El verbo, alineado con el rótulo y no con su propio relleno. */
+.ficha-cuerpo .panel-head .cab-accion { margin-left: -6px; }
+.bloque-cuerpo { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.bloque-verbos { display: flex; flex-direction: column; align-items: flex-start; }
+
+/* Debajo del ancho de trabajo la columna del rótulo dejaría a los datos sin
+   sitio, así que el bloque vuelve a apilarse: rótulo arriba, datos debajo. */
+@media (max-width: 1180px) {
+  .ficha-cuerpo > .bloque-desnudo { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
+  .ficha-cuerpo .panel-head { flex-direction: row; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+  .ficha-cuerpo .panel-head-say { flex: 1 1 0; }
+  .bloque-verbos { flex-direction: row; gap: var(--s2); }
+}
+
+/* ── Los pares: rótulo encima, valor debajo ────────────────────────────────
+   Eran filas de «etiqueta a la izquierda, valor a la derecha» y con datos de
+   verdad se rompían: una etiqueta corta contra un valor de doce palabras deja
+   la etiqueta aplastada contra el canto y el valor ocupando la fila entera, y
+   diez filas partidas cada una por un sitio se leen como una hoja de cálculo
+   mal exportada.
+
+   Apilados, cada dato ocupa una celda del mismo ancho, los largos envuelven
+   dentro de la suya y la rejilla se lee de un vistazo. Es la misma voz que la
+   anatomía de la cabecera, que es de donde sale.
+
+   ── CUATRO columnas, y no `auto-fill` ──────────────────────────────────────
+   Con celdas de 200 px el ancho de trabajo daba SIETE columnas, y siete
+   columnas para siete campos dejan una segunda fila con un dato solo y un palmo
+   de vacío a su derecha — que es exactamente lo que se veía en «Cómo entrena».
+   A cuatro, las filas se llenan, las celdas respiran y un valor largo envuelve
+   en dos renglones en vez de en cuatro. */
+.pares {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s5); min-width: 0;
+}
+@media (max-width: 860px) { .pares { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.par { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+/* ── La jerarquía del par ──────────────────────────────────────────────────
+   El rótulo y el valor pesaban casi lo mismo —los dos a 600— y el bloque se
+   leía como una mancha gris uniforme: nada tiraba del ojo. El rótulo baja a
+   voz de pie de foto y el valor sube a la tipografía de display, que es la que
+   lleva la personalidad. El contraste entre los dos es lo que convierte una
+   lista de campos en una ficha técnica. */
+.par > .k {
+  font-size: var(--fs-2xs); font-weight: 500; color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.par > .v {
+  font-family: var(--font-display); font-size: var(--fs-base); font-weight: 600;
+  letter-spacing: -0.012em; line-height: var(--lh-base); overflow-wrap: anywhere;
+}
+.par > a.v { color: var(--accent); }
+
+/* ── El pie: una línea, no un bloque ───────────────────────────────────────
+   Lo que se hace el día que alguien entra o sale. Antes ocupaba el mismo rango
+   que sus lesiones al final de todas las fichas. */
+.ficha-pie {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s3);
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.ficha-pie > span:first-child { display: inline-flex; align-items: center; }
+.ficha-pie > .cab-accion { margin-left: auto; }
+
+/* ── La anatomía, dentro de la fila de mando ───────────────────────────────
+   Sin etiquetas: las unidades ya las dicen («34 años», «178 cm», «81,4 kg»).
+   El punto medio entre datos es un separador de verdad —no un borde— y por eso
+   se dibuja con `::before` en vez de con un filete: en una fila que envuelve,
+   un borde deja rayas colgando al final de cada línea. */
+.anatomia { display: flex; align-items: center; flex-wrap: wrap; gap: 2px var(--s3); min-width: 0; }
+.anatomia-dato {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650;
+  letter-spacing: -0.015em; white-space: nowrap;
+}
+.anatomia-dato + .anatomia-dato::before {
+  content: '·'; margin-right: var(--s3); color: var(--text-tertiary); font-weight: 400;
+}
+/* Lo que falta invita, y por eso es un botón: cuatro guiones en fila no dicen
+   «no se lo has tomado», dicen «esto está roto». */
+.anatomia-hueco {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: var(--r-pill);
+  border: 1px dashed var(--hairline-strong); background: transparent;
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary);
+  cursor: pointer; white-space: nowrap;
+  transition: border-color var(--fast), color var(--fast), background-color var(--fast);
+}
+.anatomia-hueco:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.anatomia-hueco:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.anatomia-contacto {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-sm); color: var(--text-tertiary);
+  max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.anatomia-contacto:hover { color: var(--accent); }
+.anatomia-contacto > svg { flex-shrink: 0; }
+
+/* ── El pulso ──────────────────────────────────────────────────────────────
+   `auto-fit` y no un número fijo de columnas: las celdas que no existen no se
+   pintan —sin pasos de alta no hay alta, sin Drive no hay carpeta—, así que la
+   banda tiene entre dos y cuatro según lo que esta asesoría use de verdad. Es
+   lo contrario del caso de `.tiles`, que fija cinco porque son una serie
+   comparable y siempre están las cinco. */
+/* ── Una pieza, cuatro celdas ──────────────────────────────────────────────
+   Eran cuatro tarjetas sueltas con canto, radio y sombra. Mientras el cuerpo
+   de abajo también eran tarjetas, colaban; en cuanto el cuerpo se quedó sin
+   cajas, esas cuatro sombras pasaron a ser el ÚNICO cromo de la pantalla y se
+   veían flotando encima de una hoja plana.
+
+   Ahora son una sola pieza dividida. Y la división no la pintan cuatro bordes
+   —que con `auto-fit` se descuadran en cuanto la banda envuelve a dos filas—
+   sino el propio `gap` de 1 px sobre el fondo del contenedor: las líneas caen
+   solas donde toque, con dos celdas o con cuatro.
+
+   Es además la única superficie del cuerpo de la ficha, o sea la firma de la
+   pantalla: un elemento, y lo demás callado. */
+.pulso {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px; min-width: 0;
+  background: var(--hairline);
+  border: 1px solid var(--edge); border-radius: var(--r-lg); overflow: hidden;
+}
+/* La celda ES el dato y la celda es el control, así que se enciende entera al
+   pasar en vez de llevar un botón dentro. Ver la ley de los gestos. */
+.pulso-celda {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  min-width: 0; text-align: left; font: inherit; cursor: pointer;
+  background: var(--surface); border: 0; border-radius: 0;
+  padding: var(--s4) var(--s5);
+  transition: background-color var(--fast);
+}
+.pulso-celda:hover { background: var(--fill-subtle); }
+/* Hacia dentro: el contenedor recorta, y un foco por fuera se comería el canto
+   redondeado de las celdas de las esquinas. */
+.pulso-celda:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (hover: none) { .pulso-celda:hover { background: var(--surface); } }
+.pulso-celda > .k {
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.pulso-celda > .v {
+  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650;
+  letter-spacing: -0.015em; line-height: 1.2;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El juicio va pegado a la cifra que valora y en voz pequeña: es la única tinta
+   de color de la banda. Ver la ley del color en `tokens.css`. */
+.pulso-celda > .veredicto { font-size: var(--fs-xs); font-weight: 500; }
+/* La barra del alta: dentro de su celda y a todo el ancho, entre la fracción y
+   la frase. Es el único dato de la banda que además tiene forma. */
+.pulso-celda > .form-progress { width: 100%; margin: 2px 0 1px; }
+
+/* ── Las hojas de la ficha ─────────────────────────────────────────────────
+   A 460 px no caben cuatro campos en fila (importe, cada cuánto, próximo cobro,
+   estado), así que se apilan; y en cada paso del alta el botón de contenido baja
+   debajo del texto en vez de estrujarlo contra el canto. Son las mismas reglas
+   que tenía la columna de 340 px, atadas ahora a la hoja. */
+.hoja-ficha { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+/* Apilar la fila de campos es un remate de ANCHO ESTRECHO: nació para el panel
+   lateral de 460 px y vale igual para el diálogo centrado normal, que mide 440.
+   En el grande (880) no: ahí caben en fila y apilarlas solo alarga la ventana.
+   Por eso va con `:not(.modal-lg)` desde que las hojas de la ficha se abren en
+   el centro y dos de ellas —«Su alta» y «Datos personales»— usan el grande. */
+.modal:not(.modal-lg) .hoja-ficha .row-end.wrap { flex-direction: column; align-items: stretch; gap: var(--s3); }
+.modal:not(.modal-lg) .hoja-ficha .row-end.wrap:has(> .field > .field-hint) { margin-bottom: 0; }
+.modal:not(.modal-lg) .hoja-ficha .row-end.wrap > .field > .field-hint { position: static; }
+.hoja-ficha .step-row > .row.between > .checkbox-row.grow { flex-basis: 100%; }
+.drive-ask { align-self: flex-start; }
 
 /* El aviso del alta, en una línea: era un cartel naranja de siete renglones y
    la columna entera se leía desde él. Es una condición, no una alarma. */
@@ -3591,45 +4063,52 @@
 .revision-semanas { flex-wrap: wrap; overflow: visible; }
 
 
-/* ══ LA FLECHA DE LAS PUERTAS ══════════════════════════════════════════════
-   Todas las puertas de texto («Sus fases», «Ver a fondo», «Definir») llevaban
-   una «→» tecleada: un glifo de la fuente, fino, con el espaciado que tocara y
-   distinto peso según la negrita de al lado. Ahora la flecha es un dibujo —la
-   misma pluma que los iconos de lucide—, pintada con `mask` para heredar la
-   tinta, alineada ópticamente, y con un empujón de dos píxeles al pasar el
-   cursor: la puerta responde antes de abrirse.
+/* ══ LO QUE SE PULSA SE ENCIENDE ═══════════════════════════════════════════
+   Aquí vivía la flecha de las puertas. Primero fue una «→» tecleada; luego un
+   dibujo de 12 px con `mask`. Las dos versiones hacían lo mismo: colgar un
+   adorno de una palabra para decir algo que la palabra ya decía, y hacerlo al
+   tamaño donde peor se lee.
 
-   Es OPT-IN (`.is-puerta`): el mismo `cab-accion` también viste acciones que
-   no van a ninguna parte («Archivar») y pliegues con ↑/↓, y a esos una flecha
-   les mentiría. */
-.cab-accion.is-puerta::after,
-.cola-verbo::after {
-  content: '';
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-left: 5px;
-  vertical-align: -1.5px;
-  background: currentColor;
-  -webkit-mask: var(--mask-flecha) center / contain no-repeat;
-  mask: var(--mask-flecha) center / contain no-repeat;
-  transition: transform var(--fast);
-}
-.cab-accion.is-puerta:hover::after,
-.cola:hover .cola-verbo::after { transform: translateX(2px); }
+   Ahora lo dice el COLOR, que es la señal que el producto YA usa para «esto se
+   toca»: el lápiz de editar y el hueco de «Definir». Un verbo en acento es una
+   puerta; en tinta, una acción que se queda en la pantalla («Archivar», los
+   pliegues con ↑/↓). Sigue siendo opt-in (`.is-puerta`), y la marca gana algo
+   que la flecha tenía a medias: es permanente y no depende del ratón, así que
+   vale igual para el dedo y para el teclado.
 
-/* La palanca de «El plan» bebe de la misma pluma: su span deja de llevar la
-   «→» tecleada y pasa a ser el dibujo. Conserva su juego de siempre —apagada
-   al 45 %, encendida en acento al pasar— y gana el mismo empujón. */
-.palanca-ir {
-  width: 12px;
-  height: 12px;
-  flex: none;
-  /* El carril alinea por línea base y una caja vacía no tiene: al centro. */
-  align-self: center;
-  background: currentColor;
-  -webkit-mask: var(--mask-flecha) center / contain no-repeat;
-  mask: var(--mask-flecha) center / contain no-repeat;
-  transition: opacity var(--fast), color var(--fast), transform var(--fast);
-}
-.palanca.is-puerta:hover .palanca-ir { transform: translateX(2px); }
+   ── Y AL PASAR, UN SOLO GESTO ──────────────────────────────────────────────
+   La superficie de lo que se pulsa se tiñe de `--accent-wash` y su texto pasa a
+   acento. Uno solo, para todo: el verbo de una cabecera, el título que abre una
+   ventana, la tarjeta de objetivo, la palanca del plan y el lápiz. Quien nace
+   con `border` (la tarjeta) le pasa además el canto a acento; quien nace sin él
+   no se inventa uno.
+
+   ── Dos intentos fallidos, para no repetirlos ───────────────────────────────
+   El PRIMERO subrayaba verbos y títulos. Eso dejaba dos gramáticas a un palmo
+   la una de la otra: el título de la tarjeta de macros se comportaba como un
+   enlace de página web y la tarjeta de pasos, justo debajo, como una superficie
+   que se ilumina.
+
+   El SEGUNDO tiñó con `--accent-soft` y añadió un filete de 1 px. Medido en el
+   navegador: sobre la tarjeta entera ese 14 % se lee, pero detrás de un título
+   de dos palabras es indistinguible del fondo, así que del gesto solo quedaba
+   el filete — y un título en negrita dentro de un recuadro azul parece un campo
+   de formulario. De ahí sale `--accent-wash`, que es este mismo azul con cuerpo
+   suficiente para leerse en un trozo pequeño, y de ahí que no haya filetes.
+
+   La lección: un tinte NO se valida por su alfa, se valida por el tamaño del
+   trozo donde va. Mirarlo antes de darlo por bueno.
+
+   El subrayado se retira del todo: es el idioma del texto corrido, no el de un
+   panel.
+
+   Lo único que varía es DÓNDE cae el tinte, y eso lo decide qué es el blanco:
+   la caja entera si la caja es lo que se pulsa (`.objetivo`); solo el verbo o
+   el título si comparten caja con otra puerta (la tarjeta de macros lleva dos:
+   el título abre la ventana y el lápiz el objetivo, así que teñir la tarjeta
+   entera mentiría). Y donde la fila ya tiene su propio encendido —`.cola`, con
+   su canto y su sombra— el verbo pone solo la tinta. */
+.cab-accion.is-puerta,
+.cola-verbo { color: var(--accent); }
+.cab-accion.is-puerta:hover { background: var(--accent-wash); color: var(--accent-hover); }
+.cola:hover .cola-verbo { color: var(--accent-hover); }

@@ -203,7 +203,38 @@ describe('AppProvider', () => {
     // del reescalado acaba de enseñar (el cálculo es de `rescaleMeals`, en el
     // dominio). Es también el camino del «Deshacer»: volver a escribir el menú
     // anterior.
-    expect(Object.keys(visto.app).length).toBe(209);
+    //
+    // Y 229 desde EL PLAN DEL BLOQUE: veinte puertas de una vez, porque el plan
+    // deja de vivir copiado en cada microciclo y pasa a vivir en su bloque
+    // (`domain/blocks`, `domain/blocksMigration`). Son tres familias:
+    //
+    //   · el plan del bloque — `setBlockPlan` y las altas, bajas, cambios de
+    //     series y de objetivo de sus hojas y sus ejercicios;
+    //   · lo que se toca desde la hoja — `updatePlanExercise`,
+    //     `removePlanExercise` y `addPlanExercise`, que escriben donde ese
+    //     ejercicio VIVE, casi siempre el bloque, porque un ajuste se hace
+    //     para quedarse;
+    //   · las excepciones — `addOverride`, `dropOverride`, `promoteOverride` y
+    //     las dos de «solo este microciclo», para lo puntual.
+    //
+    // Y `migratePlanToBlock`, que sube el plan de un cliente sin cambiar nada
+    // más. No hace falta llamarla a mano: toda escritura del plan migra antes.
+    //
+    // A cambio se han ido del editor ocho puertas del modelo viejo —el reparto
+    // del plan a las semanas por entrenar— aunque siguen existiendo en el
+    // contexto mientras las use el portal.
+    //
+    // Y 230 desde `startBlockWithPlan`: abrir un bloque con su plan YA dentro.
+    // `startBlock` lo creaba con las hojas vacías —«se rellenan de nuevo»— y te
+    // dejaba componerlo dentro del primer microciclo, así que el momento en el
+    // que un bloque se define no existía en ninguna pantalla. Ahora se define
+    // entero y de una vez (`DefinirBloque`).
+    //
+    // Y 231 desde `setOverrideSpan`: alargar o acortar un cambio del bloque.
+    // Los cambios llevan desde cuándo y hasta cuándo valen, así que probar un
+    // ejercicio «unas semanas» es un dato y no tres copias — y dejarlo dos
+    // microciclos más no obliga a reescribir nada.
+    expect(Object.keys(visto.app).length).toBe(231);
   });
 
   /*

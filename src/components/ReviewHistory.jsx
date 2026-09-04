@@ -407,7 +407,7 @@ export const ReviewHistory = ({
                     {esEntrenador && (
                       <button
                         type="button"
-                        className="btn btn-icon"
+                        className="btn btn-plain btn-icon"
                         aria-label="Editar la respuesta"
                         onClick={() => {
                           setEditando(fila.id);

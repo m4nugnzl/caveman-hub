@@ -207,10 +207,38 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
      18 px  ·  -0,010em
      22 px  ·  -0,012em
      30 px  ·  -0,015em
-     42 px  ·  -0,018em                                                      */
+     42 px  ·  -0,018em
+
+   ── Y por qué la lista es larga (4 sep 2026) ────────────────────────────────
+   Porque había vuelto a pasar. La escala estaba aquí, sí, pero once cifras
+   nunca llegaron a entrar en ella: cada tarjeta nueva se escribió su propia
+   receta en el archivo de su componente, y al contarlas salían OCHO pesos para
+   dos tamaños — 680, 700, 720 y 800 a 30 px; 680, 700, 720, 740 y 780 a 42.
+
+   Ninguna estaba mal por sí sola, otra vez. Pero el peso es lo único que le
+   queda a una cifra para decir de qué rango es, y con ocho valores repartidos
+   por cinco hojas deja de decirlo: el «12» de una cola pesa distinto que el
+   «96 cm» de una comparativa por el accidente de con qué componente se hizo
+   la tarjeta, no porque uno mande más que el otro. Es exactamente la sensación
+   de «cada zona parece de otra aplicación» que la unificación de la letra vino
+   a quitar, colada por la puerta de al lado.
+
+   Así que la lista de aquí no es un registro de conveniencia: es la única
+   receta que existe. Una cifra elige TAMAÑO, y el peso y el apretado vienen
+   con él. Quien añada una nueva la apunta en estas tres listas y no escribe
+   `font-weight` en su componente; si se ve tentado de subirlo, lo que quiere
+   es el escalón de arriba.
+
+   Lo único que sube de 680 es la PORTADA (740, `.section-head h1` en
+   tipografia.css), y no es una cifra: es un titular. Esa diferencia —680
+   cifra, 740 titular— es lo que los mantiene distinguibles cuando comparten
+   cuerpo, que es justo lo que le pasaba al nombre del cliente.             */
 .day-stat > .v, .donut-center > .v, .macro-cell > .g,
 .widget-value, .metric-value, .stat-value, .tile > .v, .row-value,
-.revision-hero-cifra > .v, .macro-summary-head > .figure > .v {
+.revision-hero-cifra > .v, .macro-summary-head > .figure > .v,
+.sesion-kpi > .v, .comparativa-tope > .v, .semana-cifra > .v, .bloque-cifra > .v,
+.peso-cifra, .macro.is-mayor > .v, .cobros-tarea > .cifra,
+.cola-n, .comova-cifra, .proyeccion-hito.is-hoy > .proyeccion-v, .plan-count {
   font-family: var(--font-ancha);
   font-weight: 680;
 }
@@ -218,10 +246,16 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   font-size: var(--fs-md); letter-spacing: -0.01em;
 }
 .widget-value { font-size: var(--fs-lg); letter-spacing: -0.012em; }
-.metric-value, .stat-value, .tile > .v { font-size: var(--fs-xl); letter-spacing: -0.015em; }
+.metric-value, .stat-value, .tile > .v,
+.sesion-kpi > .v, .comparativa-tope > .v, .semana-cifra > .v, .bloque-cifra > .v,
+.peso-cifra, .macro.is-mayor > .v, .cobros-tarea > .cifra {
+  font-size: var(--fs-xl); letter-spacing: -0.015em;
+}
 .metric-value.is-hero,
 .revision-hero-cifra > .v,
-.macro-summary-head > .figure > .v { font-size: var(--fs-2xl); letter-spacing: -0.018em; }
+.macro-summary-head > .figure > .v,
+.cola-n, .comova-cifra, .proyeccion-hito.is-hoy > .proyeccion-v,
+.plan-count { font-size: var(--fs-2xl); letter-spacing: -0.018em; }
 
 /* El foco de teclado va en BRASA: es literalmente «aquí estás», que es el único
    trabajo de esa tinta, y hace el anillo visible sobre cualquier superficie de

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Pencil, UserMinus, UserPlus, Users, X } from 'lucide-react';
+import { Check, UserMinus, UserPlus, Users, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabaseClient';
@@ -305,15 +305,21 @@ export const TeamPanel = () => {
             </div>
           ) : (
             canManage && (
+              /*
+                Un verbo, no un botón — el mismo trato que la acción de un
+                bloque de perfil (`ProfileBlock`): la píldora con canto pesaba
+                más que el nombre del equipo al que acompaña, y el lápiz sobra
+                cuando al lado hay sitio para decirlo con palabras.
+              */
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="cab-accion is-puerta"
                 onClick={() => {
                   setDraftName(team.name);
                   setRenaming(true);
                 }}
               >
-                <Pencil size={14} /> Cambiar el nombre
+                Cambiar el nombre
               </button>
             )
           )

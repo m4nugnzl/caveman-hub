@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, GripVertical, Plus, Quote, Trash2, X } from 'lucide
 
 import { isSetLogged } from '@/domain/sessions';
 import { toNum } from '@/lib/num';
+import { MenuAcciones } from '@/components/ui/MenuAcciones';
 
 /**
  * La hoja de series: el día como TABLA, no como fichas.
@@ -69,6 +70,16 @@ export const HojaDeSeries = ({
   showNotes = false,
   focusedId = null,
   onFocusExercise = null,
+  /* La excepción de este microciclo sobre un ejercicio, si la hay, y sus dos
+     salidas. Como en toda la casa: cada cosa que se puede hacer aparece si —y
+     solo si— llega su manejador. */
+  excepcionDe = null,
+  onRemoveOnly = null,
+  onSacarDeLaPlantilla = null,
+  tramoDe = null,
+  onAlargar = null,
+  onVolverAlBloque = null,
+  onAplicarAlBloque = null,
 }) => {
   const [notaAbierta, setNotaAbierta] = useState(null);
   const [dragIndex, setDragIndex] = useState(null);
@@ -87,6 +98,7 @@ export const HojaDeSeries = ({
         const nota = ex.coachNote ?? '';
         const conNota = showNotes && (nota.length > 0 || notaAbierta === ex.id);
         const enFoco = focusedId === ex.id;
+        const excepcion = excepcionDe ? excepcionDe(ex) : null;
         return (
           <section
             key={ex.id}
@@ -124,7 +136,46 @@ export const HojaDeSeries = ({
                 <GripVertical size={14} />
               </button>
               <span className="hoja-ej-n">{index + 1}</span>
-              <span className="hoja-ej-nombre">{ex.name}</span>
+              <span className="hoja-ej-nombre">
+                {ex.name}
+                {/*
+                  ── La excepción se dice, no se pinta de rojo ────────────────
+                  Este ejercicio no es el del bloque: es de esta semana. Se
+                  marca con el asterisco y la palabra, en tinta terciaria, y
+                  NUNCA con semáforo — en esta hoja el color ya significa
+                  «repeticiones por debajo del objetivo» y no puede tener un
+                  segundo trabajo. Además una excepción no es un fallo.
+
+                  Y lleva sus dos salidas: volver al plan del bloque, o
+                  ascenderla y que pase a ser el plan («esto que probé me
+                  gustó»), que con los cambios permanentes siendo lo normal es
+                  el camino que más se va a andar.
+                */}
+                {excepcion && (
+                  <span className="hoja-ej-excepcion">
+                    <span className="ast" aria-hidden="true">
+                      ✱
+                    </span>
+                    {tramoDe ? tramoDe(excepcion) : 'solo este microciclo'}
+                    {excepcion.sobre && excepcion.sobre !== ex.name ? ` · en lugar de ${excepcion.sobre}` : ''}
+                    {onVolverAlBloque && (
+                      <button type="button" className="link" onClick={() => onVolverAlBloque(ex.id)}>
+                        volver al bloque
+                      </button>
+                    )}
+                    {onAlargar && (
+                      <button type="button" className="link" onClick={() => onAlargar(ex.id)}>
+                        dejarlo más tiempo
+                      </button>
+                    )}
+                    {onAplicarAlBloque && (
+                      <button type="button" className="link" onClick={() => onAplicarAlBloque(ex.id)}>
+                        aplicar al bloque
+                      </button>
+                    )}
+                  </span>
+                )}
+              </span>
               <span className="hoja-ej-meta">
                 {[ex.muscle, `${sets.length} ${sets.length === 1 ? 'serie' : 'series'}`].filter(Boolean).join(' · ')}
               </span>
@@ -140,9 +191,52 @@ export const HojaDeSeries = ({
                 <button type="button" className="btn btn-icon btn-icon-compact" disabled={index === exercises.length - 1} aria-label={`Bajar ${ex.name}`} onClick={() => onMove(index, index + 1)}>
                   <ArrowDown size={13} />
                 </button>
-                <button type="button" className="btn btn-icon btn-icon-compact btn-icon-danger" aria-label={`Eliminar ${ex.name}`} onClick={() => onRemove(ex.id)}>
-                  <Trash2 size={13} />
-                </button>
+                {/*
+                  ── Quitar, y hasta dónde llega ─────────────────────────────
+                  Un cambio se hace para quedarse, así que quitarlo del BLOQUE
+                  es lo primero y lo que se lee como la acción normal. Debajo,
+                  lo puntual. Sin `onRemoveOnly` —o sobre algo que ya es una
+                  excepción— no hay nada que elegir y vuelve a ser un botón.
+                */}
+                {onRemoveOnly && !excepcion ? (
+                  <MenuAcciones
+                    clase="btn btn-icon btn-icon-compact btn-icon-danger"
+                    ariaLabel={`Alcance de los cambios en ${ex.name}`}
+                    label={<Trash2 size={13} />}
+                    items={[
+                      /*
+                        ── Aquí se CREA un cambio, y con su tramo ────────────
+                        Faltaba la puerta: se podía quitar solo en un
+                        microciclo, pero no cambiar solo en él. «Sacarlo de la
+                        plantilla» copia el ejercicio tal y como está a este
+                        microciclo, y a partir de ahí todo lo que se toque en
+                        esta fila —series, repeticiones, el nombre— se queda
+                        aquí. No cambia nada al pulsarlo: cambia dónde van a
+                        caer los cambios de después, que es justo la decisión.
+                      */
+                      onSacarDeLaPlantilla && {
+                        label: 'Cambiarlo solo este microciclo',
+                        run: () => onSacarDeLaPlantilla(ex.id, { semanas: 1 }),
+                      },
+                      onSacarDeLaPlantilla && {
+                        label: 'Cambiarlo unas semanas',
+                        run: () => onSacarDeLaPlantilla(ex.id, { semanas: 3 }),
+                      },
+                      onSacarDeLaPlantilla && {
+                        label: 'Cambiarlo de aquí en adelante',
+                        run: () => onSacarDeLaPlantilla(ex.id, { semanas: null }),
+                      },
+                      onSacarDeLaPlantilla && null,
+                      { label: 'Quitar del bloque', danger: true, run: () => onRemove(ex.id) },
+                      { label: 'Quitar solo este microciclo', run: () => onRemoveOnly(ex.id) },
+                    ]}
+                    sinFlecha
+                  />
+                ) : (
+                  <button type="button" className="btn btn-icon btn-icon-compact btn-icon-danger" aria-label={`Eliminar ${ex.name}`} onClick={() => onRemove(ex.id)}>
+                    <Trash2 size={13} />
+                  </button>
+                )}
               </span>
             </header>
 

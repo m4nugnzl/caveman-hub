@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Check, Pencil, X } from 'lucide-react';
+import { useId, useState } from 'react';
+import { Check } from 'lucide-react';
 
 import { localeNumber } from '@/lib/dates';
 import { toNum } from '@/lib/num';
+import { Modal } from '@/components/ui/Modal';
 
 /**
  * Un objetivo de actividad del plan: los pasos diarios, el cardio de alta
@@ -63,6 +64,9 @@ export const GoalCard = ({
 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  /* El formulario vive en el cuerpo de la ventana y el botón de guardar en su
+     pie, así que se atan con `form=` y hace falta un id estable. */
+  const formId = useId();
 
   const puesto = String(value ?? '').trim();
 
@@ -78,107 +82,171 @@ export const GoalCard = ({
     </span>
   );
 
-  if (editing) {
-    return (
+  /*
+    ══ SE DEFINE EN UNA VENTANA, NO EN EL SITIO ═══════════════════════════════
+
+    La tarjeta se convertía en un formulario: el rótulo se hacía etiqueta, el
+    valor casilla y aparecían dos botones. En una columna de tres tarjetas
+    apiladas eso cambia de sitio todo lo que hay debajo cada vez que se toca
+    algo, y la que se está editando pasa a ser la más alta y la más ruidosa de
+    la columna — justo la que más quieta debería estar mientras se escribe.
+
+    Con la ventana centrada la columna no se mueve, el campo sale enfocado y
+    solo, y Escape y la equis cancelan sin ambigüedad. Es la misma pieza que ya
+    usa el resto del producto para pedir un dato (`Modal`), con su foco atrapado
+    y su cierre animado.
+  */
+  const ventana = (
+    <Modal
+      open={editing}
+      onClose={() => setEditing(false)}
+      title={label}
+      footer={
+        <>
+          <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
+            Cancelar
+          </button>
+          <button type="submit" form={formId} className="btn btn-primary">
+            <Check size={14} /> Guardar
+          </button>
+        </>
+      }
+    >
       <form
-        className="card row between wrap gap-3"
+        id={formId}
+        className="col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           onSave(draft.trim());
           setEditing(false);
         }}
       >
-        <label className="field grow" style={{ minWidth: 180 }}>
-          <span className="field-label">
-            <Icon size={12} className="icon-inline" />
-            {label}
+        {/*
+          Sin etiqueta: la ventana ya se titula «Pasos diarios», y repetirlo
+          justo debajo era la misma frase dos veces en cuatro centímetros.
+          Aquí dentro solo hay un campo, así que no hay nada que desambiguar
+          —el nombre accesible lo lleva el propio `aria-label`—.
+
+          ── La cifra se escribe como se lee ──────────────────────────────────
+          Un objetivo de pasos es LA cifra de esta persona, no un dato de
+          formulario, así que se teclea al tamaño y con la letra con la que
+          luego se enseña, con su icono a la izquierda y su unidad dentro del
+          recuadro. Es el mismo trato que la tarjeta le da al valor.
+        */}
+        {numeric ? (
+          <span className="objetivo-campo input-suffix">
+            <Icon size={18} className="objetivo-campo-icono" aria-hidden="true" />
+            <input
+              autoFocus
+              className="input"
+              inputMode="numeric"
+              value={draft}
+              placeholder={placeholder}
+              onChange={(e) => setDraft(e.target.value)}
+              /* Vaciar el campo es la forma de quitar el objetivo, y por eso no
+                 hay un botón «Quitar»: la casilla en blanco ya lo dice. */
+              aria-label={`${label} objetivo`}
+            />
+            {unit && <span aria-hidden="true">{unit}</span>}
           </span>
-          <input
+        ) : (
+          /* Lo que NO es una cifra es una prescripción de varias líneas —«2
+             días, 10 rondas de 30/30 en bici; el segundo después de pierna»—, y
+             en un campo de una línea se escribe a ciegas: lo tecleado se va por
+             la izquierda en cuanto pasa del ancho. */
+          <textarea
             autoFocus
-            className="input"
-            inputMode={numeric ? 'numeric' : undefined}
+            className="textarea"
+            rows={3}
             value={draft}
             placeholder={placeholder}
             onChange={(e) => setDraft(e.target.value)}
-            /* Vaciar el campo es la forma de quitar el objetivo, y por eso no hay
-               un botón «Quitar»: la casilla en blanco ya lo dice. */
             aria-label={`${label} objetivo`}
           />
-          {hint && <span className="field-hint">{hint}</span>}
-        </label>
-
-        <div className="row gap-1 shrink-0">
-          <button type="submit" className="btn btn-primary btn-sm">
-            <Check size={14} /> Guardar
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon"
-            onClick={() => setEditing(false)}
-            aria-label="Cancelar"
-          >
-            <X size={15} />
-          </button>
-        </div>
+        )}
+        <span className="field-hint">
+          {hint || 'Déjalo en blanco para quitar el objetivo.'}
+        </span>
       </form>
-    );
-  }
+    </Modal>
+  );
 
-  return (
-    <article className="card row between wrap gap-3">
-      <span className="col grow" style={{ gap: 2, minWidth: 0 }}>
+  /*
+    ══ LA TARJETA ENTERA ES EL CONTROL ═══════════════════════════════════════
+
+    Un objetivo de actividad es UN dato que se cambia de una vez: nombre a la
+    izquierda, cifra a la derecha y nada más. Con un lápiz dentro, la tarjeta
+    ofrecía un blanco de 26 px en medio de otro de 300 que no hacía nada — y
+    encima el mismo gesto iba con dos trajes según el estado: «Definir →» con la
+    tarjeta vacía y un lápiz gris con la tarjeta llena. Justo debajo, la de al
+    lado hacía la tercera versión.
+
+    Ahora el hueco vacío y el lleno comparten el único esqueleto que hay —la
+    caja—, que es lo que esta tarjeta ya decía querer cuando ofrecía «Definir»
+    en el sitio del valor.
+
+    ── Y sin flecha ────────────────────────────────────────────────────────
+    Cuando lo que se pulsa es la CAJA, la caja ya se puede encender: fondo,
+    canto y cifra en acento al pasar o al enfocar. Una flecha encima es decir
+    dos veces lo mismo, y además la dice en pequeño y en una esquina, que es
+    donde peor se lee. El adorno se retira; el gesto se queda.
+
+    El lápiz se queda donde SÍ hace falta: donde la caja lleva a dos sitios
+    distintos (`MacroTargetCard` — el título abre la ventana del día y el lápiz
+    el objetivo) o donde la fila es demasiado densa para otra cosa
+    (`MealCard`). Ver «El lápiz y sus parientes» en `controles.css`.
+  */
+  const dentro = (
+    <>
+      <span className="objetivo-fila">
         {Etiqueta}
-        {/* Con el objetivo puesto no hace falta decir nada más: se explica solo. */}
-        {puesto && !numeric && (
-          <span className="t-sm pre-wrap">
-            {puesto}
+        {/* El hueco del valor solo existe si hay valor que poner o hueco que
+            ofrecer: con el cardio escrito, la frase va debajo y una caja vacía
+            aquí solo cobraría su hueco de la fila. */}
+        {(!puesto || numeric) && (
+          <span className="objetivo-v">
+            {/* La cifra se dice como en el resto del producto: «11.000», no
+                «11000». Se guarda como texto y se pintaba tal cual, así que los
+                mismos pasos salían con punto de millar en el Resumen y sin él
+                aquí. */}
+            {puesto && numeric && (
+              <>
+                <strong className="objetivo-c">
+                  {toNum(puesto) === null ? puesto : localeNumber(toNum(puesto))}
+                </strong>
+                {unit && <span className="objetivo-u">{unit}</span>}
+              </>
+            )}
+            {/* Vacía, la tarjeta no constata la ausencia («Sin definir.») sino
+                que ofrece el gesto, y lo ofrece en el sitio del valor: el hueco
+                dice con qué se llena. */}
+            {!puesto && <span className="objetivo-p">Definir</span>}
           </span>
         )}
       </span>
+      {/* Con el objetivo puesto no hace falta decir nada más: se explica solo. */}
+      {puesto && !numeric && <span className="t-sm pre-wrap">{puesto}</span>}
+    </>
+  );
 
-      <span className="row gap-2 shrink-0">
-        {/* Vacía, la tarjeta no constata la ausencia («Sin definir.») sino que
-            ofrece el gesto — y lo ofrece EN EL SITIO DEL VALOR, a la derecha,
-            para que la tarjeta vacía y la llena compartan esqueleto y las dos
-            cajas de la fila queden alineadas. */}
-        {!puesto && editable && (
-          <button
-            type="button"
-            className="cab-accion is-puerta"
-            onClick={() => {
-              setDraft('');
-              setEditing(true);
-            }}
-          >
-            Definir
-          </button>
-        )}
-        {/* La cifra se dice como en el resto del producto: «11.000», no
-            «11000». Se guarda como texto y se pintaba tal cual, así que los
-            mismos pasos salían con punto de millar en el Resumen y sin él
-            aquí. */}
-        {puesto && numeric && (
-          <strong style={{ fontSize: '1.25rem' }}>
-            {toNum(puesto) === null ? puesto : localeNumber(toNum(puesto))}{' '}
-            {unit && <span className="t-sm t-tertiary">{unit}</span>}
-          </strong>
-        )}
-        {/* El lápiz solo con algo puesto: vacío, «Definir →» ya es la única
-            entrada y dos controles para el mismo gesto se estorban. */}
-        {editable && puesto && (
-          <button
-            type="button"
-            className="btn btn-icon"
-            onClick={() => {
-              setDraft(puesto);
-              setEditing(true);
-            }}
-            aria-label={`Editar ${label.toLowerCase()}`}
-          >
-            <Pencil size={14} />
-          </button>
-        )}
-      </span>
-    </article>
+  /* En el portal del cliente no hay nada que tocar: mismo esqueleto, sin puerta
+     y sin flecha — una caja que se pulsa y no lleva a ningún sitio miente. */
+  if (!editable) return <article className="card objetivo">{dentro}</article>;
+
+  return (
+    <>
+      <button
+        type="button"
+        className="card objetivo is-puerta"
+        onClick={() => {
+          setDraft(puesto);
+          setEditing(true);
+        }}
+        title={`${puesto ? 'Cambiar' : 'Definir'} ${label.toLowerCase()}`}
+      >
+        {dentro}
+      </button>
+      {ventana}
+    </>
   );
 };

@@ -445,9 +445,10 @@ button.task-head:hover > .chevron { color: var(--text); }
 }
 .task-row:hover { background: var(--fill-subtle); }
 .task-row:focus-within { box-shadow: 0 0 0 2px var(--accent); }
-/* El chevron se acerca al pasar: el mismo empujón de 2 px que la flecha de
-   las puertas (`--mask-flecha`), para que toda pieza que lleva a algún sitio
-   responda con el mismo gesto en toda la casa. */
+/* El chevron se acerca al pasar. Es el único dibujo direccional que le queda al
+   producto y se lo ha ganado: aquí no rotula un verbo, marca el final de una
+   fila entera que se pulsa. Ver «LO QUE SE PULSA SE ENCIENDE» en
+   `revision.css`. */
 .task-row > .chevron { transition: transform var(--fast); }
 .task-row:hover > .chevron { transform: translateX(2px); }
 
@@ -602,57 +603,6 @@ button.task-head:hover > .chevron { color: var(--text); }
 .folio-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .folio-foot { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin-top: auto; }
 
-/* ── La cabecera de la ficha ────────────────────────────────────────────────
-   Es la misma gramática que el folio de arriba —inicial, nombre, línea de voz
-   baja y una rejilla de hechos etiqueta/valor— porque es la misma persona: la
-   tarjeta de la lista, abierta.
-
-   Y aun así son clases propias, por una razón concreta: el folio lleva una capa
-   de clic por debajo (`.folio-hit`) y para dejarla pasar anula los eventos de
-   puntero de su cabecera y de sus hechos. Aquí la ficha NO navega a ningún
-   sitio, y heredar ese `pointer-events: none` impediría seleccionar con el ratón
-   el correo o el teléfono — que es justo lo que se viene a hacer a una ficha.
-
-   `.folio-mark` sí se reutiliza tal cual: la inicial de una persona se dibuja
-   igual en los tres sitios donde aparece. */
-.ficha-head { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.ficha-head > .who { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
-.ficha-head > .who > .name {
-  display: block; min-width: 0;
-  font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ficha-head > .who > .sub {
-  display: block; min-width: 0;
-  font-size: var(--fs-sm); color: var(--text-tertiary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* La inicial, más grande que en la lista: aquí es el retrato de la pantalla y
-   no una marca de fila. */
-.ficha-head > .folio-mark { width: 48px; height: 48px; font-size: var(--fs-md); }
-
-/* Cuatro hechos y no `auto-fit`: son la anatomía de una persona y se leen como
-   una serie comparable. Con anchos distintos dejarían de parecer lo mismo, que
-   es el mismo motivo por el que `.tiles` fija sus cinco columnas. En el teléfono
-   bajan a dos, que es donde caben sin cortarse. */
-.ficha-facts {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--s2) var(--s3);
-  background: var(--surface-sunken); border-radius: var(--r-md);
-  padding: var(--s3);
-}
-@media (max-width: 620px) {
-  .ficha-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-.ficha-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-/* Tinta plena y sin color: ninguno de los cuatro es una serie que se siga, y la
-   regla del proyecto es que una cifra sin serie no lleva color (`metrics.js`). */
-.ficha-fact > .v {
-  font-size: var(--fs-md); font-weight: 600;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.ficha-fact > .v.is-empty { color: var(--text-tertiary); font-weight: 500; }
-
 /* Cifra de cabecera pulsable: la métrica ES el filtro, así que ver "4 sin
    entrenar" y filtrar por ellos es el mismo gesto.
 
@@ -710,10 +660,7 @@ button.task-head:hover > .chevron { color: var(--text); }
    fichas sin tarifa con su gesto al lado. Es una tarea y habla como las colas
    de Inicio —cifra grande, matiz en voz baja—, no como una métrica a cero. */
 .cobros-tarea { display: flex; align-items: center; gap: var(--s4); }
-.cobros-tarea > .cifra {
-  font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 800;
-  letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums;
-}
+.cobros-tarea > .cifra { line-height: 1; font-variant-numeric: tabular-nums; }
 .cobros-tarea > p { margin: 0; font-weight: 650; max-width: 52ch; }
 .cobros-tarea > p > span {
   display: block; font-weight: 400; font-size: var(--fs-sm); color: var(--text-secondary);

@@ -72,10 +72,30 @@ import { Check, CheckCircle2, ChevronRight, Info, Loader2, Plus, TriangleAlert, 
       · rango «bloque»  h2          …cuando el bloque es media pantalla
     SectionTitle h3                 una pieza dentro de un bloque      ídem
 */
+/*
+  ── `desnudo`: el bloque sin superficie ────────────────────────────────────
+
+  Una tarjeta separa un asunto de los de al lado, y por eso funciona cuando los
+  asuntos de una pantalla son pocos y ajenos entre sí. Cuando son CINCO y todos
+  contestan a la misma pregunta —«¿qué sé de esta persona?»— cinco cantos, cinco
+  fondos y cinco sombras no separan nada: solo añaden cuatro líneas de dibujo por
+  bloque a una pantalla que ya está llena de datos. Es exactamente lo que pasó en
+  la ficha del cliente.
+
+  `desnudo` deja el bloque sin caja: el rótulo, su acción y el contenido, sobre
+  el lienzo. El aire y el rótulo separan; el canto sobra.
+
+  Y envuelve el contenido en `.bloque-cuerpo`, que no es cosmética: sin envoltura
+  no se puede poner el rótulo A UN LADO del contenido, porque los hijos sueltos
+  del bloque caerían cada uno en una celda distinta de la rejilla. Con ella, un
+  bloque desnudo son dos piezas —lo que es y lo que dice— y quien lo coloca
+  decide si van en columna o una al lado de la otra.
+*/
 export const Panel = ({
   as: Tag = 'section',
   tight,
   plain,
+  desnudo,
   title,
   sub,
   action,
@@ -85,7 +105,11 @@ export const Panel = ({
   ...rest
 }) => (
   <Tag
-    className={[plain ? 'card-inset' : 'card', tight && !plain ? 'card-tight' : '', className]
+    className={[
+      desnudo ? 'bloque-desnudo' : plain ? 'card-inset' : 'card',
+      tight && !plain && !desnudo ? 'card-tight' : '',
+      className,
+    ]
       .filter(Boolean)
       .join(' ')}
     {...rest}
@@ -99,12 +123,27 @@ export const Panel = ({
             ) : (
               <span className="section-label">{title}</span>
             ))}
-          {sub && <p className="panel-head-sub">{sub}</p>}
+          {/*
+            En un bloque desnudo el subtítulo NO es cabecera: es lo primero que
+            dice el bloque, y baja con el contenido. Con el rótulo a un lado, si
+            se queda arriba pasan las dos cosas malas a la vez — la frase se
+            estrangula en una columna de 260 px, y un bloque vacío deja toda la
+            banda de datos en blanco porque lo único que tenía que decir está en
+            la otra columna.
+          */}
+          {sub && !desnudo && <p className="panel-head-sub">{sub}</p>}
         </div>
         {action}
       </header>
     )}
-    {children}
+    {desnudo ? (
+      <div className="bloque-cuerpo">
+        {sub && <p className="panel-head-sub">{sub}</p>}
+        {children}
+      </div>
+    ) : (
+      children
+    )}
   </Tag>
 );
 

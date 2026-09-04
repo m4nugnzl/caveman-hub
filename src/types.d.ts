@@ -127,8 +127,54 @@ export interface Microcycle {
   sessionNumber?: number;
   /** Fecha de referencia del microciclo. NO es la fecha en que se entrenó. */
   date?: string;
+  /**
+   * EL PLAN, hasta que termine la migración a `TrainingBlock.sessions`.
+   *
+   * El plan es del bloque: se define una vez y vale para todos sus microciclos
+   * (ver `domain/blocks`). Esto es la copia por microciclo con la que se vivía
+   * antes, y se conserva mientras las dos lecturas conviven. `planOfDay`
+   * contesta por las dos, así que nadie más tiene que saber cuál manda.
+   */
   days?: Day[];
   sessions?: Session[];
+  /** En qué se apartó ESTE microciclo del plan de su bloque. */
+  overrides?: PlanOverride[];
+}
+
+/**
+ * Una hoja del bloque: un día de entreno con sus ejercicios.
+ *
+ * Es el plan, y por eso sus series solo llevan objetivo (`targetReps`,
+ * `targetRir`): los kilos son de la persona y viven en `Session`.
+ */
+export interface BlockSession {
+  dayName: string;
+  exercises?: Exercise[];
+  /** El calentamiento propio de esta hoja; ausente, hereda el del bloque. */
+  mobilityDrills?: MobilityDrill[];
+  coachNote?: string;
+}
+
+/**
+ * UNA EXCEPCIÓN: en qué se aparta un microciclo del plan de su bloque.
+ *
+ * Lo normal es cambiar el bloque —un ajuste se hace para quedarse—, así que
+ * esto es para lo puntual: «esta semana llegó tocado». Se marca, se deshace, y
+ * se puede ascender al bloque cuando resulta que funcionaba.
+ */
+export interface PlanOverride {
+  id: string;
+  dayName: string;
+  /** El ejercicio del bloque al que afecta. `null` cuando es un alta. */
+  targetId: string | null;
+  /** Lo que queda en su sitio. `null` cuando se quita. */
+  exercise: Exercise | null;
+  /** El nombre del ejercicio del bloque, para poder decir «en lugar de X». */
+  sobre?: string | null;
+  /** Dónde entra un alta, en índices del plan del bloque. */
+  index?: number | null;
+  /** Cuándo se hizo, ISO. Lo pone quien llama. */
+  at?: string | null;
 }
 
 /** El bloque `workout_data`, ya mapeado a camelCase. */
@@ -153,6 +199,13 @@ export interface TrainingBlock {
   /** Copia congelada al cerrarlo; el abierto usa los del programa. */
   weeklySplit?: Record<string, string>;
   mobilityDrills?: MobilityDrill[];
+  /**
+   * EL PLAN DEL BLOQUE: sus hojas con sus ejercicios.
+   *
+   * Ausente en un bloque que todavía no se ha migrado, y entonces el plan se
+   * lee de `Microcycle.days` como siempre. Ver `domain/blocksMigration`.
+   */
+  sessions?: BlockSession[];
 }
 
 /** Un ejercicio de calentamiento. */

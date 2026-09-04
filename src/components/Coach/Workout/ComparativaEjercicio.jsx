@@ -39,18 +39,20 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
   const columnas = `40px repeat(${series * CAMPOS.length}, minmax(0, 1fr))`;
 
   return (
-    <aside className="comparativa" aria-label="Progresión del ejercicio">
+    <aside className={`comparativa${onAmpliar && name ? ' tarjeta-puerta' : ''}`} aria-label="Progresión del ejercicio">
       {/*
         La cabecera de las tarjetas laterales, siempre igual: el rótulo, el
-        TÍTULO —que se pulsa para abrir su ventana— y, si hay entre qué elegir,
-        un paso ‹ › a la derecha. Ni desplegables ni enlaces sueltos.
+        título y, si hay entre qué elegir, un paso ‹ › a la derecha. Lo que abre
+        la ventana es la TARJETA entera (ver «LA TARJETA-PUERTA»); el paso ‹ ›
+        conserva su blanco propio.
       */}
+      {onAmpliar && name && (
+        <button type="button" className="task-hit" onClick={onAmpliar} aria-label={`${name}: ver toda la progresión`} title="Ver toda la progresión" />
+      )}
       <div className="lado-cab">
         <span className="section-label">Progresión</span>
         <div className="lado-cab-fila">
-          <button type="button" className="lado-titulo" onClick={onAmpliar} disabled={!onAmpliar || !name} title="Ver toda la progresión">
-            {name || 'Sin ejercicio'}
-          </button>
+          <span className="lado-titulo">{name || 'Sin ejercicio'}</span>
           {ejercicios.length > 1 && (
             <span className="lado-paso">
               <button type="button" className="btn btn-icon btn-icon-compact" aria-label="Ejercicio anterior" onClick={() => onElegir?.(ejercicios[(indice - 1 + ejercicios.length) % ejercicios.length].name)}>
@@ -111,7 +113,12 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
                   const set = s.sets[i];
                   const antes = numero(semanas[fila - 1]?.sets[i]?.kg);
                   const kg = numero(set?.kg);
-                  const tono = kg !== null && antes !== null ? (kg > antes ? 'is-sube' : kg < antes ? 'is-baja' : '') : '';
+                  /* Tres estados y UN color: la bajada en rojo, lo que se
+                     quedó igual en tinta baja y lo que subió en tinta plena.
+                     Progresar se ve porque la columna va en negro y se corta
+                     donde alguien se atascó (ver `.comparativa-celda.is-igual`). */
+                  const tono =
+                    kg === null || antes === null ? '' : kg < antes ? 'is-baja' : kg > antes ? '' : 'is-igual';
                   return CAMPOS.map((c) => {
                     const v = set?.[c.key];
                     const vacio = v === null || v === undefined || v === '';

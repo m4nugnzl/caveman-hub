@@ -152,7 +152,8 @@
   display: flex; flex-direction: column; gap: 4px; min-width: 0;
   padding: var(--s3) var(--s4); background: var(--surface-sunken); border-radius: var(--r-md);
 }
-.sesion-kpi > .v { font-family: var(--font-ancha); font-size: var(--fs-xl); font-weight: 680; letter-spacing: -0.015em; line-height: 1; font-variant-numeric: tabular-nums; }
+/* La voz de la cifra —ancha, 30 px, peso 680— la pone la escala de `base.css`. */
+.sesion-kpi > .v { line-height: 1; font-variant-numeric: tabular-nums; }
 .sesion-kpi > .v > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary); letter-spacing: 0; }
 .sesion-kpi > .k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .sesion-kpi.is-record { background: var(--positive-soft); }
@@ -199,9 +200,23 @@
   flex-wrap: wrap;
 }
 .bandeja-lista { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--s1); flex-wrap: wrap; }
+/* ── Y por qué el aire es 6 y no 4 ─────────────────────────────────────────
+   Porque un avatar CUADRADO dentro de una píldora necesita sitio para el arco.
+   Con 4 px de relleno la pastilla mide 32 de alto, así que su tapa izquierda es
+   un semicírculo de radio 16: a la altura de la esquina superior del avatar
+   —4 px desde arriba— el canto va por x = 16 − √(16² − 12²) ≈ 5,4, y la esquina
+   del avatar está en x = 4. El canto azul pasaba POR DENTRO de las dos esquinas
+   de la izquierda, que es lo que se veía: un reborde que no llegaba a rodear su
+   contenido.
+
+   Con 6 px la pastilla sube a 36, el radio a 18 y el canto pasa por x ≈ 4,6 a la
+   altura de la esquina — 1,4 px por fuera, y el avatar además redondea la suya
+   4 px. El aire de la derecha sube a 12 para que la tapa del nombre siga
+   pareciendo la misma que la del avatar: en una píldora el lado plano no
+   existe, y 10 contra 6 dejaba el texto pegado al arco. */
 .bandeja-persona {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 4px 10px 4px 4px; border-radius: var(--r-pill);
+  padding: 6px 12px 6px 6px; border-radius: var(--r-pill);
   font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); text-decoration: none;
   border: 1px solid transparent;
   transition: background-color var(--fast), color var(--fast), border-color var(--fast);
@@ -253,6 +268,10 @@
    aquel comentario decía estar evitando. */
 @media (max-width: 639.98px) {
   .desde-v { font-size: var(--fs-lg); }
+  /* La cifra de la banda baja la suya con las demás; si no, se quedaría en el
+     `--fs-2xl` de escritorio por ganarle en especificidad a la regla de arriba
+     (ver `revision.css`), que es media tarjeta de número en un teléfono. */
+  .desde[data-cifras='3'] .desde-cifra:first-child .desde-v { font-size: var(--fs-xl); }
 }
 /* Siete columnas también en el teléfono: la semana entera en una fila o no
    es una semana (la regla de arriba la partía en 4 + 3). */
@@ -633,6 +652,11 @@ span.micro-libre:hover { color: var(--text-tertiary); border-color: transparent;
 .plan-col-nombre:hover::after { opacity: 1; color: var(--text); }
 /* Cuándo cae y cuánto pesa, en un renglón: «Lun · 18 series · 5 ejercicios». */
 .plan-col-sub { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Los microciclos donde esta hoja se aparta del plan. Sin semáforo a propósito:
+   una excepción es una decisión del entrenador, no un fallo, y el color de esta
+   columna ya está diciendo si la hoja está hecha. */
+.plan-col-excepcion { font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Seis «···» siempre encendidos son seis cosas que mirar: aparecen al pasar. */
 .plan-col-menu { opacity: 0; transition: opacity var(--fast); margin-top: 1px; }
 .plan-col:hover .plan-col-menu,
@@ -956,9 +980,10 @@ span.micro-libre:hover { color: var(--text-tertiary); border-color: transparent;
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── «Desde que empezó» ─────────────────────────────────────────────────────
-   Dos repartos y ninguno más, porque son los dos que dividen cuatro cifras sin
-   dejar huérfana: DOS por DOS cuando la tarjeta ocupa un tercio, y las CUATRO
-   en línea cuando ocupa la fila entera. Nunca tres.
+   Tres repartos y ninguno más, los que llenan la tarjeta sin dejar huérfana:
+   EN COLUMNA hasta tres cifras y DOS POR DOS con cuatro cuando la tarjeta ocupa
+   un tercio, y TODAS EN LÍNEA cuando ocupa la fila entera. Nunca tres columnas
+   en la estrecha.
 
    ── Y quién lo decide, que era el fallo ──────────────────────────────────
    Esta hoja tenía un `@media (min-width: 640px)` con `auto-fit, minmax(128px)`
@@ -971,22 +996,47 @@ span.micro-libre:hover { color: var(--text-tertiary); border-color: transparent;
    `@media` se fueron: el reparto lo decide la tarjeta contra su propio ancho,
    en `revision.css`, y aquí solo se colocan los filetes.
 
-   Y el filete va donde hay corte de verdad: en el 2×2, vertical entre las
-   columnas y horizontal entre las filas —cuatro cuadrantes—; en línea, solo
-   vertical. */
+   Y el filete va donde hay corte de verdad: en columna, horizontal entre
+   bandas; en el 2×2, vertical entre columnas y horizontal entre filas —cuatro
+   cuadrantes—; en línea, solo vertical. Cuántas columnas hay lo dice
+   `data-cifras`, y lo decide `revision.css`; aquí solo se ponen los filetes
+   donde ese reparto los pide. */
 .desde { gap: 0; }
-.desde-cifra { background: transparent; border-radius: 0; padding: var(--s3) var(--s4); }
-.desde-cifra:not(:nth-child(2n + 1)) { border-left: 1px solid var(--hairline); }
-.desde-cifra:nth-child(2n + 1) { padding-left: 0; }
-.desde-cifra:nth-child(n + 3) { border-top: 1px solid var(--hairline); }
-/* El mismo corte con el que `revision.css` pasa a cuatro columnas: 520 es lo
-   que miden cuatro casillas sin que «desde el 18 may» se recorte. Aquí solo se
-   colocan los filetes; el reparto se declara allí y en ningún otro sitio. */
+.desde-cifra { background: transparent; border-radius: 0; }
+
+/* Una BANDA va de canto a canto: sin sangría lateral, porque no tiene a nadie
+   al lado de quien separarse. Es el reparto de partida —una o dos cifras— y la
+   primera fila de la de tres. */
+.desde[data-cifras] .desde-cifra { padding: var(--s3) 0; }
+.desde[data-cifras] .desde-cifra + .desde-cifra { border-top: 1px solid var(--hairline); }
+
+/* Un CUADRANTE respira por dentro y no por fuera: la sangría se la quita el que
+   abre la fila por la izquierda y el que la cierra por la derecha, para que las
+   cifras queden a plomo con la banda de arriba y con el rótulo de la tarjeta. */
+.desde[data-cifras='3'] .desde-cifra:nth-child(n + 2) { padding: var(--s3) var(--s4); }
+.desde[data-cifras='3'] .desde-cifra:nth-child(2) { padding-left: 0; }
+.desde[data-cifras='3'] .desde-cifra:nth-child(3) { padding-right: 0; border-left: 1px solid var(--hairline); }
+
+/* Cuatro: dos por dos. El orden importa —el filete de arriba se pone a todas y
+   se le quita a la primera fila—, así que estas reglas van después. */
+.desde[data-cifras='4'] .desde-cifra { padding: var(--s3) var(--s4); }
+.desde[data-cifras='4'] .desde-cifra:nth-child(2n + 1) { padding-left: 0; }
+.desde[data-cifras='4'] .desde-cifra:nth-child(2n) { padding-right: 0; border-left: 1px solid var(--hairline); }
+.desde[data-cifras='4'] .desde-cifra + .desde-cifra { border-top: 0; }
+.desde[data-cifras='4'] .desde-cifra:nth-child(n + 3) { border-top: 1px solid var(--hairline); }
+
+/* El mismo corte con el que `revision.css` pone todas en línea: 520 es lo que
+   miden cuatro casillas sin que «desde el 18 may» se recorte. En una sola fila
+   no hay filas que separar y el único filete es el vertical; las dos reglas de
+   en medio deshacen las sangrías del 2×2 y de la de tres, que ahí ya no valen. */
 @container tarjeta (min-width: 520px) {
-  /* En una sola fila no hay filas que separar. */
-  .desde-cifra:nth-child(n + 3) { border-top: 0; }
-  .desde-cifra:not(:nth-child(4n + 1)) { border-left: 1px solid var(--hairline); padding-left: var(--s4); }
-  .desde-cifra:nth-child(4n + 1) { border-left: 0; padding-left: 0; }
+  .desde[data-cifras] .desde-cifra { padding: var(--s3) var(--s4); }
+  .desde[data-cifras] .desde-cifra + .desde-cifra { border-top: 0; border-left: 1px solid var(--hairline); }
+  .desde[data-cifras='3'] .desde-cifra:nth-child(n + 2) { padding: var(--s3) var(--s4); }
+  .desde[data-cifras='4'] .desde-cifra:nth-child(2n + 1) { padding-left: var(--s4); }
+  .desde[data-cifras='4'] .desde-cifra:nth-child(2n) { padding-right: var(--s4); border-left: 1px solid var(--hairline); }
+  .desde[data-cifras] .desde-cifra:first-child { padding-left: 0; border-left: 0; }
+  .desde[data-cifras] .desde-cifra:last-child { padding-right: 0; }
 }
 
 /* ── «Este bloque» ────────────────────────────────────────────────────────── */
@@ -1180,3 +1230,122 @@ a.title:hover { text-decoration: underline; }
 /* Y el último punto de toda curva es la fuente: su halo sale del mismo token,
    así que en papel no pinta nada y en la noche lo enciende un punto. */
 .chart-ultimo { filter: drop-shadow(0 0 5px var(--lumbre-halo)); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DEFINIR EL BLOQUE
+   ══════════════════════════════════════════════════════════════════════════
+
+   El momento en que se monta la estructura de sesión: sus hojas con sus
+   ejercicios, y arriba, en una línea, de dónde nace y qué le has cambiado.
+
+   Las hojas se reparten el ancho como en el tablero del bloque y pasan de fila
+   cuando no caben: nunca un carril con desplazamiento que deje la última fuera.
+   Es la misma rejilla de `.plan-rejilla`, con la voz más baja —esto es un
+   diálogo, no la pantalla— y con los campos a la vista, porque aquí se escribe.
+   ══════════════════════════════════════════════════════════════════════════ */
+.definir { display: flex; flex-direction: column; gap: var(--s4); }
+
+.definir-cab { display: flex; gap: var(--s4); align-items: flex-end; flex-wrap: wrap; }
+.definir-nombre { flex: 1 1 240px; }
+.definir-duracion { display: flex; gap: var(--s2); align-items: center; }
+.definir-previstos { width: 62px; text-align: center; font-variant-numeric: tabular-nums; }
+.definir-nota { font-size: var(--fs-xs); color: var(--text-tertiary); margin: calc(var(--s3) * -1) 0 0; }
+
+/* ── De dónde nace, y el diff ─────────────────────────────────────────────
+   Un bloque nuevo casi siempre ES el anterior con cambios, así que lo que hay
+   que revisar no es el bloque de al lado: es qué has tocado. */
+.definir-herencia {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-sm);
+  background: var(--fill-subtle);
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.definir-herencia .link { margin-left: auto; }
+.definir-igual { margin-left: auto; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.definir-cambios { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.definir-cambios li { display: grid; grid-template-columns: 88px 1fr; gap: var(--s3); font-size: var(--fs-xs); }
+.definir-cambios .h { color: var(--text-tertiary); font-weight: 600; }
+.definir-cambios .mas { color: var(--positive); }
+.definir-cambios .menos { color: var(--negative); }
+
+/* ── Las hojas ─────────────────────────────────────────────────────────── */
+.definir-hojas { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: flex-start; }
+.definir-hoja {
+  flex: 1 1 210px; min-width: 190px;
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.definir-hoja.is-nueva {
+  flex: 0 1 190px;
+  border-style: dashed; background: transparent; color: var(--text-tertiary);
+  align-items: center; justify-content: center; min-height: 96px;
+  font-size: var(--fs-sm); gap: var(--s2);
+}
+.definir-hoja.is-nueva:hover { color: var(--accent); border-color: var(--accent); }
+
+.definir-hoja-cab { display: flex; align-items: baseline; gap: var(--s2); padding-bottom: var(--s2); border-bottom: 1px solid var(--hairline); }
+.definir-hoja-cab .h { font-weight: 600; font-size: var(--fs-sm); }
+.definir-hoja-cab .d { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.definir-hoja-cab .btn-icon { margin-left: auto; }
+
+.definir-ejs { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s1); }
+.definir-ej { display: flex; align-items: center; gap: var(--s1); font-size: var(--fs-xs); min-height: 26px; }
+.definir-ej .n { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.definir-ej .btn-icon { opacity: 0; transition: opacity var(--fast); }
+.definir-ej:hover .btn-icon, .definir-ej:focus-within .btn-icon { opacity: 1; }
+
+.definir-series, .definir-reps {
+  border: 1px solid var(--edge-control); border-radius: var(--r-xs);
+  background: var(--surface); color: var(--text);
+  font-family: inherit; font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
+  padding: 2px 4px; text-align: center;
+}
+.definir-series { width: 30px; }
+.definir-reps { width: 52px; }
+.definir-por { color: var(--text-tertiary); font-size: var(--fs-xs); }
+
+.definir-mas {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: var(--s1);
+  border: 0; background: none; padding: 2px 0;
+  color: var(--text-tertiary); font-family: inherit; font-size: var(--fs-xs); cursor: pointer;
+}
+.definir-mas:hover { color: var(--accent); }
+
+.definir-hoja-sum { padding-top: var(--s2); border-top: 1px dashed var(--hairline-strong); font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+.definir-alta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1); padding-top: var(--s2); border-top: 1px solid var(--hairline); }
+.definir-alta > :first-child { flex: 1 1 100%; }
+
+/* ── El calentamiento: también es del bloque ──────────────────────────── */
+.definir-calentamiento { display: flex; flex-direction: column; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+.definir-drills { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.definir-drill {
+  display: inline-flex; align-items: baseline; gap: var(--s2);
+  padding: 3px var(--s2);
+  border: 1px solid var(--hairline); border-radius: var(--r-xs);
+  background: var(--fill-subtle);
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.definir-drill small { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* ── La barra ─────────────────────────────────────────────────────────── */
+.definir-pie { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+.definir-total { margin-right: auto; font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 700px) {
+  .definir-hoja { flex: 1 1 100%; }
+  .definir-total { flex: 1 1 100%; margin-right: 0; }
+}
+
+/* ── El alcance de un alta, dentro del formulario de ejercicio ──────────────
+   Un ejercicio añadido desde la hoja va al bloque; marcando esto se queda solo
+   en ese microciclo. La casilla vive en el formulario y no en un menú porque el
+   alcance se elige ANTES de añadir, que es cuando se sabe. */
+.alta-alcance { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
+.alta-alcance .k { font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
+.alta-alcance small { flex: 1 1 220px; font-size: var(--fs-xs); color: var(--text-tertiary); }

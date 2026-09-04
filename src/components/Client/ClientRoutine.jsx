@@ -631,18 +631,19 @@ const TuBloque = ({ program, bloque, activeWeek, unidad, onAbrirHistorial }) => 
   const cual = semanas.indexOf(activeWeek) + 1;
 
   return (
-    <section className="lado-tarjeta" aria-label="Tu bloque">
+    <section className="lado-tarjeta tarjeta-puerta" aria-label="Tu bloque">
+      {/* La tarjeta entera abre su ventana. Ver «LA TARJETA-PUERTA». */}
+      <button
+        type="button"
+        className="task-hit"
+        onClick={onAbrirHistorial}
+        aria-label={`${bloque.name}: tu historial de entrenamiento, bloque a bloque`}
+        title="Tu historial de entrenamiento, bloque a bloque"
+      />
       <div className="lado-cab">
         <span className="section-label">Tu bloque</span>
         <div className="lado-cab-fila">
-          <button
-            type="button"
-            className="lado-titulo"
-            onClick={onAbrirHistorial}
-            title="Tu historial de entrenamiento, bloque a bloque"
-          >
-            {bloque.name}
-          </button>
+          <span className="lado-titulo">{bloque.name}</span>
         </div>
         {cual > 0 && (
           <span className="t-2xs t-tertiary">
