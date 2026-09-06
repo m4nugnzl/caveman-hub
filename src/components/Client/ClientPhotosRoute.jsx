@@ -29,8 +29,13 @@ export const ClientPhotosRoute = () => {
         photos={photos}
         history={anthropometry[activeClient.id]?.history || []}
         /* Subir vive en el nivel de al lado, que es donde toca hacerlo: con el
-           peso de la semana y la misma fecha. Aquí solo se mira. */
-        onGoToCheckIn={() => navigate('/mi/evolucion')}
+           peso de la semana y la misma fecha. Aquí solo se mira.
+
+           Y se llega con el asistente ABIERTO: el botón dice «Hacer mi
+           check-in», así que dejar al cliente en la hoja de al lado buscando
+           cuál de los botones era es prometer un gesto y entregar una pantalla.
+           Ver `ClientCheckInsRoute`. */
+        onGoToCheckIn={() => navigate('/mi/evolucion', { state: { abrirCheckIn: true } })}
       />
     </div>
   );

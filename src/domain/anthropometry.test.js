@@ -99,9 +99,31 @@ describe('weeklyCheckIn con cadencia de varias semanas', () => {
   it('el objetivo escala con el periodo', () => {
     /* Pedir tres pesajes en dos semanas sería pedir la mitad de los que hacen
        falta para que la media signifique algo. */
-    expect(weeklyCheckIn(historial, '2026-08-03').target).toBe(3);
-    expect(weeklyCheckIn(historial, '2026-08-03', { weeks: 2 }).target).toBe(6);
-    expect(weeklyCheckIn(historial, '2026-08-03', { weeks: 2 }).complete).toBe(false);
+    expect(weeklyCheckIn(historial, '2026-08-03', { target: 3 }).target).toBe(3);
+    expect(weeklyCheckIn(historial, '2026-08-03', { target: 3, weeks: 2 }).target).toBe(6);
+    expect(weeklyCheckIn(historial, '2026-08-03', { target: 3, weeks: 2 }).complete).toBe(false);
+  });
+
+  /*
+    El objetivo lo pone el ENTRENADOR en su protocolo, y sin él no hay nada que
+    cumplir. Era un 3 escrito en esta función, y de ese 3 colgaban ocho pantallas
+    reclamando pesajes que nadie había pedido — desde «te faltan 2 pesajes» en el
+    portal del cliente hasta «check-in a medias» en la cartera.
+  */
+  it('sin objetivo pedido no se juzga la semana', () => {
+    const r = weeklyCheckIn(historial, '2026-08-03');
+    expect(r.asked).toBe(false);
+    expect(r.target).toBe(0);
+    /* Cuenta lo que hay: el recuento es un hecho, la falta es un juicio. */
+    expect(r.count).toBe(1);
+    expect(r.complete).toBe(true);
+  });
+
+  it('con objetivo pedido, se juzga contra ese número', () => {
+    const r = weeklyCheckIn(historial, '2026-08-03', { target: 2 });
+    expect(r.asked).toBe(true);
+    expect(r.target).toBe(2);
+    expect(r.complete).toBe(false);
   });
 
   it('no se cuela nada del periodo siguiente', () => {

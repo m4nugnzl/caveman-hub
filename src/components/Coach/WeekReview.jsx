@@ -7,7 +7,7 @@ import { resolvedMicrocycles } from '@/domain/blocks';
 import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
-import { checkinQuestions, clientProtocol } from '@/domain/protocol';
+import { checkinQuestions, clientProtocol, weighInsTarget } from '@/domain/protocol';
 import { readingHeadline, weeklyReading, weekSignals, weightTrend } from '@/domain/reading';
 import { effectiveGoal, phaseAt, phaseProgress } from '@/domain/roadmap';
 import {
@@ -326,6 +326,13 @@ export const WeekReview = () => {
         }),
       });
 
+  /* Los pesajes que TÚ le pides. Sin número pedido, la semana no se califica por
+     cuántos hizo: ver `weighInsTarget` en `domain/protocol`. */
+  const pesajesPedidos = useMemo(
+    () => weighInsTarget(clientProtocol(activeClient?.preferences)),
+    [activeClient?.preferences]
+  );
+
   const datos = useMemo(
     () =>
       clientWeek({
@@ -334,8 +341,9 @@ export const WeekReview = () => {
         photos,
         startDate: activeClient?.startDate,
         weekNumber: semana,
+        weighIns: pesajesPedidos,
       }),
-    [microcycles, history, photos, activeClient?.startDate, semana]
+    [microcycles, history, photos, activeClient?.startDate, semana, pesajesPedidos]
   );
 
   /* La comparación numérica necesita UN par concreto: el ángulo por defecto de
@@ -533,10 +541,14 @@ export const WeekReview = () => {
     el objetivo sale de `weeklyCheckIn`, que es quien lo define para todo el
     producto, no de un número escrito aquí.
   */
+  /* Y si no le pides un número de pesajes, aquí no se califica ninguno: queda
+     cuántos hay, que es lo que sostiene —o no— la cifra de al lado. */
   const fiabilidad = datos.checkIn?.count
-    ? datos.checkIn.complete
-      ? `${datos.checkIn.count} pesajes · media de la semana`
-      : `solo ${datos.checkIn.count} de ${datos.checkIn.target} pesajes`
+    ? !datos.checkIn.asked
+      ? `${datos.checkIn.count} ${datos.checkIn.count === 1 ? 'pesaje' : 'pesajes'} esta semana`
+      : datos.checkIn.complete
+        ? `${datos.checkIn.count} pesajes · media de la semana`
+        : `solo ${datos.checkIn.count} de ${datos.checkIn.target} pesajes`
     : 'sin pesajes esta semana';
 
   /*

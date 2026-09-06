@@ -3,13 +3,12 @@ import { Suspense, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { buildWeeklySeries, metricPoints, weekOverWeek } from '@/domain/analytics';
 import { weeklyCheckIn } from '@/domain/anthropometry';
-import { clientProtocol, isServiceOn } from '@/domain/protocol';
+import { clientProtocol, isServiceOn, weighInsTarget } from '@/domain/protocol';
 import { goalFromDirection } from '@/domain/goals';
 import { effectiveGoal, roadmapState } from '@/domain/roadmap';
 import { weeklyReading, weightTrend } from '@/domain/reading';
-import { shortDate, todayISO } from '@/lib/dates';
+import { todayISO } from '@/lib/dates';
 import { clientPath } from '@/routes';
-import { Mando } from '@/components/ui/Mando';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { useReviewTrack } from '@/components/review/useReviewTrack';
 import { useElementWidth } from '@/lib/useElementWidth';
@@ -115,7 +114,15 @@ export const Dashboard = ({ audience = 'coach' }) => {
   );
   const pesoActual = metricPoints(serie, 'weight').slice(-1)[0]?.value ?? null;
   const pesoWow = weekOverWeek(serie, 'weight');
-  const checkIn = useMemo(() => weeklyCheckIn(history, hoy), [history, hoy]);
+  /* El protocolo decide también CUÁNTOS pesajes se cuentan: sin número pedido,
+     la tarjeta de peso no habla de pesajes que falten. Se calcula aquí arriba
+     porque `checkIn` lo necesita antes de que el protocolo se use más abajo. */
+  const protocol = useMemo(() => clientProtocol(activeClient.preferences), [activeClient.preferences]);
+
+  const checkIn = useMemo(
+    () => weeklyCheckIn(history, hoy, { target: weighInsTarget(protocol) }),
+    [history, hoy, protocol]
+  );
 
   const weeks = useMemo(() => microcycles.map((m) => m.weekNumber).sort((a, b) => a - b), [microcycles]);
   const latestWeek = weeks.length > 0 ? weeks[weeks.length - 1] : null;
@@ -125,7 +132,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
     llevas el entrenamiento no le sobra el objetivo de kcal: es que no tiene
     nutrición, y una tarjeta con «sin plan» promete una pantalla que no existe.
   */
-  const protocol = useMemo(() => clientProtocol(activeClient.preferences), [activeClient.preferences]);
   const conEntreno = isServiceOn(protocol, 'training');
   const conDieta = isServiceOn(protocol, 'nutrition');
 
@@ -149,20 +155,15 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const fases = useMemo(() => roadmapState(phases, hoy), [phases, hoy]);
 
   /*
-    La tarifa y la antigüedad son del ENTRENADOR, no del cliente.
-
-    Esta línea se pintaba igual en los dos lados, así que en «Mi progreso» la
-    persona leía «Trimestral · 240 € · desde 18 may» debajo del título: lo que
-    paga, recordado cada vez que entra a ver cómo va. Es información de la
-    relación comercial —vive en su ficha, en Cobros y en el contrato—, no del
-    progreso, y en su portal solo puede sonar a factura.
-
-    Sin ella el portal no pierde nada: el mando del Resumen no lleva acciones,
-    así que en el cliente la fila entera deja de existir y el panel sube.
+    ══ AQUÍ VIVIÓ EL MANDO DEL RESUMEN ═══════════════════════════════════════
+    Una línea de contexto —«Trimestral · 240 € · desde 18 may»— entre la
+    cabecera y las tarjetas. Primero se le quitó al portal (lo que paga no es
+    asunto del progreso) y el 6 sep se retiró del todo, por orden del dueño:
+    «el que ponga el plan justo debajo antes de empezar la hoja no me gusta».
+    No se pierde nada — la tarifa la dice la chapa del cobro en la cabecera y
+    la ficha; la antigüedad, «Desde que empezó», dos centímetros más abajo. El
+    mando de Entreno y Dieta no cambia: allí lleva acciones.
   */
-  const contexto =
-    [activeClient.plan, activeClient.startDate && `desde ${shortDate(activeClient.startDate)}`].filter(Boolean).join(' · ') ||
-    'Sin plan asignado';
 
   /* La escalera de lo que le fuiste poniendo es del entrenador y necesita al
      menos dos semanas de historia; si no, la curva del peso sola dice lo mismo
@@ -175,6 +176,9 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const aDieta = isClient ? '/mi/dieta' : clientPath(activeClient.id, 'nutricion');
   const aEntreno = isClient ? '/mi/rutina' : clientPath(activeClient.id, 'rutina');
   const aFotos = isClient ? '/mi/evolucion/fotos' : clientPath(activeClient.id, 'revision/fotos');
+  /* Donde el coach anota un pesaje: la revisión, con su alta de registros.
+     Solo coach — el vacío del portal habla del check-in, no de esta puerta. */
+  const aPesaje = isClient ? null : clientPath(activeClient.id, 'revision');
 
   return (
     /*
@@ -189,9 +193,18 @@ export const Dashboard = ({ audience = 'coach' }) => {
     */
     <>
     <div className={`resumen-pagina${isClient ? ' is-portal' : ''}`}>
-      {!isClient && <Mando contexto={contexto} />}
-
       <div className="resumen">
+        {/*
+          Aquí vivió `es-hoja` un día (movimiento 02 del estudio del 5 sep):
+          el mosaico como UNA hoja de bandas separadas por filetes. El dueño
+          lo deshizo el 6, con el chasis nuevo delante — «sigo viendo 2 boxes,
+          la del centro y la de la derecha unificadas»: sobre la hoja del
+          expediente, fundir las tarjetas en una banda deja la pantalla en dos
+          masas. Cada elemento vuelve a su caja, que es como se cuentan cosas
+          distintas. El aviso que llevaba escrito aquel comentario —«seis
+          tarjetas encima son cajas sobre una caja»— lo contesta la escala:
+          hoja en papel/noche del lienzo, tarjeta con su canto encima.
+        */}
         <div className="mosaico cascada">
           <TarjetaComoVa
             goal={goal}
@@ -243,6 +256,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
               isClient={isClient}
               onAbrir={() => setVentana('cuerpo')}
               aFotos={aFotos}
+              aPesaje={aPesaje}
             />
           </div>
 
@@ -254,6 +268,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
               latestWeek={latestWeek}
               isClient={isClient}
               onAbrir={() => setVentana('entreno')}
+              aRutina={isClient ? null : aEntreno}
             />
           )}
         </div>
@@ -287,7 +302,18 @@ export const Dashboard = ({ audience = 'coach' }) => {
             onAbrirFases={() => setVentana('fases')}
             isClient={isClient}
           />
-          <TarjetaSensaciones checkIns={checkIns} microcycles={microcycles} protocol={protocol} span={12} isClient={isClient} />
+          {/* Cada fila del subjetivo es una puerta a la ventana donde ya vive
+              su curva: las del check-in en el «a fondo» del cuerpo, las de
+              sesión en el del entreno. Ver `TarjetaSensaciones`. */}
+          <TarjetaSensaciones
+            checkIns={checkIns}
+            microcycles={microcycles}
+            protocol={protocol}
+            span={12}
+            isClient={isClient}
+            onAbrirCuerpo={() => setVentana('cuerpo')}
+            onAbrirEntreno={conEntreno ? () => setVentana('entreno') : null}
+          />
         </aside>
       </div>
       </div>

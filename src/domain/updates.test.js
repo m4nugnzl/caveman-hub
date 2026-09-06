@@ -66,14 +66,27 @@ describe('pendientes', () => {
   const log = (date, extra = {}) => ({ id: date, date, weight: 80, ...extra });
 
   it('los pesajes que faltan para el objetivo de la semana', () => {
-    const tareas = pendingTasks({ history: [log('2026-08-13')], today: hoy });
+    const protocol = { weighIns: 3 };
+    const tareas = pendingTasks({ history: [log('2026-08-13')], protocol, today: hoy });
     expect(tareas.map((t) => t.id)).toEqual(['weights']);
     expect(tareas[0].label).toContain('2 pesajes');
   });
 
+  /*
+    ══ Y si su entrenador no le pide pesajes, no se le reclama ninguno ════════
+
+    El objetivo eran tres escritos en `weeklyCheckIn`, así que esta tarea le
+    salía a TODO cliente cuyo entrenador no hubiera pedido nada: deberes que no
+    manda nadie, en la pantalla que abre cada día. La norma la pone el protocolo.
+  */
+  it('sin pesajes pedidos en el protocolo no se reclama ninguno', () => {
+    expect(pendingTasks({ history: [log('2026-08-13')], today: hoy })).toEqual([]);
+    expect(pendingTasks({ history: [], protocol: { weighIns: 0 }, today: hoy })).toEqual([]);
+  });
+
   it('con la semana hecha no se pide nada', () => {
     const history = ['2026-08-11', '2026-08-13', '2026-08-15'].map((d) => log(d));
-    expect(pendingTasks({ history, today: hoy })).toEqual([]);
+    expect(pendingTasks({ history, protocol: { weighIns: 3 }, today: hoy })).toEqual([]);
   });
 
   /* Lo que el entrenador NO ha marcado como obligatorio no aparece: el protocolo

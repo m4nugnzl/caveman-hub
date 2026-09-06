@@ -109,11 +109,11 @@ const DaySheet = ({
           >
             {isMoved ? (
               <>
-                <RotateCcw size={14} /> Devolver la revisión a su día
+                <RotateCcw size={15} /> Devolver la revisión a su día
               </>
             ) : (
               <>
-                <CalendarCheck size={14} /> Poner aquí la revisión
+                <CalendarCheck size={15} /> Poner aquí la revisión
               </>
             )}
           </button>
@@ -150,7 +150,7 @@ const DaySheet = ({
                   onClick={() => onRemove(event)}
                   aria-label={`Borrar ${event.title}`}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}
@@ -189,7 +189,7 @@ const DaySheet = ({
                 aria-label="Título del evento"
               />
               <button type="submit" className="btn btn-primary btn-sm" disabled={busy || !title.trim()}>
-                <Plus size={14} /> Añadir
+                <Plus size={15} /> Añadir
               </button>
             </div>
           </form>
@@ -377,7 +377,15 @@ export const CalendarPanel = ({ audience = 'client' }) => {
           sub="Cuándo toca la revisión, y lo que hay alrededor: citas, competiciones y descansos."
           action={
             reclama ? (
-              <Link className="btn btn-primary btn-sm" to="/mi/evolucion">
+              /* Con el asistente abierto: este botón promete entregar, y traer
+                 al cliente a la hoja de la revisión a buscar otro botón es el
+                 mismo callejón que tenía «Hacer mi check-in» en sus fotos. Ver
+                 `ClientCheckInsRoute`. */
+              <Link
+                className="btn btn-primary btn-sm"
+                to="/mi/evolucion"
+                state={{ abrirCheckIn: true }}
+              >
                 Entregar mi revisión
               </Link>
             ) : null
@@ -585,7 +593,7 @@ export const CalendarPanel = ({ audience = 'client' }) => {
         action={
           <div className="row gap-2">
             <button type="button" className="btn btn-icon" onClick={() => move(-1)} aria-label="Mes anterior">
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
             <button
               type="button"
@@ -598,7 +606,7 @@ export const CalendarPanel = ({ audience = 'client' }) => {
               Hoy
             </button>
             <button type="button" className="btn btn-icon" onClick={() => move(1)} aria-label="Mes siguiente">
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
         }
@@ -714,7 +722,7 @@ export const CalendarPanel = ({ audience = 'client' }) => {
                     onClick={() => act(removeClientEvent(event.id))}
                     aria-label={`Borrar ${event.title}`}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={15} />
                   </button>
                 </div>
               ))}

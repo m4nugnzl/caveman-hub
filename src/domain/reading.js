@@ -48,6 +48,7 @@ import { effectiveGoal } from './roadmap';
 import { exerciseNames, exerciseProgression, findMicrocycle } from './training';
 import { executedSessions, sessionSetCount } from './sessions';
 import { weekEntries } from './anthropometry';
+import { clientProtocol, weighInsTarget } from './protocol';
 
 /**
  * Semanas mínimas para hablar de tendencia.
@@ -156,11 +157,15 @@ export const weightTrend = (series, windowWeeks = 8) => {
 /**
  * Adherencia al registro de peso: cuántos días se ha pesado esta semana.
  *
- * El objetivo por defecto son 3 pesajes, que es el mínimo con el que un promedio
- * semanal filtra algo. Con uno solo, el «promedio» es ese único día y arrastra todo
- * su ruido a la tendencia.
+ * El objetivo lo pone el entrenador en su protocolo (`weighInsTarget`). Por
+ * defecto es 0 —no los pide—, y entonces no hay adherencia que medir: un
+ * porcentaje contra una norma inexistente es un juicio inventado.
+ *
+ * Eran 3 escritos aquí, «el mínimo con el que un promedio semanal filtra algo».
+ * El argumento sigue siendo cierto y por eso vale como consejo en la pantalla
+ * donde se elige el número; lo que no puede es dictar un incumplimiento.
  */
-export const weighInAdherence = (history, date, target = 3) => {
+export const weighInAdherence = (history, date, target = 0) => {
   // `weekEntries` ya descarta los registros sin peso.
   const done = weekEntries(history, date).length;
   return { done, target, pct: pct(Math.min(done, target), target) };
@@ -349,8 +354,11 @@ export const weeklyReading = ({
   }
 
   // ── 3. ¿Ha hecho su parte? ───────────────────────────────────────────────
-  const weighIns = weighInAdherence(history, today);
-  if (weighIns.done < weighIns.target) {
+  /* Su parte es la que TÚ le has pedido. Sin pesajes en el protocolo, la lectura
+     no dice nada de pesajes: «no se ha pesado esta semana» delante de alguien a
+     quien no le pides que se pese es un reproche sin norma detrás. */
+  const weighIns = weighInAdherence(history, today, weighInsTarget(clientProtocol(client?.preferences)));
+  if (weighIns.target > 0 && weighIns.done < weighIns.target) {
     findings.push({
       id: 'weigh-ins',
       evidence: 'execution',
@@ -360,7 +368,7 @@ export const weeklyReading = ({
           ? 'No se ha pesado esta semana'
           : `Solo ${weighIns.done} de ${weighIns.target} pesajes esta semana`,
       detail:
-        'El promedio semanal es lo que filtra el ruido diario. Con menos de tres pesajes, ese promedio arrastra la variación de un día concreto a la tendencia.',
+        'El promedio semanal es lo que filtra el ruido diario. Con pocos pesajes, ese promedio arrastra la variación de un día concreto a la tendencia.',
     });
   }
 

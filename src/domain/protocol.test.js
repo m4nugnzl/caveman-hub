@@ -29,6 +29,9 @@ import {
   toggleService,
   activeServices,
   isServiceOn,
+  asksWeighIns,
+  setWeighIns,
+  weighInsTarget,
 } from './protocol';
 import {
   COMPARED_KEYS,
@@ -229,6 +232,43 @@ describe('qué se mide en el check-in', () => {
   it('sobrevive a la ida y vuelta por preferencias', () => {
     const puesto = setCheckinMode(clientProtocol(undefined), 'folds', 'required');
     expect(checkinMode(clientProtocol({ protocol: puesto }), 'folds')).toBe('required');
+  });
+});
+
+/* ==========================================================================
+   Cuántos pesajes se piden a la semana
+
+   Eran tres escritos en `weeklyCheckIn`, y desde ahí la aplicación reclamaba en
+   ocho pantallas el incumplimiento de una norma que ningún entrenador había
+   puesto. La norma es suya, y mientras no la ponga nadie dice nada.
+   ========================================================================== */
+
+describe('los pesajes de la semana', () => {
+  it('sin configurar, no se piden', () => {
+    const protocol = clientProtocol(undefined);
+    expect(weighInsTarget(protocol)).toBe(0);
+    expect(asksWeighIns(protocol)).toBe(false);
+  });
+
+  it('se pone un número y se lee', () => {
+    const protocol = setWeighIns(clientProtocol(undefined), 3);
+    expect(weighInsTarget(protocol)).toBe(3);
+    expect(asksWeighIns(protocol)).toBe(true);
+  });
+
+  /* La columna es jsonb abierta: lo que llegue tiene que quedar en un entero
+     usable, y nunca en un objetivo que la pantalla no deja poner. */
+  it('lo que no sea un entero de 0 a 7 cae en un valor válido', () => {
+    expect(weighInsTarget({ weighIns: 99 })).toBe(7);
+    expect(weighInsTarget({ weighIns: -2 })).toBe(0);
+    expect(weighInsTarget({ weighIns: 2.4 })).toBe(2);
+    expect(weighInsTarget({ weighIns: 'tres' })).toBe(0);
+    expect(weighInsTarget(null)).toBe(0);
+  });
+
+  it('sobrevive a la ida y vuelta por preferencias', () => {
+    const puesto = setWeighIns(clientProtocol(undefined), 4);
+    expect(weighInsTarget(clientProtocol({ protocol: puesto }))).toBe(4);
   });
 });
 

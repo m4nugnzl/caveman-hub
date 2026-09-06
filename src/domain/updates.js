@@ -43,7 +43,7 @@
  */
 
 import { weeklyCheckIn } from './anthropometry';
-import { requiredBlocks } from './protocol';
+import { requiredBlocks, weighInsTarget } from './protocol';
 import { weekStart } from '@/lib/dates';
 
 /** Las tres cosas de las que se avisa, en el orden en que se enseñan. */
@@ -181,10 +181,16 @@ export const stampUpdate = (preferences, kind, now = new Date().toISOString()) =
  * declaren obligatorias.
  */
 export const pendingTasks = ({ history = [], protocol = null, today }) => {
-  const semana = weeklyCheckIn(history, today);
+  const semana = weeklyCheckIn(history, today, { target: weighInsTarget(protocol) });
   const out = [];
 
-  if (semana.count < semana.target) {
+  /*
+    Solo si su entrenador pide pesajes. Antes el objetivo eran tres escritos en
+    el dominio, así que a todo el mundo le salía «te faltan 2 pesajes esta
+    semana» aunque su entrenador no le hubiera pedido ninguno: deberes que no
+    manda nadie, en la pantalla que abre cada día.
+  */
+  if (semana.asked && semana.count < semana.target) {
     const faltan = semana.target - semana.count;
     out.push({
       id: 'weights',

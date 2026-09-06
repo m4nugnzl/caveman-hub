@@ -72,6 +72,9 @@ const daysOfWeek = (micro) => {
  *   de programa y semana natural, que es la que permite casar los pesajes —que
  *   van por lunes— con las sesiones —que van por número de semana—. Ver
  *   `photos.weekStartOfProgramWeek` y `auditoria.md` 1.2.
+ * @param weighIns  Los pesajes que su entrenador pide a la semana, del protocolo
+ *   (`weighInsTarget`). `0` —el respaldo— es «no los pide», y entonces la semana
+ *   no se juzga por cuántas veces se subió a la báscula.
  */
 export const clientWeek = ({
   microcycles = [],
@@ -79,13 +82,14 @@ export const clientWeek = ({
   photos = [],
   startDate = null,
   weekNumber = null,
+  weighIns = 0,
 } = {}) => {
   const micro = weekNumber === null ? null : findMicrocycle(microcycles, weekNumber);
   const days = daysOfWeek(micro);
   const weekStart = startDate && weekNumber !== null ? weekStartOfProgramWeek(startDate, weekNumber) : null;
 
   const adherence = weekNumber === null ? null : weekAdherence(microcycles, weekNumber);
-  const checkIn = weekStart ? weeklyCheckIn(history, weekStart) : null;
+  const checkIn = weekStart ? weeklyCheckIn(history, weekStart, { target: weighIns }) : null;
 
   const dePeso = groupByWeek(photos, startDate).find((g) => g.week === weekNumber);
 

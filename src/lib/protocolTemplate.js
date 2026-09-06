@@ -28,6 +28,7 @@ import {
   checkinMode,
   clientProtocol,
   defaultProtocol,
+  weighInsTarget,
 } from '@/domain/protocol';
 import { clientIntake } from '@/domain/intake';
 import { coachIntakeForm } from '@/domain/intakeForm';
@@ -100,10 +101,11 @@ const LISTAS = ['modules', 'questions', 'checkinQuestions'];
 export const matchesTemplate = (template, protocol) =>
   LISTAS.every((k) => (template[k] || []).join() === (protocol[k] || []).join()) &&
   JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
-  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id));
+  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id)) &&
+  weighInsTarget(template) === weighInsTarget(protocol);
 
 /** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
-export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin'];
+export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'weighIns'];
 
 /**
  * Lo que está en el protocolo y NO se compara con la plantilla, con su motivo.

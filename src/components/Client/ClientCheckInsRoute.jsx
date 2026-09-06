@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { currentCheckInPeriod } from '@/domain/calendar';
@@ -36,6 +37,7 @@ export const ClientCheckInsRoute = () => {
     anthropometry,
     nutrition,
     progressPhotos,
+    checkIns,
     addAnthropometryLog,
     removeAnthropometryLog,
     uploadProgressPhoto,
@@ -44,6 +46,8 @@ export const ClientCheckInsRoute = () => {
     retrySave,
   } = useApp();
 
+  const location = useLocation();
+  const navigate = useNavigate();
   const [asistente, setAsistente] = useState(false);
 
   const photos = useMemo(
@@ -70,6 +74,33 @@ export const ClientCheckInsRoute = () => {
      promedia los pesajes para proponer el peso, y tiene que ser la misma con la
      que se entrega: si no, propone el promedio de una y guarda el de otra. */
   const semanasDelPeriodo = periodo?.everyWeeks || 1;
+
+  /*
+    ══ Quien llega pidiendo hacer el check-in, lo empieza ══════════════════════
+
+    «Hacer mi check-in» —en sus fotos— y «Entregar mi revisión» —en su
+    calendario— traían aquí y no abrían nada: el cliente aterrizaba en la hoja de
+    la revisión, veía sus pesajes y daba por hecho que no le dejaba. El gesto
+    seguía existiendo, pero en OTRO botón de esta misma pantalla, y nadie le
+    decía que ese era el bueno.
+
+    Así que la intención viaja con la navegación (`state.abrirCheckIn`) y la
+    pantalla la cumple. Pero solo si la semana está por entregar: reabrir el
+    asistente con la semana ya entregada la REENVÍA, y una reentrega borra la
+    respuesta que el entrenador ya había escrito —ver `AnthropometryPanel`—.
+    Entregada, aquí se aterriza y punto, que es donde lo dice.
+  */
+  const entrega = checkIns?.[activeClient.id];
+  const porEntregar = !(entrega?.weekStart >= semana && (entrega.submittedAt || entrega.reviewedAt));
+
+  useEffect(() => {
+    if (!location.state?.abrirCheckIn) return;
+    /* La intención se consume al llegar: si se quedara en el historial, volver
+       atrás desde cualquier otra pantalla reabriría el asistente sin que nadie
+       lo haya pedido. */
+    navigate(location.pathname, { replace: true, state: null });
+    if (porEntregar) setAsistente(true);
+  }, [location.state, location.pathname, navigate, porEntregar]);
 
   return (
     <div className="stack">

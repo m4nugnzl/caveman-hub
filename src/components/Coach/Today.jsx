@@ -103,7 +103,11 @@ const resumenDe = (row) =>
   answersSummary(clientProtocol(row.client.preferences), row.review?.answers) ||
   row.headline?.text ||
   [
-    `${row.checkIn.count}/${row.checkIn.target} pesajes`,
+    /* La fracción solo si le pides un número de pesajes; si no, el recuento. Un
+       «2/3» contra una norma que nadie ha puesto se lee como incumplimiento. */
+    row.checkIn.asked
+      ? `${row.checkIn.count}/${row.checkIn.target} pesajes`
+      : `${row.checkIn.count} ${row.checkIn.count === 1 ? 'pesaje' : 'pesajes'}`,
     row.sinceTraining === null ? 'sin entrenos' : `entrenó hace ${row.sinceTraining} d`,
   ].join(' · ');
 
@@ -161,7 +165,7 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
                   aria-expanded={escribiendo === id}
                   onClick={() => setEscribiendo(escribiendo === id ? null : id)}
                 >
-                  <MessageSquare size={12} /> Contestar
+                  <MessageSquare size={13} /> Contestar
                 </button>
               </>
             )}
@@ -172,7 +176,7 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
                 title="Abrir WhatsApp con el recordatorio escrito"
                 onClick={() => recordarCheckIn(row.client)}
               >
-                <MessageCircle size={12} /> Recordar
+                <MessageCircle size={13} /> Recordar
               </button>
             )}
             <button type="button" className="btn btn-primary btn-sm" onClick={() => onOpen(id, 'semana')}>
@@ -232,7 +236,7 @@ const ColaTareas = ({ filas, seccion, onOpen, handlers }) => (
         <Persona key={row.client.id} row={row} sub={row.why} onOpen={() => onOpen(row.client.id, seccion)}>
           {accion && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={accion.onClick} title={accion.title}>
-              <accion.icon size={12} /> {accion.label}
+              <accion.icon size={13} /> {accion.label}
             </button>
           )}
           <ChevronRight size={15} className="chevron" aria-hidden="true" />
@@ -260,6 +264,15 @@ export const Today = () => {
   const { close } = useCloseReview();
   const [error, setError] = useState(null);
   const today = todayISO();
+
+  /*
+    ── Las colas se quedan AQUÍ, en las dos geometrías ────────────────────────
+    El puesto las desplegó un día en la barra lateral —cada persona con su
+    porqué— y con una cartera real era una columna de ruido; el dueño lo dijo
+    al verla. La barra volvió a su ley (navegar: una lista, un punto en quien
+    espera) y esta pantalla conserva el trabajo entero: las colas con sus
+    verbos y sus acciones. Cada pieza dice lo suyo una vez.
+  */
 
   const rows = useMemo(
     () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts }, today),
@@ -395,6 +408,60 @@ export const Today = () => {
     );
   }
 
+  /* La agenda de la semana, montada una vez y puesta donde su geometría manda:
+     en el móvil es el costado; con barra sube a columna principal, porque las
+     colas ya no están y la semana es lo primero que la mesa tiene que decir. */
+  const panelSemana = (
+    <Panel
+      title="Esta semana"
+      action={semana.total > 0 ? <span className="badge">{semana.total}</span> : null}
+      className="col gap-3"
+    >
+      {semana.total === 0 ? (
+        /* Sin caja punteada: enmarcaba la ausencia. El vacío dice lo que
+           hay y ofrece el gesto; la invitación es el contenido. */
+        <div className="vacio-invita">
+          <p>Nada apuntado hasta el domingo.</p>
+          <button type="button" className="cab-accion is-puerta" onClick={() => navigate('/calendario')}>
+            Apuntar algo
+          </button>
+        </div>
+      ) : (
+        <div className="agenda">
+          {semana.vencidos.length > 0 && (
+            <div className="agenda-dia is-vencido">
+              <span className="agenda-k">Se pasó</span>
+              {semana.vencidos.map((e) => (
+                <AgendaFila key={e.id} event={e} fecha onToggle={() => marcarEvento(e, true)} />
+              ))}
+            </div>
+          )}
+          {semana.dias.map((dia) => (
+            <div key={dia.date} className={`agenda-dia${dia.date === today ? ' is-hoy' : ''}`}>
+              <span className="agenda-k">{dia.label}</span>
+              {dia.eventos.map((e) => (
+                <AgendaFila key={e.id} event={e} onToggle={() => marcarEvento(e, !e.done)} />
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  );
+
+  /* El vacío glorioso: con la barra al lado, es la mesa quien lo dice. */
+  const panelAlDia = (
+    <Panel className="card-lumbre">
+      <div className="empty">
+        <span className="empty-icon">
+          <Sparkles size={26} />
+        </span>
+        <h3>Todo al día</h3>
+        <p>Nadie espera respuesta, todos tienen rutina y no hay cobros pendientes.</p>
+      </div>
+    </Panel>
+  );
+
   return (
     <div className="stack cascada">
       <PageHead
@@ -442,7 +509,7 @@ export const Today = () => {
       )}
       {vivas.length > 0 && fraseAlDia && (
         <p className="aldia-linea">
-          <Check size={14} aria-hidden="true" />
+          <Check size={15} aria-hidden="true" />
           {fraseAlDia[0].toUpperCase() + fraseAlDia.slice(1)}, al día.
         </p>
       )}
@@ -450,11 +517,23 @@ export const Today = () => {
       <div className="inicio">
         <section className="col gap-5">
           {abierta ? (
-            <Panel
-              title={abierta.label}
-              sub={abierta.id === 'revisar' ? 'Primero quien lleva más tiempo esperando' : abierta.sub}
-              className="col gap-3"
-            >
+            /*
+              ── Sin repetir el nombre de la cola ────────────────────────────
+              Llevaba `title={abierta.label}` y `sub={abierta.sub}`, y las dos
+              cosas están ya en la tarjeta que acabas de pulsar, a un dedo de
+              distancia: «Por revisar» arriba en grande y «Por revisar» otra vez
+              como rótulo de la caja de debajo. La tarjeta ES el título de esto
+              —es la pestaña, y esto su contenido—, así que aquí no hace falta
+              volver a decirlo.
+
+              Lo único que sobrevive es la nota de ORDEN, y solo en «por
+              revisar», porque es lo único que la tarjeta no dice: por qué está
+              esta persona la primera.
+            */
+            <Panel className="col gap-3">
+              {abierta.id === 'revisar' && (
+                <p className="panel-head-sub">Primero quien lleva más tiempo esperando</p>
+              )}
               {abierta.id === 'revisar' ? (
                 <ColaRevisar lista={abierta.lista} onOpen={open} onCerrar={cerrarRevision} />
               ) : (
@@ -462,15 +541,7 @@ export const Today = () => {
               )}
             </Panel>
           ) : (
-            <Panel className="card-lumbre">
-              <div className="empty">
-                <span className="empty-icon">
-                  <Sparkles size={26} />
-                </span>
-                <h3>Todo al día</h3>
-                <p>Nadie espera respuesta, todos tienen rutina y no hay cobros pendientes.</p>
-              </div>
-            </Panel>
+            panelAlDia
           )}
 
           {tramites.length > 0 && (
@@ -488,43 +559,9 @@ export const Today = () => {
           )}
         </section>
 
-        {/* ── La semana y lo que ha pasado ───────────────────────────────── */}
+        {/* ── El costado: la semana y lo que ha pasado ─────────────────────── */}
         <aside className="inicio-lado">
-          <Panel
-            title="Esta semana"
-            action={semana.total > 0 ? <span className="badge">{semana.total}</span> : null}
-            className="col gap-3"
-          >
-            {semana.total === 0 ? (
-              /* Sin caja punteada: enmarcaba la ausencia. El vacío dice lo que
-                 hay y ofrece el gesto; la invitación es el contenido. */
-              <div className="vacio-invita">
-                <p>Nada apuntado hasta el domingo.</p>
-                <button type="button" className="cab-accion is-puerta" onClick={() => navigate('/calendario')}>
-                  Apuntar algo
-                </button>
-              </div>
-            ) : (
-              <div className="agenda">
-                {semana.vencidos.length > 0 && (
-                  <div className="agenda-dia is-vencido">
-                    <span className="agenda-k">Se pasó</span>
-                    {semana.vencidos.map((e) => (
-                      <AgendaFila key={e.id} event={e} fecha onToggle={() => marcarEvento(e, true)} />
-                    ))}
-                  </div>
-                )}
-                {semana.dias.map((dia) => (
-                  <div key={dia.date} className={`agenda-dia${dia.date === today ? ' is-hoy' : ''}`}>
-                    <span className="agenda-k">{dia.label}</span>
-                    {dia.eventos.map((e) => (
-                      <AgendaFila key={e.id} event={e} onToggle={() => marcarEvento(e, !e.done)} />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel>
+          {panelSemana}
 
           <Panel title="Actividad" sub="Últimas dos semanas" className="col gap-3">
             {actividad.length === 0 ? (

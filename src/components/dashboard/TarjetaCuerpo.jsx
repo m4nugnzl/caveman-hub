@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 
 import { Delta } from '@/components/ui/metrics';
 import { ReviewChart } from '@/components/review/ReviewChart';
-import { Tarjeta } from './Tarjeta';
+import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
 /**
  * EL CUERPO — la curva del peso, y debajo lo que le fuiste poniendo.
@@ -37,6 +37,10 @@ export const TarjetaCuerpo = ({
   /* El archivo de sus fotos por semanas. Vivía en la revisión, y las fotos no
      son de una semana: son del cuerpo a lo largo del tiempo, que es esto. */
   aFotos = null,
+  /* Donde el COACH anota un pesaje (la revisión, con su alta de registros):
+     el destino del vacío con verbo. El portal no lo recibe — allí el pesaje
+     entra por el check-in y el vacío lo dice como texto. */
+  aPesaje = null,
 }) => {
   const weightPts = metricPoints(serie, 'weight');
 
@@ -66,9 +70,16 @@ export const TarjetaCuerpo = ({
           </span>
           <Delta value={pesoWow?.delta} unit=" kg" lowerIsBetter />
           {/* Cuántos pesajes lleva: dice si el promedio de esta semana es de
-              fiar, no cómo va nadie. Por eso va en voz baja. */}
+              fiar, no cómo va nadie. Por eso va en voz baja.
+
+              El «de 3» solo cuando su entrenador pide un número: contra una
+              norma que nadie ha puesto, la fracción no informa de nada — dice
+              que falta algo que no se ha pedido. Sin ella queda el recuento,
+              que es el dato. */}
           <span className="peso-meta">
-            {checkIn.count} de {checkIn.target} pesajes esta semana
+            {checkIn.asked
+              ? `${checkIn.count} de ${checkIn.target} pesajes esta semana`
+              : `${checkIn.count} ${checkIn.count === 1 ? 'pesaje' : 'pesajes'} esta semana`}
           </span>
         </div>
 
@@ -86,6 +97,20 @@ export const TarjetaCuerpo = ({
 
       {conAjustes ? (
         <ReviewChart weeks={track} ancho={ancho} soloLectura banda={banda} cambios={blockChanges(program)} />
+      ) : !isClient && weightPts.length === 0 ? (
+        /* El vacío con su verbo (Q-05): la curva empieza con el primer pesaje,
+           y anotarlo está a un clic — no en una frase gris que solo constata. */
+        <TarjetaVacia
+          accion={
+            aPesaje && (
+              <Link className="cab-accion is-puerta" to={aPesaje}>
+                Anota su primer pesaje
+              </Link>
+            )
+          }
+        >
+          Sin pesajes todavía. La curva empieza con el primero.
+        </TarjetaVacia>
       ) : (
         <BandChart
           labels={serie.map((row) => row.label)}
@@ -100,11 +125,7 @@ export const TarjetaCuerpo = ({
             },
           ]}
           height={180}
-          emptyMessage={
-            isClient
-              ? 'Apunta tu peso en el check-in y aquí verás la evolución.'
-              : 'Sin pesajes registrados todavía.'
-          }
+          emptyMessage="Apunta tu peso en el check-in y aquí verás la evolución."
         />
       )}
     </Tarjeta>

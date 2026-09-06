@@ -20,11 +20,22 @@ const history = ({ start = 80, perWeek = 0, weeks = 8, weekJitter = null }) => {
 
 const seriesOf = (h) => buildWeeklySeries({ microcycles: [], history: h, gender: 'Hombre' });
 
-const read = (h, goalDirection, today = '2026-07-27') =>
+/*
+  `weighIns` son los pesajes que el entrenador pide a la semana, y sin ellos la
+  lectura NO habla de pesajes (ver `weighInAdherence`). Las pruebas declaran los
+  tres de siempre para seguir midiendo lo que medían; que sin pedirlos calle
+  tiene su propia prueba.
+*/
+const read = (h, goalDirection, today = '2026-07-27', { weighIns = 3 } = {}) =>
   weeklyReading({
-    client: goalDirection
-      ? { preferences: { goal: { direction: goalDirection, ratePct: goalDirection === 'cut' ? 0.6 : 0.25 } } }
-      : { preferences: {} },
+    client: {
+      preferences: {
+        ...(goalDirection
+          ? { goal: { direction: goalDirection, ratePct: goalDirection === 'cut' ? 0.6 : 0.25 } }
+          : {}),
+        protocol: { weighIns },
+      },
+    },
     series: seriesOf(h),
     microcycles: [],
     history: h,
@@ -92,6 +103,13 @@ describe('weeklyReading', () => {
     const weighIns = findings.find((f) => f.id === 'weigh-ins');
     expect(weighIns).toBeDefined();
     expect(weighIns.tone).toBe('bad');
+  });
+
+  /* Su parte es la que le has pedido: «no se ha pesado esta semana» delante de
+     alguien a quien no le pides que se pese es un reproche sin norma detrás. */
+  it('sin pesajes pedidos en el protocolo, la lectura no habla de pesajes', () => {
+    const findings = read(history({ perWeek: -0.5, weeks: 5 }), 'cut', '2026-07-27', { weighIns: 0 });
+    expect(ids(findings)).not.toContain('weigh-ins');
   });
 
   it('con tres pesajes esta semana no se queja', () => {

@@ -4,6 +4,7 @@ import { Check, MessageSquareQuote, Send, Sunrise, SlidersHorizontal } from 'luc
 import { useApp } from '@/context/AppContext';
 import { weeklyCheckIn } from '@/domain/anthropometry';
 import { currentCheckInPeriod } from '@/domain/calendar';
+import { clientProtocol, weighInsTarget } from '@/domain/protocol';
 import { deliverableWeeks } from '@/domain/reviews';
 import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
@@ -82,9 +83,16 @@ export const ClientWeek = ({ client, onDeliver }) => {
     la PRIMERA semana del periodo. Si el cliente se había pesado solo en la
     segunda, entregaba con el contador lleno y el check-in se guardaba sin peso.
   */
+  /* Cuántos pesajes le pide SU entrenador. Sin número pedido no se cuenta nada:
+     ver `weighInsTarget` en `domain/protocol`. */
+  const objetivo = useMemo(
+    () => weighInsTarget(clientProtocol(client?.preferences)),
+    [client?.preferences]
+  );
+
   const resumen = useMemo(
-    () => weeklyCheckIn(history, desde, { weeks: cadaSemanas }),
-    [history, desde, cadaSemanas]
+    () => weeklyCheckIn(history, desde, { weeks: cadaSemanas, target: objetivo }),
+    [history, desde, cadaSemanas, objetivo]
   );
 
   const entrega = checkIns?.[client?.id];
@@ -150,7 +158,7 @@ export const ClientWeek = ({ client, onDeliver }) => {
         {deEstaSemana?.reviewedAt ? (
           <>
             <p className="t-sm">
-              <Check size={14} className="icon-inline" style={{ color: 'var(--positive)' }} />
+              <Check size={15} className="icon-inline" style={{ color: 'var(--positive)' }} />
               Tu entrenador ha revisado tu semana.
             </p>
 
@@ -159,7 +167,7 @@ export const ClientWeek = ({ client, onDeliver }) => {
             {deEstaSemana.coachNotes && (
               <div className="card-inset col gap-1">
                 <span className="t-2xs t-tertiary">
-                  <MessageSquareQuote size={11} className="icon-inline" />
+                  <MessageSquareQuote size={13} className="icon-inline" />
                   Lo que te dice
                 </span>
                 <p className="t-sm pre-wrap">{deEstaSemana.coachNotes}</p>
@@ -183,7 +191,7 @@ export const ClientWeek = ({ client, onDeliver }) => {
             {hayCambios && (
               <div className="card-inset col gap-2">
                 <span className="t-2xs t-tertiary">
-                  <SlidersHorizontal size={11} className="icon-inline" />
+                  <SlidersHorizontal size={13} className="icon-inline" />
                   Lo que te cambia esta semana
                 </span>
                 <PlanChanges changes={revisada.changes} structure={revisada.structure} />
@@ -196,9 +204,19 @@ export const ClientWeek = ({ client, onDeliver }) => {
           </p>
         ) : (
           <>
+            {/* El contador solo si su entrenador pide un número. Sin norma no hay
+                nada que llevar: «llevas 2 de 3» inventaba una cuenta atrás que
+                nadie había puesto, y el que se pesa a diario la veía cumplida el
+                miércoles. */}
             <p className="t-sm t-secondary">
-              Llevas <strong>{resumen.count}</strong> de {resumen.target} pesajes. Cuando lo tengas
-              todo, entrégala para que tu entrenador la revise.
+              {resumen.asked ? (
+                <>
+                  Llevas <strong>{resumen.count}</strong> de {resumen.target} pesajes. Cuando lo
+                  tengas todo, entrégala para que tu entrenador la revise.
+                </>
+              ) : (
+                'Cuando la tengas lista, entrégala para que tu entrenador la revise.'
+              )}
             </p>
 
             {/*
@@ -231,7 +249,7 @@ export const ClientWeek = ({ client, onDeliver }) => {
                 mismo peso que un «Cancelar» cualquiera. */}
             <div className="row gap-3 wrap">
               <button type="button" className="btn btn-primary btn-lg" onClick={onDeliver}>
-                <Send size={16} /> Entregar mi semana
+                <Send size={15} /> Entregar mi semana
               </button>
               <span className="t-xs t-tertiary">
                 {resumen.complete
@@ -265,7 +283,7 @@ export const ClientWeek = ({ client, onDeliver }) => {
                   disabled={enviando}
                   onClick={() => entregar(inicio)}
                 >
-                  <Send size={12} /> Semana del {shortDate(inicio)}
+                  <Send size={13} /> Semana del {shortDate(inicio)}
                 </button>
               ))}
             </div>

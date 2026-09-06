@@ -33,7 +33,7 @@ import { clientIntake, clientSteps, coachSteps, stepDone } from './intake';
 import { onboardingState } from './onboardingState';
 import { feeLabel, paymentState } from './billing';
 import { currentCheckInPeriod } from './calendar';
-import { clientProtocol, isServiceOn, requiredBlocks } from './protocol';
+import { clientProtocol, isServiceOn, requiredBlocks, weighInsTarget } from './protocol';
 import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
@@ -113,7 +113,10 @@ export const clientStatus = (
   const lastWeight = lastDate(history.map((h) => h.date));
   const lastPhoto = lastDate(photos.map((p) => p.date));
 
-  const checkIn = weeklyCheckIn(history, today);
+  /* El protocolo de esta persona, UNA vez: decide cuántos pesajes se le piden y
+     qué bloques son obligatorios, y las dos cosas se reclaman más abajo. */
+  const protocolo = clientProtocol(client.preferences);
+  const checkIn = weeklyCheckIn(history, today, { target: weighInsTarget(protocolo) });
   /* Qué ha entregado él, del mismo sitio que su portal y que su ficha: los tres
      no pueden discrepar sobre si el cuestionario está contestado. */
   const estadoDelAlta = onboardingState({ client, equipment: { length: equipmentCount }, checkIn: submitted });
@@ -211,8 +214,13 @@ export const clientStatus = (
 
     // El check-in solo se reclama a mitad de semana: el lunes por la mañana nadie
     // lo tiene hecho y avisar de eso sería ruido.
+    //
+    // Y solo si le has pedido pesajes: `asked`. Sin número pedido esta alerta
+    // decía «check-in a medias (1/3)» sobre una norma que no existía, y de ella
+    // cuelgan la columna «Check-in pendiente» y su cifra de cabecera — o sea que
+    // media cartera aparecía incumpliendo lo que nadie le había mandado.
     const dayOfWeek = daysBetween(weekStart(today), today);
-    if (!checkIn.complete && dayOfWeek !== null && dayOfWeek >= 3) {
+    if (checkIn.asked && !checkIn.complete && dayOfWeek !== null && dayOfWeek >= 3) {
       add('checkin_pending', checkIn.count === 0 ? 'media' : 'baja',
         checkIn.count === 0 ? 'Check-in sin empezar' : `Check-in a medias (${checkIn.count}/${checkIn.target})`,
         'Pesajes de esta semana.');
@@ -234,7 +242,7 @@ export const clientStatus = (
       se descuelga. Y se reclama con el mismo margen que el check-in —a mitad de
       semana— para no llenar la cartera cada lunes.
     */
-    const exigidos = requiredBlocks(clientProtocol(client.preferences));
+    const exigidos = requiredBlocks(protocolo);
     if (exigidos.length > 0 && dayOfWeek !== null && dayOfWeek >= 3) {
       const deLaSemana = history.filter((h) => h.date && weekStart(h.date) === checkIn.weekStart);
       const faltan = exigidos.filter(
@@ -368,7 +376,11 @@ export const clientStatus = (
         exact: false,
         submittedAt: null,
         reviewedAt: null,
-        pending: checkIn.complete && hasWeekPhoto,
+        /* La aproximación de «ha hecho su parte» necesita una vara: sin pesajes
+           pedidos, `complete` es cierto siempre y esto daría por entregada la
+           semana de cualquiera que hubiera subido una foto. Sin norma no se
+           aproxima nada. */
+        pending: checkIn.asked && checkIn.complete && hasWeekPhoto,
         id: null,
         answers: null,
       };
@@ -675,6 +687,9 @@ const esCobro = (row) => row.alerts.some((a) => COBRO_ALERTS.has(a.id));
 export const columnFor = (row) => {
   if (row.review?.pending) return 'to_review';
   if (row.alerts.some((a) => RISK_ALERTS.has(a.id))) return 'at_risk';
+  /* A quien no le pides pesajes nunca le falta ninguno: `complete` es cierto
+     siempre sin objetivo pedido (ver `weeklyCheckIn`), así que esta columna
+     recoge solo a los que incumplen algo que su entrenador SÍ ha puesto. */
   if (!row.checkIn.complete) return 'checkin';
   return 'on_track';
 };

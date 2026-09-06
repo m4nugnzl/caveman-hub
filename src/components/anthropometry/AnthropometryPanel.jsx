@@ -16,6 +16,7 @@ import {
 import { shortDate } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { metricColor } from '@/domain/metrics';
+import { clientProtocol, weighInsTarget } from '@/domain/protocol';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 import { MetricCard, MetricRow } from '@/components/ui/metrics';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -91,6 +92,11 @@ export const AnthropometryPanel = ({
   const setAsistente = controlado ? onOpenChange : setPropio;
 
   const isClient = audience === 'client';
+
+  const objetivoDePesajes = useMemo(
+    () => weighInsTarget(clientProtocol(client?.preferences)),
+    [client?.preferences]
+  );
 
   const weights = useMemo(() => weightSeries(history), [history]);
   const weekly = useMemo(() => weeklyWeightAverages(history), [history]);
@@ -176,6 +182,9 @@ export const AnthropometryPanel = ({
       <WeeklyCheckIn
         history={history}
         audience={audience}
+        /* Cuántos pesajes pide su entrenador. Sin número, la semana no se juzga:
+           ver `weighInsTarget` en `domain/protocol`. */
+        target={objetivoDePesajes}
         onAddWeight={onAdd}
         onRemoveEntry={onRemove}
         /*
@@ -207,7 +216,7 @@ export const AnthropometryPanel = ({
         action={
           isClient ? null : (
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setAsistente(true)}>
-              <Camera size={14} /> Nueva revisión
+              <Camera size={15} /> Nueva revisión
             </button>
           )
         }
@@ -281,7 +290,7 @@ export const AnthropometryPanel = ({
                           onClick={() => askRemove(log)}
                           aria-label={`Eliminar el registro del ${log.date}`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={15} />
                         </button>
                       </td>
                     </tr>

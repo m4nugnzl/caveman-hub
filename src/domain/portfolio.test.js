@@ -23,6 +23,41 @@ const client = (over = {}) => ({
   ...over,
 });
 
+/*
+  ══ El check-in se reclama contra lo que el entrenador PIDE ══════════════════
+
+  El objetivo eran tres pesajes escritos en `weeklyCheckIn`, así que «check-in a
+  medias (1/3)» le salía a media cartera por incumplir un número que nadie había
+  puesto. De esta alerta cuelgan además la columna «Check-in pendiente» y su
+  cifra de cabecera.
+*/
+describe('el check-in a medias necesita un número pedido', () => {
+  const jueves = '2026-08-13'; // a mitad de semana, que es cuando se reclama
+  const pesajes = [{ id: 'a1', date: '2026-08-10', weight: 80 }];
+
+  const estadoCon = (weighIns) =>
+    clientStatus(
+      {
+        client: client({ preferences: { protocol: { weighIns } } }),
+        anthro: { history: pesajes },
+      },
+      jueves
+    );
+
+  it('sin pesajes pedidos, no lo reclama', () => {
+    const row = estadoCon(0);
+    expect(row.alerts.map((a) => a.id)).not.toContain('checkin_pending');
+    /* Y por tanto tampoco cae en la columna de check-in pendiente. */
+    expect(row.checkIn.asked).toBe(false);
+  });
+
+  it('con tres pedidos y uno hecho, sí', () => {
+    const alerta = estadoCon(3).alerts.find((a) => a.id === 'checkin_pending');
+    expect(alerta).toBeDefined();
+    expect(alerta.label).toContain('1/3');
+  });
+});
+
 describe('clientStatus', () => {
   it('avisa cuando el cliente no tiene cuenta enlazada', () => {
     /*

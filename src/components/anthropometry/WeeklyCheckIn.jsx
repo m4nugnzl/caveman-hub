@@ -42,11 +42,27 @@ const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
  * Las fotos y los perímetros van juntos, detrás de «Subir mi revisión», que es
  * como se llama de verdad lo que se hace ahí.
  */
-export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 'client', action = null }) => {
+/**
+ * @param target  Pesajes que pide el entrenador a la semana, de su protocolo.
+ *   `0` —el valor de serie— es «no los pide»: entonces esta tarjeta cuenta los
+ *   que hay y no dice que falte ninguno. Lo pasa `AnthropometryPanel`, que es
+ *   quien tiene al cliente y por tanto su protocolo.
+ */
+export const WeeklyCheckIn = ({
+  history,
+  onAddWeight,
+  onRemoveEntry,
+  audience = 'client',
+  action = null,
+  target = 0,
+}) => {
   const [reference, setReference] = useState(() => weekStart(todayISO()));
   const [drafts, setDrafts] = useState({});
 
-  const checkIn = useMemo(() => weeklyCheckIn(history, reference), [history, reference]);
+  const checkIn = useMemo(
+    () => weeklyCheckIn(history, reference, { target }),
+    [history, reference, target]
+  );
   const tendencia = useMemo(() => weeklyWeightAverages(history), [history]);
   const days = useMemo(() => weekDates(checkIn.weekStart), [checkIn.weekStart]);
 
@@ -136,7 +152,7 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
                     onClick={() => onRemoveEntry(entry.id)}
                     aria-label={`Borrar el pesaje del ${date}`}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               ) : (
@@ -226,13 +242,17 @@ export const WeeklyCheckIn = ({ history, onAddWeight, onRemoveEntry, audience = 
             <span className="metric-unit">kg</span>
             <Delta value={checkIn.delta} unit=" kg" lowerIsBetter />
           </div>
+          {/* «Media fiable» y «con dos más» son juicios, y sin un número pedido
+              no hay con qué juzgar: queda el recuento, que es el hecho. */}
           <span className="metric-foot">
             {checkIn.count === 0
               ? 'Sin pesajes esta semana.'
               : `${checkIn.count} ${checkIn.count === 1 ? 'pesaje' : 'pesajes'}` +
-                (checkIn.complete
-                  ? ' · media fiable'
-                  : ` · con ${checkIn.target - checkIn.count} más la media es más fiable`)}
+                (!checkIn.asked
+                  ? ''
+                  : checkIn.complete
+                    ? ' · media fiable'
+                    : ` · con ${checkIn.target - checkIn.count} más la media es más fiable`)}
           </span>
         </div>
 

@@ -286,11 +286,25 @@ export const weekEntries = (history, date, weeks = 1) => {
  * Estado del check-in de una semana: qué días se ha pesado, cuál es el promedio
  * y cuánto ha cambiado respecto a la semana anterior.
  *
- * `target` son los días de pesaje recomendados (3 alternos por defecto). No es
- * un requisito: con dos ya se promedia, y el aviso solo informa de cuántos
- * faltan para tener una media fiable.
+ * `target` son los pesajes que el ENTRENADOR pide a la semana, y sale de su
+ * protocolo (`weighInsTarget`). No es un requisito que bloquee nada: informa de
+ * cuántos faltan para que la media de la semana sea fiable.
+ *
+ * ══ Por qué por defecto es 0 y no 3 ═════════════════════════════════════════
+ *
+ * Eran 3, escritos aquí, y esa cifra se convirtió en la norma de ocho pantallas
+ * sin que ningún entrenador la hubiera puesto: al cliente le salía «te faltan 2
+ * pesajes» y a su entrenador «check-in a medias» por incumplir algo que nadie le
+ * había pedido. Ahora la norma la pone el protocolo y esta función solo la
+ * aplica.
+ *
+ * El 0 es «no se piden», no «se piden cero»: `asked` lo dice en claro para que
+ * ninguna pantalla tenga que interpretar un número. Y es el respaldo a
+ * propósito: quien llame sin pasar objetivo obtiene silencio, que es el único
+ * fallo inofensivo de los dos —reclamar de más es ruido en la cara del cliente;
+ * reclamar de menos, como mucho, es no decir nada.
  */
-export const weeklyCheckIn = (history, date, { target = 3, weeks = 1 } = {}) => {
+export const weeklyCheckIn = (history, date, { target = 0, weeks = 1 } = {}) => {
   const entries = weekEntries(history, date, weeks);
   const values = entries.map((h) => toNum(h.weight));
   const average = values.length > 0 ? round(values.reduce((a, b) => a + b, 0) / values.length, 2) : null;
@@ -306,9 +320,14 @@ export const weeklyCheckIn = (history, date, { target = 3, weeks = 1 } = {}) => 
     /* El objetivo escala con el periodo: pedir tres pesajes en dos semanas sería
        pedir la mitad de los que hacen falta para que la media signifique algo. */
     target: target * Math.max(1, weeks),
+    /* Si hay algo que cumplir. Con `false`, ninguna pantalla habla de pesajes que
+       falten ni llama fiable a una media: no hay vara con la que medirla. */
+    asked: target > 0,
     average,
     previousAverage: previousWeek?.value ?? null,
     delta: average !== null && previousWeek ? round(average - previousWeek.value, 2) : null,
+    /* Sin objetivo pedido, `complete` no significa «lo ha hecho todo» sino que no
+       queda nada pendiente. Las pantallas miran `asked` antes de felicitar. */
     complete: values.length >= target * Math.max(1, weeks),
   };
 };

@@ -237,6 +237,44 @@ const CHECKIN_MODE_IDS = CHECKIN_MODES.map((m) => m.id);
  */
 export const defaultCheckin = () => ({ perimeters: 'optional', folds: 'optional' });
 
+// ── Cuántas veces se pesa ──────────────────────────────────────────────────
+
+/**
+ * Los pesajes que el entrenador le pide a la semana.
+ *
+ * ══ Por qué esto es una decisión suya y ya no del código ════════════════════
+ *
+ * Eran tres, escritos a mano en `weeklyCheckIn` y en `weighInAdherence`, y desde
+ * ahí salían en ocho pantallas: la tarea «te faltan 2 pesajes» del cliente, su
+ * «llevas 2 de 3», su tarjeta de cuerpo, la cola de Hoy, la revisión de la
+ * semana y las alertas de la cartera.
+ *
+ * O sea que la aplicación reclamaba el incumplimiento de una norma que **nadie
+ * había puesto**. El entrenador que pide un pesaje semanal veía a toda su
+ * cartera a medias; el que los pide a diario, a todo el mundo cumpliendo con
+ * tres. Y el cliente recibía deberes que su entrenador no le había mandado.
+ *
+ * Ahora el número lo pone quien lleva al cliente. Y `0` no es «cero pesajes»:
+ * es **no lo pido**, y entonces nadie —ni el cliente ni el entrenador— ve una
+ * sola frase sobre pesajes que falten. Es la misma regla que ya sostiene el
+ * cuestionario de la semana: lo que no está configurado no existe.
+ *
+ * ── Por qué el valor de serie es «no lo pido» ───────────────────────────────
+ * Porque el aviso lo dispara la norma, no al revés. Un producto que reclama por
+ * defecto obliga a apagar algo que nunca pediste; uno que calla por defecto solo
+ * habla cuando alguien ha decidido que hay algo que decir.
+ */
+export const WEIGH_INS_MAX = 7;
+
+export const defaultWeighIns = () => 0;
+
+/** Un entero de 0 a 7. Cualquier otra cosa —o nada— es «no lo pido». */
+const sanitizeWeighIns = (raw) => {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(WEIGH_INS_MAX, Math.round(n));
+};
+
 // ── El catálogo de preguntas ───────────────────────────────────────────────
 
 /**
@@ -597,6 +635,8 @@ export const defaultProtocol = () => ({
   checkinQuestions: [],
   custom: [],
   checkin: defaultCheckin(),
+  /* Nadie los pide hasta que alguien los pida. Ver `WEIGH_INS_MAX`. */
+  weighIns: defaultWeighIns(),
 });
 
 // ── Saneado ────────────────────────────────────────────────────────────────
@@ -689,6 +729,9 @@ export const clientProtocol = (preferences) => {
     checkinQuestions: dedupe(raw.checkinQuestions, deCheckin, []),
     custom,
     checkin,
+    /* Como el cuestionario: «no configurado» y «configurado a cero» significan lo
+       mismo —no lo pido—, así que los dos caen en el mismo sitio. */
+    weighIns: sanitizeWeighIns(raw.weighIns),
   };
 };
 
@@ -815,6 +858,24 @@ export const checkinBlocks = (protocol) =>
 export const requiredBlocks = (protocol) =>
   CHECKIN_BLOCKS.filter((b) => requiresBlock(protocol, b.id));
 
+/**
+ * Cuántos pesajes a la semana pide este protocolo. `0` es «no lo pido».
+ *
+ * Pasa por el saneado y no lee la clave a pelo para que valga igual con un
+ * protocolo ya sanado y con uno recién sacado de la columna.
+ */
+export const weighInsTarget = (protocol) => sanitizeWeighIns(protocol?.weighIns);
+
+/**
+ * ¿Se cuentan los pesajes de este cliente?
+ *
+ * Es la pregunta que tienen que hacerse TODAS las pantallas antes de decir que
+ * faltan pesajes, de pintar un «2 de 3» o de llamar fiable a una media. Sin
+ * número pedido no hay nada que reclamar: no es que el cliente vaya a cero, es
+ * que no se juzga.
+ */
+export const asksWeighIns = (protocol) => weighInsTarget(protocol) > 0;
+
 // ── Escritura ──────────────────────────────────────────────────────────────
 
 /** Cambia el estado de un bloque del check-in. Un estado que no existe no hace nada. */
@@ -826,6 +887,9 @@ export const setCheckinMode = (protocol, block, mode) => {
     checkin: { ...defaultCheckin(), ...protocol.checkin, [block]: mode },
   };
 };
+
+/** Cuántos pesajes se le piden a la semana. Fuera de 0–7, no hace nada. */
+export const setWeighIns = (protocol, n) => ({ ...protocol, weighIns: sanitizeWeighIns(n) });
 
 export const toggleModule = (protocol, id) => {
   const on = isModuleOn(protocol, id);
