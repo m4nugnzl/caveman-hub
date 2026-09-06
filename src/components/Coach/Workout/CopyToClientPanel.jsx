@@ -4,6 +4,7 @@ import { Copy, Layers, Salad, Waves } from 'lucide-react';
 import { unitLabelPlural } from '@/domain/training';
 import { Field, Notice, OptionCard, Panel } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 
 /**
  * Réplica de un cliente a otro.
@@ -17,6 +18,14 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
  * Ahora se elige **entrenamiento, dieta o las dos cosas**. Copiar SUSTITUYE lo
  * que el destino tuviera de esos bloques, así que la confirmación lo dice
  * explícitamente antes de tocar nada.
+ *
+ * ── El mismo panel, con un solo bloque ──────────────────────────────────────
+ * `bloques` dice qué se ofrece. Entreno lo abre con los tres; Dieta lo abre con
+ * `['diet']`, porque allí la pregunta no es «qué me llevo» sino «de quién»:
+ * ofrecer desde la dieta sustituir doce semanas de programa sería abrir una
+ * puerta a otra sección. Con un solo bloque no hay nada que elegir —viene
+ * marcado y el selector no se pinta—, pero la confirmación, los tres finales y
+ * el aviso de qué se sustituye son exactamente los mismos.
  */
 export const CopyToClientPanel = ({
   clients,
@@ -27,10 +36,12 @@ export const CopyToClientPanel = ({
   hasDiet,
   hasWarmup,
   conNutricion = true,
+  bloques = ['training', 'warmup', 'diet'],
   onReplicate,
   onClose,
 }) => {
   const confirm = useConfirm();
+  const toast = useToast();
   const [sourceId, setSourceId] = useState('');
   /*
     ══ Nada viene marcado ═════════════════════════════════════════════════════
@@ -44,9 +55,12 @@ export const CopyToClientPanel = ({
     NACÍA BLOQUEADA. Para poder pulsarla había que descubrir primero que hay que
     desmarcar la de arriba, cosa que no dice nadie.
   */
-  const [training, setTraining] = useState(false);
-  const [warmup, setWarmup] = useState(false);
-  const [diet, setDiet] = useState(false);
+  /* …salvo cuando solo se ofrece un bloque: ahí no hay nada que armar —es ese
+     bloque o nada—, y la decisión que queda, de quién, sigue siendo explícita. */
+  const soloUno = bloques.length === 1;
+  const [training, setTraining] = useState(soloUno && bloques[0] === 'training');
+  const [warmup, setWarmup] = useState(soloUno && bloques[0] === 'warmup');
+  const [diet, setDiet] = useState(soloUno && bloques[0] === 'diet' && conNutricion);
   const [result, setResult] = useState(null);
 
   const others = clients.filter((c) => c.id !== activeClient.id);
@@ -109,11 +123,26 @@ export const CopyToClientPanel = ({
       return;
     }
 
-    setResult(
-      copied.length > 0
-        ? { tone: 'success', text: `Copiado de ${source.name}: ${copied.join(' y ')}.` }
-        : { tone: 'warn', text: `${source.name} no tiene datos en los bloques seleccionados.` }
-    );
+    /*
+      ── Salió bien: el panel se CIERRA ────────────────────────────────────
+      Copiar es un encargo, no una sesión de trabajo: se elige de quién, se
+      copia y se acabó. El panel se quedaba abierto con su aviso verde encima
+      del menú que se acababa de traer, así que había que leerlo, entenderlo y
+      cerrarlo a mano para ver el resultado — y hasta entonces tapaba justo lo
+      que confirmaba. Lo que se hizo se dice en el aviso efímero, que es lo que
+      esta casa usa para «ya está», y la pantalla se queda en lo copiado.
+
+      Los otros dos finales SÍ se quedan: un fallo se reintenta desde aquí y un
+      cliente sin datos pide elegir otro. Cerrar en esos casos sería esconder la
+      única pieza donde continuar.
+    */
+    if (copied.length > 0) {
+      toast({ text: `Copiado de ${source.name}: ${copied.join(' y ')}.` });
+      onClose();
+      return;
+    }
+
+    setResult({ tone: 'warn', text: `${source.name} no tiene datos en los bloques seleccionados.` });
   };
 
   if (others.length === 0) {
@@ -162,9 +191,15 @@ export const CopyToClientPanel = ({
           Ahora cada una es una tarjeta con su icono, su nombre y qué se lleva
           exactamente. La consecuencia se lee antes de marcarla, no después en el
           diálogo de confirmación.
+
+          Con un solo bloque ofrecido no se pinta: elegir entre una cosa no es
+          elegir, y una tarjeta marcada que no se puede desmarcar solo estorba a
+          la única pregunta que queda —de quién—.
         */}
+        {!soloUno && (
         <Field label="Qué se copia">
           <div className="opt-group">
+            {bloques.includes('training') && (
             <OptionCard
               icon={Layers}
               label="Entrenamiento"
@@ -172,6 +207,7 @@ export const CopyToClientPanel = ({
               checked={training}
               onChange={setTraining}
             />
+            )}
             {/*
               ══ El calentamiento, suelto y SIEMPRE pulsable ══════════════════
 
@@ -185,6 +221,7 @@ export const CopyToClientPanel = ({
               serie—, así que en la práctica no se podía pulsar nunca. La
               redundancia se DICE, que es lo que hacía falta; no se prohíbe.
             */}
+            {bloques.includes('warmup') && (
             <OptionCard
               icon={Waves}
               label="Calentamiento y movilidad"
@@ -196,12 +233,13 @@ export const CopyToClientPanel = ({
               checked={warmup || training}
               onChange={setWarmup}
             />
+            )}
             {/*
               La dieta solo se ofrece si a esta persona se la llevas. Copiarle un
               plan nutricional a un cliente de solo entrenamiento lo dejaría
               guardado en una sección que ni él ni tú podéis abrir.
             */}
-            {conNutricion && (
+            {conNutricion && bloques.includes('diet') && (
               <OptionCard
                 icon={Salad}
                 label="Dieta"
@@ -212,6 +250,7 @@ export const CopyToClientPanel = ({
             )}
           </div>
         </Field>
+        )}
 
         <div className="row gap-2">
           <button
@@ -228,10 +267,20 @@ export const CopyToClientPanel = ({
         </div>
       </div>
 
-      <p className="t-xs t-tertiary">
-        No se copian las sesiones registradas: son el registro de lo que ejecutó otra persona y no tienen
-        sentido en esta ficha.
-      </p>
+      {/* Qué NO se lleva, dicho antes de pulsar. Lo del registro solo se nombra
+          si el entrenamiento está sobre la mesa; con la dieta sola, lo que hay
+          que decir es qué viaja, porque el selector que lo decía no se pinta. */}
+      {bloques.includes('training') ? (
+        <p className="t-xs t-tertiary">
+          No se copian las sesiones registradas: son el registro de lo que ejecutó otra persona y no tienen
+          sentido en esta ficha.
+        </p>
+      ) : soloUno && bloques[0] === 'diet' ? (
+        <p className="t-xs t-tertiary">
+          Se trae su objetivo, sus macros, el menú entero con sus alternativas y sus pautas. Lo que el
+          cliente haya registrado no se toca.
+        </p>
+      ) : null}
     </Panel>
   );
 };

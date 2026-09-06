@@ -61,7 +61,7 @@ export const IntakePrompt = ({ client }) => {
     */
     <Panel className="intake-start col gap-3">
       <span className="section-label">
-        <ClipboardList size={12} className="icon-inline" /> Para poder empezar
+        <ClipboardList size={13} className="icon-inline" /> Para poder empezar
       </span>
 
       <div className="row between wrap gap-3">
@@ -84,7 +84,7 @@ export const IntakePrompt = ({ client }) => {
         </div>
 
         <Link className="btn btn-primary" to="/mi/alta">
-          {hechas > 0 ? 'Seguir' : 'Empezar'} <ChevronRight size={16} />
+          {hechas > 0 ? 'Seguir' : 'Empezar'} <ChevronRight size={15} />
         </Link>
       </div>
 

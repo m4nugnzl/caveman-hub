@@ -197,10 +197,10 @@ const Fila = ({ condition, onResolve, onRemove }) => (
         title="Darlo por resuelto"
         onClick={onResolve}
       >
-        <Check size={14} /> Resuelto
+        <Check size={15} /> Resuelto
       </button>
       <button type="button" className="btn btn-plain btn-sm" title="Borrarlo" onClick={onRemove}>
-        <Trash2 size={14} />
+        <Trash2 size={15} />
       </button>
     </div>
   </div>

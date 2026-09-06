@@ -472,7 +472,7 @@ export const ProtocolPanel = () => {
             */
             client && (
               <button type="button" className="btn btn-secondary btn-sm" onClick={verSuAlta}>
-                <Eye size={14} /> Ver su alta
+                <Eye size={15} /> Ver su alta
               </button>
             )
           }

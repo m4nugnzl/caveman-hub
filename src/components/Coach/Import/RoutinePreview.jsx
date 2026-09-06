@@ -127,7 +127,7 @@ export const RoutinePreview = ({ days, onRenameDay, onRemoveDay, onChangeExercis
             onClick={() => onRemoveDay(di)}
             title={`Quitar «${dia.name}» de lo que se va a crear`}
           >
-            <Trash2 size={14} /> Quitar día
+            <Trash2 size={15} /> Quitar día
           </button>
         </div>
 

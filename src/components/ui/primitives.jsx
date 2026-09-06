@@ -296,7 +296,7 @@ export const Fold = ({
 export const SectionTitle = ({ icon: Icon, color, children, action }) => (
   <div className="section-title-row row between wrap gap-2">
     <h3 className="section-title" style={color ? { color } : undefined}>
-      {Icon && <Icon size={17} />}
+      {Icon && <Icon size={15} />}
       {children}
     </h3>
     {action}
@@ -328,7 +328,7 @@ export const Notice = ({ tone = 'info', children, action }) => {
   const Icon = NOTICE_ICONS[tone] || Info;
   return (
     <div className={`notice notice-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
-      <Icon size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+      <Icon size={15} style={{ flexShrink: 0, marginTop: 1 }} />
       <span className="grow">{children}</span>
       {action}
     </div>
@@ -556,7 +556,7 @@ export const OptionCard = ({
     </span>
     <span className="body">
       <span className="nm">
-        {Icon && <Icon size={14} />}
+        {Icon && <Icon size={15} />}
         {label}
       </span>
       {hint && <span className="hint">{hint}</span>}
@@ -911,11 +911,11 @@ export const BotonAccion = ({
       aria-hidden="true"
     >
       {estado === 'ocupado' ? (
-        <Loader2 size={14} className="spin" />
+        <Loader2 size={15} className="spin" />
       ) : estado === 'hecho' ? (
-        <Check size={14} />
+        <Check size={15} />
       ) : Icon ? (
-        <Icon size={14} />
+        <Icon size={15} />
       ) : null}
     </span>
   );

@@ -235,7 +235,7 @@ export const SetCell = ({
             aria-label={`Quitar ${label}`}
             title="Quitar serie"
           >
-            <X size={12} />
+            <X size={13} />
           </button>
         )}
       </div>

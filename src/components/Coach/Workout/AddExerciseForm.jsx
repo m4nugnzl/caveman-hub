@@ -58,7 +58,7 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = f
   if (!open) {
     return (
       <button type="button" className="btn btn-secondary btn-block btn-lg" onClick={() => setOpen(true)}>
-        <Plus size={18} /> Nuevo ejercicio
+        <Plus size={20} /> Nuevo ejercicio
       </button>
     );
   }

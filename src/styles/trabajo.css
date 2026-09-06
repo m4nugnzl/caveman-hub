@@ -1128,7 +1128,7 @@
    la «g» cae en la misma vertical se pueda pulsar o no. */
 .cantidad > .ud {
   position: absolute; right: 6px;
-  padding: 2px 6px; border: 0; border-radius: 5px;
+  padding: 2px 6px; border: 0; border-radius: var(--r-xs);
   font-family: inherit; font-size: var(--fs-2xs); font-weight: 700;
   background: var(--fill); color: var(--text-secondary); cursor: pointer;
   transition: background-color var(--fast), color var(--fast);

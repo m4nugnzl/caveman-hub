@@ -157,7 +157,7 @@ export const QuestionEditor = ({
                 onClick={() => onSave(toggleQuestion(protocol, question.id, list))}
                 title={question.hint}
               >
-                <Plus size={12} /> {question.label}
+                <Plus size={13} /> {question.label}
               </button>
             ))}
           </div>

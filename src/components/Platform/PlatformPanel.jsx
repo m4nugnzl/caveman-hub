@@ -154,7 +154,7 @@ const Veredicto = ({ diagnosticos = [], resumen = { atender: 0, vigilar: 0 }, on
           return (
             <li key={d.titulo} className="list-row">
               <span className={`badge badge-${g.tono}`}>
-                <Icono size={12} />
+                <Icono size={13} />
                 {g.label}
               </span>
 
@@ -219,7 +219,7 @@ const Veredicto = ({ diagnosticos = [], resumen = { atender: 0, vigilar: 0 }, on
                   aria-label={`Ver el detalle: ${d.titulo}`}
                 >
                   Ver
-                  <ChevronRight size={14} />
+                  <ChevronRight size={15} />
                 </button>
               )}
             </li>
@@ -1614,7 +1614,7 @@ export const PlatformPanel = () => {
               className="btn btn-primary btn-lg"
               onClick={() => pedir({ dias })}
             >
-              <Play size={17} /> Generar informe
+              <Play size={15} /> Generar informe
             </button>
           }
         />

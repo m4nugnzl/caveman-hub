@@ -140,7 +140,7 @@ export const ClientCalendarFeed = ({ client }) => {
         aria-expanded={abierto}
         onClick={() => setAbierto((v) => !v)}
       >
-        <CalendarPlus size={16} aria-hidden="true" />
+        <CalendarPlus size={15} aria-hidden="true" />
         Mi calendario
       </button>
 
@@ -172,7 +172,7 @@ export const ClientCalendarFeed = ({ client }) => {
                 />
                 <div className="row gap-2 wrap">
                   <button type="button" className="btn btn-primary btn-sm" onClick={copiar}>
-                    {copiado ? <Check size={14} /> : <Copy size={14} />}
+                    {copiado ? <Check size={15} /> : <Copy size={15} />}
                     {copiado ? 'Copiado' : 'Copiar enlace'}
                   </button>
                   <button
@@ -181,7 +181,7 @@ export const ClientCalendarFeed = ({ client }) => {
                     onClick={rotar}
                     disabled={ocupado}
                   >
-                    <RefreshCw size={14} /> Generar otro
+                    <RefreshCw size={15} /> Generar otro
                   </button>
                   <button
                     type="button"
@@ -189,7 +189,7 @@ export const ClientCalendarFeed = ({ client }) => {
                     onClick={revocar}
                     disabled={ocupado}
                   >
-                    <X size={14} /> Dejar de compartir
+                    <X size={15} /> Dejar de compartir
                   </button>
                 </div>
               </div>

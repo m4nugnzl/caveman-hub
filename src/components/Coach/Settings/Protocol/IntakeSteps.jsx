@@ -65,7 +65,7 @@ const StepRow = ({ step, propio, bloqueado, onSwap, onRemove }) => (
           title="Este se marca solo cuando él lo entrega, así que es suyo siempre."
           aria-hidden="true"
         >
-          <Lock size={14} />
+          <Lock size={15} />
         </span>
       ) : (
         <button
@@ -166,7 +166,7 @@ export const IntakeSteps = ({ intake, onChange }) => {
                 )
               }
             >
-              <Plus size={14} /> Pedírselo
+              <Plus size={15} /> Pedírselo
             </button>
           }
         >
@@ -229,7 +229,7 @@ export const IntakeSteps = ({ intake, onChange }) => {
                 title={step.hint}
                 onClick={() => onChange(toggleStep(intake, step.id))}
               >
-                <Plus size={12} /> {step.label}
+                <Plus size={13} /> {step.label}
               </button>
             ))}
           </div>

@@ -112,6 +112,27 @@ const DATA_COLOR_ALLOWED = [
   'components/Coach/ClientSwitcher.jsx',
 ];
 
+/**
+ * ══ LA ESCALA DE ICONOS ═════════════════════════════════════════════════════
+ *
+ * Había VEINTE tamaños distintos en 485 usos: 14, 15, 13, 12, 11, 16, 17, 26,
+ * 22, 18, 34, 30, 20, 19, 24, 10, 40, 54, 76 y 86. Los cuatro primeros
+ * juntaban el 76 %, o sea que los otros dieciséis eran ruido: un 12 y un 13 a
+ * quince píxeles de distancia no son dos decisiones, son dos días distintos.
+ *
+ * El cromo del producto usa TRES, y cada uno tiene un trabajo:
+ *
+ *   13 — el signo menudo: dentro de una chapa, de un rótulo, de una fila densa.
+ *   15 — el de siempre: botones, filas, pestañas, barra.
+ *   20 — el grande: cabeceras de pieza y puertas de tamaño completo.
+ *
+ * Lo que no es cromo son FIGURAS —el icono de un vacío, la marca de una
+ * integración, el sello de una página legal— y esas viven en `FIGURAS`: no
+ * están en una escala porque no comparten línea con nada.
+ */
+const ICONOS_CROMO = [13, 15, 20];
+const FIGURAS = [18, 22, 24, 26, 30, 34, 40, 54, 76, 86];
+
 const walk = (dir) =>
   readdirSync(dir).flatMap((name) => {
     const full = join(dir, name);
@@ -130,6 +151,7 @@ const badClasses = [];
 const badTokens = [];
 const colorLiterals = [];
 const dataAsChrome = [];
+const iconSizes = [];
 
 /*
   Los tokens que usa el propio CSS. Un `var(--noExiste)` sin fallback invalida la
@@ -170,6 +192,12 @@ for (const file of code) {
     }
   }
 
+  /* La escala de iconos. Ver `ICONOS_CROMO`. */
+  for (const match of text.matchAll(/\bsize=\{(\d+)\}/g)) {
+    const n = Number(match[1]);
+    if (!ICONOS_CROMO.includes(n) && !FIGURAS.includes(n)) iconSizes.push(`${rel} → size={${n}}`);
+  }
+
   if (!COLOR_EXCEPTIONS.includes(rel)) {
     for (const match of text.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)/g)) {
       colorLiterals.push(`${rel} → ${match[0]}`);
@@ -188,6 +216,7 @@ const report = (label, list, fatal) => {
 const classErrors = report('clases sin definir', badClasses, true);
 const tokenErrors = report('tokens sin definir', badTokens, true);
 const chromeErrors = report('paleta de datos usada como cromo', dataAsChrome, true);
+const iconErrors = report('iconos fuera de la escala 13/15/20', iconSizes, true);
 report('literales de color fuera de las excepciones', colorLiterals, false);
 
-process.exit(classErrors + tokenErrors + chromeErrors > 0 ? 1 : 0);
+process.exit(classErrors + tokenErrors + chromeErrors + iconErrors > 0 ? 1 : 0);

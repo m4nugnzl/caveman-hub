@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 
 import { activeQuestions, checkinQuestions } from '@/domain/protocol';
 import { feedbackAdherence, lastFeedback } from '@/domain/readiness';
 import { answerTrend } from '@/domain/reviews';
 import { shortDate } from '@/lib/dates';
+import { SETTINGS_HOME } from '@/routes';
 import { Subjetivo } from '@/components/ui/Subjetivo';
 import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
@@ -18,8 +20,23 @@ import { Tarjeta, TarjetaVacia } from './Tarjeta';
  *
  * Las barras son `ui/Subjetivo`, las mismas del panel de la semana y de la hoja
  * de Entreno: lo subjetivo se dibuja igual en todo el producto.
+ *
+ * ── Y cada fila es una PUERTA a su tendencia (tanda 2, 6 sep) ───────────────
+ * «¿El sueño lleva tres semanas cayendo?» no se contesta con el último valor.
+ * Las curvas YA existen —las del check-in en el «a fondo» del cuerpo («Lo que
+ * cuenta cada semana») y las de sesión en el del entreno—, así que la fila no
+ * estrena ventana: lleva a la que hay. Una tendencia por pregunta en ventana
+ * propia sería duplicar lo que esas dos ya dibujan.
  */
-export const TarjetaSensaciones = ({ checkIns, microcycles, protocol, span = 4, isClient = false }) => {
+export const TarjetaSensaciones = ({
+  checkIns,
+  microcycles,
+  protocol,
+  span = 4,
+  isClient = false,
+  onAbrirCuerpo = null,
+  onAbrirEntreno = null,
+}) => {
   const preguntasSemana = useMemo(() => checkinQuestions(protocol), [protocol]);
   const escalas = useMemo(
     () => answerTrend({ checkIns, questions: preguntasSemana, weeks: 52 }),
@@ -45,9 +62,23 @@ export const TarjetaSensaciones = ({ checkIns, microcycles, protocol, span = 4, 
   return (
     <Tarjeta rotulo={isClient ? 'Cómo lo llevas' : 'Cómo lo lleva'} span={span} vacia={sinNada}>
       {sinNada ? (
-        <TarjetaVacia>
+        <TarjetaVacia
+          /* El vacío con su verbo (Q-05): si no se le pregunta nada, el sitio
+             donde se arregla está a un clic, no en una frase. El otro vacío
+             —preguntas puestas y nadie contestando— no tiene verbo del coach:
+             contestar es del cliente. */
+          accion={
+            noPregunta && !isClient ? (
+              <Link className="cab-accion is-puerta" to={SETTINGS_HOME}>
+                Elegir sus preguntas
+              </Link>
+            ) : null
+          }
+        >
           {noPregunta
-            ? 'No se le pregunta nada. Se elige en Ajustes → Protocolo.'
+            ? isClient
+              ? 'Tu entrenador todavía no te pregunta nada al cerrar la semana.'
+              : 'No se le pregunta nada al cerrar la semana ni al entrenar.'
             : isClient
               ? 'Lo que contestes al cerrar la semana y al acabar de entrenar, aquí.'
               : 'Todavía no ha contestado ningún check-in ni ninguna sesión.'}
@@ -63,7 +94,7 @@ export const TarjetaSensaciones = ({ checkIns, microcycles, protocol, span = 4, 
               <h3 className="bloque-titulo">
                 Al cerrar la semana{cuando && <span className="cuando">{shortDate(cuando)}</span>}
               </h3>
-              <Subjetivo preguntas={preguntasSemana} answers={ultimas} />
+              <Subjetivo preguntas={preguntasSemana} answers={ultimas} onFila={onAbrirCuerpo} />
             </section>
           )}
           {ultima && ultima.values.length > 0 && (
@@ -76,7 +107,7 @@ export const TarjetaSensaciones = ({ checkIns, microcycles, protocol, span = 4, 
                   </span>
                 )}
               </h3>
-              <Subjetivo preguntas={preguntasSesion} answers={contestado} />
+              <Subjetivo preguntas={preguntasSesion} answers={contestado} onFila={onAbrirEntreno} />
               {respuestas && (
                 <p className="tarjeta-pie">
                   Contesta el {respuestas.pct} % de sus sesiones ({respuestas.answered} de {respuestas.sessions}).

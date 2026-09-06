@@ -51,7 +51,11 @@ export const NewClientForm = ({ onCreate, onCancel }) => {
             <input {...props} className="input" value={form.name} onChange={set('name')} required autoFocus />
           )}
         </Field>
-        <Field label="Email" className="grow">
+        <Field
+          label="Email"
+          className="grow"
+          hint="Para escribirle hoy. Cuando acepte su invitación, queda el de su cuenta."
+        >
           {(props) => (
             <input {...props} type="email" className="input" value={form.email} onChange={set('email')} />
           )}

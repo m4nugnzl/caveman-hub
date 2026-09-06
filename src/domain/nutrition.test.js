@@ -23,6 +23,7 @@ import {
   notesToStorage,
   optionMacros,
   rescaleMeals,
+  singleDietFrom,
   unitsLabel,
 } from './nutrition';
 
@@ -658,5 +659,71 @@ describe('reescalar el menú (rescaleMeals)', () => {
     /* Pedir un cuarto de las calorías no es un ajuste: la opción no se toca. */
     const res = rescaleMeals(comidas(), { fromKcals: 2500, toKcals: 300 });
     expect(res).toBeNull();
+  });
+});
+
+/*
+  ══ VOLVER A UNA SOLA DIETA ═════════════════════════════════════════════════
+
+  Lo que protege: que apagar «dos dietas» no deje al cliente con la pantalla en
+  blanco y dos menús guardados a los que ya no se llega. La variante elegida
+  PASA A SER la dieta, con su menú y —si es la de descanso— con su objetivo.
+*/
+describe('singleDietFrom', () => {
+  const comida = (name) => ({ id: `m-${name}`, name, note: '', target: null, options: [{ id: `o-${name}`, foods: [] }] });
+
+  const conDosDietas = () => ({
+    ...emptyNutrition(),
+    type: 'closed',
+    hasDayVariants: true,
+    targetKcals: 3000,
+    proteinGrams: 200,
+    carbsGrams: 350,
+    fatsGrams: 80,
+    restTargets: { targetKcals: 2400, proteinGrams: 200, carbsGrams: 200, fatsGrams: 80 },
+    closedMeals: [],
+    closedMealsTraining: [comida('Desayuno E'), comida('Cena E')],
+    closedMealsRest: [comida('Desayuno D')],
+  });
+
+  it('quedándose con la de entreno, su menú es la dieta y el objetivo no se mueve', () => {
+    const out = singleDietFrom(conDosDietas(), 'training');
+
+    expect(out.hasDayVariants).toBe(false);
+    expect(out.closedMeals.map((m) => m.name)).toEqual(['Desayuno E', 'Cena E']);
+    expect(out.targetKcals).toBe(3000);
+    expect(out.carbsGrams).toBe(350);
+  });
+
+  it('quedándose con la de descanso, sube también SU objetivo', () => {
+    const out = singleDietFrom(conDosDietas(), 'rest');
+
+    expect(out.closedMeals.map((m) => m.name)).toEqual(['Desayuno D']);
+    expect(out.targetKcals).toBe(2400);
+    expect(out.carbsGrams).toBe(200);
+    // El objetivo de descanso ya no tiene dónde vivir: es el del plan.
+    expect(out.restTargets).toBeNull();
+  });
+
+  it('las listas de variante se vacían: una sola dieta, una sola fuente', () => {
+    const out = singleDietFrom(conDosDietas(), 'training');
+
+    expect(out.closedMealsTraining).toEqual([]);
+    expect(out.closedMealsRest).toEqual([]);
+  });
+
+  it('el menú se copia, no se comparte: tocarlo después no toca al de la variante', () => {
+    const antes = conDosDietas();
+    const out = singleDietFrom(antes, 'training');
+
+    expect(out.closedMeals[0]).not.toBe(antes.closedMealsTraining[0]);
+    expect(out.closedMeals[0].id).not.toBe(antes.closedMealsTraining[0].id);
+  });
+
+  it('sin objetivo propio, el de descanso hereda el de entreno (targetsFor manda)', () => {
+    const plan = { ...conDosDietas(), restTargets: null };
+    const out = singleDietFrom(plan, 'rest');
+
+    expect(out.targetKcals).toBe(3000);
   });
 });

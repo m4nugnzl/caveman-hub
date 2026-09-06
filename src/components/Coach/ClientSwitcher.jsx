@@ -116,7 +116,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
           </span>
         </span>
         <ChevronDown
-          size={16}
+          size={15}
           style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform var(--fast)', flexShrink: 0 }}
         />
       </button>

@@ -323,7 +323,7 @@ export const DefinirBloque = ({ open, onClose, program, library = [], onAbrir, o
                         aria-label={`Quitar ${ex.name}`}
                         onClick={() => conEjercicios(hoja.dayName, (l) => l.filter((e) => e.id !== ex.id))}
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={13} />
                       </button>
                     </li>
                   ))}
@@ -349,7 +349,7 @@ export const DefinirBloque = ({ open, onClose, program, library = [], onAbrir, o
 
           {nuevaHoja === null ? (
             <button type="button" className="definir-hoja is-nueva" onClick={() => setNuevaHoja('')}>
-              <Plus size={14} aria-hidden="true" /> hoja
+              <Plus size={15} aria-hidden="true" /> hoja
             </button>
           ) : (
             <form
@@ -403,7 +403,7 @@ export const DefinirBloque = ({ open, onClose, program, library = [], onAbrir, o
           </span>
           {onTraerFichero && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={onTraerFichero}>
-              <FileUp size={14} /> Traer de un fichero
+              <FileUp size={15} /> Traer de un fichero
             </button>
           )}
           <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 
 import { weekAdherence } from '@/domain/analytics';
 import { blockPlannedVolume, blocksOf, currentBlock, weekLabel, weeksOfBlock } from '@/domain/blocks';
@@ -34,7 +35,7 @@ const MAX_SEMANAS = 12;
  * La rutina por días, la carga ejercicio a ejercicio y lo que cuenta al acabar
  * cada sesión se abren en su ventana (`PanelEntreno`).
  */
-export const TarjetaEntreno = ({ program, microcycles, cycleType, latestWeek, isClient = false, onAbrir }) => {
+export const TarjetaEntreno = ({ program, microcycles, cycleType, latestWeek, isClient = false, onAbrir, aRutina = null }) => {
   const unit = unitLabel(cycleType);
   const bloque = useMemo(() => currentBlock(program), [program]);
   const bloques = useMemo(() => blocksOf(program), [program]);
@@ -101,8 +102,20 @@ export const TarjetaEntreno = ({ program, microcycles, cycleType, latestWeek, is
       }
     >
       {vacio ? (
-        <TarjetaVacia>
-          {isClient ? 'Cuando tengas rutina y sesiones anotadas, aquí verás cuánto mueves.' : 'Sin rutina montada ni sesiones anotadas todavía.'}
+        <TarjetaVacia
+          /* El vacío con su verbo (Q-05): montar la rutina es exactamente lo
+             que falta, y su hoja está a un clic. El portal no lo lleva: el
+             cliente no monta rutinas. */
+          accion={
+            !isClient &&
+            aRutina && (
+              <Link className="cab-accion is-puerta" to={aRutina}>
+                Monta su rutina
+              </Link>
+            )
+          }
+        >
+          {isClient ? 'Cuando tengas rutina y sesiones anotadas, aquí verás cuánto mueves.' : 'Sin rutina montada todavía. Cuando entrene, aquí se verá cuánto mueve.'}
         </TarjetaVacia>
       ) : (
         <>

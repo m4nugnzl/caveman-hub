@@ -21,7 +21,7 @@ import { ArrowLeft } from 'lucide-react';
 export const Migas = ({ volver, hermanos = [] }) => (
   <nav className="migas" aria-label="Dónde estás">
     <Link to={volver.to} className="migas-volver">
-      <ArrowLeft size={14} aria-hidden="true" />
+      <ArrowLeft size={15} aria-hidden="true" />
       {volver.label}
     </Link>
     {hermanos.length > 0 && (

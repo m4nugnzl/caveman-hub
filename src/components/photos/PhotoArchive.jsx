@@ -209,7 +209,7 @@ export const PhotoArchive = () => {
                       aria-expanded={!plegada}
                       onClick={() => setPlegadas((prev) => ({ ...prev, [key]: !prev[key] }))}
                     >
-                      {plegada ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+                      {plegada ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
                       <span className="nombre">{carpeta.label}</span>
                       {carpeta.photos[0]?.date && (
                         <span className="fecha">del {shortDate(carpeta.photos[0].date)}</span>
@@ -251,7 +251,7 @@ export const PhotoArchive = () => {
                               onClick={(e) => borrar(photo, e)}
                               aria-label={`Eliminar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={13} />
                             </button>
                           </div>
                         ))}

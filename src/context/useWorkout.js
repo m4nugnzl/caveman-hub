@@ -1194,16 +1194,28 @@ export const useWorkout = ({
     [applyPlan]
   );
 
-  /** Lo mueve `delta` puestos dentro de su hoja. */
+  /**
+   * Lo mueve `delta` puestos dentro de su hoja.
+   *
+   * Devuelve si LO HA MOVIDO. No es un detalle: un ejercicio puede no estar en
+   * la hoja del bloque —una excepción de esta semana, o un programa de antes de
+   * que el plan subiera al bloque— y entonces aquí no había nada que mover y la
+   * función se iba en silencio. Quien llama desde la hoja del día necesita
+   * saberlo para mover lo que el entrenador está viendo (ver `WorkoutLogEditor`).
+   */
   const moveBlockExercise = useCallback(
-    (clientId, blockId, dayName, name, delta) =>
+    (clientId, blockId, dayName, name, delta) => {
+      let movido = false;
       applyPlan(clientId, (cd) => {
         const lista = enLaHoja(cd, blockId, dayName);
         const from = lista.findIndex((ex) => ex.name === name);
         const to = from + delta;
         if (from < 0 || to < 0 || to >= lista.length) return cd;
+        movido = true;
         return moveBlockExerciseIn(cd, blockId, dayName, from, to);
-      }),
+      });
+      return movido;
+    },
     [applyPlan]
   );
 

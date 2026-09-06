@@ -57,7 +57,7 @@ export const AjustesPlan = ({
         title="Ajustes del plan"
         onClick={() => setAbierto((v) => !v)}
       >
-        <SlidersHorizontal size={16} />
+        <SlidersHorizontal size={15} />
       </button>
 
       {pop.mounted && (

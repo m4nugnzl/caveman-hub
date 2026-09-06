@@ -103,7 +103,7 @@ const ProviderCard = ({ provider, estado, ready, busy, onOpen, onSync }) => {
           <span className="badge badge-warn">Con un fallo</span>
         ) : connected ? (
           <span className="badge badge-ok">
-            <Check size={11} /> Conectado
+            <Check size={13} /> Conectado
           </span>
         ) : (
           /* Sin chapa: «Disponible» la llevaban TODAS las tarjetas de una
@@ -311,7 +311,7 @@ export const IntegrationsCatalogue = () => {
           style={{ alignSelf: 'flex-start' }}
           onClick={() => setOpen(null)}
         >
-          <ArrowLeft size={14} /> Integraciones
+          <ArrowLeft size={15} /> Integraciones
         </button>
         {/*
           El aviso, TAMBIÉN aquí dentro.

@@ -10,19 +10,19 @@ import {
   untrainedWeeksOfDay,
   weeksOfBlock,
 } from '@/domain/blocks';
-import { MRV_GOALS, MUSCLE_GROUPS, WEEK_DAYS, buildExercise, findMicrocycle, rotatingSlots, unitInitial, unitIsFeminine, unitLabel, unitLabelPlural } from '@/domain/training';
+import { MRV_GOALS, WEEK_DAYS, findMicrocycle, rotatingSlots, unitInitial, unitIsFeminine, unitLabel, unitLabelPlural } from '@/domain/training';
 import { executedSessions, resumenDeEntrada, sessionSetCount, ultimaSesionDeHoja } from '@/domain/sessions';
 import { strengthByExercise } from '@/domain/reading';
 import { metricColor } from '@/domain/metrics';
 import { localeNumber, weekdayName } from '@/lib/dates';
 import { clampInt } from '@/lib/num';
-import { Autocomplete } from '@/components/ui/Autocomplete';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { HistorialPopup } from './HistorialPopup';
 import { VolumenPopup } from './VolumenPopup';
 import { LineaDeBloques } from './LineaDeBloques';
 import { EstructuraDelMicrociclo } from './EstructuraDelMicrociclo';
+import { EscribirHoja } from './EscribirHoja';
 
 /**
  * EL BLOQUE: el plan a la izquierda, con qué se juzga a la derecha.
@@ -54,65 +54,15 @@ import { EstructuraDelMicrociclo } from './EstructuraDelMicrociclo';
  * rotativo «sesión» ya es la vuelta al ciclo.
  */
 
-const NUEVO = { name: '', muscle: 'Pecho', series: '3', reps: '8-10' };
 const GRUPOS_A_LA_VISTA = 6;
 
 /** «3 semanas», «1 hoja»… */
 const cuenta = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 
-/**
- * El alta DENTRO de la hoja: se escribe donde va el ejercicio.
- *
- * No se cierra tras añadir: lo normal es meter cinco seguidos y cerrarla cada
- * vez sería pedir cinco clics de más. Se cierra con Escape o con «Listo».
- */
-const AltaEnHoja = ({ dayName, library, onAdd, onRecordar, onCerrar }) => {
-  const [form, setForm] = useState(NUEVO);
-  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
-
-  const enviar = (event) => {
-    event.preventDefault();
-    const name = form.name.trim();
-    if (!name) return;
-    onAdd(buildExercise({ name, muscle: form.muscle, numSets: clampInt(form.series, 1, 12, 3), targetReps: form.reps.trim() }));
-    onRecordar(name, form.muscle);
-    setForm({ ...NUEVO, muscle: form.muscle });
-  };
-
-  return (
-    <form className="plan-alta" onSubmit={enviar} onKeyDown={(e) => e.key === 'Escape' && onCerrar()}>
-      <Autocomplete
-        value={form.name}
-        onChange={(value) => set('name', value)}
-        items={library}
-        getMeta={(item) => (item.fromCatalog ? `${item.muscle} · del catálogo` : item.muscle)}
-        onPick={(item) => setForm((f) => ({ ...f, name: item.name, muscle: item.muscle || f.muscle }))}
-        placeholder="Ejercicio"
-        inputProps={{ autoFocus: true, 'aria-label': `Nombre del ejercicio nuevo de ${dayName}` }}
-      />
-      <select className="select select-sm" value={form.muscle} aria-label="Músculo principal" onChange={(e) => set('muscle', e.target.value)}>
-        {MUSCLE_GROUPS.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
-      <div className="plan-alta-pie">
-        <input className="plan-series" inputMode="numeric" value={form.series} aria-label="Número de series" onChange={(e) => set('series', e.target.value)} />
-        <span className="plan-por" aria-hidden="true">
-          ×
-        </span>
-        <input className="plan-reps" value={form.reps} aria-label="Repeticiones objetivo" placeholder="8-10" onChange={(e) => set('reps', e.target.value)} />
-        <button type="submit" className="btn btn-primary btn-sm" disabled={!form.name.trim()}>
-          Añadir
-        </button>
-        <button type="button" className="btn btn-secondary btn-sm" onClick={onCerrar}>
-          Listo
-        </button>
-      </div>
-    </form>
-  );
-};
+/* ══ EL ALTA DE EJERCICIOS ══ se abre, y vive en `EscribirHoja.jsx`.
+   Estuvo aquí, dentro de la columna de la hoja, y no cabía: 168 px de ancho
+   para un buscador, un músculo, una pauta y dos botones. El porqué entero está
+   en la cabecera de ese archivo. ═══════════════════════════════════════════ */
 
 /* ══ LA LÍNEA DE TIEMPO ══ vive en `LineaDeBloques.jsx`: la usan el plan del
    entrenador y el portal del cliente, con y sin poder tocarla. ═══════════ */
@@ -565,6 +515,10 @@ export const VistaBloque = ({
     </aside>
   );
 
+  /* La hoja que se está escribiendo, leída del plan en cada render: la ventana
+     enseña siempre lo que hay, no una copia de cuando se abrió. */
+  const hojaAbierta = altaEn ? plan.sessions.find((h) => h.dayName === altaEn) || null : null;
+
   /* Las ventanas se montan solo abiertas: cerradas no calculan nada. */
   const ventanas = (
     <>
@@ -589,6 +543,27 @@ export const VistaBloque = ({
         />
       )}
       {ventana === 'volumen' && <VolumenPopup open onClose={() => setVentana(null)} bloque={bloque} hojas={plan.sessions} unidad={unidad} />}
+      {/*
+        El alta de ejercicios, abierta sobre la hoja que se está escribiendo.
+        `hojaAbierta` la busca en el plan en cada render, así que lo que se mete
+        y lo que se quita se ve en la lista al momento; si la hoja deja de
+        existir —se renombra o se quita desde el menú—, la ventana se va sola.
+      */}
+      {hojaAbierta && (
+        <EscribirHoja
+          open
+          dayName={hojaAbierta.dayName}
+          exercises={hojaAbierta.exercises}
+          library={library}
+          nota={`Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado.`}
+          onAdd={(exercise) => onAnadirEjercicio(hojaAbierta.dayName, exercise)}
+          onQuitar={onQuitarEjercicio}
+          onSeries={onSeries}
+          onReps={onReps}
+          onRecordar={onRecordarEjercicio}
+          onClose={() => setAltaEn(null)}
+        />
+      )}
     </>
   );
 
@@ -648,7 +623,15 @@ export const VistaBloque = ({
           del programa entero (`WorkoutLogEditor`), en el sitio donde ahora hace
           falta.
         */}
-        {esActual && bloqueVacio && (
+        {/*
+          ── Y CALLA mientras se está escribiendo ────────────────────────────
+          El hueco es una oferta: «esto está en blanco, ¿lo escribes o lo
+          traes?». En cuanto se acepta —se abre el alta de una hoja o la de un
+          ejercicio— deja de ser una oferta y pasa a ser un cartel que dice lo
+          que ya se está haciendo, encima del sitio donde se está haciendo.
+          Vuelve solo si se cierra el alta sin haber escrito nada.
+        */}
+        {esActual && bloqueVacio && altaEn === null && nuevaHoja === null && (
           <div className="plan-hueco plan-seccion">
             <span>
               «{bloque.name}» no tiene ningún ejercicio todavía:{' '}
@@ -659,11 +642,11 @@ export const VistaBloque = ({
             </span>
             <div className="plan-hueco-acciones">
               <button type="button" className="btn btn-primary btn-sm" onClick={() => setAltaEn(plan.sessions[0].dayName)}>
-                <Plus size={14} /> Escribir el primero
+                <Plus size={15} /> Escribir el primero
               </button>
               {onTraerFichero && (
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onTraerFichero}>
-                  <FileUp size={14} /> Traer de un fichero
+                  <FileUp size={15} /> Traer de un fichero
                 </button>
               )}
             </div>
@@ -776,7 +759,7 @@ export const VistaBloque = ({
                   <header className="plan-col-cab">
                     {esActual && plan.sessions.length > 1 && (
                       <button type="button" className="hoja-asa plan-asa" aria-label={`Arrastrar ${hoja.dayName} para ordenar`} title="Arrastra para cambiarla de sitio" {...asa(piezaHoja, hoja.dayName)}>
-                        <GripVertical size={14} />
+                        <GripVertical size={15} />
                       </button>
                     )}
                     <div className="plan-col-say">
@@ -877,7 +860,7 @@ export const VistaBloque = ({
                         <li className={`plan-ej${marcas(piezaEj)}`} key={ex.id} {...(cerrada ? {} : receptor(piezaEj))}>
                           {!cerrada && hoja.exercises.length > 1 && (
                             <button type="button" className="hoja-asa plan-asa is-ej" aria-label={`Arrastrar ${ex.name} para ordenar`} title="Arrastra para cambiarlo de sitio" {...asa(piezaEj, ex.name)}>
-                              <GripVertical size={12} />
+                              <GripVertical size={13} />
                             </button>
                           )}
                           {/*
@@ -935,7 +918,7 @@ export const VistaBloque = ({
                             aria-label={`Quitar ${ex.name}`}
                             onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={13} />
                           </button>
                         </li>
                       );
@@ -949,14 +932,6 @@ export const VistaBloque = ({
                       <span className="plan-col-cerrada" title={`Ya entrenada en ${todas} ${unidades} de este bloque`}>
                         entrenada
                       </span>
-                    ) : altaEn === hoja.dayName ? (
-                      <AltaEnHoja
-                        dayName={hoja.dayName}
-                        library={library}
-                        onAdd={(exercise) => onAnadirEjercicio(hoja.dayName, exercise)}
-                        onRecordar={onRecordarEjercicio}
-                        onCerrar={() => setAltaEn(null)}
-                      />
                     ) : (
                       <button
                         type="button"
@@ -964,7 +939,7 @@ export const VistaBloque = ({
                         onClick={() => setAltaEn(hoja.dayName)}
                         title={`Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado`}
                       >
-                        <Plus size={12} aria-hidden="true" /> ejercicio
+                        <Plus size={13} aria-hidden="true" /> ejercicio
                       </button>
                     )}
 
@@ -1001,7 +976,7 @@ export const VistaBloque = ({
             <div className="plan-alta-hoja">
               {nuevaHoja === null ? (
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNuevaHoja('')}>
-                  <Plus size={14} aria-hidden="true" /> hoja
+                  <Plus size={15} aria-hidden="true" /> hoja
                 </button>
               ) : (
                 altaDeHoja

@@ -58,6 +58,18 @@ export const MIN_AGE = 10;
 export const MAX_AGE = 110;
 
 /**
+ * Los centímetros que se pueden teclear.
+ *
+ * Más estrechos que el CHECK de la columna (0<h<300, migración 0076) y a
+ * propósito: aquel corta el disparate desde el servidor y con el mensaje de
+ * Postgres delante; éste corta el dedo de más —«17», «1750»— antes de mandarlo,
+ * que es donde se puede decir con palabras. El de la base sigue siendo la
+ * cerradura; esto es el aviso.
+ */
+export const MIN_HEIGHT = 100;
+export const MAX_HEIGHT = 250;
+
+/**
  * La fecha de nacimiento que corresponde a una edad tecleada.
  *
  * ══ Por qué se teclea la edad y se guarda la fecha ══════════════════════════

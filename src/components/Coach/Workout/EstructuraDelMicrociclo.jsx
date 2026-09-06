@@ -164,7 +164,7 @@ export const EstructuraDelMicrociclo = ({
           );
         })}
         <li className="micro-dia is-vuelta" aria-label="y vuelta a empezar" title="Y vuelta a empezar">
-          <RotateCw size={12} aria-hidden="true" />
+          <RotateCw size={13} aria-hidden="true" />
         </li>
       </ol>
     );

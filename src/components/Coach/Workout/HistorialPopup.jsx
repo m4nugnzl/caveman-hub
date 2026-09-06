@@ -86,7 +86,7 @@ export const HistorialPopup = ({ open, onClose, program, bloque, semanaEnCurso, 
                   <span className="section-label">Bloque {numero}{r.abierto ? ' · abierto' : ''}</span>
                   <button type="button" className="historial-nombre" onClick={() => onIrBloque(b)} disabled={esEste} title={esEste ? 'Es el bloque que estás mirando' : `Abrir ${b.name}`}>
                     {b.name}
-                    {!esEste && <ArrowRight size={14} aria-hidden="true" />}
+                    {!esEste && <ArrowRight size={15} aria-hidden="true" />}
                   </button>
                   <span className="historial-cuando">
                     {r.desde ? shortDate(r.desde) : 'sin fechas'}

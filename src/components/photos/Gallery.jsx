@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 import { Thumb } from './Thumb';
@@ -32,13 +33,31 @@ import { Thumb } from './Thumb';
  * De la última a la primera. Una galería que se queda muerta al final obliga a
  * recordar por dónde ibas; dando la vuelta, seguir pasando siempre hace algo.
  *
- * @param items    `[{ id, url, caption }]`, en el orden en que se ven en la
- *                 rejilla. El orden de la pantalla ES el del visor: pasar a «la
- *                 siguiente» tiene que llevar a la que estaba al lado.
+ * ══ Va a `document.body`, y esto NO es un detalle de implementación ═════════
+ *
+ * Se declaraba donde se usa, así que en la revisión quedaba dentro de un bloque
+ * que ya tiene su propio contexto de apilado (la cascada de entrada anima
+ * `opacity`, y eso crea uno). Un `z-index: 300` dentro de un contexto ajeno no
+ * compite con nada de fuera: la cabecera del cliente y la barra de cerrar la
+ * semana se pintaban ENCIMA del visor, y lo que se veía era una foto atrapada
+ * entre dos franjas de la aplicación, con el fondo de la página bloqueado. La
+ * captura del entrenador que lo reportó es exactamente eso.
+ *
+ * Con el portal, la capa cuelga del `body` —igual que `ui/Modal`— y cubre lo que
+ * tiene que cubrir. La regla, para quien venga: una capa modal se declara donde
+ * tiene sentido leerla y se pinta en la raíz.
+ *
+ * @param items    En el orden en que se ven en la rejilla. El orden de la
+ *   pantalla ES el del visor: pasar a «la siguiente» tiene que llevar a la que
+ *   estaba al lado. Cada elemento es una foto —`{ id, url, caption }`— o un PAR
+ *   —`{ id, caption, pair: [{ url, pie }, { url, pie }] }`—, ver abajo.
  * @param index    Cuál se está mirando.
  * @param onIndex  Moverse. Lo lleva quien abre, porque es quien conoce la lista.
+ * @param controls Lo que se puede decidir sin cerrar: los chips de «comparar
+ *   con» de la hoja de contactos. Va bajo el pie, y lo monta quien abre porque
+ *   es quien sabe qué se está comparando.
  */
-export const Gallery = ({ items = [], index = 0, onIndex, onClose }) => {
+export const Gallery = ({ items = [], index = 0, onIndex, onClose, controls = null }) => {
   const total = items.length;
   const actual = items[index];
   const tactoRef = useRef(null);
@@ -95,7 +114,12 @@ export const Gallery = ({ items = [], index = 0, onIndex, onClose }) => {
     if (Math.abs(recorrido) > 50) mover(recorrido < 0 ? 1 : -1);
   };
 
-  return (
+  /* Un par se pide GRANDE igual que una suelta, pero cada mitad ocupa la mitad
+     del ancho: pedir 1400 px para una foto que se va a pintar a 600 es bajar el
+     doble de bytes por nada. */
+  const par = Array.isArray(actual.pair) ? actual.pair.filter((f) => f?.url) : null;
+
+  const contenido = (
     /*
       El fondo cierra, la foto no: `stopPropagation` en el marco. Sin eso, pasar
       una foto tocando cerca del borde cerraría el visor.
@@ -144,7 +168,18 @@ export const Gallery = ({ items = [], index = 0, onIndex, onClose }) => {
           Y se pide GRANDE (1400 px) porque el visor existe justo para eso; la
           miniatura de la rejilla mide 320 y aquí se vería reventada.
         */}
-        <Thumb key={actual.id ?? actual.url} url={actual.url} alt={actual.caption || ''} width={1400} />
+        {par ? (
+          <div className="visor-par">
+            {par.map((foto) => (
+              <figure className="visor-mitad" key={foto.url}>
+                <Thumb key={foto.url} url={foto.url} alt={foto.pie || ''} width={900} />
+                {foto.pie && <figcaption className="visor-pie">{foto.pie}</figcaption>}
+              </figure>
+            ))}
+          </div>
+        ) : (
+          <Thumb key={actual.id ?? actual.url} url={actual.url} alt={actual.caption || ''} width={1400} />
+        )}
 
         <figcaption className="visor-pie">
           <span>{actual.caption}</span>
@@ -153,6 +188,12 @@ export const Gallery = ({ items = [], index = 0, onIndex, onClose }) => {
               {index + 1} de {total}
             </span>
           )}
+
+          {/* Lo que se decide sin cerrar, en su propio renglón. Va DENTRO del
+              pie —y no como hermano suyo— porque un `figcaption` tiene que ser
+              el primer o el último hijo de su `figure`, y dentro del marco
+              porque fuera un clic en un chip caería en el fondo y cerraría. */}
+          {controls && <div className="visor-controles">{controls}</div>}
         </figcaption>
       </figure>
 
@@ -171,4 +212,9 @@ export const Gallery = ({ items = [], index = 0, onIndex, onClose }) => {
       )}
     </div>
   );
+
+  /* Sin documento no hay dónde portar: el build prerenderiza la portada con
+     `renderToStaticMarkup` y ahí `createPortal` revienta. Es la misma guarda que
+     `ui/Modal`, y en la portada no hay ningún visor abierto. */
+  return typeof document === 'undefined' ? contenido : createPortal(contenido, document.body);
 };

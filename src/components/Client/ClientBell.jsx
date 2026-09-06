@@ -78,7 +78,7 @@ export const ClientBell = () => {
         aria-label={`${todo.length} ${todo.length === 1 ? 'aviso' : 'avisos'}`}
         title="Avisos"
       >
-        <Bell size={17} />
+        <Bell size={15} />
         <span className="bell-dot" aria-hidden="true">
           {todo.length}
         </span>

@@ -75,7 +75,7 @@ export const EquipmentNote = () => {
         {carpeta && (
           <>
             <a href={carpeta} target="_blank" rel="noreferrer noopener">
-              <ExternalLink size={11} /> Abrir su carpeta
+              <ExternalLink size={13} /> Abrir su carpeta
             </a>
             {' · '}
           </>

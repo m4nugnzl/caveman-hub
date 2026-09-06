@@ -36,7 +36,7 @@ export const PresetsSection = ({ protocol, onSave }) => {
             onClick={() => onSave({ ...protocol, ...item.protocol })}
           >
             <span className="mark" aria-hidden="true">
-              <Check size={12} strokeWidth={3} />
+              <Check size={13} strokeWidth={3} />
             </span>
             <span className="nm">{item.label}</span>
             <span className="hint">{item.hint}</span>

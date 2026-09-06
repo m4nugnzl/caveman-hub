@@ -111,7 +111,7 @@ export const SupportPanel = () => {
               className="btn btn-primary btn-sm"
               onClick={() => setRedactando(true)}
             >
-              <Plus size={14} /> Escribir a soporte
+              <Plus size={15} /> Escribir a soporte
             </button>
           ) : null
         }
@@ -163,7 +163,7 @@ export const SupportPanel = () => {
           }
           action={
             <button type="button" className="btn btn-primary" onClick={() => setRedactando(true)}>
-              <Plus size={16} /> Escribir a soporte
+              <Plus size={15} /> Escribir a soporte
             </button>
           }
         />
@@ -276,7 +276,7 @@ const Adjunto = ({ file, onChange, disabled }) => {
             onClick={() => onChange(null)}
             aria-label="Quitar el archivo"
           >
-            <X size={12} />
+            <X size={13} />
           </button>
         </span>
       ) : (
@@ -338,7 +338,7 @@ const AdjuntoMensaje = ({ path, url }) => {
       target="_blank"
       rel="noreferrer noopener"
     >
-      <FileText size={13} /> {attachmentName(path)} <ExternalLink size={11} />
+      <FileText size={13} /> {attachmentName(path)} <ExternalLink size={13} />
     </a>
   );
 };

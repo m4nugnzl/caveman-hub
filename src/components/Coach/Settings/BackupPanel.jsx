@@ -70,7 +70,7 @@ export const BackupPanel = () => {
       <Panel className="col gap-4">
         <div className="row gap-3">
           <span className="day-icon">
-            <HardDriveDownload size={18} />
+            <HardDriveDownload size={20} />
           </span>
           <div className="col gap-1">
             <span className="section-title">Descargar toda la cartera</span>
@@ -93,7 +93,7 @@ export const BackupPanel = () => {
         */}
         <div className="card-inset col gap-2">
           <span className="section-label">
-            <ShieldAlert size={12} className="icon-inline" />Lo que esta copia no hace
+            <ShieldAlert size={13} className="icon-inline" />Lo que esta copia no hace
           </span>
           <ul className="col gap-1 t-xs t-secondary" style={{ paddingLeft: '1.1em' }}>
             <li>
@@ -162,7 +162,7 @@ const NormalizePanel = () => {
     <Panel className="col gap-4">
       <div className="row gap-3">
         <span className="day-icon">
-          <Wand2 size={18} />
+          <Wand2 size={20} />
         </span>
         <div className="col gap-1">
           <span className="section-title">Normalizar registros antiguos</span>

@@ -394,6 +394,65 @@ export const useClients = ({
   );
 
   /**
+   * Su edad y su altura, escritas por él desde su alta.
+   *
+   * ══ Por qué no entra por `saveClientProfile` ═══════════════════════════════
+   *
+   * Porque no son respuestas del cuestionario: son COLUMNAS de `clients` (0076),
+   * y están ahí porque alimentan cuentas —el gasto energético, las zonas de
+   * pulso, el ratio cintura/altura— y una cuenta no puede depender de que alguien
+   * haya escrito «1,78 m» en un campo de texto libre. `profile` es un jsonb sin
+   * tipos; `birth_date` es una fecha y `height_cm` un número, con sus topes.
+   *
+   * ── Lo que NO se manda ─────────────────────────────────────────────────────
+   * El PESO. Es una serie y va a `anthropometry` como el de cada semana, que es
+   * la regla que costó una columna (`domain/ficha.js`). Lo escribe la pantalla
+   * con `addAnthropometryLog`, no esto.
+   *
+   * ── Un campo en blanco no borra ────────────────────────────────────────────
+   * `set_client_identity` deja como estaba lo que llegue en `null`. Desde el
+   * portal es lo que hay que hacer: quien abre su alta para corregir la edad no
+   * puede llevarse por delante la altura que le tomó su entrenador. El entrenador
+   * sí borra, y por eso él sigue yendo por `updateClient` con el formulario
+   * entero.
+   */
+  const saveClientIdentity = useCallback(
+    async (clientId, { birthDate = null, heightCm = null } = {}) => {
+      const { error } = await supabase.rpc('set_client_identity', {
+        target: clientId,
+        p_birth_date: birthDate || null,
+        p_height_cm: heightCm ?? null,
+      });
+
+      if (error) {
+        if (/does not exist|schema cache/i.test(error.message)) {
+          return { ok: false, error: 'Falta aplicar la migración 0091 para poder guardar esto.' };
+        }
+        return { ok: false, error: error.message };
+      }
+
+      /* La función no devuelve la fila, así que la mezcla se repite aquí sobre lo
+         que hay en memoria — misma cuenta que hace el servidor, y más barata que
+         releer lo que acabamos de escribir. El correo que sella la función no se
+         toca: lo que se pinta de él está en la ficha del entrenador, que lee de
+         la base al abrirse. */
+      setClients(
+        clientsRef.current.map((c) =>
+          c.id === clientId
+            ? {
+                ...c,
+                birthDate: birthDate || c.birthDate,
+                heightCm: heightCm ?? c.heightCm,
+              }
+            : c
+        )
+      );
+      return { ok: true };
+    },
+    [clientsRef, setClients]
+  );
+
+  /**
    * Guardar algo del protocolo PARA UN CLIENTE CONCRETO.
    *
    * ══ Por qué esto no es `updateClientPreferences` con otro nombre ════════════
@@ -1034,6 +1093,7 @@ export const useClients = ({
     setClientArchived,
     updateClientPreferences,
     saveClientProfile,
+    saveClientIdentity,
     saveClientException,
     applyProtocolToClient,
     publishUpdate,

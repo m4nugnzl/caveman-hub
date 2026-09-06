@@ -47,7 +47,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
         icon={FolderOpen}
         action={
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setUploadOpen(true)}>
-            <Upload size={14} /> Subir
+            <Upload size={15} /> Subir
           </button>
         }
       >
@@ -143,7 +143,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                           onClick={(e) => askDelete(photo, e)}
                           aria-label={`Eliminar foto del ${photo.date}`}
                         >
-                          <Trash2 size={11} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     );

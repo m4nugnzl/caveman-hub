@@ -119,7 +119,7 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
       {hayNovedades && (
         <div className="col gap-2">
           <span className="section-label">
-            <BellRing size={12} className="icon-inline" />
+            <BellRing size={13} className="icon-inline" />
             Novedades
           </span>
 
@@ -130,7 +130,7 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
                   <span className="t">{n.label}</span>
                   <span className="h">{n.hint}</span>
                 </span>
-                <ArrowRight size={16} className="go" />
+                <ArrowRight size={15} className="go" />
               </Link>
 
               {/* Quitarla. Un aviso que no se puede quitar deja de ser un aviso
@@ -145,7 +145,7 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
                   })
                 }
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
           ))}
@@ -160,7 +160,7 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
             después qué se espera de él. Al revés, la pantalla se abre riñendo.
           */}
           <span className="section-label">
-            <CircleAlert size={12} className="icon-inline" />
+            <CircleAlert size={13} className="icon-inline" />
             Te falta esta semana
           </span>
 
@@ -174,7 +174,7 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
                   <span className="t">{p.label}</span>
                   <span className="h">{p.hint}</span>
                 </span>
-                <ArrowRight size={16} className="go" />
+                <ArrowRight size={15} className="go" />
               </span>
             </Link>
           ))}

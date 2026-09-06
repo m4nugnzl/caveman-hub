@@ -125,6 +125,9 @@ export const WorkoutLogEditor = () => {
     removeBlockExercise,
     restoreBlockExercise,
     moveBlockExercise,
+    /* Mover dentro de la SEMANA. Es el respaldo de la hoja cuando el ejercicio no
+       está en el plan del bloque — ver el `onMove` de la hoja. */
+    moveExercise,
     setBlockExerciseSets,
     setBlockExerciseTarget,
     updatePlanExercise,
@@ -545,7 +548,7 @@ export const WorkoutLogEditor = () => {
                 className="btn btn-primary btn-lg"
                 onClick={() => irA(startProgram(activeClient.id))}
               >
-                <Plus size={17} /> Crear primer microciclo
+                <Plus size={15} /> Crear primer microciclo
               </button>
               {/*
                 El momento exacto de la mudanza: alguien que acaba de dar de alta
@@ -557,7 +560,7 @@ export const WorkoutLogEditor = () => {
                 className="btn btn-secondary btn-lg"
                 onClick={() => setPegarAbierto(true)}
               >
-                <FileUp size={17} /> Traer de un fichero
+                <FileUp size={15} /> Traer de un fichero
               </button>
               {hayDeQuienTraer && (
                 <button
@@ -566,7 +569,7 @@ export const WorkoutLogEditor = () => {
                   onClick={() => setCopyOpen(true)}
                   aria-expanded={copyOpen}
                 >
-                  <Users size={17} /> Traer de otro cliente
+                  <Users size={15} /> Traer de otro cliente
                 </button>
               )}
             </div>
@@ -822,7 +825,13 @@ export const WorkoutLogEditor = () => {
 
   const quitarEjercicioDelBloque = (dayName, name) => {
     const quitado = removeBlockExercise(activeClient.id, bloque.id, dayName, name);
-    if (!quitado) return;
+    /* Que no estuviera es un fallo de verdad —la fila se está viendo—, y salir
+       en silencio dejaba la pantalla igual sin decir por qué: el gesto parecía
+       no haber funcionado. Se dice. */
+    if (!quitado) {
+      toast({ text: `«${name}» ya no estaba en ${dayName}. Recarga la ficha si sigue en pantalla.` });
+      return;
+    }
     apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.EJERCICIO_MENOS, que: name });
     toast({
       text: `«${name}» quitado de ${dayName}.`,
@@ -951,7 +960,7 @@ export const WorkoutLogEditor = () => {
             onClick={() => verVista('bloque')}
             title={`Volver a ${bloque.name}`}
           >
-            <ArrowLeft size={14} aria-hidden="true" />
+            <ArrowLeft size={15} aria-hidden="true" />
             {bloque.name}
           </button>
           <span className="migas-sep" aria-hidden="true" />
@@ -1357,9 +1366,35 @@ export const WorkoutLogEditor = () => {
                     { immediate: false }
                   )
                 }
+                /*
+                  ══ Reordenar mueve el PLAN, y si no puede, la semana ═══════
+
+                  El orden es del bloque, así que arrastrar aquí lo cambia en
+                  todas sus semanas: es lo mismo que hacer el gesto en la vista
+                  de bloque, y dos sitios no pueden decidir cosas distintas.
+
+                  Pero el ejercicio puede no estar en la hoja del bloque —una
+                  excepción de este microciclo, o un programa de antes de que el
+                  plan subiera al bloque—, y entonces esto no encontraba nada
+                  que mover: se arrastraba la fila, se soltaba, y no pasaba
+                  NADA ni se decía por qué. Un entrenador lo reportó tal cual:
+                  «no me deja mover los ejercicios».
+
+                  Lo que se ve arrastrar se mueve. Si el plan no lo tiene, se
+                  mueve en la semana que se está mirando, que es donde ese
+                  ejercicio existe de verdad.
+                */
                 onMove={(from, to) => {
                   const nombre = nav.day.exercises[from]?.name;
-                  if (nombre) moveBlockExercise(activeClient.id, bloque.id, nav.day.dayName, nombre, to - from);
+                  if (!nombre) return;
+                  const enElPlan = moveBlockExercise(
+                    activeClient.id,
+                    bloque.id,
+                    nav.day.dayName,
+                    nombre,
+                    to - from
+                  );
+                  if (!enElPlan) moveExercise(activeClient.id, nav.week, nav.day.dayName, from, to);
                 }}
                 onRemove={(exId) => {
                   const { week } = nav;

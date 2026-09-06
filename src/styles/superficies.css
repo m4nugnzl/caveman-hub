@@ -53,11 +53,14 @@
    La segunda lumbre de la casa, con otra fuente: no el «esto es lo de hoy»
    ambiental de `.card-lumbre`, sino la luz que SALE DEL ÚLTIMO DATO — fría,
    porque es de la señal — y nace en la esquina donde ese dato vive: una curva
-   acaba abajo a la derecha. Viste los HEROES que leen (el «Cómo va» del
-   Resumen, la cifra de la Revisión); las dos hojas que se escriben —Entreno y
-   Dieta— no la llevan: allí la firma es la hoja misma, y dos firmas por
-   pantalla no señalan nada. Sobre papel el token es alfa cero y esta regla no
-   pinta nada: una hoja impresa no lleva focos. Ver `--lumbre-dato`. */
+   acaba abajo a la derecha. Viste UN hero: la cifra de la Revisión, que es
+   la pantalla firma. La llevó también el «Cómo va» del Resumen hasta que la
+   rejilla de estantes igualó las cajas y una iluminada entre seis apagadas
+   pasó de firma a fallo («¿por qué está sombreado distinto?», dueño, 6 sep);
+   allí la luz es ahora del gesto (`.tarjeta:hover`). Las hojas que se
+   escriben —Entreno y Dieta— nunca la llevaron: su firma es la hoja misma.
+   Sobre papel el token es alfa cero y esta regla no pinta nada: una hoja
+   impresa no lleva focos. Ver `--lumbre-dato`. */
 .lumbre-dato {
   background-image: radial-gradient(50% 65% at 92% 88%, var(--lumbre-dato), transparent 70%);
 }
@@ -293,7 +296,7 @@ button.task-head:hover > .chevron { color: var(--text); }
   -webkit-tap-highlight-color: transparent;
 }
 .week-line:active { background: var(--fill-subtle); }
-.week-line > strong { font-size: 1.02rem; font-weight: 800; }
+.week-line > strong { font-size: var(--fs-base); font-weight: 800; }
 .week-line > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 /* ── El pliegue ─────────────────────────────────────────────────────────────

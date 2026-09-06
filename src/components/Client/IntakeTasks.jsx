@@ -83,7 +83,7 @@ export const IntakeTasks = ({ client }) => {
       className="col gap-3"
       action={
         <span className={`badge${completo ? ' badge-ok' : ''}`}>
-          {completo && <Check size={11} />} {hechas.length} de {tareas.length}
+          {completo && <Check size={13} />} {hechas.length} de {tareas.length}
         </span>
       }
     >
@@ -142,14 +142,14 @@ export const IntakeTasks = ({ client }) => {
                     className={`btn btn-sm shrink-0 ${hecha ? 'btn-plain' : 'btn-secondary'}`}
                     href={destino}
                   >
-                    {hecha ? 'Cambiar' : 'Ir'} <ChevronRight size={14} />
+                    {hecha ? 'Cambiar' : 'Ir'} <ChevronRight size={15} />
                   </a>
                 ) : (
                   <Link
                     className={`btn btn-sm shrink-0 ${hecha ? 'btn-plain' : 'btn-secondary'}`}
                     to={destino}
                   >
-                    {hecha ? 'Ver' : 'Ir'} <ChevronRight size={14} />
+                    {hecha ? 'Ver' : 'Ir'} <ChevronRight size={15} />
                   </Link>
                 ))}
             </li>

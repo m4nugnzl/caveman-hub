@@ -77,7 +77,7 @@ export const GoalCard = ({
 
   const Etiqueta = (
     <span className="section-label is-titulo">
-      <Icon size={12} className="icon-inline" />
+      <Icon size={13} className="icon-inline" />
       {label}
     </span>
   );
@@ -107,7 +107,7 @@ export const GoalCard = ({
             Cancelar
           </button>
           <button type="submit" form={formId} className="btn btn-primary">
-            <Check size={14} /> Guardar
+            <Check size={15} /> Guardar
           </button>
         </>
       }
@@ -135,7 +135,7 @@ export const GoalCard = ({
         */}
         {numeric ? (
           <span className="objetivo-campo input-suffix">
-            <Icon size={18} className="objetivo-campo-icono" aria-hidden="true" />
+            <Icon size={20} className="objetivo-campo-icono" aria-hidden="true" />
             <input
               autoFocus
               className="input"

@@ -279,7 +279,7 @@ export const ReviewDecision = ({
   if (cerrada) {
     return (
       <section className="cierre is-cerrada" aria-label={`La semana de ${nombre} está cerrada`}>
-        <Check size={16} className="cierre-visto" aria-hidden="true" />
+        <Check size={15} className="cierre-visto" aria-hidden="true" />
         <div className="cierre-dicho">
           <p className="t-sm">
             <span className="t-strong">Semana cerrada</span>
@@ -303,7 +303,7 @@ export const ReviewDecision = ({
             onClosed();
           }}
         >
-          <RotateCcw size={14} /> Reabrir
+          <RotateCcw size={15} /> Reabrir
         </button>
       </section>
     );
@@ -409,7 +409,7 @@ export const ReviewDecision = ({
                 >
                   <span className="n">{cuantos}</span>
                   {cuantos === 1 ? 'cambio en su plan' : 'cambios en su plan'}
-                  <ChevronUp size={14} className="chevron" aria-hidden="true" />
+                  <ChevronUp size={15} className="chevron" aria-hidden="true" />
                 </button>
               ))}
           </div>
@@ -477,7 +477,7 @@ export const ReviewDecision = ({
                        se cerraron. */
                     <div className="cierre-clip">
                       <span>
-                        <Video size={14} className="icon-inline" /> Grabación lista ·{' '}
+                        <Video size={15} className="icon-inline" /> Grabación lista ·{' '}
                         <span className="tnum">{mmss(grabacion.seconds)}</span>
                       </span>
                       <button
@@ -485,7 +485,7 @@ export const ReviewDecision = ({
                         className="btn btn-plain btn-sm"
                         onClick={() => setGrabacion(null)}
                       >
-                        <Trash2 size={14} /> Descartar
+                        <Trash2 size={15} /> Descartar
                       </button>
                     </div>
                   ) : (

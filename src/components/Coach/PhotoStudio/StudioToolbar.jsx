@@ -102,7 +102,7 @@ export const StudioToolbar = ({
                   onClick={() => onTool(id)}
                   title={hint}
                 >
-                  <Icon size={16} />
+                  <Icon size={15} />
                 </button>
               ))}
             </div>
@@ -156,7 +156,7 @@ export const StudioToolbar = ({
               }}
               aria-label="Cancelar texto"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
           </div>
         </form>

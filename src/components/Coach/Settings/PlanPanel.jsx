@@ -528,7 +528,7 @@ export const PlanPanel = () => {
                     <strong className="plan-tier-name">{tier.label}</strong>
                     {actual && (
                       <span className="badge badge-ok">
-                        <Check size={11} /> Tu plan
+                        <Check size={13} /> Tu plan
                       </span>
                     )}
                     {elegido && <span className="plan-tag">Tu siguiente paso</span>}
@@ -547,7 +547,7 @@ export const PlanPanel = () => {
                     <ul className="plan-gain">
                       {gana.map((ventaja) => (
                         <li key={ventaja}>
-                          <Check size={12} strokeWidth={2.5} aria-hidden="true" />
+                          <Check size={13} strokeWidth={2.5} aria-hidden="true" />
                           {ventaja}
                         </li>
                       ))}
@@ -596,7 +596,7 @@ export const PlanPanel = () => {
                         : elegido
                           ? `Pasar a ${tier.label}`
                           : 'Contratar'}
-                      <ArrowUpRight size={14} />
+                      <ArrowUpRight size={15} />
                     </button>
                   )}
                 </div>
@@ -643,7 +643,7 @@ export const PlanPanel = () => {
         <Panel className="row between wrap gap-3">
           <div className="row gap-3">
             <span className="day-icon">
-              <Receipt size={18} />
+              <Receipt size={20} />
             </span>
             <div className="col gap-1">
               <span className="section-title">Facturas, tarjeta y baja</span>
@@ -659,7 +659,7 @@ export const PlanPanel = () => {
             onClick={abrirPortal}
           >
             {busy === 'portal' ? 'Abriendo…' : 'Abrir facturación'}
-            <ExternalLink size={14} />
+            <ExternalLink size={15} />
           </button>
         </Panel>
       )}

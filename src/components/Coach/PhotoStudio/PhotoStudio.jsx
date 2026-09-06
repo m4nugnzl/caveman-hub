@@ -166,7 +166,7 @@ export const PhotoStudio = () => {
           message="Tu cliente puede subirlas desde su portal indicando la semana y el ángulo, y aparecerán aquí agrupadas por semana. También puedes subirlas tú."
           action={
             <button type="button" className="btn btn-primary btn-lg" onClick={() => setUploadOpen(true)}>
-              <Camera size={17} /> Subir la primera foto
+              <Camera size={15} /> Subir la primera foto
             </button>
           }
         />

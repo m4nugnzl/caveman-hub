@@ -126,7 +126,7 @@ export const ClientFolder = ({ client }) => {
               disabled={subiendo}
               onClick={() => input.current?.click()}
             >
-              {subiendo ? <Loader2 size={14} className="spin" /> : <Upload size={14} />}
+              {subiendo ? <Loader2 size={15} className="spin" /> : <Upload size={15} />}
               {subiendo ? 'Subiendo…' : 'Subir un archivo'}
             </button>
             <input
@@ -168,7 +168,7 @@ export const ClientFolder = ({ client }) => {
                 rel="noreferrer noopener"
               >
                 <span className="row gap-2 t-sm" style={{ minWidth: 0 }}>
-                  <FileText size={14} className="shrink-0" />
+                  <FileText size={15} className="shrink-0" />
                   <span
                     style={{
                       overflow: 'hidden',

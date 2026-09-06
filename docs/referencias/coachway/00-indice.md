@@ -24,6 +24,7 @@ e inglés. **No** tiene la app de cliente en español todavía (lo admiten).
 | [03-landing.md](03-landing.md) | Anatomía de la landing sección a sección, copys y mecánica de animación |
 | [04-negocio.md](04-negocio.md) | Precio, posicionamiento, competidores y máquina de marketing |
 | [05-lecciones.md](05-lecciones.md) | Qué aplica (y qué no) a Caveman Hub; propuesta de replanteamiento |
+| [06-capturas.md](06-capturas.md) | La app por dentro: 19 capturas reales analizadas contra nuestro código, y el plan de crecimiento en 4 tandas |
 
 ## Cifras clave (memorizar)
 

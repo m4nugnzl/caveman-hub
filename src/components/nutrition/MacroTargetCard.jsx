@@ -127,7 +127,7 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
             Cancelar
           </button>
           <button type="submit" form={formId} className="btn btn-primary">
-            <Check size={14} /> Guardar
+            <Check size={15} /> Guardar
           </button>
         </>
       }
@@ -215,7 +215,7 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
               <span className="lado-titulo">{nombre}</span>
               {editable && (
                 <button type="button" className="btn btn-plain btn-icon btn-icon-compact" onClick={open} aria-label="Editar objetivo">
-                  <Pencil size={14} />
+                  <Pencil size={15} />
                 </button>
               )}
             </div>
@@ -226,7 +226,7 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
           <span className="section-label is-titulo">{title || 'Objetivo diario'}</span>
           {editable && (
             <button type="button" className="btn btn-plain btn-icon" onClick={open} aria-label="Editar objetivo">
-              <Pencil size={14} />
+              <Pencil size={15} />
             </button>
           )}
         </div>

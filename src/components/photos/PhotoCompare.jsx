@@ -110,7 +110,7 @@ export const PhotoCompare = ({ comparison, history = [], weekNumber, onAngle, on
           <div className="shot">
             <div className="shot-empty">
               <span className="t-xs t-tertiary">
-                <Camera size={14} className="icon-inline" />
+                <Camera size={15} className="icon-inline" />
                 Es su primera {angleLabel(angle).toLowerCase()}. Desde la próxima entrega habrá con
                 qué compararla.
               </span>
@@ -132,7 +132,7 @@ export const PhotoCompare = ({ comparison, history = [], weekNumber, onAngle, on
           </span>
           {delta !== null && (
             <>
-              <ArrowRight size={11} style={{ color: 'var(--text-tertiary)' }} />
+              <ArrowRight size={13} style={{ color: 'var(--text-tertiary)' }} />
               <Delta value={delta} unit=" kg" lowerIsBetter />
             </>
           )}

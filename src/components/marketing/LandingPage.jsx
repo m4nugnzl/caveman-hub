@@ -1400,7 +1400,7 @@ export const LandingPage = () => {
             {EXTRAS.map(({ icono: Icono, titulo, texto }) => (
               <article className="lp-ficha" key={titulo}>
                 <span className="lp-ficha-ico" aria-hidden="true">
-                  <Icono size={18} strokeWidth={2} />
+                  <Icono size={20} strokeWidth={2} />
                 </span>
                 <h3>{titulo}</h3>
                 <p>{texto}</p>

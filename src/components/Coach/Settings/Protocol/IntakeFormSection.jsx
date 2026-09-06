@@ -63,7 +63,10 @@ export const IntakeFormSection = ({ client = null }) => {
     setNueva({ label: '', kind: nueva.kind });
   };
 
-  const total = form.asked.length + form.custom.length + (form.askHealth ? 1 : 0);
+  /* Los tres de «Quién es» cuentan como tres porque son tres campos que él ve;
+     la salud cuenta como uno porque es un apartado abierto y no una pregunta. */
+  const total =
+    form.asked.length + form.custom.length + (form.askBasics ? 3 : 0) + (form.askHealth ? 1 : 0);
 
   return (
     <Panel
@@ -95,6 +98,39 @@ export const IntakeFormSection = ({ client = null }) => {
           su gimnasio. Enciende las que quieras y aparece.
         </Notice>
       )}
+
+      {/*
+        Quién es: un interruptor y no tres casillas del catálogo de arriba.
+
+        Porque no son campos del perfil. La edad y la altura son columnas de la
+        ficha (0076) y el peso es una serie —la ficha lo LEE de sus pesajes y no
+        guarda copia—, así que no tienen sitio en una lista que existe para elegir
+        qué se pregunta de `domain/profile.js`.
+
+        Nace encendido, como la salud: son los cuatro hechos de la cabecera de su
+        ficha y de ellos salen todas las cuentas. Apágalo si prefieres tomarle tú
+        las medidas.
+      */}
+      <div className="col gap-2">
+        <span className="section-label">Quién es</span>
+        <label className="checkbox-row is-block" style={{ minWidth: 0 }}>
+          <input
+            type="checkbox"
+            checked={form.askBasics}
+            onChange={() => guardar({ ...form, askBasics: !form.askBasics })}
+          />
+          <span className="col gap-1" style={{ minWidth: 0 }}>
+            <span className="t-sm" style={{ fontWeight: 600 }}>
+              Pídele su edad, su altura y su peso
+            </span>
+            <span className="t-2xs t-tertiary">
+              Salen en la cabecera de su ficha y entran en el gasto energético, en sus zonas de
+              pulso y en el ratio cintura/altura. El peso que ponga cuenta como su primer pesaje.
+              Su correo no se le pregunta: se coge de la cuenta con la que entra.
+            </span>
+          </span>
+        </label>
+      </div>
 
       {/* Las del catálogo, en las mismas dos tandas que la ficha. Que se lean con
           las mismas palabras en los dos sitios es lo que hace evidente dónde va a
@@ -160,9 +196,9 @@ export const IntakeFormSection = ({ client = null }) => {
 
         Porque no es un campo del perfil —son filas de `client_conditions`, con su
         área y su gravedad— y porque es la parte que convierte esto en una
-        anamnesis. Nace ENCENDIDA, que es la única excepción a la regla de que
-        nada llega encendido: un cuestionario de alta que no pregunta por las
-        lesiones es una ficha de preferencias con otro nombre.
+        anamnesis. Nace ENCENDIDA —como «Quién es», ahí arriba—, contra la regla
+        de que nada llega encendido: un cuestionario de alta que no pregunta por
+        las lesiones es una ficha de preferencias con otro nombre.
       */}
       <div className="col gap-2">
         <span className="section-label">Su salud</span>
@@ -211,7 +247,7 @@ export const IntakeFormSection = ({ client = null }) => {
                   aria-label={`Quitar «${q.label}»`}
                   onClick={() => guardar(removeCustom(form, q.id))}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}
@@ -249,7 +285,7 @@ export const IntakeFormSection = ({ client = null }) => {
               )}
             </Field>
             <button type="submit" className="btn btn-secondary btn-sm" disabled={!nueva.label.trim()}>
-              <Plus size={14} /> Añadir
+              <Plus size={15} /> Añadir
             </button>
           </form>
         ) : (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Copy, FileUp, Footprints, HeartPulse, Plus } from 'lucide-react';
+import { Copy, FileUp, Footprints, HeartPulse, Plus, Users } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import {
@@ -19,6 +19,7 @@ import { SaveIndicator } from '@/components/ui/primitives';
 import { Mando, MandoTab, MandoTabs } from '@/components/ui/Mando';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { AjustesPlan } from '@/components/nutrition/AjustesPlan';
+import { UnaSolaDieta } from '@/components/nutrition/UnaSolaDieta';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { ConditionsNote } from '@/components/conditions/ConditionsNote';
@@ -30,6 +31,7 @@ import { DiaResumen } from '@/components/nutrition/DiaResumen';
 import { GoalCard } from '@/components/nutrition/GoalCard';
 import { ReescalarMenu } from '@/components/nutrition/ReescalarMenu';
 import { PastePlanDialog } from './Import/PastePlanDialog';
+import { CopyToClientPanel } from './Workout/CopyToClientPanel';
 import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 
 const VARIANT_OPTIONS = [
@@ -85,6 +87,10 @@ export const NutritionModule = () => {
   const {
     session,
     activeClient,
+    /* Para traer la dieta de otro: la lista de a quién, y el mismo `replicateClient`
+       que usa Entreno —una sola forma de copiar de un cliente a otro—. */
+    clients,
+    replicateClient,
     nutrition,
     foodLibrary,
     catalogFoods,
@@ -133,6 +139,9 @@ export const NutritionModule = () => {
   /* «Traer de un fichero»: la dieta que el cliente trae de fuera —y, si el
      mismo fichero la trae, también su rutina—. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
+  /* «Traer la dieta de otro cliente»: el panel de réplica, el mismo de Entreno
+     pero ofreciendo solo la dieta. */
+  const [copiaAbierta, setCopiaAbierta] = useState(false);
   /* Reordenar comidas arrastrándolas por el asa, como los ejercicios de la
      hoja de Entreno: quién se arrastra y sobre quién se está soltando. */
   const [arrastre, setArrastre] = useState({ desde: null, sobre: null });
@@ -144,6 +153,8 @@ export const NutritionModule = () => {
   const [reescala, setReescala] = useState(null);
   /* La opción abierta en cada comida, por id: el resumen del día suma con ellas. */
   const [elegidas, setElegidas] = useState({});
+  /* Apagar «dos dietas» pregunta con cuál se queda: ver `UnaSolaDieta`. */
+  const [unificar, setUnificar] = useState(false);
   const variant = plan.hasDayVariants ? dietView : 'default';
   const meals = mealsForVariant(plan, variant);
   const cerrado = plan.type === 'closed';
@@ -165,6 +176,44 @@ export const NutritionModule = () => {
   // La variante que NO se está viendo, que es de donde se copia.
   const otraVariante = VARIANT_OPTIONS.find((v) => v.id !== dietView) || VARIANT_OPTIONS[0];
   const laOtraTieneMenu = plan.hasDayVariants && mealsForVariant(plan, otraVariante.id).length > 0;
+
+  /*
+    ══ Y traer la dieta de OTRO CLIENTE ═══════════════════════════════════════
+
+    Montar a alguien igual que a otro es la mitad del trabajo de dar de alta, y
+    aquí no existía: la ruta vivía dentro del panel de réplica de Entreno —donde
+    la dieta es una casilla más—, así que quien ya tenía el entreno montado no
+    volvía a pasar por allí y se copiaba el menú comida a comida.
+
+    Es el MISMO panel, no otro: `bloques={['diet']}`. Solo existe si hay de quién
+    traer; ofrecérselo a quien tiene un cliente lleva a un aviso que dice que
+    hacen falta dos, que es una puerta que solo sirve para decirte que no pasas.
+  */
+  const hayDeQuienTraer = clients.length > 1;
+  const panelDeCopia = copiaAbierta && (
+    <CopyToClientPanel
+      clients={clients}
+      activeClient={activeClient}
+      bloques={['diet']}
+      /* Tener fila en `nutrition_plans` no es tener dieta: la fila nace al tocar
+         cualquier cosa. Avisar de que «esto SUSTITUYE su dieta actual» por un
+         plan en blanco es asustar por nada. */
+      hasDiet={!isEmptyDiet(plan)}
+      onReplicate={(sourceId, what) => replicateClient(sourceId, activeClient.id, what)}
+      onClose={() => setCopiaAbierta(false)}
+    />
+  );
+
+  /* El panel se pinta arriba —es donde tiene que verse— y el menú que lo abre
+     puede estar al pie de doce comidas: sin llevar la pantalla hasta él, se
+     abriría fuera de cuadro y el gesto parecería no haber hecho nada. */
+  const abrirCopia = () => {
+    setCopiaAbierta(true);
+    window.setTimeout(
+      () => document.getElementById('traer-dieta')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
+      50
+    );
+  };
 
   /* El protocolo del cliente, del que cuelga si SU app enseña equivalencias.
      El entrenador las ve siempre al montar; esto decide lo que ve el cliente. */
@@ -290,6 +339,14 @@ export const NutritionModule = () => {
         },
         null,
         { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
+        /* La otra mudanza: la dieta que ya le has montado a otro. Cuelga del
+           mismo botón porque es lo mismo —otra forma de meter comidas en la
+           lista—, y no de un menú de ajustes donde nadie la buscaría. */
+        hayDeQuienTraer && {
+          icon: Users,
+          label: 'Traer la dieta de otro cliente',
+          run: abrirCopia,
+        },
       ]}
     />
   );
@@ -304,6 +361,9 @@ export const NutritionModule = () => {
           tiene alguna. Lo mismo que en la rutina y por el mismo motivo: un
           condicionante que hay que ir a buscar llega después de la decisión. */}
       <ConditionsNote area="nutrition" />
+
+      {/* De quién se trae la dieta. En el mismo sitio que en Entreno: arriba. */}
+      {panelDeCopia && <div id="traer-dieta">{panelDeCopia}</div>}
 
       {pegarAbierto && (
         <PastePlanDialog
@@ -358,13 +418,25 @@ export const NutritionModule = () => {
               error={save.error}
               onRetry={() => retrySave('nutrition', activeClient.id)}
             />
-            {/* Con plan por macros no hay comidas que añadir: lo único que se
-                puede traer es una dieta de fuera, y ese botón se queda aquí. */}
-            {!cerrado && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPegarAbierto(true)}>
-                Traer de un fichero
-              </button>
-            )}
+            {/* Con plan por macros no hay comidas que añadir —«+ comida» no se
+                pinta—, así que las dos mudanzas se quedan aquí: el fichero y la
+                dieta de otro cliente. Con un solo cliente no hay menú que abrir:
+                queda el botón de siempre. */}
+            {!cerrado &&
+              (hayDeQuienTraer ? (
+                <MenuAcciones
+                  label="Traer"
+                  ariaLabel="Traer una dieta de fuera"
+                  items={[
+                    { icon: FileUp, label: 'De un fichero', run: () => setPegarAbierto(true) },
+                    { icon: Users, label: 'La dieta de otro cliente', run: abrirCopia },
+                  ]}
+                />
+              ) : (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPegarAbierto(true)}>
+                  Traer de un fichero
+                </button>
+              ))}
             {/*
               Los ajustes del plan. Las equivalencias del cliente son un MÓDULO
               del protocolo —«el entrenador decide qué existe en su app»—, como
@@ -378,7 +450,16 @@ export const NutritionModule = () => {
               cerrado={cerrado}
               onTipo={(type) => updateNutrition(activeClient.id, { type })}
               dosDietas={Boolean(plan.hasDayVariants)}
-              onDosDietas={(on) => setHasDayVariants(activeClient.id, on)}
+              /*
+                Encenderlas no pregunta nada: la dieta única se copia a las dos y
+                no se pierde nada. APAGARLAS sí, porque hay que decidir cuál de
+                las dos pasa a ser la dieta. Con el plan en blanco no hay nada
+                que decidir y la pregunta sobraría.
+              */
+              onDosDietas={(on) => {
+                if (!on && !isEmptyDiet(plan)) return setUnificar(true);
+                setHasDayVariants(activeClient.id, on, 'training');
+              }}
               equivalencias={clienteVeEquivalencias}
               onEquivalencias={() =>
                 saveClientException(activeClient.id, { protocol: toggleModule(protocolo, 'dietSwaps') })
@@ -401,9 +482,15 @@ export const NutritionModule = () => {
       <div className={`dieta${cerrado ? '' : ' is-macros'}`}>
         {/* ── El menú: el trabajo, a lo ancho ─────────────────────────────── */}
         <div className="dieta-menu">
+          {/* El vacío nombra las tres rutas, que es donde de verdad se decide:
+              acabas de dar de alta a alguien y lo normal es montarle la dieta
+              como a otro que ya tienes, o traerla del Excel donde la escribiste.
+              Las tres cuelgan del mismo «+ comida» de aquí debajo. */}
           {cerrado && meals.length === 0 && (
             <p className="t-sm t-tertiary">
-              Empieza por «+ comida», o tráele la dieta de un Excel o PDF y se monta sola.
+              {hayDeQuienTraer
+                ? 'Empieza por «+ comida», tráele la dieta de un Excel o un PDF y se monta sola, o cópiale la de alguien a quien ya se la tengas montada.'
+                : 'Empieza por «+ comida», o tráele la dieta de un Excel o PDF y se monta sola.'}
             </p>
           )}
 
@@ -702,6 +789,55 @@ export const NutritionModule = () => {
           </div>
         </aside>
       </div>
+
+      {/*
+        Juntar las dos dietas en una. La pregunta y sus consecuencias viven en
+        la ventana; aquí solo se escribe lo elegido y se dice qué ha pasado, que
+        es un cambio grande y sin vuelta atrás por otro camino.
+      */}
+      {unificar && (
+        <UnaSolaDieta
+          open
+          plan={plan}
+          cerrado={cerrado}
+          onClose={() => setUnificar(false)}
+          onConfirm={(quedarse) => {
+            /* El plan entero de antes, para el «Deshacer»: juntar dos dietas
+               descarta una, y la pareja honesta de descartar es poder volver.
+               `updateNutrition` reescribe todos los campos, así que reponerlo es
+               devolver el objeto tal cual estaba. */
+            const antes = plan;
+
+            /*
+              ── La ventana se cierra ANTES de escribir ────────────────────────
+              El orden importa, y no por estilo: si la escritura lanza, todo lo
+              que venga detrás —el cierre incluido— no llega a ejecutarse, y lo
+              que ve quien está delante es un botón que no hace nada. Un clic que
+              acierta tiene que responder siempre; qué pasó con lo escrito se
+              cuenta después, y si falla se dice, no se traga (regla 13).
+            */
+            setUnificar(false);
+            setDietView('training');
+
+            try {
+              setHasDayVariants(activeClient.id, false, quedarse);
+            } catch (error) {
+              toast({
+                text: `No se pudieron juntar las dietas: ${error?.message || 'fallo desconocido'}. Su dieta se queda como estaba.`,
+              });
+              return;
+            }
+
+            toast({
+              text: `${quedarse === 'rest' ? 'La dieta de descanso' : 'La dieta de entreno'} es ahora su dieta única.`,
+              action: {
+                label: 'Deshacer',
+                onClick: () => updateNutrition(activeClient.id, antes),
+              },
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

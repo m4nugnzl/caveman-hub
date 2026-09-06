@@ -1824,6 +1824,7 @@ export const AppProvider = ({ children }) => {
     setClientArchived,
     updateClientPreferences,
     saveClientProfile,
+    saveClientIdentity,
     saveClientException,
     applyProtocolToClient,
     publishUpdate,
@@ -2183,6 +2184,7 @@ export const AppProvider = ({ children }) => {
     updateClientPreferences,
 
     saveClientProfile,
+    saveClientIdentity,
     saveClientException,
     applyProtocolToClient,
     exportClientData,

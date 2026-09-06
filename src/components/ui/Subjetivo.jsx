@@ -23,11 +23,19 @@
  * del resumen usan esta misma pieza. Estaba dentro de `Workout/`, que es lo que
  * habría llevado a dibujar unas barras nuevas para el check-in.
  */
-export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null }) => {
+/**
+ * @param onFila  Con destino, cada fila es una PUERTA a la tendencia de esa
+ *   pregunta: se vuelve botón, se enciende al pasar (ley de los gestos: la
+ *   caja se enciende, nada de teñir la barra — el color es del dato) y al
+ *   pulsar recibe la pregunta. Sin él, las filas son lectura, como siempre.
+ */
+export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null, onFila = null }) => {
   const filas = preguntas
     .map((q) => ({ q, valor: Number(answers?.[q.id]) }))
     .filter(({ valor }) => Number.isFinite(valor));
   if (filas.length === 0) return null;
+
+  const Fila = onFila ? 'button' : 'div';
 
   return (
     <div className="subjetivo">
@@ -37,7 +45,14 @@ export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null }) => {
         const min = q.min ?? 0;
         const pct = Math.max(0, Math.min(100, ((valor - min) / (max - min)) * 100));
         return (
-          <div key={q.id} className="subjetivo-fila" title={q.label}>
+          <Fila
+            key={q.id}
+            className={`subjetivo-fila${onFila ? ' is-puerta' : ''}`}
+            title={onFila ? `${q.label} · ver su tendencia` : q.label}
+            {...(onFila
+              ? { type: 'button', onClick: () => onFila(q), 'aria-haspopup': 'dialog' }
+              : {})}
+          >
             <span className="subjetivo-k">{q.short || q.label}</span>
             <span className="subjetivo-barra" aria-hidden="true">
               <span className="subjetivo-relleno" style={{ width: `${pct}%` }} />
@@ -46,7 +61,7 @@ export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null }) => {
               {valor}
               <small>/{max}</small>
             </span>
-          </div>
+          </Fila>
         );
       })}
     </div>

@@ -328,7 +328,7 @@ export const ClientPortfolio = () => {
             message="En cuanto exista podrás programarle la rutina, su plan nutricional y seguir su evolución. Aquí verás lo que le falta cada semana."
             action={
               <button type="button" className="btn btn-primary btn-lg" onClick={() => setAlta(true)}>
-                <Plus size={17} /> Nuevo cliente
+                <Plus size={15} /> Nuevo cliente
               </button>
             }
           />

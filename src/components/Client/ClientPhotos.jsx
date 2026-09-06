@@ -48,7 +48,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
      abriera aquí otro diálogo sería volver a tener dos puertas. */
   const irASubir = (
     <button type="button" className="btn btn-primary" onClick={onGoToCheckIn}>
-      <Camera size={16} /> Hacer mi check-in
+      <Camera size={15} /> Hacer mi check-in
     </button>
   );
 
@@ -68,7 +68,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
       <Panel tight className="row between wrap gap-3">
         <div>
           <h3 className="section-title">
-            <Camera size={18} /> Mis fotos de progreso
+            <Camera size={20} /> Mis fotos de progreso
           </h3>
           <p className="t-sm t-secondary">
             {photos.length} {photos.length === 1 ? 'foto' : 'fotos'} en {groups.length}{' '}

@@ -107,7 +107,7 @@ const ExternalReview = ({ client, onDone }) => {
         style={{ alignSelf: 'flex-start' }}
         onClick={() => setAbierto(true)}
       >
-        <Link2 size={14} /> Añadir una revisión de YouTube o Loom
+        <Link2 size={15} /> Añadir una revisión de YouTube o Loom
       </button>
     );
   }
@@ -361,7 +361,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
         {recorder.status === 'recording' && (
           <span className="row gap-2">
             <span className="rec-live">
-              <Circle size={10} /> {mmss(recorder.seconds)}
+              <Circle size={13} /> {mmss(recorder.seconds)}
             </span>
             {/*
               Lo que llevas gastado, mientras lo gastas.
@@ -539,7 +539,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
             {recorder.status === 'preview' ? (
               <>
                 <button type="button" className="btn btn-primary" onClick={recorder.record}>
-                  <Circle size={14} /> Empezar a grabar
+                  <Circle size={15} /> Empezar a grabar
                 </button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={recorder.cancel}>
                   Cancelar
@@ -551,7 +551,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
               </>
             ) : (
               <button type="button" className="btn btn-danger" onClick={recorder.stop}>
-                <Square size={14} /> Parar
+                <Square size={15} /> Parar
               </button>
             )}
           </div>
@@ -573,7 +573,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
               href={recorder.result.url}
               download={`revision-${client.name}.${recorder.result.mimeType.includes('mp4') ? 'mp4' : 'webm'}`}
             >
-              <Download size={14} /> Descargar
+              <Download size={15} /> Descargar
             </a>
             <button type="button" className="btn btn-secondary btn-sm" onClick={recorder.discard}>
               Descartar y repetir
@@ -636,7 +636,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                       className="chip"
                       onClick={() => copy(linkFor(review.path).url, review.path)}
                     >
-                      <Copy size={12} /> {copied === review.path ? 'Copiado' : 'Copiar enlace'}
+                      <Copy size={13} /> {copied === review.path ? 'Copiado' : 'Copiar enlace'}
                     </button>
                     <a
                       className="chip"
@@ -644,7 +644,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                       target="_blank"
                       rel="noreferrer noopener"
                     >
-                      <ExternalLink size={12} /> Abrir
+                      <ExternalLink size={13} /> Abrir
                     </a>
                     <button
                       type="button"
@@ -656,7 +656,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                         else setFeedback({ tone: 'error', text: outcome.error });
                       }}
                     >
-                      <Link2Off size={12} /> Revocar
+                      <Link2Off size={13} /> Revocar
                     </button>
                   </>
                 ) : (
@@ -681,7 +681,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                       copy(outcome.url, review.path);
                     }}
                   >
-                    <Share2 size={12} /> Crear enlace
+                    <Share2 size={13} /> Crear enlace
                   </button>
                 )}
 
@@ -695,7 +695,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                   }}
                   aria-label="Borrar este vídeo"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={15} />
                 </button>
               </div>
             ))}

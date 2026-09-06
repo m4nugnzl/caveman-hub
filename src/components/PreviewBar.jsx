@@ -24,7 +24,7 @@ export const PreviewBar = () => {
 
   return (
     <div className="preview-bar" role="status">
-      <Eye size={14} aria-hidden="true" />
+      <Eye size={15} aria-hidden="true" />
       <span className="preview-label">
         Estás viendo el portal de{' '}
         <span className="t-strong">{activeClient?.name || 'tu cliente'}</span>

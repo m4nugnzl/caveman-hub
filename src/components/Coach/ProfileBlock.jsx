@@ -223,7 +223,7 @@ export const ProfileBlock = ({ client, group, onSave }) => {
                   por http(s), así que el `href` no puede ejecutar nada. */}
               {fieldById(fila.id)?.kind === 'link' ? (
                 <a className="v row gap-1" href={fila.text} target="_blank" rel="noreferrer noopener">
-                  <ExternalLink size={12} /> Abrir
+                  <ExternalLink size={13} /> Abrir
                 </a>
               ) : (
                 <span className="v">{fila.text}</span>

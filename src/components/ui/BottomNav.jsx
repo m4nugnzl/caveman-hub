@@ -91,7 +91,7 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
                 className="sheet-item"
                 onClick={() => setMore(false)}
               >
-                <Icon size={18} />
+                <Icon size={20} />
                 {text}
               </NavLink>
             ))}
@@ -118,7 +118,7 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
               end={to.split('/').length <= 2}
               aria-current={esActivo ? 'page' : undefined}
             >
-              <Icon size={19} />
+              <Icon size={20} />
               <span>{text}</span>
             </NavLink>
           );
@@ -131,7 +131,7 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
             aria-expanded={more}
             onClick={() => setMore((v) => !v)}
           >
-            <MoreHorizontal size={19} />
+            <MoreHorizontal size={20} />
             <span>Más</span>
           </button>
         )}

@@ -115,7 +115,7 @@ const UnmatchedRow = ({ label, clients, onLink, onCreate }) => {
             act(() => onCreate({ externalKey: nameKey(label), externalLabel: label }))
           }
         >
-          <UserPlus size={12} /> Dar de alta
+          <UserPlus size={13} /> Dar de alta
         </button>
       </div>
     </div>
@@ -297,7 +297,7 @@ export const NotionSettings = ({ onChanged }) => {
           </div>
 
           <span className={`badge ${state.tone}`}>
-            {state.tone === 'badge-ok' && <Check size={11} />}
+            {state.tone === 'badge-ok' && <Check size={13} />}
             {state.label}
           </span>
         </header>
@@ -329,7 +329,7 @@ export const NotionSettings = ({ onChanged }) => {
               </a>
             </div>
             <p className="t-xs t-tertiary">
-              <KeyRound size={11} className="icon-inline" /> El token se
+              <KeyRound size={13} className="icon-inline" /> El token se
               guarda donde no lo puede leer ni la propia aplicación: solo el servidor. Después de
               crearlo, <strong>comparte tu base con la integración</strong> desde el botón Compartir
               de Notion — sin ese paso el token existe pero no ve nada.
@@ -360,7 +360,7 @@ export const NotionSettings = ({ onChanged }) => {
             />
             {resolvedId && (
               <p className="t-xs t-tertiary">
-                <Table2 size={11} className="icon-inline" /> Id de la base:{' '}
+                <Table2 size={13} className="icon-inline" /> Id de la base:{' '}
                 <code>{resolvedId}</code>
               </p>
             )}
@@ -441,7 +441,7 @@ export const NotionSettings = ({ onChanged }) => {
           <div className="integration-notes">
             {issues.map((issue) => (
               <p key={issue} className="t-xs">
-                <ChevronRight size={11} className="icon-inline" /> {issue}
+                <ChevronRight size={13} className="icon-inline" /> {issue}
               </p>
             ))}
           </div>
@@ -457,7 +457,7 @@ export const NotionSettings = ({ onChanged }) => {
             onClick={test}
             disabled={!integration?.id || !hasToken || busy === 'test'}
           >
-            <Link2 size={14} /> {busy === 'test' ? 'Probando…' : 'Probar la conexión'}
+            <Link2 size={15} /> {busy === 'test' ? 'Probando…' : 'Probar la conexión'}
           </button>
           <button
             type="button"
@@ -473,7 +473,7 @@ export const NotionSettings = ({ onChanged }) => {
             onClick={() => sync('sync')}
             disabled={!canRun || busy === 'sync'}
           >
-            <RefreshCw size={14} /> {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar'}
+            <RefreshCw size={15} /> {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar'}
           </button>
         </footer>
       </article>
@@ -516,7 +516,7 @@ export const NotionSettings = ({ onChanged }) => {
             <>
               <div className="col gap-1">
                 <span className="section-label">
-                  <Users size={11} className="icon-inline" /> Nombres sin
+                  <Users size={13} className="icon-inline" /> Nombres sin
                   conciliar
                 </span>
                 <p className="t-xs t-tertiary">

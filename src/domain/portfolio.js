@@ -475,6 +475,25 @@ export const reviewState = (row, today = todayISO()) => {
   */
   if (!row?.client?.clientProfileId) return 'off';
 
+  /*
+    ══ Una ENTREGA es un hecho, no una cita ═══════════════════════════════════
+
+    «Quien no ha elegido día no aparece, porque no se puede llegar tarde a una
+    cita que nadie ha puesto» — cierto para `missing`, y falso para lo que de
+    verdad importa: si el cliente ha subido su semana y nadie le ha contestado,
+    hay trabajo tuyo esperando, tenga pauta o no la tenga.
+
+    Lo reportó un entrenador con un cliente sin periodicidad: subía sus fotos y
+    sus pesajes, la entrega se guardaba, y en «Por revisar» no salía nadie. El
+    cliente esperando una respuesta y el entrenador sin enterarse — el fallo
+    exacto que esta cola existe para que no pase.
+
+    Solo vale la entrega EXACTA (la fila de `check_ins`, migración 0009). La
+    aproximación de «ha hecho su parte» sigue necesitando pauta: es una
+    conjetura, y una conjetura sin cita detrás no es trabajo, es ruido.
+  */
+  if (row?.review?.exact && row.review.pending) return 'ready';
+
   const periodo = currentCheckInPeriod(row?.client?.preferences, row?.client?.startDate, today);
   if (!periodo || !periodo.isDue) return 'off';
 
@@ -555,6 +574,12 @@ export const buildPortfolio = (
         checkIn: (() => {
           const suyo = checkIns[client.id];
           if (!suyo) return null;
+          /* Entregada y sin contestar pasa SIEMPRE, sea de la semana que sea.
+             Sin pauta, «el periodo en curso» se caía a la semana natural de hoy,
+             así que la entrega del jueves pasado desaparecía el lunes: el
+             cliente había subido lo suyo y su entrenador no volvía a verlo. Una
+             respuesta que aún debes no caduca sola. */
+          if (suyo.submittedAt && !suyo.reviewedAt) return suyo;
           const periodo = currentCheckInPeriod(client.preferences, client.startDate, today);
           return suyo.weekStart >= (periodo?.start || week) ? suyo : null;
         })(),

@@ -115,7 +115,7 @@ export const IntakeDeliverables = ({ client }) => {
                 </span>
               </span>
               <span className="row gap-1 shrink-0 t-xs link">
-                Abrir {esArchivo ? <FileText size={12} /> : <ExternalLink size={12} />}
+                Abrir {esArchivo ? <FileText size={13} /> : <ExternalLink size={13} />}
               </span>
             </a>
           );

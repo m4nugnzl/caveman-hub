@@ -97,9 +97,14 @@ export const TarjetaComoVa = ({
     <Tarjeta
       rotulo={isClient ? 'Cómo vas' : 'Cómo va'}
       span={8}
-      /* `lumbre-dato`: la luz que sale del último dato, en el hero que lee.
-         Una por pantalla; de día no pinta nada (ver superficies.css). */
-      className="comova lumbre-dato"
+      /* Aquí vivió `lumbre-dato` (la luz que sale del último dato, de noche).
+         Con la rejilla de estantes, una caja iluminada entre seis apagadas
+         dejó de leerse como firma — «¿por qué el cómo va está sombreado
+         distinto?» (dueño, 6 sep) — y la luz pasó a ser del GESTO: cualquier
+         tarjeta se alza al pasar (ver `.tarjeta:hover` en revision.css). La
+         lumbre del dato queda solo en el hero de la Revisión, que es su
+         pantalla firma. */
+      className="comova"
       /* La puerta dice a DÓNDE lleva, no dónde estás. Ponía el nombre de la fase
          («Definición →») y eso fallaba dos veces: repetía por tercera vez una
          palabra que ya está en el pie de esta misma tarjeta, y no dejaba

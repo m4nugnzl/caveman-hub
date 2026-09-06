@@ -219,7 +219,7 @@ export const IntakeQuestions = ({ client }) => {
       className="col gap-4"
       action={
         <span className={`badge${progreso.done === progreso.total ? ' badge-ok' : ''}`}>
-          {progreso.done === progreso.total && <Check size={11} />} {progreso.done} de{' '}
+          {progreso.done === progreso.total && <Check size={13} />} {progreso.done} de{' '}
           {progreso.total}
         </span>
       }
@@ -281,7 +281,7 @@ export const IntakeQuestions = ({ client }) => {
                 {/* La cuenta de la tanda, en voz baja: informa sin competir con
                     el rótulo, que es lo que se lee para ubicarse. */}
                 <span className="tanda-n">
-                  {llena && <Check size={11} />} {contestadas}/{tanda.fields.length}
+                  {llena && <Check size={13} />} {contestadas}/{tanda.fields.length}
                 </span>
               </div>
               <div className="grid-2">

@@ -311,7 +311,7 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 
 /* ══ LA CASCADA: cómo se presenta una pantalla ═════════════════════════════
    El sistema de movimiento existía (--fast/--normal/--slow) y ninguna
-   pantalla lo usaba para PRESENTARSE: todo montaba de golpe. Esta es la única
+   pantalla lo usaba para PRESENTARSE: todo montaba de golpe. Esta es la
    coreografía de entrada de la casa — los hijos directos del contenedor de
    pantalla suben un escalón con 55 ms de escalera, y a partir del quinto
    entran juntos: una cascada es un gesto, no un desfile. `--slow` porque no
@@ -323,3 +323,50 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 .cascada > *:nth-child(4) { animation-delay: 165ms; }
 .cascada > *:nth-child(n + 5) { animation-delay: 220ms; }
 @keyframes cascada-entra { from { opacity: 0; transform: translateY(7px); } }
+
+/* ══ EL DATO SE DEMUESTRA: qué hace cada pieza al llegar ═══════════════════
+   La cascada presenta los BLOQUES; esto es lo que hace el DATO dentro de
+   ellos, y es la segunda compra de movimiento a Coachway (la primera fue
+   `--spring`): su landing se demuestra —la gráfica se dibuja, el relleno
+   crece— y su app no está a la altura; la nuestra sí va a estarlo. Plan
+   «Quedarse a mirar», Q-01/Q-02 (docs/plan-quedarse-a-mirar.md).
+
+   La regla es la de siempre: movimiento SOLO al llegar y SOLO donde enseña
+   algo. Nada se repite en bucle, nada responde al scroll, y la preferencia
+   de menos movimiento lo apaga entero (regla global de arriba).
+
+   · La línea de una serie SE DIBUJA de izquierda a derecha. Funciona porque
+     el trazo lleva `pathLength="1"` (charts.jsx): mida lo que mida la curva,
+     su largo normalizado es 1 y un dashoffset de 1→0 la traza entera. La
+     guarda `[pathLength='1']` importa — sin ella, cualquier `.chart-line`
+     que no declare el atributo quedaría hecha puntitos por el dasharray.
+   · El área bajo la línea aparece en fundido DETRÁS del trazo, con retraso:
+     primero el dibujo, después el peso.
+   · El punto de «hoy» (`.chart-ultimo`) NO se anima: se desmonta al pasar el
+     ratón por la gráfica y repetiría el aterrizaje a cada pasada — un truco
+     repetido es un tic.
+   · Todo relleno-sobre-riel crece de cero a su cifra (`transform-origin` en
+     el arranque del riel), y además TRANSICIONA su anchura cuando el dato
+     cambia en vivo —cambiar de semana en la Revisión, editar gramos en
+     Dieta—: el número que se mueve se ve moverse. `scaleX` para la entrada
+     (anima compuesto, no relayout) y `width` para los cambios (el ancho
+     vive en un estilo en línea que React reescribe).
+
+   Los retrasos van DESPUÉS del primer escalón de la cascada: el bloque
+   aterriza y entonces su dato actúa — las dos coreografías encadenadas, no
+   compitiendo. */
+.chart-line[pathLength='1'] {
+  stroke-dasharray: 1;
+  animation: linea-dibuja 0.9s var(--ease) 0.15s backwards;
+}
+@keyframes linea-dibuja { from { stroke-dashoffset: 1; } }
+.chart-area { animation: area-aparece var(--slow) 0.55s backwards; }
+@keyframes area-aparece { from { opacity: 0; } }
+
+.subjetivo-relleno, .meter-fill, .plan-bar-fill, .rutina-barra, .macro-bar {
+  transform-origin: 0 50%;
+  animation: relleno-crece 0.7s var(--ease) 0.15s backwards;
+}
+@keyframes relleno-crece { from { transform: scaleX(0); } }
+.subjetivo-relleno, .meter-fill, .plan-bar-fill, .rutina-barra { transition: width 0.4s var(--ease); }
+.macro-bar > * { transition: width 0.4s var(--ease); }

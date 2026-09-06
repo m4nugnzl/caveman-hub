@@ -12,6 +12,7 @@ import {
   buildMeal,
   buildOption,
   emptyNutrition,
+  singleDietFrom,
 } from '@/domain/nutrition';
 import { toTargetFields } from '@/domain/dietSheet';
 
@@ -82,9 +83,19 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [applyNutrition]
   );
 
+  /**
+   * Enciende o apaga las dos dietas.
+   *
+   * Al APAGAR hay que decir con cuál se queda (`quedarse`): la dieta única vive
+   * en otro campo que las de variante, así que sin elegir, la pantalla volvía a
+   * enseñar lo que hubiera antes de separarlas —en blanco— y las dos montadas se
+   * quedaban guardadas sin ninguna puerta por la que volver a verlas. El porqué
+   * entero, en `singleDietFrom`.
+   */
   const setHasDayVariants = useCallback(
-    (clientId, value) =>
+    (clientId, value, quedarse = null) =>
       applyNutrition(clientId, (n) => {
+        if (!value && n.hasDayVariants && quedarse) return singleDietFrom(n, quedarse);
         if (!value || n.hasDayVariants) return { ...n, hasDayVariants: value };
         // Al activar por primera vez se parte de una copia de la dieta única,
         // tanto en comidas como en OBJETIVO, para no dejar el día de descanso

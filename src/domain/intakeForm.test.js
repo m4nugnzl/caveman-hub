@@ -223,9 +223,34 @@ describe('lo obligatorio', () => {
   });
 });
 
+describe('preguntar quién es', () => {
+  /* La otra parte que nace encendida: edad, altura y peso son los tres hechos
+     que entran en todas las cuentas, y hasta ahora los tecleaba el entrenador de
+     memoria o no estaban. */
+  it('viene encendida de serie', () => {
+    expect(defaultIntakeForm().askBasics).toBe(true);
+    expect(coachIntakeForm({}).askBasics).toBe(true);
+  });
+
+  it('pero se puede apagar', () => {
+    expect(coachIntakeForm({ intakeForm: { askBasics: false } }).askBasics).toBe(false);
+  });
+
+  /* No son campos del perfil: la edad y la altura son columnas de `clients` y el
+     peso es una serie. Colarlas en `asked` las habría mandado a `clients.profile`,
+     que es exactamente donde no pueden estar. */
+  it('no entra en el catálogo de preguntas del perfil', () => {
+    const form = coachIntakeForm({});
+    expect(form.asked).not.toContain('age');
+    expect(form.asked).not.toContain('heightCm');
+    expect(form.asked).not.toContain('weight');
+  });
+});
+
 describe('preguntar por su salud', () => {
-  /* La única parte que nace encendida, y va contra la regla de «nada llega
-     encendido» a propósito: sin ella esto no es una anamnesis. */
+  /* Una de las dos partes que nacen encendidas —la otra es `askBasics`—, contra
+     la regla de «nada llega encendido» a propósito: sin ella esto no es una
+     anamnesis. */
   it('viene encendida de serie', () => {
     expect(defaultIntakeForm().askHealth).toBe(true);
     expect(coachIntakeForm({}).askHealth).toBe(true);

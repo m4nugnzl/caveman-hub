@@ -130,13 +130,13 @@ const AjustarProxima = ({ receta, onSeries, onObjetivo }) => {
             disabled={receta.sets <= 1}
             aria-label="Una serie menos"
           >
-            <Minus size={14} />
+            <Minus size={15} />
           </button>
           <span className="t-sm" style={{ minWidth: 78, textAlign: 'center' }}>
             {receta.sets} {receta.sets === 1 ? 'serie' : 'series'}
           </span>
           <button type="button" className="btn btn-icon" onClick={() => onSeries(1)} aria-label="Una serie más">
-            <Plus size={14} />
+            <Plus size={15} />
           </button>
         </div>
 

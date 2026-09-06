@@ -202,9 +202,13 @@ export const BodyCard = ({
             <Fold
               icon={Images}
               title="Compararlas de cerca"
+              /* Sin nombrar una semana concreta: desde que el par se abre en
+                 grande, contra cuál se compara se elige ahí dentro (ver
+                 `PhotoContactSheet`), y un rótulo que dijera «contra la semana
+                 3» quedaría afirmando lo que ya no es. */
               summary={
                 comparativa
-                  ? `contra la semana ${comparativa.before?.week ?? '—'}`
+                  ? 'cada ángulo contra la semana que elijas'
                   : 'los tres ángulos, grandes'
               }
             >

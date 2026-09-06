@@ -180,7 +180,7 @@ export const TargetPicker = ({
                  siempre sin ningún mando que lo devolviera. */
               disabled={applying || (esIgual && !esExcepcion)}
             >
-              <RotateCcw size={14} /> Igualar a mi plantilla
+              <RotateCcw size={15} /> Igualar a mi plantilla
             </button>
           </>
         ) : (
@@ -195,7 +195,7 @@ export const TargetPicker = ({
               onClick={onApplyAll}
               disabled={pendientes.length === 0 || applying}
             >
-              <Users size={14} /> {applying ? 'Poniendo al día…' : 'Poner al día'}
+              <Users size={15} /> {applying ? 'Poniendo al día…' : 'Poner al día'}
             </button>
           </>
         )}

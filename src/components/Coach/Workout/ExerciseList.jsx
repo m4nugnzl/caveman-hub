@@ -254,14 +254,14 @@ export const ExerciseList = ({
                   aria-label={`Añadir una serie a ${abiertoEx.name}`}
                   title="Añadir serie"
                 >
-                  <Plus size={16} />
+                  <Plus size={15} />
                 </button>
               </div>
 
               {showNotes && (
                 <label className="exercise-note">
                   <span className="section-label">
-                    <Quote size={12} className="icon-inline" />Nota de {abiertoEx.name}
+                    <Quote size={13} className="icon-inline" />Nota de {abiertoEx.name}
                   </span>
                   <textarea
                     className="textarea"
@@ -334,7 +334,7 @@ export const ExerciseList = ({
                   aria-label={`Reordenar ${exercise.name}. Alt y flechas para mover.`}
                   title="Arrastra para reordenar (o Alt + ↑/↓)"
                 >
-                  <GripVertical size={16} />
+                  <GripVertical size={15} />
                 </button>
 
                 {/* En táctil el arrastre de HTML5 no dispara: estas flechas son
@@ -348,7 +348,7 @@ export const ExerciseList = ({
                     onClick={() => onMove(index, index - 1)}
                     aria-label={`Subir ${exercise.name}`}
                   >
-                    <ArrowUp size={14} />
+                    <ArrowUp size={15} />
                   </button>
                   <button
                     type="button"
@@ -357,7 +357,7 @@ export const ExerciseList = ({
                     onClick={() => onMove(index, index + 1)}
                     aria-label={`Bajar ${exercise.name}`}
                   >
-                    <ArrowDown size={14} />
+                    <ArrowDown size={15} />
                   </button>
                 </span>
               </>
@@ -451,7 +451,7 @@ export const ExerciseList = ({
                   title="Añadir serie"
                   aria-label={`Añadir una serie a ${exercise.name}`}
                 >
-                  <Plus size={16} />
+                  <Plus size={15} />
                 </button>
               </div>
             ) : (
@@ -498,7 +498,7 @@ export const ExerciseList = ({
             {showNotes && canEditStructure && editandoNota && (
               <label className="exercise-note">
                 <span className="section-label">
-                  <Quote size={12} className="icon-inline" />Nota de {exercise.name}
+                  <Quote size={13} className="icon-inline" />Nota de {exercise.name}
                 </span>
                 <textarea
                   className="textarea"
@@ -514,7 +514,7 @@ export const ExerciseList = ({
             {/* Registrando no hay campo: se lee lo que te han dicho. */}
             {showNotes && !canEditStructure && nota.trim() && (
               <div className="exercise-note is-read">
-                <Quote size={12} />
+                <Quote size={13} />
                 <p>{nota}</p>
               </div>
             )}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { metricPoints } from '@/domain/analytics';
 import { PERIMETER_LABELS, perimeterSeries, seriesDelta } from '@/domain/anthropometry';
@@ -40,7 +40,20 @@ export const PanelCuerpo = ({
   trend,
   goal,
   isClient = false,
+  pregunta = null,
 }) => {
+  /*
+    ── Llegar con la curva a la vista ────────────────────────────────────────
+    Cuando la ventana se abre desde una fila de «Cómo lo lleva» (el Resumen
+    pasa su pregunta), su curva vive en «Lo que cuenta cada semana», al fondo:
+    la fila se trae al centro al montar y se señala un instante. La misma
+    jugada que en `PanelEntreno`.
+  */
+  const buscada = useRef(null);
+  useEffect(() => {
+    buscada.current?.scrollIntoView({ block: 'center' });
+  }, []);
+
   const weightPts = metricPoints(serie, 'weight');
   const fatPts = metricPoints(serie, 'fat');
 
@@ -282,7 +295,11 @@ export const PanelCuerpo = ({
                 const primera = fila.points[0]?.value ?? null;
                 const delta = ahora !== null && primera !== null ? ahora - primera : null;
                 return (
-                  <li className="tendencia" key={fila.id}>
+                  <li
+                    className={`tendencia${fila.id === pregunta ? ' is-buscada' : ''}`}
+                    ref={fila.id === pregunta ? buscada : null}
+                    key={fila.id}
+                  >
                     <span className="tendencia-k">{fila.label}</span>
                     <span className="tendencia-linea">
                       <Sparkline points={fila.points} color={fila.color} height={30} />

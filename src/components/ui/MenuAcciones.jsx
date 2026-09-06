@@ -48,7 +48,7 @@ export const MenuAcciones = ({ label = null, items, alineado = 'derecha', ariaLa
             {!sinFlecha && <ChevronDown size={13} aria-hidden="true" />}
           </>
         ) : (
-          <MoreHorizontal size={16} />
+          <MoreHorizontal size={15} />
         )}
       </button>
       {menu.mounted && (
@@ -73,7 +73,7 @@ export const MenuAcciones = ({ label = null, items, alineado = 'derecha', ariaLa
                   it.run();
                 }}
               >
-                {it.on !== undefined && <Check size={14} className="menu-check" aria-hidden="true" />}
+                {it.on !== undefined && <Check size={15} className="menu-check" aria-hidden="true" />}
                 {it.icon && <it.icon size={15} aria-hidden="true" />} {it.label}
               </button>
             )

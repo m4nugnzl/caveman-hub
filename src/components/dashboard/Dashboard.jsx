@@ -82,6 +82,16 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const isClient = audience === 'client';
 
   const [ventana, setVentana] = useState(null);
+  /* Con qué pregunta se llegó: una fila de «Cómo lo lleva» abre su ventana con
+     la curva de ESA pregunta a la vista (los paneles la buscan y se colocan).
+     Se fija en CADA apertura —también a null en las que no vienen de una
+     fila—, porque si se quedara la anterior, abrir la ventana desde su puerta
+     normal aterrizaría en la curva de la última fila pulsada. */
+  const [preguntaVentana, setPreguntaVentana] = useState(null);
+  const abrirVentana = (id, pregunta = null) => {
+    setPreguntaVentana(pregunta);
+    setVentana(id);
+  };
   /* Contra qué se dibuja el peso. Vive aquí y no en la tarjeta porque la ventana
      no lo hereda: dentro se mira el peso solo, con su recta y su banda. */
   const [banda, setBanda] = useState('kcals');
@@ -226,7 +236,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             trend={trend}
             veredicto={direccion}
             isClient={isClient}
-            onAbrirFases={() => setVentana('fases')}
+            onAbrirFases={() => abrirVentana('fases')}
           />
 
           <TarjetaDesde
@@ -254,7 +264,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
               pesoWow={pesoWow}
               checkIn={checkIn}
               isClient={isClient}
-              onAbrir={() => setVentana('cuerpo')}
+              onAbrir={() => abrirVentana('cuerpo')}
               aFotos={aFotos}
               aPesaje={aPesaje}
             />
@@ -267,7 +277,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
               cycleType={activeClient.cycleType}
               latestWeek={latestWeek}
               isClient={isClient}
-              onAbrir={() => setVentana('entreno')}
+              onAbrir={() => abrirVentana('entreno')}
               aRutina={isClient ? null : aEntreno}
             />
           )}
@@ -299,7 +309,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             aEntreno={aEntreno}
             /* El objetivo no vive en otra pantalla: se decide en las fases, y
                esa ventana es la misma que abre «Cómo va». */
-            onAbrirFases={() => setVentana('fases')}
+            onAbrirFases={() => abrirVentana('fases')}
             isClient={isClient}
           />
           {/* Cada fila del subjetivo es una puerta a la ventana donde ya vive
@@ -311,8 +321,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
             protocol={protocol}
             span={12}
             isClient={isClient}
-            onAbrirCuerpo={() => setVentana('cuerpo')}
-            onAbrirEntreno={conEntreno ? () => setVentana('entreno') : null}
+            onAbrirCuerpo={(q) => abrirVentana('cuerpo', q?.id ?? null)}
+            onAbrirEntreno={conEntreno ? (q) => abrirVentana('entreno', q?.id ?? null) : null}
           />
         </aside>
       </div>
@@ -333,6 +343,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             trend={trend}
             goal={goal}
             isClient={isClient}
+            pregunta={preguntaVentana}
           />
         )}
         {ventana === 'entreno' && (
@@ -345,6 +356,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             latestWeek={latestWeek}
             protocol={protocol}
             isClient={isClient}
+            pregunta={preguntaVentana}
           />
         )}
       </Suspense>

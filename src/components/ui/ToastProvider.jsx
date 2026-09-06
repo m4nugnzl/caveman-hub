@@ -121,7 +121,7 @@ export const ToastProvider = ({ children }) => {
             </button>
           )}
           <button type="button" className="toast-x" aria-label="Cerrar el aviso" onClick={dismiss}>
-            <X size={14} />
+            <X size={15} />
           </button>
         </div>
       )}

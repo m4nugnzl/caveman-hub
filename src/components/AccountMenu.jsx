@@ -70,7 +70,7 @@ export const AccountMenu = ({ variante = 'avatar' }) => {
               <span className="nm">{quien}</span>
               <span className="rol">{rol}</span>
             </span>
-            <ChevronsUpDown size={14} aria-hidden="true" />
+            <ChevronsUpDown size={15} aria-hidden="true" />
           </>
         )}
       </button>

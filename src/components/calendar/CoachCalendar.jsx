@@ -101,7 +101,7 @@ const AgendaSheet = ({ date, cards, clients, canWrite, onAdd, onToggle, onRemove
                       onClick={() => onRemove(card.event)}
                       aria-label={`Borrar ${card.what}`}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={15} />
                     </button>
                   </>
                 ) : (
@@ -159,7 +159,7 @@ const AgendaSheet = ({ date, cards, clients, canWrite, onAdd, onToggle, onRemove
                 className="btn btn-primary btn-sm"
                 disabled={busy || !title.trim() || !clientId}
               >
-                <Plus size={14} /> Agendar
+                <Plus size={15} /> Agendar
               </button>
             </div>
           </form>
@@ -191,7 +191,12 @@ const AgendaSheet = ({ date, cards, clients, canWrite, onAdd, onToggle, onRemove
  * quien pregunta puede leer. La consulta sin filtro de cliente devuelve la
  * cartera y nada más: quitar el `.eq()` no abre nada. Ver `useCalendar`.
  */
-export const CoachCalendar = () => {
+/**
+ * @param enCapa Montado como capa del puesto (la ventana «Agenda» de la barra):
+ *   la ventana ya trae el título, así que el `PageHead` propio se retira. Como
+ *   ruta (`/calendario`, marcadores y móvil) no cambia nada.
+ */
+export const CoachCalendar = ({ enCapa = false }) => {
   const { clients, loadEvents, addClientEvent, setEventDone, removeClientEvent } = useApp();
 
   const today = todayISO();
@@ -371,7 +376,9 @@ export const CoachCalendar = () => {
   if (activos.length === 0) {
     return (
       <div className="stack">
-        <PageHead title="Agenda" sub="Lo que tienes esta semana, con toda tu cartera junta." />
+        {!enCapa && (
+          <PageHead title="Agenda" sub="Lo que tienes esta semana, con toda tu cartera junta." />
+        )}
         <EmptyState
           title="Todavía no hay a quién agendar"
           message="Da de alta a tu primer cliente y su día de revisión aparecerá aquí, junto al de los demás."
@@ -387,10 +394,12 @@ export const CoachCalendar = () => {
 
   return (
     <div className="stack cascada">
-      <PageHead
-        title="Agenda"
-        sub="Quién te entrega y qué tienes agendado, con toda tu cartera junta."
-      />
+      {!enCapa && (
+        <PageHead
+          title="Agenda"
+          sub="Quién te entrega y qué tienes agendado, con toda tu cartera junta."
+        />
+      )}
 
       {unavailable && (
         <Notice tone="info">
@@ -406,7 +415,7 @@ export const CoachCalendar = () => {
         action={
           <div className="row gap-2">
             <button type="button" className="btn btn-icon" onClick={() => move(-1)} aria-label="Mes anterior">
-              <ChevronLeft size={16} />
+              <ChevronLeft size={15} />
             </button>
             <button
               type="button"
@@ -419,7 +428,7 @@ export const CoachCalendar = () => {
               Hoy
             </button>
             <button type="button" className="btn btn-icon" onClick={() => move(1)} aria-label="Mes siguiente">
-              <ChevronRight size={16} />
+              <ChevronRight size={15} />
             </button>
           </div>
         }

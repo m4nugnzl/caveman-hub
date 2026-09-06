@@ -220,7 +220,7 @@
    al lado de otra en un ancho fijo, y el interletraje del rótulo troquelado las
    haría chocar en cuanto el gráfico tenga doce semanas. La versalita basta para
    emparentarlo con el resto. */
-.chart-axis text { fill: var(--text-tertiary); font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.chart-axis text { fill: var(--text-tertiary); font-size: var(--fs-3xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
 .chart-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .chart-cursor { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 3; }
 

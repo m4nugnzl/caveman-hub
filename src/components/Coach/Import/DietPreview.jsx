@@ -291,7 +291,7 @@ export const DietPreview = ({
                   onClick={() => onRemoveMeal(vi, mi)}
                   title={`Quitar «${comida.name}» de lo que se va a crear`}
                 >
-                  <Trash2 size={14} /> Quitar comida
+                  <Trash2 size={15} /> Quitar comida
                 </button>
               </div>
 

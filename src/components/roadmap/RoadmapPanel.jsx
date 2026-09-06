@@ -12,7 +12,7 @@ import {
   optionDraft,
   validateFork,
 } from '@/domain/fork';
-import { GOAL_DIRECTIONS, directionById, targetRateKg } from '@/domain/goals';
+import { GOAL_DIRECTIONS, directionById, isDirectionLabel, targetRateKg } from '@/domain/goals';
 import {
   PHASE_PRESETS,
   PHASE_WEEKS_RANGE,
@@ -235,7 +235,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
   const anadir =
     puedeEditar && !form && !forkForm && state.all.length > 0 ? (
       <button type="button" className="btn btn-secondary btn-sm" onClick={abrirNuevo}>
-        <Plus size={14} /> Añadir fase
+        <Plus size={15} /> Añadir fase
       </button>
     ) : null;
 
@@ -277,7 +277,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
           action={
             puedeEditar ? (
               <button type="button" className="btn btn-primary" onClick={abrirNuevo}>
-                <Plus size={16} /> Crear la primera fase
+                <Plus size={15} /> Crear la primera fase
               </button>
             ) : null
           }
@@ -324,7 +324,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
               en el que aparecería. Un botón en la cabecera no diría dónde va. */}
           {!cruce && !form && !forkForm && puedeEditar && bifurcable && (
             <button type="button" className="rmap-tail" onClick={() => abrirCruce()}>
-              <GitBranch size={14} />
+              <GitBranch size={15} />
               <span>¿Y después? Plantea dos caminos</span>
             </button>
           )}
@@ -388,7 +388,7 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
     */
     <div className={`rmap-item ${estado}`} style={{ '--fase': meta?.color }}>
       <span className="rmap-node" aria-hidden="true">
-        {past ? <Check size={14} /> : index}
+        {past ? <Check size={15} /> : index}
       </span>
 
       <div className="rmap-card">
@@ -518,7 +518,19 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) 
             // Al cambiar de dirección se arrastra el ritmo por defecto de la nueva.
             // Dejar el anterior daría un mantenimiento con ritmo o un volumen al
             // 0,6 % —el de una definición—, que es el doble de lo razonable.
-            onClick={() => set({ direction: d.id, ratePct: d.defaultRate })}
+            //
+            // Y el NOMBRE también, mientras siga siendo el que puso la dirección
+            // anterior: la fase nace llamándose «Definición», y pasar a
+            // mantenimiento dejaba una fase de mantenimiento rotulada
+            // «Definición» en el recorrido del cliente. Un nombre escrito a mano
+            // no se toca (`isDirectionLabel`).
+            onClick={() =>
+              set({
+                direction: d.id,
+                ratePct: d.defaultRate,
+                ...(isDirectionLabel(value.title) ? { title: d.label } : {}),
+              })
+            }
           >
             {d.label}
           </button>
@@ -795,7 +807,7 @@ const RoadCard = ({ option, weight, onChoose, busy }) => {
           disabled={busy}
           aria-label={`Elegir ${option.title}`}
         >
-          <Check size={14} /> Elegir
+          <Check size={15} /> Elegir
         </button>
       )}
     </div>
@@ -866,7 +878,7 @@ const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) =
 
       {options.length < FORK_RANGE.max && (
         <button type="button" className="btn btn-secondary btn-sm" onClick={addOption}>
-          <Plus size={14} /> Añadir un tercer camino
+          <Plus size={15} /> Añadir un tercer camino
         </button>
       )}
 
@@ -924,7 +936,13 @@ const RoadFields = ({ option, index, onChange, onRemove }) => {
             /* Como en `PhaseForm`: al cambiar de dirección se arrastran su ritmo
                y su nombre por defecto. Dejar el anterior daría «Volumen» con el
                ritmo de una definición, que es el doble de lo razonable. */
-            onClick={() => onChange({ direction: d.id, ratePct: d.defaultRate, title: d.label })}
+            onClick={() =>
+              onChange({
+                direction: d.id,
+                ratePct: d.defaultRate,
+                ...(isDirectionLabel(option.title) ? { title: d.label } : {}),
+              })
+            }
           >
             {d.label}
           </button>

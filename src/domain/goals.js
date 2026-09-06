@@ -83,6 +83,22 @@ export const GOAL_DIRECTIONS = [
 
 export const directionById = (id) => GOAL_DIRECTIONS.find((d) => d.id === id) || null;
 
+/**
+ * ¿Este nombre lo puso la dirección, o lo escribió alguien?
+ *
+ * Una fase nace llamándose como su dirección —«Definición»—, así que cambiar a
+ * mantenimiento y quedarse con «Definición» escrito es guardar una fase que
+ * miente en el rótulo. Pero «Definición de verano» sí lo escribió el
+ * entrenador, y una pulsación en los atajos de dirección no puede borrárselo.
+ *
+ * La regla: el nombre se arrastra solo mientras siga siendo el heredado (o esté
+ * en blanco). En cuanto se toca, manda quien lo tocó.
+ */
+export const isDirectionLabel = (title) => {
+  const t = String(title || '').trim();
+  return t === '' || GOAL_DIRECTIONS.some((d) => d.label === t);
+};
+
 /** Ancho de la banda de «estable», en % semanal. Ver arriba. */
 export const NOISE_BAND_PCT = 0.25;
 

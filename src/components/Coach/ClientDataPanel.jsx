@@ -240,7 +240,7 @@ export const ClientDataPanel = ({ client }) => {
         </p>
       ) : audit === null ? (
         <button type="button" className="btn btn-plain btn-sm" onClick={showAudit} disabled={busy !== null}>
-          <History size={14} /> Ver quién ha cambiado sus datos
+          <History size={15} /> Ver quién ha cambiado sus datos
         </button>
       ) : audit.missing ? (
         <Notice tone="info">
@@ -275,7 +275,7 @@ export const ClientDataPanel = ({ client }) => {
           onClick={download}
           disabled={busy !== null}
         >
-          <Download size={14} /> {busy === 'export' ? 'Preparando…' : 'Descargar sus datos'}
+          <Download size={15} /> {busy === 'export' ? 'Preparando…' : 'Descargar sus datos'}
         </button>
 
         {!confirming && (
@@ -285,7 +285,7 @@ export const ClientDataPanel = ({ client }) => {
             onClick={() => setConfirming(true)}
             disabled={busy !== null}
           >
-            <Trash2 size={14} /> Borrar cliente y datos
+            <Trash2 size={15} /> Borrar cliente y datos
           </button>
         )}
       </div>
@@ -311,7 +311,7 @@ export const ClientDataPanel = ({ client }) => {
               onClick={remove}
               disabled={!nameMatches || busy !== null}
             >
-              <Trash2 size={14} /> {busy === 'delete' ? 'Borrando…' : 'Borrar definitivamente'}
+              <Trash2 size={15} /> {busy === 'delete' ? 'Borrando…' : 'Borrar definitivamente'}
             </button>
             <button
               type="button"

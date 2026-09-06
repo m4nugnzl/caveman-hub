@@ -114,7 +114,7 @@ export const MacroBar = ({
       <div className="macro-legend">
         {MACRO_META.map(({ key, label, color, Icon }) => (
           <span className="macro-legend-item" key={key}>
-            <Icon size={14} color={color} />
+            <Icon size={15} color={color} />
             <span className="k">{label}</span>
             <span className="g">{macros.grams[key]} g</span>
             {!macros.empty && <span className="p">{macros.pct[key]}%</span>}

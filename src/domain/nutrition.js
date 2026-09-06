@@ -440,6 +440,60 @@ export const mealsConfigured = (nutrition) =>
 /** Lista de comidas activa según la variante seleccionada. */
 export const mealsForVariant = (nutrition, variant) =>
   nutrition?.[VARIANT_KEY[variant] || VARIANT_KEY.default] || [];
+
+/**
+ * VOLVER A UNA SOLA DIETA QUEDÁNDOSE CON UNA DE LAS DOS.
+ *
+ * ══ Lo que pasaba antes ════════════════════════════════════════════════════
+ *
+ * Apagar «dos dietas» no era más que bajar la bandera. El menú único vive en
+ * `closedMeals` y los de las variantes en `closedMealsTraining` /
+ * `closedMealsRest`, así que al apagarla la pantalla volvía a enseñar
+ * `closedMeals`: lo que hubiera ANTES de separarlas, normalmente nada. Las dos
+ * dietas montadas seguían guardadas —no se borraba nada— pero no había ninguna
+ * puerta para volver a verlas, y desde fuera eso es exactamente perderlas: el
+ * entrenador se encuentra la pantalla en blanco y vuelve a montar el menú de
+ * cero.
+ *
+ * Y no era solo el menú. El objetivo de los días de descanso vive en
+ * `restTargets`, así que quedarse con la dieta de descanso significaba también
+ * subir esas kcal y esos macros a las columnas principales, que son las que lee
+ * un plan sin variantes.
+ *
+ * ══ Lo que hace ════════════════════════════════════════════════════════════
+ *
+ * La variante elegida PASA A SER la dieta única —su menú y, si es la de
+ * descanso, también su objetivo— y las dos listas de variante se vacían.
+ *
+ * Vaciarlas es parte del trato, no un descuido: mientras siguieran ahí, volver
+ * a encender «dos dietas» resucitaría los menús de antes en vez de partir de
+ * la dieta que hay ahora, y el entrenador se encontraría con una tercera
+ * versión que no escribió. Una sola dieta significa una sola fuente.
+ *
+ * Quien llama tiene que haber preguntado cuál se queda: aquí no se adivina.
+ */
+export const singleDietFrom = (nutrition, variant) => {
+  const base = nutrition || emptyNutrition();
+  const menu = mealsForVariant(base, variant);
+  const objetivo = variant === 'rest' ? targetsFor(base, 'rest') : null;
+
+  return {
+    ...base,
+    ...(objetivo
+      ? {
+          targetKcals: objetivo.targetKcals,
+          proteinGrams: objetivo.proteinGrams,
+          carbsGrams: objetivo.carbsGrams,
+          fatsGrams: objetivo.fatsGrams,
+        }
+      : {}),
+    hasDayVariants: false,
+    restTargets: null,
+    closedMeals: cloneMeals(menu),
+    closedMealsTraining: [],
+    closedMealsRest: [],
+  };
+};
 /* ==========================================================================
    Las pautas del entrenador
    --------------------------------------------------------------------------

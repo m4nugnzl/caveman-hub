@@ -76,6 +76,38 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .btn:active:not(:disabled) { transform: scale(0.975); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
+/* ══ EL TACTO: LO QUE RESPONDE AL RATÓN RESPONDE TAMBIÉN AL DEDO ═════════════
+   Contados en las hojas: 242 reglas de `:hover` frente a 17 de `:active`, y
+   ocho de esas diecisiete solo cambian el cursor a `grabbing`. O sea, NUEVE
+   controles en toda la aplicación se hunden al pulsarlos — y el botón es uno
+   de ellos.
+
+   Eso quiere decir que el producto está afinado para el ratón, que tiene un
+   estado previo (pasar por encima) donde el dedo no tiene ninguno. En el
+   teléfono —y en el gimnasio, que es donde se usa— pulsar una pestaña, una
+   fila de tarea o un chip no devolvía absolutamente nada hasta que la pantalla
+   entera cambiaba. El hueco entre el toque y la respuesta es donde la gente
+   vuelve a pulsar.
+
+   Una sola regla para las familias que ya son pulsables. En `:where()` a
+   propósito: no añade especificidad, así que cualquier pieza que ya tenga su
+   propio gesto —`.tile`, `.alert-card`, `.fab`— se queda con el suyo.
+
+   El 0,98 es el mismo hundido corto del botón, no un rebote: esto no aterriza
+   en ningún sitio, solo acusa el golpe.
+
+   Y SIN transición, a propósito. No por descuido: un `transition` aquí tendría
+   que pisar el que cada familia ya declara —`.tab` anima color y fondo, la
+   barra anima el fondo—, y `:where()` no puede pisar nada porque no suma
+   especificidad. Además un hundido que tarda en llegar no es respuesta al
+   toque: es una animación. El dedo quiere el acuse en el mismo fotograma. */
+:where(.tab, .side-link, .chip, .task-row, .migas-volver, .cliente-cab-puerta):active:not(:disabled) {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.tab, .side-link, .chip, .task-row, .migas-volver, .cliente-cab-puerta):active { transform: none; }
+}
+
 /* ══ CUATRO PESOS, Y NINGUNO MÁS ═════════════════════════════════════════════
    Había ocho variantes por cuatro tamaños. Treinta y dos botones posibles es
    lo mismo que ninguno: en la misma pantalla convivían cuatro rellenos
@@ -567,7 +599,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    de que se acaba. En un formulario que se puede dejar a medias y retomar, saber
    cuánto queda es lo que decide si se retoma. */
 .form-progress {
-  height: 4px; border-radius: 999px; overflow: hidden;
+  height: 4px; border-radius: var(--r-pill); overflow: hidden;
   background: var(--fill);
 }
 /* Tinta secundaria y no plena: son cuatro píxeles a todo el ancho, y en negro
@@ -1071,13 +1103,20 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   border: 1px solid var(--edge);
   width: 100%; max-width: 440px; max-height: min(86vh, 880px);
   display: flex; flex-direction: column; overflow: hidden;
-  animation: sheet 0.3s var(--ease);
+  /* `--spring` porque una ventana ATERRIZA (tokens.css: solo lo que llega;
+     las salidas siguen en `--ease`, lo que se va no rebota). Un pelo más de
+     tiempo que antes: el sobrepaso necesita sitio para leerse. */
+  animation: sheet 0.34s var(--spring);
 }
 @keyframes sheet { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
 /* La entrada de la hoja móvil: sube desde abajo, sin escala — una hoja anclada
    al borde no «aparece», llega. */
 @keyframes modal-sube { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .modal-lg { max-width: 880px; }
+/* La capa del puesto: una pantalla entera (Cobros, Agenda) que viene a ti en
+   vez de llevarte. Más ancha y más alta que el grande porque dentro va una
+   página con sus paneles, no un formulario. */
+.modal-capa { max-width: 1160px; max-height: min(92vh, 1040px); }
 
 /* ── EL PANEL LATERAL ──────────────────────────────────────────────────────
    El detalle que se consulta SIN salir de lo que se estaba mirando: entra por
@@ -1096,7 +1135,8 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .modal-side {
   max-width: 460px; max-height: none; height: 100%;
   border-radius: 0; border-right: 0; border-top: 0; border-bottom: 0;
-  animation: panel-entra var(--normal) var(--ease) both;
+  /* El panel también aterriza: `--spring` a la entrada, la salida no cambia. */
+  animation: panel-entra 0.3s var(--spring) both;
 }
 @keyframes panel-entra { from { transform: translateX(24px); opacity: 0; } }
 .modal-backdrop.is-side[data-state='closing'] > .modal-side {

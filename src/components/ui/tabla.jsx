@@ -112,7 +112,7 @@ export const ThOrden = ({ orden, campo, num = false, children }) => {
     >
       <button type="button" className="th-orden" onClick={() => orden.cambiar(campo, num)}>
         {children}
-        <Icono size={12} aria-hidden="true" />
+        <Icono size={13} aria-hidden="true" />
       </button>
     </th>
   );

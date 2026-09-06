@@ -58,7 +58,7 @@ export const SettingsLayout = () => {
             )}
             {sections.map(({ path, label, icon: Icon, hint }) => (
               <NavLink key={path} to={`/ajustes/${path}`} className="settings-link">
-                <Icon size={17} />
+                <Icon size={15} />
                 <span className="who">
                   <span className="name">
                     {label}

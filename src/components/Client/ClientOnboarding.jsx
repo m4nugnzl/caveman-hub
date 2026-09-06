@@ -3,6 +3,7 @@ import { clientIntakeForm } from '@/domain/intakeForm';
 import { PageHead } from '@/components/ui/primitives';
 import { DownloadAnamnesis } from '@/components/Coach/DownloadAnamnesis';
 import { ClientGymUpload } from './ClientGymUpload';
+import { IntakeBasics } from './IntakeBasics';
 import { IntakeHealth } from './IntakeHealth';
 import { IntakeQuestions } from './IntakeQuestions';
 import { IntakeTasks } from './IntakeTasks';
@@ -45,6 +46,8 @@ export const ClientOnboarding = () => {
      montar la ruta y tenerlo cargado. */
   if (!activeClient) return null;
 
+  const form = clientIntakeForm(activeClient.preferences);
+
   return (
     <div className="stack">
       <PageHead
@@ -72,6 +75,24 @@ export const ClientOnboarding = () => {
       */}
       <IntakeTasks client={activeClient} />
 
+      {/*
+        Quién eres, antes que nada de lo demás.
+
+        Son tres campos y son los que la ficha enseña en su cabecera —edad,
+        altura, peso—, así que empezar por ellos es empezar por lo que se contesta
+        sin pensar: nadie abandona un formulario en la pregunta de cuánto mide. Lo
+        que viene detrás pide recordar horarios y comidas.
+
+        Tampoco sale en la lista de tareas, y por el mismo motivo que la salud: no
+        son respuestas del formulario, son dos columnas de su ficha y un pesaje.
+        Quien las quiera contadas las ve aquí, con su cuenta de tres.
+      */}
+      {form.askBasics && (
+        <section id="quien-eres" className="anchored">
+          <IntakeBasics client={activeClient} />
+        </section>
+      )}
+
       {/* El cuestionario antes que las fotos: son datos que su entrenador
           necesita para escribir la primera serie, y se contestan aquí y ahora.
           Las fotos hay que ir a hacerlas al gimnasio, que puede ser mañana. */}
@@ -87,7 +108,7 @@ export const ClientOnboarding = () => {
           filas de `client_conditions`, no respuestas del formulario, y no hay
           forma de saber que alguien «ya ha terminado» de contar lo que le duele.
           Se pregunta, y quien no tenga nada sigue. */}
-      {clientIntakeForm(activeClient.preferences).askHealth && (
+      {form.askHealth && (
         <section id="salud" className="anchored">
           <IntakeHealth client={activeClient} />
         </section>

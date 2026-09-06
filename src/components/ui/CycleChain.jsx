@@ -33,18 +33,18 @@ export const CycleChain = ({ slots, label = 'El ciclo, día a día' }) => {
         <li className="cycle-step" key={slot.key}>
           <div className={`cycle-slot${slot.rest ? ' is-rest' : ''}`}>
             <span className="lead">
-              {slot.rest ? <CircleDashed size={12} /> : <CheckCircle2 size={12} />}
+              {slot.rest ? <CircleDashed size={13} /> : <CheckCircle2 size={13} />}
               {slot.lead}
             </span>
             <span className="nm">{slot.name}</span>
           </div>
 
           {index < slots.length - 1 ? (
-            <ArrowRight className="link" size={14} aria-hidden="true" />
+            <ArrowRight className="link" size={15} aria-hidden="true" />
           ) : (
             /* El remate: sin él, la cadena parece terminar en el último
                descanso. Un ciclo rotativo no termina — se repite. */
-            <RotateCw className="link is-loop" size={14} aria-hidden="true" />
+            <RotateCw className="link is-loop" size={15} aria-hidden="true" />
           )}
         </li>
       ))}

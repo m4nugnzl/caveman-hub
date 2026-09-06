@@ -357,7 +357,7 @@ export const CommandPalette = () => {
     >
       <div className="palette" role="dialog" aria-modal="true" aria-label="Buscar y ejecutar">
         <div className="palette-input">
-          <Search size={17} aria-hidden="true" />
+          <Search size={15} aria-hidden="true" />
 
           {/* Dentro de un cliente, su nombre queda como una migaja delante del
               campo: es lo que hace evidente que lo que se escriba ahora se busca
@@ -434,7 +434,7 @@ export const CommandPalette = () => {
                           }}
                           aria-label={`Secciones de ${item.label}`}
                         >
-                          <ChevronRight size={14} aria-hidden="true" />
+                          <ChevronRight size={15} aria-hidden="true" />
                           <kbd className="kbd">tab</kbd>
                         </button>
                       )}

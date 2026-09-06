@@ -318,7 +318,18 @@ export const COACH_CLIENT = [
     trabajo de la semana. Y la pregunta diaria que un calendario contesta —«¿qué
     tengo hoy?»— ya la contesta «Hoy», que es por donde se entra.
   */
-  { path: 'ficha', label: 'Perfil', icon: FileText, also: ['calendario'] },
+  /*
+    ── `oculta`: fuera del carril de pestañas del ESCRITORIO ─────────────────
+    Del replanteamiento «El puesto» (sep 2026): en escritorio el perfil se abre
+    desde el nombre del cliente —que es donde se busca a la persona— y su
+    pestaña sobraba: cuatro secciones de trabajo y una de administración
+    vestidas igual. La sección SIGUE EXISTIENDO a todos los demás efectos:
+    su ruta responde, `sameSectionFor` la conserva al cambiar de cliente, y la
+    barra del pulgar del móvil la enseña como siempre (allí el nombre es el
+    selector y no puede ser además una puerta). Solo el carril de pestañas del
+    escritorio la filtra.
+  */
+  { path: 'ficha', label: 'Perfil', icon: FileText, also: ['calendario'], oculta: true },
 ];
 
 /**

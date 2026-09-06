@@ -335,11 +335,16 @@ export const BandChart = ({
                 <g key={s.id}>
                   {showArea && coords.length > 1 && (
                     <path
+                      className="chart-area"
                       d={`${path} L ${coords[coords.length - 1].x.toFixed(1)} ${(PAD.top + innerH).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(PAD.top + innerH).toFixed(1)} Z`}
                       fill={`url(#${uid}-${s.id})`}
                     />
                   )}
-                  <path className="chart-line" d={path} stroke={s.color} />
+                  {/* `pathLength: 1` normaliza el largo del trazo y es lo que
+                      permite que la línea SE DIBUJE al montar con un solo par
+                      dasharray/dashoffset en CSS (ver EL DATO SE DEMUESTRA en
+                      base.css), mida lo que mida la curva. */}
+                  <path className="chart-line" d={path} stroke={s.color} pathLength="1" />
 
                   {/* El último dato, marcado: es donde está la persona HOY y
                       lo que se busca al mirar la curva. Con halo del color de
@@ -481,6 +486,7 @@ export const BarBandChart = ({
                 className="chart-line is-sobre-barras"
                 d={smoothPath(values.map((v, i) => ({ x: xC(i), y: yAt(v) })))}
                 stroke={color}
+                pathLength="1"
               />
             )}
 

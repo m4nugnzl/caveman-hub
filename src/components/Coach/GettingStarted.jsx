@@ -170,7 +170,7 @@ export const GettingStarted = () => {
 
         <div className="row gap-2 wrap" style={{ marginTop: 'var(--s1)' }}>
           <button type="button" className="btn btn-primary btn-sm" disabled={invitando} onClick={ir}>
-            {invitando ? 'Generando…' : actual.accion} <ArrowRight size={14} />
+            {invitando ? 'Generando…' : actual.accion} <ArrowRight size={15} />
           </button>
 
           {/* El enlace se copia solo, y hay que decirlo: si no, el botón parece
@@ -206,7 +206,7 @@ export const GettingStarted = () => {
           {pasos.map((paso, i) => (
             <li key={paso.id} className="row gap-3" style={{ alignItems: 'flex-start' }}>
               <span className="list-icon" aria-hidden="true">
-                {paso.sabido && paso.hecho ? <Check size={14} /> : i + 1}
+                {paso.sabido && paso.hecho ? <Check size={15} /> : i + 1}
               </span>
               <span className="col gap-1 grow" style={{ minWidth: 0 }}>
                 <span className="t-sm" style={{ fontWeight: paso.id === actual.id ? 650 : 500 }}>

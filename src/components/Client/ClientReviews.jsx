@@ -118,7 +118,7 @@ export const ClientReviews = ({ client }) => {
                     la única señal que le llega de vuelta sin escribirse nada. */}
                 {visto && (
                   <span className="badge badge-ok">
-                    <Check size={11} /> Vista
+                    <Check size={13} /> Vista
                   </span>
                 )}
               </div>

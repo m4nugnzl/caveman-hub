@@ -112,12 +112,19 @@ export const TarjetaPlan = ({
      no pasa. */
   const puerta = (destino) => (isClient ? null : destino);
 
+  /* ── El hueco invita, la raya constata (Q-05, 6 sep) ──────────────────────
+     Un plan a medio poner era una columna de «—»: un inventario de ausencias
+     que no dice dónde se arregla. Para el COACH, el hueco dice su verbo — y
+     la fila, que ya era la puerta, ahora además dice a qué viene. El portal
+     conserva la raya: al cliente no se le invita a editar lo que no edita. */
+  const invita = (verbo) => (isClient ? '—' : <span className="palanca-invita">{verbo}</span>);
+
   return (
     <Tarjeta rotulo={isClient ? 'Tu plan' : 'El plan'} span={12}>
       <ul className="palancas">
         <Palanca
           k="Objetivo"
-          valor={direction?.label || 'Sin objetivo'}
+          valor={direction?.label || (isClient ? 'Sin objetivo' : invita('Ponle objetivo'))}
           texto
           sub={ritmo !== null ? `${kg(ritmo)} kg por semana` : null}
           a={puerta(onAbrirFases)}
@@ -126,15 +133,22 @@ export const TarjetaPlan = ({
           <Palanca
             k="Calorías"
             valor={
-              <>
-                {fmt(plan?.targetKcals) || '—'}
-                <small> kcal</small>
-              </>
+              plan?.targetKcals ? (
+                <>
+                  {fmt(plan.targetKcals)}
+                  <small> kcal</small>
+                </>
+              ) : (
+                invita('Fija sus calorías')
+              )
             }
+            texto={!plan?.targetKcals && !isClient}
             sub={
               conMacros
                 ? `P ${fmt(plan?.proteinGrams)} · C ${fmt(plan?.carbsGrams)} · G ${fmt(plan?.fatsGrams)} g`
-                : 'sin macros definidos'
+                : plan?.targetKcals
+                  ? 'sin macros definidos'
+                  : null
             }
             a={puerta(aDieta)}
           />
@@ -143,24 +157,34 @@ export const TarjetaPlan = ({
           <Palanca
             k="Pasos"
             valor={
-              <>
-                {pasos ? pasos.toLocaleString('es-ES') : '—'}
-                {pasos && <small> al día</small>}
-              </>
+              pasos ? (
+                <>
+                  {pasos.toLocaleString('es-ES')}
+                  <small> al día</small>
+                </>
+              ) : (
+                invita('Ponle pasos')
+              )
             }
+            texto={!pasos && !isClient}
             a={puerta(aDieta)}
           />
         )}
-        {conDieta && <Palanca k="Cardio" valor={cardio || '—'} texto a={puerta(aDieta)} />}
+        {conDieta && <Palanca k="Cardio" valor={cardio || invita('Ponle cardio')} texto a={puerta(aDieta)} />}
         {conEntreno && (
           <Palanca
             k="Entreno"
             valor={
-              <>
-                {dias ?? '—'}
-                {dias !== null && <small> {dias === 1 ? 'día' : 'días'} a la semana</small>}
-              </>
+              dias !== null ? (
+                <>
+                  {dias}
+                  <small> {dias === 1 ? 'día' : 'días'} a la semana</small>
+                </>
+              ) : (
+                invita('Monta su rutina')
+              )
             }
+            texto={dias === null && !isClient}
             sub={reparto.length > 0 ? reparto.join(' · ') : null}
             a={puerta(aEntreno)}
           />

@@ -56,10 +56,10 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
           {ejercicios.length > 1 && (
             <span className="lado-paso">
               <button type="button" className="btn btn-icon btn-icon-compact" aria-label="Ejercicio anterior" onClick={() => onElegir?.(ejercicios[(indice - 1 + ejercicios.length) % ejercicios.length].name)}>
-                <ChevronLeft size={14} />
+                <ChevronLeft size={15} />
               </button>
               <button type="button" className="btn btn-icon btn-icon-compact" aria-label="Ejercicio siguiente" onClick={() => onElegir?.(ejercicios[(indice + 1) % ejercicios.length].name)}>
-                <ChevronRight size={14} />
+                <ChevronRight size={15} />
               </button>
             </span>
           )}

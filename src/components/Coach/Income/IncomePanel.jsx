@@ -115,7 +115,13 @@ const mensajeDeCarga = (err) => {
   return traduceDbError(err) || 'No se ha podido cargar el histórico de cobros.';
 };
 
-export const IncomePanel = () => {
+/**
+ * @param enCapa Montado como capa del puesto (la ventana «Cobros» de la barra):
+ *   la ventana ya trae el título, así que el `PageHead` propio se retira — dos
+ *   «Cobros» a tres centímetros se leen como un fallo. Como ruta (`/ingresos`,
+ *   marcadores y móvil) no cambia nada.
+ */
+export const IncomePanel = ({ enCapa = false }) => {
   const { clients, markClientPaid } = useApp();
   const toast = useToast();
 
@@ -287,10 +293,12 @@ export const IncomePanel = () => {
 
   return (
     <div className="stack cascada">
-      <PageHead
-        title="Cobros"
-        sub="Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman Hub: eso está en Ajustes."
-      />
+      {!enCapa && (
+        <PageHead
+          title="Cobros"
+          sub="Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman Hub: eso está en Ajustes."
+        />
+      )}
 
       {error && <Notice tone="error">{error}</Notice>}
 
@@ -400,7 +408,7 @@ export const IncomePanel = () => {
       */}
       {!hayVencimientos ? (
         <p className="aldia-linea">
-          <Check size={14} aria-hidden="true" />
+          <Check size={15} aria-hidden="true" />
           Nada vencido ni por cobrar: al día.
         </p>
       ) : (
@@ -422,7 +430,7 @@ export const IncomePanel = () => {
         )}
         {tablero.pending.length === 0 && (
           <p className="aldia-linea">
-            <Check size={14} aria-hidden="true" />
+            <Check size={15} aria-hidden="true" />
             Nada vencido: {tablero.soon.length === 1 ? 'uno renueva' : `${tablero.soon.length} renuevan`} en
             los próximos días, aquí debajo.
           </p>
@@ -434,7 +442,7 @@ export const IncomePanel = () => {
               {tablero.soon.map((fila) => (
                 <div className="list-row" key={fila.client.id}>
                   <span className="list-icon">
-                    <CalendarClock size={14} />
+                    <CalendarClock size={15} />
                   </span>
                   <span className="list-row-label">
                     <Link className="title" to={clientPath(fila.client.id, 'ficha')}>

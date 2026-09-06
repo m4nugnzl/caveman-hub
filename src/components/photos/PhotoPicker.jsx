@@ -90,7 +90,7 @@ export const PhotoPicker = ({ items, busy, onAddFiles, onSetTag, onDrop, compact
                 <span className="upload-state">
                   {item.status === 'done' && (
                     <>
-                      <Check size={12} /> Subida
+                      <Check size={13} /> Subida
                     </>
                   )}
                   {item.status === 'uploading' && 'Subiendo…'}
@@ -118,7 +118,7 @@ export const PhotoPicker = ({ items, busy, onAddFiles, onSetTag, onDrop, compact
             onClick={() => inputRef.current?.click()}
             disabled={busy}
           >
-            <Plus size={14} /> Añadir más
+            <Plus size={15} /> Añadir más
           </button>
         </>
       )}

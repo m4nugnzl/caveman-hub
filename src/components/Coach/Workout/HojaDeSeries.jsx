@@ -125,15 +125,39 @@ export const HojaDeSeries = ({
                 onDragStart={(e) => {
                   setDragIndex(index);
                   e.dataTransfer.effectAllowed = 'move';
+                  /* Firefox no arranca el arrastre sin datos: sin esto, el asa
+                     se puede agarrar y no pasa nada. Es la misma línea que la
+                     vista de bloque ya tenía y a esta hoja le faltaba. */
+                  try {
+                    e.dataTransfer.setData('text/plain', ex.name);
+                  } catch {
+                    /* Algún navegador puede negarse a escribir en el portapapeles
+                       de arrastre; el reordenado no depende del dato, solo lo
+                       necesita Firefox para arrancar el gesto. */
+                  }
                 }}
                 onDragEnd={() => {
                   setDragIndex(null);
                   setOverIndex(null);
                 }}
-                aria-label={`Arrastrar ${ex.name} para reordenar`}
-                title="Arrastra para reordenar"
+                /* Y con el teclado, que es la otra mitad: el arrastre del ratón
+                   deja fuera a quien no lo pueda usar, y además es el camino
+                   fiable cuando el gesto no arranca. Igual que en la lista del
+                   teléfono (`ExerciseList`). */
+                onKeyDown={(e) => {
+                  if (!e.altKey || !onMove) return;
+                  if (e.key === 'ArrowUp' && index > 0) {
+                    e.preventDefault();
+                    onMove(index, index - 1);
+                  } else if (e.key === 'ArrowDown' && index < exercises.length - 1) {
+                    e.preventDefault();
+                    onMove(index, index + 1);
+                  }
+                }}
+                aria-label={`Reordenar ${ex.name}. Alt y flechas para moverlo.`}
+                title="Arrastra para reordenar (o Alt + ↑/↓)"
               >
-                <GripVertical size={14} />
+                <GripVertical size={15} />
               </button>
               <span className="hoja-ej-n">{index + 1}</span>
               <span className="hoja-ej-nombre">
@@ -297,13 +321,13 @@ export const HojaDeSeries = ({
                       title="Quitar serie"
                       onClick={() => onRemoveSet(ex.id, i)}
                     >
-                      <X size={12} />
+                      <X size={13} />
                     </button>
                   </div>
                 );
               })}
               <button type="button" className="hoja-mas" onClick={() => onAddSet(ex.id)}>
-                <Plus size={12} /> serie
+                <Plus size={13} /> serie
               </button>
             </div>
 

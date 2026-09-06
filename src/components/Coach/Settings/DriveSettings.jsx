@@ -217,7 +217,7 @@ export const DriveSettings = ({ onChanged }) => {
               {busy === 'conectar' ? 'Abriendo Google…' : 'Conectar mi Drive'}
             </button>
             <span className="row gap-2 t-xs t-tertiary">
-              <ShieldCheck size={14} /> Permiso mínimo: solo lo que cree la aplicación
+              <ShieldCheck size={15} /> Permiso mínimo: solo lo que cree la aplicación
             </span>
           </div>
 
@@ -258,7 +258,7 @@ export const DriveSettings = ({ onChanged }) => {
 
             <span className="row gap-2">
               <span className="badge badge-ok">
-                <Check size={11} /> Conectado
+                <Check size={13} /> Conectado
               </span>
               <button
                 type="button"
@@ -281,7 +281,7 @@ export const DriveSettings = ({ onChanged }) => {
               target="_blank"
               rel="noreferrer noopener"
             >
-              <ExternalLink size={11} /> Abrir la carpeta «Caveman Hub» en tu Drive
+              <ExternalLink size={13} /> Abrir la carpeta «Caveman Hub» en tu Drive
             </a>
           )}
         </Panel>
@@ -313,16 +313,16 @@ export const DriveSettings = ({ onChanged }) => {
 
           <div className="card-inset col gap-2 t-xs t-secondary">
             <span className="row gap-2">
-              <FolderPlus size={14} className="shrink-0" />
+              <FolderPlus size={15} className="shrink-0" />
               Cada carpeta se comparte con el correo de su ficha, así que la abre él y nadie más.
             </span>
             <span className="row gap-2">
-              <Upload size={14} className="shrink-0" />
+              <Upload size={15} className="shrink-0" />
               Lo que suba tu cliente pasa por el servidor, nunca por su cuenta de Google: no
               necesita tener Drive ni saber qué es.
             </span>
             <span className="row gap-2">
-              <ExternalLink size={14} className="shrink-0" />
+              <ExternalLink size={15} className="shrink-0" />
               Y son tuyas: mueve «Caveman Hub» donde quieras dentro de tu Drive y mete ahí lo que te
               parezca. Lo que dejes en la carpeta de alguien, lo ve él.
             </span>

@@ -107,6 +107,28 @@ describe('portfolioBoard', () => {
     expect(board.map((c) => c.id)).toEqual(BOARD_COLUMNS.map((c) => c.id));
   });
 
+  /*
+    La entrega sin contestar no caduca al cambiar de semana. Sin pauta, «el
+    periodo en curso» se caía al lunes de hoy, así que lo entregado el jueves
+    anterior desaparecía de la cartera el lunes siguiente: el cliente había
+    subido lo suyo y su entrenador dejaba de verlo sin haber contestado.
+  */
+  it('lo entregado y sin contestar sigue en la cartera aunque sea de otra semana', () => {
+    const rows = buildPortfolio(
+      {
+        clients: [client()],
+        checkIns: {
+          c1: { id: 'ci1', weekStart: '2026-08-03', submittedAt: '2026-08-06', reviewedAt: null },
+        },
+      },
+      '2026-08-11'
+    );
+
+    expect(rows[0].review.exact).toBe(true);
+    expect(rows[0].review.pending).toBe(true);
+    expect(portfolioBoard(rows).find((c) => c.id === 'to_review').rows).toHaveLength(1);
+  });
+
   it('una cartera vacía da columnas vacías, no columnas ausentes', () => {
     // La cabecera de cada columna tiene que existir igualmente: un tablero al que le
     // faltan columnas no se lee como «no hay nadie ahí», se lee como roto.
@@ -383,6 +405,27 @@ describe('la cola de revisiones', () => {
 
   it('sin día elegido no se reclama nada', () => {
     expect(reviewState(fila('Sin día', { weekday: null }), HOY)).toBe('off');
+  });
+
+  /*
+    ══ Pero una ENTREGA sí, tenga pauta o no ══════════════════════════════════
+
+    Lo reportó un entrenador: un cliente sin periodicidad subía sus fotos y sus
+    pesajes, la entrega se guardaba… y «Por revisar» seguía vacío. No se puede
+    llegar tarde a una cita que nadie ha puesto —de ahí el `off` de arriba—,
+    pero una respuesta que le debes no depende de ninguna cita.
+  */
+  it('sin día elegido, si ha entregado, te espera igual', () => {
+    const row = fila('Sin día', { weekday: null }, { submittedAt: '2026-08-20', pending: true });
+    expect(reviewState(row, HOY)).toBe('ready');
+    expect(reviewQueue([row], HOY).map((r) => r.review_state)).toEqual(['ready']);
+  });
+
+  /* La aproximación de «ha hecho su parte» (sin la migración 0009) NO cuenta:
+     es una conjetura, y una conjetura sin cita detrás es ruido, no trabajo. */
+  it('sin día elegido, la entrega solo aproximada no reclama nada', () => {
+    const row = fila('Sin día', { weekday: null }, { exact: false, pending: true });
+    expect(reviewState(row, HOY)).toBe('off');
   });
 
   /*

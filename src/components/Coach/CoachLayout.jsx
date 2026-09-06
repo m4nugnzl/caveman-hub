@@ -1,9 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CalendarCheck, Eye, UserPlus } from 'lucide-react';
+import { ArrowLeft, Cake, CalendarCheck, Eye, PersonStanding, Ruler, UserPlus } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
+import { latestWeight } from '@/domain/anthropometry';
 import { feeLabel, paymentState } from '@/domain/billing';
+import { identityFacts } from '@/domain/ficha';
 import { buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
 import { clientProtocol } from '@/domain/protocol';
 import { semanaDeAhora } from '@/domain/week';
@@ -17,13 +19,43 @@ import {
   sameSectionFor,
   sectionsFor,
 } from '@/routes';
-import { EmptyState } from '@/components/ui/primitives';
+import { EmptyState, Loading } from '@/components/ui/primitives';
 import { Avatar } from '@/components/ui/Avatar';
+import { useMarcaDeslizante } from '@/components/ui/carril';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { Logo } from '@/components/ui/Logo';
+import { Modal } from '@/components/ui/Modal';
 import { HeaderActions, Omnibox } from '@/components/Header';
 import { ClientSwitcher } from './ClientSwitcher';
 import { GettingStarted } from './GettingStarted';
+
+/*
+  Las dos pantallas que la barra abre como CAPA (tanda 2 del puesto). Perezosas
+  como en sus rutas (`App.jsx`): importarlas normal las metería en el chunk
+  principal y desharía el troceo que ya tienen.
+*/
+const IncomePanel = lazy(() =>
+  import('@/components/Coach/Income/IncomePanel').then((m) => ({ default: m.IncomePanel }))
+);
+const CoachCalendar = lazy(() =>
+  import('@/components/calendar/CoachCalendar').then((m) => ({ default: m.CoachCalendar }))
+);
+
+/*
+  ── Agenda y Caja son capas, no destinos (tanda 2) ──────────────────────────
+  La regla del puesto: ir a otro sitio se reserva para cambiar de persona; lo
+  demás viene a ti. Cobros y Agenda se abren ENCIMA de donde estés, en una
+  ventana grande — la misma gramática que las «a fondo» del Resumen — y al
+  cerrar sigues exactamente donde estabas, con el hilo intacto.
+
+  Sus rutas NO se tocan: `/ingresos` y `/calendario` siguen respondiendo con la
+  pantalla completa — son marcadores, y son el camino del móvil, donde no hay
+  barra y la del pulgar navega con `COACH_PRIMARY` entero.
+*/
+const CAPAS = [
+  { id: 'cobros', path: '/ingresos' },
+  { id: 'agenda', path: '/calendario' },
+];
 
 /**
  * Marco del panel del entrenador: el chasis con barra lateral.
@@ -96,8 +128,21 @@ const ChapaDeCobro = ({ client }) => {
   );
 };
 
+/*
+  ══ AQUÍ VIVIÓ EL PULSO ═════════════════════════════════════════════════════
+  La cabecera llevó unos días el peso del cliente: los ocho últimos pesajes,
+  la cifra de hoy y la variación. Fuera por decisión del dueño. El peso ya
+  tiene su sitio —«El cuerpo», con su serie, sus ejes y su escala— y en la
+  cinta era una cifra sin contexto compitiendo con la identidad de la persona.
+
+  Con el pulso se va también el filtro que lo sacaba de la anatomía: los cuatro
+  hechos de `identityFacts` vuelven completos, el peso incluido.
+*/
+
 /** La pestaña desde la que NO se ofrece «Revisar semana»: ya estás en ella. */
 const SECCION_SEMANA = COACH_CLIENT.find((s) => s.path === 'semana');
+/** El perfil: en escritorio se abre desde el nombre, no desde una pestaña. */
+const SECCION_FICHA = COACH_CLIENT.find((s) => s.path === 'ficha');
 
 export const CoachLayout = () => {
   const {
@@ -117,6 +162,33 @@ export const CoachLayout = () => {
   const { clientId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  /* La marca de «estás aquí» del carril del cliente, que viaja entre destinos
+     en vez de teletransportarse (`ui/carril.js`). Aquí arriba con los demás
+     ganchos: más abajo hay retornos tempranos y quedaría a un lado de un `if`.
+     Sin carril montado no hay nada que medir y se retira sola. */
+  const carrilDeCliente = useMarcaDeslizante();
+
+  /* La capa abierta ('cobros' | 'agenda' | null). Navegar la cierra: cambiar
+     de sitio es el único viaje del puesto, y una ventana de otra pantalla
+     flotando sobre el destino sería llevarse la mesa a cuestas. */
+  const [capa, setCapa] = useState(null);
+  useEffect(() => {
+    setCapa(null);
+  }, [location.pathname]);
+
+  /*
+    La fila del cliente abierto, siempre a la vista. La cartera va por urgencia
+    y rueda sin barra de scroll: quien está por abajo quedaba abierto pero
+    invisible — la barra decía «no estás en nadie». `nearest` solo mueve lo
+    justo, y no mueve nada si la fila ya se ve.
+  */
+  const carteraRef = useRef(null);
+  useEffect(() => {
+    if (!clientId) return;
+    carteraRef.current
+      ?.querySelector('.side-client.active')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [clientId]);
 
   const hoy = todayISO();
   const hasClients = clients.length > 0;
@@ -178,9 +250,15 @@ export const CoachLayout = () => {
   const bandeja = useMemo(() => {
     const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts });
     const { tasks } = portfolioInbox(rows);
+    /* Las colas ENTERAS, no solo su suma: desde «El puesto» la barra es el
+       inicio y enseña a la gente de cada cola, no una cifra en una puerta. */
+    const colas = colasDeInicio(rows);
     return {
       // La MISMA cifra que las cuatro colas de «Inicio»: los trámites no cuentan.
-      total: colasDeInicio(rows).reduce((n, cola) => n + cola.n, 0),
+      total: colas.reduce((n, cola) => n + cola.n, 0),
+      /* El puesto de cada uno en la fila: `buildPortfolio` ya ordena por
+         urgencia, y la cartera de la barra se sienta en ese mismo orden. */
+      orden: new Map(rows.map((row, i) => [row.client.id, i])),
       esperando: new Set(
         tasks.filter((task) => task.awaited).flatMap((task) => task.rows.map((row) => row.client.id))
       ),
@@ -266,6 +344,28 @@ export const CoachLayout = () => {
     );
 
   /*
+    ══ La cartera de la barra: UNA lista, ordenada por urgencia ══════════════
+    Hubo una versión (un día de vida) que desplegaba aquí las cuatro colas de
+    «Inicio» enteras, cada persona con su porqué debajo del nombre. Con la
+    cartera real era una columna de ruido: siete «no ha registrado ningún
+    entreno» seguidos, rótulos de grupo por todas partes y media barra en
+    scroll. El dueño lo dijo al verla: «un lío con demasiada información».
+
+    La barra vuelve a su ley —hace UNA cosa: navegar— y lo que conserva del
+    puesto es el ORDEN: la lista va como la deja `buildPortfolio`, por urgencia
+    y no por alfabeto, así que quien necesita algo está arriba sin que haga
+    falta decir el qué. El qué —los porqués, los verbos, las colas— es de la
+    pantalla de Inicio, que para eso es la mesa.
+  */
+  const carteraOrdenada = [...cartera].sort(
+    (a, b) => (bandeja.orden.get(a.id) ?? Infinity) - (bandeja.orden.get(b.id) ?? Infinity)
+  );
+
+  /* Las puertas que sobreviven al puesto, buscadas por ruta y no por índice:
+     el orden de `COACH_PRIMARY` es del móvil y puede cambiar sin avisar. */
+  const puerta = (path) => COACH_PRIMARY.find((p) => p.path === path);
+
+  /*
     ── El selector, que ahora es SOLO del móvil ────────────────────────────────
     Vivía también en la barra lateral, y allí era la consecuencia de que la
     cartera no cupiera: si la lista de clientes no está, hace falta un
@@ -295,6 +395,26 @@ export const CoachLayout = () => {
      quieto y viaja en el subtítulo del selector — como chapa suelta al lado del
      botón del portal componía un cajón de piezas desparejas. */
   const chapas = onClient && activeClient && <ChapaDeCobro client={activeClient} />;
+
+  /*
+    ── La anatomía, en la cabecera de las cinco pestañas ──────────────────────
+    Los MISMOS cuatro hechos que abren su ficha (`identityFacts`): edad, altura,
+    último peso y sexo. Se suben aquí porque son lo que hay que saber de la
+    persona antes de decidir nada, en cualquier pestaña — no solo en su perfil.
+
+    Solo los que están puestos: el hueco que invita a completar («+ Altura»)
+    es de la ficha, que es donde se arregla. Repetir el reproche en una cabecera
+    que se ve todo el rato sería llevarlo puesto.
+  */
+  const anatomia =
+    onClient && activeClient
+      ? identityFacts({ client: activeClient, weight: latestWeight(historiaAbierta || []) }).filter(
+          /* El PESO no: fuera de la cabecera por decisión del dueño. Su sitio es
+             «El cuerpo», con su serie y su escala; aquí era una cifra suelta
+             compitiendo con la identidad de la persona. */
+          (f) => f.value && f.id !== 'weight'
+        )
+      : [];
   /*
     La marca de «estás aquí» NO la decide `NavLink` por prefijo de URL. Desde que
     una sección tiene dos niveles —`revision` y `revision/fotos`, `resumen` y
@@ -314,6 +434,25 @@ export const CoachLayout = () => {
       : [];
 
   /*
+    ── El perfil es OTRA página, no una sexta pestaña ─────────────────────────
+    Hubo una versión en la que abrir el perfil dejaba el nombre en azul de
+    «seleccionado» con las cuatro pestañas encima y una miga debajo: tres capas
+    de cromo diciendo dónde estás, y ninguna diciéndolo bien. El dueño lo vio
+    con la palabra justa: se quería «un saltar de página», como Coachway.
+
+    Así que dentro del perfil la cabecera SE TRANSFORMA: la flecha de volver
+    junto al nombre, las pestañas se retiran (en escritorio; en móvil «Perfil»
+    es una pestaña del pulgar y nada de esto aplica) y el nombre habla en tinta
+    plena, porque ya no es una puerta — es el título de la página en la que
+    estás. La vuelta lleva a la sección desde la que se saltó (`state.desde`);
+    entrando por URL directa no hay salto que deshacer y se cae al resumen.
+  */
+  const enFicha = onClient && isSectionActive(location.pathname, SECCION_FICHA, '/c/[^/]+');
+  const seccionAbierta = seccionesDeCliente.find(({ activa }) => activa)?.seccion.path;
+  const desde = location.state?.desde;
+  const vueltaDelPerfil = clientPath(clientId, desde && desde !== 'ficha' ? desde : 'resumen');
+
+  /*
     ── La miga: dónde estás, dicho por la barra de herramientas ───────────────
     La barra de herramientas es pegajosa y la cabecera de la pantalla no: en
     cuanto se baja, el nombre de lo que se está mirando desaparecía con ella.
@@ -326,7 +465,7 @@ export const CoachLayout = () => {
   return (
     <div className="shell">
       {/* ══ La barra lateral: solo existe en escritorio (ver EL CHASIS) ═══ */}
-      <aside className="sidebar">
+      <aside className="sidebar barra-tinta">
         <div className="sidebar-brand">
           <Logo subtitle={null} />
         </div>
@@ -336,42 +475,29 @@ export const CoachLayout = () => {
         </div>
 
         {/*
-          ── El nivel primario, que ya no se va a ninguna parte ───────────────
-          Aquí vivió un PANEL INTERCAMBIABLE: fuera de un cliente el nivel
-          primario, dentro el cliente entero con sus siete secciones. La barra
-          no apilaba planos, los CAMBIABA — y el argumento era bueno: así en
-          pantalla nunca había más de diez opciones.
+          ══ EL PUESTO (sep 2026): una puerta, una lista, dos utilidades ══════
+          Aquí vivieron las cuatro puertas del nivel primario. Quedan:
+          «Inicio» arriba con la cuenta de la bandeja; la cartera —ordenada por
+          urgencia, con el punto en quien espera— como única franja que rueda;
+          y Agenda y Cobros como utilidades en voz baja, encima del pie.
+          «Clientes» se disuelve: su tabla completa se abre desde el rótulo
+          «Cartera».
 
-          Lo que no se vio es lo que costaba. Bajar de diez escondiendo el resto
-          significa que entrar en un cliente no es entrar en una habitación:
-          es cambiar de edificio. Hoy, Ingresos, el calendario y las otras
-          catorce personas dejaban de existir, y volver a cualquiera de ellas
-          era un viaje de vuelta. Dos entrenadores lo dijeron con las mismas
-          palabras sin haber hablado entre ellos: «zonas que se interconectan y
-          marean», «ventanas inconexas».
+          Hubo un segundo intento entre medias: las cuatro colas de «Inicio»
+          desplegadas aquí, cada persona con su porqué. Con cartera real era
+          una columna de ruido («un lío con demasiada información») y se
+          retiró el mismo día. La barra navega; el trabajo, con sus verbos y
+          sus porqués, es de la pantalla de Inicio.
 
-          Ahora el marco no cambia nunca. Las cuatro puertas se quedan, la
-          cartera entera vive debajo de ellas —que es lo que convierte la barra
-          en el sitio donde estás en vez de en un menú— y las secciones del
-          cliente bajan al área de trabajo, pegadas a su nombre
-          (`.client-head`). En pantalla siguen sin verse más de diez opciones a
-          la vez, porque las del cliente ya no están aquí.
-
-          El móvil no cambia: allí la barra del pulgar SÍ cambia de plano, y
-          allí es lo correcto — no hay sitio para las dos cosas y el gesto de
-          volver es el dedo.
+          El móvil no cambia: allí no hay barra y la del pulgar sigue con
+          `COACH_PRIMARY` entero.
         */}
-        <nav className="sidebar-nav" aria-label="Secciones principales">
-          {COACH_PRIMARY.map(({ path, label, icon: Icon }) => {
+        <nav className="sidebar-nav" aria-label="Inicio">
+          {(() => {
+            const { path, label, icon: Icon } = puerta(COACH_HOME);
             const cuenta = cuentaDe[path];
             return (
-              <NavLink
-                key={path}
-                to={path}
-                className="side-link"
-                /* «Clientes» no debe marcarse por estar dentro de un cliente. */
-                end
-              >
+              <NavLink key={path} to={path} className="side-link" end>
                 <Icon size={15} />
                 {label}
                 {cuenta && (
@@ -384,32 +510,26 @@ export const CoachLayout = () => {
                 )}
               </NavLink>
             );
-          })}
+          })()}
         </nav>
 
         {/*
-          ── La cartera, siempre a la vista ──────────────────────────────────
-          La lista de clientes deja de ser una pantalla a la que se va y pasa a
-          ser parte del marco, como en cualquier herramienta donde el trabajo es
-          sobre personas. Cambiar de cliente es un clic desde donde estés, sin
-          salir ni volver, y quién te espera se ve sin entrar en nadie.
-
-          Es la ÚNICA franja que desplaza: las cuatro puertas de arriba y los
-          ajustes de abajo se quedan quietos por muchos clientes que haya.
-
-          Hablan en voz más baja que las puertas —peso de texto normal, tinta
-          secundaria— a propósito: son quince y ellas cuatro, y sin esa
-          diferencia la barra se lee como una lista de diecinueve cosas.
+          ── La cartera: la única franja que desplaza ─────────────────────────
+          Una sola lista, en el orden de la urgencia (ver `carteraOrdenada`).
+          Pulsar a alguien conserva la sección donde estés (`destinoDe`); quién
+          te espera lo dice el punto, y el porqué se lee en Inicio.
         */}
         {cartera.length > 0 ? (
-          <div className="sidebar-cartera">
-            <p className="sidebar-group">
+          <div className="sidebar-cartera" ref={carteraRef}>
+            {/* El rótulo es además la puerta a la tabla completa: la barra
+                enseña quién, la tabla de `/clientes` enseña cuánto. */}
+            <NavLink to="/clientes" end className="sidebar-group">
               Cartera
               <span className="sidebar-group-n">{clients.length}</span>
-            </p>
+            </NavLink>
 
             <nav className="sidebar-nav" aria-label="Tus clientes">
-              {cartera.map((cliente) => {
+              {carteraOrdenada.map((cliente) => {
                 const abierto = cliente.id === clientId;
                 /* El mismo reloj que la cabecera. Aquí se leía
                    `training[id].weekNumber`, que era un TERCER número sobre la
@@ -451,6 +571,32 @@ export const CoachLayout = () => {
           </div>
         ) : null}
 
+        {/* ── Agenda y Cobros: capas, no destinos (ver `CAPAS` arriba) ─────
+            Botones y no enlaces: abren la ventana encima de donde estés. Si
+            ya estás EN su ruta (marcador), la fila se marca y pulsar no abre
+            nada — una ventana de lo que ya llena la pantalla sería un espejo. */}
+        <nav className="sidebar-nav sidebar-utilidades" aria-label="Agenda y cobros">
+          {CAPAS.map(({ id, path }) => {
+            const { label, icon: Icon } = puerta(path);
+            const enSuRuta = location.pathname === path;
+            return (
+              <button
+                key={id}
+                type="button"
+                className={`side-link${capa === id || enSuRuta ? ' active' : ''}`}
+                aria-haspopup="dialog"
+                aria-expanded={capa === id}
+                onClick={() => {
+                  if (!enSuRuta) setCapa(id);
+                }}
+              >
+                <Icon size={15} />
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+
         {/*
           ── El pie: QUIÉN ERES, y dentro lo tuyo ────────────────────────────
           Aquí había dos filas para una sola idea: «Ajustes» con su engranaje y,
@@ -473,102 +619,200 @@ export const CoachLayout = () => {
         </div>
       </aside>
 
-      <div className="shell-main">
-        <div className="layout">
-          {/* ── El subnivel del móvil: el mismo contexto, en horizontal ──── */}
-          {/*
-            ══ La cabecera del cliente: fija, igual en las cinco pestañas ═════
-            Quién es, en qué semana va, si te espera y qué paga: eso no cambia
-            al cambiar de pestaña, así que tampoco se mueve. Debajo, las cinco
-            pestañas planas — y NUNCA un segundo carril bajo ellas: lo que
-            cuelga de una sección se abre desde su contenido y vuelve con una
-            miga (`ui/Migas`). Es la respuesta directa a «zonas que se
-            interconectan y marean»: dentro de una persona hay un solo plano.
+      {/* La capa abierta: la pantalla entera de Cobros o Agenda, encima de
+          donde estés. Cerrar (equis, Escape o el fondo) te deja donde estabas. */}
+      {capa && (
+        <Modal
+          size="capa"
+          title={puerta(CAPAS.find((c) => c.id === capa).path).label}
+          onClose={() => setCapa(null)}
+        >
+          <Suspense fallback={<Loading />}>
+            {capa === 'cobros' ? <IncomePanel enCapa /> : <CoachCalendar enCapa />}
+          </Suspense>
+        </Modal>
+      )}
 
-            En el móvil el nombre es el selector de cliente (no hay barra donde
-            listar quince nombres) y las pestañas las lleva la barra del pulgar.
-          */}
-          {onClient && activeClient && (
-            <header className="cliente-cab">
-              <div className="cliente-cab-fila">
-                <div className="cliente-cab-quien">
-                  <button
-                    type="button"
-                    className="btn btn-icon cliente-cab-volver"
-                    onClick={() => navigate('/clientes')}
-                    aria-label="Volver a la lista de clientes"
-                    title="Volver a la lista de clientes"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-                  <h1 className="cliente-cab-nombre">
-                    <Avatar name={activeClient.name} src={activeClient.avatar} size="md" />
-                    {activeClient.name}
-                  </h1>
-                  <div className="cliente-cab-selector">{selector}</div>
-                  <p className="cliente-cab-meta">
-                    {/* «En curso» no es adorno: debajo, la revisión habla del
-                        microciclo que YA ha terminado —el 18 cuando aquí pone
-                        19—, y dos números seguidos sin decir de qué son se leen
-                        como un fallo. Con esto, cada uno dice lo suyo: aquí, por
-                        dónde va; ahí abajo, cuál estás contestando. */}
-                    {semanaActiva && <span>Microciclo {semanaActiva} · en curso</span>}
-                    {bandeja.esperando.has(activeClient.id) && (
-                      <span className="cliente-cab-espera">Te espera</span>
-                    )}
-                    {chapas}
-                  </p>
-                </div>
-                <div className="cliente-cab-acciones">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setViewMode('client')}
-                    title="Ver la aplicación como la ve esta persona"
-                  >
-                    {/* Cada una con su signo: el ojo, que te pone en su sitio;
-                        el calendario marcado, que es el de «Revisiones» —el
-                        destino al que lleva—. Sin ellos eran dos cápsulas
-                        idénticas y anónimas en una banda vacía. */}
-                    <Eye size={14} aria-hidden="true" />
-                    Ver como {activeClient.name.split(/\s+/)[0]}
-                  </button>
-                  {!isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') && (
-                    /*
-                      Primario SOLO si esta persona espera respuesta. La regla de
-                      la casa es «un relleno sólido por pantalla», y este botón
-                      —que vive en las cinco pestañas— la rompía en cualquier
-                      pantalla con primario propio: dos azules diciendo «esto es
-                      lo importante». Condicionado, el azul pasa a ser señal: si
-                      lo ves encendido, hay una entrega esperándote detrás.
-                    */
-                    <Link
-                      className={`btn ${bandeja.esperando.has(activeClient.id) ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                      to={clientPath(clientId, 'semana')}
+      <div className="shell-main">
+        {/* ── El subnivel del móvil: el mismo contexto, en horizontal ──── */}
+        {/*
+          ══ La cabecera del cliente: fija, igual en las cinco pestañas ═════
+          Quién es, en qué semana va, si te espera y qué paga: eso no cambia
+          al cambiar de pestaña, así que tampoco se mueve. Debajo, las cinco
+          pestañas planas — y NUNCA un segundo carril bajo ellas: lo que
+          cuelga de una sección se abre desde su contenido y vuelve con una
+          miga (`ui/Migas`). Es la respuesta directa a «zonas que se
+          interconectan y marean»: dentro de una persona hay un solo plano.
+
+          En el móvil el nombre es el selector de cliente (no hay barra donde
+          listar quince nombres) y las pestañas las lleva la barra del pulgar.
+        */}
+        {onClient && activeClient && (
+          <header className={`cliente-cab${enFicha ? ' is-perfil' : ''}`}>
+            {/* El interior se centra en la MISMA columna que el trabajo de
+                debajo (`--max-w-trabajo`, el ancho de las cinco pestañas del
+                cliente): la banda cruza la hoja de canto a canto y lo que
+                lleva dentro cae a plomo sobre las tarjetas. */}
+            <div className="cliente-cab-in">
+              {/* La línea de identidad: quién es —con su cara y su anatomía—
+                  a la izquierda; su estado y los dos verbos a la derecha. Los
+                  destinos ya no cuelgan aquí en medio: tienen su raíl debajo. */}
+              <div className="cliente-cab-linea">
+              <div className="cliente-cab-quien">
+                <button
+                  type="button"
+                  className="btn btn-icon cliente-cab-volver"
+                  onClick={() => navigate('/clientes')}
+                  aria-label="Volver a la lista de clientes"
+                  title="Volver a la lista de clientes"
+                >
+                  <ArrowLeft size={15} />
+                </button>
+                {/* ── La puerta del perfil: la cara, el nombre y la anatomía ──
+                    Una sola puerta, no dos. Antes el nombre era un enlace y la
+                    línea de datos era OTRO enlace al mismo sitio, veinte
+                    píxeles debajo; apilados eso se descubría, pero en una banda
+                    de 64 px las dos se ven a la vez y la segunda es un doblete.
+
+                    DENTRO del perfil deja de ser puerta: has saltado a su
+                    página, el nombre es el título y delante va la vuelta. Nada
+                    de azul de «seleccionado» — no estás en una pestaña, estás
+                    en otra hoja (ver `is-perfil`, y `is-quieta` para el color). */}
+                {enFicha ? (
+                  <div className="cliente-cab-puerta is-quieta">
+                    {/* La flecha OCUPA el sitio de la cara — mismo círculo,
+                        mismo hueco — para que el nombre no se mueva ni un
+                        píxel al entrar. Un titular que baila entre pantallas
+                        se lee como un fallo, no como una transformación. */}
+                    <button
+                      type="button"
+                      className="btn btn-icon cliente-cab-atras"
+                      onClick={() => navigate(vueltaDelPerfil)}
+                      aria-label="Salir de su perfil"
+                      title="Salir de su perfil"
                     >
-                      <CalendarCheck size={14} aria-hidden="true" />
+                      <ArrowLeft size={15} />
+                    </button>
+                    <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
+                  </div>
+                ) : (
+                  <Link
+                    className="cliente-cab-puerta"
+                    to={clientPath(clientId, 'ficha')}
+                    state={{ desde: seccionAbierta }}
+                    title="Su perfil: sus datos, sus fechas y su cobro"
+                  >
+                    <Avatar name={activeClient.name} src={activeClient.avatar} size="md" />
+                    <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
+                  </Link>
+                )}
+                <div className="cliente-cab-selector">{selector}</div>
+                {/* La línea de datos, al lado del nombre y no debajo: quién es
+                    y por dónde va. La anatomía va en CHAPAS con su signo (Q-08
+                    del plan del acabado): tres medidas seguidas en texto
+                    corrido —«31 años · 168 cm · Mujer»— había que leerlas para
+                    saber cuál era cuál; el signo las cuenta de un vistazo. El
+                    microciclo NO es chapa: es por dónde va, no lo que mide, y
+                    queda en texto llano — la diferencia entre dato y estado se
+                    ve ahora en el dibujo.
+
+                    «En curso» no es adorno: debajo, la revisión habla del
+                    microciclo que YA ha terminado —el 18 cuando aquí pone 19—,
+                    y dos números seguidos sin decir de qué son se leen como un
+                    fallo. Con esto cada uno dice lo suyo. */}
+                <p className="cliente-cab-meta">
+                  {!enFicha && anatomia.length > 0 && (
+                    <span className="cliente-cab-anatomia">
+                      {anatomia.map((f) => {
+                        const Signo = { age: Cake, height: Ruler, gender: PersonStanding }[f.id];
+                        return (
+                          <span key={f.id} className="chapa-hecho" title={f.label}>
+                            {Signo && <Signo size={13} aria-hidden="true" />}
+                            {f.value}
+                          </span>
+                        );
+                      })}
+                    </span>
+                  )}
+                  {semanaActiva && <span>Microciclo {semanaActiva} · en curso</span>}
+                </p>
+              </div>
+
+              {/* ── El extremo derecho: el estado y los dos verbos ─────────
+                  Eran dos cápsulas con canto de control. En una cinta de 60 px
+                  dos cajas de control al final vuelven a partirla en zonas, y
+                  la casa ya tenía escrita la gramática para esto:
+                  `.cab-accion` — «dos verbos al lado del nombre no necesitan
+                  caja» (revision.css). Se vuelve a ella.
+
+                  El azul sigue siendo la ÚNICA señal de la banda: cuando esa
+                  persona espera respuesta, «Revisar semana» se rellena de
+                  botón y se sale del tratamiento a propósito. */}
+              <div className="cliente-cab-acciones">
+                {chapas}
+                <button
+                  type="button"
+                  className="cab-accion cliente-cab-ver-como"
+                  onClick={() => setViewMode('client')}
+                  title={`Ver la aplicación como la ve ${activeClient.name.split(/\s+/)[0]}`}
+                  aria-label={`Ver la aplicación como la ve ${activeClient.name.split(/\s+/)[0]}`}
+                >
+                  <Eye size={15} aria-hidden="true" />
+                  <span>Ver como {activeClient.name.split(/\s+/)[0]}</span>
+                </button>
+                {!isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') &&
+                  (bandeja.esperando.has(activeClient.id) ? (
+                    <Link className="btn btn-primary btn-sm" to={clientPath(clientId, 'semana')}>
+                      <CalendarCheck size={15} aria-hidden="true" />
                       Revisar semana
                     </Link>
-                  )}
-                </div>
+                  ) : (
+                    <Link className="cab-accion is-principal" to={clientPath(clientId, 'semana')}>
+                      <CalendarCheck size={15} aria-hidden="true" />
+                      Revisar semana
+                    </Link>
+                  ))}
               </div>
-              <nav className="tabs cliente-cab-tabs" aria-label={`Secciones de ${activeClient.name}`}>
-                {seccionesDeCliente.map(({ seccion, activa }) => {
-                  const { path, label, icon: Icon } = seccion;
-                  return (
-                    <NavLink
-                      key={path}
-                      to={clientPath(clientId, path)}
-                      className={`tab${activa ? ' active' : ''}`}
-                      aria-current={activa ? 'page' : undefined}
-                    >
-                      <Icon size={15} /> {label}
-                    </NavLink>
-                  );
-                })}
+              </div>
+
+              {/* ── El raíl de destinos, posado sobre el filete ────────────
+                  Colgados en la línea de identidad, entre el nombre y las
+                  acciones, los destinos se leían como una pieza pegada
+                  («queda impostado», el dueño, 6 sep). Son la segunda línea
+                  de la cabecera: a todo el ancho, a ras del filete —la marca
+                  azul muerde el borde— y el primer destino cae a plomo sobre
+                  la primera tarjeta.
+
+                  Sin «Perfil»: en escritorio su puerta es el nombre (arriba);
+                  el filtro es solo de este carril — la barra del pulgar del
+                  móvil recibe la lista entera, porque allí el nombre es el
+                  selector de cliente y no puede ser además una puerta.
+
+                  Y sin iconos: cinco palabras cortas que no se parecen entre
+                  sí no necesitan desempate. La marca de «estás aquí» es la
+                  pieza suelta del final, que viaja entre destinos
+                  (`ui/carril.js`). */}
+              <nav
+                ref={carrilDeCliente}
+                className="tabs cliente-cab-tabs"
+                aria-label={`Secciones de ${activeClient.name}`}
+              >
+                {seccionesDeCliente.filter(({ seccion }) => !seccion.oculta).map(({ seccion, activa }) => (
+                  <NavLink
+                    key={seccion.path}
+                    to={clientPath(clientId, seccion.path)}
+                    className={`tab${activa ? ' active' : ''}`}
+                    aria-current={activa ? 'page' : undefined}
+                  >
+                    {seccion.label}
+                  </NavLink>
+                ))}
+                <span className="tabs-marca" aria-hidden="true" />
               </nav>
-            </header>
-          )}
+            </div>
+          </header>
+        )}
+        <div className="layout">
           
 {/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
               entrenador recién registrado y no puede limitarse a estar vacía.
@@ -587,7 +831,7 @@ export const CoachLayout = () => {
                 message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
                 action={
                   <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
-                    <UserPlus size={17} /> Dar de alta un cliente
+                    <UserPlus size={15} /> Dar de alta un cliente
                   </button>
                 }
               />

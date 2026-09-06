@@ -138,7 +138,7 @@ export const ImportDayDialog = ({ clients, activeClient, targetDayName, onImport
                           onClose();
                         }}
                       >
-                        <Copy size={14} /> Traer
+                        <Copy size={15} /> Traer
                       </button>
                     </div>
                   );

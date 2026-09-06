@@ -81,7 +81,7 @@ export const ClientGymUpload = ({ client }) => {
 
       {tandas.length === 0 ? (
         <p className="t-xs t-tertiary row gap-2">
-          <Dumbbell size={14} /> Todavía no has subido ninguna.
+          <Dumbbell size={15} /> Todavía no has subido ninguna.
         </p>
       ) : (
         <div className="col gap-4">

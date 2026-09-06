@@ -133,7 +133,7 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
           onClick={() => onCreate(todayISO())}
           title="Solo si tu cliente ha repetido este día dentro del mismo microciclo"
         >
-          <CalendarPlus size={14} /> Otra sesión
+          <CalendarPlus size={15} /> Otra sesión
         </button>
 
         {active && !active.isLegacy && (

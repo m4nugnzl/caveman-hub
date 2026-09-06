@@ -101,7 +101,7 @@ export const ExerciseRow = ({ ejercicio, trend, onOpen }) => {
         {sobran > 0 && <span className="serie-mas">+{sobran}</span>}
       </span>
 
-      <ChevronRight size={14} className="ejerc-fila-chevron" aria-hidden="true" />
+      <ChevronRight size={15} className="ejerc-fila-chevron" aria-hidden="true" />
     </button>
   );
 };

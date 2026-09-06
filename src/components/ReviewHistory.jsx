@@ -247,7 +247,7 @@ export const ReviewHistory = ({
                     aria-label={`Eliminar la revisión del ${shortDate(fila.weekStart)}`}
                     onClick={() => borrar(fila)}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 )}
               </span>
@@ -394,7 +394,7 @@ export const ReviewHistory = ({
                   <div className="row between wrap gap-2">
                     <p className="t-sm grow pre-wrap">
                       <MessageSquareQuote
-                        size={12}
+                        size={13}
                         className="icon-inline"
                         style={{ color: 'var(--text-tertiary)' }}
                       />
@@ -429,7 +429,7 @@ export const ReviewHistory = ({
                     target="_blank"
                     rel="noreferrer noopener"
                   >
-                    <Video size={12} /> Ver la revisión en vídeo
+                    <Video size={13} /> Ver la revisión en vídeo
                   </a>
                 ) : (
                   esEntrenador &&
@@ -477,7 +477,7 @@ export const ReviewHistory = ({
                         setUrl('');
                       }}
                     >
-                      <Link2 size={12} /> Enlazar vídeo
+                      <Link2 size={13} /> Enlazar vídeo
                     </button>
                   ))
                 )}

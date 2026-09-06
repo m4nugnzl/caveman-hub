@@ -292,7 +292,7 @@ export const TeamPanel = () => {
                 aria-label="Nombre del equipo"
               />
               <button type="button" className="btn btn-primary btn-sm" onClick={commitName}>
-                <Check size={14} />
+                <Check size={15} />
               </button>
               <button
                 type="button"

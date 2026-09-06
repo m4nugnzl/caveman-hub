@@ -459,7 +459,7 @@ export const ReviewWizard = ({
               aria-current={i === indice ? 'step' : undefined}
             >
               <span className="wiz-mark-n" aria-hidden="true">
-                {i < indice ? <Check size={12} strokeWidth={3} /> : i + 1}
+                {i < indice ? <Check size={13} strokeWidth={3} /> : i + 1}
               </span>
               <span className="wiz-mark-k">{p.titulo}</span>
             </li>
@@ -630,7 +630,7 @@ export const ReviewWizard = ({
                     className="btn btn-secondary btn-sm self-start"
                     onClick={() => setAbiertos((a) => ({ ...a, folds: true }))}
                   >
-                    <Plus size={14} /> Añadir pliegues cutáneos
+                    <Plus size={15} /> Añadir pliegues cutáneos
                   </button>
                 ))}
 
@@ -658,7 +658,7 @@ export const ReviewWizard = ({
                     className="btn btn-secondary btn-sm self-start"
                     onClick={() => setAbiertos((a) => ({ ...a, perimeters: true }))}
                   >
-                    <Plus size={14} /> Añadir perímetros
+                    <Plus size={15} /> Añadir perímetros
                   </button>
                 ))}
             </>

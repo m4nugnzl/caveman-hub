@@ -198,7 +198,7 @@ const FoodRow = ({
           aria-label={`Reordenar ${food.name}. Alt y flechas para mover.`}
           title="Arrastra para reordenar (o Alt + ↑/↓)"
         >
-          <GripVertical size={14} />
+          <GripVertical size={15} />
         </button>
       )}
 
@@ -213,7 +213,7 @@ const FoodRow = ({
             onClick={() => onMove(-1)}
             aria-label={`Subir ${food.name}`}
           >
-            <ArrowUp size={14} />
+            <ArrowUp size={15} />
           </button>
           <button
             type="button"
@@ -222,7 +222,7 @@ const FoodRow = ({
             onClick={() => onMove(1)}
             aria-label={`Bajar ${food.name}`}
           >
-            <ArrowDown size={14} />
+            <ArrowDown size={15} />
           </button>
         </span>
       )}
@@ -259,7 +259,7 @@ const FoodRow = ({
             aria-label={`Equivalencias de ${food.name}`}
             title={editable && food.equivHidden ? 'Equivalencias (el cliente no las ve)' : 'Equivalencias'}
           >
-            <ArrowRightLeft size={12} />
+            <ArrowRightLeft size={13} />
           </button>
         )}
 
@@ -280,7 +280,7 @@ const FoodRow = ({
             aria-label={`Editar ${food.name}`}
             title="Editar macros y unidad"
           >
-            <Pencil size={12} />
+            <Pencil size={13} />
           </button>
         )}
       </span>
@@ -843,7 +843,7 @@ export const MealCard = ({
             aria-label={`Arrastrar ${meal.name} para reordenar`}
             title="Arrastra para reordenar"
           >
-            <GripVertical size={14} />
+            <GripVertical size={15} />
           </button>
         )}
         {numero !== null && <span className="comida-n">{numero}</span>}

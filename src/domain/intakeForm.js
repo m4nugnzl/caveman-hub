@@ -88,9 +88,24 @@ export const defaultIntakeForm = () => ({
   asked: [...DEFAULT_ASKED],
   custom: [],
   /*
+    ── Quién es: edad, altura y peso, encendido de serie ─────────────────────
+    Una de las dos excepciones a «nada llega encendido» —la otra es la salud— y
+    por el mismo motivo: son los hechos que entran en las cuentas —el gasto
+    energético, sus zonas de pulso, el ratio cintura/altura— y hasta hoy los
+    tecleaba el entrenador de memoria o no estaban. Son tres preguntas, además,
+    así que el argumento de «un formulario largo se abandona» no las alcanza.
+    Quien tome él las medidas, las apaga.
+
+    NO viven en `asked` porque no son campos del perfil: la edad y la altura son
+    columnas de `clients` (0076) y el peso es una serie (`anthropometry`), que es
+    justo lo que `profile.js` deja fuera de su catálogo a propósito. Quien las
+    escribe en su sitio es `IntakeBasics`.
+  */
+  askBasics: true,
+  /*
     ── Preguntar por su salud, encendido de serie ────────────────────────────
-    Es la única parte de este formulario que NACE encendida, y va contra la regla
-    de «nada llega encendido» a propósito: un cuestionario de alta que pregunta a
+    La otra parte que NACE encendida —con `askBasics`, aquí arriba— y va contra
+    la regla de «nada llega encendido» a propósito: un cuestionario que pregunta a
     qué hora entrena y no pregunta por las lesiones no es una anamnesis, es una
     ficha de preferencias con nombre de historial.
 
@@ -162,6 +177,7 @@ export const coachIntakeForm = (preferences) => {
     asked,
     custom,
     required,
+    askBasics: raw.askBasics !== false,
     askHealth: raw.askHealth !== false,
     intro: String(raw.intro ?? '').trim().slice(0, 500),
   };

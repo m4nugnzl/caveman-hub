@@ -180,14 +180,14 @@ export const DietNotes = ({ notes: raw, onChange }) => {
               */
               onClick={() => guardar([...notes, { ...buildDietNote(), body: 'Escribe aquí…' }])}
             >
-              <Plus size={14} /> Añadir pauta
+              <Plus size={15} /> Añadir pauta
             </button>
           </div>
         )}
 
         {notes.length >= MAX_NOTES && (
           <p className="t-xs t-tertiary">
-            <Sparkles size={12} className="icon-inline" />
+            <Sparkles size={13} className="icon-inline" />
             Doce pautas es el tope. Si necesitas más, probablemente convenga juntar varias en una.
           </p>
         )}

@@ -35,7 +35,7 @@ export const ArchivedClients = () => {
               className="btn btn-secondary btn-sm"
               onClick={() => setClientArchived(client.id, false)}
             >
-              <ArchiveRestore size={14} /> Recuperar
+              <ArchiveRestore size={15} /> Recuperar
             </button>
           </div>
         ))}

@@ -106,6 +106,25 @@
   --surface-sunken: #f3f5f8;
   --surface-glass: rgba(255, 255, 255, 0.78);
 
+  /* ── La mesa y la hoja del puesto ────────────────────────────────────────
+     La escala del chasis de escritorio, con la regla del dossier de Coachway
+     (frame → content → card): cada paso hacia DENTRO aclara, y lo único
+     hundido es el marco de fuera. Sobre papel eso obliga a cruzar los grises
+     —la mesa toma el tono hundido—; sobre hierro la escala ya nacía bien y
+     cada tema declara la suya. Sin esto, la hoja era más oscura que la mesa y
+     se leía como un pozo gris bajo una cabecera blanca, no como una hoja.
+
+     Y la hoja es PAPEL, no blanco. Aquí hubo un día (6 sep) `--surface`: una
+     sola superficie blanca al estilo del expediente de Coachway. El dueño lo
+     desanduvo al verlo — «quizás fuese mejor que las boxes fuesen como boxes
+     y no todo junto»: tarjeta blanca sobre hoja blanca deja solo un canto al
+     9 % separándolas y la rejilla se funde. Coachway tampoco funde: su lienzo
+     de contenido es #f7f6f2 y sus tarjetas #fff — un escalón corto pero real.
+     El nuestro es el mismo: la hoja en el gris de `--canvas` y el blanco
+     reservado a lo que se posa encima. */
+  --mesa: var(--canvas-alt);
+  --hoja: var(--canvas);
+
   /* ── Separadores y rellenos ── */
   --hairline: #e6e9ef;
   --hairline-strong: #cbd1dc;
@@ -330,6 +349,13 @@
      cabeceras de tabla densas donde el tamaño fija el ancho de la columna.
      Subirlas de golpe no las hace legibles: las desborda. Fundir el escalón
      exige mirarlas una a una, y eso es otro trabajo. */
+  /* El escalón del GLIFO: no es texto que se lee, es un signo preso de su caja
+     —las iniciales de un avatar de 20 px, la unidad pegada a una cifra, el
+     rótulo de un eje—. Existía en las hojas escrito a mano de veintidós
+     maneras (8,5 px, 9, 9,5, 0.58rem, 0.6rem) y ninguna de las cinco quería
+     decir nada distinto de las otras cuatro. Nombrarlo no lo sube de tamaño:
+     lo saca de la lotería. */
+  --fs-3xs: 0.5625rem;  /* 9px — glifo dentro de su caja, no texto */
   --fs-2xs: 0.6875rem;  /* 11px — encabezados de columna */
   --fs-xs: 0.75rem;     /* 12px — etiquetas, deltas */
   --fs-sm: 0.875rem;    /* 14px — secundario */
@@ -424,6 +450,12 @@
   /* Para las entradas de pantalla: la cascada con la que se monta una vista.
      Más lento que `--normal` porque no responde a un gesto — presenta. */
   --slow: 0.5s var(--ease);
+  /* EL MUELLE: para lo que ATERRIZA — un chip que aparece, una marca que cae en
+     su sitio. El 1.32 es un rebote corto de verdad, no un efecto: pasa un pelo
+     y vuelve. Nunca para transiciones de salida ni para el hover — lo que se va
+     o responde al dedo usa `--ease`. (Del replanteamiento «El puesto», sep 2026:
+     es la única compra de movimiento que se le hace a Coachway.) */
+  --spring: cubic-bezier(0.18, 1.32, 0.34, 1);
 
   /* ── El velo ─────────────────────────────────────────────────────────────
      Lo que se pone detrás de un overlay para decir «todo lo de atrás está
@@ -534,6 +566,17 @@
   --surface-raised: #242932;
   --surface-sunken: #14171c;
   --surface-glass: rgba(28, 32, 39, 0.8);
+
+  /* La mesa y la hoja del hierro: LAS DOS son la noche. Aquí hubo un día
+     `--canvas-alt` de hoja —un peldaño intermedio entre la mesa y la
+     tarjeta— y el dueño lo vio fundido («yo lo sigo viendo todo junto», 6
+     sep): el escalón mesa→tarjeta está calibrado arriba en ~1,2:1 MEDIDO, y
+     meter la hoja en medio se lo comía — la tarjeta quedaba a 1,12 de su
+     fondo, que es «la misma masa» según la propia regla de este archivo. Así
+     que la hoja no añade peldaño: es el mismo negro de la mesa, la separa su
+     canto, y la tarjeta conserva entero el escalón que se midió. */
+  --mesa: var(--canvas);
+  --hoja: var(--canvas);
 
   --hairline: rgba(214, 224, 244, 0.08);
   --hairline-strong: rgba(214, 224, 244, 0.17);
@@ -719,6 +762,62 @@
   --brasa-luz-alta: rgba(226, 86, 74, 0.34);
   --brasa-luz-baja: rgba(226, 86, 74, 0.11);
   --acero-luz: rgba(111, 165, 238, 0.12);
+}
+
+/* ==========================================================================
+   La barra de tinta
+   --------------------------------------------------------------------------
+   La barra lateral del puesto es OSCURA EN LOS DOS TEMAS: es el ancla de la
+   pantalla, y con el lienzo claro al lado es lo que hace que el contenido se
+   lea iluminado (replanteamiento «El puesto», sep 2026 — la única pieza de la
+   gramática de Coachway que se compra con su material).
+
+   El mecanismo es el de `.lp-noche`, dos bloques más arriba: un selector que
+   REDEFINE los tokens y ningún componente que lo sepa. Todo lo que se monta
+   dentro —la búsqueda, las filas, el pie con la cuenta— se adapta solo, y los
+   menús que se abren en un portal fuera de la barra conservan el tema de la
+   página, que es lo correcto: son muebles del contenido, no de la barra.
+
+   Los valores son los del tema oscuro (el bloque de arriba), no una paleta
+   nueva: la barra es hierro, el mismo hierro. Solo dos difieren y se dice por
+   qué:
+     · `--surface-glass` es sólido y no cristal: la barra ya no deja pasar el
+       lienzo — es tinta, no vidrio.
+     · `--text-tertiary` sube un punto (#8b93a3): sobre la tinta, el valor del
+       tema oscuro se quedaba por debajo de 4,5:1 en los rótulos de grupo.
+   ========================================================================== */
+
+.barra-tinta {
+  color-scheme: dark;
+
+  --surface-glass: #12151d;
+  --surface: #1a1e27;
+  --surface-raised: #232936;
+  --surface-sunken: rgba(214, 224, 244, 0.06);
+
+  --hairline: rgba(214, 224, 244, 0.08);
+  --hairline-strong: rgba(214, 224, 244, 0.17);
+  --fill-subtle: rgba(214, 224, 244, 0.045);
+  --fill: rgba(214, 224, 244, 0.085);
+  --fill-strong: rgba(214, 224, 244, 0.145);
+  --edge: rgba(214, 224, 244, 0.12);
+  --edge-control: #66707e;
+
+  --text: #e9ecf2;
+  --text-secondary: #a2a9b7;
+  --text-tertiary: #8b93a3;
+
+  --accent: #5b8df7;
+  --accent-hover: #7da5f9;
+  --accent-soft: rgba(91, 141, 247, 0.14);
+  --accent-wash: rgba(91, 141, 247, 0.22);
+  --accent-on: #10131a;
+
+  --brasa: #ec6a52;
+  --brasa-soft: rgba(236, 106, 82, 0.14);
+  --brasa-on: #1a1816;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
 }
 
 /* ── Y ninguna tinta de marca ────────────────────────────────────────────────

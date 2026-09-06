@@ -31,7 +31,7 @@ export const Delta = ({ value, unit = '', percent = null, lowerIsBetter = false,
 
   return (
     <span className={`delta delta-${tone}`}>
-      <Icon size={11} strokeWidth={2.5} />
+      <Icon size={13} strokeWidth={2.5} />
       {/* La misma coma decimal que la cifra grande de al lado: la píldora decía
           «0.4 kg» pegada a un «77,3 kg», que es la misma medida escrita de dos
           maneras a quince píxeles de distancia. */}
@@ -82,7 +82,7 @@ export const StatWidget = ({ title, icon: Icon, timeframe, value, unit, color, d
   <article className="widget">
     <header className="widget-head">
       <span className="widget-title">{title}</span>
-      {Icon && <Icon size={14} style={{ color: color || 'var(--text-tertiary)', flexShrink: 0 }} />}
+      {Icon && <Icon size={15} style={{ color: color || 'var(--text-tertiary)', flexShrink: 0 }} />}
     </header>
     {timeframe && <span className="widget-sub">{timeframe}</span>}
     <div className="row gap-2 wrap" style={{ alignItems: 'baseline' }}>

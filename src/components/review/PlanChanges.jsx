@@ -87,7 +87,7 @@ const DeA = ({ from, to, unit = '' }) => (
         {unit}
       </span>
     )}
-    <ArrowRight size={11} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
+    <ArrowRight size={13} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
     {to === null || to === undefined ? (
       <span className="t-tertiary">—</span>
     ) : (

@@ -50,7 +50,7 @@ export const DownloadAnamnesis = ({ client, label = 'Descargar su ficha', classN
 
   return (
     <button type="button" className={className} onClick={descargar}>
-      <FileDown size={14} /> {label}
+      <FileDown size={15} /> {label}
     </button>
   );
 };

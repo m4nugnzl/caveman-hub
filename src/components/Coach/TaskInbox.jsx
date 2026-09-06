@@ -62,7 +62,7 @@ const TaskRow = ({ row, trainer, onOpen, action }) => {
           onClick={action.onClick}
           title={action.title}
         >
-          <action.icon size={12} /> {action.label}
+          <action.icon size={13} /> {action.label}
         </button>
       )}
 

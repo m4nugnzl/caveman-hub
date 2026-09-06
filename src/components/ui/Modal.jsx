@@ -149,7 +149,10 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
     >
       <div
         ref={dialogRef}
-        className={`modal${size === 'lg' ? ' modal-lg' : ''}${size === 'side' ? ' modal-side' : ''}`}
+        /* `capa` LLEVA `modal-lg` a propósito: es el grande crecido, y las
+           reglas que distinguen «ventana ancha» de «ventana estrecha» con
+           `:not(.modal-lg)` tienen que contarla como ancha sin enterarse. */
+        className={`modal${size === 'lg' || size === 'capa' ? ' modal-lg' : ''}${size === 'capa' ? ' modal-capa' : ''}${size === 'side' ? ' modal-side' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy || titleId}
@@ -161,7 +164,7 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
               {title}
             </h2>
             <button type="button" className="btn btn-icon" onClick={onClose} aria-label="Cerrar">
-              <X size={16} />
+              <X size={15} />
             </button>
           </header>
         )}

@@ -176,7 +176,11 @@ const ClientEditor = ({ client, onSave, onCancel }) => {
       </Field>
 
       <div className="grid-2">
-        <Field label="Correo">
+        {/* Lo que se escribe aquí vale hasta que entra él: al aceptar su
+            invitación, la ficha se queda con el correo de su cuenta (0091). Es
+            la única dirección que se sabe que existe, porque con ella ha
+            entrado — y decirlo evita que parezca que se ha borrado lo tuyo. */}
+        <Field label="Correo" hint="Cuando entre con su cuenta, aquí queda el correo con el que entra.">
           {(props) => (
             <input {...props} type="email" className="input" value={form.email} onChange={set('email')} />
           )}
@@ -326,7 +330,7 @@ const Anatomia = ({ client, weight, onEditar }) => {
               : undefined
           }
         >
-          {faltaSexo ? <TriangleAlert size={12} /> : <Plus size={12} />}
+          {faltaSexo ? <TriangleAlert size={13} /> : <Plus size={13} />}
           {faltan.map((f) => f.label).join(', ')}
         </button>
       )}
@@ -553,7 +557,7 @@ const PortalAccess = ({ client }) => {
           <span className="t-secondary">Acceso al portal</span>
           <div className="row gap-2">
             <span className="badge badge-ok">
-              <UserCheck size={11} /> Tiene su cuenta enlazada
+              <UserCheck size={13} /> Tiene su cuenta enlazada
             </span>
             {/*
               Secundario y a la derecha de la insignia: casi nunca hace falta, y
@@ -587,7 +591,7 @@ const PortalAccess = ({ client }) => {
       <div className="row between wrap gap-2 t-sm">
         <span className="t-secondary">Acceso al portal</span>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => send(client)} disabled={busy}>
-          <Send size={14} /> {busy ? 'Generando…' : 'Invitar'}
+          <Send size={15} /> {busy ? 'Generando…' : 'Invitar'}
         </button>
       </div>
 
@@ -823,7 +827,7 @@ const StepRow = ({
           rel="noreferrer noopener"
           style={{ minWidth: 0 }}
         >
-          <ExternalLink size={12} />
+          <ExternalLink size={13} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {url}
           </span>
@@ -836,7 +840,7 @@ const StepRow = ({
           cliente sí lo abre desde su portal. */}
       {file && !editando && (
         <span className="row gap-1 t-xs t-secondary" style={{ minWidth: 0 }}>
-          <FileText size={12} />
+          <FileText size={13} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {attachmentName(file)}
           </span>
@@ -888,7 +892,7 @@ const StepRow = ({
                     onClick={() => setDraft(rev.url)}
                     title={rev.url}
                   >
-                    <Video size={12} /> {rev.title}
+                    <Video size={13} /> {rev.title}
                   </button>
                 ))}
               </div>
@@ -926,7 +930,7 @@ const StepRow = ({
                     disabled={cargandoDrive}
                     onClick={verSuDrive}
                   >
-                    <FolderOpen size={12} /> {cargandoDrive ? 'Mirando…' : 'Ver qué hay en su carpeta'}
+                    <FolderOpen size={13} /> {cargandoDrive ? 'Mirando…' : 'Ver qué hay en su carpeta'}
                   </button>
                 ) : driveDocs.length === 0 ? (
                   <span className="t-2xs t-tertiary">Su carpeta está vacía.</span>
@@ -939,7 +943,7 @@ const StepRow = ({
                       onClick={() => setDraft(doc.webViewLink)}
                       title={doc.name}
                     >
-                      <FileText size={12} /> {doc.name}
+                      <FileText size={13} /> {doc.name}
                     </button>
                   ))
                 )}
@@ -968,7 +972,7 @@ const StepRow = ({
                   disabled={subiendoDrive}
                   onClick={() => driveInput.current?.click()}
                 >
-                  <Upload size={12} /> {subiendoDrive ? 'Subiendo a Drive…' : 'Subir a su Drive'}
+                  <Upload size={13} /> {subiendoDrive ? 'Subiendo a Drive…' : 'Subir a su Drive'}
                 </button>
               </div>
             </div>
@@ -1144,10 +1148,10 @@ const Alta = ({ client, estado, intake, steps, progress, carpeta, onProbar, onUp
       */}
       <div className="row between wrap gap-2">
         <span className={`badge ${complete ? 'badge-ok' : ''}`}>
-          {complete ? <Check size={11} /> : null} {done} de {total}
+          {complete ? <Check size={13} /> : null} {done} de {total}
         </span>
         <button type="button" className="btn btn-secondary btn-sm" onClick={onProbar}>
-          <Eye size={14} /> Ver su alta
+          <Eye size={15} /> Ver su alta
         </button>
       </div>
 
@@ -1189,7 +1193,7 @@ const Alta = ({ client, estado, intake, steps, progress, carpeta, onProbar, onUp
       */}
       {clientSteps(intake).length === 0 && (
         <p className="t-xs alta-aviso">
-          <TriangleAlert size={12} aria-hidden="true" />
+          <TriangleAlert size={13} aria-hidden="true" />
           <span>
             No le pides nada a él: su portal no tendrá cuestionario ni entregas. Se encienden en{' '}
             <Link to="/ajustes/protocolo#alta">Ajustes → Protocolo</Link>.

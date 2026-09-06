@@ -215,7 +215,7 @@ export const StripeSettings = ({ onChanged }) => {
             <span className="sub">Suscripciones, cobros fallidos y bajas</span>
           </div>
           <span className={`badge ${state.tone}`}>
-            {state.tone === 'badge-ok' && <Check size={11} />}
+            {state.tone === 'badge-ok' && <Check size={13} />}
             {state.label}
           </span>
         </header>
@@ -261,7 +261,7 @@ export const StripeSettings = ({ onChanged }) => {
             </Notice>
 
             <p className="t-xs t-tertiary">
-              <KeyRound size={11} className="icon-inline" /> Se guarda donde
+              <KeyRound size={13} className="icon-inline" /> Se guarda donde
               no la puede leer ni la aplicación: solo el servidor.
             </p>
           </Step>
@@ -340,7 +340,7 @@ export const StripeSettings = ({ onChanged }) => {
                   como pagado enviando un JSON.
                 */}
                 <p className="t-xs t-tertiary">
-                  <KeyRound size={11} className="icon-inline" /> Es distinto
+                  <KeyRound size={13} className="icon-inline" /> Es distinto
                   de la clave de API. Con él se comprueba la firma de cada aviso: sin firma válida,
                   no se procesa nada.
                 </p>
@@ -381,7 +381,7 @@ export const StripeSettings = ({ onChanged }) => {
             onClick={() => call('test')}
             disabled={!canRun || busy === 'test'}
           >
-            <Link2 size={14} /> {busy === 'test' ? 'Probando…' : 'Probar la conexión'}
+            <Link2 size={15} /> {busy === 'test' ? 'Probando…' : 'Probar la conexión'}
           </button>
           <button
             type="button"
@@ -397,7 +397,7 @@ export const StripeSettings = ({ onChanged }) => {
             onClick={() => call('sync')}
             disabled={!canRun || busy === 'sync'}
           >
-            <RefreshCw size={14} /> {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar'}
+            <RefreshCw size={15} /> {busy === 'sync' ? 'Sincronizando…' : 'Sincronizar'}
           </button>
         </footer>
       </article>
@@ -472,7 +472,7 @@ export const StripeSettings = ({ onChanged }) => {
                         else await call('sync');
                       }}
                     >
-                      <UserPlus size={12} /> Dar de alta
+                      <UserPlus size={13} /> Dar de alta
                     </button>
                   </div>
                 ))}

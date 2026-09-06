@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { currentBlock, weekLabel } from '@/domain/blocks';
 import { metricColor } from '@/domain/metrics';
@@ -42,8 +42,21 @@ const serie = (s) => {
  * obligaba a leer celda a celda, y la rejilla de músculos ya está resumida en
  * el volumen del bloque, fuera.
  */
-export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, latestWeek, protocol, isClient = false }) => {
+export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, latestWeek, protocol, isClient = false, pregunta = null }) => {
   const unit = unitLabel(cycleType);
+
+  /*
+    ── Llegar con la curva a la vista ────────────────────────────────────────
+    Cuando la ventana se abre desde una fila de «Cómo lo lleva» (el Resumen
+    pasa su pregunta), la curva de ESA pregunta vive al fondo, bajo el pliegue:
+    abrir y tener que buscarla deshacía la mitad de la puerta. La fila se trae
+    al centro al montar —sin animar: la ventana acaba de abrirse y colocarse no
+    es movimiento— y se señala un instante para atar el clic con su respuesta.
+  */
+  const buscada = useRef(null);
+  useEffect(() => {
+    buscada.current?.scrollIntoView({ block: 'center' });
+  }, []);
 
   /*
     ══ Lo que cuenta al acabar, semana a semana ═══════════════════════════════
@@ -237,13 +250,20 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
             <>
               <ul className="tendencias">
                 {sensaciones.map((fila) => {
-                  const pregunta = preguntas.find((q) => q.id === fila.id);
-                  const max = pregunta?.max || 10;
+                  /* `q`, no `pregunta`: ese nombre es de la prop —la fila con
+                     la que se llegó— y aquí la sombreaba, dejando la búsqueda
+                     siempre en falso. */
+                  const q = preguntas.find((p) => p.id === fila.id);
+                  const max = q?.max || 10;
                   const ahora = fila.points[fila.points.length - 1]?.value ?? null;
                   const primera = fila.points[0]?.value ?? null;
                   const delta = ahora !== null && primera !== null ? Math.round((ahora - primera) * 10) / 10 : null;
                   return (
-                    <li className="tendencia" key={fila.id}>
+                    <li
+                      className={`tendencia${fila.id === pregunta ? ' is-buscada' : ''}`}
+                      ref={fila.id === pregunta ? buscada : null}
+                      key={fila.id}
+                    >
                       <span className="tendencia-k">{fila.label}</span>
                       <span className="tendencia-linea">
                         <Sparkline points={fila.points} color={fila.color} height={30} />
@@ -252,7 +272,7 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
                         {ahora === null ? '—' : Math.round(ahora * 10) / 10}
                         <small>/{max}</small>
                       </span>
-                      <Delta value={delta} lowerIsBetter={pregunta?.lowerIsBetter ?? (fila.id === 'fatigue' || fila.id === 'pain')} />
+                      <Delta value={delta} lowerIsBetter={q?.lowerIsBetter ?? (fila.id === 'fatigue' || fila.id === 'pain')} />
                     </li>
                   );
                 })}

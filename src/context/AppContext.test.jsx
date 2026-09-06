@@ -113,9 +113,13 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 194 claves', () => {
+  it('el reparto conserva las 195 claves', () => {
     montar();
-    // 194 desde el aviso de «ya puedes empezar» en Hoy: `equipmentCounts`, una
+    // 195 desde «Quién eres» en el alta del cliente (0091): `saveClientIdentity`,
+    // el segundo camino por el que el CLIENTE escribe en su ficha. Va aparte de
+    // `saveClientProfile` porque no escribe el jsonb: escribe `birth_date` y
+    // `height_cm`, que son columnas tipadas con sus topes.
+    // Antes 194, desde el aviso de «ya puedes empezar» en Hoy: `equipmentCounts`, una
     // cifra por cliente. El detalle sigue siendo del cliente abierto; para saber
     // quién ha terminado su alta basta con si tiene fotos o no.
     // Antes 193, desde el salto al portal por una pantalla concreta: `openClientView` y
@@ -234,7 +238,11 @@ describe('AppProvider', () => {
     // Los cambios llevan desde cuándo y hasta cuándo valen, así que probar un
     // ejercicio «unas semanas» es un dato y no tres copias — y dejarlo dos
     // microciclos más no obliga a reescribir nada.
-    expect(Object.keys(visto.app).length).toBe(231);
+    //
+    // Y 232 desde `saveClientIdentity`: la edad y la altura que el cliente
+    // escribe en su alta. Van a columnas de `clients` y no al jsonb del perfil,
+    // así que no podían entrar por `saveClientProfile`.
+    expect(Object.keys(visto.app).length).toBe(232);
   });
 
   /*

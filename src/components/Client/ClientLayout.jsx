@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
 import { CLIENT_SECTIONS, isSectionActive, sectionsFor } from '@/routes';
 import { EmptyState } from '@/components/ui/primitives';
+import { useMarcaDeslizante } from '@/components/ui/carril';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientCalendarFeed } from './ClientCalendarFeed';
 import { ClientPrivacy } from './ClientPrivacy';
@@ -21,6 +22,9 @@ import { ClientPrivacy } from './ClientPrivacy';
 export const ClientLayout = () => {
   const { activeClient, isCoach } = useApp();
   const { pathname } = useLocation();
+  /* Antes del retorno temprano de abajo: los ganchos no pueden quedarse a un
+     lado de un `if`. Sin carril que medir la marca se retira sola. */
+  const carrilDelPortal = useMarcaDeslizante();
 
   /*
     El calendario y la privacidad son de «Mi progreso», no del marco. Ver abajo.
@@ -109,9 +113,11 @@ export const ClientLayout = () => {
           `isSectionActive` y no del prefijo de URL, porque «Mi evolución» y «Mi
           progreso» tienen dos niveles cada una y bajar al segundo dejaba las
           pestañas sin marcar. */}
-      <nav className="tabs" aria-label="Secciones de mi portal">
+      {/* Sin iconos y con la marca suelta al final, como el carril del panel:
+          un solo conmutador en todo el producto. */}
+      <nav ref={carrilDelPortal} className="tabs" aria-label="Secciones de mi portal">
         {secciones.map((seccion) => {
-          const { path, label, icon: Icon } = seccion;
+          const { path, label } = seccion;
           const activa = isSectionActive(pathname, seccion, '/mi');
           return (
             <NavLink
@@ -120,10 +126,11 @@ export const ClientLayout = () => {
               className={`tab${activa ? ' active' : ''}`}
               aria-current={activa ? 'page' : undefined}
             >
-              <Icon size={16} /> {label}
+              {label}
             </NavLink>
           );
         })}
+        <span className="tabs-marca" aria-hidden="true" />
       </nav>
 
       <Outlet />

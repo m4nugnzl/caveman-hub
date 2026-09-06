@@ -388,7 +388,7 @@ const ClientDay = ({
       onClick={() => setFinDescanso(null)}
       aria-label="Parar el descanso"
     >
-      <Timer size={14} aria-hidden="true" />
+      <Timer size={15} aria-hidden="true" />
       <strong>{mmss(restante)}</strong>
       <span>descanso</span>
     </button>
@@ -474,7 +474,7 @@ const ClientDay = ({
       {isModuleOn(protocol, 'coachNote') && (day.coachNote?.trim() || session?.coachNote?.trim()) && (
         <div className="coach-note">
           <span className="section-label">
-            <Quote size={12} className="icon-inline" />De tu entrenador
+            <Quote size={13} className="icon-inline" />De tu entrenador
           </span>
           <p>{day.coachNote?.trim() || session.coachNote}</p>
         </div>
@@ -521,7 +521,7 @@ const ClientDay = ({
                   : 'series, tonelaje y récords'}
             </span>
           </span>
-          <ChevronRight size={16} aria-hidden="true" />
+          <ChevronRight size={15} aria-hidden="true" />
         </button>
       )}
 
@@ -578,7 +578,7 @@ const ClientDay = ({
               {isModuleOn(protocol, 'clientNote') && (
                 <label className="feedback-q">
                   <span className="k">
-                    <NotebookPen size={12} /> Tu cuaderno
+                    <NotebookPen size={13} /> Tu cuaderno
                   </span>
                   <textarea
                     className="textarea"
@@ -862,7 +862,7 @@ export const ClientRoutine = ({
                 onClick={() => setVista('bloque')}
                 title={`Volver a ${bloque.name}`}
               >
-                <ArrowLeft size={14} aria-hidden="true" />
+                <ArrowLeft size={15} aria-hidden="true" />
                 {bloque.name}
               </button>
             ) : (
@@ -1020,7 +1020,7 @@ export const ClientRoutine = ({
                 target="_blank"
                 rel="noreferrer noopener"
               >
-                <Play size={12} className="icon-inline" />
+                <Play size={13} className="icon-inline" />
                 Vídeo explicativo de tu rutina
               </a>{' '}
               · grabado por tu entrenador

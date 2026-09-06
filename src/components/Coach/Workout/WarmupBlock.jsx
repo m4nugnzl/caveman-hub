@@ -67,7 +67,7 @@ const WarmupDrill = ({ drill }) => {
           acaba abriendo otra pestaña es prometer lo que no es. */}
       {video && (
         <span className="warmup-thumb" aria-hidden="true">
-          <Play size={11} fill="currentColor" />
+          <Play size={13} fill="currentColor" />
         </span>
       )}
 
@@ -109,7 +109,7 @@ const WarmupDrill = ({ drill }) => {
           engaña más de lo que ayuda. */}
       {drill.videoUrl && !video && (
         <a className="link t-xs" href={drill.videoUrl} target="_blank" rel="noreferrer noopener">
-          <Play size={12} /> Ver el vídeo
+          <Play size={13} /> Ver el vídeo
         </a>
       )}
     </li>
@@ -123,7 +123,7 @@ export const WarmupView = ({ drills }) => {
   return (
     <section className="warmup">
       <header className="row gap-2">
-        <Waves size={14} />
+        <Waves size={15} />
         <span className="section-label">Antes de empezar</span>
         <span className="t-2xs t-tertiary">
           {list.length} {list.length === 1 ? 'ejercicio' : 'ejercicios'}

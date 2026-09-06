@@ -195,12 +195,12 @@ export const FeedbackHistory = ({ microcycles, protocol, audience = 'coach' }) =
 
                     {entry.coachNote && (
                       <p className="log-note">
-                        <Quote size={11} /> {entry.coachNote}
+                        <Quote size={13} /> {entry.coachNote}
                       </p>
                     )}
                     {entry.clientNote && (
                       <p className="log-note is-client">
-                        <NotebookPen size={11} /> {entry.clientNote}
+                        <NotebookPen size={13} /> {entry.clientNote}
                       </p>
                     )}
                   </div>

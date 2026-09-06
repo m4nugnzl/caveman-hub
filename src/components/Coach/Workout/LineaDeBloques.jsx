@@ -10,7 +10,7 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
 /**
  * DÓNDE ESTÁS EN EL PROGRAMA: los bloques, y los microciclos del abierto.
  *
- * ══ Cuatro versiones, y por qué las tres primeras fallaban ═════════════════
+ * ══ Cinco versiones, y por qué las cuatro primeras fallaban ════════════════
  *
  * 1. TARJETAS. Cuatro recuadros del mismo peso que se leían como cuatro
  *    pestañas y no como el programa de una persona.
@@ -24,21 +24,29 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
  *    de 38 px con un «21» debajo. La misma cosa, dos dibujos, en dos pantallas
  *    a un clic la una de la otra. Y con un solo microciclo el bloque entero se
  *    quedaba en un cuadradito suelto.
+ * 4. LA PASTILLA DE LA CASA, DOS VECES. Bloques y microciclos como dos filas
+ *    de `.hoja-semana`, más la fecha debajo: TRES alturas de piezas del mismo
+ *    peso antes del contenido, donde nada mandaba —un inventario, no una
+ *    jerarquía— y la pastilla más fuerte (el bloque abierto, rellena) era
+ *    justo la única que no hacía nada al pulsarla.
  *
- * ══ Lo que hay ahora: la pastilla de la casa, dos veces ════════════════════
+ * ══ Lo que hay ahora: la gramática de la cabecera ══════════════════════════
  *
- *     [B1 Adaptación] [B2 Acumulación] [B3 Intensificación] [+ bloque]  🗑 ⚙
- *     [M1 · hecho] [M2 · en curso] [+ microciclo]
- *     desde el 14 ago · va por su último microciclo escrito
+ *     B1 Adaptación   B2 Acumulación   ᴮ³ Intensificación   + bloque    🗑 ⚙
+ *      (voz baja)      (voz baja)       (GRANDE, la ancha)  (voz baja)
+ *     [M1 · hecho] [M2 · en curso] [+ microciclo]        desde el 14 ago
  *
- * Dos filas, un solo tipo de pieza —la misma `.hoja-semana` con la que se
- * cambia de microciclo mientras se escriben las series— y cada «+» pegado a lo
- * que añade: el de bloques con los bloques, el de microciclos con los
- * microciclos. Estuvieron separados, arriba en la fila de mando, y entonces la
- * acción de añadir un bloque no tocaba a los bloques por ningún sitio.
+ * La misma anatomía que la cabecera del cliente: el nombre de DONDE ESTÁS es
+ * el titular —el bloque abierto, en la fuente ancha, sin caja: ya estás en él
+ * y no es un botón—, sus hermanos quedan en voz baja a los lados (el tiempo
+ * sigue de izquierda a derecha, así que los cerrados van delante), y el dato
+ * suelto —desde cuándo va— deja de ser una tercera altura y se sienta a la
+ * derecha de los microciclos. Dos alturas donde había tres.
  *
- * Debajo, en voz baja, lo único que no dibuja ninguna pastilla: desde cuándo va
- * el bloque y cuánto le queda.
+ * Los MICROCICLOS no cambian de dibujo: siguen siendo la pastilla con la que
+ * se cambia de microciclo en la hoja de series (la lección de la versión 3).
+ * Cada «+» sigue pegado a lo que añade: el de bloques con los bloques, el de
+ * microciclos con los microciclos.
  *
  * ══ Por qué vive en su propio archivo ══════════════════════════════════════
  *
@@ -123,16 +131,13 @@ export const LineaDeBloques = ({
       motivo para cambiarla, así que lo que quedaba por contar era en realidad
       lo que todavía no se ha escrito.
 
-      Un bloque abierto dice lo único que es cierto: que está abierto, y cuánto
-      lleva. El horizonte se queda para los cerrados, que sí tienen final y sí
-      tienen algo detrás.
+      Un bloque abierto dice lo único que es cierto: que está abierto. Cuánto
+      lleva lo decía aquí una cifra («2 microciclos») que ahora sobra: la frase
+      se sienta en la MISMA fila que las pastillas de los microciclos, que
+      dibujan la cuenta ellas solas. El horizonte se queda para los cerrados,
+      que sí tienen final y sí tienen algo detrás.
     */
-    if (sigueAbierto) {
-      const cuantos = horizonte.bloque ? weeksOfBlock(program, horizonte.bloque).length : 0;
-      return ['abierto', cuantos > 0 ? `${cuantos} ${cuantos === 1 ? unidadBaja : unidadesBajas}` : null]
-        .filter(Boolean)
-        .join(' · ');
-    }
+    if (sigueAbierto) return 'abierto';
 
     const cuanto =
       restantes === 0
@@ -182,9 +187,9 @@ export const LineaDeBloques = ({
 
   return (
     <nav className="linea" aria-label={etiqueta}>
-      {/* ── Los bloques ─────────────────────────────────────────────────── */}
+      {/* ── Los bloques: el abierto es el titular, los demás la voz baja ── */}
       <div className="linea-fila">
-        <div className="hoja-semanas-tira" ref={carril} role="tablist" aria-label="Bloques del programa">
+        <div className="linea-bloques" ref={carril} role="tablist" aria-label="Bloques del programa">
           {tramos.map(({ b, i, esEste, r, semanas }) => {
             const cifras = r.kg > 0 ? ` · ${Math.round(r.kg / 1000)} t levantadas` : '';
             const cuando = r.desde
@@ -193,7 +198,7 @@ export const LineaDeBloques = ({
             const aqui = semanaEnCurso != null && semanas.includes(semanaEnCurso);
 
             /* El bloque abierto en renombrado: el campo ocupa el sitio de su
-               pastilla, para que el nombre se cambie donde se lee. */
+               titular, para que el nombre se cambie donde se lee. */
             if (esEste && renombrando) {
               return (
                 <RenombrarEnSitio
@@ -213,7 +218,7 @@ export const LineaDeBloques = ({
                 role="tab"
                 aria-selected={esEste}
                 ref={esEste ? abiertoRef : null}
-                className={`hoja-semana${esEste ? ' is-on' : ''}`}
+                className={`linea-bloque${esEste ? ' is-on' : ''}`}
                 onClick={() => (esEste ? null : onIrBloque(b))}
                 onDoubleClick={() => esEste && onRenombrarBloque && setRenombrando(true)}
                 title={
@@ -222,9 +227,12 @@ export const LineaDeBloques = ({
                     : `Abrir ${b.name} · ${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas} · ${cuando}${cifras}`
                 }
               >
-                <span className="hoja-semana-n">B{i + 1}</span>
+                <span className="linea-bloque-n">B{i + 1}</span>
                 <span className="linea-nombre-texto">{b.name}</span>
-                {aqui && !esEste && <span className="hoja-semana-estado">estás aquí</span>}
+                {/* El punto azul de «aquí está el hoy»: la misma señal con la
+                    que la pastilla del microciclo dice «en curso». Solo sale
+                    mirando OTRO bloque: es el camino de vuelta. */}
+                {aqui && !esEste && <span className="linea-bloque-estado">estás aquí</span>}
               </button>
             );
           })}
@@ -233,7 +241,7 @@ export const LineaDeBloques = ({
               mando de la pantalla, y ahí la acción de abrir el bloque siguiente
               no tocaba a los bloques por ningún sitio. */}
           {onNuevoBloque && (
-            <button type="button" className="hoja-semana is-nueva" onClick={onNuevoBloque} title="Cierra el bloque abierto y empieza el siguiente">
+            <button type="button" className="linea-bloque is-nueva" onClick={onNuevoBloque} title="Cierra el bloque abierto y empieza el siguiente">
               <Plus size={13} aria-hidden="true" /> bloque
             </button>
           )}
@@ -253,12 +261,12 @@ export const LineaDeBloques = ({
               title={`Quitar ${abierto.b.name}: sus ${unidadesBajas} pasan al bloque de al lado`}
               onClick={() => onQuitarBloque(abierto.b)}
             >
-              <Trash2 size={14} />
+              <Trash2 size={15} />
             </button>
           )}
           {onAjustes && (
             <button type="button" className="btn btn-icon btn-icon-compact linea-ajustes" onClick={onAjustes} aria-label="Ajustes del programa" title="Ajustes: tipo de ciclo, patrón, fecha de inicio y protocolo">
-              <Settings2 size={16} />
+              <Settings2 size={15} />
             </button>
           )}
         </div>
@@ -268,8 +276,11 @@ export const LineaDeBloques = ({
       {/* ── Los microciclos del bloque abierto ──────────────────────────────
           La MISMA pastilla con la que se cambia de microciclo mientras se
           escriben las series (`hoja-semanas-tira`), y por eso: es la misma
-          pregunta en las dos pantallas de Entreno. */}
+          pregunta en las dos pantallas de Entreno. A su derecha, en voz baja,
+          lo único que ninguna pastilla dibuja —desde cuándo va el bloque—,
+          que era una tercera altura suelta debajo. */}
       {abierto && (
+        <div className="linea-fila is-micros">
         <div className="hoja-semanas-tira" role="tablist" aria-label={`${unidades} de ${abierto.b.name}`}>
           {abierto.semanas.map((w) => {
             const micro = findMicrocycle(microcycles, w) || {};
@@ -319,9 +330,9 @@ export const LineaDeBloques = ({
             </button>
           )}
         </div>
+        {pie && <p className="linea-horizonte">{pie}</p>}
+        </div>
       )}
-
-      {pie && <p className="linea-horizonte">{pie}</p>}
     </nav>
   );
 };

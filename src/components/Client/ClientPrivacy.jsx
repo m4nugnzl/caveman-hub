@@ -124,7 +124,7 @@ export const ClientPrivacy = ({ client }) => {
   return (
     <Panel tight className="col gap-3" style={{ marginTop: 'var(--s5)' }}>
       <button type="button" className="proto-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
         <ShieldCheck size={15} />
         <span className="grow">Mis datos y privacidad</span>
         {!active && !estadoRoto && <span className="badge badge-warn">sin consentimiento</span>}
@@ -170,7 +170,7 @@ export const ClientPrivacy = ({ client }) => {
 
           <div className="row wrap gap-2">
             <button type="button" className="btn btn-secondary btn-sm" onClick={download} disabled={busy}>
-              <Download size={14} /> {busy ? 'Preparando…' : 'Descargar mis datos'}
+              <Download size={15} /> {busy ? 'Preparando…' : 'Descargar mis datos'}
             </button>
 
             {/* Sin saber el estado no se ofrece ni darlo ni retirarlo: las dos

@@ -120,7 +120,7 @@ export const GymPicker = ({ clientId, onUpload, disabled = false }) => {
                 <span className="upload-state">
                   {item.status === 'done' && (
                     <>
-                      <Check size={12} /> Subida
+                      <Check size={13} /> Subida
                     </>
                   )}
                   {item.status === 'uploading' && 'Subiendo…'}
@@ -160,7 +160,7 @@ export const GymPicker = ({ clientId, onUpload, disabled = false }) => {
               onClick={elegir}
               disabled={lote.busy}
             >
-              <Plus size={14} /> Añadir más
+              <Plus size={15} /> Añadir más
             </button>
           </div>
         </>
