@@ -200,6 +200,21 @@ describe('blankDays', () => {
     expect(original[0].exercises[0].sets[0].kg).toBe('80');
   });
 
+  it('con `conservarIds` los mantiene, que es lo que pide el plan del bloque', () => {
+    /*
+      Con el plan en el bloque el ejercicio es UNO para todas sus semanas y su id
+      es el mismo en todas: es lo que hace que la pantalla y `log_session_set`
+      hablen del mismo ejercicio. Reasignarlo deja la semana nueva imposible de
+      registrar desde el primer número.
+    */
+    const original = source();
+    const out = blankDays(original, { conservarIds: true });
+
+    expect(out[0].exercises[0].id).toBe('ex_a');
+    expect(out[0].exercises[0].sets[0].kg).toBe(''); // sigue vaciando lo ejecutado
+    expect(original[0].exercises[0].sets[0].kg).toBe('80'); // y sin mutar
+  });
+
   it('se diferencia de cloneDays, que sí arrastra los kilos', () => {
     // La distinción es el motivo de que exista: duplicar una semana (entrenador)
     // y continuar el programa (cliente) NO son la misma operación.

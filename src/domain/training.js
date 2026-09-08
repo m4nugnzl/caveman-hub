@@ -459,9 +459,18 @@ export const cloneDays = (days) =>
  * Se conservan `targetReps` y `targetRir` porque no son registros sino parte del
  * plan: son el rango y el esfuerzo que el entrenador puso, y siguen vigentes la
  * semana siguiente. Lo que se borra es lo que levantó la persona.
+ *
+ * ── Cuándo NO hay que reasignar ids: `conservarIds` ────────────────────────
+ * Reasignarlos es lo correcto mientras el plan viva en cada microciclo: dos
+ * semanas son dos copias distintas y cada ejercicio necesita su etiqueta.
+ *
+ * Con el plan en el bloque deja de serlo. Ahí el ejercicio es UNO para todas
+ * las semanas del bloque y su id es el mismo en todas: es lo que hace que la
+ * pantalla y `log_session_set` hablen del mismo ejercicio. Darle uno nuevo a la
+ * semana que se añade la deja imposible de registrar desde el primer número.
  */
-export const blankDays = (days) =>
-  cloneDays(days).map((day) => ({
+export const blankDays = (days, { conservarIds = false } = {}) =>
+  (conservarIds ? deepClone(days) : cloneDays(days)).map((day) => ({
     ...day,
     exercises: (day.exercises || []).map((exercise) => ({
       ...exercise,

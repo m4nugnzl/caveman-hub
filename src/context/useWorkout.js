@@ -51,6 +51,9 @@ import {
   openNextBlock,
   programAfterRemovingWeek,
   renameBlockIn,
+  hasBlockPlan,
+  proyectarPlanEnDias,
+  resolvedMicrocycles,
 } from '@/domain/blocks';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
@@ -1048,10 +1051,22 @@ export const useWorkout = ({
      No hay migración de golpe sobre todos los clientes a propósito: la lectura
      ya contesta por los dos modelos (`planOfDay`), así que nadie tiene que
      esperar a nadie. Antes de lanzarla en frío está `npm run ensayo:plan`.
+
+     ── Y se guarda también en los `days`, que es por donde escribe el cliente ─
+     El plan vive en el bloque, pero `log_session_set` —la única escritura que
+     el cliente tiene— busca el ejercicio en `microcycles[].days[]`. Si esa copia
+     se queda con los ids viejos, la pantalla enseña un ejercicio que el servidor
+     no encuentra y todo lo que esa persona anote se rechaza. `proyectarPlanEnDias`
+     deja ahí lo mismo que la pantalla lee, y lo hace en el mismo gesto que toca
+     el plan: quien edita es el entrenador, que sí puede escribir la fila.
   */
   const applyPlan = useCallback(
     (clientId, updater, options) =>
-      applyWorkout(clientId, (cd) => updater(migrateBlockPlans(cd).program), options),
+      applyWorkout(
+        clientId,
+        (cd) => proyectarPlanEnDias(updater(migrateBlockPlans(cd).program)),
+        options
+      ),
     [applyWorkout]
   );
 
@@ -1502,9 +1517,24 @@ export const useWorkout = ({
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       if (current.microcycles.length === 0) return null;
 
-      const last = [...current.microcycles].sort((a, b) => b.weekNumber - a.weekNumber)[0];
-      const newWeek = nextWeekNumber(current.microcycles);
-      const days = blankDays(last.days || []);
+      /*
+        ── Se parte del plan RESUELTO, no de los `days` en crudo ───────────────
+        Con el plan en el bloque, lo que esta persona tiene delante son las hojas
+        del bloque con las excepciones de su semana puestas. La semana nueva se
+        copia de AHÍ y conservando los ids: en ese modelo el ejercicio es uno
+        para todo el bloque y su identificador es el mismo en todas sus semanas.
+
+        Reasignarlos —lo que se hacía— daba una semana cuyos ejercicios no
+        existían en ninguna parte que `log_session_set` supiera mirar, así que
+        nacía imposible de registrar: el primer número que se anotaba en ella
+        volvía con «el ejercicio … no está programado en …». Y no era un caso
+        raro: le pasaba a TODA semana añadida después de migrar el plan.
+      */
+      const resuelto = { ...current, microcycles: resolvedMicrocycles(current) };
+      const last = [...resuelto.microcycles].sort((a, b) => b.weekNumber - a.weekNumber)[0];
+      const newWeek = nextWeekNumber(resuelto.microcycles);
+      const conPlan = hasBlockPlan(blockOfWeek(resuelto, newWeek));
+      const days = blankDays(last.days || [], { conservarIds: conPlan });
       const micro = buildMicrocycle({ weekNumber: newWeek, days });
 
       /*

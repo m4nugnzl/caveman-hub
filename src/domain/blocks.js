@@ -1046,6 +1046,73 @@ const conLoAnotado = (day, viejo) => {
   return tocado ? { ...day, exercises } : day;
 };
 
+/**
+ * GUARDA EN LOS `days` LO QUE `resolvedMicrocycles` YA ENSEÑA.
+ *
+ * ══ El fallo que cierra ════════════════════════════════════════════════════
+ *
+ * `resolvedMicrocycles` es una proyección para LEER: cambia los `days` de cada
+ * microciclo por las hojas del bloque, y con ellas cambian los identificadores
+ * de ejercicio, que en el plan del bloque son uno solo para todas sus semanas.
+ *
+ * Pero el cliente no escribe el programa: escribe por `log_session_set`
+ * (migración 0014), y esa función busca el ejercicio **únicamente dentro de
+ * `microcycles[].days[]`**. O sea, la pantalla trabaja con los ids del bloque y
+ * el servidor solo conoce los del microciclo. Coinciden en la semana de la que
+ * se leyó el plan al migrar; en todas las demás, no, y entonces cada número que
+ * anota esa persona se rechaza con:
+ *
+ *     El ejercicio ex_… no está programado en Lower A
+ *
+ * Es el mismo agujero que cerró la 0085 —dos verdades sobre el mismo
+ * ejercicio— abierto otra vez por una puerta nueva. Y se ve igual de mal desde
+ * dentro: el número aparece en pantalla (`withSessionSet` lo acepta en local),
+ * no vuelve tras recargar, y el rechazo es `P0001`, que `esRechazoDefinitivo`
+ * ni siquiera reintenta. Un entrenamiento entero, perdido en silencio.
+ *
+ * ══ Por qué se arregla proyectando y no en el servidor ═════════════════════
+ *
+ * La alternativa era enseñarle el bloque a `log_session_set`: resolver en
+ * plpgsql las hojas y sus excepciones. Eso es duplicar `applyOverrides` en un
+ * segundo idioma, y una regla del plan escrita dos veces se desincroniza sola.
+ *
+ * Aquí no hay lógica nueva: `days` pasa a ser la PROYECCIÓN de lo que ya se
+ * está enseñando, escrita por quien sí puede escribirla —el entrenador—, y el
+ * servidor sigue mirando el único sitio que conoce. La verdad sigue estando en
+ * el bloque; `days` es su copia para el camino de escritura y para el histórico
+ * viejo que aún vive ahí (`legacySession`), y se retirará el día que
+ * `log_session_set` lea el bloque.
+ *
+ * ── Las hojas retiradas se conservan ───────────────────────────────────────
+ * Una hoja que el plan ya no tiene desaparece de la lectura, pero dentro de sus
+ * `days` puede haber kilos de cuando sí existía. La proyección los deja donde
+ * están: el objetivo es que no falte nada que el servidor necesite, no adelgazar
+ * la fila. Nadie los pinta —la pantalla lee el plan— y no cuestan un registro.
+ */
+export const proyectarPlanEnDias = (program) => {
+  const microcycles = program?.microcycles || [];
+  if (!blocksOf(program).some(hasBlockPlan)) return program;
+
+  const resueltos = resolvedMicrocycles(program);
+
+  return {
+    ...program,
+    microcycles: microcycles.map((micro, i) => {
+      const resuelto = resueltos[i];
+      /* Sin plan en su bloque, `resolvedMicrocycles` devuelve el mismo objeto:
+         ese microciclo se queda exactamente como estaba. */
+      if (resuelto === micro) return micro;
+
+      const enElPlan = new Set((resuelto.days || []).map((d) => d.dayName));
+      const retiradas = (micro.days || []).filter((d) => !enElPlan.has(d.dayName));
+
+      return retiradas.length === 0
+        ? resuelto
+        : { ...resuelto, days: [...(resuelto.days || []), ...retiradas] };
+    }),
+  };
+};
+
 /* ══════════════════════════════════════════════════════════════════════════
    EDITAR EL PLAN DEL BLOQUE
    ══════════════════════════════════════════════════════════════════════════

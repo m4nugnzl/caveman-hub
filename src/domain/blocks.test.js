@@ -52,6 +52,7 @@ import {
   moveBlockExerciseIn,
   setBlockExerciseSetsIn,
   setBlockExerciseTargetIn,
+  proyectarPlanEnDias,
 } from './blocks';
 
 const programa = (semanas, extra = {}) => ({
@@ -1048,5 +1049,100 @@ describe('el tramo de un cambio', () => {
   it('un cambio de otra hoja no se cuela', () => {
     const p = cinco([buildOverride({ dayName: 'Pull', targetId: 'a', exercise: null, fromWeek: 1, toWeek: null })]);
     expect(nombresEn(p, 3)).toEqual(['Press banca', 'Fondos']);
+  });
+});
+
+/**
+ * ══ Lo que el cliente puede llegar a registrar ══════════════════════════════
+ *
+ * `log_session_set` (0014) busca el ejercicio dentro de
+ * `microcycles[].days[]` y solo ahí. La pantalla, en cambio, lee el plan del
+ * bloque. Estas pruebas fijan la única condición que impide que un cliente se
+ * quede sin poder anotar: que todo lo que la pantalla nombra esté también en
+ * los `days` de esa semana.
+ */
+const puedeRegistrar = (program, weekNumber) => {
+  const micro = program.microcycles.find((m) => m.weekNumber === weekNumber);
+  const enDias = new Set((micro.days || []).flatMap((d) => (d.exercises || []).map((e) => e.id)));
+  const resuelto = resolvedMicrocycles(program).find((m) => m.weekNumber === weekNumber);
+  return (resuelto.days || [])
+    .flatMap((d) => (d.exercises || []).map((e) => e.id))
+    .every((id) => enDias.has(id));
+};
+
+describe('el plan, guardado también donde el servidor lo busca', () => {
+  it('sin plan en el bloque no toca nada: devuelve el mismo programa', () => {
+    const p = { microcycles: [{ weekNumber: 1, days: [{ dayName: 'Push', exercises: [ejercicio('x', 'Remo')] }] }] };
+    expect(proyectarPlanEnDias(p)).toBe(p);
+  });
+
+  it('el fallo: con el plan en el bloque, ninguna semana se puede registrar', () => {
+    const p = conPlan();
+    expect(puedeRegistrar(p, 1)).toBe(false);
+    expect(puedeRegistrar(p, 2)).toBe(false);
+  });
+
+  it('y proyectando, todas', () => {
+    const p = proyectarPlanEnDias(conPlan());
+    expect(puedeRegistrar(p, 1)).toBe(true);
+    expect(puedeRegistrar(p, 2)).toBe(true);
+    /* El mismo ejercicio, el mismo id en las dos semanas: es UNO del bloque. */
+    expect(p.microcycles[0].days[0].exercises.map((e) => e.id)).toEqual(['a', 'b']);
+    expect(p.microcycles[1].days[0].exercises.map((e) => e.id)).toEqual(['a', 'b']);
+  });
+
+  it('el ejercicio que añade una excepción también se puede registrar', () => {
+    const o = buildOverride({ fromWeek: 2, toWeek: null, dayName: 'Push', exercise: ejercicio('c', 'Face pull') });
+    const p = proyectarPlanEnDias(conPlan([o]));
+    expect(puedeRegistrar(p, 2)).toBe(true);
+    expect(p.microcycles[1].days[0].exercises.map((e) => e.id)).toEqual(['a', 'b', 'c']);
+    /* Y la semana 1, que la excepción no alcanza, sigue con el plan pelado. */
+    expect(p.microcycles[0].days[0].exercises.map((e) => e.id)).toEqual(['a', 'b']);
+  });
+
+  it('no se pierde lo que estaba anotado dentro del plan viejo', () => {
+    const p = conPlan();
+    p.microcycles[0].days = [
+      {
+        dayName: 'Push',
+        exercises: [
+          {
+            id: 'viejo',
+            name: 'Press banca',
+            muscle: 'Pecho',
+            sets: [{ kg: '80', reps: '8', rir: '2', targetReps: '8-10' }],
+          },
+        ],
+      },
+    ];
+
+    const banca = proyectarPlanEnDias(p).microcycles[0].days[0].exercises[0];
+    expect(banca.id).toBe('a'); // el del bloque: es el que la pantalla usa
+    expect(banca.sets[0].kg).toBe('80'); // y los kilos siguen ahí
+  });
+
+  it('una hoja que el plan ya no tiene se conserva: dentro puede haber histórico', () => {
+    const p = conPlan();
+    p.microcycles[0].days.push({
+      dayName: 'Legs',
+      exercises: [{ id: 'v1', name: 'Sentadilla', muscle: 'Pierna', sets: [{ kg: '100', reps: '5', rir: '2' }] }],
+    });
+
+    const dias = proyectarPlanEnDias(p).microcycles[0].days;
+    expect(dias.map((d) => d.dayName)).toEqual(['Push', 'Legs']);
+    expect(dias[1].exercises[0].sets[0].kg).toBe('100');
+  });
+
+  it('es idempotente: proyectar dos veces da lo mismo', () => {
+    const una = proyectarPlanEnDias(conPlan());
+    expect(proyectarPlanEnDias(una)).toEqual(una);
+  });
+
+  it('las sesiones registradas no se tocan', () => {
+    const p = conPlan();
+    p.microcycles[1].sessions = [
+      { id: 'ses_1', date: '2026-09-01', dayName: 'Push', entries: [{ exerciseId: 'a', name: 'Press banca', sets: [] }] },
+    ];
+    expect(proyectarPlanEnDias(p).microcycles[1].sessions).toEqual(p.microcycles[1].sessions);
   });
 });
