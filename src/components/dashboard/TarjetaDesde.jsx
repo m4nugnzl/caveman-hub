@@ -6,6 +6,7 @@ import { allSessions } from '@/domain/sessions';
 import { trainingDayCount } from '@/domain/training';
 import { daysBetween, shortDate } from '@/lib/dates';
 import { fmt } from '@/lib/num';
+import { useOculto } from '@/components/Client/Oculto';
 import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
 const signo = (v, decimals = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v), { decimals })}`;
@@ -31,13 +32,19 @@ const signo = (v, decimals = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Mat
  * que más carga admite, no el que importa, y una cifra así se lee como un
  * titular de gimnasio. La fuerza se cuenta en su tarjeta, con su curva.
  */
-export const TarjetaDesde = ({ history, microcycles, program, startDate, hoy, isClient = false }) => {
+export const TarjetaDesde = ({ history, microcycles, program, startDate, hoy, isClient = false, span = 4 }) => {
+  /* A quien tiene el peso oculto, «−4,2 kg de peso» le contaría de un vistazo
+     justo lo que su entrenador ha decidido no devolverle. Las otras tres cifras
+     —cintura, sesiones, semanas— siguen: cuánto ha cambiado no es solo la
+     báscula, y ésta es la tarjeta que mejor lo dice. */
+  const oculto = useOculto();
+
   const cifras = useMemo(() => {
     const out = [];
 
     const pesos = weightSeries(history);
     const peso = seriesDelta(pesos);
-    if (peso && pesos.length > 1) {
+    if (peso && pesos.length > 1 && !oculto.weight) {
       out.push({ id: 'peso', v: signo(peso.delta), u: 'kg', k: 'de peso', color: metricColor('weight') });
     }
 
@@ -70,10 +77,10 @@ export const TarjetaDesde = ({ history, microcycles, program, startDate, hoy, is
       });
     }
     return out;
-  }, [history, microcycles, program, startDate, hoy]);
+  }, [history, microcycles, program, startDate, hoy, oculto.weight]);
 
   return (
-    <Tarjeta rotulo={isClient ? 'Desde que empezaste' : 'Desde que empezó'} span={4} vacia={cifras.length === 0}>
+    <Tarjeta rotulo={isClient ? 'Desde que empezaste' : 'Desde que empezó'} span={span} vacia={cifras.length === 0}>
       {cifras.length === 0 ? (
         <TarjetaVacia>
           {isClient ? 'Con tus primeros pesajes y sesiones, aquí verás cuánto has cambiado.' : 'Con dos pesajes o dos sesiones, aquí se cuenta cuánto ha cambiado.'}

@@ -28,11 +28,23 @@ import {
   checkinMode,
   clientProtocol,
   defaultProtocol,
+  sanitizeSchedule,
   weighInsTarget,
 } from '@/domain/protocol';
-import { clientIntake } from '@/domain/intake';
-import { coachIntakeForm } from '@/domain/intakeForm';
-import { intakeTemplateFrom, intakeTemplateToPreferences } from '@/lib/intakeTemplate';
+import { clientIntake, intakeToPreferences } from '@/domain/intake';
+import { intakeFormById } from '@/domain/intakeForm';
+import { coachFormularios } from '@/domain/formularios';
+import {
+  altaDe,
+  coachProtocolos,
+  protocoloDeCliente,
+  resolveProtocolo,
+} from '@/domain/protocolos';
+import {
+  applyIntakeTemplate,
+  intakeTemplateFrom,
+  intakeTemplateToPreferences,
+} from '@/lib/intakeTemplate';
 
 const key = (userId) => `caveman-protocol:${userId || 'anon'}`;
 
@@ -102,10 +114,19 @@ export const matchesTemplate = (template, protocol) =>
   LISTAS.every((k) => (template[k] || []).join() === (protocol[k] || []).join()) &&
   JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
   CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id)) &&
-  weighInsTarget(template) === weighInsTarget(protocol);
+  weighInsTarget(template) === weighInsTarget(protocol) &&
+  /* Las fotos, como los bloques: es una pieza del check-in que decides tú, así
+     que cambiarla tiene que poder llegar a quien ya tienes. */
+  (template.askPhotos !== false) === (protocol.askPhotos !== false) &&
+  /* El horario SÍ se compara: qué día se le pide el check-in, cada cuánto y si
+     se le recuerda es tu forma de trabajar, no algo de una persona. Dejarlo
+     fuera repetiría el fallo de los bloques y del cuestionario —cambiarlo y que
+     no llegara a nadie— que es justo lo que esta lista existe para evitar. */
+  JSON.stringify(sanitizeSchedule(template.schedule)) ===
+    JSON.stringify(sanitizeSchedule(protocol.schedule));
 
 /** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
-export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'weighIns'];
+export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'weighIns', 'askPhotos', 'schedule'];
 
 /**
  * Lo que está en el protocolo y NO se compara con la plantilla, con su motivo.
@@ -138,6 +159,14 @@ export const NOT_COMPARED_KEYS = {
     'Qué le llevas a ESTA persona: es lo que le has vendido, no una preferencia de tu protocolo. ' +
     'La plantilla lo siembra al darle de alta y no vuelve a tocarlo — antes «poner al día» le ' +
     'devolvía la nutrición a quien solo entrena.',
+  alertDays:
+    'La vara de ESTA persona: cuántos días sin entrenar o sin pesarse antes de avisarte (0093). ' +
+    'Se afina para quien entrena dos días o está medio de vuelta, así que «poner al día» no ' +
+    'puede resetearla a la general — sería devolverle el ruido que se acababa de quitar.',
+  hidden:
+    'Qué cifras NO le vuelven a ESTA persona en su portal: el peso, las kcal. Se decide por ' +
+    'quien tiene mala relación con la báscula o con la comida, y una plantilla no puede saber ' +
+    'quién es — «poner al día» devolviéndole el peso a esa persona es el peor botón posible.',
 };
 
 /**
@@ -153,6 +182,8 @@ export const NOT_COMPARED_KEYS = {
 export const templateForClient = (template, clientPreferences) => ({
   ...template,
   services: clientProtocol(clientPreferences).services,
+  alertDays: clientProtocol(clientPreferences).alertDays,
+  hidden: clientProtocol(clientPreferences).hidden,
 });
 
 /**
@@ -261,6 +292,97 @@ export const isProtected = (template, intakeTemplate, client) =>
   isException(client) ||
   (isUndecided(client) && clientDrifts(template, intakeTemplate, client));
 
+/* ══════════════════════════════════════════════════════════════════════════
+   PROTOCOLOS CON NOMBRE — la capa que resuelve antes de comparar
+   ══════════════════════════════════════════════════════════════════════════
+
+   ══ El riesgo que esto viene a evitar ═════════════════════════════════════
+
+   Todo lo de arriba compara contra *LA* plantilla, en singular, porque solo
+   había una. Con varios protocolos, cada cliente tiene que compararse **contra
+   el suyo** — y si eso se hace mal, la cartera empieza a decir «tiene
+   excepciones» a todo el mundo y el entrenador deja de fiarse de la pantalla.
+
+   Las primitivas de arriba NO se tocan: siguen recibiendo `(template, intake,
+   client)` y contestando exactamente lo mismo. Lo que se añade es la capa que
+   averigua QUÉ template le toca a cada cliente y la resuelve antes de
+   preguntar. Un sitio, y una sola forma de equivocarse.
+*/
+
+/** ¿Este entrenador tiene ya protocolos con nombre guardados? */
+export const usaProtocolos = (coachPrefs) =>
+  Array.isArray(coachPrefs?.protocolos?.items) && coachPrefs.protocolos.items.length > 0;
+
+/**
+ * EL PLAN: un protocolo, sus formularios, y lo que sale de juntarlos.
+ *
+ * `template` es el protocolo ya resuelto —con la forma que el cliente sabe
+ * leer— y `intake` la definición de su alta. Son exactamente los dos argumentos
+ * que piden `needsTemplate`, `isProtected` y `templateForClient`, así que quien
+ * tenga un plan puede llamarlas sin pensar.
+ */
+export const planDe = (coachPrefs, protocoloId = null) => {
+  const formularios = coachFormularios(coachPrefs);
+  const lista = coachProtocolos(coachPrefs);
+  const protocolo = lista.find((p) => p.id === protocoloId) || lista[0];
+  return {
+    protocolo,
+    formularios,
+    template: resolveProtocolo(protocolo, formularios),
+    intake: protocolo.intake,
+  };
+};
+
+/** El plan que le toca a un cliente: el protocolo que lleva puesto. */
+export const planDeCliente = (coachPrefs, client) =>
+  planDe(coachPrefs, protocoloDeCliente(coachPrefs, client)?.id);
+
+/**
+ * Las tres preguntas de siempre, contestadas contra el protocolo de ESTE
+ * cliente en vez de contra una plantilla única.
+ *
+ * Son las que alimentan «Poner al día» y las marcas de la lista. Cada una
+ * resuelve su plan por dentro para que ninguna pantalla pueda pasarle el
+ * protocolo equivocado — que es justo el fallo que dejaría la cartera llena de
+ * excepciones falsas.
+ */
+export const necesitaSuPlan = (coachPrefs, client) => {
+  const { template, intake } = planDeCliente(coachPrefs, client);
+  return needsTemplate(template, intake, client);
+};
+
+export const protegidoDeSuPlan = (coachPrefs, client) => {
+  const { template, intake } = planDeCliente(coachPrefs, client);
+  return isProtected(template, intake, client);
+};
+
+export const igualASuPlan = (coachPrefs, client) => {
+  const { template } = planDeCliente(coachPrefs, client);
+  return matchesTemplate(template, clientProtocol(client?.preferences));
+};
+
+/**
+ * Lo que hay que escribirle a un cliente para ponerlo al día con SU protocolo.
+ *
+ * Junta las tres cosas que no pueden ir por separado: el protocolo adaptado
+ * (`templateForClient`, que respeta lo que es suyo y no de la plantilla), la
+ * definición de su alta y la marca de qué protocolo lleva. Escribir solo una de
+ * las tres deja al cliente marcado como distinto justo después de igualarlo —
+ * ya pasó dos veces, y por eso esto vive aquí y no en la pantalla.
+ */
+export const parchePara = (coachPrefs, client) => {
+  const { protocolo, template, intake } = planDeCliente(coachPrefs, client);
+  return {
+    protocol: templateForClient(template, client?.preferences),
+    /* El alta se APLICA, no se copia: el protocolo decide qué pasos hay y el
+       cliente conserva por cuáles va y qué tiene enlazado. Copiarla entera
+       borraría los vídeos que se han ido pegando cliente a cliente, que es el
+       trabajo que no se puede rehacer. */
+    intake: intakeToPreferences(applyIntakeTemplate(intake, client?.preferences)),
+    protocolId: protocolo.id,
+  };
+};
+
 /**
  * Con qué preferencias nace un cliente recién dado de alta: tu forma de trabajar.
  *
@@ -290,7 +412,37 @@ export const isProtected = (template, intakeTemplate, client) =>
  * Nace SIN marca de excepción, que es lo correcto: acaba de recibir la plantilla
  * y tiene que seguir recibiendo lo que venga después.
  */
-export const newClientPreferences = (coachPrefs) => {
+export const newClientPreferences = (coachPrefs, { intakeFormId = null, protocoloId = null } = {}) => {
+  /*
+    ══ El camino nuevo: con protocolos con nombre ═════════════════════════════
+
+    Desde que el entrenador puede tener varios, lo que se siembra no es «la»
+    plantilla sino EL QUE LE TOCA a este cliente. Se resuelve entero —las
+    preguntas de sus formularios caen donde el portal ya sabe leerlas— y se le
+    apunta de cuál viene, que es lo que después permite decir «2 excepciones
+    sobre Powerlifting» sin adivinarlo.
+
+    Solo entra en juego cuando de verdad hay lista guardada o cuando el alta ha
+    elegido uno. Mientras nadie cree el segundo protocolo, todo sigue por el
+    camino de siempre y no cambia ni un byte de lo que se escribe.
+  */
+  if (usaProtocolos(coachPrefs) || protocoloId) {
+    const plan = planDe(coachPrefs, protocoloId);
+    const alta = altaDe(plan.protocolo, plan.formularios);
+    /* La elegida al invitar manda sobre la del protocolo: quien elige un alta
+       concreta en el formulario de alta está diciendo algo más concreto. */
+    const elegida = intakeFormId
+      ? plan.formularios.find((f) => f.id === intakeFormId && f.momento === 'alta') || alta
+      : alta;
+
+    return {
+      protocol: plan.template,
+      intake: intakeTemplateToPreferences(plan.protocolo.intake),
+      protocolId: plan.protocolo.id,
+      ...(elegida ? { intakeForm: elegida } : {}),
+    };
+  }
+
   const protocolo = templateFrom(coachPrefs);
   const alta = intakeTemplateFrom(coachPrefs);
   /*
@@ -302,8 +454,14 @@ export const newClientPreferences = (coachPrefs) => {
     configurado nada sería escribir en su ficha para no decir nada nuevo:
     `clientIntakeForm` ya cae en el formulario por defecto cuando no encuentra
     copia, y el resultado es idéntico sin ocupar la columna.
+
+    ── Y desde la 2ª edición del estudio, CUÁL de sus altas (D14) ─────────────
+    El entrenador puede tener varias —«Pérdida de grasa», «Fuerza»— y
+    `intakeFormId` dice la elegida al invitar. Sin id, la primera, que es el
+    formulario único de siempre.
   */
-  const formulario = coachPrefs?.intakeForm ? coachIntakeForm(coachPrefs) : null;
+  const tocado = Boolean(coachPrefs?.intakeForm) || (coachPrefs?.intakeForms?.items || []).length > 0;
+  const formulario = tocado ? intakeFormById(coachPrefs, intakeFormId) : null;
   if (!protocolo && !alta && !formulario) return null;
 
   return {

@@ -128,7 +128,19 @@
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: var(--s4); }
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: var(--s4); }
 
-.layout { max-width: var(--max-w); margin: 0 auto; padding: var(--s5) var(--s5) var(--s7); }
+/* ── EL TECHO DE LA CASA, y nada más que el techo ──────────────────────────
+   `.layout` capaba TODAS las pantallas del entrenador a 1320 px —la medida de
+   lectura del portal del cliente, heredada sin decidirlo—, y luego dos reglas
+   con `:has()` en la hoja de la Revisión reabrían los 1560 para Resumen y
+   Dieta. O sea: dos pantallas anchas, el resto estrechas, y el porqué escrito
+   en un archivo donde nadie lo iba a buscar.
+
+   Ahora esto solo pone el techo (`--max-w-trabajo`), que es lo que mide la
+   pantalla más ancha del panel. La página que necesite menos lo declara ella
+   —`.cartera-cuerpo` y `.settings` piden `--max-w-mesa`; un apartado pide
+   `--max-w-columna`— y se lee en su propia hoja, al lado de lo que capa. Ver
+   las tres medidas en `tokens.css`. */
+.layout { max-width: var(--max-w-trabajo); margin: 0 auto; padding: var(--s5) var(--s5) var(--s7); }
 /* El portal del cliente no vive en el shell, así que lleva su propio aire de
    noche (los mismos tokens; sobre papel, transparentes). */
 .layout-narrow {

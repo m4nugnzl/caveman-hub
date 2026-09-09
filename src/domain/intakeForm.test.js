@@ -4,11 +4,16 @@ import { PROFILE_FIELDS } from './profile';
 import {
   DEFAULT_ASKED,
   MAX_CUSTOM,
+  MAX_FORMS,
   addCustom,
+  buildIntakeForm,
   coachIntakeForm,
+  coachIntakeForms,
   defaultIntakeForm,
   formProgress,
   formSections,
+  intakeFormById,
+  intakeFormsToPreferences,
   isFormEmpty,
   isRequired,
   missingRequired,
@@ -258,5 +263,80 @@ describe('preguntar por su salud', () => {
 
   it('pero se puede apagar', () => {
     expect(coachIntakeForm({ intakeForm: { askHealth: false } }).askHealth).toBe(false);
+  });
+});
+
+/* ══ Varias altas, una por tipo de cliente (D14) ══════════════════════════ */
+
+describe('coachIntakeForms — la lista de altas', () => {
+  it('sin lista, el formulario único de siempre ES la lista', () => {
+    const lista = coachIntakeForms({ intakeForm: { asked: ['experience'] } });
+    expect(lista).toHaveLength(1);
+    expect(lista[0].id).toBe('form_general');
+    expect(lista[0].name).toBe('Alta');
+    expect(lista[0].asked).toEqual(['experience']);
+  });
+
+  it('con lista, manda la lista y cada una se sanea como el de siempre', () => {
+    const prefs = {
+      intakeForm: { asked: ['experience'] },
+      intakeForms: {
+        items: [
+          { id: 'f1', name: '  Pérdida de grasa  ', asked: ['mealsPerDay', 'campo-que-no-existe'] },
+          { id: 'f2', name: '', asked: [] },
+          null,
+          { name: 'sin id' },
+        ],
+      },
+    };
+    const lista = coachIntakeForms(prefs);
+    expect(lista.map((f) => f.id)).toEqual(['f1', 'f2']);
+    expect(lista[0].name).toBe('Pérdida de grasa');
+    expect(lista[0].asked).toEqual(['mealsPerDay']);
+    expect(lista[1].name).toBe('Alta');
+  });
+
+  it('corta en el tope', () => {
+    const items = Array.from({ length: MAX_FORMS + 3 }, (_, i) => ({ id: `f${i}`, name: `Alta ${i}` }));
+    expect(coachIntakeForms({ intakeForms: { items } })).toHaveLength(MAX_FORMS);
+  });
+});
+
+describe('intakeFormById — la elegida al invitar', () => {
+  const prefs = {
+    intakeForms: {
+      items: [
+        { id: 'f1', name: 'Pérdida de grasa' },
+        { id: 'f2', name: 'Fuerza', asked: ['experience'] },
+      ],
+    },
+  };
+
+  it('encuentra la pedida', () => {
+    expect(intakeFormById(prefs, 'f2').name).toBe('Fuerza');
+  });
+
+  it('con un id roto o sin id cae en la primera: nadie se queda sin alta', () => {
+    expect(intakeFormById(prefs, 'no-existe').id).toBe('f1');
+    expect(intakeFormById(prefs, null).id).toBe('f1');
+    expect(intakeFormById({}, null).id).toBe('form_general');
+  });
+});
+
+describe('buildIntakeForm e intakeFormsToPreferences', () => {
+  it('una alta nueva nace con las preguntas de serie y su nombre', () => {
+    const nueva = buildIntakeForm({ name: 'Fuerza' });
+    expect(nueva.name).toBe('Fuerza');
+    expect(nueva.asked).toEqual(DEFAULT_ASKED);
+    expect(nueva.id).toBeTruthy();
+  });
+
+  it('lo guardado pasa por el mismo saneo que lo leído', () => {
+    const { items } = intakeFormsToPreferences([
+      buildIntakeForm({ name: 'Fuerza' }),
+      { id: 'x', name: 'Rota', asked: ['no-existe'] },
+    ]);
+    expect(items).toHaveLength(2);
+    expect(items[1].asked).toEqual([]);
   });
 });

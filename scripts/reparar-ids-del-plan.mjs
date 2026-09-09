@@ -27,9 +27,21 @@
  * usa para leer, escrita ahora también en la fila. Por eso no puede «decidir»
  * nada distinto de lo que el cliente tiene delante.
  *
- * Lo ejecutado no se toca: los kilos viven en `microcycle.sessions`, y los del
- * histórico viejo que aún están dentro de `days` viajan con la proyección
- * (`conLoAnotado`). Las hojas que el plan ya no tiene se conservan.
+ * Lo ejecutado no se mueve de sitio: los kilos viven en `microcycle.sessions`, y
+ * los del histórico viejo que aún están dentro de `days` viajan con la
+ * proyección (`conLoAnotado`). Las hojas que el plan ya no tiene se conservan.
+ *
+ * ══ Y la otra mitad: lo anotado que no se ve ═══════════════════════════════
+ *
+ * La misma divergencia tiene un segundo efecto, y este no da ningún error. Una
+ * sesión guarda lo levantado bajo el id que el ejercicio tenía en `days`; la
+ * hoja lo busca por el id del plan. Cuando no coinciden, **los kilos siguen
+ * guardados y dejan de verse**: casillas vacías donde hay un entrenamiento.
+ *
+ * Proyectar no lo arregla —las sesiones no se tocan al proyectar—, así que este
+ * script reasigna además esas entradas al ejercicio del plan que se llama igual
+ * en el mismo día, y solo cuando la correspondencia es una a una y no hay nada
+ * que adivinar. La regla entera y sus pruebas, en `reasignar-entradas.mjs`.
  *
  * ══ Uso ════════════════════════════════════════════════════════════════════
  *
@@ -51,6 +63,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { createClient } from '@supabase/supabase-js';
 
 import { proyectarPlanEnDias, blocksOf, hasBlockPlan } from '../src/domain/blocks.js';
+import { reasignarEntradas, seriesAnotadas } from './reasignar-entradas.mjs';
 import { resolverCredenciales } from './credenciales.mjs';
 
 /*
@@ -123,12 +136,17 @@ for (const fila of filas || []) {
     if (huerfanos.length > 0) rotas.push({ semana: micro.weekNumber, cuantos: huerfanos.length });
   }
 
-  if (rotas.length === 0) {
+  /*
+    Y lo ya REGISTRADO bajo un id que la pantalla no nombra: la otra mitad de la
+    misma divergencia. Los `days` deciden si se PUEDE anotar; las entradas de las
+    sesiones deciden si lo anotado SE VE. Ver `reasignar-entradas.mjs`.
+  */
+  const { program: reparado, cambios } = reasignarEntradas(proyectarPlanEnDias(fila));
+
+  if (rotas.length === 0 && cambios.length === 0) {
     console.log(`  ok        ${quien}`);
     continue;
   }
-
-  const reparado = proyectarPlanEnDias(fila);
 
   /*
     ── La comprobación que impide una reparación destructiva ────────────────
@@ -176,7 +194,34 @@ for (const fila of filas || []) {
     problemas.push('cambia el número de microciclos');
   }
 
-  const detalle = rotas.map((r) => `M${r.semana} (${r.cuantos})`).join(', ');
+  /*
+    ── Y la que protege lo registrado ───────────────────────────────────────
+    Reasignar cambia el id de una entrada y nada más, así que el número de
+    series anotadas tiene que ser exactamente el mismo antes y después. Si no lo
+    es, se ha juntado o se ha perdido algo y este cliente no se escribe. Se
+    comprueba además que ninguna sesión acabe con dos entradas del mismo
+    ejercicio, que es la forma en que se duplicaría el tonelaje.
+  */
+  if (seriesAnotadas(reparado) !== seriesAnotadas(fila)) {
+    problemas.push(
+      `cambian las series anotadas: ${seriesAnotadas(fila)} → ${seriesAnotadas(reparado)}`
+    );
+  }
+  for (const micro of reparado.microcycles || []) {
+    for (const ses of micro.sessions || []) {
+      const ids = (ses.entries || []).map((e) => e.exerciseId);
+      if (new Set(ids).size !== ids.length) {
+        problemas.push(`M${micro.weekNumber} ${ses.dayName} ${ses.date}: entradas repetidas`);
+      }
+    }
+  }
+
+  const detalle = [
+    rotas.length > 0 ? `semanas ${rotas.map((r) => `M${r.semana} (${r.cuantos})`).join(', ')}` : null,
+    cambios.length > 0 ? `${cambios.length} entradas por reasignar` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   if (problemas.length > 0) {
     console.log(`  SE SALTA  ${quien} · ${detalle}`);
@@ -184,7 +229,13 @@ for (const fila of filas || []) {
     continue;
   }
 
-  console.log(`  arregla   ${quien} · semanas ${detalle}`);
+  console.log(`  arregla   ${quien} · ${detalle}`);
+  for (const c of cambios) {
+    console.log(
+      `            M${c.semana} ${c.dayName} ${c.date} · «${c.name}» ` +
+        `${c.series} ${c.series === 1 ? 'serie anotada' : 'series anotadas'} · ${c.de} → ${c.a}`
+    );
+  }
   originales.push(fila);
   porArreglar.push({ client_id: fila.client_id, microcycles: reparado.microcycles, quien });
 }

@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Plus, Settings2, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, Plus, Settings2, Trash2 } from 'lucide-react';
 
-import { blockSummary, blocksOf, horizonteDeBloque, weeksOfBlock } from '@/domain/blocks';
+import { blockSummary, blocksOf, fraseDeHorizonte, weeksOfBlock } from '@/domain/blocks';
 import { executedSessions } from '@/domain/sessions';
 import { findMicrocycle } from '@/domain/training';
 import { shortDate, toISODate } from '@/lib/dates';
+import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { RenombrarEnSitio } from '@/components/ui/primitives';
 
 /**
@@ -30,23 +31,24 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
  *    jerarquía— y la pastilla más fuerte (el bloque abierto, rellena) era
  *    justo la única que no hacía nada al pulsarla.
  *
+ * 5. DOS FILAS: carril de bloques arriba, regla de microciclos debajo. Mejor,
+ *    pero seguían siendo dos alturas de navegación de un solo objeto, y
+ *    encima de una mesa sin cajas el carril de pastillas pesaba más que las
+ *    hojas. Ver la nota «UNA SOLA LÍNEA», abajo.
+ *
  * ══ Lo que hay ahora: la gramática de la cabecera ══════════════════════════
  *
- *     B1 Adaptación   B2 Acumulación   ᴮ³ Intensificación   + bloque    🗑 ⚙
- *      (voz baja)      (voz baja)       (GRANDE, la ancha)  (voz baja)
- *     [M1 · hecho] [M2 · en curso] [+ microciclo]        desde el 14 ago
+ *     Acumulación ▾   M8 · en curso ▾   desde el 6 jul · 26 de 36 · 72 %
+ *      (el titular)     (la unidad)       (voz baja)
+ *                                       Cómo va el bloque   🗑 ⚙
  *
- * La misma anatomía que la cabecera del cliente: el nombre de DONDE ESTÁS es
- * el titular —el bloque abierto, en la fuente ancha, sin caja: ya estás en él
- * y no es un botón—, sus hermanos quedan en voz baja a los lados (el tiempo
- * sigue de izquierda a derecha, así que los cerrados van delante), y el dato
- * suelto —desde cuándo va— deja de ser una tercera altura y se sienta a la
- * derecha de los microciclos. Dos alturas donde había tres.
+ * UN renglón: el nombre de DONDE ESTÁS es el titular y a la vez la puerta al
+ * resto del programa; a su lado, el microciclo; detrás, en voz baja, desde
+ * cuándo va y cómo lo lleva; al canto, lo que se puede hacer.
  *
- * Los MICROCICLOS no cambian de dibujo: siguen siendo la pastilla con la que
- * se cambia de microciclo en la hoja de series (la lección de la versión 3).
- * Cada «+» sigue pegado a lo que añade: el de bloques con los bloques, el de
- * microciclos con los microciclos.
+ * Los dos navegadores son `MenuAcciones` —el menú de toda la casa— y no un
+ * dibujo propio: es la lección de la versión 3, que se saltó dibujando aquí
+ * un carril que no existía en ninguna otra pantalla.
  *
  * ══ Por qué vive en su propio archivo ══════════════════════════════════════
  *
@@ -91,6 +93,15 @@ export const LineaDeBloques = ({
   onRenombrarBloque,
   onQuitarBloque,
   onAjustes,
+  /* El conmutador Conjunto | Hojas, ya montado: lo arma el editor, que es
+     quien sabe en qué vista está y quien la cambia. Llega como pieza y no
+     como par valor/manejador para no tener dos definiciones del mismo
+     control —la cabecera del bloque y la de la hoja pintan la misma—. */
+  conmutador,
+  /* La puerta a la lista de bloques: existe en el editor del entrenador y no
+     en el portal, que no tiene esa página. Con ella, el título deja de ser un
+     desplegable y pasa a ser un enlace. */
+  onVerLista,
 }) => {
   const [renombrando, setRenombrando] = useState(false);
   const bloques = blocksOf(program);
@@ -114,72 +125,124 @@ export const LineaDeBloques = ({
     mitad de la decisión de programar: «se le acaba el bloque y no hay nada
     preparado» tiene que leerse, no calcularse.
   */
-  const horizonte = conHorizonte ? horizonteDeBloque(program, semanaEnCurso) : null;
-  const fraseHorizonte = (() => {
-    if (!horizonte) return null;
-    /* El horizonte es del bloque por el que VA la persona. Mirando otro —uno
-       cerrado del historial— contaba lo del abierto debajo de su nombre, así
-       que la línea decía «cerrado · abierto · 3 microciclos». */
-    if (horizonte.bloque?.id !== bloque?.id) return null;
-    const { restantes, siguiente, abierto: sigueAbierto } = horizonte;
-
-    /*
-      ── Un bloque abierto no tiene horizonte, y decirlo era el error ─────────
-      Aquí se contaba lo que le «quedaba» al bloque abierto —«va por su último
-      microciclo escrito», «le quedan 2 escritos»— como si tuviera un final al
-      que acercarse. No lo tiene: una rutina se monta y dura hasta que hay
-      motivo para cambiarla, así que lo que quedaba por contar era en realidad
-      lo que todavía no se ha escrito.
-
-      Un bloque abierto dice lo único que es cierto: que está abierto. Cuánto
-      lleva lo decía aquí una cifra («2 microciclos») que ahora sobra: la frase
-      se sienta en la MISMA fila que las pastillas de los microciclos, que
-      dibujan la cuenta ellas solas. El horizonte se queda para los cerrados,
-      que sí tienen final y sí tienen algo detrás.
-    */
-    if (sigueAbierto) return 'abierto';
-
-    const cuanto =
-      restantes === 0
-        ? `acaba este ${unidadBaja}`
-        : restantes === 1
-          ? `le queda 1 ${unidadBaja}`
-          : `le quedan ${restantes} ${unidadesBajas}`;
-    const despues = siguiente ? `después, ${siguiente.name}` : 'después, nada programado';
-    return [cuanto, despues].join(' · ');
-  })();
-
+  /* La frase la arma el dominio (`fraseDeHorizonte`): la dicen también la
+     cabecera del entrenador y ésta, y escrita dos veces se separa a la primera
+     corrección. */
+  const fraseHorizonte = conHorizonte
+    ? fraseDeHorizonte(program, bloque, semanaEnCurso, { unidad: unidadBaja, unidades: unidadesBajas })
+    : null;
   /*
-    Cuando la fila de bloques no cabe, se abre por el ABIERTO.
-    En un teléfono con tres bloques, el carril arrancaba a la izquierda —o sea,
-    en el de junio— y el que se está mirando quedaba cortado contra el borde
-    derecho: justo el único que hacía falta ver al entrar. El tiempo sigue yendo
-    de izquierda a derecha; lo que cambia es por dónde está abierto.
+    ── UNA SOLA LÍNEA ─────────────────────────────────────────────────────────
+    Esto fueron dos filas: el carril de bloques arriba (B1 · B2 · B3 · + bloque)
+    y la regla de microciclos debajo con el pie de datos. Sumadas a la cabecera
+    del cliente y a la franja de días, la pantalla gastaba cuatro alturas de
+    navegación —unos 250 px— antes del primer ejercicio, y las tres últimas
+    navegaban el MISMO objeto: el bloque, su microciclo y su día.
 
-    Se reancla al CAMBIAR de bloque y no solo al montar: la primera vez que esto
-    corre el programa puede no haber llegado todavía. Entre medias manda el
-    dedo. Y la distancia se mide con los rectángulos y no con `offsetLeft`, que
-    se cuenta desde el ancestro posicionado y aquí valía cero para los dos.
+    Ahora es un renglón: dónde estás, desde cuándo, cómo va y qué se puede
+    hacer. Lo que se navega baja a dos menús —el mismo `MenuAcciones` de toda
+    la casa, no un dibujo nuevo—, y ahí cada bloque y cada microciclo pueden
+    decir MÁS de lo que decían como pastilla: fechas, duración, tonelaje,
+    entrenamientos. El mapa no se pierde; deja de ocupar una fila para
+    contarse a sí mismo.
+
+    Y pesa que la mesa de abajo perdió sus cajas: una fila de pastillas encima
+    de una rejilla sin bordes se convierte en lo más pesado de la pantalla, y
+    la mirada se va al índice en vez de a las hojas.
+
+    Si algún día hiciera falta el carril otra vez, se recupera pintando
+    `tramos` en la fila en lugar de en `itemsBloques`: los datos ya están
+    calculados arriba y no dependen de esto.
   */
-  const carril = useRef(null);
-  const abiertoRef = useRef(null);
-  useEffect(() => {
-    const el = carril.current;
-    const suyo = abiertoRef.current;
-    if (!el || el.scrollWidth <= el.clientWidth) return;
-    if (!suyo) {
-      el.scrollLeft = el.scrollWidth;
-      return;
-    }
-    el.scrollLeft += suyo.getBoundingClientRect().left - el.getBoundingClientRect().left;
-  }, [bloque?.id]);
 
-  /* La línea de debajo: desde cuándo va el bloque abierto y cuánto le queda. */
+  /* El bloque por el que va la persona, que no siempre es el que se mira: sin
+     esta vuelta, entrar en uno cerrado del historial es un callejón. */
+  const dondeVa = tramos.find((t) => semanaEnCurso != null && t.semanas.includes(semanaEnCurso)) || null;
+
+  const cuandoDe = (r) =>
+    r.desde
+      ? `${shortDate(r.desde)}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`
+      : 'sin fechas';
+
+  const itemsBloques = [
+    ...tramos.map(({ b, r, semanas, esEste }) => ({
+      label: b.name,
+      /* Lo que antes había que sobrevolar para saberlo, o directamente no se
+         decía: cuándo fue, cuánto duró y cuánto se levantó dentro. */
+      sub: [
+        cuandoDe(r),
+        `${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas}`,
+        r.kg > 0 ? `${Math.round(r.kg / 1000)} t` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      on: esEste,
+      run: () => (esEste ? null : onIrBloque(b)),
+    })),
+    (onRenombrarBloque || onNuevoBloque) && null,
+    onRenombrarBloque && { icon: Pencil, label: 'Renombrar este bloque', run: () => setRenombrando(true) },
+    onNuevoBloque && { icon: Plus, label: 'Abrir un bloque nuevo', run: onNuevoBloque },
+  ];
+
+  /* Los microciclos del bloque que se mira. Cada uno dice lo que la muesca
+     medía —los entrenamientos— más la fecha, que la muesca no podía llevar. */
+  const itemsMicros = abierto
+    ? [
+        ...abierto.semanas.map((w) => {
+          const micro = findMicrocycle(microcycles, w) || {};
+          const iso = toISODate(micro.date);
+          const hechas = executedSessions(micro).length;
+          const n = w - abierto.b.fromWeek + 1;
+          return {
+            label: `${inicial}${n}`,
+            sub: [iso ? shortDate(iso) : null, hechas === 1 ? '1 entrenamiento' : `${hechas} entrenamientos`]
+              .filter(Boolean)
+              .join(' · '),
+            on: w === semanaEnCurso,
+            run: () => onIrSemana(w),
+          };
+        }),
+        abierto.r.abierto && onNuevaSemana && null,
+        abierto.r.abierto &&
+          onNuevaSemana && {
+            icon: Plus,
+            label: `Añadir ${unidadBaja} ${abierto.semanas.length + 1}`,
+            run: onNuevaSemana,
+          },
+      ]
+    : [];
+
+  const aqui = abierto && semanaEnCurso != null && abierto.semanas.includes(semanaEnCurso);
+  const nAqui = aqui ? semanaEnCurso - abierto.b.fromWeek + 1 : null;
+  /* «en curso» solo donde `semanaEnCurso` es el microciclo REAL: en el portal
+     llega el que se está mirando, y uno de junio no está en curso. */
+  const rotuloMicro = !abierto
+    ? null
+    : aqui
+      ? `${inicial}${nAqui}${conHorizonte ? ' · en curso' : ''}`
+      : `${abierto.semanas.length} ${abierto.semanas.length === 1 ? unidadBaja : unidadesBajas}`;
+
+  /* ── El dato de la línea ───────────────────────────────────────────────────
+     Desde cuándo va el bloque, qué le queda, y las dos cifras que SÍ acompañan
+     una decisión del día: cuántos entrenamientos de los pautados lleva y qué
+     porcentaje cumple. Las otras dos del antiguo costado —tonelaje y series por
+     microciclo— se consultan una vez por bloque y viven en «Cómo va el bloque». */
+  const marcha =
+    abierto && abierto.r.planificadas
+      ? [
+          `${abierto.r.hechas} de ${abierto.r.planificadas} entrenamientos`,
+          abierto.r.adherencia === null ? null : `${abierto.r.adherencia} % de lo pautado`,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : null;
+
   const pie = abierto
     ? [
         abierto.r.desde ? `desde el ${shortDate(abierto.r.desde)}` : null,
         contexto,
         fraseHorizonte,
+        marcha,
       ]
         .filter(Boolean)
         .join(' · ')
@@ -187,152 +250,99 @@ export const LineaDeBloques = ({
 
   return (
     <nav className="linea" aria-label={etiqueta}>
-      {/* ── Los bloques: el abierto es el titular, los demás la voz baja ── */}
       <div className="linea-fila">
-        <div className="linea-bloques" ref={carril} role="tablist" aria-label="Bloques del programa">
-          {tramos.map(({ b, i, esEste, r, semanas }) => {
-            const cifras = r.kg > 0 ? ` · ${Math.round(r.kg / 1000)} t levantadas` : '';
-            const cuando = r.desde
-              ? `${shortDate(r.desde)}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`
-              : 'sin fechas';
-            const aqui = semanaEnCurso != null && semanas.includes(semanaEnCurso);
+        {/* ── Dónde estás: el titular, y la puerta al resto del programa ── */}
+        {renombrando ? (
+          <RenombrarEnSitio
+            value={bloque.name}
+            label="Nuevo nombre del bloque"
+            onRename={(nombre) => onRenombrarBloque(bloque.id, nombre)}
+            onDone={() => setRenombrando(false)}
+          />
+        ) : onVerLista ? (
+          /* ── El título es la puerta a la LISTA ────────────────────────────
+             El menú desplegable servía para saltar de bloque, pero un
+             desplegable no enseña el programa: no caben las cifras de cada
+             uno, ni se pueden enfrentar dos. Con la lista construida, el
+             título va a ella y el menú sobra. El portal del cliente no tiene
+             esa página, así que ahí se queda el menú. */
+          <button
+            type="button"
+            className="linea-titulo is-puerta"
+            onClick={onVerLista}
+            title="Ver todos los bloques y compararlos"
+          >
+            {bloque.name}
+          </button>
+        ) : (
+          <MenuAcciones
+            clase="linea-titulo"
+            label={bloque.name}
+            ariaLabel={`${bloque.name} · ir a otro bloque`}
+            alineado="izquierda"
+            items={itemsBloques}
+          />
+        )}
 
-            /* El bloque abierto en renombrado: el campo ocupa el sitio de su
-               titular, para que el nombre se cambie donde se lee. */
-            if (esEste && renombrando) {
-              return (
-                <RenombrarEnSitio
-                  key={b.id}
-                  value={b.name}
-                  label="Nuevo nombre del bloque"
-                  onRename={(nombre) => onRenombrarBloque(b.id, nombre)}
-                  onDone={() => setRenombrando(false)}
-                />
-              );
-            }
+        {rotuloMicro && (
+          <MenuAcciones
+            clase="linea-micro"
+            label={rotuloMicro}
+            ariaLabel={`${rotuloMicro} · ir a otro ${unidadBaja}`}
+            alineado="izquierda"
+            items={itemsMicros}
+          />
+        )}
 
-            return (
-              <button
-                key={b.id}
-                type="button"
-                role="tab"
-                aria-selected={esEste}
-                ref={esEste ? abiertoRef : null}
-                className={`linea-bloque${esEste ? ' is-on' : ''}`}
-                onClick={() => (esEste ? null : onIrBloque(b))}
-                onDoubleClick={() => esEste && onRenombrarBloque && setRenombrando(true)}
-                title={
-                  esEste
-                    ? `${b.name}${onRenombrarBloque ? ' · doble clic para renombrarlo' : ''}`
-                    : `Abrir ${b.name} · ${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas} · ${cuando}${cifras}`
-                }
-              >
-                <span className="linea-bloque-n">B{i + 1}</span>
-                <span className="linea-nombre-texto">{b.name}</span>
-                {/* El punto azul de «aquí está el hoy»: la misma señal con la
-                    que la pastilla del microciclo dice «en curso». Solo sale
-                    mirando OTRO bloque: es el camino de vuelta. */}
-                {aqui && !esEste && <span className="linea-bloque-estado">estás aquí</span>}
-              </button>
-            );
-          })}
+        {/* Desde cuándo va, qué le queda y cómo lo lleva: los datos que sí
+            acompañan una decisión, en voz baja y en el mismo renglón. */}
+        {pie && <span className="linea-dato">{pie}</span>}
 
-          {/* «+ bloque» PEGADO a los bloques. Estuvo arriba, en la fila de
-              mando de la pantalla, y ahí la acción de abrir el bloque siguiente
-              no tocaba a los bloques por ningún sitio. */}
-          {onNuevoBloque && (
-            <button type="button" className="linea-bloque is-nueva" onClick={onNuevoBloque} title="Cierra el bloque abierto y empieza el siguiente">
-              <Plus size={13} aria-hidden="true" /> bloque
-            </button>
-          )}
-        </div>
+        {/* El camino de vuelta. Era un «estás aquí» colgado de la pastilla del
+            bloque abierto; sin carril, es el verbo que lo dice. */}
+        {dondeVa && !dondeVa.esEste && onIrBloque && (
+          <button type="button" className="cab-accion is-puerta" onClick={() => onIrBloque(dondeVa.b)}>
+            Volver a {dondeVa.b.name}
+          </button>
+        )}
+
+        <span className="linea-hueco" />
 
         {/* Papelera y ajustes: a la vista y no dentro de un menú, pero callados
             —tinta terciaria— y solo encendidos al tocarlos. El grupo entero
             desaparece si no llega ninguno de los dos: en el portal del cliente
             era un hueco vacío que seguía cobrando su separación. */}
-        {(onAjustes || (onQuitarBloque && tramos.length > 1 && abierto)) && (
-        <div className="linea-mandos">
-          {onQuitarBloque && tramos.length > 1 && abierto && (
-            <button
-              type="button"
-              className="btn btn-icon btn-icon-compact btn-icon-danger"
-              aria-label={`Quitar ${abierto.b.name}`}
-              title={`Quitar ${abierto.b.name}: sus ${unidadesBajas} pasan al bloque de al lado`}
-              onClick={() => onQuitarBloque(abierto.b)}
-            >
-              <Trash2 size={15} />
-            </button>
-          )}
-          {onAjustes && (
-            <button type="button" className="btn btn-icon btn-icon-compact linea-ajustes" onClick={onAjustes} aria-label="Ajustes del programa" title="Ajustes: tipo de ciclo, patrón, fecha de inicio y protocolo">
-              <Settings2 size={15} />
-            </button>
-          )}
-        </div>
+        {(conmutador || onAjustes || (onQuitarBloque && tramos.length > 1 && abierto)) && (
+          <div className="linea-mandos">
+            {/* Conjunto | Hojas. Es el único mando de la cabecera que no
+                depende del bloque sino de qué se está haciendo con él: leerlo
+                entero para decidir, o escribir una de sus hojas. */}
+            {conmutador}
+            {onQuitarBloque && tramos.length > 1 && abierto && (
+              <button
+                type="button"
+                className="btn btn-icon btn-icon-compact btn-icon-danger"
+                aria-label={`Quitar ${abierto.b.name}`}
+                title={`Quitar ${abierto.b.name}: sus ${unidadesBajas} pasan al bloque de al lado`}
+                onClick={() => onQuitarBloque(abierto.b)}
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+            {onAjustes && (
+              <button
+                type="button"
+                className="btn btn-icon btn-icon-compact linea-ajustes"
+                onClick={onAjustes}
+                aria-label="Ajustes del programa"
+                title="Ajustes: tipo de ciclo, patrón, fecha de inicio y protocolo"
+              >
+                <Settings2 size={15} />
+              </button>
+            )}
+          </div>
         )}
       </div>
-
-      {/* ── Los microciclos del bloque abierto ──────────────────────────────
-          La MISMA pastilla con la que se cambia de microciclo mientras se
-          escriben las series (`hoja-semanas-tira`), y por eso: es la misma
-          pregunta en las dos pantallas de Entreno. A su derecha, en voz baja,
-          lo único que ninguna pastilla dibuja —desde cuándo va el bloque—,
-          que era una tercera altura suelta debajo. */}
-      {abierto && (
-        <div className="linea-fila is-micros">
-        <div className="hoja-semanas-tira" role="tablist" aria-label={`${unidades} de ${abierto.b.name}`}>
-          {abierto.semanas.map((w) => {
-            const micro = findMicrocycle(microcycles, w) || {};
-            const iso = toISODate(micro.date);
-            const hecha = executedSessions(micro).length > 0;
-            const estado = w === semanaEnCurso ? ' is-curso' : hecha ? ' is-hecha' : '';
-            const n = w - abierto.b.fromWeek + 1;
-            return (
-              <button
-                key={w}
-                type="button"
-                role="tab"
-                aria-selected={false}
-                className={`hoja-semana${estado}`}
-                onClick={() => onIrSemana(w)}
-                title={`Abrir ${unidad} ${n}${iso ? ` · empieza el ${shortDate(iso)}` : ''}${
-                  w === semanaEnCurso ? ' · en curso' : hecha ? ' · entrenado' : ' · por hacer'
-                }`}
-              >
-                {/*
-                  La palabra, SOLO en el que está en curso.
-
-                  Con ocho microciclos entrenados la fila decía «entrenado»
-                  siete veces seguidas y saltaba a dos renglones: siete
-                  repeticiones de la misma palabra no cuentan siete cosas,
-                  cuentan una y la ocupan siete veces. Lo entrenado lo dice la
-                  cifra en verde —el mismo verde con el que esta casa dice
-                  «hecho» en la hoja de series— y la palabra se guarda para el
-                  único que necesita nombrarse.
-                */}
-                <span className="hoja-semana-n">
-                  {inicial}
-                  {n}
-                </span>
-                {w === semanaEnCurso && <span className="hoja-semana-estado">en curso</span>}
-              </button>
-            );
-          })}
-          {abierto.r.abierto && onNuevaSemana && (
-            <button
-              type="button"
-              className="hoja-semana is-nueva"
-              onClick={onNuevaSemana}
-              title={`Añadir ${unidadBaja} ${abierto.semanas.length + 1}`}
-            >
-              <Plus size={13} aria-hidden="true" /> {unidadBaja}
-            </button>
-          )}
-        </div>
-        {pie && <p className="linea-horizonte">{pie}</p>}
-        </div>
-      )}
     </nav>
   );
 };

@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import { ChevronsUpDown, LifeBuoy, LogOut, Moon, Settings, Stethoscope, Sun } from 'lucide-react';
 
 import { useSession, useActions } from '@/context/AppContext';
+import { COACH_TALLER } from '@/routes';
 import { useEsAdminPlataforma } from '@/context/useRadiografia';
 import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
@@ -108,6 +109,36 @@ export const AccountMenu = ({ variante = 'avatar' }) => {
           */}
           {isCoach && view === 'coach' && (
             <>
+              {/*
+                ── El Taller, solo donde no hay barra ────────────────────────
+                Las cuatro puertas del material (`COACH_TALLER`) viven en la
+                barra lateral, que no existe por debajo de 1024 px. Sin esto,
+                en una tableta o un teléfono no habría forma de llegar al
+                protocolo ni a las bibliotecas más que escribiendo la URL.
+
+                Se oculta en escritorio por CSS —y no con dos menús distintos—
+                porque son los MISMOS destinos: dos listas que mantener acaban
+                diciendo cosas distintas. Es un plano de navegación que cambia
+                de mueble según el ancho, como ya hace el nivel primario con la
+                barra del pulgar.
+              */}
+              <div className="account-taller">
+                <p className="account-rotulo">Tu taller</p>
+                {COACH_TALLER.map(({ path, label, icon: Icon }) => (
+                  <NavLink
+                    key={path}
+                    to={path}
+                    className="account-item"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </NavLink>
+                ))}
+                <hr className="divider" />
+              </div>
+
               <NavLink
                 to="/ajustes"
                 className="account-item"

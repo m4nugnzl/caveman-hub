@@ -24,6 +24,13 @@ import { norm } from '@/lib/texto';
  * clientes, donde la pregunta que se trae no es «¿está Marta?» sino «¿quiénes
  * hay?». Va por propiedad y apagado por defecto: lo pide quien tiene una lista
  * que se puede ojear.
+ *
+ * ── `vacio`: cuando lo ojeable es una PARTE de la lista ────────────────────
+ * El caso de los platos en el buscador de la dieta: la lista son trescientos
+ * alimentos —que no se ojean— más tus platos —que sí—. Con `abreVacio` salen
+ * los seis primeros de todo, o sea seis alimentos por orden alfabético; sin él
+ * no sale nada y **un plato solo aparece si ya sabías cómo se llamaba**, que es
+ * tanto como no tenerlo. Con `vacio` se ojea lo tuyo y se busca en todo.
  */
 export const Autocomplete = ({
   value,
@@ -36,6 +43,7 @@ export const Autocomplete = ({
   placeholder,
   maxSuggestions = 6,
   abreVacio = false,
+  vacio = null,
   inputProps = {},
 }) => {
   const [open, setOpen] = useState(false);
@@ -48,11 +56,14 @@ export const Autocomplete = ({
      y «prension» la «Prensión». La tilde no puede ser la llave (lib/texto). */
   const query = norm(String(value || '').trim());
   const matches = useMemo(() => {
-    if (!query) return abreVacio ? (items || []).slice(0, maxSuggestions) : [];
+    if (!query) {
+      if (vacio) return vacio.slice(0, maxSuggestions);
+      return abreVacio ? (items || []).slice(0, maxSuggestions) : [];
+    }
     return (items || [])
       .filter((item) => norm(getLabel(item)).includes(query))
       .slice(0, maxSuggestions);
-  }, [items, query, getLabel, maxSuggestions, abreVacio]);
+  }, [items, query, getLabel, maxSuggestions, abreVacio, vacio]);
 
   const exactExists = matches.some((m) => norm(getLabel(m)) === query);
   const canCreate = Boolean(onCreate) && query.length > 0 && !exactExists;

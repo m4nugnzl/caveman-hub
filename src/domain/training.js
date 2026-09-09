@@ -293,10 +293,18 @@ export const rotatingSlots = (pattern, days = []) => {
  * Va vacío por defecto y solo se ve si el entrenador enciende el módulo `rir`
  * de su protocolo. Quien no programe por RIR no tiene por qué verlo.
  */
+/*
+ * `targetKg` es el tercer objetivo y llegó el último. Hasta ahora los kilos eran
+ * SOLO registro —«el peso lo elige quien levanta»—, y eso dejaba media
+ * prescripción sin sitio: quien programa una fuerza de 5×5 al 80 % escribe un
+ * peso, no un rango de repeticiones. Va vacío por defecto y vacío significa lo
+ * de siempre: a criterio del cliente. Ver `HojaDeSeries`.
+ */
 export const emptySet = (targetReps = '') => ({
   kg: '',
   reps: '',
   rir: '',
+  targetKg: '',
   targetReps,
   targetRir: '',
 });
@@ -337,6 +345,312 @@ export const buildExercise = ({ name, muscle, numSets, targetReps }) => ({
   sets: buildSets(numSets, targetReps),
 });
 
+/* ══════════════════════════════════════════════════════════════════════════
+   LA GRAMÁTICA DE SERIE
+   ══════════════════════════════════════════════════════════════════════════
+
+   Superserie, técnicas, descanso, AMRAP y «por tiempo» eran texto en el mejor de
+   los casos: el importador admitía «AMRAP» como objetivo (`routineSheet`) pero
+   la aplicación no sabía qué significaba, y lo demás ni siquiera tenía dónde
+   vivir. Ahora son dato, con el modelo MÁS PEQUEÑO que los dice:
+
+     exercise.enlazado     en superserie CON EL ANTERIOR. Un booleano y ningún
+                           id: las etiquetas A1/A2 se derivan de la posición,
+                           así que reordenar rompe o junta cadenas a la vista
+                           en vez de dejar punteros huérfanos.
+     exercise.tecnica      cómo se remata la última serie —bajada, rest-pause,
+                           myo-reps, parciales—, o nada. Ver `TECNICAS`.
+     exercise.restSeconds  descanso entre series, en segundos.
+
+   AMRAP y «30 s» NO se guardan aparte: ya están escritos en `targetReps`, y
+   guardarlos dos veces es como se acaba con dos verdades. Se INTERPRETAN
+   (`targetKind`), que es lo que les faltaba para significar algo.
+
+   Y se imprime con la tipografía de la hoja —«última con bajada · descanso
+   90 s»—, no con chips de colores: la hoja es la identidad. */
+
+/** Qué pide de verdad el objetivo escrito: repeticiones, AMRAP o tiempo. */
+export const targetKind = (targetReps) => {
+  const v = String(targetReps || '').trim();
+  if (!v) return 'reps';
+  if (/^(amrap|fallo|al\s*fallo|m[aá]x(imo)?)$/i.test(v)) return 'amrap';
+  if (/^\d{1,3}\s*(?:s|seg|sec|segundos?|min|minutos?|['"″′])\.?$/i.test(v)) return 'tiempo';
+  return 'reps';
+};
+
+/** «90 s», «2 min». `null` sin descanso pautado: no se inventa un defecto. */
+export const restLabel = (restSeconds) => {
+  const s = Number(restSeconds);
+  if (!Number.isFinite(s) || s <= 0) return null;
+  if (s >= 120 && s % 60 === 0) return `${s / 60} min`;
+  return `${Math.round(s)} s`;
+};
+
+/**
+ * Las etiquetas A1/A2 de las superseries de una hoja, derivadas de la posición.
+ *
+ * Una cadena son ejercicios CONSECUTIVOS donde cada uno va `enlazado` con su
+ * anterior; la primera cadena es la A, la segunda la B. Un `enlazado` en el
+ * primer ejercicio no dice nada (no hay anterior) y se ignora. Devuelve una
+ * lista alineada con la de ejercicios: la etiqueta, o `null` si va suelto.
+ */
+export const supersetLabels = (exercises = []) => {
+  const labels = new Array(exercises.length).fill(null);
+  let cadena = 0;
+  let i = 0;
+  while (i < exercises.length) {
+    let fin = i + 1;
+    while (fin < exercises.length && exercises[fin]?.enlazado) fin += 1;
+    if (fin - i > 1) {
+      const letra = String.fromCharCode(65 + (cadena % 26));
+      for (let j = i; j < fin; j += 1) labels[j] = `${letra}${j - i + 1}`;
+      cadena += 1;
+    }
+    i = fin;
+  }
+  return labels;
+};
+
+/* ══ LAS TÉCNICAS DE INTENSIDAD ═══════════════════════════════════════════
+   «La última al fallo y bajas el peso», «la última a rest-pause»: el remate
+   se escribía en la nota del ejercicio cuando se escribía, y entonces no era
+   dato — no se podía leer en la hoja, no viajaba con la plantilla y el cliente
+   se lo encontraba dentro de un párrafo.
+
+   ── Un VOCABULARIO cerrado, y CON NÚMEROS ───────────────────────────────
+   Cerrado porque son las cuatro que un entrenador programa de verdad y porque
+   texto libre aquí devuelve el problema: «RP», «rest pause» y «restpause»
+   serían tres técnicas.
+
+   Lo que sí cambió es que dejaron de ser UNA PALABRA. Durante un tiempo esto
+   era `exercise.tecnica = 'bajada'` y nada más: ni cuántas bajadas, ni cuánto
+   se recorta, ni cuántas tandas, ni cuántos segundos. El dueño lo dijo sin
+   rodeos —«las dropset no se pueden planificar nada bien»— y tenía razón: no
+   era un problema de dibujo, es que el dato no existía. Quien programaba una
+   bajada doble al 20 % tenía que escribirlo en la nota, o decirlo de palabra.
+
+   Ahora cada técnica lleva SUS CAMPOS (`campos`) con su valor por defecto, y de
+   uno de ellos (`sub`) sale cuántas SUBSERIES tiene el remate: dos bajadas son
+   dos renglones colgando de la serie, y cada uno se pauta y se registra.
+
+   ── Y cuelgan de la SERIE, no del ejercicio ─────────────────────────────
+   Estaban en el ejercicio y siempre en la última serie. Eso vale para el 90 %
+   de los casos y es mentira en el resto: hay quien mete la bajada en la
+   penúltima para no llegar al fallo en la última, y quien rematea las dos
+   últimas. `set.tecnica` es el sitio correcto; `exercise.tecnica` se sigue
+   LEYENDO para que lo escrito antes no se caiga (ver `tecnicaDeLaSerie`), pero
+   ya no se escribe.
+
+   Lo que NO está: cluster y series descendentes por bloques. No son un remate
+   sino un esquema de todo el ejercicio, y meterlos aquí sería decir en el sitio
+   de una serie algo que vale para todas. */
+export const TECNICAS = [
+  {
+    id: 'bajada',
+    verbo: 'bajada',
+    dicho: 'con bajada',
+    ayuda: 'Al llegar al fallo se baja el peso y se sigue sin descanso',
+    /* `por` es el valor por defecto: el que se pone al elegir la técnica, para
+       que nunca haya un remate a medio escribir. */
+    campos: [
+      { key: 'veces', label: 'bajadas', por: 1, min: 1, max: 5 },
+      { key: 'corte', label: '% menos', por: 20, min: 5, max: 60 },
+    ],
+    sub: 'veces',
+    nombreSub: (i, p) => (p.veces > 1 ? `bajada ${i + 1}` : 'bajada'),
+    cifras: (p) =>
+      [p.veces > 1 ? `×${p.veces}` : null, p.corte != null ? `−${p.corte} %` : null].filter(Boolean).join(', '),
+  },
+  {
+    id: 'rest-pause',
+    verbo: 'rest-pause',
+    dicho: 'a rest-pause',
+    ayuda: 'Se llega al fallo, se descansan unos segundos y se siguen sacando repeticiones',
+    campos: [
+      { key: 'veces', label: 'tandas', por: 2, min: 1, max: 5 },
+      { key: 'pausa', label: 'segundos', por: 15, min: 5, max: 60 },
+    ],
+    sub: 'veces',
+    nombreSub: (i) => `tanda ${i + 1}`,
+    cifras: (p) =>
+      [p.veces != null ? `×${p.veces}` : null, p.pausa != null ? `${p.pausa} s` : null].filter(Boolean).join(', '),
+  },
+  {
+    id: 'myo-reps',
+    verbo: 'myo-reps',
+    dicho: 'con myo-reps',
+    ayuda: 'Una serie activa y detrás miniseries de pocas repeticiones con descansos muy cortos',
+    campos: [
+      { key: 'veces', label: 'miniseries', por: 4, min: 1, max: 8 },
+      { key: 'reps', label: 'reps cada una', por: 5, min: 1, max: 15 },
+      { key: 'pausa', label: 'segundos', por: 15, min: 5, max: 60 },
+    ],
+    sub: 'veces',
+    nombreSub: (i) => `mini ${i + 1}`,
+    cifras: (p) =>
+      [
+        p.veces != null ? `×${p.veces}${p.reps != null ? ` de ${p.reps}` : ''}` : null,
+        p.pausa != null ? `${p.pausa} s` : null,
+      ]
+        .filter(Boolean)
+        .join(', '),
+  },
+  {
+    id: 'parciales',
+    verbo: 'parciales',
+    dicho: 'con parciales',
+    ayuda: 'Se termina con repeticiones parciales en el recorrido donde queda fuerza',
+    campos: [{ key: 'reps', label: 'parciales', por: 8, min: 1, max: 30 }],
+    /* Sin subserie: las parciales son el final de ESA serie, no otra tanda. */
+    sub: null,
+    cifras: (p) => (p.reps != null ? `×${p.reps}` : ''),
+  },
+];
+
+/** La ficha de una técnica por su identificador. */
+export const tecnicaSpec = (id) => TECNICAS.find((t) => t.id === id) || null;
+
+/**
+ * La técnica de un ejercicio, si lleva alguna.
+ *
+ * `bajada: true` es como se dijo esto mientras solo había una técnica: se sigue
+ * leyendo para que lo escrito entonces no se caiga, pero ya no se escribe.
+ */
+export const tecnicaOf = (exercise) => {
+  const id = String(exercise?.tecnica || '').trim();
+  if (TECNICAS.some((t) => t.id === id)) return id;
+  return exercise?.bajada ? 'bajada' : null;
+};
+
+/**
+ * Una técnica saneada: sus números dentro de rango, y NADA MÁS.
+ *
+ * Lo que no está escrito no se rellena. Un `tecnica: 'bajada'` de los de antes
+ * no sabe cuántas bajadas eran, y ponerle «×1, −20 %» sería que la aplicación
+ * se inventara una pauta que nadie escribió y se la enseñara al cliente como
+ * suya. Los valores por defecto son cosa de `tecnicaPorDefecto`, que es lo que
+ * corre al ELEGIR la técnica: ahí sí hay alguien decidiendo.
+ */
+export const normalizaTecnica = (valor) => {
+  const id = typeof valor === 'string' ? valor : String(valor?.id || '').trim();
+  const spec = tecnicaSpec(id);
+  if (!spec) return null;
+  const salida = { id };
+  for (const campo of spec.campos) {
+    const n = typeof valor === 'object' ? toNum(valor?.[campo.key]) : null;
+    if (n !== null) salida[campo.key] = Math.max(campo.min, Math.min(campo.max, Math.round(n)));
+  }
+  return salida;
+};
+
+/** La técnica recién elegida, con sus valores por defecto. */
+export const tecnicaPorDefecto = (id) => {
+  const spec = tecnicaSpec(id);
+  if (!spec) return null;
+  return { id, ...Object.fromEntries(spec.campos.map((c) => [c.key, c.por])) };
+};
+
+/**
+ * Qué remate lleva ESTA serie.
+ *
+ * Primero el suyo. Y si el ejercicio es de antes de que las técnicas bajaran a
+ * la serie, el suyo cae en la ÚLTIMA, que es donde estaba escrito que iba.
+ */
+export const tecnicaDeLaSerie = (exercise, index) => {
+  const sets = exercise?.sets || [];
+  const propia = normalizaTecnica(sets[index]?.tecnica);
+  if (propia) return propia;
+  /* El legado va PELADO —sin números—: nadie los escribió. Ver
+     `normalizaTecnica`. */
+  const legado = tecnicaOf(exercise);
+  return legado && index === sets.length - 1 ? { id: legado } : null;
+};
+
+/** Cuántas subseries cuelgan de este remate. Cero si no cuelga ninguna. */
+export const subseriesDe = (tecnica) => {
+  const spec = tecnicaSpec(tecnica?.id);
+  if (!spec?.sub) return 0;
+  return Math.max(0, Number(tecnica?.[spec.sub]) || 0);
+};
+
+/** Solo los números: «×2, −20 %», o cadena vacía si no hay ninguno escrito. */
+export const tecnicaCifras = (tecnica) => {
+  const spec = tecnicaSpec(tecnica?.id);
+  return spec ? spec.cifras(normalizaTecnica(tecnica)) || '' : '';
+};
+
+/** «bajada ×2, −20 %». `null` si no hay técnica. Es como se dice EN la serie. */
+export const tecnicaFrase = (tecnica) => {
+  const spec = tecnicaSpec(tecnica?.id);
+  if (!spec) return null;
+  const cifras = tecnicaCifras(tecnica);
+  return cifras ? `${spec.verbo} ${cifras}` : spec.verbo;
+};
+
+/** Cómo se llama la subserie n de un remate: «bajada 2», «tanda 3». */
+export const nombreDeSubserie = (tecnica, i) => {
+  const spec = tecnicaSpec(tecnica?.id);
+  if (!spec?.sub) return null;
+  const p = normalizaTecnica(tecnica);
+  return spec.nombreSub ? spec.nombreSub(i, p) : `${spec.verbo} ${i + 1}`;
+};
+
+/**
+ * Los remates de un ejercicio, con la serie de la que cuelga cada uno.
+ * Es lo que necesita quien tenga que IMPRIMIRLOS sin recorrer las series.
+ */
+export const rematesDe = (exercise) => {
+  const sets = exercise?.sets || [];
+  /* Un ejercicio sin series con técnica de las de antes: se dice igual, y en la
+     última, que es donde vivía. Pasa con lo que aún no tiene series montadas. */
+  if (sets.length === 0) {
+    const legado = tecnicaOf(exercise);
+    return legado ? [{ serie: 0, tecnica: { id: legado } }] : [];
+  }
+  return sets.map((_, i) => ({ serie: i + 1, tecnica: tecnicaDeLaSerie(exercise, i) })).filter((r) => r.tecnica);
+};
+
+/** Cómo se dice esa técnica en la hoja. `null` si no hay técnica. */
+export const tecnicaSaid = (id) => TECNICAS.find((t) => t.id === id)?.dicho ?? null;
+
+/**
+ * «última con bajada ×2, −20 % · descanso 90 s», o `null` si no lleva nada.
+ *
+ * Dice DE QUÉ SERIE habla cada remate porque ya no tienen por qué estar en la
+ * última: «3ª a rest-pause» es una pauta legítima y antes no se podía escribir.
+ * La última se sigue llamando «última» —es como se dice— y solo cuando una
+ * serie del medio lleva remate aparece su número.
+ */
+export const seriesGrammar = (exercise) => {
+  const total = (exercise?.sets || []).length;
+  const partes = rematesDe(exercise).map(({ serie, tecnica }) => {
+    const spec = tecnicaSpec(tecnica.id);
+    const donde = serie === total || serie === 0 ? 'última' : `${serie}ª`;
+    const cifras = tecnicaCifras(tecnica);
+    return `${donde} ${spec.dicho}${cifras ? ` ${cifras}` : ''}`;
+  });
+  const descanso = restLabel(exercise?.restSeconds);
+  if (descanso) partes.push(`descanso ${descanso}`);
+  return partes.length > 0 ? partes.join(' · ') : null;
+};
+
+/* ══ AQUÍ VIVÍAN LAS ALTERNATIVAS PREVISTAS ═════════════════════════════════
+   «Si está ocupada: Hack squat.» El entrenador dejaba puesto un plan B por
+   ejercicio (`exercise.alternatives`) y el cliente lo veía en su día.
+
+   Retiradas del producto el 9 sep 2026 por decisión del dueño: «yo la retiraría
+   del producto, no me gusta la idea de dar alternativas». Y es coherente con lo
+   que esta casa ya tenía escrito —[[la-app-no-receta]]—: la aplicación resalta
+   información y el criterio es del entrenador; una lista de sustitutos escrita
+   de antemano es la aplicación decidiendo por él en el momento en que la
+   máquina está ocupada, que es justo cuando hace falta criterio.
+
+   Se han ido las funciones (`alternativesOf`, `MAX_ALTERNATIVES`) y todas las
+   pantallas que las leían o escribían. **NO se ha tocado la base**: la columna
+   `exercise_library.alternatives` (0098) y las claves `alternatives` que haya
+   dentro de los planes guardados siguen ahí, sin leerse. Borrarlas es
+   irreversible y no hace falta para que la idea desaparezca del producto. */
+
 /**
  * Un ejercicio de otra persona, convertido en PLANTILLA para esta.
  *
@@ -352,9 +666,18 @@ export const cloneExerciseAsTemplate = (exercise) => ({
   id: newId('ex'),
   name: exercise.name,
   muscle: exercise.muscle,
+  /* La gramática de serie es programa, no registro: viaja con la plantilla.
+     Solo las claves puestas — copiar `enlazado: false` a todo sería ruido. */
+  ...(exercise.enlazado ? { enlazado: true } : {}),
+  ...(tecnicaOf(exercise) ? { tecnica: tecnicaOf(exercise) } : {}),
+  ...(exercise.restSeconds ? { restSeconds: exercise.restSeconds } : {}),
   sets: (exercise.sets || []).map((set) => ({
     ...emptySet(set?.targetReps ?? ''),
     targetRir: set?.targetRir ?? '',
+    targetKg: set?.targetKg ?? '',
+    /* El remate de esa serie es plan, y con sus números: viaja igual que el
+       objetivo de repeticiones. Lo que NO viaja son sus registros. */
+    ...(normalizaTecnica(set?.tecnica) ? { tecnica: normalizaTecnica(set.tecnica) } : {}),
   })),
 });
 

@@ -428,31 +428,17 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   transition: background var(--fast), border-color var(--fast);
 }
 .checkbox-row input[type='checkbox']:hover { border-color: var(--accent); }
+/* El tic es un TRAZO, no dos bordes girados. La versión dibujada con
+   `border-width: 0 2px 2px 0` + `rotate(45deg)` salía con las puntas cortadas
+   a bisel y dentada en pantallas sin escala — el dueño la vetó («tics feos»).
+   Un SVG en línea da puntas redondas y el mismo dibujo a cualquier densidad,
+   sin descarga que pueda fallar. El blanco es literal porque un data-URI no
+   entiende `var()`; sobre el azul del acento vale en los dos temas. */
 .checkbox-row input[type='checkbox']:checked {
-  background: var(--accent); border-color: var(--accent);
-}
-/* El tic, dibujado: dos lados de un cuadrado girados 45°. No hay imagen ni
-   fuente de iconos de por medio, así que no puede desaparecer al fallar una
-   descarga ni desalinearse con el texto. */
-.checkbox-row input[type='checkbox']:checked::after {
-  content: ''; position: absolute;
-  left: 5px; top: 1px; width: 4px; height: 9px;
-  border: solid var(--accent-on); border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-/* El tic ENTRA. Marcar una tarea es la única casilla de la aplicación que
-   celebra algo —las otras dos formas encienden opciones— y aparecer de golpe
-   hace dudar de si se ha marcado la fila que se pulsó.
-
-   La escala arranca en 0.3 y no en 0 porque un tic que nace de la nada parpadea;
-   naciendo pequeño se lee el gesto. El `rotate(45deg)` va en las dos puntas del
-   fotograma: sin él, el tic gira mientras crece y parece un aspa. */
-@media (prefers-reduced-motion: no-preference) {
-  .checkbox-row input[type='checkbox']:checked::after { animation: tic-entra 0.18s var(--ease); }
-}
-@keyframes tic-entra {
-  from { opacity: 0; transform: rotate(45deg) scale(0.3); }
-  to { opacity: 1; transform: rotate(45deg) scale(1); }
+  background: var(--accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.4 6.6l2.5 2.5 4.7-5.7' fill='none' stroke='white' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 11px no-repeat;
+  border-color: var(--accent);
 }
 
 /* ── La casilla con etiqueta de dos líneas ──────────────────────────────────
@@ -1044,6 +1030,20 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   display: flex; flex-direction: column; align-items: center; gap: var(--s3);
   text-align: center; padding: var(--s7) var(--s5); color: var(--text-secondary);
 }
+/* ── Y su tarjeta TAMBIÉN lleva medida ─────────────────────────────────────
+   El párrafo ya la tenía (`max-width: 44ch`, abajo) y la tarjeta no, así que en
+   `/plantillas` el vacío era una losa de 1218 × 290 px con cuatro líneas
+   centradas en el medio: la pantalla más vacía del producto, y de las primeras
+   que ve alguien que acaba de entrar. Medir solo el texto no arregla nada
+   cuando lo que se ve es la caja.
+
+   `:has(> .empty)` y no `:has(.empty)`: con el descendiente suelto, una tarjeta
+   grande que llevara un vacío dentro de un rincón se encogería entera.
+
+   Alineada a la izquierda, no centrada: un vacío suele tener hermanos encima o
+   debajo, y centrarlo lo saca de la columna en la que está todo lo demás. Lo
+   que va centrado es el texto DENTRO de la caja, que ya lo estaba. */
+.card:has(> .empty) { max-width: 660px; }
 /* El azulejo del icono va en brasa —el mismo tratamiento que las fichas de «lo
    que además trae» de la portada—. Un vacío es una invitación a actuar, y es el
    único sitio del producto donde la calidez no le quita protagonismo a ningún
@@ -1228,6 +1228,14 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 }
 .menu-item:hover { background: var(--fill-subtle); }
 .menu-item-danger { color: var(--negative); }
+/* El dato que acompaña al nombre cuando el menú NAVEGA en vez de actuar: las
+   fechas de un bloque, los entrenamientos de un microciclo. Al canto derecho y
+   en voz baja, para que la columna de nombres siga leyéndose de un tirón. */
+.menu-sub {
+  margin-left: auto; padding-left: var(--s4); flex-shrink: 0;
+  font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
 
 
 /* ══ EL HUECO DEL GLIFO: lo que hace que un botón no cambie de forma ════════

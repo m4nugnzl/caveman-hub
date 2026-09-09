@@ -47,6 +47,7 @@ import { fmt, toNum } from '@/lib/num';
 /* El mismo filtro de enlaces que usan los pasos del alta. Dos comprobaciones de
    'esto es una URL segura' es una de más. */
 import { safeLink } from './intake';
+import { SCOFF_QUESTIONS, scoffBool } from './scoff';
 
 /**
  * Las dos tandas. El orden es el de la ficha.
@@ -396,6 +397,21 @@ export const cleanProfile = (raw) => {
       if (texto) sobre[String(id).slice(0, 40)] = texto;
     }
     if (Object.keys(sobre).length > 0) out.custom = sobre;
+  }
+
+  /*
+    ══ El cribado de TCA (SCOFF), en su propia bolsa ═══════════════════════════
+    Tampoco es un campo del catálogo —es un instrumento, `domain/scoff.js`— y
+    sin este trozo el saneo lo descartaría al leer y el guardado de la ficha lo
+    borraría al escribir. Solo sus cinco ids, solo síes y noes de verdad.
+  */
+  if (raw.scoff && typeof raw.scoff === 'object' && !Array.isArray(raw.scoff)) {
+    const respuestas = {};
+    for (const q of SCOFF_QUESTIONS) {
+      const v = scoffBool(raw.scoff[q.id]);
+      if (v !== null) respuestas[q.id] = v;
+    }
+    if (Object.keys(respuestas).length > 0) out.scoff = respuestas;
   }
 
   return out;

@@ -10,6 +10,7 @@ import {
   isRequired,
 } from '@/domain/intakeForm';
 import { MAX_FIELD, customAnswers, examplePlaceholder } from '@/domain/profile';
+import { SCOFF_QUESTIONS, scoffBool } from '@/domain/scoff';
 import {
   BotonAccion,
   Field,
@@ -29,8 +30,15 @@ const puesto = (valor) => valor !== undefined && valor !== null && valor !== '';
  * propias del entrenador— porque las dos declaran su `kind` con el mismo
  * vocabulario. Si no fuera así habría dos formularios que mantener, y el segundo
  * sería el que se quedara atrás.
+ *
+ * ══ Y POR ESO MISMO SE EXPORTA ═════════════════════════════════════════════
+ * El constructor de formularios enseña, al lado de cada pregunta, cómo la va a
+ * ver el cliente. Ese «cómo la ve» tiene que ser ESTA pieza y no un dibujo
+ * parecido: un segundo renderizador es exactamente el que se queda atrás el día
+ * que aquí se añada una clase de pregunta. Allí va en `soloLectura`, que
+ * apaga los controles — es una muestra, no un sitio donde contestar.
  */
-const Pregunta = ({ field, obligatoria, value, onChange }) => (
+export const Pregunta = ({ field, obligatoria, value, onChange, soloLectura = false }) => (
   <Field
     /* El asterisco y no la palabra «obligatoria» al lado: son hasta diecinueve
        campos y repetir la palabra en cinco de ellos convierte la etiqueta en
@@ -48,6 +56,7 @@ const Pregunta = ({ field, obligatoria, value, onChange }) => (
               placeholder={examplePlaceholder(field)}
               value={value}
               onChange={onChange}
+              disabled={soloLectura}
             />
             {field.unit && <span aria-hidden="true">{field.unit}</span>}
           </div>
@@ -61,7 +70,11 @@ const Pregunta = ({ field, obligatoria, value, onChange }) => (
                 { id: 'true', label: 'Sí' },
                 { id: 'false', label: 'No' },
               ]
-            : field.options;
+            : /* Las propias del entrenador declaran `kind` pero no traen lista:
+                 sin el respaldo, una de elección sin opciones reventaba el
+                 `map`. Se ve en el constructor antes que en el portal, porque
+                 allí se pinta la pregunta según se escribe. */
+              field.options || [];
 
         return (
           <select
@@ -69,6 +82,7 @@ const Pregunta = ({ field, obligatoria, value, onChange }) => (
             className="select"
             value={value === true ? 'true' : value === false ? 'false' : value ?? ''}
             onChange={(e) => onChange(e.target.value)}
+            disabled={soloLectura}
           >
             {/* «Prefiero no decirlo» es una respuesta, y dejarla fuera obligaría
                 a inventarse una. */}
@@ -90,6 +104,7 @@ const Pregunta = ({ field, obligatoria, value, onChange }) => (
           placeholder={examplePlaceholder(field)}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
+          disabled={soloLectura}
         />
       );
     }}
@@ -140,7 +155,12 @@ export const IntakeQuestions = ({ client }) => {
 
   /* El borrador arranca con lo ya contestado: volver a la pantalla tiene que
      enseñar lo que puso, no un formulario en blanco que invita a repetirlo. */
-  const [borrador, setBorrador] = useState(() => ({ ...perfil, custom: { ...propias } }));
+  const [borrador, setBorrador] = useState(() => ({
+    ...perfil,
+    custom: { ...propias },
+    /* Las del cribado van en su propia bolsa: no son campos de la ficha. */
+    scoff: { ...(perfil.scoff || {}) },
+  }));
   /* El giro y el tic del botón de guardar; ver `BotonAccion`. */
   const guardado = useAccionDeBoton();
   const [aviso, setAviso] = useState(null);
@@ -171,13 +191,16 @@ export const IntakeQuestions = ({ client }) => {
   const set = (field) => (valor) => {
     setTocado(true);
     setBorrador((prev) =>
-      field.custom
-        ? { ...prev, custom: { ...prev.custom, [field.id]: valor } }
-        : { ...prev, [field.id]: valor }
+      field.scoff
+        ? { ...prev, scoff: { ...prev.scoff, [field.id]: valor } }
+        : field.custom
+          ? { ...prev, custom: { ...prev.custom, [field.id]: valor } }
+          : { ...prev, [field.id]: valor }
     );
   };
 
-  const valorDe = (field) => (field.custom ? borrador.custom?.[field.id] : borrador[field.id]);
+  const valorDe = (field) =>
+    field.scoff ? borrador.scoff?.[field.id] : field.custom ? borrador.custom?.[field.id] : borrador[field.id];
 
   const guardar = (e) => {
     e.preventDefault();
@@ -198,6 +221,13 @@ export const IntakeQuestions = ({ client }) => {
         respuestas.custom = {
           ...propias,
           ...Object.fromEntries(form.custom.map((q) => [q.id, borrador.custom?.[q.id] ?? null])),
+        };
+      }
+      /* El cribado, normalizado a booleanos: el `<select>` habla en «true»/«false». */
+      if (form.askScreening) {
+        respuestas.scoff = {
+          ...(perfil.scoff || {}),
+          ...Object.fromEntries(SCOFF_QUESTIONS.map((q) => [q.id, scoffBool(borrador.scoff?.[q.id])])),
         };
       }
 

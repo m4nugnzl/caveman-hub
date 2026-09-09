@@ -1,0 +1,1444 @@
+/* ==========================================================================
+   EL TALLER — el material del entrenador
+   --------------------------------------------------------------------------
+   Cinco pantallas nuevas: protocolos, formularios, ejercicios, alimentos y
+   plantillas. Todas son LISTAS, así que todas visten el mismo traje que la
+   cartera —la cinta (`.cartera-cab`), su cuerpo y su barra de herramientas—.
+   No es pereza: es la lección que ya costó dinero en `/clientes`. Cuando cada
+   pantalla traía su cabecera propia, saltar de una lista a otra movía el
+   titular de sitio, y el dueño lo dijo con esas palabras. Aquí lo mismo, por
+   cinco.
+
+   Lo que este archivo añade es SOLO lo que estas pantallas tienen y las otras
+   no: las dos capas de la ficha de un ejercicio, las etiquetas de un alimento,
+   y el constructor de formularios con su lienzo y su panel contextual.
+
+   Va después de `superficies.css` y antes de `piezas.css`, que es donde viven
+   las sobreescrituras globales.
+   ========================================================================== */
+
+/* La hoja de una pantalla del Taller. En escritorio no se dibuja: el marco de
+   la zona de trabajo (`.shell-main`) ya es un objeto con su canto y su radio, y
+   una caja dentro de otra con el mismo radio es un error de encuadre — la misma
+   decisión que tomó `.cartera`. En el móvil no hay marco, así que aquí sí se
+   dibuja o la lista quedaría flotando sobre el lienzo desnudo. */
+/* BLOQUE, y no una columna flexible: dentro de un contenedor flex, un hijo con
+   `margin: 0 auto` —que es lo que lleva `.cartera-cuerpo` para centrar su
+   columna— deja de estirarse y se encoge hasta el tamaño de su contenido. El
+   resultado era una tabla flotando a media hoja y la banda del protocolo
+   saliéndose por la derecha. `.cartera` es un bloque por esto mismo. */
+.taller { display: block; min-width: 0; }
+@media (max-width: 1023.98px) {
+  .taller {
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* El constructor ocupa la pantalla entera y no lleva hoja: su cinta ya es la
+   de la página y debajo van dos columnas a sangre. */
+.constructor { display: block; min-width: 0; }
+
+/* El asidero de la cinta cuando la lista es del Taller. El traje entero lo pone
+   `.cartera-cab` — y desde que los tramos van EN la línea del titular, también
+   su hueco: aquí vivía un `gap: var(--s3)` propio que dejaba la separación
+   entre «Librería» y sus pestañas 4 px más corta que la de la cartera, o sea
+   dos cintas casi iguales, que es peor que dos distintas. */
+.taller-cab .badge { flex-shrink: 0; }
+
+/* El pie de una lista del Taller: el tope, el recuento, lo que se dice en voz
+   baja debajo de la tabla. */
+.taller-pie { padding: var(--s3) 0 var(--s5); color: var(--text-tertiary); }
+
+/* ── EL AIRE ENTRE LA CINTA Y LA LISTA ─────────────────────────────────────
+   `.cartera-cuerpo` es `padding: 0 var(--s5)`: no lleva aire arriba. En
+   `/clientes` ese hueco lo abre `.cartera-barra` —buscar, los tramos, el eje de
+   etiquetas—, que va entre la cinta y la tabla. Las listas del Taller no tienen
+   barra, así que el `thead` nacía tocando la cabecera y la tabla se leía como un
+   trozo más de la cinta en vez de como una caja sobre la hoja.
+
+   Los dos bancos quedan fuera: en `es-banco` (Ejercicios) y en `proto-banco` la
+   columna de la izquierda ya arranca con su propio canto, y el hueco de más
+   descuadraría las dos mitades. */
+.taller .cartera-cuerpo:not(.es-banco):not(.proto-banco) { padding-top: var(--s4); }
+
+/* ── UN VACÍO QUE SUSTITUYE A UNA LISTA MIDE LO QUE MEDIRÍA LA LISTA ───────
+   `controles.css` le pone tope de 660 px a la tarjeta de un vacío, y por un
+   motivo bueno: una losa de 1218 × 290 px con cuatro líneas centradas en el
+   medio era la pantalla más vacía del producto. Pero ese tope se pensó para el
+   vacío que ES la pantalla entera.
+
+   En Protocolos no lo es. «Siempre» es una tabla a todo lo ancho y «Una vez» es
+   un vacío: con el tope puesto, la segunda banda medía la mitad que la primera
+   y colgaba a la izquierda. Dos secciones hermanas con dos anchos distintos es
+   lo que hacía que la página se leyera descuadrada, no el vacío en sí.
+
+   Pero ensancharlo a secas no basta: con el contenido centrado, una caja de
+   1390 px es la losa contra la que avisaba ese comentario, solo que más ancha.
+   Lo que hace falta es CAMBIAR EL EJE. Aquí el vacío es una BANDA —azulejo,
+   frase y verbo en una línea, de izquierda a derecha— y entonces la anchura no
+   sobra: se usa. Se lee como el renglón que todavía no existe, que es
+   exactamente lo que es.
+
+   El azulejo y el verbo abarcan las dos filas; el título y el párrafo caen en la
+   columna del medio por colocación automática, así que un vacío sin párrafo o
+   sin acción sigue cuadrando sin una regla más. */
+.taller .cartera-cuerpo > .card:has(> .empty) { max-width: none; }
+.taller .cartera-cuerpo > .card:has(> .empty) > .empty {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; text-align: left;
+  gap: var(--s1) var(--s4); padding: var(--s5);
+}
+.taller .cartera-cuerpo > .card:has(> .empty) > .empty > .empty-icon { grid-row: 1 / -1; }
+.taller .cartera-cuerpo > .card:has(> .empty) > .empty > h3,
+.taller .cartera-cuerpo > .card:has(> .empty) > .empty > p { grid-column: 2; }
+.taller .cartera-cuerpo > .card:has(> .empty) > .empty > p { max-width: 68ch; }
+.taller .cartera-cuerpo > .card:has(> .empty) > .empty > .btn {
+  grid-column: 3; grid-row: 1 / -1; justify-self: end;
+}
+
+@media (max-width: 700px) {
+  /* En un teléfono la banda vuelve a ser una columna: tres cosas en fila dejan
+     la frase en dos palabras por renglón. */
+  .taller .cartera-cuerpo > .card:has(> .empty) > .empty {
+    grid-template-columns: 1fr; justify-items: start; gap: var(--s3);
+  }
+  .taller .cartera-cuerpo > .card:has(> .empty) > .empty > .empty-icon,
+  .taller .cartera-cuerpo > .card:has(> .empty) > .empty > .btn {
+    grid-column: 1; grid-row: auto; justify-self: start;
+  }
+}
+
+/* ── La flecha de volver, dentro de una cinta ──────────────────────────────
+   Misma idea que la del perfil de un cliente: una pantalla a la que se SALTA
+   se sale por donde se entró, y la flecha va pegada al nombre en el mismo
+   hueco donde en las demás está la cara. */
+.cab-volver {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; margin-left: calc(var(--s2) * -1);
+  border: 0; border-radius: var(--r-md);
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+  transition: background-color var(--fast), color var(--fast);
+}
+.cab-volver:hover { background: var(--fill-subtle); color: var(--text); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL BANCO DE DOS PLANOS
+   --------------------------------------------------------------------------
+   A la izquierda lo que editas, a la derecha lo que produce. Es la forma que
+   toma una pantalla del Taller cuando su lista tiene ficha: eliges arriba y
+   abajo, y lo elegido se lee al lado sin tapar nada.
+
+   La regla que va con esto: EL CARRIL NO SE QUEDA VACÍO. Sin elección manda el
+   primero de la lista (ver `EjerciciosPanel`), y si no hay lista no hay
+   rejilla — el vacío ocupa la hoja entera él solo.
+
+   Por qué una pantalla con carril pide `--max-w-trabajo` y no `--max-w-mesa`:
+   porque ya no es una lista, son dos carriles. Es la misma regla de las tres
+   medidas —se elige por la forma del contenido— aplicada al cambiar la forma.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* El corte a partir del cual existe el banco está en el componente
+   (`EjerciciosPanel`), porque de él depende qué árbol se monta. */
+/* Sin medida propia: la pone la hoja, como en todas. Aquí decía
+   `--max-w-trabajo` mientras su cinta decía `--max-w-mesa`, y a 1920 eso
+   dejaba el titular «Ejercicios» en x=514 con su tabla arrancando en x=334
+   —180 px a la izquierda de nada—. Ese desajuste desaparece solo en cuanto
+   ninguna de las dos lleva número. */
+.cartera-cuerpo.es-banco {
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--carril-ficha);
+  gap: var(--s5); align-items: start;
+}
+
+/* ══ EL REPARTO DE LA LIBRERÍA ES OTRO, Y ESTO NO ES UN CAPRICHO ═══════════
+   Los 400 px de `--carril-ficha` los fijó el CONSTRUCTOR DE FORMULARIOS, donde
+   el plano de la izquierda es el trabajo —el formulario entero, en tamaño real—
+   y el de la derecha son los ajustes de la pregunta que tocas. Cuatrocientos
+   para unos ajustes es correcto y no se toca.
+
+   En la Librería los papeles están al revés y por eso el mismo número falla:
+   la lista de la izquierda es un ÍNDICE —nombre y músculo; nombre y cinco
+   cifras cortas— y el trabajo de esta pantalla es la ficha. El resultado medido
+   era el de un mueble mal repartido: 1.190 px de tabla con seiscientos de aire
+   entre el nombre y las cifras, y al lado una columna de 377 px útiles donde la
+   ficha de un alimento medía 1.257 px de alto y se veían 827. Doce campos en fila
+   india, con las etiquetas partiéndose en dos líneas. El dueño lo dijo entero:
+   «no caben, salen en distintas líneas, es muy feo todo».
+
+   Con 700 px la ficha cabe en DOS columnas y sin desplazamiento, que es lo que
+   la convierte en una hoja de trabajo en vez de un formulario de móvil pegado al
+   canto. `clamp` y no un número: el mínimo es lo que necesitan dos columnas de
+   260, el máximo es donde una línea de texto empieza a ser incómoda de leer, y
+   entre medias reparte con la ventana. */
+.libreria .cartera-cuerpo.es-banco {
+  grid-template-columns: minmax(0, 1fr) clamp(560px, 44%, 700px);
+}
+/* La tabla mide 760 px de mínimo en toda la aplicación, y con la ficha ancha ya
+   no los tiene: sin esto la lista sacaba barra horizontal, que es cambiar un
+   apretón por otro. Aquí puede encogerse porque son pocas columnas y todas
+   cortas — un nombre y cifras de tres dígitos. */
+.libreria .es-banco .plantilla > table { min-width: 0; }
+
+/* ── AQUÍ SE ESCONDÍA EL MATERIAL, Y YA NO HACE FALTA ──────────────────────
+   Entre el corte del banco y los ~1700 px la tabla no cabía —«Banda elástica»
+   partida en dos líneas— y la salida fue esconder la columna «Material»,
+   porque la ficha ya lo dice en su cabecera.
+
+   Lo que no cabía era la columna «Lo tuyo», que se llevaba el 34 % del ancho
+   para estar vacía en casi todas las filas. Con las marcas pegadas al nombre
+   esa columna ya no existe y la tabla sobra de sitio: esconder el material
+   ahora solo dejaba un hueco de 300 px entre el nombre y el músculo.
+
+   Se retira la regla. Si algún día vuelve a faltar ancho, lo que se recorta es
+   lo que la ficha ya está diciendo — pero se recorta cuando falta, no por una
+   cuenta que dejó de ser cierta. */
+.plano-lista { min-width: 0; }
+
+/* El segundo plano. Pegajoso —se toca una fila de abajo del todo y su ficha
+   tiene que estar donde se está mirando— y separado por un filete, no por una
+   tarjeta: dentro de la hoja, dos cajas con canto una al lado de otra son dos
+   objetos discutiendo. Es la misma gramática que `.ajustes-pregunta` en el
+   constructor de formularios; si cambia una, cambian las dos. */
+.plano-ficha {
+  /* Debajo de la cinta, que en escritorio es pegajosa a `top: 0` y opaca: con
+     `top: var(--s5)` a secas el carril se metía debajo de ella y las primeras
+     filas desaparecían al bajar. La cuenta sale de la propia cinta —su línea,
+     el aire de arriba y su filete— y no de un número medido a ojo. */
+  position: sticky;
+  top: calc(var(--cinta-linea) + var(--s2) + 1px + var(--s5));
+  /* ── El filete llega abajo, y esto no es cosmético ──────────────────────
+     Con solo `max-height`, la altura del carril era la de su contenido: la
+     ficha de un ejercicio sin vídeo mide 300 px y el filete terminaba ahí, con
+     seiscientos px de nada debajo y la ficha flotando en medio de la hoja.
+     Eso es lo que hacía que el banco no se leyera como DOS PLANOS sino como
+     una lista con un formulario suelto al lado.
+
+     Con la altura fija —la misma cuenta que el tope, o sea el alto visible
+     menos la cinta— el filete recorre la pantalla entera y los dos planos son
+     dos columnas de un mismo mueble. No hay caja nueva ni tarjeta: sigue
+     siendo un filete, que es la decisión de siempre. */
+  height: calc(100dvh - var(--cinta-linea) - var(--s6) * 2);
+  overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding-left: var(--s5);
+  border-left: 1px solid var(--hairline);
+}
+/* El nombre lo pone el carril, no la ficha: en la capa lo ponía el título del
+   diálogo, y sin esto la ficha empezaba por «Pectoral · Barra» sin decir de
+   quién. */
+.plano-ficha-tit {
+  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* La fila elegida, con la marca de siempre: relleno tenue y el nombre en tinta
+   plena. La misma señal que «estás aquí» en la barra y en la cartera — no una
+   tercera forma de decir lo mismo. */
+.plantilla tbody tr.is-elegida { background: var(--accent-soft); }
+.plantilla tbody tr.is-elegida .p-name { color: var(--text); }
+.plantilla tbody tr.is-elegida:hover { background: var(--accent-soft); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA LISTA DE EJERCICIOS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* «Lo tuyo»: el vídeo, la clave y las alternativas que has puesto. Es la
+   columna «Content» de Coachway contando lo nuestro — allí dice si el SISTEMA
+   trae vídeo, aquí si lo traes tú. */
+/* ── Y ahora van pegadas al NOMBRE, no en su columna ─────────────────────
+   Eran una columna de 34 % titulada «Lo tuyo», vacía en 238 de las 239 filas
+   de una biblioteca recién estrenada: un tercio del ancho reservado para la
+   excepción. Ahora es la misma marca junto al nombre que ya llevan el renglón
+   del entreno y la nota del alimento — una ley, tres sitios. */
+.ej-marcas { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; }
+/* Secundario y no terciario. Son la única señal de la lista que dice «aquí ya
+   has trabajado» —tu vídeo, tus pautas— y estaban en la tinta más callada de la
+   casa, a 13 px, al lado de un nombre en tinta plena: se perdían. */
+.ej-marcas > svg { color: var(--text-secondary); flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA LISTA VA POR GRUPOS
+   --------------------------------------------------------------------------
+   Ejercicios por músculo y alimentos por categoría. El porqué está en
+   `groupInOrder`; aquí sólo el vestido, y tiene dos reglas:
+
+   1. **La cabecera del grupo NO se viste como la de las columnas.** Las dos
+      caerían seguidas —«EJERCICIO · QUÉ ES» y debajo «DORSAL»— y en versalita
+      terciaria las dos serían la misma cosa dicha dos veces. La de columnas es
+      cromo; la del grupo es contenido: cuerpo pequeño, tinta plena y su cuenta
+      al lado.
+   2. **Sin filete propio.** `.plantilla tbody tr + tr > td` ya pinta la línea
+      de la primera fila del grupo, así que un `border-bottom` aquí serían dos
+      líneas a un pelo de distancia.
+   ══════════════════════════════════════════════════════════════════════════ */
+.libreria .plantilla .fila-grupo { cursor: default; }
+.libreria .plantilla .fila-grupo:hover { background: none; }
+.libreria .plantilla .fila-grupo > th {
+  padding: var(--s5) var(--s3) var(--s2);
+  border-bottom: 0;
+  font-size: var(--fs-sm); font-weight: 650; letter-spacing: -0.01em;
+  text-transform: none; color: var(--text);
+}
+/* El primero va pegado a la cabecera de columnas y no necesita separarse de
+   nada: el aire de arriba es para separar UN grupo DEL ANTERIOR. */
+.libreria .plantilla tbody:first-of-type .fila-grupo > th { padding-top: var(--s3); }
+.libreria .plantilla .fila-grupo .chip-count { margin-left: var(--s2); }
+
+/* ── QUÉ ES: la columna que ocupa el socavón ───────────────────────────────
+   Medido antes de tocar: el nombre acababa en x≈590 y el músculo empezaba en
+   x≈1024. Seiscientos píxeles de nada por fila, 239 veces.
+
+   Va en voz baja —es del catálogo, no es tuya— y a UNA línea: 148 de las 239
+   descripciones existen y miden hasta 102 caracteres, así que dejarlas envolver
+   convertiría una lista de 41 px en una de dos alturas distintas.
+
+   ── Y para recortarla hace falta `table-layout: fixed` ──────────────────
+   Se intentó primero sin él, con `line-clamp` sobre un `span`, y salió peor de
+   lo que estaba: una caja `-webkit-box` mide su ancho MÍNIMO por el texto
+   entero, así que la columna crecía hasta los 102 caracteres, la tabla
+   desbordaba su plano y la frase se cortaba a hachazo contra el canto, sin
+   puntos suspensivos. Comprobado en la captura.
+
+   Con el reparto fijo, la columna vale lo que le queda y `text-overflow` hace
+   su trabajo. Sólo en esta tabla —`:has(th.ej-quees)`, que es la de ejercicios—
+   porque la de alimentos tiene ocho columnas que sí deben medir su contenido.
+   El nombre en píxeles y no en porcentaje: `.p-name.f-nombre` ya lleva un tope
+   de 320, y dos topes distintos para la misma columna es uno de más. */
+.libreria .plantilla > table:has(th.ej-quees) { table-layout: fixed; }
+.libreria .plantilla > table:has(th.ej-quees) th.lib-nombre { width: 344px; }
+/*
+  ── Y `width: auto` AQUÍ, que es lo que costó una captura ─────────────────
+  `superficies.css` le da `width: 1%` a la última columna de toda tabla, y esa
+  declaración significa DOS COSAS DISTINTAS según el reparto: con el automático
+  es la forma canónica de decir «encógete a tu contenido», y con el fijo es
+  literalmente el uno por ciento. Medido: la columna quedó en 8 px, el sobrante
+  se fue entero al nombre (840 px) y la descripción desapareció de la pantalla
+  aunque el texto seguía en el DOM.
+
+  Es la trampa de mezclar una regla general escrita para un reparto con una
+  excepción que cambia el reparto. Se deshace donde se cambió.
+*/
+.libreria .plantilla th.ej-quees,
+.libreria .plantilla td.ej-quees {
+  width: auto;
+  color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* El corte del carril de filtros: separa «de quién es» de «de qué es» sin
+   añadir una segunda fila de mandos. Un filete de 1 px y no un hueco mayor,
+   que un hueco a secas se lee como un fallo de maquetación. */
+.rail-corte {
+  flex-shrink: 0; align-self: stretch; width: 1px;
+  margin: 0 var(--s1);
+  background: var(--hairline);
+}
+/* Aquí vivían `.ej-clave` —la frase de las pautas impresa en la lista— y
+   `.plantilla th.ej-tuyo { width: 34% }`. Se van con la columna: las pautas se
+   leen enteras en la ficha, que está a dos dedos, y en la lista lo que hace
+   falta saber es si las hay. CSS sin marcado que la use es CSS que el día que
+   alguien la lea le hará creer que existe una columna. */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA DESPENSA
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Las cifras, tabulares y a la derecha: cuatro columnas de números que se leen
+   en vertical, que es para lo que sirve una tabla de macros. */
+.al-num { text-align: right; font-variant-numeric: tabular-nums; }
+.plantilla th.al-num { text-align: right; }
+
+/* ── AQUÍ VIVIÓ EL PERFIL DE MACROS DE LA FILA, Y DURÓ UNA TARDE ───────────
+   Una barra de 56 px con el reparto P/HC/G en cada renglón, para que un
+   alimento se reconociera por su forma sin leer tres cifras. El dueño la vio y
+   dijo que no le gustaba, y tenía un argumento que la idea no contemplaba: lo
+   que él echaba en falta de un alimento no era el reparto —que ya está en las
+   tres columnas de al lado— sino **lo que no se ve en ninguna parte**, las
+   cuatro del envase. Colorear lo que ya estaba dicho y seguir sin decir lo que
+   faltaba es adorno, por muy bien fundado que estuviera el adorno.
+
+   Se retiró entera, con su componente. Lo que ocupó su sitio no está en la
+   fila: es la etiqueta nutricional del panel (`.etq`, aquí abajo). */
+
+/* ── EL EJE LARGO, PLEGADO EN UN SELECTOR ──────────────────────────────────
+   Categorías y músculos. Encendido cuando hay uno elegido, con el mismo tinte
+   que la chapa de etiquetas de la cartera (`.p-filtro-etiq.is-on`): es el mismo
+   gesto —un eje acotado— y no puede tener dos colores. El porqué de que sea un
+   menú y no chapas, en `SelectorDeGrupo.jsx`. */
+.lib-eje { flex-shrink: 0; }
+.lib-eje.is-on { background: var(--accent); color: var(--accent-on); }
+.lib-eje.is-on:hover { background: var(--accent-hover); color: var(--accent-on); }
+
+/* ── LA DENSIDAD DE UNA LISTA DE MATERIAL ──────────────────────────────────
+   `.plantilla td` lleva 12 px arriba y abajo, y su comentario dice por qué:
+   «cada fila es una persona con su clasificación, no un registro contable».
+   Eso es cierto en `/clientes`, donde son catorce filas y cada una es alguien.
+
+   La Librería son 294 ejercicios y 314 alimentos, y ahí la misma medida son
+   15.400 px de recorrido para llegar al final. No es un cambio de gusto ni una
+   excepción de página: es que la razón escrita para los 12 px no aplica a un
+   inventario. Las otras tres listas del Taller son cortas y se quedan como
+   están, que es donde la regla general sigue siendo la buena. */
+.libreria .plantilla td { padding-top: var(--s2); padding-bottom: var(--s2); }
+/* Lo que LLEVA el alimento. Hechos, no permisos: a quién se le puede dar lo
+   decide el cruce con sus condicionantes, en la dieta. */
+.al-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Con la ficha al lado, la lista puede decir menos: la unidad y las etiquetas se
+   leen enteras en la ficha del alimento, y aquí robaban el ancho que necesitan el
+   nombre y las cifras. Misma regla que `.ej-material` en los ejercicios. */
+@media (min-width: 1560px) {
+  .es-banco .plantilla .al-oculta { display: none; }
+}
+
+/* Que le has puesto tu nota. Un glifo pegado al nombre y no una columna: es lo
+   único que hay que marcar de «lo tuyo» en un alimento. */
+/* Secundario, como las marcas del ejercicio y por lo mismo: es lo único que
+   dice «este alimento ya lleva algo tuyo». */
+.al-nota { color: var(--text-secondary); flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAS PLANTILLAS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.pieza-lista {
+  margin: var(--s2) 0 0; padding: 0; list-style: none;
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.pieza-lista > li { display: flex; align-items: baseline; gap: var(--s2); }
+.pieza-series { color: var(--text-tertiary); opacity: 0.75; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA FICHA DEL EJERCICIO — dos capas que no se pisan
+   --------------------------------------------------------------------------
+   Arriba lo del CATÁLOGO, que es referencia y no se toca (0094). Abajo lo
+   TUYO, que es lo único editable. Lo que las distingue no es un título: es
+   que la tuya tiene el canto encendido, como todo lo que se puede escribir.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.ficha-ej { gap: var(--s4); }
+.ficha-ej-meta { font-size: var(--fs-sm); color: var(--text-tertiary); }
+/* El pie de la ficha: al canto derecho y con su filete.
+
+   `.row-end` alinea al final en VERTICAL (`align-items: flex-end`), no en
+   horizontal, y mientras la ficha medía 377 px de ancho eso daba igual: los dos
+   botones llenaban la línea. Con la hoja a 577 px «Guardar» se quedaba solo en
+   mitad del papel, debajo de la columna izquierda, como si perteneciera a ella.
+   El pie es de la ficha entera, así que se va al canto y se separa con la misma
+   línea de un pelo que usa el resto de la casa. */
+.ficha-ej-pie {
+  gap: var(--s2); justify-content: flex-end;
+  padding-top: var(--s4); margin-top: var(--s1);
+  border-top: 1px solid var(--hairline);
+}
+
+/* Aquí vivió `.ficha-cab`: la primera línea de la ficha, con la clasificación a
+   un lado y el «···» al otro, montada para servir en el carril y en la capa
+   porque el nombre lo ponía quien montaba la ficha. Se va con esa premisa: el
+   nombre ya es de la ficha (`.ficha-id`), así que la cabecera puede llevarlo
+   dentro. CSS sin marcado que la use es CSS que el día que alguien la lea le
+   hará creer que existe una pieza. */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CABECERA DE IDENTIDAD
+   --------------------------------------------------------------------------
+   El nombre de lo que estás mirando, su clasificación y el «···». Una pieza y
+   no tres, y arriba del todo.
+
+   ── Lo que sustituye, y por qué estaba mal ────────────────────────────────
+   El nombre se decía DOS VECES: como titular del carril (`.plano-ficha-tit`,
+   15 px, del mismo tamaño que una etiqueta de campo) y otra vez como valor de
+   un campo «Cómo se llama». Y la clasificación era un `<select>` de 40 px de
+   alto en mitad del formulario. Resultado: al abrir un alimento tuyo, lo
+   primero que se veía eran dos cajas de formulario — entrabas a administrar,
+   no a mirar.
+
+   Ahora el nombre ES el objeto: la ancha a 1,5 rem, que es la única voz que se
+   levanta en esta ficha. Cuando es tuyo, ese mismo titular se escribe encima —
+   sin caja hasta que lo tocas, que es la ley de los gestos de la casa: la caja
+   se enciende, no hay lápiz—. Y la clasificación baja a una chapa con menú, el
+   mismo control que ya filtra la lista tres dedos más arriba.
+   ══════════════════════════════════════════════════════════════════════════ */
+.ficha-id {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start; gap: 2px var(--s3);
+}
+.ficha-id > .menu-acciones { grid-column: 2; grid-row: 1 / span 2; }
+.ficha-id-nom {
+  grid-column: 1; margin: 0; min-width: 0;
+  font-family: var(--font-ancha);
+  font-size: 1.5rem; font-weight: 650; line-height: 1.15; letter-spacing: -0.02em;
+  color: var(--text);
+}
+/* El titular que además se escribe. Lleva la misma tipografía que el titular
+   impreso —la clase de arriba se la da entera— para que corregir una errata no
+   cambie de cara lo que estás corrigiendo.
+
+   Ni `font: inherit` ni `font-size: inherit`, que es lo primero que se escribe
+   aquí y estaba mal: un selector con elemento (`input.ficha-id-nom`) gana a la
+   clase, así que «heredar» significaba coger los 14 px del contenedor y el
+   titular salía del tamaño de una etiqueta de campo. */
+input.ficha-id-nom {
+  width: 100%;
+  background: none; color: inherit;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 2px 6px; margin: -2px -6px;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+input.ficha-id-nom:hover { border-color: var(--edge); background: var(--fill-subtle); }
+input.ficha-id-nom:focus {
+  outline: none; border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+input.ficha-id-nom[aria-invalid='true'] { border-color: var(--negative); }
+.ficha-id-clase { grid-column: 1; display: flex; align-items: center; gap: var(--s2); }
+.ficha-id-error { grid-column: 1; font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA HOJA DE LA FICHA: DOS COLUMNAS
+   --------------------------------------------------------------------------
+   Lo que se MIRA a la izquierda —la etiqueta del alimento, el vídeo del
+   ejercicio— y lo que se ESCRIBE a la derecha. Una ficha de doce piezas en
+   fila india mide 1.257 px y se ve un tercio; en dos columnas cabe entera y
+   deja de hacer falta el desplazamiento, que era la mitad de la incomodidad.
+
+   Sólo en el carril: en la capa del móvil y del portátil pequeño el ancho no
+   da para dos columnas y la fila india vuelve a ser lo correcto. Por eso la
+   regla cuelga de `.plano-ficha` y no de la ficha, que es la misma pieza en
+   los dos sitios. */
+.ficha-hoja { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
+.plano-ficha .ficha-hoja {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5) var(--s4); align-items: start;
+}
+/* Lo que no se parte en dos: el vídeo, los avisos y todo lo que se lee de un
+   lado a otro. */
+.ficha-hoja > .es-ancho { grid-column: 1 / -1; }
+.ficha-col { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA FICHA DEL EJERCICIO ES UNA PIEZA: EL ESPEJO
+   --------------------------------------------------------------------------
+   Dos columnas es el reparto de la ficha del ALIMENTO, donde hay dos cosas
+   distintas que mirar —la etiqueta y lo que lleva, la nota, a quién se lo das—.
+   En un ejercicio no hay dos cosas: hay una, que es lo que el cliente ve, y
+   enfrente había dos campos de formulario repitiéndola.
+
+   Medido en la pantalla real a 1920: la ficha del ejercicio terminaba en y≈330
+   de 1080 y el filete del carril seguía bajando setecientos píxeles al lado de
+   nada. Eso es lo que se lee como «sin acabar», y no se arregla acortando el
+   filete: se arregla poniendo dentro lo único que esta pantalla existe para
+   hacer, al tamaño que le corresponde.
+
+   Así que una sola columna, y el espejo llena el alto del carril: el plano
+   derecho de `/ejercicios` ES la pantalla de tu cliente.
+   ══════════════════════════════════════════════════════════════════════════ */
+.ficha-hoja.es-espejo,
+.plano-ficha .ficha-hoja.es-espejo {
+  display: flex; flex-direction: column; gap: var(--s4);
+}
+/* La cadena para que el espejo pueda estirarse: en CSS un hijo no crece si su
+   padre no ha crecido antes. `.plano-ficha` ya tiene alto fijo (el del carril),
+   así que sólo faltan los dos escalones de en medio. */
+.plano-ficha > .ficha-ej { flex: 1; min-height: 0; }
+.plano-ficha > .ficha-ej > .ficha-hoja.es-espejo { flex: 1; min-height: 0; }
+.plano-ficha .ficha-hoja.es-espejo > .espejo { flex: 1; }
+
+/* ── EL HUECO DEL VÍDEO ────────────────────────────────────────────────────
+   Con la misma forma que la fila que va a pulsar el cliente —el disco del play
+   y una línea a su lado—, para que el enlace se teclee donde va a aparecer el
+   vídeo y no en un campo de al lado. El canto discontinuo es lo único que lo
+   distingue de la fila de verdad: aquí todavía no hay nada.
+
+   Un `dashed` y no un `dotted` ni un fondo distinto: es la misma pieza en dos
+   estados, no dos piezas. */
+.espejo-hueco {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 9px var(--s3);
+  border: 1px dashed var(--edge); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+  transition: border-color var(--fast);
+}
+.espejo-hueco > .mark {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  background: var(--fill-subtle); color: var(--text-tertiary);
+  transition: background-color var(--fast), color var(--fast);
+}
+/* Al escribir dentro, el disco se enciende: es el mismo azul que va a tener
+   cuando el enlace valga. La caja se enciende, no hay lápiz. */
+.espejo-hueco:focus-within { border-color: var(--accent); border-style: solid; }
+.espejo-hueco:focus-within > .mark { background: var(--accent); color: var(--accent-on); }
+.espejo-hueco.es-mal { border-color: var(--negative); border-style: solid; }
+
+/* El enlace ya puesto: debajo del vídeo que funciona, callado y sin caja hasta
+   que se toca. Deja de ser lo que hay que mirar y pasa a ser lo que hay que
+   poder corregir. */
+.espejo-enlace {
+  width: 100%; min-width: 0;
+  background: none; color: var(--text-secondary);
+  font-family: inherit; font-size: var(--fs-xs);
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 2px 6px; margin: 0 -6px;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.espejo-enlace::placeholder { color: var(--text-tertiary); }
+.espejo-enlace:hover { border-color: var(--edge); background: var(--fill-subtle); }
+.espejo-enlace:focus {
+  outline: none; border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* Dentro del hueco el canto lo pone el hueco: dos cantos encendidos, uno
+   dentro del otro, serían dos cajas discutiendo. */
+.espejo-hueco > .espejo-enlace {
+  font-size: var(--fs-sm); color: var(--text); margin: 0; padding: 2px 0;
+}
+.espejo-hueco > .espejo-enlace:hover,
+.espejo-hueco > .espejo-enlace:focus {
+  border-color: transparent; background: none; box-shadow: none;
+}
+.espejo-mal { font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+
+/* ── LA PAUTA SE ESCRIBE DONDE SE LEE ──────────────────────────────────────
+   Hereda la cita entera de `.ficha-cli-pauta` —cursiva, cuerpo base, filete
+   azul a la izquierda— y sólo añade lo que un `input` no trae: la familia
+   tipográfica (no se hereda) y el canto que se enciende al tocarlo. El filete
+   izquierdo no se toca nunca: es lo que la hace una cita. */
+textarea.espejo-pauta {
+  width: 100%; display: block;
+  background: none;
+  border-top: 1px solid transparent;
+  border-right: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 2px var(--s3);
+  font-family: inherit; line-height: 1.5;
+  /* El alto lo pone el contenido (ver el efecto en `CuerpoFichaEjercicio`), así
+     que aquí sólo hay que quitarle a la caja lo que la delataría: la barra de
+     desplazamiento y el tirador de la esquina. */
+  resize: none; overflow: hidden;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+textarea.espejo-pauta::placeholder { color: var(--text-tertiary); }
+textarea.espejo-pauta:hover {
+  border-top-color: var(--edge); border-right-color: var(--edge);
+  border-bottom-color: var(--edge);
+  background: var(--fill-subtle);
+}
+textarea.espejo-pauta:focus {
+  outline: none; background: var(--surface);
+  border-top-color: var(--accent); border-right-color: var(--accent);
+  border-bottom-color: var(--accent);
+  border-left-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* ── DÓNDE ESTÁ PUESTO ─────────────────────────────────────────────────────
+   Sin caja y sin filete: es lo primero que se lee y una tarjeta alrededor lo
+   convertiría en un apartado más de los tres que vienen debajo. El rótulo
+   (`.ficha-capa-rot`) es el que ya visten las dos capas, así que la ficha
+   entera sigue teniendo una sola voz para sus secciones.
+
+   El porqué de que esto exista y de que vaya arriba, en `DondeEstaPuesto.jsx`. */
+.ficha-puesto { display: flex; flex-direction: column; gap: var(--s2); }
+.ficha-puesto-gente {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2);
+  margin: 0;
+}
+/* La cápsula nació botón (`.chip`), y usada como enlace se traía el subrayado
+   del texto corrido. Lo demás —el relleno, el radio, el tinte al pasar— vale
+   igual: es la misma caja que se enciende, y el idioma de «esto se toca» no
+   cambia porque debajo haya un `<a>` en vez de un `<button>`. */
+.ficha-puesto-gente > a.chip { text-decoration: none; }
+
+.ficha-capa {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+.ficha-capa.is-tuya {
+  background: transparent;
+  padding: var(--s4) 0 0;
+  border-top: 1px solid var(--hairline);
+  border-radius: 0;
+  gap: var(--s4);
+}
+.ficha-capa-rot {
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.ficha-capa-texto { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL CONSTRUCTOR DE FORMULARIOS
+   --------------------------------------------------------------------------
+   Lienzo a la izquierda, ajustes de la pregunta tocada a la derecha. Sin
+   paleta fija: añadir abre el selector, y en el formulario vacío el selector
+   ES la pantalla. Ver el porqué en `ConstructorFormulario.jsx`.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.constructor-cuerpo {
+  /* Sin medida propia ni centrado, como todas: la pone la hoja y el sangrado
+     es el mismo que el de `.cartera-cuerpo`, así que el lienzo del formulario
+     arranca en la misma vertical que la tabla de la lista de la que se viene. */
+  padding: var(--s4) var(--s5) var(--s6);
+  display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--s5);
+  align-items: start;
+}
+
+.lienzo { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+
+/* Un apartado del formulario: el mismo que verá el cliente en su portal. */
+.apartado { display: flex; flex-direction: column; gap: var(--s2); }
+.apartado-cab { display: flex; align-items: baseline; gap: var(--s2); }
+.apartado-tit {
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ── La tarjeta de una pregunta ────────────────────────────────────────────
+   Es la pieza que hace que esto se lea como un formulario y no como una lista
+   de ajustes: superficie, canto y aire propio, con el asa a la izquierda y el
+   gesto de tirarla a la derecha, los dos en voz baja hasta que se pasa por
+   encima. */
+.q-card {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface);
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.q-card:hover { border-color: var(--hairline-strong); }
+.q-card.is-tocada {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+.q-asa { color: var(--text-tertiary); opacity: 0; transition: opacity var(--fast); flex-shrink: 0; }
+.q-card:hover .q-asa { opacity: 0.6; }
+
+/* Sin aire propio: el de la tarjeta ya lo pone. Con los dos, cada pregunta
+   medía casi cien píxeles y diez preguntas eran dos pantallas de scroll. */
+.q-cuerpo {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.q-glifo {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: var(--r-sm);
+  background: var(--fill-subtle); color: var(--text-secondary);
+}
+/* Un enchufe no es una pregunta: lo que se conteste cae en una pieza de la
+   ficha. Se distingue por la tinta del acento, que es la de lo que la
+   aplicación sabe hacer con un dato. */
+.q-glifo.is-enchufe { background: var(--accent-soft); color: var(--accent); }
+.q-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.q-titulo {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.q-tipo { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.q-oblig { font-size: var(--fs-xs); color: var(--text-tertiary); flex-shrink: 0; }
+/* A dónde va lo que se conteste. Es la frase que distingue un enchufe de una
+   pregunta con el mismo enunciado, así que se lee siempre, no al pasar. */
+.q-donde {
+  font-size: var(--fs-xs); color: var(--accent); flex-shrink: 0;
+  max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.q-quitar { opacity: 0; transition: opacity var(--fast); flex-shrink: 0; }
+.q-card:hover .q-quitar,
+.q-card.is-tocada .q-quitar,
+.q-quitar:focus-visible { opacity: 1; }
+
+.anadir-pregunta {
+  width: 100%; justify-content: center;
+  padding: var(--s3);
+  border-style: dashed; color: var(--text-secondary);
+}
+
+/* ── El panel de la pregunta tocada ────────────────────────────────────────
+   Pegajoso: se toca una tarjeta de abajo del todo y sus ajustes tienen que
+   estar donde se está mirando, no al principio de la página. */
+.ajustes-pregunta {
+  position: sticky; top: var(--s5);
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding-left: var(--s5);
+  border-left: 1px solid var(--hairline);
+}
+.ajustes-rot {
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ── La muestra: el control del cliente, apagado ───────────────────────────
+   Hundida y con su canto, para que se lea como una VITRINA y no como un campo
+   más del panel. Si se viera igual que los ajustes de debajo, el carril tendría
+   dos sitios donde escribir y solo uno serviría — que es el error clásico de
+   las previsualizaciones metidas entre mandos.
+
+   El apagado ya lo pone `:disabled` en los controles; esto es la caja. */
+.como-la-ve {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3);
+  border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+/* Dentro de la vitrina nada invita a tocar: el cursor no cambia y el texto
+   apagado se lee, que es a lo que ha venido. */
+.como-la-ve .input,
+.como-la-ve .select { cursor: default; }
+.ajustes-nada { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.ajustes-cual { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ajustes-cual > b { font-size: var(--fs-sm); font-weight: 600; }
+.ajustes-cual > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── EL CARRIL, VESTIDO ────────────────────────────────────────────────────
+   El carril era una pila de texto plano: un nombre en negrita, una frase suelta
+   con el destino, unas etiquetas de campo y una nube de chapas grises. Cuatro
+   clases de renglón con el mismo peso y sin nada que dijera a qué pieza del
+   lienzo pertenecían.
+
+   Tres piezas lo arreglan, y ninguna añade cromo nuevo: reutilizan el que ya
+   existe a la izquierda.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* 1. La cabecera repite el azulejo y el nombre de la tarjeta tocada, así que el
+      carril se lee como su continuación y no como un panel aparte. */
+.carril-cab { display: flex; align-items: center; gap: var(--s3); }
+
+/* 2. El destino, en chapa del acento. Era una frase huérfana con punto final
+      («A su antropometría.») que se leía como una nota al pie; es la propiedad
+      que distingue a un enchufe de una pregunta cualquiera, así que se reconoce
+      de un vistazo. La tinta es la misma que la de `.q-donde` en el renglón. */
+.carril-donde {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  align-self: flex-start; margin: 0;
+  padding: var(--s1) var(--s3); border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+.carril-donde > svg { flex-shrink: 0; }
+
+/* 3. Lo que se le pide, como lista numerada y no como nube de chapas. Los
+      números son los MISMOS que los de la lámina, así que abrir la guía es
+      seguir leyendo. */
+.carril-lista { display: flex; flex-direction: column; gap: var(--s2); }
+.carril-sitios { list-style: none; margin: 0; padding: 0; }
+.carril-sitio {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--s3); align-items: baseline;
+  padding: var(--s2) 0; border-bottom: 1px solid var(--hairline);
+}
+.carril-sitio:last-child { border-bottom: 0; }
+.carril-sitio-n {
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+.carril-sitio-txt {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.carril-sitio-txt > b { font-size: var(--fs-xs); font-weight: 600; }
+.carril-sitio-txt > span { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.ajustes-nota { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ajustes-opciones { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ajustes-opciones > .ajustes-rot,
+.ajustes-opciones > .ajustes-nota { flex-basis: 100%; }
+
+/* ── El selector: «¿Qué quieres preguntar?» ────────────────────────────────
+   Dentro de un diálogo cuando ya hay preguntas; como pantalla entera cuando el
+   formulario está en blanco, que es donde de verdad enseña el producto. */
+.selector { display: flex; flex-direction: column; gap: var(--s4); }
+.selector.is-inline {
+  padding: var(--s6) var(--s5);
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.selector-cab { display: flex; flex-direction: column; gap: var(--s1); text-align: center; }
+.selector-tit { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; }
+.selector-sub { font-size: var(--fs-sm); color: var(--text-tertiary); }
+.selector-grupos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--s5) var(--s4);
+}
+.selector-col { display: flex; flex-direction: column; gap: var(--s2); align-content: start; }
+/* Las tuyas no se ELIGEN, se escriben: son otra clase de gesto y por eso van
+   a todo lo ancho y detrás de un filete, en vez de en una columna más. */
+.selector-col.es-propia {
+  grid-column: 1 / -1;
+  padding-top: var(--s4);
+  border-top: 1px solid var(--hairline);
+}
+/* La advertencia va con el rótulo y no debajo del campo: habla de la sección,
+   no del enunciado. */
+.selector-pista { font-size: var(--fs-xs); color: var(--text-tertiary); margin-top: -2px; }
+
+/* Enunciado · cómo se contesta · añadir, en el orden en que se rellena. El
+   botón se alinea con la base de los dos campos (`end`), no con su etiqueta. */
+.propia-linea {
+  display: grid; grid-template-columns: 1fr auto auto;
+  align-items: end; gap: var(--s3);
+}
+.propia-anadir { flex-shrink: 0; }
+
+@media (max-width: 700px) {
+  /* Tres columnas no caben en un teléfono, y el segmentado a lo ancho es más
+     fácil de acertar con el pulgar que apretado en su columna. */
+  .propia-linea { grid-template-columns: 1fr; align-items: stretch; }
+  .propia-anadir { justify-self: start; }
+}
+.selector-rot {
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* Una opción del selector. Se pulsa y entra en el lienzo; puesta ya, se apaga
+   en vez de desaparecer — que algo esté puesto es información. */
+.pieza {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface); color: inherit; font: inherit; text-align: left;
+  cursor: pointer;
+  transition: border-color var(--fast), transform var(--fast);
+}
+.pieza:hover:not(:disabled) { border-color: var(--accent); transform: translateX(2px); }
+.pieza:disabled { opacity: 0.45; cursor: default; }
+.pieza-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pieza-nom { font-size: var(--fs-sm); font-weight: 600; }
+.pieza-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ══ Las otras dos tandas de preguntas, con su puerta ═════════════════════ */
+.taller-otros {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s5) 0 var(--s6);
+  max-width: var(--max-w-columna);
+}
+.taller-otros-rot {
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding-bottom: var(--s1);
+}
+.taller-otro {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3); border-radius: var(--r-md);
+  color: inherit; text-decoration: none;
+  transition: background-color var(--fast);
+}
+.taller-otro:hover { background: var(--fill-subtle); }
+.taller-otro > svg { color: var(--text-tertiary); flex-shrink: 0; }
+.taller-otro-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.taller-otro-nom { font-size: var(--fs-sm); font-weight: 600; }
+.taller-otro-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL PROCEDIMIENTO — el protocolo leído como lo que es
+   --------------------------------------------------------------------------
+   Seis momentos en el tiempo, y no cinco cajones de configuración. El dato es
+   exactamente el mismo de `protocol.js`: lo que cambia es la lectura.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Con la medida de una columna de decisiones: cada momento es un rótulo, un
+   dato y una frase, y a todo lo ancho de la ventana eran cinco bandas con
+   965 px de nada a la derecha. Ver `--max-w-columna`. */
+.linea-tiempo { display: flex; flex-direction: column; max-width: var(--max-w-columna); }
+/* Cada momento es un enlace a su apartado, pero NO se viste de enlace: es una
+   fila de lectura, y quince palabras subrayadas en azul convierten el resumen
+   del procedimiento en un índice de ayuda. Que se puede pulsar lo dice el
+   relleno al pasar, como todo lo demás del producto. */
+.paso-proto {
+  display: grid; grid-template-columns: 26px 132px minmax(0, 1fr);
+  gap: var(--s3) var(--s4); align-items: start;
+  padding: var(--s3);
+  margin: 0 calc(var(--s3) * -1);
+  border-bottom: 1px solid var(--hairline);
+  color: inherit; text-decoration: none;
+  border-radius: var(--r-md);
+  transition: background-color var(--fast);
+}
+.paso-proto:hover { background: var(--fill-subtle); }
+.paso-proto:hover .paso-tit { color: var(--accent); }
+.paso-proto:last-child { border-bottom: 0; }
+/* El número no numera por adorno: son pasos en el TIEMPO y el orden es lo que
+   se está contando. Es la única numeración del producto que se gana el sitio. */
+.paso-n {
+  display: grid; place-items: center;
+  width: 22px; height: 22px; margin-top: 2px;
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.paso-cuando {
+  padding-top: 4px;
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.paso-que { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.paso-tit { font-size: var(--fs-sm); font-weight: 600; }
+.paso-dice { font-size: var(--fs-sm); color: var(--text-secondary); }
+.paso-abrir { margin-left: auto; flex-shrink: 0; }
+.paso-linea { display: flex; align-items: center; gap: var(--s3); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Y PROTOCOLOS ES EL SEGUNDO BANCO DE DOS PLANOS
+   --------------------------------------------------------------------------
+   A la izquierda lo que editas —los cinco apartados— y a la derecha lo que
+   produce: el procedimiento, con las cifras al día mientras tocas. Antes vivía
+   arriba del todo y se iba de la pantalla al primer scroll, justo cuando
+   empieza a servir de algo; ahora se queda al lado y cada casilla que marcas
+   se ve llegar a él.
+
+   Es el MISMO mueble que Ejercicios y no un parecido: `.plano-lista` y
+   `.plano-ficha` son las mismas clases, con su filete y su carril pegajoso. Lo
+   único propio es de dónde sale la medida. Allí el plano de la izquierda es una
+   TABLA y usa el ancho, así que el banco pide `--max-w-trabajo`; aquí es una
+   COLUMNA DE DECISIONES y mide `--max-w-columna`, ni un píxel más — estirarla
+   hasta llenar la hoja sería exactamente la enfermedad que ese token vino a
+   curar. Lo que no se estira lo recoge la hoja, que se ciñe a esta suma
+   (`.shell-main`, en chasis.css): dentro no queda papel en blanco, y lo que
+   sobra a la derecha es mesa.
+
+   El corte es 1440 y no 1560 como en Ejercicios: allí la lista necesita 850
+   para su tabla, aquí los apartados se apañan con menos. Más abajo no: a 1280
+   el plano del trabajo se quedaba en 476 px con el carril en 400, o sea la
+   pantalla partida casi por la mitad para dejar el trabajo más estrecho que su
+   propio índice. Un banco que no cabe es peor que una hoja de un plano.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Lo que el protocolo LLEVA, arriba del carril y separado de la acción por un
+   filete: son dos cosas distintas —el alcance y lo que le pasa a una persona— y
+   pegadas se leen como una lista sola. El filete es el mismo recurso que separa
+   el carril de la lista, sin meter una tarjeta dentro de otra. */
+.proto-lleva { padding-bottom: var(--s4); border-bottom: 1px solid var(--hairline); }
+
+/* ── Lo que lleva dentro el check-in, en el carril ─────────────────────────
+   Nombre, lo que lleva puesto y —en las de medida— la puerta a su lámina. Es
+   LECTURA: el mando vive en los enchufes del formulario, y tenerlo aquí también
+   era el mismo campo con dos interruptores en dos pantallas. */
+.carril-piezas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.carril-piezas > li {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  padding: var(--s2) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.carril-piezas > li:last-child { border-bottom: 0; }
+.carril-pieza-nm { font-size: var(--fs-sm); color: var(--text); }
+/* Lo que lleva puesto va en el acento, que es la tinta de lo que la aplicación
+   hace con el dato — la misma que `.q-donde` en la fila de al lado. */
+.carril-pieza-lleva { margin-left: auto; font-size: var(--fs-xs); color: var(--accent); }
+.carril-piezas .link { font-size: var(--fs-2xs); font-weight: 550; text-align: left; }
+/* El «lleva» se queda a la derecha aunque la línea se parta: es la columna que
+   se recorre de arriba abajo para ver qué pide este protocolo. */
+.carril-pieza-lleva { order: 3; }
+
+@media (min-width: 1440px) {
+  .cartera-cuerpo.proto-banco {
+    display: grid;
+    /* `1fr` y no una pista con medida: una pista que no es fracción se
+       dimensiona por su CONTENIDO, así que el plano de la izquierda medía lo
+       que midiera la tarjeta más ancha y dejaba el sobrante en tierra de nadie,
+       entre los dos planos. Con `1fr` reparte lo que hay: el carril se lleva
+       sus 400 y el trabajo TODO lo demás. */
+    grid-template-columns: minmax(0, 1fr) var(--carril-ficha);
+    gap: var(--s6) var(--s5);
+    align-items: start;
+  }
+
+  /* Colocación EXPLÍCITA, no orden de fuentes: el aviso de «puesto al día» es
+     condicional, y con la colocación implícita aparecer o no aparecer movía los
+     dos planos de fila. */
+  .proto-banco > .proto-cab { grid-column: 1 / -1; grid-row: 1; }
+  .proto-banco > .plano-lista { grid-column: 1; grid-row: 2; }
+  .proto-banco > .plano-ficha { grid-column: 2; grid-row: 2; }
+
+  /* En el carril, el procedimiento se APILA. Con 378 px útiles, la rejilla de
+     tres columnas (26 + 132 + texto) dejaba 175 px para «Entrenamiento ·
+     Nutrición» y partía casi todas las frases. Es la misma forma que ya toma en
+     el móvil, y por el mismo motivo: cuando falta ancho, el rótulo se sube
+     encima del dato en vez de robarle sitio. */
+  .plano-ficha .linea-tiempo { max-width: none; }
+  .plano-ficha .paso-proto {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: var(--s1) var(--s3);
+  }
+  .plano-ficha .paso-cuando { grid-column: 2; padding-top: 0; }
+  .plano-ficha .paso-que { grid-column: 2; }
+}
+
+/* Sin sitio para el segundo plano, el procedimiento deja de ser carril y vuelve
+   a ser lo primero que se lee: sin filete, sin pegarse y a todo el ancho de la
+   columna. Es el mismo recurso que usa el panel del constructor cuando su
+   costado no cabe. Y la cinta vuelve a la medida de las demás sola, porque su
+   excepción vive dentro del otro corte. */
+@media (max-width: 1439.98px) {
+  .proto-banco > .plano-ficha {
+    position: static; max-height: none; overflow: visible;
+    padding-left: 0; border-left: 0;
+  }
+}
+
+/* ══ El corte de ancho ════════════════════════════════════════════════════
+   Sin sitio para el panel contextual, los ajustes de la pregunta bajan debajo
+   del lienzo con su filete arriba: el mismo recurso que usa la ficha del
+   cliente cuando su costado no cabe. */
+@media (max-width: 1023.98px) {
+  .constructor-cuerpo {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--s4) var(--s4) var(--s6);
+  }
+  .ajustes-pregunta {
+    position: static;
+    padding-left: 0; padding-top: var(--s4);
+    border-left: 0; border-top: 1px solid var(--hairline);
+  }
+  .paso-proto { grid-template-columns: 22px minmax(0, 1fr); }
+  .paso-cuando { grid-column: 2; padding-top: 0; }
+  .paso-que { grid-column: 2; }
+  .taller-pie { padding-bottom: var(--s4); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL DISCO DE MOMENTO — de qué clase es cada formulario
+   --------------------------------------------------------------------------
+   Coachway pone una baldosa cuadrada teñida por familia delante de cada campo,
+   y el hallazgo es bueno: una lista monocroma obliga a leer cada fila para
+   saber qué es cada cosa.
+
+   Aquí es un DISCO y el matiz sale de la rueda por `data-tono`, que es el
+   mecanismo que ya usan el avatar y las etiquetas de la cartera. NO se usa la
+   paleta `--data-*`: ésa es del dato dentro de un gráfico o de una cifra, y la
+   regla de la casa es que el cromo no tiene color salvo el acento. El disco no
+   dice «esto se puede tocar» —eso sigue siendo del acento—: dice de qué clase
+   es la cosa.
+   ══════════════════════════════════════════════════════════════════════════ */
+.f-disco {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: var(--r-pill);
+  background: hsl(var(--fd-h) 62% 95%);
+  color: hsl(var(--fd-h) 52% 34%);
+  box-shadow: inset 0 0 0 1px hsl(var(--fd-h) 45% 86%);
+}
+[data-theme='dark'] .f-disco {
+  background: hsl(var(--fd-h) 20% 20%);
+  color: hsl(var(--fd-h) 45% 74%);
+  box-shadow: inset 0 0 0 1px hsl(var(--fd-h) 22% 30%);
+}
+.f-disco[data-tono='2'] { --fd-h: 150; }
+.f-disco[data-tono='4'] { --fd-h: 230; }
+.f-disco[data-tono='5'] { --fd-h: 275; }
+
+/*
+  ── Y POR QUÉ ESTE SELECTOR LLEVA `.plantilla .p-name` DELANTE ─────────────
+  Porque `.f-nombre` a secas (0,1,0) NO ganaba. En una tabla el nombre lleva las
+  dos clases —`p-name f-nombre`— y `superficies.css` declara
+  `.plantilla .p-name { display: block }` (0,2,0) para el tope de ancho y los
+  puntos suspensivos. El `inline-flex` no llegaba a aplicarse nunca: el disco
+  caía a su propia línea y el nombre debajo, así que los cuatro listados del
+  Taller salían con «el icono con el texto debajo».
+
+  Es el §9 de CLAUDE.md en directo. La salida no es subirle el peso a `.f-nombre`
+  en todas partes —fuera de la tabla no hace falta y arrastraría la pelea a otros
+  sitios— sino decir lo que de verdad pasa: dentro de una tabla, `f-nombre` es
+  una VARIANTE de `p-name` y se escribe como tal.
+
+  El recorte del nombre largo no se pierde: lo hace `.p-abrir`, que ya tiene su
+  propio `text-overflow` y es quien lleva el texto.
+*/
+.f-nombre { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; }
+.plantilla .p-name.f-nombre { display: inline-flex; max-width: 320px; }
+
+/* Elegir el momento al crear: la misma pieza del selector del constructor, en
+   columna. El momento decide qué se puede poner dentro, así que se pregunta
+   antes que el nombre. */
+.momentos { display: flex; flex-direction: column; gap: var(--s2); }
+
+/* El orden de una pregunta, solo donde el orden es del entrenador (la sesión y
+   la semana). En el alta lo pone el catálogo de la ficha y un mando aquí sería
+   un botón que no mueve nada. */
+.q-orden { display: inline-flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity var(--fast); }
+.q-card:hover .q-orden,
+.q-card:focus-within .q-orden,
+.q-card.is-tocada .q-orden { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA GUÍA DE MEDICIÓN
+   --------------------------------------------------------------------------
+   Pedíamos nueve perímetros y seis pliegues sin explicar ni uno. La lámina
+   sitúa el punto y el texto afina; el lema de arriba es la mitad del valor.
+
+   LA REGLA (`.guia-regla`) es la firma de la casa —marcas de graduación— y
+   `tokens.css` la reserva para «donde de verdad hay una escala». Una guía de
+   medición es el sitio más literal que existe para eso, y es el único adorno
+   de esta capa.
+   ══════════════════════════════════════════════════════════════════════════ */
+.guia-lema {
+  margin: 0; max-width: 64ch;
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.guia-regla {
+  height: 10px; margin: var(--s3) 0 var(--s5);
+  background-image:
+    linear-gradient(var(--hairline-strong), var(--hairline-strong)),
+    repeating-linear-gradient(to right, var(--hairline-strong) 0 1px, transparent 1px 7px);
+  background-size: 100% 1px, 100% 6px;
+  background-position: 0 100%, 0 100%;
+  background-repeat: no-repeat, repeat-x;
+  opacity: 0.8;
+}
+.guia { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: var(--s6); align-items: start; }
+/* La de pliegues lleva dos figuras —de frente y de espalda— y con la columna de
+   232 px cada cuerpo se quedaba en 105: por debajo de eso el detalle interior es
+   una mancha y la lámina deja de situar, que es su único trabajo. */
+.guia.es-doble { grid-template-columns: 356px minmax(0, 1fr); }
+.guia-lamina {
+  background: var(--surface-sunken);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+}
+.guia-svg { width: 100%; height: auto; display: block; }
+.guia-cuerpo { fill: var(--surface); stroke: var(--hairline-strong); stroke-width: 1.6; stroke-linejoin: round; }
+/* El detalle interior —clavícula, línea media, columna, escápulas, rodillas—.
+   Más fino y más callado que el contorno: está para dar referencias al que mide,
+   no para dibujar un cuerpo bonito, así que no puede competir con la marca. */
+.guia-detalle {
+  fill: none; stroke: var(--hairline); stroke-width: 1.2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+/* Qué vista es cada figura. Sin esto, la de espalda se lee como la de frente
+   con las marcas cambiadas de lado — que es justo el error que provoca. */
+.guia-vista {
+  fill: var(--text-tertiary); font-family: var(--font);
+  font-size: 11px; font-weight: 650; letter-spacing: 0.04em;
+}
+.guia-cinta { fill: none; stroke: var(--accent); stroke-width: 2; }
+/* El pellizco: una cresta de piel levantada entre dos dedos. Es la otra técnica
+   dicha con la forma —la cinta rodea, el plicómetro levanta— y por eso no puede
+   ser la misma marca en otro color.
+
+   Relleno translúcido del acento y no `--accent-soft`: el soft es un fondo de
+   superficie y en el tema oscuro se apaga hasta desaparecer sobre el papel del
+   dibujo. Con el acento al 22 % la figura tiene cuerpo en los dos temas y el
+   trazo sigue siendo lo que la dibuja. */
+.guia-pellizco {
+  fill: var(--accent); fill-opacity: 0.22;
+  stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round;
+}
+.guia-hilo { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.guia-punto circle { fill: var(--accent); }
+.guia-punto text {
+  fill: var(--accent-on); font-family: var(--font); font-size: 11px; font-weight: 700;
+}
+
+.guia-sitios { display: flex; flex-direction: column; }
+.guia-sitio {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: var(--s3);
+  padding: var(--s3) 0; border-bottom: 1px solid var(--hairline);
+}
+.guia-sitio:last-child { border-bottom: 0; }
+.guia-n {
+  display: grid; place-items: center;
+  width: 21px; height: 21px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.guia-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.guia-texto > b { font-size: var(--fs-sm); font-weight: 600; }
+.guia-como { font-size: var(--fs-xs); color: var(--text-secondary); }
+/* El error de siempre, en voz más baja que la indicación: es lo que evita la
+   medida mala, pero no es lo primero que hay que leer. */
+.guia-ojo { font-style: normal; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.guia-campos { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 600; }
+
+.guia-enlace { align-self: flex-start; }
+
+@media (max-width: 719.98px) {
+  .guia { grid-template-columns: minmax(0, 1fr); }
+  .guia-lamina { max-width: 232px; }
+  /* En columna, la doble puede ocupar lo que quiera: es ancha y baja. */
+  .guia.es-doble .guia-lamina { max-width: 420px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA LÍNEA DE ACCIONES — el protocolo leído como lo que es
+   --------------------------------------------------------------------------
+   Los rótulos son PREMISAS, no apartados: «Al entrar», «Cada semana · lunes»,
+   «Si pasa demasiado tiempo». Y llevan LA REGLA —las marcas de graduación de
+   `tokens.css`— porque aquí sí hay una escala: el tiempo de un cliente en tu
+   asesoría. Es el mismo recurso que la guía de medición y por el mismo motivo;
+   en cualquier otra lista sería textura.
+
+   La numeración 01/02/03 se retiró a propósito: la casa dice que solo vale si
+   el contenido es de verdad una secuencia, y esto dejó de serlo en cuanto entró
+   «si pasan 10 días sin entrenar», que no va después de nada — va en otro eje.
+   ══════════════════════════════════════════════════════════════════════════ */
+.premisa { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s3); }
+.premisa-rot {
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text); white-space: nowrap;
+}
+.premisa-dia { width: auto; flex-shrink: 0; }
+.premisa-regla {
+  flex: 1; height: 9px; align-self: center;
+  background-image:
+    linear-gradient(var(--hairline-strong), var(--hairline-strong)),
+    repeating-linear-gradient(to right, var(--hairline-strong) 0 1px, transparent 1px 8px);
+  background-size: 100% 1px, 100% 5px;
+  background-position: 0 100%, 0 100%;
+  background-repeat: no-repeat, repeat-x;
+  opacity: 0.7;
+}
+
+/* El verbo de la acción: lo primero que se lee de la fila. En voz de rótulo y
+   no de título — lo que nombra la cosa es el sujeto de debajo. */
+.a-verbo {
+  font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.q-card.is-tocada .a-verbo { color: var(--accent); }
+
+/* La chapa de atrasados, pegada a la cifra de clientes en la lista. */
+.p-chapa { margin-left: var(--s2); }
+
+/* Los dos matices que faltaban para las familias de acción. */
+.f-disco[data-tono='0'] { --fd-h: 18; }
+.f-disco[data-tono='7'] { --fd-h: 60; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA ETIQUETA NUTRICIONAL Y LA CURVA DE CARGA
+   --------------------------------------------------------------------------
+   Las dos piezas que le faltaban a los paneles de la Librería, y le faltaban
+   por lo mismo: no había NADA que mirar. Las dos fichas eran una pila de
+   párrafos y campos de formulario, y el dueño lo dijo en una palabra: «fea».
+
+   Una ficha necesita una figura —algo que se reconozca antes de leerlo— y
+   luego el texto alrededor. Aquí la figura es distinta en cada mitad porque la
+   pregunta lo es: de un alimento, qué lleva; de un ejercicio, cómo se comporta
+   la carga.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── LA ETIQUETA ───────────────────────────────────────────────────────────
+   Papel hundido y no tarjeta con canto: dentro del carril, una caja con borde
+   sería un objeto discutiendo con el filete del propio carril — la misma
+   decisión que ya tomó `.ficha-capa`. El porqué del contenido, en
+   `EtiquetaNutricional.jsx`. */
+.etq {
+  background: var(--surface-sunken);
+  border-radius: var(--r-md);
+  padding: var(--s3) var(--s4) var(--s4);
+}
+/* La cifra y su unidad en la línea de arriba, con «por 100 g» al otro extremo:
+   la unidad de medida es tan parte del dato como el número, y ponerla debajo la
+   convertía en un pie que se lee después. */
+.etq-cab {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--hairline);
+}
+.etq-kcal { display: flex; align-items: baseline; gap: 5px; margin: 0; }
+/* La ancha, que el token declara como «la voz de las cifras». Es el único sitio
+   de esta ficha donde algo levanta la voz, y por eso funciona. */
+.etq-kcal-v {
+  font-family: var(--font-ancha);
+  font-size: 1.75rem; font-weight: 650; line-height: 1;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.etq-kcal-u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); }
+.etq-por { margin: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.etq-tabla { display: flex; flex-direction: column; padding-top: var(--s1); }
+/* Cada línea es un renglón de etiqueta: el nombre a la izquierda, la cifra
+   pegada al canto derecho y un filete finísimo entre ellas. Sin puntos guía:
+   con siete renglones de 12 px el ojo llega solo. */
+.etq-linea {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s4);
+  padding: 5px 0;
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.etq-linea + .etq-linea { border-top: 1px solid var(--hairline); }
+/* Los tres macros presiden; lo que cuelga de ellos, no. Es la jerarquía del
+   envase, donde «de los cuales azúcares» es una parte de los hidratos y no una
+   fila hermana. */
+.etq-linea.es-fuerte > .etq-que { color: var(--text); font-weight: 600; }
+.etq-linea.es-sangrada > .etq-que { padding-left: var(--s3); font-size: var(--fs-xs); }
+.etq-que { min-width: 0; }
+.etq-cuanto {
+  flex-shrink: 0; color: var(--text); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* «No dice» se pinta como se pinta la ausencia en el resto del producto: un
+   guion en terciario. Nunca un cero — ver `micros.js`. */
+.etq-nodice { color: var(--text-tertiary); font-weight: 500; }
+.etq-pie {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px;
+  margin: var(--s2) 0 0; font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Y LA ETIQUETA ES DONDE SE ESCRIBE
+   --------------------------------------------------------------------------
+   Ésta es la decisión que encoge la ficha a la mitad. La etiqueta enseñaba
+   siete cifras y debajo, en el formulario, se volvían a pedir las siete: tres
+   casillas de macros, cuatro del envase y dos de unidad, cada una con su
+   rótulo y su ayuda. La ficha medía 1.257 px porque **la mitad era el eco de
+   la otra mitad**, y las cuatro cifras del envase, apretadas en 88 px, partían
+   sus rótulos en dos líneas — «es muy feo todo», dijo el dueño, y lo era.
+
+   Un envase se lee y se corrige en el mismo renglón. Así que la cifra de la
+   etiqueta ES la casilla: misma posición, misma tipografía tabular, mismo
+   canto derecho. Sin caja hasta que la tocas —la ley de los gestos— y con la
+   unidad al lado, que es lo que hace que no haga falta rotular nada.
+   ══════════════════════════════════════════════════════════════════════════ */
+.etq-campo {
+  width: 4.5ch; min-width: 0; text-align: right;
+  font-family: inherit; font-size: inherit; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text);
+  background: none; border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 1px 5px; margin: -1px 0;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.etq-campo:hover { border-color: var(--edge); background: var(--fill-subtle); }
+.etq-campo:focus {
+  outline: none; border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+/* En blanco significa «no dice», así que el hueco se pinta como se pinta la
+   ausencia: el mismo guion en terciario que hay en la versión de lectura. */
+.etq-campo::placeholder { color: var(--text-tertiary); font-weight: 500; }
+.etq-campo[aria-invalid='true'] { border-color: var(--negative); }
+/* La unidad no se repite en cada renglón: va pegada a la casilla y en voz baja,
+   porque lo que cambia de línea a línea es el número. */
+.etq-cuanto > .etq-u { color: var(--text-tertiary); font-weight: 500; }
+/* Lo que no cuadra, dicho debajo de la tabla y no dentro de cada renglón: siete
+   mensajes posibles en línea harían saltar la etiqueta entera al teclear. */
+.etq-mal { margin: var(--s2) 0 0; font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+/* La unidad natural, escrita en el pie donde ya se leía. Dos casillas mínimas y
+   la frase alrededor: «1 [rebanada] = [27] g» se lee como una frase, no como un
+   formulario de dos campos con dos rótulos. */
+.etq-pie-campo {
+  font-family: inherit; font-size: inherit; font-weight: 600; color: var(--text);
+  background: none; border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 1px 5px; min-width: 0;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.etq-pie-campo:hover { border-color: var(--edge); background: var(--fill-subtle); }
+.etq-pie-campo:focus {
+  outline: none; border-color: var(--accent); background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.etq-pie-campo::placeholder { color: var(--text-tertiary); font-weight: 500; }
+.etq-pie-nom { width: 9ch; }
+.etq-pie-g { width: 4ch; text-align: right; }

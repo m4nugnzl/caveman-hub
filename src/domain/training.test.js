@@ -20,7 +20,20 @@ import {
   isRestDay,
   microcycleIds,
   nextCycleDate,
+  nombreDeSubserie,
+  normalizaTecnica,
+  restLabel,
   rotatingSlots,
+  seriesGrammar,
+  subseriesDe,
+  supersetLabels,
+  targetKind,
+  TECNICAS,
+  tecnicaDeLaSerie,
+  tecnicaFrase,
+  tecnicaOf,
+  tecnicaPorDefecto,
+  tecnicaSaid,
   today,
   trainedMuscles,
   trainingDayCount,
@@ -617,7 +630,100 @@ describe('cloneExerciseAsTemplate', () => {
     // Sus kilos y repeticiones no viajan: esto es una plantilla, no un registro.
     expect(copia.sets.every((s) => s.kg === '' && s.reps === '' && s.rir === '')).toBe(true);
   });
+
+  it('la gramática de serie viaja: es programa, no registro', () => {
+    /* `bajada: true` es la forma vieja de decir la técnica; la copia la escribe
+       ya en la nueva (`tecnica: 'bajada'`) — es lo que hace `tecnicaOf`. */
+    const copia = cloneExerciseAsTemplate({ ...original, enlazado: true, bajada: true, restSeconds: 90 });
+    expect(copia.enlazado).toBe(true);
+    expect(copia.tecnica).toBe('bajada');
+    expect(copia.restSeconds).toBe(90);
+    // Y sin gramática no aparecen claves en falso: copiar claves vacías a todo sería ruido.
+    const limpia = cloneExerciseAsTemplate(original);
+    expect('enlazado' in limpia).toBe(false);
+    expect('tecnica' in limpia).toBe(false);
+    expect('restSeconds' in limpia).toBe(false);
+  });
 });
+
+/* ══ La gramática de serie: superserie, bajada, descanso, AMRAP y tiempo ═══ */
+
+describe('targetKind — qué pide de verdad el objetivo escrito', () => {
+  it('reconoce el AMRAP con las mismas palabras que admite el importador', () => {
+    expect(targetKind('AMRAP')).toBe('amrap');
+    expect(targetKind('al fallo')).toBe('amrap');
+    expect(targetKind('Fallo')).toBe('amrap');
+    expect(targetKind('máximo')).toBe('amrap');
+  });
+
+  it('reconoce el trabajo por tiempo', () => {
+    expect(targetKind('30 s')).toBe('tiempo');
+    expect(targetKind('45seg')).toBe('tiempo');
+    expect(targetKind('1 min')).toBe('tiempo');
+  });
+
+  it('lo demás son repeticiones, el vacío incluido', () => {
+    expect(targetKind('8-10')).toBe('reps');
+    expect(targetKind('12')).toBe('reps');
+    expect(targetKind('')).toBe('reps');
+    expect(targetKind(null)).toBe('reps');
+  });
+});
+
+describe('restLabel', () => {
+  it('segundos hasta que los minutos son redondos', () => {
+    expect(restLabel(45)).toBe('45 s');
+    expect(restLabel(90)).toBe('90 s');
+    expect(restLabel(120)).toBe('2 min');
+    expect(restLabel(180)).toBe('3 min');
+    expect(restLabel(150)).toBe('150 s');
+  });
+
+  it('sin descanso pautado no se inventa nada', () => {
+    expect(restLabel(null)).toBeNull();
+    expect(restLabel(0)).toBeNull();
+    expect(restLabel('')).toBeNull();
+  });
+});
+
+describe('supersetLabels — A1/A2 derivado de la posición', () => {
+  const ej = (name, enlazado = false) => ({ name, ...(enlazado ? { enlazado: true } : {}) });
+
+  it('etiqueta las cadenas y deja en paz a los sueltos', () => {
+    const labels = supersetLabels([ej('Press'), ej('Remo', true), ej('Curl'), ej('Fondos'), ej('Face pull', true)]);
+    expect(labels).toEqual(['A1', 'A2', null, 'B1', 'B2']);
+  });
+
+  it('una cadena aguanta más de dos', () => {
+    expect(supersetLabels([ej('Uno'), ej('Dos', true), ej('Tres', true)])).toEqual(['A1', 'A2', 'A3']);
+  });
+
+  it('un enlazado en el primero no dice nada: no hay anterior', () => {
+    expect(supersetLabels([ej('Solo', true), ej('Otro')])).toEqual([null, null]);
+  });
+
+  it('sin ejercicios, sin etiquetas', () => {
+    expect(supersetLabels([])).toEqual([]);
+  });
+});
+
+describe('seriesGrammar — lo impreso al lado de la pauta', () => {
+  it('dice la bajada y el descanso, en ese orden', () => {
+    expect(seriesGrammar({ bajada: true, restSeconds: 90 })).toBe('última con bajada · descanso 90 s');
+    expect(seriesGrammar({ bajada: true })).toBe('última con bajada');
+    expect(seriesGrammar({ restSeconds: 120 })).toBe('descanso 2 min');
+  });
+
+  it('sin gramática, nada: la fila no gana una coletilla vacía', () => {
+    expect(seriesGrammar({})).toBeNull();
+    expect(seriesGrammar(null)).toBeNull();
+  });
+});
+
+/* Aquí se probaba `alternativesOf` —el plan B que dejaba puesto el entrenador—.
+   Las alternativas se retiraron del producto el 9 sep 2026; ver `training.js`.
+   Lo que sí se sigue probando es que un ejercicio traído como plantilla NO
+   arrastre claves que ya no existen: eso lo cubre `cloneExerciseAsTemplate`. */
 
 /**
  * ══ Que la semana que se pinta y la que se guarda sean la misma ════════════
@@ -790,5 +896,110 @@ describe('la progresión de una rutina', () => {
 
   it('lista los días del programa empezando por los de la última semana', () => {
     expect(dayNames(programa)).toEqual(['Push', 'Pull']);
+  });
+});
+
+describe('las técnicas de intensidad', () => {
+  it('lee el vocabulario, y solo el vocabulario', () => {
+    expect(tecnicaOf({ tecnica: 'rest-pause' })).toBe('rest-pause');
+    expect(tecnicaOf({ tecnica: 'myo-reps' })).toBe('myo-reps');
+    /* Inventarse una técnica no la crea: «rp» no está en el vocabulario y el
+       plan no puede decir algo que la hoja no sabe imprimir. */
+    expect(tecnicaOf({ tecnica: 'rp' })).toBeNull();
+    expect(tecnicaOf({})).toBeNull();
+    expect(tecnicaOf(null)).toBeNull();
+  });
+
+  it('sigue leyendo la forma vieja, y la nueva manda', () => {
+    expect(tecnicaOf({ bajada: true })).toBe('bajada');
+    expect(tecnicaOf({ bajada: true, tecnica: 'parciales' })).toBe('parciales');
+    /* Y mientras la clave vieja siga puesta manda ella, que por eso la hoja la
+       retira al escribir: dos verdades sobre lo mismo no pueden convivir. */
+    expect(tecnicaOf({ bajada: true, tecnica: null })).toBe('bajada');
+  });
+
+  it('cada una se dice distinto, y se imprime con el descanso', () => {
+    const dichos = TECNICAS.map((t) => tecnicaSaid(t.id));
+    expect(new Set(dichos).size).toBe(TECNICAS.length);
+    expect(seriesGrammar({ tecnica: 'rest-pause', restSeconds: 120 })).toBe(
+      'última a rest-pause · descanso 2 min'
+    );
+    expect(seriesGrammar({ tecnica: 'myo-reps' })).toBe('última con myo-reps');
+    expect(tecnicaSaid(null)).toBeNull();
+  });
+});
+
+describe('el remate cuelga de la serie, y lleva sus números', () => {
+  const conSets = (n, extra = {}) => ({
+    sets: Array.from({ length: n }, () => ({ targetReps: '8-10' })),
+    ...extra,
+  });
+
+  it('la técnica del ejercicio se sigue leyendo, y en la última', () => {
+    const ex = conSets(3, { tecnica: 'bajada' });
+    expect(tecnicaDeLaSerie(ex, 0)).toBeNull();
+    expect(tecnicaDeLaSerie(ex, 2)).toEqual({ id: 'bajada' });
+  });
+
+  it('NO se inventa los números de lo que nadie escribió', () => {
+    /* Un `tecnica: 'bajada'` de los de antes no sabe cuántas bajadas eran.
+       Rellenarlo con los valores por defecto sería enseñarle al cliente una
+       pauta que su entrenador no puso. */
+    expect(tecnicaDeLaSerie(conSets(1, { tecnica: 'bajada' }), 0)).toEqual({ id: 'bajada' });
+    expect(subseriesDe({ id: 'bajada' })).toBe(0);
+    expect(tecnicaFrase({ id: 'bajada' })).toBe('bajada');
+  });
+
+  it('elegida en el mando, sale con sus valores por defecto', () => {
+    expect(tecnicaPorDefecto('bajada')).toEqual({ id: 'bajada', veces: 1, corte: 20 });
+    expect(subseriesDe(tecnicaPorDefecto('bajada'))).toBe(1);
+    expect(subseriesDe(tecnicaPorDefecto('myo-reps'))).toBe(4);
+    /* Las parciales no cuelgan tandas: son el final de esa misma serie. */
+    expect(subseriesDe(tecnicaPorDefecto('parciales'))).toBe(0);
+    expect(tecnicaPorDefecto('lo-que-sea')).toBeNull();
+  });
+
+  it('la de la serie manda sobre la del ejercicio', () => {
+    const ex = {
+      tecnica: 'bajada',
+      sets: [{ tecnica: { id: 'rest-pause', veces: 3, pausa: 15 } }, {}],
+    };
+    expect(tecnicaFrase(tecnicaDeLaSerie(ex, 0))).toBe('rest-pause ×3, 15 s');
+    expect(tecnicaDeLaSerie(ex, 1)).toEqual({ id: 'bajada' });
+  });
+
+  it('los números se sanean contra su ficha', () => {
+    expect(normalizaTecnica({ id: 'bajada', veces: 99, corte: 1 })).toEqual({
+      id: 'bajada',
+      veces: 5,
+      corte: 5,
+    });
+    expect(normalizaTecnica({ id: 'no-existe' })).toBeNull();
+    expect(normalizaTecnica(null)).toBeNull();
+  });
+
+  it('un remate en el medio se dice por su número', () => {
+    const ex = { sets: [{}, { tecnica: { id: 'bajada', veces: 2, corte: 20 } }, {}] };
+    expect(seriesGrammar(ex)).toBe('2ª con bajada ×2, −20 %');
+  });
+
+  it('y las tandas se nombran una a una', () => {
+    const dos = { id: 'bajada', veces: 2, corte: 20 };
+    expect(nombreDeSubserie(dos, 0)).toBe('bajada 1');
+    expect(nombreDeSubserie(dos, 1)).toBe('bajada 2');
+    /* Con una sola no hace falta numerarla. */
+    expect(nombreDeSubserie({ id: 'bajada', veces: 1 }, 0)).toBe('bajada');
+    expect(nombreDeSubserie({ id: 'rest-pause', veces: 2 }, 1)).toBe('tanda 2');
+  });
+
+  it('viaja con la plantilla, y sin los registros', () => {
+    const copia = cloneExerciseAsTemplate({
+      name: 'Press banca',
+      muscle: 'Pecho',
+      sets: [{ kg: '100', reps: '8', targetKg: '95', targetReps: '6-8', tecnica: { id: 'bajada', veces: 2 } }],
+    });
+    expect(copia.sets[0].kg).toBe('');
+    expect(copia.sets[0].targetKg).toBe('95');
+    expect(copia.sets[0].tecnica).toEqual({ id: 'bajada', veces: 2 });
   });
 });

@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Check, GitBranch, Pencil, Plus, Route, Trash2 } from 'lucide-react';
+import { Check, GitBranch, Pencil, Plus, Route, Target, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
@@ -12,7 +12,7 @@ import {
   optionDraft,
   validateFork,
 } from '@/domain/fork';
-import { GOAL_DIRECTIONS, directionById, isDirectionLabel, targetRateKg } from '@/domain/goals';
+import { GOAL_DIRECTIONS, clientGoal, directionById, isDirectionLabel, targetRateKg } from '@/domain/goals';
 import {
   PHASE_PRESETS,
   PHASE_WEEKS_RANGE,
@@ -24,7 +24,7 @@ import {
   validatePhase,
 } from '@/domain/roadmap';
 import { shortDate, todayISO } from '@/lib/dates';
-import { fmt } from '@/lib/num';
+import { fmt, toNum } from '@/lib/num';
 import {
   BotonAccion,
   EmptyState,
@@ -72,11 +72,15 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     setPhaseFork,
     chooseFork,
     plan,
+    updateClientPreferences,
   } = useApp();
 
   /* Igual que en el portal: el peso sale del histórico, que es lo único que se
      mantiene al día. */
   const pesoActual = latestWeight(anthropometry[activeClient?.id]?.history);
+  /* El objetivo SUELTO de la ficha, no el efectivo de la fase: el peso al que
+     se va es del proceso entero, y este panel es el proceso entero. */
+  const destino = clientGoal(activeClient);
   const [form, setForm] = useState(null); // null | {…draft, id?}
   const [forkForm, setForkForm] = useState(null); // null | {phaseId, options}
   const [error, setError] = useState('');
@@ -252,6 +256,26 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
       {error && !form && !forkForm && <Notice tone="error">{error}</Notice>}
 
       {/*
+        ══ El destino, encima del recorrido que lleva a él ═══════════════════
+        Estuvo al pie de «Cómo va», y allí era un ajuste metido en una pantalla
+        de lectura: la tarjeta dice dónde acaba y debajo pedía teclear dónde
+        tenía que acabar. Aquí es la primera línea de lo mismo que ordena esta
+        ventana —las fases son el CAMINO, esto es el final— y se llega desde la
+        misma puerta que abría la tarjeta.
+
+        Solo con dirección elegida (`clientGoal` devuelve `null` sin ella): un
+        peso objetivo sin dirección no se puede leer luego, así que tampoco se
+        ofrece escribirlo.
+      */}
+      {puedeEditar && destino && (
+        <Destino
+          key={`meta-${destino.targetWeightKg ?? 'sin'}`}
+          goal={destino}
+          onSet={(kg) => updateClientPreferences(activeClient.id, 'goal', { targetWeightKg: kg })}
+        />
+      )}
+
+      {/*
         El agujero de hoy. Es el único aviso que da esta pantalla porque es el
         único que tiene consecuencias: sin fase que cubra hoy, la analítica se cae
         al objetivo suelto y el cliente no ve nada en curso.
@@ -359,6 +383,66 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
         />
       )}
     </Marco>
+  );
+};
+
+/**
+ * El peso al que va, editable en línea.
+ *
+ * Opcional a propósito (`clientGoal.targetWeightKg`): el modelo sigue siendo el
+ * ritmo, pero el ritmo es una velocidad y no una meta. Con el destino puesto,
+ * la Revisión dibuja el camino entero (empezó → hoy → objetivo) en su cabecera
+ * y «Cómo va» puede decir si acaba por encima o por debajo.
+ *
+ * Es un formulario diminuto y no un diálogo: se fija una vez y se corrige poco.
+ * Guardar escribe SOLO esta clave — `updateClientPreferences` fusiona la
+ * sección, así que la dirección y el ritmo no se tocan.
+ */
+const Destino = ({ goal, onSet }) => {
+  const [texto, setTexto] = useState(goal.targetWeightKg === null ? '' : String(goal.targetWeightKg));
+  const [editando, setEditando] = useState(false);
+
+  if (!editando && goal.targetWeightKg !== null) {
+    return (
+      <div className="goal-set" role="group" aria-label="Peso objetivo">
+        <Target size={13} />
+        <span className="k">Peso objetivo: {fmt(goal.targetWeightKg, { decimals: 1 })} kg</span>
+        <button type="button" className="cab-accion is-puerta" onClick={() => setEditando(true)}>
+          Cambiarlo
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="goal-set"
+      aria-label="Peso objetivo"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const kg = toNum(texto);
+        /* Vacío = quitarlo: sin destino la Revisión no dibuja camino, que es
+           exactamente lo que significa borrarlo. Los absurdos los descarta el
+           saneo del dominio, aquí solo se pasa lo escrito. */
+        onSet(kg === null ? null : kg);
+        setEditando(false);
+      }}
+    >
+      <Target size={13} />
+      <span className="k">{goal.targetWeightKg === null ? '¿A qué peso va?' : 'Peso objetivo'}</span>
+      <input
+        className="input input-sm"
+        style={{ width: 72 }}
+        inputMode="decimal"
+        value={texto}
+        placeholder="70"
+        aria-label="Peso objetivo en kilos"
+        onChange={(e) => setTexto(e.target.value)}
+      />
+      <button type="submit" className="btn btn-secondary btn-sm">
+        {texto.trim() === '' && goal.targetWeightKg !== null ? 'Quitarlo' : 'Fijarlo'}
+      </button>
+    </form>
   );
 };
 

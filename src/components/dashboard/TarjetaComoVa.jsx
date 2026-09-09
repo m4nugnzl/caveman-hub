@@ -30,6 +30,14 @@ const peso = (v) => localeNumber(v, { maximumFractionDigits: 1 });
  * cada hallazgo en dos idiomas para una excepción. Lo que no está en la tabla
  * se dice tal cual.
  */
+/*
+  El peso objetivo NO se pone aquí. Vivió al pie de esta tarjeta —un formulario
+  diminuto con su caja y su botón— y era un ajuste dentro de la pantalla que
+  existe para LEER: la tarjeta cuenta dónde acaba, y debajo pedía teclear dónde
+  tenía que acabar. Se fija una vez y se corrige poco; el sitio es la ventana de
+  fases, que es donde se decide el proceso entero (ver `roadmap/RoadmapPanel`),
+  y a la que se llega desde la puerta de esta misma cabecera.
+*/
 const PARA_EL_CLIENTE = {
   'no-goal': {
     title: 'Tu entrenador aún no ha fijado tu objetivo',

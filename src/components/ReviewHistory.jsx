@@ -9,6 +9,7 @@ import { shortDate } from '@/lib/dates';
 import { Fold, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Subjetivo } from '@/components/ui/Subjetivo';
+import { useOculto } from '@/components/Client/Oculto';
 
 /**
  * Las revisiones anteriores de un cliente: qué se decidió cada semana.
@@ -50,6 +51,8 @@ import { Subjetivo } from '@/components/ui/Subjetivo';
  * @param plain     Sin tarjeta ni título: cuando ya va dentro de una ventana
  *                  que se llama como él (la revisión del entrenador lo abre así).
  */
+/* El resumen de cada semana abre con su peso, así que el histórico entero era
+   una columna de cifras para quien no debe verlas. Ver `Client/Oculto.jsx`. */
 export const ReviewHistory = ({
   client,
   audience = 'coach',
@@ -68,6 +71,7 @@ export const ReviewHistory = ({
   const [nota, setNota] = useState('');
 
   const esEntrenador = audience === 'coach';
+  const oculto = useOculto();
   const clientId = client?.id;
 
   /* Las preguntas que se le hacen HOY, para resolver lo que contestó ENTONCES.
@@ -220,7 +224,7 @@ export const ReviewHistory = ({
             defaultOpen={fila.id === abierta}
             title={`Semana del ${shortDate(fila.weekStart)}`}
             summary={[
-              fila.weight ? `${fila.weight} kg` : null,
+              fila.weight && !oculto.weight ? `${fila.weight} kg` : null,
               /* Lo que se DECIDIÓ, que es a lo que se viene: cuántas cosas se
                  movieron del plan, o que no se movió ninguna. */
               fila.changes.length + fila.structure.length > 0

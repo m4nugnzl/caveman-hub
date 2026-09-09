@@ -1,7 +1,7 @@
 /* ==========================================================================
    El chasis
    --------------------------------------------------------------------------
-   La cabecera, la barra lateral con la cartera, las pestañas del cliente y
+   La cabecera, la barra lateral, las pestañas del cliente y
    el cuerpo. Lo que no cambia al navegar.
 
    Parte de la hoja de la aplicación: se carga desde `index.css`, y EL ORDEN
@@ -174,14 +174,18 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    franjas de borde a borde, muebles con su cristal, su canto y su radio, como
    la barra de la portada:
 
-   · LA BARRA LATERAL, que hace una cosa: navegar. Cuatro franjas, y ninguna
-     cambia según dónde estés:
-       - la marca, arriba;
-       - las PUERTAS del nivel primario —Hoy · Clientes · Ingresos ·
-         Calendario—;
-       - LA CARTERA (`.sidebar-cartera`), la lista entera de clientes con un
-         punto en quien te espera. Es la única franja que desplaza;
-       - y el pie (`.sidebar-foot`), con ajustes siempre a la vista.
+   · LA BARRA LATERAL, que hace una cosa: navegar. Cuatro franjas, ninguna
+     cambia según dónde estés y NINGUNA CRECE con los datos:
+       - la marca y la búsqueda, arriba;
+       - las cuatro PUERTAS del nivel primario (`.sidebar-puertas`) —Inicio ·
+         Clientes · Cobros · Agenda—, todas con la misma voz;
+       - TU TALLER (`.sidebar-taller`), el material del oficio bajo su rótulo;
+       - y el pie (`.sidebar-foot`), con tu cuenta y tus ajustes dentro.
+
+     Son once filas y siempre las mismas. Aquí vivió también LA CARTERA, la
+     lista de clientes: probada en medio y probada al final, y en las dos
+     posiciones era lo mismo —diecisiete filas y la única franja sin techo—.
+     Salió el 8 de septiembre; el porqué largo, en `Coach/CoachLayout.jsx`.
 
      Aquí vivió un PANEL INTERCAMBIABLE: la barra no apilaba los dos planos,
      CAMBIABA de plano —fuera de un cliente el primario, dentro el cliente
@@ -263,12 +267,12 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      —marca y pie incluidos— no. */
   /* El mueble de cristal flotante: al dueño le gusta, y se queda. */
   .sidebar {
-    display: flex; flex-direction: column; gap: var(--s3);
+    display: flex; flex-direction: column; gap: var(--s2);
     width: 256px; flex-shrink: 0;
     position: sticky; top: var(--s3);
     height: calc(100dvh - var(--s3) * 2);
     margin: var(--s3) 0 var(--s3) var(--s3);
-    padding: var(--s3);
+    padding: var(--s3) var(--s2) var(--s2);
     background: var(--surface-glass);
     backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6);
     border: 1px solid var(--edge);
@@ -287,14 +291,17 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      dos objetos de la misma familia, alineados por arriba. Dentro, las DOS
      piezas útiles de la cabecera —buscar y la cuenta—, así el avatar sigue
      arriba a la derecha en todos los modos. Se alinea con la columna de
-     contenido (`--max-w` menos el aire lateral de `.layout`) para no ser una
-     franja: es un mueble del contenido, no del borde. */
+     contenido —el techo del panel menos el aire lateral de `.layout`— para no
+     ser una franja: es un mueble del contenido, no del borde. Iba con `--max-w`,
+     que es la medida de LECTURA del portal del cliente y no la del panel: la
+     barra se quedaba 240 px más estrecha que la pantalla más ancha que hay
+     debajo. */
   .shell-top {
     position: sticky; top: var(--s3); z-index: 80;
     display: flex; align-items: center; justify-content: space-between;
     gap: var(--s4);
     width: calc(100% - var(--s5) * 2);
-    max-width: calc(var(--max-w) - var(--s5) * 2);
+    max-width: calc(var(--max-w-trabajo) - var(--s5) * 2);
     margin: var(--s3) auto 0;
     min-height: 48px; padding: 0 var(--s3);
     background: var(--surface-glass);
@@ -314,10 +321,38 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      navegación. En el móvil no: allí la cabecera envuelve en varias filas y
      clavarla se comería media pantalla. Por debajo de la barra de
      herramientas (80) y de cualquier ventana; por encima de las tarjetas. */
-  .cliente-cab { position: sticky; top: 0; z-index: 60; }
+  .cliente-cab, .cartera-cab { position: sticky; top: 0; z-index: 60; }
 
-  /* Con la barra de herramientas encima, menos aire propio. */
-  .shell .layout { padding-top: var(--s6); }
+  /* Con la barra de herramientas encima, menos aire propio. Y sin tope
+     propio: quien cierra el ancho es la hoja, que en escritorio ya es un objeto
+     de tamaño fijo (arriba). Con los dos, la columna se quedaba 21 px por
+     dentro de la hoja en unas pantallas y en otras no —la cartera se saltaba el
+     tope con un `max-width: none` suyo— y ese era el escalón que hacía que
+     Clientes y el Taller no arrancaran en la misma vertical. Fuera del
+     escritorio no hay hoja, así que allí el tope de `.layout` sigue haciendo
+     falta y se queda. */
+  .shell .layout { padding-top: var(--s6); max-width: none; }
+
+  /* ── TODA PANTALLA CON CINTA OCUPA LA HOJA ENTERA ────────────────────────
+     La cinta de un cliente es hermana de `.layout`, así que llega al canto de
+     la hoja sola. La de la cartera y las cinco del Taller viven DENTRO de la
+     columna de contenido —son pantallas, no el chasis—, y para que su papel
+     llegue igual de canto a canto lo que se retira es el sangrado de la
+     columna. Sin esto la cinta sale flotando con un marco de hoja alrededor:
+     dos cabeceras con la misma anatomía y una de ellas descolocada.
+
+     Esto existía SOLO para `.cartera` y ese es el fallo que el dueño señaló:
+     «cada página empieza en un punto distinto, clientes está bien pero
+     protocolo y el resto no». Y era literal — Clientes arrancaba su cinta
+     pegada al canto de la hoja y las cinco del Taller 32 px más abajo y 22 px
+     más adentro, porque conservaban el sangrado de `.layout`. La misma
+     anatomía, dos sitios. Ahora es una sola regla para las dos familias.
+
+     En el móvil no: allí no hay marco que llenar y las dos son tarjetas sobre
+     el lienzo (ver `superficies.css` y `taller.css`). */
+  .shell-main:has(.cartera) > .layout,
+  .shell-main:has(.taller) > .layout,
+  .shell-main:has(.constructor) > .layout { padding: 0; }
 
   /* ── EL MARCO: el expediente también es un objeto ────────────────────────
      La barra lateral lleva su hueco de 12, su canto, su radio de 24 y su
@@ -345,6 +380,28 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
        leerse como dos objetos y se leen como un corte. El hueco entre ellos es
        el mismo que el que cada uno tiene con el borde de la ventana. */
     margin: var(--s3);
+
+    /* ── Y LA HOJA DEJA DE CRECER SOLA ────────────────────────────────────
+       Sin tope, la hoja se estiraba hasta la ventana mientras el contenido
+       paraba en su medida, y el sobrante quedaba DENTRO: a 2560 px eran 758 px
+       de hoja en blanco (el 33 %) en las pantallas buenas y 1106 (el 49 %) en
+       Ajustes. Un hueco dentro de un objeto se lee como que falta algo; el
+       mismo hueco fuera se lee como la mesa, que es una superficie con su
+       tono y su nombre (`--mesa`, ver tokens).
+
+       LA HOJA ES FIJA Y ES LA MISMA EN TODAS LAS PANTALLAS. Es decisión del
+       dueño y va antes que cualquier cuenta de píxeles: la hoja es el objeto
+       sobre el que se trabaja, y un objeto que cambia de tamaño al cambiar de
+       pantalla deja de leerse como el mismo objeto.
+
+       Se probó lo contrario —ceñir cada hoja a la medida que declaraba su
+       página, para que dentro no sobrara ni un píxel— y se desanduvo el mismo
+       día: quitaba el hueco de dentro a cambio de que Clientes y Protocolos
+       fueran dos papeles de distinto tamaño. El hueco que sobraba no era el
+       problema; el problema era que el CONTENIDO no empezaba en el mismo sitio
+       en todas las pantallas, y eso se arregla abajo (el sangrado de `.layout`)
+       y en `superficies.css` (la medida del cuerpo), no aquí. */
+    max-width: calc(var(--max-w-trabajo) + var(--s5) * 2);
     background:
       radial-gradient(46% 30% at 82% -4%, var(--brasa-aire), transparent 70%),
       radial-gradient(40% 26% at 6% -4%, var(--acero-aire), transparent 70%),
@@ -353,6 +410,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     border: 1px solid var(--edge);
     border-radius: var(--r-xl);
   }
+
 }
 
 /* ── La miga: dónde estás, retenido por la barra pegajosa ──────────────────
@@ -374,77 +432,56 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .crumb-sep { color: var(--text-tertiary); flex-shrink: 0; font-weight: 500; }
 
 .sidebar-brand {
-  display: flex; align-items: center;
-  padding: var(--s1) var(--s2) 0;
+  display: flex; align-items: center; flex-shrink: 0;
+  padding: var(--s1) var(--s2) var(--s2);
 }
 
-/* ── La cartera: la única franja que desplaza ──────────────────────────────
-   La marca, las cuatro puertas y el pie se quedan quietos por muchos clientes
-   que haya; lo que rueda es esto. `min-height: 0` es lo que se lo permite
-   dentro de un flex: sin él la franja crece con su contenido y quien tiene
-   cuarenta clientes empuja los ajustes fuera de la barra. */
-.sidebar-cartera {
-  flex: 1; min-height: 0; overflow-y: auto;
-  display: flex; flex-direction: column; gap: var(--s1);
-  animation: sidebar-cartera-in var(--fast) var(--ease) both;
-}
-@keyframes sidebar-cartera-in {
-  from { opacity: 0; transform: translateY(4px); }
-}
+/* Buscar es un CAMPO —ahí se escribe— y sin canto se leía como una franja más
+   de la barra. */
+.sidebar-buscar { flex-shrink: 0; padding: 0 0 var(--s1); }
+.sidebar-buscar .omnibox { height: 32px; background: var(--surface-sunken); border-color: var(--edge); }
+.sidebar-buscar .omnibox:hover { border-color: var(--hairline-strong); }
+
+/* ══ AQUÍ VIVIÓ `.sidebar-cartera` ════════════════════════════════════════
+   La franja de clientes: la única que crecía, la única que rodaba y por tanto
+   la que llevaba EL MUELLE de la barra (`flex: 1 1 auto`). Con ella se van sus
+   dos reglas de scroll y el rótulo fijo que la encabezaba.
+
+   El hueco sobrante vuelve al pie (`margin-top: auto` en `.sidebar-foot`), que
+   es donde estaba antes de todo esto. Y ahora es verdad de una vez: sin lista,
+   NADA de la barra crece — nueve destinos y tu cuenta, midan lo que midan los
+   datos de debajo. */
 
 /* El rótulo de la franja, en troquelada: nombra la tanda que viene debajo sin
    competir con las puertas de arriba, que es exactamente el papel que los
-   tokens le dan a la versalita. Su cifra, en voz baja y tabular, como todas. */
+   tokens le dan a la versalita. Y NOMBRA, nada más: llevó una cifra y un
+   enlace, y las dos cosas se han ido a la fila de «Clientes», que es la
+   puerta de verdad. */
 .sidebar-group {
   display: flex; align-items: center; gap: var(--s2);
-  padding: var(--s2) var(--s2) var(--s1);
+  padding: var(--s3) var(--s2) var(--s1);
   font-size: var(--fs-xs); font-weight: 700;
   letter-spacing: 0;
   color: var(--text-tertiary);
 }
-.sidebar-group-n { font-variant-numeric: tabular-nums; font-weight: 600; opacity: 0.75; }
-
-/* ── Una persona de la cartera ─────────────────────────────────────────────
-   Vestida de destino —misma caja, misma marca de brasa al estar abierta— pero
-   hablando MÁS BAJO: peso normal en vez de seminegrita, y un pelo menos de
-   alto. Son quince y las puertas cuatro; sin esa diferencia la barra se lee
-   como una lista de diecinueve cosas todas igual de importantes.
-
-   Sin icono a propósito. Quince avatares seguidos son quince manchas de color
-   compitiendo entre sí, y lo que hay que leer aquí es un nombre. */
-.side-client {
-  padding-top: 6px; padding-bottom: 6px;
-  font-weight: 500;
+/* El pie: quién eres, anclado abajo. Lleva filete —el único de la barra— por
+   lo mismo que lo lleva en Coachway: no separa dos zonas de navegación, separa
+   la navegación de la cuenta, que es otra cosa. Aquí se leyó durante meses
+   «sin filete: las zonas las separa el ESPACIO», y era verdad hasta que una
+   hoja posterior le puso uno sin venir a corregir este comentario. */
+/* El muelle lo lleva la cartera, que es la franja que crece. Aquí queda por
+   el caso en que no hay cartera —un entrenador que acaba de entrar— y esa
+   franja no se pinta: sin nadie que se estire, el pie caería a media barra.
+   Con cartera no sobra hueco y este margen no hace nada. */
+.sidebar-foot {
+  margin-top: auto; flex-shrink: 0; gap: 0;
+  padding-top: var(--s1); border-top: 1px solid var(--hairline);
 }
-.side-client-name {
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* El punto de «ha entregado y espera respuesta»: la misma señal que la chapa
-   de «Hoy», aunque no la misma cuenta — la chapa suma la bandeja entera y esto
-   marca solo las tareas `awaited` (ver `domain/portfolio.js`).
-
-   Va en el ACENTO y no en el ámbar. Lo que espera tu respuesta es una tarea, no
-   una avería: el acento es lo tocable y dónde estás, y esto es las dos cosas.
-   El ámbar se queda para lo que juzga un dato, que es lo único que debería
-   poder pararte. */
-.side-dot {
-  margin-left: auto; flex-shrink: 0;
-  width: 6px; height: 6px; border-radius: var(--r-pill);
-  background: var(--accent);
-}
-
-/* El pie: la puerta de ajustes, anclada abajo. Sin filete: dentro de un panel
-   de cristal, las zonas las separa el ESPACIO — cada línea de más convierte la
-   barra en una rejilla.
-
-   `margin-top: auto` y no la franja de arriba estirando: con clientes es la
-   cartera la que ocupa el hueco, pero un entrenador recién registrado no tiene
-   cartera y sin esto los ajustes le quedaban pegados a las cuatro puertas, a
-   media barra, con medio metro de cristal vacío debajo. */
-.sidebar-foot { margin-top: auto; padding-top: var(--s2); }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+/* Las cuatro puertas no ceden: lo que se aprieta cuando la ventana es baja es
+   la cartera, que para eso rueda. */
+.sidebar-puertas { flex-shrink: 0; }
 
 /* ── Un destino de la barra ────────────────────────────────────────────────
    La marca de «estás aquí» es LA BRASA: una regleta de tres milímetros en el
@@ -455,7 +492,7 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .side-link {
   position: relative;
   display: flex; align-items: center; gap: var(--s2);
-  padding: 8px 10px 8px 14px; border-radius: var(--r-md);
+  padding: 7px 10px 7px 14px; border-radius: var(--r-md);
   font-size: var(--fs-sm); font-weight: 600;
   color: var(--text-secondary); text-decoration: none;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -473,6 +510,13 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   background: var(--accent);
   animation: marca-entra var(--fast) both;
 }
+
+/* Aquí vivieron LAS FILAS DE LA CARTERA: `.side-client`, su nombre recortado
+   y `.side-dot`, el punto de «te espera» en la canal del icono. La lista salió
+   de la barra —el porqué largo, en la lápida de `CoachLayout`— y con ella se
+   van. El punto no se echa de menos: lo que espera respuesta lo cuenta la chapa
+   de «Inicio», con la MISMA cuenta del dominio y con el porqué al lado, que es
+   lo que un punto nunca pudo decir. */
 
 /* ── El recuento de una puerta ─────────────────────────────────────────────
    «Hoy» lleva la bandeja —lo que espera respuesta, la MISMA cuenta que calcula
@@ -573,18 +617,55 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 
    Lo de dentro (`.cliente-cab-in`) se centra en la misma columna que el
    trabajo, así que la cara del cliente cae a plomo sobre la primera tarjeta. */
-.cliente-cab {
+/* ── La MISMA cinta para la cartera ────────────────────────────────────────
+   `/clientes` tenía su propia cabecera: una banda dentro de la columna de
+   contenido, con su sangrado, su título en otro peso y las pestañas en el
+   centro. Al saltar de la cartera a un cliente, el titular cambiaba de sitio,
+   de tamaño y de peso — «están en distinta posición que resumen» (dueño,
+   7 sep), y era literal: el nombre de la pantalla caía dos sangrados más
+   adentro que el nombre de la persona.
+
+   Las dos son la misma pieza: una cinta al canto de la hoja con la identidad
+   arriba y el raíl posado sobre el filete. Así que comparten las reglas y no
+   se parecen «bastante»: son la misma. Lo único propio de cada una es lo que
+   ponen dentro — allí una persona con su anatomía, aquí el nombre de la
+   pantalla con sus tramos. */
+.cliente-cab,
+.cartera-cab {
   background: var(--hoja);
   border-bottom: 1px solid var(--edge);
   /* Las esquinas de arriba SON las de la hoja: sin ellas, el papel de la
      cabecera sobresaldría del radio del expediente en las dos puntas. */
   border-radius: var(--r-xl) var(--r-xl) 0 0;
 }
-.cliente-cab-in {
-  max-width: var(--max-w-trabajo); margin: 0 auto;
+.cliente-cab-in,
+.cartera-cab-in {
+  margin: 0 auto;
   padding: 0 var(--s5);
   display: flex; flex-direction: column;
 }
+/* ── Y CADA CINTA TOMA LA MEDIDA DE SU PÁGINA ──────────────────────────────
+   Las dos compartían `--max-w-trabajo`, y eso valía mientras todas las páginas
+   midieran lo mismo. Desde que una lista mide lo que mide una lista, no: el
+   titular «Ejercicios» se quedaba 190 px a la izquierda del borde de su propia
+   tabla. Dos bordes izquierdos en la misma pantalla es de las cosas que se ven
+   sin saber nombrarlas.
+
+   La de un cliente es la cabecera de un PANEL (Resumen, Entreno, Dieta,
+   Revisiones son varios carriles) y conserva el techo. La de una lista mide
+   como la lista. Ninguna de las dos elige por importancia: eligen por la forma
+   de lo que llevan debajo. */
+/* Ninguna de las dos cintas lleva medida propia: la pone la hoja. */
+.cliente-cab-in { max-width: none; }
+/* La de una lista NO lleva medida propia: la pone su cuerpo. Llevó
+   `--max-w-mesa` mientras todas las listas medían igual, y en cuanto una dejó
+   de medirlo —el banco de dos planos de Ejercicios, y luego el de Protocolos—
+   el titular se quedaba hasta 180 px a la izquierda del canto de su propia
+   tabla. Dos bordes izquierdos en la misma pantalla es de las cosas que se ven
+   sin saber nombrarlas, y con una excepción por pantalla vuelven cada vez que
+   se añade una. Ahora la cinta llega al canto de la hoja y quien decide dónde
+   empieza la tinta es el sangrado del cuerpo, que es el mismo para todas. */
+.cartera-cab-in { max-width: none; }
 /* Las cinco pestañas comparten `--max-w-trabajo`, y la cabecera con ellas:
    sin excepciones por página, el nombre no baila al cambiar de pestaña.
    (Aquí vivió unas horas una excepción para el Resumen — un malentendido de
@@ -592,9 +673,10 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* La línea de identidad: la cara, el nombre y la anatomía a la izquierda; el
    estado y los dos verbos a la derecha. Sin los destinos en medio, la línea
    respira y cada extremo dice lo suyo. */
-.cliente-cab-linea {
+.cliente-cab-linea,
+.cartera-cab-linea {
   display: flex; align-items: center; gap: var(--s3) var(--s4);
-  min-height: 64px; padding-top: var(--s2);
+  min-height: var(--cinta-linea); padding-top: var(--s2);
 }
 /* `flex-shrink: 1` frente al 8 del carril: cuando la banda se queda corta, el
    que cede es el carril —que sabe rodar— y no el nombre, que solo sabe
@@ -615,9 +697,26 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    destinos en su propio raíl, la línea de identidad es la portada del
    expediente y el nombre ES su titular — 18 px (el cuerpo de la banda de
    60 px) se quedaba corto para el sitio que ahora tiene. */
-.cliente-cab-nombre {
-  font-family: var(--font-ancha); font-size: var(--fs-lg); font-weight: 620;
-  letter-spacing: -0.02em; line-height: 1.2;
+/* El nombre de la persona y el nombre de la pantalla hablan igual: es el mismo
+   hueco de la misma cinta, y el titular no puede engordar al volver a la
+   lista. (La cartera venía en 740 y con otro interletrado — dos tipografías
+   para el mismo papel.) */
+.cliente-cab-nombre,
+/* ── EL NOMBRE DE LA PANTALLA ES UN RÓTULO, NO UNA PORTADA ─────────────────
+   Iba en `--font-ancha` (Archivo Expanded, wdth 125), que el token declara como
+   «la voz de las cifras y de la PORTADA de cada pantalla». Y ahí está el error
+   de encuadre: «Clientes» no es una portada, es la etiqueta de dónde estás.
+   Una display estirada para una palabra de ocho letras, en una herramienta que
+   se abre cincuenta veces al día, se lee como un cartel puesto encima del
+   trabajo — que fue exactamente la palabra del dueño: chirría.
+
+   La ancha se queda donde sí es la voz: las cifras y la portada del producto.
+   Aquí manda la misma Archivo del resto de la interfaz, un punto más pequeña y
+   con el peso justo para presidir sin levantar la voz. La escala de Coachway
+   para lo mismo es 20/600; ésta es 20/650 porque Archivo pesa menos óptica. */
+.cartera-cab-titulo {
+  font-size: 1.25rem; font-weight: 650;
+  letter-spacing: -0.015em; line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cliente-cab-selector { display: none; }
@@ -638,12 +737,14 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    vinieron a desatar. (Con `.cliente-cab-meta >` delante a propósito: sin él,
    la regla del punto de arriba gana por especificidad y el punto se queda.) */
 .cliente-cab-meta > .cliente-cab-anatomia + span::before { content: none; }
-.cliente-cab-acciones {
+.cliente-cab-acciones,
+.cartera-cab-acciones {
   margin-left: auto; display: flex; align-items: center; gap: var(--s2); flex-shrink: 0;
 }
 /* El verbo y su signo, en la misma línea: `.cab-accion` es un botón de texto
    sin caja, y sin esto el icono se le sienta encima al rótulo. */
-.cliente-cab-acciones > .cab-accion { display: inline-flex; align-items: center; gap: 6px; }
+.cliente-cab-acciones > .cab-accion,
+.cartera-cab-acciones > .cab-accion { display: inline-flex; align-items: center; gap: 6px; }
 /* ── El raíl de destinos: la segunda línea, a ras del filete ───────────────
    Los destinos vivieron DENTRO de la línea de identidad, colgados entre el
    nombre y las acciones. Flotaban a media banda, lejos del filete, sin
@@ -660,6 +761,36 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 /* Aire por debajo hasta el filete: la raya de la marca (2 px, en bottom: 0)
    queda pegada al borde de la cabecera, no flotando bajo la palabra. */
 .cliente-cab-tabs .tab { padding: 3px 0 12px; }
+
+/* ── LA CARTERA Y EL TALLER: EL RAÍL VA DENTRO DE LA LÍNEA ─────────────────
+   Los TRAMOS no son destinos: son qué mitad de esta misma lista estás mirando.
+   Los destinos de un cliente son cinco y se van a otra pantalla, así que se
+   posan en su propia fila; dos o cuatro tramos caben al lado del nombre — y
+   ahí es donde tienen que estar, porque la línea del titular estaba vacía.
+   Medido en `/alimentos` a 1920: «Librería» a la izquierda, «Nuevo alimento» a
+   1.400 px, y nada en medio; debajo, una segunda banda de 40 px para dos
+   palabras. Una cabecera con un agujero y un apéndice.
+
+   Lo que NO cambia es la anatomía del raíl, que es lo que lo hace legible como
+   navegación: sigue posado sobre el filete de la cabecera con la marca azul
+   mordiéndolo. Por eso `align-self: stretch` —el raíl mide el alto de la línea
+   y su `bottom: 0` cae en el borde de la cinta— y no un centrado vertical, que
+   dejaría el subrayado flotando a media banda. */
+.cartera-cab-tabs.tabs {
+  /* El hueco contra el titular es el de la línea (16) más éste: 28 px, que es
+     lo que hace falta para que «Ejercicios» no se lea como parte del nombre de
+     la pantalla. Entre pestañas, 22. */
+  margin: 0 0 0 var(--s3); width: auto; max-width: 100%; align-self: stretch;
+  gap: 22px; min-width: 0;
+  /* Cuando la línea se queda corta, el que cede es el raíl —que sabe rodar— y
+     no el nombre, que solo sabe recortarse con puntos suspensivos. La misma
+     regla que ya rige `.cliente-cab-quien`. */
+  flex-shrink: 8;
+}
+/* Sin relleno propio: el alto lo pone la línea y la etiqueta se centra en él.
+   Con el `padding: 3px 0 12px` de la otra cinta, el rótulo quedaba 9 px por
+   encima del centro del titular que tiene al lado. */
+.cartera-cab-tabs .tab { padding: 0; }
 
 /* El orden de retirada de la banda va al FINAL del archivo, después de que
    cada pieza esté definida: aquí arriba un `display: none` lo pisaba luego el
@@ -685,8 +816,14 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .cliente-cab-meta { grid-column: 1 / -1; }
   /* Aquí la línea deja de ser línea: sin nombre ni carril, lo que queda —el
      selector, la línea de estado y las dos acciones— no cabe en una. */
-  .cliente-cab-in { padding: var(--s3) var(--s4); }
-  .cliente-cab-linea { flex-wrap: wrap; min-height: 0; padding-top: 0; }
+  .cliente-cab-in, .cartera-cab-in { padding: var(--s3) var(--s4); }
+  .cliente-cab-linea, .cartera-cab-linea { flex-wrap: wrap; min-height: 0; padding-top: 0; }
+  /* Sin sitio para ir al lado del nombre, el raíl de tramos baja a su propia
+     fila —la línea envuelve— y ahí vuelve a querer el ancho entero para poder
+     rodar, más el aire de siempre bajo la palabra: aquí la cinta sí tiene
+     relleno abajo, así que su `bottom: 0` no es el filete. */
+  .cartera-cab-tabs.tabs { width: 100%; margin-left: 0; }
+  .cartera-cab-tabs .tab { padding: 3px 0 10px; }
 }
 
 /* ── La miga: de dónde cuelga esta pantalla, y sus hermanas ────────────────
@@ -711,14 +848,6 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 }
 .migas-link:hover { background: var(--fill-subtle); color: var(--text); }
 .migas-link.active { color: var(--text); background: var(--fill); }
-
-/* La semana por la que va cada persona, al lado de su nombre en la barra. */
-.side-client-week {
-  margin-left: auto; flex-shrink: 0;
-  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
-  letter-spacing: 0.04em; color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
 
 /* Aquí hubo una regla que escondía los iconos de las pestañas entre 1024 y
    1280 px. Hacía falta cuando las secciones de un cliente eran SEIS: con icono
@@ -803,31 +932,55 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    real era una columna de ruido y el dueño la retiró. La barra enseña UNA
    lista (la cartera, ordenada por urgencia) y los porqués son de Inicio. */
 
-/* ── La franja rueda sin enseñar la barra ──────────────────────────────────
-   La barra de scroll del sistema, pegada al canto de la tinta, convertía el
-   mueble en un panel de administración. La lista sigue rodando con la rueda y
-   el gesto; que hay más abajo lo dice el propio corte de la última fila. */
-.sidebar-cartera { scrollbar-width: none; }
-.sidebar-cartera::-webkit-scrollbar { display: none; }
+/* ══ AQUÍ VIVIERON DOS COSAS QUE HACÍAN LA BARRA DESIGUAL ══════════════════
 
-/* ── El rótulo de grupo que además es puerta ───────────────────────────────
-   «Cartera» lleva a la tabla completa (`/clientes`), que sigue existiendo:
-   la barra enseña quién y la tabla enseña cuánto. Vestido como los demás
-   rótulos; que es puerta lo dice la tinta al pasar, como todo lo pulsable. */
-a.sidebar-group { text-decoration: none; transition: color var(--fast); }
-a.sidebar-group:hover { color: var(--text-secondary); }
+   · Un rótulo que además era PUERTA (`a.sidebar-group`): «Cartera» llevaba a
+     `/clientes`. Una versalita terciaria no se lee como pulsable, así que el
+     único sitio donde vivía un destino del nivel primario era invisible.
+     Ahora «Clientes» tiene su fila arriba, con la cifra de la cartera; y el
+     rótulo se fue del todo con la lista que nombraba.
 
-/* ── Las utilidades: Agenda y Cobros, en voz baja ──────────────────────────
-   No son trabajo de cada minuto: hablan en terciaria como la puerta del pie
-   y recuperan la voz al pasar o al estar dentro. */
-.sidebar-utilidades { padding-top: var(--s2); }
-.sidebar-utilidades .side-link:not(.active) { color: var(--text-tertiary); }
+   · Una franja de UTILIDADES (`.sidebar-utilidades`): Cobros y Agenda en
+     tinta terciaria, pegadas al pie y debajo del taller. Son dos de las
+     cuatro puertas del nivel primario, y la barra las pintaba con menos peso
+     que «Alimentos». Han subido con las otras dos y hablan como ellas; que se
+     abren como capa y no como destino es cosa del gesto, no de la voz.
+
+   Con las dos fuera, la barra tiene UNA sola gramática —enlace con icono,
+   rótulo para agrupar— usada de arriba abajo. Que es lo que hacen las barras
+   que se leen de un vistazo. El muelle que llevaban las utilidades volvió al
+   pie cuando la cartera salió de la barra. */
+
+/* ══ TU TALLER: el segundo plano de la barra ═══════════════════════════════
+   Arriba están los cuatro sitios donde se trabaja; aquí, el material del
+   oficio. Lo que separa los dos planos es el RÓTULO y no un filete: la barra
+   ya tiene un corte (el del pie) y
+   un tercero la convertiría en una lista de cajones.
+
+   Las cinco puertas hablan con la voz de las de arriba —tinta secundaria,
+   icono terciario— porque son destinos de pleno derecho, no utilidades: se
+   entra a preparar cosas, no se asoma uno. */
+.sidebar-taller { padding-top: var(--s1); flex-shrink: 0; }
+/* El rótulo se pegaría a la última puerta del nivel primario: el aire lo pone
+   él, que es quien empieza la tanda. La cartera hace lo mismo con el suyo. */
+.sidebar-taller .sidebar-group { padding-top: var(--s3); }
+
+/* Aquí vivió `.side-mas`, el «Ver los 26» con que remataba la cartera cuando
+   la barra solo enseñaba los ocho primeros. La franja es ahora la última y
+   sale entera, así que no hay resto que enseñar — y la puerta a `/clientes`,
+   que es lo que esa fila era en realidad, está arriba con las demás. */
 
 /* Desde la tanda 2 son BOTONES (abren su capa, no viajan): el traje de
    `.side-link` no contaba con el uniforme de fábrica de un botón. */
 button.side-link {
   font-family: inherit; background: none; border: 0;
   width: 100%; text-align: left; cursor: pointer;
+  /* Y la INTERLÍNEA, que es la que faltaba: un `button` la trae en `normal`
+     del navegador y las demás filas la heredan del cuerpo. Cobros y Agenda
+     medían 29 px de alto donde Protocolos mide 35 — seis píxeles que nadie
+     mide y todo el mundo nota, porque son las dos únicas filas de la barra
+     que no caen en la misma retícula. */
+  line-height: inherit;
 }
 
 /* ── Dentro del perfil, la cabecera se transforma: salto de página ─────────

@@ -38,6 +38,7 @@
  * de modo que se pueden añadir módulos nuevos sin migrar nada.
  */
 
+import { clampInt } from '@/lib/num';
 import { newId } from '@/lib/ids';
 
 // ── Los módulos ────────────────────────────────────────────────────────────
@@ -267,6 +268,173 @@ export const defaultCheckin = () => ({ perimeters: 'optional', folds: 'optional'
 export const WEIGH_INS_MAX = 7;
 
 export const defaultWeighIns = () => 0;
+
+// ── Cuándo se avisa de ESTA persona ────────────────────────────────────────
+
+/**
+ * Los umbrales de alerta, por cliente.
+ *
+ * ══ Por qué la vara deja de ser una para todos ══════════════════════════════
+ *
+ * Los umbrales de la cartera («7 días sin entrenar», «10 sin pesarse») estaban
+ * escritos una vez en `domain/portfolio.js` para toda la cartera. Con el
+ * cliente de dos sesiones semanales, la de siete días salta en cada semana
+ * normal; con el de lunes-a-sábado, siete días de silencio ya son muchos. Una
+ * lista que avisa siempre del mismo no avisa: enseña a ignorar el aviso.
+ *
+ * `0` no es «avisar a los cero días»: es **la vara general** — los umbrales de
+ * serie de `THRESHOLDS`, que siguen siendo el comportamiento de siempre. Es la
+ * misma gramática que `weighIns`: lo no configurado no cambia nada.
+ *
+ * Vive en el protocolo porque ES la misma decisión que el resto de él —qué le
+ * pides y cuándo te importa— y en la plantilla NO se compara ni se aplica
+ * (`NOT_COMPARED_KEYS` en `lib/protocolTemplate.js`): la vara es de la persona,
+ * no de tu forma de trabajar en general.
+ */
+// ── Cuándo se le pide el check-in ──────────────────────────────────────────
+
+/**
+ * EL HORARIO DE LA SEMANA: lo que Coachway junta en «check-in form & schedule»
+ * y aquí no existía en absoluto.
+ *
+ * ══ Por qué esto tenía que estar en el protocolo ═══════════════════════════
+ *
+ * El check-in era semanal **por convención del código**: no había ni día, ni
+ * frecuencia, ni recordatorio en ninguna parte. O sea que la aplicación decidía
+ * por el entrenador algo que es suyo, y encima no lo decía.
+ *
+ *   · `day` — qué día se le pide (1 lunes … 7 domingo).
+ *   · `every` — cada cuántas semanas. `1` es todas.
+ *   · `remindAfter` — a los cuántos días se le recuerda si no lo ha entregado.
+ *     **`0` es «no se lo recuerdes»**, no «cero días»: la misma gramática que
+ *     los pesajes y las varas de aviso.
+ *
+ * ── Y vive AQUÍ, dentro del protocolo, a propósito ─────────────────────────
+ * Porque tiene que llegarle al cliente: el recordatorio se calcula en su portal
+ * y el portal solo lee su propia fila. Cualquier clave que no pase por
+ * `clientProtocol` desaparece en el primer guardado, así que el saneado entra en
+ * el mismo sitio que el valor por defecto.
+ *
+ * Los valores de serie son exactamente lo que la aplicación hacía antes de que
+ * esto se pudiera elegir, así que quien no toque nada no puede notarlo.
+ */
+/* `plural` va escrito y no calculado: en español los cinco primeros son
+   invariables («los lunes») y los dos del fin de semana no («los sábados»).
+   Una regla de sufijo acertaría cinco de siete, que es peor que una lista. */
+export const DIAS = [
+  { id: 1, label: 'Lunes', corto: 'lunes', plural: 'lunes' },
+  { id: 2, label: 'Martes', corto: 'martes', plural: 'martes' },
+  { id: 3, label: 'Miércoles', corto: 'miércoles', plural: 'miércoles' },
+  { id: 4, label: 'Jueves', corto: 'jueves', plural: 'jueves' },
+  { id: 5, label: 'Viernes', corto: 'viernes', plural: 'viernes' },
+  { id: 6, label: 'Sábado', corto: 'sábado', plural: 'sábados' },
+  { id: 7, label: 'Domingo', corto: 'domingo', plural: 'domingos' },
+];
+
+export const EVERY_MAX = 8;
+export const REMIND_MAX = 6;
+
+export const defaultSchedule = () => ({ day: 1, every: 1, remindAfter: 0 });
+
+export const sanitizeSchedule = (raw) => ({
+  day: clampInt(raw?.day, 1, 7, 1),
+  every: clampInt(raw?.every, 1, EVERY_MAX, 1),
+  remindAfter: clampInt(raw?.remindAfter, 0, REMIND_MAX, 0),
+});
+
+/** El día en que se pide, dicho como se lee. */
+export const diaDe = (schedule) =>
+  DIAS.find((d) => d.id === sanitizeSchedule(schedule).day)?.corto || 'lunes';
+
+/** Y en plural, para «se lo entregas los martes». */
+export const diasDe = (schedule) =>
+  DIAS.find((d) => d.id === sanitizeSchedule(schedule).day)?.plural || 'lunes';
+
+/** ¿Se le recuerda si no lo entrega? `0` es «no lo recuerdes». */
+export const recuerdaA = (protocol) => sanitizeSchedule(protocol?.schedule).remindAfter;
+
+export const ALERT_DAYS = [
+  { id: 'training', label: 'Sin entrenar', hint: 'Días sin registrar un entreno antes de avisarte.' },
+  { id: 'weight', label: 'Sin pesarse', hint: 'Días sin un pesaje antes de avisarte.' },
+];
+
+export const ALERT_DAYS_MAX = 60;
+
+export const defaultAlertDays = () => ({ training: 0, weight: 0 });
+
+/** Enteros de 0 a 60; cualquier otra cosa —o nada— es «la vara general». */
+const sanitizeAlertDays = (raw) => {
+  const out = {};
+  for (const { id } of ALERT_DAYS) {
+    const n = Number(raw?.[id]);
+    out[id] = Number.isFinite(n) && n > 0 ? Math.min(ALERT_DAYS_MAX, Math.round(n)) : 0;
+  }
+  return out;
+};
+
+
+// ── Qué NO ve en su app ────────────────────────────────────────────────────
+
+/**
+ * Las cifras que se le pueden ocultar A ESTA PERSONA en su portal.
+ *
+ * ══ Por qué un producto de medir tiene que saber callarse ═══════════════════
+ *
+ * Hay clientes a los que la báscula les hace daño. No es un caso raro ni
+ * delicado de nombrar: quien viene de años de dietas, quien está saliendo de un
+ * trastorno de la conducta alimentaria, o simplemente quien se pesa cuatro veces
+ * al día y decide cómo va a estar el resto de la jornada según lo que ponga. Con
+ * esas personas se trabaja igual —se pesan, se les cuenta la comida, se ajusta—
+ * pero **el número no vuelve a ellas**: lo lee el entrenador y le cuenta lo que
+ * hay que contar.
+ *
+ * Hasta ahora la aplicación no podía hacer eso. El peso y las kcal salían en su
+ * portada, en su check-in, en sus fotos y en su dieta, así que el entrenador que
+ * lleva a esa persona tenía dos salidas: sacarla de la aplicación o pedirle que
+ * no mire. Las dos son peores que un interruptor.
+ *
+ * ── Es de la PERSONA, no de tu forma de trabajar ────────────────────────────
+ * Como los servicios y como la vara de las alertas: se decide por cliente y
+ * «poner al día» no lo toca (`NOT_COMPARED_KEYS` en `lib/protocolTemplate.js`).
+ * Empujar esto desde una plantilla sería devolverle las cifras a quien se las
+ * acabas de quitar, y esa es la peor consecuencia que puede tener un botón.
+ *
+ * ── Lo que NO hace ──────────────────────────────────────────────────────────
+ * Ocultar no es dejar de medir. El cliente sigue anotando sus pesajes si su
+ * entrenador se los pide —el gesto es suyo y la báscula es suya—, sus registros
+ * siguen entrando en el historial, y la revisión de la semana sigue cerrándose
+ * con el promedio: lo que desaparece es **lo que la aplicación le devuelve**.
+ * Tampoco es un candado: quien tiene su peso en el móvil lo sabe. Es dejar de
+ * ponérselo delante veinte veces al día, que es de lo que se trata.
+ */
+export const HIDDEN_INFO = [
+  {
+    id: 'weight',
+    area: 'body',
+    label: 'Ocultarle el peso',
+    hint: 'Sigue anotando sus pesajes si se los pides, pero su app no le devuelve ninguna cifra: ni la curva, ni el promedio, ni la variación.',
+  },
+  {
+    id: 'nutrition',
+    area: 'nutrition',
+    label: 'Ocultarle las calorías y los macros',
+    hint: 'Ve su menú entero —qué come y cuánto— sin una sola cifra de kcal ni de macros.',
+  },
+];
+
+const HIDDEN_IDS = HIDDEN_INFO.map((h) => h.id);
+
+/** Nada oculto. Lo de siempre: quien no toque esto no puede notar el cambio. */
+export const defaultHidden = () => ({ weight: false, nutrition: false });
+
+/* Solo el `true` literal oculta. Una clave a medio escribir —o traída de una
+   versión futura— no puede dejar a un cliente sin sus cifras por accidente: el
+   silencio se elige, no se hereda de un valor raro. */
+const sanitizeHidden = (raw) => {
+  const out = {};
+  for (const id of HIDDEN_IDS) out[id] = raw?.[id] === true;
+  return out;
+};
 
 /** Un entero de 0 a 7. Cualquier otra cosa —o nada— es «no lo pido». */
 const sanitizeWeighIns = (raw) => {
@@ -637,44 +805,110 @@ export const defaultProtocol = () => ({
   checkin: defaultCheckin(),
   /* Nadie los pide hasta que alguien los pida. Ver `WEIGH_INS_MAX`. */
   weighIns: defaultWeighIns(),
+  /*
+    Las fotos de progreso, ENCENDIDAS. Es la excepción que ya tienen los
+    servicios y por el mismo motivo: es lo que la aplicación hacía antes de que
+    esto se pudiera elegir —el asistente de la revisión siempre enseñaba su paso
+    de fotos—, y apagárselas a todo el mundo no puede ser lo que pasa cuando
+    nadie ha dicho nada. Por eso se apaga solo con un `false` explícito.
+  */
+  askPhotos: true,
+  /* La vara general, hasta que se afine. Ver `ALERT_DAYS`. */
+  alertDays: defaultAlertDays(),
+  /* Todo a la vista, que es lo que hacía la aplicación antes de que esto se
+     pudiera elegir. Ver `HIDDEN_INFO`. */
+  hidden: defaultHidden(),
+  /* El lunes, todas las semanas y sin recordatorio: la convención de siempre.
+     Ver `defaultSchedule`. */
+  schedule: defaultSchedule(),
 });
 
 // ── Saneado ────────────────────────────────────────────────────────────────
 
 const isScale = (q) => q?.kind === 'scale';
 
+/**
+ * Las preguntas propias del entrenador, saneadas.
+ *
+ * ══ UNA PROPIA PUEDE PISAR A UNA DEL CATÁLOGO, Y ESO ES LO QUE HACE ════════
+ * ══ QUE EL CATÁLOGO SEA UNA ESTANTERÍA Y NO UNA LISTA DE INTERRUPTORES ═════
+ *
+ * Hasta aquí, un id que chocara con el catálogo se caía: `questionById`
+ * resolvía primero el catálogo, así que la propia quedaba inalcanzable y el
+ * entrenador veía la de serie en su sitio sin entender por qué. La salida era
+ * tirarla.
+ *
+ * Pero eso es justo lo que convertía al catálogo en un cajón cerrado: podías
+ * ENCENDER «Adherencia a la dieta» y no podías tocarla —ni el enunciado, ni el
+ * rango, ni si menos es mejor—. El dueño lo dijo con sus palabras: «son opciones
+ * semifijas, no puedes hacer tú una».
+ *
+ * Ahora una entrada de `custom` con un id del catálogo no es un choque: es EL
+ * MISMO objeto, retocado por su entrenador. `questionById` la resuelve antes que
+ * al catálogo (ver más abajo, que es la otra mitad del cambio) y la de serie
+ * queda de respaldo para quien no la haya tocado.
+ *
+ * ── Y por qué conserva el id ──────────────────────────────────────────────
+ * Porque el id ES la serie. Las respuestas guardadas están indexadas por él, y
+ * `color` sale del catálogo para que la línea de la analítica siga siendo la
+ * misma línea. Renombrar «Adherencia a la dieta» a «Cómo has comido» no puede
+ * partir en dos la gráfica de nadie.
+ *
+ * ── El tope solo cuenta las de verdad propias ─────────────────────────────
+ * `MAX_CUSTOM` acota lo que el entrenador INVENTA, que es lo que puede crecer
+ * sin fin. Los retoques del catálogo están acotados por el catálogo mismo, así
+ * que gastar el cupo con ellos dejaría sin poder crear nada a quien solo haya
+ * ajustado los rangos de las que ya venían.
+ */
 const sanitizeCustom = (raw) => {
   if (!Array.isArray(raw)) return [];
   const out = [];
+  let propias = 0;
+
   for (const item of raw) {
     if (!item || typeof item !== 'object') continue;
     const id = String(item.id || '');
     const label = String(item.label || '').trim().slice(0, 60);
-    // Un id que choque con una pregunta de catálogo rompería `questionById`, que
-    // resuelve primero el catálogo: la propia quedaría inalcanzable y el
-    // entrenador vería la de serie en su sitio sin entender por qué. Se
-    // comprueban LOS DOS catálogos —sesión y check-in—: con uno solo, una
-    // pregunta propia llamada `hunger` sería invisible en el cuestionario.
-    if (!id || !label || CATALOGO.some((q) => q.id === id)) continue;
+    if (!id || !label) continue;
     if (out.some((q) => q.id === id)) continue;
 
-    const kind = QUESTION_KINDS.includes(item.kind) ? item.kind : 'scale';
+    /* La del catálogo que ésta retoca, si retoca alguna. Se miran LOS DOS
+       catálogos —sesión y check-in—: con uno solo, un retoque de `hunger` en el
+       check-in se trataría como una pregunta inventada y perdería su color. */
+    const base = CATALOGO.find((q) => q.id === id) || null;
+    if (!base) {
+      if (propias >= MAX_CUSTOM) continue;
+    }
+
+    const kind = QUESTION_KINDS.includes(item.kind) ? item.kind : base?.kind || 'scale';
     const max = Number(item.max);
+    const hint = String(item.hint ?? base?.hint ?? '').trim().slice(0, 140);
+
     out.push({
       id,
       label,
-      short: label.slice(0, 12),
+      /* El rótulo corto del catálogo se conserva: es el que cabe en el eje de un
+         gráfico, y un recorte a doce caracteres del enunciado nuevo suele salir
+         peor que el que ya estaba pensado. */
+      short: base?.short || label.slice(0, 12),
       kind,
+      ...(hint ? { hint } : {}),
       ...(kind === 'scale'
         ? {
             min: item.min === 0 ? 0 : 1,
             max: Number.isFinite(max) && max >= 2 && max <= 10 ? Math.round(max) : 10,
             lowerIsBetter: Boolean(item.lowerIsBetter),
-            color: CUSTOM_COLORS[out.length % CUSTOM_COLORS.length],
+            /* El color de un retoque es EL DEL CATÁLOGO: la serie tiene que
+               seguir dibujándose del mismo color que la semana pasada. El de una
+               inventada se reparte por orden de aparición entre las propias, sin
+               contar los retoques — si no, retocar una movería el color de todas
+               las demás. */
+            color: base?.color || CUSTOM_COLORS[propias % CUSTOM_COLORS.length],
           }
         : {}),
     });
-    if (out.length >= MAX_CUSTOM) break;
+
+    if (!base) propias += 1;
   }
   return out;
 };
@@ -732,6 +966,10 @@ export const clientProtocol = (preferences) => {
     /* Como el cuestionario: «no configurado» y «configurado a cero» significan lo
        mismo —no lo pido—, así que los dos caen en el mismo sitio. */
     weighIns: sanitizeWeighIns(raw.weighIns),
+    askPhotos: raw.askPhotos !== false,
+    alertDays: sanitizeAlertDays(raw.alertDays),
+    hidden: sanitizeHidden(raw.hidden),
+    schedule: sanitizeSchedule(raw.schedule),
   };
 };
 
@@ -771,10 +1009,17 @@ export const toggleService = (protocol, id) => {
   return { ...protocol, services };
 };
 
-/** Una pregunta por su id, sea de cualquiera de los dos catálogos o propia. */
+/**
+ * Una pregunta por su id, sea de cualquiera de los dos catálogos o propia.
+ *
+ * LO PROPIO MANDA. Es la otra mitad del cambio de `sanitizeCustom`: si el
+ * entrenador ha retocado «Adherencia a la dieta», lo que se le enseña al cliente
+ * es SU versión, no la de serie. El catálogo queda de respaldo para todo lo que
+ * nadie ha tocado, que es la mayoría.
+ */
 export const questionById = (protocol, id) =>
-  CATALOGO.find((q) => q.id === id) ||
   (protocol?.custom || []).find((q) => q.id === id) ||
+  CATALOGO.find((q) => q.id === id) ||
   null;
 
 /**
@@ -891,6 +1136,42 @@ export const setCheckinMode = (protocol, block, mode) => {
 /** Cuántos pesajes se le piden a la semana. Fuera de 0–7, no hace nada. */
 export const setWeighIns = (protocol, n) => ({ ...protocol, weighIns: sanitizeWeighIns(n) });
 
+/** La vara de una alerta. `0` vuelve a la general. */
+export const setAlertDays = (protocol, id, n) => ({
+  ...protocol,
+  alertDays: sanitizeAlertDays({ ...protocol?.alertDays, [id]: n }),
+});
+
+/**
+ * Los días que tienen que pasar antes de avisar de esta persona: los suyos si
+ * los tiene afinados, y si no los generales que le pase quien pregunta.
+ */
+export const alertDaysFor = (protocol, defaults = {}) => ({
+  training: protocol?.alertDays?.training || defaults.training || 0,
+  weight: protocol?.alertDays?.weight || defaults.weight || 0,
+});
+
+/**
+ * ¿Se le oculta esta cifra a ESTA persona en su portal?
+ *
+ * Ausente cuenta como NO, como todo lo que no está configurado: un protocolo a
+ * medio sanear —o guardado antes de que esto existiera— tiene que enseñar lo de
+ * siempre. La pregunta se hace SOLO en el portal; la respuesta nunca llega a la
+ * pantalla del entrenador, que es quien necesita ver las cifras para decidir.
+ */
+export const hidesFromClient = (protocol, id) => protocol?.hidden?.[id] === true;
+
+/** Las dos respuestas de golpe, que es como las lee el portal. */
+export const hiddenFor = (protocol) => ({
+  weight: hidesFromClient(protocol, 'weight'),
+  nutrition: hidesFromClient(protocol, 'nutrition'),
+});
+
+export const toggleHidden = (protocol, id) => ({
+  ...protocol,
+  hidden: sanitizeHidden({ ...protocol?.hidden, [id]: !hidesFromClient(protocol, id) }),
+});
+
 export const toggleModule = (protocol, id) => {
   const on = isModuleOn(protocol, id);
   const order = MODULES.map((m) => m.id);
@@ -950,7 +1231,13 @@ export const addCustomQuestion = (
   list = 'questions'
 ) => {
   const clean = String(label || '').trim();
-  if (!clean || (protocol.custom || []).length >= MAX_CUSTOM) return protocol;
+  /* El tope cuenta las INVENTADAS, no los retoques del catálogo: quien haya
+     ajustado el rango de tres preguntas de serie no puede quedarse sin poder
+     escribir ninguna suya. Misma cuenta que hace `sanitizeCustom`. */
+  const inventadas = (protocol.custom || []).filter(
+    (q) => !CATALOGO.some((c) => c.id === q.id)
+  ).length;
+  if (!clean || inventadas >= MAX_CUSTOM) return protocol;
 
   const question = { id: newId('q'), label: clean, kind, max, lowerIsBetter };
   const custom = sanitizeCustom([...(protocol.custom || []), question]);

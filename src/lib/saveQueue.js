@@ -58,6 +58,22 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
 
         if (error) {
           /*
+            ── Lo rechazado ya no es lo que esa persona tiene delante ─────────
+            Si mientras se enviaba llegó algo más nuevo, el rechazo es de un
+            valor que ya nadie ve. Se manda el nuevo antes de dar nada por
+            perdido: es el caso de quien se equivoca al escribir un peso y lo
+            corrige acto seguido —el primer envío vuelve rechazado, y quedarse
+            aquí dejaba la corrección sin mandar, con el valor equivocado en la
+            base de datos y la pantalla enseñando otro—. No es un bucle: solo se
+            reenvía cuando hay un payload distinto del que acaba de fallar, o
+            sea cuando alguien ha escrito.
+          */
+          if (q.latest !== payload) {
+            send(key);
+            return;
+          }
+
+          /*
             Se conserva `latest` para que retry(key) pueda reenviarlo.
 
             Y el mensaje se traduce AQUÍ porque este es el único punto por el que

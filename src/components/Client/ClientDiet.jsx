@@ -8,6 +8,7 @@ import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { GoalCard } from '@/components/nutrition/GoalCard';
 import { DiaResumen } from '@/components/nutrition/DiaResumen';
 import { DiaPopup } from '@/components/nutrition/DiaPopup';
+import { useOculto } from './Oculto';
 
 const VARIANT_OPTIONS = [
   { id: 'training', label: 'Días de entreno' },
@@ -37,6 +38,18 @@ const VARIANT_OPTIONS = [
  */
 export const ClientDiet = ({ plan, catalogFoods = [] }) => {
   const [dietView, setDietView] = useState('training');
+
+  /*
+    ══ Su menú sin cifras ═════════════════════════════════════════════════════
+
+    Con las kcal ocultas, lo que se va son los NÚMEROS —el objetivo del día, el
+    resumen contra ese objetivo, su ventana y las cuatro columnas de cada
+    alimento— y lo que se queda es el plan entero: qué come, cuánto pesa cada
+    cosa, sus opciones y las pautas escritas de su entrenador. Que es, por
+    cierto, como se lleva a esta persona fuera de la aplicación. Ver
+    `Oculto.jsx` y `HIDDEN_INFO` en `domain/protocol.js`.
+  */
+  const oculto = useOculto();
 
   /*
     ══ La opción abierta de cada comida, aquí y no dentro de cada tarjeta ═════
@@ -103,12 +116,14 @@ export const ClientDiet = ({ plan, catalogFoods = [] }) => {
                 sigue sin salirle: eso es cosa de quien lo monta; esto es la
                 suma de lo que él elige.
               */}
-              <DiaResumen
-                meals={meals}
-                targets={targetsFor(plan, variant)}
-                elegidas={elegidas}
-                onAbrir={() => setDiaAbierto(true)}
-              />
+              {!oculto.nutrition && (
+                <DiaResumen
+                  meals={meals}
+                  targets={targetsFor(plan, variant)}
+                  elegidas={elegidas}
+                  onAbrir={() => setDiaAbierto(true)}
+                />
+              )}
 
               <div className="row between wrap gap-3">
                 {/* Sin `color`: el acento ES la tinta del texto, así que pintarlo
@@ -157,8 +172,9 @@ export const ClientDiet = ({ plan, catalogFoods = [] }) => {
           {plan.type === 'macros' && (
             <Panel>
               <p className="t-sm t-secondary">
-                Tu plan es por macros: no hay un menú cerrado, sino los objetivos de arriba. Reparte
-                los alimentos como quieras siempre que cuadres esas cifras al final del día.
+                {oculto.nutrition
+                  ? `Tu plan no lleva un menú cerrado: comes lo que acordéis y tu entrenador lleva las cifras.${notas.length > 0 ? ' Sus pautas están aquí debajo.' : ''}`
+                  : 'Tu plan es por macros: no hay un menú cerrado, sino los objetivos de arriba. Reparte los alimentos como quieras siempre que cuadres esas cifras al final del día.'}
               </p>
             </Panel>
           )}
@@ -191,7 +207,8 @@ export const ClientDiet = ({ plan, catalogFoods = [] }) => {
         </div>
 
         {/* ── Contra qué se comprueba: el objetivo y la actividad ─────────── */}
-        <aside className="dieta-lado" aria-label="Mi objetivo">
+        <aside className="dieta-lado" aria-label={oculto.nutrition ? 'Mi actividad' : 'Mi objetivo'}>
+          {!oculto.nutrition && (
           <div className="dieta-objetivos">
             <MacroTargetCard
               plan={plan}
@@ -203,6 +220,7 @@ export const ClientDiet = ({ plan, catalogFoods = [] }) => {
               }
             />
           </div>
+          )}
 
           {/* La actividad no cambia entre las dos dietas, así que va fuera de la
               tarjeta de objetivo y no se mueve al cambiar de día. Sin objetivo
@@ -223,7 +241,7 @@ export const ClientDiet = ({ plan, catalogFoods = [] }) => {
         decide quien monta el plan, y aquí las mismas celdas se pintan como
         texto (ver `PlanDia`). Se monta solo abierta: cerrada no calcula nada.
       */}
-      {diaAbierto && (
+      {diaAbierto && !oculto.nutrition && (
         <DiaPopup
           open
           label={plan.hasDayVariants ? (variant === 'rest' ? 'de descanso' : 'de entreno') : 'diario'}

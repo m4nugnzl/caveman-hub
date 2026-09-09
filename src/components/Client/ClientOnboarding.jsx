@@ -5,6 +5,7 @@ import { DownloadAnamnesis } from '@/components/Coach/DownloadAnamnesis';
 import { ClientGymUpload } from './ClientGymUpload';
 import { IntakeBasics } from './IntakeBasics';
 import { IntakeHealth } from './IntakeHealth';
+import { IntakeMeasures } from './IntakeMeasures';
 import { IntakeQuestions } from './IntakeQuestions';
 import { IntakeTasks } from './IntakeTasks';
 
@@ -90,6 +91,15 @@ export const ClientOnboarding = () => {
       {form.askBasics && (
         <section id="quien-eres" className="anchored">
           <IntakeBasics client={activeClient} />
+        </section>
+      )}
+
+      {/* Sus medidas de partida, detrás de quién es: son la otra mitad del
+          punto de partida y caen en su antropometría como primera medición.
+          El bloque se retira solo en cuanto existe una (ver IntakeMeasures). */}
+      {form.askMeasures && (
+        <section id="medidas" className="anchored">
+          <IntakeMeasures client={activeClient} />
         </section>
       )}
 

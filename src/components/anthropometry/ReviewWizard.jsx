@@ -33,9 +33,11 @@ import { todayISO } from '@/lib/dates';
 import { toNum } from '@/lib/num';
 import { Field, Notice, SaveIndicator } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
+import { GuiaDeMedidas } from '@/components/Coach/Taller/GuiaDeMedidas';
 import { PhotoPicker } from '@/components/photos/PhotoPicker';
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
+import { useOculto } from '@/components/Client/Oculto';
 
 /**
  * El asistente de revisión: la semana entregada, por pasos.
@@ -132,7 +134,11 @@ export const ReviewWizard = ({
   const pideFolds = asksBlock(protocol, 'folds');
   const pidePerimetros = asksBlock(protocol, 'perimeters');
   const obligatorios = useMemo(() => requiredBlocks(protocol), [protocol]);
-  const puedeSubirFotos = Boolean(photos && onUploadPhoto);
+  /* El paso de fotos existe si hay dónde subirlas Y su check-in las pide. Antes
+     solo lo primero: el interruptor del formulario no gobernaba nada, así que
+     apagarlas no las apagaba. Se apaga solo con un `false` explícito, de modo
+     que quien no haya tocado nada las sigue teniendo. */
+  const puedeSubirFotos = Boolean(photos && onUploadPhoto && protocol.askPhotos !== false);
 
   /*
     ══ El cuestionario, y solo cuando el entrenador lo ha montado ═════════════
@@ -151,17 +157,35 @@ export const ReviewWizard = ({
   */
   const preguntas = useMemo(() => (isClient ? checkinQuestions(protocol) : []), [isClient, protocol]);
 
-  /* Los pasos que de verdad tiene ESTE cliente. El peso siempre; los demás, solo
-     si hay algo que rellenar en ellos. */
+  /*
+    ══ Y a quien tiene el peso oculto no se le pide ═══════════════════════════
+
+    El primer paso de este asistente es una casilla de peso QUE VIENE PUESTA con
+    el promedio de sus pesajes: la cifra más grande de la pantalla, en el sitio
+    donde su entrenador ha decidido que no debe haber cifra. Así que el paso no
+    se pinta, y la semana se cierra igual con ese mismo promedio —que la
+    aplicación ya sabe— sin enseñárselo. Ver `Oculto.jsx` y `HIDDEN_INFO`.
+
+    Si además no se le piden medidas, fotos ni cuestionario, queda un paso que
+    solo confirma la entrega: un asistente sin ningún paso no tendría dónde
+    pintar el botón de entregar.
+  */
+  const oculto = useOculto();
+  const sinPeso = isClient && oculto.weight;
+
+  /* Los pasos que de verdad tiene ESTE cliente. El peso salvo que esté oculto;
+     los demás, solo si hay algo que rellenar en ellos. */
   const pasos = useMemo(
-    () =>
-      [
-        { id: 'peso', titulo: 'El peso', icono: Scale },
+    () => {
+      const lista = [
+        !sinPeso && { id: 'peso', titulo: 'El peso', icono: Scale },
         (pideFolds || pidePerimetros) && { id: 'medidas', titulo: 'Las medidas', icono: Ruler },
         puedeSubirFotos && { id: 'fotos', titulo: 'Las fotos', icono: Camera },
         preguntas.length > 0 && { id: 'cuestionario', titulo: 'Tu semana', icono: MessageSquare },
-      ].filter(Boolean),
-    [pideFolds, pidePerimetros, puedeSubirFotos, preguntas.length]
+      ].filter(Boolean);
+      return lista.length > 0 ? lista : [{ id: 'entrega', titulo: 'Tu semana', icono: Check }];
+    },
+    [sinPeso, pideFolds, pidePerimetros, puedeSubirFotos, preguntas.length]
   );
 
   const [indice, setIndice] = useState(0);
@@ -179,6 +203,9 @@ export const ReviewWizard = ({
     mide, lo abre con un toque; lo obligatorio sale siempre abierto.
   */
   const [abiertos, setAbiertos] = useState({ folds: false, perimeters: false });
+  /* Qué guía de medición está desplegada, si alguna. Una sola a la vez: las dos
+     abiertas son dos siluetas seguidas y el formulario queda debajo del todo. */
+  const [guia, setGuia] = useState(null);
   const [answers, setAnswers] = useState({});
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -209,15 +236,20 @@ export const ReviewWizard = ({
   );
   const suggestedWeight = weekCheckIn.average;
 
+  /* El peso que se registra y se entrega. Sin paso de peso es el promedio de sus
+     propios pesajes —exactamente el que habría confirmado— y, si esa semana no
+     se pesó, no hay ninguno: se entrega sin él, como una semana atrasada. */
+  const pesoEfectivo = sinPeso ? (suggestedWeight === null ? '' : String(suggestedWeight)) : weight;
+
   /* Cómo se llama la ventana en la frase que explica de dónde sale el número.
      «de esta semana» sería mentira con cadencia quincenal, y «del periodo» es
      jerga cuando el periodo es una semana normal. */
   const ventana = weeks > 1 ? `estas ${weeks} semanas` : 'esta semana';
 
   useEffect(() => {
-    if (touched) return;
+    if (touched || sinPeso) return;
     setWeight(suggestedWeight === null ? '' : String(suggestedWeight));
-  }, [suggestedWeight, touched]);
+  }, [suggestedWeight, touched, sinPeso]);
 
   const lote = usePhotoBatch({ onUpload: onUploadPhoto || (async () => ({ ok: false })) });
 
@@ -343,17 +375,24 @@ export const ReviewWizard = ({
     setGuardando(true);
     setError(null);
 
-    onAdd(
-      buildAnthropometryLog({
-        date,
-        weight,
-        folds,
-        perimeters,
-        // Foto de las kcal y macros vigentes, para poder cruzar después dieta
-        // con evolución de peso: la tabla de nutrición no guarda histórico.
-        nutritionPlan,
-      })
-    );
+    /*
+      El registro, salvo que no haya nada que registrar.
+
+      Puede pasar desde que el peso se puede ocultar: sin ese paso, sin medidas y
+      sin pesajes que promediar, esto escribiría una fila con la fecha de hoy y
+      nada dentro — una medición vacía en su historial y un punto muerto en cada
+      serie. Entregar la semana sí sigue pasando: son dos cosas distintas.
+    */
+    const registro = buildAnthropometryLog({
+      date,
+      weight: pesoEfectivo,
+      folds,
+      perimeters,
+      // Foto de las kcal y macros vigentes, para poder cruzar después dieta
+      // con evolución de peso: la tabla de nutrición no guarda histórico.
+      nutritionPlan,
+    });
+    if (registro.weight !== null || registro.skinFolds || registro.perimeters) onAdd(registro);
 
     if (lote.pendientes > 0) {
       const total = lote.pendientes;
@@ -381,7 +420,7 @@ export const ReviewWizard = ({
 
       const res = await onSubmitWeek({
         weekStart,
-        weight: toNum(weight),
+        weight: toNum(pesoEfectivo),
         answers: Object.keys(dadas).length > 0 ? dadas : null,
       });
 
@@ -477,6 +516,15 @@ export const ReviewWizard = ({
         {/* La `key` remonta el panel al cambiar de paso, así que la animación de
             entrada se reproduce y el desplazamiento del diálogo vuelve arriba. */}
         <div className="wiz-panel" key={paso.id}>
+          {/* El único paso de quien no tiene peso, ni medidas, ni fotos, ni
+              cuestionario: decir qué va a pasar al pulsar «entregar». */}
+          {paso.id === 'entrega' && (
+            <p className="t-sm t-secondary">
+              Al entregar, tu semana le llega a tu entrenador con lo que hayas registrado. Te
+              contesta por aquí.
+            </p>
+          )}
+
           {paso.id === 'peso' && (
             <>
               <p className="t-sm t-secondary">
@@ -605,12 +653,27 @@ export const ReviewWizard = ({
               {pideFolds &&
                 (requiresBlock(protocol, 'folds') || abiertos.folds || sum > 0 ? (
                   <div className="col gap-3">
-                    <h4 className="section-label">
-                      Pliegues cutáneos (mm)
-                      {requiresBlock(protocol, 'folds') && (
-                        <span className="badge badge-warn wiz-badge">Obligatorio</span>
-                      )}
-                    </h4>
+                    <div className="medida-cab">
+                      <h4 className="section-label">
+                        Pliegues cutáneos (mm)
+                        {requiresBlock(protocol, 'folds') && (
+                          <span className="badge badge-warn wiz-badge">Obligatorio</span>
+                        )}
+                      </h4>
+                      <button
+                        type="button"
+                        className="link"
+                        aria-expanded={guia === 'folds'}
+                        onClick={() => setGuia((g) => (g === 'folds' ? null : 'folds'))}
+                      >
+                        {guia === 'folds' ? 'Ocultar la guía' : 'Cómo se mide'}
+                      </button>
+                    </div>
+                    {guia === 'folds' && (
+                      <div className="card-inset">
+                        <GuiaDeMedidas que="pliegue" />
+                      </div>
+                    )}
                     <MeasureGrid
                       labels={FOLDS_LABELS}
                       values={folds}
@@ -639,12 +702,27 @@ export const ReviewWizard = ({
                 abiertos.perimeters ||
                 Object.values(perimeters).some((v) => v !== '' && v != null) ? (
                   <div className="col gap-3">
-                    <h4 className="section-label">
-                      Perímetros corporales (cm)
-                      {requiresBlock(protocol, 'perimeters') && (
-                        <span className="badge badge-warn wiz-badge">Obligatorio</span>
-                      )}
-                    </h4>
+                    <div className="medida-cab">
+                      <h4 className="section-label">
+                        Perímetros corporales (cm)
+                        {requiresBlock(protocol, 'perimeters') && (
+                          <span className="badge badge-warn wiz-badge">Obligatorio</span>
+                        )}
+                      </h4>
+                      <button
+                        type="button"
+                        className="link"
+                        aria-expanded={guia === 'perimeters'}
+                        onClick={() => setGuia((g) => (g === 'perimeters' ? null : 'perimeters'))}
+                      >
+                        {guia === 'perimeters' ? 'Ocultar la guía' : 'Cómo se mide'}
+                      </button>
+                    </div>
+                    {guia === 'perimeters' && (
+                      <div className="card-inset">
+                        <GuiaDeMedidas que="cinta" />
+                      </div>
+                    )}
                     <MeasureGrid
                       labels={PERIMETER_LABELS}
                       values={perimeters}

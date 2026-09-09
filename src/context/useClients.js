@@ -313,6 +313,32 @@ export const useClients = ({
   );
 
   /**
+   * Pausa a un cliente, o lo reanuda.
+   *
+   * ── Qué es una pausa y qué no ───────────────────────────────────────────────
+   * Es el estado del lesionado y del que se va un mes: sigue en la cartera y en
+   * el plan, pero mientras dura no genera ni una alerta (la regla vive en
+   * `domain/portfolio.js`). No es archivar —eso es terminar— y por eso no toca
+   * `refreshPlan`: el recuento de asientos no cambia.
+   *
+   * `until` es la fecha en la que quedasteis, opcional: sin ella la pausa dura
+   * hasta que alguien la levante. Al reanudar, la fecha se limpia — una fecha de
+   * vuelta de una pausa que ya no existe es un dato huérfano esperando confundir
+   * a la próxima pausa.
+   *
+   * Sin debounce (`immediate`), como archivar: es una decisión, no tecleo.
+   */
+  const setClientPaused = useCallback(
+    (clientId, paused, { until = null } = {}) => {
+      updateClient(clientId, {
+        status: paused ? 'paused' : 'active',
+        pausedUntil: paused ? until : null,
+      });
+    },
+    [updateClient]
+  );
+
+  /**
    * Preferencias del panel (ver domain/preferences.js).
    *
    * Se fusiona por SECCIÓN, no se reemplaza el objeto entero: así una preferencia
@@ -521,7 +547,19 @@ export const useClients = ({
       const current = clientsRef.current.find((c) => c.id === clientId)?.preferences || {};
       const next = clearException ? { ...current, protocolException: { on: false } } : { ...current };
       for (const [section, patch] of Object.entries(sections)) {
-        next[section] = { ...(next[section] || {}), ...patch };
+        /*
+          Una sección se FUSIONA; un valor suelto se REEMPLAZA.
+
+          Desde que un cliente lleva apuntado de qué protocolo viene
+          (`protocolId`), no todo lo que se escribe aquí es un objeto. Fusionando
+          a ciegas, `{ ...(undefined || {}), ...'p2' }` no falla ni avisa:
+          extiende la cadena y deja guardado `{ 0: 'p', 1: '2' }`. La clase de
+          dato corrupto que solo se ve tres pantallas después.
+        */
+        next[section] =
+          patch && typeof patch === 'object' && !Array.isArray(patch)
+            ? { ...(next[section] || {}), ...patch }
+            : patch;
       }
 
       setClients(
@@ -642,7 +680,10 @@ export const useClients = ({
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
 
-      const { name, ...resto } = clientData || {};
+      /* Ninguno de los dos es una columna: dicen CUÁL de las altas del
+         entrenador se le copia (D14) y con qué PROTOCOLO empieza. Se apartan
+         antes de mapear y viajan a la semilla. */
+      const { name, intakeFormId = null, protocoloId = null, ...resto } = clientData || {};
 
       /*
         El alta va por `create_client` (migración 0032) y no por un INSERT.
@@ -700,7 +741,7 @@ export const useClients = ({
         esto falla de forma sistemática el síntoma que se reporta sería «mi
         plantilla no llega a los clientes nuevos» y hay que poder verlo.
       */
-      const semilla = newClientPreferences(coachPrefsRef.current);
+      const semilla = newClientPreferences(coachPrefsRef.current, { intakeFormId, protocoloId });
       let created = creado;
       if (semilla) {
         const { error: errSemilla } = await supabase.rpc('set_client_preferences', {
@@ -1091,6 +1132,7 @@ export const useClients = ({
     markClientPaid,
     normalizeLegacySessions,
     setClientArchived,
+    setClientPaused,
     updateClientPreferences,
     saveClientProfile,
     saveClientIdentity,

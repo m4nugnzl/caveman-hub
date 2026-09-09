@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { byCategory, canEditLibraryItem, findByName, mergeCatalog } from './catalog';
+import {
+  byCategory,
+  canEditLibraryItem,
+  findByName,
+  foodConflicts,
+  foodTagLabels,
+  groupInOrder,
+  mergeCatalog,
+  similarNames,
+} from './catalog';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -166,5 +175,157 @@ describe('byCategory', () => {
 
   it('lo que no tiene categoría cae en Otros', () => {
     expect([...byCategory([{ name: 'X' }]).keys()]).toEqual(['Otros']);
+  });
+});
+
+/* ══ Las etiquetas del alimento y el aviso pasivo (C12) ═══════════════════ */
+
+describe('foodConflicts — información, nunca filtro', () => {
+  const pan = { name: 'Pan integral', tags: ['gluten'] };
+  const gambas = { name: 'Gambas peladas', tags: ['marisco'] };
+  const pollo = { name: 'Pechuga de pollo', tags: ['carne'] };
+  const yogur = { name: 'Yogur natural', tags: ['lactosa'] };
+
+  const cond = (label, extra = {}) => ({ label, area: 'nutrition', resolvedAt: null, ...extra });
+
+  it('cruza la etiqueta con el condicionante escrito en lenguaje del cliente', () => {
+    expect(foodConflicts(pan, [cond('Celiaquía')])).toEqual(['gluten']);
+    expect(foodConflicts(yogur, [cond('Intolerancia a la lactosa')])).toEqual(['lactosa']);
+    expect(foodConflicts(gambas, [cond('Alergia alimentaria', { detail: 'al marisco' })])).toEqual([
+      'marisco',
+    ]);
+  });
+
+  it('el vegetariano choca con carne y pescado; el vegano, además, con huevo y lactosa', () => {
+    expect(foodConflicts(pollo, [cond('Vegetariano o vegano', { detail: 'vegetariano' })])).toEqual(
+      ['carne']
+    );
+    expect(foodConflicts(yogur, [cond('Vegano')])).toEqual(['lactosa']);
+    expect(foodConflicts(yogur, [cond('Vegetariano')])).toEqual([]);
+  });
+
+  it('una lesión de hombro no opina de un pan', () => {
+    expect(foodConflicts(pan, [{ label: 'Celiaquía', area: 'training', resolvedAt: null }])).toEqual(
+      []
+    );
+  });
+
+  it('lo resuelto ya no restringe', () => {
+    expect(foodConflicts(pan, [cond('Celiaquía', { resolvedAt: '2026-01-01' })])).toEqual([]);
+  });
+
+  it('sin etiquetas o sin condicionantes no hay nada que decir', () => {
+    expect(foodConflicts({ name: 'Arroz', tags: [] }, [cond('Celiaquía')])).toEqual([]);
+    expect(foodConflicts(pan, [])).toEqual([]);
+    expect(foodConflicts(pan)).toEqual([]);
+  });
+});
+
+describe('foodTagLabels', () => {
+  it('traduce solo las etiquetas conocidas', () => {
+    expect(foodTagLabels({ tags: ['gluten', 'inventada', 'lactosa'] })).toEqual([
+      'Gluten',
+      'Lactosa',
+    ]);
+    expect(foodTagLabels({})).toEqual([]);
+  });
+});
+
+/*
+  ══ LOS QUE SE PARECEN DEMASIADO ════════════════════════════════════════════
+
+  Lo que hay que fijar es el equilibrio: si señala de más, la marca se vuelve
+  adorno y nadie la mira; si señala de menos, no sirve para lo que existe. Las
+  dos mitades de esa frontera están abajo, y la de «no señala de más» es la
+  importante — en una despensa, que un nombre contenga a otro es lo NORMAL.
+*/
+describe('similarNames', () => {
+  it('caza el acento perdido, que es el duplicado de verdad', () => {
+    expect(similarNames('Plátano', ['Platano', 'Manzana'])).toEqual(['Platano']);
+  });
+
+  it('caza el singular contra el plural y la letra de más', () => {
+    expect(similarNames('Alubias', ['Alubia'])).toEqual(['Alubia']);
+    expect(similarNames('Lentejas', ['Lentehas'])).toEqual(['Lentehas']);
+  });
+
+  it('NO señala dos alimentos de verdad que comparten principio', () => {
+    expect(similarNames('Almendras', ['Almendras crudas', 'Almendras tostadas'])).toEqual([]);
+    expect(similarNames('Aceite de coco', ['Aceite de oliva virgen extra'])).toEqual([]);
+  });
+
+  /* El suelo de longitud: con nombres cortos una distancia de dos empareja casi
+     todo, y entonces la señal deja de significar nada. */
+  it('no compara nombres cortos, donde todo se parece a todo', () => {
+    expect(similarNames('Sal', ['Col', 'Sol'])).toEqual([]);
+    expect(similarNames('Quinoa', ['Sal'])).toEqual([]);
+  });
+
+  it('no se propone a sí mismo ni repite una pareja', () => {
+    expect(similarNames('Plátano', ['Plátano', 'plátano ', 'PLÁTANO'])).toEqual([]);
+  });
+
+  it('aguanta la lista vacía y el nombre en blanco', () => {
+    expect(similarNames('Plátano')).toEqual([]);
+    expect(similarNames('', ['Plátano'])).toEqual([]);
+    expect(similarNames(null, ['Plátano'])).toEqual([]);
+  });
+});
+
+/**
+ * ══ Qué protege esto ═══════════════════════════════════════════════════════
+ *
+ * Que la Librería no pierda filas al agruparse. Es una lista de doscientas
+ * treinta y nueve entradas y de trescientas catorce, y un ejercicio que se
+ * cayera del reparto —porque su músculo no está en el orden que se pasa, o
+ * porque no tiene ninguno— desaparecería de la única pantalla desde la que se
+ * corrige, sin error y sin hueco donde se note.
+ */
+describe('groupInOrder', () => {
+  const lista = [
+    { name: 'Dominadas', muscle: 'Dorsal' },
+    { name: 'Press banca', muscle: 'Pectoral' },
+    { name: 'Remo', muscle: 'Dorsal' },
+    { name: 'Assault bike', muscle: null },
+  ];
+
+  it('parte la lista en los grupos que le pasan, y en ese orden', () => {
+    expect(groupInOrder(lista, 'muscle', ['Dorsal', 'Pectoral'])).toEqual([
+      { grupo: 'Dorsal', filas: [lista[0], lista[2]] },
+      { grupo: 'Pectoral', filas: [lista[1]] },
+      { grupo: null, filas: [lista[3]] },
+    ]);
+  });
+
+  /* El orden lo calcula el selector de filtros contando lo que hay. Si algún día
+     lo pasa incompleto, el grupo que falte no puede evaporarse. */
+  it('no pierde un grupo que no venga en el orden: lo pone detrás', () => {
+    expect(groupInOrder(lista, 'muscle', ['Pectoral']).map((g) => g.grupo)).toEqual([
+      'Pectoral',
+      'Dorsal',
+      null,
+    ]);
+  });
+
+  /* Un grupo vacío pintaría una cabecera con cero filas debajo. */
+  it('se salta los grupos sin filas', () => {
+    expect(groupInOrder(lista, 'muscle', ['Dorsal', 'Gemelo']).map((g) => g.grupo)).toEqual([
+      'Dorsal',
+      'Pectoral',
+      null,
+    ]);
+  });
+
+  /* «Sin clasificar» arriba sería lo primero que se lee al abrir, y es lo único
+     de la lista que no dice nada de nada. */
+  it('deja lo que no está clasificado al final y con el grupo en null', () => {
+    expect(groupInOrder([{ name: 'Comba' }], 'muscle', ['Dorsal'])).toEqual([
+      { grupo: null, filas: [{ name: 'Comba' }] },
+    ]);
+  });
+
+  it('aguanta la lista vacía', () => {
+    expect(groupInOrder([], 'muscle', ['Dorsal'])).toEqual([]);
+    expect(groupInOrder()).toEqual([]);
   });
 });

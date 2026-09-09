@@ -317,6 +317,82 @@ la diferencia entre una cola útil y una que grita).
 
 ## 9. El plan de crecimiento, por tandas (2ª edición: 18 movimientos)
 
+**Estado (7 sep 2026): tanda A EJECUTADA salvo A4** — A1 pausa (migración
+0093, `pauseOf` silencia alertas vigente y avisa al vencer, `PauseRow` en
+«Acceso y baja»; el pausado SIGUE contando para el tope del plan, decisión
+deliberada contra el abuso de asientos — ver la migración), A2 etiquetas
+(columna `tags`, editor en «Quién es», filtro con cuenta en Clientes), A3
+umbral por cliente (`alertDays` en el protocolo con la general de respaldo,
+sección «Cuándo avisarte» solo por cliente, fuera de la plantilla vía
+`NOT_COMPARED_KEYS`), A5 filtros con contador (los `PORTFOLIO_FILTERS` que ya
+existían, ahora chips con cifra en /clientes), A6 el destino
+(`goal.targetWeightKg` opcional saneado, la aguja empezó→hoy→objetivo y la
+nota de la meta en el hero de la Revisión, editor en línea en «Cómo va»).
+**A4 (ocultar peso/kcal) queda pendiente a propósito**: exige pasar por cada
+pantalla del portal con la demo delante — a medias sería una privacidad que
+gotea. Validado: lint, types, verify, 1.704 pruebas y build en verde.
+
+**Estado (7 sep 2026, 3ª sesión): A4 HECHA, y con ella se cierra la tanda A.**
+`protocol.hidden = { weight, nutrition }` (sin migración: vive en
+`preferences.protocol`), en `NOT_COMPARED_KEYS` como los servicios y la vara —
+«poner al día» devolviéndole el peso a esa persona sería el peor botón posible.
+La regla no viaja por propiedades sino por un CONTEXTO montado en el portal
+(`components/Client/Oculto.jsx`): fuera de él el valor por defecto es «no se
+oculta nada», así que ningún componente compartido puede llevarse el silencio a
+la pantalla del entrenador, y la pantalla que se añada mañana no nace enseñando
+lo que no debe. Lo que se retira, pantalla a pantalla y con la demo delante:
+«Cómo vas» y «Tu cuerpo» enteras del panel (con sus ventanas), la cifra de peso
+de «Desde que empezaste», el ritmo del objetivo y la palanca de calorías de «Tu
+plan», la escalera de kcal bajo la curva y la columna de kcal del «a fondo», las
+cuatro cifras y el historial del check-in —la casilla del día dice «anotado» y
+queda el recuento—, el paso del peso del asistente (la semana se cierra con el
+promedio que la aplicación ya sabe, sin enseñarlo), el pie de cada foto y la
+variación entre las dos, el peso de cada línea del histórico de revisiones, las
+filas de kcal del diff del plan, y en la dieta el objetivo, el resumen del día,
+su ventana, el anillo de cada comida y las cuatro columnas de cada alimento —el
+menú se queda entero: qué come y cuánto—. Lo que NO se toca: el cliente sigue
+anotando sus pesajes (el gesto es suyo), sus datos siguen siendo suyos y se los
+descarga en «Mis datos y privacidad», y el entrenador lo ve todo. Los dos
+interruptores están en el protocolo DE ESA PERSONA: en Ajustes → Protocolo con
+cliente elegido y en el diálogo «El protocolo de X» de la cartera
+(`VisibilitySection`). De la tanda D se cierra además el resto de D14: el alta
+elige formulario cuando hay más de uno (`NewClientForm` → `addClient({
+intakeFormId })`, que ya estaba esperando). Validado: lint, types, verify, 1.773
+pruebas y build en verde, más capturas del portal en escritorio y móvil con dos
+clientes de la demo (todo oculto / solo las kcal) y de la pantalla del
+entrenador, que no cambia.
+
+**Estado (7 sep 2026, 2ª sesión): tandas B y D ejecutadas, C sembrada.**
+
+- **Tanda B entera** (orden B10 → B6 → B7 → B8/B9): el registro del bloque como
+  tarjeta del margen con tramo y sus dos salidas (`TarjetaRegistro`); el banco
+  —cajón de material con «Su gimnasio / Su historial / Tus piezas»
+  (`CajonDeMaterial`), y definir (`DefinirBloque`) y escribir (`EscribirHoja`)
+  dejan de ser ventanas y pasan a la mesa—; la gramática de serie como dato
+  (`enlazado`/`bajada`/`restSeconds` + `targetKind` que por fin entiende el
+  AMRAP que el importador ya admitía), impresa con la tipografía de la hoja en
+  rejilla, hoja y portal, y el timer del portal usa el descanso pautado; las
+  alternativas previstas (`exercise.alternatives`, se escriben en la mesa y se
+  imprimen donde se ejecuta); y tus piezas (`domain/pieces`, en
+  `preferences.piezas`). *Pendiente de B8: el canje con un toque en el móvil —
+  exige decidir cómo se registra lo hecho sin mentirle al 1RM.*
+- **Tanda D salvo lo que es cartera**: D14 varios formularios de alta
+  (`coachIntakeForms`, editor con pestañas en el protocolo, el alta copia la
+  elegida vía `addClient({ intakeFormId })` — *el selector del diálogo de
+  invitar queda para la sesión de cartera*); D15 medidas «día 0»
+  (`IntakeMeasures` → antropometría, con su interruptor `askMeasures`); D16
+  cribado SCOFF (`domain/scoff`, apagado de serie, resultado solo en la ficha
+  del coach). *D17 (aviso a varios) es superficie de /clientes: cartera.*
+- **Tanda C**: esquema 0094 (equipamiento y descripción del ejercicio,
+  etiquetas del alimento) + siembras 0095 (~130 ejercicios CON ficha, y fichas
+  para los clásicos) y 0096 (~120 alimentos españoles con marcas y etiquetas).
+  Calidad antes que la cifra ×8/×10: cada fila es prescribible y el catálogo
+  crece por tandas aditivas — quedan tandas de dato por sembrar. C12 en código:
+  `foodConflicts` y el aviso pasivo en el buscador de la dieta.
+
+Validado: lint, types, verify, 1.751 pruebas y build en verde. Las migraciones
+0094–0096 están escritas y sin aplicar a ninguna base.
+
 Cada movimiento cuelga de una de las dos leyes. Las leyes de la casa siguen
 mandando: la app no receta · el móvil ejecuta, el PC planifica · el plan vive
 en el bloque · sin reproches · la Revisión no se rediseña.

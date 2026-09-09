@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { findByName } from '@/domain/catalog';
+import { useMemo, useState } from 'react';
+import { useData } from '@/context/AppContext';
+import { FOOD_TAG_LABELS, findByName, foodConflicts } from '@/domain/catalog';
 import { macroError } from '@/domain/nutrition';
+import { platoSummary } from '@/domain/platos';
 import { toNum } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
-import { Field } from '@/components/ui/primitives';
+import { Field, Notice } from '@/components/ui/primitives';
 
 const EMPTY = {
   name: '',
@@ -21,10 +23,59 @@ const EMPTY = {
  * Buscador y alta rápida de alimento. Autocompleta desde la biblioteca del
  * coach (con los macros por 100 g ya guardados) o permite dar de alta uno nuevo
  * al vuelo, que queda guardado para la próxima vez.
+ *
+ * ══ Y desde aquí también se ponen tus PLATOS ═══════════════════════════════
+ *
+ * Un plato es una ración guardada con nombre —«80 g de avena + 200 ml de leche
+ * + 1 plátano»—, que es la unidad con la que se pauta de verdad. Salen en la
+ * misma lista que los alimentos, marcados, **y en el mismo buscador a
+ * propósito**: la lección de `catalog.js` —«el momento en que necesitas
+ * “lentejas” es mientras montas la dieta, no media hora antes administrando una
+ * lista»— vale igual para el desayuno que ya tienes montado.
+ *
+ * Elegir uno **despliega sus alimentos** como entradas normales, no como un
+ * enlace: editar el plato después no cambia las dietas que ya lo usaron, que es
+ * el modelo desde `buildFoodEntry` —una dieta es una foto—.
+ *
+ * @param platos      Los tuyos (`platosOf`). Sin ellos, esto es el buscador de
+ *   siempre y ni se nota.
+ * @param onAddPlato  Qué hacer al elegir uno. Es otra acción que `onAdd` porque
+ *   pone varios alimentos de golpe y quien la recibe necesita saber cuáles.
  */
-export const AddFoodControl = ({ foodLibrary, onAdd }) => {
+export const AddFoodControl = ({ foodLibrary, onAdd, platos = [], onAddPlato = null }) => {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState(null);
+  /*
+    ── El aviso pasivo (C12) ─────────────────────────────────────────────────
+    Las etiquetas del alimento (0094) cruzadas con los condicionantes VIVOS de
+    nutrición de este cliente (`foodConflicts`). Información, nunca filtro: el
+    alimento se añade igual y la nota queda debajo — puede haber mil motivos
+    legítimos, y el criterio es del entrenador. La misma gramática que el aviso
+    del multipower en el banco: la app resalta, no receta.
+  */
+  const { conditions, activeClient } = useData();
+  const [choque, setChoque] = useState(null); // { name, labels }
+
+  /*
+    Los platos DELANTE de los alimentos: son pocos, son tuyos y son lo que
+    estabas buscando cuando escribes «desayuno». Con la lista al revés, los seis
+    primeros resultados serían siempre alimentos y no se verían nunca.
+  */
+  const platosBuscables = useMemo(
+    () => (onAddPlato ? platos : []).map((p) => ({ ...p, esPlato: true })),
+    [platos, onAddPlato]
+  );
+  const buscables = useMemo(
+    () => [...platosBuscables, ...(foodLibrary || [])],
+    [platosBuscables, foodLibrary]
+  );
+
+  /* El choque de un plato es el de cualquiera de sus alimentos: el aviso tiene
+     que salir aunque lo que lleve el gluten sea el tercer ingrediente. */
+  const choquesDe = (item) =>
+    item.esPlato
+      ? [...new Set((item.foods || []).flatMap((f) => foodConflicts(f, conditions)))]
+      : foodConflicts(item, conditions);
 
   const startCreating = () => {
     setDraft({ ...EMPTY, name: query.trim() });
@@ -176,34 +227,73 @@ export const AddFoodControl = ({ foodLibrary, onAdd }) => {
   }
 
   return (
-    <Autocomplete
-      value={query}
-      onChange={setQuery}
-      items={foodLibrary}
-      /*
-        Dos datos además de los macros:
+    <div className="col gap-2" style={{ minWidth: 0 }}>
+      <Autocomplete
+        value={query}
+        onChange={(v) => {
+          setQuery(v);
+          /* El aviso es de la última elección: al volver a buscar, se retira. */
+          if (choque) setChoque(null);
+        }}
+        items={buscables}
+        /* Sin escribir nada se ojean TUS PLATOS, que son pocos y son tuyos.
+           Sin esto, un plato solo aparecía escribiendo su nombre —o sea, solo
+           si ya te acordabas de cómo lo llamaste—, y una vitrina que hay que
+           recordar de memoria se comporta igual que una vacía. Los alimentos
+           siguen sin volcarse: son trescientos y esos sí se buscan. */
+        vacio={platosBuscables.length > 0 ? platosBuscables : null}
+        /*
+          Tres datos además de los macros:
 
-        · La unidad, que es lo que distingue «Huevo entero» —que se cuenta— de
-          «Clara de huevo» cuando los dos salen en la lista.
-        · De dónde viene. Marcar los del catálogo explica por qué, al elegir uno,
-          aparece de repente en tu biblioteca: no es un efecto secundario raro,
-          es lo que significa usarlo por primera vez.
-      */
-      getMeta={(food) =>
-        [
-          `P${food.proteinPer100} C${food.carbsPer100} G${food.fatsPer100} /100g`,
-          food.unitLabel ? `1 ${food.unitLabel} = ${food.unitGrams} g` : null,
-          food.fromCatalog ? 'del catálogo' : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')
-      }
-      onPick={(food) => {
-        onAdd(food);
-        setQuery('');
-      }}
-      onCreate={startCreating}
-      placeholder="Buscar o añadir alimento…"
-    />
+          · La unidad, que es lo que distingue «Huevo entero» —que se cuenta— de
+            «Clara de huevo» cuando los dos salen en la lista.
+          · De dónde viene. Marcar los del catálogo explica por qué, al elegir uno,
+            aparece de repente en tu biblioteca: no es un efecto secundario raro,
+            es lo que significa usarlo por primera vez.
+          · Y el choque con SUS restricciones, ya en la lista: «lleva gluten» al
+            lado de un celíaco se lee antes de elegir, no después.
+        */
+        getMeta={(food) => {
+          const en = choquesDe(food);
+          const choques =
+            en.length > 0
+              ? `lleva ${en.map((t) => FOOD_TAG_LABELS[t].toLowerCase()).join(' y ')}`
+              : null;
+
+          /* Un plato no tiene macros por 100 g: lo que se lee de él es qué lleva
+             y cuánto suma. Enseñar «P0 C0 G0» sería un número falso. */
+          if (food.esPlato) return [`tu plato · ${platoSummary(food)}`, choques].filter(Boolean).join(' · ');
+
+          return [
+            `P${food.proteinPer100} C${food.carbsPer100} G${food.fatsPer100} /100g`,
+            food.unitLabel ? `1 ${food.unitLabel} = ${food.unitGrams} g` : null,
+            choques,
+            food.fromCatalog ? 'del catálogo' : null,
+          ]
+            .filter(Boolean)
+            .join(' · ');
+        }}
+        onPick={(food) => {
+          const en = choquesDe(food);
+          setChoque(
+            en.length > 0
+              ? { name: food.name, labels: en.map((t) => FOOD_TAG_LABELS[t].toLowerCase()) }
+              : null
+          );
+          if (food.esPlato) onAddPlato(food);
+          else onAdd(food);
+          setQuery('');
+        }}
+        onCreate={startCreating}
+        placeholder={onAddPlato ? 'Buscar alimento o plato…' : 'Buscar o añadir alimento…'}
+      />
+      {choque && (
+        <Notice tone="warn">
+          {activeClient?.name || 'Este cliente'} evita {choque.labels.join(' y ')} y «{choque.name}
+          » {choque.labels.length === 1 ? 'lo' : 'los'} lleva. Está añadido — quitarlo o dejarlo es
+          cosa tuya.
+        </Notice>
+      )}
+    </div>
   );
 };

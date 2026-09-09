@@ -463,6 +463,47 @@
   font-weight: 600; font-size: var(--fs-base);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+
+/* ── EL NOMBRE Y SU MARCA ──────────────────────────────────────────────────
+   La marca de la ficha (vídeo o pautas del entrenador) va PEGADA AL NOMBRE, que
+   es donde se busca. Y fuera de `.name`, no dentro: ese trunca con `ellipsis` y
+   se llevaría la marca con el texto cuando el nombre no cabe.
+
+   El precio está medido y se paga a propósito: `.exercise-name` son 208 px que
+   NO encogen, así que el glifo y su calle se comen 21 px del nombre —«Extensión
+   de cuádriceps en máquina» ya truncaba antes—. Lo pagan solo las filas que
+   tienen ficha, y el nombre entero sigue en el `title`. */
+.name-linea { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.name-linea > .name { min-width: 0; }
+
+.ej-marca {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+/* El verbo va en azul y la caja se enciende: la gramática de los gestos de la
+   casa. Sin flecha y sin subrayado. */
+.ej-marca:hover { background: var(--accent-soft); }
+.ej-marca > svg { display: block; }
+
+/* Lo que hay detrás de la marca (`Client/FichaEjercicioCliente`). La pauta es
+   una frase DICHA por una persona, así que se lee como una cita y no como un
+   párrafo de ayuda: filete a la izquierda, cursiva, y al tamaño del cuerpo
+   —es lo que se viene a leer, no una nota al pie—. */
+.ficha-cli-pauta {
+  font-size: var(--fs-base);
+  font-style: italic;
+  color: var(--text);
+  border-left: 2px solid var(--accent-wash);
+  padding-left: var(--s3);
+  margin: 0;
+}
 .exercise-meta {
   display: flex; align-items: center; gap: 6px;
   font-size: var(--fs-xs); color: var(--text-tertiary); min-width: 0;
@@ -724,9 +765,14 @@
 /* Cinco columnas: la serie, su objetivo y los tres valores que se registran.
    Las dos primeras son fijas y estrechas porque su contenido no crece —«4» y
    «8-10»—; lo que se reparte el resto son los campos, que es donde se escribe. */
+/* 52 px y no 42 en la columna del objetivo: desde que el peso se puede pautar
+   ahí cabe «100 kg» encima del rango. Fija y no `max-content` a propósito —cada
+   fila es su propia rejilla, así que una columna que se ajuste al contenido
+   dejaría las cuatro series de un ejercicio con los campos en sitios
+   distintos—. */
 .set-row {
   display: grid;
-  grid-template-columns: 26px 42px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 26px 52px repeat(3, minmax(0, 1fr));
   align-items: center; gap: var(--s2);
 }
 
@@ -751,10 +797,26 @@
    la posición; lo que no se sabe de un vistazo es cuáles faltan. */
 .set-row.is-done > .set-row-tag { background: var(--positive-soft); color: var(--positive); }
 
+/* El peso pautado va ENCIMA del rango y no delante: en 52 px «100 kg · 6-8» no
+   cabe en un renglón, y partirlo en dos deja las dos cifras alineadas con la
+   columna en la que se van a comparar. */
 .set-row-target {
   text-align: center; font-size: var(--fs-xs); font-weight: 650;
   color: var(--info); font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
+.set-row-target > .tnum { display: block; font-size: var(--fs-2xs); opacity: 0.85; }
+/* ── LAS TANDAS DE UN REMATE ───────────────────────────────────────────────
+   Sangradas y en voz baja: cuelgan de la serie de arriba, no son otra serie.
+   La palabra («bajada 2») ocupa la columna del objetivo porque lo que se pide
+   ya está dicho en la línea del remate. */
+.set-remate {
+  margin: 2px 0 0 34px; font-size: var(--fs-2xs); font-weight: 600;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+.set-row.is-sub > .set-row-target { color: var(--text-tertiary); font-weight: 550; font-size: var(--fs-2xs); }
+.set-row.is-sub > .input { min-height: 34px; }
+.set-row.is-sub > .set-row-tag { background: transparent; }
 /* El RIR pedido, dentro de la misma celda del objetivo y un punto más apagado:
    es la parte opcional de «lo que te pido», y quien no programa por RIR nunca la
    ve (ver el módulo `rir` en `domain/protocol.js`). */
@@ -1171,6 +1233,14 @@
   font-size: var(--fs-sm); font-weight: 700; color: var(--warning);
 }
 
+/* ── El menú sin cifras ─────────────────────────────────────────────────────
+   Al cliente al que su entrenador le oculta las kcal (`HIDDEN_INFO` en
+   `domain/protocol.js`) la fila pierde los tres macros y la kcal. No basta con
+   no pintar las celdas: las cuatro pistas de la rejilla seguirían reservadas y
+   el nombre acabaría a media tabla, con 186 px de vacío a la derecha. */
+.food-row.sin-cifras,
+.food-head.sin-cifras { grid-template-columns: 20px minmax(132px, 1fr) 112px; }
+
 /* ── Las equivalencias de un alimento, en su diálogo ────────────────────────
    La lista de intercambios de consulta: cada fila es una ración («250 g» o
    «1,5 manzanas») con sus kcal debajo del nombre. La cantidad es el dato que se
@@ -1237,5 +1307,15 @@
   .food-row > .n.is-f { grid-area: 2 / 4 / 3 / 5; }
   .food-row > .n { text-align: left; font-size: var(--fs-xs); }
   .food-row > .n::before { content: attr(data-macro) ' '; color: var(--text-tertiary); font-weight: 700; }
+
+  /* Sin cifras la fila no necesita dos líneas: nombre y cantidad caben en una,
+     así que se deshacen las áreas del reflujo en vez de dejar un renglón vacío
+     debajo de cada alimento. */
+  .food-row.sin-cifras {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    row-gap: 0;
+  }
+  .food-row.sin-cifras > .name { grid-area: auto; padding-left: 0; }
+  .food-row.sin-cifras > .grams { grid-area: auto; justify-content: flex-end; }
 }
 

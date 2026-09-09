@@ -26,6 +26,7 @@ import {
   planOfDay,
   removePlanExerciseIn,
   removePlanExerciseOnlyIn,
+  updatePlanDayIn,
   updatePlanExerciseIn,
   wherePlanExercise,
   blockSessionOf,
@@ -44,6 +45,7 @@ import {
   setBlockExerciseSetsIn,
   setBlockExerciseTargetIn,
   setBlockSessionsIn,
+  updateBlockExerciseIn,
   setOverrideSpanIn,
   blocksAfterInsertingWeek,
   deleteBlockFrom,
@@ -51,6 +53,8 @@ import {
   openNextBlock,
   programAfterRemovingWeek,
   renameBlockIn,
+  blockTraits,
+  setBlockTraitsIn,
   hasBlockPlan,
   proyectarPlanEnDias,
   resolvedMicrocycles,
@@ -233,7 +237,7 @@ export const useWorkout = ({
    * empezar a escribir.
    */
   const logSessionSet = useCallback(
-    (clientId, weekNumber, sessionId, date, dayName, exercise, setIndex, field, value) => {
+    (clientId, weekNumber, sessionId, date, dayName, exercise, setIndex, field, value, sub = null) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       const micro = findMicrocycle(current.microcycles, weekNumber);
       if (!micro) return null;
@@ -270,7 +274,7 @@ export const useWorkout = ({
         pasa de ser una fila a ser una operación.
       */
       const nextSessions = sessions.map((s) =>
-        s.id === targetId ? withSessionSet(s, exercise, setIndex, field, value) : s
+        s.id === targetId ? withSessionSet(s, exercise, setIndex, field, value, sub) : s
       );
 
       if (profileRole === 'client') {
@@ -288,16 +292,23 @@ export const useWorkout = ({
           El id de la sesión se genera aquí y se manda siempre el mismo, así que las
           tres llamadas escriben en la misma sesión aunque lleguen a la vez.
         */
-        persistSet(`set:${clientId}:${targetId}:${exercise.id}:${setIndex}:${field}`, clientId, {
-          weekNumber,
-          sessionId: targetId,
-          date,
-          dayName,
-          exercise,
-          setIndex,
-          field,
-          value,
-        });
+        /* La subserie entra en la clave: la bajada 1 y la bajada 2 de la misma
+           serie son dos valores distintos y no pueden pisarse en la cola. */
+        persistSet(
+          `set:${clientId}:${targetId}:${exercise.id}:${setIndex}${sub === null ? '' : `.${sub}`}:${field}`,
+          clientId,
+          {
+            weekNumber,
+            sessionId: targetId,
+            date,
+            dayName,
+            exercise,
+            setIndex,
+            field,
+            value,
+            sub,
+          }
+        );
       } else {
         applyMicrocycle(clientId, weekNumber, (m) => ({ ...m, sessions: nextSessions }), {
           immediate: false,
@@ -582,78 +593,6 @@ export const useWorkout = ({
       if (!name || name === oldName) return;
       applyDay(clientId, weekNumber, oldName, (d) => ({ ...d, dayName: name }));
     },
-    [applyDay]
-  );
-
-  /**
-   * La indicación del entrenador para un día.
-   *
-   * ── Por qué vive en el DÍA y no en la sesión ────────────────────────────────
-   * Estuvo colgada de la sesión, y era un error de modelo con una consecuencia
-   * inmediata: una sesión no existe hasta que alguien anota la primera serie, así
-   * que la nota solo se podía escribir DESPUÉS de que el cliente entrenara. Justo
-   * al revés de para lo que sirve — es una instrucción para hacer el
-   * entrenamiento, no un comentario sobre uno ya hecho.
-   *
-   * En el día del PLAN se puede escribir al programar la semana, que es cuando el
-   * entrenador la está pensando, y sigue ahí aunque el cliente repita el día dos
-   * veces. Y como es plan, la escribe solo el entrenador: el cliente no tiene
-   * UPDATE sobre `workout_data` y su RPC no toca `days`.
-   */
-  const setDayNote = useCallback(
-    (clientId, weekNumber, dayName, note) =>
-      applyDay(clientId, weekNumber, dayName, (d) => ({ ...d, coachNote: note }), {
-        immediate: false,
-      }),
-    [applyDay]
-  );
-
-  /**
-   * La indicación del entrenador para UN ejercicio.
-   *
-   * ── Por qué no basta con la del día ─────────────────────────────────────────
-   * La del día es el marco («hoy vamos suaves de espalda»); esto es la corrección
-   * técnica de un movimiento concreto («en el remo, el codo pegado»). Metida en
-   * la nota del día habría que nombrar el ejercicio dentro del texto y quien
-   * entrena tendría que acordarse de ella cuatro ejercicios después, en vez de
-   * leerla justo donde está el ejercicio.
-   *
-   * Mismo campo y mismas reglas que la del día —`coachNote`, dentro del PLAN, la
-   * escribe solo el entrenador y la ve el cliente— porque es la misma cosa a otra
-   * altura. Vacía es no tener nota: no ocupa sitio y no se pide.
-   */
-  const setExerciseNote = useCallback(
-    (clientId, weekNumber, dayName, exId, note) =>
-      applyDay(
-        clientId,
-        weekNumber,
-        dayName,
-        (d) => ({
-          ...d,
-          exercises: d.exercises.map((ex) => (ex.id !== exId ? ex : { ...ex, coachNote: note })),
-        }),
-        { immediate: false }
-      ),
-    [applyDay]
-  );
-
-  /**
-   * El calentamiento propio de un día, o quitárselo para que herede el del
-   * programa.
-   *
-   * ── `null` y `[]` no son lo mismo ───────────────────────────────────────────
-   * `null` devuelve el día al calentamiento del programa —«no he decidido
-   * nada»—; `[]` dice «este día NO se calienta», que es una decisión y hay que
-   * poder tomarla: un día de test o un descanso activo no llevan movilidad, y
-   * caer al del programa reaparecería el que se acaba de quitar.
-   *
-   * La regla de lectura vive en `domain/training.js` (`drillsForDay`).
-   */
-  const setDayDrills = useCallback(
-    (clientId, weekNumber, dayName, drills) =>
-      applyDay(clientId, weekNumber, dayName, (d) => ({ ...d, mobilityDrills: drills }), {
-        immediate: false,
-      }),
     [applyDay]
   );
 
@@ -1003,6 +942,19 @@ export const useWorkout = ({
   );
 
   /**
+   * Las características del bloque: a qué juega, cuánto se ha previsto que dure
+   * y qué se persigue. Ver `blockTraits` en el dominio.
+   *
+   * Va DIFERIDO como el renombrado: la nota se teclea, y guardar cada letra
+   * sería una escritura por pulsación.
+   */
+  const setBlockTraits = useCallback(
+    (clientId, blockId, traits) =>
+      applyWorkout(clientId, (cd) => setBlockTraitsIn(cd, blockId, traits), { immediate: false }),
+    [applyWorkout]
+  );
+
+  /**
    * Quita un bloque: sus semanas pasan al de al lado y no se borra ninguna.
    * Ver `deleteBlockFrom` — lo que se deshace es el corte, no el entreno. Va
    * inmediato: es una decisión de estructura, no un tecleo.
@@ -1097,7 +1049,7 @@ export const useWorkout = ({
    * fecha; sin él, el bloque está abierto y punto.
    */
   const startBlockWithPlan = useCallback(
-    (clientId, { name = null, sessions = [], mobilityDrills = null, plannedWeeks = null } = {}) => {
+    (clientId, { name = null, sessions = [], mobilityDrills = null, plannedWeeks = null, intent = null, note = null } = {}) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       if (current.microcycles.length === 0) return startProgram(clientId);
 
@@ -1115,7 +1067,11 @@ export const useWorkout = ({
                   ...b,
                   sessions,
                   ...(Array.isArray(mobilityDrills) ? { mobilityDrills } : {}),
-                  ...(plannedWeeks ? { plannedWeeks } : {}),
+                  /* Las características, saneadas por el dominio y sin
+                     guardar las vacías: ver `blockTraits`. */
+                  ...Object.fromEntries(
+                    Object.entries(blockTraits({ plannedWeeks, intent, note })).filter(([, v]) => v !== null)
+                  ),
                 }
           ),
           microcycles: [
@@ -1262,6 +1218,24 @@ export const useWorkout = ({
     [applyPlan]
   );
 
+  /* La gramática de serie —enlazado, técnica, descanso— es plan y va al bloque.
+     `options` deja pasar `immediate: false` para lo que se teclea (el descanso);
+     los conmutadores guardan al momento, como todo lo que es un clic. */
+  const setBlockExerciseGrammar = useCallback(
+    (clientId, blockId, dayName, name, campos, options) =>
+      applyPlan(
+        clientId,
+        (cd) => {
+          const suyo = enLaHoja(cd, blockId, dayName).find((ex) => ex.name === name);
+          return suyo
+            ? updateBlockExerciseIn(cd, blockId, dayName, suyo.id, (ex) => ({ ...ex, ...campos }))
+            : cd;
+        },
+        options
+      ),
+    [applyPlan]
+  );
+
 
   /* ── Y lo que se toca desde la HOJA ────────────────────────────────────
      Se escribe donde ese ejercicio VIVE —el bloque, o la excepción de esa
@@ -1271,6 +1245,87 @@ export const useWorkout = ({
   const updatePlanExercise = useCallback(
     (clientId, weekNumber, dayName, exerciseId, fn, options) =>
       applyPlan(clientId, (cd) => updatePlanExerciseIn(cd, weekNumber, dayName, exerciseId, fn), options),
+    [applyPlan]
+  );
+
+  /**
+   * La indicación del entrenador para un día.
+   *
+   * ── Por qué vive en el PLAN y no en la sesión ───────────────────────────────
+   * Estuvo colgada de la sesión, y era un error de modelo con una consecuencia
+   * inmediata: una sesión no existe hasta que alguien anota la primera serie, así
+   * que la nota solo se podía escribir DESPUÉS de que el cliente entrenara. Justo
+   * al revés de para lo que sirve — es una instrucción para hacer el
+   * entrenamiento, no un comentario sobre uno ya hecho.
+   *
+   * En el plan se puede escribir al programar, que es cuando el entrenador la
+   * está pensando, y sigue ahí aunque el cliente repita el día dos veces. Y como
+   * es plan, la escribe solo el entrenador: el cliente no tiene UPDATE sobre
+   * `workout_data` y su RPC no toca el plan.
+   *
+   * ── Y por qué va al BLOQUE ──────────────────────────────────────────────────
+   * Se escribía en el día del microciclo, que es donde vivía el plan antes. Con
+   * el plan en el bloque eso la dejaba en tierra de nadie: la hoja se lee del
+   * bloque, así que ni se veía al momento ni llegaba al microciclo siguiente —el
+   * día del microciclo solo aporta el nombre—. Una indicación dura lo que dura
+   * el bloque, igual que el ejercicio al que acompaña.
+   */
+  const setDayNote = useCallback(
+    (clientId, weekNumber, dayName, note) =>
+      applyPlan(clientId, (cd) => updatePlanDayIn(cd, weekNumber, dayName, (d) => ({ ...d, coachNote: note })), {
+        immediate: false,
+      }),
+    [applyPlan]
+  );
+
+  /**
+   * La indicación del entrenador para UN ejercicio.
+   *
+   * ── Por qué no basta con la del día ─────────────────────────────────────────
+   * La del día es el marco («hoy vamos suaves de espalda»); esto es la corrección
+   * técnica de un movimiento concreto («en el remo, el codo pegado»). Metida en
+   * la nota del día habría que nombrar el ejercicio dentro del texto y quien
+   * entrena tendría que acordarse de ella cuatro ejercicios después, en vez de
+   * leerla justo donde está el ejercicio.
+   *
+   * Mismo campo, mismas reglas y MISMO DESTINO que la del día —`coachNote`,
+   * dentro del plan, donde ese ejercicio viva: el bloque, o la excepción de esa
+   * semana si solo existe ahí— porque es la misma cosa a otra altura. Vacía es
+   * no tener nota: no ocupa sitio y no se pide.
+   */
+  const setExerciseNote = useCallback(
+    (clientId, weekNumber, dayName, exId, note) =>
+      applyPlan(
+        clientId,
+        (cd) => updatePlanExerciseIn(cd, weekNumber, dayName, exId, (ex) => ({ ...ex, coachNote: note })),
+        { immediate: false }
+      ),
+    [applyPlan]
+  );
+
+  /**
+   * El calentamiento propio de un día, o quitárselo para que herede el del
+   * programa.
+   *
+   * ── `null` y `[]` no son lo mismo ───────────────────────────────────────────
+   * `null` devuelve el día al calentamiento del programa —«no he decidido
+   * nada»—; `[]` dice «este día NO se calienta», que es una decisión y hay que
+   * poder tomarla: un día de test o un descanso activo no llevan movilidad, y
+   * caer al del programa reaparecería el que se acaba de quitar.
+   *
+   * La regla de lectura vive en `domain/training.js` (`drillsForDay`).
+   *
+   * Va a la hoja del plan por lo mismo que la indicación del día: el
+   * calentamiento de un día es plan, y escrito en el microciclo no se leía —la
+   * hoja se lee del bloque— ni llegaba al microciclo siguiente.
+   */
+  const setDayDrills = useCallback(
+    (clientId, weekNumber, dayName, drills) =>
+      applyPlan(
+        clientId,
+        (cd) => updatePlanDayIn(cd, weekNumber, dayName, (d) => ({ ...d, mobilityDrills: drills })),
+        { immediate: false }
+      ),
     [applyPlan]
   );
 
@@ -1862,6 +1917,7 @@ export const useWorkout = ({
     appendMicrocycle,
     startBlock,
     renameBlock,
+    setBlockTraits,
     deleteBlock,
     logBlockChange,
     migratePlanToBlock,
@@ -1877,6 +1933,7 @@ export const useWorkout = ({
     moveBlockExercise,
     setBlockExerciseSets,
     setBlockExerciseTarget,
+    setBlockExerciseGrammar,
     updatePlanExercise,
     removePlanExercise,
     overridePlanExercise,

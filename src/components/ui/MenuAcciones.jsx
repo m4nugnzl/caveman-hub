@@ -17,6 +17,12 @@ import { useDismissable } from '@/lib/useDismissable';
  * de sacar de la pantalla los interruptores que se tocan una vez al mes sin
  * esconder en qué estado están. Mismo popover y mismos ítems en todas partes:
  * nada de controles nativos.
+ *
+ * `sub` cuelga un dato en voz baja al canto derecho del ítem. Existe porque
+ * este menú pasó a ser también un NAVEGADOR —los bloques del programa, los
+ * microciclos del bloque— y ahí el nombre solo no basta para elegir: hace
+ * falta desde cuándo va, cuánto duró o cuántos entrenamientos lleva. En un
+ * menú de acciones no se usa: una acción se nombra, no se describe.
  */
 export const MenuAcciones = ({ label = null, items, alineado = 'derecha', ariaLabel, clase = null, sinFlecha = false }) => {
   const [abierto, setAbierto] = useState(false);
@@ -75,6 +81,7 @@ export const MenuAcciones = ({ label = null, items, alineado = 'derecha', ariaLa
               >
                 {it.on !== undefined && <Check size={15} className="menu-check" aria-hidden="true" />}
                 {it.icon && <it.icon size={15} aria-hidden="true" />} {it.label}
+                {it.sub && <span className="menu-sub">{it.sub}</span>}
               </button>
             )
           )}

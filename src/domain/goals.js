@@ -115,12 +115,26 @@ export const clientGoal = (client) => {
   if (!direction) return null;
 
   const rate = toNum(raw?.ratePct);
+  /*
+    El PESO al que se va, opcional. El modelo sigue siendo el ritmo —es lo que
+    se puede juzgar semana a semana y lo que aguanta que el peso cambie—, pero
+    el ritmo no dice DÓNDE se acaba: «−0,5 %/sem» no es una meta, es una
+    velocidad. Con el destino puesto, la revisión puede dibujar el camino
+    entero (empezó → hoy → objetivo) en vez de dejar la cifra de hoy en el
+    aire. Sin él, `null`, y la pantalla no se inventa ninguno.
+
+    Se acota a lo humano (30–300 kg) por lo mismo que el ritmo: un valor
+    absurdo tecleado a mano no puede llegar a la lectura como si fuera una
+    meta legítima.
+  */
+  const target = toNum(raw?.targetWeightKg);
   return {
     direction: direction.id,
     // Se acota para que un valor absurdo guardado a mano no llegue a la lectura
     // como si fuera un objetivo legítimo.
     ratePct: direction.sign === 0 ? 0 : Math.min(2, Math.abs(rate ?? direction.defaultRate)),
     note: typeof raw?.note === 'string' ? raw.note : '',
+    targetWeightKg: target !== null && target >= 30 && target <= 300 ? round(target, 1) : null,
   };
 };
 

@@ -33,6 +33,7 @@
  */
 
 import { PROFILE_FIELDS, PROFILE_GROUPS, customAnswers, fieldById } from './profile';
+import { SCOFF_QUESTIONS } from './scoff';
 import { newId } from '@/lib/ids';
 
 /**
@@ -103,6 +104,13 @@ export const defaultIntakeForm = () => ({
   */
   askBasics: true,
   /*
+    ── Sus medidas de partida (perímetros), apagadas de serie ────────────────
+    Caen en su antropometría como PRIMERA medición (D15). Apagado porque hay
+    entrenadores que miden ellos —presencial, con su cinta y su criterio— y
+    para ellos la caja del cliente sería el segundo sitio donde medirse.
+  */
+  askMeasures: false,
+  /*
     ── Preguntar por su salud, encendido de serie ────────────────────────────
     La otra parte que NACE encendida —con `askBasics`, aquí arriba— y va contra
     la regla de «nada llega encendido» a propósito: un cuestionario que pregunta a
@@ -114,6 +122,14 @@ export const defaultIntakeForm = () => ({
     no haberlo encontrado.
   */
   askHealth: true,
+  /*
+    ── El cribado de TCA (SCOFF), APAGADO de serie ───────────────────────────
+    Aquí sí manda la regla de «nada llega encendido»: es un instrumento clínico
+    con una sensibilidad que no todos los entrenadores quieren manejar, y quien
+    lo enciende tiene que saber qué está pidiendo. Cinco preguntas validadas;
+    el resultado lo ve solo el coach (`domain/scoff.js`).
+  */
+  askScreening: false,
   /*
     Qué preguntas no cuentan como contestadas si están en blanco.
 
@@ -179,9 +195,72 @@ export const coachIntakeForm = (preferences) => {
     required,
     askBasics: raw.askBasics !== false,
     askHealth: raw.askHealth !== false,
+    /* Al revés que los dos de arriba: estas dos solo existen si se pidieron. */
+    askMeasures: raw.askMeasures === true,
+    askScreening: raw.askScreening === true,
     intro: String(raw.intro ?? '').trim().slice(0, 500),
   };
 };
+
+/* ══════════════════════════════════════════════════════════════════════════
+   VARIOS FORMULARIOS DE ALTA — uno por tipo de cliente
+   ══════════════════════════════════════════════════════════════════════════
+
+   Quien lleva pérdida de grasa y powerlifters preguntaba lo mismo a los dos.
+   Ahora el entrenador puede tener varias ALTAS con nombre —«Pérdida de grasa»,
+   «Fuerza»— y elegir cuál se le copia a cada cliente al darlo de alta.
+
+   ── El modelo más pequeño que lo dice ──────────────────────────────────────
+   `preferences.intakeForms.items` es una lista de formularios con id y nombre;
+   cada uno tiene la MISMA forma que el de siempre. El `intakeForm` de siempre
+   no se migra: si no hay lista, ÉL es la lista — un solo «Alta». Así nadie
+   pierde nada y el que nunca cree una segunda no ve diferencia ninguna.
+
+   El lado del cliente NO cambia: al alta se le copia UN formulario a
+   `clients.preferences.intakeForm`, exactamente como hasta ahora. Elegir es
+   cosa del entrenador; el portal ni se entera de que había varios. */
+
+export const MAX_FORMS = 6;
+export const MAX_FORM_NAME = 60;
+
+/** Los formularios del entrenador, saneados. Siempre hay al menos uno. */
+export const coachIntakeForms = (preferences) => {
+  const items = Array.isArray(preferences?.intakeForms?.items) ? preferences.intakeForms.items : [];
+  const saneados = items
+    .map((it) => {
+      if (!it || typeof it !== 'object' || !it.id) return null;
+      return {
+        id: String(it.id),
+        name: String(it.name ?? '').trim().slice(0, MAX_FORM_NAME) || 'Alta',
+        ...coachIntakeForm({ intakeForm: it }),
+      };
+    })
+    .filter(Boolean)
+    .slice(0, MAX_FORMS);
+
+  if (saneados.length > 0) return saneados;
+  /* Sin lista, el formulario único de siempre ES la lista. Id fijo: es «el de
+     siempre», no uno nuevo cada vez que se lee. */
+  return [{ id: 'form_general', name: 'Alta', ...coachIntakeForm(preferences) }];
+};
+
+/** El formulario elegido, o el primero: nadie se queda sin alta por un id roto. */
+export const intakeFormById = (preferences, formId) => {
+  const lista = coachIntakeForms(preferences);
+  return lista.find((f) => f.id === formId) || lista[0];
+};
+
+/** La lista, lista para guardarse en `preferences.intakeForms`. */
+export const intakeFormsToPreferences = (forms) => ({
+  items: coachIntakeForms({ intakeForms: { items: forms } }),
+});
+
+/** Un formulario nuevo. Nace con las preguntas de serie, como el de siempre. */
+export const buildIntakeForm = ({ name }) => ({
+  id: newId('form'),
+  name: String(name || '').trim().slice(0, MAX_FORM_NAME) || 'Alta',
+  ...defaultIntakeForm(),
+});
 
 /** ¿Esta pregunta es de las que hay que contestar para dar el alta por hecha? */
 export const isRequired = (form, id) => (form?.required || []).includes(id);
@@ -247,6 +326,20 @@ export const formSections = (form) => {
   const propias = (form?.custom || []).map((q) => ({ ...q, custom: true }));
   if (propias.length > 0) {
     tandas.push({ id: 'custom', label: 'Lo que te pregunta tu entrenador', fields: propias });
+  }
+
+  /*
+    El cribado (SCOFF), la última tanda y solo si el entrenador lo pidió. Sus
+    preguntas se contestan con sí o no y caen en `profile.scoff`, no en los
+    campos de la ficha — por eso llevan su propia marca. Al cliente no se le
+    enseña ningún veredicto; ver `domain/scoff.js`.
+  */
+  if (form?.askScreening) {
+    tandas.push({
+      id: 'scoff',
+      label: 'Tu relación con la comida',
+      fields: SCOFF_QUESTIONS.map((q) => ({ ...q, kind: 'yesno', scoff: true })),
+    });
   }
 
   return tandas;

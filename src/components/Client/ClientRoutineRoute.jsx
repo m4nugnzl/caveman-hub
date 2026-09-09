@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { useApp } from '@/context/AppContext';
 import { resolvedMicrocycles } from '@/domain/blocks';
+import { findByName } from '@/domain/catalog';
 import { PageHead } from '@/components/ui/primitives';
 import { ClientRoutine } from './ClientRoutine';
 import { IntakePrompt } from './IntakePrompt';
@@ -23,8 +24,47 @@ export const ClientRoutineRoute = () => {
     continueProgram,
     saveStatus,
     retrySave,
+    sheetOf,
+    catalogExercises,
   } = useApp();
   const [preferredWeek, setPreferredWeek] = useState(null);
+
+  /**
+   * LA FICHA DE UN EJERCICIO, YA UNIDA: lo de su entrenador y lo del catálogo.
+   *
+   * ══ Por qué se compone aquí y no en la vista ═══════════════════════════════
+   *
+   * Porque son DOS fuentes con dos permisos distintos —el vídeo y las pautas
+   * llegan por la función `exercise_sheets` (0100), y el músculo, el material y
+   * la descripción salen de `catalog_exercises`, que cualquiera puede leer
+   * (0033)— y unirlas es justo el trabajo de este envoltorio: aquí es donde
+   * este portal conecta el contexto con las vistas. La ficha viaja como una
+   * función y no como dos listas, así que ninguna pieza de la rutina tiene que
+   * saber de dónde salió cada mitad.
+   *
+   * ── Devuelve `null` si no lo ha puesto su entrenador ──────────────────────
+   * Y ese `null` es lo que decide que el renglón NO lleve marca. La condición es
+   * que haya vídeo o pautas: la descripción del catálogo, sola, no abre ficha.
+   * Es la regla de la 0098 —«si no lo pone el entrenador, no existe»— y evita
+   * que trescientos ejercicios aparezcan de repente con una marca que solo lleva
+   * texto genérico detrás.
+   */
+  const fichaDe = useCallback(
+    (name) => {
+      const suyo = sheetOf(name);
+      if (!suyo) return null;
+
+      const general = findByName(catalogExercises, name);
+      return {
+        videoUrl: suyo.videoUrl,
+        cue: suyo.cue,
+        muscle: general?.muscle ?? null,
+        equipment: general?.equipment ?? null,
+        description: general?.description ?? null,
+      };
+    },
+    [sheetOf, catalogExercises]
+  );
 
   /**
    * El cliente registra sus series en una SESIÓN CON FECHA, igual que el
@@ -86,6 +126,8 @@ export const ClientRoutineRoute = () => {
         const week = continueProgram(activeClient.id);
         if (week) setPreferredWeek(week);
       }}
+        /* La ficha de cada ejercicio, ya unida. Ver `fichaDe` arriba. */
+        fichaDe={fichaDe}
         save={saveStatus('workout', activeClient.id)}
         onRetry={() => retrySave('workout', activeClient.id)}
       />

@@ -29,7 +29,19 @@ import { MessageSquare } from 'lucide-react';
  * clase de costura de la que sale que una pantalla parezca un collage.
  */
 
-const Scale = ({ question, value, onChange, readOnly }) => {
+/*
+  ── `soloLectura` no es lo mismo que `readOnly`, y la diferencia importa ─────
+  `readOnly` es «ya se contestó»: pinta la respuesta y esconde el resto de la
+  escala. `soloLectura` es «así se va a ver»: pinta el CONTROL entero, apagado.
+  Lo usa el constructor de formularios para enseñar la pregunta tal como le
+  llegará al cliente antes de que la conteste.
+
+  Es la misma decisión que ya está tomada en `Client/IntakeQuestions.jsx`, y por
+  el mismo motivo: un segundo renderizador para la muestra se queda atrás el día
+  que se añada una clase de pregunta, y entonces la muestra miente — que es peor
+  que no tenerla.
+*/
+const Scale = ({ question, value, onChange, readOnly, soloLectura = false }) => {
   const min = question.min ?? 1;
   const max = question.max ?? 10;
   const steps = [];
@@ -65,6 +77,7 @@ const Scale = ({ question, value, onChange, readOnly }) => {
           <button
             key={step}
             type="button"
+            disabled={soloLectura}
             className={`scale-step${active ? ' is-on' : ''}`}
             style={active ? { background: question.color, borderColor: question.color } : undefined}
             aria-pressed={active}
@@ -81,7 +94,14 @@ const Scale = ({ question, value, onChange, readOnly }) => {
   );
 };
 
-export const SessionFeedback = ({ questions, answers = {}, onChange, readOnly = false, title }) => {
+export const SessionFeedback = ({
+  questions,
+  answers = {},
+  onChange,
+  readOnly = false,
+  soloLectura = false,
+  title,
+}) => {
   if (questions.length === 0) return null;
 
   const answered = questions.filter((q) => String(answers[q.id] ?? '').trim() !== '').length;
@@ -124,6 +144,7 @@ export const SessionFeedback = ({ questions, answers = {}, onChange, readOnly = 
                 <textarea
                   className="textarea"
                   rows={2}
+                  disabled={soloLectura}
                   placeholder="Opcional"
                   value={value}
                   onChange={(e) => onChange(question.id, e.target.value)}
@@ -144,6 +165,7 @@ export const SessionFeedback = ({ questions, answers = {}, onChange, readOnly = 
                 question={question}
                 value={value}
                 readOnly={readOnly}
+                soloLectura={soloLectura}
                 onChange={(next) => onChange(question.id, next)}
               />
             </div>

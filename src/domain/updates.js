@@ -43,8 +43,8 @@
  */
 
 import { weeklyCheckIn } from './anthropometry';
-import { requiredBlocks, weighInsTarget } from './protocol';
-import { weekStart } from '@/lib/dates';
+import { diasDe, requiredBlocks, sanitizeSchedule, weighInsTarget } from './protocol';
+import { addDays, weekStart } from '@/lib/dates';
 
 /** Las tres cosas de las que se avisa, en el orden en que se enseñan. */
 export const UPDATE_KINDS = [
@@ -81,9 +81,33 @@ export const UPDATE_KINDS = [
 
 const KIND_IDS = UPDATE_KINDS.map((k) => k.id);
 
+/*
+  ══ La excepción a «aquí no hay ni un campo de texto» ═══════════════════════
+
+  El AVISO: una frase del entrenador a varios clientes a la vez («esta semana
+  no paso consulta», «mandad las fotos antes del viernes»). Sigue sin ser un
+  chat — no hay hilo, no se contesta, la conversación sigue siendo de
+  WhatsApp—: es UNA novedad más, con la diferencia de que su texto lo escribe
+  una persona en vez de deducirse de un sello.
+
+  Se guarda donde los demás sellos (`updates.note = { at, text }`), así que
+  viaja por la misma columna, se descarta con el mismo gesto y no necesita
+  tabla. Un aviso nuevo PISA al anterior a propósito: esto es un tablón con
+  sitio para una nota, no un archivo de circulares.
+*/
+export const NOTE_MAX = 280;
+
 const isoOrNull = (value) => {
   const texto = String(value || '');
   return Number.isFinite(Date.parse(texto)) ? texto : null;
+};
+
+/** El aviso listo para guardar, o `null` si no hay nada que decir. */
+export const noteStamp = (text, now = new Date().toISOString()) => {
+  const limpio = String(text || '')
+    .trim()
+    .slice(0, NOTE_MAX);
+  return limpio ? { at: now, text: limpio } : null;
 };
 
 /** Los sellos guardados, limpios de lo que la aplicación no conoce. */
@@ -94,6 +118,15 @@ export const clientUpdates = (preferences) => {
     for (const id of KIND_IDS) {
       const at = isoOrNull(raw[id]);
       if (at) out[id] = at;
+    }
+    /* El aviso se conserva al sellar cualquier otra cosa: `stampUpdate` guarda
+       lo que esta función devuelve, y sin esta línea tocar la rutina borraría
+       el aviso del tablón. */
+    const nota = raw.note;
+    if (nota && typeof nota === 'object') {
+      const at = isoOrNull(nota.at);
+      const text = String(nota.text || '').trim();
+      if (at && text) out.note = { at, text: text.slice(0, NOTE_MAX) };
     }
   }
   return out;
@@ -115,7 +148,7 @@ export const unseenUpdates = (preferences, now = new Date().toISOString()) => {
   const desde = lastSeen(preferences);
   if (!desde) return [];
 
-  return UPDATE_KINDS.filter((kind) => {
+  const lista = UPDATE_KINDS.filter((kind) => {
     const at = sellos[kind.id];
     if (!at || at <= desde) return false;
     /* Y que no se haya quitado a mano. Se compara contra el sello, no contra
@@ -123,10 +156,27 @@ export const unseenUpdates = (preferences, now = new Date().toISOString()) => {
        posterior al descarte y la novedad vuelve, que es lo correcto. */
     const quitada = dismissedAt(preferences, kind.id);
     return !quitada || at > quitada;
-  })
-    .map((kind) => ({ ...kind, at: sellos[kind.id] }))
-    .filter((u) => u.at <= now)
-    .sort((a, b) => b.at.localeCompare(a.at));
+  }).map((kind) => ({ ...kind, at: sellos[kind.id] }));
+
+  /* El aviso del entrenador entra en la misma lista, con su texto de frase
+     secundaria: el rótulo dice de quién viene y la frase dice el qué, que es
+     como pintan las novedades el portal y la campana. Mismo descarte y misma
+     regla de reaparición que las demás. */
+  const nota = sellos.note;
+  if (nota && nota.at > desde) {
+    const quitada = dismissedAt(preferences, 'note');
+    if (!quitada || nota.at > quitada) {
+      lista.push({
+        id: 'note',
+        label: 'Un aviso de tu entrenador',
+        hint: nota.text,
+        href: '/mi/hoy',
+        at: nota.at,
+      });
+    }
+  }
+
+  return lista.filter((u) => u.at <= now).sort((a, b) => b.at.localeCompare(a.at));
 };
 
 /** El objeto que se guarda al sellar un cambio. Conserva los otros dos sellos. */
@@ -151,7 +201,8 @@ export const unseenUpdates = (preferences, now = new Date().toISOString()) => {
  */
 export const dismissUpdate = (preferences, kind, at) => {
   const previo = preferences?.feed?.dismissed || {};
-  if (!KIND_IDS.includes(kind)) return previo;
+  /* El aviso ('note') se descarta igual que los sellos: es una novedad más. */
+  if (!KIND_IDS.includes(kind) && kind !== 'note') return previo;
   return { ...previo, [kind]: isoOrNull(at) || new Date().toISOString() };
 };
 
@@ -180,9 +231,101 @@ export const stampUpdate = (preferences, kind, now = new Date().toISOString()) =
  * aquí no aparecen. Las fotos tampoco, porque hoy no hay ningún sitio donde se
  * declaren obligatorias.
  */
-export const pendingTasks = ({ history = [], protocol = null, today }) => {
+/**
+ * EL RECORDATORIO DEL CHECK-IN: la única cosa que le habla al cliente sin que su
+ * entrenador pulse nada ese día.
+ *
+ * ══ Por qué existe, y por qué nace apagado ═════════════════════════════════
+ *
+ * El check-in era semanal por convención del código: no había ni día, ni
+ * frecuencia, ni recordatorio. El entrenador que quería que se lo entregaran el
+ * lunes tenía que perseguirlo por WhatsApp — o sea, la aplicación le dejaba a él
+ * el papel de policía.
+ *
+ * Ahora lo dice su protocolo (`schedule`), y **nace en 0, que es «no se lo
+ * recuerdes»**. Un recordatorio que nadie ha pedido es la aplicación mandándole
+ * deberes a alguien en nombre de su entrenador.
+ *
+ * ══ Y sin reproche ═════════════════════════════════════════════════════════
+ *
+ * No dice «te has retrasado» ni cuenta cuánto lleva: dice qué falta y a dónde ir.
+ * Es la misma ley que sostiene el resto del producto — lo que no está
+ * configurado no existe, y lo que existe no juzga.
+ *
+ * ── Solo si de verdad falta algo ───────────────────────────────────────────
+ * Se calcula sobre las tareas que ya devuelve `pendingTasks`. Sin nada
+ * pendiente no hay nada que recordar, y recordárselo igual sería la definición
+ * de ruido.
+ */
+export const recordatorioDeSemana = ({ protocol = null, tasks = [], today }) => {
+  const { day, remindAfter } = sanitizeSchedule(protocol?.schedule);
+  /*
+    Solo cuentan las tareas DE LA SEMANA.
+
+    Desde que `pendingTasks` devuelve también lo que le han mandado suelto,
+    `tasks.length` dejó de significar «le falta el check-in»: un
+    cuestionario de hábitos pendiente habría disparado «tu entrenador espera tu
+    check-in» a alguien que lo tenía entregado. Por eso cada tarea dice de dónde
+    viene.
+  */
+  const deLaSemana = tasks.filter((t) => t.de === 'semana');
+  if (remindAfter <= 0 || deLaSemana.length === 0) return null;
+
+  const lunes = weekStart(today);
+  if (!lunes) return null;
+  /* El día en que se le pide, dentro de ESTA semana; el aviso llega N días
+     después. `day` va de 1 (lunes) a 7 (domingo). */
+  const seLePide = addDays(lunes, day - 1);
+  const avisa = addDays(seLePide, remindAfter);
+  if (!avisa || today < avisa) return null;
+
+  /*
+    Lo que dice NO es lo que ya dicen las tareas de debajo.
+
+    La primera versión repetía «falta una cosa: te falta 1 pesaje», que es la
+    misma frase dos veces con distinta caja. Lo que el cliente no sabe —y su
+    entrenador sí— es CUÁNDO se espera que lo entregue: eso no está en ninguna
+    otra parte de su portal.
+  */
+  return {
+    id: 'recordatorio',
+    label: 'Tu entrenador espera tu check-in',
+    hint: `Se lo entregas los ${diasDe(protocol?.schedule)}.`,
+    href: '/mi/evolucion',
+  };
+};
+
+export const pendingTasks = ({ history = [], protocol = null, today, formularios = [] }) => {
   const semana = weeklyCheckIn(history, today, { target: weighInsTarget(protocol) });
   const out = [];
+
+  /*
+    Lo que le han mandado, primero.
+
+    Va delante de lo de la semana porque es lo único que su entrenador ha puesto
+    A MANO: el pesaje y las medidas los pide el protocolo y se repiten solos,
+    esto se lo ha mandado alguien pensando en él. Y por eso el texto dice quién
+    lo manda, no qué falta.
+
+    ── Cada tipo con su verbo ────────────────────────────────────────────────
+    «Tu entrenador te pide: Cómo grabar tus series» de un vídeo es pedirle algo
+    que no tiene que devolver. Lo que se le pide y lo que se le da son dos
+    recados distintos, y el que los lee está mirando la pantalla treinta
+    segundos.
+  */
+  for (const f of formularios) {
+    const tipo = f.tipo || 'form';
+    const entrega = tipo === 'documento' || tipo === 'video';
+    out.push({
+      id: `form-${f.id}`,
+      de: 'mandado',
+      label: entrega
+        ? `Tu entrenador te ha dejado: ${f.title}`
+        : `Tu entrenador te pide: ${f.title}`,
+      hint: entrega ? 'Se abre en otra pestaña.' : tipo === 'pide' ? 'Cuando lo tengas, márcalo.' : 'Son unos minutos.',
+      href: '/mi/formularios',
+    });
+  }
 
   /*
     Solo si su entrenador pide pesajes. Antes el objetivo eran tres escritos en
@@ -194,6 +337,7 @@ export const pendingTasks = ({ history = [], protocol = null, today }) => {
     const faltan = semana.target - semana.count;
     out.push({
       id: 'weights',
+      de: 'semana',
       label: faltan === 1 ? 'Te falta 1 pesaje esta semana' : `Te faltan ${faltan} pesajes esta semana`,
       hint: `Llevas ${semana.count} de ${semana.target}.`,
       href: '/mi/evolucion',
@@ -211,6 +355,7 @@ export const pendingTasks = ({ history = [], protocol = null, today }) => {
     if (!medido) {
       out.push({
         id: `block-${bloque.id}`,
+        de: 'semana',
         label: `Te faltan tus ${bloque.label.toLowerCase()}`,
         hint: 'Tu entrenador los pide en cada check-in.',
         href: '/mi/evolucion',

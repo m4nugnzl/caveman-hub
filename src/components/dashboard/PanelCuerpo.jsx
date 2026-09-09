@@ -12,6 +12,7 @@ import { BandChart, Sparkline } from '@/components/ui/charts';
 import { Delta } from '@/components/ui/metrics';
 import { Modal } from '@/components/ui/Modal';
 import { TarjetaVacia } from './Tarjeta';
+import { useOculto } from '@/components/Client/Oculto';
 
 /**
  * EL CUERPO, A FONDO — la ventana con la prueba.
@@ -127,13 +128,19 @@ export const PanelCuerpo = ({
     reparto de la rejilla se calcula con cuántas hay (`--planes`), lo que
     sobraba se reparte entre el peso y las escalas en vez de quedarse en blanco.
   */
+  /* Y la de kcal tampoco existe para quien las tiene ocultas: la tabla semana a
+     semana era la última puerta por la que volvían, con quince filas de golpe. */
+  const oculto = useOculto();
+
   const planes = useMemo(
     () =>
       [
-        { id: 'kcals', label: 'Kcal' },
+        !oculto.nutrition && { id: 'kcals', label: 'Kcal' },
         { id: 'pasos', label: 'Pasos' },
-      ].filter((col) => filas.some((f) => f[col.id] !== null && f[col.id] !== undefined)),
-    [filas]
+      ]
+        .filter(Boolean)
+        .filter((col) => filas.some((f) => f[col.id] !== null && f[col.id] !== undefined)),
+    [filas, oculto.nutrition]
   );
 
   /* La banda del objetivo sobre el peso: dónde debería estar al final de la

@@ -8,6 +8,7 @@ import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
 import { checkinQuestions, clientProtocol, weighInsTarget } from '@/domain/protocol';
+import { clientGoal } from '@/domain/goals';
 import { readingHeadline, weeklyReading, weekSignals, weightTrend } from '@/domain/reading';
 import { effectiveGoal, phaseAt, phaseProgress } from '@/domain/roadmap';
 import {
@@ -436,6 +437,28 @@ export const WeekReview = () => {
   const pesoActual = metricPoints(serie, 'weight').slice(-1)[0]?.value ?? null;
   const trend = useMemo(() => weightTrend(serie), [serie]);
   const goal = useMemo(() => effectiveGoal(activeClient, phases, todayISO()), [activeClient, phases]);
+
+  /*
+    ══ EL DESTINO: hacia dónde va esta persona ═══════════════════════════════
+
+    La cifra de esta semana estaba en el aire: «72,4 kg» viniendo de 80 y «72,4»
+    camino de 70 son dos pantallas distintas, y la única que lo decía era la
+    ficha, a dos clics de donde se decide. Con el peso objetivo puesto
+    (`clientGoal`, opcional a propósito: sin él no se inventa ninguno), la
+    cabecera dibuja el camino entero — empezó → hoy → objetivo — y deja escrita
+    la nota de su meta si la hay.
+
+    Es el objetivo GENERAL del cliente, no el de la fase: la fase juzga el
+    ritmo de esta semana (el veredicto de arriba); esto dice dónde acaba el
+    proceso. «Sin reproches» sigue: informa del destino, no juzga el paso.
+  */
+  const destino = useMemo(() => clientGoal(activeClient), [activeClient]);
+  const primerPeso = useMemo(() => {
+    const conFecha = history
+      .filter((h) => h.date && Number.isFinite(Number(h.weight)))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return conFecha.length > 0 ? Number(conFecha[0].weight) : null;
+  }, [history]);
 
   /*
     ══ QUÉ LE PUSISTE DE COMER, SEMANA A SEMANA ══════════════════════════════
@@ -981,6 +1004,51 @@ export const WeekReview = () => {
                 )}
               </p>
               <p className="revision-hero-meta">{contexto}</p>
+
+              {/*
+                ══ EL DESTINO, si está puesto ════════════════════════════════
+                Empezó → hoy → objetivo en una sola figura. Solo con las tres
+                cifras de verdad: sin peso objetivo, o sin un primer pesaje del
+                que venir, no hay camino que dibujar y no se dibuja nada.
+              */}
+              {(() => {
+                const meta = destino?.targetWeightKg ?? null;
+                const actual = resumen?.weight ?? pesoActual;
+                if (meta === null || primerPeso === null || actual === null) return null;
+                const total = primerPeso - meta;
+                if (Math.abs(total) < 0.1) return null;
+                const pct = Math.max(0, Math.min(100, ((primerPeso - actual) / total) * 100));
+                return (
+                  <div
+                    className="revision-destino"
+                    role="img"
+                    aria-label={`Empezó en ${localeNumber(primerPeso, { maximumFractionDigits: 1 })} kg, hoy ${localeNumber(actual, { maximumFractionDigits: 1 })}, objetivo ${localeNumber(meta, { maximumFractionDigits: 1 })}`}
+                  >
+                    <div className="destino-via">
+                      <span className="destino-lleno" style={{ width: `${pct}%` }} />
+                      <span className="destino-hoy" style={{ left: `${pct}%` }} />
+                    </div>
+                    <div className="destino-cifras">
+                      <span>
+                        Empezó
+                        <b>{localeNumber(primerPeso, { maximumFractionDigits: 1 })}</b>
+                      </span>
+                      <span className="es-hoy">
+                        Hoy
+                        <b>{localeNumber(actual, { maximumFractionDigits: 1 })}</b>
+                      </span>
+                      <span className="es-meta">
+                        Objetivo
+                        <b>{localeNumber(meta, { maximumFractionDigits: 1 })}</b>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Su meta, escrita. Contexto delante de la decisión, no juicio:
+                  la frase es de la ficha (`goal.note`) y aquí solo se lee. */}
+              {destino?.note && <p className="revision-meta-frase">«{destino.note}»</p>}
 
               {/*
                 ══ LO QUE PASÓ CON LO QUE CAMBIASTE ══════════════════════════

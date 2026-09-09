@@ -11,8 +11,8 @@ import { BandChart } from '@/components/ui/charts';
 /**
  * La progresión de un ejercicio, en grande.
  *
- * La tarjeta de al lado de la hoja enseña las últimas seis semanas y cinco
- * series: lo que cabe. Aquí está TODO: la curva del tope y del 1RM estimado
+ * La tarjeta de al lado de la hoja enseña las últimas seis semanas y las tres
+ * primeras series: lo que cabe. Aquí está TODO: la curva del tope y del 1RM estimado
  * con sus ejes, y la tabla entera —todas las semanas, todas las series—
  * para leer la progresión de este ejercicio de principio a fin.
  */

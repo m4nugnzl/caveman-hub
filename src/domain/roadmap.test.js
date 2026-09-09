@@ -149,7 +149,12 @@ describe('effectiveGoal — la precedencia que hace que la analítica entienda d
   });
 
   it('sin roadmap se comporta exactamente como antes', () => {
-    expect(effectiveGoal(cliente, [], '2026-06-01')).toEqual(cliente.preferences.goal);
+    /* `targetWeightKg: null` no es una discrepancia: es el saneo de `clientGoal`
+       completando el destino opcional (0093) que este cliente no tiene puesto. */
+    expect(effectiveGoal(cliente, [], '2026-06-01')).toEqual({
+      ...cliente.preferences.goal,
+      targetWeightKg: null,
+    });
   });
 
   it('sin nada declarado devuelve null, no un objetivo por defecto', () => {

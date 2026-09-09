@@ -20,7 +20,7 @@
  * de datos y nada de lo que ya existe cambia de forma. Ver la migración 0086.
  */
 import { newId } from '@/lib/ids';
-import { dayPlannedVolume } from './training';
+import { MRV_GOALS, cloneExerciseAsTemplate, dayPlannedVolume, tecnicaOf } from './training';
 import { executedSessions, sessionTonnage } from './sessions';
 
 /** La última semana montada del programa (0 sin ninguna). */
@@ -324,6 +324,28 @@ const repsObjetivo = (exercise) => {
   return valores.every((v) => v === valores[0]) ? valores[0] : null;
 };
 
+/**
+ * Un ejercicio guardado, como lo lee una pantalla: las series contadas y la
+ * pauta resumida, en vez del array de sets.
+ *
+ * Lo usan `blockPlan` —la rejilla y la hoja del bloque abierto— y el
+ * compositor, que trabaja sobre hojas que todavía no están guardadas en
+ * ningún sitio. Sin esto, la misma traducción estaría escrita dos veces y se
+ * separarían al primer campo nuevo.
+ */
+export const planExerciseView = (ex) => ({
+  id: ex.id,
+  name: ex.name,
+  muscle: ex.muscle,
+  series: (ex.sets || []).length,
+  targetReps: repsObjetivo(ex),
+  /* La gramática de serie viaja al plan: la rejilla y la hoja la imprimen. Las
+     alternativas iban aquí y se han retirado del producto (ver `training.js`). */
+  enlazado: Boolean(ex.enlazado),
+  tecnica: tecnicaOf(ex),
+  restSeconds: ex.restSeconds ?? null,
+});
+
 /** Qué ejercicios y cuántas series tiene un día: dos días con la misma firma
     son el mismo día programado. Los kilos anotados no cuentan — son de la
     persona, no del plan. */
@@ -364,13 +386,7 @@ export const blockPlan = (program, block) => {
         dayName: hoja.dayName,
         series: (hoja.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
         volumen: dayPlannedVolume(hoja),
-        exercises: (hoja.exercises || []).map((ex) => ({
-          id: ex.id,
-          name: ex.name,
-          muscle: ex.muscle,
-          series: (ex.sets || []).length,
-          targetReps: repsObjetivo(ex),
-        })),
+        exercises: (hoja.exercises || []).map(planExerciseView),
         vacias: [],
         difieren: conExcepcion(hoja.dayName),
       })),
@@ -396,13 +412,7 @@ export const blockPlan = (program, block) => {
       dayName: day.dayName,
       series: (day.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
       volumen: dayPlannedVolume(day),
-      exercises: (day.exercises || []).map((ex) => ({
-        id: ex.id,
-        name: ex.name,
-        muscle: ex.muscle,
-        series: (ex.sets || []).length,
-        targetReps: repsObjetivo(ex),
-      })),
+      exercises: (day.exercises || []).map(planExerciseView),
       /* Sin nada escrito es que está por rellenar; con algo distinto, que se
          tocó a mano. Son dos cosas y llevan a dos acciones distintas: la
          primera se rellena con la plantilla, la segunda solo se avisa. */
@@ -466,6 +476,26 @@ export const blockSummary = (program, block) => {
 };
 
 /**
+ * Las series por grupo muscular de un plan, de más a menos y con su MRV.
+ *
+ * Toma las hojas YA RESUELTAS (`blockPlan(...).sessions`), que llevan su
+ * `volumen` calculado: rehacer aquí la cuenta sería escribirla dos veces.
+ *
+ * Vivía dentro de `VistaBloque` como una función privada. Sube al dominio
+ * desde que la lista de bloques enfrenta dos: la misma cuenta la hacen ahora
+ * dos pantallas, y esto no es una decisión de pintura.
+ */
+export const volumeByGroup = (hojas = []) =>
+  [...new Set(hojas.flatMap((h) => Object.keys(h?.volumen || {})))]
+    .map((name) => ({
+      name,
+      valor: hojas.reduce((n, h) => n + (h?.volumen?.[name] || 0), 0),
+      mrv: MRV_GOALS[name]?.mrv ?? null,
+    }))
+    .filter((m) => m.valor > 0)
+    .sort((a, b) => b.valor - a.valor);
+
+/**
  * Dónde puede escribir la plantilla sin pisar lo que ya pasó.
  *
  * Las semanas del bloque en las que ESA sesión todavía no se ha entrenado.
@@ -518,11 +548,191 @@ export const weeksAheadOfBlock = (program, block, currentWeek = null) => {
   return desde.length > 0 ? desde : weeks.slice(-1);
 };
 
+/* ══════════════════════════════════════════════════════════════════════════
+   DE DÓNDE NACE UN BLOQUE, Y QUÉ LE HAS CAMBIADO
+   ══════════════════════════════════════════════════════════════════════════
+
+   Las dos vivían dentro del formulario de definir un bloque, que era a la vez
+   pantalla y razonamiento (hoy `Compositor.jsx`). Son puras —programa dentro, hojas fuera— y las usa el
+   compositor entero, así que bajan al dominio y se prueban aquí.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** Los ejercicios de una hoja, sin lo que nadie levantó y con ids nuevos. */
+const comoPlantilla = (hoja) => ({
+  dayName: hoja.dayName,
+  exercises: (hoja.exercises || []).map(cloneExerciseAsTemplate),
+  ...(Array.isArray(hoja.mobilityDrills) ? { mobilityDrills: hoja.mobilityDrills } : {}),
+});
+
+/**
+ * Las hojas que hereda un bloque nuevo del que se cierra.
+ *
+ * Del plan del bloque si ya lo tiene dentro; del último microciclo escrito si
+ * todavía no. `planOfWeek` contesta por los dos, así que esto no tiene que
+ * saber cuál manda.
+ */
+export const inheritedSessions = (program, block) => {
+  if (hasBlockPlan(block)) return blockSessionsOf(block).map(comoPlantilla);
+  const referencia = blockPlan(program, block).reference;
+  if (!referencia) return [];
+  return planOfWeek(program, referencia).map(comoPlantilla);
+};
+
+/** «4 × 8-10» a partir de las series de un ejercicio. */
+const objetivoDe = (ex) => {
+  const valores = (ex.sets || []).map((s) => String(s?.targetReps ?? '').trim());
+  return valores.length > 0 && valores.every((v) => v === valores[0]) ? valores[0] : '';
+};
+
+/**
+ * Qué ha cambiado un bloque respecto al que hereda.
+ *
+ * Se empareja por nombre, como en toda la casa. Devuelve una línea por cambio;
+ * sin ninguna, el bloque nuevo es idéntico al anterior y también hay que poder
+ * decirlo.
+ */
+export const sessionDiff = (antesLista = [], ahoraLista = []) => {
+  const out = [];
+  const clave = (n) => String(n || '').trim().toLowerCase();
+
+  for (const antes of antesLista) {
+    const ahora = ahoraLista.find((s) => s.dayName === antes.dayName);
+    if (!ahora) {
+      out.push({ hoja: antes.dayName, tipo: 'menos', texto: 'la hoja se va' });
+      continue;
+    }
+    for (const ex of antes.exercises || []) {
+      const suyo = (ahora.exercises || []).find((e) => clave(e.name) === clave(ex.name));
+      if (!suyo) {
+        out.push({ hoja: antes.dayName, tipo: 'menos', texto: `fuera ${ex.name}` });
+        continue;
+      }
+      const seriesAntes = (ex.sets || []).length;
+      const seriesAhora = (suyo.sets || []).length;
+      if (seriesAntes !== seriesAhora) {
+        out.push({ hoja: antes.dayName, tipo: 'mas', texto: `${ex.name} ${seriesAntes} → ${seriesAhora} series` });
+      } else if (objetivoDe(ex) !== objetivoDe(suyo)) {
+        out.push({ hoja: antes.dayName, tipo: 'mas', texto: `${ex.name} ${objetivoDe(ex)} → ${objetivoDe(suyo)}` });
+      }
+    }
+  }
+
+  for (const ahora of ahoraLista) {
+    const antes = antesLista.find((s) => s.dayName === ahora.dayName);
+    if (!antes) {
+      out.push({ hoja: ahora.dayName, tipo: 'mas', texto: 'hoja nueva' });
+      continue;
+    }
+    for (const ex of ahora.exercises || []) {
+      if (!(antes.exercises || []).some((e) => clave(e.name) === clave(ex.name))) {
+        out.push({ hoja: ahora.dayName, tipo: 'mas', texto: `entra ${ex.name}` });
+      }
+    }
+  }
+
+  return out;
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAS CARACTERÍSTICAS DEL BLOQUE
+   ══════════════════════════════════════════════════════════════════════════
+
+   ══ Lo que había ══════════════════════════════════════════════════════════
+   Un bloque era `id · name · fromWeek · toWeek` y su plan. Todo lo que el
+   entrenador sabe de POR QUÉ existe ese bloque cabía en una cadena de texto:
+   «Bloque 2». Y la duración prevista se pedía al crearlo,
+   se guardaba en `plannedWeeks`… y no la leía nadie.
+
+   ══ Las tres, y ninguna calculada ═════════════════════════════════════════
+   · `intent` — a qué juega el bloque, de una lista corta del oficio.
+   · `plannedWeeks` — cuánto se ha previsto que dure. Opcional: lo normal es
+     que una rutina dure hasta que hay motivo para cambiarla.
+   · `note` — una línea del entrenador: qué se persigue.
+
+   La intención NO receta nada: rotula el bloque, ordena la lectura del
+   conjunto y explica al cliente en qué anda metido. La app no propone
+   cargas, ni duraciones, ni descargas.
+
+   ══ Sin migración ═════════════════════════════════════════════════════════
+   Son claves nuevas en `workout_data.blocks`, que ya es `jsonb` (0086) y ya
+   lleva claves de más. Un bloque sin ellas se lee exactamente como hasta hoy.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/** A qué juega un bloque. Lista corta y del oficio: no es una taxonomía. */
+export const BLOCK_INTENTS = [
+  { id: 'adaptacion', label: 'Adaptación' },
+  { id: 'acumulacion', label: 'Acumulación' },
+  { id: 'intensificacion', label: 'Intensificación' },
+  { id: 'descarga', label: 'Descarga' },
+  { id: 'mantenimiento', label: 'Mantenimiento' },
+];
+
+const INTENT_IDS = new Set(BLOCK_INTENTS.map((i) => i.id));
+
+/** «acumulacion» → «Acumulación». Sin intención, nada. */
+export const intentLabel = (id) => BLOCK_INTENTS.find((i) => i.id === id)?.label || null;
+
+/* Una línea, no un diario: lo largo va a la bitácora del bloque. */
+export const MAX_BLOCK_NOTE = 280;
+
+/** Un tope alto y honesto: un bloque de un año no es un bloque. */
+const MAX_PLANNED = 52;
+
+const semanasPrevistas = (valor) => {
+  const n = Math.trunc(Number(valor));
+  return Number.isFinite(n) && n >= 1 && n <= MAX_PLANNED ? n : null;
+};
+
+/**
+ * Las características de un bloque, saneadas. Siempre las tres claves, para
+ * que quien lea no tenga que preguntar si existen.
+ */
+export const blockTraits = (block) => ({
+  intent: INTENT_IDS.has(block?.intent) ? block.intent : null,
+  plannedWeeks: semanasPrevistas(block?.plannedWeeks),
+  note: String(block?.note ?? '').trim().slice(0, MAX_BLOCK_NOTE) || null,
+});
+
+/**
+ * Escribe las que lleguen y deja intactas las que no.
+ *
+ * Lo que queda vacío se BORRA de la fila en vez de guardarse como `null`: un
+ * bloque sin características tiene que seguir siendo el objeto pequeño que era.
+ */
+export const setBlockTraitsIn = (program, blockId, traits = {}) => ({
+  ...program,
+  blocks: blocksOf(program).map((b) => {
+    if (b.id !== blockId) return b;
+    const saneadas = blockTraits({ ...blockTraits(b), ...traits });
+    const { intent: _i, plannedWeeks: _p, note: _n, ...limpio } = b;
+    return {
+      ...limpio,
+      ...(saneadas.intent ? { intent: saneadas.intent } : {}),
+      ...(saneadas.plannedWeeks ? { plannedWeeks: saneadas.plannedWeeks } : {}),
+      ...(saneadas.note ? { note: saneadas.note } : {}),
+    };
+  }),
+});
+
 /**
  * El HORIZONTE del ciclo: cuánto le queda al bloque por el que va la persona y
  * qué viene detrás. Es el dato que alimenta la frase de la línea de bloques
  * («A Intensificación le quedan 2 semanas · después, nada programado») — el
  * entrenador tenía que deducirlo contando pastillas y leyendo fechas.
+ *
+ * ── Y por fin el bloque ABIERTO puede tener horizonte ──────────────────────
+ * Aquí se contaba lo que le quedaba al abierto restando semanas MONTADAS, y
+ * eso mentía: decía «le quedan 2» cuando lo que quedaba era lo que aún no se
+ * había escrito. Por eso la línea dejó de contarlo y el abierto pasó a decir
+ * solo que estaba abierto.
+ *
+ * Con `plannedWeeks` vivo hay una tercera respuesta, que es la verdadera: si
+ * el entrenador previó cuatro, «va por el 3 de 4» no es una deducción, es su
+ * plan. Sin duración prevista no cambia nada: el abierto sigue sin horizonte,
+ * porque una rutina dura hasta que hay motivo para cambiarla.
+ *
+ * `posicion` es 1-based dentro del bloque, y puede pasarse de `previstas` sin
+ * que eso sea un error: un bloque de 4 que va por el 6 se dice y no se regaña.
  *
  * Devuelve `null` sin semana en curso o si el programa no tiene esa semana
  * escrita: sin «estás aquí» no hay horizonte que contar.
@@ -539,12 +749,65 @@ export const horizonteDeBloque = (program, semanaEnCurso) => {
   /* El bloque sintético que `blocksOf` abre al final no es un plan: detrás de
      él no hay nada programado. */
   const siguiente = lista[i + 1] && !String(lista[i + 1].id).startsWith('b_auto_') ? lista[i + 1] : null;
+  const abierto = bloque.toWeek === null || bloque.toWeek === undefined;
+  const { plannedWeeks } = blockTraits(bloque);
+  const posicion = semanas.indexOf(semanaEnCurso) + 1;
+  /* La duración prevista solo manda mientras el bloque está ABIERTO: uno
+     cerrado ya tiene final de verdad, y contra eso se cuenta. */
+  const contraPrevisto = abierto && plannedWeeks !== null;
   return {
     bloque,
-    restantes: semanas[semanas.length - 1] - semanaEnCurso,
+    restantes: contraPrevisto ? plannedWeeks - posicion : semanas[semanas.length - 1] - semanaEnCurso,
+    previstas: plannedWeeks,
+    posicion,
     siguiente,
-    abierto: bloque.toWeek === null || bloque.toWeek === undefined,
+    abierto,
   };
+};
+
+/**
+ * El horizonte DICHO: «va por el microciclo 3 de 4», «le quedan 2 microciclos ·
+ * después, Descarga», «abierto».
+ *
+ * Vivía dentro de `LineaDeBloques`, que es la cabecera del portal del cliente.
+ * Desde que el entrenador tiene la suya (`CabeceraDelBloque`), las dos dicen lo
+ * mismo del mismo bloque: escrito dos veces se separa a la primera corrección,
+ * así que la frase baja aquí y las dos la piden.
+ *
+ * Devuelve `null` cuando no hay nada cierto que decir: sin semana en curso, o
+ * mirando un bloque que no es por el que va la persona —uno cerrado del
+ * historial contaba lo del abierto debajo de su nombre, y la línea decía
+ * «cerrado · abierto · 3 microciclos»—.
+ *
+ * Pasarse de lo previsto se dice y no se regaña: la casa no reprocha.
+ */
+export const fraseDeHorizonte = (program, bloque, semanaEnCurso, { unidad, unidades }) => {
+  const horizonte = horizonteDeBloque(program, semanaEnCurso);
+  if (!horizonte || horizonte.bloque?.id !== bloque?.id) return null;
+
+  const { restantes, previstas, posicion, siguiente, abierto } = horizonte;
+
+  /*
+    ── Un bloque abierto no tiene horizonte… salvo que se le previera uno ─────
+    Aquí se contaba lo que le «quedaba» al bloque abierto como si tuviera un
+    final al que acercarse. No lo tiene: una rutina se monta y dura hasta que
+    hay motivo para cambiarla. Con duración prevista, «va por el 3 de 4» no es
+    una deducción: es su plan, dicho.
+  */
+  if (abierto) {
+    if (!previstas) return 'abierto';
+    return restantes >= 0
+      ? `va por el ${unidad} ${posicion} de ${previstas}`
+      : `va por el ${unidad} ${posicion} · ${previstas} previstos`;
+  }
+
+  const cuanto =
+    restantes === 0
+      ? `acaba este ${unidad}`
+      : restantes === 1
+        ? `le queda 1 ${unidad}`
+        : `le quedan ${restantes} ${unidades}`;
+  return [cuanto, siguiente ? `después, ${siguiente.name}` : 'después, nada programado'].join(' · ');
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -557,8 +820,8 @@ export const horizonteDeBloque = (program, semanaEnCurso) => {
    La respuesta del producto es: sigue siendo el mismo bloque. Un bloque es una
    estructura y una estructura aguanta retoques —subir una serie de espalda en
    la semana 3 porque llegó fresco— sin dejar de ser la misma. Abrir un bloque
-   nuevo es una decisión, no una consecuencia; se hace a mano y se confirma
-   (`DefinirBloque`).
+   nuevo es una decisión, no una consecuencia; se hace a mano, en el compositor
+   (`Compositor.jsx`).
 
    Pero un retoque que no deja rastro es un agujero: tres semanas después nadie
    sabe si el pico de la S3 fue una decisión o un despiste, y la comparación
@@ -1209,6 +1472,16 @@ export const restoreBlockExerciseIn = (program, blockId, dayName, exercise, inde
     ...lista.slice(index),
   ]);
 
+/**
+ * Cambia campos sueltos de un ejercicio del bloque. Es la puerta de la
+ * gramática de serie —enlazado, técnica, descanso—, que es plan y por tanto
+ * vive aquí y no en el microciclo.
+ */
+export const updateBlockExerciseIn = (program, blockId, dayName, exerciseId, fn) =>
+  conEjercicios(program, blockId, dayName, (lista) =>
+    lista.map((ex) => (ex.id === exerciseId ? fn(ex) : ex))
+  );
+
 export const moveBlockExerciseIn = (program, blockId, dayName, from, to) =>
   conEjercicios(program, blockId, dayName, (lista) => {
     if (from < 0 || to < 0 || from >= lista.length || to >= lista.length || from === to) return lista;
@@ -1233,7 +1506,17 @@ export const setBlockExerciseSetsIn = (program, blockId, dayName, exerciseId, co
       if (sets.length === objetivo) return ex;
       const ultima = sets[sets.length - 1];
       while (sets.length < objetivo) {
-        sets.push({ kg: '', reps: '', rir: '', targetReps: ultima?.targetReps || '', targetRir: ultima?.targetRir || '' });
+        /* Hereda los OBJETIVOS de la última —una serie más de lo mismo— y no su
+           remate: la bajada estaba puesta en esa serie, no en «la última que
+           haya», y arrastrarla movería una pauta que nadie ha tocado. */
+        sets.push({
+          kg: '',
+          reps: '',
+          rir: '',
+          targetKg: ultima?.targetKg || '',
+          targetReps: ultima?.targetReps || '',
+          targetRir: ultima?.targetRir || '',
+        });
       }
       while (sets.length > objetivo && sets.length > 1) sets.pop();
       return { ...ex, sets };
@@ -1272,6 +1555,37 @@ export const wherePlanExercise = (program, weekNumber, dayName, exerciseId) => {
   }
   const suya = overridesAt(bloque, weekNumber, dayName).find((o) => o.exercise?.id === exerciseId);
   return suya ? { donde: 'excepcion', bloque, override: suya } : { donde: null, bloque };
+};
+
+/**
+ * Cambia lo que es de la HOJA y no de un ejercicio —la indicación del
+ * entrenador, su calentamiento propio—, donde esa hoja vive.
+ *
+ * ── Por qué hacía falta ────────────────────────────────────────────────────
+ * La indicación se escribía en el día del MICROCICLO, que es donde vivía el
+ * plan antes de que subiera al bloque. Con el plan en el bloque eso tenía dos
+ * consecuencias, y las dos malas: la hoja se lee del bloque, así que lo
+ * escrito no se veía ni al momento; y el microciclo siguiente nacía sin ella,
+ * porque su día solo aporta el nombre. Una indicación es plan —«en este día
+ * vamos suaves de espalda» vale para todo el bloque—, así que se escribe donde
+ * el plan está.
+ *
+ * @param fn recibe la hoja y devuelve la hoja nueva.
+ */
+export const updatePlanDayIn = (program, weekNumber, dayName, fn) => {
+  const bloque = blockOfWeek(program, weekNumber);
+  if (hasBlockPlan(bloque) && blockSessionOf(bloque, dayName)) {
+    return updateBlockSessionIn(program, bloque.id, dayName, fn);
+  }
+  /* Sin plan en el bloque manda el camino de siempre: el día del microciclo. */
+  return {
+    ...program,
+    microcycles: (program?.microcycles || []).map((m) =>
+      m.weekNumber !== weekNumber
+        ? m
+        : { ...m, days: (m.days || []).map((d) => (d.dayName === dayName ? fn(d) : d)) }
+    ),
+  };
 };
 
 /**

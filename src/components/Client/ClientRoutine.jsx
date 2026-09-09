@@ -38,6 +38,7 @@ import { LineaDeBloques } from '@/components/Coach/Workout/LineaDeBloques';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { useDaySession } from '@/components/Coach/Workout/useDaySession';
+import { FichaEjercicioCliente } from './FichaEjercicioCliente';
 import { PlanDelBloque } from './PlanDelBloque';
 
 /**
@@ -218,9 +219,6 @@ const DayPill = ({ entry, active, onOpen }) => {
 const joinDays = (list) =>
   list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} y ${list[list.length - 1]}`;
 
-/** Segundos de descanso que arrancan solos al cerrar una serie. */
-const DESCANSO_S = 90;
-
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /**
@@ -246,8 +244,9 @@ const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
  * · Cada serie lleva la vez anterior dentro del campo y un ✓ que la repite de
  *   un toque. La mayoría de las series de un bloque son «lo mismo que la
  *   semana pasada»: escribir se reserva para cuando algo cambia.
- * · Al cerrar una serie arranca solo el descanso, en la barra de abajo. Se
- *   puede parar con un toque y no suena nada: el gimnasio ya tiene ruido.
+ * · Al cerrar una serie arranca solo el descanso QUE HAYA PAUTADO su
+ *   entrenador, en la barra de abajo. Se puede parar con un toque y no suena
+ *   nada: el gimnasio ya tiene ruido. Sin pauta no hay cuenta atrás.
  * · Una serie que supera la mejor marca del ejercicio se marca «PR».
  * · La sesión se TERMINA: el botón de la barra abre el resumen —series,
  *   tonelaje, comparado con la última vez— y ahí, y solo ahí, se contesta
@@ -264,6 +263,7 @@ const ClientDay = ({
   onLogSet,
   protocol,
   onMeta,
+  fichaDe,
   save,
   onRetry,
 }) => {
@@ -318,9 +318,29 @@ const ClientDay = ({
   useEffect(() => {
     if (finDescanso && restante === 0) setFinDescanso(null);
   }, [finDescanso, restante]);
-  const empezarDescanso = () => setFinDescanso(Date.now() + DESCANSO_S * 1000);
+  /*
+    ── El descanso es el PAUTADO, y si no hay pauta no hay cuenta atrás ──────
+    Arrancaba noventa segundos por defecto, y eso le ponía a todo el mundo un
+    descanso que su entrenador no había puesto: un cronómetro fijo en la
+    pantalla marcando minuto y medio entre series es una instrucción, y no era
+    suya. El descanso lo dice quien programa, en la hoja (`restSeconds`); sin
+    él, la serie se cierra y ya está.
+  */
+  const empezarDescanso = (segundos) => {
+    if (!(segundos > 0)) return;
+    setFinDescanso(Date.now() + segundos * 1000);
+  };
+  const descansoDe = (exId) => {
+    const s = Number(daySession.exercises.find((ex) => ex.id === exId)?.restSeconds);
+    return Number.isFinite(s) && s > 0 ? s : null;
+  };
 
   const [resumen, setResumen] = useState(false);
+
+  /* Qué ejercicio tiene su ficha abierta, por NOMBRE y no por id: la ficha se
+     resuelve por nombre contra la biblioteca (0100) y no vive en el plan, así
+     que el id de esta fila no serviría de nada para buscarla. */
+  const [fichaAbierta, setFichaAbierta] = useState(null);
 
   /* Escribe un campo y devuelve el id de la sesión en la que ha escrito: la
      primera serie de un día CREA la sesión, y quien escriba dos campos seguidos
@@ -349,7 +369,9 @@ const ClientDay = ({
   const logSet = (exId, setIndex, field, value) => {
     /* La serie pasa a hecha con las repeticiones: ahí arranca el descanso. */
     const antes = daySession.exercises.find((ex) => ex.id === exId)?.sets?.[setIndex];
-    if (field === 'reps' && antes && !isSetLogged(antes) && (Number(value) || 0) > 0) empezarDescanso();
+    if (field === 'reps' && antes && !isSetLogged(antes) && (Number(value) || 0) > 0) {
+      empezarDescanso(descansoDe(exId));
+    }
     escribir(exId, setIndex, field, value);
   };
 
@@ -357,7 +379,7 @@ const ClientDay = ({
   const confirmarSet = (exId, setIndex, previo) => {
     const id = escribir(exId, setIndex, 'kg', String(previo.kg));
     escribir(exId, setIndex, 'reps', String(previo.reps), id);
-    empezarDescanso();
+    empezarDescanso(descansoDe(exId));
   };
 
   const tonelaje = session ? sessionTonnage(session) : 0;
@@ -492,6 +514,10 @@ const ClientDay = ({
         previousSets={previousSets}
         bestSets={bestSets}
         onConfirmSet={confirmarSet}
+        /* La marca junto al nombre, y su ficha. Solo aquí: en la hoja del
+           entrenador no se pinta nada. */
+        sheetOf={fichaDe}
+        onOpenSheet={setFichaAbierta}
       />
 
       {/*
@@ -601,6 +627,16 @@ const ClientDay = ({
           </button>
         </div>
       </Modal>
+
+      {/* Lo que hay detrás de la marca del renglón. Se monta solo abierta: sin
+          esto, cada sesión tendría en el árbol tantas fichas como ejercicios. */}
+      {fichaAbierta && (
+        <FichaEjercicioCliente
+          nombre={fichaAbierta}
+          ficha={fichaDe?.(fichaAbierta)}
+          onClose={() => setFichaAbierta(null)}
+        />
+      )}
     </Panel>
   );
 };
@@ -680,6 +716,9 @@ export const ClientRoutine = ({
   onLogSet,
   onMeta,
   onContinue,
+  /* `fichaDe(name)` → lo que su entrenador ha puesto de ese ejercicio, unido ya
+     con la capa del catálogo, o `null`. Lo compone `ClientRoutineRoute`. */
+  fichaDe,
   save,
   onRetry,
 }) => {
@@ -940,6 +979,7 @@ export const ClientRoutine = ({
                   onLogSet={onLogSet}
                   protocol={protocol}
                   onMeta={onMeta}
+                  fichaDe={fichaDe}
                   save={save}
                   onRetry={onRetry}
                   /* El ejercicio en foco lo pinta la lista y lo lee la

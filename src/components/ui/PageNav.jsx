@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
  * Trocear en pestañas esconde lo que no está delante, y estas dos pantallas se
  * leen ENTERAS la primera vez —una decide tu forma de trabajar, la otra es todo
  * lo que sabes de una persona—. Las anclas dan el mapa sin quitar el papiro: todo
- * sigue en una pasada, y `#checkin` es enlazable (`/ajustes/protocolo#checkin`)
+ * sigue en una pasada, y `#checkin` es enlazable (`/protocolos#checkin`)
  * para señalar un bloque desde donde haga falta.
  *
  * ── Y por qué además CUENTA ─────────────────────────────────────────────────

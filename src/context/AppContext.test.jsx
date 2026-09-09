@@ -232,7 +232,7 @@ describe('AppProvider', () => {
     // `startBlock` lo creaba con las hojas vacías —«se rellenan de nuevo»— y te
     // dejaba componerlo dentro del primer microciclo, así que el momento en el
     // que un bloque se define no existía en ninguna pantalla. Ahora se define
-    // entero y de una vez (`DefinirBloque`).
+    // entero y de una vez (el compositor).
     //
     // Y 231 desde `setOverrideSpan`: alargar o acortar un cambio del bloque.
     // Los cambios llevan desde cuándo y hasta cuándo valen, así que probar un
@@ -242,7 +242,71 @@ describe('AppProvider', () => {
     // Y 232 desde `saveClientIdentity`: la edad y la altura que el cliente
     // escribe en su alta. Van a columnas de `clients` y no al jsonb del perfil,
     // así que no podían entrar por `saveClientProfile`.
-    expect(Object.keys(visto.app).length).toBe(232);
+    //
+    // Y 233 desde `setClientPaused` (0093): apartar a alguien una temporada
+    // —lesión, vacaciones— sin archivarle. La regla de qué silencia vive en
+    // domain/portfolio.js; aquí solo entra la acción.
+    //
+    // Y 234 desde `setBlockExerciseGrammar`: la gramática de serie —superserie,
+    // bajada, descanso— es plan y va al bloque. AMRAP y «por tiempo» no
+    // necesitan puerta: ya viven en el objetivo escrito y se interpretan
+    // (`targetKind`).
+    //
+    // Y 235 desde `setBlockTraits`: las características del bloque —a qué
+    // juega, cuánto se prevé que dure, qué se persigue—. La duración ya se
+    // pedía al crearlo y se tiraba; ahora se guarda, se lee y se puede
+    // corregir después. La regla vive en `blockTraits` (domain/blocks.js).
+    //
+    // Y 236 desde `saveExerciseSheet`: la capa del ENTRENADOR en un ejercicio
+    // —su vídeo, su clave, sus alternativas (0098)—. Va aparte de
+    // `upsertLibraryExercise` porque no respeta la protección del catálogo: el
+    // press banca del catálogo tiene que poder llevar tu vídeo, y lo que se
+    // escribe es una fila tuya, no el dato de referencia.
+    //
+    // Y 243 desde LO MANDADO (0099, generalizado en 0105): dos de estado
+    // —`envioRows`, `enviosReady`— y cinco acciones —`reloadEnvios`,
+    // `mandarAccion`, `dejarDePedir`, `quitarPedido`, `marcarAccion`—. Son siete
+    // y no menos porque el gancho lo usan los DOS lados: el entrenador manda y
+    // el cliente entrega, y quien decide qué filas ve cada uno es RLS.
+    //
+    // Y 245 desde la ficha que llega al cliente (0100): `sheetOf` —la ficha de
+    // un ejercicio por nombre, que es lo que pregunta el renglón para saber si
+    // pinta marca— y `saveFoodSheet` —tu nota en un alimento—. Son las dos
+    // mitades del mismo movimiento: lo que el entrenador escribe en su
+    // biblioteca tiene que poder leerse donde se usa.
+    //
+    // `sheetOf` es una FUNCIÓN y viaja por `DataContext`, que es la excepción
+    // que ya justificaba `saveStatus`: no hace nada, lee, y se llama durante el
+    // render.
+    //
+    // Y 246 desde los PLATOS: `addFoodsToOption` mete VARIAS entradas ya
+    // construidas de una vez. No es un capricho sobre `addFoodToOption`: esa
+    // construye la entrada por dentro, así que quien llama no sabe qué ids han
+    // salido — y poner un plato necesita saberlo para poder ofrecer cuadrarlo
+    // al objetivo de la comida justo después.
+    //
+    // Y 248 desde `deleteLibraryFood` y `deleteLibraryExercise`: las dos
+    // primeras puertas de la biblioteca que NO escriben. Las cuatro anteriores
+    // dan de alta y corrigen, así que una biblioteca solo podía crecer — y el
+    // camino de crecimiento de `foods` ES la duplicación, porque los macros de
+    // una marca obligan a un nombre nuevo. Son dos y no una porque son dos
+    // tablas con dos listas locales que refrescar; el filtro de «solo lo tuyo»
+    // sí es uno solo, dentro del gancho.
+    //
+    // Y 250 desde `editLibraryExercise` y `editLibraryFood`: la corrección por
+    // ID, que es la única puerta por la que el NOMBRE de una entrada puede
+    // cambiar. Las de siempre identifican por nombre, así que renombrar por
+    // ellas creaba una fila nueva en vez de corregir la que hay — o sea, el
+    // duplicado que la Librería existe para limpiar. Dos otra vez y por lo
+    // mismo: dos tablas con dos listas locales que refrescar.
+    //
+    // Y 251 desde `marcarVisto` (0108): dar por LEÍDO lo que te han contestado.
+    // Es la pareja de `marcarAccion` y no la misma puerta, porque son dos lados
+    // distintos — el cliente contesta por RPC porque no puede escribir en la
+    // tabla; el entrenador marca con un `update` normal, que ya puede hacer—.
+    // Sin ella, «te han contestado» sería cierto para siempre y su cola de la
+    // bandeja no se podría vaciar nunca.
+    expect(Object.keys(visto.app).length).toBe(251);
   });
 
   /*

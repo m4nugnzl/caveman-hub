@@ -71,8 +71,12 @@ describe('pantallaDe', () => {
   it('las secciones declaradas sí salen con su nombre', () => {
     expect(pantallaDe('/hoy')).toBe('hoy');
     expect(pantallaDe('/clientes')).toBe('clientes');
-    expect(pantallaDe('/ajustes/protocolo')).toBe('ajustes_protocolo');
     expect(pantallaDe('/ajustes/plan')).toBe('ajustes_plan');
+    /* El Taller: cinco pantallas de nivel primario. «Protocolo» era
+       `ajustes_protocolo` hasta que salió de Ajustes; su ruta vieja redirige,
+       así que lo que se mide es la nueva. */
+    expect(pantallaDe('/protocolos')).toBe('protocolos');
+    expect(pantallaDe('/ejercicios')).toBe('ejercicios');
   });
 
   it('la salida siempre pasa el CHECK de la 0045', () => {

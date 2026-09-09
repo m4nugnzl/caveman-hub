@@ -22,6 +22,7 @@ import { ClientStart } from '@/components/Client/ClientStart';
 /* Perezosa: es la pantalla que un cliente abre la primera semana y no vuelve a
    abrir. Cargarla con el portal sería pagar su peso en cada arranque. */
 const ClientOnboarding = lazyRoute(() => import('@/components/Client/ClientOnboarding').then((m) => ({ default: m.ClientOnboarding })));
+const FormulariosDelCliente = lazyRoute(() => import('@/components/Client/FormulariosDelCliente').then((m) => ({ default: m.FormulariosDelCliente })));
 import { FichaLayout } from '@/components/Coach/FichaLayout';
 import { ReviewLayout } from '@/components/review/ReviewLayout';
 
@@ -42,13 +43,29 @@ const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then(
 const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
 const TeamPanel = lazyRoute(() => import('@/components/Coach/Settings/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
-const ProtocolPanel = lazyRoute(() => import('@/components/Coach/Settings/Protocol/ProtocolPanel').then((m) => ({ default: m.ProtocolPanel })));
+/*
+  ── El Taller: el material del entrenador (ver `COACH_TALLER` en routes) ────
+  Las cuatro en diferido, y por el mismo motivo que las de Ajustes: son
+  pantallas de material —se abren cuando se va a preparar algo—, no las de
+  entrada. La Librería se lleva además las dos fichas, con su vídeo y sus
+  etiquetas, que no tiene por qué descargar quien entra a mirar «Hoy».
+
+  `/ejercicios` y `/alimentos` montan la MISMA pantalla: la puerta es una y el
+  tramo es la ruta (ver `LibreriaPanel`). Por eso hay un solo `lazyRoute` para
+  las dos — y por eso las dos mitades caen en el mismo trozo, que es lo correcto:
+  cambiar de tramo no debería costar una descarga.
+*/
+const ProtocolosPanel = lazyRoute(() => import('@/components/Coach/Taller/ProtocolosPanel').then((m) => ({ default: m.ProtocolosPanel })));
+const FormulariosPanel = lazyRoute(() => import('@/components/Coach/Taller/FormulariosPanel').then((m) => ({ default: m.FormulariosPanel })));
+const LibreriaPanel = lazyRoute(() => import('@/components/Coach/Taller/LibreriaPanel').then((m) => ({ default: m.LibreriaPanel })));
+const PlantillasPanel = lazyRoute(() => import('@/components/Coach/Taller/PlantillasPanel').then((m) => ({ default: m.PlantillasPanel })));
 const IntegrationsCatalogue = lazyRoute(() => import('@/components/Coach/Settings/IntegrationsCatalogue').then((m) => ({ default: m.IntegrationsCatalogue })));
 const BackupPanel = lazyRoute(() => import('@/components/Coach/Settings/BackupPanel').then((m) => ({ default: m.BackupPanel })));
 const PlanPanel = lazyRoute(() => import('@/components/Coach/Settings/PlanPanel').then((m) => ({ default: m.PlanPanel })));
 const ProfilePanel = lazyRoute(() => import('@/components/Coach/Settings/ProfilePanel').then((m) => ({ default: m.ProfilePanel })));
 const SupportPanel = lazyRoute(() => import('@/components/Coach/Settings/SupportPanel').then((m) => ({ default: m.SupportPanel })));
 const WorkoutLogEditor = lazyRoute(() => import('@/components/Coach/Workout/WorkoutLogEditor').then((m) => ({ default: m.WorkoutLogEditor })));
+const Compositor = lazyRoute(() => import('@/components/Coach/Workout/Compositor').then((m) => ({ default: m.Compositor })));
 const NutritionModule = lazyRoute(() => import('@/components/Coach/NutritionModule').then((m) => ({ default: m.NutritionModule })));
 const AnthropometryModule = lazyRoute(() => import('@/components/Coach/AnthropometryModule').then((m) => ({ default: m.AnthropometryModule })));
 /* El archivo de fotos va en diferido igual que el estudio: no es pantalla de
@@ -70,6 +87,7 @@ const PlatformPanel = lazyRoute(() => import('@/components/Platform/PlatformPane
 import {
   CLIENT_HOME,
   COACH_CLIENT,
+  COACH_TALLER,
   RESET_PATH,
   SETTINGS_SECTIONS,
   clientViewOf,
@@ -149,7 +167,24 @@ const SECCIONES_CLIENTE = new Set(
   COACH_CLIENT.flatMap((s) => [s.path, ...(s.also || [])])
 );
 const SECCIONES_AJUSTES = new Set(SETTINGS_SECTIONS.map((s) => s.path));
-const RAIZ = new Set(['hoy', 'clientes', 'cartera', 'ingresos']);
+/*
+  Las puertas de nivel primario, y desde el Taller también las suyas: son cinco
+  pantallas nuevas que se abren a diario y sin declararlas aquí se contarían
+  todas como `otra` — que es exactamente perder la medición de lo que se acaba
+  de construir. Se sacan de `COACH_TALLER` y no a mano por la misma razón que
+  las de ajustes: una lista y no dos.
+*/
+const RAIZ = new Set([
+  'hoy',
+  'clientes',
+  'cartera',
+  'ingresos',
+  /* Con `also`: la Librería es UNA fila de la barra y DOS rutas, y medir solo la
+     de la fila contaría `/alimentos` como «otra» — que es perder la mitad de la
+     pantalla que se acaba de unificar. Se sigue midiendo por ruta, que es lo que
+     dice en cuál de los dos tramos se trabaja. */
+  ...COACH_TALLER.flatMap((s) => [s.path, ...(s.also || [])]).map((p) => p.replace(/^\//, '')),
+]);
 
 export const pantallaDe = (pathname) => {
   const deCliente = /^\/c\/[^/]+\/(.+?)\/?$/.exec(pathname)?.[1];
@@ -419,11 +454,29 @@ export default function App() {
                     que comprueba `platform_admins` en el servidor. Quien entre
                     aquí sin serlo ve un «esto no es para tu cuenta». */}
                 <Route path="plataforma" element={<PlatformPanel />} />
+
+                {/* ══ EL TALLER: el material del entrenador ═══════════════════
+                    Cinco pantallas de nivel primario para lo que antes vivía
+                    dentro de Ajustes, dentro del cajón de un bloque o en ningún
+                    sitio. Ver el porqué largo en `COACH_TALLER` (routes.jsx).
+
+                    «Protocolos» son ahora VARIOS con nombre, y cada uno se lee y
+                    se edita como una lista de acciones con su premisa
+                    (`ProtocolosPanel` + `domain/acciones.js`). El selector de
+                    destino murió: lo de un cliente concreto vive en su diálogo
+                    de la cartera. Su ruta vieja redirige aquí: seis pantallas la
+                    enlazaban y puede estar en marcadores. */}
+                <Route path="protocolos" element={<ProtocolosPanel />} />
+                <Route path="formularios" element={<FormulariosPanel />} />
+                <Route path="ejercicios" element={<LibreriaPanel />} />
+                <Route path="alimentos" element={<LibreriaPanel />} />
+                <Route path="plantillas" element={<PlantillasPanel />} />
+
                 {/* Ajustes: lo que se configura una vez y no se toca a diario.
                     Fuera del nivel primario para que ese tenga tres entradas. */}
                 <Route path="ajustes" element={<SettingsLayout />}>
-                  <Route index element={<Navigate to="protocolo" replace />} />
-                  <Route path="protocolo" element={<ProtocolPanel />} />
+                  <Route index element={<Navigate to="perfil" replace />} />
+                  <Route path="protocolo" element={<Navigate to="/protocolos" replace />} />
                   {/* «Apariencia» era una de las siete secciones de Ajustes —con su
                       entrada, su pantalla y su vista previa de los dos temas— para UN
                       ajuste: claro u oscuro. Y ese mismo ajuste ya estaba, con el
@@ -476,6 +529,19 @@ export default function App() {
                     element={
                       <ConServicio servicio="training" to="../resumen">
                         <WorkoutLogEditor />
+                      </ConServicio>
+                    }
+                  />
+                  {/* Componer tiene ruta propia porque es un TRABAJO con
+                      principio y final, no una pestaña en la que se vive: se
+                      entra desde la rutina y se vuelve a ella. Es además el
+                      único sitio con el material del cliente al lado. Ver
+                      `Compositor.jsx`. */}
+                  <Route
+                    path="rutina/componer"
+                    element={
+                      <ConServicio servicio="training" to="../resumen">
+                        <Compositor />
                       </ConServicio>
                     }
                   />
@@ -559,6 +625,10 @@ export default function App() {
                 {/* Su alta: lo que entrega al empezar. Fuera del carril de
                     secciones porque se hace una vez — ver `ClientOnboarding`. */}
                 <Route path="alta" element={<ClientOnboarding />} />
+                {/* Lo que su entrenador le ha pedido a mano (0099). Fuera del
+                    carril de secciones por lo mismo que el alta: no es una
+                    sección de su plan, es un encargo que va y viene. */}
+                <Route path="formularios" element={<FormulariosDelCliente />} />
                 <Route path="hoy" element={<Navigate to="/mi/inicio" replace />} />
                 <Route path="panel" element={<Navigate to="/mi/inicio" replace />} />
                 <Route

@@ -9,14 +9,14 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
  * Va al final de la pantalla y no arriba: es un archivo, no una bandeja. Se entra
  * a buscar algo concreto, no se pasa por aquí todos los días.
  */
-export const ArchivedClients = () => {
+export const ArchivedClients = ({ plain = false }) => {
   const { archivedClients } = useData();
   const { setClientArchived } = useActions();
 
   if (archivedClients.length === 0) return null;
 
   return (
-    <Panel className="col gap-3">
+    <Panel plain={plain} className="col gap-3">
       <SectionTitle icon={Archive}>Archivados · {archivedClients.length}</SectionTitle>
       <p className="t-sm t-secondary">
         No aparecen en la lista ni cuentan para tu plan. Su rutina, sus medidas y sus fotos siguen

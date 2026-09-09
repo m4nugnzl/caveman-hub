@@ -9,6 +9,7 @@ import { useMarcaDeslizante } from '@/components/ui/carril';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { ClientCalendarFeed } from './ClientCalendarFeed';
 import { ClientPrivacy } from './ClientPrivacy';
+import { OcultoProvider } from './Oculto';
 
 /**
  * Marco del portal del cliente: saludo, pestañas y contenido.
@@ -68,100 +69,102 @@ export const ClientLayout = () => {
   const secciones = sectionsFor(CLIENT_SECTIONS, clientProtocol(activeClient.preferences));
 
   return (
-    <div className="layout layout-narrow layout-portal">
-      {/*
-        ══ Aquí vivió la banda de «estás previsualizando» ═════════════════════
+    <OcultoProvider client={activeClient}>
+      <div className="layout layout-narrow layout-portal">
+        {/*
+          ══ Aquí vivió la banda de «estás previsualizando» ═════════════════════
 
-        Era un `Panel` pasivo dentro del marco, así que no aparecía cuando el
-        marco no se pintaba (coach sin cliente activo) y no ofrecía la salida.
-        Ahora es `PreviewBar`, montada en `App.jsx` junto a la cabecera: cuelga
-        del modo, no de esta pantalla, y lleva el botón de volver.
-      */}
+          Era un `Panel` pasivo dentro del marco, así que no aparecía cuando el
+          marco no se pintaba (coach sin cliente activo) y no ofrecía la salida.
+          Ahora es `PreviewBar`, montada en `App.jsx` junto a la cabecera: cuelga
+          del modo, no de esta pantalla, y lleva el botón de volver.
+        */}
 
-      {/*
-        ══ El consentimiento ya no se pide DOS veces ══════════════════════════
+        {/*
+          ══ El consentimiento ya no se pide DOS veces ══════════════════════════
 
-        Aquí había un segundo panel que lo pedía otra vez y lo guardaba en un
-        sitio distinto —`clients.preferences.consent`— del que usa la puerta del
-        portal (`ConsentGate`, que escribe en `client_consents`). Como ninguno
-        miraba donde escribía el otro, quien aceptaba en la puerta se encontraba
-        la misma petición al entrar.
+          Aquí había un segundo panel que lo pedía otra vez y lo guardaba en un
+          sitio distinto —`clients.preferences.consent`— del que usa la puerta del
+          portal (`ConsentGate`, que escribe en `client_consents`). Como ninguno
+          miraba donde escribía el otro, quien aceptaba en la puerta se encontraba
+          la misma petición al entrar.
 
-        Se queda la puerta, que es la que deja prueba archivada y la que ya usa el
-        canje de la invitación. Ver `domain/privacy.js` y la migración 0050.
-      */}
+          Se queda la puerta, que es la que deja prueba archivada y la que ya usa el
+          canje de la invitación. Ver `domain/privacy.js` y la migración 0050.
+        */}
 
-      {/*
-        ══ Aquí vivió el saludo, y ya no es una tarjeta ═══════════════════════
+        {/*
+          ══ Aquí vivió el saludo, y ya no es una tarjeta ═══════════════════════
 
-        Fue mejorando por partes y se quedó a un paso. Primero se pintaba en las
-        SIETE secciones —un móvil de 390 px gastaba la pantalla entera en dar la
-        bienvenida antes de la primera serie—, y se acotó al inicio. Pero seguía
-        siendo una TARJETA cuyo trabajo es titular la pantalla, y encima repetía
-        dos datos que estaban justo debajo: la semana activa y el peso actual, que
-        es literalmente la primera cifra del resumen.
+          Fue mejorando por partes y se quedó a un paso. Primero se pintaba en las
+          SIETE secciones —un móvil de 390 px gastaba la pantalla entera en dar la
+          bienvenida antes de la primera serie—, y se acotó al inicio. Pero seguía
+          siendo una TARJETA cuyo trabajo es titular la pantalla, y encima repetía
+          dos datos que estaban justo debajo: la semana activa y el peso actual, que
+          es literalmente la primera cifra del resumen.
 
-        El resultado eran cuatro planos seguidos antes del primer dato: saludo,
-        pestañas, las dos fichas de «Progreso / Análisis» y la cabecera de «Tu
-        resumen». El saludo se queda —es lo único cálido del portal— pero como
-        TÍTULO de la pantalla de inicio, que es lo que siempre fue. Va en
-        `ClientStart`, con la misma `PageHead` que abre cualquier otra pantalla
-        del producto.
-      */}
+          El resultado eran cuatro planos seguidos antes del primer dato: saludo,
+          pestañas, las dos fichas de «Progreso / Análisis» y la cabecera de «Tu
+          resumen». El saludo se queda —es lo único cálido del portal— pero como
+          TÍTULO de la pantalla de inicio, que es lo que siempre fue. Va en
+          `ClientStart`, con la misma `PageHead` que abre cualquier otra pantalla
+          del producto.
+        */}
 
-      {/* Igual que en el carril del entrenador: la marca de «estás aquí» sale de
-          `isSectionActive` y no del prefijo de URL, porque «Mi evolución» y «Mi
-          progreso» tienen dos niveles cada una y bajar al segundo dejaba las
-          pestañas sin marcar. */}
-      {/* Sin iconos y con la marca suelta al final, como el carril del panel:
-          un solo conmutador en todo el producto. */}
-      <nav ref={carrilDelPortal} className="tabs" aria-label="Secciones de mi portal">
-        {secciones.map((seccion) => {
-          const { path, label } = seccion;
-          const activa = isSectionActive(pathname, seccion, '/mi');
-          return (
-            <NavLink
-              key={path}
-              to={`/mi/${path}`}
-              className={`tab${activa ? ' active' : ''}`}
-              aria-current={activa ? 'page' : undefined}
-            >
-              {label}
-            </NavLink>
-          );
-        })}
-        <span className="tabs-marca" aria-hidden="true" />
-      </nav>
+        {/* Igual que en el carril del entrenador: la marca de «estás aquí» sale de
+            `isSectionActive` y no del prefijo de URL, porque «Mi evolución» y «Mi
+            progreso» tienen dos niveles cada una y bajar al segundo dejaba las
+            pestañas sin marcar. */}
+        {/* Sin iconos y con la marca suelta al final, como el carril del panel:
+            un solo conmutador en todo el producto. */}
+        <nav ref={carrilDelPortal} className="tabs" aria-label="Secciones de mi portal">
+          {secciones.map((seccion) => {
+            const { path, label } = seccion;
+            const activa = isSectionActive(pathname, seccion, '/mi');
+            return (
+              <NavLink
+                key={path}
+                to={`/mi/${path}`}
+                className={`tab${activa ? ' active' : ''}`}
+                aria-current={activa ? 'page' : undefined}
+              >
+                {label}
+              </NavLink>
+            );
+          })}
+          <span className="tabs-marca" aria-hidden="true" />
+        </nav>
 
-      <Outlet />
+        <Outlet />
 
-      {/* Sus derechos, ejercitables por él y no pidiéndolos. Al final, plegado y
-          SOLO en su inicio: estaba al pie de las siete secciones, así que quien
-          bajaba del todo en su rutina se encontraba con la privacidad. No es a lo
-          que viene, pero tiene que estar en un sitio, y ese es su portada. */}
-      {/* Lo suyo en su calendario (0071). Va justo encima de la privacidad y por
-          el mismo criterio: no es a lo que viene, pero tiene que estar en un
-          sitio, y ese es el pie de su portada. */}
-      {!isCoach && esInicio && <ClientCalendarFeed client={activeClient} />}
+        {/* Sus derechos, ejercitables por él y no pidiéndolos. Al final, plegado y
+            SOLO en su inicio: estaba al pie de las siete secciones, así que quien
+            bajaba del todo en su rutina se encontraba con la privacidad. No es a lo
+            que viene, pero tiene que estar en un sitio, y ese es su portada. */}
+        {/* Lo suyo en su calendario (0071). Va justo encima de la privacidad y por
+            el mismo criterio: no es a lo que viene, pero tiene que estar en un
+            sitio, y ese es el pie de su portada. */}
+        {!isCoach && esInicio && <ClientCalendarFeed client={activeClient} />}
 
-      {!isCoach && esInicio && <ClientPrivacy client={activeClient} />}
+        {!isCoach && esInicio && <ClientPrivacy client={activeClient} />}
 
-      {/*
-        En móvil las pestañas de arriba se ocultan y navega esta barra. No son dos
-        navegaciones: es la misma lista en el sitio donde se puede usar en cada
-        formato —arriba con ratón, abajo con el pulgar—. Ver `ui/BottomNav.jsx`.
-      */}
-      <BottomNav
-        label="Secciones de mi portal"
-        items={secciones.map((seccion) => ({
-          to: `/mi/${seccion.path}`,
-          label: seccion.short || seccion.label,
-          icon: seccion.icon,
-          /* Sus dos niveles cuentan como la misma sección: estando en las fotos
-             de «Mi evolución», el destino tiene que seguir marcado. */
-          isActive: (ruta) => isSectionActive(ruta, seccion, '/mi'),
-        }))}
-      />
-    </div>
+        {/*
+          En móvil las pestañas de arriba se ocultan y navega esta barra. No son dos
+          navegaciones: es la misma lista en el sitio donde se puede usar en cada
+          formato —arriba con ratón, abajo con el pulgar—. Ver `ui/BottomNav.jsx`.
+        */}
+        <BottomNav
+          label="Secciones de mi portal"
+          items={secciones.map((seccion) => ({
+            to: `/mi/${seccion.path}`,
+            label: seccion.short || seccion.label,
+            icon: seccion.icon,
+            /* Sus dos niveles cuentan como la misma sección: estando en las fotos
+               de «Mi evolución», el destino tiene que seguir marcado. */
+            isActive: (ruta) => isSectionActive(ruta, seccion, '/mi'),
+          }))}
+        />
+      </div>
+    </OcultoProvider>
   );
 };

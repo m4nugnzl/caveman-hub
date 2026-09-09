@@ -13,6 +13,7 @@ import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { Delta } from '@/components/ui/metrics';
 import { Panel } from '@/components/ui/primitives';
+import { useOculto } from '@/components/Client/Oculto';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -73,6 +74,17 @@ export const WeeklyCheckIn = ({
 
   const today = todayISO();
   const isClient = audience === 'client';
+
+  /*
+    ══ Pesarse a ciegas ═══════════════════════════════════════════════════════
+
+    Con el peso oculto, el gesto de la semana no cambia —se anota el pesaje del
+    día igual— y lo que cambia es que la aplicación no lo devuelve: la casilla
+    rellena dice «anotado» en vez de la cifra, y se van la tendencia, el promedio
+    y la semana anterior. Queda la papelera, porque quien se equivoca al teclear
+    tiene que poder corregirlo sin llamar a su entrenador. Ver `Oculto.jsx`.
+  */
+  const oculto = useOculto();
 
 
 
@@ -140,9 +152,13 @@ export const WeeklyCheckIn = ({
 
               {entry ? (
                 <div className="row between gap-2">
-                  <span className="metric-value" style={{ fontSize: 'var(--fs-md)' }}>
-                    {fmt(entry.weight, { decimals: 1, unit: ' kg' })}
-                  </span>
+                  {oculto.weight ? (
+                    <span className="t-xs t-secondary">anotado</span>
+                  ) : (
+                    <span className="metric-value" style={{ fontSize: 'var(--fs-md)' }}>
+                      {fmt(entry.weight, { decimals: 1, unit: ' kg' })}
+                    </span>
+                  )}
                   {/* Compacto por CLASE, no por estilo en línea: el tamaño en
                       línea le ganaba a la regla táctil y en el móvil seguía
                       siendo un blanco de 24 px. */}
@@ -204,69 +220,85 @@ export const WeeklyCheckIn = ({
         Reservar el sitio es además lo que evita que la pantalla dé un salto la
         semana que por fin hay datos.
       */}
-      <div className="col gap-2">
-          <span className="section-label">Tendencia · promedio de cada semana</span>
-          <BandChart
-            labels={tendencia.map((w) => w.date)}
-            series={[
-              {
-                id: 'w',
-                label: 'Peso',
-                color: metricColor('weight'),
-                unit: ' kg',
-                decimals: 1,
-                points: tendencia.map((w) => ({ label: w.date, value: w.value })),
-              },
-            ]}
-            height={104}
-            emptyMessage={
-              tendencia.length === 1
-                ? 'Con una semana más de pesajes ya se ve la tendencia.'
-                : // El hueco habla con quien mira: al cliente de «tu peso» y al
-                  // entrenador del peso de SU cliente. Con el posesivo fijo, la
-                  // pantalla del entrenador le hablaba al que no estaba.
-                  isClient
-                  ? 'Aquí verás cómo evoluciona tu peso, semana a semana.'
-                  : 'Aquí verás cómo evoluciona su peso, semana a semana.'
-            }
-          />
-        </div>
+      {!oculto.weight && (
+        <div className="col gap-2">
+            <span className="section-label">Tendencia · promedio de cada semana</span>
+            <BandChart
+              labels={tendencia.map((w) => w.date)}
+              series={[
+                {
+                  id: 'w',
+                  label: 'Peso',
+                  color: metricColor('weight'),
+                  unit: ' kg',
+                  decimals: 1,
+                  points: tendencia.map((w) => ({ label: w.date, value: w.value })),
+                },
+              ]}
+              height={104}
+              emptyMessage={
+                tendencia.length === 1
+                  ? 'Con una semana más de pesajes ya se ve la tendencia.'
+                  : // El hueco habla con quien mira: al cliente de «tu peso» y al
+                    // entrenador del peso de SU cliente. Con el posesivo fijo, la
+                    // pantalla del entrenador le hablaba al que no estaba.
+                    isClient
+                    ? 'Aquí verás cómo evoluciona tu peso, semana a semana.'
+                    : 'Aquí verás cómo evoluciona su peso, semana a semana.'
+              }
+            />
+          </div>
+      )}
 
       {/* Resultado del check-in: el promedio y su variación contra la semana
           anterior, que es la cifra con la que de verdad se decide. */}
-      <div className="row between wrap gap-4" style={{ paddingTop: 'var(--s3)', borderTop: '1px solid var(--hairline)' }}>
-        <div className="col gap-1">
-          <span className="section-label">Promedio de la semana</span>
-          <div className="metric-figure">
-            <span className="metric-value">{checkIn.average === null ? '—' : checkIn.average}</span>
-            <span className="metric-unit">kg</span>
-            <Delta value={checkIn.delta} unit=" kg" lowerIsBetter />
+      {oculto.weight ? (
+        /* Sin cifras, lo único que queda del cierre de la semana es el hecho:
+           cuántas veces se ha pesado, y si eso llega a lo que le pidieron. */
+        <p className="metric-foot" style={{ paddingTop: 'var(--s3)', borderTop: '1px solid var(--hairline)' }}>
+          {checkIn.count === 0
+            ? 'Sin pesajes esta semana.'
+            : checkIn.asked
+              ? `${checkIn.count} de ${checkIn.target} pesajes esta semana.`
+              : `${checkIn.count} ${checkIn.count === 1 ? 'pesaje' : 'pesajes'} esta semana.`}
+        </p>
+      ) : (
+        <div className="row between wrap gap-4" style={{ paddingTop: 'var(--s3)', borderTop: '1px solid var(--hairline)' }}>
+          <div className="col gap-1">
+            <span className="section-label">Promedio de la semana</span>
+            <div className="metric-figure">
+              <span className="metric-value">{checkIn.average === null ? '—' : checkIn.average}</span>
+              <span className="metric-unit">kg</span>
+              <Delta value={checkIn.delta} unit=" kg" lowerIsBetter />
+            </div>
+            {/* «Media fiable» y «con dos más» son juicios, y sin un número pedido
+                no hay con qué juzgar: queda el recuento, que es el hecho. */}
+            <span className="metric-foot">
+              {checkIn.count === 0
+                ? 'Sin pesajes esta semana.'
+                : `${checkIn.count} ${checkIn.count === 1 ? 'pesaje' : 'pesajes'}` +
+                  (!checkIn.asked
+                    ? ''
+                    : checkIn.complete
+                      ? ' · media fiable'
+                      : ` · con ${checkIn.target - checkIn.count} más la media es más fiable`)}
+            </span>
           </div>
-          {/* «Media fiable» y «con dos más» son juicios, y sin un número pedido
-              no hay con qué juzgar: queda el recuento, que es el hecho. */}
-          <span className="metric-foot">
-            {checkIn.count === 0
-              ? 'Sin pesajes esta semana.'
-              : `${checkIn.count} ${checkIn.count === 1 ? 'pesaje' : 'pesajes'}` +
-                (!checkIn.asked
-                  ? ''
-                  : checkIn.complete
-                    ? ' · media fiable'
-                    : ` · con ${checkIn.target - checkIn.count} más la media es más fiable`)}
-          </span>
-        </div>
 
-        {checkIn.previousAverage !== null && (
-          <div className="col gap-1" style={{ alignItems: 'flex-end' }}>
-            <span className="section-label">Semana anterior</span>
-            <span className="row-value">{checkIn.previousAverage} kg</span>
-          </div>
-        )}
-      </div>
+          {checkIn.previousAverage !== null && (
+            <div className="col gap-1" style={{ alignItems: 'flex-end' }}>
+              <span className="section-label">Semana anterior</span>
+              <span className="row-value">{checkIn.previousAverage} kg</span>
+            </div>
+          )}
+        </div>
+      )}
 
       <p className="t-xs t-tertiary">
         {isClient
-          ? 'Pésate por la mañana, en ayunas y después de ir al baño. Lo ideal son 3 días alternos: el promedio filtra la variación diaria de agua y es lo que de verdad indica si tu peso sube o baja.'
+          ? oculto.weight
+            ? 'Pésate por la mañana, en ayunas y después de ir al baño. Lo ideal son 3 días alternos: tu entrenador lee el promedio, que es lo que filtra la variación diaria de agua.'
+            : 'Pésate por la mañana, en ayunas y después de ir al baño. Lo ideal son 3 días alternos: el promedio filtra la variación diaria de agua y es lo que de verdad indica si tu peso sube o baja.'
           : 'El promedio semanal filtra el ruido diario. Es la cifra que conviene mirar para decidir ajustes, no un pesaje suelto.'}
       </p>
 

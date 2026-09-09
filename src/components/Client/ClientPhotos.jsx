@@ -6,6 +6,7 @@ import { fmt } from '@/lib/num';
 import { metricColor } from '@/domain/metrics';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
 import { Thumb } from '@/components/photos/Thumb';
+import { useOculto } from './Oculto';
 
 /**
  * Las fotos del cliente: SU GALERÍA, no un formulario.
@@ -35,14 +36,23 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
     cliente rellenase al subirla: el mismo dato escrito dos veces acaba sin
     coincidir, y casi nunca se rellenaba.
   */
+  /* Y no sale para quien tiene el peso oculto: el pie de cada foto era la vía
+     por la que el número volvía a entrar en la pantalla donde precisamente se
+     viene a mirar el cambio sin la báscula. Ver `Oculto.jsx`. */
+  const oculto = useOculto();
+
   const photos = useMemo(
-    () => rawPhotos.map((p) => ({ ...p, derivedWeight: photoWeight(p, history) })),
-    [rawPhotos, history]
+    () =>
+      rawPhotos.map((p) => ({
+        ...p,
+        derivedWeight: oculto.weight ? null : photoWeight(p, history),
+      })),
+    [rawPhotos, history, oculto.weight]
   );
 
   const groups = useMemo(() => groupByWeek(photos, client.startDate), [photos, client.startDate]);
   const pair = useMemo(() => suggestPair(photos), [photos]);
-  const delta = weightDelta(pair.before, pair.after, history);
+  const delta = oculto.weight ? null : weightDelta(pair.before, pair.after, history);
 
   /* Lleva al sitio donde SÍ se sube, que es el check-in de al lado. Un botón que
      abriera aquí otro diálogo sería volver a tener dos puertas. */
@@ -57,7 +67,11 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
       <EmptyState
         icon={Camera}
         title="Todavía no tienes fotos de progreso"
-        message="Se suben con tu check-in de la semana, junto al peso: así van siempre juntos y con la misma fecha. Tu entrenador las usa para ver la evolución que la báscula no cuenta."
+        message={
+          oculto.weight
+            ? 'Se suben con tu check-in de la semana. Tu entrenador las usa para ver la evolución que ningún número cuenta.'
+            : 'Se suben con tu check-in de la semana, junto al peso: así van siempre juntos y con la misma fecha. Tu entrenador las usa para ver la evolución que la báscula no cuenta.'
+        }
         action={irASubir}
       />
     );
@@ -106,13 +120,15 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
             ))}
           </div>
 
-          {delta !== null && (
+          {(delta !== null || oculto.weight) && (
             <div className="grid-auto">
-              <StatCard
-                label="Variación de peso"
-                value={`${delta > 0 ? '+' : ''}${fmt(delta, { decimals: 1 })} kg`}
-                color={metricColor('weight')}
-              />
+              {delta !== null && (
+                <StatCard
+                  label="Variación de peso"
+                  value={`${delta > 0 ? '+' : ''}${fmt(delta, { decimals: 1 })} kg`}
+                  color={metricColor('weight')}
+                />
+              )}
               <StatCard label="Ángulo comparado" value={angleLabel(pair.after.angle)} />
             </div>
           )}

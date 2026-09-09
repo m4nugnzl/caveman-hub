@@ -11,6 +11,7 @@ import {
   displayAsUnits,
   foodMacros,
   foodUnits,
+  foodClientsByName,
   gramsFromUnits,
   hasUnits,
   emptyNutrition,
@@ -725,5 +726,75 @@ describe('singleDietFrom', () => {
     const out = singleDietFrom(plan, 'rest');
 
     expect(out.targetKcals).toBe(3000);
+  });
+});
+
+/*
+  ══ A QUIÉNES LES DAS CADA ALIMENTO ═════════════════════════════════════════
+
+  Es lo que hace podable una biblioteca cuyo camino de crecimiento ES la
+  duplicación. Lo que hay que fijar con pruebas es que cuenta DIETAS y no
+  apariciones —«se usa 38 veces» no responde a ninguna pregunta— y que mira las
+  tres variantes, porque un alimento que solo sale los días de descanso se usa
+  igual.
+
+  Y que devuelve QUIÉNES: la cifra sale de `.length`, así que si la lista se
+  ensuciara con repetidos la cuenta mentiría en el mismo sitio donde antes
+  acertaba. Por eso la primera prueba mira las dos cosas a la vez.
+*/
+describe('foodClientsByName', () => {
+  const conAlimentos = (clave, nombres) => ({
+    [clave]: [{ id: 'm1', name: 'Comida', options: [{ id: 'o1', foods: nombres.map((name, i) => ({ id: `f${i}`, name })) }] }],
+  });
+
+  it('una dieta por cliente, no una por aparición', () => {
+    const plan = {
+      closedMeals: [
+        { id: 'm1', name: 'Desayuno', options: [{ id: 'o1', foods: [{ id: 'f1', name: 'Avena' }] }] },
+        { id: 'm2', name: 'Merienda', options: [{ id: 'o2', foods: [{ id: 'f2', name: 'Avena' }] }] },
+      ],
+    };
+
+    expect(foodClientsByName({ javier: plan }).get('avena')).toEqual(['javier']);
+  });
+
+  it('acumula un cliente por cada uno que lo lleva', () => {
+    const quienes = foodClientsByName({
+      javier: conAlimentos('closedMeals', ['Avena']),
+      marta: conAlimentos('closedMeals', ['Avena', 'Plátano']),
+    });
+
+    expect(quienes.get('avena')).toEqual(['javier', 'marta']);
+    expect(quienes.get('platano')).toEqual(['marta']);
+  });
+
+  /* Las tres variantes cuentan: la única, la de entreno y la de descanso. */
+  it('mira también las dietas de entreno y de descanso', () => {
+    const plan = {
+      ...conAlimentos('closedMealsTraining', ['Arroz']),
+      ...conAlimentos('closedMealsRest', ['Lentejas']),
+    };
+
+    const quienes = foodClientsByName({ javier: plan });
+    expect(quienes.get('arroz')).toEqual(['javier']);
+    expect(quienes.get('lentejas')).toEqual(['javier']);
+  });
+
+  /* Se compara con `norm`, la misma clave que usa el resto del producto para
+     atar un nombre escrito por una persona con su fila: sin esto, «Plátano» en
+     la dieta y «platano» en la biblioteca serían dos alimentos. */
+  it('ata los nombres sin tildes ni mayúsculas', () => {
+    const plan = conAlimentos('closedMeals', ['PLÁTANO']);
+    expect(foodClientsByName({ javier: plan }).get('platano')).toEqual(['javier']);
+  });
+
+  it('lo que no está en ninguna dieta no aparece', () => {
+    const quienes = foodClientsByName({ javier: conAlimentos('closedMeals', ['Avena']) });
+    expect(quienes.get('quinoa')).toBeUndefined();
+  });
+
+  it('aguanta un plan vacío, sin comidas y sin listas', () => {
+    expect(foodClientsByName({ a: null, b: {}, c: { closedMeals: [] } }).size).toBe(0);
+    expect(foodClientsByName().size).toBe(0);
   });
 });

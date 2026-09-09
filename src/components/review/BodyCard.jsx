@@ -167,7 +167,7 @@ export const BodyCard = ({
                el vacío que se llenará solo (él no contestó). */
             <div className="vacio-invita">
               <p>Aún no le preguntas nada al entregar la semana.</p>
-              <Link className="cab-accion is-puerta" to="/ajustes/protocolo">
+              <Link className="cab-accion is-puerta" to="/protocolos">
                 Elegir preguntas
               </Link>
             </div>

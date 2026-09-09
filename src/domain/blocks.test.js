@@ -25,6 +25,10 @@ import {
   weekChangesOfBlock,
   weekLabel,
   horizonteDeBloque,
+  BLOCK_INTENTS,
+  blockTraits,
+  intentLabel,
+  setBlockTraitsIn,
   weeksAheadOfBlock,
   weeksOfBlock,
   blockSessionOf,
@@ -52,6 +56,7 @@ import {
   moveBlockExerciseIn,
   setBlockExerciseSetsIn,
   setBlockExerciseTargetIn,
+  updatePlanDayIn,
   proyectarPlanEnDias,
 } from './blocks';
 
@@ -604,6 +609,116 @@ describe('el horizonte del bloque', () => {
     expect(horizonteDeBloque(dosBloques, 9)).toBeNull();
     expect(horizonteDeBloque({ microcycles: [] }, 1)).toBeNull();
   });
+
+  it('dice por cuál va dentro del bloque', () => {
+    expect(horizonteDeBloque(dosBloques, 2).posicion).toBe(2);
+    expect(horizonteDeBloque(dosBloques, 6).posicion).toBe(2);
+  });
+
+  /* Ver «Y por fin el bloque ABIERTO puede tener horizonte» en blocks.js. */
+  describe('con duración prevista, el bloque abierto sí cuenta', () => {
+    const conPrevision = (plannedWeeks) =>
+      programa([1, 2, 3, 4, 5, 6], {
+        blocks: [
+          { id: 'a', name: 'Acumulación', fromWeek: 1, toWeek: 4 },
+          { id: 'b', name: 'Intensificación', fromWeek: 5, toWeek: null, plannedWeeks },
+        ],
+      });
+
+    it('cuenta contra lo previsto y no contra lo montado', () => {
+      const h = horizonteDeBloque(conPrevision(4), 6);
+      expect(h.abierto).toBe(true);
+      expect(h.previstas).toBe(4);
+      expect(h.posicion).toBe(2);
+      expect(h.restantes).toBe(2);
+    });
+
+    it('pasarse de lo previsto se dice, no se corrige', () => {
+      const h = horizonteDeBloque(conPrevision(1), 6);
+      expect(h.posicion).toBe(2);
+      expect(h.restantes).toBe(-1);
+    });
+
+    it('sin duración prevista sigue contando lo montado', () => {
+      expect(horizonteDeBloque(conPrevision(null), 6).restantes).toBe(0);
+      expect(horizonteDeBloque(conPrevision(null), 6).previstas).toBeNull();
+    });
+
+    it('en un bloque cerrado manda su final de verdad', () => {
+      const p = programa([1, 2, 3, 4, 5, 6], {
+        blocks: [
+          { id: 'a', name: 'Acumulación', fromWeek: 1, toWeek: 4, plannedWeeks: 8 },
+          { id: 'b', name: 'Intensificación', fromWeek: 5, toWeek: null },
+        ],
+      });
+      const h = horizonteDeBloque(p, 2);
+      expect(h.previstas).toBe(8);
+      expect(h.restantes).toBe(2);
+    });
+  });
+});
+
+describe('las características del bloque', () => {
+  const conBloque = (extra) =>
+    programa([1, 2], { blocks: [{ id: 'a', name: 'Bloque 1', fromWeek: 1, toWeek: null, ...extra }] });
+
+  it('un bloque sin ellas las devuelve vacías', () => {
+    expect(blockTraits({ id: 'a', name: 'Bloque 1' })).toEqual({
+      intent: null,
+      plannedWeeks: null,
+      note: null,
+    });
+  });
+
+  it('sanea lo que no vale', () => {
+    expect(blockTraits({ intent: 'lo-que-sea', plannedWeeks: 0, note: '   ' })).toEqual({
+      intent: null,
+      plannedWeeks: null,
+      note: null,
+    });
+    expect(blockTraits({ plannedWeeks: '4' }).plannedWeeks).toBe(4);
+    expect(blockTraits({ plannedWeeks: 99 }).plannedWeeks).toBeNull();
+    expect(blockTraits({ note: `  ${'x'.repeat(400)}  ` }).note).toHaveLength(280);
+  });
+
+  it('las intenciones tienen etiqueta y son las del oficio', () => {
+    expect(BLOCK_INTENTS.map((i) => i.id)).toContain('descarga');
+    expect(intentLabel('acumulacion')).toBe('Acumulación');
+    expect(intentLabel(null)).toBeNull();
+  });
+
+  it('escribe solo lo que llega y deja lo demás', () => {
+    const p = setBlockTraitsIn(conBloque({ intent: 'acumulacion', plannedWeeks: 6 }), 'a', {
+      note: 'Subir volumen hasta rozar el MRV',
+    });
+    expect(blockTraits(p.blocks[0])).toEqual({
+      intent: 'acumulacion',
+      plannedWeeks: 6,
+      note: 'Subir volumen hasta rozar el MRV',
+    });
+  });
+
+  it('lo que se vacía se borra de la fila, no se guarda en nulo', () => {
+    const p = setBlockTraitsIn(conBloque({ intent: 'descarga', note: 'algo' }), 'a', {
+      intent: null,
+      note: '',
+    });
+    expect('intent' in p.blocks[0]).toBe(false);
+    expect('note' in p.blocks[0]).toBe(false);
+    expect(p.blocks[0].name).toBe('Bloque 1');
+  });
+
+  it('no toca los demás bloques', () => {
+    const p = programa([1, 2, 3], {
+      blocks: [
+        { id: 'a', name: 'A', fromWeek: 1, toWeek: 2 },
+        { id: 'b', name: 'B', fromWeek: 3, toWeek: null },
+      ],
+    });
+    const out = setBlockTraitsIn(p, 'b', { intent: 'descarga' });
+    expect(out.blocks[0]).toEqual(p.blocks[0]);
+    expect(out.blocks[1].intent).toBe('descarga');
+  });
 });
 
 /* ══ EL PLAN DENTRO DEL BLOQUE ═══════════════════════════════════════════ */
@@ -1049,6 +1164,52 @@ describe('el tramo de un cambio', () => {
   it('un cambio de otra hoja no se cuela', () => {
     const p = cinco([buildOverride({ dayName: 'Pull', targetId: 'a', exercise: null, fromWeek: 1, toWeek: null })]);
     expect(nombresEn(p, 3)).toEqual(['Press banca', 'Fondos']);
+  });
+});
+
+describe('lo que es de la hoja: la indicación del entrenador', () => {
+  const conIndicacion = (p, semana, texto) =>
+    updatePlanDayIn(p, semana, 'Push', (hoja) => ({ ...hoja, coachNote: texto }));
+
+  it('con plan, se escribe en la hoja del BLOQUE y vale para todos sus microciclos', () => {
+    const p = conIndicacion(conPlan(), 1, 'Hoy suaves de espalda');
+    expect(blockSessionOf(blocksOf(p)[0], 'Push').coachNote).toBe('Hoy suaves de espalda');
+    /* Que es lo que se pedía: el microciclo siguiente nace con ella puesta. */
+    expect(planOfDay(p, 2, 'Push').coachNote).toBe('Hoy suaves de espalda');
+    /* Y no se ha colado una copia en el día del microciclo. */
+    expect(p.microcycles.every((m) => m.days.every((d) => d.coachNote === undefined))).toBe(true);
+  });
+
+  it('sin plan en el bloque, manda el día del microciclo y solo ese', () => {
+    const p = conIndicacion(
+      {
+        microcycles: [
+          { weekNumber: 1, days: [{ dayName: 'Push', exercises: [] }] },
+          { weekNumber: 2, days: [{ dayName: 'Push', exercises: [] }] },
+        ],
+      },
+      1,
+      'Solo esta semana'
+    );
+    expect(p.microcycles[0].days[0].coachNote).toBe('Solo esta semana');
+    expect(p.microcycles[1].days[0].coachNote).toBeUndefined();
+  });
+
+  it('una hoja que el bloque no tiene cae al microciclo, sin reventar', () => {
+    const p = updatePlanDayIn(conPlan(), 1, 'Legs', (hoja) => ({ ...hoja, coachNote: 'x' }));
+    expect(blockSessionsOf(blocksOf(p)[0]).map((s) => s.dayName)).toEqual(['Push']);
+    expect(p.microcycles[0].days.some((d) => d.coachNote === 'x')).toBe(false);
+  });
+});
+
+describe('lo que es de la hoja: el calentamiento propio de un día', () => {
+  it('con plan, también va al bloque y llega a los microciclos siguientes', () => {
+    const drills = [{ id: 'd9', name: 'Cat-camel' }];
+    const p = updatePlanDayIn(conPlan(), 1, 'Push', (hoja) => ({ ...hoja, mobilityDrills: drills }));
+    expect(planOfDay(p, 2, 'Push').mobilityDrills).toEqual(drills);
+    /* `[]` es «este día NO se calienta», y también es una decisión del plan. */
+    const sin = updatePlanDayIn(p, 1, 'Push', (hoja) => ({ ...hoja, mobilityDrills: [] }));
+    expect(planOfDay(sin, 2, 'Push').mobilityDrills).toEqual([]);
   });
 });
 

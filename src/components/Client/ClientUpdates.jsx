@@ -4,7 +4,14 @@ import { Link } from 'react-router-dom';
 
 import { useActions, useData } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
-import { dismissUpdate, lastSeen, pendingTasks, unseenUpdates } from '@/domain/updates';
+import { pendientesDeCliente } from '@/domain/envios';
+import {
+  dismissUpdate,
+  lastSeen,
+  pendingTasks,
+  recordatorioDeSemana,
+  unseenUpdates,
+} from '@/domain/updates';
 import { todayISO } from '@/lib/dates';
 import { Panel } from '@/components/ui/primitives';
 
@@ -56,7 +63,7 @@ import { Panel } from '@/components/ui/primitives';
  *   TAREAS de la semana no se piden: ver el porqué justo debajo.
  */
 export const ClientUpdates = ({ client, altaPendiente = false }) => {
-  const { anthropometry } = useData();
+  const { anthropometry, envioRows } = useData();
   const { updateClientPreferences } = useActions();
 
   const preferences = client?.preferences;
@@ -75,8 +82,12 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
         history,
         protocol: clientProtocol(preferences),
         today: todayISO(),
+        formularios: pendientesDeCliente(
+          (envioRows || []).filter((f) => f.client_id === client?.id),
+          todayISO()
+        ),
       }),
-    [history, preferences]
+    [history, preferences, envioRows, client?.id]
   );
 
   const hayNovedades = novedades.length > 0;
@@ -110,7 +121,33 @@ export const ClientUpdates = ({ client, altaPendiente = false }) => {
     Las NOVEDADES no se callan: si su entrenador le ha contestado algo, eso es
     suyo y llega igual haya empezado o no.
   */
-  const tareas = altaPendiente ? [] : pendientes;
+  /*
+    ══ EL RECORDATORIO DEL CHECK-IN ═══════════════════════════════════════════
+
+    Lo único de todo el portal que le habla al cliente sin que su entrenador
+    pulse nada ese día, y por eso nace apagado: sale solo si su entrenador puso
+    un `remindAfter` en el protocolo y ya pasó el día en que lo espera.
+
+    Va como PRIMERA fila de lo que falta y no como novedad aparte: no es algo
+    que haya pasado, es contexto de lo que ya está debajo — cuándo se espera que
+    lo entregue, que es lo único de esto que el cliente no sabe. Y no se puede
+    descartar, por lo mismo que las demás tareas: desaparece cuando entrega.
+
+    Tampoco cuenta en la campana. La campana cuenta cosas por hacer, y esto no
+    añade ninguna: sumarlo sería inflar el número con un recordatorio de sí
+    mismo.
+  */
+  const recordatorio = useMemo(
+    () =>
+      recordatorioDeSemana({
+        protocol: clientProtocol(preferences),
+        tasks: pendientes,
+        today: todayISO(),
+      }),
+    [preferences, pendientes]
+  );
+
+  const tareas = altaPendiente ? [] : [...(recordatorio ? [recordatorio] : []), ...pendientes];
 
   if (!hayNovedades && tareas.length === 0) return null;
 

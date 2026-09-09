@@ -32,6 +32,10 @@ import {
   asksWeighIns,
   setWeighIns,
   weighInsTarget,
+  HIDDEN_INFO,
+  hiddenFor,
+  hidesFromClient,
+  toggleHidden,
 } from './protocol';
 import {
   COMPARED_KEYS,
@@ -60,18 +64,45 @@ describe('clientProtocol', () => {
     expect(protocol.questions).toEqual(['rpe']);
   });
 
-  it('no deja que una pregunta propia suplante a una del catálogo', () => {
+  it('una propia con el id de una del catálogo LA PISA, y conserva su color', () => {
     /*
-      `questionById` resuelve primero el catálogo. Una pregunta propia con el id
-      `rpe` quedaría inalcanzable, y el entrenador vería la de serie en su sitio
-      sin entender por qué su etiqueta no aparece.
+      Es la invariante que convierte al catálogo en una ESTANTERÍA: insertas
+      «Esfuerzo de la sesión» y a partir de ahí es tuya. Antes esto se caía —el
+      catálogo mandaba y la propia quedaba inalcanzable—, y era exactamente lo que
+      dejaba las preguntas del protocolo como interruptores intocables.
+
+      El id se conserva a propósito: ES la serie de la analítica, y el color sale
+      del catálogo para que la línea siga siendo la misma línea después de
+      renombrarla.
     */
+    const deSerie = SESSION_QUESTIONS.find((q) => q.id === 'rpe');
     const protocol = clientProtocol({
-      protocol: { questions: ['rpe'], custom: [{ id: 'rpe', label: 'Mi RPE' }] },
+      protocol: { questions: ['rpe'], custom: [{ id: 'rpe', label: 'Cuánto has apretado' }] },
     });
 
-    expect(protocol.custom).toEqual([]);
-    expect(questionById(protocol, 'rpe').label).toBe('Esfuerzo de la sesión');
+    const rpe = questionById(protocol, 'rpe');
+    expect(rpe.label).toBe('Cuánto has apretado');
+    expect(rpe.color).toBe(deSerie.color);
+    expect(rpe.short).toBe(deSerie.short);
+    expect(protocol.questions).toEqual(['rpe']);
+  });
+
+  it('los retoques del catálogo no gastan el cupo de preguntas propias', () => {
+    /*
+      `MAX_CUSTOM` acota lo que el entrenador INVENTA, que es lo que puede crecer
+      sin fin. Si los retoques contaran, quien haya ajustado el rango de tres
+      preguntas de serie se quedaría sin poder escribir ninguna suya.
+    */
+    const retoques = SESSION_QUESTIONS.slice(0, 3).map((q) => ({ ...q, label: `Mi ${q.label}` }));
+    const inventadas = Array.from({ length: MAX_CUSTOM }, (_, i) => ({
+      id: `propia_${i}`,
+      label: `La mía ${i}`,
+      kind: 'scale',
+    }));
+
+    const protocol = clientProtocol({ protocol: { custom: [...retoques, ...inventadas] } });
+
+    expect(protocol.custom).toHaveLength(retoques.length + MAX_CUSTOM);
   });
 
   it('descarta duplicados conservando el orden elegido', () => {
@@ -389,11 +420,17 @@ describe('preguntas del check-in', () => {
     expect(protocol.custom).toEqual([]);
   });
 
-  it('una propia no puede llamarse como una del catálogo del check-in', () => {
+  it('retocar una del check-in la pisa igual que una de la sesión', () => {
+    /* Se miran LOS DOS catálogos: con uno solo, un retoque de `hunger` se
+       trataría como pregunta inventada y perdería su color de serie. */
+    const deSerie = CHECKIN_QUESTIONS.find((q) => q.id === 'hunger');
     const protocol = clientProtocol({
-      protocol: { custom: [{ id: 'hunger', label: 'La mía', kind: 'scale' }] },
+      protocol: { custom: [{ id: 'hunger', label: 'Cuánta hambre has pasado', kind: 'scale' }] },
     });
-    expect(protocol.custom).toEqual([]);
+
+    const hunger = questionById(protocol, 'hunger');
+    expect(hunger.label).toBe('Cuánta hambre has pasado');
+    expect(hunger.color).toBe(deSerie.color);
   });
 
   it('sobrevive a la ida y vuelta por preferencias', () => {
@@ -579,5 +616,62 @@ describe('los servicios', () => {
        `newClientPreferences` copia la plantilla entera al dar de alta. */
     const soloEntreno = clientProtocol({ protocol: { services: { nutrition: false } } });
     expect(isServiceOn(soloEntreno, 'nutrition')).toBe(false);
+  });
+});
+
+describe('qué cifras no le vuelven al cliente', () => {
+  it('de serie no se le oculta nada', () => {
+    const base = clientProtocol({});
+    expect(hiddenFor(base)).toEqual({ weight: false, nutrition: false });
+    expect(hidesFromClient(base, 'weight')).toBe(false);
+  });
+
+  it('solo el true literal oculta: nada raro deja a alguien sin sus cifras', () => {
+    for (const raro of ['true', 1, {}, null, undefined, 'sí']) {
+      const suyo = clientProtocol({ protocol: { hidden: { weight: raro } } });
+      expect(hidesFromClient(suyo, 'weight'), String(raro)).toBe(false);
+    }
+    expect(hidesFromClient(clientProtocol({ protocol: { hidden: { weight: true } } }), 'weight')).toBe(
+      true
+    );
+  });
+
+  it('una clave que la aplicación no conoce se cae', () => {
+    const suyo = clientProtocol({ protocol: { hidden: { telepatia: true, weight: true } } });
+    expect(suyo.hidden).toEqual({ weight: true, nutrition: false });
+  });
+
+  it('el interruptor va y vuelve sin tocar al otro', () => {
+    const base = clientProtocol({});
+    const sinPeso = toggleHidden(base, 'weight');
+    expect(hiddenFor(sinPeso)).toEqual({ weight: true, nutrition: false });
+    expect(hiddenFor(toggleHidden(sinPeso, 'weight'))).toEqual({ weight: false, nutrition: false });
+  });
+
+  it('cada cifra ocultable dice qué es y qué implica', () => {
+    for (const info of HIDDEN_INFO) {
+      expect(typeof info.label).toBe('string');
+      expect(info.hint.length, `${info.id} sin explicación`).toBeGreaterThan(40);
+    }
+  });
+
+  /*
+    ══ El peor botón posible ══════════════════════════════════════════════════
+
+    «Poner al día» empuja la plantilla a un cliente. Si esto se comparara,
+    ocultarle el peso a una persona la marcaría como desviada de la plantilla —y
+    el primer «aplicar a todos» le devolvería su peso a la pantalla. Ver
+    `NOT_COMPARED_KEYS`.
+  */
+  it('ocultarle el peso NO cuenta como desvío de la plantilla', () => {
+    const plantilla = clientProtocol({});
+    const suyo = clientProtocol({ protocol: { hidden: { weight: true } } });
+    expect(matchesTemplate(plantilla, suyo)).toBe(true);
+  });
+
+  it('e igualar a la plantilla se lo respeta', () => {
+    const plantilla = clientProtocol({});
+    const suyas = { protocol: { hidden: { weight: true, nutrition: true } } };
+    expect(templateForClient(plantilla, suyas).hidden).toEqual({ weight: true, nutrition: true });
   });
 });

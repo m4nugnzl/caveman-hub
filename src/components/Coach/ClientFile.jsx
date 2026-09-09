@@ -28,6 +28,9 @@ import { MAX_AGE, MIN_AGE, age, birthDateForAge, identityFacts } from '@/domain/
 import { onboardingState } from '@/domain/onboardingState';
 import { PROFILE_GROUPS, cleanProfile } from '@/domain/profile';
 import { shortDate } from '@/lib/dates';
+/* La pausa y las etiquetas viven ahora con la hoja de ajustes de la cartera
+   (`ClientSettings.jsx`): una sola implementación, dos sitios que la enseñan. */
+import { LoQueLeHasMandado, PauseRow, TagsRow } from './ClientSettings';
 import { fmt, toNum } from '@/lib/num';
 import {
   clientIntake,
@@ -1196,7 +1199,7 @@ const Alta = ({ client, estado, intake, steps, progress, carpeta, onProbar, onUp
           <TriangleAlert size={13} aria-hidden="true" />
           <span>
             No le pides nada a él: su portal no tendrá cuestionario ni entregas. Se encienden en{' '}
-            <Link to="/ajustes/protocolo#alta">Ajustes → Protocolo</Link>.
+            <Link to="/protocolos#alta">Protocolos</Link>.
           </span>
         </p>
       )}
@@ -1502,6 +1505,19 @@ export const ClientFile = () => {
 
         <CustomAnswers client={activeClient} />
 
+        {/*
+          Y lo que le has mandado suelto, detrás de lo que le preguntaste: son la
+          misma pregunta en dos tiempos —qué le pediste y qué ha vuelto—.
+
+          Vive aquí porque es donde la bandeja aterriza: las dos colas de lo
+          suelto («Leer lo que te han contestado» y «Les falta lo que les
+          mandaste») llevan a `seccion: 'ficha'`, y hasta ahora esta pantalla no
+          decía ni una palabra de ello — la lista solo estaba en la hoja de
+          ajustes de la cartera, así que la cola mandaba a un sitio donde no se
+          podía resolver. Es la misma pieza, con el marco de la ficha.
+        */}
+        <LoQueLeHasMandado client={activeClient} bloque />
+
         <EquipmentPanel client={activeClient} onSaveProfile={(profile) => editar({ profile })} />
       </div>
 
@@ -1539,6 +1555,10 @@ export const ClientFile = () => {
               cerrar();
             }}
           />
+
+          {/* Las etiquetas van con «quién es»: son cómo LO clasificas tú. Guardan
+              al momento, aparte del formulario de arriba y su botón. */}
+          <TagsRow client={activeClient} onSave={(tags) => editar({ tags })} />
 
           {/* El aviso vive aquí, que es donde se arregla: el desplegable del sexo
               está a dos dedos. En la ficha era un cartel ámbar sobre algo que no
@@ -1579,6 +1599,9 @@ export const ClientFile = () => {
       <Modal open={hoja === 'acceso'} title="Acceso y baja" onClose={cerrar}>
         <div className="hoja-ficha col gap-3">
           <PortalAccess client={activeClient} />
+          {/* Entre el acceso y el archivo, de menos a más definitivo: entrar,
+              apartarse una temporada, terminar. */}
+          <PauseRow client={activeClient} />
           <ArchiveRow client={activeClient} />
         </div>
       </Modal>

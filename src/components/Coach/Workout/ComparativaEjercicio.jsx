@@ -20,7 +20,19 @@ import { Sparkline } from '@/components/ui/charts';
  * mismo menú de la aplicación, no un desplegable del navegador—.
  */
 const SEMANAS = 6;
-const SERIES_MAX = 5;
+/*
+  ── Tres series, porque cinco NO caben ──────────────────────────────────────
+  Eran cinco, y cinco series son quince minicolumnas de kg · reps · rir en los
+  ~450 px de la tarjeta del costado: 25 px por columna para escribir «102.5».
+  Medido sobre la aplicación con datos de verdad, el kilo de la última semana
+  se salía de su celda y pisaba el rótulo de al lado — «B3·M2102.!». No era un
+  fallo de estilo: era pedirle a la tarjeta el doble de lo que mide.
+
+  La tarjeta enseña lo que cabe y la ventana que abre —«Ver toda la
+  progresión»— tiene TODO: todas las semanas y todas las series. Es el reparto
+  que su documentación ya decía tener.
+*/
+const SERIES_MAX = 3;
 
 const numero = toNum;
 
@@ -35,8 +47,21 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
   const indice = Math.max(0, ejercicios.findIndex((ex) => ex.name === name));
   const trend = useMemo(() => (name ? exerciseTrend({ microcycles, name, weekNumber }) : null), [microcycles, name, weekNumber]);
   const semanas = trend ? trend.sessions.slice(-SEMANAS) : [];
-  const series = Math.min(SERIES_MAX, Math.max(0, ...semanas.map((s) => s.sets.length)));
-  const columnas = `40px repeat(${series * CAMPOS.length}, minmax(0, 1fr))`;
+  const seriesTotales = Math.max(0, ...semanas.map((s) => s.sets.length));
+  const series = Math.min(SERIES_MAX, seriesTotales);
+  /*
+    ── Las columnas tienen un suelo, y por eso la tabla puede desplazarse ─────
+    Eran `minmax(0, 1fr)`: con cinco series son quince minicolumnas en unos 450
+    px, treinta píxeles cada una, y «102.5» en la tipografía de datos mide más
+    que eso. El texto no se recortaba dentro de su celda —se salía— y en la
+    captura el kilo de la última semana se comía el rótulo de al lado:
+    «B3·M2102.!». Un número que pisa a otro no es un dato, es un borrón.
+
+    Con suelo, cuando de verdad no caben, la tabla se desplaza a lo ancho
+    DENTRO de su tarjeta (ver `.comparativa-tabla`) y no se pierde ninguna
+    cifra. Y 44 px para el rótulo, que «B2·M1» no cabía en 40.
+  */
+  const columnas = `44px repeat(${series * CAMPOS.length}, minmax(32px, 1fr))`;
 
   return (
     <aside className={`comparativa${onAmpliar && name ? ' tarjeta-puerta' : ''}`} aria-label="Progresión del ejercicio">
@@ -135,6 +160,13 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
               </div>
             ))}
           </div>
+          {/* Lo que la tarjeta no enseña se dice, no se esconde: el resto de
+              las series está en la ventana que abre la propia tarjeta. */}
+          {seriesTotales > series && (
+            <p className="t-xs t-tertiary">
+              Las {series} primeras de {seriesTotales} series. Ábrelo para verlas todas.
+            </p>
+          )}
           {trend.stalled >= 3 && <p className="t-xs t-tertiary">{trend.stalled} microciclos sin superar el tope.</p>}
         </>
       )}

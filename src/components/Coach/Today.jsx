@@ -11,6 +11,7 @@ import {
 
 import { useApp, useSession } from '@/context/AppContext';
 import { TRAMITES_INICIO, buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
+import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { ACTIVITY_KINDS, activityScale, buildActivity, dayLabel } from '@/domain/today';
 import { kindMeta } from '@/domain/calendar';
 import { answersSummary, clientProtocol } from '@/domain/protocol';
@@ -254,6 +255,7 @@ export const Today = () => {
     progressPhotos,
     checkIns,
     equipmentCounts,
+    envioRows,
     markClientPaid,
     loadEvents,
     setEventDone,
@@ -274,9 +276,12 @@ export const Today = () => {
     verbos y sus acciones. Cada pieza dice lo suyo una vez.
   */
 
+  const mandadoCounts = useMemo(() => pendientesPorCliente(envioRows, today), [envioRows, today]);
+  const contestadoCounts = useMemo(() => contestadasPorCliente(envioRows), [envioRows]);
+
   const rows = useMemo(
-    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts }, today),
-    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, today]
   );
   const colas = useMemo(() => colasDeInicio(rows, today), [rows, today]);
   const tramites = useMemo(

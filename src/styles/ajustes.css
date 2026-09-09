@@ -67,6 +67,21 @@
 .account-item.is-danger > svg { color: var(--negative); }
 .account-item.is-danger:hover { background: var(--negative-soft); }
 
+/* ── El Taller dentro del menú, y solo sin barra lateral ───────────────────
+   Las cinco puertas del material viven en la barra; por debajo de 1024 px no
+   hay barra, y sin esto no habría forma de llegar a ellas. `display: contents`
+   y no un bloque: los ítems tienen que seguir siendo hijos directos del menú
+   para que su aire y su ancho sean los mismos que los de «Ajustes». */
+.account-taller { display: contents; }
+@media (min-width: 1024px) {
+  .account-taller { display: none; }
+}
+/* El mismo rótulo troquelado que separa las tandas de la barra lateral. */
+.account-rotulo {
+  padding: var(--s2) var(--s3) var(--s1);
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary);
+}
+
 /* ==========================================================================
    Configuración
    --------------------------------------------------------------------------
@@ -75,7 +90,12 @@
    sitio para el contenido.
    ========================================================================== */
 
-.settings { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: var(--s4); align-items: start; }
+/* Sin medida propia, como todas: el índice mide 236 y el apartado se queda con
+   el resto de la hoja. Llevó `--max-w-mesa` mientras las páginas tenían medida
+   propia, y con la hoja fija eso eran 422 px de nada a la derecha de Ajustes. */
+.settings {
+  display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: var(--s4); align-items: start;
+}
 .settings-nav { display: flex; flex-direction: column; gap: var(--s1); }
 .settings-body { min-width: 0; }
 
@@ -1535,9 +1555,18 @@ button.log-answer:hover { background: var(--fill); }
    por ancla — antes eran 64 px planos, que es menos de lo que miden las dos, así
    que el ancla dejaba el encabezado tapado. El mismo número que la constante
    `LINEA` de `PageNav.jsx`, que decide qué apartado va marcado. */
-.page-section {
-  display: flex; flex-direction: column; gap: var(--s4);
-}
+/* Aquí LLEVABA MEDIDA (`--max-w-columna`, 880), del día en que la tarjeta de
+   «Qué llevas» era una banda de 1240 px para dos casillas cuyo texto acaba en
+   690. El tope arreglaba eso y traía el problema contrario en cuanto la página
+   dejó de tener medida propia: un apartado de 880 dentro de una página de 1602
+   es el mismo agujero, sólo que a la derecha.
+
+   Quien lo acota ahora es su CONTENEDOR, que es quien sabe cuánto sitio hay: en
+   `/protocolos` es el plano izquierdo del banco, que tiene el carril al lado y
+   lo deja en 1136. Un apartado suelto en una página sin planos se llena, que es
+   lo que el dueño pidió. Si alguna vuelve a leerse como una banda, la salida es
+   darle un segundo plano o poner sus casillas a dos columnas — no un tope. */
+.page-section { display: flex; flex-direction: column; gap: var(--s4); }
 
 /* El hueco que deja el ancla al saltar, en UNA regla para los dos que lo
    necesitan: el apartado con encabezado y tarjetas (`.page-section`) y la

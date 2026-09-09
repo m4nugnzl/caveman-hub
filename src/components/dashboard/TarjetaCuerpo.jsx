@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 
 import { Delta } from '@/components/ui/metrics';
 import { ReviewChart } from '@/components/review/ReviewChart';
+import { useOculto } from '@/components/Client/Oculto';
 import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
 /**
@@ -43,6 +44,20 @@ export const TarjetaCuerpo = ({
   aPesaje = null,
 }) => {
   const weightPts = metricPoints(serie, 'weight');
+
+  /*
+    ══ La escalera de debajo también es una cifra ═════════════════════════════
+
+    Bajo la curva del peso van los peldaños de lo que le fuiste poniendo: kcal o
+    pasos. Para el cliente con las kcal ocultas, esa escalera es exactamente la
+    cifra que no debe volverle —y encima con su historia entera—, así que se
+    pasa a pasos; si no le pones pasos, no hay escalera y queda la curva sola.
+    El conmutador de las dos bandas desaparece con ella. Ver `Oculto.jsx`.
+  */
+  const oculto = useOculto();
+  const conBandas = conAjustes && hayPasos && !oculto.nutrition;
+  const conEscalera = conAjustes && !(oculto.nutrition && !hayPasos);
+  const bandaVista = oculto.nutrition ? 'steps' : banda;
 
   return (
     <Tarjeta
@@ -83,7 +98,7 @@ export const TarjetaCuerpo = ({
           </span>
         </div>
 
-        {conAjustes && hayPasos && (
+        {conBandas && (
           <div className="rail-wrap" role="group" aria-label="Contra qué se compara el peso">
             <button type="button" className="chip" aria-pressed={banda === 'kcals'} onClick={() => onBanda('kcals')}>
               Calorías
@@ -95,8 +110,8 @@ export const TarjetaCuerpo = ({
         )}
       </div>
 
-      {conAjustes ? (
-        <ReviewChart weeks={track} ancho={ancho} soloLectura banda={banda} cambios={blockChanges(program)} />
+      {conEscalera ? (
+        <ReviewChart weeks={track} ancho={ancho} soloLectura banda={bandaVista} cambios={blockChanges(program)} />
       ) : !isClient && weightPts.length === 0 ? (
         /* El vacío con su verbo (Q-05): la curva empieza con el primer pesaje,
            y anotarlo está a un clic — no en una frase gris que solo constata. */

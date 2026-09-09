@@ -8,6 +8,7 @@ import { recordIssue } from '@/lib/diagnostics';
 import { flushEvents, forgetActor, identify } from '@/lib/analytics';
 import { useConditions } from '@/context/useConditions';
 import { useEquipment } from '@/context/useEquipment';
+import { useExerciseSheets } from '@/context/useExerciseSheets';
 import { useRoadmap } from '@/context/useRoadmap';
 import { useSupport } from '@/context/useSupport';
 import { useReviews } from '@/context/useReviews';
@@ -17,6 +18,7 @@ import { useTeam } from '@/context/useTeam';
 import { useIntegrations } from '@/context/useIntegrations';
 import { useProgressPhotos } from '@/context/useProgressPhotos';
 import { useCoachPrefs } from '@/context/useCoachPrefs';
+import { useEnvios } from '@/context/useEnvios';
 import { useClients } from '@/context/useClients';
 import { useAnthropometry } from '@/context/useAnthropometry';
 import { useNutrition } from '@/context/useNutrition';
@@ -169,7 +171,13 @@ export const AppProvider = ({ children }) => {
     foodLibrary,
     setFoodLibrary,
     upsertLibraryExercise,
+    saveExerciseSheet,
     upsertLibraryFood,
+    saveFoodSheet,
+    editLibraryExercise,
+    editLibraryFood,
+    deleteLibraryFood,
+    deleteLibraryExercise,
   } = useLibraries({ session, team, catalogFoods, catalogExercises });
 
   /*
@@ -645,6 +653,9 @@ export const AppProvider = ({ children }) => {
             p_set_index: data.setIndex,
             p_field: data.field,
             p_value: String(data.value ?? ''),
+            /* La subserie de un remate —la segunda bajada de la última serie—,
+               o `null` para la serie misma. Ver la migración 0107. */
+            p_sub_index: data.sub ?? null,
           }),
         { immediate: false }
       );
@@ -1336,6 +1347,19 @@ export const AppProvider = ({ children }) => {
      una escritura masiva de la cartera y vive con `reloadClients`. */
   const { coachPrefs, coachPrefsReady, updateCoachPreferences } = useCoachPrefs({ session });
 
+  /* Lo que se le manda a alguien y lo que vuelve (0099, generalizado en 0105),
+     en su gancho. Lo usan los DOS lados: quien filtra es RLS, no la aplicación. */
+  const {
+    envioRows,
+    enviosReady,
+    reloadEnvios,
+    mandarAccion,
+    dejarDePedir,
+    quitarPedido,
+    marcarAccion,
+    marcarVisto,
+  } = useEnvios({ session });
+
   // ── Soporte ──────────────────────────────────────────────────────────────
 
   /* Segundo dominio extraído: estado (`isSupport`), bandeja y acciones de
@@ -1461,6 +1485,15 @@ export const AppProvider = ({ children }) => {
        `traduceStorageError`). Es el mismo espejo que usa el guardado. */
       isCoach: isCoachRef.current,
     });
+
+  /* Tu vídeo y tus pautas, como los lee quien entrena (migración 0100). Misma
+     convención; el alcance lo decide quién mira: el cliente pide los suyos sin
+     decir de quién —los resuelve `auth.uid()`— y el entrenador que está en «Ver
+     como» pide los del cliente abierto. */
+  const { sheetOf } = useExerciseSheets({
+    session,
+    clientId: profileRole === 'client' ? null : activeClientId,
+  });
 
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
 
@@ -1665,6 +1698,7 @@ export const AppProvider = ({ children }) => {
     appendMicrocycle,
     startBlock,
     renameBlock,
+    setBlockTraits,
     deleteBlock,
     logBlockChange,
     migratePlanToBlock,
@@ -1680,6 +1714,7 @@ export const AppProvider = ({ children }) => {
     moveBlockExercise,
     setBlockExerciseSets,
     setBlockExerciseTarget,
+    setBlockExerciseGrammar,
     updatePlanExercise,
     removePlanExercise,
     overridePlanExercise,
@@ -1741,6 +1776,7 @@ export const AppProvider = ({ children }) => {
     duplicateOption,
     duplicateMeal,
     addFoodToOption,
+    addFoodsToOption,
     removeFoodFromOption,
     restoreFoodInOption,
     patchFood,
@@ -1822,6 +1858,7 @@ export const AppProvider = ({ children }) => {
     markClientPaid,
     normalizeLegacySessions,
     setClientArchived,
+    setClientPaused,
     updateClientPreferences,
     saveClientProfile,
     saveClientIdentity,
@@ -2003,6 +2040,10 @@ export const AppProvider = ({ children }) => {
       progressPhotos,
       exerciseLibrary,
       foodLibrary,
+      /* La ficha por nombre, para quien entrena. No es una lista más: es la
+         función que pregunta el renglón del ejercicio para saber si pinta
+         marca. Ver `useExerciseSheets`. */
+      sheetOf,
       catalogFoods,
       catalogExercises,
       checkIns,
@@ -2011,14 +2052,17 @@ export const AppProvider = ({ children }) => {
       conditions,
       equipment,
       equipmentCounts,
+      envioRows,
+      enviosReady,
       saveStatus,
       hasUnsavedChanges,
     }),
     [
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
       workoutData, training, legacyPending, anthropometry, nutrition, progressPhotos,
-      exerciseLibrary, foodLibrary, catalogFoods, catalogExercises, checkIns, checkInsActivos,
-      phases, conditions, equipment, equipmentCounts, saveStatus, hasUnsavedChanges,
+      exerciseLibrary, foodLibrary, sheetOf, catalogFoods, catalogExercises, checkIns, checkInsActivos,
+      phases, conditions, equipment, equipmentCounts, envioRows, enviosReady,
+      saveStatus, hasUnsavedChanges,
     ]
   );
 
@@ -2091,6 +2135,7 @@ export const AppProvider = ({ children }) => {
     appendMicrocycle,
     startBlock,
     renameBlock,
+    setBlockTraits,
     deleteBlock,
     logBlockChange,
     migratePlanToBlock,
@@ -2106,6 +2151,7 @@ export const AppProvider = ({ children }) => {
     moveBlockExercise,
     setBlockExerciseSets,
     setBlockExerciseTarget,
+    setBlockExerciseGrammar,
     updatePlanExercise,
     removePlanExercise,
     overridePlanExercise,
@@ -2152,6 +2198,7 @@ export const AppProvider = ({ children }) => {
     addMealOption,
     removeMealOption,
     addFoodToOption,
+    addFoodsToOption,
     removeFoodFromOption,
     restoreFoodInOption,
     updateFoodGrams,
@@ -2167,7 +2214,13 @@ export const AppProvider = ({ children }) => {
 
     // Bibliotecas
     upsertLibraryExercise,
+    saveExerciseSheet,
     upsertLibraryFood,
+    saveFoodSheet,
+    editLibraryExercise,
+    editLibraryFood,
+    deleteLibraryFood,
+    deleteLibraryExercise,
 
     // Fotos
     uploadProgressPhoto,
@@ -2181,6 +2234,7 @@ export const AppProvider = ({ children }) => {
     updateClient,
     markClientPaid,
     setClientArchived,
+    setClientPaused,
     updateClientPreferences,
 
     saveClientProfile,
@@ -2196,6 +2250,14 @@ export const AppProvider = ({ children }) => {
     // Preferencias del entrenador
     updateCoachPreferences,
     applyDashboardToAll,
+
+    // Lo mandado: acciones sueltas sobre personas concretas (0105)
+    reloadEnvios,
+    mandarAccion,
+    dejarDePedir,
+    quitarPedido,
+    marcarAccion,
+    marcarVisto,
 
     // Soporte
     loadTickets,

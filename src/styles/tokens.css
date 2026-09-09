@@ -492,17 +492,90 @@
      porque la portada sí lo usa. */
 
   --header-h: 58px;
+
+  /* El alto de la LÍNEA de una cinta (la del cliente y la de una lista, que son
+     la misma pieza). Está aquí y no suelto en `chasis.css` porque lo necesitan
+     dos sitios: la propia cinta y todo lo que se pega DEBAJO de ella, que en
+     escritorio es pegajosa a `top: 0`. Escrito dos veces, el día que la cinta
+     crezca el carril de al lado se mete debajo y no da ningún error. */
+  --cinta-linea: 64px;
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     LAS MEDIDAS DE UNA PÁGINA
+     --------------------------------------------------------------------------
+     Tres, y ninguna más. Una página del panel elige UNA y la declara; no hay
+     topes escondidos ni excepciones con `:has()`.
+
+     Antes había tres topes que no se hablaban entre sí, y el resultado no lo
+     había decidido nadie:
+       · `.layout` recortaba TODO a 1320.
+       · `.cartera-cuerpo` decía 1560 — y no llegaba a aplicarse nunca, porque
+         `.layout` ya había recortado antes.
+       · y dos reglas con `:has()` en la hoja de la Revisión reabrían los 1560
+         para exactamente dos pantallas (Resumen y Dieta).
+     Por eso Resumen se veía bien y el Taller no: Resumen se había apuntado al
+     ancho de trabajo y las cinco del Taller no, sin que fuera una decisión.
+     Medido a 1920: la hoja del Taller mide 1628 px y su contenido 1276 —352 px
+     muertos dentro de la hoja, un 22 %—. A 2560, 992 px: el 44 %.
+
+     La regla para elegir: NO se elige por importancia, se elige por la forma
+     del contenido. ¿Es una columna de decisiones? `columna`. ¿Es una lista con
+     su tabla? `mesa`. ¿Son varios carriles a la vez? `trabajo`.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Una columna de decisiones: rótulo, frase y mando. También es la medida del
+     carril izquierdo cuando una pantalla tenga dos (ver el plan del banco de
+     trabajo). El porqué del número, más abajo. */
+  --max-w-columna: 880px;
+
+  /* Una lista con su tabla y su barra de filtros: la cartera, los ejercicios,
+     los alimentos, los formularios, las plantillas, y los ajustes con su índice
+     al lado (236 de índice + 880 de columna + hueco ≈ 1132). Es el ancho al que
+     una tabla de seis o siete columnas se lee de un barrido sin que el ojo
+     tenga que viajar. */
+  --max-w-mesa: 1180px;
+
+  /* La medida de LECTURA, y ya solo del portal del cliente: su progreso, su
+     rutina, su dieta. Es texto y tarjetas para una persona, no un puesto de
+     mando, y por eso no comparte medida con el panel del entrenador. Aquí
+     recortaba además todas las pantallas del entrenador, que es lo que no
+     decidió nadie. */
   --max-w: 1320px;
 
-  /* El ancho de las dos pantallas de TRABAJO de un cliente: la hoja de series y
-     el menú de la dieta. Las dos piden más sitio que una página de lectura —una
-     tabla de series con sus tres columnas, un menú con el objetivo al lado— y
-     las dos tienen que pedir EL MISMO: se salta de Entreno a Dieta con las
-     pestañas del cliente, y si una va a 1320 y la otra a todo lo ancho, el
-     contenido baila de sitio en cada salto. Antes Entreno se quedaba sin tope y
-     Dieta a la medida de lectura, y en un monitor grande el salto era medio
-     palmo. */
+  /* Varios carriles a la vez: Inicio, el Resumen de un cliente, su Entreno y su
+     Dieta. Son las pantallas que de verdad USAN el ancho —dos o tres columnas
+     de contenido, no una columna y un margen— y por eso son las únicas que
+     pueden pedir tanto. Y tienen que pedir todas lo MISMO: se salta entre ellas
+     con las pestañas del cliente, y si una va a 1320 y otra a todo lo ancho, el
+     contenido baila de sitio en cada salto.
+
+     Es además el tope del `.layout` del panel, o sea el techo de la casa:
+     ninguna página del entrenador pasa de aquí, y las que necesitan menos lo
+     declaran ellas. */
   --max-w-trabajo: 1560px;
+
+  /* El carril del SEGUNDO PLANO: la ficha en Ejercicios, el procedimiento en
+     Protocolos. Vive aquí y no en `taller.css` porque desde que la hoja mide
+     lo que mide su página (`.shell-main`, en chasis.css) el chasis tiene que
+     sumarlo: una pantalla de dos planos mide columna + calle + carril, y ese
+     número tiene que salir de un sitio, no de dos. */
+  --carril-ficha: 400px;
+
+
+  /* ── Por qué 880 para una columna de decisiones ──────────────────────────
+     Es la medida a la que ninguna de esas frases se parte en dos líneas y el
+     ojo no tiene que viajar para emparejar un rótulo con su dato. No es el
+     ancho de un texto largo (eso son ~65 caracteres, y aquí hay mandos al
+     lado): es el ancho de una decisión.
+
+     Sin ella, esas piezas medían lo que midiera la ventana. En `/protocolos`
+     cada momento del procedimiento era una banda de 1242 px para una frase de
+     280 —965 px de nada a la derecha de las cinco filas— y lo mismo en «lo que
+     preguntas después» de `/formularios` (1218 de caja, 917 sobrando). No se
+     nota como «esta fila es ancha»: se nota como que la aplicación está vacía.
+
+     Regla: una pieza que sea rótulo + frase + mando la lleva. Una que USE el
+     ancho —una tabla, una tira de clientes, una rejilla de tarjetas— no. */
 
   /* Alto de la barra de navegación inferior del móvil, incluida el área segura
      del iPhone. Vive aquí porque no lo usa solo la barra: el contenido de la

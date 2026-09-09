@@ -5,6 +5,7 @@
  * un solo sitio y ninguna vista se entera.
  */
 
+import { toNum } from '@/lib/num';
 import { isRemoteUrl, parsePhotoPath } from '@/domain/photos';
 import { cleanCondition } from '@/domain/conditions';
 import { cleanProfile } from '@/domain/profile';
@@ -17,6 +18,13 @@ export const mapClientFromDb = (row) => ({
   email: row.email,
   phone: row.phone,
   status: row.status,
+  /*
+    La pausa y las etiquetas (migración 0093). Sin ella llegan `undefined` y
+    caen a sus vacíos —sin fecha de vuelta, sin etiquetas— y nada se rompe:
+    `pauseOf` solo mira `status`, y una lista vacía no se pinta.
+  */
+  pausedUntil: row.paused_until ?? null,
+  tags: Array.isArray(row.tags) ? row.tags : [],
   plan: row.plan,
   gender: row.gender,
   onboardingComplete: row.onboarding_complete,
@@ -88,6 +96,8 @@ const CLIENT_COLUMNS = {
   email: 'email',
   phone: 'phone',
   status: 'status',
+  pausedUntil: 'paused_until',
+  tags: 'tags',
   plan: 'plan',
   gender: 'gender',
   birthDate: 'birth_date',
@@ -195,6 +205,12 @@ export const mapEventFromDb = (row) => ({
   title: row.title,
   done: row.done,
   createdBy: row.created_by,
+  /* Privada = solo la ve quien lleva a ese cliente (0106). Al cliente RLS ni se
+     las manda, así que aquí siempre llega `false` en su portal; se mapea igual
+     porque el calendario del entrenador sí necesita distinguirlas para decirlo
+     en pantalla. Sin la migración no viene la columna: `false`, que es como se
+     comportaba todo antes de que existiera. */
+  privada: row.privada === true,
 });
 
 // ── Fases del roadmap (migración 0028) ─────────────────────────────────────
@@ -495,12 +511,33 @@ export const mapLibraryExerciseFromDb = (row) => ({
   name: row.name,
   muscle: row.muscle_group,
   coachId: row.coach_id ?? null,
+  /* La ficha del ejercicio (0094): qué necesita y cómo se hace. Solo la traen
+     las filas del CATÁLOGO — la biblioteca no tiene estas columnas y aquí
+     llegan `null`, que es la verdad: la ficha es del catálogo y se busca en él
+     por nombre. */
+  equipment: row.equipment ?? null,
+  description: row.description ?? null,
+  /* La capa del ENTRENADOR (0098), que es lo contrario de la anterior: no es un
+     hecho del ejercicio sino suyo —su vídeo, su clave, sus cambios—, y por eso
+     vive en la biblioteca y no en el catálogo. Las filas del catálogo llegan sin
+     estas columnas y valen `null` / `[]`, que es la verdad. */
+  videoUrl: row.video_url ?? null,
+  cue: row.cue ?? null,
+  /* `row.alternatives` existe en la tabla (0098) y ya no se lee: las
+     alternativas se retiraron del producto. La columna se queda —borrarla es
+     irreversible— pero no entra en el modelo. Ver `domain/training.js`. */
 });
 
 export const mapLibraryFoodFromDb = (row) => ({
   id: row.id,
   name: row.name,
   coachId: row.coach_id ?? null,
+  /* Cómo lo clasificas TÚ (0103). Antes esto sólo lo tenía el catálogo y la
+     pantalla lo buscaba por nombre, así que un alimento tuyo era «Sin
+     clasificar» para siempre y no salía bajo ninguna categoría del filtro. Sin
+     la migración aplicada la columna no llega y vale `null`, que significa
+     exactamente eso: sin clasificar. */
+  category: row.category ?? null,
   proteinPer100: row.protein_per_100g,
   carbsPer100: row.carbs_per_100g,
   fatsPer100: row.fats_per_100g,
@@ -512,7 +549,67 @@ export const mapLibraryFoodFromDb = (row) => ({
   */
   unitLabel: row.unit_label ?? null,
   unitGrams: row.unit_grams === null || row.unit_grams === undefined ? null : Number(row.unit_grams),
+  /* Las etiquetas: hechos del alimento —gluten, lactosa…—. Del catálogo desde
+     la 0094 y de TU biblioteca desde la 0102, que es lo que hacía falta para
+     que el aviso de alérgeno no se callara justo con tus marcas y tus
+     suplementos. Sin la columna llega la lista vacía, que significa «no dice». */
+  tags: Array.isArray(row.tags) ? row.tags : [],
+  /*
+    Las cuatro del envase (0102). `null` es «NO DICE» y NO es cero, y esa
+    distinción es la razón de ser de `micros.js`: sin ella, el total de fibra de
+    un día en el que la mitad de los alimentos no la declaran se leería como una
+    medida cuando es un suelo. Sin la migración aplicada la columna no llega y
+    vale `null`, que es exactamente lo que significa.
+
+    Sin convertir: `numeric` llega de PostgREST como cadena y quien la lee es
+    `toNum`, en el dominio. Un `Number('')` aquí sería el cero que todo esto
+    evita.
+  */
+  fiberPer100: row.fiber_per_100g ?? null,
+  sugarsPer100: row.sugars_per_100g ?? null,
+  saturatesPer100: row.saturates_per_100g ?? null,
+  saltPer100: row.salt_per_100g ?? null,
+  /* Tu nota de compra (0100), que es lo contrario de la anterior: no es un
+     hecho del alimento sino tuyo —«el de lata al natural, no en aceite»— y por
+     eso vive en la biblioteca y no en el catálogo. Es la CLAVE DEL EJERCICIO
+     aplicada a la comida. Las filas del catálogo llegan sin la columna y valen
+     `null`, que es la verdad: no dice. */
+  note: row.note ?? null,
 });
+
+const MICRO_COLUMNAS = {
+  fiberPer100: 'fiber_per_100g',
+  sugarsPer100: 'sugars_per_100g',
+  saturatesPer100: 'saturates_per_100g',
+  saltPer100: 'salt_per_100g',
+};
+
+/**
+ * Las cuatro del envase, de vuelta a sus columnas (0102).
+ *
+ * El camino de ida vive unas líneas más arriba y este es el de vuelta: los dos
+ * nombres de cada cifra se escriben en el mismo sitio, que es lo que evita que
+ * un día se guarde en `sugar_per_100g` lo que se lee de `sugars_per_100g`.
+ *
+ * ══ Solo lo que quien llama TRAE ═══════════════════════════════════════════
+ *
+ * Y esto no es una optimización: es la diferencia entre corregir un alimento y
+ * vaciarlo. `upsertByName` escribe **los campos que se le pasan**, así que una
+ * clave presente con valor `null` BORRA lo que hubiera. Eso es justo lo que se
+ * quiere cuando la ficha manda las cuatro casillas y una está en blanco —así se
+ * borra una cifra mal copiada de un envase—, y es un desastre cuando quien
+ * llama es el lápiz de la dieta (`editFood`), que solo sabe de macros y unidad
+ * y no tiene ninguna opinión sobre la fibra.
+ *
+ * Con la clave ausente, la columna ni se menciona y la base conserva la suya.
+ */
+export const foodMicrosToDb = (food) => {
+  const out = {};
+  for (const [clave, columna] of Object.entries(MICRO_COLUMNAS)) {
+    if (food && clave in food) out[columna] = toNum(food[clave]);
+  }
+  return out;
+};
 
 // ── Fotos de progreso ──────────────────────────────────────────────────────
 

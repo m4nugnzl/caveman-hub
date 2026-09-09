@@ -48,8 +48,14 @@ export const useCalendar = ({ session }) => {
     return { ok: true, events: (data || []).map(mapEventFromDb) };
   }, []);
 
+  /**
+   * @param privada  Solo la ve quien lleva a ese cliente (0106). Es lo que hace
+   *   que «llamarle antes del viernes» pueda vivir en el mismo calendario que su
+   *   carrera sin que él lo lea. Nace en `false`: el calendario es de los dos
+   *   salvo que se diga lo contrario, y la base tiene el mismo defecto.
+   */
   const addClientEvent = useCallback(
-    async ({ clientId, date, kind, title }) => {
+    async ({ clientId, date, kind, title, privada = false }) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
 
@@ -57,7 +63,7 @@ export const useCalendar = ({ session }) => {
         .from('client_events')
         // `created_by` lo exige la política: cada uno crea lo suyo, y así se sabe
         // quién puso cada cosa cuando el entrenador y el cliente comparten el mes.
-        .insert({ client_id: clientId, date, kind, title, created_by: userId })
+        .insert({ client_id: clientId, date, kind, title, privada, created_by: userId })
         .select()
         .single();
 

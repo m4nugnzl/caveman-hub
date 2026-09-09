@@ -70,6 +70,28 @@ export interface Exercise {
    * texto y recordarla cuatro ejercicios después.
    */
   coachNote?: string;
+  /*
+    ══ LA GRAMÁTICA DE SERIE ═════════════════════════════════════════════════
+    Lo que antes se escribía en un texto y la aplicación no sabía leer. Es
+    plan: viaja con la plantilla, con la herencia del bloque y con la copia
+    entre clientes. Ver `domain/training.js`.
+  */
+  /** En superserie CON EL ANTERIOR. Las etiquetas A1/A2 salen de la posición. */
+  enlazado?: boolean;
+  /** Cómo se remata la última serie: uno de `TECNICAS`. Ausente, ninguna. */
+  tecnica?: 'bajada' | 'rest-pause' | 'myo-reps' | 'parciales';
+  /** Cómo se decía la bajada cuando era la única técnica. Solo se lee. */
+  bajada?: boolean;
+  /**
+   * Descanso entre series, en segundos.
+   *
+   * Ausente es SIN PAUTA, y entonces no hay descanso: el portal no arranca
+   * ninguna cuenta atrás y la hoja no imprime nada. Un valor por defecto aquí
+   * sería una instrucción que el entrenador no ha dado.
+   */
+  restSeconds?: number;
+  /** «Si está ocupada: Hack squat.» Nombres, hasta `MAX_ALTERNATIVES`. */
+  alternatives?: string[];
 }
 
 /** Un día del PLAN: qué hay programado. */

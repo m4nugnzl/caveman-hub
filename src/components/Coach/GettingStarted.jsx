@@ -128,7 +128,7 @@ export const GettingStarted = () => {
   /* A dónde lleva cada paso. El de invitar no navega: se resuelve aquí mismo. */
   const ir = () => {
     if (actual.id === 'alta') return navigate('/clientes');
-    if (actual.id === 'protocolo') return navigate('/ajustes/protocolo');
+    if (actual.id === 'protocolo') return navigate('/protocolos');
     if (actual.id === 'programar' && actual.cliente) {
       return navigate(clientPath(actual.cliente.id, 'rutina'));
     }

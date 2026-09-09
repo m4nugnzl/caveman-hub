@@ -22,6 +22,7 @@ import {
   Panel,
   useAccionDeBoton,
 } from '@/components/ui/primitives';
+import { useOculto } from './Oculto';
 
 /** Una respuesta cuenta si tiene algo dentro. El mismo criterio que el cuestionario. */
 const puesto = (valor) => valor !== undefined && valor !== null && valor !== '';
@@ -76,6 +77,11 @@ export const IntakeBasics = ({ client }) => {
     la fecha, la frase de abajo diría «pesas 78,4» sin decir de cuándo, que es
     exactamente el defecto que costó la columna `current_weight`.
   */
+  /* Y con el peso oculto, el hecho se cuenta sin la cifra: preguntarlo el
+     primer día es entrada suya —hace falta para que exista la serie—, pero
+     devolvérselo escrito cada vez que abre su alta ya no. Ver `Oculto.jsx`. */
+  const oculto = useOculto();
+
   const serie = weightSeries(anthropometry?.[client.id]?.history);
   const ultimoPeso = serie.length > 0 ? serie[serie.length - 1] : null;
   const edadActual = age(client.birthDate);
@@ -246,7 +252,7 @@ export const IntakeBasics = ({ client }) => {
           {ultimoPeso ? (
             <Field label="Peso">
               <p className="t-sm" style={{ margin: 0 }}>
-                {fmt(ultimoPeso.value, { decimals: 1, unit: ' kg' })}
+                {oculto.weight ? 'Anotado' : fmt(ultimoPeso.value, { decimals: 1, unit: ' kg' })}
                 <span className="t-2xs t-tertiary" style={{ display: 'block' }}>
                   Tu último pesaje, del {dayMonthMaybeYear(ultimoPeso.date)}. El siguiente va en tu
                   check-in.

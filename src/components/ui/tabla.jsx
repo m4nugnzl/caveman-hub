@@ -99,15 +99,22 @@ export const ordenar = (filas, { campo, sentido }, valores) => {
   });
 };
 
-/** Una cabecera que ordena. */
-export const ThOrden = ({ orden, campo, num = false, children }) => {
+/**
+ * Una cabecera que ordena.
+ *
+ * `clase` es para las tablas que reparten sus columnas con clases propias —la
+ * cartera y sus `.p-semana`, `.p-peso`…—: sin ella, hacer ordenable una columna
+ * le quitaba su ancho y su ocultación en estrecho, que es justo lo que la
+ * mantiene legible. Se suma a `num`, que sigue siendo la alineación de cifras.
+ */
+export const ThOrden = ({ orden, campo, num = false, clase = null, children }) => {
   const activo = orden.campo === campo;
   const Icono = !activo ? ChevronsUpDown : orden.sentido === 'asc' ? ArrowUp : ArrowDown;
 
   return (
     <th
       scope="col"
-      className={num ? 'num' : undefined}
+      className={[num ? 'num' : null, clase].filter(Boolean).join(' ') || undefined}
       aria-sort={activo ? (orden.sentido === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
       <button type="button" className="th-orden" onClick={() => orden.cambiar(campo, num)}>

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useData, useSession } from '@/context/AppContext';
 import { clientProtocol } from '@/domain/protocol';
 import { pendingTasks, unseenUpdates } from '@/domain/updates';
+import { pendientesDeCliente } from '@/domain/envios';
 import { todayISO } from '@/lib/dates';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
@@ -37,7 +38,7 @@ import { Modal } from '@/components/ui/Modal';
  */
 export const ClientBell = () => {
   const { profileRole } = useSession();
-  const { clients, anthropometry, activeClient } = useData();
+  const { clients, anthropometry, activeClient, envioRows } = useData();
   const [open, setOpen] = useState(false);
   const esTelefono = useEsTelefono();
   const ref = useRef(null);
@@ -55,9 +56,17 @@ export const ClientBell = () => {
   const pendientes = useMemo(
     () =>
       activeClient
-        ? pendingTasks({ history, protocol: clientProtocol(preferences), today: todayISO() })
+        ? pendingTasks({
+            history,
+            protocol: clientProtocol(preferences),
+            today: todayISO(),
+            formularios: pendientesDeCliente(
+              (envioRows || []).filter((f) => f.client_id === activeClient.id),
+              todayISO()
+            ),
+          })
         : [],
-    [activeClient, history, preferences]
+    [activeClient, history, preferences, envioRows]
   );
 
   /* Solo para el cliente: al entrenador no le avisa de sus propias tareas, que

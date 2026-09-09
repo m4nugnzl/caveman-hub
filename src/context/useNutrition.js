@@ -470,6 +470,39 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [applyMeals]
   );
 
+  /**
+   * VARIAS entradas de golpe, ya construidas. Es cómo se pone un plato.
+   *
+   * ── Por qué no vale llamar a la de arriba en un bucle ──────────────────────
+   * Por dos motivos, y el segundo es el de verdad:
+   *
+   *   · Cada llamada persiste, así que un plato de cinco alimentos serían cinco
+   *     escrituras del plan entero por un solo gesto.
+   *   · Y sobre todo: `addFoodToOption` construye la entrada por dentro, así que
+   *     quien llama no sabe qué ids han salido. Poner un plato necesita saberlo
+   *     —es lo que permite ofrecer «cuadrarlo» al objetivo de la comida
+   *     inmediatamente después, sin adivinar cuáles de las filas eran suyas—.
+   *
+   * Las entradas llegan hechas (`platoFoods`), que es la otra mitad de lo
+   * mismo: se construyen donde se van a necesitar identificadas.
+   */
+  const addFoodsToOption = useCallback(
+    (clientId, variant, mealIdx, optIdx, entries = []) =>
+      applyMeals(clientId, variant, (meals) =>
+        meals.map((m, i) =>
+          i !== mealIdx
+            ? m
+            : {
+                ...m,
+                options: m.options.map((o, oi) =>
+                  oi !== optIdx ? o : { ...o, foods: [...(o.foods || []), ...entries] }
+                ),
+              }
+        )
+      ),
+    [applyMeals]
+  );
+
   const removeFoodFromOption = useCallback(
     (clientId, variant, mealIdx, optIdx, foodId) =>
       applyMeals(clientId, variant, (meals) =>
@@ -642,6 +675,7 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     duplicateOption,
     duplicateMeal,
     addFoodToOption,
+    addFoodsToOption,
     removeFoodFromOption,
     restoreFoodInOption,
     patchFood,

@@ -38,6 +38,18 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = f
     const name = form.name.trim();
     if (!name) return;
 
+    /*
+      ── El puente con las alternativas de biblioteca se ha retirado ─────────
+      Aquí se traían puestas las de tu biblioteca (`exercises.alternatives`) al
+      escribir un ejercicio en una hoja. Ese campo salió de la Librería por orden
+      del dueño —«material y con qué se cambia en ejercicios no me gusta
+      tenerlo»—, así que ya no hay dónde escribirlo: seguir leyéndolo sería
+      rellenar el plan desde un dato invisible que nadie puede corregir.
+
+      Y el 9 sep 2026 cayeron también las del PLAN, así que la idea entera —un
+      recambio escrito de antemano— ya no existe en el producto: «no me gusta la
+      idea de dar alternativas». Ver `domain/training.js`.
+    */
     onAdd(
       buildExercise({
         name,
@@ -73,7 +85,11 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = f
             items={library}
             // «del catálogo» avisa de que ese ejercicio todavía no es tuyo, y por
             // tanto de que al elegirlo pasa a estar en tu biblioteca.
-            getMeta={(item) => (item.fromCatalog ? `${item.muscle} · del catálogo` : item.muscle)}
+            getMeta={(item) =>
+              [item.muscle, item.equipment, item.fromCatalog ? 'del catálogo' : null]
+                .filter(Boolean)
+                .join(' · ')
+            }
             onPick={(item) => setForm((f) => ({ ...f, name: item.name, muscle: item.muscle || f.muscle }))}
             placeholder="Ej: Press banca"
             inputProps={{ autoFocus: true }}

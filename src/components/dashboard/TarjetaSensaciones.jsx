@@ -5,7 +5,7 @@ import { activeQuestions, checkinQuestions } from '@/domain/protocol';
 import { feedbackAdherence, lastFeedback } from '@/domain/readiness';
 import { answerTrend } from '@/domain/reviews';
 import { shortDate } from '@/lib/dates';
-import { SETTINGS_HOME } from '@/routes';
+import { PROTOCOL_HOME } from '@/routes';
 import { Subjetivo } from '@/components/ui/Subjetivo';
 import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
@@ -69,7 +69,7 @@ export const TarjetaSensaciones = ({
              contestar es del cliente. */
           accion={
             noPregunta && !isClient ? (
-              <Link className="cab-accion is-puerta" to={SETTINGS_HOME}>
+              <Link className="cab-accion is-puerta" to={PROTOCOL_HOME}>
                 Elegir sus preguntas
               </Link>
             ) : null

@@ -47,4 +47,12 @@
 @import './styles/jornada.css';
 @import './styles/responsive.css';
 @import './styles/revision.css';
+/* El Taller (protocolos, formularios, ejercicios, alimentos, plantillas). Va
+   detrás de las zonas cuyo traje reutiliza —la cinta de la cartera y la tabla
+   compartida— y delante de `piezas.css`, que sigue siendo el último. */
+@import './styles/taller.css';
+/* Los formularios sueltos y los envíos (0099). Detrás del Taller porque rematan
+   su traje —`.q-card`, `.selector`, `.ajustes-pregunta`— y delante de
+   `piezas.css`, que sigue siendo el último. */
+@import './styles/formularios.css';
 @import './styles/piezas.css';

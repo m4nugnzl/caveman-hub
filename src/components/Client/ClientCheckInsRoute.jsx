@@ -7,6 +7,7 @@ import { todayISO, weekStart } from '@/lib/dates';
 import { PageHead } from '@/components/ui/primitives';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 import { ClientWeek } from './ClientWeek';
+import { useOculto } from './Oculto';
 
 /**
  * Nivel «Check-in» de `/mi/evolucion`: pesajes de la semana y revisión completa.
@@ -45,6 +46,10 @@ export const ClientCheckInsRoute = () => {
     saveStatus,
     retrySave,
   } = useApp();
+
+  /* El subtítulo nombraba el peso, que es justo lo que aquí ya no sale para
+     quien lo tiene oculto: lo que se entrega sigue siendo la semana. */
+  const oculto = useOculto();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -104,7 +109,14 @@ export const ClientCheckInsRoute = () => {
 
   return (
     <div className="stack">
-      <PageHead title="Mi check-in" sub="Tu peso de la semana, y lo que te contesta tu entrenador." />
+      <PageHead
+        title="Mi check-in"
+        sub={
+          oculto.weight
+            ? 'Lo que entregas cada semana, y lo que te contesta tu entrenador.'
+            : 'Tu peso de la semana, y lo que te contesta tu entrenador.'
+        }
+      />
 
       {/* Entregar la semana y leer lo que te ha contestado tu entrenador: el
           mismo gesto que pesarse, así que el mismo sitio. Ver `ClientWeek`. */}

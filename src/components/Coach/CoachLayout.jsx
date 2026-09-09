@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Cake, CalendarCheck, Eye, PersonStanding, Ruler, UserPlus } from 'lucide-react';
 
@@ -7,6 +7,7 @@ import { latestWeight } from '@/domain/anthropometry';
 import { feeLabel, paymentState } from '@/domain/billing';
 import { identityFacts } from '@/domain/ficha';
 import { buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
+import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { clientProtocol } from '@/domain/protocol';
 import { semanaDeAhora } from '@/domain/week';
 import { dayMonthMaybeYear, todayISO } from '@/lib/dates';
@@ -14,6 +15,7 @@ import {
   COACH_CLIENT,
   COACH_HOME,
   COACH_PRIMARY,
+  COACH_TALLER,
   clientPath,
   isSectionActive,
   sameSectionFor,
@@ -156,6 +158,7 @@ export const CoachLayout = () => {
     progressPhotos,
     checkIns,
     equipmentCounts,
+    envioRows,
     workoutData,
   } = useApp();
   const { setViewMode } = useActions();
@@ -168,6 +171,42 @@ export const CoachLayout = () => {
      Sin carril montado no hay nada que medir y se retira sola. */
   const carrilDeCliente = useMarcaDeslizante();
 
+  /*
+    ══ CUÁNTO OCUPA LA CABECERA DEL CLIENTE, EN UNA VARIABLE ══════════════════
+
+    `.cliente-cab` es `sticky top: 0` en escritorio, así que cualquier otra cosa
+    que quiera quedarse pegada DEBAJO —la banda de hojas de Entreno es la
+    primera que lo pide— necesita saber su alto. Y no es un número: cambia con
+    el ancho de la ventana (la fila de identidad envuelve), con el tema, y con
+    si el cliente lleva chapa de cobro o no.
+
+    Así que se mide y se publica en `--cliente-cab-h`, sobre el `<html>` para
+    que la vea cualquier hoja de estilo. Un `ResizeObserver` y ya: nadie tiene
+    que acordarse de recalcularlo. Sin cabecera montada —la cartera, el taller—
+    la variable se retira y quien la use cae a su valor de reserva.
+
+    Aquí arriba con los demás ganchos, y por el mismo motivo que el carril: más
+    abajo hay retornos tempranos. Por eso mira el DOM en vez de una `ref`: la
+    cabecera se monta condicionalmente 500 líneas más abajo, y con una `ref` la
+    primera medida llegaría un render tarde.
+  */
+  useEffect(() => {
+    const raiz = document.documentElement;
+    const cab = document.querySelector('.cliente-cab');
+    if (!cab) {
+      raiz.style.removeProperty('--cliente-cab-h');
+      return undefined;
+    }
+    const medir = () => raiz.style.setProperty('--cliente-cab-h', `${Math.round(cab.offsetHeight)}px`);
+    medir();
+    const ojo = new ResizeObserver(medir);
+    ojo.observe(cab);
+    return () => {
+      ojo.disconnect();
+      raiz.style.removeProperty('--cliente-cab-h');
+    };
+  }, [location.pathname, loading]);
+
   /* La capa abierta ('cobros' | 'agenda' | null). Navegar la cierra: cambiar
      de sitio es el único viaje del puesto, y una ventana de otra pantalla
      flotando sobre el destino sería llevarse la mesa a cuestas. */
@@ -175,20 +214,6 @@ export const CoachLayout = () => {
   useEffect(() => {
     setCapa(null);
   }, [location.pathname]);
-
-  /*
-    La fila del cliente abierto, siempre a la vista. La cartera va por urgencia
-    y rueda sin barra de scroll: quien está por abajo quedaba abierto pero
-    invisible — la barra decía «no estás en nadie». `nearest` solo mueve lo
-    justo, y no mueve nada si la fila ya se ve.
-  */
-  const carteraRef = useRef(null);
-  useEffect(() => {
-    if (!clientId) return;
-    carteraRef.current
-      ?.querySelector('.side-client.active')
-      ?.scrollIntoView({ block: 'nearest' });
-  }, [clientId]);
 
   const hoy = todayISO();
   const hasClients = clients.length > 0;
@@ -247,8 +272,11 @@ export const CoachLayout = () => {
     diverjan por descuido — es que contestan preguntas distintas, y cada una lo
     dice en su etiqueta.
   */
+  const mandadoCounts = useMemo(() => pendientesPorCliente(envioRows), [envioRows]);
+  const contestadoCounts = useMemo(() => contestadasPorCliente(envioRows), [envioRows]);
+
   const bandeja = useMemo(() => {
-    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts });
+    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts });
     const { tasks } = portfolioInbox(rows);
     /* Las colas ENTERAS, no solo su suma: desde «El puesto» la barra es el
        inicio y enseña a la gente de cada cola, no una cifra en una puerta. */
@@ -263,7 +291,7 @@ export const CoachLayout = () => {
         tasks.filter((task) => task.awaited).flatMap((task) => task.rows.map((row) => row.client.id))
       ),
     };
-  }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts]);
+  }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts]);
 
   /*
     Qué número acompaña a cada puerta del nivel primario. Solo «Hoy», y en ámbar
@@ -276,6 +304,14 @@ export const CoachLayout = () => {
   */
   const cuentaDe = {
     '/hoy': bandeja.total > 0 ? { n: bandeja.total, warn: true, detalle: 'Esperan respuesta tuya' } : null,
+    /*
+      El tamaño de la cartera vuelve, y vuelve a la PUERTA. Vivía en el rótulo
+      de la franja, que además era el enlace escondido a esta misma pantalla:
+      dos papeles —nombrar la tanda y llevar a la tabla— en una versalita. La
+      cifra va donde está la pregunta que contesta, y el rótulo se queda solo
+      nombrando. En voz baja (`warn` no): cuántos llevas es un dato, no trabajo.
+    */
+    '/clientes': clients.length > 0 ? { n: clients.length, detalle: 'Clientes en tu cartera' } : null,
   };
 
   /*
@@ -318,8 +354,10 @@ export const CoachLayout = () => {
     lista. Aparecer no le desarchiva: sigue fuera de la cartera en cuanto se sale
     de su ficha.
 
-    Una lista, dos huecos: la barra del escritorio y el selector del móvil. Son
-    la misma cartera y no pueden divergir entre geometrías.
+    Un solo hueco desde que la lista salió de la barra: el selector del móvil.
+    Se conserva la lista como concepto —y este caso raro con ella— porque el
+    día que el archivado se abra por enlace, el selector tiene que enseñar SU
+    nombre y no el de la primera persona de la cartera.
   */
   const cartera =
     activeClient && !clients.some((c) => c.id === activeClient.id)
@@ -343,37 +381,26 @@ export const CoachLayout = () => {
       clientProtocol(clients.find((c) => c.id === id)?.preferences)
     );
 
-  /*
-    ══ La cartera de la barra: UNA lista, ordenada por urgencia ══════════════
-    Hubo una versión (un día de vida) que desplegaba aquí las cuatro colas de
-    «Inicio» enteras, cada persona con su porqué debajo del nombre. Con la
-    cartera real era una columna de ruido: siete «no ha registrado ningún
-    entreno» seguidos, rótulos de grupo por todas partes y media barra en
-    scroll. El dueño lo dijo al verla: «un lío con demasiada información».
-
-    La barra vuelve a su ley —hace UNA cosa: navegar— y lo que conserva del
-    puesto es el ORDEN: la lista va como la deja `buildPortfolio`, por urgencia
-    y no por alfabeto, así que quien necesita algo está arriba sin que haga
-    falta decir el qué. El qué —los porqués, los verbos, las colas— es de la
-    pantalla de Inicio, que para eso es la mesa.
-  */
-  const carteraOrdenada = [...cartera].sort(
-    (a, b) => (bandeja.orden.get(a.id) ?? Infinity) - (bandeja.orden.get(b.id) ?? Infinity)
-  );
-
   /* Las puertas que sobreviven al puesto, buscadas por ruta y no por índice:
      el orden de `COACH_PRIMARY` es del móvil y puede cambiar sin avisar. */
   const puerta = (path) => COACH_PRIMARY.find((p) => p.path === path);
 
   /*
-    ── El selector, que ahora es SOLO del móvil ────────────────────────────────
-    Vivía también en la barra lateral, y allí era la consecuencia de que la
-    cartera no cupiera: si la lista de clientes no está, hace falta un
-    desplegable que la traiga. Con la lista puesta, el desplegable al lado sería
-    dos formas de hacer lo mismo a un palmo.
+    ── El selector, que sigue siendo SOLO del móvil ───────────────────────────
+    Vivió en la barra lateral, y allí era la consecuencia de que la cartera no
+    cupiera: si la lista no está, hace falta un desplegable que la traiga. Se
+    retiró cuando la lista entró.
 
-    En el móvil sigue siendo la única forma: allí no hay barra donde poner
-    quince nombres.
+    Ahora la lista ha vuelto a salir, así que el argumento de entonces pediría
+    devolverlo — y NO se hace. En el escritorio la cabecera del cliente ya
+    enseña su cara y su nombre, y el botón del selector trae los suyos: serían
+    dos identidades en la misma fila. Es exactamente por lo que el móvil
+    esconde la puerta del perfil cuando enseña el selector
+    (`.cliente-cab-puerta` en `chasis.css`), y allí puede porque no hay barra
+    que la sustituya. Aquí sí: «Clientes» está siempre a la vista, y el
+    buscador encuentra a cualquiera sin salir de donde estés.
+
+    En el móvil sigue siendo la única forma: allí no hay barra.
   */
   const selector = onClient && activeClient && (
     <ClientSwitcher
@@ -448,6 +475,7 @@ export const CoachLayout = () => {
     entrando por URL directa no hay salto que deshacer y se cae al resumen.
   */
   const enFicha = onClient && isSectionActive(location.pathname, SECCION_FICHA, '/c/[^/]+');
+
   const seccionAbierta = seccionesDeCliente.find(({ activa }) => activa)?.seccion.path;
   const desde = location.state?.desde;
   const vueltaDelPerfil = clientPath(clientId, desde && desde !== 'ficha' ? desde : 'resumen');
@@ -475,26 +503,57 @@ export const CoachLayout = () => {
         </div>
 
         {/*
-          ══ EL PUESTO (sep 2026): una puerta, una lista, dos utilidades ══════
-          Aquí vivieron las cuatro puertas del nivel primario. Quedan:
-          «Inicio» arriba con la cuenta de la bandeja; la cartera —ordenada por
-          urgencia, con el punto en quien espera— como única franja que rueda;
-          y Agenda y Cobros como utilidades en voz baja, encima del pie.
-          «Clientes» se disuelve: su tabla completa se abre desde el rótulo
-          «Cartera».
+          ══ EL NIVEL PRIMARIO: cuatro puertas y UNA sola voz ═════════════════
+          Aquí vivió «Inicio» a solas, y las otras tres estaban repartidas por
+          la columna con tres tratamientos distintos:
 
-          Hubo un segundo intento entre medias: las cuatro colas de «Inicio»
-          desplegadas aquí, cada persona con su porqué. Con cartera real era
-          una columna de ruido («un lío con demasiada información») y se
-          retiró el mismo día. La barra navega; el trabajo, con sus verbos y
-          sus porqués, es de la pantalla de Inicio.
+            · «Clientes» no existía — su puerta era el RÓTULO de la cartera, o
+              sea una versalita terciaria que nadie lee como pulsable. Un
+              destino del nivel primario escondido dentro de una etiqueta.
+            · «Cobros» y «Agenda» hablaban en tinta terciaria pegadas al pie,
+              debajo del taller: la tipografía decía que «Alimentos» pesa más
+              que cobrar, que es lo contrario de lo que dice el modelo.
+            · Y «Inicio» era un enlace suelto, sin rótulo ni grupo.
 
-          El móvil no cambia: allí no hay barra y la del pulgar sigue con
-          `COACH_PRIMARY` entero.
+          Tres gramáticas para un mismo plano en una columna de ocho filas: de
+          ahí salía la sensación de barra desperdigada. Efort usa UNA (enlaces
+          planos); Coachway usa UNA (rótulo + enlaces, repetido). Nosotros
+          usábamos tres para menos destinos que cualquiera de los dos.
+
+          Ahora las cuatro se pintan igual y en el orden de `COACH_PRIMARY`,
+          que es además el que ya usa la barra del pulgar en el móvil: un solo
+          sitio decide el orden del nivel primario.
+
+          ── Cobros y Agenda siguen siendo CAPAS ────────────────────────────
+          Lo que cambia es la VOZ, no el gesto: se siguen abriendo encima de
+          donde estés y al cerrar sigues donde estabas (ver `CAPAS` arriba). Por
+          eso son `button` y no `NavLink` aunque se vistan igual — de una puerta
+          importa dónde te deja, y éstas te dejan donde ya estabas.
         */}
-        <nav className="sidebar-nav" aria-label="Inicio">
-          {(() => {
-            const { path, label, icon: Icon } = puerta(COACH_HOME);
+        <nav className="sidebar-nav sidebar-puertas" aria-label="Navegación principal">
+          {COACH_PRIMARY.map(({ path, label, icon: Icon }) => {
+            const capaId = CAPAS.find((c) => c.path === path)?.id;
+            /* Si ya estás EN su ruta (marcador, o el móvil), la fila se marca y
+               pulsar no abre nada: una ventana de lo que ya llena la pantalla
+               sería un espejo. */
+            const enSuRuta = location.pathname === path;
+            if (capaId) {
+              return (
+                <button
+                  key={path}
+                  type="button"
+                  className={`side-link${capa === capaId || enSuRuta ? ' active' : ''}`}
+                  aria-haspopup="dialog"
+                  aria-expanded={capa === capaId}
+                  onClick={() => {
+                    if (!enSuRuta) setCapa(capaId);
+                  }}
+                >
+                  <Icon size={15} />
+                  {label}
+                </button>
+              );
+            }
             const cuenta = cuentaDe[path];
             return (
               <NavLink key={path} to={path} className="side-link" end>
@@ -510,92 +569,77 @@ export const CoachLayout = () => {
                 )}
               </NavLink>
             );
-          })()}
+          })}
         </nav>
 
         {/*
-          ── La cartera: la única franja que desplaza ─────────────────────────
-          Una sola lista, en el orden de la urgencia (ver `carteraOrdenada`).
-          Pulsar a alguien conserva la sección donde estés (`destinoDe`); quién
-          te espera lo dice el punto, y el porqué se lee en Inicio.
+          ══ TU TALLER: la otra mitad de la aplicación ═══════════════════════
+          Arriba, con quién trabajas. Aquí, con qué: tu forma de llevar a un
+          cliente, lo que le preguntas, tus ejercicios, tus alimentos y tus
+          días guardados. Hasta ahora ese material vivía dentro de Ajustes,
+          dentro del cajón de un bloque o en ningún sitio, y la aplicación
+          parecía más pequeña de lo que es. El porqué largo, en `COACH_TALLER`.
+
+          El rótulo es lo que hace legible que son DOS planos y no nueve
+          entradas seguidas: es el mismo recurso que agrupa la barra de
+          Coachway, y ahora se usa dos veces —aquí y en la cartera— con la
+          misma gramática en las dos.
         */}
-        {cartera.length > 0 ? (
-          <div className="sidebar-cartera" ref={carteraRef}>
-            {/* El rótulo es además la puerta a la tabla completa: la barra
-                enseña quién, la tabla de `/clientes` enseña cuánto. */}
-            <NavLink to="/clientes" end className="sidebar-group">
-              Cartera
-              <span className="sidebar-group-n">{clients.length}</span>
+        <nav className="sidebar-nav sidebar-taller" aria-label="Tu taller">
+          <p className="sidebar-group">Tu taller</p>
+          {COACH_TALLER.map(({ path, label, icon: Icon, also = [] }) => (
+            <NavLink
+              key={path}
+              to={path}
+              /* La Librería son dos rutas —`/ejercicios` y `/alimentos`— en una
+                 sola fila, así que `isActive` de `NavLink` no basta: mira solo
+                 su propio `to` y la fila se apagaría en cuanto pasaras al tramo
+                 de alimentos. `also` la mantiene encendida en las dos, que es
+                 justo lo que el rótulo promete. */
+              className={({ isActive }) =>
+                `side-link${isActive || also.includes(location.pathname) ? ' active' : ''}`
+              }
+            >
+              <Icon size={15} />
+              {label}
             </NavLink>
-
-            <nav className="sidebar-nav" aria-label="Tus clientes">
-              {carteraOrdenada.map((cliente) => {
-                const abierto = cliente.id === clientId;
-                /* El mismo reloj que la cabecera. Aquí se leía
-                   `training[id].weekNumber`, que era un TERCER número sobre la
-                   misma persona: la barra podía decir S10 mientras su ficha
-                   decía 18. Sin fecha de alta no hay tiempo que contar y se cae
-                   a lo que sepa el resumen del programa. */
-                const semanaSuya =
-                  semanaDeAhora({ startDate: cliente.startDate, today: hoy }) ||
-                  training[cliente.id]?.weekNumber ||
-                  training[cliente.id]?.microcycleCount ||
-                  0;
-                return (
-                  <NavLink
-                    key={cliente.id}
-                    to={destinoDe(cliente.id)}
-                    className={`side-link side-client${abierto ? ' active' : ''}`}
-                    aria-current={abierto ? 'page' : undefined}
-                  >
-                    <span className="side-client-name">{cliente.name}</span>
-                    {/* La semana por la que va, como en cualquier lista de atletas seria:
-                        el estado de cada persona se ve sin entrar. */}
-                    {semanaSuya > 0 && !bandeja.esperando.has(cliente.id) && (
-                      <span className="side-client-week">S{semanaSuya}</span>
-                    )}
-                    {/* Sin número: aquí la pregunta es a quién, no a cuántos, y
-                        catorce cifras seguidas son una tabla. */}
-                    {bandeja.esperando.has(cliente.id) && (
-                      <span
-                        className="side-dot"
-                        role="img"
-                        title="Ha entregado algo y espera tu respuesta"
-                        aria-label="Ha entregado algo y espera tu respuesta"
-                      />
-                    )}
-                  </NavLink>
-                );
-              })}
-            </nav>
-          </div>
-        ) : null}
-
-        {/* ── Agenda y Cobros: capas, no destinos (ver `CAPAS` arriba) ─────
-            Botones y no enlaces: abren la ventana encima de donde estés. Si
-            ya estás EN su ruta (marcador), la fila se marca y pulsar no abre
-            nada — una ventana de lo que ya llena la pantalla sería un espejo. */}
-        <nav className="sidebar-nav sidebar-utilidades" aria-label="Agenda y cobros">
-          {CAPAS.map(({ id, path }) => {
-            const { label, icon: Icon } = puerta(path);
-            const enSuRuta = location.pathname === path;
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`side-link${capa === id || enSuRuta ? ' active' : ''}`}
-                aria-haspopup="dialog"
-                aria-expanded={capa === id}
-                onClick={() => {
-                  if (!enSuRuta) setCapa(id);
-                }}
-              >
-                <Icon size={15} />
-                {label}
-              </button>
-            );
-          })}
+          ))}
         </nav>
+
+        {/*
+          ══ AQUÍ VIVIÓ LA CARTERA, Y SE HA IDO ══════════════════════════════
+          La barra llevó la lista de clientes: primero en medio, luego —tras
+          reordenarla— la última y entera. Con cartera de verdad seguían siendo
+          diecisiete filas en una columna, y el dueño lo dijo mirándola: «un
+          poco feo y desorganizado, mucha información».
+
+          El problema no era el orden, era la CANTIDAD. Coachway lleva doce
+          entradas y ninguna lista de clientes; Efort lleva seis y sí la lleva.
+          Nosotros llevábamos las dos mitades enteras: nueve destinos MÁS la
+          gente. Éramos los únicos.
+
+          ── Y era la CUARTA forma de llegar a un cliente ───────────────────
+          Ya están «Inicio» (que dice quién te espera y POR QUÉ), la tabla de
+          `/clientes` (que dice cuántos y cuánto) y el buscador de aquí arriba.
+          La lista de la barra era la única que no daba contexto: un nombre y
+          una cifra. Y un nombre suelto solo sirve si ya sabes a quién buscas
+          — y si lo sabes, el buscador es más rápido que recorrer catorce.
+
+          Con ella se van sus dos vicios: la columna de semanas alineada a la
+          derecha (S2·S3·S1·S17·S5·S5·S5·S5, que se lee como una tabla que
+          comparar y no como navegación) y la única franja que crecía sin
+          techo — con cuarenta clientes la barra era un listín.
+
+          ── Lo que cuesta, dicho en voz alta ───────────────────────────────
+          Saltar de un cliente a otro pasa de un clic a dos (Clientes → su
+          fila) o al buscador. Es el precio, y es el que paga Coachway. NO se
+          compensa metiendo el `ClientSwitcher` en la cabecera del cliente:
+          allí ya están su cara y su nombre, y el selector trae los suyos —dos
+          identidades en la misma fila, que es justo por lo que el móvil
+          esconde la puerta cuando enseña el selector.
+
+          Lo que queda son once filas que no crecen nunca.
+        */}
 
         {/*
           ── El pie: QUIÉN ERES, y dentro lo tuyo ────────────────────────────

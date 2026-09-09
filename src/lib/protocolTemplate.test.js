@@ -3,10 +3,19 @@ import { describe, expect, it } from 'vitest';
 import {
   clientDrifts,
   defaultProtocol,
+  igualASuPlan,
   isException,
+  matchesTemplate,
+  necesitaSuPlan,
   needsTemplate,
   newClientPreferences,
+  parchePara,
+  planDe,
+  planDeCliente,
+  protegidoDeSuPlan,
+  usaProtocolos,
 } from '@/lib/protocolTemplate';
+import { clientProtocol } from '@/domain/protocol';
 import { defaultIntake, intakeTemplateToPreferences } from '@/lib/intakeTemplate';
 import { toggleModule } from '@/domain/protocol';
 import {
@@ -200,5 +209,134 @@ describe('newClientPreferences', () => {
     });
 
     expect(clientSteps(clientIntake(prefs)).map((s) => s.id)).toContain('postureVideo');
+  });
+});
+
+/*
+  ══ PROTOCOLOS CON NOMBRE ═══════════════════════════════════════════════════
+
+  El riesgo declarado del replanteamiento: con varios protocolos, cada cliente
+  se compara contra EL SUYO. Si eso se hace mal, la cartera empieza a decir
+  «tiene excepciones» a todo el mundo — que es la clase de fallo que hace que
+  nadie vuelva a fiarse de la pantalla. Va con pruebas antes que con pantalla.
+*/
+describe('protocolos con nombre', () => {
+  const conRir = toggleModule(defaultProtocol(), 'rir');
+
+  /* Dos protocolos de verdad: uno de serie y otro con una pieza más. */
+  const coachPrefs = {
+    protocolos: {
+      items: [
+        { id: 'p1', name: 'Asesoría completa' },
+        { id: 'p2', name: 'Powerlifting', ...conRir },
+      ],
+    },
+  };
+
+  it('cada cliente se compara contra el protocolo que lleva puesto', () => {
+    const semilla2 = newClientPreferences(coachPrefs, { protocoloId: 'p2' });
+    const dePowerlifting = { preferences: semilla2 };
+
+    /* Lleva `rir` porque su protocolo lo lleva: al día, no atrasado. */
+    expect(dePowerlifting.preferences.protocolId).toBe('p2');
+    expect(necesitaSuPlan(coachPrefs, dePowerlifting)).toBe(false);
+    expect(igualASuPlan(coachPrefs, dePowerlifting)).toBe(true);
+  });
+
+  it('y NO contra el primero de la lista, que es el fallo que se teme', () => {
+    const semilla2 = newClientPreferences(coachPrefs, { protocoloId: 'p2' });
+    const dePowerlifting = { preferences: semilla2 };
+
+    /* Comparado contra el protocolo equivocado saldría desviado. Comparado
+       contra el suyo, no. Ésa es toda la prueba. */
+    const { template: primero } = planDe(coachPrefs, 'p1');
+    expect(matchesTemplate(primero, clientProtocol(dePowerlifting.preferences))).toBe(false);
+    expect(igualASuPlan(coachPrefs, dePowerlifting)).toBe(true);
+  });
+
+  it('un cliente sin marca cuenta como del primero', () => {
+    const semilla1 = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
+    const sinMarca = { preferences: { ...semilla1, protocolId: undefined } };
+    expect(necesitaSuPlan(coachPrefs, sinMarca)).toBe(false);
+  });
+
+  /*
+    ══ Mover a alguien de protocolo NO le reescribe nada por su cuenta ════════
+
+    Un cliente al que se le apunta otro protocolo pero no se le escribe queda
+    «sin decidir y desviado», que `isProtected` protege a propósito (el porqué,
+    en su docblock). O sea que reasignar en frío NO empuja nada: hace falta el
+    parche, y el parche va con el gesto.
+
+    Es la protección bien puesta, no un fallo — pero conviene tenerla escrita,
+    porque de aquí sale que «cambiar de protocolo» tenga que aplicar en el mismo
+    gesto y soltar la marca (`applyProtocolToClient`), y no solo apuntar.
+  */
+  it('mover a alguien de protocolo sin aplicarlo no le toca nada', () => {
+    const semilla1 = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
+    const movido = { preferences: { ...semilla1, protocolId: 'p2' } };
+    expect(protegidoDeSuPlan(coachPrefs, movido)).toBe(true);
+    expect(necesitaSuPlan(coachPrefs, movido)).toBe(false);
+  });
+
+  it('quien ya aceptó su protocolo y cambia de protocolo SÍ sale atrasado', () => {
+    const semilla1 = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
+    /* `on: false` es «le pusiste el protocolo y lo aceptó»: es lo que deja
+       `applyProtocolToClient` al igualar. Ése sí recibe lo que venga después. */
+    const movido = {
+      preferences: { ...semilla1, protocolId: 'p2', protocolException: { on: false } },
+    };
+    expect(necesitaSuPlan(coachPrefs, movido)).toBe(true);
+
+    const parche = parchePara(coachPrefs, movido);
+    const puesto = { preferences: { ...movido.preferences, ...parche } };
+    expect(necesitaSuPlan(coachPrefs, puesto)).toBe(false);
+    expect(puesto.preferences.protocolId).toBe('p2');
+  });
+
+  it('el parche respeta lo que es del cliente y no de la plantilla', () => {
+    const semilla = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
+    const suyo = {
+      preferences: {
+        ...semilla,
+        protocol: { ...semilla.protocol, hidden: { weight: true, nutrition: false } },
+      },
+    };
+    /* Ponerle al día su protocolo NO puede devolverle el peso a quien se lo
+       acabas de quitar. Ver `NOT_COMPARED_KEYS`. */
+    expect(parchePara(coachPrefs, suyo).protocol.hidden).toEqual({ weight: true, nutrition: false });
+  });
+
+  it('el parche conserva los enlaces que el alta ya tenía', () => {
+    const semilla = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
+    const conVideo = {
+      preferences: {
+        ...semilla,
+        /* `postureReview` está en los pasos de serie y entrega algo: un enlace
+           colgado de un paso apagado lo descarta `clientIntake`, y con razón. */
+        intake: { ...semilla.intake, links: { postureReview: 'https://x.test/marta' } },
+      },
+    };
+    expect(parchePara(coachPrefs, conVideo).intake.links.postureReview).toBe(
+      'https://x.test/marta'
+    );
+  });
+
+  it('sin protocolos guardados, todo sigue por el camino de siempre', () => {
+    expect(usaProtocolos({})).toBe(false);
+    expect(newClientPreferences({})).toBe(null);
+    expect(usaProtocolos(coachPrefs)).toBe(true);
+  });
+
+  it('el plan trae el protocolo resuelto y su alta, listos para preguntar', () => {
+    const plan = planDe(coachPrefs, 'p2');
+    expect(plan.protocolo.name).toBe('Powerlifting');
+    expect(plan.template.modules).toContain('rir');
+    expect(Array.isArray(plan.intake.steps)).toBe(true);
+  });
+
+  it('un id roto no deja a nadie sin protocolo', () => {
+    expect(planDe(coachPrefs, 'no-existe').protocolo.id).toBe('p1');
+    expect(planDeCliente(coachPrefs, { preferences: { protocolId: 'zzz' } }).protocolo.id).toBe('p1');
   });
 });

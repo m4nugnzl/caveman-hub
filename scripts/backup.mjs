@@ -92,6 +92,16 @@ const TABLES = [
   'check_ins',
   'client_events',
   'client_phases',
+  /*
+    Lo que le has mandado a alguien y lo que ha contestado (0105, antes
+    `client_forms`). Entra tarde y por un descuido: la tabla se creó con la
+    migración y la lista no se tocó, así que una restauración habría devuelto a
+    los clientes sin un solo cuestionario suelto —ni lo pedido ni lo respondido—
+    y sin ningún error por el camino. Es exactamente el fallo que esta lista
+    existe para evitar. Las respuestas no se pueden volver a generar: nadie va a
+    contestar dos veces lo mismo.
+  */
+  'client_actions',
   /* Lesiones, patologías y alergias (0077). Son datos de salud, así que si esta
      tabla se quedara fuera, una restauración devolvería a los clientes sin lo
      único de su ficha que condiciona lo que se les prescribe — y sin ruido: la

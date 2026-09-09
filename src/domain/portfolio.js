@@ -33,7 +33,7 @@ import { clientIntake, clientSteps, coachSteps, stepDone } from './intake';
 import { onboardingState } from './onboardingState';
 import { feeLabel, paymentState } from './billing';
 import { currentCheckInPeriod } from './calendar';
-import { clientProtocol, isServiceOn, requiredBlocks, weighInsTarget } from './protocol';
+import { alertDaysFor, clientProtocol, isServiceOn, requiredBlocks, weighInsTarget } from './protocol';
 import { emptyTrainingSummary } from './sessions';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
@@ -55,6 +55,43 @@ import { readingHeadline, weeklyReading } from './reading';
  * el servidor rechazaría el alta por otro.
  */
 export const isArchived = (client) => client?.status === 'archived';
+
+/**
+ * ¿Está en pausa, y hasta cuándo?
+ *
+ * ══ Por qué existe un tercer estado ═════════════════════════════════════════
+ *
+ * El lesionado de agosto que vuelve en octubre no cabía en ninguno de los dos:
+ * activo genera alertas falsas durante dos meses —«60 días sin entrenar» de
+ * alguien a quien TÚ le has dicho que pare— y archivado lo saca de la cartera
+ * como si hubiera terminado. La pausa es la verdad: sigue siendo tu cliente,
+ * no está entrenando, y los dos lo sabéis.
+ *
+ * En pausa no genera NINGUNA alerta y se va al final de la lista. Sigue
+ * viéndose —es tu cliente— y sigue pudiendo entrar en su portal: sus datos son
+ * suyos, igual que los del archivado (0020).
+ *
+ * ── La vuelta no la escribe nadie ───────────────────────────────────────────
+ * `pausedUntil` es la fecha en la que quedasteis. Cuando pasa, la pausa VENCE
+ * sola: las alertas vuelven a contar y sale un aviso de que venció — sin
+ * ningún proceso que escriba en la base a medianoche. La fila conserva su
+ * `status: 'paused'` hasta que el entrenador reanuda o amplía desde la ficha.
+ *
+ * ── Y el tope del plan NO cambia ────────────────────────────────────────────
+ * Un cliente en pausa sigue contando para el límite de asientos (0064): sigue
+ * siendo tuyo y va a volver. Descontarlo abriría la puerta a pausar la mitad
+ * de la cartera para caber en un plan más barato, y el disparador del límite
+ * solo corre en el alta — no vería el despausado. Quien termina de verdad, se
+ * archiva, que para eso está.
+ */
+export const pauseOf = (client, today = todayISO()) => {
+  if (client?.status !== 'paused') return null;
+  const until = client.pausedUntil || null;
+  if (until && until < today) return { on: false, until, expired: true };
+  return { on: true, until, expired: false };
+};
+
+export const isPaused = (client, today = todayISO()) => Boolean(pauseOf(client, today)?.on);
 
 /**
  * Umbrales, en un solo sitio para poder discutirlos sin buscarlos.
@@ -103,11 +140,27 @@ const hasBlock = (log, block) => {
  *   descargarlo todo al arrancar. Ver `auditoria.md` 1.5.
  */
 export const clientStatus = (
-  { client, training, anthro, photos = [], checkIn: submitted = null, equipmentCount = 0 },
+  {
+    client,
+    training,
+    anthro,
+    photos = [],
+    checkIn: submitted = null,
+    equipmentCount = 0,
+    /** Cuántas cosas de las que le mandaste tiene sin hacer (ver `buildPortfolio`). */
+    mandadoCount = 0,
+    /** Y cuántas te ha contestado que todavía no has leído (0108, ídem). */
+    contestadoCount = 0,
+  },
   today = todayISO()
 ) => {
   const resumen = training || emptyTrainingSummary();
   const history = anthro?.history || [];
+
+  /* Su pausa, si la tiene. Se calcula una vez: decide el final de esta función
+     —una pausa VIGENTE silencia todas las alertas— y viaja en la fila para que
+     la lista, la cola de revisiones y el tablero pregunten lo mismo. */
+  const pausa = pauseOf(client, today);
 
   const lastTraining = resumen.lastTraining;
   const lastWeight = lastDate(history.map((h) => h.date));
@@ -116,6 +169,14 @@ export const clientStatus = (
   /* El protocolo de esta persona, UNA vez: decide cuántos pesajes se le piden y
      qué bloques son obligatorios, y las dos cosas se reclaman más abajo. */
   const protocolo = clientProtocol(client.preferences);
+
+  /* Su vara: los días que tienen que pasar antes de avisar DE ELLA. Afinada en
+     su protocolo, o los umbrales generales de siempre. El de fotos no se afina
+     —45 días es igual de largo para todo el mundo—. */
+  const vara = alertDaysFor(protocolo, {
+    training: THRESHOLDS.noTraining,
+    weight: THRESHOLDS.noWeight,
+  });
   const checkIn = weeklyCheckIn(history, today, { target: weighInsTarget(protocolo) });
   /* Qué ha entregado él, del mismo sitio que su portal y que su ficha: los tres
      no pueden discrepar sobre si el cuestionario está contestado. */
@@ -160,6 +221,62 @@ export const clientStatus = (
     Así que quien no ha arrancado tiene UNA alerta, la suya, y ninguna de las
     otras. Las de descolgarse necesitan un punto de partida para significar algo.
   */
+  /*
+    ══ Lo que le mandaste a mano y no ha hecho ════════════════════════════════
+
+    Lo suelto —un formulario, un vídeo, algo que le pediste— se veía en
+    `/protocolos`, envío por envío, y en su ficha. O sea que para saber a quién le
+    falta algo había que abrirlos de uno en uno y cruzarlos mentalmente. Ésta es
+    la vuelta que faltaba: sale donde ya se mira todo lo demás.
+
+    ── Y va FUERA del corte de «todavía no ha empezado» ──────────────────────
+    Las alertas de descolgarse necesitan un punto de partida para significar
+    algo, y por eso quien no ha arrancado tiene una sola, la suya. Ésta no: al
+    recién dado de alta es justo a quien le acabas de mandar el cuestionario, así
+    que esconderla ahí dejaría sin reclamar el caso en el que casi siempre hay
+    algo pendiente.
+
+    Gravedad BAJA, y sin contar días. No es un cliente que se descuelgue: es un
+    recado que sigue ahí. El «cuándo» ya lo respeta la cifra, que solo cuenta lo
+    que le toca ya (`vigente`).
+  */
+  if (mandadoCount > 0) {
+    add(
+      'mandado_pending',
+      'baja',
+      mandadoCount === 1
+        ? 'Le falta algo que le mandaste'
+        : `Le faltan ${mandadoCount} cosas que le mandaste`,
+      'Fuera de su protocolo.'
+    );
+  }
+
+  /*
+    ══ Y lo que te ha contestado y no has leído ═══════════════════════════════
+
+    La otra mitad del bucle, y la que de verdad te da trabajo. Con la alerta de
+    arriba sola, la aplicación sabía decir a quién le FALTA algo y no sabía decir
+    quién ya lo ha mandado: lo contestado había que ir a buscarlo al Taller,
+    envío por envío, o no se encontraba.
+
+    Gravedad MEDIA, la misma que el check-in por revisar: es exactamente lo
+    mismo —alguien ha hecho su parte y espera— y dos varas distintas para el
+    mismo hecho harían que la cartera ordenara mal.
+
+    Y no cuenta lo que se abre ni lo que se marca (ver `sinLeer` en
+    `domain/envios.js`): solo lo que trae algo que leer.
+  */
+  if (contestadoCount > 0) {
+    add(
+      'contestado_nuevo',
+      'media',
+      contestadoCount === 1
+        ? 'Te ha contestado y no lo has leído'
+        : `Te ha contestado ${contestadoCount} cosas sin leer`,
+      'De lo que le mandaste suelto.'
+    );
+  }
+
   const sinceTraining = daysSince(lastTraining, today);
   const sinceWeight = daysSince(lastWeight, today);
 
@@ -199,8 +316,8 @@ export const clientStatus = (
     if (conEntreno && resumen.microcycleCount > 0) {
       if (sinceTraining === null) {
         add('never_trained', 'alta', 'No ha registrado ningún entreno', 'Tiene rutina, pero ni una serie anotada.');
-      } else if (sinceTraining >= THRESHOLDS.noTraining) {
-        add('stale_training', sinceTraining >= THRESHOLDS.noTraining * 2 ? 'alta' : 'media',
+      } else if (sinceTraining >= vara.training) {
+        add('stale_training', sinceTraining >= vara.training * 2 ? 'alta' : 'media',
           `${sinceTraining} días sin entrenar`, 'Último entreno registrado.');
       }
     }
@@ -208,7 +325,7 @@ export const clientStatus = (
     // ── Peso y check-in ─────────────────────────────────────────────────────
     if (sinceWeight === null) {
       add('no_weight', 'media', 'Nunca ha registrado su peso', 'No hay ningún pesaje en su historial.');
-    } else if (sinceWeight >= THRESHOLDS.noWeight) {
+    } else if (sinceWeight >= vara.weight) {
       add('stale_weight', 'media', `${sinceWeight} días sin pesarse`, 'Último pesaje registrado.');
     }
 
@@ -225,6 +342,7 @@ export const clientStatus = (
         checkIn.count === 0 ? 'Check-in sin empezar' : `Check-in a medias (${checkIn.count}/${checkIn.target})`,
         'Pesajes de esta semana.');
     }
+
 
     /*
       ══ Lo que el entrenador EXIGE medir y no ha llegado ══════════════════════
@@ -389,9 +507,57 @@ export const clientStatus = (
     add('review_pending', 'media', 'Check-in por revisar', 'Entregado y esperando tu respuesta.');
   }
 
+  /* La pausa que venció. No es una alerta del cliente —él no ha hecho nada
+     mal— sino un cabo suelto del entrenador: la fecha en la que quedasteis ya
+     pasó y la ficha sigue en pausa. Con ella, las demás alertas vuelven a
+     contar solas (la pausa vencida ya no silencia nada). */
+  if (pausa?.expired) {
+    add(
+      'pause_over',
+      'media',
+      'Su pausa venció',
+      'La fecha de vuelta ya pasó. Reanúdale o amplía la pausa desde su ficha.'
+    );
+  }
+
   alerts.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
 
+  /*
+    ══ La pausa vigente silencia TODO ══════════════════════════════════════════
+
+    Las alertas se calculan igual —el cálculo es barato y mantiene la forma de
+    la fila— y aquí se descartan: a quien está de baja o de vacaciones no se le
+    reprocha no entrenar, no pesarse ni deber un check-in. Es la regla de «sin
+    reproches» aplicada al único caso en el que TODAS las alertas son reproche.
+  */
+  if (pausa?.on) {
+    return {
+      /* `pending: false` también aquí: la bandeja de Hoy y los filtros leen
+         `review.pending` directamente, sin pasar por `reviewState`, y una
+         entrega en pausa no es trabajo hasta la vuelta. `submittedAt` se
+         conserva: la entrega existe, lo que no existe es la prisa. */
+      review: { ...review, pending: false },
+      client,
+      lastTraining,
+      lastWeight,
+      lastPhoto,
+      sinceTraining,
+      sinceWeight,
+      sincePhoto,
+      daysToPayment,
+      checkIn,
+      weeksProgrammed: resumen.microcycleCount,
+      weekNumber: resumen.weekNumber,
+      sessionCount: resumen.sessionCount,
+      alerts: [],
+      severity: null,
+      needsAttention: false,
+      paused: pausa,
+    };
+  }
+
   return {
+    paused: null,
     review,
     client,
     lastTraining,
@@ -475,6 +641,11 @@ export const reviewState = (row, today = todayISO()) => {
   */
   if (!row?.client?.clientProfileId) return 'off';
 
+  /* En pausa no se revisa a nadie: no hay semana que juzgar ni entrega que
+     reclamar. Si entrega algo igualmente, la entrega espera a la vuelta —la
+     cola no puede reclamarle trabajo a quien está de baja. */
+  if (row?.paused) return 'off';
+
   /*
     ══ Una ENTREGA es un hecho, no una cita ═══════════════════════════════════
 
@@ -544,6 +715,14 @@ export const buildPortfolio = (
     /* Cuántas fotos de maquinaria tiene cada uno. Solo hace falta saber si hay
        alguna, así que viaja como cifra y no como lista: ver `useEquipment`. */
     equipmentCounts = {},
+    /* Y cuántas cosas de las que le mandaste tiene sin hacer (0105). Viaja
+       contada por el mismo motivo, y además porque contarla aquí obligaría a
+       importar de `domain/envios.js`, que importa de este módulo: ver
+       `pendientesPorCliente`. */
+    mandadoCounts = {},
+    /* Y cuántas respuestas suyas te faltan por leer (0108). Misma forma y mismo
+       motivo: la regla de qué cuenta vive en `domain/envios.js`. */
+    contestadoCounts = {},
   },
   today = todayISO()
 ) => {
@@ -563,6 +742,8 @@ export const buildPortfolio = (
         anthro: anthropometry[client.id],
         photos: photosByClient.get(client.id) || [],
         equipmentCount: equipmentCounts[client.id] || 0,
+        mandadoCount: mandadoCounts[client.id] || 0,
+        contestadoCount: contestadoCounts[client.id] || 0,
         // El check-in de LA SEMANA EN CURSO. Los anteriores no dicen nada del
         // estado de hoy, y mezclarlos haría que un cliente pareciera pendiente
         // por algo que entregó en marzo.
@@ -629,6 +810,9 @@ export const buildPortfolio = (
     const sb = b.severity ? SEVERITY_ORDER[b.severity] : 9;
     if (sa !== sb) return sa - sb;
     if (b.alerts.length !== a.alerts.length) return b.alerts.length - a.alerts.length;
+    /* Los pausados, al final del tramo tranquilo: con nadie hay nada que hacer,
+       pero el que está al día HOY es más cartera viva que el que no está. */
+    if (Boolean(a.paused) !== Boolean(b.paused)) return a.paused ? 1 : -1;
     return a.client.name.localeCompare(b.client.name);
   });
 };
@@ -710,6 +894,9 @@ const esCobro = (row) => row.alerts.some((a) => COBRO_ALERTS.has(a.id));
 
 /** Columna de un cliente. La primera que encaja gana. */
 export const columnFor = (row) => {
+  /* En pausa no hay nada pendiente por definición: va con los que están al
+     día, no con los que incumplen algo. */
+  if (row.paused) return 'on_track';
   if (row.review?.pending) return 'to_review';
   if (row.alerts.some((a) => RISK_ALERTS.has(a.id))) return 'at_risk';
   /* A quien no le pides pesajes nunca le falta ninguno: `complete` es cierto
@@ -770,9 +957,9 @@ export const portfolioBoard = (rows) => {
  */
 /*
   ── `awaited`: quién ha entregado algo y sigue esperando ────────────────────
-  Las once tareas de la bandeja no son de la misma naturaleza. Nueve son trabajo
+  Las doce tareas de la bandeja no son de la misma naturaleza. Nueve son trabajo
   TUYO que decides cuándo hacer —programarle, cobrarle, recordarle el check-in—
-  y dos son gente que ya ha hecho su parte y está esperando a que contestes.
+  y tres son gente que ya ha hecho su parte y está esperando a que contestes.
 
   La distinción no la pedía la bandeja, que las lista todas y está bien así.
   La pidió el punto de la cartera en la barra lateral: marcaba a quien apareciera
@@ -892,6 +1079,31 @@ export const INBOX_TASKS = [
     match: (row) => row.alerts.some((a) => a.id === 'checkin_pending'),
     why: (row) => row.alerts.find((a) => a.id === 'checkin_pending')?.label || '',
   },
+  {
+    /*
+      Las dos de lo suelto van juntas y al final, detrás del check-in: el
+      check-in es la rutina de la casa y esto es lo que TÚ decidiste pedir
+      aparte. Y ésta va delante de la otra porque lo que ha vuelto se lee antes
+      de reclamar lo que falta — leerlo cambia a menudo lo que ibas a reclamar.
+    */
+    id: 'contestado',
+    seccion: 'ficha',
+    label: 'Leer lo que te han contestado',
+    hint: 'Han contestado algo tuyo y no lo has abierto',
+    tone: 'info',
+    awaited: true,
+    match: (row) => row.alerts.some((a) => a.id === 'contestado_nuevo'),
+    why: (row) => row.alerts.find((a) => a.id === 'contestado_nuevo')?.label || '',
+  },
+  {
+    id: 'mandado',
+    seccion: 'ficha',
+    label: 'Les falta lo que les mandaste',
+    hint: 'Tienen algo tuyo pendiente, fuera de su protocolo',
+    tone: 'warn',
+    match: (row) => row.alerts.some((a) => a.id === 'mandado_pending'),
+    why: (row) => row.alerts.find((a) => a.id === 'mandado_pending')?.label || '',
+  },
 ];
 
 /**
@@ -911,6 +1123,50 @@ export const portfolioInbox = (rows) => {
   return { tasks, clear: rows.filter((row) => !conTarea.has(row.client.id)) };
 };
 
+/*
+  El acotado de las etiquetas (columna `tags`, 0093): cortas y pocas. El
+  vocabulario es del entrenador; el límite solo evita que la columna acumule
+  basura. Vive aquí y no en un componente porque lo aplican DOS gestos — el
+  alta en la ficha y el etiquetado en lote de la cartera — y dos copias del
+  mismo número acaban discrepando.
+*/
+export const TAG_LIMITS = { max: 8, len: 24 };
+
+/**
+ * Las etiquetas que se OFRECEN cuando el entrenador todavía no tiene las suyas.
+ *
+ * ══ Por qué un catálogo, si el vocabulario es suyo ══════════════════════════
+ *
+ * Porque un campo de texto en blanco no es libertad, es un examen. El primer
+ * día no hay ninguna etiqueta puesta, así que el desplegable se abría vacío con
+ * un «Buscar o crear…» y ahí se acaba: para usar la función hay que inventarse
+ * primero un sistema de clasificación entero. La lista de Coachway arranca con
+ * tres puestas —Weight Loss, Muscle Gain, Injured— y con eso la primera
+ * etiqueta se pone en un clic.
+ *
+ * Son SUGERENCIAS, no un catálogo cerrado: se ofrecen solo mientras no las
+ * tenga, se pueden ignorar, y crear la suya sigue siendo un renglón del mismo
+ * desplegable. En cuanto usa una, deja de ser sugerencia y pasa a ser
+ * vocabulario suyo como cualquier otra.
+ *
+ * ── Y por qué ESTAS ocho ────────────────────────────────────────────────────
+ * Son los cortes por los que un entrenador de verdad agrupa su cartera cuando
+ * le preguntas: el objetivo (tres), el formato (dos), y las tres situaciones
+ * que cambian cómo se le lleva a alguien. No hay ninguna que dependa de una
+ * función de la aplicación — una etiqueta que solo significa algo dentro del
+ * producto no sirve para clasificar a personas.
+ */
+export const TAGS_SUGERIDAS = [
+  'Pérdida de grasa',
+  'Ganancia muscular',
+  'Recomposición',
+  'Presencial',
+  'Online',
+  'Competidor',
+  'Lesión',
+  'Mantenimiento',
+];
+
 /**
  * Filtros de la vista. Cada uno es una pregunta concreta del entrenador.
  *
@@ -926,12 +1182,17 @@ export const PORTFOLIO_FILTERS = [
     label: 'Sin entrenar',
     test: (r) => r.alerts.some((a) => a.id === 'stale_training' || a.id === 'never_trained'),
   },
-  { id: 'checkin', label: 'Check-in pendiente', test: (r) => !r.checkIn.complete },
+  { id: 'review', label: 'Por revisar', test: (r) => Boolean(r.review?.pending) },
+  { id: 'checkin', label: 'Check-in pendiente', test: (r) => !r.paused && !r.checkIn.complete },
   { id: 'payment', label: 'Cobros', test: esCobro },
+  /* En pausa: los que apartaste tú. No entran en «al día» ni en «atención» —
+     con ellos no hay nada que hacer hasta su vuelta— así que sin filtro propio
+     no había forma de encontrarlos. */
+  { id: 'paused', label: 'En pausa', test: (r) => Boolean(r.paused) },
   // «Al día» es no tener nada urgente, no tener cero avisos: un «renueva en 3
   // días» es información, no una tarea. Así atención + al día = la cartera
   // entera, y los dos números se pueden leer juntos.
-  { id: 'ok', label: 'Al día', test: (r) => !r.needsAttention },
+  { id: 'ok', label: 'Al día', test: (r) => !r.paused && !r.needsAttention },
   { id: 'all', label: 'Todos', test: () => true },
 ];
 
@@ -951,9 +1212,9 @@ export const portfolioSummary = (rows) => ({
 });
 
 /**
- * Las cuatro colas de «Inicio», y nada más.
+ * Las colas de «Inicio», y nada más.
  *
- * ── Por qué son cuatro y no las nueve tareas de la bandeja ──────────────────
+ * ── Por qué son cinco y no las doce tareas de la bandeja ────────────────────
  * La bandeja (`INBOX_TASKS`) mezcla el trabajo del oficio —revisar, programar,
  * escribir a quien desaparece, cobrar— con los trámites de un alta: dar acceso,
  * terminar el alta, recordar un check-in. Sumados, el «36» de la portada no
@@ -965,6 +1226,30 @@ export const portfolioSummary = (rows) => ({
  */
 export const COLAS_INICIO = [
   { id: 'revisar', label: 'Por revisar', verbo: 'Revisar', seccion: 'semana', tasks: [] },
+  {
+    /*
+      Va la segunda, pegada a «Por revisar», porque es la misma clase de cosa:
+      alguien ha hecho su parte y espera. La diferencia es solo de qué —el
+      check-in de la semana, o lo que le mandaste suelto—, y separarlas en dos
+      sitios distintos de la pantalla obligaría a preguntarse dos veces «¿me
+      espera alguien?».
+
+      Es cola y no trámite porque leer lo que te ha contestado es el oficio: de
+      ahí sale lo que le vas a cambiar. Los trámites son los de al lado —dar
+      acceso, recordar—, que no cambian nada de lo que haces con esa persona.
+    */
+    id: 'leer',
+    /* «Sin leer» y no «Te han contestado», que era lo primero que puse: las
+       cuatro tarjetas de al lado se rotulan con el ESTADO en dos palabras —«Por
+       revisar», «Sin programar», «Sin señales»— y el qué va en el pie. Y con
+       cinco tarjetas en la rejilla, un rótulo de tres palabras se parte en dos
+       renglones y descoloca la cifra. */
+    label: 'Sin leer',
+    sub: 'te han contestado',
+    verbo: 'Leer',
+    seccion: 'ficha',
+    tasks: ['contestado'],
+  },
   {
     id: 'programar',
     label: 'Sin programar',
@@ -991,8 +1276,16 @@ export const COLAS_INICIO = [
   },
 ];
 
-/** Lo administrativo: se lista aparte y no suma en las colas. */
-export const TRAMITES_INICIO = ['access', 'intake_ready', 'intake', 'checkin'];
+/**
+ * Lo administrativo: se lista aparte y no suma en las colas.
+ *
+ * `mandado` entró aquí al repasarlo: la tarea existía en `INBOX_TASKS` desde que
+ * lo mandado vuelve a la cartera, pero «Hoy» solo pinta las colas y ESTA lista,
+ * así que no salía en ninguna pantalla — se calculaba para nadie. Es trámite y
+ * no cola por lo mismo que «Recordar el check-in», con la que hace pareja: es
+ * reclamarle algo que le falta a él, no trabajo tuyo sobre su entrenamiento.
+ */
+export const TRAMITES_INICIO = ['access', 'intake_ready', 'intake', 'checkin', 'mandado'];
 
 /**
  * @returns Las colas con su gente: `n` es la cifra grande; en «Por revisar»,

@@ -105,6 +105,23 @@ describe('clientGoal', () => {
     expect(clientGoal({ preferences: { goal: { direction: 'maintain', ratePct: 5 } } }).ratePct).toBe(0);
   });
 
+  /*
+    El peso objetivo es OPCIONAL: el modelo sigue siendo el ritmo, y sin destino
+    declarado la Revisión no dibuja camino. Lo absurdo —un 7, un 900, un texto—
+    no puede llegar a la lectura como si fuera una meta.
+  */
+  it('el peso objetivo llega saneado, y sin él es null', () => {
+    const con = (targetWeightKg) =>
+      clientGoal({ preferences: { goal: { direction: 'cut', targetWeightKg } } }).targetWeightKg;
+
+    expect(con(70)).toBe(70);
+    expect(con('70,5')).toBe(70.5);
+    expect(con(7)).toBeNull();
+    expect(con(900)).toBeNull();
+    expect(con('setenta')).toBeNull();
+    expect(con(undefined)).toBeNull();
+  });
+
   it('usa el ritmo por defecto de la dirección si no hay ninguno', () => {
     expect(goalFromDirection('cut')).toEqual({ direction: 'cut', ratePct: 0.6, note: '' });
     expect(goalFromDirection('bulk').ratePct).toBe(0.25);

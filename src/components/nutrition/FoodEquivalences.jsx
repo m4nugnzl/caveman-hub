@@ -3,6 +3,7 @@ import { ArrowRightLeft } from 'lucide-react';
 import { MACROS, displayAsUnits, hasUnits, unitsLabel } from '@/domain/nutrition';
 import { Modal } from '@/components/ui/Modal';
 import { Switch } from '@/components/ui/primitives';
+import { useOculto } from '@/components/Client/Oculto';
 
 /**
  * La ración de un equivalente, en las palabras del alimento.
@@ -46,6 +47,11 @@ export const FoodEquivalences = ({
   clientSwapsOn = false,
   onClose,
 }) => {
+  /* Al cliente con las kcal ocultas le vale la lista —«no tengo plátanos» se
+     sigue resolviendo aquí— sin las dos cifras que la acompañan: la ración es
+     el dato que viene a buscar. Ver `Client/Oculto.jsx`. */
+  const oculto = useOculto();
+
   const macro = MACROS.find((m) => m.key === equivalences.macro);
   const nombre = (macro?.label || '').toLowerCase();
   const cantidad = displayAsUnits(food) ? `${unitsLabel(food)} (${food.grams} g)` : `${food.grams} g`;
@@ -56,11 +62,20 @@ export const FoodEquivalences = ({
         <p className="t-sm t-secondary">
           {/* La cuenta a la vista: de dónde sale la lista. Sin esto, los gramos
               de abajo parecen sacados de una tabla mágica. */}
-          <strong>{cantidad}</strong> de {food.name.toLowerCase()} aportan{' '}
-          <strong>
-            {equivalences.macroGrams} g de {nombre}
-          </strong>
-          . Estas raciones aportan lo mismo:
+          {oculto.nutrition ? (
+            <>
+              Estas raciones valen por tus <strong>{cantidad}</strong> de{' '}
+              {food.name.toLowerCase()}:
+            </>
+          ) : (
+            <>
+              <strong>{cantidad}</strong> de {food.name.toLowerCase()} aportan{' '}
+              <strong>
+                {equivalences.macroGrams} g de {nombre}
+              </strong>
+              . Estas raciones aportan lo mismo:
+            </>
+          )}
         </p>
 
         <ul className="equiv-list">
@@ -73,6 +88,7 @@ export const FoodEquivalences = ({
                     tuya. La ración se elige cuadrando ambas, así que enseñar
                     solo una escondería en qué se pagó la otra. En tinta de dato;
                     el color, solo en las diferencias. */}
+                {!oculto.nutrition && (
                 <span className="sub">
                   {item.macroGrams} g de {nombre}
                   {item.macroDiff ? <b className={`dif${item.macroDiff > 0 ? ' is-mas' : ' is-menos'}`}>{item.macroDiff > 0 ? '+' : ''}{item.macroDiff}</b> : null}
@@ -80,7 +96,8 @@ export const FoodEquivalences = ({
                   {item.kcal} kcal
                   {item.kcalDiff ? <b className={`dif${item.kcalDiff > 0 ? ' is-mas' : ' is-menos'}`}>{item.kcalDiff > 0 ? '+' : ''}{item.kcalDiff}</b> : null}
                 </span>
-                {item.gramsKcal && (
+                )}
+                {item.gramsKcal && !oculto.nutrition && (
                   <span className="sub equiv-kcal">
                     {onSwap ? (
                       <button
@@ -115,7 +132,9 @@ export const FoodEquivalences = ({
         <p className="t-xs t-tertiary">
           {onSwap
             ? `Cada ración se ajusta para cuadrar a la vez ${nombre} y kcal: manda el macro del grupo, con un margen del 10 % para no descuadrar el día.`
-            : `Cualquiera de estas raciones vale por la tuya: llevan ${nombre} y kcal muy parecidas. La pequeña diferencia va escrita debajo de cada una.`}
+            : oculto.nutrition
+              ? 'Cualquiera de estas raciones vale por la tuya: las calculó tu entrenador para que el cambio no te descuadre el día.'
+              : `Cualquiera de estas raciones vale por la tuya: llevan ${nombre} y kcal muy parecidas. La pequeña diferencia va escrita debajo de cada una.`}
         </p>
 
         {/*

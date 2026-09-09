@@ -107,6 +107,10 @@ export const SetRow = ({
       )}
 
       <span className="set-row-target">
+        {/* El peso pautado, cuando lo hay, delante del rango: «100 kg · 6-8».
+            Vacío es lo de siempre —el peso lo elige quien levanta— y entonces
+            la columna dice solo las repeticiones, como hasta ahora. */}
+        {set.targetKg !== '' && set.targetKg != null && <span className="tnum">{set.targetKg} kg · </span>}
         {set.targetReps || '—'}
         {/* El RIR pedido va pegado al rango de repeticiones y no en columna
             propia: las dos cosas son «lo que te pido en esta serie», y separarlas
@@ -160,6 +164,42 @@ export const SetRow = ({
     </div>
   );
 };
+
+/**
+ * LAS TANDAS DE UN REMATE, en el teléfono.
+ *
+ * Una bajada doble son dos tandas más después de la serie, y quien entrena
+ * tiene que poder anotar las dos: sin esto, el plan dice «bajada ×2, −20 %» y
+ * el registro solo guarda la serie principal, así que la mitad de lo que se
+ * hizo no queda escrito en ninguna parte.
+ *
+ * Van DEBAJO de su serie y sangradas, no como series más: una serie con bajada
+ * sigue siendo una serie —lo dice el volumen del microciclo— y numerarlas del
+ * uno al seis diría lo contrario.
+ */
+export const SetSubRow = ({ nombre, extra, onChange, label }) => (
+  <div className="set-row is-sub">
+    <span className="set-row-tag" aria-hidden="true" />
+    <span className="set-row-target">{nombre}</span>
+    {FIELDS.filter((f) => f.key !== 'rir').map((field) => (
+      <input
+        key={field.key}
+        type="text"
+        inputMode={field.mode}
+        className="input input-center"
+        placeholder="—"
+        value={extra?.[field.key] ?? ''}
+        onChange={(e) => onChange(field.key, e.target.value)}
+        enterKeyHint="next"
+        aria-label={`${label}: ${field.label}`}
+      />
+    ))}
+    {/* La columna del RIR se queda vacía y no desaparece: si la fila tuviera dos
+        campos donde las demás tienen tres, las columnas dejarían de cuadrar y
+        la tabla se leería como dos tablas. Al fallo no hay RIR que anotar. */}
+    <span aria-hidden="true" />
+  </div>
+);
 
 /** La cabecera de la tabla: las etiquetas, una sola vez por ejercicio. */
 export const SetRowHead = () => (

@@ -1,0 +1,305 @@
+/* ==========================================================================
+   FORMULARIOS SUELTOS Y ENVÍOS
+   --------------------------------------------------------------------------
+   El constructor libre, el diálogo de mandar, la tabla de un envío y la
+   pantalla que el cliente contesta.
+
+   Va DETRÁS de `taller.css` porque reutiliza su traje —`.q-card`, `.selector`,
+   `.ajustes-pregunta`, `.f-disco`— y lo remata; y delante de `piezas.css`, que
+   sigue siendo el último. El orden de `index.css` no se toca por lo demás.
+
+   ── Por qué lo del CLIENTE también está aquí ──────────────────────────────
+   Porque el constructor importa su mismo componente para la vitrina («así lo ve
+   él»), así que las dos mitades comparten controles. Separarlas por hoja sería
+   tener el estilo de un control en un sitio y su único otro consumidor en otro,
+   que es exactamente cómo divergen dos copias de lo mismo.
+   ========================================================================== */
+
+/* ── El disco de familia en los rótulos de la lámina ─────────────────────── */
+.disco-fam {
+  display: inline-block; width: 8px; height: 8px; border-radius: var(--r-pill);
+  margin-right: var(--s1);
+  background: hsl(var(--fam-h) 55% 45%);
+}
+.disco-fam[data-tono='pregunta'] { --fam-h: 205; }
+.disco-fam[data-tono='oficio'] { --fam-h: 275; }
+.disco-fam[data-tono='estructura'] { --fam-h: 38; }
+
+/* El glifo del renglón toma el matiz de su familia: de un vistazo se ve qué es
+   lo que NO se queda en el formulario. Va por matiz suelto y no por la paleta
+   de datos, que es del dato dentro de un gráfico (ver `tokens.css`). */
+.q-glifo[data-tono='oficio'] { background: hsl(275 45% 95%); color: hsl(275 40% 38%); }
+.q-glifo[data-tono='estructura'] { background: hsl(38 55% 94%); color: hsl(38 60% 30%); }
+[data-theme='dark'] .q-glifo[data-tono='oficio'] { background: hsl(275 20% 22%); color: hsl(275 45% 76%); }
+[data-theme='dark'] .q-glifo[data-tono='estructura'] { background: hsl(38 20% 20%); color: hsl(38 50% 70%); }
+
+/* ── La lámina: icono y palabra, sin cajas ───────────────────────────────── */
+.tipo-suelto {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; padding: var(--s2); border: 0; border-radius: var(--r-sm);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--fast), color var(--fast);
+}
+.tipo-suelto:hover { background: var(--accent-soft); color: var(--accent); }
+.tipo-suelto > svg { color: var(--text-tertiary); flex-shrink: 0; }
+.tipo-suelto:hover > svg { color: var(--accent); }
+.tipo-nom { font-size: var(--fs-sm); }
+.tipo-cae {
+  margin-left: auto; font-size: var(--fs-2xs); color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.tipo-hint {
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  padding: var(--s1) var(--s2) 0;
+}
+
+/* ── El renglón que CONTIENE su control ──────────────────────────────────── */
+.renglon-libre { display: flex; flex-direction: column; }
+
+/*
+  La tarjeta deja de ser una línea y pasa a ser una caja: dentro va el control
+  de verdad, como en el lienzo de Coachway. Es lo que hace que esto se lea como
+  el formulario y no como su índice — la enfermedad que quedó declarada y sin
+  curar en la primera vuelta, cuando el control solo se veía en el carril.
+*/
+.q-card.es-libre { flex-direction: column; align-items: stretch; gap: var(--s2); padding: var(--s3); }
+.q-libre-cab { display: flex; align-items: center; gap: var(--s2); }
+.q-libre-control { padding-left: calc(15px + var(--s2)); }
+.q-oblig-marca { color: var(--accent); font-weight: 700; }
+
+/* El tono del suelto y del envío. Faltaba, y sin él `--fd-h` no existe: la
+   declaración `hsl(var(--fd-h) …)` se invalida ENTERA y el disco sale sin
+   pintar. No se veía en `verify` —el token no está «sin definir», está sin
+   asignar— sino en la captura. */
+.f-disco[data-tono='1'] { --fd-h: 38; }
+
+/* ── La regla, leída bajo el renglón ─────────────────────────────────────── */
+.regla-frase {
+  display: flex; align-items: center; gap: var(--s1);
+  margin: 0; padding: var(--s1) 0 0 calc(15px + var(--s3));
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.regla-frase > svg { flex-shrink: 0; }
+/* Los mandos van DENTRO de la frase: una condición se escribe como se lee, no
+   como tres desplegables en fila con sus etiquetas. */
+.regla-editor {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1);
+  margin: 0; font-size: var(--fs-xs); color: var(--text-secondary);
+  line-height: 2;
+}
+.input-corto { width: 72px; }
+
+/* ── La galería de plantillas ────────────────────────────────────────────── */
+.galeria {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--s2);
+}
+.plantilla-carta {
+  display: flex; flex-direction: column; gap: var(--s1);
+  padding: var(--s3); text-align: left; cursor: pointer;
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface); color: inherit; font: inherit;
+  transition: border-color var(--fast), transform var(--fast);
+}
+.plantilla-carta:hover { border-color: var(--accent); transform: translateY(-1px); }
+.plantilla-nom { font-size: var(--fs-sm); font-weight: 600; }
+.plantilla-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── El diálogo de mandar: un paso por pantalla ────────────────────────────── */
+.eleccion { display: flex; flex-direction: column; gap: 2px; }
+.eleccion-op {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  padding: var(--s2); border: 1px solid transparent; border-radius: var(--r-sm);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  transition: background-color var(--fast), border-color var(--fast);
+}
+.eleccion-op:hover:not(:disabled) { background: var(--fill-subtle); }
+.eleccion-op:disabled { opacity: 0.45; cursor: default; }
+.eleccion-op[aria-pressed='true'] {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
+.eleccion-marca {
+  width: 14px; height: 14px; margin-top: 3px; flex-shrink: 0;
+  border: 1.5px solid var(--hairline-strong); border-radius: var(--r-pill);
+}
+.eleccion-op[aria-pressed='true'] .eleccion-marca { border-color: var(--accent); border-width: 4px; }
+.eleccion-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.eleccion-nom { font-size: var(--fs-sm); font-weight: 600; }
+.eleccion-dice { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.eleccion-op[aria-pressed='true'] .eleccion-dice { color: var(--accent); }
+
+/* La misma lista cuando lo que se elige es UNA COSA TUYA y no una de cuatro
+   opciones fijas: puede tener veinte, así que se le pone techo y scroll. El
+   `<select>` que había aquí escondía justo lo que hay que mirar para elegir. */
+.eleccion-lista {
+  max-height: 200px; overflow-y: auto;
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  padding: var(--s1); background: var(--surface);
+}
+
+.mandar-gente {
+  list-style: none; margin: 0; padding: var(--s1);
+  max-height: 190px; overflow-y: auto;
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.mandar-quien {
+  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  padding: var(--s1) var(--s2); border: 0; border-radius: var(--r-sm);
+  background: none; color: inherit; font: inherit; font-size: var(--fs-sm);
+  text-align: left; cursor: pointer;
+}
+.mandar-quien:hover { background: var(--fill-subtle); }
+.mandar-tic {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 16px; height: 16px; border-radius: var(--r-xs);
+  border: 1.5px solid var(--hairline-strong); color: var(--accent-on);
+}
+.mandar-quien[aria-pressed='true'] .mandar-tic {
+  background: var(--accent); border-color: var(--accent);
+}
+/* El recuento con nombres: lo único que evita mandarle deberes a cuarenta
+   personas sin querer, así que se lee siempre y no al pasar por encima. */
+.mandar-cuenta {
+  margin: 0; padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm); background: var(--fill-subtle);
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.mandar-aviso { margin: 0; max-width: 42ch; }
+
+/* ── El repaso, antes de pulsar ───────────────────────────────────────────
+   Las tres respuestas juntas y en la misma línea de lectura que el botón que
+   las ejecuta. Rótulo y valor en dos columnas: es una ficha de lo que va a
+   pasar, no un párrafo. */
+.repaso {
+  margin: 0; display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-sunken); border: 1px solid var(--edge);
+}
+.repaso-fila { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: var(--s3); }
+.repaso-k { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.repaso-v { margin: 0; font-size: var(--fs-sm); color: var(--text); }
+
+@media (max-width: 560px) {
+  .repaso-fila { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* ── Los envíos ──────────────────────────────────────────────────────────── */
+.rotulo-tramo {
+  margin: var(--s5) 0 var(--s2);
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.rotulo-tramo:first-child { margin-top: 0; }
+
+.avance { display: inline-flex; align-items: center; gap: var(--s2); }
+.avance-via {
+  width: 62px; height: 5px; border-radius: var(--r-pill);
+  background: var(--fill-strong); overflow: hidden;
+}
+.avance-via > i { display: block; height: 100%; background: var(--accent); }
+.avance-dice {
+  font-size: var(--fs-xs); color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Una columna por pregunta: con seis ya no cabe, y la tabla se desplaza dentro
+   de su caja en vez de empujar la página entera de lado. */
+.tabla-ancha { overflow-x: auto; }
+.es-pendiente > td { color: var(--text-tertiary); }
+
+/* ══ Y el lado del cliente ═══════════════════════════════════════════════ */
+
+.hoja-libre {
+  display: flex; flex-direction: column; gap: var(--s4);
+  max-width: var(--max-w-columna); margin: 0 auto;
+  padding: var(--s5) var(--s4) var(--s6);
+}
+.libre-cab { display: flex; align-items: center; gap: var(--s2); }
+.libre-tit { margin: 0; font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; }
+/* El recado del entrenador, grapado al formulario que le mandó. Lleva el filete
+   del acento a la izquierda —el mismo recurso que una cita— porque es voz de
+   otra persona dentro de su portal, y no una instrucción del producto. */
+.libre-recado {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  margin: 0; padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--accent); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--accent-soft);
+  font-size: var(--fs-sm); line-height: var(--lh-base); color: var(--text);
+}
+.libre-recado > svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
+
+.libre-campos { display: flex; flex-direction: column; gap: var(--s4); }
+.libre-pie {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+}
+.libre-nota { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.libre-rot {
+  margin: var(--s4) 0 0;
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
+}
+.libre-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.libre-fila {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  padding: var(--s3); text-align: left; cursor: pointer;
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface); color: inherit; font: inherit;
+  transition: border-color var(--fast);
+}
+.libre-fila:hover { border-color: var(--accent); }
+.libre-fila.es-hecho { background: var(--surface-sunken); }
+.libre-fila-nom { font-size: var(--fs-base); font-weight: 600; }
+.libre-fila-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* Los controles del formulario suelto. Los ve el cliente y, apagados, el
+   entrenador dentro de cada renglón del constructor. */
+.apartado-libre { display: flex; flex-direction: column; gap: 2px; padding-top: var(--s3); }
+.apartado-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.nota-libre {
+  margin: 0; padding: var(--s3);
+  border-left: 2px solid var(--hairline-strong); border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--fill-subtle);
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.opciones-libres { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.chip-op {
+  padding: var(--s1) var(--s3); border-radius: var(--r-pill);
+  border: 1px solid var(--hairline-strong); background: var(--surface);
+  color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+  transition: border-color var(--fast), background-color var(--fast), color var(--fast);
+}
+.chip-op:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.chip-op[aria-pressed='true'] {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-on);
+}
+.chip-op:disabled { cursor: default; }
+.escala-libre { display: flex; flex-wrap: wrap; gap: var(--s1); }
+.escala-num {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text-secondary);
+  font: inherit; font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: border-color var(--fast), background-color var(--fast), color var(--fast);
+}
+.escala-num:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.escala-num[aria-pressed='true'] {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-on);
+}
+.escala-num:disabled { cursor: default; }
+.medidas-rejilla {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--s2) var(--s3);
+}
+
+@media (max-width: 900px) {
+  /* Tres columnas de mandar no caben en una tableta: se apilan, y el recuento
+     sigue justo debajo de su paso, que es donde hace falta. */
+  .mandar { grid-template-columns: 1fr; gap: var(--s4); }
+}

@@ -2,15 +2,20 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BOARD_COLUMNS,
+  COLAS_INICIO,
   INBOX_TASKS,
+  TRAMITES_INICIO,
   PORTFOLIO_FILTERS,
   buildPortfolio,
   clientStatus,
+  columnFor,
   isArchived,
+  pauseOf,
   reviewState,
   portfolioBoard,
   portfolioInbox,
   portfolioSummary,
+  colasDeInicio,
   reviewQueue,
 } from './portfolio';
 
@@ -135,6 +140,144 @@ describe('portfolioBoard', () => {
     const board = portfolioBoard([]);
     expect(board).toHaveLength(BOARD_COLUMNS.length);
     expect(board.every((c) => c.rows.length === 0)).toBe(true);
+  });
+});
+
+/*
+  ══ Lo que le mandaste y no ha hecho ═══════════════════════════════════════
+
+  Lo suelto se veía en `/protocolos` envío por envío y en su ficha, así que para
+  saber a quién le falta algo había que abrirlos de uno en uno y cruzarlos
+  mentalmente. Esta es la vuelta que faltaba: sale donde ya se mira todo lo demás.
+*/
+describe('lo mandado vuelve a la cartera', () => {
+  it('sin nada pendiente no dice nada', () => {
+    const row = clientStatus({ client: client(), mandadoCount: 0 }, '2026-08-11');
+    expect(row.alerts.map((a) => a.id)).not.toContain('mandado_pending');
+  });
+
+  it('con una cosa y con varias, lo dice contado', () => {
+    const una = clientStatus({ client: client(), mandadoCount: 1 }, '2026-08-11');
+    expect(una.alerts.find((a) => a.id === 'mandado_pending').label).toBe(
+      'Le falta algo que le mandaste'
+    );
+
+    const varias = clientStatus({ client: client(), mandadoCount: 3 }, '2026-08-11');
+    expect(varias.alerts.find((a) => a.id === 'mandado_pending').label).toBe(
+      'Le faltan 3 cosas que le mandaste'
+    );
+  });
+
+  /* En pausa no se le reclama NADA, y esto no es una excepción: a quien le has
+     dicho que pare no se le recuerdan deberes. */
+  it('a quien está en pausa no se le reclama', () => {
+    const enPausa = client({ status: 'paused', pausedUntil: '2099-01-01' });
+    const row = clientStatus({ client: enPausa, mandadoCount: 2 }, '2026-08-11');
+    expect(row.alerts.map((a) => a.id)).not.toContain('mandado_pending');
+  });
+
+  it('entra en la bandeja como una cola más', () => {
+    const rows = buildPortfolio(
+      { clients: [client()], mandadoCounts: { c1: 2 } },
+      '2026-08-11'
+    );
+    const { tasks } = portfolioInbox(rows);
+    const cola = tasks.find((t) => t.id === 'mandado');
+    expect(cola).toBeDefined();
+    expect(cola.rows).toHaveLength(1);
+    expect(cola.rows[0].why).toBe('Le faltan 2 cosas que le mandaste');
+  });
+});
+
+/*
+  ══ Y lo que ha VUELTO ══════════════════════════════════════════════════════
+
+  La otra mitad: con la alerta de arriba sola, la cartera sabía decir a quién le
+  falta algo y no sabía decir quién ya lo ha mandado. La marca de leído (0108) es
+  lo que hace que esta cola se pueda vaciar.
+*/
+/*
+  ══ Ninguna tarea se calcula para nadie ═════════════════════════════════════
+
+  «Hoy» pinta las COLAS y los TRÁMITES, y nada más. Una tarea de `INBOX_TASKS`
+  que no esté en ninguna de las dos listas se calcula en cada render y no sale en
+  ninguna pantalla — que es lo que le pasó a «Les falta lo que les mandaste»
+  desde que se escribió. Esta prueba es la que lo impide de aquí en adelante.
+*/
+describe('la bandeja llega entera a Inicio', () => {
+  it('cada tarea es una cola o un trámite', () => {
+    const enColas = new Set(COLAS_INICIO.flatMap((c) => c.tasks));
+    /* «Por revisar» no declara `tasks`: se construye con `reviewQueue`, que es
+       otra forma del mismo trabajo. */
+    enColas.add('review');
+    const huerfanas = INBOX_TASKS.map((t) => t.id).filter(
+      (id) => !enColas.has(id) && !TRAMITES_INICIO.includes(id)
+    );
+    expect(huerfanas).toEqual([]);
+  });
+
+  it('lo contestado sale como cola propia, con su verbo', () => {
+    const rows = buildPortfolio({ clients: [client()], contestadoCounts: { c1: 2 } }, '2026-08-11');
+    const cola = colasDeInicio(rows, '2026-08-11').find((c) => c.id === 'leer');
+    expect(cola.n).toBe(1);
+    expect(cola.label).toBe('Sin leer');
+    expect(cola.verbo).toBe('Leer');
+    expect(cola.filas[0].row.client.id).toBe('c1');
+  });
+});
+
+describe('lo contestado vuelve a la cartera', () => {
+  it('sin nada por leer no dice nada', () => {
+    const row = clientStatus({ client: client(), contestadoCount: 0 }, '2026-08-11');
+    expect(row.alerts.map((a) => a.id)).not.toContain('contestado_nuevo');
+  });
+
+  it('con una y con varias, lo dice contado', () => {
+    const una = clientStatus({ client: client(), contestadoCount: 1 }, '2026-08-11');
+    expect(una.alerts.find((a) => a.id === 'contestado_nuevo').label).toBe(
+      'Te ha contestado y no lo has leído'
+    );
+
+    const varias = clientStatus({ client: client(), contestadoCount: 3 }, '2026-08-11');
+    expect(varias.alerts.find((a) => a.id === 'contestado_nuevo').label).toBe(
+      'Te ha contestado 3 cosas sin leer'
+    );
+  });
+
+  /* Misma vara que el check-in por revisar: es el mismo hecho —alguien ha hecho
+     su parte y espera—, y dos gravedades distintas ordenarían mal la cartera. */
+  it('pesa lo mismo que un check-in por revisar', () => {
+    const row = clientStatus({ client: client(), contestadoCount: 1 }, '2026-08-11');
+    expect(row.alerts.find((a) => a.id === 'contestado_nuevo').severity).toBe('media');
+  });
+
+  /* En pausa se calla, igual que la entrega del check-in: «una entrega en pausa
+     no es trabajo hasta la vuelta». La respuesta no se pierde — sigue sin leer. */
+  it('a quien está en pausa no se le reclama todavía', () => {
+    const enPausa = client({ status: 'paused', pausedUntil: '2099-01-01' });
+    const row = clientStatus({ client: enPausa, contestadoCount: 2 }, '2026-08-11');
+    expect(row.alerts.map((a) => a.id)).not.toContain('contestado_nuevo');
+  });
+
+  it('entra en la bandeja, y como trabajo que ESPERA', () => {
+    const rows = buildPortfolio({ clients: [client()], contestadoCounts: { c1: 1 } }, '2026-08-11');
+    const { tasks } = portfolioInbox(rows);
+    const cola = tasks.find((t) => t.id === 'contestado');
+    expect(cola).toBeDefined();
+    expect(cola.awaited).toBe(true);
+    expect(cola.rows).toHaveLength(1);
+    expect(cola.rows[0].why).toBe('Te ha contestado y no lo has leído');
+  });
+
+  /* Lo que ha vuelto va DELANTE de lo que falta: leerlo cambia a menudo lo que
+     ibas a reclamar. */
+  it('va delante de «les falta lo que les mandaste»', () => {
+    const rows = buildPortfolio(
+      { clients: [client()], contestadoCounts: { c1: 1 }, mandadoCounts: { c1: 1 } },
+      '2026-08-11'
+    );
+    const ids = portfolioInbox(rows).tasks.map((t) => t.id);
+    expect(ids.indexOf('contestado')).toBeLessThan(ids.indexOf('mandado'));
   });
 });
 
@@ -619,5 +762,134 @@ describe('el aviso de alta entregada', () => {
     expect(ids.indexOf('intake_ready')).toBeLessThan(
       ids.indexOf('intake') === -1 ? Infinity : ids.indexOf('intake')
     );
+  });
+});
+
+/*
+  ══ La pausa: el estado del lesionado y del que se va un mes ═════════════════
+
+  Sin ella solo había dos sitios donde estar —activo, con alertas falsas que
+  reprochan parar a quien TÚ le dijiste que parara, o archivado, como si hubiera
+  terminado—. La regla entera es «sin reproches»: vigente, ni una alerta;
+  vencida, las alertas vuelven solas y lo único nuevo es el aviso de que venció.
+*/
+describe('la pausa', () => {
+  const hoy = '2026-09-07';
+  /* Sin cuenta enlazada a propósito: es la alerta más tozuda de todas (gravedad
+     alta, sale la primera), así que si la pausa calla ESA, calla cualquiera. */
+  const pausado = client({ status: 'paused', pausedUntil: '2026-10-12', clientProfileId: null });
+
+  it('vigente: ni una alerta, y la fila lo dice', () => {
+    const row = clientStatus({ client: pausado }, hoy);
+
+    expect(row.alerts).toEqual([]);
+    expect(row.severity).toBeNull();
+    expect(row.needsAttention).toBe(false);
+    expect(row.paused).toEqual({ on: true, until: '2026-10-12', expired: false });
+  });
+
+  it('sin fecha también es una pausa: dura hasta que alguien la levante', () => {
+    expect(pauseOf(client({ status: 'paused' }), hoy)).toEqual({
+      on: true,
+      until: null,
+      expired: false,
+    });
+  });
+
+  it('vencida: las alertas vuelven y lo único nuevo es el aviso de que venció', () => {
+    const row = clientStatus(
+      { client: client({ status: 'paused', pausedUntil: '2026-09-01', clientProfileId: null }) },
+      hoy
+    );
+    const ids = row.alerts.map((a) => a.id);
+
+    expect(ids).toContain('pause_over');
+    expect(ids).toContain('no_account'); // la pausa vencida ya no silencia nada
+    expect(row.paused).toBeNull();
+  });
+
+  it('la cola de revisiones lo da por off, aunque haya entregado', () => {
+    expect(reviewState({ client: client(), paused: { on: true, until: null } })).toBe('off');
+  });
+
+  it('en el tablero va con los que están al día, y en la lista al final', () => {
+    const rows = buildPortfolio(
+      { clients: [pausado, client({ id: 'c2', name: 'Bea', clientProfileId: null })] },
+      hoy
+    );
+
+    const fila = rows.find((r) => r.client.id === 'c1');
+    expect(columnFor(fila)).toBe('on_track');
+    /* Bea tiene una alerta alta; el pausado, ninguna: va detrás. */
+    expect(rows.map((r) => r.client.id)).toEqual(['c2', 'c1']);
+  });
+
+  it('tiene su filtro con su cifra, y no se cuela en «al día»', () => {
+    const rows = buildPortfolio(
+      { clients: [pausado, client({ id: 'c2', name: 'Bea' })] },
+      hoy
+    );
+    const cuenta = (id) => rows.filter(PORTFOLIO_FILTERS.find((f) => f.id === id).test).length;
+
+    expect(cuenta('paused')).toBe(1);
+    expect(rows.filter(PORTFOLIO_FILTERS.find((f) => f.id === 'ok').test)
+      .map((r) => r.client.id)).not.toContain('c1');
+  });
+
+  it('una entrega en pausa no cuenta como trabajo pendiente', () => {
+    /* `review.pending` lo leen la bandeja de Hoy y los filtros SIN pasar por
+       `reviewState`: si la pausa no lo apagara aquí, el pausado saldría en
+       «Responder check-ins» — trabajo que no corre hasta su vuelta. */
+    const rows = buildPortfolio(
+      {
+        clients: [pausado],
+        checkIns: {
+          c1: { id: 'ci1', weekStart: '2026-08-31', submittedAt: '2026-09-03', reviewedAt: null },
+        },
+      },
+      hoy
+    );
+
+    expect(rows[0].review.pending).toBe(false);
+    expect(rows[0].review.submittedAt).toBe('2026-09-03'); // la entrega no se pierde
+  });
+});
+
+/*
+  ══ La vara es de cada persona ═══════════════════════════════════════════════
+
+  «7 días sin entrenar» salta en cada semana normal de quien entrena dos días.
+  Afinada en su protocolo (`alertDays`), la alerta espera lo que ESA persona
+  tiene de silencio normal; sin afinar (0), la vara general de siempre.
+*/
+describe('el umbral de alerta afinado por cliente', () => {
+  const hoy = '2026-09-07';
+  /* 9 días sin entrenar: por encima de la vara general (7) y por debajo de una
+     afinada a 14. El mismo dato, dos veredictos — que es el punto. */
+  const conSilencio = (alertDays) =>
+    clientStatus(
+      {
+        client: client({ preferences: { protocol: alertDays ? { alertDays } : {} } }),
+        training: {
+          lastTraining: '2026-08-29',
+          microcycleCount: 4,
+          sessionCount: 12,
+          weekNumber: 4,
+        },
+      },
+      hoy
+    );
+
+  it('sin afinar, manda la vara general', () => {
+    expect(conSilencio(null).alerts.map((a) => a.id)).toContain('stale_training');
+  });
+
+  it('afinada a 14, nueve días de silencio no son una alerta', () => {
+    expect(conSilencio({ training: 14 }).alerts.map((a) => a.id)).not.toContain('stale_training');
+  });
+
+  it('un valor absurdo guardado a mano cae a la vara general', () => {
+    expect(conSilencio({ training: 'catorce' }).alerts.map((a) => a.id)).toContain('stale_training');
+    expect(conSilencio({ training: -3 }).alerts.map((a) => a.id)).toContain('stale_training');
   });
 });

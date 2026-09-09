@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { directionById, targetRateKg } from '@/domain/goals';
 import { WEEK_DAYS, isRestDay, trainingDayCount } from '@/domain/training';
 import { fmt } from '@/lib/num';
+import { useOculto } from '@/components/Client/Oculto';
 import { Tarjeta } from './Tarjeta';
 
 const kg = (v) => `${v > 0 ? '+' : ''}${Number(v).toLocaleString('es-ES', { maximumFractionDigits: 2 })}`;
@@ -97,6 +98,11 @@ export const TarjetaPlan = ({
   onAbrirFases,
   isClient = false,
 }) => {
+  /* Su plan sin las cifras que no le vuelven: la palanca de calorías se retira
+     entera —es kcal y macros y nada más— y el ritmo del objetivo también, que
+     son kilos por semana con otro nombre. Lo que queda es lo que sí puede
+     leer: qué busca, cuántos pasos, qué cardio y cuántos días entrena. */
+  const oculto = useOculto();
   const direction = goal ? directionById(goal.direction) : null;
   const ritmo = targetRateKg(goal, pesoActual);
   const dias = program?.weeklySplit ? trainingDayCount(program.weeklySplit) : null;
@@ -126,10 +132,10 @@ export const TarjetaPlan = ({
           k="Objetivo"
           valor={direction?.label || (isClient ? 'Sin objetivo' : invita('Ponle objetivo'))}
           texto
-          sub={ritmo !== null ? `${kg(ritmo)} kg por semana` : null}
+          sub={ritmo !== null && !oculto.weight ? `${kg(ritmo)} kg por semana` : null}
           a={puerta(onAbrirFases)}
         />
-        {conDieta && (
+        {conDieta && !oculto.nutrition && (
           <Palanca
             k="Calorías"
             valor={

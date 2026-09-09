@@ -1,35 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 /* Al hacer propio el calentamiento de un día se parte de una COPIA del programa,
    no de cero: lo normal es querer lo mismo con un ejercicio cambiado. Con ids
    nuevos, para que editarlo aquí no toque el del programa. */
 import {
-  ArrowLeft,
-  ChevronDown,
+  Bookmark,
   CalendarDays,
   Copy,
+  Download,
   FileUp,
   Layers,
   Plus,
+  Settings2,
   Trash2,
   Users,
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { useArrastreOrden } from '@/lib/useArrastreOrden';
-import { useClickOutside } from '@/lib/useClickOutside';
-import { useDismissable } from '@/lib/useDismissable';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 import {
   cloneExerciseAsTemplate,
-  dayMuscleVolume,
-  dayPlannedVolume,
   drillsForDay,
   dayHasOwnDrills,
-  indexAfterMove,
+  tecnicaOf,
   unitInitial,
   unitIsFeminine,
   unitLabel,
@@ -37,11 +33,11 @@ import {
   weekTonnage,
   weekdayForDay,
 } from '@/domain/training';
-import { sessionCompletion, sessionMuscleVolume, sessionTonnage } from '@/domain/sessions';
+import { sessionCompletion, sessionTonnage } from '@/domain/sessions';
 import { isEmptyDiet } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
-import { EmptyState, RenombrarEnSitio, SaveIndicator } from '@/components/ui/primitives';
+import { EmptyState, SaveIndicator } from '@/components/ui/primitives';
 import { ConditionsNote } from '@/components/conditions/ConditionsNote';
 import { EquipmentNote } from '@/components/equipment/EquipmentNote';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -59,25 +55,33 @@ import { AddExerciseForm } from './AddExerciseForm';
 import { ComparativaEjercicio } from './ComparativaEjercicio';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { Subjetivo } from '@/components/ui/Subjetivo';
-import { VistaBloque } from './VistaBloque';
+import { TiraDelPrograma } from './TiraDelPrograma';
+import { ConjuntoDelBloque } from './ConjuntoDelBloque';
+import { LecturasDelBloque } from './LecturasDelBloque';
+import { ListaDeBloques } from './ListaDeBloques';
 import { ComoLoLlevo } from './ComoLoLlevo';
 import { ProgresionPopup } from './ProgresionPopup';
 import { SensacionesPopup } from './SensacionesPopup';
-import { DefinirBloque } from './DefinirBloque';
 import {
   BLOCK_CHANGE,
   blockOfWeek,
+  blockSessionsOf,
   blocksOf,
+  describeOverride,
   overridesAt,
   overrideSpan,
   isCurrentBlock,
   lastWeekNumber,
+  planOfDay,
   resolvedMicrocycles,
+  structureOfBlock,
   weekInBlock,
   weekLabel,
   weeksOfBlock,
 } from '@/domain/blocks';
-import { executedSessions } from '@/domain/sessions';
+import { MAX_PIECES, buildPiece, freeSheetName, piecesOf } from '@/domain/pieces';
+import { clientPath } from '@/routes';
+import { executedSessions, sessionSetCount } from '@/domain/sessions';
 import { latestActiveWeek } from '@/domain/week';
 
 /** Sin `?s=`, la última semana montada. */
@@ -113,8 +117,8 @@ export const WorkoutLogEditor = () => {
     removeSession,
     startProgram,
     appendMicrocycle,
-    startBlockWithPlan,
     renameBlock,
+    setBlockTraits,
     deleteBlock,
     logBlockChange,
     addBlockSheet,
@@ -143,16 +147,8 @@ export const WorkoutLogEditor = () => {
     removeMicrocycle,
     restoreMicrocycle,
     setMicrocycleDate,
-    addDay,
     importDays,
-    renameDay,
-    duplicateDay,
-    moveDay,
-    removeDay,
-    restoreDay,
     addExercises,
-    updateExerciseSet,
-    updateExerciseTarget,
     upsertLibraryExercise,
     nutrition,
     replicateClient,
@@ -168,8 +164,6 @@ export const WorkoutLogEditor = () => {
   } = useApp();
 
   const [copyOpen, setCopyOpen] = useState(false);
-  const [newDayName, setNewDayName] = useState('');
-  const [addingDay, setAddingDay] = useState(false);
 
   /* El alta de ejercicio del teléfono: la abre el botón flotante como hoja. */
   const esTelefono = useEsTelefono();
@@ -189,18 +183,23 @@ export const WorkoutLogEditor = () => {
   const [focoEjercicio, setFocoEjercicio] = useState(null);
   /* El panel lateral abierto: el de la semana, el del día, o ninguno. */
   const [panel, setPanel] = useState(null);
-  const [renombrando, setRenombrando] = useState(null);
+  /* El nombre de la hoja que se está añadiendo desde la tira, o `null` si no
+     hay ninguna a medias. Vive aquí y no en `ConjuntoDelBloque` porque el
+     mando salió de la rejilla y subió al renglón del microciclo. */
+  const [nuevaHojaEnTira, setNuevaHojaEnTira] = useState(null);
+  /* Renombrar la hoja ya no tiene estado aquí: el titular de la pantalla es su
+     nombre y se renombra pulsándolo, dentro de `CabeceraDelBloque`. */
+  /*
+    ── Las dos puertas del plan que no caben en la mesa ─────────────────────
+    La mesa es la tabla de series: número, objetivo y lo que hizo. Lo que NO
+    es una serie —el descanso entre ellas, la técnica de la última, las
+    alternativas si no hay máquina— vivía en la vista de Conjunto, que ya no
+    existe, y lo mismo el reparto de la semana. No se pierden: son AJUSTES de
+    la hoja y del microciclo, y se abren desde donde se elige cada uno.
+  */
   const [indicacionAbierta, setIndicacionAbierta] = useState(false);
   const [progresionAbierta, setProgresionAbierta] = useState(false);
   const [sensacionesAbiertas, setSensacionesAbiertas] = useState(false);
-  const [semanasAbiertas, setSemanasAbiertas] = useState(false);
-  const semanasRef = useRef(null);
-  useClickOutside(semanasRef, () => setSemanasAbiertas(false), semanasAbiertas);
-  const semanasMenu = useDismissable(semanasAbiertas);
-  /* La ventana de abrir un bloque nuevo. El SELECTOR de bloques se retiró: se
-     cambia de bloque pulsándolos en el historial del costado, que además dice
-     cuál fue cuál. */
-  const [nuevoBloque, setNuevoBloque] = useState(false);
 
   const program = workoutData[activeClient.id];
 
@@ -270,6 +269,26 @@ export const WorkoutLogEditor = () => {
   const [params, setParams] = useSearchParams();
   const sParam = Number(params.get('s')) || null;
   const dParam = Number(params.get('d')) || 0;
+
+  const navigate = useNavigate();
+  /* Componer tiene su sitio, y no es esta pantalla. Ver `Compositor.jsx`. */
+  const aComponer = () => navigate(`${clientPath(activeClient.id, 'rutina')}/componer`);
+
+  /*
+    ── «Traer de un fichero», desde el compositor ────────────────────────────
+    El importador vive aquí porque trae la rutina Y la dieta del mismo libro y
+    necesita el microciclo contra el que importar. El compositor no lo duplica:
+    devuelve a esta pantalla con `?traer=1`, y esto lo abre y borra la marca —
+    si se quedara puesta, recargar o volver atrás lo abriría otra vez.
+  */
+  useEffect(() => {
+    if (params.get('traer') !== '1') return;
+    setImportarLimpio(true);
+    setPegarAbierto(true);
+    const limpio = new URLSearchParams(params);
+    limpio.delete('traer');
+    setParams(limpio, { replace: true });
+  }, [params, setParams]);
   const { weeks: semanasMontadas, week: semanaNav, selectWeek, days: diasNav, dayIndex: diaNav, selectDay } = nav;
   useEffect(() => {
     const semana = sParam && semanasMontadas.includes(sParam) ? sParam : semanaPorDefecto(microcycles);
@@ -279,35 +298,85 @@ export const WorkoutLogEditor = () => {
     if (diasNav.length > 0 && dParam !== diaNav && dParam < diasNav.length) selectDay(dParam);
   }, [dParam, diasNav, diaNav, selectDay]);
   /*
-    ══ DOS NIVELES, NO DOS MODOS ═════════════════════════════════════════════
+    ══ UNA SOLA PANTALLA: EL BLOQUE, Y UNA HOJA ABIERTA DENTRO ════════════════
 
-    No es un interruptor entre dos vistas de lo mismo: es una jerarquía, y se
-    navega como tal.
+    Aquí hubo un conmutador «Conjunto | Hojas», después una pestaña
+    «Plan | Análisis», después los LOMOS, después un paginador «‹ 1/4 ›»,
+    después un carril. Cinco mecanismos en un mes, y los cinco fallaban por lo
+    mismo: eran un mando AL LADO de lo que cambiaba, y además obligaban a
+    decidir en qué pantalla estabas antes de poder mirar nada.
 
-        Bloque 2 ▾                 ← el plan: sus hojas y sus ejercicios
-           └ Push A · S4           ← la hoja: las series de esa semana
+    Ahora no hay dos pantallas. La pantalla es EL BLOQUE —siempre— y abrir una
+    hoja es un estado suyo: la banda de días manda, y lo que cuelga de ella es
+    la rejilla entera o la hoja abierta.
 
-    Se ENTRA pulsando una hoja y se VUELVE por la miga. Un `SegmentedControl`
-    decía que las dos eran hermanas y que había que elegir una; y además metía
-    un control más en una barra que ya iba llena.
+        (sin parámetro)   el bloque: sus hojas, su estructura, su información
+        ?v=hoja&d=N       esa hoja abierta, en el mismo panel y bajo la banda
+        ?v=lista          todos los bloques, para comparar
 
-    ── Y se sale al bloque, no a la hoja ───────────────────────────────────
-    Porque el bloque es lo que orienta: al abrir a alguien la pregunta es «qué
-    le estoy dando», y desde ahí la hoja de hoy está a un clic informado —se ve
-    lo que lleva dentro antes de entrar—. Al revés, la hoja no dice nada del
-    bloque en el que vive.
+    Eso arregla de paso la jerarquía, que era la queja: la cabecera es siempre
+    la del bloque, así que el contenedor no puede volver a quedar dibujado por
+    debajo de lo que contiene —que es lo que pasaba con el carril—.
 
     Va en la URL y no en un `useState` porque es dónde estás, no una
     preferencia: se comparte, se recarga y se vuelve con el botón de atrás.
   */
-  const vista = params.get('v') === 'hoja' ? 'hoja' : 'bloque';
-  /* `v` solo se escribe para bajar a la hoja: el bloque es el nivel de salida
-     y no necesita marca en la URL. */
+  const vista = ['lista', 'hoja'].includes(params.get('v')) ? params.get('v') : 'bloque';
+  /*
+    ── El andamio de las dos armaduras se ha ido ────────────────────────────
+    Aquí vivió un `?arm=carril` que dejaba convivir la banda de pestañas y el
+    carril de Efort para poder clicarlas las dos. El dueño ya dio veredicto —«lo
+    que está ahora de entreno está mucho mejor», hablando de producción— y las
+    dos perdieron: manda la tira del programa, que es la cabecera que Entreno
+    tenía en producción. Ver `TiraDelPrograma`.
+  */
   const irA = (w, i = 0, v = vista) => {
     const next = { s: String(w), d: String(i) };
-    setParams(v === 'hoja' ? { ...next, v } : next);
+    setParams(v === 'bloque' ? next : { ...next, v });
   };
   const verVista = (v) => irA(nav.week, Math.max(0, nav.dayIndex), v);
+
+  /*
+    ── Esc cierra la hoja ────────────────────────────────────────────────────
+    Abrir una hoja es asomarse dentro del bloque, no mudarse, y de lo que se
+    asoma uno se sale con Esc. Con el bloque delante el Esc no hace nada: es la
+    casa, y de la casa no se sale.
+
+    Dos guardas, y las dos hacen falta: si hay una capa abierta el Esc es SUYO
+    —cerrar la ventana y cerrar la hoja de un tecleo serían dos cosas por un
+    gesto—, y si se está escribiendo en un campo, también, que ahí Esc descarta
+    lo tecleado.
+  */
+  /*
+    ── Y las flechas pasan de hoja ───────────────────────────────────────────
+    «Cambiar de hoja es incómodo.» Además de dejar el mando siempre a la vista
+    —la banda pegada arriba, o el carril—, el paso a la de al lado es ← y →,
+    que es el gesto de quien ya sabe dónde está. Con las mismas guardas que el
+    Esc: si hay una capa abierta o se está escribiendo, las flechas son suyas.
+  */
+  useEffect(() => {
+    if (vista !== 'hoja') return undefined;
+    const alPulsar = (e) => {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!['Escape', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      if (document.querySelector('[role="dialog"], [role="menu"]')) return;
+      const foco = document.activeElement;
+      if (foco && (foco.tagName === 'INPUT' || foco.tagName === 'TEXTAREA' || foco.isContentEditable)) return;
+      if (e.key === 'Escape') {
+        verVista('bloque');
+        return;
+      }
+      const cuantas = nav.days.length;
+      if (cuantas < 2) return;
+      const paso = e.key === 'ArrowLeft' ? -1 : 1;
+      /* Da la vuelta: en un microciclo de cuatro, seguir a la derecha desde la
+         última es volver a la primera, no chocarse con un tope. */
+      e.preventDefault();
+      irA(nav.week, (nav.dayIndex + paso + cuantas) % cuantas, 'hoja');
+    };
+    document.addEventListener('keydown', alPulsar);
+    return () => document.removeEventListener('keydown', alPulsar);
+  });
   /* Antes de cualquier `return` temprano: son hooks. */
   const semanaEnCurso = useMemo(
     () => latestActiveWeek({ microcycles, startDate: activeClient.startDate }),
@@ -317,27 +386,6 @@ export const WorkoutLogEditor = () => {
   const toast = useToast();
   const confirm = useConfirm();
 
-  /**
-   * Cambia un día de sitio y deja abierto EL MISMO que estabas editando.
-   *
-   * Las dos entradas —arrastrar un chip y Alt + ←/→ sobre él— pasan por aquí,
-   * porque el cuidado es el mismo y el error también: `selectDay` guarda un
-   * ÍNDICE, así que mover cualquier día corre el del que tienes abierto. Ver
-   * `indexAfterMove`.
-   */
-  const moverDia = (from, to) => {
-    const nombre = nav.days[from]?.dayName;
-    if (!nombre) return;
-    const destino = moveDay(activeClient.id, nav.week, nombre, to);
-    if (destino < 0) return;
-    irA(nav.week, indexAfterMove(nav.dayIndex, from, destino));
-  };
-  const ordenDias = useArrastreOrden({ onMove: moverDia });
-
-  /* Las dos entradas al mismo sitio: el arrastre del carril y Alt + ←/→ pasan
-     por `moverDia`. El hook se llama aquí arriba, antes de los retornos
-     tempranos de «cargando» y «sin programa» — un hook no puede quedar detrás
-     de un `return`. */
   const save = saveStatus('workout', activeClient.id);
 
   const daySession = useDaySession(nav.microcycle, nav.day);
@@ -366,14 +414,11 @@ export const WorkoutLogEditor = () => {
     pregunta de esta pantalla es «¿cuánto le he puesto?». Lo ejecutado se añade
     al lado cuando existe, como referencia y sin quitarle el sitio.
   */
-  const planned = useMemo(() => dayPlannedVolume(nav.day), [nav.day]);
-  const doneSets = useMemo(
-    () =>
-      daySession.session
-        ? Object.values(sessionMuscleVolume(daySession.session)).reduce((a, b) => a + b, 0)
-        : Object.values(dayMuscleVolume(nav.day)).reduce((a, b) => a + b, 0),
-    [daySession.session, nav.day]
-  );
+  /* ── Y AQUÍ SE CONTABAN LAS SERIES ESCRITAS ──────────────────────────────
+     `planned` y `doneSets` alimentaban «20 de 20 series escritas» en la
+     cabecera de la hoja. La frase se ha ido —no cabía en el renglón y ya la
+     dicen el disco de la pestaña y la propia tabla—, así que las dos cuentas
+     se van con ella en vez de quedarse calculándose para nadie. */
 
   const indicator = (
     <SaveIndicator
@@ -582,14 +627,6 @@ export const WorkoutLogEditor = () => {
     );
   }
 
-  const handleAddDay = (event) => {
-    event.preventDefault();
-    const name = newDayName.trim();
-    if (!name) return;
-    addDay(activeClient.id, nav.week, name);
-    setNewDayName('');
-    setAddingDay(false);
-  };
   /*
     ══ Los AJUSTES del programa, fuera del plan ══════════════════════════════
 
@@ -722,17 +759,6 @@ export const WorkoutLogEditor = () => {
     });
   };
 
-  /* A la vista: la abierta y sus vecinas. */
-  const VENTANA_SEMANAS = 5;
-  const semanasVisibles = (() => {
-    if (semanasDelBloque.length <= VENTANA_SEMANAS) return semanasDelBloque;
-    const i = Math.max(0, semanasDelBloque.indexOf(nav.week));
-    const desde = Math.min(Math.max(0, i - 2), semanasDelBloque.length - VENTANA_SEMANAS);
-    return semanasDelBloque.slice(desde, desde + VENTANA_SEMANAS);
-  })();
-  const diaDeLaSemana =
-    cycleType === 'weekly' && nav.day ? weekdayForDay(program.weeklySplit, nav.day.dayName) : null;
-
   const eliminarSemana = () => {
     const cycle = nav.microcycle;
     /* Si era la única del bloque abierto, con ella se va el bloque: se guarda lo
@@ -753,34 +779,6 @@ export const WorkoutLogEditor = () => {
     });
   };
 
-  const eliminarDia = () => {
-    const day = nav.day;
-    const index = nav.dayIndex;
-    const { week } = nav;
-    if (nav.days.length === 1) {
-      const cycle = nav.microcycle;
-      const destino = removeMicrocycle(activeClient.id, week);
-      if (destino) irA(destino);
-      if (!cycle) return;
-      toast({
-        text: `«${day.dayName}» era el único día, así que se ha eliminado ${unidad.toLowerCase()} ${cycle.weekNumber}.`,
-        duration: 10000,
-        action: {
-          label: 'Deshacer',
-          onClick: () => {
-            restoreMicrocycle(activeClient.id, cycle);
-            irA(cycle.weekNumber);
-          },
-        },
-      });
-      return;
-    }
-    removeDay(activeClient.id, week, day.dayName);
-    toast({
-      text: `«${day.dayName}» eliminado.`,
-      action: { label: 'Deshacer', onClick: () => restoreDay(activeClient.id, week, day, index) },
-    });
-  };
 
   /*
     ══════════════════════════════════════════════════════════════════════════
@@ -817,6 +815,31 @@ export const WorkoutLogEditor = () => {
   const apuntar = (entry) => logBlockChange(activeClient.id, bloque.id, entry);
   const apuntarEnBloque = (hoja, entry) => apuntar({ alcance: 'bloque', semanas: [], hoja, ...entry });
 
+  /*
+    ── Tus piezas ────────────────────────────────────────────────────────────
+    Los días guardados del entrenador (`domain/pieces`), en sus preferencias.
+    Guardar lee el plan efectivo de la hoja —venga del bloque o del microciclo
+    de referencia—; poner crea una hoja nueva en el bloque abierto con todo lo
+    suyo dentro, con ids nuevos para no cruzar registros.
+  */
+  const piezas = piecesOf(coachPrefs);
+
+  const guardarPieza = (dayName) => {
+    const semanas = weeksOfBlock(program, bloque);
+    const dia = semanas.length > 0 ? planOfDay(program, semanas[semanas.length - 1], dayName) : null;
+    if (!dia || (dia.exercises || []).length === 0) {
+      toast({ text: `«${dayName}» está en blanco: no hay nada que guardar.` });
+      return;
+    }
+    if (piezas.length >= MAX_PIECES) {
+      toast({ text: `Ya tienes ${MAX_PIECES} piezas. Quita alguna desde el cajón para guardar esta.` });
+      return;
+    }
+    const pieza = buildPiece({ name: dayName, exercises: dia.exercises, savedAt: new Date().toISOString() });
+    updateCoachPreferences('piezas', { items: [...piezas, pieza] });
+    toast({ text: `«${dayName}» guardada como pieza tuya. Está en el cajón, para cualquier cliente.` });
+  };
+
   const anadirEjercicioAlBloque = (dayName, exercise) => {
     addBlockExercise(activeClient.id, bloque.id, dayName, cloneExerciseAsTemplate(exercise));
     apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.EJERCICIO_MAS, que: exercise.name });
@@ -842,6 +865,8 @@ export const WorkoutLogEditor = () => {
     });
   };
 
+  /* Arrastrar un ejercicio dentro de su hoja, en el conjunto. Es el mismo
+     gesto —y la misma escritura— que arrastrarlo en la tabla de la hoja. */
   const moverEjercicioDelBloque = (dayName, name, delta) =>
     moveBlockExercise(activeClient.id, bloque.id, dayName, name, delta);
 
@@ -873,6 +898,96 @@ export const WorkoutLogEditor = () => {
     removeBlockSheet(activeClient.id, bloque.id, nombre);
     apuntarEnBloque(nombre, { kind: BLOCK_CHANGE.HOJA_MENOS, que: nombre });
     toast({ text: `«${nombre}» quitada del bloque. Lo que se entrenó de ella se conserva.` });
+  };
+
+  /*
+    ── Duplicar una hoja ─────────────────────────────────────────────────────
+    «Otro día igual que el lunes pero cambiando dos cosas» es cómo se monta la
+    mitad de las rutinas. Estaba como `duplicateDay`, que copiaba el día dentro
+    del microciclo: desde que el plan vive en el bloque, eso lo pisaba la
+    proyección y el gesto no hacía nada. Copia al PLAN, con ids nuevos —los
+    mismos cuidados que poner una pieza— para no cruzar registros.
+  */
+  const duplicarHojaDelBloque = (dayName) => {
+    const origen = planOfDay(program, nav.week, dayName);
+    if (!origen) return;
+    const nombre = freeSheetName(dayName, blockSessionsOf(bloque).map((s) => s.dayName));
+    addBlockSheet(activeClient.id, bloque.id, nombre);
+    (origen.exercises || []).forEach((ex) =>
+      addBlockExercise(activeClient.id, bloque.id, nombre, cloneExerciseAsTemplate(ex))
+    );
+    apuntarEnBloque(nombre, { kind: BLOCK_CHANGE.HOJA_MAS, que: nombre });
+    toast({ text: `«${nombre}» añadida al bloque con los ${(origen.exercises || []).length} ejercicios de «${dayName}».` });
+  };
+
+  /*
+    Quitar la hoja abierta: si era la última que quedaba, el bloque se quedaría
+    sin plan, y eso no es lo que se está pidiendo —se dice y no se hace—. Si la
+    quitada estaba al final, la selección se corre a la anterior para no quedar
+    apuntando a un índice que ya no existe.
+  */
+  /*
+    ── Y AHORA SÍ PREGUNTA ───────────────────────────────────────────────────
+    Quitar una hoja vivía dentro de un «···» de un solo ítem, y ese gesto de más
+    hacía de confirmación. El dueño lo ha tumbado —«solo está la opción de
+    eliminar, para eso pon directamente el botón de papelera y ya»— y tiene
+    razón: un menú de un ítem no es un menú. Pero un clic que se lleva una hoja
+    con sus ejercicios y no se puede deshacer sí necesita una pregunta, así que
+    la confirmación deja de ser un accidente de la maquetación y pasa a ser lo
+    que ya usa el resto de la casa (`useConfirm`), como en `quitarBloque`.
+  */
+  const eliminarHoja = async (dayName) => {
+    if (nav.days.length <= 1) {
+      toast({ text: `«${dayName}» es la única hoja de «${bloque.name}»: añade otra antes de quitarla.` });
+      return;
+    }
+    const cuantos = (nav.days.find((d) => d.dayName === dayName)?.exercises || []).length;
+    const ok = await confirm({
+      title: `¿Quitar «${dayName}»?`,
+      message:
+        cuantos > 0
+          ? `Sale de «${bloque.name}» con sus ${cuantos} ${cuantos === 1 ? 'ejercicio' : 'ejercicios'}, en todos sus ${unidades.toLowerCase()}. Lo ya entrenado se queda en el historial.`
+          : `Está en blanco: no se pierde nada.`,
+      confirmLabel: 'Quitar la hoja',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    quitarHojaDelBloque(dayName);
+    if (nav.dayIndex >= nav.days.length - 1) irA(nav.week, Math.max(0, nav.days.length - 2));
+  };
+
+  /*
+    ══ EL SEMÁFORO DE LA HOJA ════════════════════════════════════════════════
+    Lo único que valía la pena de la rejilla del Conjunto, ahora en el carril
+    donde se elige la hoja: si en el microciclo EN CURSO está hecha, a medias o
+    pendiente, y cuál es la primera que queda por hacer.
+
+    No es una receta ni una previsión: es el orden del plan —ya escrito— leído
+    contra lo que hay registrado. Solo en el microciclo en curso: en uno pasado
+    la hoja es archivo y el semáforo mentiría.
+  */
+  const enCursoAqui = Number.isFinite(semanaEnCurso) && nav.week === semanaEnCurso;
+  const seriesDelPlanDe = (day) => (day.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
+  const seriesHechasDe = (dayName) =>
+    sesionesDeLaSemana.filter((s) => s.dayName === dayName).reduce((n, s) => n + sessionSetCount(s), 0);
+  const siguienteHoja = enCursoAqui
+    ? nav.days.find((d) => seriesHechasDe(d.dayName) < seriesDelPlanDe(d))?.dayName || null
+    : null;
+  const estadoDeHoja = (day) => {
+    if (!enCursoAqui) return null;
+    const planeadas = seriesDelPlanDe(day);
+    const hechas = seriesHechasDe(day.dayName);
+    const cuando = `${fem ? 'esta' : 'este'} ${unidad.toLowerCase()}`;
+    if (hechas === 0) {
+      /* «la siguiente» y no «aún no»: en una lista sin cajas es lo único que
+         dice por dónde va el microciclo sin leerse los cuatro semáforos. */
+      return day.dayName === siguienteHoja
+        ? { tono: 'aun', texto: 'la siguiente', title: `Aún no ${cuando} · es la primera que queda por hacer` }
+        : { tono: 'aun', texto: 'aún no', title: `Aún no ${cuando}` };
+    }
+    if (planeadas > 0 && hechas >= planeadas) return { tono: 'ok', texto: 'hecha', title: `Hecha ${cuando}` };
+    /* «7/18» y no «7 de 18 series»: la columna es estrecha y el title lo dice. */
+    return { tono: 'warn', texto: `${hechas}/${planeadas}`, title: `${hechas} de ${planeadas} series ${cuando}` };
   };
   /*
     ── Y lo que se toca desde la HOJA ────────────────────────────────────────
@@ -933,315 +1048,493 @@ export const WorkoutLogEditor = () => {
     apuntarEnLaHoja({ kind: BLOCK_CHANGE.SERIES, que: ex.name, de: antes, a: antes + delta });
   };
 
+  /*
+    ══ LOS MANDOS DEL MICROCICLO ═════════════════════════════════════════════
+
+    El microciclo se elige en la TIRA —la pastilla `M2 · en curso`, la misma
+    que en la hoja de series—, así que aquí solo se arman los verbos que la
+    tira no puede saber: qué se añade, qué va antes del «···» y qué se suma
+    dentro de él. Ver `TiraDelPrograma`.
+  */
+  const nuevoMicrociclo = esBloqueActual
+    ? () => irA(appendMicrocycle(activeClient.id), 0, "bloque")
+    : null;
+
+  /*
+    ── Lo que va antes del «···» en la cabecera del BLOQUE ───────────────────
+    Aquí hubo un verbo «El bloque» que llevaba de la hoja al conjunto y de
+    vuelta. Se ha ido: ahora la flecha de volver sube UN escalón —de la hoja al
+    bloque, del bloque a la lista— y con eso no hace falta ningún mando más.
+  */
+  const accionesDeLaCabecera = indicator;
+
+  /*
+    ══ LOS DOS MANDOS DE LA HOJA, PEGADOS A SU NOMBRE ════════════════════════
+
+    Vivían en una TERCERA barra debajo de la tira: «18 de 18 series escritas»
+    a la izquierda y, al otro extremo del renglón, el selector de sesión y un
+    «···». El dueño: «cambiar de sesión no debería estar tan a la derecha, tanta
+    información atora un poco en las cabeceras».
+
+    La barra se ha ido y queda UN mando: qué sesión se mira, que es la primera
+    decisión porque cambia todos los números de la tabla. Va en el renglón del
+    microciclo, que es de quien es una sesión.
+
+    ── Y «20 de 20 series escritas» tampoco está ────────────────────────────
+    Estuvo al lado, y medido a 1680 con diez microciclos NO cabía: partía el
+    renglón y devolvía a la cabecera la tercera altura que esta vuelta vino a
+    quitarle. Y no se pierde nada, porque lo dice dos veces más y mejor: la
+    pestaña de la hoja lleva su disco —verde hecha, ámbar a medias, hueco aún
+    no— con la cuenta exacta en su título, y debajo está la tabla, donde se ve
+    casilla por casilla lo que falta. Una cabecera no cuenta lo que ya se ve.
+  */
+  const mandosDeLaHoja = nav.day ? (
+    <>
+      <MenuAcciones
+        clase="tira-sesion"
+        sinFlecha={false}
+        ariaLabel={`Sesión de ${nav.day.dayName} que se está mirando`}
+        label={daySession.session?.date ? `sesión del ${shortDate(daySession.session.date)}` : 'sin sesión'}
+        items={[
+          ...daySession.sessions.map((ss) => ({
+            icon: CalendarDays,
+            label: `${ss.date ? shortDate(ss.date) : 'sin fecha'}${ss.id === daySession.activeId ? ' · abierta' : ''}`,
+            run: () => daySession.select(ss.id),
+          })),
+          daySession.sessions.length > 0 ? null : undefined,
+          {
+            icon: Plus,
+            label: 'Otra sesión de este día',
+            run: () => {
+              const id = startSession(activeClient.id, nav.week, nav.day.dayName);
+              if (id) daySession.select(id);
+            },
+          },
+          daySession.activeId && !daySession.session?.isLegacy
+            ? {
+                icon: Trash2,
+                label: 'Quitar esta sesión',
+                danger: true,
+                run: () => removeSession(activeClient.id, nav.week, daySession.activeId),
+              }
+            : undefined,
+        ]}
+      />
+    </>
+  ) : null;
+
+  /*
+    ══ LOS DOS VERBOS DE DIARIO SALEN DEL «···» ══════════════════════════════
+    «Sigo viendo mucha información en la cabecera y no muestras los iconos de
+    opciones, muestras los ···.» Las dos mitades de la frase se arreglan con el
+    mismo movimiento: la cabecera pierde sus frases de lectura —se han ido a su
+    tarjeta— y gana los dos verbos que se usan a diario, como iconos.
+
+    Cuáles son no es una opinión: duplicar la hoja es el gesto con el que se
+    monta la semana siguiente, y las alternativas se abren cada vez que alguien
+    no tiene una máquina. Los otros tres —guardarla como pieza, traer un día de
+    otro cliente y quitarla— se tocan una vez al mes o borran, y ahí un menú es
+    lo correcto: cuestan un gesto de más a propósito.
+  */
+  const iconosDeLaHoja = nav.day ? (
+    <>
+      <button
+        type="button"
+        className="btn btn-icon btn-icon-compact"
+        title={`Duplicar «${nav.day.dayName}»`}
+        aria-label={`Duplicar «${nav.day.dayName}»`}
+        onClick={() => duplicarHojaDelBloque(nav.day.dayName)}
+      >
+        <Copy size={15} />
+      </button>
+      <button
+        type="button"
+        className="btn btn-icon btn-icon-compact"
+        title="Guardarla como pieza tuya"
+        aria-label="Guardarla como pieza tuya"
+        onClick={() => guardarPieza(nav.day.dayName)}
+      >
+        <Bookmark size={15} />
+      </button>
+      {/*
+        ── TRAER: un botón, dos sitios de donde ────────────────────────────
+        «No pasa nada porque unas se metan dentro de otras, pero deberían salir
+        como botones.» Traer de otro cliente y traer de un fichero son el MISMO
+        verbo con dos orígenes, así que salen como un botón y la elección del
+        origen es lo que cuelga de él. Un icono por origen serían dos iconos
+        para una sola decisión.
+
+        Y «de un fichero» sube aquí porque en la hoja no había forma de
+        llegar: vivía en el «···» del microciclo, que solo se pinta con el
+        bloque delante.
+      */}
+      <MenuAcciones
+        clase="btn btn-icon btn-icon-compact"
+        ariaLabel={`Traer ejercicios a «${nav.day.dayName}»`}
+        label={<Download size={15} />}
+        sinFlecha
+        items={[
+          { icon: Users, label: 'Traer un día de otro cliente', run: () => setImportAbierto(true) },
+          { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
+        ]}
+      />
+    </>
+  ) : null;
+
+  /*
+    ── LA PAPELERA, Y NO UN «···» DE UN ÍTEM ─────────────────────────────────
+    «Solo está la opción de eliminar, para eso pon directamente el botón de
+    papelera y ya.» Un menú con un solo ítem cobra dos gestos por uno y encima
+    esconde el único que tiene. Lo que hacía falta para poder sacarlo —una
+    pregunta antes de borrar— lo pone ahora `eliminarHoja` con `useConfirm`, que
+    es lo que ya hace el bloque.
+  */
+  const menuDeLaHoja = nav.day ? (
+    <button
+      type="button"
+      className="btn btn-icon btn-icon-compact btn-icon-danger tira-menu"
+      title={`Quitar «${nav.day.dayName}»`}
+      aria-label={`Quitar «${nav.day.dayName}»`}
+      onClick={() => eliminarHoja(nav.day.dayName)}
+    >
+      <Trash2 size={15} />
+    </button>
+  ) : null;
+
+  /*
+    ── Y el del BLOQUE, que es uno solo ──────────────────────────────────────
+    Con el bloque entero delante, el verbo que se repite es duplicar el
+    microciclo abierto: es con lo que se monta el siguiente. Sale del «···» por
+    la misma razón que los dos de la hoja. Los otros cinco —traer de otro
+    cliente, traer de un fichero, los ajustes del programa y los dos que
+    borran— se quedan dentro, que es donde se busca lo que no se usa a diario.
+  */
+  const iconosDelBloque = (
+    <>
+      {/* ── TRAER: el mismo botón que en la hoja ────────────────────────────
+          Traer el programa de otro cliente y traer de un fichero eran dos
+          ítems perdidos en un menú de siete, y en la vista de hoja son —desde
+          hace dos vueltas— un botón con sus dos orígenes colgando. Que la
+          misma pregunta tenga dos dibujos según la vista es la avería que esta
+          cabecera lleva persiguiendo desde el principio: aquí es el MISMO
+          botón. */}
+      <MenuAcciones
+        clase="btn btn-icon btn-icon-compact"
+        ariaLabel={`Traer ejercicios a «${bloque.name}»`}
+        label={<Download size={15} />}
+        sinFlecha
+        items={[
+          hayDeQuienTraer && { icon: Users, label: 'Traer el programa de otro cliente', run: () => setCopyOpen(true) },
+          { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
+        ]}
+      />
+      {/* Tipo de ciclo, patrón, fecha de inicio y protocolo: no son del bloque
+          ni del microciclo, son del PROGRAMA, o sea del nivel más alto que esta
+          cabecera dibuja. Por eso sale a la vista en esta fila y no cuelga de
+          ningún menú: no tiene otra puerta en toda la pantalla. */}
+      <button
+        type="button"
+        className="btn btn-icon btn-icon-compact"
+        title="Ajustes del programa: tipo de ciclo, patrón y fecha de inicio"
+        aria-label="Ajustes del programa"
+        onClick={() => setPanel('programa')}
+      >
+        <Settings2 size={15} />
+      </button>
+    </>
+  );
+
+  /*
+    ── LOS DOS VERBOS DEL MICROCICLO, EN EL RENGLÓN DEL MICROCICLO ───────────
+    Duplicarlo es con lo que se monta el siguiente, así que va a la vista;
+    cambiarle las fechas se hace de tarde en tarde y eliminarlo borra, así que
+    van en su «···». Los tres estaban repartidos entre la fila del bloque y un
+    menú de siete ítems: ninguno de los dos sitios es el suyo.
+  */
+  const mandosDelMicrociclo = (
+    <button
+      type="button"
+      className="btn btn-icon btn-icon-compact"
+      title={`Duplicar ${etiqueta(nav.week)}, con sus series`}
+      aria-label={`Duplicar ${etiqueta(nav.week)}, con sus series`}
+      onClick={() => {
+        const created = cloneMicrocycle(activeClient.id, nav.week);
+        if (created) irA(created, 0, 'bloque');
+      }}
+    >
+      <Copy size={15} />
+    </button>
+  );
+
+  const menuDelMicrociclo = (
+    <MenuAcciones
+      clase="btn btn-icon btn-icon-compact tira-menu"
+      ariaLabel={`Acciones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+      items={[
+        /* Es lo mismo que hace pulsar la pastilla encendida. Estaba SOLO ahí,
+           y un gesto que hay que descubrir no es una puerta: ahora también se
+           lee, con su nombre, donde se buscan las acciones de este renglón. */
+        { icon: Settings2, label: `Fechas y sesiones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`, run: () => setPanel('semana') },
+        {
+          icon: Trash2,
+          label: `Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`,
+          danger: true,
+          run: eliminarSemana,
+        },
+      ]}
+    />
+  );
+
+  /* Dónde cae cada hoja de la semana. Lo dice la columna de esa hoja en la
+     rejilla, y solo ahí: cuando además lo decía una tira encima, «LUN» salía
+     cuatro veces en la misma pantalla. */
+  const repartoDelBloque = structureOfBlock(program, bloque).weeklySplit || {};
+
+  /*
+    ══ LA TIRA DEL PROGRAMA, Y SE ACABÓ LA CUENTA ════════════════════════════
+
+    Aquí vivieron, uno detrás de otro, un conmutador, unos lomos verticales, un
+    paginador, una tira de días, un carril de Efort y una banda de pestañas.
+    Seis maneras de elegir hoja en nueve vueltas, y cada una murió por lo
+    mismo: dibujaba el microciclo por segunda vez al lado del primero.
+
+    Manda la cabecera que Entreno tenía EN PRODUCCIÓN —los bloques como
+    carpetas y, debajo, los microciclos del abierto—, que es la que el dueño
+    pidió recuperar. Ver `TiraDelPrograma`.
+  */
+  /*
+    ══ «+ HOJA» SUBE A LA TIRA ═══════════════════════════════════════════════
+    Estuvo debajo de la rejilla, y con las columnas estiradas hasta el bajo de
+    la ventana eso lo dejaba a novecientos píxeles del titular: «el botón hojas
+    está demasiado abajo». Estuvo también dentro de la retícula, como el hueco
+    de la hoja siguiente, y ahí la traiciona `auto-fit`: cuando el ancho no da
+    para una pista más, la columna del hueco BAJA a la fila de abajo y el botón
+    vuelve al sitio del que se le quería sacar —medido a 1600, con la mesa en
+    932 px—.
+
+    Así que va donde no depende de cuánto quepa: al final del renglón del
+    microciclo, que es de quien son las hojas. No es el mismo verbo dos veces
+    —abajo ya no queda ninguno— y queda al lado de «+ microciclo», que es el
+    otro «uno más» de esta pantalla: los dos juntos, cada uno con su palabra.
+  */
+  const altaDeHojaEnLaTira =
+    vista === 'bloque' && esBloqueActual && nav.days ? (
+      nuevaHojaEnTira === null ? (
+        /* La misma pieza que «+ bloque» y «+ microciclo»: los tres son el
+           mismo verbo y se ven a la vez. Ver `.tira-mas`. */
+        <button type="button" className="tira-mas" onClick={() => setNuevaHojaEnTira('')}>
+          <Plus size={13} aria-hidden="true" /> hoja
+        </button>
+      ) : (
+        <form
+          className="plan-hoja-alta"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const nombre = (nuevaHojaEnTira || '').trim();
+            if (!nombre) return;
+            anadirHojaAlBloque(nombre);
+            setNuevaHojaEnTira(null);
+          }}
+        >
+          <input
+            autoFocus
+            className="input input-sm"
+            value={nuevaHojaEnTira}
+            placeholder="Ej: Pierna B"
+            aria-label="Nombre de la hoja nueva"
+            onChange={(e) => setNuevaHojaEnTira(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && setNuevaHojaEnTira(null)}
+          />
+          <button type="submit" className="btn btn-primary btn-sm" disabled={!nuevaHojaEnTira.trim()}>
+            Añadir
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setNuevaHojaEnTira(null)}>
+            Cancelar
+          </button>
+        </form>
+      )
+    ) : null;
+
+  const tiraDelPrograma = (
+    <TiraDelPrograma
+      derecha={altaDeHojaEnLaTira}
+      program={program}
+      bloque={bloque}
+      semanaEnCurso={semanaEnCurso}
+      semana={nav.week}
+      unidad={unidad}
+      unidades={unidades}
+      esActual={esBloqueActual}
+      vista={vista}
+      hojas={nav.days}
+      hojaAbierta={vista === "hoja" ? nav.dayIndex : null}
+      estadoDeHoja={estadoDeHoja}
+      diaDe={
+        cycleType === "weekly"
+          ? (hoja) => weekdayForDay(repartoDelBloque, hoja.dayName)
+          : null
+      }
+      acciones={accionesDeLaCabecera}
+      mandosDeLaHoja={mandosDeLaHoja}
+      /* Los verbos del microciclo solo con el bloque delante: con una hoja
+         abierta, la fila 1 ya lleva su propio «duplicar» —el de la hoja— y dos
+         iconos iguales seguidos, uno por nivel, es justo lo que hacía
+         irreconocible esta cabecera. */
+      mandosDelMicrociclo={vista === 'bloque' ? mandosDelMicrociclo : null}
+      menuDelMicrociclo={vista === 'bloque' ? menuDelMicrociclo : null}
+      iconos={vista === 'hoja' ? iconosDeLaHoja : iconosDelBloque}
+      menuDeLaHoja={menuDeLaHoja}
+      onIrBloque={(b) => {
+        const suyas = weeksOfBlock(program, b);
+        if (suyas.length > 0) irA(suyas[suyas.length - 1], 0, "bloque");
+      }}
+      onVerLista={() => verVista("lista")}
+      onVerConjunto={() => verVista("bloque")}
+      onNuevoBloque={esBloqueActual ? aComponer : null}
+      onRenombrarBloque={(id, nombre) => renameBlock(activeClient.id, id, nombre)}
+      onQuitarBloque={quitarBloque}
+      onIrSemana={(w) => irA(w, 0, vista === "hoja" ? "hoja" : "bloque")}
+      onNuevaSemana={nuevoMicrociclo}
+      onAjustesDelMicrociclo={() => setPanel("semana")}
+      onAbrirHoja={(i) => irA(nav.week, i, "hoja")}
+    />
+  );
+
   return (
     <div className="entreno-pagina">
       <VueltaALaRevision />
       <ConditionsNote area="training" />
-      <EquipmentNote />
       {panelDeCopia}
       {dialogoDePegado}
 
       {/*
-        ── LA MIGA: solo cuando hay algo encima ──────────────────────────────
+        ══ DEFINIR SE FUE A SU SITIO ══════════════════════════════════════════
+        Abrir un bloque nuevo fue una ventana, y después un momento de esta
+        misma superficie —el banco, con la definición en la mesa y el material
+        en el cajón—. Las dos veces estaba montado encima de la pantalla en la
+        que solo se viene a mirar qué entrena esta persona.
 
-        En la HOJA dice de qué bloque cuelga y devuelve a él. En el bloque no
-        se pinta: es el nivel de salida, no hay a dónde subir, y el nombre ya
-        lo dice su propia cabecera —tenerlo en los dos sitios era decir «Bloque
-        1» dos veces en dos renglones seguidos—.
-
-        Y ya no lleva selector de bloques: se cambia pulsándolos en el
-        historial del costado, que además dice cuál fue cuál.
+        Componer es un TRABAJO con principio y final, así que ahora tiene su
+        sitio: `/c/:id/rutina/componer` (ver `Compositor.jsx`), que es además el
+        único lugar donde aparece el material —su gimnasio, sus condicionantes,
+        tu historial y tus piezas—, porque es donde sirve: para acordarse
+        mientras se decide.
       */}
-      {vista === 'hoja' && (
-        <nav className="entreno-miga" aria-label="Dónde estás">
-          <button
-            type="button"
-            className="entreno-miga-boton is-volver"
-            onClick={() => verVista('bloque')}
-            title={`Volver a ${bloque.name}`}
-          >
-            <ArrowLeft size={15} aria-hidden="true" />
-            {bloque.name}
-          </button>
-          <span className="migas-sep" aria-hidden="true" />
-          <span className="entreno-miga-aqui">
-            {nav.day ? nav.day.dayName : 'Sin hojas'} · {unidad.toLowerCase()} {enBloque(nav.week)}
-          </span>
-        </nav>
-      )}
-
-      {vista === 'bloque' ? (
-        <VistaBloque
+      {vista === 'lista' ? (
+        <ListaDeBloques
           program={program}
           cliente={activeClient}
           bloque={bloque}
-          semanaEnCurso={semanaEnCurso}
-          library={ejerciciosDisponibles}
-          onAbrirHoja={(dayName) => irA(nav.week, Math.max(0, nav.days.findIndex((d) => d.dayName === dayName)), 'hoja')}
-          onIrSemana={(w) => irA(w, 0, 'hoja')}
-          onRenombrarBloque={(id, nombre) => renameBlock(activeClient.id, id, nombre)}
-          onQuitarBloque={quitarBloque}
-          onNuevaSemana={() => irA(appendMicrocycle(activeClient.id), 0, 'bloque')}
-          onNuevoBloque={() => setNuevoBloque(true)}
-          onAnadirEjercicio={anadirEjercicioAlBloque}
-          onQuitarEjercicio={quitarEjercicioDelBloque}
-          onMoverEjercicio={moverEjercicioDelBloque}
-          onSeries={seriesDelBloque}
-          onReps={repsDelBloque}
-          onAnadirHoja={anadirHojaAlBloque}
-          onRenombrarHoja={renombrarHojaDelBloque}
-          onQuitarHoja={quitarHojaDelBloque}
-          onMoverHoja={moverHojaDelBloque}
-          onTraerFichero={() => setPegarAbierto(true)}
-          onRecordarEjercicio={upsertLibraryExercise}
-          onSplit={(dia, valor) => updateWeeklySplit(activeClient.id, dia, valor)}
-          onAjustes={() => setPanel('programa')}
-          onFechaSemana={(w, fecha) => setMicrocycleDate(activeClient.id, w, fecha)}
+          unidad={unidad}
+          unidades={unidades}
           onIrBloque={(b) => {
             const suyas = weeksOfBlock(program, b);
             if (suyas.length > 0) irA(suyas[suyas.length - 1], 0, 'bloque');
           }}
+          onVolver={() => verVista('bloque')}
+          onNuevoBloque={aComponer}
+          onRenombrarBloque={(id, nombre) => renameBlock(activeClient.id, id, nombre)}
+          onQuitarBloque={quitarBloque}
+          /* A qué juega el bloque. Es un rótulo del entrenador, no una receta:
+             no cambia el plan ni propone nada, ordena la lectura del conjunto. */
+          onIntent={(b, intent) => setBlockTraits(activeClient.id, b.id, { intent })}
         />
       ) : (
-      <div className="entreno">
-        <section className="entreno-hoja" aria-label={nav.day ? `Series de ${nav.day.dayName}` : 'Sin días'}>
-          {/*
-            La barra: qué día es, de qué semana, cómo va, y las dos puertas —los
-            detalles y el menú—. Una línea. El indicador de guardado va aquí
-            porque es lo único que hay que ver mientras se escribe.
-          */}
-          {/*
-            La barra: los DÍAS como pestañas —cambiar de entrenamiento es un
-            clic, aquí, no en la barra lateral— y a la derecha «Detalles» y el
-            menú. Debajo, en voz baja, de qué semana y sesión se habla.
-          */}
-          {/*
-            ══ Las dos filas de mando ══════════════════════════════════════
-            Misma gramática en las dos: a la IZQUIERDA dónde estás (la semana,
-            el día), a la DERECHA qué puedes hacer con ello. Un solo tipo de
-            botón (silencioso) y un «···» por fila para lo que se hace poco.
+      <>
+      <EquipmentNote />
+      {/*
+        ══ LA CABECERA ES LA TIRA DEL PROGRAMA ════════════════════════════════
+        Dónde estás —qué bloque y qué microciclo— y cómo va, en dos renglones
+        llenos. Aquí hubo una cabecera de dos pisos con el titular en grande y
+        una barra de microciclo aparte; eran tres alturas para un solo objeto.
+        Ver `TiraDelPrograma`.
+      */}
+      {/*
+        ══ MESA · COSTADO ═════════════════════════════════════════════════════
+        Dos columnas y ya. Aquí hubo una tercera —un carril de hojas y, antes,
+        los LOMOS— y las dos veces era un segundo dibujo del microciclo al lado
+        del primero.
 
-              Fila 1 · la semana:  S1 · S2 · + sesión      Traer ▾ · Estructura · ···
-              Fila 2 · el día:     Legs A · Push A · + Día  contexto · Detalles · ···
+          mesa      la tira, y debajo la rejilla del bloque o la tabla de series
+          costado   lo que juzga lo que hay en la mesa
 
-            Pulsar la semana que ya está abierta abre su panel (fecha,
-            estructura, calentamiento): «en curso» no es un adorno, es una
-            puerta.
-          */}
-          <header className="hoja-barra">
-            <div className="hoja-semanas" ref={semanasRef}>
-              {semanasDelBloque.length > VENTANA_SEMANAS && (
-                <button
-                  type="button"
-                  className="hoja-semana is-todas"
-                  aria-haspopup="menu"
-                  aria-expanded={semanasAbiertas}
-                  onClick={() => setSemanasAbiertas((v) => !v)}
-                  title="Todas las semanas"
-                >
-                  {semanasDelBloque.length} {unidades} <ChevronDown size={13} aria-hidden="true" />
-                </button>
-              )}
-              {semanasMenu.mounted && (
-                <div ref={semanasMenu.ref} className="popover hoja-semanas-todas" data-state={semanasMenu.closing ? 'closing' : 'open'} role="menu">
-                  {semanasDelBloque.map((w) => {
-                    const micro = microcycles.find((m) => m.weekNumber === w) || {};
-                    const hecha = executedSessions(micro).length > 0;
-                    return (
-                      <button
-                        key={w}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={w === nav.week}
-                        className={`hoja-semana${w === nav.week ? ' is-on' : ''}${w === semanaEnCurso ? ' is-curso' : hecha ? ' is-hecha' : ''}`}
-                        onClick={() => {
-                          setSemanasAbiertas(false);
-                          irA(w);
-                        }}
-                      >
-                        <span className="hoja-semana-n">{unitInitial(cycleType)}{enBloque(w)}</span>
-                        {w === semanaEnCurso ? <span className="hoja-semana-estado">en curso</span> : hecha ? <span className="hoja-semana-estado">hecha</span> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              <div className="hoja-semanas-tira" role="tablist" aria-label={unidades}>
-                {semanasVisibles.map((w) => {
-                  const micro = microcycles.find((m) => m.weekNumber === w) || {};
-                  const hecha = executedSessions(micro).length > 0;
-                  const estado = w === semanaEnCurso ? 'is-curso' : hecha ? 'is-hecha' : '';
-                  const abierta = w === nav.week;
-                  return (
-                    <button
-                      key={w}
-                      type="button"
-                      role="tab"
-                      aria-selected={abierta}
-                      className={`hoja-semana${abierta ? ' is-on' : ''}${estado ? ` ${estado}` : ''}`}
-                      onClick={() => (abierta ? setPanel('semana') : irA(w))}
-                      title={abierta ? `Qué hizo en ${unidad.toLowerCase()} ${enBloque(w)}` : `${unidad} ${enBloque(w)}${micro.date ? ` · empieza el ${shortDate(micro.date)}` : ''}`}
-                    >
-                      <span className="hoja-semana-n">{unitInitial(cycleType)}{enBloque(w)}</span>
-                      {w === semanaEnCurso ? <span className="hoja-semana-estado">en curso</span> : hecha ? <span className="hoja-semana-estado">hecha</span> : null}
-                    </button>
-                  );
-                })}
-                {/* Copiar y traer viven donde se usan: al añadir. Solo en el bloque abierto:
-                    a uno cerrado no se le suman semanas, se abre otro. */}
-                {esBloqueActual && (
-                <MenuAcciones
-                  label={`+ ${unidad.toLowerCase()}`}
-                  clase="hoja-semana is-nueva"
-                  sinFlecha
-                  alineado="izquierda"
-                  ariaLabel={`Añadir ${unidad.toLowerCase()}`}
-                  items={[
-                    { icon: Plus, label: `Nueva, con la misma estructura`, run: () => irA(appendMicrocycle(activeClient.id)) },
-                    { icon: Copy, label: `Duplicar ${unidad.toLowerCase()} ${nav.week}, con sus series`, run: () => {
-                      const created = cloneMicrocycle(activeClient.id, nav.week);
-                      if (created) irA(created);
-                    } },
-                    null,
-                    hayDeQuienTraer && { icon: Users, label: 'Traer el programa de otro cliente', run: () => setCopyOpen(true) },
-                    { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
-                  ].filter(Boolean)}
-                />
-                )}
-              </div>
+        ── LA MESA VUELVE A SER UNA CAJA, Y LA TIRA VIVE DENTRO ─────────────
+        Estuvo a ras del papel —«la mesa ES el papel»— y el dueño, con las dos
+        pantallas delante: «me parece una hoja fea, el contenido de bloques,
+        microciclos y eso es vacío; debería tener un mejor acabado, quizás
+        metiendo todo el contenido grande en una caja».
+
+        La razón se ve en la captura, y es una asimetría: el costado SÍ llevaba
+        sus tres tarjetas con canto y sombra, y la mesa —que es lo importante—
+        no llevaba nada. La pantalla se leía como tres objetos acabados a la
+        derecha y un contenido suelto a la izquierda.
+
+        Así que la caja vuelve, y con ella entra la TIRA: los bloques y los
+        microciclos son la cabecera de la MESA, no de la página. Flotando fuera
+        se estiraban por encima del costado —dos renglones de mando gobernando
+        unas tarjetas que no gobiernan— y dejaban el hueco del que venía la
+        sensación de vacío. Es además lo que hacía producción, que es lo que el
+        dueño echa de menos. Ver `TiraDelPrograma` y `.entreno-hoja`.
+      */}
+      <div className={`entreno${vista === "bloque" ? " is-conjunto" : ""}`}>
+        <section
+          className="entreno-hoja mesa-panel"
+          aria-label={
+            vista === "bloque"
+              ? `«${bloque.name}» en conjunto`
+              : nav.day
+                ? `Series de ${nav.day.dayName}`
+                : "Sin hojas"
+          }
+        >
+          {tiraDelPrograma}
+
+          {vista === 'bloque' ? (
+            <div className="mesa-cuerpo">
+            <ConjuntoDelBloque
+              program={program}
+              cliente={activeClient}
+              bloque={bloque}
+              semanaEnCurso={semanaEnCurso}
+              library={ejerciciosDisponibles}
+              onAbrirHoja={(dayName) =>
+                irA(nav.week, Math.max(0, nav.days.findIndex((d) => d.dayName === dayName)), 'hoja')
+              }
+              onIrSemana={(w) => irA(w, 0, 'bloque')}
+              onAnadirEjercicio={anadirEjercicioAlBloque}
+              onQuitarEjercicio={quitarEjercicioDelBloque}
+              onMoverEjercicio={moverEjercicioDelBloque}
+              onSeries={seriesDelBloque}
+              onReps={repsDelBloque}
+              onAnadirHoja={anadirHojaAlBloque}
+              onRenombrarHoja={renombrarHojaDelBloque}
+              onQuitarHoja={eliminarHoja}
+              onMoverHoja={moverHojaDelBloque}
+              onRecordarEjercicio={upsertLibraryExercise}
+              onGuardarPieza={guardarPieza}
+              onSplit={(dia, valor) => updateWeeklySplit(activeClient.id, dia, valor)}
+              onTraerFichero={() => setPegarAbierto(true)}
+            />
             </div>
-            <div className="hoja-barra-acciones">
-              {indicator}
-              {/* Subir al bloque es cosa de la miga, arriba: dos puertas al
-                  mismo sitio es una de más. */}
-              {esBloqueActual && (
-                <button type="button" className="btn btn-icon btn-icon-compact hoja-nuevo-bloque" onClick={() => setNuevoBloque(true)} aria-label="Nuevo bloque" title="Nuevo bloque: cierra este y abre el siguiente">
-                  <Plus size={15} />
-                </button>
-              )}
-              <button type="button" className="btn btn-icon btn-icon-compact btn-icon-danger hoja-papelera" onClick={eliminarSemana} aria-label={`Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`} title={`Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}>
-                <Trash2 size={15} />
-              </button>
-            </div>
-          </header>
-
-          <div className="hoja-barra is-dias">
-            <div className="hoja-dias" role="tablist" aria-label="Días" ref={ordenDias.carrilRef}>
-              {nav.days.map((day, index) =>
-                renombrando === index ? (
-                  <RenombrarEnSitio
-                    key={day.dayName}
-                    variante="is-dia"
-                    value={day.dayName}
-                    label="Nuevo nombre del día"
-                    onRename={(nombre) => renameDay(activeClient.id, nav.week, day.dayName, nombre)}
-                    onDone={() => setRenombrando(null)}
-                  />
-                ) : (
-                  <button
-                    key={day.dayName}
-                    type="button"
-                    role="tab"
-                    aria-selected={index === nav.dayIndex}
-                    className={`hoja-dia${index === nav.dayIndex ? ' is-on' : ''}${ordenDias.destino === index && ordenDias.arrastrando !== index ? ' is-drop-target' : ''}${ordenDias.arrastrando === index ? ' is-dragging' : ''}`}
-                    {...ordenDias.props(index)}
-                    onClick={() => irA(nav.week, index)}
-                    onDoubleClick={() => setRenombrando(index)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'F2') {
-                        e.preventDefault();
-                        setRenombrando(index);
-                      } else if (e.altKey && e.key === 'ArrowLeft' && index > 0) {
-                        e.preventDefault();
-                        moverDia(index, index - 1);
-                      } else if (e.altKey && e.key === 'ArrowRight' && index < nav.days.length - 1) {
-                        e.preventDefault();
-                        moverDia(index, index + 1);
-                      }
-                    }}
-                    aria-keyshortcuts="F2 Alt+ArrowLeft Alt+ArrowRight"
-                    title="Arrastra para cambiarlo de sitio (o Alt + ←/→) · doble clic o F2 para renombrarlo"
-                  >
-                    {day.dayName}
-                  </button>
-                )
-              )}
-              {addingDay ? (
-                <form className="hoja-dia-alta" onSubmit={handleAddDay}>
-                  <input
-                    autoFocus
-                    className="input input-sm"
-                    value={newDayName}
-                    onChange={(e) => setNewDayName(e.target.value)}
-                    placeholder="Nombre del día"
-                    aria-label="Nombre del nuevo día"
-                    onKeyDown={(e) => e.key === 'Escape' && setAddingDay(false)}
-                  />
-                  <button type="submit" className="btn btn-primary btn-sm" disabled={!newDayName.trim()}>
-                    Añadir
-                  </button>
-                </form>
-              ) : (
-                <MenuAcciones
-                  label="+ Día"
-                  clase="hoja-dia is-nuevo"
-                  sinFlecha
-                  alineado="izquierda"
-                  ariaLabel="Añadir día"
-                  items={[
-                    { icon: Plus, label: 'Nuevo día', run: () => setAddingDay(true) },
-                    nav.day && { icon: Copy, label: `Duplicar «${nav.day.dayName}»`, run: () => duplicateDay(activeClient.id, nav.week, nav.day.dayName) },
-                    null,
-                    { icon: Users, label: 'Traer un día de otro cliente', run: () => setImportAbierto(true) },
-                  ].filter(Boolean)}
-                />
-              )}
-            </div>
-            {nav.day && (
-              <div className="hoja-barra-acciones">
-                <span className="hoja-contexto">
-                  {[diaDeLaSemana && diaDeLaSemana.toLowerCase(), planned > 0 && `${doneSets}/${planned} series`]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-                {/*
-                  Las sesiones del día, en un menú junto a la fecha: cuál se mira,
-                  abrir otra, quitar la abierta. La fecha se cambia en el panel de
-                  la semana, que es donde se ven todas juntas.
-                */}
-                <MenuAcciones
-                  label={daySession.session?.date ? `sesión del ${shortDate(daySession.session.date)}` : 'sin sesión'}
-                  items={[
-                    ...daySession.sessions.map((ss) => ({
-                      icon: CalendarDays,
-                      label: `${ss.date ? shortDate(ss.date) : 'sin fecha'}${ss.id === daySession.activeId ? ' · abierta' : ''}`,
-                      run: () => daySession.select(ss.id),
-                    })),
-                    daySession.sessions.length > 0 ? null : undefined,
-                    { icon: Plus, label: 'Otra sesión de este día', run: () => {
-                      const id = startSession(activeClient.id, nav.week, nav.day.dayName);
-                      if (id) daySession.select(id);
-                    } },
-                    daySession.activeId && !daySession.session?.isLegacy
-                      ? { icon: Trash2, label: 'Quitar esta sesión', danger: true, run: () => removeSession(activeClient.id, nav.week, daySession.activeId) }
-                      : undefined,
-                  ]}
-                />
-                <button type="button" className="btn btn-icon btn-icon-compact btn-icon-danger hoja-papelera" onClick={eliminarDia} aria-label={`Eliminar «${nav.day.dayName}»`} title={`Eliminar «${nav.day.dayName}»`}>
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {nav.day ? (
+          ) : nav.day ? (
             <>
               {/*
-                ── El calentamiento, a la vista ──────────────────────────────
-                Una línea encima de la hoja: qué se hace antes de empezar. Es
-                del bloque (o propio del día, si el día tiene el suyo) y se edita
-                donde vive: en su panel. Ni escondido ni ocupando media pantalla.
+                ══ ANTES DE EMPEZAR: UNA BANDA, NO DOS TIRAS ══════════════════
+                El calentamiento y la indicación son lo mismo —lo que hay que
+                leer antes de la primera serie— y estaban sueltos: una pastilla
+                hundida y, cuatro píxeles más abajo, un enlace pelado sin rótulo
+                que no se alineaba con nada. Encima flotaban DENTRO del cuerpo,
+                así que el ojo los leía como los dos primeros elementos de la
+                tabla en vez de como su antesala.
+
+                Ahora son una banda del panel, con su filete y su columna de
+                rótulos: «Calentamiento» y «Tu indicación» caen en la misma
+                vertical, y las dos filas se leen igual —rótulo, lo que hay, y
+                el verbo al canto derecho—. Es lo que ya hacía la de arriba;
+                ahora lo hacen las dos.
               */}
+              {(isModuleOn(protocol, 'warmup') || isModuleOn(protocol, 'coachNote')) && (
+              <div className="hoja-preambulo">
               {isModuleOn(protocol, 'warmup') && (
                 <div className="hoja-calentamiento">
                   <span className="hoja-calentamiento-k">Calentamiento</span>
@@ -1274,9 +1567,11 @@ export const WorkoutLogEditor = () => {
                 </div>
               )}
               {/*
-                Tu indicación para el día, debajo del calentamiento y en la misma
-                voz: una línea si la hay, un «+ indicación» si no. Se edita ahí
-                mismo. El cliente la ve al abrir el día.
+                Tu indicación para el día, en la misma voz y con la misma forma
+                que el calentamiento de encima: rótulo · lo que hay · el verbo
+                al canto. Vacía dice «sin indicación», igual que aquella dice
+                «sin calentamiento» — y no un enlace suelto con otra forma. El
+                cliente la ve al abrir el día.
               */}
               {isModuleOn(protocol, 'coachNote') &&
                 (indicacionAbierta || nav.day.coachNote?.trim() ? (
@@ -1293,10 +1588,23 @@ export const WorkoutLogEditor = () => {
                     />
                   </label>
                 ) : (
-                  <button type="button" className="hoja-indicacion-mas" onClick={() => setIndicacionAbierta(true)}>
-                    + indicación para el cliente
-                  </button>
+                  <div className="hoja-indicacion">
+                    <span className="hoja-calentamiento-k">Tu indicación</span>
+                    <span className="hoja-calentamiento-vacio">sin indicación</span>
+                    <span className="hoja-calentamiento-acciones">
+                      <button
+                        type="button"
+                        className="hoja-calentamiento-editar"
+                        onClick={() => setIndicacionAbierta(true)}
+                      >
+                        añadir
+                      </button>
+                    </span>
+                  </div>
                 ))}
+              </div>
+              )}
+              <div className="mesa-cuerpo">
               <Lista
                 exercises={daySession.exercises}
                 focusedId={ejercicioEnFoco?.id || null}
@@ -1367,6 +1675,24 @@ export const WorkoutLogEditor = () => {
                   )
                 }
                 /*
+                  El descanso y el remate, desde la propia hoja. Van por el
+                  mismo camino que la nota del entrenador —`updatePlanExercise`,
+                  que es el que sabe si esto toca el plan del bloque o crea la
+                  excepción de este microciclo—, así que la regla de alcance no
+                  se aprende dos veces. Se apunta en el historial como el resto
+                  de lo que se cambia en una hoja.
+                */
+                onGramatica={(exId, patch) =>
+                  updatePlanExercise(
+                    activeClient.id,
+                    nav.week,
+                    nav.day.dayName,
+                    exId,
+                    (suyo) => ({ ...suyo, ...patch }),
+                    { immediate: false }
+                  )
+                }
+                /*
                   ══ Reordenar mueve el PLAN, y si no puede, la semana ═══════
 
                   El orden es del bloque, así que arrastrar aquí lo cambia en
@@ -1416,9 +1742,35 @@ export const WorkoutLogEditor = () => {
                     },
                   });
                 }}
-                onSetChange={(exId, setIdx, field, value) => {
-                  if (field === 'targetReps' || field === 'targetRir') {
-                    updateExerciseSet(activeClient.id, nav.week, nav.day.dayName, exId, setIdx, field, value);
+                /*
+                  ══ LO PEDIDO Y LO HECHO SE ESCRIBEN EN SITIOS DISTINTOS ═════
+                  Y hasta hoy la mitad de arriba se escribía en el sitio
+                  EQUIVOCADO. Los objetivos por serie iban a `updateExerciseSet`,
+                  que escribe en `microcycles[].days` — y desde que el plan vive
+                  en el bloque, `days` es una PROYECCIÓN suya que `applyPlan`
+                  vuelve a escribir entera en el gesto siguiente. O sea: se
+                  cambiaba el objetivo de una serie, se veía en pantalla, y al
+                  añadir un ejercicio a la hoja volvía el valor viejo. Sin error
+                  ni aviso, que es como se pierden los datos de verdad.
+
+                  Va por `updatePlanExercise`, que escribe donde ese ejercicio
+                  VIVE: el bloque, o la excepción de este microciclo si solo
+                  existe ahí. Es el mismo camino que ya usaban el descanso y la
+                  indicación. Ver `plan-del-bloque`.
+                */
+                onSetChange={(exId, setIdx, field, value, sub = null) => {
+                  if (field === 'targetReps' || field === 'targetRir' || field === 'targetKg') {
+                    updatePlanExercise(
+                      activeClient.id,
+                      nav.week,
+                      nav.day.dayName,
+                      exId,
+                      (ex) => ({
+                        ...ex,
+                        sets: (ex.sets || []).map((s, i) => (i === setIdx ? { ...s, [field]: value } : s)),
+                      }),
+                      { immediate: false }
+                    );
                     return;
                   }
                   const exercise = (nav.day.exercises || []).find((ex) => ex.id === exId);
@@ -1432,11 +1784,50 @@ export const WorkoutLogEditor = () => {
                     exercise,
                     setIdx,
                     field,
-                    value
+                    value,
+                    sub
                   );
                   if (id && id !== daySession.activeId) daySession.select(id);
                 }}
-                onTargetChange={(exId, value) => updateExerciseTarget(activeClient.id, nav.week, nav.day.dayName, exId, value)}
+                /*
+                  El remate de UNA serie: es plan, y con sus números.
+
+                  Y al escribirlo se JUBILA el del ejercicio entero, que es como
+                  se decía esto antes. No se tira: baja a la última serie, que es
+                  donde `tecnicaDeLaSerie` lo estaba leyendo. Sin eso, poner una
+                  bajada en la segunda serie borraría en silencio el rest-pause
+                  que la hoja llevaba enseñando en la cuarta.
+                */
+                onTecnica={(exId, setIdx, tecnica) =>
+                  updatePlanExercise(activeClient.id, nav.week, nav.day.dayName, exId, (ex) => {
+                    const sets = ex.sets || [];
+                    const legado = tecnicaOf(ex);
+                    const ultima = sets.length - 1;
+                    return {
+                      ...ex,
+                      tecnica: undefined,
+                      bajada: undefined,
+                      sets: sets.map((s, i) => {
+                        if (i === setIdx) return { ...s, tecnica: tecnica || undefined };
+                        if (legado && i === ultima && !s.tecnica) return { ...s, tecnica: { id: legado } };
+                        return s;
+                      }),
+                    };
+                  })
+                }
+                /* El objetivo de TODAS sus series de una vez (es como se escribe
+                   desde el teléfono). Mismo destino que el de una sola: donde el
+                   ejercicio vive. Ver el comentario de `onSetChange`. */
+                onTargetChange={(exId, value) =>
+                  updatePlanExercise(
+                    activeClient.id,
+                    nav.week,
+                    nav.day.dayName,
+                    exId,
+                    (ex) => ({ ...ex, sets: (ex.sets || []).map((s) => ({ ...s, targetReps: value })) }),
+                    { immediate: false }
+                  )
+                }
                 onAddSet={(exId) => seriesDeLaHoja(exId, +1)}
                 onRemoveSet={(exId, setIdx) => seriesDeLaHoja(exId, -1, setIdx)}
               />
@@ -1473,17 +1864,52 @@ export const WorkoutLogEditor = () => {
                   />
                 </div>
               )}
+              </div>
             </>
           ) : (
             <EmptyState
               icon={Layers}
-              title={`${unidad} ${enBloque(nav.week)} sin días`}
-              message="Añade un día en la columna de la izquierda para empezar a programar."
+              title={`«${bloque.name}» todavía no tiene hojas`}
+              message="Una hoja es un día de entreno del bloque —Push, Pull, Pierna—. Añádela con «+ hoja», aquí arriba, y ponle dentro sus ejercicios."
             />
           )}
         </section>
 
+        {/*
+          ══ EL COSTADO: CON QUÉ SE JUZGA LO QUE HAY EN LA MESA ══════════════
+
+          Las lecturas del bloque —sus cifras, el volumen por grupo y la
+          progresión de sus ejercicios— desaparecían en cuanto se abría una
+          hoja: la columna se vaciaba y se llenaba con la progresión del
+          ejercicio en foco. El dueño: «se pierden las gráficas de bloque, que
+          estaban genial».
+
+          Y se apilaron las dos cosas: el ejercicio en foco arriba y las
+          lecturas del bloque debajo, con una hoja abierta.
+
+          ══ Y VUELVEN A SEPARARSE, PORQUE CADA VISTA HABLA DE UNA COSA ══════
+          El dueño, el 9 sep, sobre la hoja: «metes en la hoja gráficos o
+          información del bloque, no me gusta eso; debería ser información
+          relativa a la hoja solo».
+
+          Es lo contrario de lo que pidió el 8 —«se pierden las gráficas de
+          bloque, que estaban genial»— y las dos veces tiene el mismo motivo
+          detrás: con la hoja abierta, la columna medía casi mil cuatrocientos
+          píxeles y había que bajar por «Este bloque» y «Volumen por
+          microciclo» para llegar a lo del ejercicio que se está escribiendo.
+          No se perdían las lecturas: sobraban DONDE estaban.
+
+          Así que el costado dice de lo que trata la mesa, y nada más:
+
+            con una hoja abierta   el ejercicio en foco y cómo llevó la sesión
+            con el conjunto        las lecturas del bloque
+
+          Las lecturas no se pierden: están en la vista del bloque, a un clic
+          —«← Bloque 2», en la tira de arriba— que es de donde se viene.
+        */}
         <div className="entreno-lado-derecho">
+        {vista !== 'bloque' && (
+          <>
         <ComparativaEjercicio
           etiqueta={etiqueta}
           microcycles={microcycles}
@@ -1499,6 +1925,42 @@ export const WorkoutLogEditor = () => {
           fecha={daySession.session?.date ? shortDate(daySession.session.date) : null}
           onAmpliar={() => setSensacionesAbiertas(true)}
         />
+          </>
+        )}
+        {vista === 'bloque' && (
+          <LecturasDelBloque
+            program={program}
+            cliente={activeClient}
+            bloque={bloque}
+            semanaEnCurso={semanaEnCurso}
+            onIrBloque={(b) => {
+              const suyas = weeksOfBlock(program, b);
+              if (suyas.length > 0) irA(suyas[suyas.length - 1], 0, 'bloque');
+            }}
+            onIrSemana={(w) => irA(w, 0, 'bloque')}
+            onFechaSemana={(w, fecha) => setMicrocycleDate(activeClient.id, w, fecha)}
+            /* Los tres gestos del registro: abrir la hoja donde el cambio
+               empieza, deshacerlo (con vuelta atrás), o ascenderlo al plan. */
+            onIrCambio={(o) => {
+              const suyas = weeksOfBlock(program, bloque);
+              if (suyas.length === 0) return;
+              const w = suyas.find((x) => x >= o.fromWeek) ?? suyas[suyas.length - 1];
+              const dia = Math.max(0, blockSessionsOf(bloque).findIndex((h) => h.dayName === o.dayName));
+              irA(w, dia, 'hoja');
+            }}
+            onQuitarCambio={(o) => {
+              dropOverride(activeClient.id, bloque.id, o.id);
+              toast({
+                text: `«${describeOverride(o)}» deshecho: ${o.dayName} vuelve al plan del bloque en ese tramo.`,
+                action: { label: 'Deshacer', onClick: () => addOverride(activeClient.id, bloque.id, o) },
+              });
+            }}
+            onAscenderCambio={(o) => {
+              promoteOverride(activeClient.id, bloque.id, o.id);
+              toast({ text: `Aplicado al bloque: ahora es el plan de todos sus ${unidades}.` });
+            }}
+          />
+        )}
         </div>
       {/* Las ventanas se montan solo abiertas: cerradas no calculan nada. */}
       {progresionAbierta && (
@@ -1508,6 +1970,7 @@ export const WorkoutLogEditor = () => {
         <SensacionesPopup etiqueta={etiqueta} open onClose={() => setSensacionesAbiertas(false)} microcycles={microcycles} preguntas={activeQuestions(protocol)} />
       )}
       </div>
+      </>
       )}
 
       {importAbierto && nav.day && (
@@ -1591,21 +2054,6 @@ export const WorkoutLogEditor = () => {
         </div>
       </Modal>
 
-      {nuevoBloque && (
-        <DefinirBloque
-          open
-          onClose={() => setNuevoBloque(false)}
-          program={program}
-          library={ejerciciosDisponibles}
-          onTraerFichero={() => {
-            setNuevoBloque(false);
-            setImportarLimpio(true);
-            setPegarAbierto(true);
-          }}
-          onAbrir={(bloqueNuevo) => irA(startBlockWithPlan(activeClient.id, bloqueNuevo))}
-        />
-      )}
-
       {/*
         Los ajustes del programa: lo que se decide una vez por cliente. Fuera de
         la pantalla del bloque, donde estuvieron estorbando al final, plegados y
@@ -1613,6 +2061,20 @@ export const WorkoutLogEditor = () => {
         panel lateral va del alto de la ventana y esto ocupa un tercio, así que
         dejaba dos tercios de columna vacía; y `side` está para mirar un detalle
         sin soltar el trabajo, no para decidir. Aquí se decide.
+      */}
+      {/*
+        ══ AQUÍ VIVÍA «ALTERNATIVAS DE «X»» ═══════════════════════════════════
+
+        Una ventana con `EscribirHoja` sobre el plan del bloque —los ejercicios
+        de la hoja, sus series, sus repeticiones y sus alternativas—, abierta
+        desde la cabecera de la hoja. Se retira: «las alternativas no me gusta
+        que existan», y el resto de lo que hacía se hace en el bloque, que es de
+        quien es ese plan («+ ejercicio» de cada columna).
+
+        Lo que NO se ha retirado todavía es el DATO: `exercise.alternatives`
+        sigue guardándose, sigue llegando al portal del cliente («si está
+        ocupada: X / Y») y sigue editándose en la Librería. Eso es producto y no
+        maquetación, así que se decide aparte.
       */}
       <Modal open={panel === 'programa'} title="Ajustes del programa" onClose={() => setPanel(null)}>
         {ajustesDelPrograma}

@@ -419,8 +419,14 @@ export const mergePlanWithSession = (day, session) => {
       sets: (exercise.sets || []).map((planSet, index) => {
         const logged = entry?.sets?.[index];
         return {
+          targetKg: planSet?.targetKg ?? '',
           targetReps: planSet?.targetReps ?? '',
           targetRir: planSet?.targetRir ?? '',
+          /* El remate de esta serie es PLAN: viene del plan aunque la sesión ya
+             tenga registros. Sus subseries, en cambio, son de las dos mitades —
+             lo pautado lo dice `tecnica`, lo levantado va en `extras`—. */
+          ...(planSet?.tecnica ? { tecnica: planSet.tecnica } : {}),
+          ...(Array.isArray(logged?.extras) ? { extras: logged.extras } : {}),
           kg: logged?.kg ?? '',
           reps: logged?.reps ?? '',
           rir: logged?.rir ?? '',
@@ -433,8 +439,15 @@ export const mergePlanWithSession = (day, session) => {
 /**
  * Escribe un valor de ejecución en una sesión, creando lo que falte por el
  * camino (la entrada del ejercicio o la serie), de forma inmutable.
+ *
+ * ── `sub`: las subseries de un remate ──────────────────────────────────────
+ * Una bajada doble son dos tandas más colgando de la serie, y cada una tiene
+ * sus kilos y sus repeticiones. Van en `sets[i].extras[j]` y NO como series
+ * sueltas del array: una serie con bajada sigue siendo UNA serie para el
+ * volumen, y meterlas en `sets` inflaría el recuento del microciclo (que es la
+ * cifra con la que se decide la semana siguiente). Ver `TECNICAS`.
  */
-export const withSessionSet = (session, exercise, setIndex, field, value) => {
+export const withSessionSet = (session, exercise, setIndex, field, value, sub = null) => {
   const entries = [...(session.entries || [])];
   const at = entries.findIndex((e) => e.exerciseId === exercise.id);
 
@@ -449,7 +462,14 @@ export const withSessionSet = (session, exercise, setIndex, field, value) => {
         };
 
   while (base.sets.length <= setIndex) base.sets.push(emptySet());
-  base.sets[setIndex] = { ...base.sets[setIndex], [field]: value };
+  if (sub === null) {
+    base.sets[setIndex] = { ...base.sets[setIndex], [field]: value };
+  } else {
+    const extras = [...(base.sets[setIndex].extras || [])];
+    while (extras.length <= sub) extras.push({ kg: '', reps: '' });
+    extras[sub] = { ...extras[sub], [field]: value };
+    base.sets[setIndex] = { ...base.sets[setIndex], extras };
+  }
 
   // El nombre y el músculo se refrescan: si el entrenador renombró el ejercicio,
   // la sesión guardada conservaría el nombre viejo en la analítica.

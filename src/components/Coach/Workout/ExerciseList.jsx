@@ -1,8 +1,58 @@
-import { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
+import { Fragment, useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Link2, Plus, Quote, Trash2 } from 'lucide-react';
 
-import { setColor } from '@/domain/training';
+import {
+  nombreDeSubserie,
+  restLabel,
+  seriesGrammar,
+  setColor,
+  subseriesDe,
+  supersetLabels,
+  tecnicaDeLaSerie,
+  tecnicaFrase,
+  tecnicaSpec,
+} from '@/domain/training';
 import { e1rm, isRecord, isSetLogged, previousSetKey } from '@/domain/sessions';
+
+/**
+ * LA MARCA DEL EJERCICIO: que hay algo que abrir, y qué.
+ *
+ * ══ Una marca y no tres cosas en el renglón ════════════════════════════════
+ *
+ * El primer boceto ponía en la misma línea el ▶, la clave escrita y las
+ * alternativas. Son tres elementos peleándose por 390 px, que es el ancho real
+ * donde esto se usa: un teléfono en el gimnasio. Así que va una marca junto al
+ * nombre y detrás está todo.
+ *
+ * ── Qué glifo, y por qué dos ───────────────────────────────────────────────
+ * El mismo vocabulario que ya usa la columna «Lo tuyo» del Taller (`ej-marcas`):
+ *
+ *   · **cadena** si hay vídeo. Es el glifo correcto porque promete algo que
+ *     está FUERA, y es el que pidió el dueño.
+ *   · **comillas** si solo hay pautas. El mismo con el que esta lista ya rotula
+ *     «Nota de X» tres pantallas más abajo.
+ *
+ * Nunca las dos: dos glifos por fila es exactamente el ruido que se evita.
+ * Y sin vídeo y sin pautas no se pinta nada — el renglón queda idéntico al de
+ * antes de todo esto, que es la mitad «si existen» del encargo.
+ */
+const MarcaFicha = ({ ficha, onOpen }) => {
+  if (!ficha) return null;
+
+  const conVideo = Boolean(ficha.videoUrl);
+  const dice = conVideo
+    ? 'Ver cómo lo hace tu entrenador'
+    : 'Leer las pautas de tu entrenador';
+
+  return (
+    <button type="button" className="ej-marca" onClick={onOpen} title={dice} aria-label={dice}>
+      {/* La escala de iconos de la casa es 13/15/20. Las comillas van al escalón
+          de abajo y rellenas: al mismo tamaño que la cadena pesan más que ella,
+          porque son dos formas macizas contra un trazo. */}
+      {conVideo ? <Link2 size={15} /> : <Quote size={13} fill="currentColor" />}
+    </button>
+  );
+};
 
 /**
  * Qué serie del ejercicio es EL récord de hoy, si lo hay: la mejor de las que
@@ -24,7 +74,7 @@ const recordSetIndex = (exercise, bestSets) => {
 };
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
-import { SetCell, SetRow, SetRowHead } from './SetCell';
+import { SetCell, SetRow, SetRowHead, SetSubRow } from './SetCell';
 
 /**
  * El resumen de un ejercicio para el índice del teléfono: «4 series × 8-10 ·
@@ -87,6 +137,16 @@ export const ExerciseList = ({
      Se marca al pulsar cualquier parte de su fila que no sea un control. */
   focusedId = null,
   onFocusExercise = null,
+  /*
+    ── La ficha del ejercicio, y quién la pasa ───────────────────────────────
+    `sheetOf(name)` devuelve `{ videoUrl, cue }` o `null`, y es lo que decide si
+    el renglón lleva marca. Los DOS son opcionales y solo los pasa el portal del
+    cliente (`ClientRoutine`): en la hoja del entrenador no se pinta nada, que
+    es una orden vigente —ni miniaturas ni fotos en las hojas— y aquí se cumple
+    sola, sin una condición por audiencia que haya que acordarse de mantener.
+  */
+  sheetOf = null,
+  onOpenSheet = null,
 }) => {
   const esTelefono = useEsTelefono();
   const [dragIndex, setDragIndex] = useState(null);
@@ -139,6 +199,10 @@ export const ExerciseList = ({
     );
   }
 
+  /* A1/A2, derivado de la posición: la superserie se decide en el bloque y
+     aquí —donde se ejecuta o se registra— se lee. */
+  const marcasSS = supersetLabels(exercises);
+
   /*
     ══ En el teléfono, programar es ÍNDICE + FICHA ═══════════════════════════
     El carril con todo abierto son ~30 casillas editables a la vez: en 390 px
@@ -176,12 +240,14 @@ export const ExerciseList = ({
                       color: accent,
                     }}
                   >
-                    {index + 1}
+                    {marcasSS[index] || index + 1}
                   </span>
                   <span className="exercise-row-name">
                     <span className="name">{exercise.name}</span>
                     <span className="sum">
-                      {[exercise.muscle, resumenSeries(exercise, showRir)].filter(Boolean).join(' · ')}
+                      {[exercise.muscle, resumenSeries(exercise, showRir), seriesGrammar(exercise)]
+                        .filter(Boolean)
+                        .join(' · ')}
                     </span>
                   </span>
                   <ChevronRight size={15} className="chevron" aria-hidden="true" />
@@ -370,8 +436,9 @@ export const ExerciseList = ({
                 border: `1px solid ${accent}40`,
                 color: accent,
               }}
+              title={marcasSS[index] ? 'En superserie: se alterna con el ejercicio enlazado, sin descanso entre ellos' : undefined}
             >
-              {index + 1}
+              {marcasSS[index] || index + 1}
             </span>
 
             {/*
@@ -384,11 +451,35 @@ export const ExerciseList = ({
               a celda— y repetirlo aquí solo servía para confundir.
             */}
             <div className="exercise-name">
-              <div className="name" title={exercise.name}>
-                {exercise.name}
+              {/* El nombre y su marca, en fila. El envoltorio existe porque
+                  `.name` trunca con `text-overflow: ellipsis`: una marca metida
+                  DENTRO de ese mismo elemento se recorta con el texto. */}
+              <div className="name-linea">
+                <div className="name" title={exercise.name}>
+                  {exercise.name}
+                </div>
+                <MarcaFicha
+                  ficha={sheetOf?.(exercise.name)}
+                  onOpen={() => onOpenSheet?.(exercise.name)}
+                />
               </div>
               <div className="exercise-meta">
                 <span className="muscle">{exercise.muscle}</span>
+                {/*
+                  ── AQUÍ SOLO EL DESCANSO ─────────────────────────────────
+                  Esta línea imprimía la gramática entera —«última con bajada
+                  −20 % · descanso 90 s»— y desde que el remate se dibuja en su
+                  propia serie, unas líneas más abajo, eso es decirlo dos veces.
+                  Medido en un teléfono de 390 px: con las tres piezas («pecho»,
+                  la gramática y «la vez anterior · semana 9») ninguna cabía y
+                  las tres salían con puntos suspensivos.
+
+                  El descanso se queda porque NO se dibuja en ninguna otra
+                  parte de esta lista: es del ejercicio entero.
+                */}
+                {restLabel(exercise.restSeconds) && (
+                  <span className="muscle">descanso {restLabel(exercise.restSeconds)}</span>
+                )}
                 {/* De cuándo son las cifras apagadas de los campos. Sin esto, un
                     número gris dentro de una casilla vacía no dice nada. */}
                 {antes && (
@@ -457,19 +548,41 @@ export const ExerciseList = ({
             ) : (
               <div className="set-table">
                 <SetRowHead />
-                {(exercise.sets || []).map((set, setIndex) => (
-                  <SetRow
-                    key={setIndex}
-                    index={setIndex}
-                    set={set}
-                    exerciseName={exercise.name}
-                    onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
-                    showRir={showRir}
-                    previous={previousSets?.get(previousSetKey(exercise.name, setIndex))}
-                    record={setIndex === recordSetIndex(exercise, bestSets)}
-                    onConfirm={onConfirmSet ? (antes) => onConfirmSet(exercise.id, setIndex, antes) : null}
-                  />
-                ))}
+                {(exercise.sets || []).map((set, setIndex) => {
+                  /* El remate de ESTA serie y sus tandas. Ver `TECNICAS`: el
+                     plan las pauta con sus números, así que aquí se sabe
+                     cuántas casillas hacen falta. */
+                  const remate = tecnicaDeLaSerie(exercise, setIndex);
+                  const subs = subseriesDe(remate);
+                  return (
+                    <Fragment key={setIndex}>
+                      <SetRow
+                        index={setIndex}
+                        set={set}
+                        exerciseName={exercise.name}
+                        onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value)}
+                        showRir={showRir}
+                        previous={previousSets?.get(previousSetKey(exercise.name, setIndex))}
+                        record={setIndex === recordSetIndex(exercise, bestSets)}
+                        onConfirm={onConfirmSet ? (antes) => onConfirmSet(exercise.id, setIndex, antes) : null}
+                      />
+                      {remate && (
+                        <p className="set-remate" title={tecnicaSpec(remate.id)?.ayuda}>
+                          {tecnicaFrase(remate)}
+                        </p>
+                      )}
+                      {Array.from({ length: subs }, (_, j) => (
+                        <SetSubRow
+                          key={`sub-${j}`}
+                          nombre={nombreDeSubserie(remate, j)}
+                          extra={set.extras?.[j]}
+                          label={`${exercise.name}, serie ${setIndex + 1}, ${nombreDeSubserie(remate, j)}`}
+                          onChange={(field, value) => onSetChange(exercise.id, setIndex, field, value, j)}
+                        />
+                      ))}
+                    </Fragment>
+                  );
+                })}
               </div>
             )}
 

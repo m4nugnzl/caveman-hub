@@ -360,65 +360,791 @@ button.task-head:hover > .chevron { color: var(--text); }
    Las columnas solo existen si la cartera puede llenarlas y la celda sin dato
    calla — la regla completa y su historia están en `FilaCliente`
    (`ClientPortfolio.jsx`), que es quien decide qué columnas vienen. */
-.plantilla {
-  background: var(--surface);
-  border: 1px solid var(--edge);
-  border-radius: var(--r-lg);
-  padding: var(--s2) var(--s4);
-  box-shadow: var(--shadow-sm);
-  overflow-x: auto;
+/* ══ LA HOJA DE LA CARTERA ══════════════════════════════════════════════════
+
+   Un solo objeto con bandas, y no cuatro piezas puestas una debajo de otra.
+   Antes esto era una banda de cabecera con su filete, un carril de chips
+   flotando, otro carril de etiquetas y por fin la tabla dentro de su tarjeta:
+   cuatro superficies con cuatro sangrados distintos y ninguna alineada con las
+   otras. El dueño lo dijo mejor que ninguna nota: «parece como si fueses
+   metiendo cosas poco a poco».
+
+   La regla que lo arregla es una sola: TODAS LAS BANDAS SANGRAN IGUAL. El
+   título, los chips, el buscador y la primera columna de la tabla arrancan en
+   la misma vertical, y lo que las separa es un filete, no aire. Es la forma de
+   la lista de Coachway —cabecera, herramientas, tabla, todo sobre el mismo
+   papel— con nuestras piezas.
+
+   ══ Y en escritorio NO es una tarjeta ══════════════════════════════════════
+   Lo fue un día y se veían DOS cajas, una dentro de la otra: el área de
+   trabajo ya es un objeto con su canto y su radio (`.shell-main`, «el marco»
+   en chasis.css) y encima de ella flotaba otra caja con el mismo canto y el
+   mismo radio, separada del borde por unos milímetros de nada. Un marco dentro
+   de un marco no es jerarquía, es un error de encuadre.
+
+   La regla de la casa —cada paso hacia dentro aclara: frame → content → card—
+   se cumple con las tarjetas que hay DENTRO de una pantalla, no con la
+   pantalla entera: una hoja que ocupa todo su marco no es una tarjeta, es el
+   contenido del marco. Así que aquí la cartera se queda en bandas sobre la
+   hoja de trabajo y hay una sola caja.
+
+   En el móvil no hay marco —las reglas de `.shell-main` viven a partir de
+   1024— así que ahí sí se dibuja la superficie: sin ella la lista quedaría
+   flotando sobre el lienzo desnudo. */
+@media (max-width: 1023.98px) {
+  .cartera {
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+  }
+  /* La cinta remata la tarjeta, así que sus dos esquinas son las de la
+     tarjeta —r-lg aquí, r-xl en el marco de escritorio— y su papel es el de la
+     tarjeta, no el de la hoja de detrás. */
+  .cartera-cab {
+    background: transparent;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
+  .cartera-cuerpo { padding: 0 var(--s4); }
+
+  /* ── Los tramos SÍ existen en el móvil ────────────────────────────────────
+     La regla de la barra del pulgar retira todos los `nav.tabs` («su lista es
+     la misma que la de la barra, y dos navegaciones idénticas en la misma
+     pantalla es peor que ninguna», jornada.css). Estos no navegan: filtran —
+     activos, pendientes, en pausa, archivados—, y la barra de abajo no los
+     lleva. Con la regla puesta, en un teléfono no había forma de llegar a un
+     cliente en pausa ni a uno archivado: la cartera entera se quedaba en su
+     primer tramo. */
+  nav.tabs.tramos { display: inline-flex; }
+
+  /* Aquí el eje de etiquetas dejaba de empujarse al canto. Ya no hace falta:
+     no se empuja en ningún tamaño (ver `.cartera-barra-fin`). */
 }
-.plantilla > table { width: 100%; border-collapse: collapse; }
+
+/* ── Aquí vivía la excepción de ancho de la cartera ────────────────────────
+   `.shell-main:has(.cartera) > .layout { max-width: none }`, puesta el día del
+   «¿por qué Clientes no ocupa toda la caja?». Hacía su trabajo, y por eso
+   Clientes era la única pantalla que el dueño daba por buena. Pero era una
+   excepción para UNA pantalla: las otras diez seguían con el tope de `.layout`
+   dentro de una hoja que ya tenía el suyo, 21 px más adentro, y ahí estaba el
+   «cada página empieza en un punto distinto».
+
+   Ya no hace falta: en escritorio `.layout` no lleva tope (ver `chasis.css`) y
+   lo que cierra el ancho es la hoja, para todas por igual. */
+
+/* ══ LA CINTA Y EL CUERPO ═══════════════════════════════════════════════════
+
+   La cabecera ya no se define aquí: es LA MISMA pieza que la del cliente
+   (`.cliente-cab` / `.cartera-cab` comparten regla en `chasis.css`), así que
+   el nombre de la pantalla y el nombre de la persona caen en el mismo hueco y
+   el raíl —tramos allí, secciones aquí— se posa sobre el mismo filete. Saltar
+   de la lista a un cliente deja de mover el titular.
+
+   Lo que queda por debajo es el cuerpo, y va en la MISMA columna que la
+   cinta: sin esto, la tabla arrancaba en una vertical y el título en otra.
+   Aquí vivieron cuatro bandas con filete entre ellas; con la cinta arriba
+   sobran todos menos el suyo — dos rayas seguidas a 40 px de distancia son la
+   rejilla que el dueño llamó «como si fueses metiendo cosas poco a poco». */
+/* ── LA MEDIDA DE UNA PANTALLA ES LA HOJA, Y EL SANGRADO ES EL MISMO ───────
+   Aquí vivieron dos números seguidos —1560 que nunca se aplicaba porque
+   `.layout` recortaba antes a 1320, y luego `--max-w-mesa` centrado— y los dos
+   hacían lo mismo: poner el trabajo en una columna más estrecha que la hoja,
+   con el sobrante repartido a los lados. Eso es lo que el dueño llamó «no se
+   aprovecha el espacio», y de paso lo otro: centrar una columna de 1180 dentro
+   de una hoja de 1604 mete un margen fantasma de 211 px a la izquierda que NO
+   tiene la pantalla de al lado si su columna mide otra cosa. Por eso cada
+   página empezaba en un punto distinto.
+
+   La regla ahora es una y no admite excepción por pantalla: la hoja es fija
+   (`.shell-main`, chasis) y el cuerpo la ocupa entera; lo único que separa la
+   tinta del canto es este sangrado, que es el mismo para todas. Lo que una
+   pieza no necesite lo deja A LA DERECHA, dentro de su pantalla, donde se lee
+   como aire de la tabla y no como un papel descolocado.
+
+   Las tres medidas de `tokens.css` no se van: dejan de medir PÁGINAS y pasan a
+   medir piezas dentro de ellas —la tabla mide su contenido, una columna de
+   decisiones mide 880 dentro de su plano—. Ahí no mueven el borde de nada. */
+.cartera-cuerpo { max-width: none; margin: 0; padding: 0 var(--s5); }
+
+/* La banda de herramientas: buscar y las preguntas de la cartera a la
+   izquierda, el eje de etiqueta a la derecha. El alta se subió a la cinta —una
+   pantalla tiene UNA acción primaria y su sitio es al lado de su nombre, como
+   «Revisar semana» en la del cliente—, y con ella fuera la barra vuelve a ser
+   lo que dice: con qué se mira la lista. */
+.cartera-barra {
+  display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap;
+  padding: var(--s4) 0 var(--s3);
+}
+/* El eje de equipo, cuando lo hay, es la segunda barra: se pega a la primera
+   en vez de abrir otro tramo de aire. */
+.cartera-barra + .cartera-barra { padding-top: 0; }
+/* ── EL RAÍL DE CHAPAS NO ABRE UNA SEGUNDA FILA ────────────────────────────
+   Un hijo de un contenedor flex no baja de su ancho de contenido si nadie se lo
+   dice: sin `min-width: 0` el raíl medía lo que midieran sus chapas, la barra
+   envolvía y el buscador se quedaba solo en una línea con las chapas en otra.
+   Eran DOS bandas de mandos entre la cabecera y la tabla.
+
+   ── Y esto NO basta: la lección de la primera versión ──────────────────────
+   Aquí puso `flex: 1 1 0`, para que el raíl ocupara lo que sobra y rodara
+   cuando no cupiera. Rodar es lo que `.rail` sabe hacer **en táctil**: lleva
+   `scrollbar-width: none` y con ratón no hay gesto horizontal, así que las
+   chapas que no cabían dejaron de poder alcanzarse. El dueño lo vio en el acto:
+   «hay tantos elementos que ocupan todo el ancho y no se puede deslizar».
+
+   La salida no era otro raíl que rodase mejor, sino que no sobre nada: los ejes
+   largos —categorías, músculos— se pliegan en un selector (`SelectorDeGrupo`) y
+   en el raíl quedan las dos chapas que caben siempre. Por eso ahora el raíl
+   **no crece**: encoge si hace falta y ya, sin prometer un desplazamiento que
+   con ratón no existe. */
+.cartera-barra > .rail { flex: 0 1 auto; min-width: 0; }
+/* ── El eje de etiquetas va CON los demás filtros ──────────────────────────
+   Se empujaba al canto derecho con `margin-left: auto`, y eso hacía dos cosas
+   mal. La de fondo: «Etiquetas» es un filtro igual que «Requieren atención» o
+   «Sin entrenar», y mandarlo solo a la otra punta de la barra lo saca de la
+   tanda a la que pertenece. La de forma: desde que la tabla mide su contenido
+   y no la ventana, el canto derecho de la barra ya no es el canto de la lista
+   — en 1920 el chip se quedaba 515 px más allá del final de la tabla, solo en
+   mitad del papel. En el móvil ya iba así desde hacía tiempo. */
+.cartera-barra-fin {
+  display: flex; align-items: center; gap: var(--s3); flex-shrink: 0;
+}
+/* El buscador, a la talla de la lista: iba a 40 px de alto y tipo base contra
+   una tabla que habla en `fs-sm`, y con «Nuevo cliente» al lado los dos
+   gritaban más que el título de la pantalla. */
+.cartera-barra .searchbox > .input { width: 230px; padding-left: 30px; }
+.cartera-barra .searchbox > svg { left: 9px; }
+
+/* La banda de lo que se dice antes de la lista: el alta, los siguientes pasos
+   de un recién creado y los avisos. Dentro de la hoja y no encima de ella. */
+.cartera-avisos {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s2) 0 var(--s4);
+}
+.cartera-vacio { padding: var(--s6) 0; }
+
+/* El pie: cuántos estás viendo. Cierra la hoja y contesta lo que deja
+   cualquier filtro puesto — sin filete arriba, que ya lo pone la última fila. */
+.cartera-pie {
+  padding: var(--s3) 0 var(--s5);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* El rótulo que separa lo suyo de lo que se le ofrece, dentro del
+   desplegable de etiquetas. */
+.selector-etiquetas-rotulo {
+  display: block; padding: 8px 10px 4px;
+  font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+
+/* La tabla ya no es una tarjeta: es la última banda de la hoja. Su sangrado se
+   calcula para que, SUMADO al de las celdas, la primera columna arranque en la
+   misma vertical que el título y el buscador. Es la regla entera de la hoja en
+   una línea: si esto se descuadra, vuelve a parecer una tabla puesta encima. */
+/* ── Y CUANDO NO CABE, RUEDA DENTRO DE SÍ MISMA ────────────────────────────
+   Una tabla no puede encogerse por debajo de su contenido, así que en la
+   franja estrecha —entre los 1024 px a los que aparece la barra lateral y los
+   ~1240 a los que la hoja vuelve a dar de sí— se salía de la hoja. Y salirse
+   aquí no es que asome: `body` lleva `overflow-x: hidden` (ver el porqué en
+   `layout.css`), así que lo que sobra se CORTA y no hay forma de alcanzarlo
+   deslizando. En `/alimentos` a 1024 px se perdían las etiquetas y el origen.
+
+   Es anterior a que la tabla midiera su contenido —se comprobó con la regla
+   vieja puesta y pasaba igual—, pero la ficha al lado estrecha todavía más el
+   carril de la lista, así que ya no se puede dejar. Con su propio desplazador,
+   lo que no cabe se alcanza. En el móvil arregla lo mismo. */
+/* ══ LA LISTA ES UNA CAJA, Y LA CAJA LLENA LA HOJA ══════════════════════════
+   Esto era una tabla desnuda sobre el papel, con un sangrado negativo para que
+   el relleno de la fila se saliera un poco por los lados. Sobre una hoja que
+   termina donde termina la última fila, funcionaba; sobre una hoja fija de
+   1604 × la ventana, no: seis filas y medio metro de blanco debajo, sin nada
+   que dijera dónde acaba la lista.
+
+   Aquí estuvo escrito que en escritorio la lista NO podía ser una tarjeta
+   —«un marco dentro de un marco no es jerarquía, es un error de encuadre»— y
+   era verdad mientras la hoja fuera del tamaño del contenido. Con la hoja
+   fija son dos cosas distintas: la hoja es el ESCRITORIO y la caja es la
+   LISTA, que empieza y acaba en algún sitio. Es la estructura que el dueño
+   señaló en Coachway, y la que hace que el hueco de debajo se lea como sitio
+   para más filas en vez de como papel sobrante.
+
+   Sin sombra: el escalón de superficie y el canto ya la separan de la hoja, y
+   una sombra más aquí convierte la pantalla en un montón de cosas apiladas. */
+.plantilla { overflow-x: auto; }
+/* El canto y el papel, sólo donde hay hoja. Fuera del escritorio la lista YA es
+   una tarjeta sobre el lienzo (más arriba en este archivo), y una caja dentro de
+   otra con el mismo canto es el error de encuadre de siempre — el mismo que
+   hacía que esto no pudiera ser una caja cuando la hoja medía el contenido. */
+@media (min-width: 1024px) {
+  .plantilla {
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+  }
+}
+/* ══ LA TABLA MIDE SU CONTENIDO, NO LA VENTANA ═══════════════════════════════
+   Con `width: 100%` el sobrante de la hoja se repartía entre las columnas que
+   no tienen ancho fijo. Medido en `/clientes` a 1600 px: el renglón medía
+   1286 px y solo 552 eran tinta —el 57 % de cada fila era aire—, y encima mal
+   repartido: «Etiquetas» se quedaba 338 px para 49 px de contenido mientras
+   Semana, Entrenó, Peso y Lleva se apretaban en 350 px al final. Leer la fila
+   de alguien era un viaje de 900 px del nombre a su semana.
+
+   Con ancho automático cada columna mide lo que necesita y el sobrante se va
+   entero al margen derecho, que es donde un margen se lee como un margen. La
+   misma tabla pasa a 1013 px y el aire baja a 461 —y lo que queda ya no son
+   agujeros, es el ancho de la celda más larga de cada columna.
+
+   ── Y por qué esto no es lo que ya se descartó ────────────────────────────
+   Se probó una vez dar el sobrante ENTERO a la columna de la persona
+   (`width: 100%` en su celda) y salía peor: en 1920 los nombres se quedaban
+   solos a la izquierda y el resto del dato se apelmazaba contra el canto. Eso
+   movía el aire de sitio; esto lo quita.
+
+   ── El suelo ──────────────────────────────────────────────────────────────
+   Una tabla de cuatro columnas cortas —`/formularios`, dos filas— se encogía a
+   584 px y dejaba de leerse como una banda de la hoja para leerse como una
+   ficha suelta en mitad del papel. Por debajo de unos 760 px una tabla ya no
+   parece una tabla, así que ahí está el tope. Las tres listas grandes
+   (clientes 1013, alimentos 960, ejercicios 917) ni lo tocan. */
+.plantilla > table {
+  width: 100%; min-width: min(100%, 760px);
+  border-collapse: collapse;
+}
+
+/* ── PERO EL SOBRANTE NO SE REPARTE A OJO ──────────────────────────────────
+   Con `width: 100%` a secas el navegador reparte lo que sobra en proporción al
+   contenido de cada columna, y eso fue lo que se midió mal la primera vez:
+   «Etiquetas» se quedaba 338 px para 49 px de contenido mientras Semana,
+   Entrenó, Peso y Lleva se apretaban en 350 px al final de la fila. La salida
+   entonces fue quitarle el 100 % a la tabla —y entonces la tabla medía 1013 en
+   una página de 1602 y la pantalla se veía hueca—. Ninguna de las dos valía.
+
+   Lo que faltaba es esto: las columnas de CIFRA y de MANDO miden su contenido y
+   no aceptan sobrante (`width: 1%` con `nowrap` es la forma de decir «encógete a
+   lo tuyo» en una tabla), así que lo que sobra sólo puede irse a las de TEXTO
+   —el nombre, el estado, las etiquetas—, que son las que lo pueden usar. No es
+   el reparto a ojo ni es dárselo todo al nombre, que son los dos experimentos
+   que ya salieron peor.
+
+   La última columna entra siempre: en las cinco tablas es la de acciones o la
+   marca de origen, o sea un icono. */
+.plantilla th.p-marca, .plantilla td.p-marca,
+.plantilla th.p-celda, .plantilla td.p-celda,
+.plantilla th.p-lleva, .plantilla td.p-lleva,
+.plantilla th.al-num, .plantilla td.al-num,
+/* El perfil es una barra de medida fija: si aceptara sobrante, en 1920 sería
+   una franja de colores de trescientos píxeles compitiendo con el nombre. */
+.plantilla th.al-perfil, .plantilla td.al-perfil,
+.plantilla th:last-child, .plantilla td:last-child {
+  width: 1%; white-space: nowrap;
+}
+
+/* ── Y LA CAJA LLENA EL ALTO QUE LE SOBRA A LA HOJA ────────────────────────
+   Sin esto la caja mide lo que midan sus filas y vuelve el mismo agujero, sólo
+   que ahora con un canto alrededor señalándolo. La cadena va desde la hoja
+   hasta la tabla porque en CSS un hijo no puede estirarse si su padre no se ha
+   estirado antes; son seis niveles y no hay atajo.
+
+   `flex: 1` SIN `min-height: 0`: con el mínimo automático de un elemento flex,
+   la caja llena lo que sobra y, cuando hay más filas de las que caben, crece y
+   la página desplaza como siempre. Con `min-height: 0` se encogería y habría
+   que meter un desplazamiento DENTRO de la caja — dos scrolls en la misma
+   pantalla, que es peor que el hueco que arregla.
+
+   Sólo las listas peladas: un banco de dos planos es una rejilla y ahí el alto
+   lo reparte la rejilla. */
+@media (min-width: 1024px) {
+  .shell-main:has(.cartera),
+  .shell-main:has(.taller) { display: flex; flex-direction: column; }
+
+  /* `margin: 0` y no es un detalle: `.layout` lleva `margin: 0 auto` para
+     centrarse, y un hijo de un contenedor flex con margen AUTOMÁTICO en el eje
+     cruzado deja de estirarse y se encoge hasta su contenido. Aquí eso dejaba
+     la columna en 116 px de los 1604 de la hoja. Es la misma trampa que ya está
+     escrita en `taller.css` («BLOQUE, y no una columna flexible»), y ahora que
+     en escritorio `.layout` no lleva tope, el centrado no hace ninguna falta. */
+  .shell-main:has(.cartera) > .layout,
+  .shell-main:has(.taller) > .layout {
+    flex: 1; margin: 0;
+    display: flex; flex-direction: column;
+  }
+
+  .shell-main:has(.cartera) > .layout > .stack,
+  .shell-main:has(.taller) > .layout > .stack { flex: 1; }
+
+  .cartera,
+  .taller { flex: 1; display: flex; flex-direction: column; }
+
+  .cartera-cuerpo:not(.es-banco):not(.proto-banco) {
+    flex: 1; display: flex; flex-direction: column;
+  }
+  .cartera-cuerpo:not(.es-banco):not(.proto-banco) > .plantilla,
+  .plano-lista > .plantilla { flex: 1; }
+}
+
+/* ── Y EN LA CARTERA, EL REPARTO SE DECIDE ─────────────────────────────────
+   Con las cifras ya fijadas, el navegador reparte lo que queda en proporción al
+   texto más largo de cada columna, y eso le daba a «Estado» 569 px para una
+   frase que mide 220: la columna con la frase más larga se llevaba el 44 % de
+   lo elástico y el nombre —que es por lo que se busca una fila— se quedaba en
+   305. Estos tres números son el reparto dicho a propósito. Suman el 78 %; el
+   22 % restante es lo que miden las columnas fijas de arriba. */
+.cartera .plantilla th.p-quien { width: 30%; }
+.cartera .plantilla th.p-estado { width: 25%; }
+.cartera .plantilla th.p-etiq { width: 23%; }
+/* ── LA CABECERA ES CROMO, NO DATO ─────────────────────────────────────────
+   Iba en el mismo cuerpo y casi el mismo gris que las celdas, así que la
+   primera línea de la tabla se leía como una fila más —una que además dice
+   cosas raras: «Cliente», «Semana», «Lleva»—. Una cabecera de tabla es un
+   rótulo de columna: versalita, pequeña, espaciada y en la tinta más callada.
+   Es el mismo tratamiento que el rótulo del desplegable de etiquetas, y lo que
+   hace que las filas parezcan contenido y no formulario. */
 .plantilla th {
-  padding: var(--s3);
+  padding: var(--s2) var(--s3) var(--s3);
   text-align: left; white-space: nowrap;
-  font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary);
-  border-bottom: 1px solid var(--hairline-strong);
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  border-bottom: 1px solid var(--hairline);
 }
-.plantilla td { padding: var(--s3); vertical-align: middle; }
+/* Más aire vertical que una tabla de datos cualquiera: cada fila es una
+   persona con su clasificación, no un registro contable. Es el punto de la
+   lista de Coachway que sí se adopta — el resto de su estética, no.
+
+   ── UNA VOZ PARA TODA LA FILA ─────────────────────────────────────────────
+   La celda habla en gris al cuerpo pequeño, y punto. Antes cada columna traía
+   la suya: la semana en secundario, los kilos en 650, el «hace 13 d» en ámbar
+   y 650, los chips en 3xs sobre color, la subfrase en 2xs terciario. Siete
+   voces en 900 px hacen que el ojo no sepa qué mirar primero — que es
+   exactamente lo que se siente al abrir la pantalla y no saber decir por qué.
+   Lo único que sube es el nombre; lo único que se colorea es el estado. */
+.plantilla td {
+  padding: var(--s3); vertical-align: middle;
+  font-size: var(--fs-sm); color: var(--text-secondary);
+}
+
+/* ══ QUE EL RÓTULO CAIGA SOBRE SU DATO ══════════════════════════════════════
+
+   Cada celda lleva algo delante del texto —la cara, el punto del semáforo, el
+   canto de la caja de etiquetas, el hueco del botón de icono— y esos adornos
+   empujaban el dato a la derecha mientras el rótulo de la columna se quedaba
+   pegado al canto de la celda. Cuatro desajustes distintos (50, 15, 9 y 7 px)
+   en la misma cabecera: eso es lo que se lee como «las letras de las filas no
+   están alineadas con las columnas», y no lo está ninguna.
+
+   La cabecera se sangra lo que mide el adorno de su celda. Los números no son
+   de gusto: cada uno es la suma que hay debajo, y si cambia el adorno hay que
+   cambiarlos aquí — por eso van juntos y con la cuenta escrita. */
+/* Aquí se explicaba que el sobrante se repartía entre las columnas. Ya no hay
+   sobrante que repartir: la tabla mide su contenido (ver `.plantilla > table`,
+   arriba). Los sangrados de abajo siguen valiendo igual — no dependen del
+   ancho, sino del adorno que lleve cada celda delante del dato. */
+.plantilla th.p-quien > .th-orden { padding-left: calc(32px + var(--s3)); }   /* cara + hueco */
+.plantilla th.p-estado > .th-orden { padding-left: calc(7px + var(--s2)); }   /* punto + hueco */
+.plantilla th.p-etiq { padding-left: calc(var(--s3) + 8px); }                 /* canto de la caja */
+.plantilla th.p-lleva { padding-left: calc(var(--s3) + 7px); }               /* hueco del glifo */
 .plantilla tbody tr + tr > td { border-top: 1px solid var(--hairline); }
 /* La fila entera es la puerta (el teclado entra por el nombre, que es botón). */
 .plantilla tbody tr { cursor: pointer; transition: background-color var(--fast); }
 .plantilla tbody tr:hover { background: var(--fill-subtle); }
-.plantilla tbody tr:hover .chevron { transform: translateX(2px); }
-.plantilla .chevron { color: var(--text-tertiary); transition: transform var(--fast); }
 
-/* Las columnas de dato: al ancho del contenido y a la derecha, que es como se
-   alinean las cifras en cualquier libro de cuentas. */
-.plantilla .p-celda, .plantilla .p-peso, .plantilla .p-accion { width: 1px; white-space: nowrap; text-align: right; }
-.plantilla th.p-semana, .plantilla th.p-peso, .plantilla th.p-entreno { text-align: right; }
-.plantilla .p-celda { font-size: var(--fs-sm); color: var(--text-secondary); }
-/* La celda que avisa: lleva demasiado sin entrenar. La frase de la fila calla
-   para no hacer eco (ver `ClientPortfolio`), así que el juicio va aquí. */
-.plantilla .p-entreno.is-tarde { color: var(--warning); font-weight: 650; }
+/* ── Por qué las columnas de dato van a la IZQUIERDA ───────────────────────
+   Estaban a la derecha, con `width: 1px`, que es como se alinean las cifras en
+   un libro de cuentas. Pero un libro de cuentas alinea números que se SUMAN, y
+   aquí no se suma nada: «S17» y «S2» son etiquetas, y pegadas al canto derecho
+   de un hueco que reparte el sobrante quedaban a diez centímetros de su
+   cabecera, cada una en un sitio distinto. Eso es lo que se ve como columnas
+   descuadradas. Alineadas a la izquierda, cada valor arranca donde arranca su
+   título y la tabla vuelve a leerse en vertical. */
+.plantilla .p-celda, .plantilla .p-accion { width: 1px; white-space: nowrap; }
+.plantilla .p-accion { text-align: right; }
 
-/* Quién: cara + nombre + su frase. El único hueco que cede al estrecharse. */
+/* ── EL ESTADO: el color en el punto, la frase en gris ─────────────────────
+   Esta columna se escribió primero con la tinta del semáforo, que es como el
+   producto dice sus veredictos. En una ficha funciona; en una lista de trece,
+   no: una cartera de verdad tiene ocho filas con algo pendiente, así que la
+   columna salía siendo ocho renglones rojos seguidos. El porqué completo, en
+   `estadoDe` (ClientPortfolio.jsx).
+
+   El punto lleva el color; el texto vuelve a la voz de la fila. En vertical se
+   lee de un vistazo cuántos hay en rojo, y la frase deja de competir con el
+   nombre.
+
+   El tope va en el TEXTO y no en la celda: una celda con `max-width` sigue
+   pidiendo el ancho de su frase sin partir, y con eso una tabla automática se
+   sale de la pantalla en el móvil. */
+/* La columna reclama un mínimo para que un tramo de estados cortos —«Al día»
+   trece veces— no la deje convertida en una tira pegada al nombre. */
+.plantilla .p-estado { min-width: 150px; }
+.plantilla .p-senal { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.plantilla .p-senal-texto {
+  max-width: 280px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El punto: 7 px de semáforo, la misma escala que el resto de discos de la
+   casa. Con `flex-shrink: 0` sobrevive a la frase larga — un punto aplastado
+   deja de ser un punto. */
+.p-punto {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--text-tertiary);
+}
+.p-senal[data-tono='bad'] > .p-punto { background: var(--negative); }
+.p-senal[data-tono='warn'] > .p-punto { background: var(--warning); }
+.p-senal[data-tono='good'] > .p-punto { background: var(--positive); }
+.p-senal[data-tono='info'] > .p-punto { background: var(--info); }
+/* El neutro, más callado todavía: hueco con su canto. «En pausa» y las
+   carencias leves no son un aviso, son un apunte. */
+.p-senal[data-tono='neutro'] > .p-punto {
+  background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-tertiary); opacity: 0.6;
+}
+
+/* ── LO QUE LE LLEVAS ──────────────────────────────────────────────────────
+   Dos glifos por fila: entreno y dieta, los mismos iconos que sus secciones.
+   Apagados en reposo —son atajos, no la acción de la pantalla— y en tinta
+   normal al pasar por encima. Sin fondo ni canto: dos botones dibujados en
+   trece filas serían veintiséis cajas. */
+.plantilla .p-lleva { width: 1px; white-space: nowrap; }
+.plantilla .p-lleva-iconos { display: inline-flex; align-items: center; gap: 2px; }
+.plantilla .p-lleva-boton {
+  width: 28px; height: 28px; color: var(--text-tertiary);
+  transition: color var(--fast), background-color var(--fast);
+}
+.plantilla .p-lleva-boton:hover { color: var(--text); background: var(--fill-subtle); }
+/* En la fila que se está mirando suben un escalón de tinta: a lo lejos son una
+   señal (a quién le llevas las dos cosas), y de cerca son dos puertas. */
+.plantilla tbody tr:hover .p-lleva-boton { color: var(--text-secondary); }
+
+/* ── El «···» de la fila, sin su aro ───────────────────────────────────────
+   El menú de acciones lleva un canto de serie (`.menu-acciones .btn-icon`,
+   revision.css) que en una ficha está bien: es UN botón y el aro dice dónde
+   pulsar. En una lista son trece círculos dibujados por el canto derecho,
+   compitiendo con el dato. Aquí el glifo va suelto y la caja aparece al pasar
+   —igual que la de las etiquetas por el otro lado de la fila. */
+.plantilla .menu-acciones .btn-icon { box-shadow: none; color: var(--text-tertiary); }
+.plantilla tbody tr:hover .menu-acciones .btn-icon { color: var(--text-secondary); }
+.plantilla .menu-acciones .btn-icon:hover,
+.plantilla .menu-acciones .btn-icon[aria-expanded='true'] {
+  background: var(--fill); color: var(--text);
+}
+
+/* ── ORDENAR PULSANDO LA CABECERA ──────────────────────────────────────────
+   La mecánica y su accesibilidad son de `ui/tabla.jsx` y su hoja las viste
+   dentro de `.table`; aquí se repite el vestido para `.plantilla`, que es una
+   tabla con su propio reparto de columnas. La flecha solo se ve al pasar por
+   encima o en la columna activa: trece flechas fijas en la cabecera son trece
+   cosas que no se van a pulsar. */
+.plantilla th[aria-sort='ascending'] > .th-orden,
+.plantilla th[aria-sort='descending'] > .th-orden { color: var(--text); }
+.plantilla th[aria-sort='ascending'] > .th-orden > svg,
+.plantilla th[aria-sort='descending'] > .th-orden > svg { opacity: 1; }
+
+/* Quién: cara + nombre + su frase. El único hueco que cede al estrecharse.
+
+   La cara mide 32 y no 38: con 38 y el aire de antes, cada fila pedía 71 px y
+   en una pantalla de portátil entraban ocho clientes. La lista de Coachway
+   respira a ~56 y eso son cinco filas más por pantalla — en una herramienta que
+   se abre cincuenta veces al día, eso es la diferencia entre ver tu cartera y
+   desplazarte por ella. */
 .plantilla .p-persona { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.plantilla .p-cara { width: 38px; height: 38px; border-radius: var(--r-md); font-size: var(--fs-xs); flex-shrink: 0; }
+.plantilla .p-cara { width: 32px; height: 32px; border-radius: var(--r-sm); font-size: var(--fs-2xs); flex-shrink: 0; }
 .plantilla .p-who { min-width: 0; }
-.plantilla .p-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* El nombre también lleva tope, y por el mismo motivo que el estado: sin él,
+   un «Guillermo vivenka» entero es el ancho mínimo de su columna y la tabla
+   deja de caber en un teléfono. */
+.plantilla .p-name {
+  display: block; max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .plantilla .p-abrir {
-  background: none; border: 0; padding: 0; font: inherit; color: inherit;
+  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  background: none; border: 0; padding: 0; font: inherit; color: var(--text);
   font-size: var(--fs-base); font-weight: 600; cursor: pointer; text-align: left;
 }
+/* Debajo del nombre solo queda quien lleva a esa persona, y solo si hay equipo.
+   El veredicto y las carencias se mudaron a su columna. */
 .plantilla .p-sub {
   display: block; font-size: var(--fs-2xs); color: var(--text-tertiary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* El peso: la chispa de tres meses y la cifra, en la voz de las cifras. */
-.plantilla .p-chispa { display: inline-block; width: 96px; vertical-align: middle; margin-right: var(--s3); }
-.plantilla .p-kg { font-size: var(--fs-sm); font-weight: 650; vertical-align: middle; }
+/* La marca de selección: al ancho de su casilla y pegada a la persona — es SU
+   marca, no una columna de dato. La casilla en sí la dibuja `.checkbox-row`
+   (controles.css), la misma de toda la aplicación.
 
-/* En estrecho las columnas se retiran por orden de curiosidad: primero el
-   entreno, luego la semana y la chispa. El peso —la señal de vida— aguanta
-   hasta el final, y el desbordamiento horizontal del envoltorio es la red. */
-@media (max-width: 899.98px) {
+   ── Y en reposo no está ────────────────────────────────────────────────────
+   Trece cuadros vacíos en columna por el canto izquierdo eran la primera cosa
+   que veía el ojo al abrir la pantalla, y no dicen nada: el lote es un gesto
+   que se hace de vez en cuando, no un dato de cada persona. Aparecen al
+   acercarse —la de la fila que se apunta, y la de «todos» en cuanto el puntero
+   entra en la tabla— y se quedan puestas las que estén marcadas.
+
+   Con `opacity` y no con `visibility`: la casilla sigue estando ahí para el
+   ratón y para el tabulador, así que quien la busque a ciegas la encuentra
+   igual, y el foco de teclado la enciende (`:focus-visible`). Y sin `:has()`:
+   se estila la casilla, no su envoltorio, así que una marcada no puede
+   quedarse invisible en un navegador que no lo entienda. */
+.plantilla .p-marca { width: 1px; padding-right: 0; }
+.plantilla .p-marca input[type='checkbox'] {
+  opacity: 0;
+  transition: opacity var(--fast), background var(--fast), border-color var(--fast);
+}
+.plantilla tbody tr:hover .p-marca input[type='checkbox'],
+.plantilla:hover thead .p-marca input[type='checkbox'],
+.plantilla .p-marca input[type='checkbox']:checked,
+.plantilla .p-marca input[type='checkbox']:focus-visible { opacity: 1; }
+
+/* Las pestañas de tramo: el mismo conmutador `.tabs` del producto, pero
+   conviviendo en la banda — sin el margen de serie. En estrecho, la banda
+   envuelve y el carril se desplaza solo. */
+.tabs.tramos { margin-bottom: 0; align-self: center; }
+/* La cuenta de cada tramo, en CÁPSULA (la de Coachway, con nuestra tinta): un
+   número suelto tras la palabra se leía como parte del rótulo; encapsulado es
+   un dato. La del tramo abierto se enciende en acento. */
+.tabs.tramos .chip-count {
+  opacity: 1;
+  min-width: 21px; padding: 1px 7px; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-secondary);
+  font-size: var(--fs-2xs); line-height: 1.5; text-align: center;
+  transition: background-color var(--fast), color var(--fast);
+}
+.tabs.tramos .tab[aria-selected='true'] .chip-count {
+  background: var(--accent); color: var(--accent-on);
+}
+
+/* El selector de etiqueta, al fondo de la barra de herramientas. Los estados
+   van en chips —se preguntan a diario y se leen de un vistazo— y la etiqueta
+   plegada, que su lista crece sin techo. */
+.p-filtro-etiq { flex-shrink: 0; }
+/* Con etiquetas puestas se enciende como cualquier chip pulsado: es un filtro
+   activo, y un filtro activo que se ve igual que uno vacío es la forma de que
+   la lista parezca vacía sin motivo. (No es `aria-pressed`: el botón abre un
+   desplegable, así que su papel es `haspopup`, no interruptor.) */
+.p-filtro-etiq.is-on { background: var(--accent); color: var(--accent-on); }
+.p-filtro-etiq.is-on:hover { background: var(--accent-hover); color: var(--accent-on); }
+
+/* ── LA CELDA DE ETIQUETAS: un control que solo se dibuja cuando toca ──────
+   La celda ENTERA es el disparador —con las puestas dentro o el verbo que
+   invita— porque el «+» a opacidad 0 de la primera versión no lo encontraba
+   nadie: quien no pasaba el ratón por la fila no sabía que las etiquetas
+   existían.
+
+   La cura de entonces fue darle un canto permanente, y salió peor que la
+   enfermedad: trece cajas idénticas en columna, casi todas con la misma
+   palabra dentro, convierten la lista en un impreso a medio rellenar —«las
+   etiquetas se ven feas» (dueño, 7 sep), y era exacto: lo feo no era el color
+   de las cápsulas, era la rejilla.
+
+   Se queda la lección y se va el marco. Lo que hace descubrible el gesto es
+   que la CELDA HABLE en reposo: «Etiquetar» está escrito, en voz de dato y sin
+   caja —el «No tags» de Coachway, pero en verbo—. La caja aparece al pasar por
+   la fila, que es cuando la lista se vuelve control. Y con etiquetas puestas no
+   hay nada que dibujar: las cápsulas ya dicen que ahí hay algo. */
+.plantilla .p-etiq { min-width: 150px; }
+.plantilla .p-etiq-boton {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  width: 100%; min-height: 28px; padding: 3px 8px;
+  border: 0; border-radius: var(--r-sm); background: transparent;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color var(--fast), box-shadow var(--fast);
+}
+.plantilla tr:hover .p-etiq-boton,
+.plantilla .p-etiq-boton:hover,
+.plantilla .p-etiq-boton[aria-expanded='true'] {
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+.plantilla .p-etiq-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.plantilla .p-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+/* El hueco que invita: la palabra que dice qué pasa al pulsar, en voz baja —y
+   más baja todavía hasta que se pasa por la fila, para que doce «Etiquetar»
+   seguidos no compitan con los nombres. Un «Sin etiquetas» habría descrito el
+   estado; esto ofrece el gesto. */
+.plantilla .p-etiq-hueco {
+  color: var(--text-tertiary); font-size: var(--fs-xs); opacity: 0.7;
+  transition: opacity var(--fast);
+}
+.plantilla tr:hover .p-etiq-hueco { opacity: 1; }
+
+/* ── El tinte de las etiquetas ─────────────────────────────────────────────
+   Grises eran «sosas» (palabra del dueño) y además indistinguibles entre sí.
+   Cada etiqueta lleva un tono estable que sale de su texto — el MISMO reparto
+   de 8 matices y la misma calibración teñido-de-fondo / matiz-en-la-letra que
+   el avatar (piezas.css): los discos distinguen, no juzgan. El tono lo pone
+   `tonoDe` (ui/Avatar) como `data-tono`.
+
+   Ya no son botones: en la fila una etiqueta ROTULA, y filtrar por ella se
+   hace arriba. Un mismo chip que rotulara y filtrara no diría cuál de las dos
+   cosas está haciendo al pulsarlo. */
+/* ── EL COLOR VA EN EL DISCO, LA PALABRA EN GRIS ──────────────────────────
+   Dos intentos fallidos, y los dos por el mismo motivo: la etiqueta ENTERA se
+   pintaba del color. Cápsula teñida primero, cápsula con aro después — en las
+   dos, una fila con «Pérdida de grasa» verde y «Online» azul tenía dos manchas
+   de color más fuertes que el nombre de la persona, y cuatro filas seguidas
+   eran confeti. Con ocho matices repartidos por el texto, la columna no puede
+   salir armónica: cada cartera saca su propia paleta al azar.
+
+   La casa ya tiene resuelta esta pieza y estaba a la vista: **los discos
+   distinguen** ([[ley-del-color]]). El disco es el que lleva el matiz —el
+   MISMO que ya se ve en el desplegable y en el chip del filtro, así que una
+   etiqueta se sigue de un sitio a otro sin releerla— y la palabra vuelve al
+   gris de la fila sobre el relleno neutro de la casa. El color sigue estando,
+   pero en 6 px en vez de en toda la pastilla: la columna se lee tranquila y
+   ninguna etiqueta grita más que el nombre.
+
+   El disco es un `::before` y no otro elemento: `data-tono` ya viaja en la
+   cápsula, y una marca decorativa que el lector de pantalla no debe leer es
+   exactamente para lo que están los pseudoelementos. */
+.plantilla .p-tag {
+  --tag-h: 220;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); font-weight: 600; line-height: 1.5;
+  color: var(--text-secondary); background: var(--fill);
+  border-radius: var(--r-sm); padding: 2px 9px 2px 7px;
+}
+.plantilla .p-tag::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: hsl(var(--tag-h) 55% 55%);
+}
+[data-theme='dark'] .plantilla .p-tag::before { background: hsl(var(--tag-h) 50% 62%); }
+
+/* El disco de la etiqueta en el filtro y en el desplegable: mismo tono que sus
+   chips, para poder seguirla de un sitio a otro sin volver a leerla. */
+.tag-disco {
+  --tag-h: 220;
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: hsl(var(--tag-h) 55% 55%);
+}
+[data-theme='dark'] .tag-disco { background: hsl(var(--tag-h) 50% 62%); }
+
+/* El reparto de matices, compartido por chip y disco (los mismos 8 del avatar). */
+.p-tag[data-tono='0'], .tag-disco[data-tono='0'] { --tag-h: 18; }
+.p-tag[data-tono='1'], .tag-disco[data-tono='1'] { --tag-h: 38; }
+.p-tag[data-tono='2'], .tag-disco[data-tono='2'] { --tag-h: 150; }
+.p-tag[data-tono='3'], .tag-disco[data-tono='3'] { --tag-h: 195; }
+.p-tag[data-tono='4'], .tag-disco[data-tono='4'] { --tag-h: 230; }
+.p-tag[data-tono='5'], .tag-disco[data-tono='5'] { --tag-h: 275; }
+.p-tag[data-tono='6'], .tag-disco[data-tono='6'] { --tag-h: 330; }
+.p-tag[data-tono='7'], .tag-disco[data-tono='7'] { --tag-h: 60; }
+
+/* ── El desplegable de etiquetas ───────────────────────────────────────────
+   El popover de siempre con una lista dentro: buscador arriba, las que ya usas
+   marcadas, y crear al final. El alto máximo es de seis ítems y media —lo que
+   se ve sin desplazar— para que un vocabulario largo no tape la fila que se
+   está etiquetando. */
+.selector-etiquetas { position: relative; display: inline-flex; max-width: 100%; }
+.selector-etiquetas-panel { top: calc(100% + 4px); min-width: 232px; }
+.selector-etiquetas-busca { padding: 3px 3px 6px; }
+.selector-etiquetas-busca > .input { width: 100%; }
+.selector-etiquetas-lista { display: flex; flex-direction: column; max-height: 232px; overflow-y: auto; }
+.selector-etiquetas-lista > .menu-item { font-size: var(--fs-sm); }
+.selector-etiquetas-lista > .menu-item:disabled { opacity: 0.45; cursor: default; }
+.selector-etiquetas-lista > .menu-item.is-on { color: var(--text); font-weight: 600; }
+/* El hueco del tic va siempre, marcada o no: sin él, la lista entera se
+   desplaza un pelo al poner una etiqueta y el ojo lo lee como un salto. */
+.selector-etiquetas-marca {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; flex-shrink: 0; color: var(--accent);
+}
+.selector-etiquetas-nombre {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.selector-etiquetas-crear { border-top: 1px solid var(--hairline); border-radius: 0; font-size: var(--fs-sm); }
+.selector-etiquetas-crear:disabled { opacity: 0.45; cursor: default; }
+.selector-etiquetas-vacio { display: block; padding: 6px 10px 8px; }
+
+/* La barra del lote: un mostrador FLOTANTE al pie de la vista, no una fila más.
+   Al pie de la tabla no servía: con quince clientes, quien marca una casilla
+   arriba no ve aparecer nada — la respuesta al gesto quedaba dos pantallas más
+   abajo. Flotando, marcar y ver las acciones son el mismo instante, se marque
+   donde se marque. Por debajo de las capas (Modal va a 300) y por encima del
+   contenido. */
+.p-lote {
+  position: fixed; bottom: var(--s5); left: 50%; transform: translateX(-50%);
+  z-index: 120;
+  display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap;
+  max-width: min(760px, calc(100vw - 2 * var(--s4)));
+  padding: var(--s3) var(--s4);
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+}
+.p-lote > .n { font-size: var(--fs-sm); font-weight: 650; white-space: nowrap; }
+
+/* ══ LO QUE SE RETIRA AL ESTRECHARSE ═══════════════════════════════════════
+   Por orden inverso de urgencia: primero el peso, luego la semana, la señal y
+   los atajos. Estado y etiquetas aguantan hasta el teléfono —el uno es la
+   respuesta y el otro es un gesto que no tiene otro sitio en esta pantalla—, y
+   en el teléfono quedan la persona, cómo va y el menú.
+
+   ── Y se mide la TABLA, no la ventana ───────────────────────────────────────
+   Esto eran media queries y estaban mal por construcción: la barra lateral se
+   lleva 268 px de golpe al pasar de 1023 a 1024 px de ventana, así que una
+   ventana MÁS ANCHA deja a la tabla con 260 px MENOS. Con cortes por ventana,
+   el punto peor de todo el producto —1024, justo donde aparece la barra— era
+   el único que no se estaba mirando: ahí salían las ocho columnas sobre 712 px
+   de hueco y la tabla se desbordaba de su tarjeta.
+
+   Los cortes son el ancho MÍNIMO real de cada juego de columnas, medido contra
+   la tabla con datos (1038 con todo, 970 sin peso, 886 sin semana, 802 sin la
+   señal, 720 sin los atajos). Cambiar una columna de ancho obliga a volver a
+   medirlos: son hechos, no gustos.
+
+   No hay desbordamiento que valga de red: la tabla tenía `overflow-x: auto` y
+   eso RECORTA lo que sobresale, así que el desplegable de etiquetas y el menú
+   de la fila —que salen fuera de la celda— quedaban cortados por el canto. */
+.plantilla { container-type: inline-size; container-name: cartera; }
+
+@container cartera (max-width: 1037.98px) {
+  .plantilla .p-peso { display: none; }
+}
+@container cartera (max-width: 969.98px) {
+  .plantilla .p-semana { display: none; }
+}
+@container cartera (max-width: 885.98px) {
   .plantilla .p-entreno { display: none; }
 }
-@media (max-width: 719.98px) {
-  .plantilla .p-semana { display: none; }
-  .plantilla .p-chispa { display: none; }
+@container cartera (max-width: 801.98px) {
+  /* Los atajos a entreno y dieta se retiran antes que las etiquetas: sin ellos
+     se entra en la persona y se elige dentro, que es un toque más y ninguna
+     duda; sin la celda de etiquetas no hay forma de clasificar desde aquí. */
+  .plantilla .p-lleva { display: none; }
+}
+
+/* ── El teléfono ───────────────────────────────────────────────────────────
+   Quedan la persona, cómo va y el menú. La marca de selección se retira con la
+   columna de etiquetas: el lote —avisar a cinco, etiquetar a cinco— es un gesto
+   de escritorio, y en el móvil ocupaba el sitio del nombre. Etiquetar sigue en
+   la ficha de cada uno, que es donde se acaba en un teléfono.
+
+   Y aquí el estado deja de ir en una línea. No es cosmética: con la frase sin
+   partir, el ancho mínimo de su columna es la frase entera, y entre las tres
+   que quedan se llevaban por delante el ancho de la tabla. Dos líneas como
+   mucho —partir sin tope convierte «En dirección contraria: −0,45 kg/semana»
+   en cinco renglones y la fila en un párrafo—, con el punto subido al primer
+   renglón: centrado contra dos líneas parece de otra cosa. */
+@container cartera (max-width: 719.98px) {
+  .plantilla .p-etiq, .plantilla .p-marca { display: none; }
+  /* El aire de las celdas baja al de un teléfono: 12 px por canto en tres
+     columnas son 72 px que no se pueden pagar en 360. */
+  .plantilla td, .plantilla th { padding-left: var(--s2); padding-right: var(--s2); }
+  /* 30 vw y no más: en 360 px el nombre completo dejaría al estado sin sitio, y
+     de las dos cosas la que se reconoce cortada es el nombre. */
+  .plantilla .p-name { max-width: 30vw; }
+  /* Y el estado suelta su mínimo: aquí no compite con nadie, se reparte lo que
+     quede después del nombre. */
+  .plantilla .p-estado { min-width: 0; }
+  .plantilla .p-senal { align-items: flex-start; }
+  .plantilla .p-punto { margin-top: 6px; }
+  .plantilla .p-senal-texto {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    max-width: none; white-space: normal;
+  }
+}
+@media (max-width: 599.98px) {
+  /* Las celdas ya bajaron a `s2` (el contenedor estrecho), así que el tirón de
+     la tabla hacia fuera baja con ellas: es la misma cuenta, no un ajuste. */
+  .plantilla { margin-inline: calc(var(--s2) * -1); }
 }
 
 /* ── Por qué esta fila SE PARTE en dos líneas ──────────────────────────────

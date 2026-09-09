@@ -576,7 +576,9 @@ describe('toExerciseDraft', () => {
     const ex = toExerciseDraft(leido);
     expect(ex.name).toBe('Press banca');
     expect(ex.sets).toHaveLength(3);
-    expect(ex.sets[0]).toEqual({ kg: '', reps: '', rir: '', targetReps: '8-10', targetRir: '2' });
+    /* `targetKg` va vacío: lo que se importa de una hoja son las repeticiones y
+       el RIR, y los kilos que traiga son registro, no pauta. */
+    expect(ex.sets[0]).toEqual({ kg: '', reps: '', rir: '', targetKg: '', targetReps: '8-10', targetRir: '2' });
     expect(ex.coachNote).toBe('Pausa abajo');
     expect(ex.id).toMatch(/^ex_/);
   });

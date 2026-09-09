@@ -10,6 +10,7 @@ import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { ClientReviews } from './ClientReviews';
 import { ReviewHistory } from '@/components/ReviewHistory';
+import { useOculto } from './Oculto';
 import { PlanChanges } from '@/components/review/PlanChanges';
 import { useReviewRows } from '@/components/review/useReviewRows';
 
@@ -37,6 +38,9 @@ import { useReviewRows } from '@/components/review/useReviewRows';
  *   tarjeta.
  */
 export const ClientWeek = ({ client, onDeliver }) => {
+  /* Sin paso de peso, «confirmas el peso» prometía una pantalla que ya no
+     existe. Ver `Oculto.jsx` y el asistente (`ReviewWizard`). */
+  const oculto = useOculto();
   const { anthropometry, checkIns, submitCheckIn } = useApp();
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
@@ -252,9 +256,11 @@ export const ClientWeek = ({ client, onDeliver }) => {
                 <Send size={15} /> Entregar mi semana
               </button>
               <span className="t-xs t-tertiary">
-                {resumen.complete
-                  ? 'Confirmas el peso, subes las fotos y ya está.'
-                  : 'Puedes entregarla igualmente; se verá lo que hayas registrado.'}
+                {!resumen.complete
+                  ? 'Puedes entregarla igualmente; se verá lo que hayas registrado.'
+                  : oculto.weight
+                    ? 'Subes las fotos y ya está.'
+                    : 'Confirmas el peso, subes las fotos y ya está.'}
               </span>
             </div>
           </>

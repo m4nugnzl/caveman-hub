@@ -8,10 +8,21 @@ import {
   dayKcals,
   emptyNutrition,
   isEmptyDiet,
+  mealTarget,
   mealTargetsTotal,
   mealsForVariant,
+  optionMacros,
   targetsFor,
 } from '@/domain/nutrition';
+import {
+  MAX_PLATOS,
+  buildPlato,
+  freePlatoName,
+  platoFoods,
+  platoKcals,
+  platosOf,
+  scalePlatoTo,
+} from '@/domain/platos';
 import { mergeCatalog } from '@/domain/catalog';
 import { clientProtocol, isModuleOn, toggleModule } from '@/domain/protocol';
 import { toNum0 } from '@/lib/num';
@@ -94,6 +105,10 @@ export const NutritionModule = () => {
     nutrition,
     foodLibrary,
     catalogFoods,
+    /* Tus platos viven en tus preferencias, como las piezas de entreno: son
+       criterio tuyo y no de un cliente. Ver `domain/platos.js`. */
+    coachPrefs,
+    updateCoachPreferences,
     saveStatus,
     retrySave,
     updateNutrition,
@@ -117,6 +132,7 @@ export const NutritionModule = () => {
     addMealOption,
     removeMealOption,
     addFoodToOption,
+    addFoodsToOption,
     removeFoodFromOption,
     updateFoodGrams,
     swapFood,
@@ -273,6 +289,89 @@ export const NutritionModule = () => {
   };
 
   /** Al elegir o crear un alimento se guarda también en la biblioteca del coach. */
+  /*
+    ══ TUS PLATOS ═════════════════════════════════════════════════════════════
+
+    La ración guardada con nombre, que es la unidad con la que se pauta de
+    verdad: nadie pauta «avena», pauta 80 g de avena con 200 ml de leche y un
+    plátano. El gemelo de la pieza de Entreno, con su mismo reparto de gestos:
+    **se guarda desde donde se monta y se pone desde donde se monta**; la
+    vitrina de `/plantillas` solo exhibe.
+  */
+  const platos = platosOf(coachPrefs);
+
+  const guardarPlato = (mealIndex, optIndex) => {
+    const meal = meals[mealIndex];
+    const foods = meal?.options?.[optIndex]?.foods || [];
+    if (foods.length === 0) return;
+
+    if (platos.length >= MAX_PLATOS) {
+      toast({ text: `Ya tienes ${MAX_PLATOS} platos. Quita alguno desde Plantillas para guardar este.` });
+      return;
+    }
+
+    /* El nombre de la comida, desempatado como se desempata el de una hoja al
+       poner una pieza: «Desayuno», «Desayuno 2». Sin diálogo y sin preguntar
+       —igual que al guardar un día desde el cajón del bloque—: el nombre se
+       cambia en la vitrina, que es donde se ve la lista entera y donde el
+       nombre de verdad significa algo. */
+    const name = freePlatoName(meal.name, platos.map((p) => p.name));
+    const plato = buildPlato({ name, foods, savedAt: new Date().toISOString() });
+    updateCoachPreferences('platos', { items: [...platos, plato] });
+    toast({ text: `Guardado como «${name}». Está en Plantillas, para cualquier cliente.` });
+  };
+
+  /**
+   * Poner un plato: DESPLIEGA sus alimentos, no enlaza.
+   *
+   * Y después ofrece cuadrarlo, que es la mitad útil de un generador de dietas
+   * sin que la app recete nada: el plato lo has elegido tú, el objetivo lo
+   * pusiste tú, y esto es la aritmética que hacías a mano. Se ofrece en un
+   * aviso con su verbo —nunca se aplica solo— y solo cuando la comida tiene
+   * objetivo y la diferencia se sale del 5 %, que es el mismo margen con el que
+   * `optionGaps` decide que una opción no cuadra.
+   */
+  const ponerPlato = (mealIndex, optIndex, plato) => {
+    const meal = meals[mealIndex];
+    const entradas = platoFoods(plato);
+    addFoodsToOption(activeClient.id, variant, mealIndex, optIndex, entradas);
+
+    const objetivo = mealTarget(meal);
+    const hueco = objetivo?.kcals
+      ? objetivo.kcals - Math.round(optionMacros(meal?.options?.[optIndex]).kcal)
+      : 0;
+    const puesto = platoKcals(plato);
+    const cabe = hueco > 0 && Math.abs(puesto - hueco) > objetivo.kcals * 0.05;
+
+    if (!cabe) {
+      toast({ text: `«${plato.name}» puesto en ${meal.name}.` });
+      return;
+    }
+
+    /* Las entradas ya llevan sus ids, así que cuadrar es cambiarles los gramos
+       —lo mismo que teclear en la casilla— y no hace falta ninguna acción nueva
+       ni adivinar qué filas de la opción eran del plato. */
+    toast({
+      text: `«${plato.name}» son ${puesto} kcal y a ${meal.name} le quedaban ${hueco}.`,
+      action: {
+        label: 'Cuadrarlo',
+        onClick: () => {
+          const res = scalePlatoTo(entradas, hueco);
+          if (!res) {
+            toast({
+              text: `«${plato.name}» no se puede cuadrar: todo lo que lleva es proteína o se cuenta por unidades.`,
+            });
+            return;
+          }
+          for (const f of res.foods) {
+            updateFoodGrams(activeClient.id, variant, mealIndex, optIndex, f.id, f.grams);
+          }
+          toast({ text: `«${plato.name}» cuadrado a ${hueco} kcal.` });
+        },
+      },
+    });
+  };
+
   const handleAddFood = (mealIndex, optIndex, food) => {
     upsertLibraryFood(food);
     // Sin cantidad: la elige `buildFoodEntry` según el alimento —una unidad entera
@@ -617,6 +716,9 @@ export const NutritionModule = () => {
                 onAddOption={() => addMealOption(activeClient.id, variant, mealIndex)}
                 onRemoveOption={(optIndex) => removeMealOption(activeClient.id, variant, mealIndex, optIndex)}
                 onAddFood={(optIndex, food) => handleAddFood(mealIndex, optIndex, food)}
+                platos={platos}
+                onAddPlato={(optIndex, plato) => ponerPlato(mealIndex, optIndex, plato)}
+                onSavePlato={(optIndex) => guardarPlato(mealIndex, optIndex)}
                 onRemoveFood={(optIndex, foodId) => {
                   const foods = meal.options?.[optIndex]?.foods || [];
                   const foodIdx = foods.findIndex((f) => f.id === foodId);

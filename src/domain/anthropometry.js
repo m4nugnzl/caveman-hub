@@ -45,7 +45,6 @@ export const PERIMETER_LABELS = {
   gemeloD: 'Gemelo Dcho.',
   gemeloI: 'Gemelo Izq.',
 };
-
 export const emptyFolds = () => Object.fromEntries(Object.keys(FOLDS_LABELS).map((k) => [k, '']));
 export const emptyPerimeters = () =>
   Object.fromEntries(Object.keys(PERIMETER_LABELS).map((k) => [k, '']));

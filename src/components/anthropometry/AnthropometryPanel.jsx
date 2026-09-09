@@ -20,6 +20,7 @@ import { clientProtocol, weighInsTarget } from '@/domain/protocol';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 import { MetricCard, MetricRow } from '@/components/ui/metrics';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useOculto } from '@/components/Client/Oculto';
 import { ReviewWizard } from './ReviewWizard';
 import { WeeklyCheckIn } from './WeeklyCheckIn';
 
@@ -93,6 +94,17 @@ export const AnthropometryPanel = ({
 
   const isClient = audience === 'client';
 
+  /*
+    ══ El pesaje que no vuelve ════════════════════════════════════════════════
+
+    Esta pantalla es la báscula entera: cuatro cifras de cabecera, la semana con
+    sus siete días, la tendencia y el historial. A quien tiene el peso oculto se
+    le deja LO QUE HACE —anotar sus pesajes, entregar la semana— y se le quita
+    todo lo que se lo devuelve. No es media pantalla: es la misma pantalla sin la
+    parte que su entrenador ha decidido llevar él. Ver `Oculto.jsx`.
+  */
+  const oculto = useOculto();
+
   const objetivoDePesajes = useMemo(
     () => weighInsTarget(clientProtocol(client?.preferences)),
     [client?.preferences]
@@ -140,7 +152,7 @@ export const AnthropometryPanel = ({
         medias —hay pesajes pero todavía no hay ritmo— esto pintaba tres tarjetas
         y un hueco mudo a la derecha.
       */}
-      {weights.length > 0 && (
+      {weights.length > 0 && !oculto.weight && (
         <MetricRow>
           <MetricCard
             title="Último peso"
@@ -244,7 +256,9 @@ export const AnthropometryPanel = ({
       {/* La tendencia ya no vive aquí: está DENTRO del check-in, con los
           pesajes de los que sale. Ver `WeeklyCheckIn`. */}
 
-      {rows.length > 0 && (
+      {/* Con el peso oculto y sin medidas, cada fila sería una fecha y una
+          papelera: eso no es un historial, así que no se pinta. */}
+      {rows.length > 0 && !(oculto.weight && !hasMeasurements(history) && oculto.nutrition) && (
         <Panel tight className="col gap-4">
           <SectionTitle>Historial de registros</SectionTitle>
           <div className="table-scroll">
@@ -252,7 +266,7 @@ export const AnthropometryPanel = ({
               <thead>
                 <tr>
                   <th scope="col">Fecha</th>
-                  <th scope="col" className="num">Peso</th>
+                  {!oculto.weight && <th scope="col" className="num">Peso</th>}
                   {hasMeasurements(history) && (
                     <>
                       <th scope="col" className="num">% Graso</th>
@@ -260,7 +274,7 @@ export const AnthropometryPanel = ({
                       <th scope="col" className="num">Σ Pliegues</th>
                     </>
                   )}
-                  <th scope="col" className="num">Kcal</th>
+                  {!oculto.nutrition && <th scope="col" className="num">Kcal</th>}
                   <th scope="col" className="num">
                     <span className="sr-only">Acciones</span>
                   </th>
@@ -272,7 +286,9 @@ export const AnthropometryPanel = ({
                   return (
                     <tr key={log.id || log.date}>
                       <td className="cell-strong">{shortDate(log.date)}</td>
-                      <td className="num cell-weight">{fmt(log.weight, { decimals: 1 })}</td>
+                      {!oculto.weight && (
+                        <td className="num cell-weight">{fmt(log.weight, { decimals: 1 })}</td>
+                      )}
                       {hasMeasurements(history) && (
                         <>
                           <td className="num cell-pct">{logPct === null ? '—' : `${logPct}%`}</td>
@@ -282,7 +298,9 @@ export const AnthropometryPanel = ({
                           <td className="num t-secondary">{foldsSum(log.skinFolds) || '—'}</td>
                         </>
                       )}
-                      <td className="num t-secondary">{fmt(log.nutrition?.kcals)}</td>
+                      {!oculto.nutrition && (
+                        <td className="num t-secondary">{fmt(log.nutrition?.kcals)}</td>
+                      )}
                       <td className="num">
                         <button
                           type="button"
@@ -315,9 +333,11 @@ export const AnthropometryPanel = ({
             </span>
             <h3>Sin registros todavía</h3>
             <p>
-              {isClient
-                ? 'Registra tu primer peso arriba. Con dos o tres registros ya se empieza a ver la tendencia.'
-                : 'Este cliente aún no tiene ningún pesaje registrado.'}
+              {!isClient
+                ? 'Este cliente aún no tiene ningún pesaje registrado.'
+                : oculto.weight
+                  ? 'Anota tu primer pesaje arriba, en el día que te peses.'
+                  : 'Registra tu primer peso arriba. Con dos o tres registros ya se empieza a ver la tendencia.'}
             </p>
           </div>
         </Panel>

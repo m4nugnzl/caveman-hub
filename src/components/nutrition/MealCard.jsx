@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowRightLeft, ArrowUp, Copy, GripVertical, Pencil, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowRightLeft, ArrowUp, BookmarkPlus, Copy, GripVertical, Pencil, Trash2, X } from 'lucide-react';
 
 import {
   displayAsUnits,
@@ -21,6 +21,7 @@ import { Field, Notice, RenombrarEnSitio, SegmentedControl } from '@/components/
 import { AddFoodControl } from './AddFoodControl';
 import { FoodEquivalences } from './FoodEquivalences';
 import { MACRO_META, MacroRing } from './macros';
+import { useOculto } from '@/components/Client/Oculto';
 
 /**
  * La columna de cantidad mide 74 px contando la casilla, así que ahí no cabe
@@ -53,8 +54,8 @@ const abreviar = (label) => ABREVIATURAS[String(label || '').toLowerCase()] || '
  * Las etiquetas van una sola vez, aquí, y con el color de su macro: los mismos
  * del anillo de arriba, de modo que la tabla y el gráfico son el mismo lenguaje.
  */
-const FoodTableHead = ({ editable }) => (
-  <div className="food-head" aria-hidden="true">
+const FoodTableHead = ({ editable, sinCifras = false }) => (
+  <div className={`food-head${sinCifras ? ' sin-cifras' : ''}`} aria-hidden="true">
     {/* La primera columna es la del asa de arrastre y existe siempre —también al
         consultar, donde va vacía— para que la tabla del cliente y la del
         entrenador queden alineadas entre sí. */}
@@ -66,10 +67,13 @@ const FoodTableHead = ({ editable }) => (
         barra del objetivo, el anillo del día, la gráfica—, y aquí no distingue
         nada: las columnas ya están separadas y rotuladas. Coloreadas eran la
         cuarta repetición de la misma leyenda en la misma pantalla. */}
-    {MACRO_META.map(({ key, short }) => (
-      <span key={key}>{short}</span>
-    ))}
-    <span>Kcal</span>
+    {/* Las cuatro cifras no existen para el cliente que las tiene ocultas: su
+        menú se lee igual —alimento y cantidad— sin la columna que juzga. */}
+    {!sinCifras &&
+      MACRO_META.map(({ key, short }) => (
+        <span key={key}>{short}</span>
+      ))}
+    {!sinCifras && <span>Kcal</span>}
     {/* Y la última es la de borrar, que solo existe al editar. */}
     {editable && <span />}
   </div>
@@ -115,6 +119,11 @@ const FoodRow = ({
   onDrop,
 }) => {
   const macros = foodMacros(food);
+  /* Ver `Client/Oculto.jsx`: en el portal del cliente al que su entrenador le
+     oculta las kcal, la fila pierde sus cuatro cifras y la rejilla se reparte
+     entre lo que queda (`.food-row.sin-cifras` en `trabajo.css`). */
+  const oculto = useOculto();
+  const sinCifras = oculto.nutrition && !editable;
   const [editando, setEditando] = useState(false);
   const [equivalenciasAbiertas, setEquivalenciasAbiertas] = useState(false);
   const sePuede = hasUnits(food);
@@ -163,7 +172,7 @@ const FoodRow = ({
 
   const row = (
     <div
-      className={`food-row${dropTarget ? ' is-drop-target' : ''}${dragging ? ' is-dragging' : ''}`}
+      className={`food-row${sinCifras ? ' sin-cifras' : ''}${dropTarget ? ' is-drop-target' : ''}${dragging ? ' is-dragging' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -371,18 +380,19 @@ const FoodRow = ({
         )}
       </span>
 
-      {MACRO_META.map(({ key, short, label }, index) => (
-        <span
-          key={key}
-          className={`n ${CELL[index]}`}
-          data-macro={short}
-          aria-label={`${label} de ${food.name}`}
-        >
-          {Math.round(macros[key])}
-        </span>
-      ))}
+      {!sinCifras &&
+        MACRO_META.map(({ key, short, label }, index) => (
+          <span
+            key={key}
+            className={`n ${CELL[index]}`}
+            data-macro={short}
+            aria-label={`${label} de ${food.name}`}
+          >
+            {Math.round(macros[key])}
+          </span>
+        ))}
 
-      <span className="kcal">{Math.round(macros.kcal)}</span>
+      {!sinCifras && <span className="kcal">{Math.round(macros.kcal)}</span>}
 
       {editable && (
         <button
@@ -760,6 +770,12 @@ export const MealCard = ({
   onAddOption,
   onRemoveOption,
   onAddFood,
+  /* Tus platos: la ración guardada con nombre. `onAddPlato` la despliega aquí y
+     `onSavePlato` guarda esta opción como una. Sin ellos, la comida se comporta
+     exactamente como antes — el portal del cliente no los pasa. */
+  platos = [],
+  onAddPlato = null,
+  onSavePlato = null,
   onRemoveFood,
   onGrams,
   onSetDisplay,
@@ -798,7 +814,11 @@ export const MealCard = ({
   const index = Math.min(activeOption, Math.max(0, options.length - 1));
   const option = options[index];
   const totals = optionMacros(option);
-  /* Lo que el entrenador estipuló para esta comida. Es lo que ve el cliente. */
+  /* Lo que el entrenador estipuló para esta comida. Es lo que ve el cliente…
+     salvo que le tenga ocultas las kcal: entonces el anillo del objetivo y las
+     columnas de macros no se pintan, y queda el menú. Ver `Client/Oculto.jsx`. */
+  const oculto = useOculto();
+  const sinCifras = oculto.nutrition && !editable;
   const objetivo = mealTarget(meal);
   const foods = option?.foods || [];
 
@@ -973,6 +993,20 @@ export const MealCard = ({
               {foods.length > 0 && onCopyOption && (
                 <Accion icon={ArrowRightLeft} label={`Copiar la opción ${index + 1} a ${otherVariantLabel}`} onClick={() => onCopyOption(index)} />
               )}
+              {/*
+                ── Guardar la ración con nombre ──────────────────────────────
+                Aquí y no en una pantalla de platos, por lo mismo que un día de
+                entreno se guarda desde el cajón del bloque: el momento en que
+                sabes que este desayuno es «el bueno» es cuando acabas de
+                cuadrarlo, no media hora después administrando una vitrina.
+              */}
+              {foods.length > 0 && onSavePlato && (
+                <Accion
+                  icon={BookmarkPlus}
+                  label={`Guardar la opción ${index + 1} como plato`}
+                  onClick={() => onSavePlato(index)}
+                />
+              )}
               {options.length > 1 && <Accion icon={Trash2} label={`Quitar la opción ${index + 1}`} onClick={askRemoveOption} danger />}
             </div>
           )}
@@ -990,7 +1024,7 @@ export const MealCard = ({
         fijó para esa comida, y no cambia según la alternativa que abra. Sin
         objetivo no hay nada estipulado que enseñar.
       */}
-      {!editable && foods.length > 0 && objetivo && (
+      {!editable && !sinCifras && foods.length > 0 && objetivo && (
         <div className="card-inset row wrap gap-4">
           <MacroRing
             protein={objetivo.protein}
@@ -1007,7 +1041,7 @@ export const MealCard = ({
         <p className="t-sm t-tertiary">Tu entrenador no ha detallado esta opción.</p>
       ) : (
         <div className="food-table">
-          <FoodTableHead editable={editable} />
+          <FoodTableHead editable={editable} sinCifras={sinCifras} />
           {foods.length === 0 && <p className="food-vacia t-sm t-tertiary">Sin alimentos todavía.</p>}
           {foods.map((food, foodIndex) => (
             <FoodRow
@@ -1087,7 +1121,12 @@ export const MealCard = ({
 
       {editable && (
         <div className="comida-alta">
-          <AddFoodControl foodLibrary={foodLibrary} onAdd={(food) => onAddFood(index, food)} />
+          <AddFoodControl
+            foodLibrary={foodLibrary}
+            onAdd={(food) => onAddFood(index, food)}
+            platos={platos}
+            onAddPlato={onAddPlato ? (plato) => onAddPlato(index, plato) : null}
+          />
         </div>
       )}
     </section>

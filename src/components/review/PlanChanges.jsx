@@ -1,6 +1,14 @@
 import { ArrowRight } from 'lucide-react';
 
 import { groupChanges } from '@/domain/reviews';
+import { useOculto } from '@/components/Client/Oculto';
+
+/* Las filas del diff que SON una cifra de nutrición. Al cliente que tiene las
+   kcal ocultas no se le puede contar el cambio con el número —«2400 → 2200
+   kcal» es exactamente la cifra que no ve en su dieta—, así que esas filas no
+   se pintan: lo que le cambia se lo cuenta su entrenador con palabras, en la
+   respuesta de la semana, que va justo encima de esto. */
+const DE_NUTRICION = new Set(['kcals', 'protein', 'carbs', 'fats']);
 
 /**
  * LO QUE CAMBIA EN EL PLAN: en rojo lo que sale, en verde lo que entra.
@@ -114,12 +122,20 @@ const DeA = ({ from, to, unit = '' }) => (
   según dónde se mire.
 */
 export const PlanChanges = ({ changes = [], structure = [], empty = null }) => {
-  if (changes.length === 0 && structure.length === 0) return empty;
+  const oculto = useOculto();
+  const filas = oculto.nutrition ? changes.filter((c) => !DE_NUTRICION.has(c.key)) : changes;
+  /* En la estructura, el cambio de una comida ES sus kcal («Comida 2: 620 → 540
+     kcal»). Sin la cifra la fila no dice nada nuevo —que la comida cambió ya lo
+     cuentan los alimentos que entran y salen, que sí se quedan—, así que se va
+     entera en vez de dejar dos rayas. */
+  const bloques = oculto.nutrition ? structure.filter((c) => c.unit !== ' kcal') : structure;
+
+  if (filas.length === 0 && bloques.length === 0) return empty;
 
   return (
     <div className="diff-list">
       {/* Las CIFRAS del plan: calorías, macros, pasos, cardio. */}
-      {changes.map((c) => (
+      {filas.map((c) => (
         <Fila key={c.key} que={c.label}>
           <DeA from={c.from} to={c.to} unit={c.unit} />
         </Fila>
@@ -136,7 +152,7 @@ export const PlanChanges = ({ changes = [], structure = [], empty = null }) => {
         obligaría a inventar una correspondencia que no existe. Debajo, cada
         cambio de cifra en su propia fila, con la misma forma que las de arriba.
       */}
-      {groupChanges(structure).map((g) => (
+      {groupChanges(bloques).map((g) => (
         <div className="diff-group" key={g.sitio}>
           <span className="diff-where">
             {g.sitio}

@@ -73,6 +73,9 @@ const ORDEN = [
   'check_ins',
   'client_events',
   'client_phases',
+  /* Lo mandado y lo contestado (0105). Después de `clients`, que es de quien
+     cuelga por clave foránea. */
+  'client_actions',
   'client_invites',
   'client_consents',
   'client_payments',

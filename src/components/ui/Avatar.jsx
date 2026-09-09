@@ -23,11 +23,15 @@ import { initials } from '@/lib/initials';
  */
 const TONOS = 8;
 
-const tono = (name) => {
+/* Exportado porque las ETIQUETAS de la cartera usan el mismo reparto: un tono
+   estable que sale del texto. La regla es una («los discos distinguen») y por
+   eso la función también: «Fuerza» es siempre del mismo color, como Nerea. */
+export const tonoDe = (name) => {
   let h = 0;
   for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   return h % TONOS;
 };
+const tono = tonoDe;
 
 export const Avatar = ({ name, src = null, size = 'sm', className = '', ...rest }) => (
   <span

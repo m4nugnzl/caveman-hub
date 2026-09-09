@@ -12,6 +12,8 @@
 
 import { isBlank, round, toNum, toNum0 } from '@/lib/num';
 import { newId } from '@/lib/ids';
+import { norm } from '@/lib/texto';
+import { freezeMicros } from './micros';
 
 /**
  * `hasDayVariants` activo ⇒ el cliente tiene dos dietas cerradas distintas
@@ -170,6 +172,14 @@ export const buildFoodEntry = (food, grams = null) => {
     // entrenador puede cambiarlo por alimento y por dieta: hay clientes que
     // pesan todo y clientes que no tienen báscula.
     showAs: unitGrams ? 'units' : 'grams',
+    /*
+      Y las cuatro del envase, congeladas igual que los macros y por el mismo
+      motivo: la entrada es una foto. Solo se escriben las que el alimento
+      DECLARA — lo que falta significa «no dice», así que una dieta montada
+      antes de la 0102 se comporta como una de hoy con un alimento que no lo
+      dice, en vez de mentir con un cero. Ver `micros.js`.
+    */
+    ...freezeMicros(food),
   };
 };
 
@@ -523,6 +533,77 @@ export const singleDietFrom = (nutrition, variant) => {
    ========================================================================== */
 
 /** Tope de pautas. Suficiente para un plan completo; corta el copia y pega. */
+/**
+ * A QUIÉNES LES DAS CADA ALIMENTO —y, contando, en cuántas dietas está.
+ *
+ * ══ Para qué sirve una cifra así ═══════════════════════════════════════════
+ *
+ * Es lo que convierte una biblioteca en algo que se puede podar. El camino de
+ * crecimiento de `foods` **es** la duplicación —los macros de tu marca obligan a
+ * un nombre nuevo, porque `upsertByName` identifica por nombre— así que antes o
+ * después hay dos «Pan integral» parecidos, y el que se queda es el que de
+ * verdad usas.
+ *
+ * ── Y no cuesta una consulta ───────────────────────────────────────────────
+ * Los `nutrition_plans` de TODOS los clientes ya se cargan al arrancar (ver el
+ * proveedor), así que esto es una vuelta sobre datos que están en memoria. Con
+ * sesenta clientes, seis comidas y seis alimentos son ~2.000 iteraciones: se
+ * memoriza en la pantalla por si la cartera crece, no porque hoy pese.
+ *
+ * ── Cuenta DIETAS, no apariciones ──────────────────────────────────────────
+ * Un alimento que sale en el desayuno y en la merienda de la misma persona es
+ * UNA dieta. «Se usa en 14 dietas» responde a «cuánta gente come esto», que es
+ * la pregunta; «se usa 38 veces» no responde a nada.
+ *
+ * Mira las tres variantes (la única, la de entreno y la de descanso): un
+ * alimento que solo aparece los días de descanso se usa igual.
+ *
+ * ══ Y devuelve QUIÉNES, no cuántos ═════════════════════════════════════════
+ *
+ * Contaba dietas y punto, y la cifra salía en gris al pie de la ficha: «se usa
+ * en 4 dietas». Eso no es accionable — para saber a quién le tocas la dieta si
+ * corriges los macros de algo hay que abrir a los catorce y buscar.
+ *
+ * La misma vuelta que ya se daba devuelve ahora los identificadores, y contar
+ * es `.length`. No cuesta nada más: el bucle era el mismo y los planes ya están
+ * en memoria. Que la ficha pueda decir «Javier, Marta y dos más» en vez de «4»
+ * es la diferencia entre un dato y una puerta.
+ *
+ * @param nutritionByClient  El mapa del proveedor: `{ [clientId]: plan }`.
+ * @returns `Map` de nombre normalizado → ids de cliente, en el orden en que
+ *   aparecen. Sin repetidos: un alimento en dos comidas de la misma persona es
+ *   una dieta, no dos.
+ */
+export const foodClientsByName = (nutritionByClient = {}) => {
+  const quienes = new Map();
+
+  for (const [clientId, plan] of Object.entries(nutritionByClient || {})) {
+    if (!plan) continue;
+    /* Por plan y no global: el mismo alimento en dos comidas suyas no son dos
+       dietas. Se acumula al terminar cada uno. */
+    const enEstaDieta = new Set();
+
+    for (const clave of Object.values(VARIANT_KEY)) {
+      for (const meal of plan[clave] || []) {
+        for (const option of meal?.options || []) {
+          for (const food of option?.foods || []) {
+            const nombre = norm(String(food?.name || '').trim());
+            if (nombre) enEstaDieta.add(nombre);
+          }
+        }
+      }
+    }
+
+    for (const nombre of enEstaDieta) {
+      const ya = quienes.get(nombre);
+      if (ya) ya.push(clientId);
+      else quienes.set(nombre, [clientId]);
+    }
+  }
+
+  return quienes;
+};
+
 export const MAX_NOTES = 12;
 export const NOTE_TITLE_MAX = 80;
 export const NOTE_BODY_MAX = 1500;

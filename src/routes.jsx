@@ -7,11 +7,14 @@ import {
   HardDriveDownload,
   Gauge,
   Layers,
+  LayoutTemplate,
   LifeBuoy,
   Plug,
   Ruler,
   Salad,
   Home,
+  Shapes,
+  SquarePen,
   UserRound,
   Users,
   UsersRound,
@@ -145,6 +148,76 @@ export const COACH_PRIMARY = [
     desde el principio.
   */
   { path: '/calendario', label: 'Agenda', icon: CalendarDays },
+];
+
+/**
+ * EL TALLER: el material del entrenador, que hasta ahora no tenía puerta.
+ *
+ * ══ Por qué existe un plano nuevo ══════════════════════════════════════════
+ *
+ * La barra decía **con quién** trabajas —Inicio, tu cartera, cobros, agenda— y
+ * en ningún sitio decía **con qué**. Y «con qué» no es poca cosa: es la forma de
+ * preguntar de cada uno, sus ejercicios, sus alimentos, sus días guardados y su
+ * manera de llevar a un cliente. Todo eso estaba construido y repartido en tres
+ * escondites:
+ *
+ *   · dentro de Ajustes, que es donde van las cosas que se tocan una vez al año
+ *     (el protocolo entero, con el cuestionario de alta dentro);
+ *   · dentro de la pantalla que lo consume (las piezas, en el cajón del bloque);
+ *   · o en ningún sitio (las dos bibliotecas: `catalog.js` decidió que no hubiera
+ *     pantalla de catálogo, y esa decisión sigue en pie para IMPORTAR — ver
+ *     abajo).
+ *
+ * ── Lo que la biblioteca añade, y que el buscador no puede dar ─────────────
+ * `domain/catalog.js` dice, con razón, que nadie va a «importar» antes de
+ * trabajar: el momento en el que necesitas «Lentejas» es mientras montas la
+ * dieta. Eso NO cambia — el buscador de la hoja y el de la dieta siguen siendo
+ * la entrada principal y ninguna de estas pantallas es un paso previo.
+ *
+ * Lo que estas pantallas dan es lo otro: **curar**. Poner tu vídeo y tu clave
+ * técnica en un ejercicio, marcar el alérgeno de un alimento, limpiar los dos
+ * «Pan integral» que se colaron, ver qué llevas puesto. Nada de eso cabe en un
+ * autocompletado, y sin ellas la mitad de lo que la aplicación sabe hacer no se
+ * percibe siquiera como existente.
+ *
+ * ── El orden es el del oficio ─────────────────────────────────────────────
+ * Cómo trabajas (protocolos) → qué preguntas (formularios) → con qué material
+ * (ejercicios, alimentos) → qué tienes guardado (plantillas).
+ */
+/*
+  ══ Por qué la LIBRERÍA es una puerta y no dos ═══════════════════════════════
+
+  Aquí había «Ejercicios» y «Alimentos» por separado, y el párrafo de arriba ya
+  las nombraba juntas: «con qué material». Eran dos filas para una sola idea, y
+  por dentro eran literalmente **el mismo mueble montado dos veces** —el banco
+  de dos planos, la lista a la izquierda, la ficha en dos capas a la derecha, el
+  mismo corte de anchura, la misma CSS—.
+
+  Y juntarlas destapa la simetría que ya estaba en el producto y que dos puertas
+  escondían:
+
+      Librería    el material suelto     un ejercicio · un alimento
+      Plantillas  lo compuesto con él    un día       · un plato
+
+  Un ejercicio es a un día lo que un alimento es a un plato. Con cuatro puertas
+  cada par significa algo; con cinco, la lista era un inventario.
+
+  ── Las dos rutas siguen existiendo, y a propósito ─────────────────────────
+  `/ejercicios` y `/alimentos` no se tocan: el tramo de la librería ES la ruta,
+  así que se puede enlazar, se puede compartir y el botón de atrás hace lo que
+  tiene que hacer. Lo que cambia es que en la barra ocupan una fila y no dos.
+  `also` es lo que mantiene esa fila encendida en las dos.
+*/
+export const COACH_TALLER = [
+  { path: '/protocolos', label: 'Protocolos', icon: ClipboardList },
+  { path: '/formularios', label: 'Formularios', icon: SquarePen },
+  /* `Shapes` —un círculo, un triángulo y un cuadrado— y no `Boxes`. Los cubos
+     isométricos eran el único icono con perspectiva en una barra de iconos
+     planos, y a 16 px se leían como una mancha. Además el par dice lo que la
+     puerta significa: piezas sueltas de distintas formas (Librería) frente al
+     molde montado con ellas (`LayoutTemplate`, Plantillas). */
+  { path: '/ejercicios', label: 'Librería', icon: Shapes, also: ['/alimentos'] },
+  { path: '/plantillas', label: 'Plantillas', icon: LayoutTemplate },
 ];
 
 /** Nivel 2: las secciones de UN cliente. Cuelgan de `/c/:clientId/`. */
@@ -348,13 +421,21 @@ export const COACH_CLIENT = [
   las rutas no cambian, solo el orden y la lectura de la lista.
 */
 export const SETTINGS_SECTIONS = [
-  {
-    path: 'protocolo',
-    label: 'Protocolo',
-    icon: ClipboardList,
-    hint: 'Qué le pides a tus clientes y qué ve cada uno',
-    group: 'Tu asesoría',
-  },
+  /*
+    ── «Protocolo» se fue de aquí, y era la más importante ────────────────────
+    Vivía la primera de esta lista, y era la única entrada de Ajustes que se
+    abría a diario: qué servicios llevas, qué le preguntas a quien entra, qué
+    cifras le escondes a quien tiene mala relación con la báscula. Eso no es
+    configuración, es el oficio — y estaba en el mismo cajón que la copia de
+    seguridad.
+
+    Ahora es `/protocolos`, la primera puerta del Taller (`COACH_TALLER`). Su
+    ruta vieja sigue respondiendo con una redirección, porque puede estar en un
+    marcador y porque este documento la ha enlazado durante meses.
+
+    Lo que queda aquí es lo que Ajustes debe ser: tu cuenta, tu equipo, lo que
+    tienes conectado y cómo llevártelo.
+  */
   {
     path: 'equipo',
     label: 'Equipo',
@@ -513,7 +594,13 @@ export const RESET_PATH = '/nueva-contrasena';
 
 export const COACH_HOME = '/hoy';
 export const CLIENT_HOME = '/mi/rutina';
-export const SETTINGS_HOME = '/ajustes/protocolo';
+/*
+  Ajustes ya no abre por el protocolo: abre por lo primero que queda, que es tu
+  cuenta. Y quien quiera «cómo trabajo» tiene su propia constante, porque son
+  seis pantallas las que enlazan ahí y ninguna debería saber la ruta de memoria.
+*/
+export const SETTINGS_HOME = '/ajustes/perfil';
+export const PROTOCOL_HOME = '/protocolos';
 
 /** Ruta de una sección de un cliente. Nadie construye estas cadenas a mano. */
 export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${section}`;

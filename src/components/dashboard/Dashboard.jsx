@@ -13,6 +13,7 @@ import { useReviewRows } from '@/components/review/useReviewRows';
 import { useReviewTrack } from '@/components/review/useReviewTrack';
 import { useElementWidth } from '@/lib/useElementWidth';
 import { lazyRoute } from '@/lib/lazyRoute';
+import { useOculto } from '@/components/Client/Oculto';
 import { TarjetaComoVa } from './TarjetaComoVa';
 import { TarjetaDesde } from './TarjetaDesde';
 import { TarjetaCuerpo } from './TarjetaCuerpo';
@@ -80,6 +81,16 @@ const PanelEntreno = lazyRoute(() => import('./PanelEntreno').then((m) => ({ def
 export const Dashboard = ({ audience = 'coach' }) => {
   const { activeClient, workoutData, anthropometry, nutrition, phases, progressPhotos, updateClientPreferences } = useApp();
   const isClient = audience === 'client';
+  /*
+    ══ Lo que su entrenador le oculta A ÉL ════════════════════════════════════
+
+    Dos de las seis tarjetas de este mosaico son el peso: «Cómo vas» cuenta la
+    trayectoria —de dónde salió, dónde está, dónde acaba— y «Tu cuerpo» es la
+    curva. A quien tiene el peso oculto no se le enseñan a medias: se le retiran
+    enteras, con sus ventanas, y el panel queda con lo que sí puede leer —lo que
+    lleva hecho, su entreno, su plan y sus sensaciones—. Ver Oculto.jsx.
+  */
+  const oculto = useOculto();
 
   const [ventana, setVentana] = useState(null);
   /* Con qué pregunta se llegó: una fila de «Cómo lo lleva» abre su ventana con
@@ -216,30 +227,38 @@ export const Dashboard = ({ audience = 'coach' }) => {
           hoja en papel/noche del lienzo, tarjeta con su canto encima.
         */}
         <div className="mosaico cascada">
-          <TarjetaComoVa
-            goal={goal}
-            canEditGoal={!isClient}
-            onSetGoal={(direction) =>
-              updateClientPreferences(
-                activeClient.id,
-                'goal',
-                /* Al desmarcar se escribe `direction: null` en vez de borrar la
-                   clave: `updateClientPreferences` fusiona por sección y no puede
-                   quitar claves, y `clientGoal` ya lee un `direction` inválido
-                   como «sin objetivo». Un camino, sin excepciones. */
-                goalFromDirection(direction) || { direction: null }
-              )
-            }
-            fases={fases}
-            hoy={hoy}
-            history={history}
-            trend={trend}
-            veredicto={direccion}
-            isClient={isClient}
-            onAbrirFases={() => abrirVentana('fases')}
-          />
+          {/* La trayectoria del peso: no existe para quien lo tiene oculto. */}
+          {!oculto.weight && (
+            <TarjetaComoVa
+              goal={goal}
+              canEditGoal={!isClient}
+              /* El peso objetivo se fija en la ventana de fases, que es donde se
+                 decide el proceso: la tarjeta lee, no configura. */
+              onSetGoal={(direction) =>
+                updateClientPreferences(
+                  activeClient.id,
+                  'goal',
+                  /* Al desmarcar se escribe `direction: null` en vez de borrar la
+                     clave: `updateClientPreferences` fusiona por sección y no puede
+                     quitar claves, y `clientGoal` ya lee un `direction` inválido
+                     como «sin objetivo». Un camino, sin excepciones. */
+                  goalFromDirection(direction) || { direction: null }
+                )
+              }
+              fases={fases}
+              hoy={hoy}
+              history={history}
+              trend={trend}
+              veredicto={direccion}
+              isClient={isClient}
+              onAbrirFases={() => abrirVentana('fases')}
+            />
+          )}
 
           <TarjetaDesde
+            /* Sola en su fila cuando la trayectoria no se pinta: cuatro columnas
+               de doce con el resto vacío no es una tarjeta, es un hueco. */
+            span={oculto.weight ? 12 : 4}
             history={history}
             microcycles={microcycles}
             program={program}
@@ -248,27 +267,31 @@ export const Dashboard = ({ audience = 'coach' }) => {
             isClient={isClient}
           />
 
+          {/* La curva del peso, con su ventana «a fondo»: fuera entera para quien
+              lo tiene oculto —a medias sería enseñarle el eje sin la línea—. */}
           {/* El medidor va en una celda propia y siempre montada: dentro, la
               tarjeta le quita su relleno a cada lado. */}
-          <div className="mosaico-celda is-12" ref={refPeso}>
-            <TarjetaCuerpo
-              serie={serie}
-              track={track}
-              conAjustes={conAjustes}
-              program={program}
-              ancho={ancho - 44}
-              banda={banda}
-              onBanda={setBanda}
-              hayPasos={hayPasos}
-              pesoActual={pesoActual}
-              pesoWow={pesoWow}
-              checkIn={checkIn}
-              isClient={isClient}
-              onAbrir={() => abrirVentana('cuerpo')}
-              aFotos={aFotos}
-              aPesaje={aPesaje}
-            />
-          </div>
+          {!oculto.weight && (
+            <div className="mosaico-celda is-12" ref={refPeso}>
+              <TarjetaCuerpo
+                serie={serie}
+                track={track}
+                conAjustes={conAjustes}
+                program={program}
+                ancho={ancho - 44}
+                banda={banda}
+                onBanda={setBanda}
+                hayPasos={hayPasos}
+                pesoActual={pesoActual}
+                pesoWow={pesoWow}
+                checkIn={checkIn}
+                isClient={isClient}
+                onAbrir={() => abrirVentana('cuerpo')}
+                aFotos={aFotos}
+                aPesaje={aPesaje}
+              />
+            </div>
+          )}
 
           {conEntreno && (
             <TarjetaEntreno

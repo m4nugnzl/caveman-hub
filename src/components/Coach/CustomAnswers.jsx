@@ -1,5 +1,6 @@
 import { clientIntakeForm } from '@/domain/intakeForm';
 import { customAnswers } from '@/domain/profile';
+import { scoffResult } from '@/domain/scoff';
 import { Panel } from '@/components/ui/primitives';
 
 /**
@@ -42,7 +43,15 @@ export const CustomAnswers = ({ client }) => {
     .map((q) => ({ id: q.id, label: q.label, valor: respuestas[q.id] }))
     .filter((f) => f.valor !== undefined && f.valor !== null && f.valor !== '');
 
-  if (filas.length === 0) return null;
+  /*
+    ── El cribado (SCOFF), SOLO aquí ─────────────────────────────────────────
+    El resultado es del entrenador: el portal del cliente no lo pinta nunca, ni
+    como color ni como palabra. Y en voz baja también aquí — es una señal para
+    mirar con cuidado, no un diagnóstico ni una alarma. Ver `domain/scoff.js`.
+  */
+  const cribado = scoffResult(client.profile);
+
+  if (filas.length === 0 && !cribado) return null;
 
   return (
     /* Los mismos pares apilados que los bloques del perfil: son respuestas a
@@ -59,6 +68,18 @@ export const CustomAnswers = ({ client }) => {
             </span>
           </div>
         ))}
+        {cribado && (
+          <div className="par">
+            <span className="k">Cribado TCA (SCOFF)</span>
+            <span className="v" style={cribado.senal ? { color: 'var(--warning)', fontWeight: 600 } : undefined}>
+              {!cribado.completo
+                ? `a medias · ${cribado.answered} de ${cribado.total} contestadas`
+                : cribado.senal
+                  ? `con señal · ${cribado.yes} de ${cribado.total} afirmativas. No es un diagnóstico: es para hablarlo con cuidado.`
+                  : `sin señal · ${cribado.yes} de ${cribado.total} afirmativas`}
+            </span>
+          </div>
+        )}
       </div>
     </Panel>
   );
