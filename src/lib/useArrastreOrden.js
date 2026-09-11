@@ -15,8 +15,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *     que hay que descubrir pasando por encima, y un `title` que tarda un segundo
  *     en salir. Una función que no se sospecha es una función que no está.
  *
- * Con eventos de puntero el gesto es el mismo en las dos entradas, así que las
- * flechas dejan de hacer falta y el orden se cambia donde se ve.
+ * Y hay un tercero, medido en la hoja de series el 11 sep 2026: **el soltar
+ * tampoco llegaba**. El asa arrancaba el arrastre, pero la fila de destino son
+ * la cabecera del ejercicio y una tabla de casillas, y soltar sobre una casilla
+ * —que es el 90 % de la superficie de la fila— no disparaba ningún `drop`. O
+ * sea: se agarraba, se arrastraba, se soltaba y no pasaba nada. Exactamente el
+ * síntoma que reportó el dueño, «no puedo mover ejercicios de orden en la hoja».
+ *
+ * Con eventos de puntero el gesto es el mismo en las dos entradas, el destino se
+ * decide por GEOMETRÍA —qué sitio de la rejilla hay bajo el puntero— y no por
+ * quién recibe el evento, y las flechas dejan de ser la única forma.
  *
  * ── Cuándo empieza a arrastrar, que es todo el asunto ───────────────────────
  * Con RATÓN, a los 4 px de movimiento: el clic tiene que seguir seleccionando el
@@ -29,13 +37,21 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * ── Lo que se ve ────────────────────────────────────────────────────────────
  * El que viaja sigue al puntero y los de en medio SE APARTAN dejando el hueco.
  * Eso es lo que enseña el gesto sin explicarlo: al ver el sitio abrirse ya sabes
- * qué va a pasar al soltar. El desplazamiento es exactamente el ancho del que
- * viaja más el hueco entre pastillas, que es lo que mide el sitio que deja.
+ * qué va a pasar al soltar. El desplazamiento es exactamente el tamaño del que
+ * viaja más el hueco entre piezas, que es lo que mide el sitio que deja.
  *
  * Las medidas se toman UNA VEZ al empezar y no se vuelven a mirar: la posición
  * de destino se calcula contra la rejilla original, que es la que el ojo está
  * usando de referencia. Recalcular sobre las posiciones ya desplazadas haría que
  * el destino saltara solo.
+ *
+ * ── Y se miden en la PÁGINA, no en la ventana ───────────────────────────────
+ * En un carril de pastillas daba igual: cabe entero en la pantalla. Una hoja de
+ * series no — cada ejercicio mide 250 px y seis no caben —, así que arrastrar
+ * incluye DESPLAZAR: al acercarse al canto de arriba o de abajo, la página sigue
+ * al puntero. Con las medidas en coordenadas de ventana eso las invalidaría en
+ * cuanto el primer píxel se desplazara; en coordenadas de página siguen valiendo
+ * y el destino se calcula igual esté donde esté el papel.
  *
  * ── Cómo se usa ─────────────────────────────────────────────────────────────
  *   const orden = useArrastreOrden({ onMove: moverDia });
@@ -47,8 +63,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * piezas y el `style` con su desplazamiento. Las clases las pone quien lo usa
  * —cada carril tiene el suyo— consultando `arrastrando` y `destino`.
  *
+ * Cuando la pieza es grande y solo se agarra por un sitio —una fila de la hoja,
+ * que se coge por su asa y no por sus casillas— las dos mitades se piden por
+ * separado: `pieza(i)` va en la fila (es la que se mide y la que se mueve) y
+ * `asa(i)` en el agarre. `props(i)` es exactamente las dos juntas.
+ *
  * @param onMove  (desde, hasta) — mover de verdad. Se llama al soltar, solo si
  *   el destino es otro sitio.
+ * @param eje  `'x'` si las piezas van en fila (el carril de días) o `'y'` si van
+ *   apiladas (la hoja de series). Decide hacia dónde se apartan las de en medio.
  */
 
 /** Píxeles de movimiento con ratón antes de dar el gesto por arrastre. */
@@ -57,18 +80,48 @@ const UMBRAL_RATON = 4;
 const ESPERA_TACTIL = 240;
 /** Cuánto puede temblar un dedo apoyado sin que deje de ser una pulsación. */
 const TEMBLOR = 8;
+/** A cuántos píxeles del canto empieza la página a seguir al puntero. */
+const BORDE = 90;
+/** Y a cuántos píxeles por fotograma, como mucho. */
+const VELOCIDAD = 18;
 
-/** El hueco entre dos piezas seguidas de la misma línea. */
-const huecoEntre = (rects) => {
+/** El hueco entre dos piezas seguidas de la misma línea (o columna). */
+const huecoEntre = (rects, eje) => {
   for (let i = 0; i < rects.length - 1; i += 1) {
-    if (Math.abs(rects[i].top - rects[i + 1].top) < 2) {
+    if (eje === 'y') {
+      if (Math.abs(rects[i].left - rects[i + 1].left) < 2) {
+        return Math.max(0, rects[i + 1].top - rects[i].bottom);
+      }
+    } else if (Math.abs(rects[i].top - rects[i + 1].top) < 2) {
       return Math.max(0, rects[i + 1].left - rects[i].right);
     }
   }
   return 0;
 };
 
-export const useArrastreOrden = ({ onMove }) => {
+/** Quién se desplaza cuando esto se arrastra: el primer antepasado con scroll. */
+const scrollerDe = (nodo) => {
+  for (let el = nodo?.parentElement; el; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollHeight > el.clientHeight) {
+      return el;
+    }
+  }
+  return null;
+};
+
+const desplazamientoDel = (scroller) =>
+  scroller ? scroller.scrollTop : window.scrollY || document.documentElement.scrollTop || 0;
+
+/* Dónde empieza, en la ventana, el papel que se desplaza. Se pregunta VIVO y no
+   se guarda al empezar: la página de fuera puede moverse durante el gesto, y con
+   un valor guardado el puntero se leería en un sitio en el que no está. */
+const sueloDe = (scroller) => (scroller ? scroller.getBoundingClientRect().top : 0);
+
+/** El puntero, en las mismas coordenadas en las que están medidas las piezas. */
+const enElPapel = (g, clienteY) => clienteY + desplazamientoDel(g.scroller) - sueloDe(g.scroller);
+
+export const useArrastreOrden = ({ onMove, eje = 'x' }) => {
   const carrilRef = useRef(null);
 
   /** Índice que viaja. `null` = no hay arrastre en curso. */
@@ -98,6 +151,16 @@ export const useArrastreOrden = ({ onMove }) => {
   /* Un arrastre termina en un `click` del navegador sobre la pieza de origen.
      Sin esta marca, mover un día acabaría además seleccionándolo. */
   const arrastro = useRef(false);
+  /* El destino vivo, para poder leerlo al soltar sin recrear los manejadores en
+     cada movimiento del puntero. */
+  const destinoRef = useRef(null);
+  /* El bucle que desplaza la página mientras se arrastra pegado a un canto. */
+  const seguimiento = useRef(0);
+
+  const pararSeguimiento = useCallback(() => {
+    if (seguimiento.current) cancelAnimationFrame(seguimiento.current);
+    seguimiento.current = 0;
+  }, []);
 
   const limpiar = useCallback(() => {
     const g = gesto.current;
@@ -109,11 +172,13 @@ export const useArrastreOrden = ({ onMove }) => {
         /* El puntero ya se había soltado: no hay nada que liberar. */
       }
     }
+    pararSeguimiento();
     gesto.current = null;
+    destinoRef.current = null;
     setOrigen(null);
     setDestino(null);
     setDelta({ x: 0, y: 0 });
-  }, []);
+  }, [pararSeguimiento]);
 
   /** De puntero a índice: sobre qué sitio de la rejilla original está. */
   const sitioBajo = (x, y) => {
@@ -122,32 +187,88 @@ export const useArrastreOrden = ({ onMove }) => {
     return i === -1 ? null : i;
   };
 
-  const activar = useCallback((index) => {
+  const activar = useCallback(
+    (index) => {
+      const g = gesto.current;
+      if (!g || g.activo) return;
+
+      const nodos = carrilRef.current?.querySelectorAll('[data-orden]') || [];
+      /* En coordenadas de PÁGINA: la ventana puede desplazarse durante el
+         arrastre y estas medidas tienen que seguir valiendo. */
+      const scroller = scrollerDe(carrilRef.current);
+      const base = desplazamientoDel(scroller);
+      const suelo = sueloDe(scroller);
+      const rects = [...nodos].map((n) => {
+        const r = n.getBoundingClientRect();
+        return {
+          left: r.left,
+          right: r.right,
+          width: r.width,
+          height: r.height,
+          top: r.top + base - suelo,
+          bottom: r.bottom + base - suelo,
+        };
+      });
+      if (rects.length < 2) return;
+
+      g.activo = true;
+      g.scroller = scroller;
+      g.scroll0 = base;
+      g.rects = rects;
+      g.paso = (eje === 'y' ? rects[index].height : rects[index].width) + huecoEntre(rects, eje);
+      g.eje = eje;
+      try {
+        g.el?.setPointerCapture?.(g.pointerId);
+      } catch {
+        /* Sin captura el arrastre sigue funcionando mientras el puntero no salga
+           de la pieza; no es motivo para abortar el gesto. */
+      }
+      /* El golpecito que dice «lo tienes cogido». Solo lo tienen los teléfonos, y
+         es justo donde el gesto no se ve venir. */
+      if (g.tipo === 'touch') navigator.vibrate?.(8);
+      destinoRef.current = index;
+      setOrigen(index);
+      setDestino(index);
+    },
+    [eje]
+  );
+
+  /*
+    ══ La página sigue al puntero ═════════════════════════════════════════════
+    Una hoja de seis ejercicios mide el triple que la pantalla, así que llevar
+    el primero al último sitio es imposible si el papel no se mueve. Mientras el
+    puntero esté a menos de `BORDE` del canto, el carril se desplaza — más
+    deprisa cuanto más pegado al borde, que es como se comporta esto en
+    cualquier sitio donde ya funcione.
+  */
+  const seguir = useCallback(() => {
     const g = gesto.current;
-    if (!g || g.activo) return;
+    if (!g?.activo) return;
+    const alto = g.scroller ? g.scroller.clientHeight : window.innerHeight;
+    const arriba = g.clienteY - sueloDe(g.scroller);
+    const abajo = alto - arriba;
+    let paso = 0;
+    if (arriba < BORDE) paso = -Math.ceil(((BORDE - arriba) / BORDE) * VELOCIDAD);
+    else if (abajo < BORDE) paso = Math.ceil(((BORDE - abajo) / BORDE) * VELOCIDAD);
 
-    const nodos = carrilRef.current?.querySelectorAll('[data-orden]') || [];
-    const rects = [...nodos].map((n) => n.getBoundingClientRect());
-    if (rects.length < 2) return;
-
-    g.activo = true;
-    g.rects = rects;
-    g.paso = rects[index].width + huecoEntre(rects);
-    try {
-      g.el?.setPointerCapture?.(g.pointerId);
-    } catch {
-      /* Sin captura el arrastre sigue funcionando mientras el puntero no salga
-         de la pieza; no es motivo para abortar el gesto. */
+    if (paso !== 0) {
+      if (g.scroller) g.scroller.scrollTop += paso;
+      else window.scrollBy(0, paso);
+      /* Desplazar mueve el papel bajo un puntero que no se ha movido: el que
+         viaja tiene que seguir pegado al dedo y el destino puede ser otro. */
+      const corrido = desplazamientoDel(g.scroller) - g.scroll0;
+      setDelta({ x: g.dx, y: g.dy + corrido });
+      const sitio = sitioBajo(g.clienteX, enElPapel(g, g.clienteY));
+      if (sitio !== null && sitio !== destinoRef.current) {
+        destinoRef.current = sitio;
+        setDestino(sitio);
+      }
     }
-    /* El golpecito que dice «lo tienes cogido». Solo lo tienen los teléfonos, y
-       es justo donde el gesto no se ve venir. */
-    if (g.tipo === 'touch') navigator.vibrate?.(8);
-    setOrigen(index);
-    setDestino(index);
+    seguimiento.current = requestAnimationFrame(seguir);
   }, []);
 
-  /* Mientras se arrastra con el dedo, la página no se desplaza. El listener es
-     NO pasivo a propósito: los de React lo son, y desde uno pasivo
+  /* Mientras se arrastra con el dedo, la página no se desplaza sola. El listener
+     es NO pasivo a propósito: los de React lo son, y desde uno pasivo
      `preventDefault()` no hace nada. */
   useEffect(() => {
     if (origen === null) return undefined;
@@ -167,9 +288,12 @@ export const useArrastreOrden = ({ onMove }) => {
     return () => document.removeEventListener('keydown', alPulsar);
   }, [origen, limpiar]);
 
-  const props = (index) => ({
-    'data-orden': index,
+  /* Al desmontar con un gesto a medias —se cambia de hoja arrastrando— no puede
+     quedarse un `requestAnimationFrame` desplazando una página que ya no está. */
+  useEffect(() => pararSeguimiento, [pararSeguimiento]);
 
+  /** El agarre: los manejadores del gesto. */
+  const asa = (index) => ({
     onPointerDown: (e) => {
       /* Solo el botón principal: con el derecho se abre un menú, no se arrastra. */
       if (e.button !== 0 || gesto.current) return;
@@ -185,9 +309,15 @@ export const useArrastreOrden = ({ onMove }) => {
         tipo: e.pointerType,
         x: e.clientX,
         y: e.clientY,
+        dx: 0,
+        dy: 0,
+        clienteX: e.clientX,
+        clienteY: e.clientY,
         activo: false,
         rects: [],
         paso: 0,
+        scroller: null,
+        scroll0: 0,
         temporizador:
           e.pointerType === 'touch' ? setTimeout(() => activar(index), ESPERA_TACTIL) : 0,
       };
@@ -199,6 +329,8 @@ export const useArrastreOrden = ({ onMove }) => {
 
       const dx = e.clientX - g.x;
       const dy = e.clientY - g.y;
+      g.clienteX = e.clientX;
+      g.clienteY = e.clientY;
 
       if (!g.activo) {
         if (g.tipo === 'touch') {
@@ -210,18 +342,26 @@ export const useArrastreOrden = ({ onMove }) => {
         if (Math.hypot(dx, dy) < UMBRAL_RATON) return;
         activar(index);
         if (!gesto.current?.activo) return;
+        if (!seguimiento.current) seguimiento.current = requestAnimationFrame(seguir);
       }
 
-      setDelta({ x: dx, y: dy });
-      const sitio = sitioBajo(e.clientX, e.clientY);
-      if (sitio !== null) setDestino(sitio);
+      const corrido = desplazamientoDel(g.scroller) - g.scroll0;
+      g.dx = dx;
+      g.dy = dy;
+      setDelta({ x: dx, y: dy + corrido });
+      if (!seguimiento.current) seguimiento.current = requestAnimationFrame(seguir);
+      const sitio = sitioBajo(e.clientX, enElPapel(g, e.clientY));
+      if (sitio !== null) {
+        destinoRef.current = sitio;
+        setDestino(sitio);
+      }
     },
 
     onPointerUp: () => {
       const g = gesto.current;
       if (!g || g.index !== index) return;
       const activo = g.activo;
-      const hasta = destino;
+      const hasta = destinoRef.current;
       limpiar();
       if (!activo) return;
 
@@ -236,6 +376,11 @@ export const useArrastreOrden = ({ onMove }) => {
     onPointerCancel: () => {
       if (gesto.current?.index === index) limpiar();
     },
+  });
+
+  /** La pieza: lo que se mide y lo que se mueve. */
+  const pieza = (index) => ({
+    'data-orden': index,
 
     /* En captura, para poder anular el `onClick` de la propia pieza: React
        reparte la lista completa en orden y `stopPropagation` corta el resto,
@@ -249,11 +394,12 @@ export const useArrastreOrden = ({ onMove }) => {
 
     style: (() => {
       if (origen !== null) {
+        const aparta = desplazamientoDe(index, origen, destino, gesto.current);
         return {
           transform:
             index === origen
               ? `translate(${delta.x}px, ${delta.y}px)`
-              : `translateX(${desplazamientoDe(index, origen, destino, gesto.current)}px)`,
+              : `translate${eje === 'y' ? 'Y' : 'X'}(${aparta}px)`,
         };
       }
       return asentando ? { transition: 'none' } : undefined;
@@ -266,7 +412,10 @@ export const useArrastreOrden = ({ onMove }) => {
     arrastrando: origen,
     /** El sitio donde caería, para señalarlo. */
     destino: origen === null ? null : destino,
-    props,
+    asa,
+    pieza,
+    /** Las dos mitades juntas: la pieza ES su propio agarre. */
+    props: (index) => ({ ...pieza(index), ...asa(index) }),
   };
 };
 
@@ -276,7 +425,8 @@ export const useArrastreOrden = ({ onMove }) => {
  * Solo se apartan las de la MISMA LÍNEA que el que viaja: el carril envuelve
  * cuando hay muchos días, y correr una pastilla hacia la izquierda cuando el
  * hueco que se abre está en la fila de arriba no describe nada. Ahí basta con
- * el canto que marca el destino.
+ * el canto que marca el destino. Apiladas (`eje: 'y'`) la pregunta es la misma
+ * una cuarta de vuelta: se apartan las de su columna.
  *
  * Se exporta para poder probarla: es geometría pura —el resto del gancho son
  * eventos de puntero, que no se prueban sin un navegador— y es donde vive el
@@ -286,7 +436,10 @@ export const desplazamientoDe = (index, origen, destino, g) => {
   if (destino === null || !g?.rects?.length) return 0;
   const aqui = g.rects[index];
   const viajero = g.rects[origen];
-  if (!aqui || !viajero || Math.abs(aqui.top - viajero.top) > 2) return 0;
+  if (!aqui || !viajero) return 0;
+  const fuera =
+    g.eje === 'y' ? Math.abs(aqui.left - viajero.left) > 2 : Math.abs(aqui.top - viajero.top) > 2;
+  if (fuera) return 0;
 
   if (destino > origen && index > origen && index <= destino) return -g.paso;
   if (destino < origen && index >= destino && index < origen) return g.paso;

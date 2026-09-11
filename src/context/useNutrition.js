@@ -1,18 +1,28 @@
 import { useCallback } from 'react';
 
-import { deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
 import {
-  VARIANT_KEY,
+  addDietDay,
   buildFoodEntry,
   cloneMeal,
   cloneMeals,
   cloneOption,
+  duplicateDietDay,
+  mealsForVariant,
+  moveDietDay,
   moveItem,
   buildMeal,
   buildOption,
   emptyNutrition,
-  singleDietFrom,
+  planDays,
+  removeDietDay,
+  replaceDietDays,
+  renameDietDay,
+  setDayMeals,
+  setDayTargets,
+  setCycleSlot,
+  cycleFromSplit,
+  withDays,
 } from '@/domain/nutrition';
 import { toTargetFields } from '@/domain/dietSheet';
 
@@ -41,15 +51,20 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [nutritionRef, persist, setNutrition]
   );
 
-  /** Actualiza una lista de comidas de la variante indicada. */
+  /**
+   * Actualiza el menú de UN día.
+   *
+   * Dónde vive ese menú —las columnas de siempre o la lista `days`— lo resuelve
+   * `setDayMeals` en el dominio, y por eso todo lo de abajo puede hablar de días
+   * sin saber nada del esquema. Ver «LOS DÍAS DE LA DIETA».
+   */
   const applyMeals = useCallback(
-    (clientId, variant, updater, options) =>
+    (clientId, dayId, updater, options) =>
       applyNutrition(
         clientId,
         (n) => {
-          const key = VARIANT_KEY[variant] || VARIANT_KEY.default;
-          const meals = updater(n[key] || []);
-          return meals === null ? n : { ...n, [key]: meals };
+          const meals = updater(mealsForVariant(n, dayId));
+          return meals === null ? n : setDayMeals(n, dayId, meals);
         },
         options
       ),
@@ -62,90 +77,124 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [applyNutrition]
   );
 
-  /**
-   * Actualiza el objetivo de kcal y macros de UNA variante.
-   *
-   * Las columnas principales son el objetivo de los días de entreno (o el único
-   * si no hay variantes); el de descanso vive en `restTargets`. Sin esta
-   * separación, activar "dos dietas" mostraba la misma cifra en los dos días,
-   * que es precisamente lo que la opción quiere distinguir.
-   */
+  /** Actualiza el objetivo de kcal y macros de UN día. Ver `setDayTargets`. */
   const updateNutritionTargets = useCallback(
-    (clientId, variant, fields, options) =>
-      applyNutrition(
-        clientId,
-        (n) =>
-          variant === 'rest' && n.hasDayVariants
-            ? { ...n, restTargets: { ...(n.restTargets || {}), ...fields } }
-            : { ...n, ...fields },
-        options
-      ),
+    (clientId, dayId, fields, options) =>
+      applyNutrition(clientId, (n) => setDayTargets(n, dayId, fields), options),
+    [applyNutrition]
+  );
+
+  /*
+    ══ LOS DÍAS DEL PLAN ══════════════════════════════════════════════════════
+
+    Aquí había un solo verbo, `setHasDayVariants`, y era un interruptor: encendía
+    «dos dietas (entreno / descanso)» o las apagaba. Vivía en Ajustes, así que
+    añadir un día era buscar una casilla en otro sitio de la pantalla y quitarlo
+    era volver a buscarla — y desde la cinta, donde están los días, no había
+    forma de quitar el que acababas de añadir.
+
+    Ahora son cuatro verbos y viven donde se ven: añadir, duplicar, renombrar y
+    quitar, cada uno colgando del día al que le pasa. La regla de qué significa
+    cada uno está en el dominio; esto solo escribe.
+  */
+
+  /** Añade un día al final, con el objetivo del día del que sale. */
+  const addDietDayTo = useCallback(
+    (clientId, { desde = null, name = null } = {}) =>
+      applyNutrition(clientId, (n) => addDietDay(n, { desde, name })),
     [applyNutrition]
   );
 
   /**
-   * Enciende o apaga las dos dietas.
+   * Un día NUEVO con un menú puesto, en UNA escritura.
    *
-   * Al APAGAR hay que decir con cuál se queda (`quedarse`): la dieta única vive
-   * en otro campo que las de variante, así que sin elegir, la pantalla volvía a
-   * enseñar lo que hubiera antes de separarlas —en blanco— y las dos montadas se
-   * quedaban guardadas sin ninguna puerta por la que volver a verlas. El porqué
-   * entero, en `singleDietFrom`.
+   * Es lo que hace falta para repartir un día a varias personas (ver
+   * `domain/reparto`): al destinatario se le AÑADE un día y no se le toca
+   * ninguno de los que tenga. Va junto y no como `addDietDay` + `setDayMeals`
+   * porque entre las dos llamadas el día existe VACÍO —y en el camino hay una
+   * escritura a la base y un guardado en cola—, así que un fallo en medio deja
+   * un día en blanco en la dieta de alguien.
+   *
+   * El id del día lo pone `addDietDay` y aquí se lee del resultado: es la única
+   * forma de saber cuál es el recién creado sin suponer que es el último.
    */
-  const setHasDayVariants = useCallback(
-    (clientId, value, quedarse = null) =>
+  const addDietDayWithMeals = useCallback(
+    (clientId, { name = null, meals = [] } = {}) =>
       applyNutrition(clientId, (n) => {
-        if (!value && n.hasDayVariants && quedarse) return singleDietFrom(n, quedarse);
-        if (!value || n.hasDayVariants) return { ...n, hasDayVariants: value };
-        // Al activar por primera vez se parte de una copia de la dieta única,
-        // tanto en comidas como en OBJETIVO, para no dejar el día de descanso
-        // con cifras vacías ni perder lo ya configurado.
-        return {
-          ...n,
-          hasDayVariants: true,
-          restTargets: n.restTargets || {
-            targetKcals: n.targetKcals,
-            proteinGrams: n.proteinGrams,
-            carbsGrams: n.carbsGrams,
-            fatsGrams: n.fatsGrams,
-          },
-          closedMealsTraining: n.closedMealsTraining?.length
-            ? n.closedMealsTraining
-            : deepClone(n.closedMeals || []),
-          closedMealsRest: n.closedMealsRest?.length
-            ? n.closedMealsRest
-            : deepClone(n.closedMeals || []),
-        };
+        const conDia = addDietDay(n, { name });
+        const dias = planDays(conDia);
+        const nuevo = dias[dias.length - 1];
+        /* `cloneMeals` por lo de siempre: la misma pieza se reparte a ocho, y
+           sin ids nuevos las ocho copias compartirían los del original. */
+        return setDayMeals(conDia, nuevo.id, cloneMeals(meals));
       }),
     [applyNutrition]
   );
 
   /**
-   * Trae el menú de una variante a la otra, dentro del mismo cliente.
+   * Sustituir la dieta entera: sus días por otros.
    *
-   * ── El hueco que cierra ─────────────────────────────────────────────────────
-   * Al ACTIVAR las dos dietas, `setHasDayVariants` copia la única a ambas, así que
-   * se empieza con lo mismo en las dos. Pero a partir de ahí divergen y no había
-   * ningún camino de vuelta: el entrenador monta seis comidas en el día de
-   * entreno, va al de descanso y se lo encuentra como lo dejó hace tres semanas.
-   * Rehacerlo a mano es media hora por cliente.
-   *
-   * Y es el caso NORMAL, no el raro: un día de descanso casi nunca es una dieta
-   * distinta, es la misma con menos hidratos. Partir de una copia y quitar es el
-   * flujo de trabajo real.
-   *
-   * ── Qué NO copia, y por qué ─────────────────────────────────────────────────
-   * El objetivo de kcal y macros. Es justo lo que distingue a las dos variantes
-   * —si fueran iguales no habría dos— y arrastrarlo borraría la única cifra que
-   * el entrenador ajustó a mano al separarlas.
-   *
-   * Los identificadores se regeneran (ver `cloneMeals`). Hoy no haría falta,
-   * porque cada variante es un array aparte y las acciones van dirigidas a uno;
-   * se hace igualmente para que compartir `id` entre listas nunca llegue a ser
-   * una suposición sobre la que alguien construya.
+   * El ÚNICO verbo de nutrición que borra, y por eso está solo aquí y lo llama
+   * un solo sitio —el reparto, después de haberlo avisado por persona—. La
+   * regla de qué se conserva vive en `replaceDietDays`; esto solo escribe.
    */
+  const replaceDietOf = useCallback(
+    (clientId, days) => applyNutrition(clientId, (n) => replaceDietDays(n, days)),
+    [applyNutrition]
+  );
+
+  /** Duplica un día con su menú entero: el gesto que hace llevadero tener N. */
+  const duplicateDietDayOf = useCallback(
+    (clientId, dayId) => applyNutrition(clientId, (n) => duplicateDietDay(n, dayId)),
+    [applyNutrition]
+  );
+
+  const renameDietDayOf = useCallback(
+    (clientId, dayId, name) =>
+      applyNutrition(clientId, (n) => renameDietDay(n, dayId, name), { immediate: false }),
+    [applyNutrition]
+  );
+
+  const moveDietDayOf = useCallback(
+    (clientId, from, to) => applyNutrition(clientId, (n) => moveDietDay(n, from, to)),
+    [applyNutrition]
+  );
+
   /**
-   * Sustituir el menú de una variante por uno ya calculado.
+   * Quita un día. Quien llama guarda el plan de antes para el «Deshacer»: quitar
+   * un día se lleva su menú, y la pareja honesta de eso es poder volver.
+   */
+  const removeDietDayOf = useCallback(
+    (clientId, dayId) => applyNutrition(clientId, (n) => removeDietDay(n, dayId)),
+    [applyNutrition]
+  );
+
+  /** El reparto del ciclo, casilla a casilla. */
+  const setDietCycleSlot = useCallback(
+    (clientId, casilla, dayId) => applyNutrition(clientId, (n) => setCycleSlot(n, casilla, dayId)),
+    [applyNutrition]
+  );
+
+  /**
+   * «Repartir por el entreno»: copia el `weeklySplit` del programa —o el patrón del ciclo rotativo— al mapa
+   * de la dieta. Se copia UNA VEZ y no queda enlazado — el split es por bloque y los
+   * bloques cambian, y una dieta que se recoloca sola es la aplicación decidiendo
+   * por el entrenador. Cuando dejen de coincidir, se dice y se vuelve a pulsar.
+   */
+  const repartirPorElEntreno = useCallback(
+    (clientId, slots, { entreno, descanso }) =>
+      applyNutrition(clientId, (n) => ({
+        ...withDays(n),
+        /* Se escribe el mapa ENTERO y no se funde con lo que hubiera: repartir
+           por el entreno es contestar todas las casillas de una vez, y dejar
+           debajo el reparto de un ciclo anterior sería guardar dos respuestas. */
+        week: cycleFromSplit(slots, { entreno, descanso }),
+      })),
+    [applyNutrition]
+  );
+
+  /**
+   * Sustituir el menú de un día por uno ya calculado.
    *
    * Existe para el reescalado al objetivo nuevo: el cálculo vive en el dominio
    * (`rescaleMeals`), la vista previa lo enseña, y esto solo escribe lo que el
@@ -157,10 +206,32 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [applyMeals]
   );
 
+  /**
+   * Trae el menú de un día a otro, dentro del mismo cliente.
+   *
+   * ── El hueco que cierra ─────────────────────────────────────────────────────
+   * Un día nuevo nace vacío, a propósito: «+ día» y «duplicar» son dos gestos y
+   * no uno. Pero a partir de ahí los días divergen y hacía falta un camino de
+   * vuelta: el entrenador monta seis comidas en el de entreno, va al de descanso
+   * y se lo encuentra como lo dejó hace tres semanas. Rehacerlo a mano es media
+   * hora por cliente.
+   *
+   * Y es el caso NORMAL, no el raro: un día de descanso casi nunca es una dieta
+   * distinta, es la misma con menos hidratos.
+   *
+   * ── Qué NO copia, y por qué ─────────────────────────────────────────────────
+   * El objetivo de kcal y macros. Es justo lo que distingue a un día de otro —si
+   * fueran iguales no habría dos— y arrastrarlo borraría la única cifra que el
+   * entrenador ajustó a mano al separarlos.
+   *
+   * Los identificadores se regeneran (ver `cloneMeals`), para que compartir `id`
+   * entre dos días nunca llegue a ser una suposición sobre la que alguien
+   * construya.
+   */
   const copyVariantMeals = useCallback(
     (clientId, from, to) => {
       if (from === to) return false;
-      const source = nutritionRef.current[clientId]?.[VARIANT_KEY[from]] || [];
+      const source = mealsForVariant(nutritionRef.current[clientId], from);
       if (source.length === 0) return false;
 
       applyMeals(clientId, to, () => cloneMeals(source));
@@ -185,46 +256,11 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
   const copyMealToVariant = useCallback(
     (clientId, from, to, mealIdx) => {
       if (from === to) return null;
-      const source = nutritionRef.current[clientId]?.[VARIANT_KEY[from]]?.[mealIdx];
+      const source = mealsForVariant(nutritionRef.current[clientId], from)[mealIdx];
       if (!source) return null;
 
       applyMeals(clientId, to, (meals) => [...meals, cloneMeal(source, { rename: false })]);
       return source.name || 'Comida';
-    },
-    [applyMeals, nutritionRef]
-  );
-
-  /**
-   * Llevar UNA opción a la comida que se llama igual en la otra variante.
-   *
-   * ── Por qué no pregunta a dónde ─────────────────────────────────────────────
-   * Porque la respuesta es siempre la misma: la alternativa de pasta del almuerzo
-   * de entreno va al almuerzo de descanso. Un selector de destino sería un paso
-   * más para elegir lo único que se iba a elegir, y el nombre de la comida ya
-   * dice a dónde va.
-   *
-   * Si esa comida no existe allí, se crea con ese nombre. La alternativa —negarse
-   * a copiar— obligaría a ir a la otra variante, crear la comida vacía, volver y
-   * repetir la operación.
-   */
-  const copyOptionToVariant = useCallback(
-    (clientId, from, to, mealIdx, optIdx) => {
-      if (from === to) return null;
-      const source = nutritionRef.current[clientId]?.[VARIANT_KEY[from]]?.[mealIdx];
-      const option = source?.options?.[optIdx];
-      if (!option) return null;
-
-      const nombre = source.name || 'Comida';
-      applyMeals(clientId, to, (meals) => {
-        const destino = meals.findIndex((m) => (m.name || '') === nombre);
-        if (destino < 0) {
-          return [...meals, { ...buildMeal(), name: nombre, options: [cloneOption(option)] }];
-        }
-        return meals.map((m, i) =>
-          i === destino ? { ...m, options: [...(m.options || []), cloneOption(option)] } : m
-        );
-      });
-      return nombre;
     },
     [applyMeals, nutritionRef]
   );
@@ -253,7 +289,7 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
   const importDiet = useCallback(
     (clientId, plan) =>
       applyNutrition(clientId, (n) => {
-        const next = { ...n };
+        let next = { ...n };
         const variantes = plan?.variants || [];
 
         if (variantes.some((v) => v.meals?.length)) next.type = 'closed';
@@ -263,29 +299,25 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
         if (plan?.cardio) next.cardioGoal = plan.cardio;
         if (plan?.notes?.length) next.habitsNotes = [...(n.habitsNotes || []), ...plan.notes];
 
-        /* Dos variantes traídas encienden las dos dietas: si la hoja distingue
-           el día de entreno del de descanso, el plan también tiene que hacerlo o
-           una de las dos no se podría ni enseñar. */
-        if (variantes.length > 1) next.hasDayVariants = true;
+        /*
+          ── A qué DÍA cae cada variante de la hoja ─────────────────────────────
+          Por posición y contra los días que el cliente ya tiene: la primera
+          variante al primer día, la segunda al segundo. Si la hoja trae dos días
+          y esta persona solo tiene uno, se le añade el que falta — si la hoja
+          distingue entreno de descanso y el plan no, uno de los dos no se podría
+          ni enseñar.
 
-        for (const variante of variantes) {
-          /*
-            Una dieta única traída a un cliente que YA tiene dos cae en la de
-            entreno, no en la lista única: con las dos dietas encendidas, esa
-            lista no se enseña en ninguna parte, así que importar ahí sería
-            importar a un sitio invisible. La de descanso se queda como estaba,
-            que es lo menos destructivo de lo que se puede hacer sin preguntar.
-          */
-          const destino = !next.hasDayVariants
-            ? 'default'
-            : variante.variant === 'default'
-              ? 'training'
-              : variante.variant;
-          next[VARIANT_KEY[destino] || VARIANT_KEY.default] = variante.meals || [];
-
-          if (!variante.targets) continue;
-          if (destino === 'rest') next.restTargets = toTargetFields(variante.targets);
-          else Object.assign(next, toTargetFields(variante.targets));
+          Lo que NO se hace es al revés: una hoja de un solo día traída a alguien
+          con cuatro cae en el primero y los otros tres se quedan como estaban,
+          que es lo menos destructivo que se puede hacer sin preguntar.
+        */
+        for (let i = 0; i < variantes.length; i += 1) {
+          if (planDays(next).length <= i) next = addDietDay(next, { name: variantes[i].label || null });
+          const dia = planDays(next)[i];
+          next = setDayMeals(next, dia.id, variantes[i].meals || []);
+          if (variantes[i].targets) {
+            next = setDayTargets(next, dia.id, toTargetFields(variantes[i].targets));
+          }
         }
 
         return next;
@@ -372,6 +404,54 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [applyMeals]
   );
 
+  /**
+   * Ponerle nombre a una alternativa: «Con avena», «Sin lactosa», «Si entreno
+   * tarde». Se guarda en el propio menú, sin columna nueva.
+   *
+   * `immediate: false` como el nombre de la comida: se teclea letra a letra y
+   * escribir en la base de datos en cada pulsación no lo merece.
+   */
+  const renameMealOption = useCallback(
+    (clientId, variant, mealIdx, optIdx, name) =>
+      applyMeals(
+        clientId,
+        variant,
+        (meals) =>
+          meals.map((m, i) =>
+            i !== mealIdx
+              ? m
+              : { ...m, options: m.options.map((o, k) => (k === optIdx ? { ...o, name } : o)) }
+          ),
+        { immediate: false }
+      ),
+    [applyMeals]
+  );
+
+  /**
+   * Las alternativas de una comida, de una vez.
+   *
+   * ── Por qué hace falta además de `addMealOption` ───────────────────────────
+   * Porque pegar una comida COMO OTRA OPCIÓN de esta —«la cena de Marta, como
+   * alternativa de esta cena»— es un solo gesto que puede traer dos o tres
+   * alternativas, y con las de una en una serían un alta por cada una más un
+   * renombrado por cada una: la pantalla parpadearía por los pasos intermedios
+   * y el «Deshacer» tendría que rehacerlos al revés y en orden. Aquí el inverso
+   * es la lista de antes, que es la misma ley que `setBlockSheetExercises` en el
+   * entreno y que `restoreMeal`: lo que se escribe de una vez se deshace de una
+   * vez.
+   *
+   * Una comida SIEMPRE tiene al menos una alternativa —es lo que se lee cuando
+   * no hay elección—, así que una lista vacía no se escribe: sería dejar la
+   * comida sin nada dentro por un fallo de quien llama, no por una decisión.
+   */
+  const setMealOptions = useCallback(
+    (clientId, variant, mealIdx, options) =>
+      applyMeals(clientId, variant, (meals) =>
+        meals.map((m, i) => (i !== mealIdx || !options?.length ? m : { ...m, options }))
+      ),
+    [applyMeals]
+  );
+
   const removeMealOption = useCallback(
     (clientId, variant, mealIdx, optIdx) =>
       applyMeals(clientId, variant, (meals) =>
@@ -434,6 +514,49 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
           return { ...m, options };
         })
       ),
+    [applyMeals]
+  );
+
+  /**
+   * Añade al final una comida que viene de FUERA de esta lista.
+   *
+   * ── Por qué no vale `duplicateMeal` ────────────────────────────────────────
+   * Aquel lee la comida de la lista en la que escribe, así que solo sabe copiar
+   * dentro del mismo menú y del mismo cliente. Desde que hay portapapeles la
+   * comida puede venir de otro día, de la otra variante o de otra persona, y lo
+   * único que hace falta saber es dónde cae.
+   *
+   * `cloneMeal` con `rename: false` porque el nombre ya no es ambiguo: «Cena»
+   * pegada desde otro cliente es la única «Cena» de esta lista, y marcarla como
+   * «(copia)» obligaría a renombrar algo que no se ha duplicado. Los ids sí se
+   * renuevan —de eso se encarga `cloneMeal`—, que es lo que impide que la misma
+   * comida pegada dos veces comparta identificador.
+   */
+  /**
+   * Una comida al final del menú, y DEVUELVE la que ha quedado puesta.
+   *
+   * El clon se hace aquí fuera y no dentro del actualizador para poder
+   * devolverlo: quien pega necesita saber qué acaba de entrar para que el
+   * «Deshacer» del aviso pueda quitar eso y no «la última», que a los seis
+   * segundos de vida del aviso puede ser otra cosa. Aplicar dos veces el mismo
+   * clon sobre el mismo estado da el mismo resultado, así que ser el mismo
+   * objeto no cambia nada.
+   */
+  const appendMeal = useCallback(
+    (clientId, variant, meal) => {
+      const puesta = cloneMeal(meal, { rename: false });
+      applyMeals(clientId, variant, (meals) => [...meals, puesta]);
+      return puesta;
+    },
+    [applyMeals]
+  );
+
+  /** El inverso de pegar: quita por id las que se pusieron, estén donde estén. */
+  const removeMealsById = useCallback(
+    (clientId, variant, ids) => {
+      const fuera = new Set(ids || []);
+      return applyMeals(clientId, variant, (meals) => meals.filter((m) => !fuera.has(m.id)));
+    },
     [applyMeals]
   );
 
@@ -656,19 +779,30 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
   return {
     updateNutrition,
     updateNutritionTargets,
-    setHasDayVariants,
+    addDietDay: addDietDayTo,
+    addDietDayWithMeals,
+    duplicateDietDay: duplicateDietDayOf,
+    renameDietDay: renameDietDayOf,
+    moveDietDay: moveDietDayOf,
+    removeDietDay: removeDietDayOf,
+    replaceDiet: replaceDietOf,
+    setDietCycleSlot,
+    repartirPorElEntreno,
     applyRescaledMeals,
     copyVariantMeals,
     copyMealToVariant,
-    copyOptionToVariant,
     importDiet,
     addMeal,
+    appendMeal,
+    removeMealsById,
     removeMeal,
     restoreMeal,
     updateMealName,
     updateMealNote,
     updateMealTarget,
     addMealOption,
+    setMealOptions,
+    renameMealOption,
     removeMealOption,
     moveMeal,
     moveFood,

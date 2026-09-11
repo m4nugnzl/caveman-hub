@@ -27,7 +27,7 @@ import { useRadiografia, VENTANAS } from '@/context/useRadiografia';
 import { Sparkline } from '@/components/ui/charts';
 import { RangeChips } from '@/components/ui/ChartCard';
 import { Delta, MetricCard, MetricRow } from '@/components/ui/metrics';
-import { ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
+import { MandoDeOrden, ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import {
   BotonAccion,
   EmptyState,
@@ -365,6 +365,34 @@ const ORDEN_CUENTAS = {
 };
 
 /*
+  ── Y el mismo orden, dicho fuera de la cabecera ───────────────────────────
+  La flecha de `ThOrden` se esconde hasta que se apunta con el ratón —trece
+  flechas fijas son trece cosas que no se van a pulsar—, así que la tabla no
+  cuenta que se ordena: quien no lo sabe, no lo descubre. Y hay algo que una
+  cabecera no puede ofrecer nunca, porque no es ninguna columna: volver al
+  orden con el que llega la tabla, que aquí es la urgencia y es la pregunta con
+  la que se abre la pantalla. Ver `MandoDeOrden` en `ui/tabla.jsx`.
+
+  `prueba` está en el mapa de arriba y NO en el menú: no tiene columna, y
+  ofrecer un orden por algo que la tabla no enseña baraja las filas sin decir
+  por qué.
+*/
+const CAMPOS_CUENTAS = [
+  { id: 'nombre', label: 'Nombre' },
+  { id: 'plan', label: 'Plan' },
+  { id: 'clientes', label: 'Clientes', num: true },
+  { id: 'portal', label: 'Portal', num: true },
+  {
+    id: 'entrada',
+    label: 'Última entrada',
+    num: true,
+    /* El valor son los DÍAS que hace, así que ascendente es lo reciente. */
+    sentidos: { asc: 'las que acaban de entrar', desc: 'las que más llevan sin entrar' },
+  },
+  { id: 'semana', label: 'Movimiento de 7 días', num: true },
+];
+
+/*
   Los filtros. Ninguno introduce un umbral nuevo: los cuatro leen un campo que
   el dominio ya calculó, y por eso se pueden escribir aquí sin partir la regla
   de que esta pantalla no decide nada.
@@ -425,15 +453,25 @@ export const Cuentas = ({ cuentas = [], riesgo = [] }) => {
           : `${visibles.length} de ${cuentas.length}`
       }
       action={
-        <div className="searchbox">
-          <Search size={15} aria-hidden="true" />
-          <input
-            type="search"
-            className="input"
-            placeholder="Buscar cuenta…"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            aria-label="Buscar por nombre o correo"
+        /* Buscar y ordenar en la misma línea, el reparto de la cartera: el
+           campo a la izquierda y el estado del orden al canto. */
+        <div className="row gap-2 wrap">
+          <div className="searchbox">
+            <Search size={15} aria-hidden="true" />
+            <input
+              type="search"
+              className="input"
+              placeholder="Buscar cuenta…"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              aria-label="Buscar por nombre o correo"
+            />
+          </div>
+          <MandoDeOrden
+            orden={orden}
+            campos={CAMPOS_CUENTAS}
+            defecto="Urgencia"
+            ariaLabel="Ordenar las cuentas"
           />
         </div>
       }
@@ -744,6 +782,17 @@ const ORDEN_NEGOCIO = {
   pct: (n) => n.pctActivas,
 };
 
+/* `cuentas` NO está en el menú y no es un olvido: la tabla llega ordenada por
+   ella (`negocioPorEstado` en `radiografia/dinero.js`), así que ya es el primer
+   ítem —el de casa, rotulado «por defecto»—. Repetirla debajo serían dos
+   entradas que hacen lo mismo. Su cabecera la sigue ofreciendo. */
+const CAMPOS_NEGOCIO = [
+  { id: 'estado', label: 'Estado' },
+  { id: 'plan', label: 'Plan' },
+  { id: 'activas', label: 'Activas', num: true },
+  { id: 'pct', label: '% que entra', num: true },
+];
+
 export const Dinero = ({
   planes = [],
   cobros,
@@ -809,7 +858,19 @@ export const Dinero = ({
       */}
       {negocio.length > 0 && (
         <>
-          <SectionTitle icon={Wallet}>Quién paga y quién lo usa</SectionTitle>
+          <SectionTitle
+            icon={Wallet}
+            action={
+              <MandoDeOrden
+                orden={orden}
+                campos={CAMPOS_NEGOCIO}
+                defecto="Cuentas"
+                ariaLabel="Ordenar por estado y plan"
+              />
+            }
+          >
+            Quién paga y quién lo usa
+          </SectionTitle>
           <div className="table-scroll">
             <table className="table table-compact">
               <thead>
@@ -1000,6 +1061,22 @@ const ORDEN_VOLUMEN = {
   porFila: (v) => (v.filas > 0 ? v.bytes / v.filas : null),
 };
 
+/* Sin `bytes`, por lo mismo que sin `cuentas` arriba: `radiografia_volumen()`
+   devuelve las tablas de mayor a menor tamaño (0053), y ése es el ítem de
+   casa. Lo que el menú añade es preguntarle otra cosa: qué tabla engorda por
+   fila, que es la señal de `auditoria.md` §1.4 y no se ve en ninguna columna
+   del tirón. */
+const CAMPOS_VOLUMEN = [
+  { id: 'tabla', label: 'Nombre' },
+  { id: 'filas', label: 'Filas', num: true },
+  {
+    id: 'porFila',
+    label: 'Peso por fila',
+    num: true,
+    sentidos: { asc: 'las más finas', desc: 'las que más ocupan por fila' },
+  },
+];
+
 export const Salud = ({ fallos = [], volumen = [], fallosDia = [], ventanaDias = 30 }) => {
   const orden = useOrden();
   const volumenOrdenado = useMemo(
@@ -1057,7 +1134,19 @@ export const Salud = ({ fallos = [], volumen = [], fallosDia = [], ventanaDias =
 
     {volumen.length > 0 && (
       <>
-        <SectionTitle icon={Database}>Volumen por tabla</SectionTitle>
+        <SectionTitle
+          icon={Database}
+          action={
+            <MandoDeOrden
+              orden={orden}
+              campos={CAMPOS_VOLUMEN}
+              defecto="Tamaño"
+              ariaLabel="Ordenar las tablas"
+            />
+          }
+        >
+          Volumen por tabla
+        </SectionTitle>
         <div className="table-scroll">
           <table className="table table-compact">
             <thead>
@@ -1097,11 +1186,25 @@ const ORDEN_PANTALLAS = {
   cuentas: (p) => p.cuentas,
 };
 
+const CAMPOS_PANTALLAS = [
+  { id: 'nombre', label: 'Nombre' },
+  { id: 'cuentas', label: 'Cuentas distintas', num: true },
+];
+
 const ORDEN_CAMPOS = {
   campo: (c) => c.campo,
   veces: (c) => c.veces,
   pct: (c) => c.pct,
 };
+
+/* Aquí el orden de casa NO es ninguna columna ni ningún criterio: son los
+   pliegues y detrás los perímetros, cada grupo como lo pregunta el formulario.
+   Por eso se ofrecen los tres y el de casa se llama por lo que es. */
+const CAMPOS_MEDIDA = [
+  { id: 'campo', label: 'Nombre' },
+  { id: 'veces', label: 'Veces', num: true },
+  { id: 'pct', label: '% de registros', num: true },
+];
 
 /* ══ El embudo, y por qué vuelve ═════════════════════════════════════════════
 
@@ -1289,15 +1392,26 @@ export const Uso = ({
       <SectionTitle
         icon={Activity}
         action={
-          usadas.length > 10 && (
-            <button
-              type="button"
-              className="btn btn-plain btn-sm"
-              onClick={() => setTodasLasPantallas((v) => !v)}
-            >
-              {todasLasPantallas ? 'Ver solo las diez primeras' : `Ver las ${usadas.length}`}
-            </button>
-          )
+          <div className="row gap-2 wrap">
+            {usadas.length > 10 && (
+              <button
+                type="button"
+                className="btn btn-plain btn-sm"
+                onClick={() => setTodasLasPantallas((v) => !v)}
+              >
+                {todasLasPantallas ? 'Ver solo las diez primeras' : `Ver las ${usadas.length}`}
+              </button>
+            )}
+            {/* Ordenar con la tabla cortada a diez cambia QUÉ diez se ven, que
+                es justo para lo que sirve: las diez que más cuentas tocan no son
+                las diez que más veces se abren. */}
+            <MandoDeOrden
+              orden={ordenPantallas}
+              campos={CAMPOS_PANTALLAS}
+              defecto="Veces"
+              ariaLabel="Ordenar las pantallas"
+            />
+          </div>
         }
       >
         Lo más usado
@@ -1435,7 +1549,17 @@ export const Uso = ({
           tabla es «¿cuáles están a cero?», y para contestarla había que
           leérsela entera porque llega en el orden del formulario.
         */}
-        <SectionTitle icon={Ruler}>
+        <SectionTitle
+          icon={Ruler}
+          action={
+            <MandoDeOrden
+              orden={ordenCampos}
+              campos={CAMPOS_MEDIDA}
+              defecto="Orden del formulario"
+              ariaLabel="Ordenar los campos de medida"
+            />
+          }
+        >
           Campos de medida, sobre {num(censo.antropometria.registros)} registros
         </SectionTitle>
         <div className="table-scroll">

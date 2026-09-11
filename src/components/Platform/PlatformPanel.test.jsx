@@ -523,7 +523,11 @@ describe('el porqué de un diagnóstico', () => {
        se pliega, que es distinto. */
     const html = pintar({ informe: INFORME });
     expect(html).toContain('Por qué');
-    expect(html).toContain('aria-expanded="false"');
+    /* El pliegue por su clase y no por `aria-expanded` a secas: la pantalla
+       lleva ahora mandos con menú —el del orden de cada tabla— y ese atributo
+       lo pone cualquiera de ellos. Lo que se comprueba es que el porqué está
+       PLEGADO, no que haya algo que se abra. */
+    expect(html).toContain('class="fold-head" aria-expanded="false"');
     /* Y el contenido no está en la salida hasta que se abre. */
     expect(html).not.toContain('Marta, desde hace 4 días');
   });
@@ -545,7 +549,7 @@ describe('el porqué de un diagnóstico', () => {
     };
     const html = pintar({ informe: unaFrase });
     expect(html).toContain('El más antiguo venció hace 22 días.');
-    expect(html).not.toContain('aria-expanded');
+    expect(html).not.toContain('fold-head');
   });
 
   it('la cifra sale UNA vez, no tres', () => {

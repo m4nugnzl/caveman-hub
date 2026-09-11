@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { useMirroredState } from '@/lib/useMirroredState';
 import { track } from '@/lib/analytics';
 import { deepClone, newId } from '@/lib/ids';
 import {
@@ -31,7 +32,9 @@ import {
   wherePlanExercise,
   blockSessionOf,
   blocksOf,
+  currentBlock,
   addBlockExerciseIn,
+  setBlockExercisesIn,
   addBlockSessionIn,
   moveBlockExerciseIn,
   moveBlockSessionIn,
@@ -61,6 +64,7 @@ import {
 } from '@/domain/blocks';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
+import { apuntarFoto, conLoRegistradoDeAhora, mismoPlan } from '@/domain/deshacer';
 
 /*
   ══ La rutina, sus sesiones y las copias entre clientes, fuera de AppContext
@@ -89,6 +93,43 @@ export const useWorkout = ({
   ensureNutrition,
   profileRole,
 }) => {
+  /* Las fotos del plan por cliente: `{ [clientId]: { pasado: [], futuro: [] } }`.
+     Ver el bloque «DESHACER Y REHACER EL PLAN», más abajo. */
+  const [historial, setHistorial, historialRef] = useMirroredState({});
+
+  /*
+    ══ UN GESTO ES UN PASO ═══════════════════════════════════════════════════
+
+    Casi ningún gesto de la rutina escribe una sola vez. «+ serie» escribe dos:
+    el plan del ejercicio y el renglón de la bitácora del bloque que dice que
+    ha pasado. Pegar una hoja, otras dos. Sin esto, cada gesto dejaba DOS pasos
+    en la pila y el primer ⌘Z no movía nada de lo que se ve —deshacía el
+    renglón del diario— así que el atajo parecía roto justo la primera vez que
+    alguien lo probaba. Medido en la app: un «+ serie» hacían falta dos ⌘Z.
+
+    Las escrituras de un mismo gesto ocurren todas en el mismo turno del
+    intérprete —son el manejador del clic, sin esperas por medio—, así que basta
+    con guardar la PRIMERA de cada turno e ignorar las demás: el microtask
+    levanta la bandera en cuanto ese turno termina. La foto que se guarda es la
+    de antes de la primera escritura, que es exactamente el «antes» del gesto.
+  */
+  const enElMismoGestoRef = useRef(false);
+
+  const apuntarEnElHistorial = useCallback(
+    (clientId, foto) => {
+      if (enElMismoGestoRef.current) return;
+      enElMismoGestoRef.current = true;
+      queueMicrotask(() => {
+        enElMismoGestoRef.current = false;
+      });
+      setHistorial({
+        ...historialRef.current,
+        [clientId]: apuntarFoto(historialRef.current[clientId], foto),
+      });
+    },
+    [historialRef, setHistorial]
+  );
+
   /**
    * Aplica un updater puro sobre la rutina de un cliente, actualiza el estado
    * y encola el guardado. Devuelve el nuevo valor para que quien llame pueda
@@ -102,17 +143,81 @@ export const useWorkout = ({
    *   tecleo suyo lanzaría además un upsert que la base de datos rechazaría, y el
    *   indicador de guardado mostraría un error por cada letra.
    */
+  /**
+   * @param sinHistorial  No apunta el cambio en la pila de deshacer. Lo usan
+   *   `deshacerPlan` y `rehacerPlan`, que ya mueven la pila a mano: sin esto,
+   *   deshacer apuntaría su propia vuelta atrás como un cambio más y no habría
+   *   manera de salir del último paso.
+   */
   const applyWorkout = useCallback(
-    (clientId, updater, { immediate = true, skipPersist = false } = {}) => {
+    (clientId, updater, { immediate = true, skipPersist = false, sinHistorial = false } = {}) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       const next = updater(current);
       if (next === current) return current;
 
       setWorkoutData({ ...workoutRef.current, [clientId]: next });
       if (!skipPersist) persist('workout', clientId, next, { immediate });
+
+      /*
+        ── Y la foto de antes, si lo que ha cambiado es el PLAN ──────────────
+        `skipPersist` es el camino del cliente registrando sus series: ni se
+        guarda por aquí ni se deshace desde aquí. Y `mismoPlan` deja fuera lo
+        que el entrenador escribe en el registro —los kilos que le apunta a
+        alguien— para que ⌘Z no se gaste en pasos que al volver no mueven nada.
+      */
+      if (!skipPersist && !sinHistorial && !mismoPlan(current, next)) {
+        apuntarEnElHistorial(clientId, current);
+      }
       return next;
     },
-    [persist, setWorkoutData, workoutRef]
+    [apuntarEnElHistorial, persist, setWorkoutData, workoutRef]
+  );
+
+  /*
+    ══ DESHACER Y REHACER EL PLAN ════════════════════════════════════════════
+
+    Lo que hay abajo es toda la mecánica: una pila por cliente con las fotos de
+    antes (`pasado`) y las de después de deshacer (`futuro`). La ley —qué es
+    una foto y qué no se devuelve nunca— vive en `domain/deshacer`.
+
+    Por qué la pila es estado y no un ref: la pantalla enseña el mando solo
+    cuando hay algo que deshacer (la ley del reposo), y para eso tiene que
+    enterarse de que la pila ha cambiado. Las fotos son objetos inmutables que
+    ya existen —comparten estructura con el programa vivo—, así que guardarlas
+    no cuesta lo que parece.
+  */
+  const deshacerPlan = useCallback(
+    (clientId) => {
+      const pila = historialRef.current[clientId];
+      if (!pila?.pasado?.length) return false;
+
+      const foto = pila.pasado[pila.pasado.length - 1];
+      const actual = workoutRef.current[clientId] || emptyWorkoutData();
+      setHistorial({
+        ...historialRef.current,
+        [clientId]: { pasado: pila.pasado.slice(0, -1), futuro: [...(pila.futuro || []), actual] },
+      });
+      applyWorkout(clientId, () => conLoRegistradoDeAhora(foto, actual), { sinHistorial: true });
+      return true;
+    },
+    [applyWorkout, historialRef, setHistorial, workoutRef]
+  );
+
+  const rehacerPlan = useCallback(
+    (clientId) => {
+      const pila = historialRef.current[clientId];
+      if (!pila?.futuro?.length) return false;
+
+      const foto = pila.futuro[pila.futuro.length - 1];
+      const actual = workoutRef.current[clientId] || emptyWorkoutData();
+      setHistorial({
+        ...historialRef.current,
+        [clientId]: { pasado: [...(pila.pasado || []), actual], futuro: pila.futuro.slice(0, -1) },
+      });
+      applyWorkout(clientId, () => conLoRegistradoDeAhora(foto, actual), { sinHistorial: true });
+      return true;
+    },
+    [applyWorkout, historialRef, setHistorial, workoutRef]
   );
 
   const applyDay = useCallback(
@@ -1049,9 +1154,77 @@ export const useWorkout = ({
    * fecha; sin él, el bloque está abierto y punto.
    */
   const startBlockWithPlan = useCallback(
-    (clientId, { name = null, sessions = [], mobilityDrills = null, plannedWeeks = null, intent = null, note = null } = {}) => {
+    (
+      clientId,
+      {
+        name = null,
+        sessions = [],
+        mobilityDrills = null,
+        plannedWeeks = null,
+        intent = null,
+        note = null,
+        /*
+          ── EL REPARTO POR DÍAS, DESDE EL COMPOSITOR ──────────────────────────
+          Va al PROGRAMA y no al bloque, y no es un descuido: el reparto del
+          bloque ABIERTO vive en `program.weeklySplit` y solo se congela dentro
+          del bloque al cerrarlo (ver `structureOfBlock` y `openNextBlock`). El
+          bloque que se abre aquí es el nuevo abierto, así que su sitio es
+          arriba; escribirlo en `blocks[n].weeklySplit` lo dejaría ahí sin que
+          nadie lo leyera hasta que ese bloque se cerrara.
+
+          `null` no toca nada: quien no reparte hereda el reparto que ya
+          hubiera, que es lo que hacía esto antes de existir este parámetro.
+        */
+        weeklySplit = null,
+      } = {}
+    ) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
-      if (current.microcycles.length === 0) return startProgram(clientId);
+
+      /*
+        ── Sin programa no hay bloque que cerrar, pero SÍ plan que poner ──────
+        Esto devolvía `startProgram(clientId)` a secas: creaba la semana 1 con un
+        «Día 1» en blanco y TIRABA el plan que le acababan de pasar. Se notaba
+        poco mientras el único camino era «+ bloque» dentro de la ficha de
+        alguien que ya entrenaba; con el bloque pegado del portapapeles —o
+        mandado a varios de golpe— es justo el caso del cliente nuevo al que
+        quieres montarle lo mismo que a otro, y se quedaba con una semana vacía
+        sin que nadie dijera nada.
+
+        Ahora se abre su programa y el plan entra en el bloque que nace con él.
+        Las hojas del microciclo se sustituyen por las del plan: esa semana
+        acaba de crearse y su «Día 1» era relleno, no el trabajo de nadie.
+      */
+      if (current.microcycles.length === 0) {
+        const primera = startProgram(clientId);
+        if (sessions.length > 0) {
+          applyPlan(clientId, (cd) => {
+            const abierto = currentBlock(cd);
+            const conPlan = setBlockSessionsIn(cd, abierto.id, sessions);
+            return {
+              ...conPlan,
+              ...(Array.isArray(mobilityDrills) ? { mobilityDrills } : {}),
+              ...(weeklySplit ? { weeklySplit } : {}),
+              blocks: (conPlan.blocks || []).map((b) =>
+                b.id !== abierto.id
+                  ? b
+                  : {
+                      ...b,
+                      ...Object.fromEntries(
+                        Object.entries(blockTraits({ plannedWeeks, intent, note })).filter(
+                          ([, v]) => v !== null
+                        )
+                      ),
+                    }
+              ),
+              microcycles: (conPlan.microcycles || []).map((m) => ({
+                ...m,
+                days: sessions.map((s) => ({ dayName: s.dayName, exercises: [] })),
+              })),
+            };
+          });
+        }
+        return primera;
+      }
 
       const weekNumber = nextWeekNumber(current.microcycles);
       const last = current.microcycles[current.microcycles.length - 1];
@@ -1060,6 +1233,10 @@ export const useWorkout = ({
         const { program, block } = openNextBlock(cd, { name });
         return {
           ...program,
+          /* Después de `openNextBlock`, que ya ha congelado el reparto del
+             bloque que se cierra dentro de él: lo que se escriba aquí es del
+             que se abre. */
+          ...(weeklySplit ? { weeklySplit } : {}),
           blocks: program.blocks.map((b) =>
             b.id !== block.id
               ? b
@@ -1124,6 +1301,19 @@ export const useWorkout = ({
   const addBlockExercise = useCallback(
     (clientId, blockId, dayName, exercise) =>
       applyPlan(clientId, (cd) => addBlockExerciseIn(cd, blockId, dayName, exercise)),
+    [applyPlan]
+  );
+
+  /**
+   * Los ejercicios de una hoja del bloque, de una vez.
+   *
+   * Es lo que hace falta para pegar una hoja ENCIMA de otra: un solo cambio en
+   * el plan, y por tanto un solo «Deshacer» —la lista de antes—. Ver
+   * `setBlockExercisesIn`.
+   */
+  const setBlockSheetExercises = useCallback(
+    (clientId, blockId, dayName, exercises) =>
+      applyPlan(clientId, (cd) => setBlockExercisesIn(cd, blockId, dayName, exercises)),
     [applyPlan]
   );
 
@@ -1487,12 +1677,31 @@ export const useWorkout = ({
     [applyWorkout]
   );
 
-  /** Duplica una semana con todos sus ejercicios y series. */
-  const cloneMicrocycle = useCallback(
-    (clientId, weekNumber) => {
+  /**
+   * Añade un microciclo al final con los días que se le den.
+   *
+   * ── Por qué existe, y por qué `cloneMicrocycle` pasa por aquí ─────────────
+   * Desde que hay portapapeles, los días que se pegan pueden no venir de este
+   * programa: se copia el microciclo 4 de Marta y se pega en el bloque de Luis
+   * media hora después. `cloneMicrocycle` sabía leer un microciclo del cliente y
+   * escribirlo a continuación en el mismo gesto, así que no servía para nada que
+   * no fuera duplicar en el sitio.
+   *
+   * Partido en dos, lo de abajo es lo único que hace falta —dónde cae, con qué
+   * fecha y con qué número— y de dónde salgan los días es problema de quien
+   * llama. `cloneMicrocycle` se queda como el caso de uso corto y ahora es una
+   * línea sobre esto, que es como se evita que dos caminos escriban microciclos
+   * con reglas distintas.
+   *
+   * Los días llegan CRUDOS y se clonan aquí (`cloneDays` reasigna los ids de los
+   * ejercicios): si se clonaran fuera, cada sitio que pegue tendría que acordarse
+   * y el día que uno se olvide dos microciclos compartirían ids de ejercicio, que
+   * es como se cruzan dos historiales sin que salte nada.
+   */
+  const appendMicrocycleWithDays = useCallback(
+    (clientId, days) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
-      const source = findMicrocycle(current.microcycles, weekNumber);
-      if (!source) return null;
+      if (current.microcycles.length === 0) return startProgram(clientId);
 
       const newWeek = nextWeekNumber(current.microcycles);
       /* La copia se coloca al final, así que su fecha sale de la ÚLTIMA y no de
@@ -1507,7 +1716,7 @@ export const useWorkout = ({
           {
             ...buildMicrocycle({
               weekNumber: newWeek,
-              days: cloneDays(source.days || []),
+              days: cloneDays(days || []),
               date: fechaSiguienteCiclo(clientId, last),
             }),
             sessionNumber: newWeek,
@@ -1516,7 +1725,18 @@ export const useWorkout = ({
       }));
       return newWeek;
     },
-    [applyWorkout, fechaSiguienteCiclo, workoutRef]
+    [applyWorkout, fechaSiguienteCiclo, startProgram, workoutRef]
+  );
+
+  /** Duplica una semana con todos sus ejercicios y series. */
+  const cloneMicrocycle = useCallback(
+    (clientId, weekNumber) => {
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      const source = findMicrocycle(current.microcycles, weekNumber);
+      if (!source) return null;
+      return appendMicrocycleWithDays(clientId, source.days || []);
+    },
+    [appendMicrocycleWithDays, workoutRef]
   );
 
   /**
@@ -1882,7 +2102,24 @@ export const useWorkout = ({
       setNutrition,
     ]
   );
+  /* Lo único que la pantalla necesita saber de la pila: cuántos pasos hay a
+     cada lado. Las fotos no salen de aquí — nadie fuera tiene nada que hacer
+     con un programa entero, y sacarlas invitaría a pintar con ellas. */
+  const pasosDelPlan = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(historial).map(([clientId, pila]) => [
+          clientId,
+          { atras: pila?.pasado?.length || 0, adelante: pila?.futuro?.length || 0 },
+        ])
+      ),
+    [historial]
+  );
+
   return {
+    deshacerPlan,
+    rehacerPlan,
+    pasosDelPlan,
     updateExerciseSet,
     updateExerciseTarget,
     startSession,
@@ -1915,6 +2152,7 @@ export const useWorkout = ({
     updateWeeklySplit,
     startProgram,
     appendMicrocycle,
+    appendMicrocycleWithDays,
     startBlock,
     renameBlock,
     setBlockTraits,
@@ -1928,6 +2166,7 @@ export const useWorkout = ({
     renameBlockSheet,
     moveBlockSheet,
     addBlockExercise,
+    setBlockSheetExercises,
     removeBlockExercise,
     restoreBlockExercise,
     moveBlockExercise,

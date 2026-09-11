@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CONDICIONABLES,
   MAX_ELEMENTOS,
+  MAX_ENUN,
   MAX_OPCIONES,
   PLANTILLAS,
   anadirElemento,
@@ -215,6 +216,44 @@ describe('formulario · operaciones', () => {
     const lista = [el('escala')];
     const editada = editarElemento(lista, lista[0].id, { min: 9, max: 1 });
     expect(editada[0].max).toBeGreaterThan(editada[0].min);
+  });
+
+  /*
+    Lo que se escribe se respeta MIENTRAS SE ESCRIBE. El saneado de guardar
+    —trimar y reponer valores de fábrica— corría en cada pulsación y hacía
+    imposible escribir un enunciado de más de una palabra. Ver `recorta`.
+  */
+  it('al teclear se puede escribir un espacio', () => {
+    const lista = [el('texto')];
+    const editada = editarElemento(lista, lista[0].id, { enun: 'Texto corto ' });
+    expect(editada[0].enun).toBe('Texto corto ');
+  });
+
+  it('al teclear, borrar el enunciado entero NO lo repone con el nombre del tipo', () => {
+    const lista = [el('texto')];
+    const editada = editarElemento(lista, lista[0].id, { enun: '' });
+    expect(editada[0].enun).toBe('');
+  });
+
+  it('al teclear, vaciar una opción no la borra de la lista', () => {
+    const lista = [el('una', { ops: ['Sí', 'No'] })];
+    const editada = editarElemento(lista, lista[0].id, { ops: ['', 'No'] });
+    expect(editada[0].ops).toEqual(['', 'No']);
+  });
+
+  it('el tope de longitud sí se respeta al teclear', () => {
+    const lista = [el('texto')];
+    const editada = editarElemento(lista, lista[0].id, { enun: 'x'.repeat(MAX_ENUN + 50) });
+    expect(editada[0].enun).toHaveLength(MAX_ENUN);
+  });
+
+  it('al guardar sí se sanea: se recorta y lo vacío vuelve a su valor de fábrica', () => {
+    const editada = editarElemento([el('texto')], 'no-existe', {});
+    expect(editada).toHaveLength(1);
+    const guardado = sanitizeElementos([{ ...el('texto'), enun: '  ', ops: undefined }]);
+    expect(guardado[0].enun).toBe('Texto corto');
+    const conEspacios = sanitizeElementos([{ ...el('texto'), enun: ' Cómo dormiste ' }]);
+    expect(conEspacios[0].enun).toBe('Cómo dormiste');
   });
 
   it('mover en el borde no hace nada', () => {

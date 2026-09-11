@@ -281,6 +281,20 @@ export const CopyToClientPanel = ({
           cliente haya registrado no se toca.
         </p>
       ) : null}
+
+      {/*
+        ── Y EN QUÉ SE DIFERENCIA DE COPIAR UNA PIEZA ────────────────────────
+        Ésta es una de las cuatro puertas que parecen la misma —el portapapeles,
+        traer un día, traer un fichero y esto— y era la única que no decía en
+        qué se distingue: las otras tres AÑADEN una pieza donde tú la sueltes y
+        ésta REEMPLAZA el plan entero de una persona por el de otra. Se dice
+        aquí, al lado del botón, y con el nombre del gesto que hace lo otro,
+        para que quien buscaba «tráeme su día de pierna» sepa que no es esto.
+      */}
+      <p className="t-xs t-tertiary">
+        Esto trae el plan <strong>entero</strong> y sustituye el que haya. Para llevarte solo un día o
+        una comida, cópialos desde su ficha: se quedan en tu mano y los pegas donde quieras.
+      </p>
     </Panel>
   );
 };

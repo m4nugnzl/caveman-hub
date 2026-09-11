@@ -154,7 +154,7 @@ h1, h2, h3, h4, h5,
 .section-title, .brand-name, .modal-title, .metric-title, .widget-title, .meal-title,
 .metric-value, .stat-value, .widget-value, .row-value,
 .tile > .v, .day-stat > .v, .macro-cell > .g, .donut-center > .v,
-.macro-summary-head > .figure > .v, .folio-head > .who > .name, .compare-row > .v,
+.macro-summary-head > .figure > .v, .objetivo-cifra > .v, .folio-head > .who > .name, .compare-row > .v,
 .section-label, .tray-title, .stat-label, .board-head > .k, .tile > .k, .folio-fact > .k,
 .macro-cell > .k, .cal-dow, .widget-sub, .food-head, .compare-row.is-head,
 .set-cell-tag, .split-day > .name, .studio-bar-group > .k, .table th, .empty > h3 {
@@ -235,7 +235,7 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
    cuerpo, que es justo lo que le pasaba al nombre del cliente.             */
 .day-stat > .v, .donut-center > .v, .macro-cell > .g,
 .widget-value, .metric-value, .stat-value, .tile > .v, .row-value,
-.revision-hero-cifra > .v, .macro-summary-head > .figure > .v,
+.revision-hero-cifra > .v, .macro-summary-head > .figure > .v, .objetivo-cifra > .v,
 .sesion-kpi > .v, .comparativa-tope > .v, .semana-cifra > .v, .bloque-cifra > .v,
 .peso-cifra, .macro.is-mayor > .v, .cobros-tarea > .cifra,
 .cola-n, .comova-cifra, .proyeccion-hito.is-hoy > .proyeccion-v, .plan-count {
@@ -253,7 +253,7 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 }
 .metric-value.is-hero,
 .revision-hero-cifra > .v,
-.macro-summary-head > .figure > .v,
+.macro-summary-head > .figure > .v, .objetivo-cifra > .v,
 .cola-n, .comova-cifra, .proyeccion-hito.is-hoy > .proyeccion-v,
 .plan-count { font-size: var(--fs-2xl); letter-spacing: -0.018em; }
 

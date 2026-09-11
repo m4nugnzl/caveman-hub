@@ -22,7 +22,8 @@
  * hidratos» pasa a ser «280 → 240 g».
  */
 
-import { optionMacros } from './nutrition';
+import { clientCycleSlots } from './blocks';
+import { cycleFoto, optionMacros } from './nutrition';
 import { weekFromStart } from './photos';
 import { round, toNum } from '@/lib/num';
 
@@ -131,15 +132,37 @@ const recorta = (foto) => {
      seis días y veinte ejercicios por día. */
   if (out.weeksPlan && jsonbSize(out) > PRESUPUESTO) out = sinClave(out, 'weeksPlan');
   if (out.meals && jsonbSize(out) > PRESUPUESTO) out = sinClave(out, 'meals');
+  /* Y los días del ciclo antes que las cifras de cabecera: la media sigue
+     siendo la media aunque no se pueda decir de qué días salía. */
+  if (out.cycle && jsonbSize(out) > PRESUPUESTO) out = sinClave(out, 'cycle');
   return out;
 };
 
-export const planSnapshot = ({ nutrition, program } = {}) => {
+export const planSnapshot = ({ nutrition, program, client = null } = {}) => {
+  /*
+    ── Las cuatro cifras son las del CICLO, no las del primer día ────────────
+    Leían `nutrition.targetKcals`, que es la columna heredada, que es el primer
+    día del plan: a quien tiene un alto/bajo se le guardaba el alto y el
+    histórico entero —la escalera del Resumen, la de la revisión, la ventana de
+    la evolución— dibujaba unas calorías que esa persona no come ningún día.
+    `cycleFoto` da la media ponderada cuando el ciclo está repartido, dice de
+    dónde sale y trae los días detrás. El porqué entero, allí.
+  */
+  const ciclo = cycleFoto(nutrition, clientCycleSlots(client, program)) || {};
+
   const foto = {
-    kcals: toNum(nutrition?.targetKcals),
-    protein: toNum(nutrition?.proteinGrams),
-    carbs: toNum(nutrition?.carbsGrams),
-    fats: toNum(nutrition?.fatsGrams),
+    kcals: ciclo.kcals ?? null,
+    protein: ciclo.protein ?? null,
+    carbs: ciclo.carbs ?? null,
+    fats: ciclo.fats ?? null,
+    de: ciclo.de ?? null,
+    dia: ciclo.dia ?? null,
+    reparto: ciclo.reparto ?? null,
+    /* Los días con lo que pide cada uno. Es lo que permite que la gráfica
+       conteste de dónde salía esa media sin volver a la dieta de HOY, que ya no
+       es la de entonces. Lo primero que suelta `recorta` si la foto no cabe:
+       ocupa poco, pero menos que las cifras de cabecera, que no se sueltan. */
+    cycle: ciclo.cycle?.length ? ciclo.cycle : null,
     steps: toNum(nutrition?.stepsGoal),
     /* El cardio es texto, así que se guarda tal cual y no pasa por `toNum`.
        Recortado: la foto tiene un tope de 8 KB y una prescripción de tres

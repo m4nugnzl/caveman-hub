@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Footprints, HeartPulse } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { planDays } from '@/domain/nutrition';
 import { clientProtocol, isServiceOn } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { Delta } from '@/components/ui/metrics';
@@ -70,6 +71,8 @@ export const NutritionCard = ({ track = [], selected, client }) => {
   const plan = nutrition[client?.id];
   const puedeAjustar = isServiceOn(clientProtocol(client?.preferences), 'nutrition') && Boolean(plan);
   const nombre = client?.name?.split(' ')[0] || '';
+  /* Los días del plan, la misma lista que lleva la cinta de la dieta. */
+  const dias = plan ? planDays(plan) : [];
 
   /* El último plan DISTINTO, hacia atrás. Ver la cabecera. */
   const previa = useMemo(() => {
@@ -104,6 +107,14 @@ export const NutritionCard = ({ track = [], selected, client }) => {
         <>
           <p className="tarjeta-meta">
             {previa ? `Lo tiene puesto desde la semana ${previa.week + 1}.` : 'Lo que tenía puesto de comer y de moverse.'}
+            {/* Y de qué cifra hablan las calorías, cuando esa persona tiene un
+                ciclado: la media ponderada de su ciclo, que es lo que la foto
+                guarda desde `cycleFoto`. Sin esto, «3.100 kcal» al lado de una
+                dieta de alto/bajo es media verdad — y era exactamente la que se
+                daba antes, porque se guardaba el primer día del plan. */}
+            {fila.de === 'media' && (
+              <> Las calorías son la media de su ciclo{fila.reparto ? ` (${fila.reparto} días)` : ''}.</>
+            )}
           </p>
 
           <ul className="palancas">
@@ -152,30 +163,39 @@ export const NutritionCard = ({ track = [], selected, client }) => {
           <div className="col gap-3">
             {/* Se guarda solo, a cada campo, como en «Dieta». El botón de
                 abajo cierra: no hay un estado «cambiado pero sin mandar». */}
-            {plan.hasDayVariants ? (
+            {/*
+              ── LOS DÍAS QUE TENGA, CON EL NOMBRE QUE TENGAN ─────────────────
+              Aquí había DOS tarjetas fijas, «días de entreno» y «días de
+              descanso», escritas contra `hasDayVariants`. Era otra copia de la
+              pareja que murió cuando los días pasaron a ser una lista: a un
+              cliente con un alto/medio/bajo le enseñaba dos de tres, y a
+              cualquiera cuyo plan ya esté materializado en `days` no le
+              encontraba ninguno —«training» y «rest» dejan de ser sus ids—.
+
+              Ahora se recorre `planDays`, que es la misma lista que la cinta de
+              la dieta, y cada tarjeta lleva el nombre que el entrenador le puso.
+              A dos columnas si son varios, porque están para compararse.
+            */}
+            {dias.length > 1 ? (
               <div className="grid-2">
-                <MacroTargetCard
-                  plan={plan}
-                  variant="training"
-                  title="Objetivo · días de entreno"
-                  editable
-                  onSave={(fields) => updateNutritionTargets(client.id, 'training', fields)}
-                />
-                <MacroTargetCard
-                  plan={plan}
-                  variant="rest"
-                  title="Objetivo · días de descanso"
-                  editable
-                  onSave={(fields) => updateNutritionTargets(client.id, 'rest', fields)}
-                />
+                {dias.map((dia) => (
+                  <MacroTargetCard
+                    key={dia.id}
+                    plan={plan}
+                    variant={dia.id}
+                    title={`Objetivo · ${dia.name.toLowerCase()}`}
+                    editable
+                    onSave={(fields) => updateNutritionTargets(client.id, dia.id, fields)}
+                  />
+                ))}
               </div>
             ) : (
               <MacroTargetCard
                 plan={plan}
-                variant="default"
+                variant={dias[0]?.id ?? 'default'}
                 title="Objetivo diario"
                 editable
-                onSave={(fields) => updateNutritionTargets(client.id, 'default', fields)}
+                onSave={(fields) => updateNutritionTargets(client.id, dias[0]?.id ?? 'default', fields)}
               />
             )}
 

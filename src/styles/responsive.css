@@ -19,7 +19,7 @@
 }
 
 @media (max-width: 900px) {
-  .layout { padding: var(--s4) var(--s4) var(--s6); }
+  .layout { --hueco-hoja: var(--s4); padding: var(--hueco-hoja) var(--hueco-hoja) var(--s6); }
   .card { padding: var(--s4); }
   .studio { grid-template-columns: minmax(0, 1fr); }
   .comparison-grid { grid-template-columns: 1fr; }
@@ -40,7 +40,7 @@
 @media (max-width: 640px) {
   :root { --s5: 16px; --s6: 24px; --s7: 32px; --fs-2xl: 2rem; --fs-xl: 1.5rem; }
   .app-header { padding: var(--s2) var(--s4); }
-  .layout { padding: var(--s3) var(--s3) var(--s6); }
+  .layout { --hueco-hoja: var(--s3); padding: var(--hueco-hoja) var(--hueco-hoja) var(--s6); }
   .modal-body, .modal-header, .modal-footer { padding-left: var(--s4); padding-right: var(--s4); }
   .modal-footer .btn { flex: 1; }
 
@@ -219,6 +219,13 @@
   }
   /* El hueco para que la última fila de la sesión no quede debajo de la barra. */
   .save-pad { padding-bottom: 64px; }
+
+  /* Y donde ESTÁ esa barra, la cabecera de la sesión no vuelve a contar las
+     series: la barra las dice fija abajo, y la pastilla de la cinta las dice
+     otra vez cien píxeles más arriba. Tres veces lo mismo en media pantalla.
+     El corte es el de la barra (1024) y no el de la cinta (1100): entre los
+     dos no hay barra que lo diga, así que ahí la cuenta se queda. */
+  .sesion-cab .sesion-cuenta { display: none; }
 }
 
 

@@ -10,7 +10,13 @@ import {
 } from 'lucide-react';
 
 import { useApp, useSession } from '@/context/AppContext';
-import { TRAMITES_INICIO, buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
+import {
+  TRAMITES_INICIO,
+  buildPortfolio,
+  colasDeInicio,
+  portfolioInbox,
+  previsionEscrita,
+} from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { ACTIVITY_KINDS, activityScale, buildActivity, dayLabel } from '@/domain/today';
 import { kindMeta } from '@/domain/calendar';
@@ -284,6 +290,9 @@ export const Today = () => {
     [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, today]
   );
   const colas = useMemo(() => colasDeInicio(rows, today), [rows, today]);
+  /* Lo que viene: a cuánta gente se le acaba lo escrito, semana a semana. Es la
+     única pieza de la pantalla que mira hacia delante (ver `previsionEscrita`). */
+  const prevision = useMemo(() => previsionEscrita(rows, today), [rows, today]);
   const tramites = useMemo(
     () => portfolioInbox(rows).tasks.filter((t) => TRAMITES_INICIO.includes(t.id)),
     [rows]
@@ -303,7 +312,13 @@ export const Today = () => {
     día.»); si mañana tienen trabajo, vuelven a ser tarjeta solas.
   */
   const vivas = colas.filter(tieneGente);
-  const NOMBRE_ALDIA = { revisar: 'revisiones', programar: 'rutinas', senales: 'entrenos', cobrar: 'cobros' };
+  const NOMBRE_ALDIA = {
+    revisar: 'revisiones',
+    programar: 'rutinas',
+    senales: 'entrenos',
+    siguiente: 'microciclos',
+    cobrar: 'cobros',
+  };
   const alDia = colas.filter((c) => !tieneGente(c)).map((c) => NOMBRE_ALDIA[c.id] || c.label.toLowerCase());
   const fraseAlDia =
     alDia.length > 1 ? `${alDia.slice(0, -1).join(', ')} y ${alDia[alDia.length - 1]}` : alDia[0] || '';
@@ -454,6 +469,24 @@ export const Today = () => {
     </Panel>
   );
 
+  /*
+    ── LO QUE VIENE ────────────────────────────────────────────────────────────
+    La única pieza de la pantalla que mira hacia delante. Las colas cuentan lo
+    que ya ha pasado —te esperan, han desaparecido, deben— y esto cuenta a quién
+    se le acaba la rutina escrita en cada una de las cuatro semanas próximas.
+
+    ── Se pinta solo si hay alguien ──────────────────────────────────────────
+    Cuatro columnas a cero son cuatro ceros: cromo. Sin nadie en el horizonte no
+    hay tarjeta, igual que una cola vacía no es tarjeta sino un renglón.
+  */
+  const gentePrevista = prevision.reduce((n, c) => n + c.n, 0);
+  const panelPrevision =
+    gentePrevista > 0 ? (
+      <Panel title="Lo que viene" alcance="Se quedan sin hoja escrita" className="col gap-3">
+        <Prevision cubos={prevision} onIr={() => setElegida('siguiente')} />
+      </Panel>
+    ) : null;
+
   /* El vacío glorioso: con la barra al lado, es la mesa quien lo dice. */
   const panelAlDia = (
     <Panel className="card-lumbre">
@@ -564,11 +597,12 @@ export const Today = () => {
           )}
         </section>
 
-        {/* ── El costado: la semana y lo que ha pasado ─────────────────────── */}
+        {/* ── El costado: lo que viene, la semana y lo que ha pasado ───────── */}
         <aside className="inicio-lado">
+          {panelPrevision}
           {panelSemana}
 
-          <Panel title="Actividad" sub="Últimas dos semanas" className="col gap-3">
+          <Panel title="Actividad" alcance="Últimas dos semanas" className="col gap-3">
             {actividad.length === 0 ? (
               /* La última caja punteada del panel, a frase: el marco enmarcaba
                  la ausencia y no ofrecía nada. Quien lleva días sin entrenar ya
@@ -618,6 +652,63 @@ export const Today = () => {
           </Panel>
         </aside>
       </div>
+    </div>
+  );
+};
+
+/** El tramo de una columna de la previsión: «15–21 sep». */
+const tramoCorto = (desde) => {
+  const inicio = new Date(`${desde}T00:00:00Z`).getUTCDate();
+  return `${inicio}–${shortDate(addDays(desde, 6))}`;
+};
+
+/**
+ * LA PREVISIÓN: a cuánta gente se le acaba lo escrito, esta semana y las tres
+ * siguientes.
+ *
+ * ══ Qué se copia de Efort, y qué no ════════════════════════════════════════
+ *
+ * El gesto es suyo y es lo mejor que tienen: cuatro barras que convierten la
+ * bandeja en un plan. El dato no puede ser el suyo —cuentan bloques que se
+ * acaban y los nuestros son abiertos—, así que aquí cada columna es la semana en
+ * la que a alguien se le termina la rutina ESCRITA. Ver `previsionEscrita`.
+ *
+ * ── Sin cifra sin verbo ────────────────────────────────────────────────────
+ * «2» a secas es un reproche. La primera columna es exactamente la cola de
+ * arriba, así que el pie la abre con su nombre; las tres siguientes son aviso y
+ * no trabajo de hoy, y no llevan verbo porque todavía no hay nada que hacer.
+ *
+ * ── Y la escala se dibuja entera ───────────────────────────────────────────
+ * La semana sin nadie deja su muesca a ras de suelo, como el pulso de abajo: un
+ * cero que no ocupa sitio convierte cuatro semanas en tres.
+ */
+const Prevision = ({ cubos, onIr }) => {
+  const tope = Math.max(...cubos.map((c) => c.n), 1);
+  const estaSemana = cubos[0]?.n || 0;
+  return (
+    <div className="prevision">
+      <div className="prevision-cols">
+        {cubos.map((cubo, i) => (
+          <div key={cubo.desde || i} className={`prevision-col${i === 0 ? ' is-ahora' : ''}`}>
+            <span className="prevision-n">{cubo.n}</span>
+            {/* La barra se dibuja con `flex-basis` y no con `height` para que la
+                columna reparta el alto que tenga: la tarjeta del costado mide
+                distinto en el móvil y en la mesa. */}
+            <span className="prevision-barra" style={{ '--alto': `${(cubo.n / tope) * 100}%` }} />
+            <span className="prevision-cuando">
+              {i === 0 ? 'Esta semana' : cubo.desde ? tramoCorto(cubo.desde) : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* La cifra ya está encima y el alcance ya dice de qué va: aquí solo falta
+          el verbo. Repetir «a los 6 de esta semana» sería decir por tercera vez
+          lo mismo en dos centímetros. */}
+      {estaSemana > 0 && (
+        <button type="button" className="cab-accion is-puerta" onClick={onIr}>
+          Escribir el microciclo
+        </button>
+      )}
     </div>
   );
 };

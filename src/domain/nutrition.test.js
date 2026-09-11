@@ -2,11 +2,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFoodEntry,
+  buildMeal,
+  claseDe,
   cloneMeal,
   cloneMeals,
   carbsFromRest,
   cloneOption,
   optionGaps,
+  optionName,
+  replaceDietDays,
+  cuadra,
+  cycleFoto,
   dietNotes,
   displayAsUnits,
   foodMacros,
@@ -15,18 +21,37 @@ import {
   gramsFromUnits,
   hasUnits,
   emptyNutrition,
+  estadoDe,
   isEmptyDiet,
   macroError,
+  setDayTargets,
+  margenDe,
   MAX_NOTES,
   mealTarget,
   mealTargetsTotal,
   moveItem,
   notesToStorage,
   optionMacros,
+  addDietDay,
+  duplicateDietDay,
+  hasCycleMap,
+  cycleAverage,
+  cycleMap,
+  setCycleSlot,
+  planDays,
+  removeDietDay,
+  renameDietDay,
+  repartoDelDia,
+  setDayMeals,
+  targetsFor,
+  cycleFromSplit,
+  cycleMatchesSplit,
   rescaleMeals,
   singleDietFrom,
   unitsLabel,
+  vozDelReparto,
 } from './nutrition';
+import { cycleSlots } from './training';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -796,5 +821,661 @@ describe('foodClientsByName', () => {
   it('aguanta un plan vacío, sin comidas y sin listas', () => {
     expect(foodClientsByName({ a: null, b: {}, c: { closedMeals: [] } }).size).toBe(0);
     expect(foodClientsByName().size).toBe(0);
+  });
+});
+
+/**
+ * ══ EL SEMÁFORO ════════════════════════════════════════════════════════════
+ *
+ * Lo que protege esta tanda: **el margen tiene suelo, y hay UNO**. La versión
+ * anterior juzgaba con el 5 % relativo y nada más, así que una comida con 4 g
+ * de grasa pautados se medía con ±0,2 g y no podía estar en verde nunca —17 de
+ * 20 celdas marcadas en un plan que el entrenador acababa de cuadrar—. Y estaba
+ * escrito cuatro veces, así que arreglarlo en una dejaba media pantalla
+ * riñendo.
+ *
+ * Si alguien vuelve a escribir un `objetivo * 0.05` en una pantalla, estas
+ * pruebas no lo ven; lo que sí garantizan es que la función a la que todas
+ * llaman se comporta como se decidió.
+ */
+describe('el semáforo, con suelo y en un solo sitio', () => {
+  it('en gramos el suelo son 3 g, aunque el 5 % sea menos', () => {
+    // 5 % de 4 g = 0,2 g. Con el suelo, ±3 g.
+    expect(estadoDe(6, 4, 'fats')).toBe('ok');
+    expect(estadoDe(8, 4, 'fats')).toBe('over');
+    expect(estadoDe(1, 4, 'fats')).toBe('ok');
+  });
+
+  it('en kilocalorías el suelo son 25', () => {
+    expect(estadoDe(320, 300, 'kcals')).toBe('ok');
+    expect(estadoDe(330, 300, 'kcals')).toBe('over');
+  });
+
+  /* Con cifras grandes manda el 5 %, que es lo que siempre hizo: el suelo está
+     para las pequeñas, no para ensanchar el margen de un día entero. */
+  it('con cifras grandes sigue mandando el 5 %', () => {
+    expect(margenDe(3000, 'kcals')).toBe(150);
+    expect(estadoDe(2800, 3000, 'kcals')).toBe('under');
+    expect(estadoDe(2900, 3000, 'kcals')).toBe('ok');
+  });
+
+  /* «Sin objetivo» no es «cuadra»: es que no hay pregunta. Confundirlos pinta
+     de verde las comidas que nadie ha pautado. */
+  it('sin objetivo no juzga', () => {
+    expect(estadoDe(500, 0, 'kcals')).toBe('none');
+    expect(estadoDe(500, null, 'kcals')).toBe('none');
+    expect(claseDe(500, null, 'kcals')).toBe('');
+    expect(cuadra(500, null, 'kcals')).toBe(false);
+  });
+
+  it('la clase se pega tal cual a la del elemento', () => {
+    expect(claseDe(330, 300, 'kcals')).toBe(' is-over');
+    expect(claseDe(300, 300, 'kcals')).toBe(' is-ok');
+    expect(claseDe(200, 300, 'kcals')).toBe(' is-under');
+  });
+});
+
+/**
+ * ══ «CUADRA» DICE DE QUÉ ═══════════════════════════════════════════════════
+ *
+ * El veredicto del reparto miraba SOLO las kilocalorías: en la pantalla medida
+ * decía «el reparto cuadra» con la proteína repartida 48 g por encima de su
+ * objetivo, con los dos números a la vista en la misma fila.
+ */
+describe('el reparto del día mira los cuatro números', () => {
+  const comida = (target) => ({ id: `m${Math.random()}`, name: 'Comida', target, options: [] });
+  const objetivo = { targetKcals: 2000, proteinGrams: 150, carbsGrams: 200, fatsGrams: 60 };
+
+  it('cuadra cuando cuadran los cuatro', () => {
+    const meals = [
+      comida({ kcals: '1000', protein: '75', carbs: '100', fats: '30' }),
+      comida({ kcals: '1000', protein: '75', carbs: '100', fats: '30' }),
+    ];
+    const reparto = repartoDelDia(meals, objetivo);
+    expect(reparto.cuadra).toBe(true);
+    expect(vozDelReparto(reparto)).toBe('el reparto cuadra');
+  });
+
+  it('con las kcal cuadradas y un macro fuera, lo dice', () => {
+    const meals = [
+      comida({ kcals: '1000', protein: '110', carbs: '100', fats: '30' }),
+      comida({ kcals: '1000', protein: '110', carbs: '100', fats: '30' }),
+    ];
+    const reparto = repartoDelDia(meals, objetivo);
+    expect(reparto.cuadra).toBe(false);
+    expect(reparto.estados.kcals).toBe('ok');
+    expect(vozDelReparto(reparto)).toBe('cuadra en kcal, no cuadra en P');
+  });
+
+  it('con kcal por repartir lo dice primero, y luego de qué más falla', () => {
+    const meals = [comida({ kcals: '1000', protein: '75', carbs: '100', fats: '30' })];
+    const reparto = repartoDelDia(meals, objetivo);
+    expect(vozDelReparto(reparto)).toBe('quedan 1000 kcal por repartir · no cuadra en P ni C ni G');
+  });
+
+  /* Sin comidas repartidas no hay veredicto: callar es la respuesta correcta y
+     un «no cuadra» sobre un plan sin empezar es reñir por nada. */
+  it('sin nada repartido no dice nada', () => {
+    expect(vozDelReparto(repartoDelDia([], objetivo))).toBeNull();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LOS DÍAS DE LA DIETA
+   --------------------------------------------------------------------------
+   Lo que hay que fijar aquí no es que la lista funcione: es que el plan siga
+   leyéndose ENTERO mientras `days` está vacío. Un plan de uno o dos días vive
+   en las columnas de siempre y no ha pasado por la migración 0111; si `planDays`
+   dejara de derivarlos, la dieta de todo el mundo saldría en blanco el día del
+   despliegue y nadie se enteraría hasta abrir un cliente.
+   ══════════════════════════════════════════════════════════════════════════ */
+describe('planDays: los días salen de la lista o de las columnas de siempre', () => {
+  const comida = (name) => ({ id: `m-${name}`, name, options: [{ id: 'o', foods: [] }] });
+
+  it('sin variantes es UN día con la dieta única y el objetivo principal', () => {
+    const dias = planDays({
+      ...emptyNutrition(),
+      targetKcals: 2400,
+      proteinGrams: 180,
+      closedMeals: [comida('Cena')],
+    });
+    expect(dias).toHaveLength(1);
+    expect(dias[0].id).toBe('default');
+    expect(dias[0].targets.targetKcals).toBe(2400);
+    expect(dias[0].meals).toHaveLength(1);
+  });
+
+  it('con variantes son DOS, y el de descanso hereda el objetivo si no tiene', () => {
+    const plan = {
+      ...emptyNutrition(),
+      hasDayVariants: true,
+      targetKcals: 3100,
+      proteinGrams: 180,
+      closedMealsTraining: [comida('Comida')],
+      closedMealsRest: [],
+    };
+    const dias = planDays(plan);
+    expect(dias.map((d) => d.id)).toEqual(['training', 'rest']);
+    /* Heredar es la regla que tenía `targetsFor` y que no se puede perder:
+       activar el segundo día nunca deja una cifra vacía en pantalla. */
+    expect(dias[1].targets.targetKcals).toBe(3100);
+    expect(targetsFor(plan, 'rest').targetKcals).toBe(3100);
+  });
+
+  it('el objetivo propio del día de descanso manda sobre el heredado', () => {
+    const plan = {
+      ...emptyNutrition(),
+      hasDayVariants: true,
+      targetKcals: 3100,
+      proteinGrams: 180,
+      restTargets: { targetKcals: 2600, proteinGrams: null, carbsGrams: null, fatsGrams: null },
+    };
+    expect(targetsFor(plan, 'rest').targetKcals).toBe(2600);
+    /* Lo que NO declara sigue heredándose: `restTargets` es un parche del
+       objetivo, no un objetivo entero. */
+    expect(targetsFor(plan, 'rest').proteinGrams).toBe(180);
+  });
+
+  it('con `days` escrito manda la lista y las columnas viejas se ignoran', () => {
+    const dias = planDays({
+      ...emptyNutrition(),
+      closedMeals: [comida('Fantasma')],
+      days: [
+        { id: 'd1', name: 'Alto', targets: { targetKcals: 3400 }, meals: [comida('Desayuno')] },
+        { id: 'd2', name: 'Bajo', targets: { targetKcals: 2400 }, meals: [] },
+        { id: 'd3', name: 'Descanso', targets: { targetKcals: 2100 }, meals: [] },
+      ],
+    });
+    expect(dias.map((d) => d.name)).toEqual(['Alto', 'Bajo', 'Descanso']);
+    expect(dias[0].meals[0].name).toBe('Desayuno');
+  });
+});
+
+describe('añadir, duplicar y quitar días', () => {
+  const comida = (name) => ({ id: `m-${name}`, name, options: [{ id: 'o', foods: [] }] });
+
+  it('el día nuevo hereda el objetivo del que sale y nace SIN menú', () => {
+    const plan = {
+      ...emptyNutrition(),
+      targetKcals: 2400,
+      proteinGrams: 180,
+      closedMeals: [comida('Cena')],
+    };
+    const dias = planDays(addDietDay(plan, { desde: 'default' }));
+    expect(dias).toHaveLength(2);
+    expect(dias[1].targets.targetKcals).toBe(2400);
+    /* Que nazca vacío es lo que separa «+ día» de «duplicar día»: si viniera con
+       la comida puesta serían dos nombres para el mismo gesto. */
+    expect(dias[1].meals).toEqual([]);
+  });
+
+  it('duplicar se lleva el menú entero, con identificadores nuevos', () => {
+    const plan = { ...emptyNutrition(), targetKcals: 2400, closedMeals: [comida('Cena')] };
+    const dias = planDays(duplicateDietDay(plan, 'default'));
+    expect(dias).toHaveLength(2);
+    expect(dias[1].meals).toHaveLength(1);
+    expect(dias[1].meals[0].name).toBe('Cena');
+    /* Compartir `id` entre dos días sería una suposición sobre la que alguien
+       acabaría construyendo: se regeneran. */
+    expect(dias[1].meals[0].id).not.toBe(dias[0].meals[0].id);
+  });
+
+  it('quitar uno de dos días heredados NO obliga a materializar la lista', () => {
+    const plan = {
+      ...emptyNutrition(),
+      hasDayVariants: true,
+      targetKcals: 3100,
+      restTargets: { targetKcals: 2600 },
+      closedMealsTraining: [comida('Comida')],
+      closedMealsRest: [comida('Cena')],
+    };
+    const fuera = removeDietDay(plan, 'training');
+    /* Sigue en las columnas de siempre: quitar un día tiene que funcionar
+       aunque la 0111 no esté aplicada. */
+    expect(fuera.days).toEqual([]);
+    expect(fuera.hasDayVariants).toBe(false);
+    /* Y se queda con el menú Y el objetivo del que sobrevive. */
+    expect(fuera.closedMeals[0].name).toBe('Cena');
+    expect(fuera.targetKcals).toBe(2600);
+  });
+
+  it('el último día no se puede quitar', () => {
+    const plan = { ...emptyNutrition(), targetKcals: 2400, closedMeals: [comida('Cena')] };
+    expect(planDays(removeDietDay(plan, 'default'))).toHaveLength(1);
+  });
+
+  it('quitar un día limpia las casillas de la semana que apuntaban a él', () => {
+    const plan = {
+      ...emptyNutrition(),
+      days: [
+        { id: 'd1', name: 'Alto', targets: {}, meals: [] },
+        { id: 'd2', name: 'Bajo', targets: {}, meals: [] },
+        { id: 'd3', name: 'Descanso', targets: {}, meals: [] },
+      ],
+      week: { Lunes: 'd1', Martes: 'd2', Miércoles: 'd1', Jueves: 'd3' },
+    };
+    const fuera = removeDietDay(plan, 'd1');
+    expect(fuera.week.Lunes).toBeNull();
+    expect(fuera.week['Miércoles']).toBeNull();
+    expect(fuera.week.Martes).toBe('d2');
+  });
+
+  it('renombrar un día materializa la lista y no toca su menú', () => {
+    const plan = { ...emptyNutrition(), targetKcals: 2400, closedMeals: [comida('Cena')] };
+    const dias = planDays(renameDietDay(plan, 'default', '  Alto en hidratos  '));
+    expect(dias[0].name).toBe('Alto en hidratos');
+    expect(dias[0].meals[0].name).toBe('Cena');
+  });
+
+  it('escribir el menú de un día que ya no existe cae en el primero y no se pierde', () => {
+    /* Quien llama trae el día que tiene abierto en pantalla, que puede haberse
+       quedado rancio. Antes esto se tragaba el cambio en silencio. */
+    const plan = {
+      ...emptyNutrition(),
+      days: [{ id: 'd1', name: 'Alto', targets: {}, meals: [] }],
+    };
+    const escrito = setDayMeals(plan, 'fantasma', [comida('Cena')]);
+    expect(escrito.days[0].meals[0].name).toBe('Cena');
+  });
+});
+
+describe('el reparto del ciclo', () => {
+  const plan = {
+    ...emptyNutrition(),
+    days: [
+      { id: 'alto', name: 'Alto', targets: { targetKcals: 3200, proteinGrams: 180, carbsGrams: 420, fatsGrams: 80 }, meals: [] },
+      { id: 'bajo', name: 'Bajo', targets: { targetKcals: 2400, proteinGrams: 180, carbsGrams: 220, fatsGrams: 70 }, meals: [] },
+    ],
+  };
+
+  /* Las casillas del ciclo natural: las siete de siempre. */
+  const semana = cycleSlots({ cycleType: 'weekly' });
+
+  it('sin reparto no hay media, y no se inventa ninguna', () => {
+    expect(hasCycleMap(plan)).toBe(false);
+    expect(cycleAverage(plan, semana)).toBeNull();
+  });
+
+  it('la media es ponderada por las casillas que le tocan a cada uno', () => {
+    const conSemana = {
+      ...plan,
+      week: {
+        Lunes: 'alto',
+        Martes: 'bajo',
+        'Miércoles': 'alto',
+        Jueves: 'bajo',
+        Viernes: 'alto',
+        'Sábado': 'bajo',
+        Domingo: 'bajo',
+      },
+    };
+    const media = cycleAverage(conSemana, semana);
+    expect(media.days).toBe(7);
+    /* 3 altos y 4 bajos: (3x3200 + 4x2400) / 7 = 2742,8... */
+    expect(media.targetKcals).toBe(2743);
+  });
+
+  it('medio ciclo repartido se divide entre lo repartido, no entre las casillas', () => {
+    const conSemana = { ...plan, week: { Lunes: 'alto', Martes: 'alto' } };
+    const media = cycleAverage(conSemana, semana);
+    expect(media.days).toBe(2);
+    /* Dividir entre siete diría que come 914 kcal al día, que es falso. */
+    expect(media.targetKcals).toBe(3200);
+  });
+
+  it('las casillas que apuntan a un día que ya no existe se leen como vacías', () => {
+    const conSemana = { ...plan, week: { Lunes: 'fantasma', Martes: 'bajo' } };
+    expect(cycleMap(conSemana, semana).Lunes).toBeNull();
+    expect(cycleMap(conSemana, semana).Martes).toBe('bajo');
+    /* Y «hay algo puesto» tampoco se deja engañar por un día fantasma. */
+    expect(hasCycleMap({ ...plan, week: { Lunes: 'fantasma' } })).toBe(false);
+  });
+
+  it('«repartir por el entreno» pone el día de entreno donde hay sesión', () => {
+    const split = {
+      Lunes: 'Push A',
+      Martes: '',
+      'Miércoles': 'Pull A',
+      Jueves: 'Descanso',
+      Viernes: 'Pierna',
+      'Sábado': '',
+      Domingo: '',
+    };
+    const mapa = cycleFromSplit(cycleSlots({ cycleType: 'weekly', weeklySplit: split }), {
+      entreno: 'alto',
+      descanso: 'bajo',
+    });
+    expect(mapa.Lunes).toBe('alto');
+    /* Vacío es descanso: la regla es `isRestDay` y no se reescribe aquí. */
+    expect(mapa.Martes).toBe('bajo');
+    expect(mapa.Jueves).toBe('bajo');
+    expect(mapa.Viernes).toBe('alto');
+  });
+
+  it('dice cuándo el reparto de la dieta ya no coincide con el del entreno', () => {
+    const split = {
+      Lunes: 'Push A',
+      Martes: '',
+      'Miércoles': '',
+      Jueves: '',
+      Viernes: '',
+      'Sábado': '',
+      Domingo: '',
+    };
+    const casillas = cycleSlots({ cycleType: 'weekly', weeklySplit: split });
+    const pareja = { entreno: 'alto', descanso: 'bajo' };
+    const igual = { ...plan, week: cycleFromSplit(casillas, pareja) };
+    expect(cycleMatchesSplit(igual, casillas, pareja)).toBe(true);
+
+    const movido = { ...igual, week: { ...igual.week, Lunes: 'bajo' } };
+    expect(cycleMatchesSplit(movido, casillas, pareja)).toBe(false);
+  });
+
+  /* -- Y LO QUE NO SE PODÍA HACER: un alto/bajo con ciclo rotativo ----------
+     La avería que trae aquí a este bloque: las casillas eran los siete días de
+     la semana, así que a quien entrena «2 y 1» se le pedía repartir la dieta
+     por unos martes que en su ciclo no existen. */
+  describe('con ciclo rotativo', () => {
+    const sesiones = [{ dayName: 'Empuje' }, { dayName: 'Tirón' }, { dayName: 'Pierna' }, { dayName: 'Full' }];
+    const casillas = cycleSlots({ cycleType: 'rotating', pattern: { train: 2, rest: 1 }, sessions: sesiones });
+
+    it('las casillas son los días del microciclo, con los descansos dentro', () => {
+      /* 2/1 con cuatro sesiones: E - T - descanso - P - F - descanso. */
+      expect(casillas.map((c) => c.corto)).toEqual(['D1', 'D2', 'D3', 'D4', 'D5', 'D6']);
+      expect(casillas.map((c) => c.rest)).toEqual([false, false, true, false, false, true]);
+      expect(casillas.map((c) => c.sesion)).toEqual(['Empuje', 'Tirón', null, 'Pierna', 'Full', null]);
+    });
+
+    it('se reparte por posición del ciclo, y la media sale de sus seis días', () => {
+      const puesto = casillas.reduce((n, c) => setCycleSlot(n, c.key, c.rest ? 'bajo' : 'alto'), plan);
+      expect(hasCycleMap(puesto)).toBe(true);
+      const media = cycleAverage(puesto, casillas);
+      expect(media.days).toBe(6);
+      /* 4 altos y 2 bajos: (4x3200 + 2x2400) / 6 = 2933,3... */
+      expect(media.targetKcals).toBe(2933);
+    });
+
+    it('«repartir por el entreno» es exacto: el patrón ya dice qué es descanso', () => {
+      const mapa = cycleFromSplit(casillas, { entreno: 'alto', descanso: 'bajo' });
+      expect(mapa['3']).toBe('bajo');
+      expect(mapa['6']).toBe('bajo');
+      expect(mapa['1']).toBe('alto');
+      expect(mapa['4']).toBe('alto');
+    });
+
+    it('lo repartido por semana no se enseña aquí, pero tampoco se borra', () => {
+      const conSemana = { ...plan, week: { Lunes: 'alto', Domingo: 'bajo' } };
+      /* Ninguna casilla del rotativo se llama «Lunes»: no se lee. */
+      expect(Object.values(cycleMap(conSemana, casillas)).every((v) => v === null)).toBe(true);
+      /* Y escribir una casilla del ciclo deja lo de la semana donde estaba: el
+         día que vuelva al ciclo natural, su reparto sigue ahí. */
+      const escrito = setCycleSlot(conSemana, '1', 'alto');
+      expect(escrito.week.Lunes).toBe('alto');
+      expect(escrito.week['1']).toBe('alto');
+    });
+
+    it('quitar un día limpia las casillas del ciclo que apuntaban a él', () => {
+      const puesto = setCycleSlot(setCycleSlot(plan, '1', 'alto'), '3', 'bajo');
+      const fuera = removeDietDay(puesto, 'bajo');
+      expect(fuera.week['1']).toBe('alto');
+      expect(fuera.week['3']).toBeNull();
+    });
+  });
+});
+
+describe('rescaleMeals por hidratos', () => {
+  /* 100 g de arroz (78 g de hidratos) y 150 g de pollo: la fuente de hidratos y
+     la de proteína. Bajar los hidratos tiene que mover el arroz y solo el arroz. */
+  const menu = () => [
+    {
+      id: 'm1',
+      name: 'Comida',
+      options: [
+        {
+          id: 'o1',
+          foods: [
+            { id: 'f1', name: 'Arroz', grams: 100, proteinPer100: 7, carbsPer100: 78, fatsPer100: 1 },
+            { id: 'f2', name: 'Pollo', grams: 150, proteinPer100: 23, carbsPer100: 0, fatsPer100: 2 },
+            { id: 'f3', name: 'Aceite', grams: 10, proteinPer100: 0, carbsPer100: 0, fatsPer100: 100 },
+          ],
+        },
+      ],
+    },
+  ];
+
+  it('mueve la fuente de hidratos y deja quietas la proteína Y LAS GRASAS', () => {
+    const res = rescaleMeals(menu(), { fromCarbs: 78, toCarbs: 39 });
+    expect(res).not.toBeNull();
+    expect(res.medida).toBe('carbs');
+    expect(res.cambios.map((c) => c.food)).toEqual(['Arroz']);
+    expect(res.cambios[0].to).toBe(50);
+  });
+
+  it('por kcal, en cambio, el aceite también baja', () => {
+    /* Es la diferencia entre las dos medidas, y es justo lo que un ciclado de
+       hidratos no quiere: por eso hacían falta las dos. */
+    const res = rescaleMeals(menu(), { fromKcals: 1000, toKcals: 800 });
+    expect(res.cambios.map((c) => c.food).sort()).toEqual(['Aceite', 'Arroz']);
+  });
+
+  it('una opción sin hidratos se queda como está y se dice', () => {
+    const soloProte = [
+      {
+        id: 'm1',
+        name: 'Merienda',
+        options: [
+          { id: 'o1', foods: [{ id: 'f1', name: 'Pollo', grams: 150, proteinPer100: 23, carbsPer100: 0, fatsPer100: 2 }] },
+        ],
+      },
+      ...menu(),
+    ];
+    const res = rescaleMeals(soloProte, { fromCarbs: 78, toCarbs: 39 });
+    expect(res.sinTocar).toEqual([{ meal: 'Merienda', option: 1 }]);
+  });
+});
+
+describe('las alternativas de una comida se nombran', () => {
+  it('sin nombre propio se llaman por su sitio en la lista', () => {
+    expect(optionName({ id: 'o1', foods: [] }, 0)).toBe('Opción 1');
+    expect(optionName({ id: 'o2', foods: [] }, 1)).toBe('Opción 2');
+  });
+
+  it('con nombre propio, el nombre manda', () => {
+    expect(optionName({ id: 'o1', name: 'Con avena' }, 0)).toBe('Con avena');
+  });
+
+  /* Un nombre en blanco no es un nombre: se guarda «   » al borrar lo escrito y
+     dejarlo así daría una pastilla vacía en la que ya no se puede pulsar. */
+  it('un nombre en blanco cae al ordinal', () => {
+    expect(optionName({ id: 'o1', name: '   ' }, 2)).toBe('Opción 3');
+    expect(optionName({ id: 'o1', name: '' }, 0)).toBe('Opción 1');
+  });
+
+  it('aguanta que no haya opción', () => {
+    expect(optionName(undefined, 0)).toBe('Opción 1');
+    expect(optionName(null, 1)).toBe('Opción 2');
+  });
+
+  /* El nombre viaja con la copia: duplicar «Con avena» tiene que dar otra «Con
+     avena», no una «Opción 2» sin apellido. */
+  it('el nombre sobrevive a clonar la opción', () => {
+    const clon = cloneOption({ id: 'o1', name: 'Con avena', foods: [] });
+    expect(clon.name).toBe('Con avena');
+    expect(clon.id).not.toBe('o1');
+  });
+});
+
+describe('replaceDietDays: la única escritura de dieta que borra', () => {
+  const plan = () => ({
+    type: 'closed',
+    hasDayVariants: true,
+    habitsNotes: [{ id: 'n1', title: 'Agua', body: 'Tres litros' }],
+    stepsGoal: 9000,
+    cardioGoal: '3 días de 25 min',
+    clientSwaps: true,
+    week: { Lunes: 'd1', Martes: 'd2' },
+    days: [
+      { id: 'd1', name: 'Entreno', targets: { targetKcals: 3000, proteinGrams: 180, carbsGrams: 350, fatsGrams: 90 }, meals: [buildMeal()] },
+      { id: 'd2', name: 'Descanso', targets: { targetKcals: 2400 }, meals: [] },
+    ],
+  });
+
+  const nuevos = [
+    { name: 'Alto', proporcion: 1, meals: [buildMeal(), buildMeal()] },
+    { name: 'Medio', proporcion: 0.9, meals: [buildMeal()] },
+    { name: 'Bajo', proporcion: 0.8, meals: [] },
+  ];
+
+  it('sustituye los días enteros', () => {
+    const out = replaceDietDays(plan(), nuevos);
+    expect(out.days.map((d) => d.name)).toEqual(['Alto', 'Medio', 'Bajo']);
+    expect(out.days[0].meals).toHaveLength(2);
+    expect(out.hasDayVariants).toBe(true);
+  });
+
+  /* Lo que es de la persona y no del plan. Es la mitad del trato: mandarle una
+     dieta a alguien no es mandarle sus hábitos ni sus pasos. */
+  it('le deja sus pautas, sus pasos, su cardio y sus equivalencias', () => {
+    const out = replaceDietDays(plan(), nuevos);
+    expect(out.habitsNotes).toHaveLength(1);
+    expect(out.stepsGoal).toBe(9000);
+    expect(out.cardioGoal).toBe('3 días de 25 min');
+    expect(out.clientSwaps).toBe(true);
+  });
+
+  /* La firma: SU objetivo se queda y los días nuevos lo escalan por la
+     proporción que traían. Mandar la misma dieta a ocho no es darles las mismas
+     calorías. */
+  it('el primer día conserva SU objetivo y los demás guardan la proporción', () => {
+    const out = replaceDietDays(plan(), nuevos);
+    expect(out.days[0].targets.targetKcals).toBe(3000);
+    expect(out.days[1].targets.targetKcals).toBe(2700);
+    expect(out.days[2].targets.targetKcals).toBe(2400);
+  });
+
+  /* La misma ley que `rescaleMeals` aplica al menú: se mueven las kcal y los
+     hidratos, y la proteína y las grasas se quedan donde están. */
+  it('al escalar mueve los hidratos y deja quietas proteína y grasas', () => {
+    const out = replaceDietDays(plan(), nuevos);
+    expect(out.days[1].targets.proteinGrams).toBe(180);
+    expect(out.days[1].targets.fatsGrams).toBe(90);
+    expect(out.days[1].targets.carbsGrams).toBeLessThan(350);
+  });
+
+  /* `week` apunta a ids que dejan de existir: conservarlo dejaría al cliente con
+     un «hoy te toca» sin día al que apuntar. */
+  it('vacía el reparto del ciclo', () => {
+    expect(replaceDietDays(plan(), nuevos).week).toEqual({});
+  });
+
+  it('con un solo día deja de haber variantes', () => {
+    const out = replaceDietDays(plan(), [{ name: 'Única', meals: [] }]);
+    expect(out.hasDayVariants).toBe(false);
+    expect(out.days).toHaveLength(1);
+  });
+
+  /* Los ids se renuevan: la misma dieta se manda a ocho, y ocho copias con los
+     mismos identificadores acabarían compartiéndolos. */
+  it('renueva los identificadores de las comidas', () => {
+    const comida = buildMeal();
+    const out = replaceDietDays(plan(), [{ name: 'Única', meals: [comida] }]);
+    expect(out.days[0].meals[0].id).not.toBe(comida.id);
+    expect(out.days[0].meals[0].name).toBe(comida.name);
+  });
+
+  it('sin días no toca nada', () => {
+    const antes = plan();
+    expect(replaceDietDays(antes, []).days.map((d) => d.name)).toEqual(['Entreno', 'Descanso']);
+  });
+
+  it('a quien no tenía objetivo no le inventa uno', () => {
+    const sinObjetivo = { ...plan(), days: [{ id: 'd1', name: 'Uno', targets: {}, meals: [] }] };
+    const out = replaceDietDays(sinObjetivo, nuevos);
+    expect(out.days[1].targets.targetKcals ?? null).toBeNull();
+  });
+});
+
+/* ══ LA FOTO DEL CICLO ═══════════════════════════════════════════════════════
+   La cifra que se guarda de un plan de varios días. Hasta hoy se guardaba
+   `targetKcals` —el primer día—, así que en un alto/bajo el histórico entero
+   dibujaba el alto y lo llamaba «lo que tenía pautado». */
+describe('cycleFoto', () => {
+  const slots = ['1', '2', '3'].map((key) => ({ key, corto: `D${key}` }));
+  const alto = { id: 'a', name: 'Alto', targets: { targetKcals: 3000, proteinGrams: 180, carbsGrams: 400, fatsGrams: 60 }, meals: [] };
+  const bajo = { id: 'b', name: 'Bajo', targets: { targetKcals: 2100, proteinGrams: 180, carbsGrams: 175, fatsGrams: 60 }, meals: [] };
+  const ciclado = (week) => ({ ...emptyNutrition(), days: [alto, bajo], week });
+
+  it('con el ciclo repartido, la cabecera es la media ponderada', () => {
+    const foto = cycleFoto(ciclado({ 1: 'a', 2: 'a', 3: 'b' }), slots);
+    expect(foto.kcals).toBe(2700); // (3000 + 3000 + 2100) / 3
+    expect(foto.de).toBe('media');
+    expect(foto.reparto).toBe(3);
+  });
+
+  /* Sin reparto no se puede ponderar sin adivinar cuántos días entrena, así que
+     se enseña lo que hay —el primer día— y se DICE que es un día. */
+  it('sin repartir, es el primer día y lo dice', () => {
+    const foto = cycleFoto(ciclado({}), slots);
+    expect(foto.kcals).toBe(3000);
+    expect(foto.de).toBe('dia');
+    expect(foto.dia).toBe('Alto');
+  });
+
+  it('trae los días con lo que pide cada uno y cuántas casillas le tocan', () => {
+    const foto = cycleFoto(ciclado({ 1: 'a', 2: 'a', 3: 'b' }), slots);
+    expect(foto.cycle).toEqual([
+      { n: 'Alto', kcals: 3000, protein: 180, carbs: 400, fats: 60, x: 2 },
+      { n: 'Bajo', kcals: 2100, protein: 180, carbs: 175, fats: 60, x: 1 },
+    ]);
+  });
+
+  /* Con un solo día no hay ambigüedad que deshacer, y repetir «de: dia» en cada
+     pesaje de cada cliente es ruido en la columna de todo el mundo. */
+  it('con un solo día no dice de dónde sale ni lista nada', () => {
+    const foto = cycleFoto({ ...emptyNutrition(), targetKcals: 2400 }, slots);
+    expect(foto.kcals).toBe(2400);
+    expect(foto.de).toBe(null);
+    expect(foto.cycle).toBe(null);
+  });
+
+  it('un plan sin una sola cifra no deja foto', () => {
+    expect(cycleFoto(emptyNutrition(), slots)).toBe(null);
+    expect(cycleFoto(null, slots)).toBe(null);
+  });
+});
+
+/* ══ LOS OBJETIVOS DEL ENVASE ════════════════════════════════════════════════
+   Fibra, azúcares, saturadas y sal pueden llevar objetivo desde las opciones
+   avanzadas. No hay columna para ellos, así que obligan a materializar `days`:
+   escribirlos al nivel del plan los perdería el mapeador en silencio. */
+describe('los objetivos de los micros', () => {
+  it('pautar la fibra materializa la lista de días', () => {
+    const plano = emptyNutrition();
+    expect(plano.days).toEqual([]);
+    const out = setDayTargets(plano, 'default', { fiberGrams: 35 });
+    expect(out.days).toHaveLength(1);
+    expect(targetsFor(out, out.days[0].id).fiberGrams).toBe(35);
+  });
+
+  it('en blanco es «no lo pautas», y no una cadena vacía guardada', () => {
+    const con = setDayTargets(emptyNutrition(), 'default', { fiberGrams: 35 });
+    const sin = setDayTargets(con, con.days[0].id, { fiberGrams: '' });
+    expect(sin.days[0].targets.fiberGrams).toBe(null);
+    expect(targetsFor(sin, sin.days[0].id).fiberGrams ?? null).toBe(null);
+  });
+
+  /* Un objetivo de macros sin micros no puede convertir un plan de dos columnas
+     en una lista: eso cambiaría dónde se guarda todo lo demás. */
+  it('guardar solo macros no materializa nada', () => {
+    const out = setDayTargets(emptyNutrition(), 'default', { targetKcals: 2400 });
+    expect(out.days).toEqual([]);
+    expect(out.targetKcals).toBe(2400);
+  });
+
+  it('el objetivo del día viaja con el día al leerlo', () => {
+    const con = setDayTargets(emptyNutrition(), 'default', { fiberGrams: 30, saltGrams: 5 });
+    const leido = targetsFor(con, con.days[0].id);
+    expect(leido.fiberGrams).toBe(30);
+    expect(leido.saltGrams).toBe(5);
   });
 });

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Zap } from 'lucide-react';
 
 import { TECNICAS, tecnicaCifras, tecnicaPorDefecto, tecnicaSpec } from '@/domain/training';
+import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 
@@ -37,6 +38,7 @@ export const RemateDeLaSerie = ({ tecnica, etiqueta, onCambio }) => {
   const ref = useRef(null);
   useClickOutside(ref, () => setAbierto(false), abierto);
   const capa = useDismissable(abierto);
+  const flota = useCapaFlotante(capa.mounted, ref, capa.ref, { alineado: 'derecha' });
   const spec = tecnicaSpec(tecnica?.id);
   const cifras = tecnicaCifras(tecnica);
 
@@ -68,6 +70,8 @@ export const RemateDeLaSerie = ({ tecnica, etiqueta, onCambio }) => {
         <div
           ref={capa.ref}
           className="popover popover-right remate-capa"
+          style={flota.estilo}
+          {...flota.atributos}
           data-state={capa.closing ? 'closing' : 'open'}
           role="dialog"
           aria-label={`Remate de ${etiqueta}`}

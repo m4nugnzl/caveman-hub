@@ -109,6 +109,96 @@ export const claveDeNombre = (nombre) => norm(nombre).trim();
 const contiene = (grandes, pequenos) => pequenos.every((p) => grandes.includes(p));
 
 /**
+ * El estado, que dice cómo se pesa el alimento y no cuál es.
+ *
+ * Es la única lista de palabras que hay aquí, y se gana el sitio: el catálogo
+ * guarda a propósito «Lentejas (crudas)» y «Lentejas (cocidas)» porque entre
+ * una y otra hay doscientas kilocalorías cada cien gramos, y eso es exactamente
+ * lo que las hace un mal intercambio — 250 g de lentejas cocidas «equivalen» a
+ * 80 g de lentejas crudas, que es la conversión de peso al cocerlas y no una
+ * alternativa que nadie pueda cocinar. Para MONTAR la dieta son dos entradas
+ * distintas (ver `tokens`, que por eso no tira los paréntesis); para cambiar un
+ * alimento por otro son la misma lenteja.
+ */
+const ESTADO = new Set(['crudo', 'cruda', 'cocido', 'cocida']);
+
+/** Las palabras que nombran al alimento, sin el estado en el que se pesa. */
+const nucleo = (nombre) => tokens(nombre).filter((p) => !ESTADO.has(p));
+
+/**
+ * Cómo se pesa un alimento —`'crudo'`, `'cocido'`— o `null` si su nombre no lo
+ * dice, que es lo normal: «Pechuga de pollo» no lo lleva y «Lentejas (cocidas)»
+ * sí. El género no distingue nada, así que las dos formas caen en la misma.
+ */
+export const estadoDe = (nombre) => {
+  const dicho = tokens(nombre).find((p) => ESTADO.has(p));
+  if (!dicho) return null;
+  return dicho.startsWith('crud') ? 'crudo' : 'cocido';
+};
+
+/**
+ * Si dos nombres son EL MISMO alimento dicho de otra manera.
+ *
+ * ══ Para qué hace falta ════════════════════════════════════════════════════
+ *
+ * Las equivalencias de «Arroz blanco» eran «Arroz blanco (crudo)» y «Arroz
+ * blanco (cocido)»; las de «Huevo entero fresco», cuatro huevos: «Huevo L»,
+ * «Huevo entero», «Huevo entero L» y «Huevos enteros frescos». La cuenta es
+ * correcta —claro que 200 g de arroz valen por 200 g de arroz— y la lista no
+ * dice nada: cambiar un alimento por sí mismo no es un intercambio. El catálogo
+ * guarda el mismo alimento varias veces a propósito —el estado, el tamaño, la
+ * marca, el plural—, y esas filas sirven para MONTAR una dieta y estorban para
+ * cambiar un alimento por otro.
+ *
+ * ══ La regla, sin diccionario ══════════════════════════════════════════════
+ *
+ * En castellano el alimento lo nombra el sustantivo que va PRIMERO y el resto
+ * lo matiza: «arroz blanco (cocido)», «pechuga de pavo en lonchas», «yogur
+ * natural desnatado». Así que dos nombres son el mismo alimento cuando empiezan
+ * por la misma palabra y uno no dice nada que el otro no diga: sus palabras
+ * están todas dentro de las del otro.
+ *
+ * Mirar el sustantivo es lo que salva los casos que importan. «Huevo L» se
+ * queda en «huevo» —una letra suelta no es una palabra— y sin esa condición se
+ * tragaría media familia: «clara de huevo» y «yema de huevo» llevan «huevo»
+ * dentro y son justamente los dos intercambios buenos que tiene. Con la regla
+ * puesta, ahí la primera palabra es «clara» y «yema», y eso es otro alimento.
+ *
+ * De marcas y de tamaños no hay lista a propósito, por lo mismo que `raiz` no
+ * es un diccionario de plurales: una lista hay que mantenerla, y la palabra que
+ * falte el día que el catálogo crezca vuelve a colar el mismo alimento dos
+ * veces. La excepción es el ESTADO, y está justificada abajo.
+ */
+export const mismoAlimento = (unNombre, otroNombre) => {
+  const unos = nucleo(unNombre);
+  const otros = nucleo(otroNombre);
+  if (!unos.length || !otros.length) return false;
+  if (unos[0] !== otros[0]) return false;
+  return contiene(unos, otros) || contiene(otros, unos);
+};
+
+/**
+ * Si dos nombres dicen EXACTAMENTE lo mismo: las mismas palabras, salvo el
+ * estado.
+ *
+ * Es más estricto que `mismoAlimento` —ahí uno puede decir algo más— y sirve
+ * para distinguir dos cosas que no se pueden tratar igual:
+ *
+ *   · «Huevo entero» y «Huevo entero L», «Uva» y «Uvas», «Higo» y «Higos»,
+ *     «Lentejas (cocidas)» y «Lentejas (crudas)» dicen lo mismo. Que sus
+ *     números no coincidan es cosa del catálogo, no información: son una fila.
+ *
+ *   · «Yogur natural» y «Yogur de soja natural», «Mayonesa» y «Mayonesa light»
+ *     son el mismo alimento con UNA PALABRA MÁS, y esa palabra cambia lo que se
+ *     compra. Se juntan solo si además proponen la misma ración.
+ */
+export const diceLoMismo = (unNombre, otroNombre) => {
+  const unos = nucleo(unNombre);
+  const otros = nucleo(otroNombre);
+  return unos.length > 0 && unos.length === otros.length && contiene(unos, otros);
+};
+
+/**
  * El alimento de la biblioteca que corresponde a un nombre de la hoja.
  *
  * @returns `{ food, sure, candidates }`. `food` es la mejor propuesta y puede

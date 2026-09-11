@@ -155,5 +155,49 @@ export const useConditions = ({ activeClientId }) => {
     return { ok: true };
   }, []);
 
-  return { conditions, addCondition, updateCondition, resolveCondition, removeCondition };
+  /**
+   * LOS DE VARIOS, DE UNA VEZ. La salida que este fichero dejaba anunciada.
+   *
+   * La cabecera lo decía: los condicionantes son del cliente ABIERTO, y «la
+   * contrapartida, dicha antes de que se note: la lista de clientes NO puede
+   * avisar de que alguien tiene un veto, porque no los tiene cargados. Cuando
+   * eso haga falta, la salida es una consulta en bloque». Hace falta desde que
+   * se puede repartir una dieta a ocho personas: la pantalla que decide a quién
+   * le entra tiene que poder decir a quién NO se le puede poner.
+   *
+   * No toca el estado ni cachea: devuelve un mapa y se va. Es una lectura de un
+   * momento —la de antes de pulsar—, no una segunda verdad viviendo al lado de
+   * `conditions`, que es del cliente que se está mirando y de nadie más.
+   *
+   * ── Ni migración ni política nueva ────────────────────────────────────────
+   * `conditions_coach_read` es `USING (app_can_read_client(client_id))`, un
+   * predicado POR FILA: filtrar con `in` o con `eq` pasa por lo mismo. Lo que
+   * cambia es cuántas filas se piden, no quién puede verlas.
+   *
+   * Devuelve `null` —y no `{}`— cuando la consulta falla, que es lo que deja
+   * distinguir «nadie tiene nada apuntado» de «no se ha podido mirar». Quien
+   * reparte una dieta necesita esa diferencia: sin ella, un fallo de red se
+   * leería como vía libre.
+   */
+  const conditionsOfMany = useCallback(async (clientIds) => {
+    const ids = [...new Set((clientIds || []).filter(Boolean))];
+    if (ids.length === 0) return {};
+
+    const { data, error } = await supabase
+      .from('client_conditions')
+      .select('*')
+      .in('client_id', ids)
+      .order('created_at');
+
+    if (error) return null;
+
+    const mapa = Object.fromEntries(ids.map((id) => [id, []]));
+    for (const fila of data || []) {
+      const c = mapConditionFromDb(fila);
+      if (c && mapa[fila.client_id]) mapa[fila.client_id].push(c);
+    }
+    return mapa;
+  }, []);
+
+  return { conditions, conditionsOfMany, addCondition, updateCondition, resolveCondition, removeCondition };
 };

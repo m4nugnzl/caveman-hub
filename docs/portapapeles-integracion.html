@@ -1,0 +1,800 @@
+<title>La mano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,400..800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Tokens de la app (src/styles/tokens.css). El prototipo tiene que verse como
+   Caveman Hub o no prueba nada.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+  --mesa: #e8ebf1;
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --sunken: #f3f5f8;
+  --text: #12151a;
+  --text-2: #5b6270;
+  --text-3: #6e7686;
+  --hairline: #e6e9ef;
+  --hairline-strong: #cbd1dc;
+  --edge: rgba(18, 24, 38, 0.09);
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-wash: rgba(59, 73, 223, 0.12);
+  --positive: #10774c;
+  --negative: #b93429;
+  --fill: #e9ecf1;
+  --fill-subtle: #f4f6f9;
+  --sombra: 0 1px 2px rgba(18, 24, 38, .06), 0 12px 32px -12px rgba(18, 24, 38, .18);
+  --sombra-larga: 0 2px 6px rgba(18, 24, 38, .08), 0 22px 48px -18px rgba(18, 24, 38, .3);
+  --nav: #121722;
+  --nav-text: #e8ebf2;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --mesa: #0e1116; --canvas: #171a20; --surface: #1c2027; --sunken: #14171c;
+    --text: #e7eaf0; --text-2: #a2a9b7; --text-3: #7f8796;
+    --hairline: rgba(214, 224, 244, 0.09); --hairline-strong: rgba(214, 224, 244, 0.18);
+    --edge: rgba(214, 224, 244, 0.14);
+    --accent: #5b8df7; --accent-soft: rgba(91, 141, 247, 0.14); --accent-wash: rgba(91, 141, 247, 0.22);
+    --positive: #4bb98a; --negative: #f0776b;
+    --fill: #262b33; --fill-subtle: rgba(214, 224, 244, 0.045);
+    --sombra: 0 1px 2px rgba(0,0,0,.4), 0 14px 34px -14px rgba(0,0,0,.6);
+    --sombra-larga: 0 2px 6px rgba(0,0,0,.5), 0 24px 50px -18px rgba(0,0,0,.75);
+    --nav: #0b0e14; --nav-text: #e8ebf2;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--mesa); color: var(--text);
+  font-family: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px; line-height: 1.6;
+}
+.hoja { max-width: 1040px; margin: 0 auto; padding: 56px 24px 96px; }
+h1 {
+  font-size: clamp(30px, 4.4vw, 44px); line-height: 1.08; letter-spacing: -0.026em;
+  font-weight: 700; margin: 0 0 14px;
+}
+.entradilla { font-size: 17px; color: var(--text-2); max-width: 68ch; margin: 0 0 10px; }
+.encargo {
+  margin: 22px 0 0; padding: 14px 18px; border-left: 3px solid var(--accent);
+  background: var(--surface); border-radius: 0 10px 10px 0;
+  font-size: 15px; color: var(--text-2);
+}
+h2 {
+  font-size: 25px; letter-spacing: -0.018em; font-weight: 700;
+  margin: 68px 0 6px; padding-top: 22px; border-top: 1px solid var(--hairline-strong);
+}
+h2 .num {
+  display: block; font-size: 11px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-3); margin-bottom: 8px;
+}
+h3 { font-size: 17px; font-weight: 660; letter-spacing: -0.01em; margin: 30px 0 6px; }
+p { max-width: 72ch; }
+p, li { color: var(--text-2); }
+strong { color: var(--text); font-weight: 640; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .86em; background: var(--fill-subtle); border: 1px solid var(--hairline);
+  padding: 1px 5px; border-radius: 5px; color: var(--text);
+}
+.cajas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin: 22px 0; }
+.caja {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 14px;
+  padding: 16px 18px; box-shadow: var(--sombra);
+}
+.caja h4 { margin: 0 0 6px; font-size: 14px; font-weight: 680; letter-spacing: -0.008em; }
+.caja p { margin: 0; font-size: 13.5px; }
+.caja .cifra {
+  font-size: 30px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1;
+  color: var(--negative); display: block; margin-bottom: 2px;
+}
+.leyes { list-style: none; margin: 22px 0; padding: 0; display: grid; gap: 10px; }
+.leyes li {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
+  padding: 14px 18px 14px 16px; border-left: 3px solid var(--accent);
+  font-size: 14.5px;
+}
+.leyes b { display: block; color: var(--text); font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+table { border-collapse: collapse; width: 100%; margin: 20px 0; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3); font-weight: 700; }
+td { color: var(--text-2); }
+td:first-child { color: var(--text); font-weight: 600; white-space: nowrap; }
+.pie-nota { font-size: 13px; color: var(--text-3); max-width: 72ch; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL PROTOTIPO: el chasis de la app en miniatura. Todo lo flotante va absoluto
+   dentro de `.proto`, no fijo a la ventana.
+   ══════════════════════════════════════════════════════════════════════════ */
+.mandos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin: 24px 0 12px; font-size: 13px;
+}
+.mandos .rot { color: var(--text-3); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; margin-right: 2px; }
+.mandos button {
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--surface); color: var(--text-2);
+  border: 1px solid var(--hairline-strong);
+  transition: all .16s var(--ease);
+}
+.mandos button:hover { color: var(--text); border-color: var(--text-3); }
+.mandos button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (prefers-color-scheme: dark) { .mandos button[aria-pressed="true"] { color: #10131a; } }
+
+.proto {
+  position: relative; overflow: hidden;
+  height: 560px; border-radius: 16px; border: 1px solid var(--edge);
+  box-shadow: var(--sombra-larga); background: var(--canvas);
+  display: flex; font-size: 14px; isolation: isolate;
+}
+.proto * { box-sizing: border-box; }
+
+/* ── La barra ─────────────────────────────────────────────────────────── */
+.pr-barra {
+  width: 176px; flex: 0 0 176px; background: var(--nav); color: var(--nav-text);
+  padding: 14px 10px; display: flex; flex-direction: column; gap: 2px;
+}
+.pr-marca { font-size: 12px; font-weight: 700; letter-spacing: .04em; opacity: .55; padding: 4px 8px 14px; }
+.pr-barra button {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 9px; border: 0; border-radius: 8px; background: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 560; color: rgba(232,235,242,.62);
+  text-align: left; transition: background .16s var(--ease), color .16s var(--ease);
+}
+.pr-barra button:hover { background: rgba(255,255,255,.06); color: #fff; }
+.pr-barra button.on { background: rgba(255,255,255,.1); color: #fff; font-weight: 650; }
+.pr-barra .sep { flex: 1; }
+
+/* ── El cuerpo ────────────────────────────────────────────────────────── */
+.pr-cuerpo { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--canvas); }
+.pr-cab {
+  height: 46px; flex: 0 0 46px; display: flex; align-items: center; gap: 8px;
+  padding: 0 18px; border-bottom: 1px solid var(--hairline); background: var(--surface);
+}
+.pr-miga { font-size: 12.5px; font-weight: 520; color: var(--text-3); cursor: pointer; background: none; border: 0; font-family: inherit; padding: 2px 0; }
+.pr-miga:hover { color: var(--text-2); }
+.pr-miga.fin { font-size: 15px; font-weight: 660; color: var(--text); letter-spacing: -.012em; cursor: default; }
+.pr-sep { color: var(--text-3); opacity: .5; font-size: 12px; }
+.pr-lienzo { flex: 1; min-height: 0; overflow: auto; padding: 20px; position: relative; }
+
+/* ── Piezas del lienzo ────────────────────────────────────────────────── */
+.pr-titulo { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3); font-weight: 700; margin: 0 0 10px; }
+.pr-caja { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; box-shadow: 0 1px 2px rgba(18,24,38,.04); overflow: hidden; }
+.pr-fila {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-bottom: 1px solid var(--hairline); transition: background .16s var(--ease);
+}
+.pr-fila:last-child { border-bottom: 0; }
+.pr-fila:hover { background: var(--fill-subtle); }
+.pr-fila.nueva, .pr-tarjeta.nueva { animation: entra-fila .4s var(--ease); }
+@keyframes entra-fila { from { background: var(--accent-soft); opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.pr-nombre { font-size: 13.5px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pr-dato { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pr-copiar {
+  width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center;
+  border: 0; border-radius: 7px; background: none; cursor: pointer; color: var(--text-3);
+  opacity: 0; transition: opacity .16s var(--ease), background .16s var(--ease), color .16s var(--ease);
+}
+.pr-fila:hover .pr-copiar, .pr-tarjeta:hover .pr-copiar, .pr-copiar:focus-visible { opacity: 1; }
+.pr-copiar:hover { background: var(--fill); color: var(--text); }
+.pr-rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pr-tarjeta {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
+  padding: 12px; display: flex; flex-direction: column; gap: 3px; min-height: 74px;
+  box-shadow: 0 1px 2px rgba(18,24,38,.04); position: relative;
+}
+.pr-tarjeta .pr-copiar { position: absolute; top: 6px; right: 6px; }
+.pr-tarjeta b { font-size: 13.5px; font-weight: 660; letter-spacing: -.01em; }
+.pr-tarjeta span { font-size: 12px; color: var(--text-3); }
+.pr-marca-cli { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex: 0 0 15px; }
+.pr-pista { font-size: 12.5px; color: var(--text-3); margin: 14px 2px 0; }
+
+/* ── El mostrador del lote (la cartera) ───────────────────────────────── */
+.pr-lote {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5;
+  display: flex; align-items: center; gap: 12px; white-space: nowrap;
+  max-width: calc(100% - 32px); padding: 9px 14px;
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: 14px; box-shadow: var(--sombra-larga);
+  font-size: 13px;
+}
+.pr-lote.entra { animation: sube .22s var(--ease); }
+.pr-lote .n { font-weight: 660; color: var(--text); }
+.pr-lote .ac { color: var(--text-2); font-size: 12.5px; }
+.pr-lote .verbo-lote { font: inherit; font-size: 12.5px; font-weight: 680; color: var(--accent); background: var(--accent-soft); border: 0; cursor: pointer; padding: 5px 10px; border-radius: 8px; }
+.pr-lote .verbo-lote:hover { background: var(--accent-wash); }
+@keyframes sube { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ══ LA MANO ═══════════════════════════════════════════════════════════
+   Reposo: una píldora con lo que llevas. Con destino: se enciende y el verbo
+   va en azul con el nombre del sitio. Abierta: la lista, hacia arriba. */
+.pr-pie { position: absolute; right: 18px; bottom: 18px; z-index: 8; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; transition: bottom .22s var(--ease); }
+.pr-pie.sobre-lote { bottom: 76px; }
+
+.mano {
+  display: inline-flex; align-items: stretch; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: 999px; box-shadow: var(--sombra);
+  transition: border-color .18s var(--ease), background .18s var(--ease);
+}
+.mano.entra { animation: sube-mano .22s var(--ease); }
+@keyframes sube-mano { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.mano button { font: inherit; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; height: 38px; color: var(--text-2); font-size: 13px; font-weight: 620; transition: background .16s var(--ease), color .16s var(--ease); }
+.mano button:hover { background: var(--fill-subtle); color: var(--text); }
+.mano .n {
+  display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 6px;
+  border-radius: 999px; background: var(--fill); color: var(--text-2);
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.mano .parte { border-left: 1px solid var(--hairline); padding: 0 12px; }
+/* Encendida: la caja se enciende y el verbo va en azul (ley de los gestos). */
+.mano.viva { background: var(--accent-soft); border-color: rgba(59,73,223,.32); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mano.viva { border-color: rgba(91,141,247,.45); } }
+.mano.viva .verbo { color: var(--accent); font-weight: 680; }
+.mano.viva .verbo:hover { background: var(--accent-wash); color: var(--accent); }
+.mano.viva .n { background: rgba(59,73,223,.16); color: var(--accent); }
+.mano.viva .parte { border-left-color: rgba(59,73,223,.22); }
+/* El momento de la copia: la mano dice qué acaba de entrar y se calla sola. */
+.mano .recien { color: var(--text); font-weight: 640; max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; transition: max-width .34s var(--ease), opacity .2s var(--ease); }
+.mano.dice .recien { max-width: 240px; opacity: 1; }
+/* El rótulo en reposo y el de la copia se turnan: uno encoge mientras el otro
+   crece, así que la píldora cambia de ancho sin saltar. */
+.mano .quieta { max-width: 140px; opacity: 1; overflow: hidden; white-space: nowrap; transition: max-width .34s var(--ease), opacity .2s var(--ease); }
+.mano.dice .quieta { max-width: 0; opacity: 0; }
+.mano .parte > svg { opacity: .55; }
+
+.cajon {
+  width: 320px; background: var(--surface); border: 1px solid var(--edge);
+  border-radius: 14px; box-shadow: var(--sombra-larga); overflow: hidden;
+}
+.cajon.entra { animation: sube-mano .2s var(--ease); }
+.cajon-cab { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 9px 13px; border-bottom: 1px solid var(--hairline); }
+.cajon-cab b { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+.cajon-cab button { font: inherit; font-size: 12px; font-weight: 560; color: var(--text-3); background: none; border: 0; cursor: pointer; padding: 3px 7px; border-radius: 6px; }
+.cajon-cab button:hover { background: var(--fill-subtle); color: var(--text); }
+.cajon ul { list-style: none; margin: 0; padding: 0; max-height: 244px; overflow: auto; }
+.cajon li { display: flex; align-items: center; gap: 9px; padding: 8px 10px 8px 12px; border-bottom: 1px solid var(--hairline); }
+.cajon li:last-child { border-bottom: 0; }
+.cajon .ico { width: 26px; height: 26px; flex: 0 0 26px; display: grid; place-items: center; border-radius: 7px; background: var(--fill-subtle); color: var(--text-3); }
+.cajon .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cajon .txt b { font-size: 13px; font-weight: 620; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cajon .txt span { font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cajon .verbo-fila { font: inherit; font-size: 12px; font-weight: 680; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 5px 9px; border-radius: 8px; white-space: nowrap; }
+.cajon .verbo-fila:hover { background: var(--accent-soft); }
+.cajon .quitar { width: 24px; height: 24px; flex: 0 0 24px; display: grid; place-items: center; border: 0; border-radius: 6px; background: none; color: var(--text-3); cursor: pointer; }
+.cajon .quitar:hover { background: var(--fill-subtle); color: var(--text); }
+.cajon .vacio { padding: 15px 13px; font-size: 12.5px; color: var(--text-3); }
+
+/* El bolsillo en la barra (variante B). */
+.bolsillo {
+  display: flex; align-items: center; gap: 9px; width: 100%; margin-top: 6px;
+  padding: 8px 9px; border: 0; border-radius: 8px; cursor: pointer;
+  background: rgba(255,255,255,.07); color: rgba(232,235,242,.78);
+  font: inherit; font-size: 12.5px; font-weight: 600; text-align: left;
+}
+.bolsillo:hover { background: rgba(255,255,255,.12); color: #fff; }
+.bolsillo .n { margin-left: auto; display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 11px; font-weight: 700; }
+.bolsillo.viva { background: var(--accent); color: #fff; }
+.bolsillo.viva .n { background: rgba(255,255,255,.24); }
+.pr-pie.en-barra { left: 14px; right: auto; bottom: 18px; align-items: flex-start; }
+
+/* El aviso: lo que cambia el programa de alguien, y su deshacer. */
+.pr-aviso {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 20;
+  display: flex; align-items: center; gap: 14px; white-space: nowrap;
+  padding: 10px 16px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--sombra-larga);
+  font-size: 13px; color: var(--text); animation: sube .2s var(--ease);
+}
+.pr-aviso button { font: inherit; font-size: 13px; font-weight: 680; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.pr-aviso button:hover { background: var(--accent-soft); }
+
+/* ── Las láminas del teléfono ─────────────────────────────────────────── */
+.telefonos { display: flex; gap: 28px; flex-wrap: wrap; margin: 24px 0 8px; }
+.tel { width: 252px; }
+.tel-marco { height: 350px; border-radius: 20px; border: 1px solid var(--hairline-strong); background: var(--canvas); box-shadow: var(--sombra); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.tel-cab { padding: 9px 13px; font-size: 13.5px; font-weight: 660; border-bottom: 1px solid var(--hairline); background: var(--surface); }
+.tel-cuerpo { flex: 1; padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+.tel-fila { background: var(--surface); border: 1px solid var(--edge); border-radius: 9px; padding: 8px 10px; font-size: 12px; color: var(--text-2); }
+.tel-barra { height: 44px; border-top: 1px solid var(--hairline); background: var(--surface); display: flex; }
+.tel-barra i { flex: 1; display: grid; place-items: center; font-style: normal; font-size: 9.5px; color: var(--text-3); font-weight: 650; }
+.tel-barra i.on { color: var(--accent); }
+.tel-mano { position: absolute; right: 10px; bottom: 54px; z-index: 4; }
+.tel-mala { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 9; background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; box-shadow: var(--sombra-larga); padding: 10px 12px; font-size: 11.5px; color: var(--text-2); }
+.tel-mala b { display: block; color: var(--text); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+.tel-pie { font-size: 12.5px; color: var(--text-3); margin-top: 10px; }
+.tel-pie b { color: var(--text); font-weight: 650; }
+
+@media (max-width: 780px) {
+  .proto { height: 620px; }
+  .pr-barra { width: 56px; flex-basis: 56px; }
+  .pr-barra button > span, .pr-marca, .bolsillo > span { display: none; }
+  .pr-barra button { justify-content: center; padding: 9px 0; }
+  .pr-pie.en-barra { left: 10px; }
+}
+</style>
+
+<div class="hoja">
+
+<h1>La mano: dónde vive el portapapeles<br>sin ponerse en medio</h1>
+<p class="entradilla">Tercera vuelta del estudio. Las dos primeras dijeron <em>qué</em> tiene que
+hacer el portapapeles y <em>cuántos sitios</em> hay donde pegar. Esta dice lo otro: cómo entra en
+la app —dónde se apoya, cuándo habla, cuándo se calla y qué pasa cuando coincide con lo demás—.</p>
+
+<div class="encargo">«Hay que ver cómo integrarlo correctamente para que no se solape con otras cosas,
+no sea complicado para el entrenador de entender, no moleste, y sea una herramienta sencilla,
+visual, bien diseñada, natural para el usuario, útil e intuitiva.»</div>
+
+<h2><span class="num">01 · El diagnóstico</span>Lo que hoy estorba, medido</h2>
+<p>No son impresiones: son tres cosas que se leen en el CSS que ya está en el árbol.</p>
+
+<div class="cajas">
+  <div class="caja">
+    <h4>Nace abierta y no se cierra sola</h4>
+    <p>La bandeja aparece <strong>desplegada</strong> en cuanto hay una pieza y se queda así hasta
+    que se vacía: 320 px de ancho por unos 250 de alto, en todas las pantallas del entrenador,
+    haya o no dónde pegar. Y su único verbo es «Quitar».</p>
+  </div>
+  <div class="caja">
+    <span class="cifra">1 444 px</span>
+    <p>La ventana por debajo de la cual <strong>la bandeja y el mostrador del lote se pisan</strong>.
+    Los dos son <code>fixed</code>, los dos a <code>bottom: 22px</code> y <code>z-index: 120</code>:
+    el mostrador centrado con hasta 760 de ancho, la bandeja a la derecha con 320. Con un mostrador
+    más corto, de 600, el corte baja a 1 284 px — un portátil normal.</p>
+  </div>
+  <div class="caja">
+    <span class="cifra">56 px</span>
+    <p>Lo que <strong>la bandeja tapa de la barra del pulgar</strong> en el teléfono: va a
+    <code>bottom: 12px</code> a ancho completo y con <code>z-index</code> 120 contra los 90 de
+    <code>.bottombar</code>. El aviso y el «+» flotante sí se apartan
+    (<code>calc(var(--bottombar-h) + …)</code>); la bandeja se olvidó.</p>
+  </div>
+</div>
+
+<p class="pie-nota">El tercero es una avería, no un gusto: en el móvil la bandeja se come los
+destinos de navegación. Los otros dos son de integración, que es de lo que va esta vuelta.</p>
+
+<h2><span class="num">02 · La idea</span>No es un cajón: es una mano</h2>
+<p>El fallo de origen es de categoría. La bandeja está dibujada como un <strong>sitio</strong> —una
+superficie con cabecera, lista y borde, como un panel de trabajo— cuando lo que representa es
+<strong>lo que llevas en la mano</strong>: dos o tres cosas, un rato, de camino a otro sitio. Un
+sitio pide superficie; una mano pide <em>peso</em>. Y el peso se dice con un número, no con 250 px
+de alto.</p>
+<p>Esa distinción ya estaba escrita en el proyecto y solo faltaba llevarla al dibujo:
+<strong>plantillas es el cajón</strong> —lo que guardas con nombre y para siempre—;
+<strong>el portapapeles es la mano</strong> —lo que llevas encima ahora—. Si las dos se dibujan como
+un panel, el entrenador tiene que aprender cuál es cuál. Si una es un panel y la otra una píldora,
+no hay nada que aprender.</p>
+
+<h2><span class="num">03 · Las leyes</span>Cinco reglas, y de ahí sale todo</h2>
+<ul class="leyes">
+  <li><b>I · La mano se ve; el cajón se abre.</b> En reposo, una píldora con lo que llevas y su
+  número. La lista completa está a un clic, hacia arriba, y se cierra al usarla. Vacía no existe:
+  eso ya está bien hoy.</li>
+  <li><b>II · El aviso es de lo que cambia; la mano, de lo que llevas.</b> Copiar deja de sacar
+  aviso —la mano nombra dos segundos lo que acaba de entrar y se calla—. Pegar sí lo saca, con
+  «Deshacer», porque escribe en el programa de una persona. Un gesto, una voz.</li>
+  <li><b>III · Un mostrador a la vez.</b> El centro del pie es del mostrador del lote; la esquina
+  derecha, de la mano. Cuando el mostrador está levantado, la mano <strong>se apoya encima de
+  él</strong> en vez de a su lado, y no hay ancho de ventana en el que se pisen.</li>
+  <li><b>IV · Callarse es la mitad del trabajo.</b> Sin destino en la pantalla, la mano está en
+  gris y no propone nada. En el teléfono va más lejos: <strong>si no hay dónde soltar, no
+  aparece</strong>.</li>
+  <li><b>V · Pegar nombra el sitio, y lo que cae.</b> Nunca un «Pegar» a secas:
+  «Pegar «Sentadilla» en Lower A». El verbo en azul, la caja encendida — la ley de los gestos, sin
+  inventar forma nueva.</li>
+</ul>
+
+<h2><span class="num">04 · El prototipo</span>Pruébalo: copia algo y vete a otra pantalla</h2>
+<p>Es el chasis de la app en miniatura, con los tokens reales. Pasa el ratón por una fila y sale su
+⧉; copia dos o tres cosas y cambia de pantalla con la barra de la izquierda. Mira cuándo se enciende
+la mano y cuándo se apaga. En <strong>Clientes</strong>, marca gente: ahí es donde hoy se pisan las
+dos piezas.</p>
+
+<div class="mandos">
+  <span class="rot">En reposo</span>
+  <button data-var="mano" aria-pressed="true">A · La mano al pie (propuesta)</button>
+  <button data-var="bolsillo" aria-pressed="false">B · Bolsillo en la barra</button>
+  <button data-var="hoy" aria-pressed="false">C · La bandeja de hoy</button>
+</div>
+
+<div class="proto" id="proto"></div>
+<p class="pie-nota">La variante C es exactamente lo que hay hoy en el árbol, para comparar: se ve el
+panel siempre abierto y, si marcas clientes, el solape del §01 pasa delante de ti.</p>
+
+<h2><span class="num">05 · El teléfono</span>Donde la regla IV se nota</h2>
+<div class="telefonos">
+  <div class="tel">
+    <div class="tel-marco">
+      <div class="tel-cab">Clientes</div>
+      <div class="tel-cuerpo">
+        <div class="tel-fila">Marta Ruiz · va bien</div>
+        <div class="tel-fila">Luis Ortega · sin registrar</div>
+        <div class="tel-fila">Ana Prat · va bien</div>
+      </div>
+      <div class="tel-barra"><i class="on">Clientes</i><i>Agenda</i><i>Taller</i><i>Más</i></div>
+      <div class="tel-mala">
+        <b>Hoy</b>La bandeja se pone encima de la barra del pulgar y tapa los cuatro destinos.
+      </div>
+    </div>
+    <p class="tel-pie"><b>Hoy.</b> <code>bottom: 12px</code>, ancho completo, <code>z-index</code> 120.</p>
+  </div>
+  <div class="tel">
+    <div class="tel-marco">
+      <div class="tel-cab">Clientes</div>
+      <div class="tel-cuerpo">
+        <div class="tel-fila">Marta Ruiz · va bien</div>
+        <div class="tel-fila">Luis Ortega · sin registrar</div>
+        <div class="tel-fila">Ana Prat · va bien</div>
+      </div>
+      <div class="tel-barra"><i class="on">Clientes</i><i>Agenda</i><i>Taller</i><i>Más</i></div>
+    </div>
+    <p class="tel-pie"><b>Regla IV.</b> Aquí no hay dónde soltar una hoja: la mano no sale. Nada
+    que apartar y nada que tapar.</p>
+  </div>
+  <div class="tel">
+    <div class="tel-marco">
+      <div class="tel-cab">Lower A · M3</div>
+      <div class="tel-cuerpo">
+        <div class="tel-fila">Sentadilla · 4×5 @7</div>
+        <div class="tel-fila">Peso muerto rumano · 3×8</div>
+        <div class="tel-fila">Prensa · 3×12</div>
+      </div>
+      <div class="tel-barra"><i>Clientes</i><i>Agenda</i><i class="on">Entreno</i><i>Más</i></div>
+      <div class="tel-mano" id="tel-mano"></div>
+    </div>
+    <p class="tel-pie"><b>Con destino.</b> La mano se apoya sobre la barra del pulgar, en píldora y
+    con el verbo. Al abrirla sube una hoja, que es el mueble que ya usa el móvil.</p>
+  </div>
+</div>
+
+<h2><span class="num">06 · El código</span>Qué toca, y qué no</h2>
+<table>
+  <tr><th>Sitio</th><th>Qué cambia</th></tr>
+  <tr><td>lib/portapapeles.js</td><td>Gana el registro de destinos: <code>registrarDestino({ tipos, etiqueta, pegar })</code>, fuera de React como las piezas, y una pila donde manda el último montado —la hoja abierta gana al bloque—. Lo demás (almacén, tope, otra pestaña) no se toca.</td></tr>
+  <tr><td>ui/Portapapeles.jsx</td><td>Deja de nacer abierta: píldora en reposo, cajón al abrir, verbo en azul con el nombre del destino. El comentario de cabecera que dice «no pega, pegar es del destino» se corrige: sigue sin adivinar el destino — lo presenta.</td></tr>
+  <tr><td>superficies.css</td><td><code>.pp-bandeja</code> se parte en <code>.pp-mano</code> (píldora) y <code>.pp-cajon</code> (lista). El pie pasa a apilar: <code>--lote-alto</code> lo publica el mostrador con un <code>ResizeObserver</code>, y la mano se apoya encima. En móvil, el desplazamiento de la barra del pulgar que ya usan el aviso y el «+».</td></tr>
+  <tr><td>Las cinco pantallas que pegan</td><td>Cada una monta su destino en un efecto y devuelve cómo se deshace. Es una línea por sitio, y de ahí sale también el «Deshacer» del aviso (PP-04).</td></tr>
+  <tr><td>ClientPortfolio.jsx</td><td>El mostrador publica su alto y, en la tanda 2, recibe el verbo: «Poner «Lower A» en los 4 marcados».</td></tr>
+</table>
+<p class="pie-nota">Nada de esto reescribe la v1: el almacén, los cinco tipos y los sitios donde se
+copia se quedan como están. Lo que cambia es dónde se apoya y cuándo habla.</p>
+
+<h2><span class="num">07 · Lo que hace falta decidir</span>Tres preguntas</h2>
+<table>
+  <tr><td>El reposo</td><td>¿A (píldora al pie), B (bolsillo en la barra) o C (como hoy)? B no se pisa con nada nunca, pero pone el verbo a 900 px de donde cae la cosa.</td></tr>
+  <tr><td>El aviso al copiar</td><td>¿Se retira, y lo dice solo la mano (ley II)? Hoy salen los dos y dicen lo mismo.</td></tr>
+  <tr><td>Un clic o dos</td><td>La píldora pega <strong>lo último que aceptes</strong> de un clic y el número abre la lista para elegir otra. La alternativa es que siempre abra la lista: más honesto con varias piezas, un clic más en el caso normal.</td></tr>
+</table>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   El prototipo. Sin librerías: estado + render + un oyente delegado.
+   ══════════════════════════════════════════════════════════════════════════ */
+const ico = (d, extra) => `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const SVG = {
+  copiar: ico('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+  ejercicio: ico('<path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"/>'),
+  hoja: ico('<path d="M12 3 3 7.5 12 12l9-4.5L12 3z"/><path d="M3 12.5 12 17l9-4.5"/>'),
+  comida: ico('<path d="M4 3v7a2 2 0 0 0 4 0V3M6 10v11M14 3c-1 2-1 5 0 7 .8 1.4 2 1.6 3 1.6V21"/>'),
+  equis: ico('<path d="M18 6 6 18M6 6l12 12"/>'),
+  arriba: ico('<path d="m6 15 6-6 6 6"/>'),
+  mano: ico('<rect x="8.5" y="2" width="7" height="4" rx="1.2"/><path d="M15.5 4H17a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1.5"/>'),
+};
+
+const CLIENTES = [
+  { id: 'c1', n: 'Marta Ruiz', e: 'va bien' },
+  { id: 'c2', n: 'Luis Ortega', e: 'sin registrar' },
+  { id: 'c3', n: 'Ana Prat', e: 'espera revisión' },
+  { id: 'c4', n: 'Ruth Vidal', e: 'en pausa' },
+  { id: 'c5', n: 'Iván Sanz', e: 'va bien' },
+];
+
+const inicial = () => ({
+  hojas: [
+    { id: 'h1', n: 'Lower A', d: '6 ejercicios' },
+    { id: 'h2', n: 'Upper A', d: '5 ejercicios' },
+    { id: 'h3', n: 'Lower B', d: '6 ejercicios' },
+  ],
+  ejercicios: [
+    { id: 'e1', n: 'Sentadilla', d: '4×5 @7' },
+    { id: 'e2', n: 'Peso muerto rumano', d: '3×8 @8' },
+    { id: 'e3', n: 'Prensa', d: '3×12' },
+  ],
+  comidas: [
+    { id: 'm1', n: 'Desayuno', d: '620 kcal · 3 opciones' },
+    { id: 'm2', n: 'Comida', d: '840 kcal · 2 opciones' },
+    { id: 'm3', n: 'Cena', d: '560 kcal · 2 opciones' },
+  ],
+  plantillas: [
+    { id: 'p1', n: 'Full body A', d: 'día' },
+    { id: 'p2', n: 'Empuje 4×', d: 'día' },
+  ],
+});
+
+/* Qué acepta cada pantalla. Es el `registrarDestino` del plan, en pequeño. */
+const DESTINOS = {
+  bloque: { tipo: 'hoja', donde: 'Acumulación', verbo: 'Pegar', lista: 'hojas' },
+  hoja: { tipo: 'ejercicio', donde: 'Lower A', verbo: 'Pegar', lista: 'ejercicios' },
+  dieta: { tipo: 'comida', donde: 'el menú de entreno', verbo: 'Pegar', lista: 'comidas' },
+  plantillas: { tipo: 'hoja', donde: 'plantillas', verbo: 'Guardar', lista: 'plantillas', guarda: true },
+  cartera: null,
+};
+
+const S = {
+  pantalla: 'hoja', variante: 'mano', piezas: [], abierta: false,
+  marcados: [], aviso: null, dice: null, datos: inicial(),
+};
+let prev = { mano: false, lote: false, cajon: false };
+let relojDice = null;
+
+const proto = document.getElementById('proto');
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const destino = () => DESTINOS[S.pantalla] || null;
+const aceptadas = () => { const d = destino(); return d ? S.piezas.filter((p) => p.tipo === d.tipo) : []; };
+
+/* ── El chasis ─────────────────────────────────────────────────────────── */
+const BARRA = [
+  ['cartera', 'Clientes'], ['bloque', 'Entreno'], ['dieta', 'Dieta'], ['plantillas', 'Plantillas'],
+];
+const barra = () => `
+  <nav class="pr-barra">
+    <div class="pr-marca">CAVEMAN HUB</div>
+    ${BARRA.map(([p, t]) => {
+      const on = p === S.pantalla || (p === 'bloque' && S.pantalla === 'hoja');
+      return `<button data-a="ir" data-p="${p}" class="${on ? 'on' : ''}"><span>${t}</span></button>`;
+    }).join('')}
+    <div class="sep"></div>
+    ${S.variante === 'bolsillo' && S.piezas.length ? bolsillo() : ''}
+  </nav>`;
+
+const MIGAS = {
+  cartera: [['Clientes', null]],
+  bloque: [['Bloques', null], ['Acumulación', 'fin']],
+  hoja: [['Bloques', null], ['Acumulación', 'bloque'], ['Lower A', 'fin']],
+  dieta: [['Marta Ruiz', null], ['Dieta · día de entreno', 'fin']],
+  plantillas: [['Taller', null], ['Plantillas', 'fin']],
+};
+const migas = () => MIGAS[S.pantalla].map(([t, k], i) => `
+  ${i ? '<span class="pr-sep">›</span>' : ''}
+  <button class="pr-miga ${k === 'fin' ? 'fin' : ''}" ${k && k !== 'fin' ? `data-a="ir" data-p="${k}"` : 'disabled style="cursor:default"'}>${t}</button>`).join('');
+
+/* ── Los lienzos ───────────────────────────────────────────────────────── */
+const fila = (o, tipo, dato) => `
+  <div class="pr-fila ${o.nueva ? 'nueva' : ''}">
+    <span class="pr-nombre">${esc(o.n)}</span>
+    <span class="pr-dato">${esc(dato || o.d)}</span>
+    <button class="pr-copiar" data-a="copiar" data-t="${tipo}" data-id="${o.id}" title="Copiar «${esc(o.n)}»">${SVG.copiar}</button>
+  </div>`;
+
+const LIENZO = {
+  cartera: () => `
+    <p class="pr-titulo">Cartera · 5 clientes</p>
+    <div class="pr-caja">${CLIENTES.map((c) => `
+      <div class="pr-fila">
+        <input class="pr-marca-cli" type="checkbox" data-a="marcar" data-id="${c.id}" ${S.marcados.includes(c.id) ? 'checked' : ''} aria-label="Marcar a ${c.n}">
+        <span class="pr-nombre">${c.n}</span>
+        <span class="pr-dato">${c.e}</span>
+      </div>`).join('')}</div>
+    <p class="pr-pista">Marca dos o tres: aquí es donde el mostrador del lote y el portapapeles se
+    encuentran. Con la variante C los verás pisarse.</p>`,
+  bloque: () => `
+    <p class="pr-titulo">Bloque «Acumulación» · las hojas</p>
+    <div class="pr-rejilla">${S.datos.hojas.map((h) => `
+      <div class="pr-tarjeta ${h.nueva ? 'nueva' : ''}">
+        <b>${esc(h.n)}</b><span>${esc(h.d)}</span>
+        <button class="pr-copiar" data-a="copiar" data-t="hoja" data-id="${h.id}" title="Copiar «${esc(h.n)}»">${SVG.copiar}</button>
+      </div>`).join('')}</div>
+    <p class="pr-pista">Aquí cabe una hoja. Un ejercicio no: para eso hay que abrir una.</p>`,
+  hoja: () => `
+    <p class="pr-titulo">Lower A · lo que se hace</p>
+    <div class="pr-caja">${S.datos.ejercicios.map((e) => fila(e, 'ejercicio')).join('')}</div>
+    <p class="pr-pista">La hoja abierta manda sobre el bloque: con las dos montadas, el destino es
+    esta.</p>`,
+  dieta: () => `
+    <p class="pr-titulo">Día de entreno · el menú</p>
+    <div class="pr-caja">${S.datos.comidas.map((c) => fila(c, 'comida')).join('')}</div>
+    <p class="pr-pista">Los mismos gestos que en entreno: ⧉ a la vista y el verbo al pie.</p>`,
+  plantillas: () => `
+    <p class="pr-titulo">Tus plantillas · días</p>
+    <div class="pr-caja">${S.datos.plantillas.map((p) => fila(p, 'hoja')).join('')}</div>
+    <p class="pr-pista">Aquí el verbo cambia: no se pega, se <strong>guarda</strong>. No toca a
+    nadie y no se deshace — es tu cajón.</p>`,
+};
+
+/* ── El mostrador del lote ─────────────────────────────────────────────── */
+const lote = (entra) => {
+  const p = S.piezas.find((x) => x.tipo === 'hoja');
+  return `
+  <div class="pr-lote ${entra ? 'entra' : ''}">
+    <span class="n">${S.marcados.length} marcados</span>
+    <span class="ac">Estado · Etiquetas · Mandar algo · Avisar · ···</span>
+    ${p ? `<button class="verbo-lote" data-a="poner">Poner «${esc(p.titulo)}» en los ${S.marcados.length}</button>` : ''}
+  </div>`;
+};
+
+/* ── LA MANO ───────────────────────────────────────────────────────────── */
+const bolsillo = () => {
+  const d = destino(); const ac = aceptadas();
+  const viva = d && ac.length;
+  return `<button class="bolsillo ${viva ? 'viva' : ''}" data-a="abrir">
+    ${SVG.mano}<span>${viva ? `${d.verbo} aquí` : 'Llevas'}</span><span class="n">${S.piezas.length}</span>
+  </button>`;
+};
+
+const cajon = (entra) => {
+  const d = destino();
+  return `
+  <div class="cajon ${entra ? 'entra' : ''}">
+    <div class="cajon-cab">
+      <b>Lo que llevas</b>
+      <button data-a="vaciar">Vaciar</button>
+    </div>
+    <ul>${S.piezas.map((p) => {
+      const cabe = d && p.tipo === d.tipo;
+      return `<li>
+        <span class="ico">${SVG[p.tipo] || SVG.hoja}</span>
+        <span class="txt"><b>${esc(p.titulo)}</b><span>${esc(p.pie)}</span></span>
+        ${cabe ? `<button class="verbo-fila" data-a="pegar" data-id="${p.id}">${d.verbo} aquí</button>` : ''}
+        <button class="quitar" data-a="quitar" data-id="${p.id}" aria-label="Quitar «${esc(p.titulo)}»">${SVG.equis}</button>
+      </li>`;
+    }).join('')}</ul>
+  </div>`;
+};
+
+/* El momento de la copia MANDA sobre el verbo: primero «lo tengo», y dos
+   segundos después «y aquí cabe». Al revés, copiar un ejercicio desde la hoja
+   en la que estás contesta con «Pegar «Sentadilla» en Lower A», que es cierto
+   pero no es lo que acabas de hacer. */
+const mano = (entra) => {
+  const d = destino(); const la = aceptadas()[0];
+  const viva = !!la && !S.dice;
+  if (viva) return `
+    <div class="mano viva ${entra ? 'entra' : ''}">
+      <button class="verbo" data-a="pegar" data-id="${la.id}">${d.verbo} «${esc(la.titulo)}» en ${esc(d.donde)}</button>
+      <button class="parte" data-a="abrir" aria-label="Ver lo que llevas">${SVG.arriba}<span class="n">${S.piezas.length}</span></button>
+    </div>`;
+  return `
+  <div class="mano ${entra ? 'entra' : ''}">
+    <button data-a="abrir">
+      ${SVG.mano}
+      <span class="quieta">Llevas ${S.piezas.length}</span>
+      <span class="recien">${S.dice ? `«${esc(S.dice)}» copiada` : ''}</span>
+    </button>
+  </div>`;
+};
+
+const pieDerecho = (e) => {
+  if (!S.piezas.length) return '';
+  if (S.variante === 'bolsillo') return S.abierta ? `<div class="pr-pie en-barra">${cajon(e.cajon)}</div>` : '';
+  const sobre = S.pantalla === 'cartera' && S.marcados.length && S.variante === 'mano';
+  if (S.variante === 'hoy') {
+    return `<div class="pr-pie">
+      <div class="cajon" style="animation:none">
+        <div class="cajon-cab"><b>Portapapeles · ${S.piezas.length}</b><button data-a="vaciar">Vaciar</button></div>
+        <ul>${S.piezas.map((p) => `<li>
+          <span class="ico">${SVG[p.tipo] || SVG.hoja}</span>
+          <span class="txt"><b>${esc(p.titulo)}</b><span>${esc(p.pie)}</span></span>
+          <button class="quitar" data-a="quitar" data-id="${p.id}" aria-label="Quitar">${SVG.equis}</button>
+        </li>`).join('')}</ul>
+      </div>
+    </div>`;
+  }
+  return `<div class="pr-pie ${sobre ? 'sobre-lote' : ''}">
+    ${S.abierta ? cajon(e.cajon) : ''}
+    ${mano(e.mano)}
+  </div>`;
+};
+
+/* ── Render ────────────────────────────────────────────────────────────── */
+function render() {
+  const hayLote = S.pantalla === 'cartera' && S.marcados.length > 0;
+  const ahora = { mano: S.piezas.length > 0, lote: hayLote, cajon: S.abierta };
+  const e = {
+    mano: ahora.mano && !prev.mano, lote: ahora.lote && !prev.lote, cajon: ahora.cajon && !prev.cajon,
+  };
+  proto.innerHTML = `
+    ${barra()}
+    <div class="pr-cuerpo">
+      <div class="pr-cab">${migas()}</div>
+      <div class="pr-lienzo">${LIENZO[S.pantalla]()}</div>
+      ${hayLote ? lote(e.lote) : ''}
+      ${pieDerecho(e)}
+      ${S.aviso ? `<div class="pr-aviso">${esc(S.aviso.texto)}${S.aviso.deshacer ? '<button data-a="deshacer">Deshacer</button>' : ''}</div>` : ''}
+    </div>`;
+  prev = ahora;
+  if (S.dice) {
+    const m = proto.querySelector('.mano');
+    if (m) requestAnimationFrame(() => m.classList.add('dice'));
+  }
+}
+
+/* ── Verbos ────────────────────────────────────────────────────────────── */
+const PIE_DE = { ejercicio: 'ejercicio', hoja: 'hoja', comida: 'comida' };
+const DONDE = { hoja: 'Marta · Acumulación', ejercicio: 'Marta · Lower A', comida: 'Marta · día de entreno' };
+
+function copiar(tipo, id) {
+  const de = { hoja: 'hojas', ejercicio: 'ejercicios', comida: 'comidas' }[tipo];
+  const o = S.datos[de].find((x) => x.id === id) || S.datos.plantillas.find((x) => x.id === id);
+  if (!o) return;
+  S.piezas = [{ id: 'pp' + Date.now(), tipo, titulo: o.n, pie: `${PIE_DE[tipo]} · ${o.d} · ${DONDE[tipo]}`, d: o.d }, ...S.piezas].slice(0, 12);
+  /* LEY II: copiar no saca aviso. Lo dice la mano, dos segundos, y se calla. */
+  S.dice = o.n; S.abierta = false;
+  clearTimeout(relojDice);
+  relojDice = setTimeout(() => {
+    const m = proto.querySelector('.mano');
+    if (m) m.classList.remove('dice');
+    setTimeout(() => { S.dice = null; render(); }, 340);
+  }, 2200);
+  render();
+}
+
+function pegar(piezaId) {
+  const d = destino(); const p = S.piezas.find((x) => x.id === piezaId);
+  if (!d || !p) return;
+  const antes = S.datos[d.lista].slice();
+  S.datos[d.lista] = [...antes.map((x) => ({ ...x, nueva: false })), { id: 'n' + Date.now(), n: p.titulo, d: p.d, nueva: true }];
+  S.abierta = false;
+  /* LEY II: pegar sí, porque escribe en el programa de alguien — y por eso trae
+     su deshacer. Guardar en plantillas no toca a nadie: se ve caer y ya está. */
+  S.aviso = d.guarda
+    ? null
+    : { texto: `«${p.titulo}» pegado en ${d.donde}.`, deshacer: () => { S.datos[d.lista] = antes; } };
+  render();
+  if (S.aviso) setTimeout(() => { if (S.aviso) { S.aviso = null; render(); } }, 6000);
+}
+
+const acciones = {
+  ir(b) { S.pantalla = b.dataset.p; S.abierta = false; render(); },
+  copiar(b) { copiar(b.dataset.t, b.dataset.id); },
+  abrir() { S.abierta = !S.abierta; render(); },
+  pegar(b) { pegar(b.dataset.id); },
+  quitar(b) { S.piezas = S.piezas.filter((p) => p.id !== b.dataset.id); if (!S.piezas.length) S.abierta = false; render(); },
+  vaciar() { S.piezas = []; S.abierta = false; render(); },
+  marcar(b) {
+    const id = b.dataset.id;
+    S.marcados = S.marcados.includes(id) ? S.marcados.filter((x) => x !== id) : [...S.marcados, id];
+    render();
+  },
+  deshacer() { if (S.aviso?.deshacer) S.aviso.deshacer(); S.aviso = null; render(); },
+  poner() {
+    const p = S.piezas.find((x) => x.tipo === 'hoja');
+    S.aviso = { texto: `«${p.titulo}» puesta en ${S.marcados.length} clientes.`, deshacer: () => {} };
+    render();
+    setTimeout(() => { if (S.aviso) { S.aviso = null; render(); } }, 6000);
+  },
+};
+
+proto.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-a]');
+  if (!b || b.disabled) return;
+  acciones[b.dataset.a]?.(b);
+});
+
+document.querySelectorAll('.mandos button[data-var]').forEach((b) => {
+  b.addEventListener('click', () => {
+    S.variante = b.dataset.var; S.abierta = false;
+    document.querySelectorAll('.mandos button[data-var]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    prev = { mano: false, lote: false, cajon: false };
+    render();
+  });
+});
+
+render();
+
+/* La mano del teléfono: una lámina, no un prototipo. */
+document.getElementById('tel-mano').innerHTML = `
+  <div class="mano viva">
+    <button class="verbo" style="height:34px;font-size:12px;padding:0 12px">Pegar en Lower A</button>
+    <button class="parte" style="height:34px;padding:0 10px"><span class="n">2</span></button>
+  </div>`;
+</script>

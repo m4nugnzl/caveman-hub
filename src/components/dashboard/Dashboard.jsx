@@ -3,6 +3,8 @@ import { Suspense, useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { buildWeeklySeries, metricPoints, weekOverWeek } from '@/domain/analytics';
 import { weeklyCheckIn } from '@/domain/anthropometry';
+import { clientCycleSlots } from '@/domain/blocks';
+import { cycleFoto } from '@/domain/nutrition';
 import { clientProtocol, isServiceOn, weighInsTarget } from '@/domain/protocol';
 import { goalFromDirection } from '@/domain/goals';
 import { effectiveGoal, roadmapState } from '@/domain/roadmap';
@@ -127,6 +129,13 @@ export const Dashboard = ({ audience = 'coach' }) => {
   const anthro = anthropometry[activeClient.id];
   const history = useMemo(() => anthro?.history || [], [anthro]);
   const plan = nutrition[activeClient.id];
+  /* Lo que come de media en una vuelta de su ciclo, para que la fila de
+     calorías no enseñe el primer día del plan como si fuera el plan. Ver
+     `cycleFoto` y la cabecera de esa fila en `TarjetaPlan`. */
+  const fotoDelCiclo = useMemo(
+    () => cycleFoto(plan, clientCycleSlots(activeClient, workoutData?.[activeClient.id])),
+    [plan, activeClient, workoutData]
+  );
   const hoy = todayISO();
 
   const serie = useMemo(
@@ -325,6 +334,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             goal={goal}
             pesoActual={pesoActual}
             plan={plan}
+            ciclo={fotoDelCiclo}
             program={program}
             conDieta={conDieta}
             conEntreno={conEntreno}

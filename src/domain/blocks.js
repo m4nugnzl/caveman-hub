@@ -20,7 +20,7 @@
  * de datos y nada de lo que ya existe cambia de forma. Ver la migración 0086.
  */
 import { newId } from '@/lib/ids';
-import { MRV_GOALS, cloneExerciseAsTemplate, dayPlannedVolume, tecnicaOf } from './training';
+import { MRV_GOALS, cloneExerciseAsTemplate, cycleSlots, dayPlannedVolume, tecnicaOf } from './training';
 import { executedSessions, sessionTonnage } from './sessions';
 
 /** La última semana montada del programa (0 sin ninguna). */
@@ -317,11 +317,54 @@ export const blockPlannedVolume = (program, block) => {
    lleva las semanas que se salen (`difieren`) y la pantalla las nombra.
 */
 
-/** «8-10» si todas las series piden lo mismo; `null` si son mixtas. */
-const repsObjetivo = (exercise) => {
-  const valores = (exercise?.sets || []).map((s) => String(s?.targetReps ?? '').trim());
+/**
+ * LO QUE PIDEN TODAS LAS SERIES, EN UNA CIFRA. `null` si no piden lo mismo.
+ *
+ * «8-10» cuando las cuatro series piden 8-10; `null` cuando la primera pide 5 y
+ * la última 12, que es lo que la pantalla dice con la palabra «varias»; y `''`
+ * cuando ninguna lo pauta, que es distinto de las dos anteriores: no hay
+ * desacuerdo, hay silencio.
+ *
+ * Nació resumiendo las repeticiones y vale igual para los kilos y el RIR: los
+ * tres objetivos cuelgan de la SERIE y los tres se leen —y se escriben— desde
+ * el renglón del ejercicio, que es donde se pauta lo que vale para todas. Una
+ * sola lectura para los tres, porque si no habría tres formas de contestar la
+ * misma pregunta.
+ */
+export const pautaComun = (exercise, campo) => {
+  const valores = (exercise?.sets || []).map((s) => String(s?.[campo] ?? '').trim());
   if (valores.length === 0) return '';
   return valores.every((v) => v === valores[0]) ? valores[0] : null;
+};
+
+/** «8-10» si todas las series piden lo mismo; `null` si son mixtas. */
+const repsObjetivo = (exercise) => pautaComun(exercise, 'targetReps');
+
+/**
+ * LA PAUTA CON LA QUE NACE EL EJERCICIO SIGUIENTE: la del anterior de la hoja.
+ *
+ * Esto se decidía en dos sitios y de dos maneras distintas: el alta del banco
+ * llevaba sus propias casillas «3 × 8-10» —pegajosas, se quedaban de un
+ * ejercicio al siguiente— y el «+» de la biblioteca añadía SIEMPRE 3 × 8-10 sin
+ * mirar nada. El mismo gesto daba dos resultados según por dónde entraras, y el
+ * alta pagaba dos campos de formulario en el sitio más visible de la pantalla
+ * por una decisión que casi nunca cambia.
+ *
+ * Quien mete cuatro de espalda a 4 × 6-8 los quiere iguales; y cuando no, la
+ * cifra se corrige en la fila, que es donde se lee. La hoja en blanco arranca
+ * en 3 × 8-10, que es de donde venía el valor de siempre.
+ *
+ * Recibe los ejercicios TAL Y COMO LOS LEE LA PANTALLA (`planExerciseView`):
+ * `series` contadas y `targetReps` resumido. Las repeticiones mixtas —`null`—
+ * no se heredan: un ejercicio nuevo no nace con una pirámide que nadie ha
+ * pedido.
+ */
+export const pautaHeredada = (exercises = []) => {
+  const ultimo = exercises[exercises.length - 1];
+  return {
+    numSets: ultimo?.series || 3,
+    targetReps: ultimo?.targetReps || '8-10',
+  };
 };
 
 /**
@@ -339,11 +382,58 @@ export const planExerciseView = (ex) => ({
   muscle: ex.muscle,
   series: (ex.sets || []).length,
   targetReps: repsObjetivo(ex),
+  /*
+    ── Y LAS SERIES, QUE NO SON UN RESUMEN ───────────────────────────────────
+    Esta lectura nació resumiendo —cuántas series, qué repeticiones— porque eso
+    era todo el plan de un ejercicio. Dejó de serlo cuando los kilos y el RIR
+    bajaron a la SERIE: desde entonces «4 × 6-8» es media verdad y la otra media
+    no viajaba, así que quien recibía la vista no podía enseñarla ni escribirla.
+
+    Se notaba en dos sitios a la vez y en los dos en silencio: `pesoPautado` de
+    la rejilla del bloque leía `ex.sets` para imprimir «100 kg» delante de la
+    pauta y le llegaba siempre vacío —el peso escrito en la hoja no aparecía en
+    ninguna parte de la rejilla—, y el banco del compositor no tenía de dónde
+    sacar las series para dejar pautarlas.
+
+    Van por referencia y sin copiar: es el mismo array que ya está en memoria.
+  */
+  sets: ex.sets || [],
   /* La gramática de serie viaja al plan: la rejilla y la hoja la imprimen. Las
      alternativas iban aquí y se han retirado del producto (ver `training.js`). */
   enlazado: Boolean(ex.enlazado),
   tecnica: tecnicaOf(ex),
   restSeconds: ex.restSeconds ?? null,
+  /* Tu indicación para ESE ejercicio. Es plan y no registro —la escribe el
+     entrenador al programar, y el cliente la lee junto a la fila—, así que
+     viaja igual que la pauta. Sin ella el compositor no podía enseñarla: la
+     nota estaba en la hoja y la vista que la hoja lee no la traía. */
+  coachNote: ex.coachNote ?? '',
+});
+
+/**
+ * Una hoja, como la lee la rejilla del bloque: sus ejercicios traducidos, las
+ * series contadas y el volumen pautado por grupo.
+ *
+ * ── Por qué está aquí y no dentro de `blockPlan` ──────────────────────────
+ * Porque hay TRES sitios que necesitan esta forma y solo dos tienen un bloque
+ * guardado del que sacarla: las dos ramas de `blockPlan` —el bloque con su
+ * plan dentro y el que todavía lo deduce de la última semana— y el
+ * COMPOSITOR, que trabaja sobre hojas que aún no están escritas en ninguna
+ * parte. Escrita tres veces se separarían al primer campo nuevo, y el que se
+ * quedaría atrás sería siempre el del compositor: es el único que no se ve en
+ * producción hasta que alguien abre un bloque.
+ *
+ * `vacias` y `difieren` los pone quien sabe de semanas; sin ellos, una hoja
+ * que no se repite en ningún microciclo — que es exactamente el caso de la
+ * que se está componiendo.
+ */
+export const planSessionView = (session, { vacias = [], difieren = [] } = {}) => ({
+  dayName: session.dayName,
+  series: (session.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
+  volumen: dayPlannedVolume(session),
+  exercises: (session.exercises || []).map(planExerciseView),
+  vacias,
+  difieren,
 });
 
 /** Qué ejercicios y cuántas series tiene un día: dos días con la misma firma
@@ -382,14 +472,9 @@ export const blockPlan = (program, block) => {
     return {
       reference: null,
       weeks,
-      sessions: blockSessionsOf(block).map((hoja) => ({
-        dayName: hoja.dayName,
-        series: (hoja.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
-        volumen: dayPlannedVolume(hoja),
-        exercises: (hoja.exercises || []).map(planExerciseView),
-        vacias: [],
-        difieren: conExcepcion(hoja.dayName),
-      })),
+      sessions: blockSessionsOf(block).map((hoja) =>
+        planSessionView(hoja, { difieren: conExcepcion(hoja.dayName) })
+      ),
     };
   }
 
@@ -408,11 +493,7 @@ export const blockPlan = (program, block) => {
     const otras = weeks.filter((w) => w !== reference);
     const suyoEn = (w) => ((microcycles.find((m) => m.weekNumber === w)?.days) || []).find((d) => d.dayName === day.dayName);
 
-    return {
-      dayName: day.dayName,
-      series: (day.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
-      volumen: dayPlannedVolume(day),
-      exercises: (day.exercises || []).map(planExerciseView),
+    return planSessionView(day, {
       /* Sin nada escrito es que está por rellenar; con algo distinto, que se
          tocó a mano. Son dos cosas y llevan a dos acciones distintas: la
          primera se rellena con la plantilla, la segunda solo se avisa. */
@@ -421,7 +502,7 @@ export const blockPlan = (program, block) => {
         const suyo = suyoEn(w);
         return Boolean(suyo) && (suyo.exercises || []).length > 0 && firmaDelDia(suyo) !== firma;
       }),
-    };
+    });
   });
 
   return { reference, weeks, sessions };
@@ -452,16 +533,32 @@ export const blockSummary = (program, block) => {
   let kg = 0;
   let hechas = 0;
   let planificadas = 0;
+  /*
+    ── Microciclo a microciclo, para poder DIBUJARLO ─────────────────────────
+    Las cifras de arriba son del bloque entero y no dicen su forma: «38 de 40»
+    puede ser cuatro semanas parejas o tres perfectas y una en blanco. La misma
+    pasada que las suma deja aquí el desglose, que es lo que la fila de la lista
+    pinta como barra segmentada.
+
+    Es la mitad honesta de lo que hace Efort: su barra dibuja también las
+    semanas que faltan hasta el final, y aquí el bloque abierto no tiene final
+    que dibujar. Se pintan las escritas y el canto se deja abierto.
+  */
+  const detalle = [];
   for (const micro of suyos) {
     const sesiones = executedSessions(micro);
+    const suyasPlan = planOfWeek(program, micro.weekNumber).length;
     hechas += sesiones.length;
-    planificadas += planOfWeek(program, micro.weekNumber).length;
+    planificadas += suyasPlan;
     for (const s of sesiones) kg += sessionTonnage(s);
+    detalle.push({ semana: micro.weekNumber, hechas: sesiones.length, planificadas: suyasPlan });
   }
 
   const fechas = suyos.map((m) => m.date).filter(Boolean);
   return {
     semanas: semanas.length,
+    /* Cada microciclo escrito con lo que se hizo en él: la forma del bloque. */
+    microciclos: detalle,
     desde: fechas[0] || null,
     hasta: fechas[fechas.length - 1] || null,
     kg,
@@ -494,6 +591,36 @@ export const volumeByGroup = (hojas = []) =>
     }))
     .filter((m) => m.valor > 0)
     .sort((a, b) => b.valor - a.valor);
+
+/**
+ * Las series por grupo de UNA hoja, con lo que ese grupo suma en TODO el bloque.
+ *
+ * Es lo que hace falta para planificar con la hoja abierta: la cifra de la
+ * izquierda es lo que estás tocando —las series de este día— y la de detrás,
+ * dónde cae eso en el reparto del bloque. Sin la segunda no se puede contestar
+ * la pregunta que se hace uno mientras añade un ejercicio: «el pecho, ¿ya va
+ * servido en otro día?».
+ *
+ * Solo salen los grupos que ESTA hoja trabaja: la tabla de todos, grupo a
+ * grupo y hoja a hoja, es la de `VolumenPopup`, a un clic de aquí.
+ *
+ * @param volumenDeLaHoja  `{ Pecho: 6, Tríceps: 3 }` — de `dayPlannedVolume`,
+ *   leído del día que hay en la mesa y no del plan del bloque: con una excepción
+ *   puesta en este microciclo, los dos no coinciden y lo que se está mirando es
+ *   el día.
+ * @param hojasDelBloque   Las de `blockPlan(...).sessions`, con su `volumen`.
+ * @returns `[{ name, parte, valor, mrv }]`, de más a menos series en la hoja.
+ */
+export const sheetVolumeByGroup = (volumenDeLaHoja = {}, hojasDelBloque = []) =>
+  Object.entries(volumenDeLaHoja || {})
+    .filter(([, series]) => series > 0)
+    .map(([name, parte]) => ({
+      name,
+      parte,
+      valor: (hojasDelBloque || []).reduce((n, h) => n + (h?.volumen?.[name] || 0), 0),
+      mrv: MRV_GOALS[name]?.mrv ?? null,
+    }))
+    .sort((a, b) => b.parte - a.parte || a.name.localeCompare(b.name));
 
 /**
  * Dónde puede escribir la plantilla sin pisar lo que ya pasó.
@@ -762,6 +889,62 @@ export const horizonteDeBloque = (program, semanaEnCurso) => {
     posicion,
     siguiente,
     abierto,
+  };
+};
+
+/**
+ * EL HORIZONTE DE LO ESCRITO: por qué microciclo va, y cuántos hay detrás.
+ *
+ * ══ Por qué no vale `horizonteDeBloque` para esto ══════════════════════════
+ *
+ * `horizonteDeBloque` contesta sobre EL BLOQUE, y solo cuando la semana en
+ * curso cae dentro de sus semanas montadas. La pregunta de la portada y de la
+ * barra es otra y es más simple: **¿hay hoja escrita para la semana que viene?**
+ * Alguien que va por la 18 con diez microciclos escritos no tiene bloque en
+ * curso que contar —se le acabó— y es exactamente la persona por la que hay que
+ * preguntar.
+ *
+ * ── Por qué se cuenta lo ESCRITO y no lo que falta para un final ───────────
+ * Porque un bloque nuestro es abierto (`fraseDeHorizonte` devuelve literalmente
+ * «abierto»). El «New block forecast» de Efort funciona porque los suyos tienen
+ * duración fija; importarlo tal cual sería inventarse un final. Lo único cierto
+ * aquí es cuántos microciclos quedan escritos por delante, y de ahí sale la cola
+ * honesta: «sin semana siguiente», no «se le acaba el bloque».
+ *
+ * ══ Qué recibe ═════════════════════════════════════════════════════════════
+ *
+ * El ÍNDICE del programa —`{ microcycles: [{ weekNumber }], blocks }`—, que es
+ * lo que `trainingSummary` lleva de cada cliente de la cartera. Las funciones de
+ * este archivo no necesitan nada más para situar una semana en su bloque, así
+ * que la cartera y la ficha usan la misma aritmética sobre distinto volumen de
+ * datos, no dos aritméticas.
+ *
+ * Devuelve `null` cuando no hay nada escrito o no se sabe por dónde va: sin
+ * programa la respuesta no es «le falta la semana siguiente», es «no tiene
+ * rutina», y eso ya lo dice su alerta.
+ *
+ * `previstas` solo viene con número si el entrenador previó duración: entonces
+ * su barra puede decir «M3 de 4», que no es una deducción sino su plan, dicho.
+ */
+export const horizonteEscrito = (indice, semanaEnCurso) => {
+  if (semanaEnCurso === null || semanaEnCurso === undefined) return null;
+  const semanas = (indice?.microcycles || [])
+    .map((m) => m.weekNumber)
+    .filter((w) => Number.isFinite(w))
+    .sort((a, b) => a - b);
+  if (semanas.length === 0) return null;
+
+  const horizonte = horizonteDeBloque(indice, semanaEnCurso);
+  return {
+    /* Por dónde va, en el eje de la persona: la «M18» de la barra. */
+    microcicloEnCurso: semanaEnCurso,
+    /* Cuántos microciclos hay escritos DESPUÉS del que va. Cero es la cola. */
+    escritosDespues: semanas.filter((w) => w > semanaEnCurso).length,
+    /* El último escrito: de él sale CUÁNDO se queda sin hoja (`previsionEscrita`). */
+    ultimoEscrito: semanas[semanas.length - 1],
+    /* Su plan, si lo dijo. Y su sitio dentro del bloque, para poder decir «de 4». */
+    previstas: horizonte?.previstas ?? null,
+    posicion: horizonte?.posicion ?? null,
   };
 };
 
@@ -1461,6 +1644,20 @@ const conEjercicios = (program, blockId, dayName, fn) =>
 export const addBlockExerciseIn = (program, blockId, dayName, exercise) =>
   conEjercicios(program, blockId, dayName, (lista) => [...lista, exercise]);
 
+/**
+ * La lista entera de una hoja, de una vez.
+ *
+ * ── Por qué hace falta además de las de una en una ─────────────────────────
+ * Porque pegar una hoja ENCIMA de otra es una sola decisión —«este lunes pasa a
+ * ser este otro»— y hacerlo con las de arriba serían N bajas y M altas: la
+ * pantalla parpadearía por los pasos intermedios, la bitácora contaría catorce
+ * cambios donde hubo uno, y el «Deshacer» tendría que rehacer catorce
+ * escrituras en el orden correcto. Aquí el inverso es la lista de antes, que es
+ * lo que hace que pegar encima se pueda deshacer con un clic.
+ */
+export const setBlockExercisesIn = (program, blockId, dayName, exercises) =>
+  conEjercicios(program, blockId, dayName, () => exercises);
+
 export const removeBlockExerciseIn = (program, blockId, dayName, exerciseId) =>
   conEjercicios(program, blockId, dayName, (lista) => lista.filter((ex) => ex.id !== exerciseId));
 
@@ -1691,4 +1888,30 @@ export const removePlanExerciseOnlyIn = (program, weekNumber, dayName, exerciseI
       at,
     })
   );
+};
+
+/**
+ * LAS CASILLAS DEL CICLO DE UNA PERSONA, en un solo sitio.
+ *
+ * ══ Estaba escrito dos veces, y ahora hacían falta cinco ═══════════════════
+ *
+ * El mismo `useMemo` —el bloque en curso, y de él las sesiones o el reparto
+ * semanal— vivía copiado en `NutritionModule` y en `ClientDietRoute`: el
+ * entrenador y el cliente calculando por su cuenta las casillas que tienen que
+ * coincidir. Con la foto del plan guardando ya el reparto del ciclo
+ * (`cycleFoto`), los sitios que necesitan estas casillas pasan a ser cinco.
+ *
+ * Dos copias divergen; cinco es una avería anunciada. Aquí está la regla:
+ * quién es esta persona —su tipo de ciclo y su patrón— y qué entrena ahora
+ * mismo. Ver `cycleSlots`, que es quien las dibuja.
+ */
+export const clientCycleSlots = (client, program) => {
+  const bloque = currentBlock(program);
+  const rotativo = (client?.cycleType || 'weekly') === 'rotating';
+  return cycleSlots({
+    cycleType: client?.cycleType,
+    pattern: client?.cyclePattern,
+    sessions: rotativo && bloque ? blockPlan(program, bloque).sessions : [],
+    weeklySplit: bloque ? structureOfBlock(program, bloque).weeklySplit || {} : {},
+  });
 };

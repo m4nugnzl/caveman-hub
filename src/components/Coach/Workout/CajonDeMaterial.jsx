@@ -9,7 +9,7 @@ import { pieceSummary } from '@/domain/pieces';
 import { strengthByExercise } from '@/domain/reading';
 import { fieldText } from '@/domain/profile';
 import { localeNumber } from '@/lib/dates';
-import { Thumb } from '@/components/photos/Thumb';
+import { Maquina } from '@/components/equipment/Maquinaria';
 
 /**
  * EL CAJÓN DE MATERIAL: el cliente, al lado de la mesa.
@@ -155,12 +155,10 @@ export const CajonDeMaterial = ({
                   {tanda.items
                     .filter((pieza) => pieza.url)
                     .map((pieza) => (
-                      <figure key={pieza.id} className="gym-shot">
-                        <Thumb url={pieza.url} alt={pieza.name || tanda.group} width={220} />
-                        {pieza.name && (
-                          <figcaption className="t-2xs t-tertiary">{pieza.name}</figcaption>
-                        )}
-                      </figure>
+                      /* La misma pieza que la ficha y el pliegue del programa, con el
+                         marco y el rótulo al pie que le pusieron allí. Aquí no
+                         se toca nada: ordenar y borrar son de la ficha. */
+                      <Maquina key={pieza.id} pieza={pieza} grupo={tanda.group} />
                     ))}
                 </div>
               </div>

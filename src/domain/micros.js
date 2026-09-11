@@ -30,13 +30,30 @@
  * Por eso `sumMicros` no devuelve un número: devuelve el número **y de cuántos
  * sale**. Quien lo pinte tiene que decir las dos cosas.
  *
- * ══ Y nunca un objetivo ════════════════════════════════════════════════════
+ * ══ Nunca un objetivo QUE PONGA LA APP ═════════════════════════════════════
  *
- * Ni CDR, ni porcentaje, ni semáforo. Tres motivos y el tercero zanja: la app
- * no receta; una CDR depende de sexo, edad, embarazo y medicación —datos que la
- * app no tiene o sobre los que no debe razonar—; y una chapa roja en el hierro
- * es un diagnóstico. La app pone la composición al lado de tu intención escrita
- * y la conclusión la sacas tú, que es la gramática de `blocks.js`.
+ * Ni CDR, ni porcentaje, ni semáforo automático. Tres motivos y el tercero
+ * zanja: la app no receta; una CDR depende de sexo, edad, embarazo y medicación
+ * —datos que la app no tiene o sobre los que no debe razonar—; y una chapa roja
+ * en el hierro es un diagnóstico.
+ *
+ * ── Lo que sí puede escribir el ENTRENADOR (10 sep 2026) ──────────────────
+ * Eso deja fuera a la aplicación, no a quien la usa. Un mínimo de fibra o un
+ * techo de sal escritos por el entrenador son exactamente lo mismo que las
+ * 3.100 kcal de la casilla de al lado: su criterio, en su casilla, contra el
+ * que se lee el menú. Así que los cuatro tienen `target` —el campo del objetivo
+ * del día— y `sentido`, que es lo que evita el error de leerlos como macros:
+ *
+ *   · `min` (fibra) — pasarse está bien; quedarse corto es lo que se señala.
+ *   · `max` (azúcares, saturadas, sal) — al revés.
+ *
+ * Un macro se juzga con `cuadra` en las dos direcciones porque un objetivo de
+ * proteína es una cifra a la que llegar y de la que no pasarse. Estos no.
+ *
+ * Y siguen siendo OPCIONALES y opcionales de dos maneras: el objetivo puede no
+ * estar puesto —entonces el micro se lee y no se juzga— y las cuatro cifras
+ * enteras viven detrás del interruptor de opciones avanzadas del entrenador.
+ * Apagado, esta pantalla no las nombra.
  */
 
 import { toNum } from '@/lib/num';
@@ -46,14 +63,19 @@ import { toNum } from '@/lib/num';
  *
  * `key` nombra el micro; `field` es cómo se llama por 100 g en un alimento y en
  * una entrada de dieta —el mismo sufijo que `proteinPer100`, para que nadie
- * tenga que recordar dos convenciones—.
+ * tenga que recordar dos convenciones—; `target`, cómo se llama el objetivo del
+ * día si el entrenador lo escribe (el mismo sufijo que `proteinGrams`), y
+ * `sentido` dice si ese objetivo es un suelo o un techo. Ver la cabecera.
  */
 export const MICROS = [
-  { key: 'fiber', field: 'fiberPer100', label: 'Fibra', unit: 'g' },
-  { key: 'sugars', field: 'sugarsPer100', label: 'Azúcares', unit: 'g' },
-  { key: 'saturates', field: 'saturatesPer100', label: 'Saturadas', unit: 'g' },
-  { key: 'salt', field: 'saltPer100', label: 'Sal', unit: 'g' },
+  { key: 'fiber', field: 'fiberPer100', target: 'fiberGrams', sentido: 'min', label: 'Fibra', unit: 'g' },
+  { key: 'sugars', field: 'sugarsPer100', target: 'sugarsGrams', sentido: 'max', label: 'Azúcares', unit: 'g' },
+  { key: 'saturates', field: 'saturatesPer100', target: 'saturatesGrams', sentido: 'max', label: 'Saturadas', unit: 'g' },
+  { key: 'salt', field: 'saltPer100', target: 'saltGrams', sentido: 'max', label: 'Sal', unit: 'g' },
 ];
+
+/** Los cuatro campos del objetivo, para quien guarda o limpia el día entero. */
+export const MICRO_TARGET_FIELDS = MICROS.map((m) => m.target);
 
 const META = Object.fromEntries(MICROS.map((m) => [m.key, m]));
 
@@ -89,13 +111,41 @@ export const foodMicro = (entry, key) => {
 };
 
 /**
+ * Lo que declara este alimento y, si él no dice nada, lo que sepa su ficha de
+ * referencia —tu biblioteca o el catálogo—.
+ *
+ * ══ Por qué hace falta, y por qué NO rompe lo de congelar ══════════════════
+ *
+ * Una entrada de dieta es una foto: guarda los macros del día en que se añadió
+ * (`freezeMicros`). Y las cuatro del envase llegaron DESPUÉS —migración 0102, y
+ * las cifras del catálogo en la 0104—, así que todo lo que se pautó antes
+ * congeló cuatro ausencias. Resultado: dietas montadas con avena, arroz y
+ * lentejas diciendo «Fibra: no dice», que es lo que el dueño vio y no supo
+ * explicarse. No es que no lo sepa la aplicación; es que esa copia es vieja.
+ *
+ * Aquí no se refresca ningún macro: los gramos y las kcal de la fila siguen
+ * siendo los del día que se pautó, que es lo que hace que una dieta no se mueva
+ * sola. Lo que se rellena es un HUECO, y solo cuando la copia no dice nada. Es
+ * la misma regla que ya seguía la ficha del alimento (`EtiquetaNutricional`):
+ * el dato de referencia vive una vez.
+ *
+ * @param general La fila de referencia de ese alimento, o `null`.
+ */
+export const declaredMicro = (food, general, key) => {
+  const suyo = microPer100(food, key);
+  return suyo === null ? microPer100(general, key) : suyo;
+};
+
+/**
  * La suma de un conjunto de alimentos, CON SU COBERTURA.
  *
+ * @param general Opcional: `(alimento) => fila de referencia | null`, para
+ *   rellenar lo que la copia congelada no diga. Ver `declaredMicro`.
  * @returns `{ fiber: { value, declared, total }, … }` donde `value` es la suma
  *   de los que declaran, `declared` cuántos son y `total` cuántos hay. Con
  *   `declared === 0` el valor es `null` y no cero: nadie ha dicho nada.
  */
-export const sumMicros = (foods = []) => {
+export const sumMicros = (foods = [], general = null) => {
   const lista = (foods || []).filter(Boolean);
   const out = {};
 
@@ -103,15 +153,36 @@ export const sumMicros = (foods = []) => {
     let value = 0;
     let declared = 0;
     for (const food of lista) {
-      const aporte = foodMicro(food, key);
-      if (aporte === null) continue;
-      value += aporte;
+      const per100 = general ? declaredMicro(food, general(food), key) : microPer100(food, key);
+      if (per100 === null) continue;
+      value += (per100 * (toNum(food?.grams) ?? 0)) / 100;
       declared += 1;
     }
     out[key] = { value: declared > 0 ? value : null, declared, total: lista.length };
   }
 
   return out;
+};
+
+/**
+ * ¿Cumple lo que le pediste? `null` cuando no hay objetivo o no hay cifra: sin
+ * las dos no hay nada que decir, y decirlo igualmente sería inventar.
+ *
+ * El margen es del 10 % del propio objetivo y nunca menos de 1 g: estas cifras
+ * salen de sumar etiquetas redondeadas a un decimal, así que un suelo exacto
+ * pintaría en rojo un menú que se queda a medio gramo. Y se juzga por su
+ * `sentido`: pasarse de fibra no es un fallo, pasarse de sal sí.
+ *
+ * @returns `'ok'` | `'corto'` | `'pasa'`
+ */
+export const microVerdict = (key, valor, objetivo) => {
+  const meta = META[key];
+  const pedido = toNum(objetivo);
+  if (!meta || pedido === null || pedido <= 0 || valor === null || valor === undefined) return null;
+
+  const margen = Math.max(1, pedido * 0.1);
+  if (meta.sentido === 'min') return valor >= pedido - margen ? 'ok' : 'corto';
+  return valor <= pedido + margen ? 'ok' : 'pasa';
 };
 
 /**

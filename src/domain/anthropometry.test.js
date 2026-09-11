@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { latestWeight, weeklyCheckIn } from './anthropometry';
+import { kcalSteps, lastKcalChange, latestWeight, weeklyCheckIn } from './anthropometry';
 
 /**
  * El último peso, que antes era una columna que nadie actualizaba.
@@ -131,5 +131,73 @@ describe('weeklyCheckIn con cadencia de varias semanas', () => {
     const r = weeklyCheckIn(conPosterior, '2026-08-03', { weeks: 2 });
     expect(r.count).toBe(3);
     expect(r.average).toBe(79.47);
+  });
+});
+
+/**
+ * ══ LA EVOLUCIÓN DE LA DIETA, LEÍDA DE LOS PESAJES ═════════════════════════
+ *
+ * Cada pesaje guarda una foto de los macros del día desde hace meses
+ * (`log.nutrition`) y no la leía nadie: `kcalSeries` tenía pruebas y cero
+ * llamadas. Esto es lo que la convierte en la lectura que se pedía —«le bajaste
+ * 250 kcal el 6 de julio; desde entonces, −2,4 kg»— sin declarar ningún tramo a
+ * mano ni añadir una columna al esquema.
+ *
+ * Lo que hay que proteger: que un cambio es un CAMBIO (dos pesajes con la misma
+ * cifra no lo son), y que el «desde entonces» no se inventa cuando todavía no
+ * hay ningún pesaje posterior — ahí la diferencia es cero por definición y
+ * pintarla como resultado sería mentir sobre lo que aún no ha pasado.
+ */
+describe('los cambios de kcal salen de la foto de cada pesaje', () => {
+  const log = (date, weight, kcals) => ({
+    id: date,
+    date,
+    weight,
+    ...(kcals ? { nutrition: { kcals } } : {}),
+  });
+
+  it('un escalón es un cambio de cifra, no un pesaje más', () => {
+    const history = [
+      log('2026-06-01', 80, 2500),
+      log('2026-06-08', 79.4, 2500),
+      log('2026-06-15', 79.1, 2250),
+      log('2026-06-22', 78.2, 2250),
+    ];
+    expect(kcalSteps(history)).toEqual([{ date: '2026-06-15', from: 2500, to: 2250, delta: -250 }]);
+  });
+
+  it('el último cambio trae lo que ha hecho el peso desde entonces', () => {
+    const history = [
+      log('2026-06-01', 80, 2500),
+      log('2026-06-15', 79.1, 2250),
+      log('2026-06-29', 76.7, 2250),
+    ];
+    expect(lastKcalChange(history)).toMatchObject({
+      date: '2026-06-15',
+      delta: -250,
+      weightFrom: 79.1,
+      weightTo: 76.7,
+      weightDelta: -2.4,
+    });
+  });
+
+  /* El día que se toca el objetivo, el «desde entonces» todavía no existe. */
+  it('sin pesaje posterior al cambio no hay diferencia que contar', () => {
+    const history = [log('2026-06-01', 80, 2500), log('2026-06-15', 79.1, 2250)];
+    expect(lastKcalChange(history).weightDelta).toBeNull();
+  });
+
+  /* Con una sola cifra pautada no hay «desde entonces»: decirlo igualmente
+     sería inventarse un hito que no ha ocurrido. */
+  it('sin ningún cambio no hay hito', () => {
+    expect(lastKcalChange([log('2026-06-01', 80, 2500), log('2026-06-08', 79, 2500)])).toBeNull();
+    expect(lastKcalChange([])).toBeNull();
+  });
+
+  /* Los pesajes anteriores a que la dieta guardara su foto no cuentan como un
+     cambio: no dicen «cero kcal», dicen que no se sabe. */
+  it('los pesajes sin foto de la dieta no son un escalón', () => {
+    const history = [log('2026-05-01', 82, null), log('2026-06-01', 80, 2500), log('2026-06-08', 79, 2500)];
+    expect(kcalSteps(history)).toEqual([]);
   });
 });

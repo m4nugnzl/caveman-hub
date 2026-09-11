@@ -1,8 +1,16 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Cake, CalendarCheck, Eye, PersonStanding, Ruler, UserPlus } from 'lucide-react';
+import {
+  ArrowLeft,
+  Cake,
+  CalendarCheck,
+  PersonStanding,
+  Ruler,
+  Search,
+  UserPlus,
+} from 'lucide-react';
 
-import { useActions, useApp } from '@/context/AppContext';
+import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
 import { feeLabel, paymentState } from '@/domain/billing';
 import { identityFacts } from '@/domain/ficha';
@@ -10,7 +18,9 @@ import { buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfoli
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { clientProtocol } from '@/domain/protocol';
 import { semanaDeAhora } from '@/domain/week';
+import { useAtajoDelAncho, useBarraPlegada } from '@/lib/barraPlegada';
 import { dayMonthMaybeYear, todayISO } from '@/lib/dates';
+import { norm } from '@/lib/texto';
 import {
   COACH_CLIENT,
   COACH_HOME,
@@ -23,10 +33,13 @@ import {
 } from '@/routes';
 import { EmptyState, Loading } from '@/components/ui/primitives';
 import { Avatar } from '@/components/ui/Avatar';
+import { EstadoDeRed, Nube } from '@/components/ui/EstadoDeRed';
+import { Pliegue } from '@/components/ui/Pliegue';
 import { useMarcaDeslizante } from '@/components/ui/carril';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { Logo } from '@/components/ui/Logo';
 import { Modal } from '@/components/ui/Modal';
+import { MandoDeOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import { HeaderActions, Omnibox } from '@/components/Header';
 import { ClientSwitcher } from './ClientSwitcher';
 import { GettingStarted } from './GettingStarted';
@@ -141,6 +154,16 @@ const ChapaDeCobro = ({ client }) => {
   hechos de `identityFacts` vuelven completos, el peso incluido.
 */
 
+/**
+ * A partir de cuántos clientes la cola lleva filtro.
+ *
+ * Ocho es lo que cabe en la barra sin rodar en una pantalla normal: hasta ahí
+ * la lista se abarca de una mirada y un campo de texto encima es un trámite
+ * para hacer lo que hace el ojo. De ahí en adelante hay que desplazarse, y
+ * entonces filtrar es lo que separa una cola de un listín.
+ */
+const UMBRAL_FILTRO = 8;
+
 /** La pestaña desde la que NO se ofrece «Revisar semana»: ya estás en ella. */
 const SECCION_SEMANA = COACH_CLIENT.find((s) => s.path === 'semana');
 /** El perfil: en escritorio se abre desde el nombre, no desde una pestaña. */
@@ -161,8 +184,32 @@ export const CoachLayout = () => {
     envioRows,
     workoutData,
   } = useApp();
-  const { setViewMode } = useActions();
   const { clientId } = useParams();
+
+  /* Si la barra va recogida a iconos —solo para pintarla así; quien lo manda
+     es el botón del ancho, en la esquina de la cinta (`ui/Pliegue`)— y por
+     quién has pasado últimamente. Los dos aquí arriba con el resto de ganchos:
+     más abajo hay retornos tempranos. */
+  const [plegada] = useBarraPlegada();
+  /* El atajo del ancho (`Ctrl + \`), montado UNA sola vez y aquí: este es el
+     único sitio que pinta la barra lateral. Ver `lib/barraPlegada`. */
+  useAtajoDelAncho();
+  /* Lo escrito en el filtro de la cola. Es del momento y no del aparato: filtrar
+     la lista es un gesto de ahora, y encontrársela filtrada mañana al abrir la
+     aplicación sería esconder media cartera sin haberlo pedido. */
+  const [filtro, setFiltro] = useState('');
+  /*
+    ── Y por qué orden se sienta la cola ──────────────────────────────────────
+    Sin campo: manda el del dominio, que es la urgencia (`buildPortfolio`). Es el
+    MISMO `useOrden` de las tablas del producto (`ui/tabla.jsx`), y no un estado
+    propio, porque el mando que lo enseña es el de la cartera: una lista de
+    personas se ordena igual esté en una tabla o en la barra.
+
+    Del momento, como el filtro: se elige para contestar una pregunta de ahora
+    —«¿a quién no he visto?»— y encontrarse mañana la barra en Z → A sería una
+    decisión de anteayer aplicada a ciegas. Aquí arriba con los demás ganchos.
+  */
+  const orden = useOrden(null);
   const location = useLocation();
   const navigate = useNavigate();
   /* La marca de «estás aquí» del carril del cliente, que viaja entre destinos
@@ -290,6 +337,26 @@ export const CoachLayout = () => {
       esperando: new Set(
         tasks.filter((task) => task.awaited).flatMap((task) => task.rows.map((row) => row.client.id))
       ),
+      /* Por qué microciclo va cada uno, ya dicho: «M18», o «M3 de 4» si le
+         pusiste duración prevista. Del mismo `horizonteEscrito` del que salen la
+         cola y la previsión de la portada — un solo cálculo, tres sitios. */
+      microciclo: new Map(
+        rows
+          .filter((row) => row.horizonte)
+          .map((row) => [
+            row.client.id,
+            row.horizonte.previstas && row.horizonte.posicion
+              ? `M${row.horizonte.posicion} de ${row.horizonte.previstas}`
+              : `M${row.horizonte.microcicloEnCurso}`,
+          ])
+      ),
+      /* Los días que lleva cada uno sin entrenar. No se pinta en ninguna fila
+         —la barra dice el nombre, el punto y el microciclo, y para comparar
+         está `/clientes`—: es lo único que hace falta para poder ORDENAR por
+         ello, que es la otra pregunta que se le hace a esta lista. El mismo
+         `sinceTraining` con el que ordena su columna en la cartera; contarlo
+         aquí por segunda vez sería un segundo «último entreno». */
+      sinEntrenar: new Map(rows.map((row) => [row.client.id, row.sinceTraining])),
     };
   }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts]);
 
@@ -363,6 +430,62 @@ export const CoachLayout = () => {
     activeClient && !clients.some((c) => c.id === activeClient.id)
       ? [activeClient, ...clients]
       : clients;
+
+  /*
+    ── Las filas de la cola, en el orden del trabajo ──────────────────────────
+    `buildPortfolio` ya ordena por urgencia y la barra se sienta en ese mismo
+    orden: quien te espera arriba. Alfabético parecía más «lista», pero una lista
+    que no ordena por nada es un índice, y para buscar un nombre concreto están
+    el filtro y el buscador.
+
+    El filtro compara en minúsculas y sin acentos: quien escribe «alvaro» en la
+    barra espera encontrar a Álvaro, y no encontrarlo se lee como que no está.
+  */
+  const busca = norm(filtro);
+  const filas = ordenar(
+    cartera
+      .filter((c) => !busca || norm(c.name).includes(busca))
+      .sort((a, b) => (bandeja.orden.get(a.id) ?? 0) - (bandeja.orden.get(b.id) ?? 0)),
+    orden,
+    /* Dos preguntas y ninguna más. `ordenar` devuelve la lista tal cual mientras
+       no haya campo, así que la urgencia sigue siendo lo que se ve al entrar. */
+    {
+      nombre: (c) => c.name,
+      entreno: (c) => bandeja.sinEntrenar.get(c.id),
+    }
+  ).map((cliente) => ({
+    cliente,
+    espera: bandeja.esperando.has(cliente.id),
+    microciclo: bandeja.microciclo.get(cliente.id) || null,
+  }));
+
+  /*
+    ── Lo que la cola puede contestar ─────────────────────────────────────────
+    Dos criterios, no los cinco de la cartera: aquí no hay columnas de estado,
+    semana ni peso que ordenar, y ofrecer un orden que la fila no explica deja
+    una lista barajada sin decir por qué. «Nombre» es el que se echa en falta
+    —la barra es donde se busca a alguien que ya se sabe quién es, y la urgencia
+    lo mueve de sitio cada mañana— y «Último entreno» es la pregunta que el
+    punto no contesta: el punto dice quién te espera, no a quién no has visto.
+
+    Con un solo cliente no hay nada que ordenar, y «Último entreno» solo si
+    alguien ha entrenado alguna vez: la regla de los chips a cero.
+  */
+  const camposDeOrden =
+    cartera.length > 1
+      ? [
+          { id: 'nombre', label: 'Nombre', sentidos: { asc: 'A → Z', desc: 'Z → A' } },
+          [...bandeja.sinEntrenar.values()].some((d) => d !== null && d !== undefined) && {
+            id: 'entreno',
+            label: 'Último entreno',
+            num: true,
+            sentidos: {
+              asc: 'los que acaban de entrenar',
+              desc: 'los que más llevan sin entrenar',
+            },
+          },
+        ].filter(Boolean)
+      : [];
 
   /*
     A dónde lleva pulsar a alguien. Cambiar de cliente CONSERVA la sección: si
@@ -493,7 +616,16 @@ export const CoachLayout = () => {
   return (
     <div className="shell">
       {/* ══ La barra lateral: solo existe en escritorio (ver EL CHASIS) ═══ */}
-      <aside className="sidebar barra-tinta">
+      <aside className={`sidebar barra-tinta${plegada ? ' is-plegada' : ''}`}>
+        {/*
+          ══ LA MARCA, Y NINGÚN MANDO ════════════════════════════════════════
+          Aquí estuvo el interruptor del pliegue, y duró una tarde: cromo del
+          chasis en la esquina donde el chasis no tiene que explicarse. El
+          pliegue no es una preferencia que se vaya a buscar, es la respuesta a
+          una pantalla que se queda estrecha, así que el mando se ha ido a esa
+          pantalla —«Ampliar», en la cabecera de Entreno— y la barra solo
+          obedece. El porqué entero, en `lib/barraPlegada`.
+        */}
         <div className="sidebar-brand">
           <Logo subtitle={null} />
         </div>
@@ -543,6 +675,10 @@ export const CoachLayout = () => {
                   key={path}
                   type="button"
                   className={`side-link${capa === capaId || enSuRuta ? ' active' : ''}`}
+                  /* Plegada, el rótulo es lo único que falta y el título lo
+                     devuelve. Desplegada NO se pone: repetir en un globo la
+                     palabra que está escrita al lado es ruido. */
+                  title={plegada ? label : undefined}
                   aria-haspopup="dialog"
                   aria-expanded={capa === capaId}
                   onClick={() => {
@@ -556,7 +692,7 @@ export const CoachLayout = () => {
             }
             const cuenta = cuentaDe[path];
             return (
-              <NavLink key={path} to={path} className="side-link" end>
+              <NavLink key={path} to={path} className="side-link" title={plegada ? label : undefined} end>
                 <Icon size={15} />
                 {label}
                 {cuenta && (
@@ -571,6 +707,129 @@ export const CoachLayout = () => {
             );
           })}
         </nav>
+
+        {/*
+          ══ TUS CLIENTES: la barra ES LA COLA ═══════════════════════════════
+
+          Aquí vivió la cartera entera, salió el 8 de septiembre por listín, y
+          volvió con dos señales que son las que la convierten en otra cosa. El
+          diagnóstico de entonces era correcto y sigue siéndolo: **una lista de
+          nombres a secas es la cuarta forma de llegar a un cliente y no dice
+          nada que el buscador no diga antes**. Lo que cambia no es la lista, es
+          lo que lleva cada fila.
+
+          Es lo que más impresiona del panel de Efort y no lleva ni un gráfico:
+          bajo la navegación, la lista entera SIEMPRE, con una marca de atendido
+          y por qué semana va cada uno. Navegación, cola y horizonte dejan de ser
+          tres pantallas y pasan a ser el mismo objeto.
+
+          ── Las DOS señales, y la tercera que se quedó fuera ─────────────────
+          · El PUNTO azul: esta persona espera algo tuyo (las tareas `awaited`
+            de `domain/portfolio`, las mismas que cuenta la chapa de Inicio).
+            Azul porque invita, no porque riña — la ley del color.
+          · El MICROCICLO por el que va: «M18». Sin «de cuántos», porque un
+            bloque nuestro es abierto; solo si le pusiste duración prevista dice
+            «M3 de 4», que entonces no es una deducción sino tu plan, dicho.
+
+          La tercera —el punto tras la cifra para «no hay microciclo escrito
+          después»— se probó y se cae aquí a propósito: tres marcas por fila en
+          una columna de 240 px es la tabla que hizo envejecer mal la versión
+          anterior. Ese aviso tiene su sitio en la portada, que es donde se
+          trabaja con él (la cola «Sin semana siguiente» y la previsión).
+
+          ── Y por eso el «S2·S3·S1·S17» de antes no vuelve ──────────────────
+          Aquella columna era la semana MONTADA, o sea un hecho sobre tu trabajo
+          puesto en la fila de otra persona. Ésta es el microciclo por el que va
+          ELLA, que es de lo que habla su fila. Ver `semanaDeAhora`: un solo
+          reloj para toda la aplicación.
+
+          Con la barra recogida NO se pinta: 64 px son para el icono de un
+          destino, y un nombre sin cara ahí no es nada (ver `lib/barraPlegada`).
+        */}
+        {cartera.length > 0 && (
+          <nav className="sidebar-nav sidebar-cartera" aria-label="Tus clientes">
+            <p className="sidebar-group">
+              Tus clientes <span className="sidebar-group-n">{cartera.length}</span>
+            </p>
+            {/*
+              El filtro solo cuando la lista deja de abarcarse de una mirada. Con
+              seis nombres delante, un campo de texto encima es un trámite para
+              hacer lo que hace el ojo; con veinte, es la diferencia entre una
+              cola y un listín. No compite con el buscador de arriba: aquél va a
+              cualquier sitio de la aplicación, éste solo tacha filas de aquí.
+            */}
+            {/*
+              ══ LA BARRA DE LA COLA: filtrar a la izquierda, ordenar a la derecha
+              La misma línea y el mismo reparto que la barra de la cartera —el
+              buscador y, al otro extremo, «Por …»—, porque es la misma lista de
+              gente en otro mueble. Aprender el gesto en una pantalla y volver a
+              buscarlo en la otra es lo que hace que una aplicación parezca dos.
+
+              El mando SÍ está cuando el filtro no: ordenar catorce nombres y
+              filtrar catorce nombres no son el mismo problema. Con seis
+              clientes el ojo hace de filtro, pero seguir queriendo la lista en
+              A → Z es legítimo desde el segundo.
+            */}
+            {(cartera.length >= UMBRAL_FILTRO || camposDeOrden.length > 0) && (
+              <div className="sidebar-barra">
+                {cartera.length >= UMBRAL_FILTRO && (
+                  <div className="sidebar-filtro">
+                    <Search size={13} aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={filtro}
+                      onChange={(e) => setFiltro(e.target.value)}
+                      placeholder="Filtrar…"
+                      aria-label="Filtrar tus clientes"
+                    />
+                  </div>
+                )}
+                {camposDeOrden.length > 0 && (
+                  /* MUDO: el mismo menú de la cartera, pero al canto solo su
+                     icono. Decía el orden en voz alta —«Por último entreno»—
+                     porque aquí no hay cabeceras donde apoyarse, y en 240 px
+                     esa frase era lo más ancho de la línea: se comía el campo
+                     de filtrar o se bajaba a un renglón propio. El estado se
+                     lee en el globo y con la marca dentro del menú. */
+                  <MandoDeOrden
+                    orden={orden}
+                    campos={camposDeOrden}
+                    defecto="Urgencia"
+                    clase="sidebar-orden"
+                    ariaLabel="Ordenar tus clientes"
+                    mudo
+                  />
+                )}
+              </div>
+            )}
+            <div className="sidebar-lista">
+              {filas.map(({ cliente, espera, microciclo }) => (
+                <NavLink
+                  key={cliente.id}
+                  to={destinoDe(cliente.id)}
+                  /* El marcado NO lo decide `NavLink`: su `isActive` compara con
+                     `to`, y `to` conserva la sección en la que estás — así que al
+                     cambiar de pestaña dentro de la misma persona el destino deja
+                     de coincidir con la URL y la fila se apagaba con esa persona
+                     abierta delante. Quién está abierto lo dice la ruta. */
+                  className={`side-link side-persona${cliente.id === clientId ? ' active' : ''}`}
+                  title={cliente.name}
+                >
+                  {/* El punto ocupa su hueco esté o no encendido: si apareciera,
+                      empujaría el nombre y la lista bailaría al contestar alguien. */}
+                  <span
+                    className={`side-punto${espera ? ' is-espera' : ''}`}
+                    aria-hidden={!espera}
+                    title={espera ? 'Te espera' : undefined}
+                  />
+                  <span className="side-persona-nombre">{cliente.name}</span>
+                  {microciclo && <span className="side-ciclo">{microciclo}</span>}
+                </NavLink>
+              ))}
+              {filas.length === 0 && <p className="sidebar-vacio">Nadie con ese nombre</p>}
+            </div>
+          </nav>
+        )}
 
         {/*
           ══ TU TALLER: la otra mitad de la aplicación ═══════════════════════
@@ -599,6 +858,7 @@ export const CoachLayout = () => {
               className={({ isActive }) =>
                 `side-link${isActive || also.includes(location.pathname) ? ' active' : ''}`
               }
+              title={plegada ? label : undefined}
             >
               <Icon size={15} />
               {label}
@@ -657,8 +917,10 @@ export const CoachLayout = () => {
         */}
         <div className="sidebar-foot">
           {/* Las mismas piezas que monta la cabecera del móvil, en su versión de
-              fila: la campana del cliente y el aviso de cambios sin confirmar
-              viajan con ellas. */}
+              fila. Solo dos: la campana del cliente y tu cuenta. Lo que se monte
+              en `HeaderActions` acaba AQUÍ, así que ahí dentro no cabe nada que
+              no sea de esta esquina —la nube y el aviso de lo no guardado se
+              fueron por eso—. Ver `Header`. */}
           <HeaderActions variante="fila" />
         </div>
       </aside>
@@ -678,6 +940,12 @@ export const CoachLayout = () => {
       )}
 
       <div className="shell-main">
+        {/* El estado de la red, cuando tiene algo que decir. Entra en la columna
+            de contenido y no encima del chasis: montada en `App` —donde la
+            monta el portal— empujaba la barra lateral entera hacia abajo, que
+            es justo lo contrario de «que esté en la página». Ver
+            `ui/EstadoDeRed`. */}
+        <EstadoDeRed />
         {/* ── El subnivel del móvil: el mismo contexto, en horizontal ──── */}
         {/*
           ══ La cabecera del cliente: fija, igual en las cinco pestañas ═════
@@ -703,6 +971,10 @@ export const CoachLayout = () => {
                   destinos ya no cuelgan aquí en medio: tienen su raíl debajo. */}
               <div className="cliente-cab-linea">
               <div className="cliente-cab-quien">
+                {/* El ancho, EN CABEZA: la hoja crece hacia la izquierda —el
+                    canto derecho no se mueve— así que el mando va del lado que
+                    se abre. Ver `ui/Pliegue`. */}
+                <Pliegue />
                 <button
                   type="button"
                   className="btn btn-icon cliente-cab-volver"
@@ -751,6 +1023,14 @@ export const CoachLayout = () => {
                   </Link>
                 )}
                 <div className="cliente-cab-selector">{selector}</div>
+                {/* La nube, pegada al nombre: lo que dice es de qué se fía lo
+                    que estás mirando, así que va con lo que estás mirando y no
+                    en la esquina de lo que se puede hacer. Detrás del selector
+                    y no delante porque en el móvil el que ocupa el hueco del
+                    nombre es él —la puerta se retira— y el signo va al final de
+                    la línea de identidad en las dos geometrías. Ver
+                    `ui/EstadoDeRed`. */}
+                <Nube />
                 {/* La línea de datos, al lado del nombre y no debajo: quién es
                     y por dónde va. La anatomía va en CHAPAS con su signo (Q-08
                     del plan del acabado): tres medidas seguidas en texto
@@ -782,40 +1062,40 @@ export const CoachLayout = () => {
                 </p>
               </div>
 
-              {/* ── El extremo derecho: el estado y los dos verbos ─────────
-                  Eran dos cápsulas con canto de control. En una cinta de 60 px
-                  dos cajas de control al final vuelven a partirla en zonas, y
-                  la casa ya tenía escrita la gramática para esto:
-                  `.cab-accion` — «dos verbos al lado del nombre no necesitan
-                  caja» (revision.css). Se vuelve a ella.
+              {/* ── El extremo derecho: el estado, y un verbo SOLO SI TOCA ──
+                  Aquí vivieron dos verbos fijos, y ninguno de los dos aguantó
+                  la pregunta de para qué estaban siempre:
 
-                  El azul sigue siendo la ÚNICA señal de la banda: cuando esa
-                  persona espera respuesta, «Revisar semana» se rellena de
-                  botón y se sale del tratamiento a propósito. */}
+                  · «VER COMO» se ha ido del expediente. Nació para que el
+                    dueño pudiera comprobar el portal, no para el oficio de
+                    nadie: un entrenador no entra a la cuenta de su cliente,
+                    y una puerta permanente a hacerlo en la cabecera de las
+                    cinco pestañas era ofrecerlo como si lo fuera. Sigue
+                    existiendo donde vive lo que se usa de tarde en tarde: la
+                    paleta (⌘K, «Ver como lo ve mi cliente»), y en el taller,
+                    pegado a lo que sí se comprueba —un formulario antes de
+                    mandarlo—.
+
+                  · «REVISAR SEMANA» solo se dibuja cuando esa persona TIENE
+                    algo esperando. Estaba siempre, y la mayoría de los días no
+                    había nada que revisar: un verbo que la mitad de las veces
+                    lleva a una pantalla vacía enseña a no pulsarlo, y entonces
+                    tampoco se pulsa el día que sí. Cuando aparece, aparece en
+                    azul —es la única señal de la banda— y decir que existe ya
+                    es la mitad del aviso.
+
+                  Sin verbos, esta esquina se queda con las chapas del cobro,
+                  que es estado y no acción. La sección de revisión sigue a un
+                  clic en el raíl de abajo, como las otras cuatro. */}
               <div className="cliente-cab-acciones">
                 {chapas}
-                <button
-                  type="button"
-                  className="cab-accion cliente-cab-ver-como"
-                  onClick={() => setViewMode('client')}
-                  title={`Ver la aplicación como la ve ${activeClient.name.split(/\s+/)[0]}`}
-                  aria-label={`Ver la aplicación como la ve ${activeClient.name.split(/\s+/)[0]}`}
-                >
-                  <Eye size={15} aria-hidden="true" />
-                  <span>Ver como {activeClient.name.split(/\s+/)[0]}</span>
-                </button>
-                {!isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') &&
-                  (bandeja.esperando.has(activeClient.id) ? (
+                {bandeja.esperando.has(activeClient.id) &&
+                  !isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') && (
                     <Link className="btn btn-primary btn-sm" to={clientPath(clientId, 'semana')}>
                       <CalendarCheck size={15} aria-hidden="true" />
                       Revisar semana
                     </Link>
-                  ) : (
-                    <Link className="cab-accion is-principal" to={clientPath(clientId, 'semana')}>
-                      <CalendarCheck size={15} aria-hidden="true" />
-                      Revisar semana
-                    </Link>
-                  ))}
+                  )}
               </div>
               </div>
 

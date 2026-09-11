@@ -1,0 +1,1047 @@
+<title>El carril del protocolo</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Tokens · los de la app («Papel y señal»), copiados de src/styles/tokens.css.
+   Un prototipo que no usa los tokens de la casa está proponiendo otra casa.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+  --canvas: #f6f7f9;
+  --canvas-alt: #eceff3;
+  --surface: #ffffff;
+  --sunken: #f3f5f8;
+  --hairline: #e6e9ef;
+  --hairline-strong: #cbd1dc;
+  --fill-subtle: rgba(18, 21, 26, 0.035);
+  --fill: rgba(18, 21, 26, 0.06);
+  --text: #12151a;
+  --text-2: #5b6270;
+  --text-3: #6e7686;
+  --accent: #3b49df;
+  --accent-hover: #2f3ac2;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-wash: rgba(59, 73, 223, 0.10);
+  --accent-on: #ffffff;
+  --d-blue: #1b6ea6;
+  --d-violet: #7a34ad;
+  --d-teal: #0e7f73;
+  --d-amber: #96690a;
+  --d-orange: #b3520f;
+  --good: #0e7f73;
+  --warn: #a4530e;
+  --warn-soft: #fbeee1;
+  --shadow-sm: 0 1px 2px rgba(18, 24, 38, 0.05), 0 4px 14px -6px rgba(18, 24, 38, 0.09);
+  --shadow-md: 0 6px 20px -8px rgba(18, 24, 38, 0.15), 0 1px 3px rgba(18, 24, 38, 0.05);
+  --shadow-lg: 0 16px 36px -14px rgba(18, 24, 38, 0.24), 0 3px 8px rgba(18, 24, 38, 0.07);
+  --r-xs: 4px; --r-sm: 7px; --r-md: 11px; --r-lg: 18px; --r-pill: 999px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 22px; --s6: 32px; --s7: 44px;
+  --font: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: #090b0e;
+    --canvas-alt: #0f1216;
+    --surface: #1c2027;
+    --sunken: #14171c;
+    --hairline: rgba(214, 224, 244, 0.09);
+    --hairline-strong: rgba(214, 224, 244, 0.19);
+    --fill-subtle: rgba(214, 224, 244, 0.045);
+    --fill: rgba(214, 224, 244, 0.085);
+    --text: #e9ecf2;
+    --text-2: #a2a9b7;
+    --text-3: #7f8796;
+    --accent: #5b8df7;
+    --accent-hover: #7da5f9;
+    --accent-soft: rgba(91, 141, 247, 0.14);
+    --accent-wash: rgba(91, 141, 247, 0.20);
+    --accent-on: #10131a;
+    --d-blue: #59b4e6;
+    --d-violet: #c58ae6;
+    --d-teal: #47cdb8;
+    --d-amber: #e8bc55;
+    --d-orange: #f2a362;
+    --good: #47cdb8;
+    --warn: #f28d4a;
+    --warn-soft: rgba(242, 141, 74, 0.16);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
+    --shadow-lg: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #090b0e; --canvas-alt: #0f1216; --surface: #1c2027; --sunken: #14171c;
+  --hairline: rgba(214, 224, 244, 0.09); --hairline-strong: rgba(214, 224, 244, 0.19);
+  --fill-subtle: rgba(214, 224, 244, 0.045); --fill: rgba(214, 224, 244, 0.085);
+  --text: #e9ecf2; --text-2: #a2a9b7; --text-3: #7f8796;
+  --accent: #5b8df7; --accent-hover: #7da5f9;
+  --accent-soft: rgba(91, 141, 247, 0.14); --accent-wash: rgba(91, 141, 247, 0.20);
+  --accent-on: #10131a;
+  --d-blue: #59b4e6; --d-violet: #c58ae6; --d-teal: #47cdb8; --d-amber: #e8bc55; --d-orange: #f2a362;
+  --good: #47cdb8; --warn: #f28d4a; --warn-soft: rgba(242, 141, 74, 0.16);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ── El marco del prototipo ───────────────────────────────────────────── */
+.proto { max-width: 1180px; margin: 0 auto; padding: var(--s5) var(--s4) var(--s7); }
+.proto-cab {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s3) var(--s5);
+  padding-bottom: var(--s3); margin-bottom: var(--s4);
+  border-bottom: 1px solid var(--hairline);
+}
+.proto-marca { font-weight: 650; letter-spacing: -0.02em; font-size: 15px; }
+.proto-marca em {
+  font-style: normal; font-weight: 500; color: var(--text-3);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+  margin-left: var(--s2); vertical-align: 1px;
+}
+.proto-tabs { display: flex; gap: var(--s1); margin-left: auto; }
+.proto-tab {
+  border: 0; background: none; cursor: pointer;
+  padding: 6px 11px; border-radius: var(--r-pill);
+  font-size: 13px; font-weight: 500; color: var(--text-2);
+}
+.proto-tab:hover { background: var(--fill-subtle); color: var(--text); }
+.proto-tab[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.proto-pie {
+  margin-top: var(--s5); font-size: 12.5px; color: var(--text-3);
+  max-width: 66ch; line-height: 1.6;
+}
+.proto-pie b { color: var(--text-2); font-weight: 600; }
+
+/* ── La app ───────────────────────────────────────────────────────────── */
+.app {
+  background: var(--canvas); border: 1px solid var(--hairline);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-md); overflow: hidden;
+}
+.cab {
+  background: var(--surface); border-bottom: 1px solid var(--hairline);
+  padding: var(--s4) var(--s5) 0; position: relative;
+}
+/* La firma de la casa: marcas de graduación en el canto de la cabecera. */
+.cab::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px;
+  background-image: repeating-linear-gradient(to right, var(--hairline-strong) 0 1px, transparent 1px 9px);
+  opacity: 0.55;
+}
+.cab-linea { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.migas { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-3); }
+.migas button {
+  border: 0; background: none; cursor: pointer; padding: 2px 4px;
+  border-radius: var(--r-xs); color: var(--text-3);
+}
+.migas button:hover { color: var(--accent); }
+.cab-tit {
+  margin: 2px 0 0; font-size: 22px; font-weight: 650; letter-spacing: -0.021em;
+  text-wrap: balance;
+}
+.cab-dato { font-size: 12.5px; color: var(--text-3); }
+.cab-dato b { font-weight: 600; color: var(--text-2); }
+.cab-fin { margin-left: auto; display: flex; gap: var(--s2); align-items: center; }
+
+.banda { display: flex; gap: var(--s1); padding: var(--s3) 0 0; }
+.banda button {
+  border: 0; background: none; cursor: pointer; position: relative;
+  padding: 8px 12px 12px; font-size: 13.5px; font-weight: 500; color: var(--text-2);
+  display: flex; align-items: center; gap: 7px;
+}
+.banda button:hover { color: var(--text); }
+.banda button[aria-current="true"] { color: var(--accent); font-weight: 600; }
+.banda button[aria-current="true"]::after {
+  content: ""; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px;
+  background: var(--accent); border-radius: 2px 2px 0 0;
+}
+.banda .n {
+  font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-3); font-variant-numeric: tabular-nums;
+}
+.banda button[aria-current="true"] .n { background: var(--accent-soft); color: var(--accent); }
+
+.cuerpo { padding: var(--s5); display: grid; gap: var(--s5); }
+.cuerpo.dos { grid-template-columns: minmax(0, 1fr) 288px; align-items: start; }
+@media (max-width: 900px) { .cuerpo.dos { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── Botones ──────────────────────────────────────────────────────────── */
+.btn {
+  border: 1px solid var(--hairline-strong); background: var(--surface); color: var(--text);
+  border-radius: var(--r-sm); padding: 6px 12px; font-size: 13px; font-weight: 550;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+.btn:hover { background: var(--fill-subtle); }
+.btn-p { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
+.btn-p:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-l {
+  border: 0; background: none; color: var(--accent); font-weight: 550; font-size: 13px;
+  cursor: pointer; padding: 4px 2px; border-radius: var(--r-xs);
+}
+.btn-l:hover { color: var(--accent-hover); text-decoration: underline; text-underline-offset: 3px; }
+.btn-l.apaga { color: var(--text-3); }
+.btn-l.apaga:hover { color: var(--warn); }
+
+/* El interruptor. */
+.sw {
+  --w: 34px; --h: 20px;
+  border: 0; padding: 0; width: var(--w); height: var(--h); flex: 0 0 auto;
+  border-radius: var(--r-pill); background: var(--hairline-strong); cursor: pointer;
+  position: relative; transition: background 0.16s var(--ease);
+}
+.sw::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  transition: transform 0.16s var(--ease);
+}
+.sw[aria-checked="true"] { background: var(--accent); }
+.sw[aria-checked="true"]::after { transform: translateX(14px); }
+
+/* ══ EL CARRIL ═════════════════════════════════════════════════════════ */
+.carril { display: grid; gap: var(--s5); }
+
+.auto {
+  --rail: 13px;
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); box-shadow: var(--shadow-sm);
+  padding: var(--s4) var(--s4) var(--s3);
+}
+.auto[data-off="true"] { box-shadow: none; background: var(--sunken); }
+.auto[data-off="true"] .nodo, .auto[data-off="true"] .hilo { opacity: 0.5; }
+
+/* El nodo: un punto en la vía y una caja que se enciende. */
+.nodo { display: flex; align-items: stretch; gap: var(--s3); position: relative; }
+.punto {
+  flex: 0 0 auto; width: 26px; display: flex; justify-content: center; padding-top: 15px;
+}
+.punto i {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--surface);
+  border: 2px solid var(--hairline-strong); display: block;
+}
+.nodo[data-abierto="true"] .punto i { border-color: var(--accent); background: var(--accent); }
+
+.caja {
+  flex: 1 1 auto; min-width: 0; text-align: left; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--r-sm); background: none;
+  padding: 9px 11px; display: flex; align-items: center; gap: 10px;
+  transition: background 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+.caja:hover { background: var(--fill-subtle); border-color: var(--hairline); }
+.nodo[data-abierto="true"] > .caja { background: var(--accent-soft); border-color: transparent; }
+.verbo { font-weight: 600; color: var(--accent); flex: 0 0 auto; font-size: 14.5px; }
+.suj { font-size: 14.5px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lleva { font-size: 12.5px; color: var(--text-3); margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
+@media (max-width: 560px) { .lleva { display: none; } }
+
+.disco {
+  flex: 0 0 auto; width: 24px; height: 24px; border-radius: var(--r-sm);
+  display: grid; place-items: center; color: var(--tono, var(--d-blue));
+  background: color-mix(in srgb, var(--tono, var(--d-blue)) 12%, transparent);
+}
+.disco svg { display: block; }
+
+/* El nodo del disparador: la misma caja, otro peso. */
+.nodo-dis .caja { border-color: var(--hairline); background: var(--sunken); }
+.nodo-dis .caja:hover { background: var(--fill); }
+.nodo-dis[data-abierto="true"] > .caja { background: var(--accent-soft); border-color: transparent; }
+.cuando {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-3); flex: 0 0 auto;
+}
+.nodo-dis .suj { font-weight: 600; }
+.nodo-dis .punto i { width: 11px; height: 11px; border-width: 3px; border-color: var(--text-3); background: var(--surface); }
+
+/* ── EL HILO: la firma de esta pantalla ───────────────────────────────── */
+.hilo {
+  position: relative; margin-left: 13px; padding: 3px 0 3px 26px;
+  min-height: 34px; display: flex; align-items: center; gap: var(--s2);
+  border-left: 2px solid var(--hairline);
+}
+.hilo-et {
+  border: 1px solid transparent; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 550; color: var(--text-3);
+  padding: 2px 8px; border-radius: var(--r-pill);
+  font-variant-numeric: tabular-nums;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+}
+.hilo-et:hover { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.hilo[data-editando="true"] .hilo-et { background: var(--accent); color: var(--accent-on); }
+
+/* «En reposo no está»: el ⊕ del hilo solo aparece al acercarte. */
+.hilo-mas {
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
+  border: 1px dashed var(--hairline-strong); background: var(--surface); color: var(--text-3);
+  display: grid; place-items: center; padding: 0; line-height: 1;
+  opacity: 0; transition: opacity 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
+}
+.hilo:hover .hilo-mas, .hilo:focus-within .hilo-mas, .hilo-mas:focus-visible { opacity: 1; }
+.hilo-mas:hover { color: var(--accent); border-color: var(--accent); border-style: solid; }
+@media (hover: none) { .hilo-mas { opacity: 1; } }
+.hilo-fin .hilo-mas { opacity: 1; border-style: solid; }
+.hilo-fin { border-left-color: transparent; background-image: linear-gradient(var(--hairline) 0 0); background-size: 2px 50%; background-position: -2px 0; background-repeat: no-repeat; }
+
+/* El paso o el disparador, abierto en su sitio. */
+.editor {
+  margin: 0 0 var(--s2) 39px; padding: var(--s3) var(--s4) var(--s4);
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: var(--sunken); display: grid; gap: var(--s3);
+  animation: abre 0.18s var(--ease);
+}
+@keyframes abre { from { opacity: 0; transform: translateY(-3px); } }
+.rot {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--text-3); margin: 0 0 6px;
+}
+.seg { display: inline-flex; padding: 2px; gap: 2px; background: var(--fill); border-radius: var(--r-sm); }
+.seg button {
+  border: 0; background: none; cursor: pointer; padding: 5px 12px;
+  border-radius: 5px; font-size: 13px; font-weight: 550; color: var(--text-2);
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--hairline-strong); background: var(--surface); cursor: pointer;
+  border-radius: var(--r-pill); padding: 5px 11px; font-size: 13px; color: var(--text-2);
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-on); font-weight: 550; }
+.paso-cuando { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--hairline-strong); border-radius: var(--r-sm); background: var(--surface); }
+.stepper button { border: 0; background: none; cursor: pointer; width: 30px; height: 30px; font-size: 16px; color: var(--text-2); }
+.stepper button:hover { color: var(--accent); background: var(--fill-subtle); }
+.stepper span { min-width: 92px; text-align: center; font-size: 13px; font-weight: 550; font-variant-numeric: tabular-nums; }
+.editor-pie { display: flex; align-items: center; gap: var(--s3); justify-content: space-between; }
+.dice { font-size: 12.5px; color: var(--text-3); margin: 0; max-width: 60ch; }
+
+.auto-cab { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.auto-nom { font-size: 12.5px; color: var(--text-3); font-weight: 550; }
+.auto-fin { margin-left: auto; display: flex; align-items: center; gap: var(--s3); }
+.anadir-auto {
+  border: 1px dashed var(--hairline-strong); background: none; color: var(--text-2);
+  border-radius: var(--r-md); padding: 13px; cursor: pointer; font-size: 13.5px; font-weight: 550;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.anadir-auto:hover { border-color: var(--accent); color: var(--accent); border-style: solid; background: var(--accent-soft); }
+
+/* ══ EL PANEL ══════════════════════════════════════════════════════════ */
+.panel { display: grid; gap: var(--s4); position: sticky; top: var(--s4); }
+.panel section {
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); padding: var(--s3) var(--s4) var(--s4);
+}
+.panel h3 { margin: 0 0 var(--s3); font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-3); }
+.lleva-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+.pieza {
+  font-size: 12.5px; padding: 3px 9px; border-radius: var(--r-pill);
+  background: var(--fill-subtle); color: var(--text-2); border: 1px solid var(--hairline);
+}
+.filas { display: grid; gap: 2px; }
+.fila-sw { display: flex; align-items: center; gap: var(--s3); padding: 5px 0; font-size: 13.5px; }
+.fila-sw span { flex: 1 1 auto; min-width: 0; }
+.fila-sw small { display: block; font-size: 11.5px; color: var(--text-3); }
+.cifra { font-size: 30px; font-weight: 650; letter-spacing: -0.015em; font-variation-settings: 'wdth' 108; line-height: 1.05; }
+.cifra-pie { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+.chapa {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 550;
+  padding: 2px 8px; border-radius: var(--r-pill); background: var(--warn-soft); color: var(--warn);
+}
+
+/* ══ LA MESA (lista y cola) ════════════════════════════════════════════ */
+.mesa { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.mesa th {
+  text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-3); padding: 0 var(--s3) 8px;
+  border-bottom: 1px solid var(--hairline); white-space: nowrap;
+}
+.mesa td { padding: 11px var(--s3); border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.mesa tbody tr:hover { background: var(--fill-subtle); }
+.mesa .num { font-variant-numeric: tabular-nums; color: var(--text-2); white-space: nowrap; }
+.mesa .nom { font-weight: 550; }
+.mesa .qui { color: var(--text-3); font-size: 12.5px; }
+.mesa-caja {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: var(--s4) var(--s3) var(--s2); overflow-x: auto;
+}
+.mesa-caja + .mesa-caja { margin-top: var(--s4); }
+.rotulo-tramo {
+  display: flex; align-items: baseline; gap: var(--s3); margin: 0 0 var(--s3);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-3);
+}
+.rotulo-tramo .regla { flex: 1 1 auto; height: 1px; background: var(--hairline); }
+.rotulo-tramo em { font-style: normal; letter-spacing: 0; text-transform: none; font-weight: 500; font-size: 12px; color: var(--text-3); }
+.cancela { opacity: 0; }
+tr:hover .cancela, tr:focus-within .cancela { opacity: 1; }
+@media (hover: none) { .cancela { opacity: 1; } }
+.hecho { color: var(--good); font-weight: 550; font-size: 12.5px; }
+
+/* ══ LA FICHA ══════════════════════════════════════════════════════════ */
+.rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--s3); }
+.tarjeta {
+  text-align: left; cursor: pointer; background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: var(--s3) var(--s4); display: grid; gap: 3px; min-height: 84px;
+  align-content: center; transition: border-color 0.12s var(--ease), box-shadow 0.12s var(--ease);
+}
+.tarjeta:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.tarjeta b { font-size: 14px; font-weight: 600; }
+.tarjeta span { font-size: 12.5px; color: var(--text-3); }
+.tarjeta[data-nueva="true"] { border-color: var(--accent); background: var(--accent-soft); }
+
+.velo {
+  position: fixed; inset: 0; background: rgba(9, 11, 14, 0.45); z-index: 40;
+  display: grid; place-items: center; padding: var(--s4);
+  animation: vela 0.16s var(--ease);
+}
+@keyframes vela { from { opacity: 0; } }
+.hoja {
+  background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg); width: min(660px, 100%); max-height: 88vh; overflow: auto;
+  animation: sube 0.2s var(--ease);
+}
+@keyframes sube { from { opacity: 0; transform: translateY(8px); } }
+.hoja-cab {
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+  border-bottom: 1px solid var(--hairline); padding: var(--s4) var(--s5);
+  display: flex; align-items: center; gap: var(--s3);
+}
+.hoja-cab h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -0.015em; }
+.hoja-cab .btn { margin-left: auto; }
+.hoja-cuerpo { padding: var(--s5); display: grid; gap: var(--s5); }
+.mitad { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: var(--s4); }
+.mitad > h3 { margin: 0 0 3px; font-size: 14.5px; font-weight: 650; }
+.mitad > .dice { margin: 0 0 var(--s3); }
+.leelo { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--hairline); font-size: 13.5px; }
+.leelo:first-of-type { border-top: 0; }
+.leelo .suj { white-space: normal; }
+.leelo .qui { margin-left: auto; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.proc {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px;
+  color: var(--text-3); background: var(--fill-subtle); border: 1px solid var(--hairline);
+  border-radius: var(--r-pill); padding: 1px 8px;
+}
+.nota-motor {
+  border-top: 1px solid var(--hairline); padding-top: var(--s3); margin: 0;
+  font-size: 12px; color: var(--text-3); line-height: 1.55;
+}
+</style>
+
+<div class="proto">
+  <header class="proto-cab">
+    <div class="proto-marca">Protocolo y automatizaciones <em>prototipo clicable</em></div>
+    <nav class="proto-tabs" id="tabs" aria-label="Escenas"></nav>
+  </header>
+
+  <main class="app" id="app"></main>
+
+  <footer class="proto-pie" id="pie"></footer>
+</div>
+
+<script>
+/* ══ Los datos, con contenido real de la casa ═══════════════════════════ */
+
+const ICONOS = {
+  form: '<path d="M4 1.6h4.4L12 5.1v9.3H4z"/><path d="M8.4 1.6v3.5H12"/>',
+  medida: '<rect x="1.3" y="5" width="13.4" height="6" rx="1.2"/><path d="M4.5 5v2.2M7 5v3.2M9.5 5v2.2M12 5v3.2"/>',
+  entrega: '<rect x="1.5" y="3.6" width="13" height="8.8" rx="2"/><path d="M6.6 6.6l4 1.9-4 1.9z"/>',
+  tarea: '<rect x="2.4" y="2.4" width="11.2" height="11.2" rx="2.4"/><path d="M5.6 8.2l1.9 1.9 3.3-3.9"/>',
+  aviso: '<path d="M8 2.2a3.9 3.9 0 0 0-3.9 3.9c0 3-1.4 3.9-1.4 3.9h10.6s-1.4-.9-1.4-3.9A3.9 3.9 0 0 0 8 2.2z"/><path d="M6.6 12.6a1.5 1.5 0 0 0 2.8 0"/>',
+  reloj: '<circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.6"/>',
+};
+const TONOS = {
+  form: 'var(--d-blue)', medida: 'var(--d-violet)', entrega: 'var(--d-teal)',
+  tarea: 'var(--d-amber)', aviso: 'var(--d-orange)', reloj: 'var(--text-3)',
+};
+const disco = (fam) =>
+  `<span class="disco" style="--tono:${TONOS[fam] || TONOS.form}" aria-hidden="true">
+     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+          stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round">${ICONOS[fam] || ICONOS.form}</svg>
+   </span>`;
+
+/* Los tres verbos, con lo que ofrece cada uno. Es `QUE_MANDAR` de envios.js. */
+const VERBOS = {
+  pedir: {
+    rot: 'Pídele',
+    ops: [
+      { id: 'form', fam: 'form', suj: 'Un formulario', lleva: 'lo contesta en su portal' },
+      { id: 'peso', fam: 'medida', suj: 'Su peso', lleva: 'lo apunta él' },
+      { id: 'perimetros', fam: 'medida', suj: 'Sus perímetros', lleva: 'con su guía' },
+      { id: 'pliegues', fam: 'medida', suj: 'Sus pliegues', lleva: 'con su guía' },
+      { id: 'fotos', fam: 'medida', suj: 'Sus fotos de progreso', lleva: '3 tomas' },
+      { id: 'tarea', fam: 'tarea', suj: 'Una tarea suya', lleva: 'la marca cuando la hace' },
+    ],
+  },
+  mandar: {
+    rot: 'Mándale',
+    ops: [
+      { id: 'video', fam: 'entrega', suj: 'Un vídeo', lleva: 'se abre desde su portal' },
+      { id: 'documento', fam: 'entrega', suj: 'Un documento', lleva: 'se abre desde su portal' },
+      { id: 'nota', fam: 'entrega', suj: 'Una nota', lleva: 'le sale como novedad' },
+    ],
+  },
+  avisar: {
+    rot: 'Avísame',
+    ops: [{ id: 'aviso', fam: 'aviso', suj: 'Una casilla mía', lleva: 'en mi agenda, privada' }],
+  },
+};
+
+const DISPARADORES = [
+  { id: 'alta', suj: 'empieza contigo', dice: 'Cuenta desde su fecha de alta. Cada uno lo recibe cuando le toca a él.' },
+  { id: 'semana', suj: 'cada semana', dice: 'Su check-in. Elige el día y cada cuántas semanas se lo pides.' },
+  { id: 'manual', suj: 'se la mandes tú', dice: 'La que ya usas: eliges a quién y sale cuando pulsas.' },
+];
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+const autos = [
+  {
+    id: 'a1', disparador: 'alta', activa: true, nombre: 'Bienvenida',
+    pasos: [
+      { id: 'p1', verbo: 'pedir', op: 'form', fam: 'form', suj: 'Alta general', lleva: '14 preguntas', dia: 0 },
+      { id: 'p2', verbo: 'mandar', op: 'video', fam: 'entrega', suj: 'Cómo medirte en casa', lleva: 'vídeo · 4 min', dia: 2 },
+      { id: 'p3', verbo: 'avisar', op: 'aviso', fam: 'aviso', suj: 'Repasar su primera semana', lleva: 'en mi agenda', dia: 7 },
+    ],
+  },
+  {
+    id: 'a2', disparador: 'semana', valor: { dia: 1, cada: 1 }, activa: true, nombre: '',
+    pasos: [
+      { id: 'p4', verbo: 'pedir', op: 'form', fam: 'form', suj: 'Su check-in', lleva: '6 preguntas · peso y perímetros', dia: 0 },
+      { id: 'p5', verbo: 'avisar', op: 'aviso', fam: 'aviso', suj: 'Si no lo ha entregado', lleva: 'me sale a mí', dia: 3 },
+    ],
+  },
+  {
+    id: 'a3', disparador: 'semana', valor: { dia: 5, cada: 4 }, activa: false, nombre: 'Fotos de fase',
+    pasos: [
+      { id: 'p6', verbo: 'pedir', op: 'fotos', fam: 'medida', suj: 'Sus fotos de progreso', lleva: '3 tomas', dia: 0 },
+    ],
+  },
+];
+
+const cola = [
+  { cuando: 'mar 15', quien: 'Marta Ruiz', verbo: 'Pídele', que: 'Su check-in', fam: 'form', de: 'Cada lunes' },
+  { cuando: 'mié 16', quien: 'Luis Peña', verbo: 'Mándale', que: 'Cómo medirte en casa', fam: 'entrega', de: 'Bienvenida' },
+  { cuando: 'jue 17', quien: '9 personas', verbo: 'Pídele', que: 'Analítica de septiembre', fam: 'form', de: 'tú, el 12 de sep' },
+  { cuando: 'lun 21', quien: 'Marta Ruiz', verbo: 'Avísame', que: 'Repasar su primera semana', fam: 'aviso', de: 'Bienvenida' },
+];
+const salido = [
+  { cuando: 'lun 14', quien: 'Ana Gil', verbo: 'Pídele', que: 'Su check-in', fam: 'form', de: 'Cada lunes', estado: 'Contestado' },
+  { cuando: 'lun 14', quien: 'Marta Ruiz', verbo: 'Pídele', que: 'Alta general', fam: 'form', de: 'Bienvenida', estado: 'Contestado' },
+  { cuando: 'vie 11', quien: '12 personas', verbo: 'Mándale', que: 'Vídeo de la fase 2', fam: 'entrega', de: 'tú, el 11 de sep', estado: '7 lo abrieron' },
+  { cuando: 'jue 10', quien: 'Iván Soto', verbo: 'Avísame', que: 'Lleva 11 días sin entrenar', fam: 'aviso', de: 'tú', estado: 'Hecho' },
+];
+
+const protocolos = [
+  { id: 'pr1', nom: 'Nutrición · 12 semanas', lleva: 'Dieta · Seguimiento', autos: 3, gente: 12, atras: 2 },
+  { id: 'pr2', nom: 'Fuerza presencial', lleva: 'Entreno · Seguimiento', autos: 2, gente: 7, atras: 0 },
+  { id: 'pr3', nom: 'Online completo', lleva: 'Entreno · Dieta · Seguimiento', autos: 5, gente: 21, atras: 1 },
+];
+
+/* ══ Estado ════════════════════════════════════════════════════════════ */
+const st = { escena: 'protocolo', tramo: 'protocolos', abierto: null, hilo: null, hoja: false };
+const igual = (a, b) => a && b && a.auto === b.auto && a.paso === b.paso;
+
+/* ══ El idioma del hilo: dice el día en el idioma de su disparador ═════ */
+function etiquetaDia(auto, dia) {
+  if (auto.disparador === 'semana') {
+    if (dia === 0) return `ese ${DIAS[auto.valor.dia]}`;
+    const d = DIAS[(auto.valor.dia + dia) % 7];
+    return dia < 7 ? `el ${d}` : `el ${d} siguiente`;
+  }
+  if (dia === 0) return 'ese mismo día';
+  if (dia % 7 === 0) return dia === 7 ? 'a la semana' : `a las ${dia / 7} semanas`;
+  return `el día ${dia + 1}`;
+}
+function fraseDisparador(auto) {
+  if (auto.disparador === 'semana') {
+    const cada = auto.valor.cada === 1 ? 'cada' : `cada ${auto.valor.cada} semanas, el`;
+    return `${cada} ${DIAS[auto.valor.dia]}`;
+  }
+  return DISPARADORES.find((d) => d.id === auto.disparador).suj;
+}
+
+/* ══ Pintar ════════════════════════════════════════════════════════════ */
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function nodoPaso(auto, paso, i) {
+  const ab = igual(st.abierto, { auto: auto.id, paso: paso.id });
+  return `
+    <div class="hilo" data-editando="${st.hilo === paso.id}">
+      <button class="hilo-et" data-act="hilo" data-auto="${auto.id}" data-paso="${paso.id}"
+              title="Cuándo le pasa">${esc(etiquetaDia(auto, paso.dia))}</button>
+      ${st.hilo === paso.id ? stepper(auto, paso) : ''}
+      <button class="hilo-mas" data-act="anadir" data-auto="${auto.id}" data-i="${i}"
+              aria-label="Añadir un paso aquí">+</button>
+    </div>
+    <div class="nodo" data-abierto="${ab}">
+      <span class="punto" aria-hidden="true"><i></i></span>
+      <button class="caja" data-act="paso" data-auto="${auto.id}" data-paso="${paso.id}"
+              aria-expanded="${ab}">
+        ${disco(paso.fam)}
+        <span class="verbo">${VERBOS[paso.verbo].rot}</span>
+        <span class="suj">${esc(paso.suj)}</span>
+        <span class="lleva">${esc(paso.lleva)}</span>
+      </button>
+    </div>
+    ${ab ? editorPaso(auto, paso) : ''}`;
+}
+
+function stepper(auto, paso) {
+  return `
+    <span class="stepper">
+      <button data-act="dia" data-auto="${auto.id}" data-paso="${paso.id}" data-d="-1" aria-label="Antes">−</button>
+      <span>${esc(etiquetaDia(auto, paso.dia))}</span>
+      <button data-act="dia" data-auto="${auto.id}" data-paso="${paso.id}" data-d="1" aria-label="Después">+</button>
+    </span>`;
+}
+
+function editorPaso(auto, paso) {
+  const ops = VERBOS[paso.verbo].ops;
+  return `
+    <div class="editor">
+      <div>
+        <p class="rot">Qué le pasa</p>
+        <div class="seg" role="group" aria-label="El verbo">
+          ${Object.entries(VERBOS).map(([k, v]) => `
+            <button data-act="verbo" data-auto="${auto.id}" data-paso="${paso.id}" data-v="${k}"
+                    aria-pressed="${paso.verbo === k}">${v.rot}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <p class="rot">${paso.verbo === 'avisar' ? 'Qué me recuerdas' : 'Qué cosa'}</p>
+        <div class="chips">
+          ${ops.map((o) => `
+            <button class="chip" data-act="op" data-auto="${auto.id}" data-paso="${paso.id}" data-o="${o.id}"
+                    aria-pressed="${paso.op === o.id}">${esc(o.suj)}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <p class="rot">Cuándo</p>
+        <div class="paso-cuando">
+          ${stepper(auto, paso)}
+          <span class="dice">contando desde ${esc(fraseDisparador(auto))}.</span>
+        </div>
+      </div>
+      <div class="editor-pie">
+        <p class="dice">Se le escribe con su fecha y no le aparece antes. Si ya se lo mandaste una vez, no se repite.</p>
+        <button class="btn-l apaga" data-act="quitar" data-auto="${auto.id}" data-paso="${paso.id}">Quitar el paso</button>
+      </div>
+    </div>`;
+}
+
+function editorDisparador(auto) {
+  return `
+    <div class="editor">
+      <div>
+        <p class="rot">Cuándo empieza</p>
+        <div class="chips">
+          ${DISPARADORES.map((d) => `
+            <button class="chip" data-act="dis" data-auto="${auto.id}" data-d="${d.id}"
+                    aria-pressed="${auto.disparador === d.id}">${esc(d.suj)}</button>`).join('')}
+        </div>
+      </div>
+      ${auto.disparador === 'semana' ? `
+        <div>
+          <p class="rot">Qué día</p>
+          <div class="chips">
+            ${DIAS.map((d, i) => i === 0 ? '' : `
+              <button class="chip" data-act="dsem" data-auto="${auto.id}" data-d="${i}"
+                      aria-pressed="${auto.valor.dia === i}">${esc(d)}</button>`).join('')}
+            <button class="chip" data-act="dsem" data-auto="${auto.id}" data-d="0"
+                    aria-pressed="${auto.valor.dia === 0}">domingo</button>
+          </div>
+        </div>` : ''}
+      <p class="dice">${esc(DISPARADORES.find((d) => d.id === auto.disparador).dice)}</p>
+      <p class="nota-motor">
+        Los que dependen de algo que hace él —cuando conteste su alta, cuando se pese, cuando cierre
+        una sesión— necesitan que el disparo corra en la base, y llegan con la tanda 3. No se ofrecen
+        en gris: una oferta que no se puede pulsar es mobiliario.
+      </p>
+    </div>`;
+}
+
+function pintaAuto(auto) {
+  const abDis = igual(st.abierto, { auto: auto.id, paso: 'dis' });
+  return `
+    <section class="auto" data-off="${!auto.activa}">
+      <div class="auto-cab">
+        ${auto.nombre ? `<span class="auto-nom">${esc(auto.nombre)}</span>` : ''}
+        <div class="auto-fin">
+          <span class="auto-nom">${auto.activa ? 'Activa' : 'Apagada'}</span>
+          <button class="sw" role="switch" aria-checked="${auto.activa}" data-act="activa" data-auto="${auto.id}"
+                  aria-label="${auto.activa ? 'Apagar' : 'Encender'} esta automatización"></button>
+        </div>
+      </div>
+
+      <div class="nodo nodo-dis" data-abierto="${abDis}">
+        <span class="punto" aria-hidden="true"><i></i></span>
+        <button class="caja" data-act="paso" data-auto="${auto.id}" data-paso="dis" aria-expanded="${abDis}">
+          ${disco('reloj')}
+          <span class="cuando">Cuando</span>
+          <span class="suj">${esc(fraseDisparador(auto))}</span>
+          <span class="lleva">${auto.pasos.length} ${auto.pasos.length === 1 ? 'paso' : 'pasos'}</span>
+        </button>
+      </div>
+      ${abDis ? editorDisparador(auto) : ''}
+
+      ${auto.pasos.map((p, i) => nodoPaso(auto, p, i)).join('')}
+
+      <div class="hilo hilo-fin">
+        <button class="hilo-mas" data-act="anadir" data-auto="${auto.id}" data-i="${auto.pasos.length}"
+                aria-label="Añadir un paso al final">+</button>
+        <span class="dice">Añadir un paso</span>
+      </div>
+    </section>`;
+}
+
+/* ── Escena 1 · el protocolo ──────────────────────────────────────────── */
+function escProtocolo() {
+  const nAuto = autos.filter((a) => a.activa).length;
+  return `
+    <header class="cab">
+      <div class="cab-linea">
+        <div>
+          <div class="migas"><button data-act="ir" data-e="puerta">Protocolos</button><span>/</span></div>
+          <h1 class="cab-tit">Nutrición · 12 semanas</h1>
+        </div>
+        <div class="cab-fin">
+          <span class="cab-dato"><b>12</b> clientes</span>
+          ${'<span class="chapa">2 atrasados</span>'}
+          <button class="btn">Ver como cliente</button>
+        </div>
+      </div>
+      <div class="banda">
+        <button aria-current="true">Qué le pasa <span class="n">${nAuto}</span></button>
+        <button data-act="ir" data-e="ficha">Quién lo lleva <span class="n">12</span></button>
+      </div>
+    </header>
+
+    <div class="cuerpo dos">
+      <div class="carril">
+        ${autos.map(pintaAuto).join('')}
+        <button class="anadir-auto" data-act="nueva">+ Añadir algo que pase solo</button>
+      </div>
+
+      <aside class="panel" aria-label="Este protocolo">
+        <section>
+          <h3>Qué le llevas</h3>
+          <div class="lleva-lista">
+            <span class="pieza">Dieta</span><span class="pieza">Seguimiento</span>
+          </div>
+        </section>
+        <section>
+          <h3>Cómo es su app</h3>
+          <div class="filas">
+            <label class="fila-sw"><span>Ve las equivalencias<small>Puede cambiar un alimento por otro</small></span>
+              <button class="sw" role="switch" aria-checked="true" data-act="nada"></button></label>
+            <label class="fila-sw"><span>Parte al terminar de entrenar</span>
+              <button class="sw" role="switch" aria-checked="false" data-act="nada"></button></label>
+            <label class="fila-sw"><span>No ve su peso<small>Lo apunta y no le vuelve</small></span>
+              <button class="sw" role="switch" aria-checked="true" data-act="nada"></button></label>
+          </div>
+        </section>
+        <section>
+          <h3>Quién lo lleva</h3>
+          <p class="cifra">12</p>
+          <p class="cifra-pie">clientes · 2 atrasados · 1 con excepción</p>
+        </section>
+        <section>
+          <h3>Esta semana sale</h3>
+          <p class="cifra">4</p>
+          <p class="cifra-pie">cosas · <button class="btn-l" data-act="ir" data-e="puerta" data-t="cola">ver la cola</button></p>
+        </section>
+      </aside>
+    </div>`;
+}
+
+/* ── Escena 2 · la puerta ─────────────────────────────────────────────── */
+function escPuerta() {
+  const enCola = st.tramo === 'cola';
+  return `
+    <header class="cab">
+      <div class="cab-linea">
+        <div><h1 class="cab-tit">Protocolos</h1></div>
+        <div class="cab-fin">
+          <button class="btn btn-p">Mandar algo</button>
+        </div>
+      </div>
+      <div class="banda">
+        <button data-act="tramo" data-t="protocolos" aria-current="${!enCola}">Protocolos <span class="n">3</span></button>
+        <button data-act="tramo" data-t="cola" aria-current="${enCola}">Lo que sale <span class="n">${cola.length}</span></button>
+      </div>
+    </header>
+    <div class="cuerpo">${enCola ? tramoCola() : tramoProtocolos()}</div>`;
+}
+
+function tramoProtocolos() {
+  return `
+    <div class="mesa-caja">
+      <table class="mesa">
+        <thead><tr><th>Protocolo</th><th>Qué lleva</th><th>Le pasa solo</th><th>Clientes</th></tr></thead>
+        <tbody>
+          ${protocolos.map((p, i) => `
+            <tr>
+              <td class="nom">${i === 0
+                ? `<button class="btn-l" data-act="ir" data-e="protocolo">${esc(p.nom)}</button>`
+                : esc(p.nom)}</td>
+              <td class="qui">${esc(p.lleva)}</td>
+              <td class="num">${p.autos}</td>
+              <td class="num">${p.gente}${p.atras ? ` <span class="chapa">${p.atras} atrasados</span>` : ''}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function tramoCola() {
+  const fila = (r, futuro) => `
+    <tr>
+      <td class="num">${esc(r.cuando)}</td>
+      <td class="nom">${esc(r.quien)}</td>
+      <td>
+        <span style="display:inline-flex;align-items:center;gap:8px">
+          ${disco(r.fam)}<span class="verbo">${esc(r.verbo)}</span><span>${esc(r.que)}</span>
+        </span>
+      </td>
+      <td class="qui">${esc(r.de)}</td>
+      <td>${futuro
+        ? '<button class="btn-l apaga cancela">Cancelar</button>'
+        : `<span class="hecho">${esc(r.estado)}</span>`}</td>
+    </tr>`;
+  return `
+    <div>
+      <p class="rotulo-tramo">Va a salir <em>todavía se puede cancelar</em><span class="regla"></span></p>
+      <div class="mesa-caja">
+        <table class="mesa">
+          <thead><tr><th>Cuándo</th><th>A quién</th><th>Qué</th><th>Quién lo manda</th><th></th></tr></thead>
+          <tbody>${cola.map((r) => fila(r, true)).join('')}</tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <p class="rotulo-tramo">Ya salió<span class="regla"></span></p>
+      <div class="mesa-caja">
+        <table class="mesa">
+          <thead><tr><th>Cuándo</th><th>A quién</th><th>Qué</th><th>Quién lo mandó</th><th>Cómo fue</th></tr></thead>
+          <tbody>${salido.map((r) => fila(r, false)).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ── Escena 3 · la ficha del cliente ──────────────────────────────────── */
+function escFicha() {
+  const tarjetas = [
+    ['Quién es', '34 años · Valencia'],
+    ['Su alta', 'Contestada el 2 de septiembre'],
+    ['Cobro', '65 € al mes · al día'],
+    ['Acceso y baja', 'Entró hace 12 días'],
+    ['Datos personales', 'Dos lesiones · sin alergias'],
+    ['Su carpeta', '6 archivos'],
+  ];
+  return `
+    <header class="cab">
+      <div class="cab-linea">
+        <div>
+          <div class="migas"><button data-act="ir" data-e="puerta">Clientes</button><span>/</span></div>
+          <h1 class="cab-tit">Marta Ruiz</h1>
+        </div>
+        <div class="cab-fin"><button class="btn">Ver como cliente</button></div>
+      </div>
+      <div class="banda">
+        <button>Resumen</button><button>Entreno</button><button>Dieta</button>
+        <button>Revisiones</button><button aria-current="true">Perfil</button>
+      </div>
+    </header>
+    <div class="cuerpo">
+      <div class="rejilla">
+        <button class="tarjeta" data-nueva="true" data-act="hoja">
+          <b>Su protocolo</b>
+          <span>Nutrición · 12 semanas</span>
+          <span>Dieta y seguimiento · ve equivalencias · 3 cosas le pasan solas</span>
+        </button>
+        ${tarjetas.map(([t, d]) => `<button class="tarjeta"><b>${esc(t)}</b><span>${esc(d)}</span></button>`).join('')}
+      </div>
+    </div>
+    ${st.hoja ? hojaProtocolo() : ''}`;
+}
+
+function hojaProtocolo() {
+  return `
+    <div class="velo" data-act="cerrar-hoja">
+      <div class="hoja" role="dialog" aria-modal="true" aria-label="El protocolo de Marta">
+        <div class="hoja-cab">
+          <h2>El protocolo de Marta</h2>
+          <button class="btn" data-act="cerrar-hoja">Cerrar</button>
+        </div>
+        <div class="hoja-cuerpo">
+          <section class="mitad">
+            <h3>Cómo es su app</h3>
+            <p class="dice">Lo que lleva puesto. Se lo cambias tú, y lo que cambies aquí se queda suyo.</p>
+            <div class="filas">
+              <label class="fila-sw"><span>Ve las equivalencias
+                  <small>De su protocolo · lo mismo que el interruptor de su dieta</small></span>
+                <button class="sw" role="switch" aria-checked="true" data-act="nada"></button></label>
+              <label class="fila-sw"><span>Parte al terminar de entrenar</span>
+                <button class="sw" role="switch" aria-checked="false" data-act="nada"></button></label>
+              <label class="fila-sw"><span>No ve su peso <small>Lo apunta y no le vuelve</small></span>
+                <button class="sw" role="switch" aria-checked="true" data-act="nada"></button></label>
+            </div>
+          </section>
+
+          <section class="mitad">
+            <h3>Qué le pasa</h3>
+            <p class="dice">Las automatizaciones de su protocolo. Aquí se leen; se montan en el protocolo.
+              Lo único suyo es poder apagarle una.</p>
+            ${autos.map((a) => `
+              <div class="leelo">
+                ${disco(a.pasos[0].fam)}
+                <span class="suj"><b>${esc(a.nombre || 'Cuando ' + fraseDisparador(a))}</b><br>
+                  <span class="qui" style="margin:0">Cuando ${esc(fraseDisparador(a))} ·
+                  ${a.pasos.length} ${a.pasos.length === 1 ? 'paso' : 'pasos'}</span></span>
+                <span class="qui">${a.activa ? 'Activa' : 'Apagada para Marta'}</span>
+                <button class="sw" role="switch" aria-checked="${a.activa}" data-act="activa" data-auto="${a.id}"
+                        aria-label="Apagársela a Marta"></button>
+              </div>`).join('')}
+          </section>
+
+          <section class="mitad">
+            <h3>De dónde viene</h3>
+            <p class="dice" style="margin:0">
+              Lleva <b style="color:var(--text-2)">Nutrición · 12 semanas</b>. Cambiar el protocolo no la toca hasta
+              que pulses «Poner al día»; lo que le pasa solo sí corre con la última versión, salvo lo que ya le
+              haya pasado. <span class="proc">De su protocolo</span>
+            </p>
+          </section>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ══ Enganche ══════════════════════════════════════════════════════════ */
+const ESCENAS = [
+  { id: 'puerta', rot: 'La puerta', pinta: escPuerta,
+    pie: 'La puerta <b>Protocolos</b> gana un segundo tramo, <b>«Lo que sale»</b>: una sola lista donde se juntan lo que mandas tú y lo que sale solo, partida en <b>va a salir</b> —que se puede cancelar— y <b>ya salió</b>. Eso sustituye al «Review first» de Coachway: una cola visible no te pide trabajo, te enseña el tuyo.' },
+  { id: 'protocolo', rot: 'El carril', pinta: escProtocolo,
+    pie: 'Toca un paso y se abre <b>en su sitio</b>. Toca la etiqueta del hilo —«ese mismo día», «el jueves»— y se convierte en su mando: <b>el hilo es la firma de esta pantalla</b>. Acércate a un hilo y aparece el «+» para meter un paso donde va. El disparador es un nodo más, arriba. A la derecha, el panel: lo que se lee, no lo que se toca.' },
+  { id: 'ficha', rot: 'Su ficha', pinta: escFicha,
+    pie: 'El protocolo deja de estar escondido: es <b>una tarjeta más de Perfil</b>, con la gramática de «Su alta» y «Su carpeta». Perfil y no Resumen, porque Resumen es lo que cambia solo y el protocolo lo cambias tú. Ábrela: la hoja se parte en las <b>dos mitades</b> —cómo es su app, y qué le pasa—.' },
+];
+
+const $app = document.getElementById('app');
+const $tabs = document.getElementById('tabs');
+const $pie = document.getElementById('pie');
+
+function pinta() {
+  const e = ESCENAS.find((x) => x.id === st.escena);
+  $tabs.innerHTML = ESCENAS.map((x) => `
+    <button class="proto-tab" data-act="ir" data-e="${x.id}" aria-current="${x.id === st.escena}">${x.rot}</button>`).join('');
+  $app.innerHTML = e.pinta();
+  $pie.innerHTML = e.pie;
+}
+
+const buscar = (id) => autos.find((a) => a.id === id);
+const buscarPaso = (a, id) => a.pasos.find((p) => p.id === id);
+let nuevo = 0;
+
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-act]');
+  if (!b) return;
+  const d = b.dataset;
+  const a = d.auto ? buscar(d.auto) : null;
+
+  switch (d.act) {
+    case 'ir':
+      st.escena = d.e; st.abierto = null; st.hilo = null; st.hoja = false;
+      if (d.t) st.tramo = d.t;
+      break;
+    case 'tramo': st.tramo = d.t; break;
+    case 'paso':
+      st.abierto = igual(st.abierto, { auto: d.auto, paso: d.paso }) ? null : { auto: d.auto, paso: d.paso };
+      st.hilo = null;
+      break;
+    case 'hilo': st.hilo = st.hilo === d.paso ? null : d.paso; break;
+    case 'dia': {
+      const p = buscarPaso(a, d.paso);
+      p.dia = Math.max(0, Math.min(84, p.dia + Number(d.d)));
+      break;
+    }
+    case 'verbo': {
+      const p = buscarPaso(a, d.paso);
+      if (p.verbo === d.v) break;
+      p.verbo = d.v;
+      const o = VERBOS[d.v].ops[0];
+      p.op = o.id; p.fam = o.fam; p.suj = o.suj; p.lleva = o.lleva;
+      break;
+    }
+    case 'op': {
+      const p = buscarPaso(a, d.paso);
+      const o = VERBOS[p.verbo].ops.find((x) => x.id === d.o);
+      p.op = o.id; p.fam = o.fam; p.suj = o.suj; p.lleva = o.lleva;
+      break;
+    }
+    case 'anadir': {
+      const i = Number(d.i);
+      const anterior = a.pasos[i - 1];
+      const p = {
+        id: `n${++nuevo}`, verbo: 'mandar', op: 'video', fam: 'entrega',
+        suj: 'Un vídeo', lleva: 'se abre desde su portal',
+        dia: anterior ? anterior.dia + 1 : 0,
+      };
+      a.pasos.splice(i, 0, p);
+      st.abierto = { auto: a.id, paso: p.id }; st.hilo = null;
+      break;
+    }
+    case 'quitar':
+      a.pasos = a.pasos.filter((p) => p.id !== d.paso);
+      st.abierto = null; st.hilo = null;
+      break;
+    case 'dis':
+      a.disparador = d.d;
+      if (d.d === 'semana' && !a.valor) a.valor = { dia: 1, cada: 1 };
+      break;
+    case 'dsem': a.valor = { ...a.valor, dia: Number(d.d) }; break;
+    case 'activa': a.activa = !a.activa; break;
+    case 'nueva':
+      autos.push({
+        id: `a${autos.length + 1}`, disparador: 'alta', activa: true, nombre: '',
+        pasos: [{ id: `n${++nuevo}`, verbo: 'pedir', op: 'form', fam: 'form', suj: 'Un formulario', lleva: 'lo contesta en su portal', dia: 0 }],
+      });
+      break;
+    case 'hoja': st.hoja = true; break;
+    case 'cerrar-hoja':
+      if (ev.target.closest('.hoja') && !ev.target.closest('[data-act="cerrar-hoja"]')) return;
+      st.hoja = false;
+      break;
+    case 'nada':
+      b.setAttribute('aria-checked', b.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+      return;
+    default: return;
+  }
+  pinta();
+});
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && (st.hoja || st.abierto || st.hilo)) {
+    st.hoja = false; st.abierto = null; st.hilo = null; pinta();
+  }
+});
+
+pinta();
+</script>

@@ -552,7 +552,39 @@
      Es además el tope del `.layout` del panel, o sea el techo de la casa:
      ninguna página del entrenador pasa de aquí, y las que necesitan menos lo
      declaran ellas. */
-  --max-w-trabajo: 1560px;
+  /* Dos nombres para un número porque una variable de CSS no puede
+     redefinirse en función de sí misma, y al plegar la barra este techo sube
+     los 192 px que ella suelta (`.shell:has(.sidebar.is-plegada)`, en
+     `chasis.css`). `--ancho-trabajo` es la medida de la casa; `--max-w-trabajo`
+     es la que rige AHORA, y es la que se pide en todas partes. */
+  --ancho-trabajo: 1560px;
+  --max-w-trabajo: var(--ancho-trabajo);
+
+  /* ── LA CALLE DEL CHASIS ─────────────────────────────────────────────────
+     La franja vacía por dentro del canto izquierdo de la hoja donde vive el
+     cromo del marco — hoy, solo el mando del ancho (`ui/Pliegue`).
+
+     Existe porque el mando no cabía en ninguna parte sin romper algo, y las
+     dos formas de meterlo en la línea del titular están medidas: pegado al
+     canto del papel se queda a 30 px con las filas de debajo en 48 —una mota
+     fuera de plomo—, y dentro de la fila empuja el título a 97 px mientras su
+     propio contenido sigue en 48. Un titular que no cae sobre su tabla se ve
+     sin saber nombrarlo, y es lo que el dueño llamó «muy intrusivo».
+
+     Con calle, el mando sale de la columna de texto y todo lo demás vuelve a
+     la misma vertical. Es lo que hace Coachway sin que se note: su icono no
+     está en la hoja, está en el marco.
+
+     Y no la paga el trabajo: la hoja crece hacia fuera lo mismo que sangra
+     hacia dentro (`.shell-main`, en `chasis.css`), así que la columna mide
+     exactamente lo que medía. Los 34 px son el botón (que ocupa la calle
+     entera) más el aire que lo separa del contenido.
+
+     Cero por defecto: sin barra lateral no hay nada que plegar y el mando no
+     se pinta, así que la calle no existe. La declara el escritorio en
+     `chasis.css`, y con eso todos los `calc()` de abajo valen en los dos
+     tamaños sin duplicar una sola regla. */
+  --carril-chasis: 0px;
 
   /* El carril del SEGUNDO PLANO: la ficha en Ejercicios, el procedimiento en
      Protocolos. Vive aquí y no en `taller.css` porque desde que la hoja mide

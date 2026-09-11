@@ -464,7 +464,13 @@ button.task-head:hover > .chevron { color: var(--text); }
    Las tres medidas de `tokens.css` no se van: dejan de medir PÁGINAS y pasan a
    medir piezas dentro de ellas —la tabla mide su contenido, una columna de
    decisiones mide 880 dentro de su plano—. Ahí no mueven el borde de nada. */
-.cartera-cuerpo { max-width: none; margin: 0; padding: 0 var(--s5); }
+/* El sangrado de la izquierda lleva la calle del chasis, el mismo que su cinta
+   (`.cartera-cab-in`): la tabla arranca a plomo con el titular. Ver
+   `--carril-chasis`, en `tokens.css`. */
+.cartera-cuerpo {
+  max-width: none; margin: 0;
+  padding: 0 var(--s5) 0 calc(var(--s5) + var(--carril-chasis));
+}
 
 /* La banda de herramientas: buscar y las preguntas de la cartera a la
    izquierda, el eje de etiqueta a la derecha. El alta se subió a la cinta —una
@@ -1399,3 +1405,444 @@ button.task-head:hover > .chevron { color: var(--text); }
   .cobros-tarea { flex-wrap: wrap; }
   .cobros-tarea > .btn { margin-left: 0; }
 }
+
+
+/* ══ EL PORTAPAPELES: LA MANO Y SU CAJÓN ═══════════════════════════════════
+   Lo que llevas copiado vive al pie y a la derecha, en DOS piezas: la mano
+   (`.pp-mano`, una píldora que se ve siempre) y el cajón (`.pp-cajon`, la lista
+   que se abre hacia arriba). Antes era una sola bandeja de 320 × 250 px que
+   nacía abierta y se quedaba: superficie permanente para representar lo que
+   llevas encima un rato. Ver `ui/Portapapeles`.
+
+   ── LEY III · UN MOSTRADOR A LA VEZ ────────────────────────────────────────
+   El centro del pie es del mostrador del lote (`.p-lote`, la cartera) y la
+   esquina derecha es de la mano. Los dos vivían a `bottom: var(--s5)` con el
+   mismo `z-index`, así que se pisaban por debajo de 1 444 px de ventana —un
+   portátil normal—. Ahora la mano SE APOYA ENCIMA del mostrador: `--lote-apoyo`
+   es lo que ese mostrador se lleva del pie (su alto medido más el aire que los
+   separa) y lo publica la propia cartera con un `ResizeObserver`, porque el
+   mostrador cambia de alto al desplegar «Etiquetar». Sin mostrador la variable
+   no existe, el valor de reserva es cero y la mano se queda en su sitio: no
+   hace falta ninguna media query con un número medido a ojo. */
+.pp-pie {
+  position: fixed; right: var(--s5); z-index: 120;
+  bottom: calc(var(--s5) + var(--lote-apoyo, 0px));
+  display: flex; flex-direction: column; align-items: flex-end; gap: var(--s2);
+  transition: bottom var(--normal);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-pie { transition: none; }
+}
+
+/* ── LA MANO ──────────────────────────────────────────────────────────────
+   Una píldora, no un panel: lo que llevas en la mano se dice con un número.
+
+   ══ EL PESO SE QUEDA; LA OFERTA SE APAGA ═══════════════════════════════════
+   La versión anterior dejaba el verbo en azul encendido todo el rato y el dueño
+   la tumbó: «demasiado intrusivo, siempre está ahí; donde se puede pegar nunca
+   para». Lo que llevas es un HECHO —se queda, y se dice pequeño: icono y
+   cifra—; que aquí quepa es una OFERTA, y una oferta que no se apaga es
+   mobiliario.
+
+   Se aplica la ley que ya estaba escrita para las casillas del lote
+   (`.plantilla .p-marca`, más arriba en este mismo fichero): **en reposo no
+   está**, aparece al acercarse, y se apaga con `opacity` y no con `visibility`
+   para que el ratón y el tabulador sigan llegando. Aquí, además, con `max-width`
+   y `padding`, porque lo que se retira no es una casilla de ancho fijo sino una
+   frase: encogiendo por los dos lados, la píldora cambia de tamaño sin saltar. */
+.pp-mano {
+  display: inline-flex; align-items: stretch; overflow: hidden;
+  max-width: min(460px, calc(100vw - 2 * var(--s5)));
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-pill); box-shadow: var(--shadow-lg);
+  transition: background var(--fast), border-color var(--fast);
+  animation: pp-entra 200ms var(--ease);
+}
+@keyframes pp-entra {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-mano { animation: none; }
+}
+/* El peso es `<button>` cuando abre la lista y `<span>` cuando no hay lista que
+   abrir (ver el componente), así que los tramos se dibujan por los dos.
+
+   ── EL TRAMPANTOJO DE ESPECIFICIDAD (medido) ───────────────────────────────
+   Esta `transition` llevaba solo `background, color`, y como `.pp-mano > button`
+   (0,1,1) le gana a `.pp-mano-verbo` (0,1,0), tumbaba la de abajo: los rótulos
+   —que son `<span>` y no la ven— se abrían deslizando y el VERBO y el «vaciar»
+   daban un salto seco de 300 px al acercarse. La mitad de la píldora animaba y
+   la otra mitad no. Se arregla donde se rompe: las cuatro propiedades van en la
+   regla que manda. */
+.pp-mano > button,
+.pp-mano > .pp-mano-peso {
+  display: inline-flex; align-items: center; gap: 7px; min-width: 0;
+  height: 38px; padding: 0 14px; border: 0; background: none;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary);
+  transition: background var(--fast), color var(--fast),
+              max-width var(--normal), opacity var(--fast), padding var(--normal);
+}
+.pp-mano > button { cursor: pointer; }
+.pp-mano > button:hover { background: var(--fill-subtle); color: var(--text); }
+.pp-mano-peso > svg { flex-shrink: 0; opacity: 0.6; }
+.pp-mano-n {
+  display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: var(--r-pill); background: var(--fill); color: var(--text-secondary);
+  font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+/* LO QUE EN REPOSO NO ESTÁ: el verbo, el «vaciar» y la palabra «Llevas». Las
+   tres siguen en el árbol —se alcanzan con el tabulador— y encogen a cero. */
+.pp-mano-verbo,
+.pp-mano-soltar,
+.pp-mano-quieta,
+.pp-mano-recien,
+.pp-mano-elegir {
+  max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+  transition: max-width var(--normal), opacity var(--fast), padding var(--normal);
+}
+.pp-mano-verbo, .pp-mano-soltar { padding: 0 !important; }
+.pp-mano-verbo > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* AL ACERCARSE (y con el foco de teclado dentro): sale todo lo que se puede
+   hacer con lo que llevas. Es el único estado en el que la mano habla. */
+.pp-mano:hover .pp-mano-soltar,
+.pp-mano:focus-within .pp-mano-soltar {
+  max-width: 40px; opacity: 1; padding: 0 11px !important;
+}
+.pp-mano:hover .pp-mano-verbo,
+.pp-mano:focus-within .pp-mano-verbo,
+.pp-mano.is-ofrece .pp-mano-verbo {
+  max-width: 340px; opacity: 1; padding: 0 14px !important;
+}
+/* La palabra solo cuando NO hay verbo: con los dos sale «Pegar «X» en Y ·
+   Llevas 3», que es una frase de más para decir lo que ya dice la cifra. */
+.pp-mano:not(.is-viva):hover .pp-mano-quieta,
+.pp-mano:not(.is-viva):focus-within .pp-mano-quieta { max-width: 90px; opacity: 1; }
+
+/* LEY II · el momento de la copia. Manda sobre todo lo demás: es lo que acabas
+   de hacer, y por eso puede hablar sin que te hayas acercado. */
+.pp-mano-recien { color: var(--text); font-weight: 650; }
+.pp-mano.is-dice .pp-mano-recien { max-width: 260px; opacity: 1; }
+.pp-mano.is-dice .pp-mano-quieta { max-width: 0 !important; opacity: 0 !important; }
+
+/* LEY V · cuando la mano habla, la caja se enciende y el verbo va en azul. Es
+   la ley de los gestos de la casa —la misma forma que `.opt-card.is-on`—, y
+   ahora dura lo que dura el gesto: mientras estás encima o mientras la oferta
+   se está diciendo. En reposo, de la oferta solo queda la CIFRA en acento.
+
+   ── ENCENDERSE NO ES VOLVERSE TRANSPARENTE ─────────────────────────────────
+   Esto ponía `background: var(--accent-soft)` a secas, y `--accent-soft` es un
+   azul CON ALFA (0,14 sobre grafito, 0,08 sobre papel). Sustituir con él el
+   `--surface` opaco no tinta la píldora: la vacía. Al pasar por encima se veía
+   el trabajo a través de la mano —letras del programa cruzando el verbo— y eso
+   en una pieza que FLOTA sobre el contenido es justo lo contrario de lo que
+   hace el resto de la casa. El tinte va ENCIMA del papel, no en su lugar.
+
+   Y el aro: `border-color: var(--accent)` a pleno es el canto de un control
+   con el foco puesto, no el de una superficie encendida. Rodeando una píldora
+   entera al pie de la pantalla se lee como una alarma. El azul ya lo llevan el
+   verbo y la cifra, que es donde significa algo; al canto le basta con teñirse
+   para decir que la pieza está viva. */
+.pp-mano.is-viva .pp-mano-n { background: var(--accent-soft); color: var(--accent); }
+.pp-mano.is-viva:hover,
+.pp-mano.is-viva:focus-within,
+.pp-mano.is-viva.is-ofrece {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+}
+.pp-mano.is-viva:hover .pp-mano-n,
+.pp-mano.is-viva:focus-within .pp-mano-n,
+.pp-mano.is-viva.is-ofrece .pp-mano-n { background: var(--accent-wash); }
+.pp-mano.is-viva .pp-mano-verbo,
+.pp-mano.is-viva .pp-mano-elegir { color: var(--accent); font-weight: 650; }
+.pp-mano.is-viva .pp-mano-verbo:hover { background: var(--accent-wash); color: var(--accent); }
+/* El canto solo separa DOS tramos. Con varias piezas no hay verbo a la
+   izquierda del peso, así que ese canto se quedaba pegado al borde de la
+   píldora — una raya azul dentro de la curva y sin nada que separar. */
+.pp-mano.is-viva .pp-mano-verbo + .pp-mano-peso { border-left: 1px solid var(--accent-wash); }
+
+/* ── LO QUE LLEVAS ES UNA COSA O SON VARIAS ────────────────────────────────
+   Dos quejas del dueño, una sola causa: «con una sola pieza, ¿qué sentido tiene
+   que además te muestre el ver más?; y con varias ese formato es incómodo».
+
+   La píldora estaba montada igual para los dos casos: verbo de UNA pieza + cifra
+   de TODAS. Con una sola sobra la cifra —el cajón que abre tiene una fila y dice
+   el nombre que la mano ya está diciendo—; con varias sobra el verbo, porque
+   nombrar «Push B» es elegir por el entrenador cuál de las tres se pega, y el ✕
+   de al lado —que las suelta TODAS— acababa de decir otra cosa. Cada caso se
+   queda con lo que sí significa:
+
+     · CABE UNA    → se nombra: «Pegar «Push B» en Bloque 2». Y si además es lo
+                     ÚNICO que llevas (`es-una`), el peso se retira mientras el
+                     verbo está fuera: no hay lista que abrir, así que la mano se
+                     queda en dos tramos, «Pegar «Push B» en Bloque 2 ✕».
+     · CABEN VARIAS → no se promociona a nadie: «Pegar en Bloque 2… 📋 3», y ese
+                     mando abre la lista, donde cada fila lleva su «Pegar aquí».
+
+   Los puntos suspensivos no son adorno: son la marca de la casa para «esto
+   pregunta» —«Su protocolo…», «Pausar…» en la cartera—.
+
+   Va DESPUÉS de la ley V a propósito: el canto de arriba y este empate en
+   especificidad (0,4,0), y quien tiene que ganar es el que retira el tramo. */
+/* `text-overflow` como el del verbo: un destino con nombre largo —«Semana 3 ·
+   Empuje A»— se corta con puntos y no a media letra. */
+.pp-mano-elegir { text-overflow: ellipsis; }
+.pp-mano:hover .pp-mano-elegir,
+.pp-mano:focus-within .pp-mano-elegir,
+.pp-mano.is-ofrece .pp-mano-elegir { max-width: 280px; opacity: 1; }
+
+/* ── AQUÍ SE RETIRABA EL PESO CUANDO LLEVABAS UNA SOLA PIEZA ───────────────
+   Con una pieza, la píldora abierta era «Pegar «Push B» en Bloque 2 ✕» y el
+   peso sobraba: no abría nada, porque un cajón de una fila solo repetía el
+   nombre que la píldora ya decía. Desde la ley VII el peso SÍ abre —la ficha
+   de la pieza, con lo que lleva dentro y con «Ponerlo en varios» y «Guardar en
+   plantillas», que no caben en una línea—, así que retirarlo justo al acercarse
+   escondía el único camino a esos dos verbos. El rótulo «Llevas» sigue
+   encogiendo con la ley V; lo que se queda es la cifra. */
+
+/* El «vaciar» es el vecino de un verbo azul, así que va en tinta terciaria y
+   con su propio canto: lo que separa una acción de la otra no puede ser solo la
+   distancia cuando una de las dos suelta lo que llevas. */
+.pp-mano-soltar { border-left: 1px solid var(--hairline); color: var(--text-tertiary); }
+.pp-mano-soltar:hover { color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* Los mismos selectores que arriba, y no los nombres de clase a secas: en una
+     media query la especificidad NO sube, así que `.pp-mano-verbo` (0,1,0)
+     seguiría perdiendo contra `.pp-mano > button` (0,1,1) y esto no apagaría
+     nada justo en los dos tramos que más se mueven. */
+  .pp-mano > button,
+  .pp-mano > .pp-mano-peso,
+  .pp-mano-quieta, .pp-mano-recien, .pp-mano-elegir { transition: none; }
+}
+
+/* En el táctil no hay «acercarse»: la mano se queda en su peso y lo que se
+   puede hacer está dentro del cajón, donde cada fila que cabe lleva su «Pegar
+   aquí» y la cabecera su «Vaciar». Sin esto, `:hover` se dispara al tocar y
+   deja la píldora abierta hasta que tocas en otro sitio. */
+@media (hover: none) {
+  .pp-mano:hover .pp-mano-verbo,
+  .pp-mano:hover .pp-mano-soltar,
+  .pp-mano:hover .pp-mano-elegir,
+  .pp-mano:hover .pp-mano-quieta { max-width: 0; opacity: 0; padding: 0 !important; }
+  .pp-mano.is-viva:hover { background: var(--surface); border-color: var(--edge); }
+  /* El peso ya no se retira en ningún caso (ver la ley VII más arriba), así que
+     aquí no hay nada que devolver: en táctil es lo único que queda, y es también
+     lo que abre la ficha de la pieza. */
+}
+/* ── EL CAJÓN ─────────────────────────────────────────────────────────────
+   La lista, hacia arriba y a un clic. Se cierra al usarla, al pulsar fuera y
+   con Escape (`useClickOutside`). */
+.pp-cajon {
+  width: min(320px, calc(100vw - 2 * var(--s4)));
+  background: var(--surface); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: pp-entra 180ms var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-cajon { animation: none; }
+}
+.pp-cajon-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3);
+  border-bottom: 1px solid var(--hairline);
+}
+.pp-cajon-cab > b {
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.pp-cajon-vaciar {
+  border: 0; background: none; cursor: pointer; padding: 3px 6px; border-radius: var(--r-sm);
+  font: inherit; font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary);
+  transition: background var(--fast), color var(--fast);
+}
+.pp-cajon-vaciar:hover { background: var(--fill-subtle); color: var(--text); }
+
+.pp-lista { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; }
+.pp-pieza {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3); min-width: 0;
+}
+/* Se puede coger y llevar a donde caiga —a la columna del bloque, a la comida
+   del menú—, y el cursor es lo único que lo dice mientras no se coge. Solo con
+   ratón, que es cuando el atributo está puesto (ver `ManoDelPortapapeles`). */
+.pp-pieza[draggable='true'] { cursor: grab; }
+.pp-pieza[draggable='true']:active { cursor: grabbing; }
+/* El canto separa PIEZAS y no filas: desde la ley VII una pieza puede llevar su
+   ficha debajo, y la raya tiene que quedar entre las dos piezas y no entre una
+   pieza y sus propias tripas. */
+.pp-item + .pp-item { border-top: 1px solid var(--hairline); }
+.pp-item.es-abierta { background: var(--fill-subtle); }
+.pp-pieza-icono {
+  display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0;
+  border-radius: var(--r-sm); background: var(--fill-subtle); color: var(--text-tertiary);
+}
+/* Es `<span>` con una sola pieza y `<button>` con varias —el mando que la
+   abre—, así que se dibuja por los dos: un botón trae borde, fondo y centrado
+   propios que aquí no pintan nada. */
+.pp-pieza-texto {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto;
+  border: 0; background: none; padding: 0; text-align: left; font: inherit;
+}
+button.pp-pieza-texto { cursor: pointer; }
+.pp-pieza-titulo {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* De qué es y de dónde salió, en una línea que se corta: «Lower A» a secas no
+   distingue a dos personas, y en una lista de doce eso es todo el problema. */
+.pp-pieza-pie {
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* El verbo por fila: el mismo azul de la mano, para las piezas que este destino
+   acepta. Las que no caben aquí no lo llevan — y así se ve cuáles son. */
+.pp-pieza-verbo {
+  flex-shrink: 0; border: 0; background: none; cursor: pointer;
+  padding: 5px 9px; border-radius: var(--r-sm); white-space: nowrap;
+  font: inherit; font-size: var(--fs-xs); font-weight: 650; color: var(--accent);
+  transition: background var(--fast);
+}
+.pp-pieza-verbo:hover { background: var(--accent-soft); }
+.pp-pieza-quitar {
+  display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0;
+  border: 0; border-radius: var(--r-sm); background: none; cursor: pointer;
+  color: var(--text-tertiary);
+  transition: background var(--fast), color var(--fast);
+}
+.pp-pieza-quitar:hover { background: var(--fill-subtle); color: var(--text); }
+
+/* ── LA FICHA DE LA PIEZA ABIERTA (ley VII) ───────────────────────────────
+   Lo que lleva dentro y lo que se puede hacer con ella. Los verbos son botones
+   a la vista y no un «···»: el cajón recorta lo que se salga (`overflow`), así
+   que un popover aquí dentro no se vería — y para dos entradas, un menú es un
+   clic de peaje. */
+.pp-ficha {
+  padding: 0 var(--s2) var(--s2) calc(var(--s3) + 26px + var(--s2));
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.pp-dentro {
+  list-style: none; margin: 0; padding: 0;
+  font-size: var(--fs-2xs); color: var(--text-secondary);
+}
+.pp-dentro > li { padding: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-dentro > li.mas { color: var(--text-tertiary); }
+.pp-verbos { display: flex; flex-wrap: wrap; gap: 4px; }
+.pp-verbo {
+  border: 1px solid var(--edge); background: var(--surface); cursor: pointer;
+  padding: 4px 9px; border-radius: var(--r-sm); white-space: nowrap;
+  font: inherit; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-secondary);
+  transition: background var(--fast), color var(--fast), border-color var(--fast);
+}
+.pp-verbo:hover { background: var(--fill-subtle); color: var(--text); }
+/* Pegar aquí es el único que escribe en lo que tienes delante, así que es el
+   único en acento: la ley de los gestos de la casa. */
+.pp-verbo.es-azul { color: var(--accent); border-color: var(--accent-wash); }
+.pp-verbo.es-azul:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* ── EL TELÉFONO ──────────────────────────────────────────────────────────
+   LEY IV · sin destino no aparece. La bandeja anterior se plantaba a
+   `bottom: 12px` con `z-index` 120 contra los 90 de la barra del pulgar: tapaba
+   sus 56 px de destinos de navegación en todas las pantallas. El aviso y el «+»
+   flotante ya se apartaban con este mismo desplazamiento; la mano se olvidó.
+
+   Y como en el teléfono el entrenador no monta bloques —el móvil ejecuta, el PC
+   planifica—, casi nunca hay dónde pegar: lo correcto ahí es no estar. */
+@media (max-width: 640px) {
+  .pp-pie:not(.is-viva) { display: none; }
+  .pp-pie {
+    right: var(--s3); left: var(--s3); align-items: stretch;
+    bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s3) + var(--lote-apoyo, 0px));
+  }
+  /* El cajón ocupa el ancho; la mano NO. Estirada de canto a canto sería una
+     barra con un icono y una cifra dentro: en el teléfono la mano es todavía
+     más peso y menos mueble que en el escritorio. */
+  .pp-mano { max-width: none; align-self: flex-end; }
+  .pp-cajon { width: auto; }
+  .pp-lista { max-height: 38vh; }
+}
+
+/* ==========================================================================
+   VENTANA FLOTANTE
+   --------------------------------------------------------------------------
+   Una ventana no modal que se queda mientras se trabaja debajo: se arrastra por
+   su barra y se estira por la esquina. El porqué, en `ui/VentanaFlotante.jsx`.
+
+   150 de altura de capa: por encima de las cabeceras pegajosas (100) y por
+   debajo de los diálogos (200), que sí tienen que taparla.
+   ========================================================================== */
+
+.vflota {
+  position: fixed; z-index: 150;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: var(--surface);
+  /* Una sombra larga y baja: es lo único que dice que esto FLOTA sobre la hoja
+     y no es otro bloque de la página. */
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.vflota-asa {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s2) var(--s2) var(--s3);
+  border-bottom: 1px solid var(--edge);
+  background: var(--surface-sunken);
+  cursor: grab;
+  /* Sin selección de texto: arrastrar por la barra seleccionaba el título y la
+     ventana se movía con media palabra en azul detrás. */
+  user-select: none;
+  flex-shrink: 0;
+}
+.vflota-asa:active { cursor: grabbing; }
+
+.vflota-tit {
+  font-family: var(--font-display);
+  font-size: var(--fs-sm); font-weight: 680; letter-spacing: -0.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vflota-sub {
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  white-space: nowrap; flex-shrink: 0;
+}
+.vflota-verbos { margin-left: auto; display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+.vflota-cuerpo { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* La esquina: dos filetes a 45°, que es como se dibuja «estírame» desde que
+   existen las ventanas. */
+.vflota-esquina {
+  position: absolute; right: 0; bottom: 0;
+  width: 18px; height: 18px;
+  cursor: nwse-resize;
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 3px,
+    var(--edge-control) 3px 4px
+  );
+}
+
+/* En el teléfono no hay ventanas: quien programa está en un escritorio (ver
+   `movil-ejecuta-pc-planifica`). Ahí esto se abre a pantalla completa, que es lo
+   que un móvil sabe hacer. */
+@media (max-width: 720px) {
+  .vflota {
+    inset: auto 0 0 0 !important;
+    width: auto !important; height: 76vh !important;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
+  .vflota-esquina { display: none; }
+}
+
+/* La foto dentro de la ventana: entera y centrada sobre fondo hundido, como en
+   el visor. `contain` y no `cover`: una máquina recortada no contesta nada. */
+.vflota-foto {
+  flex: 1; min-height: 0;
+  display: grid; place-items: center;
+  background: var(--surface-sunken);
+  padding: var(--s2);
+}
+.vflota-foto img { max-width: 100%; max-height: 100%; object-fit: contain; }

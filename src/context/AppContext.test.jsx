@@ -113,7 +113,7 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 195 claves', () => {
+  it('el reparto conserva las 284 claves', () => {
     montar();
     // 195 desde «Quién eres» en el alta del cliente (0091): `saveClientIdentity`,
     // el segundo camino por el que el CLIENTE escribe en su ficha. Va aparte de
@@ -306,7 +306,125 @@ describe('AppProvider', () => {
     // tabla; el entrenador marca con un `update` normal, que ya puede hacer—.
     // Sin ella, «te han contestado» sería cierto para siempre y su cola de la
     // bandeja no se podría vaciar nunca.
-    expect(Object.keys(visto.app).length).toBe(251);
+    //
+    // Y 253 desde el modo sin conexión: `enEspera` —cuántos guardados esperan a
+    // que vuelva la red— y `copiaLocal` —de cuándo son los datos que se están
+    // mirando, o `null` si vienen del servidor—. Los dos son estado del
+    // TRANSPORTE y no del cliente, y los dos existen porque la nube de la
+    // esquina (`ui/EstadoDeRed`) tiene que poder decir la verdad: cuánto queda
+    // por mandar y de qué momento es lo que hay en pantalla. Ver
+    // `lib/instantanea` y `lib/conexion`.
+    //
+    // Y 255 desde el PORTAPAPELES: `appendMicrocycleWithDays` y `appendMeal`.
+    // Las dos son la mitad de arriba de un verbo que ya existía y que sabía
+    // hacer las dos cosas de una vez: `cloneMicrocycle` leía un microciclo del
+    // cliente y lo escribía a continuación, y `duplicateMeal` hacía lo propio
+    // con una comida. Servían para duplicar en el sitio y para nada más, porque
+    // origen y destino se decidían en la misma llamada. Partidas, lo de abajo
+    // —dónde cae, con qué fecha, con qué ids— vale igual venga de donde venga:
+    // de este cliente, del portapapeles o de otra persona. Los verbos viejos
+    // siguen, y ahora son una línea sobre estos. Ver `lib/portapapeles`.
+    // Y 261 desde LOS DÍAS DE LA DIETA (0111): `addDietDay`, `duplicateDietDay`,
+    // `renameDietDay`, `moveDietDay`, `removeDietDay`, `setDietWeekDay` y
+    // `repartirPorElEntreno`, a cambio de `setHasDayVariants` — siete verbos
+    // donde había un interruptor. Y no es que se hayan partido: `setHasDayVariants`
+    // solo sabía contar hasta dos, porque el esquema solo sabía contar hasta
+    // dos. Añadir un tercer día, renombrarlo o repartir la semana no eran
+    // llamadas que faltaran, eran cosas que no se podían hacer.
+    //
+    // Y 262 desde el DESHACER del pegado: `removeMealsById`. Pegar un menú son
+    // seis comidas al final de la lista, y el «Deshacer» del aviso tiene que
+    // poder quitar EXACTAMENTE esas seis seis segundos después, cuando ya se
+    // pueden haber movido: `removeMeal` va por posición y no sirve para eso.
+    //
+    // Y 263 desde que LAS OPCIONES SE NOMBRAN: `renameMealOption`. «Opción 1»
+    // dice dónde está la alternativa en una lista, no qué es — y lo lee el
+    // cliente, que es quien tiene que elegir una. El nombre es opcional y vive
+    // en el propio menú, así que no hay columna nueva. Ver `optionName`.
+    //
+    // Y 265 desde PONER UNA PIEZA EN VARIOS: `conditionsOfMany` y
+    // `addDietDayWithMeals`. Los dos existen porque repartir es escribir en el
+    // plan de N personas de golpe: hay que poder decir a quién NO se le puede
+    // poner —y eso es una lectura en bloque de los condicionantes, no la del
+    // cliente abierto— y hay que poder añadirle un día con su menú en UNA
+    // escritura, porque entre `addDietDay` y `setDayMeals` el día existe vacío
+    // en la dieta de alguien. Ver `domain/reparto`.
+    //
+    // Y 266 desde MANDAR LA DIETA ENTERA: `replaceDiet`. Es el único verbo de
+    // nutrición que BORRA —una dieta no tiene lista de planes, así que lo que
+    // se pisa no queda en ninguna parte— y por eso está solo, lo llama un solo
+    // sitio, y ese sitio desmarca todas las filas de fábrica y dice por persona
+    // qué pierde. Ver `replaceDietDays`.
+    // Y 272 desde EL CAJÓN (0112): `cajon`, `hayCajon` y los tres verbos de
+    // guardar, renombrar y tirar, más `cabeEnCajon`. Su relato lo tiene que
+    // escribir quien las puso —falta G-04, que es cuando `/plantillas` deja de
+    // leer de `preferences`—; aquí se deja dicho de dónde vienen para que el
+    // salto no parezca de nadie. Ver `docs/replanteamiento-lo-guardado.md`.
+    //
+    // Y 273 desde que TUS GRUPOS LLEGAN AL CLIENTE: `gruposEquiv`. Es la otra
+    // mitad de una cosa que el entrenador ya tenía —los suyos viven en
+    // `coachPrefs`, que es donde los escribe—: esto es lo que le LLEGA a una
+    // persona por la función `equiv_groups()` (0113), porque un cliente no
+    // puede leer las preferencias de su entrenador. La misma pareja que
+    // `exerciseLibrary` y `sheetOf`, y por el mismo motivo. Ver
+    // `useEquivGroups`.
+    //
+    // Y 275 desde que UNA PIEZA CAE ENCIMA DE OTRA (la tanda 3 del
+    // portapapeles): `setBlockSheetExercises` y `setMealOptions`. Los dos son
+    // el mismo movimiento en las dos mitades de la aplicación —pegar una hoja
+    // sobre un día que ya existe, y una comida dentro de otra como
+    // alternativa—, y los dos escriben una LISTA entera de una vez. No son un
+    // atajo de los verbos de uno en uno: con aquéllos, un gesto serían N bajas
+    // y M altas, la pantalla parpadearía por los pasos intermedios y el
+    // «Deshacer» tendría que rehacerlos al revés y en orden. Escribiendo la
+    // lista, el inverso es la lista de antes. Ver `docs/estudio-portapapeles.md`.
+    //
+    // Y 274 desde que el PLATO es una forma del portapapeles (0114): se retira
+    // `copyOptionToVariant`, que llevaba una alternativa a la comida que se
+    // llamara igual en otro día. Era el único camino que tenía una ración para
+    // salir de su comida, y el peor de los dos: elegía el destino por su cuenta,
+    // solo llegaba a los días de la misma persona y no pasaba por la mano. Lo
+    // sustituyen `copiarPlato` y `pegarPlato`, que no son acciones del contexto
+    // sino la mecánica de siempre —`setMealOptions` y `addFoodsToOption`—.
+    //
+    // Y 280 desde que hay cosas que PASAN SOLAS (0116, tanda 2 del protocolo).
+    // Seis, y son tres parejas de dato y verbo:
+    //
+    //   · `automatizaciones` + `automatizacionesReady` — las reglas del
+    //     protocolo. La segunda no es un lujo: sin ella, el carril de un
+    //     protocolo que todavía está cargando enseña «aquí no le pasa nada
+    //     solo», que es una mentira que dura un segundo y hace dudar del resto.
+    //     Mismo par que `envioRows` / `enviosReady`, y por el mismo motivo.
+    //   · `corridas` — el libro de a quién le ha corrido qué. Es una CACHÉ y no
+    //     la verdad: quien impide el doble disparo es el índice único de la
+    //     base. Está en el reparto porque el repaso la lee para no pedir lo que
+    //     ya sabe hecho.
+    //   · `guardarAutomatizacion`, `quitarAutomatizacion` y
+    //     `correrAutomatizaciones`. La tercera es el motor 1 entero —calcular
+    //     qué filas tendrían que existir ya y escribirlas— y es acción del
+    //     contexto y no de la pantalla porque la llaman dos sitios que no se
+    //     conocen: el arranque, y cada vez que se guarda un paso.
+    //
+    // Ver `useAutomatizaciones` y `docs/protocolo-y-automatizaciones-v1.md` §8.
+    //
+    // Y 283 desde que el PLAN SE PUEDE DESHACER: `deshacerPlan`, `rehacerPlan`
+    // y `pasosDelPlan`. Los dos verbos van a la fachada; el dato va al reparto
+    // de datos y no con ellos porque la pantalla enseña el mando SOLO cuando
+    // hay algo que deshacer, y detrás de la fachada estable —que nunca cambia
+    // de identidad a propósito— no se enteraría de que la pila ha cambiado.
+    // Es el mismo motivo por el que `saveStatus` tampoco está con las acciones.
+    //
+    // Las fotos NO salen del contexto: lo único que se reparte es cuántos
+    // pasos hay a cada lado. Nadie fuera tiene nada que hacer con un programa
+    // entero, y sacarlas invitaría a pintar con ellas. Ver `useWorkout` y la
+    // ley en `domain/deshacer`.
+    //
+    // Y 284 desde que el aviso de lo no guardado sale del chasis: se va
+    // `hasUnsavedChanges` —que era `saving || error || pending` y encendía una
+    // chapa al TECLEAR— y entran `fallosAlGuardar`, que cuenta solo lo que el
+    // servidor ha rechazado, y `reintentarLoFallido`, su verbo. Neto: una más.
+    // Lo pinta la franja de `ui/EstadoDeRed`, no la esquina de la cuenta.
+    expect(Object.keys(visto.app).length).toBe(284);
   });
 
   /*

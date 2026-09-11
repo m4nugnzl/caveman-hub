@@ -275,6 +275,11 @@ export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) =>
       fats: toNum(vigente?.fats),
       steps: toNum(vigente?.steps),
       cardio: vigente?.cardio ?? null,
+      /* De dónde salen esas kcal: la media de su ciclo o un día suelto. Viaja
+         desde la foto (`cycleFoto`) para que la tarjeta del plan de la revisión
+         pueda decirlo, en vez de dar una cifra sin apellido. */
+      de: vigente?.de ?? null,
+      reparto: vigente?.reparto ?? null,
       changed,
     };
   });
@@ -298,6 +303,8 @@ export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) =>
         fats: toNum(plan.fats),
         steps: toNum(plan.steps),
         cardio: plan.cardio ?? null,
+        de: plan.de ?? null,
+        reparto: plan.reparto ?? null,
         /* El escalón se marca en la PRIMERA de esas semanas, no en todas. */
         changed: false,
       };
@@ -311,4 +318,77 @@ export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) =>
   }
 
   return salida;
+};
+
+/**
+ * EL REGISTRO FECHADO DE LA DIETA, de las DOS fuentes que lo escriben.
+ *
+ * ══ La avería que cierra ═══════════════════════════════════════════════════
+ *
+ * «Las kcals no las coge en la gráfica, cuando este cliente tuvo varios cambios
+ * que sí se recogen en la página de resumen.»
+ *
+ * Y las dos pantallas tenían razón, porque no miraban lo mismo:
+ *
+ *   · La REVISIÓN lee `check_ins.snapshot` —la foto del plan que queda escrita
+ *     al cerrar cada revisión semanal—. Ahí están los cambios.
+ *   · La EVOLUCIÓN de la dieta leía solo `log.nutrition`, la foto que se guarda
+ *     al REGISTRAR UN PESAJE, y solo si en ese momento se le pasó el plan
+ *     (`buildAnthropometryLog`). Un cliente que se pesa desde el portal y cuyas
+ *     revisiones las cierra el entrenador tiene decenas de pesajes sin foto: su
+ *     escalera de kcal sale plana, y la tarjeta dice «sus kcal no han cambiado»
+ *     de alguien al que le has tocado la dieta cuatro veces.
+ *
+ * Dos pantallas de la misma aplicación contestando distinto a «¿cuándo le
+ * cambiaste las calorías?» no es un matiz: es la que peor pinta tiene la que se
+ * cree, porque es la que está al lado de la dieta.
+ *
+ * ══ Por qué devuelve algo con la forma de un historial ═════════════════════
+ *
+ * Porque `weightSeries`, `kcalSeries`, `kcalSteps` y `lastKcalChange` ya saben
+ * leer esa forma, están probadas y las usan las dos tarjetas y la ventana. Lo
+ * que faltaba no era otra lectura: era que la lectura mirara donde está el dato.
+ * Esto junta las dos fuentes en una lista con la forma de siempre y no toca ni
+ * una de esas funciones.
+ *
+ * ── Quién gana cuando las dos hablan del mismo día ────────────────────────
+ * La foto de nutrición del pesaje, igual que en `reviewTimeline`: es la que se
+ * tomó midiendo. Es la misma regla en las dos pantallas, escrita una vez.
+ *
+ * ── Y el plan de HOY no entra ─────────────────────────────────────────────
+ * `nutritionTrack` sí lo arrastra a las semanas sin revisión, y allí está bien:
+ * su eje son semanas y la de ahora es una de ellas. Aquí el eje son FECHAS de
+ * hechos, y meter el plan actual obligaría a ponerle una: la de hoy. Diría «le
+ * bajaste 250 kcal el 10 de septiembre» de un cambio que pudo hacerse en julio,
+ * y una fecha inventada en una escalera que se compara con el peso es peor que
+ * un escalón que falta. El objetivo de hoy ya está escrito arriba, en su
+ * tarjeta.
+ *
+ * @param history  `anthropometry.history` — los pesajes, con su foto si la hay.
+ * @param reviews  `reviewHistory` — las revisiones cerradas, con su `snapshot`.
+ * @returns Registros `{ date, weight, nutrition }` de más viejo a más nuevo.
+ */
+export const dietLog = ({ history = [], reviews = [] } = {}) => {
+  const conFoto = new Set(
+    (history || []).filter((h) => h?.date && h.nutrition).map((h) => String(h.date))
+  );
+
+  const deRevisiones = (reviews || [])
+    .filter((r) => r?.weekStart && r.snapshot && !conFoto.has(String(r.weekStart)))
+    .map((r) => ({
+      /* Sin `id`: no es un registro de antropometría y nadie tiene que poder
+         borrarlo desde aquí. La revisión de la que sale se borra en su pantalla. */
+      date: r.weekStart,
+      weight: null,
+      nutrition: {
+        kcals: toNum(r.snapshot.kcals),
+        protein: toNum(r.snapshot.protein),
+        carbs: toNum(r.snapshot.carbs),
+        fats: toNum(r.snapshot.fats),
+      },
+    }));
+
+  return [...(history || []), ...deRevisiones]
+    .filter((r) => r && r.date)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
 };

@@ -82,10 +82,11 @@ const compact = (values) => {
  * perímetros se omiten si están vacíos, en vez de guardarse llenos de ceros
  * (un cero no es lo mismo que "no medido", y falseaba las sumas).
  *
- * `nutritionPlan` se guarda como foto del momento para poder cruzar después
- * kcal y macros con la evolución del peso.
+ * `nutritionFoto` es la foto del plan de ese momento —`cycleFoto`, ya armada por
+ * quien tiene delante el ciclo de esta persona— y se guarda tal cual para poder
+ * cruzar después kcal y macros con la evolución del peso.
  */
-export const buildAnthropometryLog = ({ date, weight, folds, perimeters, nutritionPlan }) => {
+export const buildAnthropometryLog = ({ date, weight, folds, perimeters, nutritionFoto = null }) => {
   const log = {
     id: newId('log'),
     date: toISODate(date),
@@ -97,22 +98,29 @@ export const buildAnthropometryLog = ({ date, weight, folds, perimeters, nutriti
   if (skinFolds) log.skinFolds = skinFolds;
   if (perims) log.perimeters = perims;
 
-  if (nutritionPlan) {
-    const snapshot = compact({
-      kcals: nutritionPlan.targetKcals,
-      protein: nutritionPlan.proteinGrams,
-      carbs: nutritionPlan.carbsGrams,
-      fats: nutritionPlan.fatsGrams,
-    });
-    if (snapshot) log.nutrition = snapshot;
+  /*
+    ── La foto del plan llega HECHA ──────────────────────────────────────────
+    Aquí se leía `nutritionPlan.targetKcals`, que es la columna heredada, que es
+    el PRIMER día del plan: en un alto/bajo, siempre el alto y sin decirlo. La
+    cifra honesta en un ciclado es la media ponderada, y para ponderar hacen
+    falta las casillas del ciclo de esta persona —que este módulo no tiene ni
+    debe tener: es antropometría—. La arma `cycleFoto` y llega puesta. Ver el
+    porqué entero allí.
+  */
+  /* Y no pasa por `compact`: esa función convierte cada valor con `toNum` y
+     tira lo que no sea número, así que se llevaría por delante de dónde sale la
+     cifra (`de`) y los días del ciclo. Lo que se comprueba es que la foto diga
+     ALGO: un plan sin objetivo no deja rastro, como antes. */
+  if (nutritionFoto && ['kcals', 'protein', 'carbs', 'fats'].some((k) => toNum(nutritionFoto[k]) !== null)) {
+    log.nutrition = nutritionFoto;
   }
 
   return log;
 };
 
 /** Pesaje rápido: solo fecha y peso, que es el caso habitual del cliente. */
-export const buildWeightLog = ({ date, weight, nutritionPlan }) =>
-  buildAnthropometryLog({ date, weight, nutritionPlan });
+export const buildWeightLog = ({ date, weight, nutritionFoto = null }) =>
+  buildAnthropometryLog({ date, weight, nutritionFoto });
 
 // ── Consultas ──────────────────────────────────────────────────────────────
 
@@ -166,6 +174,68 @@ export const kcalSeries = (history) =>
   chronological(history)
     .map((h) => ({ date: h.date, value: toNum(h.nutrition?.kcals) }))
     .filter((p) => p.value !== null);
+
+/**
+ * LOS CAMBIOS DE KCAL, uno a uno, sacados de la foto de cada pesaje.
+ *
+ * ══ El eje del tiempo de la dieta se DIBUJA, no se mantiene ════════════════
+ *
+ * Hubo una propuesta de declarar «tramos» a mano —cada objetivo con su fecha de
+ * inicio y de fin— y se cayó por el oficio, no por el código: un microciclo se
+ * planifica ANTES, pero un cambio de calorías se decide DESPUÉS, mirando el
+ * peso. Mantener una columna vertebral para lo que la mayor parte del tiempo es
+ * un retoque de cincuenta calorías es trabajo que nadie va a hacer.
+ *
+ * Y lo que se quería del tramo no era el tramo: era la lectura —«le bajaste 250
+ * kcal el 6 de julio; desde entonces, −2,4 kg»—. Esa lectura ya estaba guardada
+ * (`log.nutrition`, en cada pesaje y en cada revisión) y no la enseñaba nadie.
+ * Esto es leerla: cero esquema nuevo y cero gestos nuevos.
+ */
+export const kcalSteps = (history) => {
+  const puntos = kcalSeries(history);
+  const pasos = [];
+
+  for (let i = 1; i < puntos.length; i += 1) {
+    if (puntos[i].value === puntos[i - 1].value) continue;
+    pasos.push({
+      date: puntos[i].date,
+      from: puntos[i - 1].value,
+      to: puntos[i].value,
+      delta: round(puntos[i].value - puntos[i - 1].value),
+    });
+  }
+
+  return pasos;
+};
+
+/**
+ * El último cambio de calorías y lo que ha hecho el peso desde entonces.
+ *
+ * `null` si nunca ha cambiado: con una sola cifra pautada no hay «desde
+ * entonces» que contar, y decirlo igualmente sería inventarse un hito.
+ *
+ * `weightDelta` es `null` mientras no haya un pesaje POSTERIOR al cambio: el
+ * día que se toca el objetivo, la diferencia es cero por definición y pintarla
+ * como resultado sería mentir sobre lo que aún no ha pasado.
+ */
+export const lastKcalChange = (history) => {
+  const pasos = kcalSteps(history);
+  if (pasos.length === 0) return null;
+
+  const paso = pasos[pasos.length - 1];
+  const pesos = weightSeries(history);
+  const desde = pesos.find((p) => String(p.date) >= String(paso.date)) || null;
+  const ultimo = pesos.length > 0 ? pesos[pesos.length - 1] : null;
+  const hayDespues = Boolean(desde && ultimo && String(ultimo.date) > String(desde.date));
+
+  return {
+    ...paso,
+    weightFrom: desde?.value ?? null,
+    weightTo: ultimo?.value ?? null,
+    weightDelta: hayDespues ? round(ultimo.value - desde.value, 1) : null,
+    until: ultimo?.date ?? null,
+  };
+};
 
 /** Serie del % que representa cada macro sobre el total calórico, por revisión. */
 export const macroShareSeries = (history) =>

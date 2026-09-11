@@ -96,6 +96,9 @@ export const TarjetaPlan = ({
   aDieta,
   aEntreno,
   onAbrirFases,
+  /* La foto del ciclo de esta persona (`cycleFoto`): con el ciclo repartido, la
+     fila de calorías es su media ponderada y no el primer día del plan. */
+  ciclo = null,
   isClient = false,
 }) => {
   /* Su plan sin las cifras que no le vuelven: la palanca de calorías se retira
@@ -111,7 +114,33 @@ export const TarjetaPlan = ({
     : [];
   const cardio = String(plan?.cardioGoal || '').trim();
   const pasos = Number(plan?.stepsGoal) || null;
-  const conMacros = plan?.proteinGrams || plan?.carbsGrams || plan?.fatsGrams;
+
+  /*
+    ══ LAS CALORÍAS DE UN CICLADO NO SON LAS DEL PRIMER DÍA ═══════════════════
+
+    Esta fila leía `plan.targetKcals`, que es la columna heredada, o sea el
+    primer día del plan. A quien come 3.100 los días de entreno y 2.400 los de
+    descanso, el Resumen le decía «3.100 kcal» a secas —una cifra que come seis
+    días de cada nueve, presentada como su plan— mientras la dieta, dos clics
+    más allá, decía «de media, 2.867».
+
+    Con el ciclo repartido manda la MEDIA PONDERADA y se dice de qué días sale.
+    Sin repartir no se pondera nada y se enseña lo que hay, que es lo que había.
+    La regla vive una vez, en `cycleFoto`, y la usan también la foto del pesaje y
+    la de la revisión: una sola cifra de calorías en toda la aplicación.
+  */
+  const media = ciclo?.de === 'media';
+  const kcal = ciclo?.kcals ?? plan?.targetKcals ?? null;
+  const macros = media
+    ? { protein: ciclo.protein, carbs: ciclo.carbs, fats: ciclo.fats }
+    : { protein: plan?.proteinGrams, carbs: plan?.carbsGrams, fats: plan?.fatsGrams };
+  const conMacros = macros.protein || macros.carbs || macros.fats;
+
+  const sub = conMacros
+    ? `${media ? 'De media · ' : ''}P ${fmt(macros.protein)} · C ${fmt(macros.carbs)} · G ${fmt(macros.fats)} g`
+    : kcal
+      ? 'sin macros definidos'
+      : null;
 
   /* En el portal las palancas son texto: el cliente mira su plan, no lo cambia,
      y una fila que se enciende al pasar por encima promete algo que al pulsar
@@ -139,23 +168,17 @@ export const TarjetaPlan = ({
           <Palanca
             k="Calorías"
             valor={
-              plan?.targetKcals ? (
+              kcal ? (
                 <>
-                  {fmt(plan.targetKcals)}
+                  {fmt(kcal)}
                   <small> kcal</small>
                 </>
               ) : (
                 invita('Fija sus calorías')
               )
             }
-            texto={!plan?.targetKcals && !isClient}
-            sub={
-              conMacros
-                ? `P ${fmt(plan?.proteinGrams)} · C ${fmt(plan?.carbsGrams)} · G ${fmt(plan?.fatsGrams)} g`
-                : plan?.targetKcals
-                  ? 'sin macros definidos'
-                  : null
-            }
+            texto={!kcal && !isClient}
+            sub={sub}
             a={puerta(aDieta)}
           />
         )}

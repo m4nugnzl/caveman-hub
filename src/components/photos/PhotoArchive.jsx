@@ -1,14 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, Download, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { ANGLES, angleLabel, angleShort, groupByWeek, photoWeight } from '@/domain/photos';
+import {
+  ANGLES,
+  angleLabel,
+  angleShort,
+  groupByWeek,
+  photoFileName,
+  photoWeight,
+  slug,
+} from '@/domain/photos';
 import { shortDate } from '@/lib/dates';
 import { clientPath } from '@/routes';
+import { descargarComoZip, descargarFoto } from '@/lib/descargas';
 import { EmptyState } from '@/components/ui/primitives';
 import { Mando, MandoTab, MandoTabs } from '@/components/ui/Mando';
+import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import { fmt } from '@/lib/num';
 import { Gallery } from '@/components/photos/Gallery';
 import { PhotoUploadDialog } from '@/components/photos/PhotoUploadDialog';
@@ -54,17 +65,42 @@ import { Thumb } from '@/components/photos/Thumb';
  * ── El peso viaja con la carpeta ────────────────────────────────────────────
  * Una foto de progreso sin el peso de ese día es media información. Sale del
  * histórico de pesajes (`photoWeight`), que ya está cargado.
+ *
+ * ══ Y se puede sacar de aquí, que es la mitad del trabajo ═══════════════════
+ *
+ * Una foto de progreso no se mira solo dentro de la aplicación: se manda por
+ * WhatsApp, se mete en un documento, se guarda cuando se cierra una asesoría.
+ * Hasta ahora lo único descargable era el montaje del estudio, así que para
+ * quedarse una foto había que hacer una captura de pantalla — con su marco, su
+ * pie y la resolución del monitor.
+ *
+ * Tres alcances, que son las tres veces que se pide:
+ *
+ *   · **una** — la que estás mirando, desde el visor o desde su miniatura.
+ *   · **una semana** — el check-in entero, seis fotos, en un ZIP.
+ *   · **todo** — las de toda su historia, en carpetas por semana.
+ *
+ * Lo hace `lib/descargas.js` y el ZIP lo escribe `lib/zip.js`, sin librerías:
+ * una foto ya viene comprimida y lo que hace falta es empaquetar, no comprimir.
  */
 export const PhotoArchive = () => {
   const { activeClient, progressPhotos, anthropometry, uploadProgressPhoto, deleteProgressPhoto, ensurePhotoUrls } =
     useApp();
   const confirm = useConfirm();
+  const toast = useToast();
 
   const [subiendo, setSubiendo] = useState(false);
   const [angulo, setAngulo] = useState('all');
   const [plegadas, setPlegadas] = useState({});
   /* Qué foto se está mirando a pantalla completa, por índice del álbum. */
   const [viendo, setViendo] = useState(null);
+  /*
+    La descarga en curso: `{ clave, hechas, total }`. La clave dice QUIÉN la pidió
+    —una semana o el archivo entero— para que la cuenta salga en ese botón y no
+    en todos. Una sola a la vez: dos ZIP montándose en paralelo son el doble de
+    memoria para algo que se pide una vez al mes.
+  */
+  const [bajando, setBajando] = useState(null);
 
   /*
     Las fotos llegan de la carga inicial SIN enlace firmado: firmar las de toda la
@@ -107,6 +143,10 @@ export const PhotoArchive = () => {
         g.photos.map((p) => ({
           id: p.id ?? p.path,
           url: p.url,
+          /* La foto entera viaja con su renglón del álbum: el visor solo sabe de
+             URLs y pies, y para descargar hace falta el ángulo, la semana y la
+             fecha con los que se le pone nombre al archivo. */
+          foto: p,
           caption: [
             g.label,
             angleLabel(p.angle),
@@ -119,6 +159,79 @@ export const PhotoArchive = () => {
       ),
     [carpetas, history]
   );
+
+  /*
+    LA PRIMERA CARPETA ES EL CHECK-IN INICIAL, y estaba al fondo del todo.
+
+    Las carpetas van de la más reciente a la primera, que es el orden correcto:
+    nueve de cada diez veces se viene a ver lo último. Pero la vez que no, se
+    viene a por ESTA —«enséñame cómo estaba cuando empezó»—, y con un año de
+    asesoría eso son cincuenta carpetas de desplazamiento.
+
+    Así que tiene su propia puerta en la fila de mando y abre el visor
+    directamente en su primera foto. No es una carpeta destacada ni un filtro
+    más: es el atajo a un sitio concreto del archivo que ya existe.
+  */
+  const inicial = carpetas.length > 1 ? carpetas[carpetas.length - 1] : null;
+  const desdeInicial = album.length - (inicial?.photos.length ?? 0);
+
+  const nombreDe = useCallback(
+    (photo) => photoFileName(photo, { clientName: activeClient?.name }),
+    [activeClient?.name]
+  );
+
+  const bajarUna = async (photo, event) => {
+    event?.stopPropagation();
+    const res = await descargarFoto({ url: photo.url, nombre: nombreDe(photo) });
+    if (!res.ok) toast({ text: res.error });
+  };
+
+  /**
+   * Varias, en un ZIP.
+   *
+   * @param porSemana  Mete cada foto en su carpeta `semana-03/`. Para el archivo
+   *   entero es lo que lo hace utilizable; para una sola semana sería una
+   *   carpeta dentro de un ZIP que ya es esa semana.
+   */
+  const bajarVarias = async ({ clave, fotos, nombre, porSemana = false }) => {
+    if (bajando) return;
+
+    const archivos = fotos
+      .filter((p) => p.url)
+      .map((p) => ({
+        url: p.url,
+        /* La fecha del ZIP es la de la foto: así la carpeta de descargas se
+           puede ordenar por fecha y sale la historia en orden. Mediodía para
+           que ninguna zona horaria la mueva de día. */
+        fecha: p.date ? new Date(`${p.date}T12:00:00`) : null,
+        nombre:
+          porSemana && p.week != null
+            ? `semana-${String(p.week).padStart(2, '0')}/${nombreDe(p)}`
+            : nombreDe(p),
+      }));
+
+    setBajando({ clave, hechas: 0, total: archivos.length });
+
+    const res = await descargarComoZip({
+      archivos,
+      nombre,
+      onProgreso: (hechas, total) => setBajando({ clave, hechas, total }),
+    });
+
+    setBajando(null);
+
+    if (!res.ok) toast({ text: res.error });
+    else if (res.fallos?.length) {
+      /* El ZIP se entregó, pero incompleto: se dice cuántas faltan. Callarlo
+         sería entregar un archivo con agujeros y dejar que se descubra al
+         abrirlo. */
+      toast({
+        text: `Descargadas ${archivos.length - res.fallos.length} de ${archivos.length}. ${
+          res.fallos.length === 1 ? 'Una foto no se pudo bajar' : `${res.fallos.length} no se pudieron bajar`
+        }; recarga la página y prueba otra vez.`,
+      });
+    }
+  };
 
   const borrar = async (photo, event) => {
     event.stopPropagation();
@@ -151,6 +264,14 @@ export const PhotoArchive = () => {
         }
         acciones={
           <>
+            {/* La puerta al principio de su historia. Ver el comentario de
+                `inicial`: es un atajo a un sitio del archivo, no otra vista. */}
+            {inicial && (
+              <button type="button" className="cab-accion" onClick={() => setViendo(desdeInicial)}>
+                Check-in inicial
+              </button>
+            )}
+
             {/* El estudio es la herramienta COMPARATIVA, y se abre desde aquí:
                 el archivo es donde se elige qué merece la pena comparar. */}
             {suyas.length > 1 && (
@@ -158,6 +279,34 @@ export const PhotoArchive = () => {
                 Comparar en el estudio
               </Link>
             )}
+
+            {/* Llevarse el archivo entero se hace una vez —cuando se cierra una
+                asesoría, o cuando se hace copia— así que vive en el «···». */}
+            {suyas.length > 0 && (
+              <MenuAcciones
+                ariaLabel="Más cosas con sus fotos"
+                items={[
+                  {
+                    label:
+                      bajando?.clave === 'todo'
+                        ? `Descargando ${bajando.hechas} de ${bajando.total}…`
+                        : `Descargar sus ${suyas.length} fotos en un ZIP`,
+                    icon: Download,
+                    run: () =>
+                      bajarVarias({
+                        clave: 'todo',
+                        /* TODAS, no las del filtro de ángulo: esto es «llévate su
+                           archivo», y un archivo al que le faltan los perfiles
+                           porque había un filtro puesto no es su archivo. */
+                        fotos: suyas,
+                        nombre: `${slug(activeClient.name)}-fotos.zip`,
+                        porSemana: true,
+                      }),
+                  },
+                ]}
+              />
+            )}
+
             <button type="button" className="btn btn-primary btn-sm" onClick={() => setSubiendo(true)}>
               Subir fotos
             </button>
@@ -201,24 +350,58 @@ export const PhotoArchive = () => {
                   .slice(0, iCarpeta)
                   .reduce((n, g) => n + g.photos.length, 0);
 
+                const bajandoEsta = bajando?.clave === key;
+
                 return (
                   <section className="carpeta" key={key}>
-                    <button
-                      type="button"
-                      className="carpeta-head"
-                      aria-expanded={!plegada}
-                      onClick={() => setPlegadas((prev) => ({ ...prev, [key]: !prev[key] }))}
-                    >
-                      {plegada ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
-                      <span className="nombre">{carpeta.label}</span>
-                      {carpeta.photos[0]?.date && (
-                        <span className="fecha">del {shortDate(carpeta.photos[0].date)}</span>
-                      )}
-                      {kg && <span className="peso">{kg} kg</span>}
-                      <span className="cuenta">
-                        {carpeta.photos.length} {carpeta.photos.length === 1 ? 'foto' : 'fotos'}
-                      </span>
-                    </button>
+                    {/* El rótulo de la carpeta es DOS controles, no uno: plegar y
+                        llevarse la semana. Hermanos y no anidados — un botón
+                        dentro de otro es HTML inválido y el clic se va al de
+                        fuera. */}
+                    <div className="carpeta-fila">
+                      <button
+                        type="button"
+                        className="carpeta-head"
+                        aria-expanded={!plegada}
+                        onClick={() => setPlegadas((prev) => ({ ...prev, [key]: !prev[key] }))}
+                      >
+                        {plegada ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+                        <span className="nombre">{carpeta.label}</span>
+                        {carpeta.photos[0]?.date && (
+                          <span className="fecha">del {shortDate(carpeta.photos[0].date)}</span>
+                        )}
+                        {kg && <span className="peso">{kg} kg</span>}
+                        <span className="cuenta">
+                          {carpeta.photos.length} {carpeta.photos.length === 1 ? 'foto' : 'fotos'}
+                        </span>
+                      </button>
+
+                      {/* Un check-in son seis fotos y se quieren las seis: por eso
+                          la descarga está en la CARPETA y no solo en cada foto. */}
+                      <button
+                        type="button"
+                        className="btn btn-icon btn-icon-compact carpeta-bajar"
+                        disabled={Boolean(bajando)}
+                        aria-busy={bajandoEsta || undefined}
+                        aria-label={`Descargar ${carpeta.label} en un ZIP`}
+                        title={bajandoEsta ? `Descargando ${bajando.hechas} de ${bajando.total}…` : 'Descargar la semana'}
+                        onClick={() =>
+                          bajarVarias({
+                            clave: key,
+                            fotos: carpeta.photos,
+                            nombre: `${slug(activeClient.name)}-${slug(carpeta.label)}.zip`,
+                          })
+                        }
+                      >
+                        {bajandoEsta ? (
+                          <span className="tnum t-2xs">
+                            {bajando.hechas}/{bajando.total}
+                          </span>
+                        ) : (
+                          <Download size={13} />
+                        )}
+                      </button>
+                    </div>
 
                     {!plegada && (
                       <div className="carpeta-body">
@@ -245,14 +428,31 @@ export const PhotoArchive = () => {
                               <span className="archivo-tag">{angleShort(photo.angle)}</span>
                             </button>
 
-                            <button
-                              type="button"
-                              className="btn btn-icon btn-icon-compact btn-icon-danger archivo-borrar"
-                              onClick={(e) => borrar(photo, e)}
-                              aria-label={`Eliminar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            {/* Los dos verbos de una foto, en el mismo canto y en
+                                orden de frecuencia: bajarla se hace cada semana,
+                                borrarla casi nunca — por eso la papelera queda la
+                                última y en rojo, y la descarga es silenciosa. */}
+                            <div className="archivo-verbos">
+                              {photo.url && (
+                                <button
+                                  type="button"
+                                  className="btn btn-icon btn-icon-compact"
+                                  onClick={(e) => bajarUna(photo, e)}
+                                  aria-label={`Descargar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
+                                >
+                                  <Download size={13} />
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className="btn btn-icon btn-icon-compact btn-icon-danger"
+                                onClick={(e) => borrar(photo, e)}
+                                aria-label={`Eliminar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -272,6 +472,7 @@ export const PhotoArchive = () => {
           index={viendo}
           onIndex={setViendo}
           onClose={() => setViendo(null)}
+          onDescargar={(item) => bajarUna(item.foto)}
         />
       )}
 

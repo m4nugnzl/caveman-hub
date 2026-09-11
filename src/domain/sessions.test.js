@@ -7,8 +7,11 @@ import {
   previousSetKey,
   previousSetsBefore,
   resumenDeEntrada,
+  trainingSummary,
   ultimaSesionDeHoja,
 } from './sessions';
+
+import { mapTrainingSummaryFromDb } from '@/lib/mappers';
 
 describe('mergePlanWithSession — los dos objetivos vienen del plan', () => {
   /*
@@ -197,5 +200,55 @@ describe('ultimaSesionDeHoja / resumenDeEntrada — la hoja veraz', () => {
        ejecutada solo si `executedSessions` la devuelve; el resumen, no. */
     expect(vacia === null || resumenDeEntrada(vacia, 'Press') === null).toBe(true);
     expect(resumenDeEntrada(null, 'Press')).toBeNull();
+  });
+});
+
+/*
+  ══ El índice del programa, y por qué los DOS orígenes tienen que coincidir ══
+
+  El resumen se produce en dos sitios —esta función, con el programa cargado, y
+  `training_summaries()` en el servidor, para veinte a la vez— y la cartera los
+  mezcla sin saber cuál es cuál. El índice tiene que salir igual de los dos
+  caminos, o una ficha cambiaría de aspecto solo por haberla abierto.
+*/
+describe('trainingSummary — el índice del programa', () => {
+  const program = {
+    microcycles: [
+      { weekNumber: 1, days: [], sessions: [] },
+      { weekNumber: 2, days: [], sessions: [] },
+    ],
+    blocks: [
+      { id: 'a', name: 'Acumulación', fromWeek: 1, toWeek: null, plannedWeeks: 4, sessions: [{ dayName: 'Push' }] },
+    ],
+  };
+
+  it('lleva las semanas escritas y los bloques', () => {
+    const { indice } = trainingSummary(program, { today: '2026-09-10' });
+    expect(indice.microcycles).toEqual([{ weekNumber: 1 }, { weekNumber: 2 }]);
+    expect(indice.blocks[0].plannedWeeks).toBe(4);
+  });
+
+  it('los bloques van SIN sus hojas: la gracia es no descargar el plan', () => {
+    const { indice } = trainingSummary(program, { today: '2026-09-10' });
+    expect(indice.blocks[0].sessions).toBeUndefined();
+  });
+
+  it('sale igual del servidor que del programa cargado', () => {
+    const delServidor = mapTrainingSummaryFromDb({
+      client_id: 'c1',
+      last_training: null,
+      session_count: 0,
+      microcycle_count: 2,
+      recent_sessions: [],
+      microcycle_weeks: [1, 2],
+      blocks: [{ id: 'a', name: 'Acumulación', fromWeek: 1, toWeek: null, plannedWeeks: 4 }],
+    });
+    expect(delServidor.indice).toEqual(trainingSummary(program, { today: '2026-09-10' }).indice);
+  });
+
+  it('sin la 0110 aplicada, el índice queda vacío y nadie inventa un horizonte', () => {
+    const viejo = mapTrainingSummaryFromDb({ client_id: 'c1', microcycle_count: 2, recent_sessions: [] });
+    expect(viejo.indice).toEqual({ microcycles: [], blocks: [] });
+    expect(viejo.weekNumber).toBeNull();
   });
 });

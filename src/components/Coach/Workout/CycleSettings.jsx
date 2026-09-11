@@ -39,7 +39,7 @@ const CYCLE_OPTIONS = [
  * cuando el ciclo es semanal): así el editor no tiene que saber qué hay dentro
  * de la configuración.
  */
-export const CycleSettings = ({ client, onChange, protocol, onProtocolChange, children }) => {
+export const CycleSettings = ({ client, onChange, protocol, onProtocolChange, pie, children }) => {
   const cycleType = client.cycleType || 'weekly';
   const pattern = client.cyclePattern || { train: 2, rest: 1 };
 
@@ -169,9 +169,21 @@ export const CycleSettings = ({ client, onChange, protocol, onProtocolChange, ch
             />
           ))}
         </div>
-        <span className="t-2xs t-tertiary">
-          Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto para toda tu cartera.
-        </span>
+        {/*
+          ── DE DÓNDE SALEN ESTOS INTERRUPTORES ────────────────────────────
+          Decía «Solo para {client.name}. En Ajustes → Protocolo lo dejas puesto
+          para toda tu cartera», y de esa frase la segunda mitad ya era falsa:
+          Ajustes → Protocolo se mudó a `/protocolos` hace tiempo. Y la primera
+          se quedaba corta — tocar uno de estos no es solo «para él», es DECLARAR
+          UNA EXCEPCIÓN sobre él, y desde entonces su protocolo deja de pisarle
+          esta pieza.
+
+          Ahora lo dice el pie, con el nombre del protocolo del que sale y la
+          puerta a leerlo entero (`PieDeProtocolo`). Llega como nodo porque abrir
+          esa hoja es cerrar este diálogo, y quién está delante solo lo sabe la
+          pantalla que lo abrió.
+        */}
+        {pie}
       </fieldset>
     </div>
   );

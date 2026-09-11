@@ -78,6 +78,23 @@ export const buildEquipmentPath = ({ clientId, muscleGroup, timestamp }) =>
   `${clientId}/gym/${timestamp ?? Date.now()}-${slug(muscleGroup) || 'maquina'}.webp`;
 
 /**
+ * Cómo se llama una foto de maquinaria cuando SALE de la aplicación.
+ *
+ * `manolo-perez-dorsal-jalon-al-pecho.webp`
+ *
+ * La ruta del bucket no vale: lleva una marca de tiempo, que sirve para no
+ * colisionar y para nada más. Fuera de aquí el nombre es lo único que dice de
+ * qué gimnasio y de qué máquina es esa foto — ver `photoFileName` en
+ * `domain/photos.js`, que hace lo mismo para las de progreso.
+ */
+export const equipmentFileName = (pieza, { clientName = '' } = {}) => {
+  const ext = /\.([a-z0-9]+)$/i.exec(pieza?.photoPath || '')?.[1]?.toLowerCase() || 'webp';
+  return `${[slug(clientName), slug(pieza?.muscleGroup), slug(pieza?.name) || 'maquina']
+    .filter(Boolean)
+    .join('-')}.${ext}`;
+};
+
+/**
  * Una fila de la base, completada y acotada.
  *
  * Un grupo desconocido cae en «Otros» y NO se descarta: una foto sin carpeta

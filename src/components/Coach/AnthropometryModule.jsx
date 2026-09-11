@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 
 import { useApp } from '@/context/AppContext';
+import { clientCycleSlots } from '@/domain/blocks';
+import { cycleFoto } from '@/domain/nutrition';
 import { Mando } from '@/components/ui/Mando';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
 import { ReviewHistory } from '@/components/ReviewHistory';
@@ -26,12 +28,25 @@ export const AnthropometryModule = () => {
     saveStatus,
     retrySave,
     updateClient,
+    workoutData,
   } = useApp();
 
   /* El historial de revisiones lo carga la pantalla y no el panel: es lo mismo
      que hacen «Su semana» y el portal desde que dos piezas de la misma pantalla
      lo necesitaban a la vez. Ver `useReviewRows`. */
   const { rows: revisiones, recargar } = useReviewRows(activeClient?.id);
+
+  /*
+    LA FOTO DEL PLAN que se guarda con el pesaje. Se arma aquí y no dentro del
+    panel porque hace falta el CICLO de esta persona —sus casillas— para poder
+    ponderar la media, y eso es lo que sabe la pantalla: hasta hoy se le pasaba
+    el plan crudo y se guardaba `targetKcals`, que es el primer día del plan.
+    En un alto/bajo, siempre el alto y sin decirlo. Ver `cycleFoto`.
+  */
+  const fotoDelPlan = useMemo(
+    () => cycleFoto(nutrition[activeClient.id], clientCycleSlots(activeClient, workoutData?.[activeClient.id])),
+    [nutrition, workoutData, activeClient]
+  );
 
   const photos = useMemo(
     () => progressPhotos.filter((p) => p.clientId === activeClient.id),
@@ -59,7 +74,7 @@ export const AnthropometryModule = () => {
       <AnthropometryPanel
         client={activeClient}
         anthropometry={anthropometry[activeClient.id]}
-        nutritionPlan={nutrition[activeClient.id]}
+        nutritionFoto={fotoDelPlan}
         audience="coach"
         save={saveStatus('anthro', activeClient.id)}
         onRetry={() => retrySave('anthro', activeClient.id)}

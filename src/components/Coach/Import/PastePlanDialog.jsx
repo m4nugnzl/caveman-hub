@@ -4,6 +4,7 @@ import { Layers, Salad, UploadCloud } from 'lucide-react';
 import { dietSummary, foodNames } from '@/domain/dietSheet';
 import { matchFoodNames, pendingMatches } from '@/domain/foodMatch';
 import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
+import { copiar, piezaDeHoja } from '@/lib/portapapeles';
 import {
   Field,
   Fold,
@@ -76,6 +77,25 @@ import {
   se lee de un vistazo.
 */
 const FORMATOS = ['.xlsx', '.docx', '.pdf', '.csv'];
+
+/**
+ * Un día leído del fichero, a la mano.
+ *
+ * Se copia aquí dentro y no por un manejador del que llama, porque quien sabe
+ * que esto viene de un fichero es esta ventana: es lo que hace que la pieza
+ * pueda decir de dónde salió cuando se mire tres pantallas después. El
+ * portapapeles es un almacén de módulo, no un contexto, así que se escribe
+ * desde donde haga falta (ver `lib/portapapeles`).
+ *
+ * Sin aviso, a propósito: es la ley II de la mano —el aviso es de lo que CAMBIA
+ * y copiar no le cambia nada a nadie—, y lo que ha entrado lo nombra ella.
+ */
+const alaMano = (hoja) =>
+  copiar(
+    /* Sin cliente del que venga: viene de fuera, y eso es lo que hay que poder
+       leer en la lista de la mano tres pantallas después. */
+    piezaDeHoja({ dayName: hoja.dayName, exercises: hoja.exercises || [], donde: 'de un fichero' })
+  );
 
 /** Qué trae una hoja, dicho en una línea. */
 export const resumenDeHoja = (hoja) => {
@@ -223,9 +243,25 @@ export const PastePlanDialog = ({
     Un solo día leído y un día abierto delante casi siempre significa «esto va
     aquí»; varios días leídos significa «móntame la semana». Se propone lo
     probable y se deja cambiar, en vez de preguntar siempre lo mismo.
+
+    ── Y LA TERCERA RESPUESTA: quedárselo en la mano ─────────────────────────
+    Ésta era una de las cuatro puertas que hacen lo mismo y no se conocen entre
+    sí: el portapapeles, traer de otro cliente, traer de un fichero y las
+    plantillas. Todas terminan en «unos ejercicios que van a una hoja», y ésta
+    era la única que solo sabía escribirlos AQUÍ — en este cliente y en esta
+    semana. Así que el libro de Excel de quien se muda servía para montar a UNA
+    persona y no para lo que de verdad se hace con él: montar a las cinco que
+    entrenan parecido.
+
+    Dejándolo copiado, lo leído es una pieza como cualquier otra y hereda todo
+    lo que la mano ya sabe hacer: pegarla en otro cliente, ponerla encima de un
+    día que ya existe con su tramo, guardarla en tus plantillas o repartirla a
+    varios. No hay nada nuevo que aprender y esta ventana no crece: es una
+    respuesta más a la pregunta que ya hacía.
   */
   const puedeAlDiaActual = Boolean(targetDayName) && dias.length === 1;
   const destinoEfectivo = destino ?? (puedeAlDiaActual ? 'actual' : 'nuevos');
+  const unaSolaHoja = dias.length === 1;
 
   /* Las dos columnas de objetivo, dichas con sus valores de verdad: «8-10» y
      «10-12» se eligen mirándolos, no leyendo «primera» y «segunda». */
@@ -243,11 +279,10 @@ export const PastePlanDialog = ({
   const etiquetaDelBoton = () => {
     const partes = [];
     if (hayRutina && traer.rutina) {
-      partes.push(
-        destinoEfectivo === 'actual'
-          ? `añadir a ${targetDayName}`
-          : `crear ${dias.length} ${dias.length === 1 ? 'día' : 'días'}`
-      );
+      if (destinoEfectivo === 'actual') partes.push(`añadir a ${targetDayName}`);
+      else if (destinoEfectivo === 'mano')
+        partes.push(`dejar ${dias.length} ${unaSolaHoja ? 'hoja copiada' : 'hojas copiadas'}`);
+      else partes.push(`crear ${dias.length} ${unaSolaHoja ? 'día' : 'días'}`);
     }
     if ((hayDieta || hayMacros) && traer.dieta) {
       partes.push(hayDieta ? `la dieta (${totalComidas} comidas)` : 'el objetivo de macros');
@@ -263,6 +298,7 @@ export const PastePlanDialog = ({
     if (hayRutina && traer.rutina) {
       const draft = aBorrador(dias);
       if (destinoEfectivo === 'actual') onImportIntoDay?.(draft[0].exercises);
+      else if (destinoEfectivo === 'mano') draft.forEach(alaMano);
       else onImportDays?.(draft);
       if (rutina.targetChoices > 1) onRememberTarget?.(targetIndex);
     }
@@ -292,15 +328,25 @@ export const PastePlanDialog = ({
           onChange={(on) => setTraer((t) => ({ ...t, rutina: on }))}
         />
 
-        {puedeAlDiaActual && traer.rutina && (
+        {/* La pregunta se hace SIEMPRE que haya rutina y no solo cuando cabe en
+            el día abierto: la tercera respuesta —quedársela en la mano— vale
+            igual para un día que para la semana entera, y era la que faltaba
+            para que un fichero pudiera montar a más de una persona. */}
+        {traer.rutina && (
           <SegmentedControl
             label="Dónde va la rutina"
             value={destinoEfectivo}
             onChange={setDestino}
             options={[
-              { id: 'actual', label: `Añadir a ${targetDayName}` },
-              { id: 'nuevos', label: `Crear día nuevo en la ${unidad}` },
-            ]}
+              puedeAlDiaActual ? { id: 'actual', label: `Añadir a ${targetDayName}` } : null,
+              {
+                id: 'nuevos',
+                label: unaSolaHoja
+                  ? `Crear día nuevo en la ${unidad}`
+                  : `Crear los ${dias.length} días en la ${unidad}`,
+              },
+              { id: 'mano', label: unaSolaHoja ? 'Dejarla copiada' : 'Dejarlas copiadas' },
+            ].filter(Boolean)}
           />
         )}
       </div>

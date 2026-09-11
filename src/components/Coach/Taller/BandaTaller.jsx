@@ -1,4 +1,6 @@
 import { useMarcaDeslizante } from '@/components/ui/carril';
+import { Nube } from '@/components/ui/EstadoDeRed';
+import { Pliegue } from '@/components/ui/Pliegue';
 
 /**
  * La cinta de cabecera de las pantallas del Taller.
@@ -61,7 +63,13 @@ export const BandaTaller = ({ titulo, tramos = [], tramo, onTramo, accion = null
     <header className="cartera-cab taller-cab">
       <div className="cartera-cab-in">
         <div className="cartera-cab-linea">
+          {/* El ancho, en cabeza y del lado por el que crece la hoja. Ver
+              `ui/Pliegue`. */}
+          <Pliegue />
           <h1 className="cartera-cab-titulo">{titulo}</h1>
+          {/* La nube va con el título, como en las otras dos cintas. Ver
+              `ui/EstadoDeRed`. */}
+          <Nube />
 
           {tramos.length > 1 && (
             <nav
@@ -89,7 +97,10 @@ export const BandaTaller = ({ titulo, tramos = [], tramo, onTramo, accion = null
             </nav>
           )}
 
-          {accion ? <div className="cartera-cab-acciones">{accion}</div> : null}
+          {/* La esquina, para el verbo de la pantalla si lo trae. Lo que no
+              puede faltar nunca —el estado de la red y el mando del ancho— vive
+              arriba a la izquierda, con el título. */}
+          {accion && <div className="cartera-cab-acciones">{accion}</div>}
         </div>
       </div>
     </header>

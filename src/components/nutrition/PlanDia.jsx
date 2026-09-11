@@ -1,5 +1,16 @@
-import { carbsFromRest, mealTarget, mealTargetsTotal, optionMacros } from '@/domain/nutrition';
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+
+import {
+  carbsFromRest,
+  claseDe,
+  mealTarget,
+  optionMacros,
+  repartoDelDia,
+  vozDelReparto,
+} from '@/domain/nutrition';
 import { toNum0 } from '@/lib/num';
+import { RenombrarEnSitio } from '@/components/ui/primitives';
 import { opcionElegida } from './macros';
 
 /**
@@ -29,15 +40,26 @@ const CAMPOS = [
   { key: 'fats', label: 'G', plan: 'fatsGrams', real: 'fats' },
 ];
 
-const estadoDe = (real, objetivo) => {
-  if (!objetivo) return '';
-  const margen = objetivo * 0.05;
-  return real - objetivo > margen ? ' is-over' : objetivo - real > margen ? ' is-under' : ' is-ok';
-};
-
-export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
+export const PlanDia = ({
+  meals,
+  targets,
+  elegidas = {},
+  onTarget,
+  onIrA,
+  /* En un plan por macros esta tabla ES la mesa, y entonces no hay ninguna
+     comida a la que ir: el nombre se renombra donde se lee —como en la hoja— y
+     la fila se puede quitar. En la ventana del día no se pasan ninguno de los
+     dos y el nombre sigue siendo la puerta a su comida. */
+  onRename = null,
+  onRemove = null,
+  juzga = true,
+}) => {
+  const [renombrando, setRenombrando] = useState(null);
   const objetivoKcal = toNum0(targets?.targetKcals);
-  const reparto = mealTargetsTotal(meals, objetivoKcal);
+  /* El semáforo y el veredicto salen del dominio: aquí había una copia palabra
+     por palabra de la de `MealCard`, y el margen sin suelo pintaba en ámbar
+     comidas que estaban cuadradas. Ver `estadoDe` en `domain/nutrition.js`. */
+  const reparto = repartoDelDia(meals, targets);
 
   /* Lo que suman los alimentos con la opción abierta en cada comida. */
   const suma = meals.reduce(
@@ -55,18 +77,10 @@ export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
   });
   const basePeso = Math.max(objetivoKcal, pesos.reduce((s, p) => s + p, 0), 1);
 
-  const lectura =
-    reparto.meals === 0
-      ? objetivoKcal
-        ? 'sin repartir'
-        : ''
-      : reparto.left === null
-        ? ''
-        : reparto.left === 0
-          ? 'cuadra'
-          : reparto.left > 0
-            ? `quedan ${reparto.left}`
-            : `te pasas ${Math.abs(reparto.left)}`;
+  /* «Cuadra» dice de qué: el veredicto mira los cuatro números y no solo las
+     kcal. Aquí decía «cuadra» con la proteína repartida 48 g por encima de su
+     objetivo, en la misma fila donde se veían los dos números. */
+  const lectura = reparto.meals === 0 ? (objetivoKcal ? 'sin repartir' : '') : vozDelReparto(reparto) || '';
   const pctDia = objetivoKcal && suma.kcal ? `${Math.round((suma.kcal / objetivoKcal) * 100)} %` : '';
 
   return (
@@ -102,9 +116,23 @@ export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
           return (
             <div key={meal.id} className="plan-dia-fila">
               <span className="plan-dia-n">{i + 1}</span>
-              <button type="button" className="plan-dia-nombre" onClick={() => onIrA?.(i)} title="Ir a la comida">
-                {meal.name}
-              </button>
+              {onRename && renombrando === meal.id ? (
+                <RenombrarEnSitio
+                  value={meal.name}
+                  label="Nuevo nombre de la comida"
+                  onRename={(nombre) => onRename(i, nombre)}
+                  onDone={() => setRenombrando(null)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="plan-dia-nombre"
+                  onClick={() => (onRename ? setRenombrando(meal.id) : onIrA?.(i))}
+                  title={onRename ? 'Pulsa para renombrarla' : 'Ir a la comida'}
+                >
+                  {meal.name}
+                </button>
+              )}
               {CAMPOS.map((campo) => {
                 const ofrece = campo.key === 'carbs' && faltaCarbs && sugerido !== null;
                 /* Sin `onTarget` esto se LEE y no se escribe: es la misma tabla
@@ -135,7 +163,20 @@ export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
                   </span>
                 );
               })}
-              <span className="is-peso">{pesos[i] ? `${pct} %` : ''}</span>
+              <span className="is-peso">
+                {pesos[i] ? `${pct} %` : ''}
+                {onRemove && (
+                  <button
+                    type="button"
+                    className="btn btn-icon btn-icon-compact btn-icon-danger plan-dia-quitar"
+                    onClick={() => onRemove(i)}
+                    aria-label={`Quitar «${meal.name}» del reparto`}
+                    title={`Quitar «${meal.name}» del reparto`}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </span>
             </div>
           );
         })}
@@ -144,11 +185,17 @@ export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
           <span />
           <span className="is-nombre">Repartidas</span>
           {CAMPOS.map((c) => (
-            <span key={c.key} className="is-num">
+            /* Cada uno contra SU objetivo: repartir 204 g de proteína donde se
+               pidieron 156 se ve en su columna y no en una nota al pie. */
+            <span key={c.key} className={`is-num${juzga ? claseDe(reparto[c.key], targets?.[c.plan], c.key) : ''}`}>
               {reparto.meals > 0 ? reparto[c.key] : '—'}
             </span>
           ))}
-          <span className={`is-peso plan-dia-lectura${reparto.left === 0 && reparto.meals > 0 ? ' is-ok' : reparto.left < 0 ? ' is-over' : ''}`}>
+          <span
+            className={`is-peso plan-dia-lectura${
+              !juzga || reparto.meals === 0 ? '' : reparto.cuadra ? ' is-ok' : ' is-over'
+            }`}
+          >
             {lectura}
           </span>
         </div>
@@ -162,12 +209,14 @@ export const PlanDia = ({ meals, targets, elegidas = {}, onTarget, onIrA }) => {
           {CAMPOS.map((c) => {
             const valor = Math.round(suma[c.real]);
             return (
-              <span key={c.key} className={`is-num${estadoDe(valor, toNum0(targets?.[c.plan]))}`}>
+              <span key={c.key} className={`is-num${juzga ? claseDe(valor, targets?.[c.plan], c.key) : ''}`}>
                 {valor || '—'}
               </span>
             );
           })}
-          <span className={`is-peso plan-dia-lectura${estadoDe(Math.round(suma.kcal), objetivoKcal)}`}>{pctDia}</span>
+          <span className={`is-peso plan-dia-lectura${juzga ? claseDe(Math.round(suma.kcal), objetivoKcal, 'kcals') : ''}`}>
+            {pctDia}
+          </span>
         </div>
       </div>
     </section>

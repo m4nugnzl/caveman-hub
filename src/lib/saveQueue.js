@@ -22,6 +22,14 @@
  *    → `onStatus` publica 'saving' | 'saved' | 'error', el payload fallido se
  *      retiene y `retry(key)` lo reenvía.
  *
+ * 5. LA RED QUE NO ESTÁ. Sin cobertura, cada guardado salía igualmente, fallaba,
+ *    y pintaba «No se guardó» en rojo — cuando en realidad estaba a salvo en el
+ *    navegador y solo faltaba mandarlo. Un aviso de pérdida que es mentira
+ *    enseña a desconfiar de los que sí lo son.
+ *    → `isOnline` deja de intentarlo mientras no haya red y publica 'pending':
+ *      «lo tienes, falta enviarlo». `reenviarTodo()` lo suelta de golpe cuando
+ *      la conexión vuelve. Ver `lib/conexion`.
+ *
  * 4. LA PESTAÑA QUE MUERE. Los tres anteriores se resolvían en MEMORIA, así que
  *    un payload retenido esperando reintento desaparecía si el navegador cerraba
  *    la pestaña — que es exactamente lo que pasa en un gimnasio con mala
@@ -35,7 +43,14 @@ import { esRechazoDefinitivo, traduceDbError } from './dbErrors';
 
 const DEFAULT_DEBOUNCE_MS = 600;
 
-export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, store = null }) {
+export function createSaveQueue({
+  onStatus,
+  debounceMs = DEFAULT_DEBOUNCE_MS,
+  store = null,
+  /* Por defecto siempre hay red: así los tests y cualquier uso que no le pase
+     nada se comportan exactamente como antes de que esto existiera. */
+  isOnline = () => true,
+}) {
   /** key -> { latest, sender, inFlight, timer, sent } */
   const queues = new Map();
 
@@ -44,6 +59,22 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
   const send = (key) => {
     const q = queues.get(key);
     if (!q || q.inFlight || !q.hasPayload) return;
+
+    /*
+      ── Sin red no se intenta: se ESPERA ──────────────────────────────────
+      Mandarlo igualmente no adelanta nada —el fetch falla sin salir del
+      aparato— y sí estropea dos cosas: gasta batería reintentando a ciegas y,
+      sobre todo, pinta el aviso rojo de «no se guardó» sobre algo que está
+      guardado en el navegador y que se va a mandar en cuanto vuelva la señal.
+
+      'pending' es el estado honesto de ese rato: lo tienes, falta enviarlo.
+      El payload se queda en `latest` y la nota en el almacén, así que lo suelta
+      `reenviarTodo()` —o el arranque siguiente, si la pestaña muere—.
+    */
+    if (!isOnline()) {
+      emit(key, 'pending');
+      return;
+    }
 
     q.inFlight = true;
     const payload = q.latest;
@@ -108,6 +139,18 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
       })
       .catch((e) => {
         q.inFlight = false;
+
+        /*
+          Aquí solo se cae lo que no llegó a tener respuesta. Si mientras tanto
+          se ha ido la red —o la propia caída es la que lo ha demostrado, porque
+          `lib/supabaseClient` apunta el silencio desde su `catch`—, esto no es
+          un fallo: es la espera. Se conserva el payload y se dirá al volver.
+        */
+        if (!isOnline()) {
+          emit(key, 'pending');
+          return;
+        }
+
         emit(key, 'error', traduceDbError(e) || 'Error de red al guardar');
       });
   };
@@ -153,6 +196,25 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
     send(key);
   };
 
+  /**
+   * Suelta TODO lo que quede sin confirmar. Lo llama la vuelta de la conexión.
+   *
+   * Distinto de `flushAll`, que solo adelanta los debounces en marcha: aquí
+   * entra también lo que se quedó en 'pending' hace media hora, cuyo temporizador
+   * saltó hace mucho y cuyo envío se abortó por no haber red. Sin esto, lo
+   * anotado en el sótano seguiría ahí al salir a la calle hasta recargar.
+   */
+  const reenviarTodo = () => {
+    for (const [key, q] of queues) {
+      if (!q.hasPayload || q.inFlight) continue;
+      if (q.timer) {
+        clearTimeout(q.timer);
+        q.timer = null;
+      }
+      send(key);
+    }
+  };
+
   /** Envía ya todo lo que esté esperando en debounce (cierre de pestaña, logout). */
   const flushAll = () => {
     for (const [key, q] of queues) {
@@ -177,5 +239,5 @@ export function createSaveQueue({ onStatus, debounceMs = DEFAULT_DEBOUNCE_MS, st
     queues.clear();
   };
 
-  return { enqueue, retry, flushAll, hasUnsaved, reset };
+  return { enqueue, retry, reenviarTodo, flushAll, hasUnsaved, reset };
 }

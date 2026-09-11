@@ -227,6 +227,12 @@ export const useEnvios = ({ session }) => {
   }, []);
 
   return {
+    /* El setter sale fuera para que la copia local (`lib/instantanea`) pueda
+       sembrar la bandeja al arrancar sin red. Sin él, abrir en un sótano daba
+       una cartera entera y cero envíos, que es peor que no dar nada: parece que
+       nadie te ha contestado. */
+    setEnvioRows,
+    setEnviosReady,
     envioRows,
     enviosReady,
     reloadEnvios: cargar,

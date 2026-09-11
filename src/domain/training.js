@@ -8,7 +8,7 @@
 
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
-import { addDays, toISODate } from '@/lib/dates';
+import { addDays, localeNumber, toISODate } from '@/lib/dates';
 // `sessions` no importa de aquí, así que no hay ciclo: es la capa de debajo.
 import { executedSessions, sessionMuscleVolume, sessionTonnage } from './sessions';
 
@@ -147,9 +147,20 @@ export const MRV_GOALS = {
 
 export const WEEK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-/** Paleta por índice de serie, compartida por coach y cliente. */
-export const SET_COLORS = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ec4899', '#22d3ee', '#a3e635', '#fb923c'];
-export const setColor = (i) => SET_COLORS[i % SET_COLORS.length];
+/*
+  ══ Aquí vivía SET_COLORS, y era ocho colores por nada ═══════════════════════
+
+  Una paleta de ocho hexadecimales literales que se repartía por ÍNDICE: el
+  primer ejercicio verde, el segundo cian, el tercero violeta. Su único usuario
+  era el numerito de `ExerciseList`, que es la lista con la que el cliente
+  registra en el móvil, así que su pantalla principal salía con ocho tintes que
+  no distinguían nada —el número ya decía el orden— y que competían con el
+  acento, que es la única tinta que en esta casa significa algo.
+
+  Y eran literales en el dominio, que es justo lo que `tokens.css` llama «un
+  error, no una excepción». Si vuelve a hacer falta distinguir series DENTRO de
+  un gráfico, esos discos ya existen y son tokens (`--data-*`).
+*/
 
 /**
  * 'weekly'   = estructura atada a los días de la semana natural.
@@ -332,6 +343,58 @@ export const restWeekSplit = () => Object.fromEntries(WEEK_DAYS.map((d) => [d, '
 export const isRestDay = (value) => {
   const v = (value ?? '').trim().toLowerCase();
   return v === '' || v === 'descanso';
+};
+
+/**
+ * LAS CASILLAS DE UN CICLO: los sitios a los que se le puede atar algo.
+ *
+ * ══ Por qué hacía falta, y qué avería tapaba ═══════════════════════════════
+ *
+ * «La semana» y «el ciclo» son la misma cosa solo para quien entrena de lunes a
+ * domingo. Quien lleva un 2/1 no tiene lunes: tiene un ciclo de tres días que
+ * cae cada vez en un sitio distinto del calendario. Y aun así, lo único que la
+ * dieta sabía repartir eran días de la semana — así que a un cliente de ciclo
+ * rotativo con un alto/bajo se le pedía decir qué come los martes, que es una
+ * pregunta sin respuesta.
+ *
+ * Esto contesta la pregunta ANTERIOR: **cuáles son sus casillas**. Siete con
+ * nombre de día en el ciclo natural; las del microciclo —con sus descansos
+ * intercalados, que es donde vive media dieta— en el rotativo.
+ *
+ * ── `rest` es la mitad útil ────────────────────────────────────────────────
+ * Saber qué casillas son de descanso es lo que permite rellenar un reparto de
+ * un botón, y en el rotativo lo sabe el patrón (`rotatingSlots`) sin que nadie
+ * escriba nada: ahí «repartir por el entreno» es exacto por construcción.
+ *
+ * @param sessions Los días del microciclo, `[{ dayName }]`. Solo se usan en el
+ *   rotativo, para poner nombre a la casilla («D2 · Tirón»).
+ * @returns `[{ key, corto, sesion, rest }]` — `key` es lo que se guarda.
+ */
+export const cycleSlots = ({
+  cycleType = 'weekly',
+  pattern = null,
+  sessions = [],
+  weeklySplit = null,
+} = {}) => {
+  if (cycleType === 'rotating') {
+    /* La clave es la POSICIÓN dentro del ciclo y no el nombre de la sesión: un
+       ciclado de hidratos puede pedir cosas distintas en dos días que se llaman
+       parecido, y los tres descansos de un 2/1 con seis sesiones son tres
+       casillas, no una. */
+    return rotatingSlots(pattern, sessions).map((slot, i) => ({
+      key: String(i + 1),
+      corto: `D${i + 1}`,
+      sesion: slot.rest ? null : slot.name,
+      rest: slot.rest,
+    }));
+  }
+
+  return WEEK_DAYS.map((dia) => ({
+    key: dia,
+    corto: dia.slice(0, 3),
+    sesion: isRestDay(weeklySplit?.[dia]) ? null : (weeklySplit?.[dia] || '').trim(),
+    rest: isRestDay(weeklySplit?.[dia]),
+  }));
 };
 
 /** Cuántos días de la semana natural son de entreno. */
@@ -614,6 +677,24 @@ export const rematesDe = (exercise) => {
 export const tecnicaSaid = (id) => TECNICAS.find((t) => t.id === id)?.dicho ?? null;
 
 /**
+ * EL PESO PAUTADO DE UN EJERCICIO, EN UNA CIFRA. `null` si no se pauta ninguno.
+ *
+ * Con todas las series al mismo peso dice «100 kg»; con pesos distintos, los
+ * extremos («100–80 kg»), que es lo que hay que saber de un vistazo de una
+ * pirámide. No es un campo: el peso es POR SERIE y se escribe en la tabla de
+ * series; esto es cómo se resume donde no hay una fila por serie —la rejilla
+ * del bloque y el renglón del banco—, que son los dos sitios desde los que se
+ * mira un plan entero.
+ */
+export const pesoPautado = (exercise) => {
+  const pesos = (exercise?.sets || []).map((s) => toNum(s?.targetKg)).filter((n) => n !== null);
+  if (pesos.length === 0) return null;
+  const min = Math.min(...pesos);
+  const max = Math.max(...pesos);
+  return min === max ? `${localeNumber(max)} kg` : `${localeNumber(max)}–${localeNumber(min)} kg`;
+};
+
+/**
  * «última con bajada ×2, −20 % · descanso 90 s», o `null` si no lleva nada.
  *
  * Dice DE QUÉ SERIE habla cada remate porque ya no tienen por qué estar en la
@@ -662,6 +743,24 @@ export const seriesGrammar = (exercise) => {
  * Es lo que usa «Traer un día de otro cliente»: el Legs de Marta como base del
  * de Luis, sin arrastrar lo que Marta levantó.
  */
+/**
+ * Las series de un ejercicio, en blanco y listas para otro sitio.
+ *
+ * Lo que queda es el OBJETIVO de cada serie —repeticiones, RIR, kilos pautados
+ * y su remate— y lo que se va son los kilos y las reps anotados: eso es de quien
+ * las levantó. Está aparte porque lo usan las dos formas de mover series: el
+ * ejercicio entero (`cloneExerciseAsTemplate`) y solo su pauta (`conLaPauta`).
+ */
+const seriesComoPauta = (exercise) =>
+  (exercise?.sets || []).map((set) => ({
+    ...emptySet(set?.targetReps ?? ''),
+    targetRir: set?.targetRir ?? '',
+    targetKg: set?.targetKg ?? '',
+    /* El remate de esa serie es plan, y con sus números: viaja igual que el
+       objetivo de repeticiones. Lo que NO viaja son sus registros. */
+    ...(normalizaTecnica(set?.tecnica) ? { tecnica: normalizaTecnica(set.tecnica) } : {}),
+  }));
+
 export const cloneExerciseAsTemplate = (exercise) => ({
   id: newId('ex'),
   name: exercise.name,
@@ -671,14 +770,46 @@ export const cloneExerciseAsTemplate = (exercise) => ({
   ...(exercise.enlazado ? { enlazado: true } : {}),
   ...(tecnicaOf(exercise) ? { tecnica: tecnicaOf(exercise) } : {}),
   ...(exercise.restSeconds ? { restSeconds: exercise.restSeconds } : {}),
-  sets: (exercise.sets || []).map((set) => ({
-    ...emptySet(set?.targetReps ?? ''),
-    targetRir: set?.targetRir ?? '',
-    targetKg: set?.targetKg ?? '',
-    /* El remate de esa serie es plan, y con sus números: viaja igual que el
-       objetivo de repeticiones. Lo que NO viaja son sus registros. */
-    ...(normalizaTecnica(set?.tecnica) ? { tecnica: normalizaTecnica(set.tecnica) } : {}),
-  })),
+  sets: seriesComoPauta(exercise),
+});
+
+/**
+ * LA PAUTA: este ejercicio, con las series de aquel otro.
+ *
+ * ══ Qué es una pauta y por qué no es una pieza más ══════════════════════════
+ *
+ * «Dale a este remo las cinco series del press» es el gesto más repetido de
+ * programar, y hasta ahora costaba tres: pegar el press, renombrarlo a mano y
+ * borrar el remo. Efort lo tiene como un verbo propio («copy sets»).
+ *
+ * Aquí NO es un sexto tipo del portapapeles, y la razón es la misma por la que
+ * el tramo tampoco es un tipo: **obligaría a decidir al copiar algo que solo se
+ * sabe al pegar**. Cuando se pulsa ⧉ sobre el press todavía no está decidido si
+ * eso va a acabar siendo otra fila («el press también el jueves») o la pauta de
+ * una fila que ya existe; quien lo sabe es el destino. Así que lo que se lleva
+ * en la mano es siempre EL EJERCICIO, y «poner solo sus series» es otra forma
+ * de soltarlo.
+ *
+ * ── Qué se queda de la fila que recibe ─────────────────────────────────────
+ * Su identidad entera: id, nombre, músculo, nota y su sitio en la hoja
+ * (`enlazado`, que es de la hoja y no del ejercicio). Por eso el ejercicio no
+ * pierde sus registros: sigue siendo él.
+ *
+ * ── Y qué trae la pauta ────────────────────────────────────────────────────
+ * Las series con sus objetivos y sus remates, y el descanso SI el origen lo
+ * tenía puesto: una pauta que no dice nada del descanso no es motivo para
+ * borrar el que ya había. Lo que sí se limpia es la técnica vieja a nivel de
+ * ejercicio (`tecnica`/`bajada`, anteriores al remate por serie), porque los
+ * remates entran ahora con las series y dejarla dejaría dos verdades.
+ */
+export const conLaPauta = (destino, origen) => ({
+  ...destino,
+  /* A `undefined` y no borradas: es como las limpia la hoja al escribir un
+     remate en una serie, y así el guardado las deja fuera igual. */
+  tecnica: undefined,
+  bajada: undefined,
+  ...(origen?.restSeconds ? { restSeconds: origen.restSeconds } : {}),
+  sets: seriesComoPauta(origen),
 });
 
 export const buildMicrocycle = ({ weekNumber, days = [], date = today() }) => ({
@@ -797,8 +928,18 @@ export const blankDays = (days, { conservarIds = false } = {}) =>
     ...day,
     exercises: (day.exercises || []).map((exercise) => ({
       ...exercise,
+      /*
+        La serie ENTERA menos lo que se levantó, no una serie vacía con dos
+        pautas encima. `emptySet` + `targetRir` dejaba fuera `targetKg`, que es
+        la tercera pauta: vacío significa «a criterio del cliente» y eso es lo
+        normal, pero cuando el entrenador SÍ escribe el kilo es una pauta como
+        las otras dos y tiene que viajar igual. Y así lo que se pacte mañana
+        viaja sin volver a tocar esto. Es la misma regla que el servidor (0109).
+      */
       sets: (exercise.sets || []).map((set) => ({
+        ...(set || {}),
         ...emptySet(set?.targetReps ?? ''),
+        targetKg: set?.targetKg ?? '',
         targetRir: set?.targetRir ?? '',
       })),
     })),

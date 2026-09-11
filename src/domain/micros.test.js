@@ -2,12 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import {
   coverageSaid,
+  declaredMicro,
   declares,
   foodMicro,
   freezeMicros,
   microError,
   microPer100,
   microSaid,
+  microVerdict,
   sumMicros,
 } from './micros';
 
@@ -105,5 +107,70 @@ describe('microError', () => {
     expect(microError('-1')).toBe('No puede ser negativo.');
     expect(microError('mucha')).toBe('Solo números.');
     expect(microError('3,5')).toBe(null);
+  });
+});
+
+/* ── El respaldo del catálogo: por qué la fibra decía «no dice» ─────────────
+   Una entrada de dieta es una FOTO y guarda lo que el alimento declaraba el día
+   que se añadió. Las cuatro del envase llegaron después (0102/0104), así que
+   todo lo pautado antes congeló cuatro ausencias. Esto rellena el hueco desde
+   la ficha de referencia y NO toca nada más. */
+describe('la copia congelada cae a su ficha de referencia', () => {
+  const catalogo = { 'Copos de avena': { fiberPer100: 10, saltPer100: 0.02 } };
+  const general = (f) => catalogo[f.name] || null;
+  const congelada = { name: 'Copos de avena', grams: 100 };
+
+  it('sin respaldo, la suma dice «no dice»', () => {
+    expect(sumMicros([congelada]).fiber.value).toBe(null);
+  });
+
+  it('con respaldo, suma lo que dice el catálogo', () => {
+    expect(sumMicros([congelada], general).fiber.value).toBeCloseTo(10, 5);
+  });
+
+  it('lo que la copia SÍ dice manda sobre el catálogo', () => {
+    const suya = { name: 'Copos de avena', grams: 100, fiberPer100: 6 };
+    expect(sumMicros([suya], general).fiber.value).toBeCloseTo(6, 5);
+    expect(declaredMicro(suya, catalogo['Copos de avena'], 'fiber')).toBe(6);
+  });
+
+  it('un cero de la copia NO se sustituye por el del catálogo', () => {
+    const sinFibra = { name: 'Copos de avena', grams: 100, fiberPer100: 0 };
+    expect(sumMicros([sinFibra], general).fiber.value).toBe(0);
+  });
+
+  it('la cobertura cuenta los que declaran DESPUÉS del respaldo', () => {
+    const resumen = sumMicros([congelada, { name: 'Batido', grams: 30 }], general);
+    expect(resumen.fiber.declared).toBe(1);
+    expect(resumen.fiber.total).toBe(2);
+  });
+});
+
+/* ── El veredicto: la fibra es un suelo y la sal un techo ───────────────────
+   Un macro se juzga en las dos direcciones; estos no. Pasarse de fibra no es un
+   fallo, pasarse de sal sí. */
+describe('microVerdict', () => {
+  it('la fibra se juzga por abajo', () => {
+    expect(microVerdict('fiber', 40, 35)).toBe('ok');
+    expect(microVerdict('fiber', 20, 35)).toBe('corto');
+  });
+
+  it('la sal se juzga por arriba', () => {
+    expect(microVerdict('salt', 3, 5)).toBe('ok');
+    expect(microVerdict('salt', 9, 5)).toBe('pasa');
+  });
+
+  /* Estas cifras salen de sumar etiquetas redondeadas a un decimal: un suelo
+     exacto pintaría en rojo un menú que se queda a medio gramo. */
+  it('deja un margen del 10 %, y nunca menos de un gramo', () => {
+    expect(microVerdict('fiber', 32, 35)).toBe('ok');
+    expect(microVerdict('salt', 5.4, 5)).toBe('ok');
+    expect(microVerdict('salt', 1.5, 1)).toBe('ok');
+  });
+
+  it('sin objetivo o sin cifra no dice nada', () => {
+    expect(microVerdict('fiber', 20, null)).toBe(null);
+    expect(microVerdict('fiber', null, 35)).toBe(null);
+    expect(microVerdict('fiber', 20, 0)).toBe(null);
   });
 });

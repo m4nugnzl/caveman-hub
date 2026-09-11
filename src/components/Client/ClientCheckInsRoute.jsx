@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
+import { clientCycleSlots } from '@/domain/blocks';
 import { currentCheckInPeriod } from '@/domain/calendar';
+import { cycleFoto } from '@/domain/nutrition';
 import { todayISO, weekStart } from '@/lib/dates';
 import { PageHead } from '@/components/ui/primitives';
 import { AnthropometryPanel } from '@/components/anthropometry/AnthropometryPanel';
@@ -39,6 +41,7 @@ export const ClientCheckInsRoute = () => {
     nutrition,
     progressPhotos,
     checkIns,
+    workoutData,
     addAnthropometryLog,
     removeAnthropometryLog,
     uploadProgressPhoto,
@@ -46,6 +49,19 @@ export const ClientCheckInsRoute = () => {
     saveStatus,
     retrySave,
   } = useApp();
+
+
+  /*
+    LA FOTO DEL PLAN que se guarda con el pesaje. Se arma aquí y no dentro del
+    panel porque hace falta el CICLO de esta persona —sus casillas— para poder
+    ponderar la media, y eso es lo que sabe la pantalla: hasta hoy se le pasaba
+    el plan crudo y se guardaba `targetKcals`, que es el primer día del plan.
+    En un alto/bajo, siempre el alto y sin decirlo. Ver `cycleFoto`.
+  */
+  const fotoDelPlan = useMemo(
+    () => cycleFoto(nutrition[activeClient.id], clientCycleSlots(activeClient, workoutData?.[activeClient.id])),
+    [nutrition, workoutData, activeClient]
+  );
 
   /* El subtítulo nombraba el peso, que es justo lo que aquí ya no sale para
      quien lo tiene oculto: lo que se entrega sigue siendo la semana. */
@@ -125,7 +141,7 @@ export const ClientCheckInsRoute = () => {
       <AnthropometryPanel
         client={activeClient}
         anthropometry={anthropometry[activeClient.id]}
-        nutritionPlan={nutrition[activeClient.id]}
+        nutritionFoto={fotoDelPlan}
         audience="client"
         save={saveStatus('anthro', activeClient.id)}
         onRetry={() => retrySave('anthro', activeClient.id)}

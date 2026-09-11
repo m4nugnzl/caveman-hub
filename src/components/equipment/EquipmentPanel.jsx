@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import { Trash2, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
-import { muscleColor } from '@/domain/training';
-import {
-  byMuscle,
-  equipmentHeadline,
-  groupOptions,
-  unsortedCount,
-} from '@/domain/equipment';
+import { UNSORTED, byMuscle, equipmentFileName, unsortedCount } from '@/domain/equipment';
 import { COACH_FIELDS, cleanProfile, fieldText } from '@/domain/profile';
 import { Field, Notice, Panel } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { descargarFoto } from '@/lib/descargas';
 import { Gallery } from '@/components/photos/Gallery';
-import { Thumb } from '@/components/photos/Thumb';
 import { GymPicker } from './GymPicker';
+import { IndiceDeGimnasio, MesaDeMaquinas, aplanar } from './Maquinaria';
 
 /**
  * Su maquinaria: las fotos del gimnasio donde entrena.
@@ -32,6 +27,11 @@ import { GymPicker } from './GymPicker';
  * `MUSCLE_GROUPS` ya es el vocabulario del entrenamiento entero. Con él, el día
  * que se programa pecho se puede enseñar lo que tiene PARA PECHO — que es lo
  * único que separa esto de un álbum.
+ *
+ * Y eso es lo que se mira: **un grupo cada vez**, elegido en el índice que
+ * cuelga del rótulo. Los quince apilados, cada uno con su rejilla a medio
+ * llenar y un desplegable bajo cada foto repitiendo el rótulo de encima, eran
+ * un álbum — y de los incómodos. La pieza y el porqué, en `Maquinaria`.
  *
  * ══ Y la carpeta de fuera sigue valiendo ═══════════════════════════════════
  *
@@ -61,25 +61,40 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
   const pendientes = unsortedCount(equipment);
 
   /*
-    ══ El álbum, aplanado en el MISMO orden en que se ve ══════════════════════
+    ══ Qué grupo se está mirando ══════════════════════════════════════════════
 
-    El visor recorre todas las fotos del gimnasio de corrido —de «Pecho» a
-    «Espalda» sin cerrar— como el carrete de un teléfono. Y el orden tiene que
-    ser exactamente el de la rejilla: si «la siguiente» no es la que está al
-    lado, pasar fotos deja de tener sentido.
+    `null` es «Todo». Y se DERIVA de las tandas en vez de guardarse a secas:
+    mover la última foto de tríceps a bíceps hace desaparecer el grupo que estaba
+    elegido, y sin esto la banda se quedaría en blanco con un índice donde ya no
+    está lo marcado. Se cae a «Todo», que es donde sigue estando la foto.
+  */
+  const [ejePedido, setEje] = useState(null);
+  const eje = tandas.some((t) => t.group === ejePedido) ? ejePedido : null;
+
+  const visibles = aplanar(tandas, eje);
+
+  /*
+    ══ El álbum, en el MISMO orden en que se ve ══════════════════════════════
+
+    El visor recorre de corrido lo que hay en la rejilla, como el carrete de un
+    teléfono, y el orden tiene que ser exactamente ese: si «la siguiente» no es
+    la que está al lado, pasar fotos deja de tener sentido. Por eso sale de
+    `visibles` y no del gimnasio entero — mirando dorsal, la siguiente es de
+    dorsal.
 
     Solo las que tienen enlace firmado: una foto sin URL no se puede enseñar
     grande, y meterla en el álbum sería un hueco negro a mitad del recorrido.
   */
-  const album = tandas.flatMap((tanda) =>
-    tanda.items
-      .filter((pieza) => pieza.url)
-      .map((pieza) => ({
-        id: pieza.id,
-        url: pieza.url,
-        caption: pieza.name ? `${tanda.group} · ${pieza.name}` : tanda.group,
-      }))
-  );
+  const album = visibles
+    .filter((pieza) => pieza.url)
+    .map((pieza) => ({
+      id: pieza.id,
+      url: pieza.url,
+      /* La pieza entera viaja con su renglón: para descargarla hace falta su
+         grupo y su nombre, que es con lo que se llama el archivo. */
+      pieza,
+      caption: pieza.name ? `${pieza.grupo} · ${pieza.name}` : pieza.grupo,
+    }));
   const [abierta, setAbierta] = useState(null); // índice dentro de `album`
 
   const mover = async (pieza, destino) => {
@@ -107,8 +122,27 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
       rango="bloque"
       title="Su maquinaria"
       sub={vacio ? 'Las máquinas que tiene delante. Es lo que decide qué le puedes prescribir.' : undefined}
+      className="bloque-gym"
       action={
-        !editandoCarpeta && (
+        <div className="gym-cabeza">
+          {/*
+            ══ El índice, colgando del rótulo ══════════════════════════════════
+
+            La columna del rótulo dice de qué va el bloque y qué puedes hacerle;
+            los grupos de su gimnasio son lo primero. Se queda quieto mientras se
+            recorren las fotos, que es lo que no hacía ningún carril puesto
+            encima de la rejilla. Ver `IndiceDeGimnasio`.
+          */}
+          {!vacio && (
+            <IndiceDeGimnasio
+              tandas={tandas}
+              total={equipment.length}
+              valor={eje}
+              onElegir={setEje}
+            />
+          )}
+
+          {!editandoCarpeta && (
           /*
             Tres verbos en columna bajo el rótulo, no tres iconos en fila contra
             el canto derecho: un «+», una flecha y un eslabón sueltos a mil
@@ -152,7 +186,8 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
               {carpeta ? 'Cambiar carpeta' : 'Enlazar carpeta'}
             </button>
           </div>
-        )
+          )}
+        </div>
       }
     >
       {fallo && <Notice tone="error">{fallo}</Notice>}
@@ -195,13 +230,21 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
         </form>
       )}
 
-      {pendientes > 0 && (
-        /* La bandeja es una TAREA, así que se dice cuántas quedan. Sin esto, unas
-           fotos sin grupo son solo un titular más de la lista y se quedan ahí. */
+      {pendientes > 0 && eje !== UNSORTED && (
+        /*
+          La bandeja es una TAREA, así que se dice cuántas quedan. Sin esto, unas
+          fotos sin grupo son solo un titular más de la lista y se quedan ahí.
+
+          Y ahora el aviso LLEVA a la tarea en vez de describirla: la bandeja es
+          una parada del índice, así que el verbo la abre y deja delante solo lo
+          que hay que colocar. Estando ya dentro, el aviso sobra — es el rótulo
+          de lo que se está mirando.
+        */
         <Notice tone="info">
-          {pendientes === 1
-            ? 'Queda 1 foto sin ordenar. Dile de qué es debajo de la imagen.'
-            : `Quedan ${pendientes} fotos sin ordenar. Diles de qué son debajo de cada imagen.`}
+          {pendientes === 1 ? 'Queda 1 foto sin ordenar.' : `Quedan ${pendientes} fotos sin ordenar.`}{' '}
+          <button type="button" className="cab-accion is-puerta" onClick={() => setEje(UNSORTED)}>
+            Colocarlas
+          </button>
         </Notice>
       )}
 
@@ -236,80 +279,23 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
         exactamente lo que hace el subtítulo del bloque, y ahí ya estaba dicha.
       */}
       {!vacio && (
-        <div className="col gap-4">
-          {tandas.map((tanda) => (
-            <div key={tanda.group} className="col gap-2">
-              {/* El color del grupo muscular es el MISMO que en el volumen
-                  semanal y en la analítica: sale de `domain/training.js` y no se
-                  elige aquí. Es un dato, así que puede llevar color. */}
-              <span className="section-label" style={{ color: muscleColor(tanda.group) }}>
-                {tanda.group} · {tanda.items.length}
-              </span>
-              <div className="gym-grid">
-                {tanda.items.map((pieza) => (
-                  <figure key={pieza.id} className="gym-shot">
-                    {pieza.url ? (
-                      /* Se pulsa y se abre grande, como en la galería del móvil.
-                         Es un botón y no una imagen con `onClick`: así se llega
-                         con el tabulador y se abre con Intro, y un lector de
-                         pantalla lo anuncia como lo que es. */
-                      <button
-                        type="button"
-                        className="gym-shot-open"
-                        aria-label={`Ver ${pieza.name || tanda.group} en grande`}
-                        onClick={() => setAbierta(album.findIndex((f) => f.id === pieza.id))}
-                      >
-                        <Thumb url={pieza.url} alt={pieza.name || tanda.group} width={320} />
-                      </button>
-                    ) : (
-                      /* Firmar puede fallar sin que la pieza deje de existir. Se
-                         dice, en vez de enseñar un cuadro roto. */
-                      <span className="gym-shot-missing t-2xs t-tertiary">No se pudo cargar</span>
-                    )}
-
-                    {/*
-                      Clasificar DESPUÉS, debajo de la foto que se está mirando.
-
-                      Es el gesto para el que existe la bandeja: se sube la tanda
-                      entera de una vez y luego se recorre diciendo qué es cada
-                      cosa. Un selector por foto y no una pantalla aparte de
-                      «ordenar», porque la decisión se toma viendo la imagen — y
-                      mover una que ya está colocada es el mismo control.
-                    */}
-                    <select
-                      className="select select-xs"
-                      aria-label={`Grupo muscular de ${pieza.name || 'esta máquina'}`}
-                      value={pieza.muscleGroup}
-                      onChange={(e) => mover(pieza, e.target.value)}
-                    >
-                      {groupOptions().map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </select>
-
-                    {pieza.name && <figcaption className="t-2xs t-tertiary">{pieza.name}</figcaption>}
-                    <button
-                      type="button"
-                      className="gym-shot-del"
-                      aria-label={`Borrar ${pieza.name || 'la foto'}`}
-                      onClick={() => borrar(pieza)}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </figure>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <MesaDeMaquinas
+          piezas={visibles}
+          /* De qué es cada foto solo se dice mirando «Todo»: dentro de un grupo
+             sería la misma palabra veintiséis veces, que es de lo que se venía. */
+          conGrupo={eje === null}
+          onAbrir={(pieza) => setAbierta(album.findIndex((f) => f.id === pieza.id))}
+          onMover={mover}
+          onBorrar={borrar}
+        />
       )}
 
+      {/* El recuento vivía aquí —«26 fotos en 5 grupos»— y ahora lo dice el
+          índice, grupo a grupo y con la cifra al canto. Lo que queda es lo único
+          que este pie aportaba de su cosecha: que estas fotos no se quedan en la
+          ficha. */}
       {!vacio && (
-        <p className="t-xs t-tertiary">
-          {equipmentHeadline(equipment)}. Las ves al montar su rutina sin salir de la pantalla.
-        </p>
+        <p className="t-xs t-tertiary">Las ves al montar su rutina, sin salir de la pantalla.</p>
       )}
 
       {/* Y a pantalla completa, recorriendo el gimnasio entero. Ver `Gallery`. */}
@@ -319,6 +305,15 @@ export const EquipmentPanel = ({ client, onSaveProfile }) => {
           index={abierta}
           onIndex={setAbierta}
           onClose={() => setAbierta(null)}
+          /* Una foto de una máquina también se manda por WhatsApp —«¿es esta?»—
+             y se guarda. Es el mismo verbo que en el archivo de progreso. */
+          onDescargar={async (item) => {
+            const res = await descargarFoto({
+              url: item.url,
+              nombre: equipmentFileName(item.pieza, { clientName: client?.name }),
+            });
+            if (!res.ok) setFallo(res.error);
+          }}
         />
       )}
     </Panel>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Zap } from 'lucide-react';
+import { Bookmark, ClipboardPaste, Copy, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 
 import {
   blockPlan,
@@ -14,6 +14,7 @@ import {
   WEEK_DAYS,
   buildExercise,
   findMicrocycle,
+  pesoPautado,
   rematesDe,
   rotatingSlots,
   unitInitial,
@@ -24,10 +25,11 @@ import {
 } from '@/domain/training';
 import { executedSessions, resumenDeEntrada, sessionSetCount, ultimaSesionDeHoja } from '@/domain/sessions';
 import { localeNumber, weekdayName } from '@/lib/dates';
-import { clampInt, toNum } from '@/lib/num';
+import { clampInt } from '@/lib/num';
 import { Autocomplete } from '@/components/ui/Autocomplete';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
+import { TIPO, useZonasDeSoltar } from '@/lib/portapapeles';
 
 /**
  * EL BLOQUE EN CONJUNTO: sus hojas, su estructura y su información, a la vez.
@@ -168,11 +170,31 @@ const AltaDeEjercicio = ({ dayName, library, nota, onAdd, onRecordar, onClose })
 };
 
 export const ConjuntoDelBloque = ({
-  program,
+  program = null,
   cliente,
-  bloque,
+  bloque = null,
   semanaEnCurso,
   library,
+  /*
+    ══ LA COSTURA DEL COMPOSITOR ═══════════════════════════════════════════
+    Con `plan` puesto, esta rejilla deja de leer el programa: las hojas son
+    las que le pasan y no hay `bloque` del que sacarlas. Es lo que permite
+    componer un bloque —que todavía no existe en ninguna parte— con la MISMA
+    pantalla con la que se mira uno abierto, en vez del segundo editor, peor,
+    que el compositor tuvo hasta ahora.
+
+    Y casi todo lo demás se apaga solo, sin un `if` por medio: sin semanas del
+    bloque no hay semáforo ni fantasma («lo que hizo la vez pasada» no existe
+    antes de la primera vez), sin excepciones no hay `difieren`, y con el plan
+    dentro ninguna hoja puede estar «entrenada». Lo único que hay que decirle
+    es cómo se llama el bloque —`nombre`— y dónde cae cada hoja —`split`—,
+    que son los dos datos que normalmente saca de `bloque` y del programa.
+
+    Ver `Compositor.jsx`.
+  */
+  plan: planDado = null,
+  nombre = null,
+  split: splitDado = null,
   onAbrirHoja,
   onIrSemana,
   onAnadirEjercicio,
@@ -182,6 +204,12 @@ export const ConjuntoDelBloque = ({
   onReps,
   onAnadirHoja,
   onRenombrarHoja,
+  onCopiarHoja,
+  /* La hoja que se lleva en la mano y el verbo de ponerla encima de una de
+     estas: la columna conserva su nombre y cambia lo que lleva dentro. Ver
+     `sustituirHoja` en `WorkoutLogEditor`. */
+  hojaEnMano = null,
+  onSustituirHoja = null,
   onQuitarHoja,
   onMoverHoja,
   onRecordarEjercicio,
@@ -200,9 +228,23 @@ export const ConjuntoDelBloque = ({
   */
   const [arrastre, setArrastre] = useState(null); // { tipo: 'hoja'|'ej', hoja, index }
   const [sobre, setSobre] = useState(null); // { tipo, hoja, index }
+  /*
+    Y el otro arrastre, el que viene de FUERA de esta rejilla: una hoja copiada
+    que se trae de la mano y se suelta sobre una columna. Aquí es donde hace
+    falta y no en la mano —seis columnas, y el clic no puede decir cuál—; ver
+    `useZonasDeSoltar`. Los dos no coinciden nunca: `receptor` solo devuelve
+    manejadores con un arrastre interno en curso, y `zona` solo con una pieza
+    viajando desde la mano.
+  */
+  const deLaMano = useZonasDeSoltar(TIPO.HOJA);
 
-  const plan = blockPlan(program, bloque);
-  const esActual = isCurrentBlock(program, bloque);
+  /* Componiendo: el plan llega de fuera y no hay bloque guardado detrás. */
+  const componiendo = planDado !== null;
+  const plan = planDado || blockPlan(program, bloque);
+  /* Lo que se está componiendo es, por definición, lo que se va a entrenar:
+     se escribe entero. */
+  const esActual = componiendo || isCurrentBlock(program, bloque);
+  const comoSeLlama = nombre || bloque?.name || 'el bloque';
   const cycleType = cliente?.cycleType || 'weekly';
   const rotativo = cycleType === 'rotating';
   /* La unidad del bloque: la SEMANA natural o el MICROCICLO —una vuelta al
@@ -215,7 +257,9 @@ export const ConjuntoDelBloque = ({
   const fem = unitIsFeminine(cycleType);
   const este = fem ? 'esta' : 'este';
   const todas = fem ? 'todas las' : 'todos los';
-  const estructura = structureOfBlock(program, bloque);
+  const estructura = componiendo
+    ? { weeklySplit: splitDado || {}, mobilityDrills: [] }
+    : structureOfBlock(program, bloque);
 
   /* La estructura del bloque: en rotativo, la cadena del patrón —donde caen
      los descansos—; en semana natural, el reparto por días. */
@@ -290,11 +334,11 @@ export const ConjuntoDelBloque = ({
     un microciclo nuevo lo lleva puesto. Queda solo saber si este bloque tiene
     ya su plan, que es lo que decide si el andamio del modelo viejo se pinta.
   */
-  const conPlanPropio = hasBlockPlan(bloque);
+  const conPlanPropio = componiendo || hasBlockPlan(bloque);
   /* El bloque en blanco: ninguna hoja tiene un solo ejercicio. */
   const bloqueVacio = plan.sessions.every((s) => (s.exercises || []).length === 0);
 
-  const enBloque = (w) => w - bloque.fromWeek + 1;
+  const enBloque = (w) => w - (bloque?.fromWeek ?? 1) + 1;
   const etiqueta = (w) => `${unitInitial(cycleType)}${enBloque(w)}`;
 
   /*
@@ -307,7 +351,9 @@ export const ConjuntoDelBloque = ({
     Solo en el bloque actual con la semana en curso dentro: en un bloque cerrado
     la hoja es archivo y el semáforo mentiría.
   */
-  const semanasBloque = weeksOfBlock(program, bloque);
+  /* Sin bloque guardado no hay semanas, y sin semanas se apagan solos el
+     semáforo, el fantasma de la vez pasada y el tope de «entrenada». */
+  const semanasBloque = componiendo ? [] : weeksOfBlock(program, bloque);
   const enCursoAqui = esActual && Number.isFinite(semanaEnCurso) && semanasBloque.includes(semanaEnCurso);
   const microEnCurso = enCursoAqui ? findMicrocycle(program?.microcycles || [], semanaEnCurso) : null;
   const diaDe = (fecha) => (fecha ? weekdayName(`${fecha}T00:00:00Z`) : null);
@@ -318,22 +364,15 @@ export const ConjuntoDelBloque = ({
     ══ EL PESO PAUTADO, SI LO HAY ════════════════════════════════════════════
     Desde que los kilos se pueden pautar (`targetKg`), esta rejilla enseñaba la
     mitad del plan: «4 × 6-8» y ni rastro del peso que el entrenador había
-    escrito en la hoja. Aquí va en voz baja delante de la pauta, y NO como
-    campo: el peso es por serie —una pirámide sube en cada una— y en una
-    columna de 310 px no cabe una tercera casilla. Se escribe en la hoja, que
-    es donde hay una fila por serie.
+    escrito en la hoja. Va en voz baja delante de la pauta, y NO como campo: el
+    peso es por serie —una pirámide sube en cada una— y en una columna de 310 px
+    no cabe una tercera casilla. Se escribe donde hay una fila por serie.
 
-    Con todas las series al mismo peso dice «100 kg»; con pesos distintos, los
-    extremos («100–80 kg»), que es lo que hay que saber de un vistazo.
+    Y estuvo escrito aquí, leyendo `ex.sets`... que es justo lo que la vista del
+    plan no traía: la cifra no salió NUNCA. Ahora la traduce el dominio
+    (`planExerciseView`) y el resumen lo dice él (`pesoPautado`), que es el
+    mismo que usa el banco del compositor en su renglón.
   */
-  const pesoPautado = (ex) => {
-    const pesos = (ex.sets || []).map((s) => toNum(s?.targetKg)).filter((n) => n !== null);
-    if (pesos.length === 0) return null;
-    const min = Math.min(...pesos);
-    const max = Math.max(...pesos);
-    return min === max ? `${localeNumber(max)} kg` : `${localeNumber(max)}–${localeNumber(min)} kg`;
-  };
-
   /* ── El arrastre ───────────────────────────────────────────────────────── */
   const soltar = () => {
     setArrastre(null);
@@ -451,7 +490,7 @@ export const ConjuntoDelBloque = ({
       <div className="bloque-conjunto">
         <EmptyState
           icon={Layers}
-          title={`«${bloque.name}» todavía no tiene hojas`}
+          title={`«${comoSeLlama}» todavía no tiene hojas`}
           message={
             esActual
               ? 'Una hoja es un día de entreno de este bloque —Push, Pull, Pierna—. Añade la primera y ponle dentro sus ejercicios.'
@@ -490,7 +529,7 @@ export const ConjuntoDelBloque = ({
         {esActual && bloqueVacio && altaEn === null && nuevaHoja === null && (
           <div className="plan-hueco plan-seccion">
             <span>
-              «{bloque.name}» no tiene ningún ejercicio todavía:{' '}
+              «{comoSeLlama}» no tiene ningún ejercicio todavía:{' '}
               {plan.sessions.length === 1
                 ? `su hoja «${plan.sessions[0].dayName}» está en blanco`
                 : `sus ${plan.sessions.length} hojas están en blanco`}
@@ -608,8 +647,13 @@ export const ConjuntoDelBloque = ({
                    «17/19»). */
                 <section
                   key={hoja.dayName}
-                  className={`plan-col${estadoHoja ? ` is-${estadoHoja.tono}` : ''}${marcas(piezaHoja)}`}
+                  className={`plan-col${estadoHoja ? ` is-${estadoHoja.tono}` : ''}${marcas(piezaHoja)}${
+                    deLaMano.sobre === hoja.dayName ? ' is-drop-target' : ''
+                  }`}
                   {...(esActual ? receptor(piezaHoja) : {})}
+                  {...(esActual && onSustituirHoja
+                    ? deLaMano.zona(hoja.dayName, (pieza) => onSustituirHoja(hoja.dayName, pieza))
+                    : {})}
                 >
                   {/*
                     ══ EL DÍA ES EL MANDO DEL DÍA ═══════════════════════════
@@ -650,6 +694,94 @@ export const ConjuntoDelBloque = ({
                   ) : (
                     <span className="plan-col-dia">{dia || cuandoCae(hoja.dayName) || ' '}</span>
                   )}
+                  {/*
+                    ══ LOS BOTONES DE LA HOJA ═══════════════════════════════
+                    «Las hojas dentro de bloque tampoco tienen botones,
+                    deberían tener.» Tenían un «···» de seis ítems, que es lo
+                    contrario: un botón que esconde botones.
+
+                    Salen los cuatro que hacen algo distinto —copiarla,
+                    renombrarla, guardarla como pieza y quitarla— con la misma
+                    escala y el mismo orden que en la cabecera de la hoja
+                    abierta: lo que construye primero, lo que borra al final.
+
+                    ── COPIAR, que es el verbo que faltaba ─────────────────
+                    «En las cajas de hojas deberías dar las opciones de
+                    copiar y esas cosas.» Y era verdad que no estaban: copiar
+                    una hoja —montar «Push B» a partir de «Push A», que es
+                    como se escribe media semana— solo se podía DENTRO de la
+                    hoja abierta, o sea después de entrar en ella. Aquí, con
+                    las seis columnas delante, es donde se decide que hace
+                    falta otra: es exactamente el sitio del verbo. Y es el
+                    MISMO manejador de la hoja abierta, con el mismo icono.
+
+                    ── Y los dos que NO salen ──────────────────────────────
+                    «Mover antes» y «Mover después» se han ido: el asa de la
+                    izquierda ya arrastra, y desde ahora también entiende
+                    Alt + ←/→, que era lo único que esos dos ítems aportaban.
+                    Dos maneras de reordenar bastan; tres son la avería que
+                    esta pantalla arrastra desde el principio. Y «Abrir la
+                    hoja» tampoco: el nombre ES la puerta.
+                  */}
+                  <span className="plan-col-acciones">
+                    {onCopiarHoja && (
+                      <button
+                        type="button"
+                        className="btn btn-icon btn-icon-compact"
+                        title={`Copiar «${hoja.dayName}» al portapapeles`}
+                        aria-label={`Copiar «${hoja.dayName}» al portapapeles`}
+                        onClick={() => onCopiarHoja(hoja.dayName)}
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-icon btn-icon-compact"
+                      title={`Renombrar «${hoja.dayName}»`}
+                      aria-label={`Renombrar «${hoja.dayName}»`}
+                      onClick={() => setRenombrando(hoja.dayName)}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    {onGuardarPieza && (
+                      <button
+                        type="button"
+                        className="btn btn-icon btn-icon-compact"
+                        title="Guardarla como pieza tuya"
+                        aria-label={`Guardar «${hoja.dayName}» como pieza tuya`}
+                        onClick={() => onGuardarPieza(hoja.dayName)}
+                      >
+                        <Bookmark size={13} />
+                      </button>
+                    )}
+                    {/* ── PONERLE ENCIMA LA QUE SE LLEVA ─────────────────
+                        «Este lunes pasa a ser este otro entrenamiento»: la
+                        columna conserva su nombre —que es lo que el cliente
+                        reconoce— y cambia lo que lleva dentro. Solo con una
+                        hoja en la mano, por la ley del reposo: una oferta que
+                        no se puede aceptar es mobiliario. */}
+                    {onSustituirHoja && hojaEnMano && esActual && (
+                      <button
+                        type="button"
+                        className="btn btn-icon btn-icon-compact"
+                        title={`Poner «${hojaEnMano.titulo}» en «${hoja.dayName}»: conserva el nombre y cambia sus ejercicios`}
+                        aria-label={`Poner ${hojaEnMano.titulo} en ${hoja.dayName}`}
+                        onClick={() => onSustituirHoja(hoja.dayName)}
+                      >
+                        <ClipboardPaste size={13} />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-icon btn-icon-compact btn-icon-danger"
+                      title={`Quitar «${hoja.dayName}»`}
+                      aria-label={`Quitar «${hoja.dayName}»`}
+                      onClick={() => onQuitarHoja(hoja.dayName)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </span>
                   <header className="plan-col-cab">
                     {esActual && plan.sessions.length > 1 && (
                       <button
@@ -751,56 +883,6 @@ export const ConjuntoDelBloque = ({
                         )}
                       </span>
                     </div>
-                    {/*
-                      ══ LOS BOTONES DE LA HOJA ═══════════════════════════════
-                      «Las hojas dentro de bloque tampoco tienen botones,
-                      deberían tener.» Tenían un «···» de seis ítems, que es lo
-                      contrario: un botón que esconde botones.
-
-                      Salen los tres que hacen algo distinto —renombrarla,
-                      guardarla como pieza y quitarla— con la misma escala y el
-                      mismo orden que en la cabecera de la hoja abierta: lo que
-                      construye primero, lo que borra al final.
-
-                      ── Y los dos que NO salen ──────────────────────────────
-                      «Mover antes» y «Mover después» se han ido: el asa de la
-                      izquierda ya arrastra, y desde ahora también entiende
-                      Alt + ←/→, que era lo único que esos dos ítems aportaban.
-                      Dos maneras de reordenar bastan; tres son la avería que
-                      esta pantalla arrastra desde el principio. Y «Abrir la
-                      hoja» tampoco: el nombre ES la puerta.
-                    */}
-                    <span className="plan-col-acciones">
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-icon-compact"
-                        title={`Renombrar «${hoja.dayName}»`}
-                        aria-label={`Renombrar «${hoja.dayName}»`}
-                        onClick={() => setRenombrando(hoja.dayName)}
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      {onGuardarPieza && (
-                        <button
-                          type="button"
-                          className="btn btn-icon btn-icon-compact"
-                          title="Guardarla como pieza tuya"
-                          aria-label={`Guardar «${hoja.dayName}» como pieza tuya`}
-                          onClick={() => onGuardarPieza(hoja.dayName)}
-                        >
-                          <Bookmark size={13} />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="btn btn-icon btn-icon-compact btn-icon-danger"
-                        title={`Quitar «${hoja.dayName}»`}
-                        aria-label={`Quitar «${hoja.dayName}»`}
-                        onClick={() => onQuitarHoja(hoja.dayName)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </span>
                   </header>
 
                   <ol className="plan-ejs">
@@ -973,7 +1055,7 @@ export const ConjuntoDelBloque = ({
                       <AltaDeEjercicio
                         dayName={hoja.dayName}
                         library={library}
-                        nota={`Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado.`}
+                        nota={componiendo ? null : `Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado.`}
                         onAdd={(exercise) => onAnadirEjercicio(hoja.dayName, exercise)}
                         onRecordar={onRecordarEjercicio}
                         onClose={() => setAltaEn(null)}
@@ -983,7 +1065,7 @@ export const ConjuntoDelBloque = ({
                         type="button"
                         className="plan-alta-abrir"
                         onClick={() => setAltaEn(hoja.dayName)}
-                        title={`Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado`}
+                        title={componiendo ? `Añadir un ejercicio a «${hoja.dayName}»` : `Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado`}
                       >
                         <Plus size={13} aria-hidden="true" /> ejercicio
                       </button>

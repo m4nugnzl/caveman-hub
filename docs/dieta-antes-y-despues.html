@@ -1,0 +1,832 @@
+<title>La dieta por macros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,400..800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Los tokens son los de la app (src/styles/tokens.css), no unos inventados
+   para esta página: si el «después» no se ve como Caveman Hub, no prueba nada.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+  /* La mesa de esta página, un escalón por debajo del lienzo de la app, para
+     que cada pantalla se lea como una hoja puesta encima. */
+  --mesa: #e8ebf1;
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --sunken: #f3f5f8;
+  --text: #12151a;
+  --text-2: #5b6270;
+  --text-3: #6e7686;
+  --hairline: #e6e9ef;
+  --hairline-strong: #cbd1dc;
+  --edge: rgba(18, 24, 38, 0.09);
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-wash: rgba(59, 73, 223, 0.12);
+  --positive: #10774c;
+  --negative: #b93429;
+  --warning: #a4530e;
+  --warning-soft: #fbeee1;
+  --m-p: #a8306e;
+  --m-c: #96690a;
+  --m-g: #7a34ad;
+  --fill: #e9ecf1;
+  --sombra: 0 1px 2px rgba(18, 24, 38, .06), 0 12px 32px -12px rgba(18, 24, 38, .18);
+  --nav: #121722;
+  --nav-text: #e8ebf2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --mesa: #0e1116;
+    --canvas: #171a20;
+    --surface: #1c2027;
+    --sunken: #14171c;
+    --text: #e7eaf0;
+    --text-2: #a2a9b7;
+    --text-3: #7f8796;
+    --hairline: rgba(214, 224, 244, 0.09);
+    --hairline-strong: rgba(214, 224, 244, 0.18);
+    --edge: rgba(214, 224, 244, 0.14);
+    --accent: #5b8df7;
+    --accent-soft: rgba(91, 141, 247, 0.14);
+    --accent-wash: rgba(91, 141, 247, 0.22);
+    --positive: #4bb98a;
+    --negative: #f0776b;
+    --warning: #e0a35c;
+    --warning-soft: rgba(224, 163, 92, .14);
+    --m-p: #ee8ab9;
+    --m-c: #e8bc55;
+    --m-g: #c58ae6;
+    --fill: #262b33;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -14px rgba(0, 0, 0, .6);
+    --nav: #10141b;
+    --nav-text: #e7eaf0;
+  }
+  .segmentado button[aria-pressed="true"] { color: #10131a; }
+  .nota::before { color: #10131a; }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mesa: #0e1116;
+  --canvas: #171a20;
+  --surface: #1c2027;
+  --sunken: #14171c;
+  --text: #e7eaf0;
+  --text-2: #a2a9b7;
+  --text-3: #7f8796;
+  --hairline: rgba(214, 224, 244, 0.09);
+  --hairline-strong: rgba(214, 224, 244, 0.18);
+  --edge: rgba(214, 224, 244, 0.14);
+  --accent: #5b8df7;
+  --accent-soft: rgba(91, 141, 247, 0.14);
+  --accent-wash: rgba(91, 141, 247, 0.22);
+  --positive: #4bb98a;
+  --negative: #f0776b;
+  --warning: #e0a35c;
+  --warning-soft: rgba(224, 163, 92, .14);
+  --m-p: #ee8ab9;
+  --m-c: #e8bc55;
+  --m-g: #c58ae6;
+  --fill: #262b33;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -14px rgba(0, 0, 0, .6);
+  --nav: #10141b;
+  --nav-text: #e7eaf0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--mesa);
+  color: var(--text);
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* La voz de las cifras: Archivo estirada, como `--font-ancha` en la app. */
+.cifra { font-stretch: 125%; font-weight: 680; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+
+.rotulo {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ── El documento ───────────────────────────────────────────────────────── */
+.doc { max-width: 1320px; margin: 0 auto; padding: 40px 24px 80px; }
+
+header.portada { max-width: 62ch; }
+header.portada .rotulo { color: var(--accent); }
+h1 {
+  font-stretch: 118%; font-weight: 750; letter-spacing: -0.025em;
+  font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; text-wrap: balance;
+  margin: 10px 0 14px;
+}
+header.portada p { color: var(--text-2); font-size: 17px; margin: 0 0 6px; }
+header.portada p strong { color: var(--text); font-weight: 620; }
+
+/* ── El mando de la página ──────────────────────────────────────────────── */
+.mando {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  margin: 30px 0 22px; padding: 12px 0;
+  background: linear-gradient(var(--mesa) 78%, transparent);
+}
+.segmentado {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(18, 24, 38, .05);
+}
+.segmentado button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2);
+  padding: 7px 16px; border-radius: 999px;
+  transition: background-color .14s, color .14s;
+}
+.segmentado button:hover { color: var(--text); }
+.segmentado button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .segmentado button[aria-pressed="true"] { color: #10131a; }
+.segmentado button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.interruptor {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--text-2); cursor: pointer; user-select: none;
+}
+.interruptor input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* ── Las pantallas ──────────────────────────────────────────────────────── */
+.pantallas { display: grid; gap: 34px; }
+[data-vista="antes"] #despues, [data-vista="despues"] #antes { display: none; }
+@media (min-width: 1100px) {
+  [data-vista="comparar"] .pantallas { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+
+.marco { min-width: 0; }
+.marco > figcaption {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 12px;
+}
+.marco > figcaption b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.marco > figcaption span { font-size: 13.5px; color: var(--text-2); }
+.chapa {
+  font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px;
+}
+.chapa.hoy { background: var(--fill); color: var(--text-2); }
+.chapa.nuevo { background: var(--accent-wash); color: var(--accent); }
+
+/* El chasis de la app, en miniatura fiel: barra oscura + hoja. */
+.app {
+  container-type: inline-size;
+  display: grid; grid-template-columns: 168px minmax(0, 1fr);
+  background: var(--canvas); border: 1px solid var(--edge); border-radius: 14px;
+  box-shadow: var(--sombra); overflow: hidden;
+}
+@container (max-width: 720px) { .barra { display: none; } }
+@container (max-width: 720px) { .app { grid-template-columns: minmax(0, 1fr); } }
+
+.barra { background: var(--nav); color: var(--nav-text); padding: 14px 12px; font-size: 13px; }
+.barra .marca { font-stretch: 125%; font-weight: 750; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .95; }
+.barra ul { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 2px; }
+.barra li { padding: 6px 9px; border-radius: 7px; color: rgba(232, 235, 242, .68); }
+.barra li.on { background: rgba(255, 255, 255, .10); color: #fff; font-weight: 600; }
+.barra .grupo { margin-top: 16px; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: rgba(232, 235, 242, .42); padding: 0 9px; }
+
+.hoja { padding: 0; min-width: 0; }
+.cliente {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 18px 0;
+}
+.avatar {
+  width: 30px; height: 30px; border-radius: 999px; background: var(--fill);
+  display: grid; place-items: center; font-size: 11px; font-weight: 700; color: var(--text-2);
+}
+.cliente .nombre { font-weight: 700; font-size: 17px; letter-spacing: -0.015em; }
+.cliente .meta { font-size: 12.5px; color: var(--text-3); }
+.pestanas {
+  display: flex; gap: 18px; padding: 8px 18px 0; margin-top: 8px;
+  border-bottom: 1px solid var(--hairline); font-size: 13.5px; color: var(--text-2);
+}
+.pestanas span { padding-bottom: 9px; }
+.pestanas span.on { color: var(--text); font-weight: 650; box-shadow: inset 0 -2px 0 var(--accent); }
+
+.lienzo { padding: 18px; background: var(--canvas); }
+
+/* ── Piezas comunes de la app ───────────────────────────────────────────── */
+.tarjeta {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 11px;
+  padding: 14px;
+}
+.fila-mando {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.pestanitas { display: inline-flex; gap: 4px; }
+.pestanita {
+  font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  padding: 5px 11px; border-radius: 8px; border: 1px solid transparent; background: transparent;
+}
+.pestanita.on { background: var(--accent-soft); color: var(--accent); }
+.derecha { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.guardado { font-size: 12px; color: var(--text-3); display: inline-flex; align-items: center; gap: 5px; }
+.guardado::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--positive); }
+.btn {
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; padding: 5px 11px;
+}
+
+/* La barra de macros, tal cual la pinta `MacroBar`. */
+.macro-bar { display: flex; height: 9px; border-radius: 999px; overflow: hidden; background: var(--fill); }
+.macro-bar > i { display: block; }
+.macro-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--text-2); }
+.macro-legend .punto { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 6px; vertical-align: 1px; }
+.macro-legend b { font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums; }
+.macro-legend .pct { color: var(--text-3); }
+
+/* ══ EL ANTES ══════════════════════════════════════════════════════════════
+   Una sola columna de 980 px: `.dieta.is-macros` en revision.css:3469. El hueco
+   de la derecha es parte del retrato, no un descuido de esta maqueta. */
+.columna980 { max-width: 620px; display: grid; gap: 16px; }
+.hueco {
+  border: 1px dashed var(--hairline-strong); border-radius: 11px;
+  display: grid; place-items: center; padding: 20px; text-align: center;
+  color: var(--text-3); font-size: 12.5px; min-height: 100%;
+}
+.antes-cuerpo { display: grid; grid-template-columns: minmax(0, 620px) minmax(0, 1fr); gap: 18px; align-items: stretch; }
+@container (max-width: 720px) { .antes-cuerpo { grid-template-columns: minmax(0, 1fr); } .hueco { display: none; } }
+
+.objetivo-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.kcal-grande { display: flex; align-items: baseline; gap: 6px; margin-bottom: 10px; }
+.kcal-grande .v { font-size: 30px; }
+.kcal-grande .u { font-size: 14px; color: var(--text-3); }
+.lapiz { border: 0; background: transparent; color: var(--text-3); font-size: 14px; cursor: default; }
+
+.objetivo-caja { display: flex; align-items: center; gap: 12px; }
+.objetivo-caja .rotulo { flex: 1; }
+.objetivo-caja .v { font-size: 22px; }
+.objetivo-caja .u { font-size: 13px; color: var(--text-3); margin-left: 4px; }
+.pautas { font-size: 13.5px; color: var(--text-2); }
+.pautas p { margin: 4px 0 0; }
+
+/* ══ EL DESPUÉS ════════════════════════════════════════════════════════════ */
+/* La tira: dos renglones, como la del programa. */
+.tira { display: grid; gap: 6px; margin-bottom: 14px; }
+.tira-fila { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tira-rotulo { font-size: 12.5px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; padding-right: 8px; margin-right: 2px; border-right: 1px solid var(--hairline); }
+.ficha {
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  background: transparent; border: 1px solid transparent; border-radius: 8px;
+  padding: 5px 11px; cursor: pointer;
+  transition: background-color .12s, color .12s, border-color .12s;
+}
+.ficha:hover { background: var(--sunken); color: var(--text); }
+.ficha[aria-pressed="true"], .ficha.on { background: var(--surface); border-color: var(--hairline-strong); color: var(--text); box-shadow: 0 1px 2px rgba(18,24,38,.05); }
+.ficha:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ficha .curso { color: var(--accent); font-weight: 700; }
+.ficha .curso::before { content: "· "; color: var(--text-3); font-weight: 400; }
+.tira-mas { color: var(--accent); font-weight: 600; }
+.tira-mas:hover { background: var(--accent-soft); }
+
+/* Mesa + costado: la rejilla de Entreno. */
+.trabajo { display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 18px; align-items: start; }
+@container (max-width: 860px) { .trabajo { grid-template-columns: minmax(0, 1fr); } }
+.mesa { display: grid; gap: 12px; min-width: 0; }
+.hojas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+
+/* La hoja de una variante: la anatomía de la hoja de entreno. */
+.hoja-dia { padding: 0; overflow: hidden; }
+.hoja-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 14px 0; }
+.hoja-cab .dias { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.hoja-kcal { display: flex; align-items: baseline; gap: 6px; padding: 2px 14px 10px; }
+.hoja-kcal .v { font-size: 26px; }
+.hoja-kcal .u { font-size: 13px; color: var(--text-3); }
+.hoja-kcal .lapiz { margin-left: auto; }
+.hoja-barra { padding: 0 14px 10px; }
+.macro-filas { border-top: 1px solid var(--hairline); }
+.macro-fila {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: baseline;
+  padding: 7px 14px; font-size: 13.5px;
+}
+.macro-fila + .macro-fila { border-top: 1px solid var(--hairline); }
+.macro-fila .n { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); }
+.macro-fila .gramos { font-weight: 650; font-variant-numeric: tabular-nums; }
+.macro-fila .gkg { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; min-width: 62px; text-align: right; }
+
+/* La semana: la cifra que faltaba. */
+.semana { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.semana .v { font-size: 22px; }
+.semana .txt { font-size: 13px; color: var(--text-2); }
+.pareja { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+
+/* El costado: `.lado-tarjeta` con sus tarjetas-puerta. */
+.costado { display: grid; gap: 12px; min-width: 0; }
+.lado {
+  position: relative; background: var(--surface); border: 1px solid var(--edge);
+  border-radius: 11px; padding: 13px; display: grid; gap: 10px;
+}
+.lado.puerta { cursor: pointer; text-align: left; font: inherit; color: inherit; width: 100%; }
+.lado.puerta:hover { border-color: var(--accent); background: var(--accent-soft); }
+.lado.puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lado-cab { display: grid; gap: 2px; }
+.lado-cab .desde { font-size: 12px; color: var(--text-3); }
+.lado-titulo { font-size: 17px; font-weight: 700; letter-spacing: -0.015em; }
+.cifras { display: grid; grid-template-columns: 1fr 1fr; }
+.cifras .c { padding: 8px 10px 8px 0; }
+.cifras .c:nth-child(2n) { border-left: 1px solid var(--hairline); padding-left: 12px; }
+.cifras .v { font-size: 22px; display: block; }
+.cifras .v small { font-size: 13px; font-weight: 600; }
+.cifras .k { font-size: 11.5px; color: var(--text-3); line-height: 1.25; display: block; }
+.cifras .v.bien { color: var(--positive); }
+.cifras .v.ojo { color: var(--warning); }
+
+.barras { display: grid; gap: 7px; }
+.barra-fila { display: grid; grid-template-columns: 62px 1fr auto; gap: 8px; align-items: center; font-size: 12.5px; }
+.barra-fila .k { color: var(--text-2); }
+.barra-fila .pista { height: 7px; border-radius: 999px; background: var(--fill); overflow: hidden; }
+.barra-fila .pista > i { display: block; height: 100%; border-radius: 999px; }
+.barra-fila .v { font-variant-numeric: tabular-nums; font-weight: 650; }
+
+.evol-tabla { display: grid; gap: 5px; font-size: 12.5px; }
+.evol-fila { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.evol-fila .t { color: var(--text-3); font-weight: 650; }
+.evol-fila.on .t { color: var(--accent); }
+.evol-fila .kg { color: var(--text-2); }
+
+/* Las notas de los movimientos. */
+.nota {
+  display: none; font-size: 11.5px; color: var(--accent); font-weight: 650;
+  align-items: center; gap: 6px; margin-bottom: 6px;
+}
+.nota::before {
+  content: attr(data-mov); font-size: 10px; letter-spacing: .04em;
+  background: var(--accent); color: #fff; border-radius: 5px; padding: 2px 6px;
+}
+:root[data-theme="dark"] .nota::before { color: #10131a; }
+[data-notas="si"] .nota { display: flex; }
+
+/* ── La ventana ─────────────────────────────────────────────────────────── */
+dialog {
+  border: 1px solid var(--edge); border-radius: 14px; padding: 0;
+  background: var(--surface); color: var(--text); max-width: 620px; width: calc(100% - 32px);
+  box-shadow: 0 24px 60px -20px rgba(18, 24, 38, .45);
+}
+dialog::backdrop { background: rgba(18, 24, 38, .42); }
+.dlg-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--hairline); }
+.dlg-cab h2 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.015em; }
+.dlg-cuerpo { padding: 16px 18px 20px; display: grid; gap: 16px; }
+.tabla-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--hairline); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+tbody tr.on td { background: var(--accent-soft); }
+.cerrar { font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2); background: transparent; border: 1px solid var(--edge); border-radius: 8px; padding: 5px 12px; cursor: pointer; }
+.cerrar:hover { color: var(--text); border-color: var(--hairline-strong); }
+
+/* ── El pie del estudio ─────────────────────────────────────────────────── */
+.lectura { max-width: 66ch; margin-top: 46px; display: grid; gap: 18px; }
+.lectura h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+.movs { display: grid; gap: 10px; margin: 0; padding: 0; }
+.mov { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: baseline; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+.mov:last-child { border-bottom: 0; }
+.mov dt { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: .03em; }
+.mov dd { margin: 0; font-size: 14.5px; color: var(--text-2); }
+.mov dd b { color: var(--text); font-weight: 620; }
+.pie { margin-top: 40px; font-size: 13px; color: var(--text-3); border-top: 1px solid var(--hairline-strong); padding-top: 14px; }
+.pie code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--text-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="doc">
+  <header class="portada">
+    <span class="rotulo">Caveman Hub · estudio del 9 de septiembre</span>
+    <h1>La dieta por macros, antes y después</h1>
+    <p>La misma pantalla y el mismo cliente —Javier López, microciclo 17—, con lo que hay hoy y con la gramática de Entreno puesta: <strong>tira arriba, mesa a la izquierda, lecturas al costado</strong>.</p>
+    <p>Las cifras se recalculan solas al cambiar de tramo. Todo lo que se ve en el «después» sale de datos que la aplicación <strong>ya guarda</strong>.</p>
+  </header>
+
+  <div class="mando">
+    <div class="segmentado" role="group" aria-label="Qué pantalla se ve">
+      <button type="button" data-vista="antes" aria-pressed="false">Antes</button>
+      <button type="button" data-vista="despues" aria-pressed="true">Después</button>
+      <button type="button" data-vista="comparar" aria-pressed="false">Comparar</button>
+    </div>
+    <label class="interruptor">
+      <input type="checkbox" id="ver-notas"> Ver qué se ha movido
+    </label>
+  </div>
+
+  <div class="pantallas">
+    <!-- ══ ANTES ══════════════════════════════════════════════════════════ -->
+    <figure class="marco" id="antes" style="margin:0">
+      <figcaption>
+        <b>Antes</b><span class="chapa hoy">Hoy en producción</span>
+        <span>Una columna, cuatro casillas y ninguna lectura.</span>
+      </figcaption>
+      <div class="app">
+        <nav class="barra" aria-hidden="true">
+          <div class="marca">Caveman Hub</div>
+          <ul>
+            <li>Inicio</li><li>Clientes</li><li>Cobros</li><li>Agenda</li>
+          </ul>
+          <div class="grupo">Recientes</div>
+          <ul><li class="on">Javier López</li></ul>
+        </nav>
+        <div class="hoja">
+          <div class="cliente">
+            <span class="avatar">JL</span>
+            <span class="nombre">Javier López</span>
+            <span class="meta">Hombre · Microciclo 17 · en curso</span>
+          </div>
+          <div class="pestanas"><span>Resumen</span><span>Entreno</span><span class="on">Dieta</span><span>Revisiones</span></div>
+          <div class="lienzo">
+            <div class="fila-mando">
+              <div class="pestanitas">
+                <span class="pestanita on">Días de entreno</span>
+                <span class="pestanita">Días de descanso</span>
+              </div>
+              <div class="derecha">
+                <span class="guardado">guardado</span>
+                <span class="btn">Traer</span>
+                <span class="btn">···</span>
+              </div>
+            </div>
+
+            <div class="antes-cuerpo">
+              <div class="columna980">
+                <article class="tarjeta">
+                  <div class="objetivo-cab"><span class="rotulo">Objetivo · Días de entreno</span><button class="lapiz" tabindex="-1" aria-hidden="true">✎</button></div>
+                  <div class="kcal-grande"><span class="v cifra">2.598</span><span class="u">kcal</span></div>
+                  <div class="macro-bar" aria-hidden="true">
+                    <i style="width:27.7%;background:var(--m-p)"></i><i style="width:48%;background:var(--m-c)"></i><i style="width:24.3%;background:var(--m-g)"></i>
+                  </div>
+                  <div class="macro-legend" style="margin-top:10px">
+                    <span><i class="punto" style="background:var(--m-p)"></i>Proteína <b>180 g</b> <span class="pct">28%</span></span>
+                    <span><i class="punto" style="background:var(--m-c)"></i>Carbos <b>312 g</b> <span class="pct">48%</span></span>
+                    <span><i class="punto" style="background:var(--m-g)"></i>Grasas <b>70 g</b> <span class="pct">24%</span></span>
+                  </div>
+                </article>
+
+                <article class="tarjeta">
+                  <div class="objetivo-cab"><span class="rotulo">Objetivo · Días de descanso</span><button class="lapiz" tabindex="-1" aria-hidden="true">✎</button></div>
+                  <div class="kcal-grande"><span class="v cifra">2.201</span><span class="u">kcal</span></div>
+                  <div class="macro-bar" aria-hidden="true">
+                    <i style="width:32.7%;background:var(--m-p)"></i><i style="width:40.7%;background:var(--m-c)"></i><i style="width:26.6%;background:var(--m-g)"></i>
+                  </div>
+                  <div class="macro-legend" style="margin-top:10px">
+                    <span><i class="punto" style="background:var(--m-p)"></i>Proteína <b>180 g</b> <span class="pct">33%</span></span>
+                    <span><i class="punto" style="background:var(--m-c)"></i>Carbos <b>224 g</b> <span class="pct">41%</span></span>
+                    <span><i class="punto" style="background:var(--m-g)"></i>Grasas <b>65 g</b> <span class="pct">27%</span></span>
+                  </div>
+                </article>
+
+                <article class="tarjeta objetivo-caja">
+                  <span class="rotulo">Pasos diarios</span>
+                  <span><b class="cifra v">10.000</b><span class="u">pasos</span></span>
+                </article>
+                <article class="tarjeta objetivo-caja" style="display:block">
+                  <span class="rotulo">Cardio de alta intensidad</span>
+                  <p style="margin:6px 0 0;font-size:13.5px">2 sesiones de 10 rondas 30/30 en bici</p>
+                </article>
+
+                <div class="pautas">
+                  <span class="rotulo">Tus pautas</span>
+                  <p>Agua: 3 L al día. Come la proteína primero en cada comida.</p>
+                </div>
+              </div>
+
+              <div class="hueco">
+                Media pantalla vacía:<br><code style="font-size:11.5px">.dieta.is-macros</code> es una<br>columna de 980 px.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <!-- ══ DESPUÉS ════════════════════════════════════════════════════════ -->
+    <figure class="marco" id="despues" style="margin:0">
+      <figcaption>
+        <b>Después</b><span class="chapa nuevo">Propuesta</span>
+        <span>Tira, mesa y costado. Pulsa un tramo.</span>
+      </figcaption>
+      <div class="app">
+        <nav class="barra" aria-hidden="true">
+          <div class="marca">Caveman Hub</div>
+          <ul>
+            <li>Inicio</li><li>Clientes</li><li>Cobros</li><li>Agenda</li>
+          </ul>
+          <div class="grupo">Recientes</div>
+          <ul><li class="on">Javier López</li></ul>
+        </nav>
+        <div class="hoja">
+          <div class="cliente">
+            <span class="avatar">JL</span>
+            <span class="nombre">Javier López</span>
+            <span class="meta">Hombre · Microciclo 17 · en curso</span>
+          </div>
+          <div class="pestanas"><span>Resumen</span><span>Entreno</span><span class="on">Dieta</span><span>Revisiones</span></div>
+          <div class="lienzo">
+
+            <p class="nota" data-mov="D-06">La dieta gana tiempo: cada objetivo es un tramo con fecha, y ya no se machaca</p>
+            <div class="tira">
+              <div class="tira-fila">
+                <span class="tira-rotulo">Fases</span>
+                <button class="ficha" type="button">Recomposición</button>
+                <button class="ficha on" type="button">Definición</button>
+                <button class="ficha tira-mas" type="button">+ fase</button>
+                <div class="derecha">
+                  <span class="guardado">guardado</span>
+                  <span class="btn">···</span>
+                </div>
+              </div>
+              <div class="tira-fila" id="tira-tramos" role="group" aria-label="Tramo de la dieta"></div>
+            </div>
+
+            <div class="trabajo">
+              <div class="mesa">
+                <p class="nota" data-mov="D-03">La variante deja de ser un formulario y pasa a ser una hoja: la pauta, y al lado su lectura</p>
+                <div class="hojas" id="hojas"></div>
+
+                <p class="nota" data-mov="D-04">La cifra que faltaba: la media real de la semana, pesada por los días que entrena</p>
+                <article class="tarjeta semana" id="semana"></article>
+
+                <div class="pareja">
+                  <article class="tarjeta objetivo-caja">
+                    <span class="rotulo">Pasos diarios</span>
+                    <span><b class="cifra v">10.000</b><span class="u">pasos</span></span>
+                  </article>
+                  <article class="tarjeta objetivo-caja" style="display:block">
+                    <span class="rotulo">Cardio de alta intensidad</span>
+                    <p style="margin:6px 0 0;font-size:13.5px">2 sesiones de 10 rondas 30/30 en bici</p>
+                  </article>
+                </div>
+
+                <div class="pautas">
+                  <span class="rotulo">Tus pautas</span>
+                  <p>Agua: 3 L al día. Come la proteína primero en cada comida.</p>
+                </div>
+              </div>
+
+              <aside class="costado" aria-label="Cómo va la dieta">
+                <p class="nota" data-mov="D-02">El costado del bloque, aquí: tres tarjetas-puerta con las mismas clases</p>
+                <section class="lado" id="lado-tramo"></section>
+
+                <section class="lado" id="lado-reparto"></section>
+
+                <button class="lado puerta" type="button" id="lado-evolucion" aria-haspopup="dialog"></button>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+  </div>
+
+  <!-- ══ LA VENTANA DE LOS TRAMOS ═══════════════════════════════════════ -->
+  <dialog id="ventana">
+    <div class="dlg-cab">
+      <h2>La evolución de la dieta</h2>
+      <button class="cerrar" type="button" id="cerrar-ventana">Cerrar</button>
+    </div>
+    <div class="dlg-cuerpo">
+      <div id="grafica"></div>
+      <div class="tabla-scroll">
+        <table>
+          <thead>
+            <tr><th>Tramo</th><th>Desde</th><th>Semanas</th><th>kcal/día</th><th>Peso</th><th>kg/semana</th></tr>
+          </thead>
+          <tbody id="tabla-tramos"></tbody>
+        </table>
+      </div>
+      <p style="margin:0;font-size:13px;color:var(--text-2)">Las kcal salen de la foto que cada pesaje ya guarda (<code style="font-size:12px">log.nutrition</code>) y el peso de <code style="font-size:12px">weightSeries</code>. La app no propone ningún número: enseña lo que pasó con lo que cambiaste.</p>
+    </div>
+  </dialog>
+
+  <div class="lectura">
+    <h2>Lo que se mueve, y por qué</h2>
+    <dl class="movs">
+      <div class="mov"><dt>D-01</dt><dd><b>Un solo chasis.</b> Muere <code>.dieta.is-macros</code>. Por macros y con menú cerrado son la misma pantalla con la mesa distinta, como Entreno tiene la vista de hoja y la de bloque.</dd></div>
+      <div class="mov"><dt>D-02</dt><dd><b>El costado de la dieta.</b> Gemelo de <code>LecturasDelBloque</code>, con sus mismas clases. Se alimenta de <code>kcalSeries</code>, <code>weightSeries</code> y <code>weeklyRateOfChange</code>: escritas, probadas y hoy sin una sola llamada en la interfaz.</dd></div>
+      <div class="mov"><dt>D-03</dt><dd><b>La variante es una hoja.</b> La cifra grande y tres filas de macro con los gramos y lo que significan. Misma anatomía que la fila de ejercicio: la pauta, y al lado la lectura.</dd></div>
+      <div class="mov"><dt>D-04</dt><dd><b>La semana.</b> Cuatro días a 2.598 y tres a 2.201 son 2.428 kcal de media. Los días de entreno se leen del microciclo, no se preguntan.</dd></div>
+      <div class="mov"><dt>D-05</dt><dd><b>g/kg en todas partes.</b> 180 g de proteína es un número; 2,2 g/kg es una decisión. El peso ya está registrado.</dd></div>
+      <div class="mov"><dt>D-06</dt><dd><b>Los tramos.</b> Lo único de aquí que pide esquema: una columna <code>phases jsonb</code>, con las columnas de hoy siguiendo como «el tramo en curso». Sin migración que pueda perder nada.</dd></div>
+    </dl>
+  </div>
+
+  <p class="pie">
+    Maqueta clicable del estudio <code>docs/replanteamiento-dieta-por-macros.md</code>. Cliente y cifras de ejemplo, coherentes entre sí: 4 días de entreno y 3 de descanso, peso de 81,8 kg del pesaje del 7 de septiembre.
+  </p>
+</div>
+
+<script>
+/* ══ Los datos ═════════════════════════════════════════════════════════════
+   Tres tramos de la fase «Definición». Todo lo demás —porcentajes, g/kg, la
+   media de la semana, el ritmo— se calcula, para que ninguna cifra de la
+   pantalla pueda contradecir a otra. */
+const DIAS_ENTRENO = 4;   // Lun, Mar, Jue, Vie · del microciclo 17
+const DIAS_DESCANSO = 3;
+
+const TRAMOS = [
+  { id: 'T1', desde: '12 may', semanas: 4, entreno: { p: 180, c: 365, g: 80 }, descanso: { p: 180, c: 276, g: 75 }, pesoIni: 86.4, pesoFin: 84.9 },
+  { id: 'T2', desde: '9 jun',  semanas: 4, entreno: { p: 180, c: 339, g: 75 }, descanso: { p: 180, c: 250, g: 70 }, pesoIni: 84.9, pesoFin: 83.4 },
+  { id: 'T3', desde: '6 jul',  semanas: 9, entreno: { p: 180, c: 312, g: 70 }, descanso: { p: 180, c: 224, g: 65 }, pesoIni: 83.4, pesoFin: 81.8, enCurso: true },
+];
+
+const kcal = (m) => m.p * 4 + m.c * 4 + m.g * 9;
+const nm = (n, d = 0) => n.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+const ritmo = (t) => (t.pesoFin - t.pesoIni) / t.semanas;
+
+const MACROS = [
+  { k: 'p', label: 'Proteína', color: 'var(--m-p)', kcalG: 4 },
+  { k: 'c', label: 'Carbos', color: 'var(--m-c)', kcalG: 4 },
+  { k: 'g', label: 'Grasas', color: 'var(--m-g)', kcalG: 9 },
+];
+
+let actual = TRAMOS.length - 1;
+
+/* ── La tira de tramos ──────────────────────────────────────────────────── */
+const tira = document.getElementById('tira-tramos');
+TRAMOS.forEach((t, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'ficha';
+  b.setAttribute('aria-pressed', String(i === actual));
+  b.innerHTML = t.enCurso ? `${t.id} <span class="curso">en curso</span>` : t.id;
+  b.addEventListener('click', () => { actual = i; pintar(); });
+  tira.appendChild(b);
+});
+const mas = document.createElement('button');
+mas.type = 'button';
+mas.className = 'ficha tira-mas';
+mas.textContent = '+ tramo';
+tira.appendChild(mas);
+
+const desde = document.createElement('span');
+desde.className = 'derecha';
+desde.style.fontSize = '12.5px';
+desde.style.color = 'var(--text-3)';
+tira.appendChild(desde);
+
+/* ── Una hoja de variante ───────────────────────────────────────────────── */
+function hoja(titulo, dias, macros, peso) {
+  const total = kcal(macros);
+  const filas = MACROS.map((m) => {
+    const kc = macros[m.k] * m.kcalG;
+    return `<div class="macro-fila">
+      <span class="n"><i class="punto" style="background:${m.color};width:8px;height:8px;border-radius:2px;display:inline-block"></i>${m.label}</span>
+      <span class="gramos">${nm(macros[m.k])} g</span>
+      <span class="gkg">${nm(macros[m.k] / peso, 1)} g/kg · ${Math.round((kc / total) * 100)}%</span>
+    </div>`;
+  }).join('');
+  const anchos = MACROS.map((m) => `<i style="width:${(macros[m.k] * m.kcalG / total) * 100}%;background:${m.color}"></i>`).join('');
+  return `<article class="tarjeta hoja-dia">
+    <div class="hoja-cab"><span class="rotulo">${titulo}</span><span class="dias">${dias} días</span></div>
+    <div class="hoja-kcal"><span class="v cifra">${nm(total)}</span><span class="u">kcal</span><button class="lapiz" tabindex="-1" aria-hidden="true">✎</button></div>
+    <div class="hoja-barra"><div class="macro-bar" aria-hidden="true">${anchos}</div></div>
+    <div class="macro-filas">${filas}</div>
+  </article>`;
+}
+
+/* ── La gráfica: peso contra kcal, tramo a tramo ────────────────────────── */
+function grafica(alto) {
+  const W = 560, H = alto, mx = 46, my = 18;
+  const pesos = TRAMOS.map((t) => t.pesoFin);
+  const kcals = TRAMOS.map((t) => (kcal(t.entreno) * DIAS_ENTRENO + kcal(t.descanso) * DIAS_DESCANSO) / 7);
+  const pMin = Math.min(...pesos, TRAMOS[0].pesoIni) - 0.6, pMax = Math.max(...pesos, TRAMOS[0].pesoIni) + 0.6;
+  const kMin = Math.min(...kcals) - 150, kMax = Math.max(...kcals) + 150;
+  const x = (i) => mx + (i * (W - mx * 2)) / (TRAMOS.length - 1);
+  const yP = (v) => my + ((pMax - v) / (pMax - pMin)) * (H - my * 2);
+  const yK = (v) => my + ((kMax - v) / (kMax - kMin)) * (H - my * 2);
+
+  const lineaP = pesos.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${yP(v)}`).join(' ');
+  const lineaK = kcals.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${yK(v)}`).join(' ');
+  const puntos = TRAMOS.map((t, i) =>
+    `<circle cx="${x(i)}" cy="${yP(pesos[i])}" r="${i === actual ? 5 : 3.5}" fill="${i === actual ? 'var(--accent)' : 'var(--text-3)'}"></circle>`
+  ).join('');
+  const etiquetas = TRAMOS.map((t, i) =>
+    `<text x="${x(i)}" y="${H - 2}" text-anchor="middle" font-size="11" fill="var(--text-3)">${t.id} · ${t.desde}</text>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H + 6}" width="100%" height="auto" role="img"
+      aria-label="Peso y kcal medias en los tres tramos: de 86,4 kg y 2.729 kcal a 81,8 kg y 2.428 kcal">
+    <path d="${lineaK}" fill="none" stroke="var(--m-c)" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"></path>
+    <path d="${lineaP}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></path>
+    ${puntos}
+    <text x="2" y="${yP(pMax - 0.6) + 4}" font-size="11" fill="var(--text-3)">${nm(pMax - 0.6, 1)} kg</text>
+    <text x="2" y="${yP(pMin + 0.6) + 4}" font-size="11" fill="var(--text-3)">${nm(pMin + 0.6, 1)} kg</text>
+    <text x="${W - 2}" y="${yK(kMax - 150) + 4}" text-anchor="end" font-size="11" fill="var(--m-c)">${nm(kMax - 150)} kcal</text>
+    <text x="${W - 2}" y="${yK(kMin + 150) + 4}" text-anchor="end" font-size="11" fill="var(--m-c)">${nm(kMin + 150)} kcal</text>
+    ${etiquetas}
+  </svg>`;
+}
+
+/* ── Pintar ─────────────────────────────────────────────────────────────── */
+function pintar() {
+  const t = TRAMOS[actual];
+  const peso = t.pesoFin;
+  const kE = kcal(t.entreno), kD = kcal(t.descanso);
+  const semanal = kE * DIAS_ENTRENO + kD * DIAS_DESCANSO;
+  const media = semanal / 7;
+  const r = ritmo(t);
+  const delta = t.pesoFin - t.pesoIni;
+
+  tira.querySelectorAll('.ficha:not(.tira-mas)').forEach((b, i) => b.setAttribute('aria-pressed', String(i === actual)));
+  desde.textContent = `desde el ${t.desde}`;
+
+  document.getElementById('hojas').innerHTML =
+    hoja('Días de entreno', DIAS_ENTRENO, t.entreno, peso) +
+    hoja('Días de descanso', DIAS_DESCANSO, t.descanso, peso);
+
+  document.getElementById('semana').innerHTML = `
+    <span class="rotulo">La semana</span>
+    <span><b class="v cifra">${nm(semanal)}</b> <span class="txt">kcal</span></span>
+    <span class="txt">${nm(media)} kcal de media al día · ${DIAS_ENTRENO} de entreno y ${DIAS_DESCANSO} de descanso, del microciclo 17</span>`;
+
+  /* «Este tramo»: las cifras que ya se pueden calcular, sin recetar ninguna. */
+  const frenado = Math.abs(r) < 0.25;
+  document.getElementById('lado-tramo').innerHTML = `
+    <div class="lado-cab">
+      <span class="rotulo">Este tramo</span>
+      <span class="desde">${t.id} · desde el ${t.desde}${t.enCurso ? ' · en curso' : ''}</span>
+    </div>
+    <div class="cifras">
+      <div class="c"><span class="v cifra">${nm(media)}</span><span class="k">kcal/día de media</span></div>
+      <div class="c"><span class="v cifra ${delta < 0 ? 'bien' : ''}">${nm(delta, 1)}</span><span class="k">kg en ${t.semanas} semanas</span></div>
+      <div class="c"><span class="v cifra ${frenado ? 'ojo' : 'bien'}">${nm(r, 2)}</span><span class="k">kg por semana</span></div>
+      <div class="c"><span class="v cifra">${nm(peso, 1)}<small> kg</small></span><span class="k">último pesaje</span></div>
+    </div>
+    ${frenado ? '<p style="margin:0;font-size:12.5px;color:var(--warning)">Tercera semana por debajo del ritmo de los tramos anteriores.</p>' : ''}`;
+
+  /* «El reparto»: las mismas barras del volumen, en g/kg. */
+  const tope = 5;
+  document.getElementById('lado-reparto').innerHTML = `
+    <div class="lado-cab">
+      <span class="rotulo">El reparto</span>
+      <span class="lado-titulo">${nm(kcal(t.entreno) / peso, 1)} kcal/kg</span>
+      <span class="desde">en día de entreno, sobre ${nm(peso, 1)} kg</span>
+    </div>
+    <div class="barras">
+      ${MACROS.map((m) => `
+        <div class="barra-fila">
+          <span class="k">${m.label}</span>
+          <span class="pista"><i style="width:${Math.min(100, (t.entreno[m.k] / peso / tope) * 100)}%;background:${m.color}"></i></span>
+          <span class="v">${nm(t.entreno[m.k] / peso, 1)}</span>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById('lado-evolucion').innerHTML = `
+    <div class="lado-cab">
+      <span class="rotulo">La evolución</span>
+      <span class="lado-titulo">${nm(TRAMOS[TRAMOS.length - 1].pesoFin - TRAMOS[0].pesoIni, 1)} kg en la fase</span>
+    </div>
+    <div class="evol-tabla">
+      ${TRAMOS.map((x, i) => `
+        <div class="evol-fila ${i === actual ? 'on' : ''}">
+          <span class="t">${x.id}</span>
+          <span>${nm((kcal(x.entreno) * DIAS_ENTRENO + kcal(x.descanso) * DIAS_DESCANSO) / 7)} kcal</span>
+          <span class="kg">${nm(x.pesoFin, 1)} kg</span>
+        </div>`).join('')}
+    </div>
+    <div>${grafica(84)}</div>`;
+
+  document.getElementById('tabla-tramos').innerHTML = TRAMOS.map((x, i) => `
+    <tr class="${i === actual ? 'on' : ''}">
+      <td>${x.id}${x.enCurso ? ' · en curso' : ''}</td>
+      <td>${x.desde}</td>
+      <td>${x.semanas}</td>
+      <td>${nm((kcal(x.entreno) * DIAS_ENTRENO + kcal(x.descanso) * DIAS_DESCANSO) / 7)}</td>
+      <td>${nm(x.pesoIni, 1)} → ${nm(x.pesoFin, 1)}</td>
+      <td>${nm(ritmo(x), 2)}</td>
+    </tr>`).join('');
+  document.getElementById('grafica').innerHTML = grafica(150);
+}
+
+/* ── El mando de la página ──────────────────────────────────────────────── */
+const doc = document.querySelector('.pantallas').parentElement;
+doc.dataset.vista = 'despues';
+document.querySelectorAll('.segmentado button').forEach((b) => {
+  b.addEventListener('click', () => {
+    doc.dataset.vista = b.dataset.vista;
+    document.querySelectorAll('.segmentado button').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+  });
+});
+document.getElementById('ver-notas').addEventListener('change', (e) => {
+  doc.dataset.notas = e.target.checked ? 'si' : 'no';
+});
+
+const ventana = document.getElementById('ventana');
+document.getElementById('lado-evolucion').addEventListener('click', () => ventana.showModal());
+document.getElementById('cerrar-ventana').addEventListener('click', () => ventana.close());
+ventana.addEventListener('click', (e) => { if (e.target === ventana) ventana.close(); });
+
+pintar();
+</script>

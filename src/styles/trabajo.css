@@ -446,10 +446,18 @@
   .rmap-or { align-self: center; }
 }
 
+/* El orden del ejercicio. En voz baja: es una referencia para saber por dónde
+   vas, no un dato. El color lo ponía antes un `style` en línea con ocho tintes
+   rotados por posición; ahora lo pone esta regla, y no es color. */
 .exercise-index {
   width: 26px; height: 26px; border-radius: var(--r-sm); flex-shrink: 0;
   display: grid; place-items: center; font-weight: 700; font-size: var(--fs-xs);
+  background: var(--fill); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
+/* La superserie SÍ distingue —dos ejercicios que se alternan sin descanso— y se
+   distingue por peso, que es lo que la marca «A1 / A2» ya estaba diciendo. */
+.exercise-index.is-ss { color: var(--text); font-weight: 750; }
 
 /* Identidad del ejercicio: nombre arriba, y debajo el músculo y el objetivo de
    repeticiones en la misma línea, en gris pequeño.
@@ -800,9 +808,16 @@
 /* El peso pautado va ENCIMA del rango y no delante: en 52 px «100 kg · 6-8» no
    cabe en un renglón, y partirlo en dos deja las dos cifras alineadas con la
    columna en la que se van a comparar. */
+/* LO QUE TE PIDEN, en la columna «obj». Iba en `--info`, que es el mismo
+   #3b49df del acento: un número de solo lectura, repetido cuatro veces por
+   ejercicio, pintado con la tinta reservada a lo que se toca. En el portal del
+   cliente eso son veinticuatro señales falsas por sesión, y al lado las cajas
+   donde de verdad hay que escribir se quedaban sin nada que las distinga.
+   El objetivo es referencia: va en gris, y lo que se toca vuelve a ser lo único
+   con color. Ver `ley del color` en tokens.css. */
 .set-row-target {
   text-align: center; font-size: var(--fs-xs); font-weight: 650;
-  color: var(--info); font-variant-numeric: tabular-nums;
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
 .set-row-target > .tnum { display: block; font-size: var(--fs-2xs); opacity: 0.85; }
@@ -880,6 +895,77 @@
 .day-pill > .pg { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .day-pill.is-done > .pg { color: var(--positive); font-weight: 650; }
 
+
+/* ══ LA CINTA DE HOJAS (portal del cliente, teléfono) ═══════════════════════
+   El programa entero es una fila de hojas —una por sesión— y encima va esto:
+   una línea que dice dónde estás y una tira con las sesiones del microciclo
+   abierto, con una marca corta a cada lado hacia el anterior y el siguiente.
+
+   Sustituye a tres piezas apiladas —la miga de tres tramos, el carril de
+   microciclos y la rejilla de días— que entre las tres se comían dos tercios
+   de la pantalla antes del primer ejercicio.
+
+   La tira NO es la rejilla de `.day-strip`: aquí es una línea que se arrastra,
+   porque una rejilla con cuatro sesiones más dos marcas se parte en dos filas
+   y deja de leerse como un recorrido. */
+.hojas { display: flex; flex-direction: column; gap: var(--s3); }
+
+.cinta-donde {
+  margin: 0;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.cinta-tira {
+  display: flex; align-items: stretch; gap: var(--s2);
+  overflow-x: auto; scrollbar-width: none;
+  /* El desbordamiento se corta con el ancho de la página, no con el del padre:
+     así la primera pastilla arranca alineada con el resto de la hoja.
+
+     Y sangra EXACTAMENTE el margen de la página (`--hueco-hoja`, en
+     `layout.css`), no un 16 escrito a mano: por debajo de 640 px el margen vale
+     12, que es justo donde vive la cinta, así que el 16 se salía 4 px por cada
+     lado. Con la página 8 px más ancha que la ventana el teléfono ensancha su
+     viewport para que quepa, y la barra del pulgar —`position: fixed`, o sea
+     medida contra ese viewport— se ensancha con él: los cinco destinos se
+     reparten 398 px de los que solo se ven 390 y el último se queda fuera.
+     Un sangrado que no cuadra con su margen no descuadra su pieza: descuadra
+     el chasis. */
+  margin-inline: calc(var(--hueco-hoja) * -1); padding-inline: var(--hueco-hoja);
+  scroll-padding-inline: var(--hueco-hoja);
+}
+.cinta-tira::-webkit-scrollbar { display: none; }
+
+/* Las pastillas no se encogen: una tira que reparte el ancho entre seis
+   destinos deja «Empuje A» en «Emp…», que es justo lo que la tira viene a
+   decir. Se arrastra, que es el gesto que ya se está haciendo en la pantalla. */
+.cinta-hueco { flex: 0 0 auto; min-width: 132px; max-width: 60vw; display: flex; }
+.cinta-hueco > .day-pill { flex: 1; }
+
+/* Los extremos: dos caracteres. No son destinos que se elijan, son la prueba de
+   que la cinta sigue, así que pesan lo que pesa una marca y no una sesión. */
+.cinta-marca {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
+  padding: 0 var(--s3); min-width: 44px;
+  background: var(--fill); border: 1px solid transparent; border-radius: var(--r-md);
+  font: inherit; font-size: var(--fs-xs); font-weight: 650; font-variant-numeric: tabular-nums;
+  color: var(--text-secondary); cursor: pointer; white-space: nowrap;
+  transition: border-color var(--fast), color var(--fast);
+}
+.cinta-marca:hover { color: var(--text); border-color: var(--hairline-strong); }
+.cinta-marca[aria-pressed='true'] { border-color: var(--accent); color: var(--text); }
+/* La que abre el microciclo que aún no existe: el único verbo de la tira. */
+.cinta-marca.is-nueva { color: var(--info); }
+
+/* La hoja. Sin borde ni fondo propios: lo que se ve es la sesión, y el marco
+   existe solo para recoger el gesto de pasar página. */
+.hoja { display: flex; flex-direction: column; gap: var(--s4); }
+
+/* La hoja del microciclo que aún no existe: cabe entera sin bajar, porque lo
+   único que se hace en ella es decir que sí. */
+.hoja-nueva { align-items: flex-start; }
+.hoja-nueva > .btn { margin-top: var(--s2); }
+
 .split-grid { display: grid; grid-template-columns: repeat(7, minmax(90px, 1fr)); gap: var(--s2); }
 .split-day { display: flex; flex-direction: column; gap: 5px; }
 .split-day > .name { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil); color: var(--text-tertiary); text-align: center; }
@@ -940,9 +1026,18 @@
    gramos y su porcentaje. Sale de la referencia: en una sola fila se ve el
    total y el reparto, sin tener que leer cuatro tarjetas.
    ========================================================================== */
-/* ── Total del día: cifra + barra segmentada + iconos ───────────────────────
-   La misma forma que en el resumen. Es una cifra con su reparto, y a lo ancho
-   caben las tres etiquetas sin comprimir nada. */
+/* ── La cifra del objetivo, sola ────────────────────────────────────────────
+   En la tarjeta del costado el objetivo es UNA cifra, y debajo van los tres
+   macros en renglones a plomo con «El día» (`MacroLista`). Antes esa cifra
+   venía encabezando una barra tricolor con leyenda de iconos; la barra se
+   quedó donde de verdad trabaja, que es el editor. Ver `MacroTargetCard`. */
+.objetivo-cifra { display: flex; align-items: baseline; gap: 5px; }
+.objetivo-cifra > .v { font-variant-numeric: tabular-nums; line-height: 1; }
+.objetivo-cifra > .u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-tertiary); }
+
+/* ── El objetivo mientras se teclea: cifra + barra segmentada + leyenda ─────
+   Vive SOLO en el editor. Ahí la barra hace un trabajo que ningún número hace:
+   se teclean 120 de proteína y el tramo crece delante de ti. */
 .macro-summary { display: flex; flex-direction: column; gap: var(--s3); }
 
 .macro-summary-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
@@ -958,6 +1053,10 @@
 
 .macro-legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5); }
 .macro-legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); }
+/* La marca de serie de la casa, la misma de `.medidor > .k > i`. Aquí había un
+   filete, una espiga y una gota de lucide: tres iconos ilustrativos cuyo único
+   trabajo era repetir en dibujo la palabra que tenían al lado. */
+.macro-legend-item > i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .macro-legend-item > .k { color: var(--text-secondary); }
 .macro-legend-item > .g { font-weight: 650; font-variant-numeric: tabular-nums; }
 .macro-legend-item > .p {
@@ -1219,6 +1318,34 @@
    dedo sube la letra a 16 px. */
 .food-row > .grams > .cantidad > .input { width: 100%; }
 
+/* ── LA CANTIDAD ES UNA CELDA DE MESA, NO UN CAMPO DE FORMULARIO ────────────
+   La casilla traía el canto de control de `.input` —1,5 px de borde vivo, el
+   que lleva un campo dentro de un diálogo—. En una mesa con cinco comidas y
+   diecisiete alimentos eso son DIECISIETE RECUADROS flotando en el centro de la
+   hoja, y pesan más que el nombre del alimento, que es lo que de verdad se lee.
+
+   La mesa de Entreno ya había resuelto esto y la de la dieta se quedó atrás:
+   `.hoja-celda` es fondo hundido y borde TRANSPARENTE, y solo se enciende al
+   acercarse o al entrar. Es la misma ley de los gestos —la caja se enciende— y
+   ahora las dos mesas de la aplicación se escriben igual.
+
+   Ojo: se enciende con el ratón encima de la FILA, no solo de la casilla. Al
+   recorrer una comida con la vista puesta en los nombres, la columna donde se
+   teclea aparece sola. */
+.food-row > .grams > .cantidad > .input {
+  background: var(--surface-sunken);
+  border-color: transparent;
+}
+.food-row:hover > .grams > .cantidad > .input,
+.food-row > .grams > .cantidad > .input:hover { border-color: var(--hairline-strong); }
+.food-row > .grams > .cantidad > .input:focus { background: var(--surface); border-color: var(--accent); }
+
+/* Sin ratón no hay «acercarse»: en táctil la casilla conserva su canto, que es
+   lo único que dice que ahí se escribe. */
+@media (hover: none) {
+  .food-row > .grams > .cantidad > .input { border-color: var(--edge-control); }
+}
+
 /* El asa de arrastre en una fila que es una rejilla, no un flex. */
 .food-row > .drag-handle { padding: 0; }
 .food-row.is-dragging { opacity: 0.4; }
@@ -1272,6 +1399,25 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ── MARCANDO: la misma lista, con una casilla delante ──────────────────────
+   Montar un grupo tuyo es PODAR la lista que ya estás leyendo, así que la fila
+   no cambia de forma: se le pone la casilla delante y lo que queda fuera se
+   apaga, que es la mecánica del reparto a varios clientes (`.consec`). Un
+   segundo dibujo para la misma información sería otra pantalla que aprender. */
+.equiv-casilla {
+  flex: none; width: 15px; height: 15px; margin: 0;
+  display: inline-block;
+  accent-color: var(--accent);
+}
+.equiv-row.es-fuera { opacity: 0.55; }
+/* El alimento del que sale el grupo: es el ancla, no un candidato. Sin casilla
+   y con el canto de un dato puesto, no de una opción por decidir. */
+.equiv-row.es-ancla { background: var(--accent-soft); }
+.equiv-row.es-ancla > .who > .sub { color: var(--accent); opacity: 0.85; }
+/* La salida, al canto contrario de la acción: `.modal-footer` alinea todo a la
+   derecha y quitar un grupo no compite con guardarlo. */
+.equiv-quitar { margin-right: auto; }
+
 /* Sin sitio para siete columnas: dos filas. Arriba el nombre y las kcal, abajo
    la cantidad y los macros. Al desaparecer el encabezado, cada cifra recupera su
    letra —pero solo aquí, donde hace falta para no dejarla huérfana. */
@@ -1317,5 +1463,130 @@
   }
   .food-row.sin-cifras > .name { grid-area: auto; padding-left: 0; }
   .food-row.sin-cifras > .grams { grid-area: auto; justify-content: flex-end; }
+
+  /* ── LAS EQUIVALENCIAS EN EL TELÉFONO ────────────────────────────────────
+     Aquí no había ni una regla, y las filas hijas heredaban las áreas del
+     alimento: el nombre a la fila 1 columnas 1-3, la ración a la fila 2… y las
+     cifras pidiendo `grid-column: 4 / span 4` en una rejilla que en el
+     teléfono tiene CINCO columnas. Dos columnas implícitas y la fila desbordada
+     a lo ancho — justo en la pantalla donde esto se usa de verdad: el cliente
+     en la frutería mira el teléfono, no un portátil.
+
+     La equivalencia no se repliega como su padre porque no tiene sus cuatro
+     cifras: es NOMBRE + RACIÓN en una línea, y lo que se paga debajo. Las áreas
+     del alimento se deshacen una por una, que es lo que cuesta heredar una
+     rejilla que se diseñó para otra fila. */
+  .food-row.is-equiv {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+    width: auto; min-width: 0;
+  }
+  .food-row.is-equiv > .name { grid-area: 1 / 1 / 2 / 2; padding-left: 0; }
+  .food-row.is-equiv > .grams { grid-area: 1 / 2 / 2 / 3; justify-content: flex-end; }
+  .food-row.is-equiv > .equiv-cifras {
+    grid-area: 2 / 1 / 3 / 3;
+    text-align: left; white-space: normal;
+  }
+  /* Los huecos que en el escritorio reservan la columna del asa y la de la
+     equis: aquí no hay ninguna de las dos columnas que reservar. */
+  .food-row.is-equiv > .equiv-hueco { display: none; }
+
+  /* Y la sangría, más corta: en 390 px, 24 + 12 de margen es el 9 % del ancho
+     dedicado a decir «esto cuelga de lo de arriba». El filete ya lo dice. */
+  .equiv-hijas { margin-left: var(--s3); padding-left: var(--s2); }
 }
 
+
+/* ── LA FIBRA DE LA COMIDA, en la celda del nombre de la suma ───────────────
+   Va pegada a la palabra «Suma» porque esa celda estaba vacía a partir de ella:
+   seiscientos píxeles de renglón en blanco hasta la primera columna de cifras.
+   En voz baja, que es lo que es —un dato de composición al lado de la cuenta
+   que manda—, y la cobertura («7 de 17 lo declaran») un escalón por debajo:
+   sin ella la cifra parecería un total cuando es un suelo. */
+.food-row.is-suma > .name { display: flex; align-items: baseline; gap: var(--s3); min-width: 0; }
+.food-fibra {
+  font-size: var(--fs-xs); font-weight: 500; letter-spacing: 0;
+  font-family: var(--font); color: var(--text-tertiary);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.food-fibra > em { font-style: normal; opacity: 0.72; }
+
+/* ══ LAS EQUIVALENCIAS, DEBAJO DEL ALIMENTO Y EN SU MISMA REJILLA ═══════════
+   Saber por qué se puede cambiar un alimento costaba abrir un diálogo con velo,
+   leerlo y cerrarlo — por CADA alimento, y el cliente en la frutería tiene
+   diecisiete. Ahora las tres primeras raciones caen debajo, en la misma tabla:
+   la ración bajo la columna de cantidad y el nombre bajo el nombre, así que la
+   comida se sigue leyendo como UNA tabla y no como dos.
+
+   Sangradas y sin caja: son hijas de la fila de arriba, no filas del menú. La
+   línea de la izquierda es lo que las ata a su padre. */
+.equiv-hijas {
+  display: flex; flex-direction: column; gap: 1px;
+  margin: 1px 0 2px var(--s5);
+  padding-left: var(--s3);
+  border-left: 2px solid var(--hairline-strong);
+}
+/* Y más apretadas que las del menú: son una consulta, no el plan. La losa de
+   `.food-row` da 44 px de alto por fila y tres seguidas abultaban más que el
+   alimento del que cuelgan. */
+.food-row.is-equiv {
+  min-height: 0; padding-top: 3px; padding-bottom: 3px;
+  background: transparent;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.food-row.is-equiv:hover { background: var(--fill-subtle); }
+.food-row.is-equiv > .name { font-size: var(--fs-sm); font-weight: 500; }
+/* Los dos huecos de la fila hija: reservan la columna del asa a la izquierda y
+   la de la equis a la derecha, para que el nombre caiga bajo el nombre. Vacíos
+   a propósito —una fila hija no se arrastra ni se borra—; en el teléfono
+   desaparecen, que es donde esas dos columnas no existen. */
+.food-row.is-equiv > .equiv-hueco { min-width: 0; }
+.food-row.is-equiv > .grams > .fixed { font-weight: 550; color: var(--text-secondary); }
+/* ── EL VERBO DE LA FILA HIJA ───────────────────────────────────────────────
+   En reposo no está, que es la ley: una oferta que no se apaga es mobiliario, y
+   aquí hay tres por alimento y hasta diecisiete alimentos. Se enciende con la
+   fila —también con el teclado, por eso `:focus-within` y no solo `:hover`— y
+   va en azul, que es lo que invita. */
+.equiv-usar {
+  flex: none; margin-left: var(--s2); padding: 1px 6px;
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  font: inherit; font-size: var(--fs-xs); font-weight: 650; color: var(--accent);
+  cursor: pointer; opacity: 0;
+  transition: opacity var(--fast), background-color var(--fast);
+}
+.food-row.is-equiv:hover .equiv-usar,
+.food-row.is-equiv:focus-within .equiv-usar { opacity: 1; }
+.equiv-usar:hover { background: var(--accent-soft); }
+.equiv-usar:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Sin ratón no hay «al pasar por encima», así que el verbo se queda puesto: es
+   la misma excepción que ya tiene el icono de equivalencias apagado. */
+@media (hover: none) {
+  .equiv-usar { opacity: 1; }
+}
+/* Las cuatro columnas de cifras se funden en una: «61 g de proteína +2 · 579
+   kcal −4» es UNA frase, y repartida en cuatro celdas de 42 px no cabe ni se
+   lee. Va al canto derecho, que es donde termina la última columna del padre. */
+.food-row.is-equiv > .equiv-cifras {
+  grid-column: 4 / span 4; text-align: right;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.food-row.is-equiv > .equiv-cifras > .sep { padding: 0 5px; opacity: 0.5; }
+.food-row.is-equiv > .equiv-cifras > .dif { font-weight: 700; margin-left: 3px; }
+.food-row.is-equiv > .equiv-cifras > .dif.is-mas { color: var(--negative); }
+.food-row.is-equiv > .equiv-cifras > .dif.is-menos { color: var(--warning); }
+/* El verbo del pie: la ventana, que es donde se elige una de verdad y donde se
+   decide si el cliente ve la lista. En azul, como cualquier verbo de la casa. */
+.equiv-hijas-mas {
+  align-self: flex-start;
+  margin-top: 2px; padding: 3px var(--s2);
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
+  cursor: pointer; transition: background-color var(--fast);
+}
+.equiv-hijas-mas:hover { background: var(--accent-soft); }
+.equiv-hijas-mas:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Dentro del margen, la diferencia se escribe pero no juzga: la información no
+   se esconde y el semáforo se calla. Ver `Desvio` en `MealCard`. */
+.food-row.is-equiv > .equiv-cifras > .dif.is-dentro { color: var(--text-tertiary); font-weight: 600; }

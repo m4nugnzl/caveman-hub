@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { claveDeAlimento, matchFood, matchFoodNames, pendingMatches, tokens } from './foodMatch';
+import {
+  claveDeAlimento,
+  diceLoMismo,
+  estadoDe,
+  matchFood,
+  matchFoodNames,
+  mismoAlimento,
+  pendingMatches,
+  tokens,
+} from './foodMatch';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -131,5 +140,66 @@ describe('matchFoodNames', () => {
   it('lo pendiente es lo que hay que mirar, y nada más', () => {
     const m = matchFoodNames(['Avena', 'Garbanzos', 'Papilla de bebé'], BIBLIOTECA);
     expect(pendingMatches(m).map((p) => p.name)).toEqual(['Garbanzos', 'Papilla de bebé']);
+  });
+});
+
+/**
+ * ══ El mismo alimento dicho de otra manera ═════════════════════════════════
+ *
+ * Lo que protege esto es la lista de equivalencias: «Arroz blanco» ofrecía
+ * «Arroz blanco (crudo)» y «Arroz blanco (cocido)», y «Huevo entero fresco»,
+ * otros cuatro huevos del catálogo. La regla mira el sustantivo que va primero
+ * —el que nombra al alimento— y las palabras que uno dice de más.
+ */
+describe('mismoAlimento', () => {
+  it('el estado y el tamaño no hacen otro alimento', () => {
+    expect(mismoAlimento('Arroz blanco', 'Arroz blanco (crudo)')).toBe(true);
+    expect(mismoAlimento('Arroz blanco', 'Arroz blanco (cocido)')).toBe(true);
+    expect(mismoAlimento('Lentejas (cocidas)', 'Lentejas (crudas)')).toBe(true);
+    expect(mismoAlimento('Huevo entero fresco', 'Huevo L')).toBe(true);
+    expect(mismoAlimento('Huevo entero', 'Huevos enteros frescos')).toBe(true);
+    expect(mismoAlimento('Tortita de arroz', 'Tortitas de arroz')).toBe(true);
+  });
+
+  it('la clara y la yema son otro alimento, aunque lleven «huevo» dentro', () => {
+    /* El caso que obliga a mirar el sustantivo: «Huevo L» se queda en «huevo»
+       —una letra suelta no es palabra— y sin esa condición se tragaría los dos
+       únicos intercambios buenos que tiene la familia. */
+    expect(mismoAlimento('Clara de huevo', 'Huevo L')).toBe(false);
+    expect(mismoAlimento('Yema de huevo', 'Huevo entero')).toBe(false);
+    expect(mismoAlimento('Harina de avena', 'Avena')).toBe(false);
+    expect(mismoAlimento('Arroz blanco', 'Arroz integral (crudo)')).toBe(false);
+    expect(mismoAlimento('Pechuga de pollo', 'Pechuga de pavo')).toBe(false);
+  });
+
+  it('sin nombre no hay parecido que valga', () => {
+    expect(mismoAlimento('', 'Huevo entero')).toBe(false);
+    expect(mismoAlimento('Huevo entero', '')).toBe(false);
+  });
+});
+
+describe('diceLoMismo', () => {
+  it('las mismas palabras, aunque cambien el plural o el estado', () => {
+    expect(diceLoMismo('Uva', 'Uvas')).toBe(true);
+    expect(diceLoMismo('Higo', 'Higos')).toBe(true);
+    expect(diceLoMismo('Huevo entero', 'Huevo entero L')).toBe(true);
+    expect(diceLoMismo('Lentejas (cocidas)', 'Lentejas (crudas)')).toBe(true);
+  });
+
+  it('una palabra de más ya no es lo mismo: puede cambiar lo que se compra', () => {
+    expect(diceLoMismo('Mayonesa', 'Mayonesa light')).toBe(false);
+    expect(diceLoMismo('Yogur natural', 'Yogur de soja natural')).toBe(false);
+    expect(diceLoMismo('Leche semidesnatada', 'Leche sin lactosa semidesnatada')).toBe(false);
+    /* Y sigue siendo el mismo alimento: lo que decide entonces es la ración. */
+    expect(mismoAlimento('Mayonesa', 'Mayonesa light')).toBe(true);
+  });
+});
+
+describe('estadoDe', () => {
+  it('dice cómo se pesa, y el género no cuenta', () => {
+    expect(estadoDe('Lentejas (cocidas)')).toBe('cocido');
+    expect(estadoDe('Garbanzos (crudos)')).toBe('crudo');
+    expect(estadoDe('Pasta (cruda)')).toBe('crudo');
+    expect(estadoDe('Pechuga de pollo')).toBeNull();
   });
 });

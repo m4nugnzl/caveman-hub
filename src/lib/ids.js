@@ -27,3 +27,13 @@ export const deepClone = (value) =>
   typeof structuredClone === 'function'
     ? structuredClone(value)
     : JSON.parse(JSON.stringify(value));
+/**
+ * Un uuid pelado, sin prefijo.
+ *
+ * Para lo que va a una columna `uuid` de verdad y no dentro de un JSONB: una
+ * automatización (0116) nace en el navegador con su id —porque un paso `salta`
+ * la referencia antes de que exista ninguna fila— y `newId('auto')` devuelve
+ * `auto_3f2a…`, que Postgres rechaza. El prefijo es un lujo de los ids de JSONB,
+ * donde solo sirve para leer registros.
+ */
+export const newUuid = () => uuid();

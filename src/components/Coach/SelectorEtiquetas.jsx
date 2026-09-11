@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Check, Plus } from 'lucide-react';
 
+import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 import { TAGS_SUGERIDAS, TAG_LIMITS } from '@/domain/portfolio';
@@ -59,6 +60,7 @@ export const SelectorEtiquetas = ({
   };
   useClickOutside(ref, cerrar, abierto);
   const panel = useDismissable(abierto);
+  const capa = useCapaFlotante(panel.mounted, ref, panel.ref, { alineado });
 
   const termino = busca.trim();
   const lista = useMemo(() => {
@@ -119,6 +121,8 @@ export const SelectorEtiquetas = ({
         <div
           ref={panel.ref}
           className={`popover${alineado === 'derecha' ? ' popover-right' : ''} selector-etiquetas-panel`}
+          style={capa.estilo}
+          {...capa.atributos}
           data-state={panel.closing ? 'closing' : 'open'}
         >
           <form

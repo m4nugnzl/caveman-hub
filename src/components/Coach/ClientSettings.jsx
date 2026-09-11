@@ -46,8 +46,30 @@ import { QuestionEditor } from '@/components/Coach/Settings/Protocol/QuestionEdi
  * excepción, así que no hay dos editores que puedan divergir. La pausa se
  * queda porque es la otra decisión que se toma mirando la cartera, y su fecha
  * necesita un sitio donde escribirse.
+ *
+ * ══ Y por qué ahora está PARTIDA EN DOS ════════════════════════════════════
+ *
+ * Era una columna de once secciones seguidas, todas con el mismo peso, y dentro
+ * había dos naturalezas distintas que nadie separaba:
+ *
+ *   · **Cómo es su app** — un ESTADO. Qué le llevas, qué piezas ve, qué cifras
+ *     no le vuelven. Se configura, es una copia suya, y no le cambia nada a
+ *     nadie hasta que se lo pongas al día.
+ *   · **Qué le pasa** — HECHOS en el tiempo. Qué se le pide cada semana, qué se
+ *     le pregunta al entrenar, cuándo su silencio te parece raro, qué le has
+ *     mandado suelto.
+ *
+ * Ese corte es el que arregla la queja de origen —«el protocolo es una
+ * automatización pobre»—: la mitad de abajo es lo que se va a automatizar, y
+ * hasta que exista el carril se lee aquí como lo que ya es. Las dos mitades
+ * además se PROPAGAN distinto, y ésa es la razón de fondo por la que están
+ * separadas y no es una incoherencia (ver `docs/protocolo-y-automatizaciones-v1.md`).
+ *
+ * `mandado` la abre sin «Lo que le has mandado» para quien ya lo tiene delante:
+ * la ficha lo enseña en su cuerpo, y la misma lista dos veces en una pantalla
+ * es la lista que nadie sabe cuál de las dos manda.
  */
-export const ClientSettingsSheet = ({ client, open, onClose }) => {
+export const ClientSettingsSheet = ({ client, open, onClose, mandado = true }) => {
   const { coachPrefs, saveClientException, applyProtocolToClient } = useApp();
   const navigate = useNavigate();
   const [cambiando, setCambiando] = useState(false);
@@ -160,65 +182,95 @@ export const ClientSettingsSheet = ({ client, open, onClose }) => {
           </span>
         </section>
 
-        {/* Qué le llevas: entrenamiento, nutrición o las dos. Es lo que le has
-            VENDIDO, así que se decide aquí y ninguna plantilla lo pisa
-            (`NOT_COMPARED_KEYS`). Vivía solo en la pantalla de protocolos. */}
-        <ServicesSection protocol={protocol} onSave={guardar} title="Qué le llevas" />
+        {/*
+          ══ LAS DOS MITADES ═══════════════════════════════════════════════
 
-        {/* Qué piezas tiene encendidas: el mismo bloque que en Protocolos. */}
-        <ModulesSection protocol={protocol} onSave={guardar} />
+          Aire y un filete entre ellas, como el cuerpo de la ficha: lo que
+          separa aquí no es una caja, es que se está hablando de otra cosa.
+        */}
+        <div className="hoja-protocolo">
+          <Panel
+            desnudo
+            rango="bloque"
+            title="Cómo es su app"
+            sub={`Un estado: lo que ${nombre} tiene delante al abrirla. Es una copia suya, y cambiarla no le toca nada a nadie más.`}
+          >
+            <div className="col gap-5">
+              {/* Qué le llevas: entrenamiento, nutrición o las dos. Es lo que le
+                  has VENDIDO, así que se decide aquí y ninguna plantilla lo pisa
+                  (`NOT_COMPARED_KEYS`). Vivía solo en la pantalla de protocolos. */}
+              <ServicesSection protocol={protocol} onSave={guardar} title="Qué le llevas" />
 
-        {/* Lo que se le manda a ÉL y a nadie más, fuera de su protocolo. */}
-        <LoQueLeHasMandado client={client} />
+              {/* Qué piezas tiene encendidas: el mismo bloque que en Protocolos. */}
+              <ModulesSection protocol={protocol} onSave={guardar} />
 
-        {/* Su check-in semanal: lo que se le mide y lo que se le pregunta. */}
-        <CheckinBlocksSection protocol={protocol} onSave={guardar} />
-        <QuestionEditor
-          title="Qué le preguntas al cerrar la semana"
-          intro="Es lo que la báscula no mide: si ha podido seguir el plan, si ha pasado hambre, si le siguen quedando ganas."
-          notice={
-            preguntasCheckin.length === 0 ? (
-              <Notice tone="info">
-                Sin ninguna pregunta puesta no hay cuestionario: su revisión termina en las fotos.
-                Añade las que quieras y aparecerá el paso.
-              </Notice>
-            ) : null
-          }
-          protocol={protocol}
-          list="checkinQuestions"
-          catalogo={CHECKIN_QUESTIONS}
-          questions={preguntasCheckin}
-          onSave={guardar}
-          emptyText="Todavía no le preguntas nada al cerrar la semana."
-          addPlaceholder="Cómo has llevado las comidas fuera"
-        />
+              {/* Y qué cifras no le vuelven a él en su portal (A4). Va aquí, con
+                  el resto de lo que solo vale para esta persona, y no en la
+                  plantilla. Estaba al final de todo, detrás de las preguntas y
+                  los avisos, y es de esta mitad: es qué ve. */}
+              <VisibilitySection client={client} protocol={protocol} onSave={guardar} />
+            </div>
+          </Panel>
 
-        {/* Y su sesión: lo que se le pregunta al terminar de entrenar. */}
-        <QuestionEditor
-          title="Qué le preguntas al terminar de entrenar"
-          notice={
-            !isModuleOn(protocol, 'sessionFeedback') && (
-              <Notice tone="info">
-                El módulo de feedback está apagado, así que estas preguntas no se le harán. Enciéndelo
-                arriba para que aparezcan.
-              </Notice>
-            )
-          }
-          protocol={protocol}
-          list="questions"
-          catalogo={SESSION_QUESTIONS}
-          questions={preguntas}
-          onSave={guardar}
-          emptyText="No hay ninguna pregunta activa."
-          addPlaceholder="Molestia en el hombro"
-        />
+          <Panel
+            desnudo
+            rango="bloque"
+            title="Qué le pasa"
+            sub="Hechos en el tiempo: lo que se le pide, lo que se le pregunta y cuándo te avisa su silencio. Es la mitad que se automatiza."
+          >
+            <div className="col gap-5">
+              {/* Su check-in semanal: lo que se le mide y lo que se le pregunta. */}
+              <CheckinBlocksSection protocol={protocol} onSave={guardar} />
+              <QuestionEditor
+                title="Qué le preguntas al cerrar la semana"
+                intro="Es lo que la báscula no mide: si ha podido seguir el plan, si ha pasado hambre, si le siguen quedando ganas."
+                notice={
+                  preguntasCheckin.length === 0 ? (
+                    <Notice tone="info">
+                      Sin ninguna pregunta puesta no hay cuestionario: su revisión termina en las
+                      fotos. Añade las que quieras y aparecerá el paso.
+                    </Notice>
+                  ) : null
+                }
+                protocol={protocol}
+                list="checkinQuestions"
+                catalogo={CHECKIN_QUESTIONS}
+                questions={preguntasCheckin}
+                onSave={guardar}
+                emptyText="Todavía no le preguntas nada al cerrar la semana."
+                addPlaceholder="Cómo has llevado las comidas fuera"
+              />
 
-        {/* Su vara de aviso (A3): cuándo su silencio te parece raro. */}
-        <AlertsSection client={client} protocol={protocol} onSave={guardar} />
+              {/* Y su sesión: lo que se le pregunta al terminar de entrenar. */}
+              <QuestionEditor
+                title="Qué le preguntas al terminar de entrenar"
+                notice={
+                  !isModuleOn(protocol, 'sessionFeedback') && (
+                    <Notice tone="info">
+                      El módulo de feedback está apagado, así que estas preguntas no se le harán.
+                      Enciéndelo en «Cómo es su app» para que aparezcan.
+                    </Notice>
+                  )
+                }
+                protocol={protocol}
+                list="questions"
+                catalogo={SESSION_QUESTIONS}
+                questions={preguntas}
+                onSave={guardar}
+                emptyText="No hay ninguna pregunta activa."
+                addPlaceholder="Molestia en el hombro"
+              />
 
-        {/* Y qué cifras no le vuelven a él en su portal (A4). Va aquí, con el
-            resto de lo que solo vale para esta persona, y no en la plantilla. */}
-        <VisibilitySection client={client} protocol={protocol} onSave={guardar} />
+              {/* Su vara de aviso (A3): cuándo su silencio te parece raro. */}
+              <AlertsSection client={client} protocol={protocol} onSave={guardar} />
+
+              {/* Lo que se le manda a ÉL y a nadie más, fuera de su protocolo.
+                  Es de esta mitad —es algo que le pasó, con su fecha— y no de la
+                  otra, donde estaba metido entre dos listas de interruptores. */}
+              {mandado && <LoQueLeHasMandado client={client} />}
+            </div>
+          </Panel>
+        </div>
 
         <section className="col gap-2">
           <span className="section-label">Pausa</span>
@@ -226,6 +278,44 @@ export const ClientSettingsSheet = ({ client, open, onClose }) => {
         </section>
       </div>
     </Modal>
+  );
+};
+
+/**
+ * DE DÓNDE VIENE ESTE INTERRUPTOR: el pie de las bocas a mano.
+ *
+ * ══ El defecto que arregla ═════════════════════════════════════════════════
+ *
+ * Hay interruptores del protocolo repartidos por las pantallas donde se echan en
+ * falta —las equivalencias en la dieta, los módulos de entreno en los ajustes
+ * del programa— y están bien puestos: nadie va a una pantalla de ajustes a
+ * buscar una casilla que no sabe que existe.
+ *
+ * Lo que fallaba es que no decían nada de sí mismos. Tocarlos declara una
+ * EXCEPCIÓN sobre esa persona —se guardan por `saveClientException`, así que el
+ * siguiente «poner al día» deja de pasarles por encima— y eso no se leía en
+ * ninguna parte; el pie decía «en Ajustes → Protocolo», que además ya no es
+ * donde está. Un interruptor que declara una excepción sin decirlo se arregla
+ * con una línea de texto, no quitándolo.
+ *
+ * Así que dice de qué protocolo sale, y abre la hoja donde se lee entero. El
+ * `onAbrir` lo resuelve quien lo monta: desde un diálogo o un panel flotante, la
+ * hoja no puede abrirse ENCIMA —hay que cerrar lo de delante primero—, y quién
+ * está delante solo lo sabe la pantalla.
+ */
+export const PieDeProtocolo = ({ client, onAbrir }) => {
+  const { coachPrefs } = useApp();
+  if (!client) return null;
+
+  const suyo = protocoloDeCliente(coachPrefs, client);
+
+  return (
+    <p className="t-2xs t-tertiary">
+      Solo para {client.name?.split(' ')[0] || 'este cliente'}, de su protocolo «{suyo?.name}».{' '}
+      <button type="button" className="cab-accion" onClick={onAbrir}>
+        Verlo entero
+      </button>
+    </p>
   );
 };
 

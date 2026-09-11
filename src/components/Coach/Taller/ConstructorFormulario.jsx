@@ -46,6 +46,7 @@ import { SCOFF_QUESTIONS } from '@/domain/scoff';
 import { FOLDS_LABELS, PERIMETER_LABELS } from '@/domain/anthropometry';
 import { Field, SegmentedControl, Switch, TextInput } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
+import { Pliegue } from '@/components/ui/Pliegue';
 /* Los controles del cliente, tal cual. Ver el porqué en el carril, más abajo. */
 import { Pregunta } from '@/components/Client/IntakeQuestions';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
@@ -202,6 +203,10 @@ export const ConstructorFormulario = ({ form, onChange, onVolver, onVerComoClien
       <header className="cartera-cab taller-cab">
         <div className="cartera-cab-in">
           <div className="cartera-cab-linea">
+            {/* El mando del ancho, en la calle del chasis: el mismo botón y el
+                mismo punto que en las demás cintas — un constructor es una
+                pantalla más, y de las que agradecen el ancho. Ver `ui/Pliegue`. */}
+            <Pliegue />
             <button type="button" className="cab-volver" onClick={onVolver} aria-label="Volver a los formularios">
               <ArrowLeft size={20} />
             </button>

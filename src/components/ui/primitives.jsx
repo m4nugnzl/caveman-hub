@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Check, CheckCircle2, ChevronRight, Info, Loader2, Plus, TriangleAlert, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, ChevronRight, CloudOff, Info, Loader2, Plus, TriangleAlert, XCircle } from 'lucide-react';
 
 /**
  * Primitivas de presentación compartidas.
@@ -42,7 +42,32 @@ import { Check, CheckCircle2, ChevronRight, Info, Loader2, Plus, TriangleAlert, 
  *   el caso legítimo de una tarjeta que ya se explica por su contenido.
  * @param sub     Una línea, opcional, debajo del título.
  * @param action  Lo que se puede hacer con este bloque. A la derecha.
+ * @param alcance DE QUÉ habla este bloque: el tramo, la ventana, cuántos son.
+ *   A la derecha del rótulo y en voz baja. Ver abajo.
  */
+/*
+  ══ `alcance`: la cabecera dice de qué trozo del mundo habla ════════════════
+
+  Es lo que hace bien la tarjeta de Efort y aquí faltaba. Nuestros bloques se
+  rotulaban con el asunto —«Actividad», «Sin señales»— y el TRAMO se contaba
+  dentro, en un subtítulo, o no se contaba: «Últimas dos semanas» ocupaba un
+  renglón entero debajo del título, y en las tarjetas donde no estaba había que
+  deducirlo de las barras.
+
+  Un tramo no es una frase de presentación: es la condición para leer la cifra.
+  «6 personas» significa una cosa esta semana y otra en el año. Así que va en la
+  cabecera, a la derecha, en tinta terciaria: se lee cuando hace falta y no
+  compite con el rótulo.
+
+  ── No es lo mismo que `sub`, ni que `action` ──────────────────────────────
+  `sub` explica QUÉ es el bloque cuando no se entiende solo. `alcance` acota lo
+  que hay dentro y siempre es una condición: un tramo de fechas, una ventana,
+  un recuento. Y `action` es lo único pulsable de los tres — el alcance no lleva
+  a ningún sitio, así que no se viste como si llevara.
+
+  Los dos pueden convivir: la cabecera es rótulo · alcance · acción, en ese
+  orden y con el alcance pegado al rótulo, que es de quien depende.
+*/
 /*
   ══ Los bloques tienen DOS rangos, y la gramática escrita solo tenía uno ═════
 
@@ -99,6 +124,7 @@ export const Panel = ({
   title,
   sub,
   action,
+  alcance,
   rango = 'rotulo',
   className = '',
   children,
@@ -114,15 +140,20 @@ export const Panel = ({
       .join(' ')}
     {...rest}
   >
-    {(title || action) && (
+    {(title || action || alcance) && (
       <header className="panel-head">
         <div className="panel-head-say">
-          {title &&
-            (rango === 'bloque' ? (
-              <h2 className="panel-head-titulo">{title}</h2>
-            ) : (
-              <span className="section-label">{title}</span>
-            ))}
+          {(title || alcance) && (
+            <div className="panel-head-rotulo">
+              {title &&
+                (rango === 'bloque' ? (
+                  <h2 className="panel-head-titulo">{title}</h2>
+                ) : (
+                  <span className="section-label">{title}</span>
+                ))}
+              {alcance && <span className="panel-head-alcance">{alcance}</span>}
+            </div>
+          )}
           {/*
             En un bloque desnudo el subtítulo NO es cabecera: es lo primero que
             dice el bloque, y baja con el contenido. Con el rótulo a un lado, si
@@ -324,8 +355,15 @@ const NOTICE_ICONS = {
   warn: TriangleAlert,
 };
 
-export const Notice = ({ tone = 'info', children, action }) => {
-  const Icon = NOTICE_ICONS[tone] || Info;
+/**
+ * @param icon Un signo propio, cuando el del tono no dice de qué se habla. La
+ *             nube del estado de red es el caso: el aviso es informativo —no es
+ *             un fallo, ver la ley del color— pero la «i» genérica le quitaba lo
+ *             único que se reconoce de un vistazo sin leer. El tono sigue
+ *             mandando en la tinta; esto solo cambia el dibujo.
+ */
+export const Notice = ({ tone = 'info', children, action, icon }) => {
+  const Icon = icon || NOTICE_ICONS[tone] || Info;
   return (
     <div className={`notice notice-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
       <Icon size={15} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -362,6 +400,27 @@ export const EmptyState = ({ icon: Icon, title, message, action }) => (
  * si la última había fallado: el usuario perdía trabajo creyéndolo a salvo.
  */
 export const SaveIndicator = ({ status, error, onRetry }) => {
+  /*
+    ══ Sin conexión NO es un fallo ═════════════════════════════════════════════
+
+    Antes de que la cola supiera si hay red, un guardado sin cobertura salía,
+    fallaba, y esto pintaba «No se guardó» en rojo. Era mentira: lo escrito estaba
+    a salvo en el navegador (`lib/pendingSaves`) y se mandaría solo al recuperar
+    la señal. Y era una mentira cara, porque el sitio donde más pasa —un gimnasio
+    en un sótano— es justo donde la aplicación tiene que dar confianza.
+
+    Ahora ese rato tiene su propio estado y su propia voz: ni alarma ni falso «✓».
+    Dice lo que hay —lo tienes, falta enviarlo— y quién lo va a hacer.
+  */
+  if (status === 'pending') {
+    return (
+      <span className="save-indicator is-pending" role="status">
+        <CloudOff size={13} />
+        Sin conexión · se enviará
+      </span>
+    );
+  }
+
   if (status === 'saving') {
     return (
       <span className="save-indicator is-saving" role="status">
@@ -519,6 +578,13 @@ export const TextInput = ({ value, onChange, className = '', ...rest }) => (
  *
  * @param inline  Para listas de opciones cortas y sin explicación, donde la
  *   tarjeta a lo ancho sería una fila de rectángulos medio vacíos.
+ * @param unaSola El grupo es una elección de UNA entre varias, no una lista de
+ *   cosas que entran o no. Cambia el `input` a `radio` y entonces `name` deja de
+ *   ser decorativo: es lo que hace grupo a las tarjetas, y con ello vienen las
+ *   flechas del teclado y el anuncio correcto («1 de 3») en un lector. El dibujo
+ *   NO cambia —la marca sigue siendo la de la casa—, porque lo que separa una
+ *   elección de una lista aquí lo dice el texto de las opciones, y dos formas
+ *   distintas para la misma tarjeta serían dos gramáticas.
  */
 export const OptionCard = ({
   icon: Icon,
@@ -528,6 +594,7 @@ export const OptionCard = ({
   onChange,
   disabled = false,
   inline = false,
+  unaSola = false,
   name,
 }) => (
   /* El estado marcado va en la clase y no en un `:has()` sobre el input. React ya
@@ -544,12 +611,15 @@ export const OptionCard = ({
       .join(' ')}
   >
     <input
-      type="checkbox"
+      type={unaSola ? 'radio' : 'checkbox'}
       className="pick-input"
       name={name}
       checked={Boolean(checked)}
       disabled={disabled}
-      onChange={(e) => onChange(e.target.checked)}
+      /* Con `radio`, desmarcar no existe: elegir la puesta no es apagarla, así
+         que el manejador recibe siempre `true` y quien lo escucha no tiene que
+         acordarse de ignorar el `false` que nunca llega. */
+      onChange={(e) => onChange(unaSola ? true : e.target.checked)}
     />
     <span className="mark" aria-hidden="true">
       <Check size={13} strokeWidth={3} />

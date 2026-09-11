@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, Layers, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, Layers, Pencil, Plus, Trash2, Users } from 'lucide-react';
 
 import {
   BLOCK_INTENTS,
@@ -56,9 +56,52 @@ const rangoDe = (r) => {
   return r.hasta ? `${shortDate(r.desde)} – ${shortDate(r.hasta)}` : shortDate(r.desde);
 };
 
+/**
+ * LOS MICROCICLOS DEL BLOQUE, DIBUJADOS.
+ *
+ * ══ Lo que se trae de Efort, y la traducción que hace falta ════════════════
+ *
+ * Su tarjeta de bloque lleva una barra segmentada con sus semanas, rellenas las
+ * hechas: compacto, y se lee sin leer. Nuestra fila decía «10 microciclos», que
+ * es el mismo dato en una palabra que hay que descifrar.
+ *
+ * Lo que NO se puede copiar es su final. Su barra dibuja «10 de 12» porque sus
+ * bloques tienen duración; los nuestros son abiertos, y pintar dos casillas
+ * vacías al final sería inventarse un plan que nadie ha escrito. Así que:
+ *
+ *   · se dibujan los microciclos ESCRITOS, uno por casilla;
+ *   · lleno el que tiene entrenos registrados, vacío el que no;
+ *   · el que estás mirando va en acento —«estás aquí»—;
+ *   · y el bloque abierto no cierra su barra: el canto se queda abierto.
+ *
+ * Un bloque cerrado sí cierra, porque ahí el final existe de verdad.
+ */
+const BarraDeMicrociclos = ({ micros, abierto, semanaEnCurso, unidades }) => {
+  if (micros.length === 0) return null;
+  const hechas = micros.filter((m) => m.hechas > 0).length;
+  return (
+    <span
+      className={`bl-micros${abierto ? ' is-abierto' : ''}`}
+      role="img"
+      aria-label={`${micros.length} ${unidades.toLowerCase()}, ${hechas} con entrenos registrados`}
+    >
+      {micros.map((m) => (
+        <i
+          key={m.semana}
+          className={`bl-micro${m.hechas > 0 ? ' is-hecha' : ''}${m.semana === semanaEnCurso ? ' is-aqui' : ''}`}
+          title={`${m.hechas} de ${m.planificadas || 0}`}
+        />
+      ))}
+      {/* El canto abierto se DICE además de dibujarse: la casilla a medio pintar
+          sola se lee como un error de maquetación. */}
+      {abierto && <span className="bl-micros-sigue">sigue abierto</span>}
+    </span>
+  );
+};
+
 /* ══ UNA FILA ══════════════════════════════════════════════════════════════ */
 
-const Fila = ({ t, esEste, unidad, unidades, onIr, onRenombrar, onQuitar, onIntent, sePuedeQuitar }) => {
+const Fila = ({ t, esEste, unidad, unidades, semanaEnCurso, onMandar, onGuardar, onIr, onRenombrar, onQuitar, onIntent, sePuedeQuitar }) => {
   const { b, r } = t;
   const [renombrando, setRenombrando] = useState(false);
   const intent = intentLabel(blockTraits(b).intent);
@@ -101,6 +144,12 @@ const Fila = ({ t, esEste, unidad, unidades, onIr, onRenombrar, onQuitar, onInte
           {cuenta(r.semanas, unidad.toLowerCase(), unidades.toLowerCase())}
         </span>
         {nota && <span className="bl-nota">{nota}</span>}
+        <BarraDeMicrociclos
+          micros={r.microciclos}
+          abierto={r.abierto}
+          semanaEnCurso={esEste ? semanaEnCurso : null}
+          unidades={unidades}
+        />
       </div>
 
       {/* Las cifras del bloque, rotuladas y en la misma vertical en todas las
@@ -131,6 +180,36 @@ const Fila = ({ t, esEste, unidad, unidades, onIr, onRenombrar, onQuitar, onInte
           items={[
             { icon: ArrowRight, label: 'Abrir este bloque', run: () => onIr(b) },
             onRenombrar && { icon: Pencil, label: 'Renombrar', run: () => setRenombrando(true) },
+            /* Mandarlo a otros vive AQUÍ y no en un botón de la cabecera: es del
+               bloque concreto de esta fila, y desde la lista se ve cuál fue el
+               que funcionó. Se ofrece si el bloque tiene microciclos escritos —el
+               que abre `blocksOf` al final no los tiene, y de ahí no hay nada que
+               mandar—; el plan lo resuelve el panel, que sabe leerlo también de
+               los programas que aún no lo tienen subido al bloque. */
+            onMandar &&
+              t.semanas.length > 0 && {
+                icon: Users,
+                label: 'Mandarlo a otros clientes…',
+                run: () => onMandar(b),
+              },
+            /* GUARDARLO EN TUS PLANTILLAS, y aquí por la misma razón que
+               «Mandarlo a otros»: ésta es la pantalla donde se ve cuál fue el
+               bloque que funcionó, y guardar un bloque es decir «éste era el
+               bueno». Lo que se queda es la ESTRUCTURA —las hojas con sus
+               series, la intención, las semanas previstas y el calentamiento—;
+               nada registrado, ni kilos ni fechas ni la bitácora. Ver
+               `domain/cajon` y `docs/replanteamiento-lo-guardado.md`.
+
+               Sin confirmación, como las otras dos puertas: guardar no le toca
+               nada a nadie —ni a este cliente ni a ninguno—, así que no hay nada
+               que deshacer. El mismo tope y el mismo desempate de nombre los
+               pone `useGuardarEnPlantillas`, que es el gesto de las tres. */
+            onGuardar &&
+              t.semanas.length > 0 && {
+                icon: ClipboardCheck,
+                label: 'Guardarlo en tus plantillas',
+                run: () => onGuardar(b),
+              },
             onIntent && null,
             ...(onIntent
               ? BLOCK_INTENTS.map((i) => ({
@@ -162,12 +241,23 @@ export const ListaDeBloques = ({
   bloque,
   unidad = 'Microciclo',
   unidades = 'microciclos',
+  semanaEnCurso = null,
+  onMandarBloque,
+  /* «Guardarlo en tus plantillas», desde la fila. Llega como manejador y no
+     montado —al revés que `accionPegar`— porque su forma no depende de nada:
+     es una entrada más del menú de un bloque concreto. */
+  onGuardarBloque,
   onIrBloque,
   onVolver,
   onNuevoBloque,
   onRenombrarBloque,
   onQuitarBloque,
   onIntent,
+  /* El verbo de pegar un bloque copiado, ya montado. Llega como pieza y no como
+     manejador porque su forma depende de cuántos bloques haya en la mano —uno
+     es un botón, varios son una pregunta—, y eso lo sabe el portapapeles, no
+     esta lista. Aquí solo se le hace sitio. */
+  accionPegar = null,
 }) => {
   const [orden, setOrden] = useState('fecha');
 
@@ -238,6 +328,9 @@ export const ListaDeBloques = ({
             <Plus size={13} aria-hidden="true" /> bloque
           </button>
         )}
+        {/* Al lado del «+ bloque» porque es su hermano: las dos formas de que
+            aquí aparezca uno más. Solo está si hay algo que pegar. */}
+        {accionPegar}
         {onVolver && bloque && (
           <button type="button" className="cab-accion is-puerta" onClick={onVolver}>
             Volver a {bloque.name}
@@ -256,6 +349,9 @@ export const ListaDeBloques = ({
                 esEste={t.b.id === bloque?.id}
                 unidad={unidad}
                 unidades={unidades}
+                semanaEnCurso={semanaEnCurso}
+                onMandar={onMandarBloque}
+                onGuardar={onGuardarBloque}
                 onIr={onIrBloque}
                 onRenombrar={onRenombrarBloque}
                 onQuitar={onQuitarBloque}

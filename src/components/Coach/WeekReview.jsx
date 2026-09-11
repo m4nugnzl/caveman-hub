@@ -476,8 +476,11 @@ export const WeekReview = () => {
       planSnapshot({
         nutrition: nutrition[activeClient?.id],
         program: workoutData[activeClient?.id],
+        /* Y quién es: sin su ciclo no hay reparto que ponderar y la foto se
+           queda en el primer día del plan. Ver `cycleFoto`. */
+        client: activeClient,
       }),
-    [nutrition, workoutData, activeClient?.id]
+    [nutrition, workoutData, activeClient]
   );
 
   /*

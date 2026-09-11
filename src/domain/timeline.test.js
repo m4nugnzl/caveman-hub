@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { kcalSteps } from './anthropometry';
 import {
+  dietLog,
   nutritionTrack,
   reviewTimeline,
   timelineSummary,
@@ -264,5 +266,75 @@ describe('nutritionTrack', () => {
 
   it('sin filas no hay línea', () => {
     expect(nutritionTrack({ rows: [], reviews: [] })).toEqual([]);
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   dietLog
+   --------------------------------------------------------------------------
+   La avería que cierra: la evolución de la dieta leía solo la foto que se
+   guarda al REGISTRAR UN PESAJE, y la pantalla de revisión leía la que queda al
+   CERRAR UNA REVISIÓN. Un cliente que se pesa desde el portal casi nunca tiene
+   la primera, así que su escalera de kcal salía plana en una pantalla y entera
+   en la otra — y la que se cree es la que está al lado de la dieta.
+   ══════════════════════════════════════════════════════════════════════════ */
+describe('dietLog', () => {
+  const pesaje = (date, weight, kcals = null) => ({
+    id: `log-${date}`,
+    date,
+    weight,
+    ...(kcals === null ? {} : { nutrition: { kcals, protein: 180, carbs: 300, fats: 70 } }),
+  });
+
+  it('junta las dos fuentes y las devuelve en orden', () => {
+    const filas = dietLog({
+      history: [pesaje('2026-08-10', 80), pesaje('2026-07-06', 82)],
+      reviews: [{ weekStart: '2026-07-20', snapshot: { kcals: 2400 } }],
+    });
+
+    expect(filas.map((f) => f.date)).toEqual(['2026-07-06', '2026-07-20', '2026-08-10']);
+    expect(filas[1].nutrition.kcals).toBe(2400);
+    /* La foto de una revisión no es un pesaje: no trae peso ni lo inventa. */
+    expect(filas[1].weight).toBeNull();
+  });
+
+  it('sin ninguna foto en los pesajes, la escalera sale de las revisiones', () => {
+    /* El caso REAL de la avería: 52 pesajes sin `nutrition` y cuatro cambios de
+       kcal que solo constaban en las revisiones cerradas. */
+    const filas = dietLog({
+      history: [pesaje('2026-07-06', 82), pesaje('2026-08-10', 80)],
+      reviews: [
+        { weekStart: '2026-07-13', snapshot: { kcals: 2600 } },
+        { weekStart: '2026-08-03', snapshot: { kcals: 2400 } },
+      ],
+    });
+
+    expect(kcalSteps(filas)).toHaveLength(1);
+    expect(kcalSteps(filas)[0].delta).toBe(-200);
+    expect(kcalSteps(filas)[0].date).toBe('2026-08-03');
+  });
+
+  it('con las dos fuentes en la misma fecha gana la del pesaje', () => {
+    /* La misma regla que `reviewTimeline`: la del pesaje se tomó midiendo. Y
+       escrita una sola vez, o las dos pantallas acabarían discrepando otra vez. */
+    const filas = dietLog({
+      history: [pesaje('2026-07-06', 82, 2800)],
+      reviews: [{ weekStart: '2026-07-06', snapshot: { kcals: 2400 } }],
+    });
+
+    expect(filas).toHaveLength(1);
+    expect(filas[0].nutrition.kcals).toBe(2800);
+  });
+
+  it('una revisión sin foto del plan no añade nada', () => {
+    const filas = dietLog({
+      history: [pesaje('2026-07-06', 82)],
+      reviews: [{ weekStart: '2026-07-20', snapshot: null }],
+    });
+    expect(filas).toHaveLength(1);
+  });
+
+  it('sin nada, nada', () => {
+    expect(dietLog()).toEqual([]);
   });
 });

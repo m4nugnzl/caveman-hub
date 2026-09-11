@@ -85,28 +85,47 @@
    El azulejo y el verbo abarcan las dos filas; el título y el párrafo caen en la
    columna del medio por colocación automática, así que un vacío sin párrafo o
    sin acción sigue cuadrando sin una regla más. */
-.taller .cartera-cuerpo > .card:has(> .empty) { max-width: none; }
-.taller .cartera-cuerpo > .card:has(> .empty) > .empty {
+/* ── Y la banda es del TALLER, no de una posición en el árbol ──────────────
+   La regla colgaba de `.cartera-cuerpo > .card`, o sea de que el vacío fuera
+   hijo directo del cuerpo de la página. El carril de automatizaciones vive dos
+   cajas más adentro (`.plano-lista > .carril-autos > .card`) y por eso se caía
+   al vacío de serie: una losa de 340 px con tres renglones centrados, en medio
+   de una hoja que se lee de izquierda a derecha.
+
+   Con `.taller .card:has(> .empty)` la banda es de todos los vacíos del taller,
+   que es lo que siempre quiso decir. */
+.taller .card:has(> .empty) { max-width: none; }
+.taller .card:has(> .empty) > .empty {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center; text-align: left;
-  gap: var(--s1) var(--s4); padding: var(--s5);
+  gap: var(--s1) var(--s4);
+  /* Sin relleno propio: la tarjeta ya tiene el suyo, y el vacío de serie lo
+     lleva porque nace suelto en medio de una pantalla. Los dos juntos eran 44 px
+     por lado para 67 px de contenido — la banda medía 194 px de alto con dos
+     renglones dentro. */
+  padding: 0;
 }
-.taller .cartera-cuerpo > .card:has(> .empty) > .empty > .empty-icon { grid-row: 1 / -1; }
-.taller .cartera-cuerpo > .card:has(> .empty) > .empty > h3,
-.taller .cartera-cuerpo > .card:has(> .empty) > .empty > p { grid-column: 2; }
-.taller .cartera-cuerpo > .card:has(> .empty) > .empty > p { max-width: 68ch; }
-.taller .cartera-cuerpo > .card:has(> .empty) > .empty > .btn {
+.taller .card:has(> .empty) > .empty > .empty-icon { grid-row: 1 / -1; }
+.taller .card:has(> .empty) > .empty > h3,
+.taller .card:has(> .empty) > .empty > p { grid-column: 2; }
+/* El margen de serie del `<h3>` no se ve en la columna —ahí el `gap` lo tapa—
+   pero en la rejilla se suma al hueco de la fila y abre 22 px entre el título y
+   su frase, que es justo lo que hace que una banda de dos renglones mida como
+   una caja de cuatro. */
+.taller .card:has(> .empty) > .empty > h3 { margin: 0; }
+.taller .card:has(> .empty) > .empty > p { max-width: 68ch; }
+.taller .card:has(> .empty) > .empty > .btn {
   grid-column: 3; grid-row: 1 / -1; justify-self: end;
 }
 
 @media (max-width: 700px) {
   /* En un teléfono la banda vuelve a ser una columna: tres cosas en fila dejan
      la frase en dos palabras por renglón. */
-  .taller .cartera-cuerpo > .card:has(> .empty) > .empty {
+  .taller .card:has(> .empty) > .empty {
     grid-template-columns: 1fr; justify-items: start; gap: var(--s3);
   }
-  .taller .cartera-cuerpo > .card:has(> .empty) > .empty > .empty-icon,
-  .taller .cartera-cuerpo > .card:has(> .empty) > .empty > .btn {
+  .taller .card:has(> .empty) > .empty > .empty-icon,
+  .taller .card:has(> .empty) > .empty > .btn {
     grid-column: 1; grid-row: auto; justify-self: start;
   }
 }
@@ -231,6 +250,41 @@
 .plano-ficha-tit {
   font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.01em;
   margin: 0;
+}
+
+/* ══ EL PANEL DEL PROTOCOLO: tres tramos, no tres títulos ══════════════════
+
+   Es el único `.plano-ficha` que lleva DENTRO más de una cosa —qué lleva, la
+   acción tocada, quién lo lleva—, y sin nada que las separe los tres `<h2>` se
+   apilaban con el mismo cuerpo y el mismo peso que el nombre de la pantalla:
+   tres bloques de texto seguidos, uno de ellos con un filete encima por
+   casualidad (el que trae `ModulesSection`) y los otros dos sin él.
+
+   La gramática de la columna de al lado ya contesta esto y no hace falta
+   inventar otra: rótulo pequeño en versal, filete entre tramos. Así el panel
+   se lee como un mueble de tres cajones y lo que pesa dentro de cada uno es el
+   dato, que es lo que se ha venido a mirar. */
+.proto-plano { gap: 0; }
+.proto-plano > section { padding: var(--s5) 0; }
+.proto-plano > section:first-child { padding-top: 0; }
+.proto-plano > section + section { border-top: 1px solid var(--hairline); }
+.proto-plano .plano-ficha-tit {
+  font-size: var(--fs-2xs); font-weight: 650;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+/* El desplegable mide lo que mide su valor (`select-sm`) y el campo deja de
+   estirarlo: un `.field` es una columna y estira a sus hijos. */
+.proto-plano .field > .select-sm { align-self: start; }
+/* Y los enlaces del panel bajan a la voz de la columna. «14 preguntas ·
+   editarlo →» en cuerpo de texto corrido y subrayado era lo que más pesaba de
+   los tres tramos: una puerta gritando por encima del dato que la justifica. */
+.proto-plano .link { font-size: var(--fs-sm); }
+/* La puerta a la cola: enlace, no botón a todo lo ancho. Ver el porqué en el
+   JSX — esta pantalla se usa para montar el protocolo, no para mirar la cola. */
+.proto-plano-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  align-self: start; font-size: var(--fs-sm);
 }
 
 /* La fila elegida, con la marca de siempre: relleno tenue y el nombre en tinta
@@ -684,9 +738,10 @@ textarea.espejo-pauta:focus {
 
 .constructor-cuerpo {
   /* Sin medida propia ni centrado, como todas: la pone la hoja y el sangrado
-     es el mismo que el de `.cartera-cuerpo`, así que el lienzo del formulario
-     arranca en la misma vertical que la tabla de la lista de la que se viene. */
-  padding: var(--s4) var(--s5) var(--s6);
+     es el mismo que el de `.cartera-cuerpo` —calle del chasis incluida—, así
+     que el lienzo del formulario arranca en la misma vertical que la tabla de
+     la lista de la que se viene. Ver `--carril-chasis`, en `tokens.css`. */
+  padding: var(--s4) var(--s5) var(--s6) calc(var(--s5) + var(--carril-chasis));
   display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--s5);
   align-items: start;
 }
@@ -1083,7 +1138,12 @@ textarea.espejo-pauta:focus {
    excepción vive dentro del otro corte. */
 @media (max-width: 1439.98px) {
   .proto-banco > .plano-ficha {
-    position: static; max-height: none; overflow: visible;
+    /* `height` y no solo `max-height`: el carril dejó de medirse con un tope y
+       pasó a tener altura fija —para que su filete recorra la pantalla entera—
+       pero esta regla se quedó soltando la propiedad que ya no se usa. Apilado
+       arriba, el panel seguía reservando el alto de la ventana y dejaba 180 px
+       de nada entre «Ver lo que sale» y la primera premisa. */
+    position: static; height: auto; max-height: none; overflow: visible;
     padding-left: 0; border-left: 0;
   }
 }
@@ -1196,49 +1256,52 @@ textarea.espejo-pauta:focus {
   background-repeat: no-repeat, repeat-x;
   opacity: 0.8;
 }
-.guia { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: var(--s6); align-items: start; }
-/* La de pliegues lleva dos figuras —de frente y de espalda— y con la columna de
-   232 px cada cuerpo se quedaba en 105: por debajo de eso el detalle interior es
-   una mancha y la lámina deja de situar, que es su único trabajo. */
-.guia.es-doble { grid-template-columns: 356px minmax(0, 1fr); }
-.guia-lamina {
-  background: var(--surface-sunken);
-  border: 1px solid var(--hairline);
-  border-radius: var(--r-md);
-  padding: var(--s3);
-}
+.guia { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: var(--s6); align-items: start; }
+/* La de pliegues lleva dos figuras —de frente y de espalda— y necesita el doble
+   de columna. No el doble exacto: en trazo, un cuerpo de 130 px sigue siendo
+   legible —no hay detalle interior que se pueda empastar—, así que 300 basta. */
+.guia.es-doble { grid-template-columns: 300px minmax(0, 1fr); }
+/* Sin caja: la lámina es un dibujo sobre el papel de la pantalla, no una pieza
+   montada dentro de otra. El fondo hundido y el filete convertían seis rectas y
+   un monigote en un módulo que pesaba como una tarjeta. */
+.guia-lamina { padding: var(--s2) 0 0; }
 .guia-svg { width: 100%; height: auto; display: block; }
-.guia-cuerpo { fill: var(--surface); stroke: var(--hairline-strong); stroke-width: 1.6; stroke-linejoin: round; }
-/* El detalle interior —clavícula, línea media, columna, escápulas, rodillas—.
-   Más fino y más callado que el contorno: está para dar referencias al que mide,
-   no para dibujar un cuerpo bonito, así que no puede competir con la marca. */
-.guia-detalle {
-  fill: none; stroke: var(--hairline); stroke-width: 1.2;
+/* TODO el cuerpo es filete, sin relleno. Ver el encabezado del componente: la
+   figura sostiene los puntos, no los explica. */
+.guia-cuerpo {
+  fill: none; stroke: var(--hairline-strong); stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round;
+}
+/* La columna, la única línea interior, y solo de espalda: más callada que el
+   contorno porque no es silueta, es la referencia que distingue las dos vistas. */
+.guia-eje { fill: none; stroke: var(--hairline-strong); stroke-width: 1.1; stroke-linecap: round; }
+/* La cinta, una recta SOBRE el cuerpo. Era una elipse rodeándolo: más fiel al
+   gesto y el doble de tinta, y a este tamaño la perspectiva no se lee. */
+.guia-cinta { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+/* El pellizco: una cresta de piel levantada entre dos dedos. Es la otra técnica
+   dicha con la forma —la cinta cruza, el plicómetro levanta— y por eso no puede
+   ser la misma marca en otro color.
+
+   Relleno translúcido del acento y no `--accent-soft`: el soft es un fondo de
+   superficie y en el tema oscuro se apaga hasta desaparecer sobre el papel del
+   dibujo. Con el acento al 18 % la figura tiene cuerpo en los dos temas y el
+   trazo sigue siendo lo que la dibuja. */
+.guia-pellizco {
+  fill: var(--accent); fill-opacity: 0.18;
+  stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round;
 }
 /* Qué vista es cada figura. Sin esto, la de espalda se lee como la de frente
    con las marcas cambiadas de lado — que es justo el error que provoca. */
 .guia-vista {
   fill: var(--text-tertiary); font-family: var(--font);
-  font-size: 11px; font-weight: 650; letter-spacing: 0.04em;
+  font-size: 10px; font-weight: 650; letter-spacing: 0.04em;
 }
-.guia-cinta { fill: none; stroke: var(--accent); stroke-width: 2; }
-/* El pellizco: una cresta de piel levantada entre dos dedos. Es la otra técnica
-   dicha con la forma —la cinta rodea, el plicómetro levanta— y por eso no puede
-   ser la misma marca en otro color.
-
-   Relleno translúcido del acento y no `--accent-soft`: el soft es un fondo de
-   superficie y en el tema oscuro se apaga hasta desaparecer sobre el papel del
-   dibujo. Con el acento al 22 % la figura tiene cuerpo en los dos temas y el
-   trazo sigue siendo lo que la dibuja. */
-.guia-pellizco {
-  fill: var(--accent); fill-opacity: 0.22;
-  stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round;
-}
-.guia-hilo { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 2 3; }
-.guia-punto circle { fill: var(--accent); }
+/* El número, en disco de PAPEL y no de acento. El acento es de las marcas: dos
+   cosas del mismo color en la misma lámina compiten, y la que tiene que ganar
+   es dónde se mide, no cómo se llama. */
+.guia-punto circle { fill: var(--surface); stroke: var(--hairline-strong); stroke-width: 1; }
 .guia-punto text {
-  fill: var(--accent-on); font-family: var(--font); font-size: 11px; font-weight: 700;
+  fill: var(--text); font-family: var(--font); font-size: 9px; font-weight: 700;
 }
 
 .guia-sitios { display: flex; flex-direction: column; }
@@ -1247,10 +1310,13 @@ textarea.espejo-pauta:focus {
   padding: var(--s3) 0; border-bottom: 1px solid var(--hairline);
 }
 .guia-sitio:last-child { border-bottom: 0; }
+/* El mismo disco que en la lámina: es lo que empareja el renglón con el punto.
+   Con la pastilla de acento a un lado y el disco de papel al otro, la pareja
+   había que deducirla del número. */
 .guia-n {
   display: grid; place-items: center;
   width: 21px; height: 21px; border-radius: var(--r-pill);
-  background: var(--accent-soft); color: var(--accent);
+  border: 1px solid var(--hairline-strong); color: var(--text-secondary);
   font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .guia-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -1265,9 +1331,9 @@ textarea.espejo-pauta:focus {
 
 @media (max-width: 719.98px) {
   .guia { grid-template-columns: minmax(0, 1fr); }
-  .guia-lamina { max-width: 232px; }
+  .guia-lamina { max-width: 172px; }
   /* En columna, la doble puede ocupar lo que quiera: es ancha y baja. */
-  .guia.es-doble .guia-lamina { max-width: 420px; }
+  .guia.es-doble .guia-lamina { max-width: 320px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1442,3 +1508,170 @@ textarea.espejo-pauta:focus {
 .etq-pie-campo::placeholder { color: var(--text-tertiary); font-weight: 500; }
 .etq-pie-nom { width: 9ch; }
 .etq-pie-g { width: 4ch; text-align: right; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL CARRIL — lo que le pasa a un cliente sin que tú lo mandes
+   --------------------------------------------------------------------------
+   ══ Por qué un carril y no un lienzo ═══════════════════════════════════════
+
+   Una automatización nuestra es *disparador + n pasos con desfase*: no hay
+   bifurcación, no hay confluencia y no viajan datos entre pasos. Un lienzo
+   pediría colocar cajas y estirar cables para escribir UNA LISTA ORDENADA —todo
+   el coste de la metáfora y ninguna de sus ventajas— y no cabe en un móvil.
+
+   Lo que hace que Coachway se lea moderno son cuatro cosas y las cuatro son
+   gratis aquí: el disparador es un nodo, los pasos están encadenados, el desfase
+   se lee ENTRE nodos y cada paso se edita en su sitio.
+
+   ══ LA LÍNEA, que es la única pieza de dibujo ══════════════════════════════
+
+   Un filete de 1px a 13px del borde: justo el centro de un disco de 26. Va como
+   `<span>` propio y no como `border-left` del `<li>`, y la razón es concreta: el
+   paso abierto crece hacia abajo con su hoja de campos, y un borde del `li`
+   bajaría con él dejando el hilo colgando de nada. Con el span se controla dónde
+   empieza y dónde acaba — que es lo que permite que el último no siga de largo.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.carril-autos { max-width: var(--max-w-columna); }
+
+.auto {
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: var(--s3) var(--s3) var(--s2);
+}
+/* Apagada no es un error: es una decisión. Sin tono de aviso y sin tachar —se
+   baja la voz y ya está—. Lo que no puede es desaparecer: lo que hay que poder
+   ver de una automatización apagada es justamente que está apagada. */
+.auto.es-apagada { opacity: 0.55; }
+
+.auto-cab { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; position: relative; }
+/* El disparador ES un nodo del hilo, y el hilo tiene que salir de él. La línea
+   de los pasos empieza en el `<ol>`, así que entre el disco de arriba y el
+   primer paso quedaba un hueco y el disparador se leía como un título suelto
+   encima de una lista, no como el nodo del que cuelga todo lo demás.
+   `50% + 13px` es el canto de abajo del disco esté donde esté la cabecera: con
+   el horario semanal mide dos renglones más. */
+.auto-cab::after {
+  content: ''; position: absolute;
+  left: 13px; top: calc(50% + 13px); bottom: 0; width: 1px;
+  background: var(--hairline-strong);
+}
+.auto-rot {
+  font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.auto-nombre { font-size: var(--fs-sm); font-weight: 600; color: var(--text); }
+.auto-cab-fin { display: flex; align-items: center; gap: var(--s2); margin-left: auto; }
+
+/* El disparador no lleva tono de familia: no es una acción, es de dónde cuelgan
+   las acciones. Un disco de color aquí competiría con los pasos, que son lo que
+   de verdad se distingue por clase. */
+.auto-disco {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 26px; height: 26px; border-radius: var(--r-pill);
+  background: var(--fill-subtle); color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+
+/* El interruptor de la automatización: el mismo `Switch` de la casa —sus clases
+   y su dibujo— sin el cuerpo de texto, porque aquí el rótulo es la cabecera
+   entera. Tenía clase propia y `.track` solo está dibujado bajo `.switch-row`,
+   así que el mando no se pintaba: el único gesto que para una automatización
+   para todos a la vez era un hueco de cero píxeles. */
+.auto-switch { align-items: center; }
+/* Sin el texto al lado, la pastilla de 38 px pesa más que el nombre del
+   disparador. Un punto más pequeña y a la altura de la línea. */
+.auto-switch > .track { width: 32px; height: 19px; margin-top: 0; }
+.auto-switch > .track::before { width: 15px; height: 15px; }
+.auto-switch.is-on > .track::before { transform: translateX(13px); }
+
+.auto-pasos { list-style: none; margin: 0; padding: 0; }
+
+/* ── El hilo: dice cuándo, y es su propio mando ──────────────────────────── */
+.auto-hilo,
+.auto-paso,
+.auto-vacia {
+  position: relative;
+  display: grid; grid-template-columns: 26px minmax(0, 1fr);
+  gap: var(--s3); align-items: center;
+}
+.auto-linea {
+  grid-column: 1; justify-self: center;
+  width: 1px; align-self: stretch;
+  background: var(--hairline-strong);
+}
+/* El último hilo cuelga a media asta: no lleva a ningún sitio, es donde se
+   añade. Una línea que sigue de largo prometería un paso que no existe. */
+.auto-hilo.es-final .auto-linea { align-self: start; height: 12px; }
+
+.auto-hilo-cuerpo {
+  grid-column: 2;
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: 26px;
+}
+.auto-cuando {
+  padding: 2px var(--s2); margin-left: calc(var(--s2) * -1);
+  border: 0; border-radius: var(--r-sm); background: none;
+  font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary);
+  cursor: pointer; text-align: left;
+  transition: background-color var(--fast), color var(--fast);
+}
+.auto-cuando:hover { background: var(--fill-subtle); color: var(--text); }
+.auto-dia { display: inline-flex; align-items: center; gap: var(--s2); }
+.auto-dia .input { width: 5.5ch; }
+
+/* En reposo no está. El de en medio aparece al acercarte; el del final, siempre,
+   porque es donde se añade y no una decoración. En táctil los dos, que ahí no
+   hay «acercarse». */
+.auto-mas {
+  display: inline-flex; align-items: center; gap: var(--s1);
+  padding: 2px var(--s2);
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-sm);
+  background: none; color: var(--text-tertiary);
+  font: inherit; font-size: var(--fs-xs); cursor: pointer;
+  opacity: 0; transition: opacity var(--fast), color var(--fast), border-color var(--fast);
+}
+.auto-hilo:hover .auto-mas,
+.auto-mas:focus-visible,
+.auto-hilo.es-final .auto-mas { opacity: 1; }
+.auto-mas:hover { color: var(--accent); border-color: var(--accent); }
+@media (hover: none) {
+  .auto-mas { opacity: 1; }
+}
+
+/* ── El paso ─────────────────────────────────────────────────────────────── */
+.auto-paso { align-items: start; }
+.auto-paso > .f-disco { grid-column: 1; grid-row: 1; z-index: 1; }
+/* El disco se posa SOBRE la línea, así que la línea tiene que pasar por detrás
+   de él y no cortarse: por eso el span ocupa la misma celda y el disco sube de
+   plano en vez de partir el recorrido en trozos. */
+.auto-paso > .auto-linea { grid-row: 1; }
+.auto-paso-cuerpo { grid-column: 2; min-width: 0; padding-bottom: var(--s2); }
+
+.auto-paso-linea {
+  display: flex; align-items: baseline; gap: var(--s2);
+  width: 100%; min-height: 26px;
+  padding: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+/* La caja se enciende, el verbo va en azul: sin flechas y sin lápices. */
+.auto-paso.is-abierto .a-verbo { color: var(--accent); }
+.auto-paso-linea:hover .q-titulo { color: var(--accent); }
+
+.auto-paso-hoja {
+  margin-top: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface-sunken);
+}
+
+/* Y la que todavía no tiene pasos dice UNA frase, no un párrafo a todo lo ancho
+   de la hoja: lo que falta aquí es un gesto, no una explicación. */
+.auto-vacia > p { grid-column: 2; margin: var(--s2) 0; max-width: 52ch; }
+
+/* ── La cola de lo que sale ──────────────────────────────────────────────── */
+/* La fecha en cifras tabulares: es una columna de días y sin esto los renglones
+   bailan de un píxel en cada fila. */
+.cola-dia { font-variant-numeric: tabular-nums; white-space: nowrap; }

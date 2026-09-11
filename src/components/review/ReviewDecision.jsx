@@ -149,8 +149,8 @@ export const ReviewDecision = ({
   */
   const plan = nutrition[client.id];
   const ahora = useMemo(
-    () => planSnapshot({ nutrition: plan, program: workoutData[client.id] }),
-    [plan, workoutData, client.id]
+    () => planSnapshot({ nutrition: plan, program: workoutData[client.id], client }),
+    [plan, workoutData, client]
   );
 
   const cambios = useMemo(() => snapshotChanges(base, ahora), [base, ahora]);

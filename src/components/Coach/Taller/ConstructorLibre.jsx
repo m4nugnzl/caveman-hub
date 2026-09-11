@@ -48,6 +48,7 @@ import { estanteria, tiposDeMomento } from '@/domain/formularios';
 import { MAX_CUSTOM as MAX_PROPIAS, WEIGH_INS_MAX as MAX_VECES } from '@/domain/protocol';
 import { Field, SegmentedControl, Switch, TextInput } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
+import { Pliegue } from '@/components/ui/Pliegue';
 /* El control del cliente, tal cual. Ver el porqué en `CampoLibre`. */
 import { CampoLibre } from '@/components/Client/CampoLibre';
 import { GUIAS, GuiaDeMedidas } from './GuiaDeMedidas';
@@ -616,6 +617,10 @@ export const ConstructorLibre = ({
       <header className="cartera-cab taller-cab">
         <div className="cartera-cab-in">
           <div className="cartera-cab-linea">
+            {/* El mando del ancho, en la calle del chasis: el mismo botón y el
+                mismo punto que en las demás cintas — un constructor es una
+                pantalla más, y de las que agradecen el ancho. Ver `ui/Pliegue`. */}
+            <Pliegue />
             <button
               type="button"
               className="cab-volver"

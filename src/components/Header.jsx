@@ -1,5 +1,4 @@
 import { Search } from 'lucide-react';
-import { useData } from '@/context/AppContext';
 import { paletteShortcut } from '@/lib/platform';
 import { Logo } from '@/components/ui/Logo';
 import { AccountMenu } from '@/components/AccountMenu';
@@ -62,25 +61,36 @@ export const Omnibox = () => {
   );
 };
 
-export const HeaderActions = ({ variante = 'avatar' }) => {
-  const { hasUnsavedChanges } = useData();
+export const HeaderActions = ({ variante = 'avatar' }) => (
+  <div className={`row gap-2 shrink-0${variante === 'fila' ? ' is-fila' : ''}`}>
+    {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
+        a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
+    <ClientBell />
+    {/*
+      ── Aquí vivió LA NUBE ──────────────────────────────────────────────
+      El estado de la red, montado aquí para salir a la vez en la cabecera del
+      móvil y en el pie de la barra lateral. Se ha ido a una franja de página
+      (`ui/EstadoDeRed`, montada por `App`), que llega igual a las tres
+      monturas y no ocupa nada los días en que no hay nada que contar.
+    */}
+    {/*
+      ── Y aquí vivió «CAMBIOS SIN CONFIRMAR» ────────────────────────────
+      Una chapa ámbar, y tres cosas mal. Miraba `hasUnsavedChanges`, que
+      incluye `saving`, y la cola emite `saving` desde la primera pulsación:
+      se encendía al TECLEAR, no al fallar. Era ámbar en el chasis, que por la
+      ley del color de la casa es un suspenso —y un guardado rechazado es una
+      avería del sistema, no una nota que ponerle a nadie—. Y en el escritorio
+      del entrenador salía en EL PIE DE LA BARRA, donde no la puso nadie: esta
+      pieza se monta ahí entera por la campana y la cuenta, y la chapa iba de
+      polizón.
 
-  return (
-    <div className={`row gap-2 shrink-0${variante === 'fila' ? ' is-fila' : ''}`}>
-      {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
-          a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
-      <ClientBell />
-      {/* El aviso de cambios sin confirmar: lo único de esta esquina que habla
-          de algo que puede perderse. */}
-      {hasUnsavedChanges && (
-        <span className="badge badge-warn" role="status">
-          Cambios sin confirmar
-        </span>
-      )}
-      <AccountMenu variante={variante} />
-    </div>
-  );
-};
+      Lo que de verdad tenía que contar —hay red y el servidor ha rechazado
+      algo— lo dice ahora la franja (`ui/EstadoDeRed`), que llega a las tres
+      monturas, aparece solo cuando pasa y trae el «Reintentar» al lado.
+    */}
+    <AccountMenu variante={variante} />
+  </div>
+);
 
 export const Header = () => (
   <header className="app-header">

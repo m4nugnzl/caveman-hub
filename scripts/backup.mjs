@@ -111,6 +111,37 @@ const TABLES = [
      bucket y no aquí; lo que se copia son las filas, sin las cuales las
      imágenes quedan en el almacén sin nada que diga de quién son. */
   'client_equipment',
+  /*
+    El calendario al que está suscrito el cliente (0071). Lo que se copia es el
+    TOKEN, y por eso entra: la URL vive fuera de aquí —pegada en el calendario
+    del móvil de cada cliente— y no hay forma de volver a generarla desde este
+    lado. Sin esta fila, una restauración deja todas esas suscripciones
+    apuntando a un token que ya no resuelve: el calendario del cliente deja de
+    actualizarse y no avisa ni él ni nosotros. La tabla es única por cliente,
+    así que rotar el token es sustituirlo, no añadir otro.
+  */
+  'client_calendar_feeds',
+  /*
+    La carpeta de cada cliente en el Drive del entrenador (0082). El `folder_id`
+    lo devolvió Google al crearla y no se puede recomponer: la carpeta sigue
+    existiendo con todo dentro, pero sin esta fila la aplicación no sabe cuál
+    es y crea otra — que es exactamente el «dos sitios donde mirar» que la
+    migración escribió para evitar.
+  */
+  'client_folders',
+  /*
+    Lo que le pasa a un cliente sin que nadie lo mande (0116), y el libro de lo
+    que ya ha corrido.
+
+    Las DOS, y la segunda es la que importa: `coach_automations` es la regla y se
+    puede volver a escribir a mano en una tarde, pero `automation_runs` es el
+    único sitio donde consta que a Marta ya se le mandó el vídeo del día 3.
+    Restaurar sin él no deja un hueco: **vuelve a mandarlo todo**, a todo el
+    mundo, el día de la restauración. El fallo que la migración existe para
+    evitar, entrando por la puerta de la copia de seguridad.
+  */
+  'coach_automations',
+  'automation_runs',
   'exercises',
   'foods',
   'teams',
@@ -154,6 +185,12 @@ export const EXCLUIDAS = {
     'Guarda los tokens de Notion y Stripe en claro. Copiarlos convertiría cada copia en un ' +
     'llavero de credenciales vivas repartido por discos externos. Se vuelven a pegar en un ' +
     'minuto desde Ajustes → Integraciones; una filtración no se arregla en un minuto.',
+  integration_oauth_states:
+    'El pañuelo de un solo uso del OAuth de Drive (0082): la cadena que se manda a Google para ' +
+    'reconocer la vuelta y que se gasta en cuanto vuelve. Vive segundos, no es de ningún ' +
+    'cliente y una fila restaurada sería un permiso a medio conceder de una sesión que ya no ' +
+    'existe. La tabla nace sin políticas y con los permisos revocados a propósito; copiarla ' +
+    'sería sacar de la base lo único que allí se declaró que no debía salir.',
   catalog_exercises: 'Catálogo común, lo recrea la migración 0033. No es de nadie.',
   catalog_foods: 'Catálogo común, lo recrea la migración 0033. No es de nadie.',
   plan_limits: 'Los límites y precios de cada plan, los recrea la 0019. Configuración, no datos.',

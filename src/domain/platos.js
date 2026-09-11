@@ -44,6 +44,7 @@
  */
 
 import { newId } from '@/lib/ids';
+import { TIPO } from '@/lib/portapapeles';
 import { toNum0 } from '@/lib/num';
 import { buildFoodEntry, optionMacros, rescaleMeals } from './nutrition';
 import { freezeMicros } from './micros';
@@ -67,8 +68,12 @@ export const MAX_PLATOS = 40;
  *
  * Es la misma poda que hace `cloneExerciseAsTemplate` al guardar una pieza, y
  * por la misma razón: lo que se guarda es el criterio, no el caso.
+ *
+ * Exportada porque es la poda de los platos y la llama también `domain/cajon`,
+ * que es quien guarda hoy. Escribirla otra vez allí serían dos podas para la
+ * misma cosa, que es exactamente lo que el cajón vino a quitar.
  */
-const comoMaterial = (entry) => ({
+export const comoMaterial = (entry) => ({
   name: String(entry?.name || '').trim(),
   grams: toNum0(entry?.grams),
   proteinPer100: toNum0(entry?.proteinPer100),
@@ -110,6 +115,45 @@ export const platoSummary = (plato) => {
   const n = (plato?.foods || []).length;
   return `${n} ${n === 1 ? 'alimento' : 'alimentos'} · ${platoKcals(plato)} kcal`;
 };
+
+/**
+ * UN PLATO, HECHO PIEZA DEL PORTAPAPELES.
+ *
+ * ── Por qué existe, y es la razón de `piezaDeHoja` ─────────────────────────
+ * Porque hay DOS sitios que producen un plato copiado —la alternativa de una
+ * comida (`copiarPlato`) y la vitrina, que lo devuelve a la mano
+ * (`comoPiezaDelPortapapeles`)— y uno solo que lo lee (`pegarPlato`, que
+ * bautiza lo que entra con `carga.name`). Escrito dos veces, basta que uno se
+ * olvide de esa clave para que lo pegado salga sin nombre: es exactamente la
+ * avería del `dayName` que ya se pagó una vez con las hojas.
+ *
+ * Y la poda la hace ÉL: `comoMaterial` deja fuera el `id` de la entrada de la
+ * que sale, lo que un cliente concreto tiene oculto y las alternativas que
+ * traía de un PDF. Lo que viaja es el criterio, no el caso — que es la ley de
+ * cabecera de `lib/portapapeles`.
+ *
+ * @param name   Cómo se llama la ración. Sin nombre no viaja: «Opción 2» dice
+ *               dónde estaba en una lista, no qué es.
+ * @param foods  Las entradas de dieta de la alternativa, sin podar.
+ * @param origen De quién y de dónde sale. Lo pone quien copia.
+ * @returns La pieza, o `null` si no hay ración que llevar.
+ */
+export const piezaDePlato = ({ name, foods = [], origen = null }) => {
+  const material = (foods || []).filter((f) => f && String(f.name || '').trim()).map(comoMaterial);
+  if (material.length === 0) return null;
+
+  const nombre = String(name || '').trim() || 'Plato';
+  return {
+    tipo: TIPO.PLATO,
+    titulo: nombre,
+    detalle: platoSummary({ foods: material }),
+    origen,
+    /* El nombre va también DENTRO, en la clave que `alaMano` declara para esta
+       forma. Ver la cabecera de esta función. */
+    carga: { name: nombre, foods: material },
+  };
+};
+
 
 /**
  * Los alimentos del plato como ENTRADAS DE DIETA nuevas, con sus ids propios.

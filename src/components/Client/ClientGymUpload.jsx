@@ -6,7 +6,7 @@ import { muscleColor } from '@/domain/training';
 import { byMuscle, groupOptions, unsortedCount } from '@/domain/equipment';
 import { Notice, Panel } from '@/components/ui/primitives';
 import { GymPicker } from '@/components/equipment/GymPicker';
-import { Thumb } from '@/components/photos/Thumb';
+import { Maquina } from '@/components/equipment/Maquinaria';
 
 /**
  * Las fotos de su gimnasio, subidas POR ÉL.
@@ -84,6 +84,20 @@ export const ClientGymUpload = ({ client }) => {
           <Dumbbell size={15} /> Todavía no has subido ninguna.
         </p>
       ) : (
+        /*
+          ══ Aquí SÍ se apila por grupos, y SÍ hay un desplegable por foto ══════
+
+          Es la excepción que confirma el mueble del entrenador (ver
+          `Maquinaria`): allí el índice y el «···» existen porque se viene a
+          CONSULTAR —«qué tiene para dorsal»— y recolocar es la rareza. Aquí se
+          viene a lo contrario: acaba de subir cuarenta fotos de golpe y lo que
+          hay que hacer es recorrerlas diciendo qué es cada una. La decisión se
+          toma viendo la imagen, y un desplegable debajo de cada una es
+          exactamente el gesto — esconderlo detrás de un menú sería un clic de
+          más multiplicado por cuarenta.
+
+          Lo que sí se comparte es la PIEZA: la misma foto, con el mismo marco.
+        */
         <div className="col gap-4">
           {tandas.map((tanda) => (
             <div key={tanda.group} className="col gap-2">
@@ -92,16 +106,13 @@ export const ClientGymUpload = ({ client }) => {
               </span>
               <div className="gym-grid">
                 {tanda.items.map((pieza) => (
-                  <figure key={pieza.id} className="gym-shot">
-                    {pieza.url && (
-                      <Thumb url={pieza.url} alt={pieza.name || tanda.group} width={320} />
-                    )}
-                    {/*
-                      Puede reclasificar, y no puede borrar. La primera pasa por
-                      `set_equipment_group` (0080), que escribe una sola columna;
-                      la segunda no existe para él y por eso no hay papelera —
-                      enseñar un botón que va a fallar es peor que no tenerlo.
-                    */}
+                  /*
+                    Puede reclasificar, y no puede borrar. La primera pasa por
+                    `set_equipment_group` (0080), que escribe una sola columna;
+                    la segunda no existe para él y por eso no hay papelera —
+                    enseñar un botón que va a fallar es peor que no tenerlo.
+                  */
+                  <Maquina key={pieza.id} pieza={pieza} grupo={tanda.group}>
                     <select
                       className="select select-xs"
                       aria-label="De qué es esta máquina"
@@ -117,7 +128,7 @@ export const ClientGymUpload = ({ client }) => {
                         </option>
                       ))}
                     </select>
-                  </figure>
+                  </Maquina>
                 ))}
               </div>
             </div>

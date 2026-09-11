@@ -270,6 +270,20 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     display: flex; flex-direction: column; gap: var(--s2);
     width: 256px; flex-shrink: 0;
     position: sticky; top: var(--s3);
+    /* ── El mueble entero por encima de la hoja ───────────────────────────
+       El `backdrop-filter` de abajo CREA contexto de apilamiento, y sin
+       `z-index` ese contexto vale 0 en la raíz. Como la barra va antes que
+       `.shell-main` en el DOM, todo lo que hay dentro de ella quedaba
+       encerrado por debajo de cualquier pieza posicionada de la página —el
+       asa del ejercicio (1), el contenido del folio (1), la cabecera del
+       cliente (60)—, por muchísimo `z-index` que se le pusiera al menú de la
+       cuenta. Desplegada no se veía, porque el menú no sale del mueble;
+       plegada sale al papel y la hoja le pintaba el texto ENCIMA.
+
+       130 y no 80: por encima también del mostrador del lote (`.p-lote`,
+       120), que flota al pie y a 1280 px roza el menú plegado. Por debajo de
+       lo que tapa la pantalla entera (capas 200, ventanas 300). */
+    z-index: 130;
     height: calc(100dvh - var(--s3) * 2);
     margin: var(--s3) 0 var(--s3) var(--s3);
     padding: var(--s3) var(--s2) var(--s2);
@@ -332,6 +346,19 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      escritorio no hay hoja, así que allí el tope de `.layout` sigue haciendo
      falta y se queda. */
   .shell .layout { padding-top: var(--s6); max-width: none; }
+
+  /* ── LA CALLE, SOLO DONDE HAY CINTA ──────────────────────────────────────
+     El cuerpo sangra la calle para caer a plomo con el titular de su cinta —que
+     también la lleva—. Pero la calle existe para alojar el mando, y el mando lo
+     pinta la CINTA: Inicio, Cobros y Agenda no tienen, así que allí sangrar
+     dejaría 34 px muertos por la izquierda, márgenes desiguales (56 contra 22)
+     y ningún inquilino. Medido en la app: eran esas tres.
+
+     Las de la cartera y el Taller no pasan por aquí —su `.layout` va a cero,
+     más abajo— y la calle la ponen su cinta y su cuerpo. */
+  .shell-main:has(.cliente-cab) > .layout {
+    padding-left: calc(var(--s5) + var(--carril-chasis));
+  }
 
   /* ── TODA PANTALLA CON CINTA OCUPA LA HOJA ENTERA ────────────────────────
      La cinta de un cliente es hermana de `.layout`, así que llega al canto de
@@ -401,7 +428,12 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
        problema; el problema era que el CONTENIDO no empezaba en el mismo sitio
        en todas las pantallas, y eso se arregla abajo (el sangrado de `.layout`)
        y en `superficies.css` (la medida del cuerpo), no aquí. */
-    max-width: calc(var(--max-w-trabajo) + var(--s5) * 2);
+    /* La calle del chasis se suma al techo en vez de descontarse de él: si
+       solo se sangrara por dentro, el mando le habría quitado 34 px de trabajo
+       a las once pantallas. Así la hoja crece hacia la mesa —que es hueco que
+       sobra— y la columna sigue midiendo `--max-w-trabajo` exactamente. Ver
+       `--carril-chasis`, en `tokens.css`. */
+    max-width: calc(var(--max-w-trabajo) + var(--s5) * 2 + var(--carril-chasis));
     background:
       radial-gradient(46% 30% at 82% -4%, var(--brasa-aire), transparent 70%),
       radial-gradient(40% 26% at 6% -4%, var(--acero-aire), transparent 70%),
@@ -409,6 +441,27 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
     background-repeat: no-repeat;
     border: 1px solid var(--edge);
     border-radius: var(--r-xl);
+  }
+
+  /* ── PLEGAR LA BARRA ENSANCHA LA HOJA ────────────────────────────────────
+     «Le das y no aumenta el tamaño, solo se desplaza» (el dueño, 9 sep). Era
+     exacto: la hoja tiene tope fijo, la barra soltaba 192 px al plegarse (256
+     menos 64) y esos 192 se quedaban en la mesa, a la derecha. El trabajo se
+     corría a la izquierda y medía lo mismo. Un mando que promete ancho y
+     entrega mudanza no vale para nada.
+
+     Lo que sube es el TOKEN y no el `max-width` de la hoja, y eso es lo que
+     hace que crezca el trabajo y no solo el papel: la hoja, la columna, las
+     dos cintas y los carriles del Taller miden todos a partir de
+     `--max-w-trabajo`. Tocando solo la hoja, el contenido se habría quedado en
+     su medida y los 192 px habrían pasado de sobrar fuera a sobrar DENTRO, que
+     es peor —un hueco dentro de un objeto se lee como que falta algo—.
+
+     No rompe la ley de que la hoja es la misma en todas las pantallas: sigue
+     siéndolo. Tiene dos medidas, la plegada y la abierta, y son las dos únicas
+     que hay — el mando existe justamente para elegir entre ellas. */
+  .shell:has(.sidebar.is-plegada) {
+    --max-w-trabajo: calc(var(--ancho-trabajo) + 192px);
   }
 
 }
@@ -442,15 +495,88 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .sidebar-buscar .omnibox { height: 32px; background: var(--surface-sunken); border-color: var(--edge); }
 .sidebar-buscar .omnibox:hover { border-color: var(--hairline-strong); }
 
-/* ══ AQUÍ VIVIÓ `.sidebar-cartera` ════════════════════════════════════════
-   La franja de clientes: la única que crecía, la única que rodaba y por tanto
-   la que llevaba EL MUELLE de la barra (`flex: 1 1 auto`). Con ella se van sus
-   dos reglas de scroll y el rótulo fijo que la encabezaba.
+/* ══ LA COLA: la cartera entera, con techo de ventana ══════════════════════
+   Es la única franja de la barra que crece con los datos, así que es la que
+   lleva EL MUELLE (`flex: 1 1 auto`) y la única que rueda: las cuatro puertas,
+   el taller y el pie no ceden ni un píxel, y lo que se aprieta cuando la
+   ventana es baja es esto.
 
-   El hueco sobrante vuelve al pie (`margin-top: auto` en `.sidebar-foot`), que
-   es donde estaba antes de todo esto. Y ahora es verdad de una vez: sin lista,
-   NADA de la barra crece — nueve destinos y tu cuenta, midan lo que midan los
-   datos de debajo. */
+   Que ruede es lo que hace compatible «la lista entera siempre» con «la barra
+   no es un listín»: cuarenta clientes ocupan lo mismo que ocho —el hueco que
+   sobre entre el taller y tu cuenta— y los que no caben se alcanzan rodando,
+   no empujando la mitad de la barra fuera de la pantalla.
+
+   `overscroll-behavior: contain` para que llegar al final de la lista no
+   arrastre la página de al lado, que es de lo que más se nota al usarlo. */
+/* `flex: 0 1 auto` y no `1 1 auto`: la cola CEDE cuando la ventana se queda
+   corta, pero no CRECE cuando sobra sitio. Creciendo, una cartera de seis
+   dejaba un palmo de vacío entre el último nombre y «Tu taller», que se lee
+   como un hueco donde falta algo. El hueco sobrante sigue siendo del pie
+   (`margin-top: auto` en `.sidebar-foot`), que es de donde salió. */
+.sidebar-cartera { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.sidebar-lista {
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: 2px;
+}
+/* La cifra del rótulo: cuántos llevas. En la misma versalita terciaria y al
+   otro extremo, que es donde el ojo la busca después de leer el rótulo. */
+.sidebar-group-n { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ── El filtro de la cola ──────────────────────────────────────────────────
+   No es el buscador de arriba y no se viste como él: aquél es un campo con
+   canto porque te lleva a cualquier sitio de la aplicación; éste solo tacha
+   filas de la lista que tiene debajo, así que va a ras, con su lupa pequeña y
+   sin caja hasta que se enfoca. */
+.sidebar-filtro {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 3px var(--s2) 5px;
+  color: var(--text-tertiary);
+}
+.sidebar-filtro > input {
+  flex: 1; min-width: 0;
+  background: none; border: 0; padding: 0;
+  font: inherit; font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.sidebar-filtro > input::placeholder { color: var(--text-tertiary); }
+.sidebar-filtro:focus-within { color: var(--accent); }
+.sidebar-filtro > input:focus { outline: none; color: var(--text); }
+
+/* ── La línea de herramientas de la cola ───────────────────────────────────
+   Filtrar a la izquierda y ordenar al canto derecho: el mismo reparto que la
+   barra de la cartera, pero en 240 px.
+
+   La línea NO envuelve. Envolvía cuando el mando decía el orden con todas sus
+   letras: «Por último entreno» dejaba el campo en 49 px —«Filtrar…» recortado
+   a «Filtrar..»— y la única salida sin mentir era bajarlo a un renglón propio,
+   o sea que ordenar movía la lista entera hacia abajo. Mudo cabe siempre, y el
+   campo se queda con lo que sobra: una sola fila, pase lo que pase. */
+.sidebar-barra { display: flex; align-items: center; flex-wrap: nowrap; gap: var(--s1); min-width: 0; }
+.sidebar-barra > .sidebar-filtro { flex: 1 1 auto; min-width: 0; }
+.sidebar-barra > .menu-acciones { margin-left: auto; flex: none; }
+
+/* El mando, vestido como el filtro y por lo mismo: es cromo de la lista, no un
+   botón de la página. Sin caja, terciario, y solo se enciende al apuntarlo o
+   con el teclado. No se pinta en azul con un orden puesto —el azul de la casa
+   dice «hay algo acotado» y ordenar no esconde a nadie—: el estado lo dicen el
+   globo y la marca del menú. */
+.sidebar-orden {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex: none;
+  padding: 0;
+  background: none; border: 0; border-radius: var(--r-sm);
+  color: var(--text-tertiary); cursor: pointer;
+}
+/* El relleno al pasar, que en el rótulo no hacía falta y en un icono suelto sí:
+   es lo mismo que hace `.btn-icon` y es lo que dice que esos 24 px son un
+   botón y no una viñeta de la línea. */
+.sidebar-orden:hover { background: var(--fill); color: var(--text); }
+.sidebar-orden:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; color: var(--text); }
+
+/* Sin resultados: se dice y no se deja el hueco en blanco, que se lee como que
+   la lista se ha roto. */
+.sidebar-vacio {
+  padding: var(--s2); font-size: var(--fs-xs); color: var(--text-tertiary);
+}
 
 /* El rótulo de la franja, en troquelada: nombra la tanda que viene debajo sin
    competir con las puertas de arriba, que es exactamente el papel que los
@@ -641,7 +767,11 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 .cliente-cab-in,
 .cartera-cab-in {
   margin: 0 auto;
-  padding: 0 var(--s5);
+  /* Por la izquierda, el sangrado de siempre MÁS la calle del chasis: el
+     titular arranca donde arranca el cuerpo de la página y el mando del ancho
+     se queda en la calle, fuera de la columna. En móvil la calle mide cero y
+     esto es el sangrado de siempre. Ver `--carril-chasis`, en `tokens.css`. */
+  padding: 0 var(--s5) 0 calc(var(--s5) + var(--carril-chasis));
   display: flex; flex-direction: column;
 }
 /* ── Y CADA CINTA TOMA LA MEDIDA DE SU PÁGINA ──────────────────────────────
@@ -719,6 +849,15 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   letter-spacing: -0.015em; line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* ── LA NUBE CUELGA DEL TÍTULO ─────────────────────────────────────────────
+   Con el hueco de la línea a los dos lados (12 px en el expediente, 16 en la
+   cartera y el Taller) el signo quedaba a media distancia entre el nombre y lo
+   que viene detrás —la anatomía allí, el raíl de tramos aquí—, y a media
+   distancia no se sabe de qué habla. Pegado al nombre se lee como lo que es:
+   de qué se fía lo que estás mirando. Es el sitio de Google Docs, y el que el
+   dueño señaló en Efort. Ver `ui/EstadoDeRed`. */
+.cliente-cab-quien > .nube { margin-left: calc(var(--s2) - var(--s3)); }
+.cartera-cab-titulo + .nube { margin-left: calc(var(--s2) - var(--s4)); }
 .cliente-cab-selector { display: none; }
 .cliente-cab-volver { display: none; }
 /* En la MISMA línea que el nombre y en voz baja: quién es —las chapas de la
@@ -802,7 +941,10 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      cara suelta al lado del selector serían dos identidades en la misma fila. */
   .cliente-cab-puerta { display: none; }
   .cliente-cab-quien {
-    flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr);
+    /* Tres columnas y no dos: la vuelta, el selector —que aquí hace de nombre,
+       porque la puerta se retira— y el signo de la red al final de la fila.
+       Con dos, la nube empujaba el selector a una línea propia. */
+    flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
     gap: var(--s2) var(--s2); align-items: center;
   }
   .cliente-cab-volver { display: inline-flex; }
@@ -814,6 +956,9 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
   .cliente-cab-selector > div,
   .cliente-cab-selector .btn { max-width: 100%; }
   .cliente-cab-meta { grid-column: 1 / -1; }
+  /* Aquí el signo tiene columna propia al final de la fila, no un vecino del
+     que colgar: el sangrado de arriba sobra. */
+  .cliente-cab-quien > .nube { margin-left: 0; }
   /* Aquí la línea deja de ser línea: sin nombre ni carril, lo que queda —el
      selector, la línea de estado y las dos acciones— no cabe en una. */
   .cliente-cab-in, .cartera-cab-in { padding: var(--s3) var(--s4); }
@@ -1040,21 +1185,324 @@ button.side-link {
    acciones, así que los cortes de la banda vieja (1 580 / 1 470 / 1 300,
    medidos con el carril en medio) bajan: la línea entera pide unos 900 px.
 
-     1 280 — se va el rótulo de «Ver como»; queda el ojo, que ya lo dice.
      1 120 — se va la anatomía; quedan el nombre y el microciclo.
      1 024 — el móvil, que tiene su propia cabecera.
+
+   El corte de 1 280 se ha ido con su pieza: era el que le quitaba el rótulo a
+   «Ver como» para dejar el ojo pelado, y «Ver como» ya no está en esta cinta
+   (el porqué, en `CoachLayout`). Con un solo verbo —y condicional— la línea
+   pide menos ancho que nunca y no necesita ese primer escalón.
 
    El raíl no entra en la retirada: lleva `overflow-x: auto` y rueda solo.
    Va al final del archivo a propósito: cada `display: none` de aquí tiene que
    ganarle al `display` de la pieza que retira, y en CSS eso lo decide quién va
    después. */
-@media (max-width: 1279.98px) {
-  .cliente-cab-ver-como > span { display: none; }
-  .cliente-cab-ver-como { padding-inline: 5px; }
-}
 @media (max-width: 1119.98px) {
   .cliente-cab-anatomia { display: none; }
   /* Su interpunto ya no necesita retirada aparte: el separador que seguía a
      la anatomía se suprime siempre desde que las chapas separan solas. */
 }
 
+
+/* ==========================================================================
+   LA FRANJA DE RECIENTES Y LA BARRA PLEGADA
+   --------------------------------------------------------------------------
+   Va al final del archivo a propósito, igual que la tinta de la barra: estas
+   reglas CORRIGEN las de arriba —anchura, rótulos, cantos— y en CSS eso lo
+   decide quién va después.
+
+   El porqué de las dos piezas está en `Coach/CoachLayout.jsx` (la franja) y en
+   `lib/barraPlegada.js` (el pliegue). Aquí, la geometría.
+   ========================================================================== */
+
+/* ══ EL ANCHO, EN LA CALLE DEL CHASIS ══════════════════════════════════════
+   El mando de plegar la barra. Vivió en la COSTURA —una pastilla fija sobre el
+   filete, entre la barra y la página— y el dueño lo bajó de ahí por dos cosas:
+   «ha de estar en el lienzo, no en el borde entre el lienzo y la barra lateral,
+   queda impostado ahí», y «carece de sentido: le das y no aumenta el tamaño,
+   solo se desplaza».
+
+   La segunda era el fallo de verdad, y estaba aquí abajo: la hoja tiene tope
+   fijo, así que los 192 px que soltaba la barra al plegarse se quedaban en la
+   mesa y el trabajo solo se corría a la izquierda. Se arregla más abajo, en
+   `.shell:has(.sidebar.is-plegada)`.
+
+   ── Y va EN CABEZA de la cinta, no en la esquina de la derecha ─────────────
+   Salió a la derecha, en el canto de la hoja, con el argumento de que es donde
+   una ventana pone su «maximizar». Y el dueño midió lo que yo no: «la hoja se
+   expande desde la parte izquierda del lienzo, en la derecha no le veo
+   sentido». Es literal — el canto DERECHO de la hoja no se mueve un píxel al
+   plegar (1884 px en los dos estados); lo que se abre es el izquierdo, que se
+   corre de 280 a 88. Un mando de ancho puesto en el lado quieto obliga a mirar
+   a un sitio y a ver el cambio en el contrario.
+
+   ── Y EN SU PROPIA CALLE, no en el canalillo ni en la fila ─────────────────
+   Las dos formas de meterlo en la línea del titular se midieron con el marcado
+   real, y las dos fallan por lo mismo — dejan algo fuera de plomo:
+
+     · En el canalillo (lo anterior): el mando se quedaba en 30 px, fuera del
+       sangrado y pegado al canto del papel, con las filas de debajo en 48. No
+       se leía como un botón, se leía como una mota en la hoja.
+     · En la fila (lo que hace Coachway): el mando cae bien, pero el título se
+       iba a 97 px mientras su propia tabla seguía en 48. Es exactamente el
+       «ahora lo veo muy intrusivo» del dueño, en píxeles.
+
+   Coachway puede permitírselo porque su icono NO está en la hoja: está en una
+   franja de marco y el trabajo empieza más abajo. Nosotros retiramos esa franja
+   a propósito, así que la calle es la traducción: `--carril-chasis`, una lane
+   vacía por dentro del canto izquierdo que comparten la cinta y el cuerpo. El
+   mando sale de la columna de texto —lo suyo es el marco— y el titular vuelve
+   a caer a plomo sobre su contenido.
+
+   El botón ocupa TODO el hueco que queda a la izquierda de la columna —la
+   calle más el sangrado, del canto del papel al borde del contenido— y no solo
+   la calle. Midiendo solo la calle, la CAJA caía a plomo con el contenido pero
+   el ICONO no caía a plomo con nada: centrado en 34 px que empiezan 22 dentro
+   del papel, se quedaba a 32 px del canto y a 9 del avatar. Se leía pegado a
+   la persona, o sea como el primer elemento de la fila, que es exactamente lo
+   que este mando NO es. Ahora el aire es parejo —21 px por la izquierda, 20
+   por la derecha— y el relleno del hover, que era una pastilla descentrada,
+   cae centrado. De paso el blanco del canto deja de ser tierra de nadie: la
+   diana llega hasta el borde, que es donde la mano va a buscar este mando.
+
+   No mueve nada más, porque el hueco ya estaba reservado y el botón sigue
+   terminando exactamente en el borde de la columna. Sin caja mientras no se
+   toca —es cromo del marco, no una acción de la pantalla— y con el relleno de
+   siempre al pasar por encima. Solo en escritorio: sin barra no hay nada que
+   plegar, y por eso allí la calle mide cero. */
+.pliegue { display: none; }
+@media (min-width: 1024px) {
+  /* La calle solo existe donde existe la barra que se pliega. Va en `.shell`
+     —no en `:root`— para que el portal del cliente y el móvil no la hereden. */
+  .shell { --carril-chasis: 34px; }
+
+  .pliegue {
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0; position: relative;
+    /* La calle MÁS el sangrado, y se desplaza las dos: arranca en el canto del
+       papel y termina en el canto de la columna. Si un día cambia cualquiera de
+       las dos medidas, el botón las sigue solo. */
+    width: calc(var(--carril-chasis) + var(--s5)); height: 30px; padding: 0;
+    margin-left: calc(-1 * (var(--carril-chasis) + var(--s5)));
+    /* Lo que se pinta es más pequeño que lo que se pulsa: ver `.pliegue::before`
+       aquí debajo. La caja de 30 es la del cromo de la casa (`.btn-icon`, 32). */
+    --pliegue-caja: 30px;
+    border: 0;
+    background: transparent; color: var(--text-tertiary);
+    cursor: pointer;
+    transition: opacity var(--fast), color var(--fast);
+
+    /* ── MUDO HASTA QUE TE ACERCAS ────────────────────────────────────────
+       El mando no cambia nunca y se usa una vez cada mucho, así que un signo
+       encendido en la esquina de las once pantallas es cromo pidiendo atención
+       para nada. Se enciende al entrar en la cinta y se apaga al salir.
+
+       Aparecer no mueve NADA porque la calle ya está reservada: el hueco es
+       suyo esté visible o no, y por eso esto puede ser un fundido y no una
+       pieza que entra a empujones. (La razón por la que casi nunca se puede
+       hacer esto en una barra: sin sitio guardado, lo que aparece descoloca lo
+       de al lado.)
+
+       Sigue siendo pulsable mientras está en cero —el clic no espera al
+       fundido— y el teclado lo enciende al enfocarlo, que si no sería un
+       destino de tabulación invisible. El fundido lo apaga solo
+       `prefers-reduced-motion` (ver `base.css`). */
+    opacity: 0;
+  }
+  .cliente-cab:hover .pliegue,
+  .cartera-cab:hover .pliegue,
+  .pliegue:focus-visible,
+  /* PLEGADA se queda fijo: es la única forma de devolver la barra, y algo que
+     hay que descubrir pasando el ratón por encima no es una forma de volver. */
+  .pliegue[aria-pressed='true'] { opacity: 1; }
+  /* ── LA DIANA ES GRANDE; LO QUE SE PINTA, NO ────────────────────────────
+     Con la caja llegando al canto del papel, el relleno del hover salía de 56
+     px, terminaba justo donde empieza el avatar y los dos juntos se leían como
+     UNA SOLA pastilla de 90 px con dos cosas dentro: «al darle clic el elemento
+     es muy grande» (el dueño, y se ve especialmente en oscuro, donde el relleno
+     tiene más contraste contra el papel que en claro).
+
+     Se separan las dos medidas, que no tienen por qué ser la misma: la diana
+     sigue midiendo el hueco entero —el canto es donde la mano va a buscar este
+     mando, y un blanco de 56 px es una diana barata—, y el relleno lo dibuja un
+     cuadrado de 30 centrado en el icono, con su aire a los dos lados. Sale del
+     propio hueco, así que si la calle o el sangrado cambian, sigue centrado.
+
+     El foco va también al cuadrado: un anillo alrededor de los 56 px marcaría
+     como enfocado un trozo de papel vacío. */
+  .pliegue::before {
+    content: ''; position: absolute;
+    inset: 0 calc((var(--carril-chasis) + var(--s5) - var(--pliegue-caja)) / 2);
+    border-radius: var(--r-sm); background: transparent;
+    transition: background-color var(--fast);
+  }
+  /* El relleno está posicionado, así que sin esto pintaría POR ENCIMA del
+     icono: los dos son hijos y entre posicionados manda el orden del árbol. */
+  .pliegue > svg { position: relative; }
+  .pliegue:hover { color: var(--text); }
+  .pliegue:hover::before { background: var(--fill); }
+  .pliegue:focus-visible { outline: none; }
+  .pliegue:focus-visible::before { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Y se come también el hueco de la fila, que si no reaparecería delante del
+     título. Son dos porque las dos cintas no separan igual: 12 px la del
+     expediente y 16 la de la cartera y el Taller. */
+  .cliente-cab-quien > .pliegue { margin-right: calc(-1 * var(--s3)); }
+  .cartera-cab-linea > .pliegue { margin-right: calc(-1 * var(--s4)); }
+}
+
+/* ── Una persona en la barra, en voz baja ──────────────────────────────────
+   Llevó el avatar de cada uno donde los destinos llevan su icono, y a esa
+   escala cuatro discos de color son cuatro focos en una columna de tinta: la
+   franja pesaba más que los nueve destinos que tiene encima y debajo.
+
+   Ahora es solo el nombre, sangrado a la altura de los rótulos de arriba
+   (14 px de la caja + 15 del icono + su aire) para que la franja caiga en la
+   misma retícula sin gritar más que ella, y en un peso por debajo del de un
+   destino: la barra sigue siendo para ir a los sitios.
+
+   Quien está abierto SÍ toma el relleno de la barra —el mismo que marca el
+   destino activo—: en la barra de tinta ese relleno es el único «estás aquí»
+   que hay (`.barra-tinta` apaga el filete azul), y una franja de nombres sin
+   ninguna marca no dice a cuál de ellos estás mirando. */
+/* `flex: none` y no es cosmética: la lista es una columna flex con techo, así
+   que sin esto las filas se ENCOGEN para caber —veintidós nombres apretados a
+   catorce píxeles, ilegibles— en vez de dejar que la lista ruede, que es lo que
+   se le ha pedido. Medido: 22 clientes en una ventana de 800 px. */
+.side-persona {
+  flex: none;
+  gap: var(--s2); padding-top: 5px; padding-bottom: 5px; padding-left: var(--s2);
+  font-weight: 500;
+}
+.side-persona-nombre {
+  min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Las dos señales de la fila ────────────────────────────────────────────
+   El PUNTO: esta persona espera algo tuyo. Ocupa su hueco encendido o apagado
+   —21 px de calle, que es lo que alinea los nombres con los rótulos de arriba—
+   porque si apareciera al contestar alguien, la lista entera bailaría.
+
+   Azul y no ámbar: invita a entrar, no riñe por no haber entrado. Es la ley del
+   color de la casa, y es además la única marca de color de toda la columna. */
+.side-punto {
+  flex: none; width: 21px; display: flex; justify-content: center;
+}
+.side-punto.is-espera::before {
+  content: ''; width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+}
+
+/* El MICROCICLO por el que va. En cifras tabulares para que la columna no
+   tiemble, en tinta terciaria y a media voz: es contexto de la fila, no un dato
+   que comparar con el de al lado — para comparar está `/clientes`. */
+.side-ciclo {
+  flex: none; font-size: var(--fs-2xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.side-link.active > .side-ciclo { color: var(--text-secondary); }
+
+/* Igual que el taller: el aire de la tanda lo pone su rótulo, que es quien la
+   empieza. Sin esto, «Tus clientes» se pega a la última puerta de arriba. */
+.sidebar-cartera .sidebar-group { padding-top: var(--s3); }
+
+@media (min-width: 1024px) {
+  /* ── PLEGADA ────────────────────────────────────────────────────────────
+     64 px: la caja de un destino (28 px de icono más su aire) y nada más. No es
+     un modo aparte ni una barra distinta — es la MISMA barra sin las palabras,
+     con los nueve destinos en el mismo orden y en el mismo sitio. Lo que se
+     pierde son los rótulos, y los devuelve el título al pasar por encima. */
+  .sidebar.is-plegada {
+    width: 64px;
+    padding-left: var(--s1); padding-right: var(--s1);
+  }
+
+  /* La marca y el interruptor se apilan: en 48 px útiles no caben al lado y
+     ninguno de los dos sobra —uno dice de quién es esto y el otro es la única
+     forma de volver—. */
+  .sidebar.is-plegada .sidebar-brand {
+    justify-content: center;
+    padding: var(--s1) 0 var(--s2);
+  }
+  /* El nombre y el descriptivo de la marca; queda el mark, que es el icono. */
+  .sidebar.is-plegada .brand > div { display: none; }
+  .sidebar.is-plegada .brand { gap: 0; }
+
+  .sidebar.is-plegada .omnibox { justify-content: center; padding-inline: 0; }
+  .sidebar.is-plegada .omnibox-label,
+  .sidebar.is-plegada .omnibox .kbd { display: none; }
+
+  /*
+    El rótulo de la tanda no cabe, y lo que hacía —decir dónde empieza un grupo—
+    lo hace igual de bien un filete. Es el mismo recurso que ya usa el pie de la
+    barra, y aquí no convierte nada en «una lista de cajones» porque plegada NO
+    hay tipografía con la que agrupar: o filete, o nueve iconos seguidos.
+  */
+  .sidebar.is-plegada .sidebar-group { display: none; }
+  .sidebar.is-plegada .sidebar-taller {
+    margin-top: var(--s2); padding-top: var(--s2);
+    border-top: 1px solid var(--hairline);
+  }
+
+  /*
+    Y la COLA no se pinta. Sin la cara, un nombre a 64 px no cabe ni recortado,
+    y ampliar la mesa es un modo de escribir series —no de navegar—: lo que se
+    pliega para ganar una columna de trabajo no puede gastarla en una lista que
+    el buscador recorre igual de rápido.
+  */
+  .sidebar.is-plegada .sidebar-cartera { display: none; }
+
+  /*
+    `font-size: 0` y no `display: none`: el rótulo de un destino es un nodo de
+    TEXTO suelto dentro del enlace —no un elemento— y no hay selector que lo
+    alcance. El icono no se entera porque los SVG de lucide llevan su tamaño en
+    los atributos, y la cara tampoco, porque su tipografía se declara aparte.
+  */
+  .sidebar.is-plegada .side-link {
+    font-size: 0;
+    justify-content: center;
+    gap: 0;
+    padding-left: 0; padding-right: 0;
+  }
+
+  /*
+    El recuento pasa de cifra a PUNTO. Plegada no hay sitio para un número al
+    lado del icono, y la pregunta que contesta la barra a ese ancho tampoco es
+    cuántos: es si hay algo. El número está a un clic, en la propia pantalla.
+  */
+  .sidebar.is-plegada .side-count {
+    position: absolute; top: 5px; right: 9px;
+    min-width: 7px; width: 7px; height: 7px;
+    padding: 0; font-size: 0; border-radius: 50%;
+  }
+
+  /* El pie se apila por lo mismo que la marca: la nube, los avisos y tu cara no
+     caben en fila en 48 px. */
+  .sidebar.is-plegada .sidebar-foot > .row.is-fila { flex-direction: column; gap: 6px; }
+  .sidebar.is-plegada .account-fila { justify-content: center; padding-inline: 0; }
+  .sidebar.is-plegada .account-fila-quien { display: none; }
+  .sidebar.is-plegada .account-fila > svg { display: none; }
+  /* ── EL MENÚ DE LA CUENTA SALE POR EL COSTADO ───────────────────────────
+     Con la barra abierta el menú mide lo que mide su fila (`left: 0; right: 0`)
+     y se queda DENTRO del mueble: es un cajón de la barra y se lee como tal.
+
+     Plegada, esa fila mide 48 px y el menú no cabe en ella, así que se soltó
+     del canto derecho y tomó su medida (220 px) sin moverse del izquierdo. El
+     resultado era un panel que arrancaba dentro de la barra, cruzaba su filete,
+     cruzaba la mesa y aterrizaba 163 px encima del papel: un objeto a caballo
+     entre tres superficies, que no es de ninguna. Es lo que el dueño señaló dos
+     veces («esta casuística queda un poco rara»).
+
+     La traducción correcta de un cajón cuando el mueble se estrecha no es «lo
+     mismo pero más ancho»: es lo que hace cualquier rail de iconos —sale por el
+     costado, entero fuera de la barra y alineado por abajo con tu cara, que es
+     de donde nace—. Para eso la cuenta tiene que ocupar el ancho de la barra
+     (si no, el `100%` se mide desde el avatar de 24 px y el menú vuelve a
+     arrancar dentro); el avatar no se mueve, porque su fila ya se centraba. */
+  .sidebar.is-plegada .sidebar-foot .account { align-self: stretch; }
+  .sidebar.is-plegada .account.is-fila .account-menu {
+    top: auto; bottom: 0;
+    /* El aire se cuenta desde el CANTO de la barra, no desde la cuenta: por eso
+       son dos sumandos, el relleno del mueble y el hueco de verdad. */
+    right: auto; left: calc(100% + var(--s1) + var(--s2));
+    min-width: 220px;
+  }
+}

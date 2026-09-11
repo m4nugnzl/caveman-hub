@@ -6,7 +6,6 @@ import { Dashboard } from '@/components/dashboard/Dashboard';
 import { ClientFolder } from './ClientFolder';
 import { ClientUpdates } from './ClientUpdates';
 import { IntakeDeliverables } from './IntakeDeliverables';
-import { IntakePrompt } from './IntakePrompt';
 
 /**
  * El inicio del cliente: SU PROGRESO, con lo que ha cambiado arriba.
@@ -87,11 +86,21 @@ export const ClientStart = () => {
           pierde del todo: su nombre y su avatar siguen en la cabecera. */}
       <PageHead title="Mi progreso" sub="Cómo vas, semana a semana." />
 
-      {/* Lo que su entrenador espera DE ÉL. Va lo primero mientras falte: es lo
-          que desbloquea el resto de la aplicación, y debajo de un aviso de
-          pesajes parecía opcional. */}
-      <IntakePrompt client={activeClient} />
+      {/*
+        ══ Aquí estaba OTRA VEZ la tarjeta del alta ═══════════════════════════
 
+        `IntakePrompt` se pintaba aquí y también en `ClientRoutineRoute`, así que
+        con el alta a medias la misma tarjeta azul —la pieza más grande y más
+        ruidosa del portal— era lo primero que había bajo el título en DOS de sus
+        cinco secciones. Un aviso que se repite deja de leerse como un aviso y
+        pasa a leerse como cromo de la casa: exactamente lo que el comentario de
+        `IntakePrompt` dice que no quiere ser.
+
+        Se queda en «Mi rutina», que es donde aterriza al entrar. Aquí sigue
+        contando: `altaPendiente` hace callar la reclamación de la semana
+        mientras el alta esté a medias, y lo que le dejó preparado su entrenador
+        sigue debajo (`IntakeDeliverables`).
+      */}
       <ClientUpdates client={activeClient} altaPendiente={altaPendiente} />
       <Dashboard audience="client" />
       <IntakeDeliverables client={activeClient} />

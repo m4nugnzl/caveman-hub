@@ -7,22 +7,28 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Bookmark,
   CalendarDays,
+  ClipboardPaste,
   Copy,
   Download,
   FileUp,
   Layers,
   Plus,
+  Redo2,
   Settings2,
   Trash2,
+  Undo2,
   Users,
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { useEsTelefono } from '@/lib/useMediaQuery';
+import { useAtajosDeCopia } from '@/lib/useAtajosDeCopia';
+import { useAtajoDeDeshacer } from '@/lib/useAtajoDeDeshacer';
 import { Modal } from '@/components/ui/Modal';
 import {
   cloneExerciseAsTemplate,
+  conLaPauta,
   drillsForDay,
   dayHasOwnDrills,
   tecnicaOf,
@@ -34,7 +40,7 @@ import {
   weekdayForDay,
 } from '@/domain/training';
 import { sessionCompletion, sessionTonnage } from '@/domain/sessions';
-import { isEmptyDiet } from '@/domain/nutrition';
+import { hasSeveralDays, isEmptyDiet } from '@/domain/nutrition';
 import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
 import { EmptyState, SaveIndicator } from '@/components/ui/primitives';
@@ -48,26 +54,40 @@ import { useProgramNavigation } from './useProgramNavigation';
 import { useDaySession } from './useDaySession';
 import { CycleSettings } from './CycleSettings';
 import { CopyToClientPanel } from './CopyToClientPanel';
+import { ClientSettingsSheet, PieDeProtocolo } from '../ClientSettings';
 import { PastePlanDialog } from '../Import/PastePlanDialog';
 import { ImportDayDialog } from './ImportDayDialog';
 import { ExerciseList } from './ExerciseList';
 import { AddExerciseForm } from './AddExerciseForm';
 import { ComparativaEjercicio } from './ComparativaEjercicio';
+import { TramoDelPegado } from './TramoDelPegado';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { Subjetivo } from '@/components/ui/Subjetivo';
+import { Destino } from '@/components/ui/Portapapeles';
+import { TIPO, copiar as copiarAlPortapapeles, piezaDeHoja, usePortapapeles } from '@/lib/portapapeles';
+
 import { TiraDelPrograma } from './TiraDelPrograma';
+import { BotonMas } from '@/components/ui/BotonMas';
 import { ConjuntoDelBloque } from './ConjuntoDelBloque';
 import { LecturasDelBloque } from './LecturasDelBloque';
 import { ListaDeBloques } from './ListaDeBloques';
+import { MandarLaPieza } from '@/components/Coach/MandarLaPieza';
+import { useGuardarEnPlantillas } from '@/components/Coach/guardarEnPlantillas';
 import { ComoLoLlevo } from './ComoLoLlevo';
+import { VolumenDeLaHoja } from './VolumenDeLaHoja';
 import { ProgresionPopup } from './ProgresionPopup';
 import { SensacionesPopup } from './SensacionesPopup';
 import {
   BLOCK_CHANGE,
   blockOfWeek,
+  blockSessionOf,
   blockSessionsOf,
+  buildOverride,
+  blockTraits,
   blocksOf,
+  currentBlock,
   describeOverride,
+  intentLabel,
   overridesAt,
   overrideSpan,
   isCurrentBlock,
@@ -79,13 +99,46 @@ import {
   weekLabel,
   weeksOfBlock,
 } from '@/domain/blocks';
-import { MAX_PIECES, buildPiece, freeSheetName, piecesOf } from '@/domain/pieces';
+import { migrateBlockPlans } from '@/domain/blocksMigration';
+import { freeSheetName } from '@/domain/pieces';
 import { clientPath } from '@/routes';
 import { executedSessions, sessionSetCount } from '@/domain/sessions';
 import { latestActiveWeek } from '@/domain/week';
 
 /** Sin `?s=`, la última semana montada. */
 const semanaPorDefecto = (microcycles) => (microcycles.length ? lastWeekNumber(microcycles) : null);
+
+/**
+ * Un bloque copiado, listo para `startBlockWithPlan`.
+ *
+ * ══ Por qué es una función y no dos copias ═════════════════════════════════
+ * Un bloque se pega en dos sitios que no se parecen —encima del que ya hay, y
+ * en alguien que todavía no tiene programa— y los dos tienen que producir
+ * EXACTAMENTE el mismo bloque. Escrito dos veces, lo que pasó de hecho es que
+ * las dos se quedaron a medias de la misma manera.
+ *
+ * ── Y las tres características viajan ──────────────────────────────────────
+ * `intent`, `plannedWeeks` y `note` son lo que `domain/blocks` llama «las
+ * características del bloque»: a qué juega, cuánto se previó y qué se persigue.
+ * Sin ellas lo que se copia no es una estructura, es un montón de hojas con
+ * nombre — y era lo que pasaba en los tres caminos por los que un bloque sale
+ * de un cliente, aunque `startBlockWithPlan` las aceptara desde el principio.
+ *
+ * Los ejercicios se vuelven a clonar aquí y no en quien copia: la misma pieza
+ * se puede pegar cinco veces, y sin ids nuevos las cinco copias compartirían
+ * los del original — y con ellos el historial de quien lo escribió.
+ */
+const planDeLaPieza = (pieza) => ({
+  name: pieza.carga?.name || pieza.titulo,
+  sessions: (pieza.carga?.sessions || []).map((h) => ({
+    dayName: h.dayName,
+    exercises: (h.exercises || []).map(cloneExerciseAsTemplate),
+  })),
+  mobilityDrills: pieza.carga?.mobilityDrills || null,
+  intent: pieza.carga?.intent ?? null,
+  plannedWeeks: pieza.carga?.plannedWeeks ?? null,
+  note: pieza.carga?.note ?? null,
+});
 import { HojaDeSeries } from './HojaDeSeries';
 import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 
@@ -117,6 +170,7 @@ export const WorkoutLogEditor = () => {
     removeSession,
     startProgram,
     appendMicrocycle,
+    startBlockWithPlan,
     renameBlock,
     setBlockTraits,
     deleteBlock,
@@ -126,6 +180,7 @@ export const WorkoutLogEditor = () => {
     renameBlockSheet,
     moveBlockSheet,
     addBlockExercise,
+    setBlockSheetExercises,
     removeBlockExercise,
     restoreBlockExercise,
     moveBlockExercise,
@@ -152,6 +207,10 @@ export const WorkoutLogEditor = () => {
     upsertLibraryExercise,
     nutrition,
     replicateClient,
+    /* ⌘Z sobre el plan del bloque. Ver el bloque de comentario de más abajo. */
+    deshacerPlan,
+    rehacerPlan,
+    pasosDelPlan,
     ensureProgram,
     ensureNutrition,
     coachPrefs,
@@ -172,6 +231,15 @@ export const WorkoutLogEditor = () => {
   const [importAbierto, setImportAbierto] = useState(false);
   /* «Traer de un fichero»: la rutina que el cliente trae de fuera. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
+  /* El ejercicio copiado que está esperando a que se diga hasta cuándo vale.
+     Se guarda la PIEZA y no un booleano: la ventana nombra lo que se pega, y
+     al pegado desde la mano no le llega por ningún otro sitio. */
+  const [pegadoConTramo, setPegadoConTramo] = useState(null);
+  /* Y la hoja copiada que se va a poner ENCIMA de una que ya existe, esperando
+     la misma pregunta: `{ pieza, dayName }`. El nombre del día va dentro porque
+     esto se pide desde dos sitios —la hoja abierta y la columna del conjunto— y
+     en el segundo el día no es el que está delante. */
+  const [sustitucion, setSustitucion] = useState(null);
   /* La importación que viene de abrir un bloque nuevo: retira el día en blanco
      con el que nace, como se hace al montar el programa desde cero. */
   const [importarLimpio, setImportarLimpio] = useState(false);
@@ -183,6 +251,10 @@ export const WorkoutLogEditor = () => {
   const [focoEjercicio, setFocoEjercicio] = useState(null);
   /* El panel lateral abierto: el de la semana, el del día, o ninguno. */
   const [panel, setPanel] = useState(null);
+  /* El bloque que se está mandando a otros clientes, o `null`. Se guarda el
+     bloque y no un booleano porque se manda el de una fila concreta de la
+     lista, que no tiene por qué ser el abierto. */
+  const [mandandoBloque, setMandandoBloque] = useState(null);
   /* El nombre de la hoja que se está añadiendo desde la tira, o `null` si no
      hay ninguna a medias. Vive aquí y no en `ConjuntoDelBloque` porque el
      mando salió de la rejilla y subió al renglón del microciclo. */
@@ -385,6 +457,67 @@ export const WorkoutLogEditor = () => {
   const sesionesDeLaSemana = useMemo(() => executedSessions(nav.microcycle || {}), [nav.microcycle]);
   const toast = useToast();
   const confirm = useConfirm();
+  /* El gesto de guardar en el cajón, para «Guardarlo en tus plantillas» de la
+     fila de la lista de bloques. Arriba con el resto de los ganchos, por lo
+     mismo que los del portapapeles: debajo hay retornos tempranos. */
+  const guardarEnPlantillas = useGuardarEnPlantillas();
+
+  /* Lo que hay copiado y esta pantalla sabe pegar. Aquí arriba con el resto de
+     los ganchos —y no junto a los verbos que lo usan, trescientas líneas más
+     abajo— porque debajo hay retornos tempranos y un gancho no puede quedar
+     detrás de uno. Ver el bloque «EL PORTAPAPELES DE ENTRENO». */
+  const ejerciciosCopiados = usePortapapeles(TIPO.EJERCICIO);
+  const hojasCopiadas = usePortapapeles(TIPO.HOJA);
+  const bloquesCopiados = usePortapapeles(TIPO.BLOQUE);
+
+  /*
+    ══ ⌘C Y ⌘V SOBRE EL EJERCICIO SEÑALADO ═══════════════════════════════════
+
+    El gesto que ya tiene en los dedos todo el mundo, y sobre la pieza que la
+    hoja ya sabe cuál es: el ejercicio en foco, el mismo que enciende su
+    histórico al lado. Sin inventar una selección nueva.
+
+    ── Las tres guardas, y por qué ninguna sobra ─────────────────────────────
+    1. DENTRO DE UN CAMPO, MANDA EL NAVEGADOR. Media pantalla son casillas de
+       kilos y repeticiones: robarle el ⌘C a quien está copiando un número
+       sería cambiar una función que funciona por otra que no pidió.
+    2. CON TEXTO SELECCIONADO, TAMBIÉN. Seleccionar el nombre de un ejercicio
+       para pegarlo en WhatsApp es un gesto real, y `getSelection` es lo único
+       que distingue «copia esto» de «copia el ejercicio».
+    3. Y NO SE TOCA EL PORTAPAPELES DEL SISTEMA. Lo que se copia aquí son
+       objetos con sus series, no texto; escribirlos además en el del sistema
+       le borraría a alguien lo que llevara en la mano.
+
+    ── Y el oyente vive en `lib/useAtajosDeCopia` ────────────────────────────
+    Las tres guardas y el ref con los dos verbos son los mismos en la hoja y en
+    la dieta —dos pantallas donde se copia una pieza y se pega otra—, así que
+    están escritos una vez. Lo único de aquí es CUÁL es la pieza: el ejercicio
+    en foco. Debajo de esta línea hay retornos tempranos, por eso el gancho está
+    arriba y no al lado de los verbos que lo llenan.
+  */
+  const atajos = useAtajosDeCopia();
+
+  /*
+    ══ ⌘Z SOBRE EL PLAN ══════════════════════════════════════════════════════
+
+    Montar un bloque es probar: subes una serie, cambias un ejercicio, pegas
+    una hoja encima de otra. Casi todos esos gestos van sin preguntar —que es
+    lo correcto, un diálogo delante del gesto que se repite treinta veces sería
+    fricción pura— y hasta ahora solo uno de ellos, quitar un ejercicio, tenía
+    vuelta atrás. La pareja honesta de «sin confirmación» es «con deshacer», y
+    aquí lo es para el plan entero.
+
+    El motor está en `useWorkout` y su ley en `domain/deshacer`, que es una
+    frase: DEVUELVE EL PLAN Y NUNCA TOCA LO REGISTRADO. Lo que alguien haya
+    anotado mientras tanto se queda donde está.
+
+    Y no hay etiqueta —«deshacer: quitar Press banca»— a propósito: el
+    resultado se ve en la mesa en el mismo instante, que es una señal mejor que
+    una frase, y mantener el nombre de cada gesto obligaría a etiquetar los
+    cuarenta sitios que escriben en el plan.
+  */
+  const atajosDeshacer = useAtajoDeDeshacer();
+  const pasos = pasosDelPlan[activeClient.id] || { atras: 0, adelante: 0 };
 
   const save = saveStatus('workout', activeClient.id);
 
@@ -533,7 +666,7 @@ export const WorkoutLogEditor = () => {
       }}
       foods={alimentosDisponibles}
       dietaExistente={!isEmptyDiet(nutrition[activeClient.id])}
-      dietaConVariantes={Boolean(nutrition[activeClient.id]?.hasDayVariants)}
+      dietaConVariantes={hasSeveralDays(nutrition[activeClient.id])}
       onImportDiet={async (plan, nuevos) => {
         /*
           La dieta se relee ANTES de escribir. Desde la pantalla de la rutina
@@ -566,6 +699,64 @@ export const WorkoutLogEditor = () => {
   );
 
   /*
+    ══ PEGAR UN BLOQUE, ALLÍ DONDE EL BLOQUE ES EL SUJETO ═════════════════════
+
+    Dos pantallas: la lista de bloques de esta persona y el vacío de quien
+    todavía no tiene programa. En la hoja y en el conjunto no, y no es un olvido
+    —lo que cae ahí es una hoja o un ejercicio, y el destino vigente es uno solo
+    (ver `registrarDestino`)—: con el bloque delante, el bloque copiado sigue
+    ofreciéndose desde su «+», que es donde vivía.
+
+    ── Con uno es un botón; con varios, una pregunta ─────────────────────────
+    Es la ley VI de la mano: elegir por el entrenador cuál de los tres bloques
+    que lleva es el que quería no es un atajo, es equivocarse por él. Con uno
+    solo no hay nada que preguntar y un menú de un ítem no es un menú.
+  */
+  const nombreCorto = activeClient?.name?.split(' ')[0] || 'este cliente';
+
+  const verboPegarBloque = (clase, alPegar) => {
+    if (bloquesCopiados.length === 0) return null;
+    if (bloquesCopiados.length === 1) {
+      const pieza = bloquesCopiados[0];
+      return (
+        <button type="button" className={clase} onClick={() => alPegar(pieza)}>
+          <ClipboardPaste size={13} aria-hidden="true" /> Pegar «{pieza.titulo}»
+        </button>
+      );
+    }
+    return (
+      <MenuAcciones
+        clase={clase}
+        label="Pegar un bloque"
+        ariaLabel="Pegar uno de los bloques copiados"
+        items={bloquesCopiados.map((pieza) => ({
+          icon: ClipboardPaste,
+          label: `«${pieza.titulo}»`,
+          sub: [pieza.detalle, pieza.origen?.cliente].filter(Boolean).join(' · '),
+          run: () => alPegar(pieza),
+        }))}
+      />
+    );
+  };
+
+  /*
+    Y en el vacío se pega SIN PREGUNTAR, a diferencia de `pegarBloque`: aquí no
+    hay bloque abierto que cerrar ni nada entrenado que quede detrás, así que la
+    pregunta no protegería de nada. `startBlockWithPlan` tiene su rama para esto
+    (ver `useWorkout`): abre el programa con el plan ya puesto.
+  */
+  const pegarPrimerBloque = (pieza) => {
+    const semana = startBlockWithPlan(activeClient.id, planDeLaPieza(pieza));
+    if (semana) irA(semana, 0, 'bloque');
+    const hojas = pieza.carga?.sessions || [];
+    toast({
+      text: `«${pieza.carga?.name || pieza.titulo}» empezado con sus ${hojas.length} ${
+        hojas.length === 1 ? 'hoja' : 'hojas'
+      }.`,
+    });
+  };
+
+  /*
     ══ El vacío ofrece las DOS rutas ══════════════════════════════════════════
 
     Enseñaba un solo botón, «Crear primer microciclo», y ese es justo el momento
@@ -582,15 +773,27 @@ export const WorkoutLogEditor = () => {
           icon={Layers}
           title="Este cliente no tiene programa todavía"
           message={
-            hayDeQuienTraer
-              ? 'Empieza de cero, trae el fichero donde ya tengas su rutina —un Excel, un Word o un PDF—, o trae el programa de alguien a quien ya se lo tengas montado.'
-              : 'Empieza de cero, o trae el fichero donde ya tengas escrita su rutina: un Excel, un Word o un PDF.'
+            bloquesCopiados.length > 0
+              ? 'Pega el bloque que llevas copiado, empieza de cero o trae el fichero donde ya tengas su rutina: un Excel, un Word o un PDF.'
+              : hayDeQuienTraer
+                ? 'Empieza de cero, trae el fichero donde ya tengas su rutina —un Excel, un Word o un PDF—, o trae el programa de alguien a quien ya se lo tengas montado.'
+                : 'Empieza de cero, o trae el fichero donde ya tengas escrita su rutina: un Excel, un Word o un PDF.'
           }
           action={
             <div className="row wrap gap-2">
+              {/*
+                ── Y AQUÍ ES DONDE MÁS VALE UN BLOQUE COPIADO ─────────────────
+                Dar de alta a alguien y montarle lo mismo que a otro que ya
+                funciona es el caso de uso entero del portapapeles, y era el
+                único sitio donde no existía: sin programa no hay «+ bloque» que
+                abrir, así que la mano se quedaba en gris y el bloque en ella.
+                Va DELANTE del alta en blanco, porque quien lleva algo copiado
+                ha venido a pegarlo.
+              */}
+              {verboPegarBloque('btn btn-primary btn-lg', pegarPrimerBloque)}
               <button
                 type="button"
-                className="btn btn-primary btn-lg"
+                className={`btn btn-lg ${bloquesCopiados.length > 0 ? 'btn-secondary' : 'btn-primary'}`}
                 onClick={() => irA(startProgram(activeClient.id))}
               >
                 <Plus size={15} /> Crear primer microciclo
@@ -621,6 +824,15 @@ export const WorkoutLogEditor = () => {
           }
         />
 
+        {/* Y la mano lo dice también: «Pegar «Acumulación» en Marta». Aquí no
+            hay bloque abierto, así que el sitio es la PERSONA. */}
+        <Destino
+          tipos={[TIPO.BLOQUE]}
+          donde={nombreCorto}
+          prioridad={0}
+          pegar={pegarPrimerBloque}
+        />
+
         {panelDeCopia}
         {dialogoDePegado}
       </div>
@@ -649,6 +861,10 @@ export const WorkoutLogEditor = () => {
          es hacerlo para ESTE cliente, así que queda marcado como excepción y
          «poner al día» deja de pasarle por encima. */
       onProtocolChange={(next) => saveClientException(activeClient.id, { protocol: next })}
+      /* Y de dónde salen esos interruptores, con la puerta a su protocolo
+         entero. Cambiar `panel` cierra este diálogo y abre la hoja: una sola
+         cosa delante, que es la regla de esta pantalla. */
+      pie={<PieDeProtocolo client={activeClient} onAbrir={() => setPanel('protocolo')} />}
     />
   );
 
@@ -816,28 +1032,28 @@ export const WorkoutLogEditor = () => {
   const apuntarEnBloque = (hoja, entry) => apuntar({ alcance: 'bloque', semanas: [], hoja, ...entry });
 
   /*
-    ── Tus piezas ────────────────────────────────────────────────────────────
-    Los días guardados del entrenador (`domain/pieces`), en sus preferencias.
-    Guardar lee el plan efectivo de la hoja —venga del bloque o del microciclo
-    de referencia—; poner crea una hoja nueva en el bloque abierto con todo lo
-    suyo dentro, con ids nuevos para no cruzar registros.
-  */
-  const piezas = piecesOf(coachPrefs);
+    ── Guardar el día como pieza tuya ────────────────────────────────────────
+    Lee el plan efectivo de la hoja —venga del bloque o del microciclo de
+    referencia— y lo deja en el CAJÓN, que desde la 0112 es la tabla
+    `coach_templates` del equipo y no `profiles.preferences`.
 
+    El gesto es el de las tres puertas (`useGuardarEnPlantillas`): ésta, la
+    ficha de la mano y `/plantillas` al llegar con algo copiado. Lo que antes
+    estaba escrito aquí —el tope, el desempate del nombre, el aviso de que la
+    hoja está en blanco— es lo mismo que estaba escrito en las otras dos con
+    otras palabras. Lo único que sabe esta pantalla es CUÁL es el día.
+
+    Ponerlo se hace desde el Compositor, que es quien lee el cajón (`comoLista`
+    en `domain/cajon`) y donde se monta el bloque.
+  */
   const guardarPieza = (dayName) => {
     const semanas = weeksOfBlock(program, bloque);
     const dia = semanas.length > 0 ? planOfDay(program, semanas[semanas.length - 1], dayName) : null;
-    if (!dia || (dia.exercises || []).length === 0) {
-      toast({ text: `«${dayName}» está en blanco: no hay nada que guardar.` });
-      return;
-    }
-    if (piezas.length >= MAX_PIECES) {
-      toast({ text: `Ya tienes ${MAX_PIECES} piezas. Quita alguna desde el cajón para guardar esta.` });
-      return;
-    }
-    const pieza = buildPiece({ name: dayName, exercises: dia.exercises, savedAt: new Date().toISOString() });
-    updateCoachPreferences('piezas', { items: [...piezas, pieza] });
-    toast({ text: `«${dayName}» guardada como pieza tuya. Está en el cajón, para cualquier cliente.` });
+    guardarEnPlantillas({
+      tipo: TIPO.HOJA,
+      titulo: dayName,
+      carga: { dayName, exercises: dia?.exercises || [] },
+    });
   };
 
   const anadirEjercicioAlBloque = (dayName, exercise) => {
@@ -901,6 +1117,28 @@ export const WorkoutLogEditor = () => {
   };
 
   /*
+    ── LOS NOMBRES QUE YA ESTÁN COGIDOS ──────────────────────────────────────
+    Y no `blockSessionsOf(bloque)` a pelo, que es la misma trampa que documenta
+    `piezaDeBloque` unas líneas más abajo: la migración del plan es PEREZOSA
+    —corre la primera vez que se toca el plan, ver `applyPlan`—, así que en un
+    bloque que todavía lo tiene repartido por sus microciclos esa lectura
+    devuelve CERO nombres.
+
+    Y con cero nombres el daño no es cosmético. `freeSheetName` no ve el choque
+    y devuelve «Empuje»; `addBlockSessionIn` no crea nada, porque una hoja con
+    ese nombre YA existe tras migrar y devuelve el bloque tal cual; y los
+    ejercicios de la pieza caen DENTRO de la hoja del cliente, que pasa de seis
+    a doce. El «Deshacer» del aviso remata: quita «Empuje» por su nombre y se
+    lleva la hoja entera —la suya de siempre incluida—. Medido con la
+    aplicación delante el 10 sep 2026.
+  */
+  const nombresDeHojaDelBloque = () => {
+    const migrado = migrateBlockPlans(program).program;
+    const suyo = blocksOf(migrado).find((b) => b.id === bloque?.id) || bloque;
+    return blockSessionsOf(suyo).map((hoja) => hoja.dayName);
+  };
+
+  /*
     ── Duplicar una hoja ─────────────────────────────────────────────────────
     «Otro día igual que el lunes pero cambiando dos cosas» es cómo se monta la
     mitad de las rutinas. Estaba como `duplicateDay`, que copiaba el día dentro
@@ -911,13 +1149,520 @@ export const WorkoutLogEditor = () => {
   const duplicarHojaDelBloque = (dayName) => {
     const origen = planOfDay(program, nav.week, dayName);
     if (!origen) return;
-    const nombre = freeSheetName(dayName, blockSessionsOf(bloque).map((s) => s.dayName));
+    const nombre = freeSheetName(dayName, nombresDeHojaDelBloque());
     addBlockSheet(activeClient.id, bloque.id, nombre);
     (origen.exercises || []).forEach((ex) =>
       addBlockExercise(activeClient.id, bloque.id, nombre, cloneExerciseAsTemplate(ex))
     );
     apuntarEnBloque(nombre, { kind: BLOCK_CHANGE.HOJA_MAS, que: nombre });
     toast({ text: `«${nombre}» añadida al bloque con los ${(origen.exercises || []).length} ejercicios de «${dayName}».` });
+  };
+
+  /*
+    ══ COPIAR Y PEGAR, CON EL PORTAPAPELES EN MEDIO ═══════════════════════════
+
+    «El copiar quizás sería mejor plantearlo como lo hace Efort: tener un
+    portapapeles útil como herramienta para andar copiando y pegando cosas.»
+
+    Lo que cambia no es cuántos verbos hay, sino que ahora hay un PASO
+    INTERMEDIO. Antes, ⧉ significaba «duplica esto aquí mismo»: origen y destino
+    se decidían en el mismo clic, así que copiar la hoja de Marta al bloque de
+    Luis no era una operación lenta — era una operación que no existía. Con la
+    bandeja en medio (`lib/portapapeles`), ⧉ significa «esto queda copiado» y el
+    destino se elige después, en el «+» del sitio donde caiga, que puede ser otra
+    pantalla y otro cliente.
+
+    ── Y duplicar en el sitio no se pierde ───────────────────────────────────
+    Sigue estando, donde tiene sentido preguntarlo: dentro del «+ hoja», como
+    «Copia de «Lower A»». Un portapapeles que obliga a dos gestos para el caso
+    fácil —«otro día igual que el lunes»— sería peor herramienta que la que
+    sustituye, y ese caso es la mitad de las rutinas que se montan.
+
+    ── Lo que NO viaja: el microciclo ────────────────────────────────────────
+    Está explicado en `TIPO` (`lib/portapapeles`): desde que el plan vive en el
+    bloque, un microciclo guarda fechas, excepciones y lo REGISTRADO esa semana.
+    Copiar eso a otro cliente es copiarle el historial. Lo que la gente quiere
+    decir con «copia esta semana» son sus HOJAS, y las hojas sí viajan.
+  */
+  const deQuien = activeClient?.name || null;
+
+  const copiarHoja = (dayName) => {
+    const origen = planOfDay(program, nav.week, dayName);
+    if (!origen) return;
+    /* Se guarda ya como PLANTILLA —sin ids de registro y sin lo levantado—: lo
+       que se copia de una hoja es lo que hay que hacer, no lo que hizo esta
+       persona. Es el mismo saneo que al poner una pieza. */
+    const ejercicios = (origen.exercises || []).map(cloneExerciseAsTemplate);
+    /* La forma de una hoja copiada la pone `piezaDeHoja`, y no está aquí a mano
+       porque hay tres puertas que la producen —ésta, traer un día de otro
+       cliente y traer un fichero— y una sola que la lee. */
+    copiarAlPortapapeles(
+      piezaDeHoja({ dayName, exercises: ejercicios, cliente: deQuien, donde: bloque.name })
+    );
+    /*
+      ── SIN AVISO, A PROPÓSITO ────────────────────────────────────────────────
+      Es la ley II de la mano (ver `ui/Portapapeles`): el aviso es de lo que
+      CAMBIA y la mano es de lo que LLEVAS. Copiar no le cambia nada a nadie, y
+      aquí salían los dos a la vez diciendo lo mismo —dos voces para un gesto—.
+      Ahora lo nombra la mano dos segundos y se queda ahí, que además contesta
+      lo que el aviso tenía que explicar con una frase: dónde ha ido a parar.
+    */
+  };
+
+  /*
+    ══ Y PEGAR SE DESHACE ═════════════════════════════════════════════════════
+
+    La otra mitad de la ley de la casa —lo que escribe en el programa de alguien
+    se ve antes y se deshace después— la tenía el aviso desde siempre
+    (`ToastProvider` acepta su «Deshacer») y no la usaba ninguno de los pegados.
+    Y pegar es justo donde hace falta: un menú son seis comidas al final de la
+    lista y una hoja son diez ejercicios, así que enmendar un pegado equivocado
+    costaba tantos clics como piezas tuviera.
+
+    Lo que hace cada «Deshacer» es la escritura INVERSA, y nada más: no retira lo
+    apuntado en la bitácora, igual que no lo retira el de quitar un ejercicio.
+    La bitácora cuenta lo que se hizo, y pegar y arrepentirse es algo que pasó.
+  */
+  const pegarHoja = (pieza) => {
+    const ejercicios = pieza.carga?.exercises || [];
+    const nombre = freeSheetName(pieza.carga?.dayName || 'Hoja', nombresDeHojaDelBloque());
+    addBlockSheet(activeClient.id, bloque.id, nombre);
+    /* Se vuelve a clonar al pegar aunque la carga ya venga limpia: la misma
+       pieza se puede pegar cinco veces, y sin ids nuevos las cinco copias
+       compartirían los del ejercicio original. */
+    ejercicios.forEach((ex) => addBlockExercise(activeClient.id, bloque.id, nombre, cloneExerciseAsTemplate(ex)));
+    apuntarEnBloque(nombre, { kind: BLOCK_CHANGE.HOJA_MAS, que: nombre });
+    toast({
+      text: `«${nombre}» pegada en «${bloque.name}» con sus ${ejercicios.length} ${
+        ejercicios.length === 1 ? 'ejercicio' : 'ejercicios'
+      }.`,
+      /* Por el NOMBRE y no por un índice: `freeSheetName` acaba de garantizar
+         que no hay otra hoja que se llame así, y el nombre sobrevive a que se
+         añada o se mueva cualquier otra mientras el aviso está en pantalla. */
+      action: { label: 'Deshacer', onClick: () => removeBlockSheet(activeClient.id, bloque.id, nombre) },
+    });
+  };
+
+  /*
+    ══ Y UNA HOJA CAE TAMBIÉN ENCIMA DE OTRA ══════════════════════════════════
+
+    Pegar una hoja abría una hoja NUEVA, y ese es el gesto de montar el bloque.
+    El otro —«el lunes de esta persona pasa a ser este otro entrenamiento»— no
+    se podía: había que pegar la hoja al lado, mover los ejercicios y borrar la
+    vieja, y por el camino se perdía el nombre, que es lo único que el cliente
+    reconoce («Lower A» sigue siendo su Lower A aunque dentro cambie entero).
+
+    Por eso esto conserva el NOMBRE de la hoja que recibe y cambia lo que lleva
+    dentro. Es la misma ley que la pauta de un ejercicio (`pegarPauta`): lo que
+    viaja es el contenido; la identidad es del que está en su sitio.
+
+    ── Y hace la pregunta del tramo, como todo lo que escribe en el plan ──────
+    «Solo este microciclo» aquí es la semana de descarga —el mismo lunes, con
+    otra cosa dentro, y a la siguiente vuelve el de siempre—, que es justo lo que
+    un modelo de semanas duplicadas no puede ofrecer. Sin tramo se cambia la
+    línea base del bloque; con tramo se anota como excepción y el bloque no se
+    toca. Ver `TramoDelPegado`, que es la misma ventana del pegado de ejercicio.
+  */
+  const sustituirHoja = (pieza, dayName) => {
+    /* Sin pieza no hay nada que poner: la mano puede haberse vaciado en otra
+       pestaña entre pintar el verbo y pulsarlo. Es la misma clase de fallo que
+       PP-00 —el pegado que reventaba por un argumento que no venía—. */
+    if (!pieza || !blockSessionOf(bloque, dayName)) return;
+    /* Con un solo microciclo las tres respuestas hacen lo mismo, así que no se
+       pregunta: es el mismo peaje que evita `pegarEjercicio`. */
+    if (semanasDelBloque.length > 1) {
+      setSustitucion({ pieza, dayName });
+      return;
+    }
+    sustituirHojaAhora(pieza, dayName);
+  };
+
+  const sustituirHojaAhora = (pieza, dayName, alcance) => {
+    const hoja = blockSessionOf(bloque, dayName);
+    if (!hoja) return;
+    setSustitucion(null);
+    const antes = hoja.exercises || [];
+    /* Se clona al pegar: la misma pieza puede caer en cinco hojas y sin ids
+       nuevos las cinco compartirían los del original. */
+    const nuevos = (pieza.carga?.exercises || []).map(cloneExerciseAsTemplate);
+    const que = pieza.carga?.dayName || pieza.titulo;
+    const cuantos = `${nuevos.length} ${nuevos.length === 1 ? 'ejercicio' : 'ejercicios'}`;
+    const semanas = alcance?.semanas;
+
+    if (semanas === undefined) {
+      setBlockSheetExercises(activeClient.id, bloque.id, dayName, nuevos);
+      apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.PLANTILLA, que });
+      toast({
+        text: `«${dayName}» pasa a ser «${que}», con sus ${cuantos}.`,
+        /* El inverso es la lista de antes, entera y de una vez: por eso existe
+           `setBlockSheetExercises` y no se hace con N bajas y M altas. */
+        action: {
+          label: 'Deshacer',
+          onClick: () => setBlockSheetExercises(activeClient.id, bloque.id, dayName, antes),
+        },
+      });
+      return;
+    }
+
+    /*
+      ── El tramo: la hoja de estas semanas, sin tocar el bloque ──────────────
+      Una baja por cada ejercicio de la línea base y un alta por cada uno de los
+      que entran, todas con el mismo tramo. Los `buildOverride` se hacen AQUÍ
+      —la función es del dominio y devuelve el cambio con su id puesto— para
+      poder deshacerlos por id: `addPlanExercise` y `removePlanExerciseOnly`
+      harían lo mismo pero sin decir qué han escrito.
+
+      Lo que esta semana solo existe como excepción (un alta puntual de otro
+      día) se queda: es un cambio que alguien hizo a propósito para ella, y
+      pisarlo sin decirlo sería borrar trabajo por el camino.
+    */
+    const hasta = nav.week + Math.max(0, semanas - 1);
+    const at = new Date().toISOString();
+    const cambios = [
+      ...antes.map((ex) =>
+        buildOverride({
+          dayName,
+          targetId: ex.id,
+          exercise: null,
+          sobre: ex.name,
+          fromWeek: nav.week,
+          toWeek: hasta,
+          at,
+        })
+      ),
+      ...nuevos.map((ex) =>
+        buildOverride({ dayName, exercise: ex, fromWeek: nav.week, toWeek: hasta, at })
+      ),
+    ];
+    cambios.forEach((cambio) => addOverride(activeClient.id, bloque.id, cambio));
+    const cubiertas = [];
+    for (let w = nav.week; w <= hasta; w += 1) cubiertas.push(w);
+    apuntar({ alcance: 'semana', semanas: cubiertas, hoja: dayName, kind: BLOCK_CHANGE.PLANTILLA, que });
+    toast({
+      text: `«${dayName}» es «${que}» ${
+        cubiertas.length === 1 ? `solo en ${etiqueta(nav.week)}` : `de ${etiqueta(nav.week)} a ${etiqueta(hasta)}`
+      }. El bloque no se toca.`,
+      action: {
+        label: 'Deshacer',
+        onClick: () => cambios.forEach((cambio) => dropOverride(activeClient.id, bloque.id, cambio.id)),
+      },
+    });
+  };
+
+  /*
+    El ejercicio es la pieza pequeña, y la que más se mueve: «este press con
+    estas cinco series, igual en el día B». Se copia con sus series y sus
+    objetivos —que es lo que Efort vende como «copy sets between exercises»— y
+    se pega en la hoja que sea, de quien sea.
+  */
+  const copiarEjercicio = (ex) => {
+    const plantilla = cloneExerciseAsTemplate(ex);
+    const series = (plantilla.sets || []).length;
+    copiarAlPortapapeles({
+      tipo: TIPO.EJERCICIO,
+      titulo: ex.name,
+      detalle: `${series} ${series === 1 ? 'serie' : 'series'}`,
+      origen: {
+        cliente: deQuien,
+        donde: [bloque.name, nav.day?.dayName].filter(Boolean).join(' · '),
+        /* La hoja, aparte y con su nombre: es lo que propone el destino cuando
+           este ejercicio se pone en varios clientes, y ahí hace falta el nombre
+           solo, no la frase de dónde salió. Va en `origen` y no en la carga
+           porque la carga ES el ejercicio, y colgarle ahí el nombre de su hoja
+           metería un campo ajeno en algo que se clona y se escribe. Ver
+           `domain/reparto`. */
+        hoja: nav.day?.dayName || null,
+      },
+      carga: plantilla,
+    });
+    /* Sin aviso: lo dice la mano. Ver `copiarHoja`. */
+  };
+
+  /*
+    ── PEGAR HACE LA MISMA PREGUNTA QUE EL ALTA ──────────────────────────────
+    Añadir un ejercicio a mano dice hasta cuándo vale (el «Hasta cuándo» de
+    `AddExerciseForm`) y pegarlo es el otro camino al mismo sitio: los dos
+    terminan en `addPlanExercise`. Hasta ahora el pegado no preguntaba —pasaba
+    el tramo vacío—, así que la respuesta «solo este microciclo» existía en el
+    producto por un camino y no por el otro.
+
+    La pregunta se hace en una ventana (`TramoDelPegado`) y NO en el menú de
+    pegar, porque los tres tramos por cada pieza copiada son treinta y seis
+    entradas con doce en la mano; y no se hace nunca cuando el bloque tiene un
+    solo microciclo, porque ahí las tres respuestas hacen lo mismo. Ver la
+    cabecera de `TramoDelPegado`.
+  */
+  const pegarEjercicio = (pieza) => {
+    if (!nav.day) return;
+    if (semanasDelBloque.length > 1) {
+      setPegadoConTramo(pieza);
+      return;
+    }
+    pegarEjercicioAhora(pieza);
+  };
+
+  const pegarEjercicioAhora = (pieza, alcance) => {
+    if (!nav.day) return;
+    /* `tramoDeAlta()` sin argumento, y no `tramoDeAlta(null)`: el valor por
+       defecto de esa función solo cubre `undefined`, así que desestructurar
+       `null` reventaba el pegado —y con él, ⌘V—. Sin argumento el ejercicio
+       entra en el plan del bloque, que es lo que hace el alta cuando no se
+       elige tramo. */
+    /* El clon se hace ANTES y se guarda: su id es lo que le da al «Deshacer»
+       algo que quitar —el mismo, esté en el plan del bloque o en la excepción
+       que crea el tramo, que es lo que `removePlanExercise` resuelve—. */
+    const nuevo = cloneExerciseAsTemplate(pieza.carga);
+    const semana = nav.week;
+    const hoja = nav.day.dayName;
+    addPlanExercise(activeClient.id, semana, hoja, nuevo, tramoDeAlta(alcance));
+    apuntarEnLaHoja({ kind: BLOCK_CHANGE.EJERCICIO_MAS, que: pieza.carga?.name || pieza.titulo });
+    setPegadoConTramo(null);
+    toast({
+      text: `«${pieza.carga?.name || pieza.titulo}» pegado en «${hoja}».`,
+      action: { label: 'Deshacer', onClick: () => removePlanExercise(activeClient.id, semana, hoja, nuevo.id) },
+    });
+  };
+
+  /*
+    ══ LA PAUTA: ESTA FILA, CON LAS SERIES DE AQUELLA ═════════════════════════
+
+    «Dale a este remo las cinco series del press» es el gesto más repetido de
+    programar y costaba tres: pegar el press, renombrarlo y borrar el remo.
+
+    ── Por qué no es una pieza más del portapapeles ──────────────────────────
+    Porque sería decidir al COPIAR algo que solo se sabe al pegar: cuando se
+    pulsa ⧉ sobre el press todavía no está decidido si eso acabará siendo otra
+    fila o la pauta de una que ya existe. Así que lo que se lleva en la mano es
+    siempre el ejercicio, y esto es otra manera de soltarlo. Es el mismo
+    razonamiento que el del tramo, que tampoco es un tipo.
+
+    ── Y por qué aquí no se pregunta el tramo ────────────────────────────────
+    Porque esto no da de alta nada: cambia una fila que ya está, así que va donde
+    esa fila vive —el plan o su excepción, lo resuelve `updatePlanExercise`—,
+    igual que cambiarle una serie a mano. Quien quiera que el cambio dure solo
+    unas semanas lo dice antes, con «Cambiarlo solo este microciclo» de la propia
+    fila, y a partir de ahí esto cae ya en la excepción.
+  */
+  const pegarPauta = (pieza, ex) => {
+    if (!nav.day || !ex) return;
+    const antes = ex.sets || [];
+    const descanso = ex.restSeconds;
+    const semana = nav.week;
+    const hoja = nav.day.dayName;
+    updatePlanExercise(activeClient.id, semana, hoja, ex.id, (suyo) => conLaPauta(suyo, pieza.carga));
+    apuntarEnLaHoja({
+      kind: BLOCK_CHANGE.SERIES,
+      que: ex.name,
+      de: antes.length,
+      a: (pieza.carga?.sets || []).length,
+    });
+    toast({
+      text: `«${ex.name}» con la pauta de «${pieza.carga?.name || pieza.titulo}».`,
+      action: {
+        label: 'Deshacer',
+        onClick: () =>
+          updatePlanExercise(activeClient.id, semana, hoja, ex.id, (suyo) => ({
+            ...suyo,
+            restSeconds: descanso,
+            sets: antes,
+          })),
+      },
+    });
+  };
+
+  /* Lo que leen `⌘C` y `⌘V`. Se asigna en el RENDER y no en un efecto porque
+     arriba hay dos retornos tempranos: un efecto tendría que vivir por encima de
+     ellos, y ahí todavía no existen ni el ejercicio en foco ni los verbos. Aquí
+     abajo el ref solo se rellena si la pantalla ha llegado a pintarse entera, y
+     el render que se va por un retorno temprano lo deja en blanco (se pone a
+     `null` arriba, con el resto de los ganchos). Nadie lo lee mientras se pinta:
+     solo el oyente de teclado, que corre después. */
+  atajos.current = {
+    copiar: vista === 'hoja' && ejercicioEnFoco ? () => copiarEjercicio(ejercicioEnFoco) : null,
+    pegar: vista === 'hoja' && nav.day && ejerciciosCopiados[0] ? () => pegarEjercicio(ejerciciosCopiados[0]) : null,
+  };
+
+  /* El aviso confirma lo que acaba de pasar y ofrece el camino de vuelta, que
+     es el trato de siempre en esta app: deshacer lleva su «Rehacer» dentro.
+     No nombra el bloque porque lo deshecho puede ser de otro —quitar un
+     bloque entero, por ejemplo— y el aviso no puede prometer más de lo que
+     sabe. Qué ha vuelto se ve en la mesa, en el mismo instante. */
+  const deshacerElPlan = () => {
+    if (!deshacerPlan(activeClient.id)) return;
+    toast({
+      text: 'Deshecho el último cambio del plan.',
+      action: { label: 'Rehacer', onClick: () => rehacerPlan(activeClient.id) },
+    });
+  };
+
+  const rehacerElPlan = () => {
+    if (!rehacerPlan(activeClient.id)) return;
+    toast({ text: 'Rehecho.' });
+  };
+
+  atajosDeshacer.current = {
+    deshacer: pasos.atras > 0 ? deshacerElPlan : null,
+    rehacer: pasos.adelante > 0 ? rehacerElPlan : null,
+  };
+
+  /* ── Y el mismo par, a la vista ──────────────────────────────────────────
+     Un atajo que no se anuncia no existe para quien no lo conoce. Los dos
+     mandos salen SOLO cuando hay algo que deshacer o que rehacer: es la ley
+     del reposo —una oferta que no se puede aceptar es mobiliario— y además es
+     la única señal de que la pila está ahí. */
+  const mandosDeDeshacer =
+    pasos.atras > 0 || pasos.adelante > 0 ? (
+      <>
+        {pasos.atras > 0 && (
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-compact"
+            title="Deshacer el último cambio del plan (⌘Z)"
+            aria-label="Deshacer el último cambio del plan"
+            onClick={deshacerElPlan}
+          >
+            <Undo2 size={15} />
+          </button>
+        )}
+        {pasos.adelante > 0 && (
+          <button
+            type="button"
+            className="btn btn-icon btn-icon-compact"
+            title="Rehacer (⌘⇧Z)"
+            aria-label="Rehacer el cambio deshecho"
+            onClick={rehacerElPlan}
+          >
+            <Redo2 size={15} />
+          </button>
+        )}
+      </>
+    ) : null;
+
+  /*
+    ── UN BLOQUE, HECHO PIEZA ────────────────────────────────────────────────
+    Lo usan los dos caminos por los que un bloque sale de esta ficha: copiarlo a
+    la mano y ponerlo en varios clientes. Estaba escrito dos veces —el panel
+    tenía su propia lectura— y las dos lecturas no coincidían: aquí se leían las
+    hojas de `blockSessionsOf` a pelo, que en un programa que todavía tiene el
+    plan repartido por sus microciclos devuelve CERO. La migración es perezosa
+    (corre la primera vez que se toca el plan, ver `applyPlan`), así que hay que
+    hacer aquí lo mismo que ella o copiar un bloque sin migrar daba un bloque
+    vacío.
+  */
+  const piezaDeBloque = (elBloque) => {
+    const migrado = migrateBlockPlans(program).program;
+    const suyo = blocksOf(migrado).find((b) => b.id === elBloque.id) || elBloque;
+    const hojas = blockSessionsOf(suyo).map((hoja) => ({
+      dayName: hoja.dayName,
+      exercises: (hoja.exercises || []).map(cloneExerciseAsTemplate),
+    }));
+    if (hojas.length === 0) return null;
+    /* Lo que hace de un bloque una ESTRUCTURA y no un montón de hojas: a qué
+       juega, cuánto se previó que durase y qué se persigue. Iban fuera de la
+       carga, así que copiar «Acumulación · 6 semanas · subir el empuje» daba
+       «Acumulación» con cuatro hojas. Ver `planDeLaPieza`. */
+    const caracteristicas = blockTraits(suyo);
+    /* Vacío es `null` y no `[]`: `startBlockWithPlan` escribe el calentamiento
+       cuando le llega una lista, así que un `[]` le BORRARÍA al destinatario el
+       suyo. Copiar el bloque de quien no calienta no es una orden de que el otro
+       deje de hacerlo. */
+    const calentamiento = structureOfBlock(migrado, suyo).mobilityDrills;
+    return {
+      tipo: TIPO.BLOQUE,
+      titulo: elBloque.name,
+      /* La intención delante del recuento: es lo que distingue dos bloques del
+         mismo tamaño cuando la bandeja lleva tres. */
+      detalle: [
+        intentLabel(caracteristicas.intent),
+        `${hojas.length} ${hojas.length === 1 ? 'hoja' : 'hojas'}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      origen: { cliente: deQuien, donde: null },
+      carga: {
+        name: elBloque.name,
+        sessions: hojas,
+        /* Por `structureOfBlock` y no por `suyo.mobilityDrills`: un bloque
+           CERRADO lleva su calentamiento congelado dentro, pero el abierto no
+           —el suyo es el del programa, vivo—, así que leerlo del bloque a secas
+           copiaba el bloque en curso sin calentamiento. Las dos lecturas que se
+           acaban de fundir tenían cada una la mitad de esto. */
+        mobilityDrills: calentamiento?.length ? calentamiento : null,
+        ...caracteristicas,
+      },
+    };
+  };
+
+  const copiarBloque = () => {
+    const pieza = piezaDeBloque(bloque);
+    if (!pieza) {
+      toast({ text: `«${bloque.name}» no tiene ninguna hoja todavía: no hay nada que copiar.` });
+      return;
+    }
+    copiarAlPortapapeles(pieza);
+    /* Sin aviso: lo dice la mano. Ver `copiarHoja`. El de arriba se queda —«no
+       hay nada que copiar» es de algo que NO ha pasado, y eso sí hay que
+       decirlo—. */
+  };
+
+  /* «Mandarlo a otros clientes…», desde la fila de la lista de bloques. Es el
+     mismo panel que abre la mano del portapapeles, con la misma pieza: repartir
+     no depende de haber copiado antes, pero es exactamente la misma operación. */
+  const mandarBloque = (elBloque) => {
+    const pieza = piezaDeBloque(elBloque);
+    if (!pieza) {
+      toast({ text: `«${elBloque.name}» no tiene ninguna hoja todavía: no hay nada que mandar.` });
+      return;
+    }
+    setMandandoBloque(pieza);
+  };
+
+  /*
+    «Guardarlo en tus plantillas», desde la misma fila y con la MISMA pieza.
+
+    Las tres cosas que se pueden hacer con un bloque que ya existe —copiarlo,
+    mandarlo a varios y guardarlo— salen todas de `piezaDeBloque`, que es la
+    única lectura de «qué es este bloque cuando sale de aquí». Antes había dos
+    lecturas del mismo bloque que no coincidían y una de ellas copiaba cero
+    hojas de un programa sin migrar.
+
+    El gesto no vive aquí sino en `useGuardarEnPlantillas`: guardar tiene tres
+    puertas —esta fila, la ficha de la mano y `/plantillas` al llegar con algo
+    copiado— y las tres tienen que desempatar el nombre igual, respetar el mismo
+    tope y decirlo con la misma frase.
+  */
+  const guardarBloque = (elBloque) => {
+    const pieza = piezaDeBloque(elBloque);
+    if (!pieza) {
+      toast({ text: `«${elBloque.name}» no tiene ninguna hoja todavía: no hay nada que guardar.` });
+      return;
+    }
+    guardarEnPlantillas(pieza);
+  };
+
+  /*
+    Pegar un bloque CIERRA el abierto y abre el siguiente, que es lo que hace
+    empezar un bloque en este producto (`startBlockWithPlan`). No es un efecto
+    secundario que convenga esconder, así que se pregunta: es la misma
+    conversación que «+ bloque», solo que con el plan ya puesto.
+  */
+  const pegarBloque = async (pieza) => {
+    const hojas = pieza.carga?.sessions || [];
+    /* El que se cierra es el ABIERTO, no el que se está mirando: desde la lista
+       de bloques se puede pegar teniendo delante uno de hace tres meses, y la
+       pregunta tiene que nombrar el que de verdad se va a cerrar. */
+    const seCierra = currentBlock(program);
+    const ok = await confirm({
+      title: `¿Empezar «${pieza.titulo}» aquí?`,
+      message: `Se cierra «${seCierra?.name || bloque.name}» y se abre un bloque nuevo con las ${hojas.length} hojas copiadas${
+        pieza.origen?.cliente ? ` de ${pieza.origen.cliente}` : ''
+      }. Lo entrenado hasta hoy se queda donde está.`,
+      confirmLabel: 'Empezar el bloque',
+    });
+    if (!ok) return;
+    const semana = startBlockWithPlan(activeClient.id, planDeLaPieza(pieza));
+    if (semana) irA(semana, 0, 'bloque');
+    toast({ text: `«${pieza.carga?.name || pieza.titulo}» empezado con sus ${hojas.length} hojas.` });
   };
 
   /*
@@ -1056,9 +1801,76 @@ export const WorkoutLogEditor = () => {
     tira no puede saber: qué se añade, qué va antes del «···» y qué se suma
     dentro de él. Ver `TiraDelPrograma`.
   */
-  const nuevoMicrociclo = esBloqueActual
-    ? () => irA(appendMicrocycle(activeClient.id), 0, "bloque")
-    : null;
+  /*
+    ══ «+ MICROCICLO» PREGUNTA DE QUÉ PARTE ══════════════════════════════════
+
+    «Cuando le das a + microciclo se añade por defecto vacío; lo suyo sería que
+    te pregunte o algo. Has de darle a copiar para que lo añada copiado.»
+
+    Y tenía razón por partida doble. El botón añadía SIEMPRE en blanco, así que
+    la mitad de las veces el gesto siguiente era deshacerlo; y la otra manera
+    —«duplicar», el ⧉ de dos dedos a la derecha— no se leía como «el microciclo
+    siguiente», se leía como una acción sobre el que ya había. Dos caminos al
+    mismo sitio y ninguno lo decía.
+
+    Ahora es una sola puerta con las dos salidas escritas en cristiano, y con la
+    diferencia dicha donde importa: lo que separa a las dos opciones no es «en
+    blanco» frente a «copia», es SI VIENEN LOS KILOS. Eso es lo que hay que
+    saber antes de pulsar, porque arrastrar los pesos de la semana anterior a la
+    siguiente da por entrenado lo que nadie ha levantado (ver `blankDays` en
+    `domain/training`).
+
+    Aquí no hay «pegar»: un microciclo no va al portapapeles. Lo explica `TIPO`
+    en `lib/portapapeles`.
+  */
+  const masMicrociclo = esBloqueActual ? (
+    <BotonMas
+      palabra={unidad.toLowerCase()}
+      ariaLabel={`Añadir ${unidad.toLowerCase()} ${enBloque(nav.week) + 1}`}
+      items={[
+        {
+          icon: Plus,
+          label: 'En blanco',
+          sub: 'Las mismas hojas, sin nada escrito',
+          run: () => irA(appendMicrocycle(activeClient.id), 0, 'bloque'),
+        },
+        {
+          icon: Copy,
+          label: `Copia de ${etiqueta(nav.week).toLowerCase()}`,
+          sub: 'Con los kilos y las reps ya puestos',
+          run: () => {
+            const created = cloneMicrocycle(activeClient.id, nav.week);
+            if (created) irA(created, 0, 'bloque');
+          },
+        },
+      ]}
+    />
+  ) : null;
+
+  /*
+    ── Y «+ BLOQUE», QUE ES EL TERCERO ───────────────────────────────────────
+    Su salida normal es componerlo, que es un trabajo con principio y final y
+    tiene pantalla propia (`Compositor.jsx`). La segunda solo existe con un
+    bloque copiado, y es la que convierte «traer el programa de otro cliente»
+    —hoy un panel entero escondido en un menú— en el mismo gesto que todo lo
+    demás: se copia allí, se pega aquí.
+  */
+  const masBloque = esBloqueActual ? (
+    <BotonMas
+      palabra="bloque"
+      ariaLabel="Empezar el bloque siguiente"
+      items={[
+        { icon: Plus, label: 'Componerlo', sub: 'Eliges sus hojas y su duración', run: aComponer },
+        bloquesCopiados.length > 0 ? null : undefined,
+        ...bloquesCopiados.map((pieza) => ({
+          icon: ClipboardPaste,
+          label: `Pegar «${pieza.titulo}»`,
+          sub: [pieza.detalle, pieza.origen?.cliente].filter(Boolean).join(' · '),
+          run: () => pegarBloque(pieza),
+        })),
+      ]}
+    />
+  ) : null;
 
   /*
     ── Lo que va antes del «···» en la cabecera del BLOQUE ───────────────────
@@ -1138,12 +1950,18 @@ export const WorkoutLogEditor = () => {
   */
   const iconosDeLaHoja = nav.day ? (
     <>
+      {/* ── ⧉ ES COPIAR, NO DUPLICAR ─────────────────────────────────────
+          Hacía las dos cosas a la vez —copiaba y pegaba al lado— y por eso no
+          servía para llevarse la hoja a ninguna parte. Ahora copia, y dónde cae
+          se decide después, en el «+ hoja» del bloque al que vaya (que puede
+          ser el de otra persona). Duplicar en el sitio sigue estando ahí
+          mismo, como «Copia de «Push A»». */}
       <button
         type="button"
         className="btn btn-icon btn-icon-compact"
-        title={`Duplicar «${nav.day.dayName}»`}
-        aria-label={`Duplicar «${nav.day.dayName}»`}
-        onClick={() => duplicarHojaDelBloque(nav.day.dayName)}
+        title={`Copiar «${nav.day.dayName}» al portapapeles`}
+        aria-label={`Copiar «${nav.day.dayName}» al portapapeles`}
+        onClick={() => copiarHoja(nav.day.dayName)}
       >
         <Copy size={15} />
       </button>
@@ -1156,6 +1974,23 @@ export const WorkoutLogEditor = () => {
       >
         <Bookmark size={15} />
       </button>
+      {/* ── Y PONERLE ENCIMA LA HOJA QUE SE LLEVA ────────────────────────
+          Solo con una hoja en la mano, y solo si esta hoja es del plan del
+          bloque: es la ley del reposo —una oferta que no se puede aceptar es
+          mobiliario— y la misma regla que la pauta de un ejercicio, que sale
+          en la fila encendida cuando hay algo que ponerle. La pieza es la
+          última copiada, igual que ⌘V. Ver `sustituirHoja`. */}
+      {hojasCopiadas[0] && blockSessionOf(bloque, nav.day.dayName) && (
+        <button
+          type="button"
+          className="btn btn-icon btn-icon-compact"
+          title={`Poner «${hojasCopiadas[0].titulo}» en «${nav.day.dayName}»: conserva el nombre y cambia sus ejercicios`}
+          aria-label={`Poner ${hojasCopiadas[0].titulo} en ${nav.day.dayName}`}
+          onClick={() => sustituirHoja(hojasCopiadas[0], nav.day.dayName)}
+        >
+          <ClipboardPaste size={15} />
+        </button>
+      )}
       {/*
         ── TRAER: un botón, dos sitios de donde ────────────────────────────
         «No pasa nada porque unas se metan dentro de otras, pero deberían salir
@@ -1211,6 +2046,20 @@ export const WorkoutLogEditor = () => {
   */
   const iconosDelBloque = (
     <>
+      {/* Copiar el bloque entero, que es la unidad con la que se arranca a
+          alguien parecido: sus hojas con sus ejercicios, sin fechas y sin nada
+          registrado. Va aquí, en la fila del bloque, por la misma ley que pone
+          el ⧉ de la hoja en la fila de la hoja: sobre qué actúa un botón se sabe
+          por dónde está, no por lo que diga su rótulo. */}
+      <button
+        type="button"
+        className="btn btn-icon btn-icon-compact"
+        title={`Copiar «${bloque.name}» al portapapeles`}
+        aria-label={`Copiar «${bloque.name}» al portapapeles`}
+        onClick={copiarBloque}
+      >
+        <Copy size={15} />
+      </button>
       {/* ── TRAER: el mismo botón que en la hoja ────────────────────────────
           Traer el programa de otro cliente y traer de un fichero eran dos
           ítems perdidos en un menú de siete, y en la vista de hoja son —desde
@@ -1245,44 +2094,57 @@ export const WorkoutLogEditor = () => {
   );
 
   /*
-    ── LOS DOS VERBOS DEL MICROCICLO, EN EL RENGLÓN DEL MICROCICLO ───────────
-    Duplicarlo es con lo que se monta el siguiente, así que va a la vista;
-    cambiarle las fechas se hace de tarde en tarde y eliminarlo borra, así que
-    van en su «···». Los tres estaban repartidos entre la fila del bloque y un
-    menú de siete ítems: ninguno de los dos sitios es el suyo.
+    ── LOS TRES VERBOS DEL MICROCICLO, LOS TRES A LA VISTA ───────────────────
+    «Deberías quitar los ··· y meter los botones.»
+
+    Aquí quedaba el último menú de la cabecera, y tenía dos ítems: las fechas y
+    la papelera. Un «···» de dos cobra un gesto por cada uno y encima los
+    esconde detrás de un dibujo que no dice cuáles son — con el agravante de que
+    uno de los dos ya se podía pulsar en la pantalla (la pastilla encendida abre
+    ese mismo panel), así que la mitad del menú era un duplicado escondido.
+
+    Salen los tres como iconos, en el orden de la casa: lo que construye
+    primero —duplicar, que es con lo que se monta el siguiente—, lo que ajusta
+    después, y lo que borra al final y en rojo. Es la misma cuenta que ya
+    hicieron la hoja abierta y el bloque, que también acabaron sin menú.
+
+    La papelera puede estar a la vista porque `eliminarSemana` no pierde nada:
+    avisa con «Deshacer» durante diez segundos y devuelve hasta el bloque entero
+    si era su último microciclo.
   */
   const mandosDelMicrociclo = (
-    <button
-      type="button"
-      className="btn btn-icon btn-icon-compact"
-      title={`Duplicar ${etiqueta(nav.week)}, con sus series`}
-      aria-label={`Duplicar ${etiqueta(nav.week)}, con sus series`}
-      onClick={() => {
-        const created = cloneMicrocycle(activeClient.id, nav.week);
-        if (created) irA(created, 0, 'bloque');
-      }}
-    >
-      <Copy size={15} />
-    </button>
+    <>
+      {/* ── AQUÍ ESTUVO EL ⧉ DE DUPLICAR EL MICROCICLO ───────────────────
+          Se ha ido dentro del «+ microciclo», que está a dos dedos y ahora
+          pregunta de qué parte. Era la mitad escondida de una decisión que el
+          botón de al lado tomaba a ciegas: «+» añadía siempre en blanco y este
+          añadía siempre copiado, sin que ninguno de los dos dijera que existía
+          el otro. Una decisión con dos salidas es un menú, no dos botones. */}
+      {/* Lo mismo que hace pulsar la pastilla encendida. Sigue habiendo dos
+          puertas al mismo panel a propósito: una es el gesto rápido de quien ya
+          lo sabe, y esta es la que se ve sin saberlo. */}
+      <button
+        type="button"
+        className="btn btn-icon btn-icon-compact"
+        title={`Fechas y sesiones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+        aria-label={`Fechas y sesiones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+        onClick={() => setPanel('semana')}
+      >
+        <Settings2 size={15} />
+      </button>
+    </>
   );
 
   const menuDelMicrociclo = (
-    <MenuAcciones
-      clase="btn btn-icon btn-icon-compact tira-menu"
-      ariaLabel={`Acciones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
-      items={[
-        /* Es lo mismo que hace pulsar la pastilla encendida. Estaba SOLO ahí,
-           y un gesto que hay que descubrir no es una puerta: ahora también se
-           lee, con su nombre, donde se buscan las acciones de este renglón. */
-        { icon: Settings2, label: `Fechas y sesiones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`, run: () => setPanel('semana') },
-        {
-          icon: Trash2,
-          label: `Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`,
-          danger: true,
-          run: eliminarSemana,
-        },
-      ]}
-    />
+    <button
+      type="button"
+      className="btn btn-icon btn-icon-compact btn-icon-danger tira-menu"
+      title={`Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+      aria-label={`Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+      onClick={eliminarSemana}
+    >
+      <Trash2 size={15} />
+    </button>
   );
 
   /* Dónde cae cada hoja de la semana. Lo dice la columna de esa hoja en la
@@ -1322,9 +2184,46 @@ export const WorkoutLogEditor = () => {
       nuevaHojaEnTira === null ? (
         /* La misma pieza que «+ bloque» y «+ microciclo»: los tres son el
            mismo verbo y se ven a la vez. Ver `.tira-mas`. */
-        <button type="button" className="tira-mas" onClick={() => setNuevaHojaEnTira('')}>
-          <Plus size={13} aria-hidden="true" /> hoja
-        </button>
+        /*
+          ── Y ESTE «+» TAMBIÉN PREGUNTA ─────────────────────────────────────
+          Tres salidas, en el orden en que se usan: empezar de cero, repetir una
+          de las que ya hay —«otro día igual que el lunes» es cómo se monta la
+          mitad de las rutinas— y soltar lo que se traiga copiado, que puede
+          venir de otro cliente.
+
+          Las hojas propias van con su nombre y no detrás de un «Copia de…»
+          genérico: son cuatro o cinco, se leen de una mirada, y así el menú dice
+          de qué parte cada opción sin abrir nada más.
+        */
+        <BotonMas
+          palabra="hoja"
+          ariaLabel={`Añadir una hoja a «${bloque.name}»`}
+          /*
+            ── EL ORDEN LO MANDA LO QUE LLEVAS ─────────────────────────────
+            Con la mano vacía, primero lo que se usa más: empezar de cero y
+            repetir una de las que ya hay. Pero con algo copiado, abrir este
+            menú es casi siempre haber venido a soltarlo —se copia y se navega
+            hasta aquí, que son tres gestos seguidos—, así que lo pegado sube
+            arriba. Es la misma ley del reposo: la oferta manda mientras dura.
+          */
+          items={[
+            ...hojasCopiadas.map((pieza) => ({
+              icon: ClipboardPaste,
+              label: `Pegar «${pieza.titulo}»`,
+              sub: [pieza.detalle, pieza.origen?.cliente || pieza.origen?.donde].filter(Boolean).join(' · '),
+              run: () => pegarHoja(pieza),
+            })),
+            hojasCopiadas.length > 0 ? null : undefined,
+            { icon: Plus, label: 'En blanco', sub: 'Le pones el nombre y sus ejercicios', run: () => setNuevaHojaEnTira('') },
+            nav.days.length > 0 ? null : undefined,
+            ...nav.days.map((hoja) => ({
+              icon: Copy,
+              label: `Copia de «${hoja.dayName}»`,
+              sub: `${(hoja.exercises || []).length} ejercicios`,
+              run: () => duplicarHojaDelBloque(hoja.dayName),
+            })),
+          ]}
+        />
       ) : (
         <form
           className="plan-hoja-alta"
@@ -1382,7 +2281,15 @@ export const WorkoutLogEditor = () => {
          irreconocible esta cabecera. */
       mandosDelMicrociclo={vista === 'bloque' ? mandosDelMicrociclo : null}
       menuDelMicrociclo={vista === 'bloque' ? menuDelMicrociclo : null}
-      iconos={vista === 'hoja' ? iconosDeLaHoja : iconosDelBloque}
+      /* Deshacer va PRIMERO y en las dos vistas: el plan se toca en la hoja y
+         en el conjunto, y lo que se deshace es el mismo plan. Detrás, los
+         verbos de la vista que esté delante. */
+      iconos={
+        <>
+          {mandosDeDeshacer}
+          {vista === 'hoja' ? iconosDeLaHoja : iconosDelBloque}
+        </>
+      }
       menuDeLaHoja={menuDeLaHoja}
       onIrBloque={(b) => {
         const suyas = weeksOfBlock(program, b);
@@ -1390,11 +2297,11 @@ export const WorkoutLogEditor = () => {
       }}
       onVerLista={() => verVista("lista")}
       onVerConjunto={() => verVista("bloque")}
-      onNuevoBloque={esBloqueActual ? aComponer : null}
+      masBloque={masBloque}
+      masMicrociclo={masMicrociclo}
       onRenombrarBloque={(id, nombre) => renameBlock(activeClient.id, id, nombre)}
       onQuitarBloque={quitarBloque}
       onIrSemana={(w) => irA(w, 0, vista === "hoja" ? "hoja" : "bloque")}
-      onNuevaSemana={nuevoMicrociclo}
       onAjustesDelMicrociclo={() => setPanel("semana")}
       onAbrirHoja={(i) => irA(nav.week, i, "hoja")}
     />
@@ -1406,6 +2313,41 @@ export const WorkoutLogEditor = () => {
       <ConditionsNote area="training" />
       {panelDeCopia}
       {dialogoDePegado}
+
+      {/*
+        ══ DÓNDE CAE LO QUE LLEVAS ════════════════════════════════════════════
+
+        Esta pantalla es tres destinos y nunca dos a la vez: con la lista
+        delante cae un BLOQUE en la persona, con el bloque delante cae una HOJA
+        en él, y con una hoja abierta cae un EJERCICIO en ella. Registrarlo es
+        lo que deja que la mano del portapapeles encienda el verbo con el nombre
+        del sitio —«Pegar «Sentadilla» en Lower A»— en vez de obligar a abrir el
+        «+» de cada sitio a ver si dentro está lo copiado. Los verbos son los
+        mismos que ya usa ese «+»: aquí no se implementa nada nuevo, se PRESENTA
+        lo que ya había.
+
+        El bloque va a prioridad 0 y la hoja a 1 porque la especificidad se dice
+        y no se deduce del orden de montaje (ver `registrarDestino`).
+
+        ── Por qué el BLOQUE cae en la lista y no aquí ────────────────────────
+        Estuvo sin registrar del todo, con este argumento: pegarlo cierra el que
+        está abierto y abre otro, y eso es una conversación. El argumento no se
+        sostiene —`pegarBloque` YA lanza su pregunta, la lance quien la lance—,
+        pero el sitio sí importa: el destino vigente es UNO, así que un bloque
+        registrado aquí le quitaría la mano a la hoja, que es lo que de verdad
+        cae con el bloque delante. Así que el bloque cae donde el bloque es el
+        sujeto —la lista, y el vacío de quien no tiene programa—, y con el
+        bloque delante se sigue pegando desde su «+», que es donde vivía.
+      */}
+      {vista === 'lista' && (
+        <Destino tipos={[TIPO.BLOQUE]} donde={nombreCorto} prioridad={0} pegar={pegarBloque} />
+      )}
+      {vista === 'bloque' && esBloqueActual && nav.days && (
+        <Destino tipos={[TIPO.HOJA]} donde={bloque.name} prioridad={0} pegar={pegarHoja} />
+      )}
+      {vista === 'hoja' && nav.day && (
+        <Destino tipos={[TIPO.EJERCICIO]} donde={nav.day.dayName} prioridad={1} pegar={pegarEjercicio} />
+      )}
 
       {/*
         ══ DEFINIR SE FUE A SU SITIO ══════════════════════════════════════════
@@ -1427,12 +2369,24 @@ export const WorkoutLogEditor = () => {
           bloque={bloque}
           unidad={unidad}
           unidades={unidades}
+          /* Dónde estás, para la barra de microciclos de su fila: el microciclo
+             EN CURSO —el último con actividad—, no el que estés hojeando. La
+             lista es la historia del entrenamiento y ahí «aquí» es por dónde va
+             la persona, igual que en la cabecera del bloque. */
+          semanaEnCurso={semanaEnCurso}
+          onMandarBloque={mandarBloque}
+          onGuardarBloque={guardarBloque}
           onIrBloque={(b) => {
             const suyas = weeksOfBlock(program, b);
             if (suyas.length > 0) irA(suyas[suyas.length - 1], 0, 'bloque');
           }}
           onVolver={() => verVista('bloque')}
           onNuevoBloque={aComponer}
+          /* El verbo llega montado y no como manejador: con un bloque copiado
+             es un botón y con varios una pregunta, y esa decisión es de aquí
+             —de lo que hay en la mano—, no de la lista, que solo tiene que
+             hacerle sitio al lado del «+ bloque». */
+          accionPegar={verboPegarBloque('cab-accion is-puerta', pegarBloque)}
           onRenombrarBloque={(id, nombre) => renameBlock(activeClient.id, id, nombre)}
           onQuitarBloque={quitarBloque}
           /* A qué juega el bloque. Es un rótulo del entrenador, no una receta:
@@ -1508,6 +2462,14 @@ export const WorkoutLogEditor = () => {
               onReps={repsDelBloque}
               onAnadirHoja={anadirHojaAlBloque}
               onRenombrarHoja={renombrarHojaDelBloque}
+              /* El mismo verbo que la hoja abierta, en la rejilla donde se
+                 decide que hace falta otra hoja. */
+              onCopiarHoja={copiarHoja}
+              /* Y la hoja que se lleva, para poder ponerla ENCIMA de una de
+                 estas: aquí, con las seis columnas delante, es donde se ve cuál
+                 va a cambiar. La pieza es la última copiada, como ⌘V. */
+              hojaEnMano={hojasCopiadas[0] || null}
+              onSustituirHoja={(dayName, pieza) => sustituirHoja(pieza || hojasCopiadas[0], dayName)}
               onQuitarHoja={eliminarHoja}
               onMoverHoja={moverHojaDelBloque}
               onRecordarEjercicio={upsertLibraryExercise}
@@ -1609,6 +2571,15 @@ export const WorkoutLogEditor = () => {
                 exercises={daySession.exercises}
                 focusedId={ejercicioEnFoco?.id || null}
                 onFocusExercise={setFocoEjercicio}
+                /* Solo en la hoja de escritorio: `ExerciseList` es la del
+                   teléfono y allí no se programa, se registra. Ver
+                   `movil-ejecuta-pc-planifica`. */
+                onCopiar={esTelefono ? null : copiarEjercicio}
+                /* La pauta de lo último copiado, en la fila encendida. Es la
+                   última y no una lista: la misma regla que ⌘V, que también pega
+                   la de arriba de la mano. */
+                pautaEnMano={esTelefono ? null : ejerciciosCopiados[0] || null}
+                onPegarPauta={esTelefono ? null : (ex) => pegarPauta(ejerciciosCopiados[0], ex)}
                 showRir={isModuleOn(protocol, 'rir')}
                 showNotes={isModuleOn(protocol, 'coachNote')}
                 /*
@@ -1862,6 +2833,28 @@ export const WorkoutLogEditor = () => {
                       }}
                     onRememberExercise={upsertLibraryExercise}
                   />
+                  {/* Y pegar, pegado al alta: es la misma pregunta —«qué
+                      ejercicio va aquí»— resuelta por el otro camino. Solo
+                      existe con algo copiado, que es la regla de todo el
+                      portapapeles: un «Pegar» permanente y gris la mitad del
+                      año enseña una puerta que casi nunca se puede abrir. */}
+                  {ejerciciosCopiados.length > 0 && (
+                    <MenuAcciones
+                      clase="btn btn-secondary btn-sm"
+                      ariaLabel="Pegar un ejercicio del portapapeles"
+                      label={
+                        <>
+                          <ClipboardPaste size={13} aria-hidden="true" /> Pegar
+                        </>
+                      }
+                      items={ejerciciosCopiados.map((pieza) => ({
+                        icon: ClipboardPaste,
+                        label: pieza.titulo,
+                        sub: [pieza.detalle, pieza.origen?.cliente].filter(Boolean).join(' · '),
+                        run: () => pegarEjercicio(pieza),
+                      }))}
+                    />
+                  )}
                 </div>
               )}
               </div>
@@ -1925,6 +2918,19 @@ export const WorkoutLogEditor = () => {
           fecha={daySession.session?.date ? shortDate(daySession.session.date) : null}
           onAmpliar={() => setSensacionesAbiertas(true)}
         />
+        {/*
+          ══ Y EL VOLUMEN, que es de la hoja aunque cite al bloque ═══════════
+          El sujeto son los grupos de ESTA hoja y sus series; la cifra del
+          bloque entra detrás solo como el fondo contra el que «6» significa
+          algo. Ver la cabecera de `VolumenDeLaHoja`.
+
+          Va la ÚLTIMA de las tres a propósito. Lo que se quitó del costado el
+          9 de septiembre no fue la lectura: fue tener que bajar por ella para
+          llegar a lo del ejercicio que se está escribiendo. Así que la
+          progresión del ejercicio en foco sigue siendo lo primero, y esto se
+          lee cuando se levanta la vista de la fila.
+        */}
+        {nav.day && <VolumenDeLaHoja program={program} bloque={bloque} hoja={nav.day} cycleType={activeClient.cycleType} />}
           </>
         )}
         {vista === 'bloque' && (
@@ -1969,8 +2975,36 @@ export const WorkoutLogEditor = () => {
       {sensacionesAbiertas && (
         <SensacionesPopup etiqueta={etiqueta} open onClose={() => setSensacionesAbiertas(false)} microcycles={microcycles} preguntas={activeQuestions(protocol)} />
       )}
+      {/* Hasta cuándo vale lo que se está pegando. Solo cuando la respuesta
+          puede ser distinta; ver `pegarEjercicio`. */}
+      {pegadoConTramo && nav.day && (
+        <TramoDelPegado
+          pieza={pegadoConTramo}
+          donde={`«${nav.day.dayName}»`}
+          onPegar={(alcance) => pegarEjercicioAhora(pegadoConTramo, alcance)}
+          onClose={() => setPegadoConTramo(null)}
+        />
+      )}
+      {/* Y la misma pregunta cuando lo que cae es una hoja entera encima de
+          otra. Lo que cambia es el título: aquí no se añade nada, se sustituye
+          lo que la hoja lleva dentro. */}
+      {sustitucion && (
+        <TramoDelPegado
+          pieza={sustitucion.pieza}
+          donde={`«${sustitucion.dayName}»`}
+          titulo={`Poner «${sustitucion.pieza.carga?.dayName || sustitucion.pieza.titulo}» en «${sustitucion.dayName}»`}
+          intro={`«${sustitucion.dayName}» conserva su nombre y cambia lo que lleva dentro. Hasta cuándo:`}
+          verbo="Sustituir"
+          onPegar={(alcance) => sustituirHojaAhora(sustitucion.pieza, sustitucion.dayName, alcance)}
+          onClose={() => setSustitucion(null)}
+        />
+      )}
       </div>
       </>
+      )}
+
+      {mandandoBloque && (
+        <MandarLaPieza pieza={mandandoBloque} onClose={() => setMandandoBloque(null)} />
       )}
 
       {importAbierto && nav.day && (
@@ -2079,6 +3113,18 @@ export const WorkoutLogEditor = () => {
       <Modal open={panel === 'programa'} title="Ajustes del programa" onClose={() => setPanel(null)}>
         {ajustesDelPrograma}
       </Modal>
+
+      {/*
+        Su protocolo entero, desde el pie de los interruptores de arriba. Es LA
+        MISMA hoja de la cartera y de su ficha, y va en el mismo estado que el
+        resto: abrirla cierra los ajustes del programa, porque delante solo puede
+        haber una cosa.
+      */}
+      <ClientSettingsSheet
+        client={activeClient}
+        open={panel === 'protocolo'}
+        onClose={() => setPanel(null)}
+      />
 
       {/*
         El calentamiento del día se ESCRIBE, así que va centrado y no por el

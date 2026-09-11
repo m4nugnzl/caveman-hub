@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, FolderOpen, Plus, Trash2 } from 'lucide-react';
+import { ChevronRight, FolderOpen, Layers, Trash2 } from 'lucide-react';
 
 import { blockSummary, blocksOf, blockTraits, intentLabel, weeksOfBlock } from '@/domain/blocks';
 import { executedSessions } from '@/domain/sessions';
@@ -18,14 +18,15 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
  * microciclos del abierto— y con ella se van la cabecera de dos pisos, la banda
  * de hojas y el carril, que eran tres intentos de decir lo mismo.
  *
- *     Bloques │ B1 Adaptación  B2 Acumulación  ▌B3 Intensificación  + bloque
- *     M1  ▌M2 · en curso  + microciclo                                + hoja
+ *     Bloques › B1 Adaptación  B2 Acumulación  ▌Intensificación  + bloque
+ *     M1  ▌M2 · en curso  + microciclo                             + hoja
  *
- * Y con una hoja abierta, la fila 1 pasa a ser la de las HOJAS —que es lo que
- * más se cambia— y la 2 la del microciclo y su sesión:
+ * Y con una hoja abierta, el bloque se recoge como MIGA y su sitio lo ocupan
+ * las hojas —que es lo que más se cambia—; la fila 2 sigue siendo la del
+ * microciclo y su sesión:
  *
- *     ← Intensificación │ ▌Push A  Pull A  Pierna A            ⧉  ⇄  ···
- *     M1  ▌M2 · en curso  sesión del 5 sep  18 de 18 series escritas
+ *     Bloques › Intensificación › Push A  Pull A  Pierna A     ⧉  ⇄  ···
+ *     M1  ▌M2 · en curso  sesión del 5 sep
  *
  * ══ Las tres averías que sí se arreglan ════════════════════════════════════
  *
@@ -62,10 +63,12 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
  * · CADA «+» TOCA A LO QUE AÑADE, y los tres se dibujan igual (`.tira-mas`):
  *   el de bloques con los bloques, el de microciclos con los microciclos y el
  *   de hojas al final del renglón del microciclo, que es de quien son.
- * · LO QUE SE PUEDE HACER SALE DE LOS MANEJADORES QUE LLEGAN. Sin
- *   `onNuevoBloque` no hay «+ bloque», sin `onNuevaSemana` no hay «+
- *   microciclo». No hay ningún booleano de sólo lectura que haya que acordarse
- *   de cruzar con cada verbo.
+ * · LO QUE SE PUEDE HACER SALE DE LO QUE LLEGA. Sin `masBloque` no hay «+
+ *   bloque», sin `masMicrociclo` no hay «+ microciclo». No hay ningún booleano
+ *   de sólo lectura que haya que acordarse de cruzar con cada verbo. Y los tres
+ *   «+» llegan ya montados (`BotonMas`) porque, desde que preguntan de qué
+ *   parten, sus opciones son del dominio de la pantalla y no de esta cabecera:
+ *   qué hojas hay para copiar y qué hay en el portapapeles no lo sabe una tira.
  *
  * @param vista       `'bloque'` (la rejilla delante) o `'hoja'` (una abierta).
  * @param lecturas    La frase de marcha del bloque, ya compuesta por la
@@ -75,9 +78,10 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
  *                    de su propio renglón. Estuvieron en la fila de arriba, que
  *                    es la del bloque: duplicar el microciclo abierto no es una
  *                    acción del bloque, y ahí no se encontraba.
- * @param menuDelMicrociclo  Y su «···», con lo que se toca poco y lo que borra.
- *                    Dos menús de dos ítems, cada uno en su renglón, en lugar
- *                    de uno solo con siete de tres niveles distintos.
+ * @param menuDelMicrociclo  Y lo que BORRA, al final y en rojo. Se llama «menú»
+ *                    por su sitio, no por su forma: fue un «···» de dos ítems y
+ *                    hoy es la papelera, como en el bloque y en la hoja. No
+ *                    queda un solo menú en esta cabecera.
  * @param derecha     Lo que se sienta al final de la fila de hojas: «+ hoja».
  * @param mandosDeLaHoja  Qué sesión se mira y cuánto lleva escrito. Van en el
  *                    renglón del microciclo, que es el nivel del que hablan:
@@ -110,18 +114,46 @@ export const TiraDelPrograma = ({
   mandosDeLaHoja = null,
   iconos = null,
   menuDeLaHoja = null,
+  masBloque = null,
+  masMicrociclo = null,
   onIrBloque,
   onVerLista,
-  onNuevoBloque,
   onRenombrarBloque,
   onQuitarBloque,
   onIrSemana,
-  onNuevaSemana,
   onAjustesDelMicrociclo,
   onAbrirHoja,
   onVerConjunto,
 }) => {
   const [renombrando, setRenombrando] = useState(false);
+  /*
+    ── POR QUÉ CANTO ENTRA LA LISTA ──────────────────────────────────────────
+    Deslizar solo se lee como deslizar si el sentido cuenta algo: bajando —del
+    bloque a una de sus hojas— la lista nueva entra por la DERECHA, como si
+    viniera de más adentro; subiendo, por la izquierda. Con un sentido único
+    las dos direcciones se sienten iguales y el gesto vuelve a ser un parpadeo.
+
+    Es el patrón de «ajustar el estado durante el render» de React, no un
+    efecto: el sentido tiene que estar decidido en el mismo render en el que la
+    lista se remonta, y un `useEffect` llega un fotograma tarde —justo el que
+    dispara la animación—.
+  */
+  const [vistaPrevia, setVistaPrevia] = useState(vista);
+  const [sentido, setSentido] = useState('baja');
+  if (vistaPrevia !== vista) {
+    setVistaPrevia(vista);
+    setSentido(vista === 'hoja' ? 'baja' : 'sube');
+  }
+  /*
+    ── AQUÍ ESTUVO «AMPLIAR» ─────────────────────────────────────────────────
+    El mando que pliega la barra lateral pasó por esta cabecera: es la pantalla
+    más ancha del producto y la que pide el sitio. Duró una vuelta —«no lo
+    quiero en la cabecera de Entreno, ha de ser en el borde de la página para
+    todas las páginas»— y el motivo de fondo es que un mando del CHASIS no
+    puede vivir dentro de una pantalla: había que estar aquí para plegar y para
+    devolver. Hoy es un asa en la costura entre la barra y la página, en las
+    once (`.pliegue-borde`, ver `lib/barraPlegada`).
+  */
   const bloques = blocksOf(program);
   const microcycles = program?.microcycles || [];
   const inicial = (unidad || 'Microciclo').charAt(0).toUpperCase();
@@ -209,158 +241,192 @@ export const TiraDelPrograma = ({
   return (
     <nav className="tira" aria-label="El programa de esta persona">
       {/*
-        ══ FILA 1 · LOS BLOQUES, QUE SON LAS CARPETAS ═══════════════════════
-        Con una hoja abierta esta fila se recoge en el camino de vuelta —
-        `← Intensificación · Empuje`—, que es lo que hacía producción: dentro de
-        una hoja los hermanos del bloque no son lo que se está mirando, y sus
-        seis pastillas competían con el trabajo.
+        ══ FILA 1 · EL CAMINO, Y LA LISTA DEL NIVEL QUE MIRAS ════════════════
+
+        ── AQUÍ ESTUVO LA FLECHA DE VOLVER ──────────────────────────────────
+        «La flecha hacia atrás no me gusta, me gusta más estilo deslizar.»
+
+        Y la flecha era el síntoma, no la avería: esta fila no deslizaba, se
+        SUSTITUÍA. Con el bloque delante llevaba «Bloques · Bloque 1 · +
+        bloque»; al abrir una hoja se tiraba entera y en su sitio aparecía
+        «← Bloque 1 · sus hojas». Como el nivel de arriba desaparecía, hacía
+        falta un mando que lo trajera de vuelta, y ese mando era la flecha.
+
+        Ahora la fila es UNA y solo crece o encoge por la izquierda: el nivel
+        que abres se recoge como miga y su lista entra deslizando desde el
+        canto. Volver es pulsar la miga —el sitio al que ya estás mirando para
+        saber dónde estás—, así que no hace falta ningún mando aparte.
+
+            Bloques ›  Bloque 1    Bloque 2   + bloque
+            Bloques ›  Bloque 1 ›  Lower A   Upper A   Lower B
+
+        ── Y LA JERARQUÍA LA PONE EL CUERPO, NO LA CAJA ─────────────────────
+        «La fuente y el diseño de los nombres de bloque y hoja no me gustan.»
+
+        Lo que fallaba no era el acabado: era que el CONTENEDOR y su CONTENIDO
+        pesaban lo mismo. Un bloque era una pastilla de 14/600 con marco y una
+        hoja otra de 14/500, así que los dos renglones se leían como dos
+        hileras de chips del mismo rango y ninguno decía qué contiene a qué.
+
+        La regla nueva es una sola y vale para los dos niveles: EL TITULAR ES
+        EL ÚLTIMO ESLABÓN. Lo que está encendido en la lista de delante lleva
+        el nombre grande —tinta llena, sin caja—, sus hermanos van en voz baja
+        y todo lo que queda a su izquierda son migas. Se van los recuadros:
+        nada que sea texto lleva marco.
+
+        Y por eso los dos niveles comparten pieza (`.tira-eslabon`): elegir un
+        bloque y elegir una hoja son la misma pregunta hecha un escalón más
+        adentro, y esta cabecera lleva diez vueltas pagando el haberla dibujado
+        de dos maneras.
+
+        Lo que NO se hace: cambiar de fuente. `--font-ancha` ya se probó para
+        rótulos de pantalla y el dueño la tumbó —«chirría»—; queda reservada a
+        las cifras y a la portada del producto (ver `.cartera-cab-titulo` en
+        `chasis.css`). Aquí manda la misma Archivo del resto, y lo que separa a
+        un titular de su hermano es el cuerpo, el peso y el interletrado.
       */}
       <div className="tira-fila">
-        {vista === 'hoja' ? (
-          /*
-            ══ CON UNA HOJA ABIERTA, ESTA FILA ES DE LA HOJA ══════════════════
-            Y de nada más. Aquí había, además del camino, las chapas del bloque,
-            «desde el 6 jul», «26 de 36 entrenamientos» y «72 % de lo pautado»,
-            y debajo vivía una TERCERA barra con las series escritas, el
-            selector de sesión y otro «···». El dueño: «tanta información atora
-            un poco en las cabeceras… cambiar de sesión no debería estar tan a
-            la derecha».
-
-            Las cifras del bloque se leen en el bloque, que es de quien son (y
-            en su tarjeta «Este bloque»); la tercera barra se ha ido entera y
-            sus dos mandos suben aquí, PEGADOS al nombre de la hoja: la sesión
-            que se mira es de esta hoja, no del canto derecho de la pantalla.
-          */
-          /*
-            ══ CAMBIAR DE HOJA ES LO PRIMERO DEL RENGLÓN ══════════════════════
-            «Sigue siendo incómodo cambiar de una hoja a otra, está muy a la
-            derecha, se hace antinatural.» Lo estaba: las pestañas vivían en el
-            renglón de abajo y detrás de los microciclos, así que el gesto que
-            más se repite en toda la pantalla —saltar de Push a Pull— empezaba a
-            trescientos píxeles del canto, mientras el renglón de arriba gastaba
-            los suyos en decir «Push A · microciclo 2», que es justo lo que la
-            pestaña encendida ya dice.
-
-            Ahora la fila 1 es la de las HOJAS: la vuelta al bloque y, pegadas a
-            ella, sus hojas. Nada más. Y sin el rótulo repetido: quién es la
-            hoja abierta lo dice la pestaña que está encendida.
-          */
-          <div className="tira-camino">
-            <button
-              type="button"
-              className="tira-volver"
-              onClick={onVerConjunto}
-              title={`Ver «${bloque.name}» entero: sus hojas, su estructura y su información`}
-            >
-              <ArrowLeft size={15} aria-hidden="true" />
-              {bloque.name}
-            </button>
-            {hojas.length > 0 && (
-              <div className="tira-hojas" role="tablist" aria-label={`Hojas de ${bloque.name}`}>
-                {hojas.map((hoja, i) => {
-                  const estado = estadoDeHoja ? estadoDeHoja(hoja) : null;
-                  const dia = diaDe ? diaDe(hoja) : null;
-                  return (
-                    <button
-                      key={hoja.dayName}
-                      type="button"
-                      role="tab"
-                      aria-selected={i === hojaAbierta}
-                      className={`tira-hoja${i === hojaAbierta ? ' is-on' : ''}`}
-                      onClick={() => onAbrirHoja(i)}
-                      title={[hoja.dayName, dia, estado?.title].filter(Boolean).join(' · ')}
-                    >
-                      {estado && <span className={`tira-hoja-disco is-${estado.tono}`} aria-hidden="true" />}
-                      {hoja.dayName}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* La puerta al visor de carpetas: una palabra, pegada a lo que
-                abre. No es un chevron ni un ítem de menú — las dos veces que lo
-                fue, el dueño dijo que no encontraba los bloques. */}
-            {onVerLista && (
-              <button type="button" className="tira-puerta" onClick={onVerLista} title="Todos los bloques de esta persona">
-                <FolderOpen size={15} aria-hidden="true" />
+        <div className="tira-camino">
+          {/* La puerta al visor de carpetas: una palabra, y la primera del
+              camino. Fue un chevron pelado y luego un ítem dentro del «···», y
+              las dos veces el dueño dijo lo mismo: «no puedo acceder a la
+              carpeta con los bloques». El icono se queda porque es lo que la
+              hace reconocible como puerta y no como rótulo. */}
+          {onVerLista && (
+            <>
+              <button type="button" className="tira-miga" onClick={onVerLista} title="Todos los bloques de esta persona">
+                <FolderOpen size={13} aria-hidden="true" />
                 Bloques
               </button>
-            )}
+              <ChevronRight size={13} className="tira-paso" aria-hidden="true" />
+            </>
+          )}
 
-            <div className="tira-bloques" role="tablist" aria-label="Bloques del programa">
-              {tramos.map(({ b, i, esEste, r, semanas }) => {
-                const cuando = r.desde
-                  ? `${shortDate(r.desde)}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`
-                  : 'sin fechas';
-                const aqui = semanaEnCurso != null && semanas.includes(semanaEnCurso);
+          {/* La miga del bloque SOLO existe con una hoja abierta: mientras se
+              mira el bloque entero, el bloque no es una miga — es el titular
+              de la lista que tiene al lado, y decirlo dos veces en el mismo
+              renglón es el error que aquí ya se ha cometido cuatro veces. */}
+          {vista === 'hoja' && (
+            <>
+              {/* Con su icono, por lo mismo que «Bloques» lleva la carpeta: sin
+                  él es el nombre del bloque en tinta terciaria —o sea, un
+                  título apagado— y el camino de vuelta a la rejilla no se
+                  encuentra. El teclado ya lo hacía (Esc); la vista, no. */}
+              <button
+                type="button"
+                className="tira-miga"
+                onClick={onVerConjunto}
+                title={`Ver «${bloque.name}» entero: sus hojas, su estructura y su información · Esc`}
+              >
+                <Layers size={13} aria-hidden="true" />
+                {bloque.name}
+              </button>
+              <ChevronRight size={13} className="tira-paso" aria-hidden="true" />
+            </>
+          )}
 
-                /* El bloque abierto en renombrado: el campo ocupa el sitio de su
-                   titular, para que el nombre se cambie donde se lee. */
-                if (esEste && renombrando) {
-                  return (
-                    <RenombrarEnSitio
-                      key={b.id}
-                      value={b.name}
-                      label="Nuevo nombre del bloque"
-                      onRename={(nombre) => onRenombrarBloque(b.id, nombre)}
-                      onDone={() => setRenombrando(false)}
-                    />
-                  );
-                }
+          {/*
+            ── LA LISTA QUE DESLIZA ──────────────────────────────────────────
+            `key={vista}` la remonta al cambiar de nivel, que es lo que dispara
+            la entrada, y `data-sentido` dice por qué canto entra: bajando, del
+            derecho; subiendo, del izquierdo. El recorrido es corto a propósito
+            —10 px— porque un deslizamiento largo en una cabecera que se usa
+            cincuenta veces al día deja de ser un gesto y pasa a ser una espera.
+            Con `prefers-reduced-motion` no se mueve nada.
 
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={esEste}
-                    className={`tira-bloque${esEste ? ' is-on' : ''}`}
-                    onClick={() => (esEste ? setRenombrando(Boolean(onRenombrarBloque)) : onIrBloque(b))}
-                    title={
-                      esEste
-                        ? `${b.name}${onRenombrarBloque ? ' · púlsalo para renombrarlo' : ''}`
-                        : `Abrir ${b.name} · ${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas} · ${cuando}`
+            El `tablist` envuelve SOLO las pestañas y va en `display: contents`
+            (el mismo apaño que `.tira-micros`): «+ bloque» no es una pestaña y
+            estaba dentro de la lista, que es como se cuela un botón en el árbol
+            de accesibilidad como si fuera una opción más.
+          */}
+          <div className="tira-lista" key={vista} data-sentido={sentido}>
+            <div
+              className="tira-tabs"
+              role="tablist"
+              aria-label={vista === 'hoja' ? `Hojas de ${bloque.name}` : 'Bloques del programa'}
+            >
+              {vista === 'hoja'
+                ? hojas.map((hoja, i) => {
+                    const estado = estadoDeHoja ? estadoDeHoja(hoja) : null;
+                    const dia = diaDe ? diaDe(hoja) : null;
+                    return (
+                      <button
+                        key={hoja.dayName}
+                        type="button"
+                        role="tab"
+                        aria-selected={i === hojaAbierta}
+                        className={`tira-eslabon${i === hojaAbierta ? ' is-on' : ''}`}
+                        onClick={() => onAbrirHoja(i)}
+                        title={[hoja.dayName, dia, estado?.title].filter(Boolean).join(' · ')}
+                      >
+                        {/* El disco distingue y el color juzga: verde hecha,
+                            ámbar a medias, hueco aún no. La ley del color de la
+                            casa, y sin palabra — el nombre ya está al lado. */}
+                        {estado && <span className={`tira-eslabon-disco is-${estado.tono}`} aria-hidden="true" />}
+                        <span className="tira-eslabon-nombre">{hoja.dayName}</span>
+                      </button>
+                    );
+                  })
+                : tramos.map(({ b, i, esEste, r, semanas }) => {
+                    const cuandoBloque = r.desde
+                      ? `${shortDate(r.desde)}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`
+                      : 'sin fechas';
+                    const aqui = semanaEnCurso != null && semanas.includes(semanaEnCurso);
+
+                    /* El bloque abierto en renombrado: el campo ocupa el sitio
+                       de su titular, para que el nombre se cambie donde se lee. */
+                    if (esEste && renombrando) {
+                      return (
+                        <RenombrarEnSitio
+                          key={b.id}
+                          value={b.name}
+                          label="Nuevo nombre del bloque"
+                          onRename={(nombre) => onRenombrarBloque(b.id, nombre)}
+                          onDone={() => setRenombrando(false)}
+                        />
+                      );
                     }
-                  >
-                    {/* ── LA CIFRA, SOLO CUANDO EL NOMBRE NO LA DICE ────────
-                        «No me termina de gustar el cómo se ve Bloque 1, Bloque
-                        2…» Y con los bloques sin bautizar —que es como nacen—
-                        el renglón decía: «Bloques · B1 Bloque 1 · B2 Bloque 2 ·
-                        + bloque». La misma palabra cinco veces, y la misma
-                        cifra dos veces dentro de cada pastilla. La chapa existe
-                        para darle el ORDEN a un bloque con nombre propio («B2
-                        Acumulación»); cuando el nombre YA es su número, sobra. */}
-                    {!/^bloques?\s*\d+$/i.test(String(b.name || '').trim()) && (
-                      <span className="tira-bloque-n">B{i + 1}</span>
-                    )}
-                    <span className="tira-bloque-nombre">{b.name}</span>
-                    {/* El punto de «aquí está el hoy»: solo sale mirando OTRO
-                        bloque, porque es el camino de vuelta. */}
-                    {aqui && !esEste && <span className="tira-bloque-aqui">estás aquí</span>}
-                  </button>
-                );
-              })}
 
-              {/* ── UN SOLO DIBUJO PARA «UNO MÁS» ────────────────────────
-                  «+ bloque», «+ microciclo» y «+ hoja» eran tres botones con
-                  tres formas distintas —una pastilla de texto, una pastilla con
-                  filete y un botón de cabecera— para el mismo verbo, y los tres
-                  se ven a la vez en esta cabecera. El dueño: «los botones de
-                  añadir bloque o los bloques y añadir hoja me parecen feos».
-                  Ahora son la misma pieza (`.tira-mas`) y solo cambia la
-                  palabra: se lee que son hermanos y que cada uno añade lo que
-                  tiene al lado. */}
-              {onNuevoBloque && (
-                <button type="button" className="tira-mas" onClick={onNuevoBloque} title="Cierra el bloque abierto y empieza el siguiente">
-                  <Plus size={13} aria-hidden="true" /> bloque
-                </button>
-              )}
+                    return (
+                      <button
+                        key={b.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={esEste}
+                        className={`tira-eslabon${esEste ? ' is-on' : ''}`}
+                        onClick={() => (esEste ? setRenombrando(Boolean(onRenombrarBloque)) : onIrBloque(b))}
+                        title={
+                          esEste
+                            ? `${b.name}${onRenombrarBloque ? ' · púlsalo para renombrarlo' : ''}`
+                            : `Abrir ${b.name} · ${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas} · ${cuandoBloque}`
+                        }
+                      >
+                        {/* ── LA CIFRA, SOLO CUANDO EL NOMBRE NO LA DICE ────
+                            Con los bloques sin bautizar —que es como nacen— el
+                            renglón decía «Bloques · B1 Bloque 1 · B2 Bloque 2 ·
+                            + bloque»: la misma palabra cinco veces y la misma
+                            cifra dos veces dentro de cada pastilla. El dorsal
+                            existe para darle el ORDEN a un bloque con nombre
+                            propio («B2 Acumulación»); cuando el nombre YA es su
+                            número, sobra. */}
+                        {!/^bloques?\s*\d+$/i.test(String(b.name || '').trim()) && (
+                          <span className="tira-eslabon-n">B{i + 1}</span>
+                        )}
+                        <span className="tira-eslabon-nombre">{b.name}</span>
+                        {/* El punto de «aquí está el hoy»: solo sale mirando
+                            OTRO bloque, porque es el camino de vuelta. */}
+                        {aqui && !esEste && <span className="tira-eslabon-aqui">estás aquí</span>}
+                      </button>
+                    );
+                  })}
             </div>
-          </>
-        )}
+
+            {/* Fuera del `tablist` y dentro de la lista: añadir un bloque no es
+                elegir uno, pero va al final de sus hermanos porque cada «+»
+                toca a lo que añade. */}
+            {vista !== 'hoja' && masBloque}
+          </div>
+        </div>
 
         <span className="tira-hueco" />
 
@@ -446,11 +512,7 @@ export const TiraDelPrograma = ({
             {/* Fuera del `tablist`, que es de las pastillas: añadir un
                 microciclo no es elegir uno. Envuelve con ellas porque está en
                 la misma caja, no porque comparta su lista. */}
-            {esActual && onNuevaSemana && (
-              <button type="button" className="tira-mas" onClick={onNuevaSemana} title={`Añadir ${unidadBaja} ${abierto.semanas.length + 1}`}>
-                <Plus size={13} aria-hidden="true" /> {unidadBaja}
-              </button>
-            )}
+            {masMicrociclo}
 
             {/*
               ── Y LA SESIÓN, PEGADA A SU MICROCICLO ─────────────────────────

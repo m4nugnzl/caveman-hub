@@ -946,3 +946,52 @@ describe('lo que pasó con lo que cambiaste (afterLastClose)', () => {
     expect(res.delta).toBe(-0.4);
   });
 });
+
+/* ── La foto de un CICLADO ──────────────────────────────────────────────────
+   Guardaba `targetKcals`, o sea el primer día del plan: a quien come 3.000 los
+   días de entreno y 2.100 los de descanso se le guardaba el alto, y con él la
+   escalera del Resumen, la de la revisión y la ventana de la evolución. */
+describe('la foto del plan, con varios días', () => {
+  const ciclado = (week) => ({
+    days: [
+      { id: 'a', name: 'Entreno', targets: { targetKcals: 3000, proteinGrams: 180 }, meals: [] },
+      { id: 'b', name: 'Descanso', targets: { targetKcals: 2100, proteinGrams: 180 }, meals: [] },
+    ],
+    week,
+  });
+  /* Sin programa, `clientCycleSlots` devuelve las siete casillas de la semana
+     natural: es lo que tiene cualquier cliente de ciclo semanal sin bloque. */
+  const semanal = { cycleType: 'weekly' };
+  const cincoYdos = {
+    Lunes: 'a', Martes: 'a', Miércoles: 'a', Jueves: 'a', Viernes: 'a', Sábado: 'b', Domingo: 'b',
+  };
+
+  it('guarda la media ponderada del ciclo, no el primer día', () => {
+    const foto = planSnapshot({ nutrition: ciclado(cincoYdos), client: semanal });
+    expect(foto.kcals).toBe(2743); // (3000 × 5 + 2100 × 2) / 7
+    expect(foto.de).toBe('media');
+    expect(foto.reparto).toBe(7);
+  });
+
+  it('y los días detrás, para poder decir de dónde salía', () => {
+    const foto = planSnapshot({ nutrition: ciclado(cincoYdos), client: semanal });
+    expect(foto.cycle.map((d) => [d.n, d.kcals, d.x])).toEqual([
+      ['Entreno', 3000, 5],
+      ['Descanso', 2100, 2],
+    ]);
+  });
+
+  it('sin repartir el ciclo no se inventa una media', () => {
+    const foto = planSnapshot({ nutrition: ciclado({}), client: semanal });
+    expect(foto.kcals).toBe(3000);
+    expect(foto.de).toBe('dia');
+    expect(foto.dia).toBe('Entreno');
+  });
+
+  /* `cycle` no puede llamarse `days`: en las fotos antiguas esa clave son los
+     días del PROGRAMA y `semanasDe` la sigue aceptando por compatibilidad. */
+  it('no usa la clave con la que se guardaban los días del programa', () => {
+    const foto = planSnapshot({ nutrition: ciclado(cincoYdos), client: semanal });
+    expect(foto.days).toBeUndefined();
+  });
+});

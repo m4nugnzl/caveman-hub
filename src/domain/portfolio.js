@@ -35,6 +35,9 @@ import { feeLabel, paymentState } from './billing';
 import { currentCheckInPeriod } from './calendar';
 import { alertDaysFor, clientProtocol, isServiceOn, requiredBlocks, weighInsTarget } from './protocol';
 import { emptyTrainingSummary } from './sessions';
+import { horizonteEscrito } from './blocks';
+import { semanaDeAhora } from './week';
+import { weekStartOfProgramWeek } from './photos';
 import { weeklyCheckIn } from './anthropometry';
 import { daysBetween, todayISO, weekStart } from '@/lib/dates';
 import { buildWeeklySeries } from './analytics';
@@ -181,6 +184,30 @@ export const clientStatus = (
   /* Qué ha entregado él, del mismo sitio que su portal y que su ficha: los tres
      no pueden discrepar sobre si el cuestionario está contestado. */
   const estadoDelAlta = onboardingState({ client, equipment: { length: equipmentCount }, checkIn: submitted });
+
+  /*
+    ══ Por dónde va, y qué le queda escrito ═══════════════════════════════════
+
+    El reloj es el de siempre —`semanaDeAhora`, el tiempo que lleva contigo— y
+    aquí se le da lo poco que la cartera tiene: sin el programa cargado no hay
+    microciclos que mirar, así que el último recurso es la semana más alta que
+    el resumen ya trae (`montada`).
+
+    Del horizonte salen tres cosas que antes había que ir a buscar cliente a
+    cliente: el microciclo que la barra pone al lado del nombre, la cola «sin
+    semana siguiente» y la previsión de las cuatro semanas.
+  */
+  const horizonte = horizonteEscrito(
+    resumen.indice,
+    semanaDeAhora({
+      startDate: client.startDate,
+      today,
+      history,
+      photos,
+      montada: resumen.weekNumber ?? null,
+    })
+  );
+
   const alerts = [];
 
   const add = (id, severity, label, detail) => alerts.push({ id, severity, label, detail });
@@ -310,6 +337,39 @@ export const clientStatus = (
     // ── Programa ────────────────────────────────────────────────────────────
     if (conEntreno && resumen.microcycleCount === 0) {
       add('no_program', 'alta', 'Sin rutina asignada', 'No tiene ningún microciclo programado.');
+    }
+
+    /*
+      ══ Y la que faltaba: no hay hoja para la semana que viene ═════════════════
+
+      La cartera sabía decir quién no tiene rutina y quién lleva días sin
+      entrenar, o sea lo que ya ha salido mal. No sabía decir a quién se le
+      ACABA lo escrito, que es lo que se ve venir y lo único que se puede
+      adelantar. Había que entrar cliente por cliente en Entreno y contar
+      pastillas.
+
+      ── Por qué no se dice «se le acaba el bloque» ─────────────────────────
+      Porque un bloque nuestro es abierto y no tiene final que agotar (ver
+      `horizonteEscrito`). Lo cierto es que la semana que viene no hay hoja, y
+      eso es exactamente lo que se dice. Un cliente que va por la 18 con diez
+      microciclos escritos entra aquí igual que el que va por la 10 de 10: en
+      los dos casos lo siguiente que tienes que hacer es escribirle la semana.
+
+      ── Gravedad BAJA, y no es un descuido ─────────────────────────────────
+      Que a alguien no le hayas escrito todavía la semana que viene el miércoles
+      no es una avería: es la lista de la compra del oficio. Con gravedad media
+      entraría en «requieren atención» y la mitad de la cartera dejaría de estar
+      al día por trabajo que aún no toca — que es cómo se estropea un panel de
+      alertas. Como tarea de la bandeja pesa lo que pesa, y en la portada tiene
+      su propia cola con su verbo.
+    */
+    if (conEntreno && horizonte && horizonte.escritosDespues === 0) {
+      add(
+        'sin_semana',
+        'baja',
+        'Sin semana siguiente',
+        `Va por el microciclo ${horizonte.microcicloEnCurso} y no hay ninguno escrito después.`
+      );
     }
 
     // ── Entrenamiento ───────────────────────────────────────────────────────
@@ -548,6 +608,7 @@ export const clientStatus = (
       checkIn,
       weeksProgrammed: resumen.microcycleCount,
       weekNumber: resumen.weekNumber,
+      horizonte,
       sessionCount: resumen.sessionCount,
       alerts: [],
       severity: null,
@@ -573,6 +634,10 @@ export const clientStatus = (
        que la plantilla de Clientes diga LA MISMA semana que el riel: dos
        cálculos de «en qué semana va» acabarían discrepando. */
     weekNumber: resumen.weekNumber,
+    /* Por dónde va y cuánto le queda escrito. Viaja en la fila porque lo leen
+       tres sitios —la barra lateral, la cola de la portada y la previsión— y
+       calcularlo tres veces sería acabar con tres respuestas. */
+    horizonte,
     sessionCount: resumen.sessionCount,
     alerts,
     // La gravedad del cliente es la de su peor alerta: es lo que decide su
@@ -1021,6 +1086,25 @@ export const INBOX_TASKS = [
     why: () => 'Sin rutina asignada',
   },
   {
+    /*
+      Va pegada a «programar la rutina» porque es el mismo trabajo en otro
+      momento: montarle lo que viene. La diferencia es que aquélla es de quien no
+      tiene nada y ésta de quien tiene y se le acaba.
+    */
+    id: 'sin_semana',
+    seccion: 'rutina',
+    label: 'Escribir la semana siguiente',
+    hint: 'No tienen hoja escrita después de la que van',
+    tone: 'info',
+    match: (row) => row.alerts.some((a) => a.id === 'sin_semana'),
+    /* Por dónde va, y no el nombre de la tarea: la fila está debajo de una
+       tarjeta que ya dice «Sin semana siguiente», y repetirlo seis veces en
+       vertical no añade nada. Lo que hace falta para decidir es por dónde anda
+       esa persona. */
+    why: (row) =>
+      row.horizonte ? `Va por el microciclo ${row.horizonte.microcicloEnCurso}` : '',
+  },
+  {
     id: 'inactive',
     seccion: 'semana',
     label: 'Se están descolgando',
@@ -1267,6 +1351,24 @@ export const COLAS_INICIO = [
     tasks: ['inactive'],
   },
   {
+    /*
+      La única cola que mira hacia DELANTE. Las otras cuatro cuentan lo que ya
+      ha pasado —te esperan, no han empezado, han desaparecido, deben dinero— y
+      ésta cuenta lo que va a pasar el lunes que viene si no haces nada.
+
+      Su rótulo dice el ESTADO en dos palabras como los demás, y el verbo es
+      largo a propósito: «Escribir» ya es el de «Sin señales», y dos tarjetas
+      con el mismo verbo al lado obligan a leer el rótulo para saber cuál es
+      cuál. Aquí lo que se escribe es el microciclo, y decirlo lo separa.
+    */
+    id: 'siguiente',
+    label: 'Sin semana siguiente',
+    sub: 'no hay hoja después',
+    verbo: 'Escribir el microciclo',
+    seccion: 'rutina',
+    tasks: ['sin_semana'],
+  },
+  {
     id: 'cobrar',
     label: 'Cobros',
     sub: 'vencidos o vencen hoy',
@@ -1319,4 +1421,75 @@ export const colasDeInicio = (rows = [], today = todayISO()) => {
     }
     return { ...cola, n: filas.length, filas };
   });
+};
+
+/** Cuántas semanas mira la previsión. Cuatro: la de Efort y la que cabe leer. */
+export const SEMANAS_DE_PREVISION = 4;
+
+/**
+ * LA PREVISIÓN: a cuánta gente se le acaba lo escrito, esta semana y las tres
+ * siguientes.
+ *
+ * ══ Lo que se copia de Efort, y lo que no ══════════════════════════════════
+ *
+ * Lo que se copia es el GESTO: cuatro barras que convierten una bandeja
+ * reactiva —«éstos ya se han quedado sin nada»— en planificación —«el martes te
+ * tocan tres»—. Es lo mejor de su producto y no lleva ni un gráfico complicado.
+ *
+ * Lo que NO se copia es el dato. Su «New block forecast» cuenta bloques que se
+ * acaban porque sus bloques tienen duración fija; los nuestros son abiertos, así
+ * que aquí se cuenta **a quién se le acaba lo ESCRITO**: la semana siguiente a
+ * su último microciclo. Es lo único cierto, y además es el trabajo real.
+ *
+ * ── Los dos ejes, y por qué hace falta la fecha de alta ────────────────────
+ * El microciclo es un número («M11») y la previsión es un calendario («del 15 al
+ * 21»). El puente entre los dos es `weekStartOfProgramWeek`, que ya existe y ya
+ * lo usan las fotos y los check-ins. Sin fecha de alta no hay puente: esa
+ * persona sigue saliendo en la cola —que no necesita calendario— pero no puede
+ * caer en ninguna columna sin inventarse una fecha.
+ *
+ * ── Lo vencido cae en la primera columna ───────────────────────────────────
+ * A quien se le acabó hace tres semanas le hace falta la hoja HOY, no hace tres
+ * semanas. Repartirlo en columnas negativas sería un histórico de tu retraso, y
+ * eso es un reproche; la primera columna dice lo que hay que escribir ya.
+ *
+ * @returns `SEMANAS_DE_PREVISION` cubos `{ desde, n, filas }`, de esta semana en
+ *   adelante. `desde` es el lunes de cada uno; el rótulo lo pone la pantalla.
+ */
+export const previsionEscrita = (rows = [], today = todayISO()) => {
+  const lunes = weekStart(today);
+  const cubos = Array.from({ length: SEMANAS_DE_PREVISION }, (_, i) => ({
+    desde: lunes ? new Date(Date.parse(`${lunes}T00:00:00Z`) + i * 7 * 86400000).toISOString().slice(0, 10) : null,
+    n: 0,
+    filas: [],
+  }));
+  if (!lunes) return cubos;
+
+  for (const row of rows) {
+    /* En pausa no se cuenta: a quien apartaste tú no se le escribe la semana
+       que viene. Es la misma regla que silencia sus alertas. */
+    if (row.paused) continue;
+    const horizonte = row.horizonte;
+    if (!horizonte) continue;
+
+    /*
+      La columna es la semana del ÚLTIMO microciclo escrito: es la última en la
+      que tiene hoja, o sea la semana en la que hay que escribirle la siguiente.
+      Quien lleva tres semanas montadas por delante no da trabajo hoy: da
+      trabajo dentro de tres. Ésa es la diferencia entre la previsión y la cola
+      —la cola es esta columna, la primera— y toda la gracia del movimiento.
+    */
+    const seAcaba = weekStartOfProgramWeek(row.client.startDate, horizonte.ultimoEscrito);
+    if (!seAcaba) continue;
+
+    const dias = daysBetween(lunes, seAcaba);
+    if (dias === null) continue;
+    const i = Math.max(0, Math.floor(dias / 7));
+    if (i >= SEMANAS_DE_PREVISION) continue;
+
+    cubos[i].n += 1;
+    cubos[i].filas.push(row);
+  }
+
+  return cubos;
 };

@@ -1,4 +1,4 @@
-import { mealKcalRange, mealTarget, optionMacros } from '@/domain/nutrition';
+import { estadoDeDiff, mealKcalRange, mealTarget, optionMacros } from '@/domain/nutrition';
 import { Modal } from '@/components/ui/Modal';
 import { MacroDonut } from '@/components/ui/charts';
 import { MACRO_META, macroBreakdown, opcionElegida } from './macros';
@@ -7,8 +7,8 @@ import { PlanDia } from './PlanDia';
 /**
  * LA VENTANA DEL DÍA: una pantalla, y de una pieza — sin deslizar.
  *
- *   1. Cuatro cifras: desvío medio por comida, cuántas cuadran, entre qué kcal
- *      se mueve el día según las alternativas, y cuántas alternativas hay.
+ *   1. Tres cifras: desvío medio por comida, entre qué kcal se mueve el día
+ *      según las alternativas, y cuántas alternativas hay.
  *   2. El REPARTO: la tabla donde se asignan kcal y macros a cada comida, con
  *      lo pautado arriba y lo que suma abajo, todo en las mismas columnas.
  *   3. El DESVÍO, comida a comida: un anillo por comida —su reparto real de
@@ -26,13 +26,25 @@ import { PlanDia } from './PlanDia';
  * de alternativa cambia lo que se ve aquí: es la forma de probar un día.
  */
 const signo = (n) => (n > 0 ? `+${n}` : `${n}`);
-const tono = (diff, objetivo) => {
-  if (!objetivo) return '';
-  const margen = objetivo * 0.05;
-  return diff > margen ? ' is-over' : diff < -margen ? ' is-under' : ' is-ok';
+/* El semáforo es el del dominio, con su suelo: aquí vivía la tercera copia del
+   5 % pelado y con ella los anillos de una comida de 9 g de grasa salían
+   siempre en rojo. Ver `estadoDe` en `domain/nutrition.js`. */
+const tono = (diff, objetivo, campo = 'kcals') => {
+  const estado = estadoDeDiff(diff, objetivo, campo);
+  return estado === 'none' ? '' : ` is-${estado}`;
 };
 
-export const DiaPopup = ({ open, label, meals, targets, elegidas = {}, onTarget, onIrA, onClose }) => {
+export const DiaPopup = ({
+  open,
+  label,
+  meals,
+  targets,
+  elegidas = {},
+  onTarget,
+  onIrA,
+  onClose,
+  juzga = true,
+}) => {
   const filas = meals.map((meal, i) => {
     const pautado = mealTarget(meal);
     const real = optionMacros(opcionElegida(meal, elegidas));
@@ -55,7 +67,6 @@ export const DiaPopup = ({ open, label, meals, targets, elegidas = {}, onTarget,
   const desvioMedio = conPauta.length
     ? Math.round(conPauta.reduce((s, f) => s + Math.abs(f.desvio), 0) / conPauta.length)
     : null;
-  const cuadran = conPauta.filter((f) => Math.abs(f.desvio) <= f.pautado.kcals * 0.05).length;
   const rangoDia = filas.reduce((acc, f) => ({ min: acc.min + f.rango.min, max: acc.max + f.rango.max }), { min: 0, max: 0 });
   const totalOpciones = filas.reduce((s, f) => s + f.opciones, 0);
 
@@ -72,13 +83,13 @@ export const DiaPopup = ({ open, label, meals, targets, elegidas = {}, onTarget,
             <span className="v">{desvioMedio === null ? '—' : `±${desvioMedio}`}</span>
             <span className="k">kcal de desvío medio por comida</span>
           </div>
-          <div className="bloque-cifra">
-            <span className="v">
-              {cuadran}
-              <small>/{conPauta.length}</small>
-            </span>
-            <span className="k">comidas que cuadran (±5 %)</span>
-          </div>
+          {/* ── AQUÍ ESTABA «1/5 comidas que cuadran (±5 %)» ─────────────────
+              Con el margen sin suelo esa cifra decía casi siempre «1 de 5» en
+              planes que estaban cuadrados, así que era un marcador de fallos
+              inventados. Y arreglado el margen sigue sin merecer un hueco: el
+              desvío medio de al lado dice lo mismo con un número que se puede
+              seguir de una semana a otra, y estas cuatro cifras no son un
+              tanteo — son la lectura de un día. */}
           <div className="bloque-cifra">
             <span className="v">
               {Math.round(rangoDia.min)}
@@ -96,7 +107,7 @@ export const DiaPopup = ({ open, label, meals, targets, elegidas = {}, onTarget,
 
         <section className="bloque-seccion">
           <h3 className="bloque-titulo">Reparto · lo que le asignas a cada comida</h3>
-          <PlanDia meals={meals} targets={targets} elegidas={elegidas} onTarget={onTarget} onIrA={irA} />
+          <PlanDia meals={meals} targets={targets} elegidas={elegidas} onTarget={onTarget} onIrA={irA} juzga={juzga} />
         </section>
 
         <section className="bloque-seccion">
@@ -110,7 +121,7 @@ export const DiaPopup = ({ open, label, meals, targets, elegidas = {}, onTarget,
           <div className="dia-anillos">
             {filas.map((f) => {
               const pautado = f.pautado?.kcals || 0;
-              const t = tono(f.desvio ?? 0, pautado);
+              const t = juzga ? tono(f.desvio ?? 0, pautado, 'kcals') : '';
               const energia = macroBreakdown({ protein: f.real.protein, carbs: f.real.carbs, fats: f.real.fats, kcals: f.kcal });
               return (
                 <button key={f.id} type="button" className={`dia-anillo${t}`} onClick={() => irA(f.i)} title="Ir a la comida">
@@ -134,7 +145,7 @@ export const DiaPopup = ({ open, label, meals, targets, elegidas = {}, onTarget,
                     {MACRO_META.map(({ key, short, color }) => {
                       const d = f.pautado ? Math.round(f.real[key]) - f.pautado[key] : null;
                       return (
-                        <span key={key} className={`dia-desvio-macro${f.pautado?.[key] ? tono(d, f.pautado[key]) : ''}`}>
+                        <span key={key} className={`dia-desvio-macro${juzga && f.pautado?.[key] ? tono(d, f.pautado[key], key) : ''}`}>
                           <i style={{ background: color }} />
                           {short} {f.pautado?.[key] ? signo(d) : `${Math.round(f.real[key])} g`}
                         </span>

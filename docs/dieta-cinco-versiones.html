@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La dieta · cinco versiones</title>
+<style>
+  :root{
+    --surface:#fff; --sunken:#f3f5f8; --hairline:#e6e9ef; --hairline-strong:#cbd1dc;
+    --fill:#f4f6f9; --edge:rgba(18,24,38,.09);
+    --text:#12151a; --t2:#5b6270; --t3:#6e7686;
+    --accent:#3b49df; --accent-soft:rgba(59,73,223,.08);
+    --ok:#1f8a5b; --warn:#b06a00; --bad:#c0392f;
+    --r-sm:7px; --r-md:11px;
+    --font:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef0f4;color:var(--text);font:14px/1.5 var(--font)}
+  header.top{position:sticky;top:0;z-index:9;background:rgba(255,255,255,.86);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--hairline);padding:14px 20px 0}
+  h1{margin:0 0 2px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  .sub{margin:0 0 12px;color:var(--t3);font-size:12.5px;max-width:70ch}
+  nav{display:flex;gap:2px;flex-wrap:wrap}
+  nav button{appearance:none;border:0;background:transparent;font:inherit;font-size:13px;
+    padding:8px 12px;border-radius:var(--r-sm) var(--r-sm) 0 0;color:var(--t2);cursor:pointer;
+    border-bottom:2px solid transparent}
+  nav button:hover{background:var(--fill);color:var(--text)}
+  nav button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  main{padding:20px;max-width:1180px;margin:0 auto}
+  .nota{background:#fff;border:1px solid var(--hairline);border-left:3px solid var(--accent);
+    border-radius:var(--r-sm);padding:12px 14px;margin:0 0 16px;font-size:13px;color:var(--t2)}
+  .nota b{color:var(--text)}
+  .quita{color:var(--bad)}
+  .app{background:var(--surface);border:1px solid var(--edge);border-radius:var(--r-md);
+    overflow:hidden;box-shadow:0 1px 2px rgba(18,24,38,.05)}
+  .tira{background:var(--sunken);border-bottom:1px solid var(--hairline)}
+  .tira-fila{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 12px}
+  .tira-fila+.tira-fila{border-top:1px solid var(--hairline)}
+  .eslabon{appearance:none;border:1px solid transparent;background:transparent;font:inherit;
+    font-size:13px;padding:5px 11px;border-radius:var(--r-sm);color:var(--t2);cursor:pointer}
+  .eslabon:hover{background:var(--fill)}
+  .eslabon.on{background:#fff;border-color:var(--hairline);color:var(--text);font-weight:600}
+  .mas{appearance:none;border:0;background:transparent;color:var(--accent);font:inherit;
+    font-size:13px;cursor:pointer;padding:5px 8px;border-radius:var(--r-sm)}
+  .mas:hover{background:var(--accent-soft)}
+  .hueco{flex:1}
+  .dato{color:var(--t3);font-size:12px}
+  .casillas{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;flex:1}
+  .casilla{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:4px 7px;
+    border:1px solid transparent;border-radius:var(--r-sm);background:transparent;cursor:pointer;
+    font:inherit;text-align:left;width:100%}
+  .casilla:hover{background:var(--fill)}
+  .casilla.on{background:#fff;border-color:var(--hairline)}
+  .casilla .k{display:flex;gap:4px;align-items:baseline;font-size:11px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--t3);min-width:0}
+  .casilla .k em{font-style:normal;font-weight:500;letter-spacing:0;text-transform:none;
+    opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .casilla .v{font-size:12px;font-weight:550;color:var(--t2);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .casilla.on .v{color:var(--text)}
+  .cuerpo{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;padding:16px}
+  .cuerpo.solo{grid-template-columns:minmax(0,1fr)}
+  .lado{display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);padding:12px}
+  .rot{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3)}
+  .cifra{font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .lineas{list-style:none;margin:8px 0 0;padding:0;font-size:13px}
+  .lineas li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;color:var(--t2)}
+  .lineas li.on{color:var(--text);font-weight:600}
+  .vacio{border:1px dashed var(--hairline-strong);border-radius:var(--r-sm);
+    padding:26px;text-align:center;color:var(--t3);font-size:12.5px}
+  /* ── La mesa del ciclo (V1) ─────────────────────────────────────────────
+     La rejilla de `PlanDia`: cifras a la derecha, celda a ras del papel que se
+     enciende con la fila. Sin recuadros flotando, que es lo que se le quitó a
+     la dieta cuando dejó de ser un formulario. */
+  .mesa{width:100%;border-collapse:collapse;font-size:13px}
+  .mesa th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--t3);text-align:left;padding:0 8px 6px;border-bottom:1px solid var(--hairline)}
+  .mesa th.num,.mesa td.num{text-align:right}
+  .mesa td{padding:3px 8px;border-bottom:1px solid var(--hairline)}
+  .mesa tr.on td{background:var(--accent-soft)}
+  .mesa td.nom{font-weight:600;cursor:pointer}
+  .mesa tr.total td{font-weight:600;border-bottom:0;color:var(--text)}
+  .mesa td.veces{color:var(--t3);font-size:12px}
+  .mesa input{width:72px;text-align:right;font:inherit;color:inherit;padding:5px 7px;
+    border:1px solid transparent;border-radius:var(--r-sm);background:var(--sunken)}
+  .mesa tr:hover input{border-color:var(--hairline-strong)}
+  .mesa input:focus{outline:2px solid var(--accent);outline-offset:0;background:#fff}
+
+  /* ── Las columnas (V2) ─────────────────────────────────────────────────── */
+  .cols{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:12px;
+    overflow-x:auto;padding-bottom:4px}
+  .col{border:1px solid var(--hairline);border-radius:var(--r-md);padding:10px;min-width:0}
+  .col-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+    padding-bottom:8px;border-bottom:1px solid var(--hairline);margin-bottom:8px}
+
+  /* ── La comida ─────────────────────────────────────────────────────────── */
+  .comida{padding:8px 0;border-bottom:1px solid var(--hairline)}
+  .comida:last-of-type{border-bottom:0}
+  .comida.ancha{padding:10px 2px}
+  .comida-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .peq{font-size:12.5px}
+  .swap{color:var(--accent);cursor:pointer}
+
+  /* ── La regla pegada (V3) ──────────────────────────────────────────────── */
+  .regla{position:sticky;top:0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    padding:9px 16px;background:var(--surface);border-bottom:1px solid var(--hairline);
+    font-size:13px;color:var(--t2)}
+  .regla b{color:var(--text);font-size:15px}
+  .puerta{appearance:none;border:1px solid var(--hairline);background:#fff;font:inherit;
+    font-size:12.5px;color:var(--t2);padding:4px 10px;border-radius:999px;cursor:pointer}
+  .puerta:hover{border-color:var(--hairline-strong);color:var(--text)}
+
+  /* ── La línea del tiempo (V4) ──────────────────────────────────────────── */
+  .linea{padding:16px 16px 12px;border-bottom:1px solid var(--hairline);background:var(--surface)}
+  .linea-cifras{display:flex;gap:34px;margin-bottom:14px}
+  .hitos{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:0;
+    border-top:1px solid var(--hairline);padding-top:10px}
+  .hito{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--t3);position:relative}
+  .hito .punto{width:8px;height:8px;border-radius:50%;background:var(--hairline-strong);margin-bottom:4px}
+  .hito.cambio .punto{background:var(--accent)}
+  .hito .k{color:var(--text);font-weight:600;font-size:13px}
+  .hito .d{color:var(--accent);font-weight:600}
+  .hito .w{color:var(--t2)}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>La dieta · cinco versiones de rediseño</h1>
+  <p class="sub">Cinco maneras de organizar la misma pantalla, cada una con un eje distinto.
+     Se pueden tocar: cambia de día, teclea en las celdas, abre las ventanas.
+     El texto de cada una está en <code>docs/estudio-dieta-cinco-versiones.md</code>.</p>
+  <nav id="nav"></nav>
+</header>
+<main id="main"></main>
+<script>
+/* ── Los datos del ejemplo: un ciclado de tres días con ciclo rotativo 2/1 ──
+   Es a propósito el caso que hasta hoy no se podía ni pautar. */
+const DIAS = [
+  { id:'alto',  name:'Alto',  kcal:3200, p:180, c:420, g:80 },
+  { id:'medio', name:'Medio', kcal:2800, p:180, c:320, g:75 },
+  { id:'bajo',  name:'Bajo',  kcal:2400, p:180, c:220, g:70 },
+];
+const CASILLAS = [
+  { key:'1', corto:'D1', sesion:'Empuje',  dia:'alto'  },
+  { key:'2', corto:'D2', sesion:'Tirón',   dia:'alto'  },
+  { key:'3', corto:'D3', sesion:null,      dia:'bajo'  },
+  { key:'4', corto:'D4', sesion:'Pierna',  dia:'medio' },
+  { key:'5', corto:'D5', sesion:'Full',    dia:'alto'  },
+  { key:'6', corto:'D6', sesion:null,      dia:'bajo'  },
+];
+const COMIDAS = [
+  { n:'Desayuno', kcal:[900,780,600], de:[
+    'Avena 100 g · Whey 30 g', 'Avena 70 g · Whey 30 g', 'Claras 250 g · Whey 30 g'] },
+  { n:'Media mañana', kcal:[400,360,300], de:[
+    'Yogur griego · Plátano', 'Yogur griego · Nueces', 'Yogur griego · Nueces'] },
+  { n:'Comida', kcal:[1100,980,900], de:[
+    'Arroz 140 g · Pollo 200 g', 'Arroz 100 g · Pollo 200 g', 'Arroz 60 g · Pollo 220 g'] },
+  { n:'Cena', kcal:[800,680,600], de:[
+    'Patata 300 g · Salmón 180 g', 'Patata 200 g · Salmón 180 g', 'Ensalada · Salmón 200 g'] },
+];
+let dia = 'alto';
+const idx = () => DIAS.findIndex(d => d.id === dia);
+const mediaDe = (k) => {
+  const suma = CASILLAS.reduce((a,c) => a + (DIAS.find(d=>d.id===c.dia)?.[k]||0), 0);
+  return Math.round(suma / CASILLAS.length);
+};
+const media = () => mediaDe('kcal');
+const veces = id => CASILLAS.filter(c => c.dia === id).length;
+const esc = s => String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+
+const cinta = (conCasillas = true, eligiendo = true) => `
+  <div class="tira">
+    <div class="tira-fila">
+      ${DIAS.map(d => `<button class="eslabon${eligiendo && d.id===dia?' on':''}" data-dia="${d.id}">${d.name}</button>`).join('')}
+      <button class="mas">+ día</button>
+      <span class="hueco"></span>
+      <span class="dato">ciclo 2/1 · 6 casillas</span>
+    </div>
+    ${conCasillas ? `<div class="tira-fila">
+      <div class="casillas">
+        ${CASILLAS.map(c => `<button class="casilla${c.dia?' on':''}" data-casilla="${c.key}">
+            <span class="k">${c.corto}${c.sesion?`<em>${esc(c.sesion)}</em>`:''}</span>
+            <span class="v">${c.dia ? esc(DIAS.find(d=>d.id===c.dia).name) : '—'}</span>
+          </button>`).join('')}
+      </div>
+    </div>` : ''}
+  </div>`;
+
+/* ── HOY: lo que hay hoy en la aplicación, para tener contra qué mirar ────── */
+const hoy = () => {
+  const d = DIAS[idx()];
+  return `
+  <p class="nota"><b>Hoy.</b> La hoja es un día. El objetivo se cambia en una ventana
+     de cuatro casillas, hay una por día, y el ciclo entero solo se resume en kcal
+     en la tarjeta del costado. Debajo del objetivo quedan ~500 px de hoja vacía.</p>
+  <div class="app">
+    ${cinta()}
+    <div class="cuerpo">
+      <div>
+        <div class="card">
+          <span class="rot">Lo que le pides · ${esc(d.name.toLowerCase())}</span>
+          <div style="display:flex;gap:26px;margin-top:8px">
+            <div><div class="cifra">${d.kcal}</div><span class="dato">kcal</span></div>
+            <div><div class="cifra">${d.p}</div><span class="dato">proteína</span></div>
+            <div><div class="cifra">${d.c}</div><span class="dato">carbos</span></div>
+            <div><div class="cifra">${d.g}</div><span class="dato">grasas</span></div>
+          </div>
+        </div>
+        <div class="vacio" style="margin-top:12px;height:300px;display:grid;place-items:center">
+          ~500 px de hoja sin nada que poner
+        </div>
+      </div>
+      <aside class="lado">
+        <div class="card"><span class="rot">Objetivo · ${esc(d.name)}</span>
+          <div class="cifra" style="margin-top:4px">${d.kcal} kcal</div></div>
+        <div class="card"><span class="rot">El día</span>
+          <ul class="lineas"><li><span>Proteína</span><span>${d.p} g · 2,3 g/kg</span></li>
+          <li><span>Carbos</span><span>${d.c} g</span></li>
+          <li><span>Grasas</span><span>${d.g} g</span></li></ul></div>
+        <div class="card"><span class="rot">El ciclo</span>
+          <ul class="lineas">${DIAS.map(x=>`<li class="${x.id===dia?'on':''}"><span>${x.name} ×${veces(x.id)}</span><span>${x.kcal} kcal</span></li>`).join('')}</ul>
+          <p class="dato" style="margin:8px 0 0">De media, ${media()} kcal al día.</p></div>
+        <div class="card"><span class="rot">La evolución</span>
+          <p class="dato" style="margin:6px 0 0">Le bajaste 250 kcal el 4 jul; desde entonces, −1,8 kg.</p></div>
+      </aside>
+    </div>
+  </div>`;
+};
+
+/* ── V1 · LA MESA DEL CICLO ─────────────────────────────────────────────── */
+const v1 = () => `
+  <p class="nota"><b>V1 · La mesa del ciclo.</b> La mesa deja de ser un día y pasa a ser
+     el ciclo entero: una fila por día, las cuatro cifras tecleables en el sitio y la
+     media ponderada al pie. <span class="quita">Se van</span>: la ventana del objetivo,
+     la tarjeta «Objetivo» y la tarjeta «El ciclo» del costado, y el hueco de 500 px.
+     <b>Toca las celdas: se escriben aquí.</b></p>
+  <div class="app">
+    ${cinta()}
+    <div class="cuerpo">
+      <div>
+        <div class="rot" style="padding:0 0 8px">El ciclo · lo que le pides en cada día</div>
+        <table class="mesa">
+          <thead><tr><th>Día</th><th class="num">Kcal</th><th class="num">P</th>
+            <th class="num">C</th><th class="num">G</th><th class="num">Veces</th></tr></thead>
+          <tbody>
+            ${DIAS.map(d => `<tr class="${d.id===dia?'on':''}" data-dia="${d.id}">
+              <td class="nom">${d.name}</td>
+              ${['kcal','p','c','g'].map(k=>`<td class="num"><input value="${d[k]}" data-id="${d.id}" data-k="${k}"></td>`).join('')}
+              <td class="num veces">×${veces(d.id)}</td></tr>`).join('')}
+            <tr class="total"><td class="nom">De media</td>
+              ${['kcal','p','c','g'].map(k=>`<td class="num" data-media="${k}">${mediaDe(k)}</td>`).join('')}
+              <td class="num veces">${CASILLAS.length} casillas</td></tr>
+          </tbody>
+        </table>
+        <div class="rot" style="padding:18px 0 6px">Pautas</div>
+        <p class="dato" style="margin:0">Los días altos, los hidratos alrededor del entreno.
+           El día bajo, cena sin almidón.</p>
+      </div>
+      <aside class="lado">
+        <div class="card"><span class="rot">El día</span>
+          <ul class="lineas"><li><span>Proteína</span><span>2,3 g/kg</span></li>
+          <li><span>Fibra</span><span>34 g</span></li></ul></div>
+        <div class="card"><span class="rot">La evolución</span>
+          <p class="dato" style="margin:6px 0 0">Le bajaste 250 kcal el 4 jul; desde entonces, −1,8 kg.</p></div>
+      </aside>
+    </div>
+  </div>`;
+
+/* ── V2 · LAS COLUMNAS DEL CICLO ────────────────────────────────────────── */
+const v2 = () => `
+  <p class="nota"><b>V2 · Las columnas del ciclo.</b> Los días, uno al lado del otro,
+     como el plan del bloque enseña las sesiones. <span class="quita">Se va</span> el
+     cambio de día: no hay que elegir cuál miras porque están los tres.
+     Copiar una comida al día de al lado deja de ser un menú.</p>
+  <div class="app">
+    ${cinta(false, false)}
+    <div class="cuerpo solo">
+      <div class="cols">
+        ${DIAS.map((d,i) => `<div class="col">
+          <div class="col-cab"><b>${d.name}</b><span class="dato">${d.kcal} kcal · ×${veces(d.id)}</span></div>
+          ${COMIDAS.map(c => `<div class="comida">
+            <div class="comida-cab"><span>${c.n}</span><span class="dato">${c.kcal[i]}</span></div>
+            <div class="dato peq">${c.de[i]}</div>
+          </div>`).join('')}
+          <button class="mas">+ comida</button>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+
+/* ── V3 · LA HOJA A TODO LO ANCHO ───────────────────────────────────────── */
+const v3 = () => {
+  const d = DIAS[idx()];
+  return `
+  <p class="nota"><b>V3 · La hoja a todo lo ancho.</b> <span class="quita">Se va</span> el
+     costado entero. Lo que se leía en cuatro tarjetas pasa a una regla pegada arriba
+     —siempre a la vista, también al pie de la quinta comida— con tres ventanas detrás.
+     El menú recupera el ancho, que es donde está el trabajo.</p>
+  <div class="app">
+    ${cinta()}
+    <div class="regla">
+      <b>${d.kcal} kcal</b><span>${d.p} P</span><span>${d.c} C</span><span>${d.g} G</span>
+      <span class="dato">2,3 g/kg</span>
+      <span class="hueco"></span>
+      <button class="puerta">El día</button>
+      <button class="puerta">El ciclo</button>
+      <button class="puerta">La evolución</button>
+    </div>
+    <div class="cuerpo solo">
+      <div>
+        ${COMIDAS.map((c,i) => `<div class="comida ancha">
+          <div class="comida-cab"><b>${i+1} · ${c.n}</b>
+            <span class="dato">${c.de[idx()]}</span><span class="hueco"></span>
+            <span class="dato">${c.kcal[idx()]} kcal</span></div>
+        </div>`).join('')}
+        <button class="mas">+ comida</button>
+      </div>
+    </div>
+  </div>`;
+};
+
+/* ── V4 · LA DIETA FECHADA ──────────────────────────────────────────────── */
+const HITOS = [
+  { f:'6 jun',  kcal:3200, peso:81.2, delta:null },
+  { f:'20 jun', kcal:3200, peso:80.1, delta:null },
+  { f:'4 jul',  kcal:2950, peso:79.6, delta:-250 },
+  { f:'18 jul', kcal:2800, peso:78.9, delta:-150 },
+  { f:'hoy',    kcal:2800, peso:78.4, delta:null },
+];
+const v4 = () => `
+  <p class="nota"><b>V4 · La dieta fechada.</b> Manda la decisión, no el formulario.
+     Arriba, lo que le pusiste contra lo que hizo el peso; debajo, el plan
+     <b>en vigor desde</b> el último cambio. <span class="quita">Se va</span> la ventana
+     de la evolución: lo que se abría para consultar es ahora la cabecera de la pantalla.</p>
+  <div class="app">
+    <div class="linea">
+      <div class="linea-cifras">
+        <div><div class="cifra">78,4 kg</div><span class="dato">−2,8 kg en 6 semanas</span></div>
+        <div><div class="cifra">2800</div><span class="dato">kcal en vigor</span></div>
+        <div><div class="cifra">2 cambios</div><span class="dato">el último, hace 12 días</span></div>
+      </div>
+      <div class="hitos">
+        ${HITOS.map(h => `<div class="hito${h.delta?' cambio':''}">
+          <span class="punto"></span>
+          <span class="f">${h.f}</span>
+          <span class="k">${h.kcal}</span>
+          ${h.delta?`<span class="d">−${Math.abs(h.delta)}</span>`:''}
+          <span class="w">${String(h.peso).replace('.',',')} kg</span>
+        </div>`).join('')}
+      </div>
+    </div>
+    ${cinta()}
+    <div class="cuerpo solo">
+      <div>
+        <div class="rot">En vigor desde el 18 de julio</div>
+        <div style="display:flex;gap:26px;margin-top:8px;align-items:flex-end">
+          ${DIAS.map(d=>`<div><div class="cifra">${d.kcal}</div><span class="dato">${d.name} ×${veces(d.id)}</span></div>`).join('')}
+          <span class="hueco"></span><button class="mas">Cambiar el plan</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+/* ── V5 · UNA SOLA DIETA, DOS PERMISOS ──────────────────────────────────── */
+let comoCliente = false;
+const v5 = () => `
+  <p class="nota"><b>V5 · Una sola dieta, dos permisos.</b> La pantalla del entrenador
+     y la del cliente son el mismo lienzo: lo que cambia son los mandos.
+     <span class="quita">Se van</span> 451 líneas que dibujan la misma dieta otra vez.
+     <b>Pulsa «Ver como Javier»</b> y mira lo único que cambia.</p>
+  <div class="app">
+    <div class="tira"><div class="tira-fila">
+      ${DIAS.map(d => `<button class="eslabon${d.id===dia?' on':''}" data-dia="${d.id}">${d.name}</button>`).join('')}
+      <span class="hueco"></span>
+      <button class="mas" id="ver-como">${comoCliente ? '← Volver a editar' : 'Ver como Javier'}</button>
+    </div></div>
+    <div class="cuerpo solo">
+      <div>
+        ${comoCliente ? '<p class="dato" style="margin:0 0 10px">Hoy te toca <b>'+DIAS[idx()].name+'</b>.</p>' : ''}
+        ${COMIDAS.map((c,i) => `<div class="comida ancha">
+          <div class="comida-cab"><b>${i+1} · ${c.n}</b><span class="hueco"></span>
+            <span class="dato">${c.kcal[idx()]} kcal</span></div>
+          <div class="dato peq">${c.de[idx()]} ${comoCliente ? '<span class="swap">⇄ cambiar</span>' : ''}</div>
+        </div>`).join('')}
+        ${comoCliente ? '' : '<button class="mas">+ comida</button>'}
+      </div>
+    </div>
+  </div>`;
+
+/* ── El conmutador ──────────────────────────────────────────────────────── */
+const VISTAS = [
+  { id:'hoy', label:'Hoy', render:hoy },
+  { id:'v1',  label:'V1 · La mesa del ciclo', render:v1 },
+  { id:'v2',  label:'V2 · Las columnas', render:v2 },
+  { id:'v3',  label:'V3 · A todo lo ancho', render:v3 },
+  { id:'v4',  label:'V4 · La dieta fechada', render:v4 },
+  { id:'v5',  label:'V5 · Una sola dieta', render:v5 },
+];
+let vista = 'hoy';
+
+const pinta = () => {
+  document.getElementById('nav').innerHTML = VISTAS
+    .map(v => `<button data-vista="${v.id}" class="${v.id===vista?'on':''}">${v.label}</button>`).join('');
+  document.getElementById('main').innerHTML = VISTAS.find(v => v.id === vista).render();
+};
+
+document.addEventListener('click', (e) => {
+  const v = e.target.closest('[data-vista]');
+  if (v) { vista = v.dataset.vista; return pinta(); }
+  const d = e.target.closest('[data-dia]');
+  if (d) { dia = d.dataset.dia; return pinta(); }
+  if (e.target.id === 'ver-como') { comoCliente = !comoCliente; return pinta(); }
+});
+
+/* Teclear en la mesa del ciclo escribe de verdad: la media del pie se recalcula
+   al salir de la celda, que es lo que hace creíble el prototipo. */
+document.addEventListener('input', (e) => {
+  const c = e.target.closest('input[data-k]');
+  if (!c) return;
+  const d = DIAS.find(x => x.id === c.dataset.id);
+  d[c.dataset.k] = Number(c.value) || 0;
+  document.querySelectorAll('[data-media]').forEach((el) => { el.textContent = mediaDe(el.dataset.media); });
+});
+
+pinta();
+</script>
+</body>
+</html>

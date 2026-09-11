@@ -31,6 +31,27 @@
  *      describe `public/_headers`.
  *   2. `/assets/` y `/fonts/`: caché primero. Los nombres llevan hash (o casi
  *      nunca cambian, las fuentes) y `_headers` ya los declara inmutables.
+ *
+ *      ── Y con `ignoreVary`, que es lo que hacía que NADA de esto funcionara ──
+ *      Comprobado el 9/09/2026 apagando el servidor con la aplicación abierta:
+ *      la navegación se servía de la caché —o sea que el worker corría— y a
+ *      continuación fallaban TODOS los bundles. La aplicación abría en blanco,
+ *      que es exactamente lo que este archivo dice venir a evitar.
+ *
+ *      La causa es una regla del protocolo que aquí no pinta nada. Las etiquetas
+ *      que emite Vite llevan `crossorigin` (`<script type="module" crossorigin>`,
+ *      y también la hoja de estilos), así que el navegador las pide en modo CORS
+ *      y esas peticiones mandan cabecera `Origin`. Las de `cache.addAll`, que es
+ *      quien llenó la caché en la instalación, no la mandan. Si la respuesta
+ *      guardada trae `Vary: Origin` —lo pone cualquier capa con CORS delante, y
+ *      Cloudflare la pone— el navegador compara esa cabecera entre las dos
+ *      peticiones, ve que no coinciden y declara que NO hay nada en caché para
+ *      esa URL. Con red no se nota: cae al `fetch` y todo va. Sin red, pantalla
+ *      en blanco.
+ *
+ *      `ignoreVary` dice que la URL basta, y aquí es verdad por construcción:
+ *      estos nombres llevan hash del contenido, así que una URL es exactamente
+ *      un cuerpo. No hay dos versiones que negociar.
  *   3. TODO LO DEMÁS —Supabase, otros orígenes, POST— ni se toca. Esto no es un
  *      «modo sin conexión» con datos locales: los datos viven en el servidor y
  *      la única copia local que existe es la de lo pendiente de guardar.
@@ -79,7 +100,10 @@ self.addEventListener('fetch', (event) => {
   // Estáticos con hash: caché primero, y lo que falte se aprende al vuelo.
   if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/fonts/')) {
     event.respondWith(
-      caches.match(request).then(
+      // ignoreVary NO es un atajo: sin él la caché no servía NADA y la
+      // aplicación no abría sin red. El porqué entero, en la cabecera de
+      // scripts/sw.mjs (regla 2).
+      caches.match(request, { ignoreVary: true }).then(
         (hit) =>
           hit ||
           fetch(request).then((res) => {

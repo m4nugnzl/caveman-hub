@@ -66,6 +66,45 @@ describe('el hueco que se abre al arrastrar', () => {
     expect(desplazamientoDe(4, 0, 4, gDos)).toBe(0); // fila de abajo
   });
 
+  /* La hoja de series: las piezas van apiladas y son de altos distintos —un
+     ejercicio de cuatro series mide más que uno de tres—, pero el hueco que se
+     abre es siempre el del QUE VIAJA, no el de la pieza que se aparta. Por eso
+     el paso es uno solo y no uno por fila. */
+  describe('apiladas (eje y)', () => {
+    const enColumna = (alturas, left = 0) => {
+      let y = 0;
+      return alturas.map((h) => {
+        const r = { left, right: left + 600, top: y, bottom: y + h, width: 600, height: h };
+        y += h + 10;
+        return r;
+      });
+    };
+    const gY = { rects: enColumna([250, 190, 320, 190]), paso: 260, eje: 'y' };
+
+    it('hacia abajo se aparta el tramo (origen, destino]', () => {
+      expect(desplazamientoDe(0, 0, 2, gY)).toBe(0);
+      expect(desplazamientoDe(1, 0, 2, gY)).toBe(-260);
+      expect(desplazamientoDe(2, 0, 2, gY)).toBe(-260);
+      expect(desplazamientoDe(3, 0, 2, gY)).toBe(0);
+    });
+
+    it('hacia arriba se aparta el tramo [destino, origen)', () => {
+      expect(desplazamientoDe(0, 2, 0, gY)).toBe(260);
+      expect(desplazamientoDe(1, 2, 0, gY)).toBe(260);
+      expect(desplazamientoDe(3, 2, 0, gY)).toBe(0);
+    });
+
+    /* Apiladas, «otra línea» es «otra columna»: con el eje puesto, lo que no se
+       aparta es lo que no comparte el canto izquierdo. Sin esta rama, la
+       comprobación de los carriles —misma `top`— descartaría TODAS las filas de
+       una lista vertical y no se apartaría ninguna. */
+    it('las de otra columna no se apartan', () => {
+      const dos = { ...gY, rects: [...enColumna([250, 190]), ...enColumna([250, 190], 700)] };
+      expect(desplazamientoDe(1, 0, 3, dos)).toBe(-260);
+      expect(desplazamientoDe(3, 0, 3, dos)).toBe(0);
+    });
+  });
+
   it('sin medidas todavía, nadie se mueve', () => {
     expect(desplazamientoDe(1, 0, 2, null)).toBe(0);
     expect(desplazamientoDe(1, 0, null, g)).toBe(0);

@@ -1,18 +1,23 @@
-import { Beef, Droplet, Wheat } from 'lucide-react';
-
-import { KCAL_PER_GRAM, MACROS } from '@/domain/nutrition';
+import { KCAL_PER_GRAM, MACROS, claseDe } from '@/domain/nutrition';
 import { round, toNum0 } from '@/lib/num';
 import { MacroDonut } from '@/components/ui/charts';
 
 /**
  * Los tres macros, con todo lo que la interfaz necesita saber de ellos en un
- * solo sitio: cómo se llaman, de qué color son, qué icono los representa y
- * cuántas kcal aporta cada gramo.
+ * solo sitio: cómo se llaman, de qué color son y cuántas kcal aporta cada gramo.
+ *
+ * ── Aquí vivían un filete, una espiga y una gota ────────────────────────────
+ * Tres iconos de lucide, uno por macro, pintados del color del macro. Repetían
+ * en dibujo la palabra que tenían al lado —«🥩 Proteína»— y eran, junto con la
+ * barra de la tarjeta, el único sitio de la aplicación donde el color decía una
+ * CATEGORÍA en vez de comparar o juzgar. En una pantalla en la que el ámbar
+ * significa «ojo con esto» pegado a una cifra, el ámbar no puede significar
+ * además «carbos». Ver [[ley-del-color]].
+ *
+ * El color sobrevive donde sí distingue series: dentro del anillo (MacroRing,
+ * MacroDonut) y en la barra del editor, con la leyenda que le corresponde.
  */
-const ICONS = { protein: Beef, carbs: Wheat, fats: Droplet };
-
-/** La tripleta del dominio más su icono. El color NO se decide aquí. */
-export const MACRO_META = MACROS.map((macro) => ({ ...macro, Icon: ICONS[macro.key] }));
+export const MACRO_META = MACROS;
 
 /**
  * Reparto calórico a partir de los gramos.
@@ -61,43 +66,39 @@ export const macroBreakdown = ({ protein, carbs, fats, kcals } = {}) => {
 };
 
 /**
- * Total del día: cifra calórica, barra segmentada por macro e iconos.
+ * El objetivo mientras se teclea: la cifra, la barra de reparto y su leyenda.
  *
- * ── Por qué esta forma y no un anillo ───────────────────────────────────────
- * Es la misma que en el resumen y la misma que tenía antes la hoja, y eso no es
- * casualidad: el objetivo del día es UNA cifra con su reparto, y una barra a lo
- * ancho aprovecha el ancho de la tarjeta y admite las tres etiquetas al lado. El
- * anillo se reserva para las comidas y las opciones, donde hay varias piezas
- * pequeñas que comparar entre sí.
+ * ── Dónde vive, y por qué SOLO ahí ──────────────────────────────────────────
+ * Esta pieza es la vista previa del EDITOR del objetivo, y nada más. Ahí la
+ * barra hace un trabajo que ningún número hace: se teclean 120 de proteína y el
+ * tramo crece delante de ti, así que el reparto se decide viéndolo.
+ *
+ * En la tarjeta del costado la barra no hacía ese trabajo. Estaba quieta, decía
+ * lo mismo que los tres porcentajes escritos debajo, y encima obligaba a pintar
+ * los tres macros de tres colores en una pantalla donde el ámbar significa «ojo
+ * con esto» a doscientos píxeles de distancia. Ahí ahora va `MacroLista`.
+ *
+ * ── La leyenda perdió el filete, la espiga y la gota ────────────────────────
+ * Eran tres iconos ilustrativos —de aplicación de contar calorías— y su único
+ * trabajo era repetir en dibujo la palabra que tenían al lado. Lo que la leyenda
+ * de un gráfico necesita es decir de quién es cada tramo, y para eso la casa ya
+ * tiene su marca: el cuadradito de serie de `.medidor`. Ver [[ley-del-color]]:
+ * los discos distinguen series, y solo dentro de un gráfico.
  */
-export const MacroBar = ({
-  protein,
-  carbs,
-  fats,
-  kcals,
-  caption,
-  size = 'lg',
-  // Dentro de una tarjeta de métrica la cifra ya la pone la tarjeta; repetirla
-  // aquí sería el mismo número dos veces, una encima de la otra.
-  showTotal = true,
-}) => {
+export const MacroBar = ({ protein, carbs, fats, kcals, caption }) => {
   const macros = macroBreakdown({ protein, carbs, fats, kcals });
 
   return (
     <div className="macro-summary">
-      {(showTotal || caption) && (
-        <div className="macro-summary-head">
-          {showTotal && (
-            <span className="figure">
-              <span className="v">{macros.kcals > 0 ? macros.kcals : '—'}</span>
-              <span className="u">kcal</span>
-            </span>
-          )}
-          {caption && <span className="caption">{caption}</span>}
-        </div>
-      )}
+      <div className="macro-summary-head">
+        <span className="figure">
+          <span className="v">{macros.kcals > 0 ? macros.kcals : '—'}</span>
+          <span className="u">kcal</span>
+        </span>
+        {caption && <span className="caption">{caption}</span>}
+      </div>
 
-      <div className={`macro-bar${size === 'lg' ? ' macro-bar-lg' : ''}`}>
+      <div className="macro-bar macro-bar-lg">
         {macros.empty ? (
           <div style={{ width: '100%', background: 'var(--fill)' }} />
         ) : (
@@ -112,15 +113,59 @@ export const MacroBar = ({
       </div>
 
       <div className="macro-legend">
-        {MACRO_META.map(({ key, label, color, Icon }) => (
+        {MACRO_META.map(({ key, label, color }) => (
           <span className="macro-legend-item" key={key}>
-            <Icon size={15} color={color} />
+            <i style={{ background: color }} />
             <span className="k">{label}</span>
             <span className="g">{macros.grams[key]} g</span>
             {!macros.empty && <span className="p">{macros.pct[key]}%</span>}
           </span>
         ))}
       </div>
+    </div>
+  );
+};
+
+/**
+ * El objetivo en reposo: tres renglones, y a plomo con «El día».
+ *
+ * ══ POR QUÉ ESTA FORMA Y NO LA BARRA ═══════════════════════════════════════
+ *
+ * En el costado de la dieta hay dos tarjetas pegadas —«Objetivo» y «El día»—
+ * que listan LOS MISMOS TRES MACROS. Hasta hoy lo hacían con dos dibujos
+ * distintos y a veinte píxeles de distancia: arriba una barra de tres colores
+ * con un filete, una espiga y una gota y los porcentajes en píldoras; debajo
+ * tres renglones sobrios con el desvío y los g/kg. La misma información,
+ * dibujada dos veces, en dos idiomas.
+ *
+ * Es exactamente la avería que ya se corrigió una vez —«El día» y «El reparto»
+ * eran dos tarjetas seguidas con la misma lista— y que había vuelto por arriba.
+ *
+ * Ahora las dos usan `Medidor` en renglón, así que las cifras caen en la MISMA
+ * VERTICAL: el gramaje bajo el gramaje y el apunte en voz baja bajo el apunte
+ * (aquí el reparto en %, abajo los g/kg). Lee como una tarjeta partida en dos,
+ * que es lo que de verdad es.
+ *
+ * El color se retira entero: sin barra que interpretar, un rosa pegado a la
+ * palabra «Proteína» no compara ni juzga nada. Ver [[ley-del-color]], ley 4.
+ */
+export const MacroLista = ({ protein, carbs, fats }) => {
+  const macros = macroBreakdown({ protein, carbs, fats });
+
+  return (
+    <div className="medidores is-filas">
+      {MACRO_META.map(({ key, label }) => (
+        <Medidor
+          key={key}
+          fila
+          juzga={false}
+          label={label}
+          campo={key}
+          valor={macros.grams[key]}
+          unidad="g"
+          apunte={macros.empty ? '' : `${macros.pct[key]} %`}
+        />
+      ))}
     </div>
   );
 };
@@ -219,19 +264,15 @@ export const opcionElegida = (meal, elegidas) => {
   return meal?.options?.[Math.min(Math.max(0, i), Math.max(0, n - 1))];
 };
 
-/** El margen dentro del cual un macro «cuadra»: el 5 % de lo pautado. */
-export const MARGEN = 0.05;
-
 /**
- * ¿Cuadra, se pasa o se queda corto? El mismo margen con el que la ventana del
- * día cuenta las comidas que cuadran.
+ * ¿Cuadra, se pasa o se queda corto?
+ *
+ * El margen ya no se decide aquí: lo pone `estadoDe` en el dominio, con su
+ * suelo y en un solo sitio para toda la dieta. Esta función se queda porque el
+ * medidor quiere la clase sin el espacio de delante, y nada más.
  */
-export const estadoMacro = (real, objetivo) => {
-  if (!objetivo) return '';
-  const diff = real - objetivo;
-  const margen = objetivo * MARGEN;
-  return diff > margen ? 'is-over' : diff < -margen ? 'is-under' : 'is-ok';
-};
+export const estadoMacro = (real, objetivo, campo = 'kcals') =>
+  claseDe(real, objetivo, campo).trim();
 
 /**
  * UNA COLUMNA DE LA TIRA DEL DÍA: rótulo, lo que va sobre lo pedido, y de
@@ -264,16 +305,41 @@ export const estadoMacro = (real, objetivo) => {
  * misma señal cuatro veces y dejan de ser señal: el color vive en la línea de
  * la diferencia, y solo cuando se sale del margen.
  *
- * @param {string} [color]     Color del macro, para el punto del rótulo.
+ * @param {string} [color]     Color del macro, para el punto del rótulo. En el
+ *                             costado NO se pasa: allí cada renglón lleva su
+ *                             nombre escrito y el punto no distinguía nada.
  * @param {string} [lectura]   Línea de pie: «cuadra», «−9 g», «+3».
  * @param {boolean} [total]    La columna del total (las kcal): va separada de
  *                             las tres que la descomponen.
+ * @param {string} [campo]     Cuál de los cuatro es, para el suelo del margen:
+ *                             ±25 kcal en el total y ±3 g en cada macro.
+ * @param {boolean} [juzga]    Con `false` la cifra se enseña y no se colorea.
+ *                             Es lo que ve el cliente: el descuadre del plan es
+ *                             del trabajo de su entrenador, no suyo.
+ * @param {boolean} [fila]     En RENGLÓN y no en columna: el nombre a la
+ *                             izquierda y las cifras alineadas a la derecha. Es
+ *                             la forma del costado, donde los tres macros son
+ *                             una lista y en rejilla dejaban un hueco.
+ * @param {string} [apunte]    Un dato más en voz baja al final del renglón —los
+ *                             gramos por kilo—. Solo tiene sitio en `fila`.
  */
-export const Medidor = ({ label, color, valor, objetivo, unidad = '', lectura, total = false }) => {
-  const estado = estadoMacro(valor, objetivo);
+export const Medidor = ({
+  label,
+  color,
+  valor,
+  objetivo,
+  unidad = '',
+  lectura,
+  apunte,
+  total = false,
+  fila = false,
+  campo = 'kcals',
+  juzga = true,
+}) => {
+  const estado = juzga ? estadoMacro(valor, objetivo, campo) : '';
 
   return (
-    <div className={`medidor${total ? ' is-total' : ''}${estado ? ` ${estado}` : ''}`}>
+    <div className={`medidor${total ? ' is-total' : ''}${fila ? ' is-fila' : ''}${estado ? ` ${estado}` : ''}`}>
       <span className="k">
         {color && <i style={{ background: color }} />}
         {label}
@@ -282,7 +348,11 @@ export const Medidor = ({ label, color, valor, objetivo, unidad = '', lectura, t
         <b>{valor}</b>
         {objetivo ? <small>/{objetivo}{unidad ? ` ${unidad}` : ''}</small> : unidad ? <small> {unidad}</small> : null}
       </span>
-      {lectura && <span className="lectura">{lectura}</span>}
+      {/* En renglón las celdas se pintan siempre, aunque vayan vacías: si
+          desaparecieran, las cifras de las tres filas dejarían de estar en la
+          misma vertical y la lista se leería como tres frases sueltas. */}
+      {(lectura || fila) && <span className="lectura">{lectura || ''}</span>}
+      {fila && <span className="apunte">{apunte || ''}</span>}
     </div>
   );
 };

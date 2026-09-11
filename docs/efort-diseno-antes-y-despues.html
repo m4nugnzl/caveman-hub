@@ -1,0 +1,1831 @@
+<title>Efort, leído y traducido</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,400..800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Los tokens son los de la app (src/styles/tokens.css). Si el «después» no se
+   ve como Caveman Hub, no prueba nada.
+
+   Los hexadecimales de Efort NO están estimados a ojo: salen de un histograma
+   de píxeles de sus propias capturas. Van solo como MUESTRA dentro del §1 —
+   nunca como cromo de esta página, que se rige por la ley del color de la casa.
+
+   Los «antes» de las láminas 2, 3, 5 y 7 están calcados de capturas de la app
+   corriendo en local con la demo sembrada, no reconstruidos de memoria.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+  --mesa: #eceff3;
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --sunken: #f3f5f8;
+  --text: #12151a;
+  --text-2: #5b6270;
+  --text-3: #6e7686;
+  --hairline: #e6e9ef;
+  --hairline-strong: #cbd1dc;
+  --edge: rgba(18, 24, 38, 0.09);
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-wash: rgba(59, 73, 223, 0.12);
+  --accent-ink: #ffffff;
+  --positive: #10774c;
+  --negative: #b93429;
+  --m-p: #a8306e;
+  --m-c: #96690a;
+  --m-g: #7a34ad;
+  --fill: #e9ecf1;
+  --sombra: 0 1px 2px rgba(18, 24, 38, .06), 0 12px 32px -12px rgba(18, 24, 38, .18);
+  --nav: #121722;
+  --nav-text: #e8ebf2;
+  --nav-dim: rgba(232, 235, 242, .62);
+  --nav-faint: rgba(232, 235, 242, .40);
+  --nav-on: rgba(255, 255, 255, .10);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --mesa: #090b0e;
+    --canvas: #14171c;
+    --surface: #1c2027;
+    --sunken: #12151d;
+    --text: #e9ecf2;
+    --text-2: #a2a9b7;
+    --text-3: #7f8796;
+    --hairline: rgba(214, 224, 244, 0.09);
+    --hairline-strong: rgba(214, 224, 244, 0.18);
+    --edge: rgba(214, 224, 244, 0.14);
+    --accent: #5b8df7;
+    --accent-soft: rgba(91, 141, 247, 0.14);
+    --accent-wash: rgba(91, 141, 247, 0.22);
+    --accent-ink: #0d1017;
+    --positive: #4bb98a;
+    --negative: #f0776b;
+    --m-p: #ee8ab9;
+    --m-c: #e8bc55;
+    --m-g: #c58ae6;
+    --fill: #262b33;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -14px rgba(0, 0, 0, .6);
+    --nav: #10141b;
+    --nav-text: #e7eaf0;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mesa: #090b0e;
+  --canvas: #14171c;
+  --surface: #1c2027;
+  --sunken: #12151d;
+  --text: #e9ecf2;
+  --text-2: #a2a9b7;
+  --text-3: #7f8796;
+  --hairline: rgba(214, 224, 244, 0.09);
+  --hairline-strong: rgba(214, 224, 244, 0.18);
+  --edge: rgba(214, 224, 244, 0.14);
+  --accent: #5b8df7;
+  --accent-soft: rgba(91, 141, 247, 0.14);
+  --accent-wash: rgba(91, 141, 247, 0.22);
+  --accent-ink: #0d1017;
+  --positive: #4bb98a;
+  --negative: #f0776b;
+  --m-p: #ee8ab9;
+  --m-c: #e8bc55;
+  --m-g: #c58ae6;
+  --fill: #262b33;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -14px rgba(0, 0, 0, .6);
+  --nav: #10141b;
+  --nav-text: #e7eaf0;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--mesa);
+  color: var(--text);
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.cifra { font-stretch: 125%; font-weight: 680; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.rotulo { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; color: var(--text-2); }
+
+.doc { max-width: 1280px; margin: 0 auto; padding: 40px 22px 90px; }
+.doc svg { max-width: 100%; }
+
+/* ── Portada ────────────────────────────────────────────────────────────── */
+header.portada { max-width: 64ch; }
+header.portada .rotulo { color: var(--accent); }
+h1 {
+  font-stretch: 118%; font-weight: 750; letter-spacing: -.025em;
+  font-size: clamp(30px, 4.4vw, 46px); line-height: 1.06; text-wrap: balance;
+  margin: 10px 0 14px;
+}
+header.portada p { color: var(--text-2); font-size: 17px; margin: 0 0 8px; }
+header.portada p strong { color: var(--text); font-weight: 620; }
+.corrige {
+  margin-top: 18px; border-left: 3px solid var(--accent); padding: 2px 0 2px 14px;
+  font-size: 14.5px; color: var(--text-2);
+}
+.corrige b { color: var(--text); font-weight: 620; }
+
+/* ── El mando de la página ──────────────────────────────────────────────── */
+.mando {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  margin: 30px 0 26px; padding: 12px 0;
+  background: linear-gradient(var(--mesa) 76%, transparent);
+}
+.segmentado {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(18, 24, 38, .05);
+}
+.segmentado button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2);
+  padding: 7px 16px; border-radius: 999px; transition: background-color .14s, color .14s;
+}
+.segmentado button:hover { color: var(--text); }
+.segmentado button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.segmentado button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.interruptor {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; color: var(--text-2); cursor: pointer; user-select: none;
+}
+.interruptor input { accent-color: var(--accent); width: 16px; height: 16px; }
+.mando .lejos { margin-left: auto; }
+
+/* ── Secciones de lectura ───────────────────────────────────────────────── */
+section.parte { margin: 52px 0 0; }
+.parte > h2 {
+  font-stretch: 112%; font-weight: 740; letter-spacing: -.02em;
+  font-size: clamp(22px, 2.6vw, 29px); margin: 0 0 6px;
+}
+.parte > .bajada { max-width: 68ch; color: var(--text-2); font-size: 16px; margin: 0 0 22px; }
+.parte > .bajada b { color: var(--text); font-weight: 620; }
+
+/* ── §1 · Las dos paletas ───────────────────────────────────────────────── */
+.paletas { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.paleta {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
+  padding: 16px; display: grid; gap: 12px; align-content: start;
+}
+.paleta > header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.paleta > header b { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.paleta > header span { font-size: 12.5px; color: var(--text-3); }
+.tiras { display: grid; gap: 9px; }
+.tira-c { display: grid; grid-template-columns: 34px 1fr auto; gap: 11px; align-items: center; }
+.tira-c i { display: block; height: 30px; border-radius: 7px; border: 1px solid var(--hairline-strong); }
+.tira-c .q { font-size: 13px; color: var(--text-2); line-height: 1.28; }
+.tira-c .q b { color: var(--text); font-weight: 620; display: block; font-size: 13.5px; }
+.tira-c .h { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--text-3); text-transform: uppercase; }
+.paleta footer { font-size: 12.5px; color: var(--text-3); border-top: 1px solid var(--hairline); padding-top: 10px; }
+.paleta footer b { color: var(--text-2); font-weight: 620; }
+
+/* ── §1 · La tabla de los ejes ──────────────────────────────────────────── */
+.ejes { overflow-x: auto; margin-top: 20px; }
+.ejes-caja { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; }
+table.ejes-t { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 760px; }
+table.ejes-t th, table.ejes-t td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+table.ejes-t thead th { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+table.ejes-t td:first-child { font-weight: 650; white-space: nowrap; }
+table.ejes-t td.veredicto { color: var(--text-2); }
+table.ejes-t td.veredicto b { color: var(--text); font-weight: 620; }
+table.ejes-t tbody tr:last-child td { border-bottom: 0; }
+
+/* ── Las láminas ────────────────────────────────────────────────────────── */
+.lamina { margin: 40px 0 0; }
+.lam-cab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; margin-bottom: 16px; }
+.lam-n {
+  font-stretch: 125%; font-weight: 760; font-size: 15px;
+  color: var(--accent); background: var(--accent-soft); border-radius: 8px;
+  padding: 4px 9px; font-variant-numeric: tabular-nums;
+}
+.lam-cab h3 { margin: 0 0 4px; font-size: 21px; font-weight: 730; letter-spacing: -.02em; }
+.lam-cab p { margin: 0; color: var(--text-2); font-size: 14.5px; max-width: 76ch; }
+.lam-cab p b { color: var(--text); font-weight: 620; }
+.lam-refs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+.ref {
+  font-size: 11px; font-weight: 700; letter-spacing: .04em;
+  padding: 3px 8px; border-radius: 6px; background: var(--fill); color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.ref.suyo { background: var(--accent-soft); color: var(--accent); }
+
+.pantallas { display: grid; gap: 26px; }
+[data-vista="antes"] .es-despues, [data-vista="despues"] .es-antes { display: none; }
+@media (min-width: 1080px) {
+  [data-vista="comparar"] .pantallas { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+.marco { min-width: 0; margin: 0; }
+.marco > figcaption { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.marco > figcaption b { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.marco > figcaption span { font-size: 13px; color: var(--text-2); }
+.chapa { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
+.chapa.hoy { background: var(--fill); color: var(--text-2); }
+.chapa.nuevo { background: var(--accent-wash); color: var(--accent); }
+
+/* El chasis en miniatura. */
+.app {
+  container-type: inline-size;
+  display: grid; grid-template-columns: 170px minmax(0, 1fr);
+  background: var(--canvas); border: 1px solid var(--edge); border-radius: 14px;
+  box-shadow: var(--sombra); overflow: hidden;
+}
+.app.sin-barra { grid-template-columns: minmax(0, 1fr); }
+@container (max-width: 700px) { .app { grid-template-columns: minmax(0, 1fr); } .app .barra { display: none; } }
+
+.barra { background: var(--nav); color: var(--nav-text); padding: 13px 11px; font-size: 12.5px; min-width: 0; }
+.barra .marca { display: flex; align-items: center; gap: 7px; font-stretch: 125%; font-weight: 750; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; }
+.barra .marca i { width: 13px; height: 13px; border-radius: 3px; background: var(--nav-text); opacity: .9; display: block; }
+.buscar {
+  margin-top: 12px; display: flex; align-items: center; gap: 7px;
+  background: rgba(255,255,255,.06); border-radius: 7px; padding: 6px 8px;
+  color: var(--nav-faint); font-size: 12px;
+}
+.buscar kbd { margin-left: auto; font: inherit; font-size: 10px; background: rgba(255,255,255,.08); border-radius: 4px; padding: 1px 4px; }
+.barra ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 1px; }
+.barra li { padding: 5px 8px; border-radius: 7px; color: var(--nav-dim); display: flex; align-items: center; gap: 8px; }
+.barra li.on { background: var(--nav-on); color: #fff; font-weight: 620; }
+.barra li .n { margin-left: auto; font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--nav-faint); }
+.barra li.on .n { background: var(--accent); color: var(--accent-ink); border-radius: 999px; padding: 0 6px; font-weight: 700; }
+.barra .grupo { margin-top: 14px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--nav-faint); padding: 0 8px 4px; }
+.barra .pie {
+  margin-top: 16px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; gap: 8px; color: var(--nav-dim); font-size: 11.5px;
+}
+.barra .pie i { width: 20px; height: 20px; border-radius: 999px; background: rgba(255,255,255,.12); display: grid; place-items: center; font-size: 9px; font-weight: 700; color: var(--nav-text); font-style: normal; }
+
+/* La cola dentro de la barra (lámina 1). */
+.rail-buscar {
+  margin: 8px 0 4px; display: flex; align-items: center; gap: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.10); padding: 0 2px 6px;
+  color: var(--nav-faint); font-size: 11.5px;
+}
+.rail-lista { list-style: none; margin: 0; padding: 0; display: grid; }
+.rail-lista li {
+  display: grid; grid-template-columns: 7px minmax(0,1fr) auto; gap: 8px; align-items: center;
+  padding: 5px 8px; border-radius: 7px; color: var(--nav-dim);
+}
+.rail-lista li.on { background: var(--nav-on); }
+.rail-lista .punto { width: 6px; height: 6px; border-radius: 999px; background: transparent; }
+.rail-lista li.espera .punto { background: var(--accent); }
+.rail-lista .n2 { min-width: 0; }
+.rail-lista .n2 b { display: block; font-weight: 550; font-size: 12.5px; color: var(--nav-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rail-lista li:not(.espera) .n2 b { color: var(--nav-dim); font-weight: 450; }
+.rail-lista .ciclo { font-size: 10.5px; font-variant-numeric: tabular-nums; color: var(--nav-faint); }
+.rail-lista li.ultimo .ciclo { color: var(--nav-text); font-weight: 700; }
+
+/* La hoja. */
+.hoja { min-width: 0; }
+.cinta { padding: 14px 16px 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.avatar { width: 28px; height: 28px; border-radius: 999px; background: var(--fill); display: grid; place-items: center; font-size: 10.5px; font-weight: 700; color: var(--text-2); flex: none; }
+.cinta .nombre { font-weight: 700; font-size: 16px; letter-spacing: -.015em; }
+.cinta .meta { font-size: 12px; color: var(--text-3); }
+.pestanas { display: flex; gap: 16px; padding: 8px 16px 0; margin-top: 8px; border-bottom: 1px solid var(--hairline); font-size: 13px; color: var(--text-2); }
+.pestanas span { padding-bottom: 8px; }
+.pestanas span.on { color: var(--text); font-weight: 650; box-shadow: inset 0 -2px 0 var(--accent); }
+.lienzo { padding: 16px; background: var(--canvas); }
+.panel { background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 13px; }
+.panel-t { font-size: 15px; font-weight: 700; letter-spacing: -.015em; }
+.panel-s { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+
+/* La cabecera de tarjeta con alcance (D-01). */
+.cab-tarj { display: flex; align-items: center; gap: 9px; margin-bottom: 11px; }
+.cab-chip {
+  width: 24px; height: 24px; border-radius: 7px; background: var(--sunken);
+  border: 1px solid var(--hairline); display: grid; place-items: center;
+  color: var(--text-3); font-size: 12px; flex: none;
+}
+.cab-tarj .k { font-size: 11px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+.cab-tarj .alcance { margin-left: auto; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+/* ── Inicio (lámina 2), calcado de la app real ──────────────────────────── */
+.saludo { font-stretch: 118%; font-weight: 750; letter-spacing: -.025em; font-size: 27px; margin: 0; }
+.saludo-sub { font-size: 12.5px; color: var(--text-3); margin: 2px 0 0; }
+.puesta {
+  margin: 14px 0; padding: 9px 12px; border: 1px solid var(--edge); border-radius: 10px;
+  background: var(--surface); display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--text-2);
+}
+.puesta a { color: var(--accent); font-weight: 650; text-decoration: none; }
+.puesta .x { margin-left: auto; color: var(--text-3); }
+.colas { display: grid; gap: 9px; margin-bottom: 12px; }
+.colas.varias { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.cola {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 10px;
+  padding: 11px 13px; display: grid; gap: 1px; text-align: left; font: inherit; color: inherit;
+}
+.cola.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.cola-k { font-size: 12.5px; color: var(--text-2); font-weight: 600; }
+.cola-n { font-size: 27px; display: flex; align-items: baseline; gap: 8px; }
+.cola-n small { font-size: 11.5px; font-weight: 500; color: var(--text-3); font-stretch: 100%; letter-spacing: 0; }
+.cola-verbo { font-size: 12.5px; font-weight: 650; color: var(--accent); }
+.aldia { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-2); margin: 0 0 14px; }
+.aldia .tic { color: var(--positive); font-weight: 700; }
+.inicio-rejilla { display: grid; grid-template-columns: minmax(0,1fr) 268px; gap: 12px; align-items: start; }
+@container (max-width: 820px) { .inicio-rejilla { grid-template-columns: minmax(0,1fr); } }
+.fila-persona { display: flex; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--hairline); font-size: 13px; }
+.fila-persona:first-of-type { border-top: 0; }
+.fila-persona .sub { font-size: 11px; color: var(--text-3); }
+.fila-persona .flecha { margin-left: auto; color: var(--text-3); font-size: 13px; }
+.tramite { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--hairline); font-size: 13px; }
+.tramite small { color: var(--text-3); font-size: 11.5px; }
+.tramite .flecha { margin-left: auto; color: var(--text-3); }
+.act-barras { display: flex; align-items: flex-end; gap: 3px; height: 42px; margin: 8px 0 4px; }
+.act-barras i { flex: 1; background: var(--fill); border-radius: 3px 3px 1px 1px; display: block; }
+.act-barras i.hoy { background: var(--accent); }
+.act-pie { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); }
+
+/* La previsión (M-03). */
+.prev { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: end; height: 100px; }
+.prev-col { display: grid; align-content: end; gap: 6px; justify-items: stretch; text-align: center; }
+.prev-col .v { font-size: 17px; }
+.prev-col .b { border-radius: 6px 6px 2px 2px; background: var(--fill); }
+.prev-col.ahora .b { background: var(--accent); }
+.prev-col.ahora .v { color: var(--accent); }
+.prev-pie { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 7px; }
+.prev-pie span { font-size: 10px; color: var(--text-3); text-align: center; font-variant-numeric: tabular-nums; }
+.prev-verbo { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--hairline); display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-2); }
+.prev-verbo b { color: var(--accent); font-weight: 650; margin-left: auto; }
+
+/* La tira del programa. */
+.tira { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-bottom: 12px; }
+.tira-r { font-size: 11.5px; color: var(--text-3); padding-right: 8px; margin-right: 2px; border-right: 1px solid var(--hairline); }
+.mc {
+  font: inherit; font-size: 12px; font-weight: 600; color: var(--text-2);
+  background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 4px 9px;
+  font-variant-numeric: tabular-nums;
+}
+.mc.on { background: var(--surface); border-color: var(--hairline-strong); color: var(--text); box-shadow: 0 1px 2px rgba(18,24,38,.05); }
+.mc .curso { color: var(--accent); font-weight: 700; }
+.mc .curso::before { content: "· "; color: var(--text-3); font-weight: 400; }
+.chapa-abierto { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 2px 8px; }
+
+/* Entreno: mesa + costado, como en la app. */
+.entreno { display: grid; grid-template-columns: minmax(0,1fr) 250px; gap: 12px; align-items: start; }
+@container (max-width: 900px) { .entreno { grid-template-columns: minmax(0,1fr); } }
+.hojas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+@container (max-width: 780px) { .hojas { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.hoja-dia { background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 10px; min-width: 0; }
+.hoja-dia h5 { margin: 0 0 3px; font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
+.hoja-dia .estado { font-size: 10px; color: var(--text-3); display: flex; align-items: center; gap: 5px; margin-bottom: 7px; }
+.hoja-dia .estado i { width: 5px; height: 5px; border-radius: 999px; background: var(--positive); display: block; flex: none; }
+.hoja-dia .estado.no i { background: transparent; border: 1px solid var(--hairline-strong); }
+.ej { padding: 4px 0; }
+.ej .nm { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ej .pa { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; display: flex; gap: 5px; flex-wrap: wrap; align-items: baseline; }
+.ej .pa b { color: var(--text-2); font-weight: 620; }
+.ej .pa .et { font-size: 9px; letter-spacing: .05em; text-transform: uppercase; }
+.lado { background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 12px; margin-bottom: 10px; }
+.lado .k { font-size: 12px; color: var(--text-2); font-weight: 600; }
+.lado .desde { font-size: 11px; color: var(--text-3); }
+.lado-cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+.lado-cifras .c b { font-size: 19px; display: block; }
+.lado-cifras .c small { font-size: 10px; color: var(--text-3); }
+
+/* ══ LÁMINA 3 · las semanas en paralelo ═══════════════════════════════════ */
+.pg-scroll { overflow-x: auto; margin: 0 -2px; padding: 0 2px; }
+.progresion { display: grid; grid-template-columns: 128px repeat(4, minmax(0, 1fr)); gap: 0 8px; min-width: 560px; }
+.pg-cab { padding: 0 0 7px; font-size: 12px; font-weight: 650; text-align: center; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.pg-cab.on { color: var(--accent); }
+.pg-cab small { display: block; font-size: 10px; font-weight: 500; color: var(--text-3); }
+.pg-esq { padding: 0 0 7px; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.pg-nm { padding: 9px 10px 9px 0; font-size: 12.5px; font-weight: 600; border-top: 1px solid var(--hairline); display: flex; align-items: center; min-height: 46px; }
+.pg-c { border-top: 1px solid var(--hairline); padding: 6px 4px; display: grid; place-items: center; }
+.pauta {
+  width: 100%; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums;
+  background: var(--sunken); border: 1px solid transparent; border-radius: 8px;
+  padding: 6px 4px; text-align: center; color: var(--text);
+  transition: background-color .12s, border-color .12s, color .12s;
+}
+button.pauta { cursor: pointer; }
+button.pauta:hover { border-color: var(--accent); background: var(--accent-soft); }
+.pauta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pauta .kg { font-weight: 680; }
+.pauta small { display: block; font-size: 10px; color: var(--text-3); }
+.pauta .hizo { display: block; font-size: 9.5px; color: var(--text-3); margin-top: 2px; }
+.pauta.tocada { background: var(--accent-wash); border-color: var(--accent); color: var(--accent); }
+.pauta.tocada small, .pauta.tocada .hizo { color: var(--accent); opacity: .78; }
+.pg-tramo { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; padding: 0 0 8px; }
+.tramo-b {
+  height: 20px; border-radius: 6px; display: grid; place-items: center;
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase; font-weight: 650;
+  background: var(--fill); color: var(--text-3);
+}
+.tramo-b.dist { background: var(--accent-soft); color: var(--accent); }
+.pg-esq-tramo { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); align-self: center; padding-bottom: 8px; }
+.pregunta {
+  margin-top: 12px; background: var(--surface); border: 1px solid var(--accent);
+  border-radius: 11px; padding: 12px 13px; display: grid; gap: 10px;
+  box-shadow: 0 8px 24px -12px rgba(18,24,38,.3);
+}
+.pregunta p { margin: 0; font-size: 13.5px; }
+.pregunta .ops { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-size: 12.5px; font-weight: 620; cursor: pointer;
+  border-radius: 8px; padding: 7px 13px; border: 1px solid var(--edge);
+  background: var(--surface); color: var(--text-2);
+}
+.btn:hover { color: var(--text); border-color: var(--hairline-strong); }
+.btn.primario { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.marcador { margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); border-top: 1px solid var(--hairline); padding-top: 11px; }
+.marcador .cuenta { font-size: 20px; }
+.marcador .frente { margin-left: auto; color: var(--text-3); }
+
+/* ── Lámina 4 · el renglón de la serie ──────────────────────────────────── */
+.serie-tabla { display: grid; gap: 3px; }
+.serie-cab, .serie-fila { display: grid; align-items: center; gap: 6px; }
+.serie-vieja .serie-cab, .serie-vieja .serie-fila { grid-template-columns: 20px 42px 44px 34px 1fr; }
+.serie-nueva .serie-cab, .serie-nueva .serie-fila { grid-template-columns: 20px 42px 44px 34px 1fr; }
+.serie-cab span { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; text-align: center; }
+.serie-cab span.der { text-align: right; padding-right: 6px; }
+.serie-vieja .serie-fila { border-bottom: 1px solid var(--hairline); padding: 6px 0; }
+.serie-nueva .serie-fila { background: var(--sunken); border-radius: 8px; padding: 7px 4px; }
+.serie-fila > * { font-size: 12.5px; font-variant-numeric: tabular-nums; text-align: center; }
+.serie-fila .idx { color: var(--text-3); font-size: 11px; }
+.serie-fila .vacio { color: var(--text-3); opacity: .45; }
+.serie-fila .hizo { text-align: right; padding-right: 6px; color: var(--text-2); }
+.serie-fila .hizo b { color: var(--text); font-weight: 650; }
+.ej-cab { display: flex; align-items: baseline; gap: 8px; margin: 0 0 8px; }
+.ej-cab b { font-size: 14px; font-weight: 700; letter-spacing: -.01em; }
+.ej-cab span { font-size: 11.5px; color: var(--text-3); }
+.ej-cab .mandos { margin-left: auto; display: flex; gap: 5px; color: var(--text-3); font-size: 12px; opacity: 0; transition: opacity .12s; }
+.panel:hover .ej-cab .mandos { opacity: 1; }
+.bandeja-fila { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--hairline); }
+.bandeja-fila:first-of-type { border-top: 0; }
+.mini-video { height: 34px; border-radius: 6px; background: var(--sunken); border: 1px solid var(--hairline); display: grid; place-items: center; color: var(--text-3); font-size: 11px; }
+.bandeja-fila .q { font-size: 12.5px; }
+.bandeja-fila .q small { display: block; font-size: 11px; color: var(--text-3); }
+.bandeja-fila .v { font-size: 12px; font-weight: 650; color: var(--accent); }
+
+/* ── Lámina 5 · la fila del bloque ──────────────────────────────────────── */
+.bl-fila { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 14px; align-items: center; padding: 11px 12px; border-bottom: 1px solid var(--hairline); }
+.bl-fila:last-child { border-bottom: 0; }
+.bl-nombre-fila { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.bl-nombre { font-size: 14.5px; font-weight: 680; letter-spacing: -.01em; }
+.bl-chapa { font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--fill); color: var(--text-2); }
+.bl-chapa.is-abierto { background: var(--accent-soft); color: var(--accent); }
+.bl-aqui { font-size: 11.5px; color: var(--accent); font-weight: 600; }
+.bl-cuando { font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.bl-cifras { display: flex; gap: 16px; }
+.bl-cifra { display: grid; text-align: right; }
+.bl-cifra b { font-stretch: 125%; font-weight: 680; font-size: 15px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.bl-cifra small { font-size: 10px; color: var(--text-3); }
+.semanas-barra { display: flex; gap: 2px; margin-top: 7px; max-width: 250px; align-items: center; }
+.semanas-barra i { flex: 1; height: 5px; border-radius: 2px; background: var(--fill); display: block; }
+.semanas-barra i.hecha { background: var(--text-3); }
+.semanas-barra i.aqui { background: var(--accent); }
+.semanas-barra .abierta { flex: 0 0 auto; font-size: 9.5px; color: var(--text-3); padding-left: 6px; letter-spacing: .04em; }
+
+/* ── Lámina 6 · el móvil y su cuaderno ──────────────────────────────────── */
+.movil { width: 272px; margin: 0 auto; background: var(--surface); border: 1px solid var(--edge); border-radius: 20px; overflow: hidden; box-shadow: var(--sombra); }
+.movil-cab { padding: 12px 14px 10px; border-bottom: 1px solid var(--hairline); display: flex; align-items: center; gap: 8px; }
+.movil-cab b { font-size: 15px; font-weight: 700; letter-spacing: -.015em; }
+.movil-cab .x { margin-left: auto; color: var(--text-3); font-size: 14px; }
+.movil-cuerpo { padding: 12px 14px 16px; display: grid; gap: 13px; }
+.video { aspect-ratio: 16 / 9; border-radius: 9px; background: var(--sunken); border: 1px solid var(--hairline); display: grid; place-items: center; color: var(--text-3); font-size: 11px; }
+.section-label { font-size: 10.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 0 0 5px; }
+.movil p.txt { margin: 0; font-size: 12.5px; color: var(--text-2); }
+.pastillas-cab { display: flex; gap: 6px; flex-wrap: wrap; }
+.past {
+  font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-2);
+  background: var(--sunken); border: 1px solid var(--hairline); border-radius: 999px;
+  padding: 5px 11px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+}
+.past:hover { border-color: var(--accent); color: var(--accent); }
+.hoy-toca { background: var(--accent-soft); border: 1px solid var(--accent-wash); border-radius: 9px; padding: 9px 11px; display: flex; align-items: baseline; gap: 8px; }
+.hoy-toca .k { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 650; }
+.hoy-toca .v { font-size: 15px; font-variant-numeric: tabular-nums; margin-left: auto; font-weight: 680; }
+.linea-t { display: grid; }
+.linea-f { display: grid; grid-template-columns: 30px minmax(0,1fr) auto; gap: 8px; padding: 8px 0; border-top: 1px solid var(--hairline); align-items: baseline; }
+.linea-f:first-child { border-top: 0; }
+.linea-f.ultima { background: var(--sunken); border-radius: 8px; padding: 8px 6px; margin: 2px 0; }
+.linea-f .fecha { text-align: center; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.linea-f .fecha small { display: block; font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.linea-f .fecha b { font-stretch: 125%; font-weight: 680; font-size: 14px; }
+.linea-f .donde { font-size: 10px; color: var(--text-3); }
+.linea-f .series { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.linea-f .series b { color: var(--text); font-weight: 620; }
+.linea-f .delta { font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-3); font-weight: 650; }
+
+/* ── Lámina 7 · la dieta ────────────────────────────────────────────────── */
+.dieta { display: grid; grid-template-columns: minmax(0,1fr) 244px; gap: 12px; align-items: start; }
+@container (max-width: 880px) { .dieta { grid-template-columns: minmax(0,1fr); } }
+.comida { background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 12px; margin-bottom: 10px; }
+.comida-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.comida-cab b { font-size: 14.5px; font-weight: 700; letter-spacing: -.015em; }
+.comida-cab .mandos { margin-left: auto; color: var(--text-3); font-size: 12px; display: flex; gap: 6px; }
+.opciones { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 9px; }
+.op {
+  font: inherit; font-size: 11.5px; font-weight: 620; border-radius: 999px; padding: 4px 11px;
+  border: 1px solid var(--hairline); background: transparent; color: var(--text-2); cursor: pointer;
+}
+.op.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.op.mas { color: var(--text-3); border-style: dashed; }
+.alim { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; gap: 9px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 12.5px; }
+.alim:first-of-type { border-top: 0; }
+.alim .cant { font-variant-numeric: tabular-nums; font-weight: 650; text-align: right; }
+.alim .macros { font-size: 10.5px; color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.equiv { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; gap: 9px; align-items: baseline; padding: 4px 0 4px 0; font-size: 11.5px; color: var(--text-2); }
+.equiv .sangria { text-align: right; color: var(--text-3); font-size: 10.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.equiv-caja { margin: 2px 0 4px; padding-left: 10px; border-left: 2px solid var(--hairline); }
+.comida-pie { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--hairline); font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; display: flex; gap: 10px; flex-wrap: wrap; }
+.comida-pie b { color: var(--text-2); font-weight: 650; }
+.objetivo-lado { position: sticky; top: 76px; }
+.energia { margin: 4px 0 12px; }
+.energia .fila { display: flex; align-items: baseline; justify-content: space-between; font-size: 11px; color: var(--text-3); }
+.energia .pista { height: 8px; border-radius: 999px; background: var(--fill); overflow: hidden; margin: 5px 0 5px; }
+.energia .pista i { display: block; height: 100%; background: var(--text-2); border-radius: 999px; }
+.energia .kcal { font-size: 15px; font-variant-numeric: tabular-nums; font-weight: 680; }
+.roscos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+.rosco svg { width: 100%; height: auto; max-width: 62px; display: block; margin: 0 auto; }
+.rosco .k { font-size: 9.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); display: block; margin-bottom: 4px; }
+.rosco .g { font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; display: block; margin-top: 3px; }
+.rosco text { font-family: 'Archivo', system-ui, sans-serif; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mas-lado { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--hairline); display: grid; gap: 7px; font-size: 12px; color: var(--text-2); }
+.mas-lado .f { display: flex; justify-content: space-between; }
+.mas-lado .f b { font-variant-numeric: tabular-nums; }
+.mas-lado .plegado { color: var(--text-3); display: flex; justify-content: space-between; }
+.hueco {
+  border: 1px dashed var(--hairline-strong); border-radius: 11px;
+  display: grid; place-items: center; padding: 22px; text-align: center;
+  color: var(--text-3); font-size: 12.5px; min-height: 130px;
+}
+
+/* ── Lámina 8 · repartir ────────────────────────────────────────────────── */
+.reparto { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: 14px; }
+@container (max-width: 760px) { .reparto { grid-template-columns: minmax(0,1fr); } }
+.lista-check { display: grid; }
+.lc { display: grid; grid-template-columns: 16px minmax(0,1fr); gap: 9px; align-items: center; padding: 7px 8px; border-radius: 8px; font-size: 12.5px; }
+.lc.on { background: var(--accent-soft); }
+.lc .caja { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--hairline-strong); display: grid; place-items: center; font-size: 9px; color: transparent; }
+.lc.on .caja { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chapas-sel { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.chapa-sel { font-size: 11.5px; font-weight: 620; background: var(--sunken); border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 10px; display: inline-flex; gap: 6px; align-items: center; }
+.chapa-sel .x { color: var(--text-3); }
+.consec { border: 1px solid var(--hairline); border-radius: 10px; padding: 11px; }
+.consec h6 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; }
+.consec-fila { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-top: 1px solid var(--hairline); font-size: 12.5px; }
+.consec-fila:first-of-type { border-top: 0; }
+.consec-fila .que { color: var(--text-2); }
+.consec-fila .marca { margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.consec-fila .marca.entra { background: var(--accent-soft); color: var(--accent); }
+.consec-fila .marca.sale { background: var(--fill); color: var(--text-3); text-decoration: line-through; }
+
+/* ── Lámina 9 · la guía de medida ───────────────────────────────────────── */
+.guia { display: grid; grid-template-columns: 172px minmax(0,1fr); gap: 20px; align-items: start; max-width: 780px; }
+@container (max-width: 620px) { .guia { grid-template-columns: minmax(0,1fr); } }
+.guia svg { width: 100%; height: auto; }
+.guia-lista { display: grid; gap: 8px; }
+.guia-f { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 9px; font-size: 12.5px; }
+.guia-f .n { width: 18px; height: 18px; border-radius: 999px; border: 1px solid var(--hairline-strong); display: grid; place-items: center; font-size: 10px; font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.guia-f b { font-weight: 650; }
+.guia-f p { margin: 1px 0 0; font-size: 11.5px; color: var(--text-3); }
+
+/* ── §3 · lo que no se copia ────────────────────────────────────────────── */
+.nocopia { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.nc { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 14px; display: grid; gap: 9px; align-content: start; }
+.nc h4 { margin: 0; font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.nc p { margin: 0; font-size: 13.5px; color: var(--text-2); }
+.nc p b { color: var(--text); font-weight: 620; }
+.reproche { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
+.reproche > div { border: 1px solid var(--hairline); border-radius: 9px; padding: 10px; display: grid; gap: 3px; align-content: start; }
+.reproche .cuenta-g { font-size: 28px; }
+.reproche .pie-r { font-size: 10.5px; color: var(--text-3); }
+.reproche .mal { border-style: dashed; }
+
+/* ── El pie ─────────────────────────────────────────────────────────────── */
+.orden { display: grid; gap: 10px; margin: 0; padding: 0; max-width: 78ch; }
+.orden .mov { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: baseline; padding-bottom: 10px; border-bottom: 1px solid var(--hairline); }
+.orden .mov:last-child { border-bottom: 0; }
+.orden dt { font-size: 11.5px; font-weight: 700; color: var(--accent); letter-spacing: .03em; }
+.orden dd { margin: 0; font-size: 14.5px; color: var(--text-2); }
+.orden dd b { color: var(--text); font-weight: 620; }
+.tanda-t { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 22px 0 10px; }
+.pie { margin-top: 44px; font-size: 13px; color: var(--text-3); border-top: 1px solid var(--hairline-strong); padding-top: 14px; max-width: 84ch; }
+
+.nota { display: none; font-size: 11px; color: var(--accent); font-weight: 650; align-items: center; gap: 6px; margin-bottom: 6px; }
+.nota::before { content: attr(data-mov); font-size: 9.5px; letter-spacing: .04em; background: var(--accent); color: var(--accent-ink); border-radius: 5px; padding: 2px 6px; }
+[data-notas="si"] .nota { display: flex; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="doc">
+
+  <header class="portada">
+    <span class="rotulo">Caveman Hub · estudio del 9 de septiembre de 2026 · segunda versión</span>
+    <h1>Efort, leído y traducido</h1>
+    <p>El estudio de septiembre miró <strong>qué hace</strong> Efort. Este mira <strong>cómo está hecho</strong> — y qué pasa cuando sus decisiones se traen a nuestra casa, que tiene otro modelo debajo.</p>
+    <p>Sus colores salen de un <strong>histograma de píxeles de sus capturas</strong>. Los «antes» están calcados de <strong>la aplicación corriendo</strong>, no reconstruidos de memoria.</p>
+    <div class="corrige">
+      <b>Qué se ha corregido de la primera versión.</b> Tres cosas eran falsas y estaban en el código:
+      <b>no pautamos kilos</b> —<code>targetKg</code> es opcional y vacío significa «a criterio del cliente»—;
+      <b>un bloque no tiene duración</b> —<code>plannedWeeks</code> es opcional y lo normal es «abierto»—;
+      y el Inicio que dibujé no era el de producción. Además, la cámara pasa a ser lo que de verdad es:
+      <b>el cliente manda vídeo cuando quiere</b>, y pedírselo es el extra.
+    </div>
+  </header>
+
+  <div class="mando">
+    <div class="segmentado" role="group" aria-label="Qué se ve en cada lámina">
+      <button type="button" data-vista="antes" aria-pressed="false">Antes</button>
+      <button type="button" data-vista="despues" aria-pressed="true">Después</button>
+      <button type="button" data-vista="comparar" aria-pressed="false">Comparar</button>
+    </div>
+    <label class="interruptor">
+      <input type="checkbox" id="ver-notas"> Ver qué se ha movido
+    </label>
+    <div class="segmentado lejos" role="group" aria-label="Tema">
+      <button type="button" data-tema="light" aria-pressed="true">Papel</button>
+      <button type="button" data-tema="dark" aria-pressed="false">Hierro</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       §1 · CÓMO ESTÁ HECHO LO SUYO
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="parte">
+    <h2>1 · Cómo está hecho lo suyo</h2>
+    <p class="bajada">Efort tiene un sistema visual <b>correcto y sin gobernar</b>. Correcto: una sola familia, radios coherentes, nada de degradados. Sin gobernar: el acento no distingue entre «esto se toca» y «esto decora», así que en su panel el botón que hace la única cosa importante se ve igual que una barra de progreso.</p>
+
+    <div class="paletas">
+      <article class="paleta">
+        <header><b>Efort</b> <span>medido sobre tres capturas suyas</span></header>
+        <div class="tiras">
+          <div class="tira-c"><i style="background:#ffffff"></i><span class="q"><b>Tarjeta</b>30 % y 37 % de los píxeles</span><span class="h">#ffffff</span></div>
+          <div class="tira-c"><i style="background:#f0f4f5"></i><span class="q"><b>Lienzo</b>casi blanco, con tinte verdoso</span><span class="h">#f0f4f5</span></div>
+          <div class="tira-c"><i style="background:#e6eef1"></i><span class="q"><b>Filete y relleno</b></span><span class="h">#e6eef1</span></div>
+          <div class="tira-c"><i style="background:#3d717e"></i><span class="q"><b>Acento · petróleo</b>botón, pestaña, barra, casilla, rosco</span><span class="h">#3d717e</span></div>
+          <div class="tira-c"><i style="background:#537f8f"></i><span class="q"><b>Acento claro</b>relleno de barras y anillos</span><span class="h">#537f8f</span></div>
+          <div class="tira-c"><i style="background:#7dd3a6"></i><span class="q"><b>Verde de marca</b>solo en su material, no en la app</span><span class="h">#7dd3a6</span></div>
+        </div>
+        <footer>Un solo escalón de superficie: lienzo → tarjeta, <b>1,12 : 1</b>. El petróleo da <b>5,4 : 1</b> sobre blanco: pasa como texto, pero con tan poco croma no <b>tira</b> del ojo — y aun así lo gastan en decorar.</footer>
+      </article>
+
+      <article class="paleta">
+        <header><b>Caveman Hub</b> <span>medido sobre nuestras capturas</span></header>
+        <div class="tiras">
+          <div class="tira-c"><i style="background:#ffffff"></i><span class="q"><b>Tarjeta</b>blanco puro</span><span class="h">#ffffff</span></div>
+          <div class="tira-c"><i style="background:#f6f7f9"></i><span class="q"><b>Hoja</b>el lienzo de la pantalla</span><span class="h">#f6f7f9</span></div>
+          <div class="tira-c"><i style="background:#eceff3"></i><span class="q"><b>Mesa</b>el marco de fuera, lo único hundido</span><span class="h">#eceff3</span></div>
+          <div class="tira-c"><i style="background:#121722"></i><span class="q"><b>Barra · hierro</b>la navegación es oscura, siempre</span><span class="h">#121722</span></div>
+          <div class="tira-c"><i style="background:#3b49df"></i><span class="q"><b>Acento · señal</b>solo donde se toca o donde estás</span><span class="h">#3b49df</span></div>
+          <div class="tira-c"><i style="background:#e9ecf1"></i><span class="q"><b>Relleno</b>lo que no es señal</span><span class="h">#e9ecf1</span></div>
+        </div>
+        <footer>Tres escalones —mesa, hoja, tarjeta—. El azul da <b>6,6 : 1</b> sobre blanco y ocupa el <b>0,57 %</b> de los píxeles: eso es lo que lo hace señal. Su paso lienzo→tarjeta (1,12) es <b>más marcado que el nuestro</b> (1,08), y eso es un punto suyo.</footer>
+      </article>
+    </div>
+
+    <div class="ejes-caja ejes">
+      <table class="ejes-t">
+        <thead><tr><th>Eje</th><th>Efort</th><th>Nosotros</th><th>Veredicto</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>La pauta</td>
+            <td>Escribe <b>el peso</b>: «Ramp 3x4 @6 + 2x4x135». Toda su notación gira alrededor del kilo.</td>
+            <td>Series × repeticiones, y RIR si toca. <code>targetKg</code> es opcional; vacío significa <b>a criterio del cliente</b>.</td>
+            <td class="veredicto"><b>Modelos distintos, no un hueco.</b> Ellos son de powerlifting; una asesoría general pauta esfuerzo, no carga. Esto invalida media comparación fácil — y es lo primero que hay que tener claro antes de copiarles una tabla.</td>
+          </tr>
+          <tr>
+            <td>El bloque</td>
+            <td>Tiene <b>duración fija</b> y semanas numeradas de antemano. De ahí sale su previsión de trabajo.</td>
+            <td>Es <b>abierto</b>: dura hasta que hay motivo para cambiarlo. La duración prevista existe, pero es opcional.</td>
+            <td class="veredicto"><b>Nuestro,</b> y con consecuencia: su previsión no se puede copiar tal cual. Lo que sí es cierto aquí es otra cosa — <b>cuántos microciclos quedan escritos</b>. Lámina 2.</td>
+          </tr>
+          <tr>
+            <td>El suelo</td>
+            <td>Un blanco y un casi-blanco. La tarjeta se define por filete.</td>
+            <td>Mesa, hoja y tarjeta. La tarjeta se define por altura.</td>
+            <td class="veredicto"><b>Empate con matiz.</b> Su escalón es mayor que el nuestro; nuestro tercer nivel dice algo que el suyo no.</td>
+          </tr>
+          <tr>
+            <td>La barra</td>
+            <td>Clara, y <b>lleva la lista entera de atletas</b> con casilla y microciclo.</td>
+            <td>Hierro, y lleva navegación + un puñado de recientes.</td>
+            <td class="veredicto"><b>Suyo.</b> No por el color: por lo que carga. Lámina 1.</td>
+          </tr>
+          <tr>
+            <td>El acento</td>
+            <td>Petróleo en botón, pestaña, barra de progreso, casilla, anillo y canto.</td>
+            <td>Azul solo donde se toca o donde estás. Nunca titula, nunca tiñe una caja.</td>
+            <td class="veredicto"><b>Nuestro,</b> y no se negocia. Es LA REGLA del sistema.</td>
+          </tr>
+          <tr>
+            <td>El rótulo de tarjeta</td>
+            <td>Chip de icono + rótulo troquelado + <b>alcance a la derecha</b> («This week · 3–Aug 9»).</td>
+            <td>Título llano y, a veces, un <code>.section-label</code>. Sin chip y sin alcance.</td>
+            <td class="veredicto"><b>Suyo.</b> El alcance dice de qué periodo habla la tarjeta sin gastar un renglón. Lámina 2.</td>
+          </tr>
+          <tr>
+            <td>La densidad</td>
+            <td>Renglón de serie como pastilla gris, sin reglas. Columna <b>ACTUAL</b> anclada a la derecha.</td>
+            <td>Tabla con filetes: PIDES | HIZO, mejor semántica y peor renglón.</td>
+            <td class="veredicto"><b>Mitad y mitad.</b> Su forma, nuestra semántica. Lámina 4.</td>
+          </tr>
+          <tr>
+            <td>La comida</td>
+            <td>Tarjeta por comida, <b>opciones con nombre</b>, equivalencias anidadas con la cantidad ya escalada y pie de macros.</td>
+            <td>En «por macros» no hay comidas: una columna de 980 px con la cifra, la barra y las pautas.</td>
+            <td class="veredicto"><b>Suyo, y por goleada.</b> Es su mejor pantalla y la nuestra más pobre. Lámina 7.</td>
+          </tr>
+          <tr>
+            <td>El semáforo</td>
+            <td>Verde / ámbar / rojo en los roscos de macros: <b>juzga la dieta</b> a 107 % de proteína.</td>
+            <td>El color del dato distingue; el que juzga se reserva para lo que se juzga.</td>
+            <td class="veredicto"><b>Nuestro.</b> Un 107 % de proteína no es un suspenso. En la lámina 7 los roscos van con los colores del macro, no con nota.</td>
+          </tr>
+          <tr>
+            <td>La firma</td>
+            <td>No hay. Su panel tiene cinco cajas del mismo peso y un tercio ocupado por «Invitar» y «Tutoriales».</td>
+            <td>Una firma por pantalla, escrita y tabulada en <code>tokens.css</code>.</td>
+            <td class="veredicto"><b>Nuestro.</b> Su cifra grande («23 pending») es lo único que tira del ojo, y es un reproche.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       §2 · LAS LÁMINAS
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="parte">
+    <h2>2 · Las láminas</h2>
+    <p class="bajada">Nueve pantallas. Las cuatro primeras son piezas del panel; las cinco últimas son <b>pantallas suyas enteras</b>, traídas con nuestros tokens. El mando de arriba las pone todas en «antes», en «después» o lado a lado. <b>Nada de esto está construido.</b></p>
+
+    <!-- ── LÁMINA 1 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">01</span>
+        <div>
+          <h3>La barra es la cola</h3>
+          <p>Lo suyo que más impresiona no lleva ni un gráfico: bajo la navegación va <b>la lista entera de clientes, siempre</b>. La navegación, la cola y el horizonte pasan a ser el mismo objeto. Traducido a nuestro modelo, la segunda línea <b>no puede ser «M4 de 4»</b> —un bloque nuestro es abierto—: es el microciclo por el que va, y el aviso solo aparece cuando es verdad que no hay nada escrito después.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">M-01</span><span class="ref">G-01</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Hoy en producción</span><span>Recientes: los que has abierto tú.</span></figcaption>
+          <div class="app">
+            <nav class="barra">
+              <div class="marca"><i></i> Caveman Hub</div>
+              <div class="buscar">Buscar <kbd>Ctrl K</kbd></div>
+              <ul><li class="on">Inicio <span class="n">6</span></li><li>Clientes <span class="n">6</span></li><li>Cobros</li><li>Agenda</li></ul>
+              <div class="grupo">Recientes</div>
+              <ul><li>Javier Ortega</li></ul>
+              <div class="grupo">Tu taller</div>
+              <ul><li>Protocolos</li><li>Formularios</li><li>Librería</li><li>Plantillas</li></ul>
+              <div class="pie"><i>ED</i> Entrenador Demo</div>
+            </nav>
+            <div class="hoja"><div class="lienzo" style="min-height:320px">
+              <div class="panel">
+                <div class="panel-t">Para saber a quién le toca, hay que ir a mirar</div>
+                <p style="margin:8px 0 0;font-size:13px;color:var(--text-2)">La barra sabe navegar y recordar a quién abriste. No sabe quién te espera ni por dónde va nadie. Eso vive en Inicio y en la cartera, y hay que ir hasta allí.</p>
+              </div>
+            </div></div>
+          </div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>La lista completa, con buscador.</span></figcaption>
+          <div class="app">
+            <nav class="barra">
+              <div class="marca"><i></i> Caveman Hub</div>
+              <div class="buscar">Buscar <kbd>Ctrl K</kbd></div>
+              <ul><li class="on">Inicio <span class="n">6</span></li><li>Clientes <span class="n">6</span></li><li>Cobros</li><li>Agenda</li></ul>
+              <div class="grupo" style="display:flex;align-items:center;justify-content:space-between">Tus clientes <span style="letter-spacing:0;text-transform:none">6</span></div>
+              <div class="rail-buscar">Filtrar…</div>
+              <ul class="rail-lista">
+                <li class="espera on ultimo"><span class="punto"></span><span class="n2"><b>Javier Ortega</b></span><span class="ciclo">M18 ·</span></li>
+                <li class="espera"><span class="punto"></span><span class="n2"><b>Marta Ruiz</b></span><span class="ciclo">M13</span></li>
+                <li class="espera ultimo"><span class="punto"></span><span class="n2"><b>Nerea Sanz</b></span><span class="ciclo">M9 ·</span></li>
+                <li><span class="punto"></span><span class="n2"><b>Álvaro Pino</b></span><span class="ciclo">M25</span></li>
+                <li><span class="punto"></span><span class="n2"><b>Claudia Rey</b></span><span class="ciclo">M5</span></li>
+                <li><span class="punto"></span><span class="n2"><b>Iván Tormo</b></span><span class="ciclo">M31</span></li>
+              </ul>
+              <div class="grupo">Tu taller</div>
+              <ul><li>Protocolos</li><li>Formularios</li><li>Librería</li><li>Plantillas</li></ul>
+              <div class="pie"><i>ED</i> Entrenador Demo</div>
+            </nav>
+            <div class="hoja"><div class="lienzo" style="min-height:320px;display:grid;gap:12px;align-content:start">
+              <p class="nota" data-mov="M-01">La lista entera, no los recientes</p>
+              <div class="panel">
+                <div class="cab-tarj"><span class="cab-chip">◎</span><span class="k">Cómo se lee una fila</span></div>
+                <div style="display:grid;gap:11px;font-size:13px;color:var(--text-2)">
+                  <div style="display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:baseline"><span style="justify-self:center;width:7px;height:7px;border-radius:999px;background:var(--accent);display:block;transform:translateY(-2px)"></span> <span><b style="color:var(--text)">El punto azul</b> — esta persona espera algo tuyo. Azul porque invita, no porque riña.</span></div>
+                  <div style="display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:baseline"><span class="cifra" style="font-size:11px;justify-self:center;color:var(--text)">M18</span> <span><b style="color:var(--text)">El microciclo por el que va</b>. Sin «de cuántos»: un bloque es abierto. Solo si le pusiste duración prevista dice «M3 de 4», porque entonces es <i>su plan, dicho</i>.</span></div>
+                  <div style="display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;align-items:baseline"><span class="cifra" style="font-size:14px;justify-self:center;color:var(--text-2)">·</span> <span><b style="color:var(--text)">El punto tras la cifra</b> — no hay microciclo escrito después de este. No es un reproche ni una cuenta atrás: es que la semana que viene <b style="color:var(--text)">no hay hoja</b>.</span></div>
+                </div>
+              </div>
+              <p class="nota" data-mov="M-02">Sale de <code>horizonteDeBloque()</code>, que ya cuenta los microciclos escritos</p>
+              <div class="panel">
+                <div class="cab-tarj"><span class="cab-chip">⚑</span><span class="k">Lo que hay que tocar</span><span class="alcance">1 función de dominio</span></div>
+                <p style="margin:0;font-size:13px;color:var(--text-2)"><code>trainingSummary()</code> pasa a llevar <code>{microcicloEnCurso, escritosDespues, previstas}</code>. Se calcula en <code>AppContext</code>, con el programa entero delante, que es donde ya se llama. De ahí salen esta lámina y la siguiente.</p>
+              </div>
+            </div></div>
+          </div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 2 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">02</span>
+        <div>
+          <h3>Inicio, el de verdad</h3>
+          <p>El «antes» está calcado de la app corriendo: saludo grande, la tira de puesta en marcha, <b>una sola cola a lo ancho</b> porque solo una tiene gente, la línea de «al día» y, a la derecha, «Esta semana» y «Actividad». Lo que se trae es <b>la cabecera con alcance</b> y <b>la previsión</b> — pero la previsión no puede contar lo que ellos cuentan: como el bloque es abierto, aquí cuenta <b>a quién se le acaba lo escrito</b>.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">D-01</span><span class="ref">M-03</span><span class="ref">M-05</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Calcado de la app real</span><span>Sin horizonte: solo lo que ya pasó.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <h4 class="saludo">Buenas noches, Entrenador</h4>
+            <p class="saludo-sub">Miércoles, 9 de septiembre · 6 clientes · 6 cosas por hacer</p>
+            <div class="puesta"><span class="cab-chip" style="width:20px;height:20px;font-size:10px">◷</span> Puesta en marcha: te quedan 2 pasos <a href="#lam2">Seguir</a> <span class="x">✕</span></div>
+            <div class="colas">
+              <button class="cola is-on"><span class="cola-k">Sin señales</span><span class="cola-n cifra">6 <small>llevan días sin entrenar</small></span><span class="cola-verbo">Escribir</span></button>
+            </div>
+            <p class="aldia"><span class="tic">✓</span> Revisiones, sin leer, rutinas y cobros, al día.</p>
+            <div class="inicio-rejilla">
+              <div class="panel">
+                <div class="fila-persona"><span class="avatar">NS</span><span><b>Nerea Sanz</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                <div class="fila-persona"><span class="avatar">ÁP</span><span><b>Álvaro Pino</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                <div class="fila-persona"><span class="avatar">CR</span><span><b>Claudia Rey</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                <div class="fila-persona"><span class="avatar">JO</span><span><b>Javier Ortega</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+              </div>
+              <div>
+                <div class="panel" style="margin-bottom:10px">
+                  <div class="panel-t">Esta semana</div>
+                  <p style="margin:8px 0 6px;font-size:12.5px;color:var(--text-2)">Nada apuntado hasta el domingo.</p>
+                  <span style="font-size:12.5px;color:var(--accent);font-weight:650">Apuntar algo</span>
+                </div>
+                <div class="panel">
+                  <div class="panel-t">Actividad</div>
+                  <div class="panel-s">Últimas dos semanas</div>
+                  <div class="act-barras"><i style="height:20%"></i><i style="height:34%"></i><i style="height:26%"></i><i style="height:30%"></i><i style="height:70%"></i><i style="height:38%"></i><i style="height:22%"></i><i style="height:34%"></i><i style="height:26%"></i><i class="hoy" style="height:56%"></i></div>
+                  <div class="act-pie"><span>hace dos semanas</span><span style="color:var(--accent)">hoy</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="panel" style="margin-top:10px">
+              <div class="panel-t">Trámites</div>
+              <div class="panel-s">Lo administrativo, para cuando tengas un hueco</div>
+              <div style="margin-top:6px">
+                <div class="tramite">Dar acceso al portal <small>6 personas</small><span class="flecha">›</span></div>
+                <div class="tramite">Terminar el alta <small>6 personas</small><span class="flecha">›</span></div>
+              </div>
+            </div>
+          </div></div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>La misma pantalla, con horizonte.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <h4 class="saludo">Buenas noches, Entrenador</h4>
+            <p class="saludo-sub">Miércoles, 9 de septiembre · 6 clientes · 8 cosas por hacer</p>
+            <div class="puesta"><span class="cab-chip" style="width:20px;height:20px;font-size:10px">◷</span> Puesta en marcha: te quedan 2 pasos <a href="#lam2">Seguir</a> <span class="x">✕</span></div>
+            <p class="nota" data-mov="M-02">Cola nueva, y su verbo</p>
+            <div class="colas varias">
+              <button class="cola is-on"><span class="cola-k">Sin señales</span><span class="cola-n cifra">6 <small>días sin entrenar</small></span><span class="cola-verbo">Escribir</span></button>
+              <button class="cola"><span class="cola-k">Sin semana siguiente</span><span class="cola-n cifra">2 <small>no hay hoja después</small></span><span class="cola-verbo">Escribir el microciclo</span></button>
+            </div>
+            <p class="aldia"><span class="tic">✓</span> Revisiones, sin leer y cobros, al día.</p>
+            <div class="inicio-rejilla">
+              <div>
+                <p class="nota" data-mov="D-01">Chip + rótulo + alcance a la derecha</p>
+                <div class="panel">
+                  <div class="cab-tarj"><span class="cab-chip">◷</span><span class="k">Sin señales</span><span class="alcance">Del 2 al 9 de septiembre</span></div>
+                  <div class="fila-persona"><span class="avatar">NS</span><span><b>Nerea Sanz</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                  <div class="fila-persona"><span class="avatar">ÁP</span><span><b>Álvaro Pino</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                  <div class="fila-persona"><span class="avatar">CR</span><span><b>Claudia Rey</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                  <div class="fila-persona"><span class="avatar">JO</span><span><b>Javier Ortega</b><br><span class="sub">7 días sin entrenar</span></span><span class="flecha">›</span></div>
+                </div>
+              </div>
+              <div>
+                <p class="nota" data-mov="M-03">La previsión, sobre lo ESCRITO</p>
+                <div class="panel" style="margin-bottom:10px">
+                  <div class="cab-tarj"><span class="cab-chip">▤</span><span class="k">Lo que viene</span></div>
+                  <div class="prev">
+                    <div class="prev-col ahora"><span class="v cifra">2</span><i class="b" style="height:38px"></i></div>
+                    <div class="prev-col"><span class="v cifra">3</span><i class="b" style="height:56px"></i></div>
+                    <div class="prev-col"><span class="v cifra">1</span><i class="b" style="height:19px"></i></div>
+                    <div class="prev-col"><span class="v cifra">0</span><i class="b" style="height:3px"></i></div>
+                  </div>
+                  <div class="prev-pie"><span>Esta semana</span><span>15–21 sep</span><span>22–28 sep</span><span>29 sep–5 oct</span></div>
+                  <div class="prev-verbo">Se quedan sin hoja escrita <b>Escribir</b></div>
+                </div>
+                <div class="panel">
+                  <div class="cab-tarj"><span class="cab-chip">▦</span><span class="k">Actividad</span><span class="alcance">Últimas dos semanas</span></div>
+                  <div class="act-barras"><i style="height:20%"></i><i style="height:34%"></i><i style="height:26%"></i><i style="height:30%"></i><i style="height:70%"></i><i style="height:38%"></i><i style="height:22%"></i><i style="height:34%"></i><i style="height:26%"></i><i class="hoy" style="height:56%"></i></div>
+                  <div class="act-pie"><span>hace dos semanas</span><span style="color:var(--accent)">hoy</span></div>
+                </div>
+              </div>
+            </div>
+            <p style="margin:12px 0 0;font-size:12.5px;color:var(--text-3)">«Esta semana» y los trámites siguen abajo, sin tocar. Lo único que entra es <b style="color:var(--text-2)">una cola</b>, <b style="color:var(--text-2)">una tarjeta</b> y el alcance en las cabeceras.</p>
+          </div></div></div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 3 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">03</span>
+        <div>
+          <h3>Las semanas, una al lado de otra</h3>
+          <p>La lámina del estudio. Efort saca el bloque entero en un lienzo con <b>las semanas como columnas</b>: es como se lee una progresión. Su modelo <b>duplica la semana</b> —cada columna es un texto suelto— y por eso su producto está lleno de herramientas de copiar. El nuestro escribe la hoja una vez y la varía por tramo. Y lo que progresa aquí <b>no son kilos</b>: son series, repeticiones y RIR — el kilo es lo que él levantó, y va debajo en gris. <b>Pulsa una pauta del press banca.</b></p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">M-06</span><span class="ref">G-04</span><span class="ref">M-14</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Calcado de la app real</span><span>Todas las hojas de UN microciclo.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja">
+            <div class="cinta"><span class="avatar">JO</span><span class="nombre">Javier Ortega</span><span class="meta">Microciclo 18 · en curso</span></div>
+            <div class="pestanas"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span><span>Revisiones</span></div>
+            <div class="lienzo">
+              <div class="tira">
+                <span class="tira-r">Bloques</span>
+                <button class="mc on">Bloque 1</button><button class="mc" style="color:var(--text-3)">+ bloque</button>
+                <span style="margin-left:auto"><span class="chapa-abierto">abierto</span></span>
+              </div>
+              <div class="tira">
+                <button class="mc">M6</button><button class="mc">M7</button><button class="mc">M8</button><button class="mc">M9</button>
+                <button class="mc on">M10 <span class="curso">en curso</span></button>
+                <button class="mc" style="color:var(--text-3)">+ microciclo</button>
+              </div>
+              <div class="entreno">
+                <div class="hojas">
+                  <div class="hoja-dia">
+                    <h5>Empuje</h5><div class="estado"><i></i> hecha el miércoles · 20 series</div>
+                    <div class="ej"><div class="nm">Press banca</div><div class="pa"><b>4 × 6-8</b> <span class="et">hizo</span> 102,5 kg · 8·8·8·7</div></div>
+                    <div class="ej"><div class="nm">Press inclinado</div><div class="pa"><b>4 × 6-8</b> <span class="et">hizo</span> 50,5 kg · 8·8·8·7</div></div>
+                    <div class="ej"><div class="nm">Press militar</div><div class="pa"><b>3 × 10-12</b> <span class="et">hizo</span> 67,5 kg · 11·11·11</div></div>
+                    <div class="ej"><div class="nm">Elevaciones lat.</div><div class="pa"><b>3 × 10-12</b> <span class="et">hizo</span> 32,5 kg · 11·11·11</div></div>
+                  </div>
+                  <div class="hoja-dia">
+                    <h5>Tirón</h5><div class="estado"><i></i> hecha el miércoles · 20 series</div>
+                    <div class="ej"><div class="nm">Dominadas lastr.</div><div class="pa"><b>4 × 6-8</b> <span class="et">hizo</span> 32,5 kg · 8·8·8·7</div></div>
+                    <div class="ej"><div class="nm">Remo con barra</div><div class="pa"><b>4 × 6-8</b> <span class="et">hizo</span> 92,5 kg · 8·8·8·7</div></div>
+                    <div class="ej"><div class="nm">Jalón al pecho</div><div class="pa"><b>3 × 10-12</b> <span class="et">hizo</span> 82,5 kg · 11·11·11</div></div>
+                    <div class="ej"><div class="nm">Curl con barra Z</div><div class="pa"><b>3 × 10-12</b> <span class="et">hizo</span> 32,5 kg · 11·11·11</div></div>
+                  </div>
+                  <div class="hoja-dia">
+                    <h5>Pierna</h5><div class="estado no"><i></i> aún no · 20 series</div>
+                    <div class="ej"><div class="nm">Sentadilla tras.</div><div class="pa"><b>4 × 6-8</b> <span class="et">antes</span> 120 kg</div></div>
+                    <div class="ej"><div class="nm">Peso muerto rum.</div><div class="pa"><b>4 × 6-8</b> <span class="et">antes</span> 110 kg</div></div>
+                    <div class="ej"><div class="nm">Prensa 45°</div><div class="pa"><b>3 × 10-12</b> <span class="et">antes</span> 200 kg</div></div>
+                    <div class="ej"><div class="nm">Curl femoral</div><div class="pa"><b>3 × 10-12</b> <span class="et">antes</span> 65 kg</div></div>
+                  </div>
+                  <div class="hoja-dia">
+                    <h5>Full body</h5><div class="estado no"><i></i> aún no · 20 series</div>
+                    <div class="ej"><div class="nm">Sentadilla front.</div><div class="pa"><b>4 × 6-8</b> <span class="et">antes</span> 90 kg</div></div>
+                    <div class="ej"><div class="nm">Press banca</div><div class="pa"><b>4 × 6-8</b> <span class="et">antes</span> 100 kg</div></div>
+                    <div class="ej"><div class="nm">Remo con barra</div><div class="pa"><b>3 × 10-12</b> <span class="et">antes</span> 90 kg</div></div>
+                    <div class="ej"><div class="nm">Plancha lastrada</div><div class="pa"><b>3 × 10-12</b> <span class="et">antes</span> 30 kg</div></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="lado">
+                    <span class="k">Este bloque</span><br><span class="desde">desde el 1 jul</span>
+                    <div class="lado-cifras">
+                      <span class="c"><b class="cifra">80</b><small>series por microciclo</small></span>
+                      <span class="c"><b class="cifra">489.690</b><small>kg levantados</small></span>
+                      <span class="c"><b class="cifra">38</b><small>entrenamientos</small></span>
+                      <span class="c"><b class="cifra">95 %</b><small>de lo pautado</small></span>
+                    </div>
+                  </div>
+                  <div class="lado"><span class="k">Volumen por microciclo</span><div class="cifra" style="font-size:19px;margin-top:3px">10 grupos</div></div>
+                  <div class="lado"><span class="k">Progresión</span><div class="cifra" style="font-size:19px;margin-top:3px">19 ejercicios</div></div>
+                </div>
+              </div>
+              <p style="margin:12px 0 0;font-size:12.5px;color:var(--text-3)">Para ver cómo progresa el press banca hay que pulsar M6, M7, M8, M9 y M10 <b style="color:var(--text-2)">y acordarse</b>.</p>
+            </div>
+          </div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>UNA hoja a lo largo de sus microciclos.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja">
+            <div class="cinta"><span class="avatar">JO</span><span class="nombre">Javier Ortega</span><span class="meta">Microciclo 18 · en curso</span></div>
+            <div class="pestanas"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span><span>Revisiones</span></div>
+            <div class="lienzo">
+              <div class="tira">
+                <span class="tira-r">Bloque 1</span>
+                <button class="mc on">Empuje</button><button class="mc">Tirón</button><button class="mc">Pierna</button><button class="mc">Full body</button>
+                <span style="margin-left:auto;font-size:11.5px;color:var(--text-3)">a lo largo del bloque</span>
+              </div>
+              <p class="nota" data-mov="M-06">Columnas = microciclos, no días</p>
+              <div class="entreno">
+                <div class="panel" id="lam3">
+                  <div class="pg-scroll">
+                    <div class="progresion">
+                      <div class="pg-esq">Empuje</div>
+                      <div class="pg-cab">M7 <small>19–25 ago</small></div>
+                      <div class="pg-cab">M8 <small>26 ago–1 sep</small></div>
+                      <div class="pg-cab">M9 <small>2–8 sep</small></div>
+                      <div class="pg-cab on">M10 <small>en curso</small></div>
+
+                      <div class="pg-esq-tramo">Tramos</div>
+                      <div class="pg-tramo" id="tramos"></div>
+
+                      <div class="pg-nm">Press banca</div>
+                      <div class="pg-c"><button class="pauta" data-mc="0"></button></div>
+                      <div class="pg-c"><button class="pauta" data-mc="1"></button></div>
+                      <div class="pg-c"><button class="pauta" data-mc="2"></button></div>
+                      <div class="pg-c"><button class="pauta" data-mc="3"></button></div>
+
+                      <div class="pg-nm">Press inclinado</div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 8-10</span><small>RIR 2</small><span class="hizo">45 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 8-10</span><small>RIR 2</small><span class="hizo">47,5 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">4 × 8-10</span><small>RIR 2</small><span class="hizo">47,5 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">4 × 8-10</span><small>RIR 2</small><span class="hizo">50 kg</span></span></div>
+
+                      <div class="pg-nm">Press militar</div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 10-12</span><small>RIR 2</small><span class="hizo">62,5 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 10-12</span><small>RIR 2</small><span class="hizo">65 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 10-12</span><small>RIR 2</small><span class="hizo">67,5 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 10-12</span><small>RIR 2</small><span class="hizo">—</span></span></div>
+
+                      <div class="pg-nm">Elevaciones laterales</div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 12-15</span><small>RIR 1</small><span class="hizo">12 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 12-15</span><small>RIR 1</small><span class="hizo">12 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 12-15</span><small>RIR 1</small><span class="hizo">14 kg</span></span></div>
+                      <div class="pg-c"><span class="pauta"><span class="kg">3 × 12-15</span><small>RIR 1</small><span class="hizo">—</span></span></div>
+                    </div>
+                  </div>
+
+                  <div class="pregunta" id="pregunta" hidden>
+                    <p>Has puesto el press banca en <b id="p-kg">4 × 6-8</b> en <b id="p-mc">M9</b>. ¿Vale para este microciclo, o de aquí en adelante?</p>
+                    <div class="ops">
+                      <button class="btn primario" data-alcance="adelante">De M9 en adelante</button>
+                      <button class="btn" data-alcance="solo">Solo M9</button>
+                      <button class="btn" data-alcance="nada">Dejarlo como estaba</button>
+                    </div>
+                  </div>
+
+                  <div class="marcador">
+                    <span id="marcador-izq">Pulsa una pauta del press banca para cambiarla.</span>
+                    <span class="frente" id="marcador-der">Las columnas que comparten pauta se ven compartiéndola.</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="lado">
+                    <span class="k">Este bloque</span><br><span class="desde">desde el 1 jul</span>
+                    <div class="lado-cifras">
+                      <span class="c"><b class="cifra">80</b><small>series por microciclo</small></span>
+                      <span class="c"><b class="cifra">489.690</b><small>kg levantados</small></span>
+                      <span class="c"><b class="cifra">38</b><small>entrenamientos</small></span>
+                      <span class="c"><b class="cifra">95 %</b><small>de lo pautado</small></span>
+                    </div>
+                  </div>
+                  <div class="lado"><span class="k">Volumen por microciclo</span><div class="cifra" style="font-size:19px;margin-top:3px">10 grupos</div></div>
+                  <div class="lado"><span class="k">Progresión</span><div class="cifra" style="font-size:19px;margin-top:3px">19 ejercicios</div></div>
+                </div>
+              </div>
+              <p style="margin:12px 0 0;font-size:12.5px;color:var(--text-3)">La cifra gris de cada celda es <b style="color:var(--text-2)">lo que levantó</b>, no lo que le pediste: el kilo aquí es dato, no pauta. Y el costado no se toca.</p>
+            </div>
+          </div></div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 4 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">04</span>
+        <div>
+          <h3>El renglón de la serie, y el vídeo que él manda</h3>
+          <p>De su renglón se coge <b>la pastilla</b> y <b>la verdad anclada a la derecha</b>; nuestra tabla dice mejor qué se pidió y qué se hizo, y el kilo de «pides» <b>se queda vacío</b>, que es como se usa. Y el vídeo se da la vuelta: lo normal <b>no es pedirlo</b>, es que él grabe lo que le apetezca y lo mande; eso cae en una bandeja. Pedir el vídeo de una serie concreta existe, pero es un <b>interruptor apagado de fábrica</b>.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">D-02</span><span class="ref">D-03</span><span class="ref">M-07</span><span class="ref">D-08</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Hoy en producción</span><span>Filetes, y el vídeo solo como enlace del entrenador.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start">
+            <div class="panel">
+              <div class="ej-cab"><b>Press banca</b><span>4 series</span></div>
+              <div class="serie-tabla serie-vieja">
+                <div class="serie-cab"><span></span><span>kg</span><span>reps</span><span>rir</span><span class="der">hizo</span></div>
+                <div class="serie-fila"><span class="idx">1</span><span class="vacio">—</span><span>6-8</span><span>2</span><span class="hizo"><b>100</b> · 8 · 2</span></div>
+                <div class="serie-fila"><span class="idx">2</span><span class="vacio">—</span><span>6-8</span><span>2</span><span class="hizo"><b>100</b> · 8 · 2</span></div>
+                <div class="serie-fila"><span class="idx">3</span><span class="vacio">—</span><span>6-8</span><span>2</span><span class="hizo"><b>102,5</b> · 8 · 1</span></div>
+                <div class="serie-fila"><span class="idx">4</span><span class="vacio">—</span><span>6-8</span><span>2</span><span class="hizo"><b>102,5</b> · 7 · 0</span></div>
+              </div>
+              <p style="margin:9px 0 0;font-size:11.5px;color:var(--text-3)">La columna de kilos existe y va vacía: <b style="color:var(--text-2)">vacío significa «a tu criterio»</b>.</p>
+            </div>
+            <div class="panel">
+              <div class="panel-t">El vídeo, hoy</div>
+              <p style="margin:8px 0 0;font-size:13px;color:var(--text-2)">Es un <b style="color:var(--text)">enlace</b> de YouTube o Loom que pone el entrenador en la ficha del ejercicio: «cómo lo hace tu entrenador». Va del entrenador al cliente.</p>
+              <p style="margin:8px 0 0;font-size:13px;color:var(--text-2)">Al revés no hay camino. Lo que él graba llega por WhatsApp, o sea <b style="color:var(--text)">fuera del producto</b>.</p>
+            </div>
+          </div></div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>Pastilla, verdad anclada, y la bandeja de lo que él manda.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;align-items:start">
+            <div style="min-width:0">
+              <p class="nota" data-mov="D-04">Los mandos aparecen al pasar por encima</p>
+              <div class="panel">
+                <div class="ej-cab"><b>Press banca</b><span>4 series</span><span class="mandos">✎ ⧉ ⋯</span></div>
+                <div class="serie-tabla serie-nueva">
+                  <div class="serie-cab"><span></span><span>kg</span><span>reps</span><span>rir</span><span class="der">hizo</span></div>
+                  <div class="serie-fila"><span class="idx">1</span><span class="vacio">·</span><span>6-8</span><span>2</span><span class="hizo"><b>100</b> · 8 · 2</span></div>
+                  <div class="serie-fila"><span class="idx">2</span><span class="vacio">·</span><span>6-8</span><span>2</span><span class="hizo"><b>100</b> · 8 · 2</span></div>
+                  <div class="serie-fila"><span class="idx">3</span><span class="vacio">·</span><span>6-8</span><span>2</span><span class="hizo"><b>102,5</b> · 8 · 1</span></div>
+                  <div class="serie-fila"><span class="idx">4</span><span class="vacio">·</span><span>6-8</span><span>2</span><span class="hizo"><b>102,5</b> · 7 · 0</span></div>
+                </div>
+                <p style="margin:9px 0 0;font-size:11.5px;color:var(--text-3)">Mismas columnas y misma semántica. Lo que cambia es el <b style="color:var(--text-2)">renglón</b>: pastilla en vez de filete, y «hizo» siempre en el mismo sitio.</p>
+              </div>
+            </div>
+            <div style="min-width:0">
+              <p class="nota" data-mov="M-07">El vídeo va del cliente al entrenador</p>
+              <div class="panel" style="margin-bottom:10px">
+                <div class="cab-tarj"><span class="cab-chip">▷</span><span class="k">Lo que te ha mandado</span><span class="alcance">Esta semana</span></div>
+                <div class="bandeja-fila">
+                  <span class="mini-video">▷</span>
+                  <span class="q"><b>Sentadilla trasera</b><small>Javier · lunes · «la última me ha costado»</small></span>
+                  <span class="v">Ver</span>
+                </div>
+                <div class="bandeja-fila">
+                  <span class="mini-video">▷</span>
+                  <span class="q"><b>Peso muerto rumano</b><small>Marta · martes</small></span>
+                  <span class="v">Ver</span>
+                </div>
+                <p style="margin:9px 0 0;font-size:11.5px;color:var(--text-3)">Él graba <b style="color:var(--text-2)">lo que quiere</b>, cuando quiere, desde su hoja. Cae aquí y en la bandeja de revisión, que ya existe.</p>
+              </div>
+              <div class="panel">
+                <div class="cab-tarj"><span class="cab-chip">⇄</span><span class="k">Y si además quieres pedirlo</span></div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text-2)">
+                  <span>Pedir vídeo de una serie concreta</span>
+                  <span style="margin-left:auto;display:inline-flex;border:1px solid var(--hairline);border-radius:999px;overflow:hidden;font-size:11px;font-weight:650">
+                    <span style="padding:4px 10px;background:var(--fill);color:var(--text-2)">apagado</span>
+                    <span style="padding:4px 10px;color:var(--text-3)">encendido</span>
+                  </span>
+                </div>
+                <p style="margin:9px 0 0;font-size:11.5px;color:var(--text-3)">Apagado, la hoja no cambia. Encendido, aparece <b style="color:var(--text-2)">una columna de dos letras</b> con la cámara. Cada complejidad nueva viene con su interruptor: eso sí se les copia.</p>
+              </div>
+            </div>
+          </div></div></div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 5 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">05</span>
+        <div>
+          <h3>La fila del bloque, con sus microciclos dibujados</h3>
+          <p>Su tarjeta de bloque lleva <b>una barra segmentada que son sus semanas</b>, rellenas las hechas. Compacto y honesto. Aquí hay que traducirlo otra vez: como el bloque es abierto, la barra <b>no dibuja un final</b> — dibuja los microciclos escritos y deja el canto abierto. Nuestras cuatro cifras se quedan: la suya no las tiene.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">D-06</span><span class="ref">M-09</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Calcado de la app real</span><span>«10 microciclos» hay que leerlo.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <span style="font-size:19px;font-weight:730;letter-spacing:-.02em">Los bloques de Javier</span>
+              <span style="font-size:12px;color:var(--text-3)">1 bloque · 10 microciclos</span>
+            </div>
+            <div class="panel" style="padding:0">
+              <div class="bl-fila">
+                <div><div class="bl-nombre-fila"><span class="bl-nombre">Bloque 1</span><span class="bl-chapa is-abierto">abierto</span><span class="bl-aqui">estás aquí</span></div><span class="bl-cuando">desde el 1 jul · 10 microciclos</span></div>
+                <div class="bl-cifras">
+                  <span class="bl-cifra"><b>38</b><small>de 40</small></span>
+                  <span class="bl-cifra"><b>95 %</b><small>de lo pautado</small></span>
+                  <span class="bl-cifra"><b>80</b><small>series</small></span>
+                  <span class="bl-cifra"><b>490 t</b><small>levantadas</small></span>
+                </div>
+              </div>
+            </div>
+          </div></div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>Los microciclos, dibujados y sin final falso.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px">
+              <span style="font-size:19px;font-weight:730;letter-spacing:-.02em">Los bloques de Javier</span>
+              <span style="font-size:12px;color:var(--text-3)">2 bloques · 18 microciclos</span>
+            </div>
+            <p class="nota" data-mov="M-09">Barra segmentada; el azul es dónde estás</p>
+            <div class="panel" style="padding:0">
+              <div class="bl-fila">
+                <div>
+                  <div class="bl-nombre-fila"><span class="bl-nombre">Bloque 1</span><span class="bl-chapa is-abierto">abierto</span><span class="bl-aqui">estás aquí</span></div>
+                  <span class="bl-cuando">desde el 1 jul · 10 microciclos</span>
+                  <div class="semanas-barra"><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="aqui"></i><span class="abierta">sigue abierto</span></div>
+                </div>
+                <div class="bl-cifras">
+                  <span class="bl-cifra"><b>38</b><small>de 40</small></span>
+                  <span class="bl-cifra"><b>95 %</b><small>de lo pautado</small></span>
+                  <span class="bl-cifra"><b>80</b><small>series</small></span>
+                  <span class="bl-cifra"><b>490 t</b><small>levantadas</small></span>
+                </div>
+              </div>
+              <div class="bl-fila">
+                <div>
+                  <div class="bl-nombre-fila"><span class="bl-nombre">Adaptación</span><span class="bl-chapa">cerrado</span></div>
+                  <span class="bl-cuando">del 6 may al 30 jun · 8 microciclos</span>
+                  <div class="semanas-barra"><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i><i class="hecha"></i></div>
+                </div>
+                <div class="bl-cifras">
+                  <span class="bl-cifra"><b>31</b><small>de 32</small></span>
+                  <span class="bl-cifra"><b>97 %</b><small>de lo pautado</small></span>
+                  <span class="bl-cifra"><b>76</b><small>series</small></span>
+                  <span class="bl-cifra"><b>318 t</b><small>levantadas</small></span>
+                </div>
+              </div>
+            </div>
+            <p style="margin:12px 0 0;font-size:12.5px;color:var(--text-3)">El bloque cerrado cierra su barra; el abierto no. <b style="color:var(--text-2)">Dibujar diez de doce en un bloque sin duración sería mentir.</b></p>
+          </div></div></div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 6 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">06</span>
+        <div>
+          <h3>El cuaderno del cliente</h3>
+          <p>Su pie lo dice entero: <i>«los atletas pueden consultar lo anterior mientras entrenan»</i>. Lo que él necesita en el gimnasio es <b>el cuaderno</b>: qué hizo la última vez y si va a más. Así que el vídeo y la pauta <b>salen de la pantalla</b> y se quedan en dos pastillas: se ven si las toca. Lo que ocupa el sitio es lo que hizo, con lo de hoy arriba y la vez pasada marcada.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">M-04</span><span class="ref">G-06</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Hoy en producción</span><span>Un vídeo que ocupa media pantalla y ningún dato suyo.</span></figcaption>
+          <div style="background:var(--canvas);border:1px solid var(--edge);border-radius:14px;padding:20px;box-shadow:var(--sombra)">
+            <div class="movil">
+              <div class="movil-cab"><b>Press banca</b><span class="x">✕</span></div>
+              <div class="movil-cuerpo">
+                <div class="video">Cómo lo hace tu entrenador</div>
+                <div><p class="section-label">Las pautas de tu entrenador</p><p class="txt">Escápulas retraídas y pies clavados. Baja controlado hasta tocar y sube sin rebote.</p></div>
+                <div><p class="section-label">Qué es</p><p class="txt">Empuje horizontal. Pecho, tríceps y hombro anterior.</p></div>
+              </div>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>El cuaderno primero; el vídeo, si lo pide.</span></figcaption>
+          <div style="background:var(--canvas);border:1px solid var(--edge);border-radius:14px;padding:20px;box-shadow:var(--sombra)">
+            <div class="movil">
+              <div class="movil-cab"><b>Press banca</b><span class="x">✕</span></div>
+              <div class="movil-cuerpo">
+                <p class="nota" data-mov="M-04">El vídeo y la pauta, detrás de un toque</p>
+                <div class="pastillas-cab">
+                  <button class="past">▷ Ver el vídeo</button>
+                  <button class="past">✎ La pauta</button>
+                  <button class="past">⇧ Mandar el mío</button>
+                </div>
+                <div class="hoy-toca"><span class="k">Hoy toca</span><span class="v">4 × 6-8 · RIR 2</span></div>
+                <div>
+                  <p class="section-label">Lo que has hecho</p>
+                  <div class="linea-t">
+                    <div class="linea-f ultima">
+                      <span class="fecha"><small>sep</small><b>2</b></span>
+                      <span><span class="donde">M9 · Empuje · la vez pasada</span><br><span class="series"><b>102,5</b> × 8·8·8·7</span></span>
+                      <span class="delta">+2,5</span>
+                    </div>
+                    <div class="linea-f">
+                      <span class="fecha"><small>ago</small><b>26</b></span>
+                      <span><span class="donde">M8 · Empuje</span><br><span class="series"><b>100</b> × 8·8·8·8</span></span>
+                      <span class="delta">=</span>
+                    </div>
+                    <div class="linea-f">
+                      <span class="fecha"><small>ago</small><b>19</b></span>
+                      <span><span class="donde">M7 · Empuje</span><br><span class="series"><b>100</b> × 8·8·7·7</span></span>
+                      <span class="delta">+2,5</span>
+                    </div>
+                    <div class="linea-f">
+                      <span class="fecha"><small>ago</small><b>12</b></span>
+                      <span><span class="donde">M6 · Empuje</span><br><span class="series"><b>97,5</b> × 8·8·8·8</span></span>
+                      <span class="delta"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 7 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">07</span>
+        <div>
+          <h3>La dieta: su pantalla entera</h3>
+          <p>Es su mejor pantalla y nuestra más pobre. En «por macros» hoy no hay comidas: hay una cifra, una barra y un hueco de media pantalla. Lo suyo trae cuatro cosas de golpe — <b>tarjeta por comida</b>, <b>opciones con nombre</b> («Días de entreno», no «Opción 2»), <b>equivalencias anidadas con la cantidad ya escalada</b> y <b>pie de macros por comida</b> — más el costado de objetivo con la barra de energía y los tres roscos. Los roscos van con <b>el color del macro</b>, no con nota: los suyos pintan de rojo un 95 % de grasas, y eso es juzgar.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">M-10</span><span class="ref">M-11</span><span class="ref">G-10</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Calcado de la app real</span><span>Una columna, y el resto en blanco.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja">
+            <div class="cinta"><span class="avatar">JO</span><span class="nombre">Javier Ortega</span><span class="meta">Microciclo 18 · en curso</span></div>
+            <div class="pestanas"><span>Resumen</span><span>Entreno</span><span class="on">Dieta</span><span>Revisiones</span></div>
+            <div class="lienzo">
+              <p style="margin:0 0 12px;font-size:12.5px;color:var(--text-2)">Por macros: reparte los alimentos como quiera mientras cuadre el objetivo.</p>
+              <div style="display:grid;grid-template-columns:minmax(0,1fr) 244px;gap:12px;align-items:start">
+                <div>
+                  <div class="panel" style="margin-bottom:10px">
+                    <div class="panel-t">Objetivo · Diario</div>
+                    <div class="cifra" style="font-size:34px;margin:6px 0">3050 <span style="font-size:14px;font-weight:500;color:var(--text-3)">kcal</span></div>
+                    <div style="display:flex;height:9px;border-radius:999px;overflow:hidden;background:var(--fill);margin-bottom:9px">
+                      <i style="width:23%;background:var(--m-p)"></i><i style="width:47%;background:var(--m-c)"></i><i style="width:30%;background:var(--m-g)"></i>
+                    </div>
+                    <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-2)">
+                      <span><b>Proteína 156 g</b> <span style="color:var(--text-3)">23 %</span></span>
+                      <span><b>Carbos 320 g</b> <span style="color:var(--text-3)">47 %</span></span>
+                      <span><b>Grasas 92 g</b> <span style="color:var(--text-3)">30 %</span></span>
+                    </div>
+                  </div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                    <div class="panel" style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:650">Pasos diarios</span><span class="cifra" style="margin-left:auto;font-size:18px">9000</span></div>
+                    <div class="panel" style="display:flex;align-items:center;gap:8px"><span style="font-size:13px;font-weight:650">Cardio</span><span style="margin-left:auto;font-size:12.5px;color:var(--accent);font-weight:650">Definir</span></div>
+                  </div>
+                  <div class="panel">
+                    <div class="panel-t">Tus pautas</div>
+                    <div class="panel-s">Lo que le explicas a esta persona sobre su plan.</div>
+                    <p style="margin:9px 0 0;font-size:12.5px;color:var(--text-3)">Lo que no cabe en una cifra: por qué el plan es así.</p>
+                  </div>
+                </div>
+                <div class="hueco">Aquí no hay nada.<br>Ni comidas, ni equivalencias,<br>ni cómo va la semana.</div>
+              </div>
+            </div>
+          </div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>Comidas con opciones, equivalencias dentro, objetivo al costado.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja">
+            <div class="cinta"><span class="avatar">JO</span><span class="nombre">Javier Ortega</span><span class="meta">Microciclo 18 · en curso</span></div>
+            <div class="pestanas"><span>Resumen</span><span>Entreno</span><span class="on">Dieta</span><span>Revisiones</span></div>
+            <div class="lienzo">
+              <p class="nota" data-mov="M-10">La mesa a la izquierda, el objetivo al costado</p>
+              <div class="dieta">
+                <div>
+                  <div class="comida">
+                    <div class="comida-cab"><b>Desayuno</b><span class="mandos">✎ ⧉ ⋯</span></div>
+                    <p class="nota" data-mov="M-11">Las opciones se NOMBRAN, no se numeran</p>
+                    <div class="opciones">
+                      <button class="op on">Días de entreno</button>
+                      <button class="op">Días de descanso</button>
+                      <button class="op mas">+ opción</button>
+                    </div>
+                    <div class="alim"><span class="cant">3 ud</span><span><b>Huevo entero</b></span><span class="macros">257 kcal · P 23 · C 1,3 · G 17</span></div>
+                    <div class="equiv-caja">
+                      <div class="equiv"><span class="sangria">≈ 19 ud</span><span>Clara de huevo <span style="color:var(--text-3)">· 579 g</span></span><span class="macros">P 61 · C 1,7 · G 0,6</span></div>
+                      <div class="equiv"><span class="sangria">≈ 188 g</span><span>Yogur griego</span><span class="macros">P 12 · C 10 · G 19</span></div>
+                      <div class="equiv"><span class="sangria">≈ 266 g</span><span>Queso batido</span><span class="macros">P 29 · C 11 · G 1,5</span></div>
+                    </div>
+                    <div class="alim"><span class="cant">80 g</span><span><b>Avena</b></span><span class="macros">304 kcal · P 11 · C 51 · G 6</span></div>
+                    <div class="comida-pie"><span><b>561</b> kcal</span><span>P <b>34</b></span><span>C <b>52</b></span><span>G <b>23</b></span><span>Fibra <b>8,1</b></span></div>
+                  </div>
+
+                  <div class="comida">
+                    <div class="comida-cab"><b>Comida</b><span class="mandos">✎ ⧉ ⋯</span></div>
+                    <div class="opciones">
+                      <button class="op on">Normal</button>
+                      <button class="op">Sin lactosa</button>
+                      <button class="op mas">+ opción</button>
+                    </div>
+                    <div class="alim"><span class="cant">180 g</span><span><b>Pechuga de pollo</b></span><span class="macros">206 kcal · P 38 · C 0 · G 4,5</span></div>
+                    <div class="equiv-caja">
+                      <div class="equiv"><span class="sangria">≈ 175 g</span><span>Pavo</span><span class="macros">P 38 · C 0 · G 4</span></div>
+                      <div class="equiv"><span class="sangria">≈ 205 g</span><span>Merluza</span><span class="macros">P 37 · C 0 · G 2</span></div>
+                    </div>
+                    <div class="alim"><span class="cant">100 g</span><span><b>Arroz (en crudo)</b></span><span class="macros">360 kcal · P 7 · C 79 · G 1</span></div>
+                    <div class="comida-pie"><span><b>566</b> kcal</span><span>P <b>45</b></span><span>C <b>79</b></span><span>G <b>5,5</b></span><span>Fibra <b>2,4</b></span></div>
+                  </div>
+                </div>
+
+                <div class="objetivo-lado">
+                  <div class="panel">
+                    <div class="cab-tarj"><span class="cab-chip">◎</span><span class="k">Objetivo</span><span class="alcance">Diario</span></div>
+                    <div class="energia">
+                      <div class="fila"><span>Energía</span><span>faltan 53 kcal</span></div>
+                      <div class="pista"><i style="width:98%"></i></div>
+                      <div class="kcal">2.997 / 3.050 kcal</div>
+                    </div>
+                    <div class="roscos">
+                      <div class="rosco">
+                        <span class="k">Proteína</span>
+                        <svg viewBox="0 0 44 44" role="img" aria-label="Proteína, 107 por ciento">
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--fill)" stroke-width="6"/>
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--m-p)" stroke-width="6" stroke-linecap="round" stroke-dasharray="113 113" stroke-dashoffset="-8" transform="rotate(-90 22 22)"/>
+                          <text x="22" y="26" text-anchor="middle" fill="currentColor">107%</text>
+                        </svg>
+                        <span class="g">167 / 156 g</span>
+                      </div>
+                      <div class="rosco">
+                        <span class="k">Carbos</span>
+                        <svg viewBox="0 0 44 44" role="img" aria-label="Carbohidratos, 94 por ciento">
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--fill)" stroke-width="6"/>
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--m-c)" stroke-width="6" stroke-linecap="round" stroke-dasharray="106 113" transform="rotate(-90 22 22)"/>
+                          <text x="22" y="26" text-anchor="middle" fill="currentColor">94%</text>
+                        </svg>
+                        <span class="g">301 / 320 g</span>
+                      </div>
+                      <div class="rosco">
+                        <span class="k">Grasas</span>
+                        <svg viewBox="0 0 44 44" role="img" aria-label="Grasas, 95 por ciento">
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--fill)" stroke-width="6"/>
+                          <circle cx="22" cy="22" r="18" fill="none" stroke="var(--m-g)" stroke-width="6" stroke-linecap="round" stroke-dasharray="107 113" transform="rotate(-90 22 22)"/>
+                          <text x="22" y="26" text-anchor="middle" fill="currentColor">95%</text>
+                        </svg>
+                        <span class="g">87 / 92 g</span>
+                      </div>
+                    </div>
+                    <div class="mas-lado">
+                      <span class="f">Fibra <b>35 g</b></span>
+                      <span class="plegado">Micronutrientes <span>⌄</span></span>
+                    </div>
+                  </div>
+                  <p style="margin:10px 0 0;font-size:11.5px;color:var(--text-3)">Los roscos llevan el color de <b style="color:var(--text-2)">su macro</b>. Un 107 % de proteína no es un aprobado ni un suspenso: es un 107 %.</p>
+                </div>
+              </div>
+              <p style="margin:12px 0 0;font-size:12.5px;color:var(--text-3)">Las equivalencias no hay que escribirlas: <code>equivalencesFor()</code> ya las calcula mejor que las suyas —busca la ración que menos desvía macro <i>y</i> kcal a la vez—. Lo que falta es <b style="color:var(--text-2)">enseñarlas dentro de la comida, con la cantidad ya escalada</b>.</p>
+            </div>
+          </div></div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 8 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">08</span>
+        <div>
+          <h3>Mandarlo a varios, con las consecuencias delante</h3>
+          <p>Su pantalla de reparto hace algo que casi nadie hace: antes de guardar, <b>te enseña qué le pasa a cada persona</b> — los planes que ya tiene, y con una marca lo que se le va a quitar. Nosotros ya tenemos el carril de audiencias en <code>envios.js</code> (marcados · etiqueta · protocolo · tramo · todos) y lo usamos para formularios y encargos; lo que no viaja por él es <b>la dieta ni el bloque</b>, y no hay vista previa de consecuencias.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">M-12</span><span class="ref">G-09</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Hoy en producción</span><span>Un plan, un cliente. Y a ciegas.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <div class="panel" style="max-width:520px">
+              <div class="panel-t">Copiar a otro cliente</div>
+              <div class="panel-s">Elige una persona</div>
+              <div style="margin-top:10px" class="lista-check">
+                <div class="lc"><span class="caja">✓</span><span>Álvaro Pino</span></div>
+                <div class="lc"><span class="caja">✓</span><span>Claudia Rey</span></div>
+                <div class="lc"><span class="caja">✓</span><span>Iván Tormo</span></div>
+              </div>
+              <p style="margin:10px 0 0;font-size:12px;color:var(--text-3)">Lo que ya tuviera esa persona no se dice en ningún sitio. Se guarda y se ve después.</p>
+            </div>
+          </div></div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>El carril de envíos, y qué le pasa a cada uno.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <p class="nota" data-mov="M-12">Vista previa de consecuencias, antes de guardar</p>
+            <div class="panel">
+              <div class="cab-tarj"><span class="cab-chip">⇉</span><span class="k">Mandar «Alto en hidratos» a…</span><span class="alcance">3 elegidos</span></div>
+              <div class="reparto">
+                <div>
+                  <div class="chapas-sel">
+                    <span class="chapa-sel">Álvaro Pino <span class="x">✕</span></span>
+                    <span class="chapa-sel">Claudia Rey <span class="x">✕</span></span>
+                    <span class="chapa-sel">Iván Tormo <span class="x">✕</span></span>
+                  </div>
+                  <div class="lista-check">
+                    <div class="lc on"><span class="caja">✓</span><span>Álvaro Pino</span></div>
+                    <div class="lc on"><span class="caja">✓</span><span>Claudia Rey</span></div>
+                    <div class="lc on"><span class="caja">✓</span><span>Iván Tormo</span></div>
+                    <div class="lc"><span class="caja">✓</span><span>Javier Ortega</span></div>
+                    <div class="lc"><span class="caja">✓</span><span>Marta Ruiz</span></div>
+                    <div class="lc"><span class="caja">✓</span><span>Nerea Sanz</span></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="consec" style="margin-bottom:9px">
+                    <h6>Álvaro Pino</h6>
+                    <div class="consec-fila"><span class="que">Alto en hidratos</span><span class="marca entra">entra</span></div>
+                    <div class="consec-fila"><span class="que">Volumen · variante 1</span><span class="marca sale">se le quita</span></div>
+                  </div>
+                  <div class="consec" style="margin-bottom:9px">
+                    <h6>Claudia Rey</h6>
+                    <div class="consec-fila"><span class="que">Alto en hidratos</span><span class="marca entra">entra</span></div>
+                    <div class="consec-fila"><span class="que">No tenía plan activo</span></div>
+                  </div>
+                  <div class="consec">
+                    <h6>Iván Tormo</h6>
+                    <div class="consec-fila"><span class="que">Alto en hidratos</span><span class="marca entra">entra</span></div>
+                    <div class="consec-fila"><span class="que">Definición · marzo</span><span class="marca sale">se le quita</span></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+                <button class="btn">Cancelar</button>
+                <button class="btn primario">Mandarlo a 3</button>
+              </div>
+            </div>
+            <p style="margin:12px 0 0;font-size:12.5px;color:var(--text-3)">El mismo carril sirve para el bloque. Y la lista de la izquierda ya sabe filtrar por <b style="color:var(--text-2)">etiqueta, protocolo y tramo</b>: eso no hay que construirlo.</p>
+          </div></div></div>
+        </figure>
+      </div>
+    </article>
+
+    <!-- ── LÁMINA 9 ─────────────────────────────────────────────────────── -->
+    <article class="lamina">
+      <div class="lam-cab">
+        <span class="lam-n">09</span>
+        <div>
+          <h3>La guía de medida, como pantalla</h3>
+          <p>Tenemos perímetros y pliegues —y ellos los pliegues no—, y tenemos guía. Lo que ellos hacen mejor es <b>la pantalla</b>: una figura numerada, las condiciones escritas punto por punto, y la misma numeración en la figura y en la lista. Eso es lo que hace que dos medidas de meses distintos sean comparables: <b>no la fórmula, la instrucción</b>.</p>
+          <div class="lam-refs"><span class="ref suyo">de Efort</span><span class="ref">G-11</span></div>
+        </div>
+      </div>
+      <div class="pantallas">
+        <figure class="marco es-antes">
+          <figcaption><b>Antes</b><span class="chapa hoy">Hoy en producción</span><span>La guía existe, pero es texto.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <div class="panel" style="max-width:460px">
+              <div class="panel-t">Cómo medirte</div>
+              <div style="margin-top:9px;display:grid;gap:6px;font-size:12.5px;color:var(--text-2)">
+                <span><b style="color:var(--text)">Cintura</b> — a media altura entre la última costilla y la cresta ilíaca.</span>
+                <span><b style="color:var(--text)">Cadera</b> — por la parte más ancha de los glúteos.</span>
+                <span><b style="color:var(--text)">Muslo</b> — a 1 cm por debajo del pliegue del glúteo.</span>
+              </div>
+              <p style="margin:10px 0 0;font-size:11.5px;color:var(--text-3)">Sin dibujo, «la parte más ancha» la interpreta cada uno a su manera, y dos meses después la cifra no compara con nada.</p>
+            </div>
+          </div></div></div>
+        </figure>
+
+        <figure class="marco es-despues">
+          <figcaption><b>Después</b><span class="chapa nuevo">Propuesta</span><span>Figura numerada y condiciones por punto.</span></figcaption>
+          <div class="app sin-barra"><div class="hoja"><div class="lienzo">
+            <div class="panel">
+              <div class="cab-tarj"><span class="cab-chip">⌗</span><span class="k">Guía de medida</span><span class="alcance">Mismo sitio y mismas condiciones cada vez</span></div>
+              <div class="guia">
+                <svg viewBox="0 0 130 268" role="img" aria-label="Figura de cuerpo entero con los siete puntos de medida numerados">
+                  <!-- La silueta va en filete, no en tinta: es el soporte de los
+                       siete puntos, no el dibujo. -->
+                  <g fill="none" stroke="var(--hairline-strong)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+                    <circle cx="65" cy="26" r="14"/>
+                    <path d="M58 39 v8 M72 39 v8"/>
+                    <!-- torso: hombros → cintura → cadera -->
+                    <path d="M58 47 C46 49 39 55 38 64 L36 96 C35 106 40 112 41 120 L38 150 L92 150 L89 120 C90 112 95 106 94 96 L92 64 C91 55 84 49 72 47 Z"/>
+                    <!-- brazos -->
+                    <path d="M38 66 L28 118 C27 124 29 130 31 134 M39 70 L34 120"/>
+                    <path d="M92 66 L102 118 C103 124 101 130 99 134 M91 70 L96 120"/>
+                    <!-- piernas -->
+                    <path d="M42 150 L40 200 L41 252 L55 252 L56 200 L58 150"/>
+                    <path d="M72 150 L74 200 L75 252 L89 252 L90 200 L88 150"/>
+                  </g>
+                  <!-- Las cintas: la señal, y solo donde de verdad se mide. -->
+                  <g stroke="var(--accent)" stroke-width="1.8" fill="none" stroke-linecap="round">
+                    <path d="M56 44 h18"/>
+                    <path d="M36 62 h58"/>
+                    <path d="M35 84 h60"/>
+                    <path d="M39 116 h52"/>
+                    <path d="M36 144 h58"/>
+                    <path d="M39 172 h20"/>
+                    <path d="M38 218 h19"/>
+                  </g>
+                  <g font-family="Archivo, system-ui" font-size="8.5" font-weight="700" text-anchor="middle">
+                    <circle cx="44" cy="44" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="44" y="47" fill="currentColor">1</text>
+                    <circle cx="106" cy="62" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="106" y="65" fill="currentColor">2</text>
+                    <circle cx="23" cy="84" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="23" y="87" fill="currentColor">3</text>
+                    <circle cx="107" cy="116" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="107" y="119" fill="currentColor">4</text>
+                    <circle cx="24" cy="144" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="24" y="147" fill="currentColor">5</text>
+                    <circle cx="70" cy="172" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="70" y="175" fill="currentColor">6</text>
+                    <circle cx="27" cy="218" r="7.5" fill="var(--surface)" stroke="var(--hairline-strong)"/><text x="27" y="221" fill="currentColor">7</text>
+                  </g>
+                </svg>
+                <div class="guia-lista">
+                  <div class="guia-f"><span class="n">1</span><span><b>Cuello</b><p>Por debajo de la laringe, mirando al frente y con los hombros sueltos. La cinta, perpendicular al cuello.</p></span></div>
+                  <div class="guia-f"><span class="n">2</span><span><b>Hombros</b><p>Por la parte más ancha de los deltoides, con los brazos caídos.</p></span></div>
+                  <div class="guia-f"><span class="n">3</span><span><b>Pecho</b><p>A la altura de la cuarta costilla, brazos abajo, al final de una espiración normal.</p></span></div>
+                  <div class="guia-f"><span class="n">4</span><span><b>Cintura</b><p>A media altura entre la última costilla palpable y la cresta ilíaca.</p></span></div>
+                  <div class="guia-f"><span class="n">5</span><span><b>Cadera</b><p>Por la parte más llena de los glúteos, pies juntos.</p></span></div>
+                  <div class="guia-f"><span class="n">6</span><span><b>Muslo</b> <span style="font-size:10.5px;color:var(--text-3)">izq · der</span><p>A 1 cm por debajo del pliegue del glúteo, pierna relajada.</p></span></div>
+                  <div class="guia-f"><span class="n">7</span><span><b>Gemelo</b> <span style="font-size:10.5px;color:var(--text-3)">izq · der</span><p>Por el punto más ancho, de pie y con el peso repartido.</p></span></div>
+                </div>
+              </div>
+              <p style="margin:12px 0 0;font-size:11.5px;color:var(--text-3)">Y donde ellos paran, nosotros seguimos: la respuesta <b style="color:var(--text-2)">aterriza en antropometría</b>, no se queda dentro del formulario. Los pliegues no los tienen.</p>
+            </div>
+          </div></div></div>
+        </figure>
+      </div>
+    </article>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       §3 · LO QUE NO SE COPIA
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="parte">
+    <h2>3 · Lo que no se copia</h2>
+    <p class="bajada">Importa tanto como lo anterior. Casi todo lo descartable de Efort <b>es síntoma de su modelo</b>, no una virtud que nos falte.</p>
+    <div class="nocopia">
+      <article class="nc">
+        <h4>El peso en la pauta</h4>
+        <p>Su notación entera —«Ramp 3x4 @6 + 2x4x135»— gira alrededor del kilo, porque son un producto de powerlifting. Aquí <code>targetKg</code> va vacío por defecto y <b>vacío significa «a tu criterio»</b>. Copiarles la notación sería cambiar el oficio, no la interfaz.</p>
+      </article>
+      <article class="nc">
+        <h4>La previsión, tal cual</h4>
+        <p>Su «New block forecast» funciona porque sus bloques <b>tienen duración fija</b>. Los nuestros son abiertos. La previsión de la lámina 2 no cuenta bloques que se acaban: cuenta <b>a quién se le acaba lo escrito</b>, que es lo único cierto y además es el trabajo real.</p>
+      </article>
+      <article class="nc">
+        <h4>La cámara impuesta</h4>
+        <p>En su hoja, cada serie lleva su petición de vídeo. Eso presupone un entrenador que dice qué grabar. El uso de verdad es el contrario: <b>él graba lo que quiere y va cambiando cada sesión</b>. La bandeja es lo que hace falta; la petición es un extra, y <b>apagado</b>.</p>
+      </article>
+      <article class="nc">
+        <h4>La cifra sin verbo</h4>
+        <div class="reproche">
+          <div class="mal">
+            <span class="rotulo">Efort</span>
+            <span class="cuenta-g cifra" style="color:var(--negative)">23</span>
+            <span class="pie-r">pending · de 44 atletas</span>
+          </div>
+          <div>
+            <span class="rotulo">Nosotros</span>
+            <span class="cuenta-g cifra">6</span>
+            <span class="pie-r">días sin entrenar</span>
+            <span style="font-size:12px;font-weight:650;color:var(--accent)">Escribir</span>
+          </div>
+        </div>
+        <p>El dato es bueno; la forma, no. Una cifra grande de pendientes sin verbo <b>es un reproche</b>.</p>
+      </article>
+      <article class="nc">
+        <h4>El utillaje de copiar</h4>
+        <p>Copiar series, ejercicio, día, semana, y una barra flotante para copiar. <b>Todo eso existe porque su modelo obliga a repetirse.</b> Añadirlo aquí sería importar su problema. La excepción es copiar la <i>pauta</i> entre dos ejercicios distintos, que es otra cosa.</p>
+      </article>
+      <article class="nc">
+        <h4>El semáforo sobre los macros</h4>
+        <p>Sus roscos pintan la proteína al 107 % en verde, los hidratos al 94 % en ámbar y las grasas al 95 % en rojo. Eso no es un dato: es una nota de examen que nadie ha pedido. En la lámina 7 los roscos llevan <b>el color de su macro</b>.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       §4 · EL ORDEN
+       ═══════════════════════════════════════════════════════════════════ -->
+  <section class="parte">
+    <h2>4 · El orden</h2>
+    <p class="bajada">La tanda 1 <b>no toca el esquema</b>: sale casi entera de dominio ya escrito y ya cambia la mañana del lunes.</p>
+
+    <p class="tanda-t">Tanda 1 · enseñar lo que ya tenemos</p>
+    <dl class="orden">
+      <div class="mov"><dt>M-01 · L1</dt><dd><b>La barra es la cola.</b> Lista completa con buscador, punto azul y el microciclo por el que va.</dd></div>
+      <div class="mov"><dt>M-02 · L2</dt><dd><b>«Sin semana siguiente».</b> Una función de dominio, y de ahí salen la cola nueva, la columna de la cartera y la previsión.</dd></div>
+      <div class="mov"><dt>M-03 · L2</dt><dd><b>La previsión de cuatro semanas,</b> contada sobre lo escrito y no sobre una duración que no existe.</dd></div>
+      <div class="mov"><dt>M-04 · L6</dt><dd><b>El cuaderno del cliente.</b> Lectura pura, con datos ya escritos y probados.</dd></div>
+      <div class="mov"><dt>M-05 · L2</dt><dd><b>La cabecera con alcance.</b> En el primitivo: barre toda la casa de una vez.</dd></div>
+    </dl>
+
+    <p class="tanda-t">Tanda 2 · las semanas y la serie</p>
+    <dl class="orden">
+      <div class="mov"><dt>M-06 · L3</dt><dd><b>Las semanas, una al lado de otra.</b> El movimiento del estudio, y la pieza de marketing: un gesto, cuatro semanas.</dd></div>
+      <div class="mov"><dt>M-07 · L4</dt><dd><b>El vídeo que manda el cliente,</b> y su bandeja. Pedirlo por serie va detrás, apagado.</dd></div>
+      <div class="mov"><dt>M-08</dt><dd><b>Copiar la pauta de un ejercicio a otro.</b> El gesto pequeño, dentro de la hoja.</dd></div>
+      <div class="mov"><dt>M-09 · L5</dt><dd><b>La fila del bloque con sus microciclos.</b></dd></div>
+    </dl>
+
+    <p class="tanda-t">Tanda 3 · la dieta y el reparto</p>
+    <dl class="orden">
+      <div class="mov"><dt>M-10 · L7</dt><dd><b>La dieta con comidas.</b> Tarjeta por comida, opciones con nombre, equivalencias dentro y objetivo al costado. Es la lámina con más distancia entre lo suyo y lo nuestro.</dd></div>
+      <div class="mov"><dt>M-11 · L7</dt><dd><b>Grupos de equivalencia con nombre.</b> El cálculo se queda y manda por defecto; el grupo guardado es tu opinión cuando la tienes.</dd></div>
+      <div class="mov"><dt>M-12 · L8</dt><dd><b>Un plan, muchos clientes,</b> con las consecuencias delante antes de guardar.</dd></div>
+      <div class="mov"><dt>M-13 · L9</dt><dd><b>La guía de medida como pantalla,</b> con figura numerada.</dd></div>
+      <div class="mov"><dt>M-14</dt><dd><b>La pieza de marketing:</b> la lámina 3 grabada.</dd></div>
+    </dl>
+  </section>
+
+  <p class="pie">
+    Estudio de diseño del 9 de septiembre de 2026, segunda versión. Los hexadecimales de Efort están medidos sobre <code>capturas/referencias/efortcoach/</code> con un histograma de píxeles. Los «antes» de las láminas 2, 3, 5 y 7 están calcados de la aplicación corriendo en local con la demo sembrada. Los hechos del modelo salen de <code>domain/training.js</code> (<code>emptySet</code>, <code>CAMPOS_PIDES</code>) y <code>domain/blocks.js</code> (<code>horizonteDeBloque</code>, <code>fraseDeHorizonte</code>). El plan completo está en <code>docs/estudio-efort-septiembre.md</code>. <b>Nada de esto está construido.</b>
+  </p>
+</div>
+
+<script>
+/* ── El mando: vista, notas y tema ─────────────────────────────────────── */
+const doc = document.querySelector('.doc');
+doc.dataset.vista = 'despues';
+doc.dataset.notas = 'no';
+
+document.querySelectorAll('.segmentado [data-vista]').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.segmentado [data-vista]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    doc.dataset.vista = b.dataset.vista;
+  });
+});
+document.getElementById('ver-notas').addEventListener('change', (e) => {
+  doc.dataset.notas = e.target.checked ? 'si' : 'no';
+});
+document.querySelectorAll('.segmentado [data-tema]').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.segmentado [data-tema]').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    document.documentElement.dataset.theme = b.dataset.tema;
+  });
+});
+
+/* ══ LÁMINA 3 · la progresión con overrides ════════════════════════════════
+   Lo que varía es la PAUTA —series × repeticiones y RIR—, no el peso: aquí
+   `targetKg` va vacío y vacío significa «a criterio del cliente». La cifra en
+   gris de cada celda es lo que levantó, y es dato, no pauta.
+   ═════════════════════════════════════════════════════════════════════════ */
+const MCS = ['M7', 'M8', 'M9', 'M10'];
+const BASE = ['3 × 6-8', '4 × 6-8', '4 × 6-8', '4 × 6-8'];
+const RIR = ['RIR 3', 'RIR 2', 'RIR 2', 'RIR 2'];
+const HIZO = ['100 kg', '100 kg', '102,5 kg', '—'];
+const OTRA = '5 × 5';
+let pauta = BASE.slice();
+let gestos = 0;
+let suyos = 0;
+let pendiente = null;
+
+function pintar() {
+  document.querySelectorAll('#lam3 .pauta[data-mc]').forEach((el) => {
+    const i = Number(el.dataset.mc);
+    el.innerHTML =
+      '<span class="kg">' + pauta[i] + '</span>' +
+      '<small>' + RIR[i] + '</small>' +
+      '<span class="hizo">' + HIZO[i] + '</span>';
+    el.classList.toggle('tocada', pauta[i] !== BASE[i]);
+  });
+
+  /* Los tramos: columnas consecutivas que comparten pauta. */
+  const tramos = document.getElementById('tramos');
+  tramos.innerHTML = '';
+  let i = 0;
+  while (i < pauta.length) {
+    let j = i;
+    while (j + 1 < pauta.length && pauta[j + 1] === pauta[i]) j++;
+    const b = document.createElement('div');
+    b.className = 'tramo-b' + (pauta[i] !== BASE[i] ? ' dist' : '');
+    b.style.gridColumn = 'span ' + (j - i + 1);
+    b.textContent = j === i ? MCS[i] : MCS[i] + '–' + MCS[j];
+    tramos.appendChild(b);
+    i = j + 1;
+  }
+
+  const izq = document.getElementById('marcador-izq');
+  const der = document.getElementById('marcador-der');
+  if (gestos === 0) {
+    izq.innerHTML = 'Pulsa una pauta del press banca para cambiarla.';
+    der.innerHTML = 'Las columnas que comparten pauta se ven compartiéndola.';
+  } else {
+    izq.innerHTML =
+      '<span class="cuenta cifra">' + gestos + '</span> ' +
+      (gestos === 1 ? 'gesto' : 'gestos') + ' · ' + pauta.length + ' microciclos escritos';
+    der.innerHTML =
+      'En su modelo, lo mismo son <b>' + suyos + '</b> ' +
+      (suyos === 1 ? 'edición a mano' : 'ediciones a mano');
+  }
+}
+
+document.querySelectorAll('#lam3 .pauta[data-mc]').forEach((el) => {
+  el.addEventListener('click', () => {
+    const i = Number(el.dataset.mc);
+    pendiente = { i, valor: pauta[i] === OTRA ? BASE[i] : OTRA };
+    document.getElementById('p-kg').textContent = pendiente.valor;
+    document.getElementById('p-mc').textContent = MCS[i];
+    document.getElementById('pregunta').hidden = false;
+  });
+});
+
+document.querySelectorAll('#pregunta [data-alcance]').forEach((b) => {
+  b.addEventListener('click', () => {
+    const modo = b.dataset.alcance;
+    if (pendiente && modo !== 'nada') {
+      const { i, valor } = pendiente;
+      if (modo === 'solo') {
+        pauta[i] = valor;
+        suyos += 1;
+      } else {
+        for (let k = i; k < pauta.length; k++) pauta[k] = valor;
+        suyos += pauta.length - i;
+      }
+      gestos += 1;
+    }
+    pendiente = null;
+    document.getElementById('pregunta').hidden = true;
+    pintar();
+  });
+});
+
+pintar();
+</script>

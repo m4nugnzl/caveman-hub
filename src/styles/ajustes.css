@@ -1081,6 +1081,9 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   background: var(--surface); overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
+/* El rótulo son dos controles: plegar (que ocupa todo lo que puede) y llevarse
+   la semana. Ver `PhotoArchive`. */
+.carpeta-fila { display: flex; align-items: center; }
 .carpeta-head {
   display: flex; align-items: baseline; gap: var(--s3);
   width: 100%; padding: var(--s3) var(--s4);
@@ -1138,14 +1141,29 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   font-size: var(--fs-xs); font-weight: 700;
  letter-spacing: 0;
 }
-/* Borrar aparece al pasar por encima: una papelera sobre cada foto de una
-   cuadrícula de treinta es una cuadrícula de papeleras. */
-.archivo-borrar {
+/* Los verbos aparecen al pasar por encima: una papelera sobre cada foto de una
+   cuadrícula de treinta es una cuadrícula de papeleras. En táctil no hay
+   «encima», así que allí están puestos — la misma regla que `.gym-mas`. */
+.archivo-verbos {
   position: absolute; top: 6px; right: 6px;
+  display: flex; gap: 4px;
   opacity: 0; transition: opacity var(--fast);
 }
-.archivo-foto:hover .archivo-borrar,
-.archivo-borrar:focus-visible { opacity: 1; }
+.archivo-foto:hover .archivo-verbos,
+.archivo-verbos:focus-within { opacity: 1; }
+@media (hover: none) { .archivo-verbos { opacity: 1; } }
+
+/* Llevarse la semana entera: callado hasta que se pasa por el rótulo. */
+.carpeta-bajar {
+  flex-shrink: 0; margin-right: var(--s3);
+  opacity: 0; transition: opacity var(--fast);
+}
+.carpeta-fila:hover .carpeta-bajar,
+.carpeta-bajar:focus-visible,
+/* La que está bajando se queda a la vista aunque el ratón se vaya: si no, la
+   cuenta de progreso desaparece justo cuando importa. */
+.carpeta-bajar[aria-busy='true'] { opacity: 1; }
+@media (hover: none) { .carpeta-bajar { opacity: 1; } }
 
 .slot-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
 .adjust-row { display: grid; grid-template-columns: 72px 1fr 44px; align-items: center; gap: var(--s2); font-size: var(--fs-sm); }
@@ -1654,6 +1672,19 @@ button.log-answer:hover { background: var(--fill); }
   cursor: pointer; text-align: left;
 }
 .proto-toggle:hover { color: var(--text-secondary); }
+
+/* ── Las dos mitades del protocolo de una persona ──────────────────────────
+   «Cómo es su app» y «Qué le pasa». Eran once secciones seguidas con el mismo
+   peso, y dentro había dos naturalezas distintas —un estado y unos hechos— que
+   se propagan de forma distinta y que nada separaba.
+
+   Lo que las separa es lo mismo que separa los bloques del cuerpo de la ficha:
+   el AIRE, y un filete que lo confirma. Sin caja: dos cajas dentro de una
+   ventana que ya es una caja son tres cantos para decir una jerarquía. */
+.hoja-protocolo { display: flex; flex-direction: column; min-width: 0; }
+.hoja-protocolo > .bloque-desnudo { padding: var(--s6) 0; border-top: 1px solid var(--hairline); }
+.hoja-protocolo > .bloque-desnudo:first-child { border-top: 0; padding-top: 0; }
+.hoja-protocolo > .bloque-desnudo:last-child { padding-bottom: 0; }
 
 @media (max-width: 640px) {
   .warmup-edit { flex-direction: column; }

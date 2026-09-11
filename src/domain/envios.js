@@ -54,7 +54,7 @@
 import { isArchived, isPaused } from './portfolio';
 import { clientProtocoloId } from './protocolos';
 import { cuentaElementos } from './formulario';
-import { newId } from '@/lib/ids';
+import { newUuid } from '@/lib/ids';
 
 /**
  * Tope de personas por envío.
@@ -291,11 +291,27 @@ export const cuandoById = (id) => CUANDOS.find((c) => c.id === id) || CUANDOS[0]
 
 const iso = (d) => d.toISOString().slice(0, 10);
 
+/**
+ * Desde cuándo cuenta el alta de una persona.
+ *
+ * ── Y por qué acepta los dos nombres ──────────────────────────────────────
+ * Porque hay dos formas de un cliente en este proyecto y las dos son legítimas:
+ * la FILA de la base (`start_date`) y el objeto que reparte el contexto, que
+ * pasa por `mappers.js` y sale en `startDate`. Este módulo lo llaman los dos
+ * lados —«Mandar algo» con clientes del contexto, las pruebas con filas— y leer
+ * solo uno no da ningún error: da `null`, y `null` aquí significa «no tiene
+ * alta», o sea que «a las 6 semanas de empezar» se convierte en «ahora» y se lo
+ * manda a todo el mundo hoy. Sin ruido. Se cazó el 11 de septiembre, con la
+ * aplicación delante.
+ */
+export const altaDe = (cliente) => cliente?.startDate || cliente?.start_date || null;
+
 /** La fecha en la que le toca a cada uno, según el cuándo elegido. */
 export const fechaPara = (cuando, cliente, hoy = new Date()) => {
   if (cuando.tipo === 'dia') return cuando.valor || null;
   if (cuando.tipo === 'semanas') {
-    const desde = cliente?.start_date ? new Date(cliente.start_date) : null;
+    const alta = altaDe(cliente);
+    const desde = alta ? new Date(alta) : null;
     if (!desde || Number.isNaN(desde.getTime())) return null;
     const n = Number(cuando.valor) || 0;
     const d = new Date(desde);
@@ -339,6 +355,7 @@ export const filasDeEnvio = (
     clientes,
     coachId,
     nota = '',
+    origen = null,
   },
   hoy = new Date()
 ) => {
@@ -354,7 +371,21 @@ export const filasDeEnvio = (
   const nombre = esForm ? sanitizeTitulo(formulario.name) : sanitizeTitulo(titulo);
   if (!nombre) return [];
 
-  const envioId = newId('env');
+  /*
+    ══ Un uuid PELADO, y no `newId('env')` ════════════════════════════════════
+
+    `client_actions.envio_id` es `uuid NOT NULL` desde la 0099, y `newId` devuelve
+    `env_3f2a…`: Postgres lo rechaza con `22P02 invalid input syntax for type
+    uuid`, así que **ninguna fila de un envío ha llegado a escribirse nunca**. El
+    prefijo es un lujo de los ids que viven dentro de un JSONB, donde solo sirve
+    para leer registros; en una columna `uuid` es un error de tipo.
+
+    Se cazó el 11 de septiembre, construyendo las automatizaciones: se apoyan en
+    esta misma función, y lo que no escribe un envío tampoco lo escribe un paso.
+    Lo tapaba que el fallo llega como `error` del insert y se enseña con el texto
+    de Postgres, que nadie relaciona con esto.
+  */
+  const envioId = newUuid();
   const recado = sanitizeNota(nota);
   const deQuien = { tipo: audiencia.tipo, valor: audiencia.valor ?? null };
 
@@ -389,6 +420,16 @@ export const filasDeEnvio = (
          formulario: es lo que permite leer «a los 5 con la etiqueta presencial»
          meses después sin recalcular nada, y eso vale igual para un vídeo. */
       audiencia: deQuien,
+      /*
+        QUIÉN LO MANDÓ: tú, o una automatización con su nombre.
+
+        Va aquí y no en una columna nueva por lo mismo que el resto del esquema:
+        es una COPIA congelada. Renombrar la automatización mañana no puede
+        reescribir lo que salió ayer, igual que renombrar un formulario no
+        reescribe su `title`. Y sin `origen` no se escribe la clave: una fila sin
+        procedencia es una fila tuya, que es como han sido todas hasta hoy.
+      */
+      ...(origen ? { origen } : null),
     },
     due: fechaPara(cuando, c, hoy),
   }));
@@ -459,6 +500,26 @@ export const contestadasPorCliente = (filas = []) => {
  * que ninguna pantalla tenga que saber cuál es cuál.
  */
 export const notaDe = (fila) => String(fila?.body || fila?.schema?.nota || '').trim();
+
+/**
+ * ¿Quién lo mandó: tú, o algo que le pasa solo?
+ *
+ * `null` es «tú», y no por descuido: todas las filas anteriores a las
+ * automatizaciones las mandó una persona, así que la ausencia de procedencia ya
+ * significa exactamente eso. Poner `origen: {tipo:'mano'}` en cada envío habría
+ * sido escribir en cada fila lo que ya se sabe.
+ */
+export const origenDe = (fila) => fila?.schema?.origen || null;
+
+/**
+ * Quién lo manda, en una palabra: «Tú», o el nombre de la automatización.
+ *
+ * Sin el «Se lo mandó» delante, aunque el vocabulario del §7 lo escriba así en
+ * prosa. Donde esto se lee es una COLUMNA que ya se titula «Quién lo manda», y
+ * repetir el verbo en cada renglón son seis filas que empiezan con las mismas
+ * cuatro palabras y una sola que cambia. El rótulo pregunta; la celda contesta.
+ */
+export const origenDice = (fila) => origenDe(fila)?.nombre || 'Tú';
 
 /**
  * ¿Le toca ya?

@@ -140,7 +140,22 @@
    —`.cartera-cuerpo` y `.settings` piden `--max-w-mesa`; un apartado pide
    `--max-w-columna`— y se lee en su propia hoja, al lado de lo que capa. Ver
    las tres medidas en `tokens.css`. */
-.layout { max-width: var(--max-w-trabajo); margin: 0 auto; padding: var(--s5) var(--s5) var(--s7); }
+/* ── EL HUECO DE LA HOJA, EN UN SITIO ──────────────────────────────────────
+   El margen lateral de la página cambia tres veces (22 · 16 · 12) y hasta ahora
+   solo lo sabía el `padding` de aquí. Cualquier pieza que quiera SANGRAR —
+   salirse del margen para que su desbordamiento se corte con el canto del papel
+   y no con el del padre, como la tira de sesiones del teléfono— tenía que
+   adivinar ese número, y el que adivinó (16) solo acertaba entre 641 y 900 px:
+   por debajo se salía 4 px por cada lado, y con eso la página entera se podía
+   arrastrar en horizontal.
+
+   Ahora el margen tiene nombre y se hereda. Quien sangre, sangra `--hueco-hoja`
+   y acierta en los tres tamaños sin repetir ninguna media query. */
+.layout {
+  --hueco-hoja: var(--s5);
+  max-width: var(--max-w-trabajo); margin: 0 auto;
+  padding: var(--hueco-hoja) var(--hueco-hoja) var(--s7);
+}
 /* El portal del cliente no vive en el shell, así que lleva su propio aire de
    noche (los mismos tokens; sobre papel, transparentes). */
 .layout-narrow {

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { TIPO } from '@/lib/portapapeles';
 import {
   MAX_PLATOS,
   buildPlato,
   freePlatoName,
+  piezaDePlato,
   platoFoods,
   platoKcals,
   platoSummary,
@@ -154,5 +156,42 @@ describe('scalePlatoTo', () => {
     expect(scalePlatoTo(platoFoods(plato), 409)).toBe(null);
     expect(scalePlatoTo([], 500)).toBe(null);
     expect(scalePlatoTo(platoFoods(plato), 0)).toBe(null);
+  });
+});
+
+describe('un plato hecho pieza del portapapeles', () => {
+  it('poda igual que al guardarlo y bautiza la carga', () => {
+    const pieza = piezaDePlato({
+      name: '  Desayuno de definición  ',
+      foods: desayuno,
+      origen: { cliente: 'Marta' },
+    });
+
+    expect(pieza.tipo).toBe(TIPO.PLATO);
+    expect(pieza.titulo).toBe('Desayuno de definición');
+    expect(pieza.detalle).toBe(platoSummary({ foods: buildPlato({ foods: desayuno }).foods }));
+    expect(pieza.origen).toEqual({ cliente: 'Marta' });
+
+    /* El nombre DENTRO de la carga, en la clave que `alaMano` declara para el
+       plato: es lo que lee `pegarPlato` para bautizar la alternativa que entra,
+       y lo que un plato devuelto desde la vitrina trae también. Sin esto, un
+       plato de la mano y uno de las plantillas se pegarían distinto — la avería
+       del `dayName` de la hoja. */
+    expect(pieza.carga.name).toBe('Desayuno de definición');
+
+    /* La misma poda que `buildPlato`: fuera el id de la entrada de la que sale
+       y fuera `equivHidden`, que es una decisión sobre lo que ve UN cliente. */
+    expect(pieza.carga.foods).toEqual(buildPlato({ foods: desayuno }).foods);
+    for (const f of pieza.carga.foods) {
+      expect(f.id).toBeUndefined();
+      expect(f.equivHidden).toBeUndefined();
+    }
+  });
+
+  it('sin ración no hay pieza, y sin nombre se llama «Plato»', () => {
+    expect(piezaDePlato({ name: 'Vacío', foods: [] })).toBe(null);
+    expect(piezaDePlato({ name: 'Vacío', foods: [{ name: '  ' }] })).toBe(null);
+    expect(piezaDePlato({ foods: desayuno }).titulo).toBe('Plato');
+    expect(piezaDePlato({ foods: desayuno }).carga.name).toBe('Plato');
   });
 });

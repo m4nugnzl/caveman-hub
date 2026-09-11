@@ -10,6 +10,7 @@ import {
   defaultFormulario,
   formularioById,
   formulariosDe,
+  formulariosMandables,
   formulariosToPreferences,
   anadirPropia,
   moverPregunta,
@@ -467,5 +468,38 @@ describe('formularios · la estantería', () => {
 
     const { questions } = comoProtocoloDesdeElementos(elementos, 'sesion');
     expect(questions).toEqual(['rpe']);
+  });
+});
+
+/**
+ * LOS QUE SE PUEDEN MANDAR, que no son todos.
+ *
+ * Esto no es una comodidad de la pantalla: `filasDeEnvio` congela las preguntas
+ * en `schema.elementos`, y un formulario de alta o el check-in no tienen
+ * `elementos` —sus preguntas viven en la forma de su momento—. Ofrecerlos como
+ * paso de una automatización no daba ningún error: le mandaba al cliente **un
+ * cuestionario en blanco**, y la lista lo decía en voz baja («0 preguntas») sin
+ * que eso impidiera nada.
+ */
+describe('formulariosMandables', () => {
+  const prefs = {
+    formularios: {
+      items: [
+        { id: 'f_libre', momento: 'libre', name: 'Analítica', elementos: [{ id: 'e1', tipo: 'texto', enun: '¿Qué tal?' }] },
+        { id: 'f_vacio', momento: 'libre', name: 'Sin nada', elementos: [] },
+        { id: 'f_alta', momento: 'alta', name: 'Alta general' },
+        { id: 'f_semana', momento: 'semana', name: 'El check-in' },
+      ],
+    },
+  };
+
+  it('solo los libres, y solo si tienen preguntas', () => {
+    expect(formulariosMandables(prefs).map((f) => f.id)).toEqual(['f_libre']);
+  });
+
+  it('sin lista guardada no hay ninguno: los heredados no viajan sueltos', () => {
+    /* Los tres de siempre —el alta, el parte y el check-in— salen del protocolo
+       y se le piden por su premisa, no como acción suelta. */
+    expect(formulariosMandables({})).toEqual([]);
   });
 });

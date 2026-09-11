@@ -217,6 +217,24 @@
 .panel-head-say { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .panel-head-sub { font-size: var(--fs-sm); color: var(--text-secondary); }
 
+/* ── El rótulo y su alcance, en la misma línea ─────────────────────────────
+   El alcance acota lo que hay dentro del bloque —un tramo, una ventana, un
+   recuento— y por eso va PEGADO al rótulo y no al otro extremo de la cabecera:
+   depende de él, y en una tarjeta estrecha separarlos deja la condición
+   flotando sobre una acción con la que no tiene nada que ver.
+
+   En tinta terciaria y sin versalita: la troquelada es del rótulo y repetirla
+   aquí haría dos títulos. Si no cabe, baja de línea (`flex-wrap`) en vez de
+   estrangular el rótulo, que es el que nombra. */
+.panel-head-rotulo {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  min-width: 0;
+}
+.panel-head-alcance {
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Un bloque sin relleno propio —una lista a sangre— necesita que su cabecera lo
    tenga, o el título queda pegado al canto de la tarjeta. */
 .card-flush > .panel-head { padding: var(--s4) var(--s4) 0; margin-bottom: var(--s3); }

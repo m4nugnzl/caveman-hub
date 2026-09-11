@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
 
 import { Thumb } from './Thumb';
 
@@ -56,8 +56,19 @@ import { Thumb } from './Thumb';
  * @param controls Lo que se puede decidir sin cerrar: los chips de «comparar
  *   con» de la hoja de contactos. Va bajo el pie, y lo monta quien abre porque
  *   es quien sabe qué se está comparando.
+ * @param onDescargar `(item) => void`. Sin esto no hay botón de descarga: el
+ *   visor enseña fotos de tres sitios distintos —progreso, gimnasio, la hoja de
+ *   contactos de la revisión— y cómo se llama el archivo que sale de aquí lo
+ *   sabe quien abre, no esto. Ver `lib/descargas.js`.
  */
-export const Gallery = ({ items = [], index = 0, onIndex, onClose, controls = null }) => {
+export const Gallery = ({
+  items = [],
+  index = 0,
+  onIndex,
+  onClose,
+  controls = null,
+  onDescargar = null,
+}) => {
   const total = items.length;
   const actual = items[index];
   const tactoRef = useRef(null);
@@ -134,6 +145,25 @@ export const Gallery = ({ items = [], index = 0, onIndex, onClose, controls = nu
       aria-label={actual.caption || 'Foto'}
       onClick={onClose}
     >
+      {/* Descargar y cerrar, en el mismo canto y con la misma forma. La descarga
+          va a la izquierda de la X y no al pie: el pie es el DATO de la foto, y
+          un verbo metido entre la semana y el peso se lee como si fuera otro
+          dato más. */}
+      {onDescargar && (
+        <button
+          type="button"
+          className="visor-descargar"
+          aria-label={`Descargar ${actual.caption || 'la foto'}`}
+          title="Descargar"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDescargar(actual);
+          }}
+        >
+          <Download size={20} />
+        </button>
+      )}
+
       <button type="button" className="visor-cerrar" aria-label="Cerrar" onClick={onClose}>
         <X size={20} />
       </button>

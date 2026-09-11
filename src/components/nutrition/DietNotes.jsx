@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 
 import {
   MAX_NOTES,
@@ -10,7 +10,6 @@ import {
   moveItem,
   notesToStorage,
 } from '@/domain/nutrition';
-import { GroupHead, Panel } from '@/components/ui/primitives';
 
 /**
  * Las pautas que el entrenador le escribe a ESTE cliente sobre su dieta.
@@ -25,6 +24,24 @@ import { GroupHead, Panel } from '@/components/ui/primitives';
  * así, y los días que entrenas pierna los subimos». Eso no cabe en una línea, y
  * sobre todo no se lee como una casilla — se lee como algo escrito para ti.
  *
+ * ══ Y por qué ya no van dentro de una caja ═════════════════════════════════
+ *
+ * «No me gusta el cómo se ven las pautas.»
+ *
+ * Lo que se veía era un `Panel` con su filete y su fondo, puesto DENTRO de la
+ * hoja —que ya es una caja— y con el «+ Añadir pauta» encerrado dentro como si
+ * fuera un formulario que rellenar. Tres superficies encajadas —página, hoja,
+ * panel— para enseñar dos frases, y la ley de la hoja de esta casa dice justo
+ * lo contrario: la hoja es UNA caja, y lo que va dentro va a ras del papel.
+ * Caja dentro de caja es la figura que ya se corrigió en el costado del bloque
+ * y en la mesa de Entreno.
+ *
+ * Ahora las pautas son una SECCIÓN de la hoja, como el reparto o el menú: un
+ * rótulo, lo que hay que saber en voz baja y el verbo en azul al canto derecho
+ * —la ley de los gestos: la caja se enciende, el verbo va en azul—, y debajo el
+ * texto separado por filetes. La misma anatomía que «El reparto», que está dos
+ * dedos más arriba en la misma hoja.
+ *
  * ── Por qué el título es opcional ───────────────────────────────────────────
  * Porque sin él esto sigue sirviendo para la frase corta de siempre, y con él
  * una pauta larga se encuentra de un vistazo entre otras cinco. Obligar a
@@ -35,21 +52,14 @@ import { GroupHead, Panel } from '@/components/ui/primitives';
  * mil caracteres. El borrador vive aquí mientras se escribe y baja al plan
  * cuando el campo pierde el foco, que es cuando la pauta está terminada.
  *
- * ══ Y por qué ya no parece un formulario ════════════════════════════════════
- *
- * Cada pauta era una tarjeta gris dentro de un panel dentro de la columna, y
- * dentro de ella una casilla de título con su recuadro y un área de texto con
- * el suyo, su barra de desplazamiento y el asa de redimensionar en la esquina.
- * Cuatro superficies encajadas para enseñar dos frases, y una pauta ya escrita
- * seguía viéndose como los campos vacíos que había que rellenar.
- *
+ * ── Y el campo ES el texto ─────────────────────────────────────────────────
  * Lo que se escribe aquí lo LEE el cliente tal cual, así que aquí también tiene
  * que leerse como texto: el título en la letra de los títulos, el cuerpo en
- * prosa, sin cajas, y la caja creciendo con lo escrito en vez de pedir rueda.
- * Es la misma idea que la nota de una comida (`comida-nota`) y que renombrar en
- * su sitio (`RenombrarEnSitio`): el campo ES el texto. Las acciones —subir,
- * bajar, borrar— se atenúan hasta que pasas por encima, como en la cabecera de
- * una comida.
+ * prosa, sin recuadros, y la caja creciendo con lo escrito en vez de pedir
+ * rueda. Es la misma idea que la nota de una comida (`comida-nota`) y que
+ * renombrar en su sitio (`RenombrarEnSitio`). Las acciones —subir, bajar,
+ * borrar— se atenúan hasta que pasas por encima, como en la cabecera de una
+ * comida.
  */
 const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
   const [draft, setDraft] = useState(note);
@@ -138,60 +148,45 @@ export const DietNotes = ({ notes: raw, onChange }) => {
   const notes = dietNotes(raw);
   const guardar = (lista) => onChange(notesToStorage(lista));
 
+  /*
+    La nueva se guarda con un cuerpo de partida y no vacía: una pauta sin cuerpo
+    no sobrevive a `notesToStorage`, así que añadir una en blanco y recargar la
+    haría desaparecer sin explicación.
+  */
+  const anadir = () => guardar([...notes, { ...buildDietNote(), body: 'Escribe aquí…' }]);
+
   return (
-    <section className="col gap-4">
-      {/* Una tanda de bloques dentro de «Plan nutricional», no otra pantalla:
-          era el TERCER `h2` de nivel pantalla de la misma página. */}
-      <GroupHead
-        title="Tus pautas"
-        sub="Lo que le explicas a esta persona sobre su plan. Lo ve en su dieta, tal cual lo escribes."
-      />
-
-      <Panel tight className="pautas">
-        {notes.length === 0 && (
-          /* Una línea, no un párrafo: el botón de abajo ya es la invitación y
-             el ejemplo largo hacía del vacío la pieza más grande del bloque. */
-          <p className="t-sm t-secondary">
-            Lo que no cabe en una cifra: por qué el plan es así, o qué hacer el día que se salta.
-          </p>
+    <section className="pautas" aria-label="Tus pautas">
+      <div className="pautas-cab">
+        <span className="section-label">Tus pautas</span>
+        <span className="pautas-dice">
+          {notes.length === 0
+            ? 'Lo que no cabe en una cifra: por qué el plan es así, o qué hacer el día que se salta.'
+            : 'Lo ve en su dieta, tal cual lo escribes.'}
+        </span>
+        <span className="tira-hueco" />
+        {notes.length < MAX_NOTES ? (
+          <button type="button" className="cab-accion" onClick={anadir}>
+            <Plus size={13} /> pauta
+          </button>
+        ) : (
+          /* El tope no es un aviso con icono ni una franja: es el sitio del
+             verbo diciendo por qué no está. Doce pautas ya no se leen. */
+          <span className="t-xs t-tertiary">Doce es el tope</span>
         )}
+      </div>
 
-        {notes.map((note, index) => (
-          <NoteCard
-            key={note.id}
-            note={note}
-            index={index}
-            total={notes.length}
-            onChange={(next) => guardar(notes.map((n, i) => (i === index ? next : n)))}
-            onRemove={() => guardar(notes.filter((_, i) => i !== index))}
-            onMove={(delta) => guardar(moveItem(notes, index, index + delta))}
-          />
-        ))}
-
-        {notes.length < MAX_NOTES && (
-          <div className="row">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              /*
-                La nueva se guarda con un cuerpo de partida y no vacía: una pauta
-                sin cuerpo no sobrevive a `notesToStorage`, así que añadir una en
-                blanco y recargar la haría desaparecer sin explicación.
-              */
-              onClick={() => guardar([...notes, { ...buildDietNote(), body: 'Escribe aquí…' }])}
-            >
-              <Plus size={15} /> Añadir pauta
-            </button>
-          </div>
-        )}
-
-        {notes.length >= MAX_NOTES && (
-          <p className="t-xs t-tertiary">
-            <Sparkles size={13} className="icon-inline" />
-            Doce pautas es el tope. Si necesitas más, probablemente convenga juntar varias en una.
-          </p>
-        )}
-      </Panel>
+      {notes.map((note, index) => (
+        <NoteCard
+          key={note.id}
+          note={note}
+          index={index}
+          total={notes.length}
+          onChange={(next) => guardar(notes.map((n, i) => (i === index ? next : n)))}
+          onRemove={() => guardar(notes.filter((_, i) => i !== index))}
+          onMove={(delta) => guardar(moveItem(notes, index, index + delta))}
+        />
+      ))}
     </section>
   );
 };

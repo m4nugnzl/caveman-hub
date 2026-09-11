@@ -114,6 +114,16 @@ describe('envios · las filas que se escriben', () => {
     });
     expect(filas).toHaveLength(2);
     expect(new Set(filas.map((f) => f.envio_id)).size).toBe(1);
+
+    /*
+      Y es un uuid PELADO, porque la columna es `uuid` desde la 0099.
+
+      Llevaba `newId('env')` —`env_3f2a…`— desde que el archivo existe, así que
+      Postgres rechazaba TODAS las filas con `22P02` y no se ha escrito nunca un
+      envío. El prefijo vale dentro de un JSONB y en una columna `uuid` es un
+      error de tipo; esta comprobación es lo que impide que vuelva.
+    */
+    expect(filas[0].envio_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
   it('EL ESQUEMA VIAJA CONGELADO: cambiar el formulario después no toca lo mandado', () => {

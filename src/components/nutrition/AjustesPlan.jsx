@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 
+import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 import { SegmentedControl, Switch } from '@/components/ui/primitives';
@@ -36,15 +37,27 @@ import { SegmentedControl, Switch } from '@/components/ui/primitives';
 export const AjustesPlan = ({
   cerrado,
   onTipo,
-  dosDietas,
-  onDosDietas,
   equivalencias,
   onEquivalencias,
+  /* La procedencia del interruptor de equivalencias: de qué protocolo sale y la
+     puerta a leerlo entero (`PieDeProtocolo`). Llega como NODO y no se monta
+     aquí: quien sabe de protocolos es la pantalla del cliente, y este panel es
+     de la dieta y no tiene por qué aprenderlo.
+
+     La hoja que abre es un diálogo, que va por encima de este flotante (z 200
+     contra 60) y lo tapa entero. Así que el panel se queda abierto detrás y al
+     cerrar la hoja se vuelve justo donde se estaba, con el foco en su sitio. */
+  pie,
+  reparte,
+  onReparto,
+  avanzado,
+  onAvanzado,
 }) => {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef(null);
   useClickOutside(ref, () => setAbierto(false), abierto);
   const pop = useDismissable(abierto);
+  const capa = useCapaFlotante(pop.mounted, ref, pop.ref, { alineado: 'derecha' });
 
   return (
     <div ref={ref} className="menu-acciones">
@@ -64,6 +77,8 @@ export const AjustesPlan = ({
         <div
           ref={pop.ref}
           className="popover popover-right ajustes-plan"
+          style={capa.estilo}
+          {...capa.atributos}
           data-state={pop.closing ? 'closing' : 'open'}
         >
           <div className="ajustes-plan-grupo">
@@ -81,31 +96,117 @@ export const AjustesPlan = ({
             <p className="ajustes-plan-pie">
               {cerrado
                 ? 'Le montas las comidas una a una, con sus alimentos y sus alternativas.'
-                : 'Solo el objetivo de kcal y macros: qué come lo decide él.'}
+                : 'Le pones cifras, no alimentos: qué come con ellas lo decide él.'}
             </p>
           </div>
 
-          <hr className="menu-sep" />
+          {/*
+            ══ Y CUÁNTO SE LE CIERRA, QUE ES LA MISMA PREGUNTA UN PELDAÑO MÁS ══
 
-          <div className="ajustes-plan-grupo">
-            {/* Encenderlo cambia la pantalla entera —aparecen dos objetivos y
-                dos menús—: es un ajuste del plan que se queda puesto. */}
-            <Switch
-              label="Dos dietas"
-              hint="Una para los días de entreno y otra para los de descanso."
-              checked={dosDietas}
-              onChange={onDosDietas}
-            />
-            {/* Solo con menú cerrado: sin alimentos pautados no hay nada por lo
-                que cambiar nada. */}
-            {cerrado && (
-              <Switch
-                label="El cliente ve las equivalencias"
-                hint="En su app puede cambiar un alimento por otro del mismo grupo."
-                checked={equivalencias}
-                onChange={onEquivalencias}
+            «No tiene sentido que te muestre permanentemente esa decisión: eso
+            tendría que estar en ajustes de la dieta.»
+
+            Vivía en la MESA, y como dos tarjetas grandes con icono, título y
+            explicación —`ComoSePauta`— clavadas encima del trabajo. Se elige una
+            vez cada varios meses y se quedaba ahí ocupando el sitio noble de la
+            pantalla, con la decisión ya tomada dibujada como una pregunta
+            abierta: en un plan «solo el objetivo» esas dos tarjetas eran lo
+            primero y lo más grande de la hoja, y debajo cabían cuatro cifras.
+
+            Aquí es lo que es: el segundo peldaño de «cómo se le pauta». Menú
+            cerrado → le pautas los alimentos; por macros con reparto → le pautas
+            las cifras de cada comida; por macros a secas → le pautas el día. Un
+            solo grupo, de más cerrado a más abierto, con su explicación debajo.
+          */}
+          {!cerrado && (
+            <div className="ajustes-plan-grupo">
+              <span className="ajustes-plan-k">Qué le pides</span>
+              <SegmentedControl
+                ancho
+                label="Qué se le pauta por macros"
+                value={reparte ? 'comidas' : 'dia'}
+                onChange={(id) => onReparto(id === 'comidas')}
+                options={[
+                  { id: 'dia', label: 'El día' },
+                  { id: 'comidas', label: 'Cada comida' },
+                ]}
               />
-            )}
+              <p className="ajustes-plan-pie">
+                {reparte
+                  ? 'Le dices cuántas kcal y qué macros lleva cada comida del día.'
+                  : 'Un solo objetivo al día: se organiza las comidas como quiera.'}
+              </p>
+            </div>
+          )}
+
+          {/*
+            ── AQUÍ ESTUVO «DOS DIETAS» ──────────────────────────────────────
+            Un interruptor que encendía y apagaba la segunda dieta, y era el
+            único sitio desde el que se podía. O sea: los días del plan se veían
+            en la cinta y se administraban tres dedos más allá, dentro de un
+            panel de ajustes — y desde la cinta no había forma de quitar el día
+            que acababas de añadir.
+
+            Ahora los días viven enteros en la cinta: se añaden con su «+», se
+            renombran pulsándolos y se duplican o se quitan desde su «···». Un
+            ajuste que solo sabía contar hasta dos no tenía dónde volver.
+          */}
+          {/* Solo con menú cerrado: sin alimentos pautados no hay nada por lo
+              que cambiar nada. */}
+          {cerrado && (
+            <>
+              <hr className="menu-sep" />
+              <div className="ajustes-plan-grupo">
+                {/*
+                  ══ EL DESDOBLE: el plan arriba, SU APP abajo ═══════════════
+
+                  Los dos interruptores de abajo colgaban de nada: venían detrás
+                  de un filete, sin rótulo, y por tanto se leían como el tercer y
+                  cuarto peldaño de «cómo se le pauta». No lo son, y ni siquiera
+                  son la misma clase de cosa entre ellos: uno cambia lo que ve el
+                  CLIENTE en su app —es su protocolo— y el otro cambia lo que ves
+                  TÚ, en todos tus clientes.
+
+                  Con su rótulo, el panel dice las tres cosas que decide: qué le
+                  pautas, cómo es su app y qué miras tú. Es el mismo corte que
+                  parte en dos la hoja de su protocolo.
+                */}
+                <span className="ajustes-plan-k">Cómo es su app</span>
+                <Switch
+                  label="El cliente ve las equivalencias"
+                  hint="En su app puede cambiar un alimento por otro del mismo grupo."
+                  checked={equivalencias}
+                  onChange={onEquivalencias}
+                />
+                {pie}
+              </div>
+            </>
+          )}
+
+          {/*
+            ── LAS CUATRO DEL ENVASE, para quien las mire ────────────────────
+            Fibra, azúcares, saturadas y sal se suman siempre —la fibra se lee
+            al pie del costado— pero enseñarlas las cuatro, con su objetivo y su
+            veredicto, es el modo de quien pauta fibra o vigila la sal. Para el
+            resto son cuatro renglones más en una columna de 300 px.
+
+            Es del ENTRENADOR y no de este cliente: quien mira una dieta así las
+            mira en todas. Por eso vive en sus preferencias y no en el protocolo
+            —el protocolo dice qué ve el CLIENTE en su app, y esto no se lo
+            enseña a nadie más que a ti—.
+
+            Apagado no se juzga nada: un objetivo de fibra escrito sigue
+            guardado, pero una cifra que juzga y no se ve es una trampa.
+          */}
+          <hr className="menu-sep" />
+          <div className="ajustes-plan-grupo">
+            <span className="ajustes-plan-k">Lo que ves tú</span>
+            <Switch
+              label="Fibra, azúcares, saturadas y sal"
+              hint="Las ves sumadas en el costado y puedes ponerles objetivo. En todos tus clientes."
+              checked={avanzado}
+              onChange={onAvanzado}
+            />
           </div>
         </div>
       )}

@@ -99,6 +99,8 @@ import { InvitePage } from '@/components/InvitePage';
 import { Notice } from '@/components/ui/primitives';
 import { AppSkeleton, PageSkeleton } from '@/components/ui/AppSkeleton';
 import { PlanNotice } from '@/components/PlanNotice';
+import { EstadoDeRed } from '@/components/ui/EstadoDeRed';
+import { ManoDelPortapapeles } from '@/components/Coach/ManoDelPortapapeles';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
 
@@ -361,6 +363,17 @@ export default function App() {
             <Notice tone="error">{loadError}</Notice>
           </div>
         )}
+
+        {/* El estado de la red, cuando tiene algo que decir: sin conexión, con
+            cola por mandar o mirando la copia local. Aquí lo montan el PORTAL y
+            el modo preview, donde la página empieza justo debajo de la cabecera
+            y esta es su primera línea.
+
+            El escritorio del entrenador lo monta por su cuenta, dentro de
+            `.shell-main` (ver `CoachLayout`): ahí el chasis es una columna a la
+            izquierda, y una franja puesta aquí empujaría la barra entera hacia
+            abajo en vez de entrar en la página. Ver `ui/EstadoDeRed`. */}
+        {view !== 'coach' && <EstadoDeRed />}
 
         {/* El estado del plan, cuando tiene algo que decir. Va aquí y no en la
             pantalla de Ajustes porque nadie entra en Ajustes: la prueba se
@@ -679,6 +692,13 @@ export default function App() {
       */}
 
       <CommandPalette />
+      {/* La bandeja de lo copiado. Se monta aquí —fuera de `main` y fuera de
+          cualquier pantalla— porque el portapapeles sirve precisamente para
+          cruzar pantallas y clientes: copias una hoja en Entreno de Marta y la
+          pegas en el bloque de Luis, con la cartera en medio. Montada dentro de
+          una pantalla desaparecería justo en ese trayecto, que es su motivo de
+          existir. Solo se pinta con algo dentro. Ver `ui/Portapapeles`. */}
+      {isCoach && <ManoDelPortapapeles />}
       <WelcomeTour />
       </TourProvider>
     </CommandPaletteProvider>

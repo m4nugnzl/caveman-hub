@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
+import { Nube } from '@/components/ui/EstadoDeRed';
+import { Pliegue } from '@/components/ui/Pliegue';
 import { traeALaVista } from '@/lib/motion';
 import { PORTFOLIO_FILTERS, TAG_LIMITS, buildPortfolio } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
@@ -39,7 +41,7 @@ import { EmptyState, Notice, Panel, SectionTitle } from '@/components/ui/primiti
 import { TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useMarcaDeslizante } from '@/components/ui/carril';
-import { ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
+import { MandoDeOrden, ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { SelectorEtiquetas } from './SelectorEtiquetas';
 import { ClientSettingsSheet } from './ClientSettings';
@@ -411,8 +413,47 @@ const AccionesEnLote = ({ filas, onLimpiar, onMandar, onAviso, onEtiquetar, onPa
     setHasta('');
   };
 
+  /*
+    ══ CUÁNTO SE LLEVA ESTE MOSTRADOR DEL PIE ═════════════════════════════════
+
+    El pie de la pantalla lo comparten dos cosas: este mostrador, centrado, y la
+    mano del portapapeles, a la derecha (`.pp-pie`, ver `ui/Portapapeles`). Los
+    dos estaban fijos a la misma altura y con el mismo `z-index`, así que se
+    pisaban por debajo de 1 444 px de ventana — marcar clientes con una hoja
+    copiada es una tarde normal, no un caso raro.
+
+    La ley es «un mostrador a la vez»: la mano se apoya ENCIMA. Y para apoyarse
+    necesita saber cuánto ocupa esto, que no es un número: el mostrador crece al
+    desplegar «Etiquetar» o «Pausar» y encoge al cerrarlos. Así que se mide y se
+    publica sobre el `<html>`, como `--cliente-cab-h` en `CoachLayout`. El aire
+    que los separa va dentro del valor —es un desplazamiento, no una medida—,
+    para que sin mostrador la variable pueda no existir y quien la use caiga a
+    cero sin arrastrar un hueco de la nada.
+  */
+  const mostrador = useRef(null);
+  useEffect(() => {
+    const raiz = document.documentElement;
+    const caja = mostrador.current;
+    if (!caja) return undefined;
+    const medir = () =>
+      raiz.style.setProperty('--lote-apoyo', `calc(${Math.round(caja.offsetHeight)}px + var(--s3))`);
+    medir();
+    if (typeof ResizeObserver === 'undefined') return () => raiz.style.removeProperty('--lote-apoyo');
+    const ojo = new ResizeObserver(medir);
+    ojo.observe(caja);
+    return () => {
+      ojo.disconnect();
+      raiz.style.removeProperty('--lote-apoyo');
+    };
+  }, []);
+
   return (
-    <div className="p-lote" role="region" aria-label="Acciones sobre los clientes seleccionados">
+    <div
+      className="p-lote"
+      ref={mostrador}
+      role="region"
+      aria-label="Acciones sobre los clientes seleccionados"
+    >
       <span className="n">{n === 1 ? '1 seleccionado' : `${n} seleccionados`}</span>
 
       {modo === null && (
@@ -1004,6 +1045,55 @@ export const ClientPortfolio = () => {
     entreno: visible.some((r) => r.sinceTraining !== null),
   };
 
+  /* Por qué se puede ordenar, dicho en la barra (`MandoDeOrden`).
+     Son las MISMAS columnas y el mismo estado que la cabecera —lo que se elige
+     aquí enciende su flecha allí—, con dos diferencias que son la razón de que
+     esto exista: se ve sin apuntar con el ratón, y sigue estando cuando la
+     columna se retira al estrecharse.
+
+     La regla 1 de `FilaCliente` manda igual que en la tabla: se ofrece ordenar
+     por lo que la cartera puede llenar. `Peso` con nadie pesado devolvería la
+     misma lista y se leería como un mando roto.
+
+     Cada sentido se nombra por lo que hace con ESTAS filas. «Descendente» dice
+     cómo está implementado; «los que más llevan sin entrenar» dice qué vas a
+     ver, que es lo que se está preguntando.
+
+     ── Y por qué dos de ellos no se llaman como su columna ──────────────────
+     Una cabecera nombra una COLUMNA y esto nombra un ORDEN, y la chapa los lee
+     en voz alta: «Por cliente» no es lo que se está haciendo —se ordena por su
+     nombre, no por él— y «Por entrenó» directamente no es español. Las otras
+     tres sí coinciden, y coinciden porque ahí la palabra vale para las dos
+     cosas. */
+  const camposDeOrden = [
+    { id: 'nombre', label: 'Nombre', sentidos: { asc: 'A → Z', desc: 'Z → A' } },
+    {
+      id: 'estado',
+      label: 'Estado',
+      /* `estadoDe` ordena por `rango`, y ahí el 0 es lo grave: ascendente es lo
+         urgente primero, con la pausa siempre al final. */
+      sentidos: { asc: 'lo urgente primero', desc: 'lo tranquilo primero' },
+    },
+    columnas.semana && {
+      id: 'semana',
+      label: 'Semana',
+      num: true,
+      sentidos: { asc: 'los que empiezan', desc: 'los más avanzados' },
+    },
+    columnas.entreno && {
+      id: 'entreno',
+      label: 'Último entreno',
+      num: true,
+      sentidos: { asc: 'los que acaban de entrenar', desc: 'los que más llevan sin entrenar' },
+    },
+    columnas.peso && {
+      id: 'peso',
+      label: 'Peso',
+      num: true,
+      sentidos: { asc: 'de menos a más kilos', desc: 'de más a menos kilos' },
+    },
+  ].filter(Boolean);
+
   return (
     /*
       ══ UNA HOJA, NO CUATRO COSAS PUESTAS UNA DEBAJO DE OTRA ═══════════════════
@@ -1074,7 +1164,13 @@ export const ClientPortfolio = () => {
                 del CLIENTE no cambia: allí el raíl son cinco DESTINOS a los que
                 se va, no tramos de la lista que ya estás mirando. */}
             <div className="cartera-cab-linea">
+              {/* El ancho, en cabeza y del lado por el que crece la hoja. Ver
+                  `ui/Pliegue`. */}
+              <Pliegue />
               <h1 className="cartera-cab-titulo">Clientes</h1>
+              {/* La nube va con el título en las tres cintas de la casa, no en
+                  la esquina de los verbos. Ver `ui/EstadoDeRed`. */}
+              <Nube />
 
               <nav
                 ref={carrilTramos}
@@ -1206,6 +1302,22 @@ export const ClientPortfolio = () => {
             )}
 
             <div className="cartera-barra-fin">
+              {/* ── Por qué se ordena ────────────────────────────────────────
+                  Va ANTES que el eje de etiquetas y no después: esto no filtra
+                  —no esconde a nadie—, así que se lee primero lo que cambia el
+                  orden de la lista y después lo que cambia quién sale en ella.
+
+                  Y va en chapa callada, sin encenderse en azul como se enciende
+                  «Etiquetas» con un filtro puesto: el azul de la casa dice «hay
+                  algo acotado». Ordenar no acota nada, y pintarlo igual haría
+                  buscar un filtro que no existe. Lo que dice por qué está
+                  ordenada es su propio rótulo.
+
+                  Con un solo cliente no se dibuja: la lista ES la respuesta. */}
+              {tramoVivo !== 'archivo' && delTramo.length > 1 && (
+                <MandoDeOrden orden={orden} campos={camposDeOrden} defecto="Urgencia" />
+              )}
+
               {/* La etiqueta se pregunta de vez en cuando y su lista crece sin
                   techo, así que se pliega en un selector —el mismo de las filas,
                   con los mismos discos de color— en vez de ocupar un carril

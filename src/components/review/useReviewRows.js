@@ -27,8 +27,14 @@ import { reviewHistory } from '@/domain/reviews';
  * `rows` son las revisiones CERRADAS con sus cambios y su vídeo (`reviewHistory`).
  * `checkIns` es la lista cruda, que incluye las que están sin contestar: eso es
  * lo que necesita el cliente para saber qué semanas puede entregar todavía.
+ *
+ * @param {boolean} [conEnlaces]  Los vídeos de cada revisión son una SEGUNDA
+ *   consulta, y no todo el mundo los pinta: la dieta usa este gancho solo para
+ *   la foto del plan que quedó escrita en cada revisión (ver `dietLog`), así que
+ *   pedirlos allí es una vuelta a la red cuyo resultado no mira nadie. Sin
+ *   ellos, `rows` sale igual salvo que ninguna fila lleva vídeo.
  */
-export const useReviewRows = (clientId) => {
+export const useReviewRows = (clientId, { conEnlaces = true } = {}) => {
   const { loadCheckInHistory, listReviewLinks } = useActions();
   const [checkIns, setCheckIns] = useState([]);
   const [rows, setRows] = useState([]);
@@ -44,13 +50,13 @@ export const useReviewRows = (clientId) => {
 
     const [historial, enlaces] = await Promise.all([
       loadCheckInHistory(clientId),
-      listReviewLinks(clientId),
+      conEnlaces ? listReviewLinks(clientId) : Promise.resolve({ links: [] }),
     ]);
 
     setCheckIns(historial.checkIns || []);
     setRows(reviewHistory({ checkIns: historial.checkIns || [], links: enlaces.links || [] }));
     setCargando(false);
-  }, [clientId, loadCheckInHistory, listReviewLinks]);
+  }, [clientId, conEnlaces, loadCheckInHistory, listReviewLinks]);
 
   useEffect(() => {
     setCargando(true);

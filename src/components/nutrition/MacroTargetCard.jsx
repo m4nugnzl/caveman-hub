@@ -1,38 +1,32 @@
-import { useId, useState } from 'react';
-import { Check, Pencil } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 
-import { TARGET_FIELDS, macroSplit, targetsFor } from '@/domain/nutrition';
-import { toNum0 } from '@/lib/num';
-import { MacroBar } from './macros';
-import { Modal } from '@/components/ui/Modal';
-
-/* El nombre y la unidad van por separado desde que la unidad se pinta DENTRO
-   del campo (`.input-suffix`): en la etiqueta era «Proteína (g)», un paréntesis
-   haciendo el trabajo que hace mejor el propio recuadro. */
-const LABELS = {
-  targetKcals: 'Objetivo',
-  proteinGrams: 'Proteína',
-  carbsGrams: 'Carbos',
-  fatsGrams: 'Grasas',
-};
-const UNIDADES = {
-  targetKcals: 'kcal',
-  proteinGrams: 'g',
-  carbsGrams: 'g',
-  fatsGrams: 'g',
-};
+import { macroSplit, targetsFor } from '@/domain/nutrition';
+import { localeNumber, shortDate } from '@/lib/dates';
+import { MACRO_META, MacroLista, macroBreakdown } from './macros';
+import { EditarObjetivo } from './EditarObjetivo';
 
 /**
- * Objetivo de una variante: la cifra calórica y su reparto en una barra.
+ * El objetivo de UN día: la cifra calórica y sus tres macros.
  *
- * ── Por qué una barra y no un anillo ────────────────────────────────────────
- * Es la misma forma que en el resumen: kcal grandes, barra segmentada por macro e
- * iconos con los gramos. Repetir la forma es lo que hace que la app se lea como
- * una sola cosa, y a lo ancho de la tarjeta caben las tres etiquetas sin
- * comprimir nada.
+ * ══ Dos formas, un solo editor ═════════════════════════════════════════════
  *
- * El anillo queda para las comidas y sus opciones, donde lo que se hace es
- * comparar varias piezas pequeñas entre sí.
+ * · `forma="lado"` (la de siempre) — la tarjeta del costado: rótulo, nombre del
+ *   día, la cifra grande y los tres macros en renglones. Va a plomo con «El
+ *   día», que está justo debajo diciendo los mismos gramos en g/kg.
+ * · `forma="mesa"` — una sección de la hoja, con las cuatro cifras en grande.
+ *   Se usa cuando el plan es por macros y no hay reparto: entonces el objetivo
+ *   es todo lo que se pauta, y lo que se pauta va en la mesa.
+ *
+ * En las dos, cambiarlo abre la MISMA ventana con las cuatro casillas, su vista
+ * previa del reparto y el aviso de descuadre.
+ *
+ * ── Aquí hubo una barra de tres colores ────────────────────────────────────
+ * Con un filete, una espiga y una gota, y los porcentajes en píldoras. Decía lo
+ * mismo que los tres números escritos debajo, y hacía que el ámbar significara
+ * «carbos» en una pantalla donde el ámbar significa «ojo con esto» pegado a una
+ * cifra. La barra se quedó donde de verdad trabaja —el editor, donde el tramo
+ * crece según tecleas— y la tarjeta pasó a `MacroLista`. Ver [[ley-del-color]].
  *
  * ── Los pasos diarios ya no están aquí ──────────────────────────────────────
  * Se fueron a `GoalCard`, con el cardio. Esta tarjeta es de UNA VARIANTE y la
@@ -40,151 +34,174 @@ const UNIDADES = {
  * los días de entreno —en la de descanso había que esconderlo a mano— y daba a
  * entender que eran los pasos de esos días.
  */
-export const MacroTargetCard = ({ plan, variant = 'default', title, editable = false, onSave, onAbrir = null }) => {
+export const MacroTargetCard = ({
+  plan,
+  variant = 'default',
+  title,
+  editable = false,
+  onSave,
+  onAbrir = null,
+  /* `'lado'` es la tarjeta del costado de siempre; `'mesa'`, la sección que
+     baja a la hoja cuando el plan es por macros y no hay reparto que poner.
+     Misma pieza, mismo editor: lo único que cambia es la forma. */
+  forma = 'lado',
+  /* Las cuatro del envase en el editor, si el entrenador las tiene puestas. La
+     LECTURA de esta tarjeta no cambia: los macros son el objetivo y los micros,
+     composición; se leen sumados en el costado. Ver `AjustesPlan`. */
+  avanzado = false,
+  /* El peso contra el que se leen los g/kg, y de cuándo es. Solo la forma de
+     MESA los pinta: es la única en la que el objetivo no tiene al lado «El día»
+     del costado diciéndolos. Ver `bloque-cifras` más abajo. */
+  peso = null,
+  cuando = null,
+}) => {
   const targets = targetsFor(plan, variant);
   const macros = macroSplit(targets);
+  /* Los gramos ya redondeados y el reparto en %, para la forma de mesa. */
+  const reparto = macroBreakdown({
+    protein: targets.proteinGrams,
+    carbs: targets.carbsGrams,
+    fats: targets.fatsGrams,
+  });
 
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState(null);
-  /* El formulario va en el cuerpo de la ventana y «Guardar» en su pie: se atan
-     con `form=` y eso pide un id estable. */
-  const formId = useId();
-
-  const open = () => {
-    setForm(Object.fromEntries(TARGET_FIELDS.map((key) => [key, targets[key] ?? ''])));
-    setEditing(true);
-  };
-
-  const commit = (event) => {
-    event.preventDefault();
-    onSave(form);
-    setEditing(false);
-  };
+  const open = () => setEditing(true);
 
   const kcals = targets.targetKcals ?? (macros.total > 0 ? Math.round(macros.total) : null);
   const derived = !targets.targetKcals && macros.total > 0;
   /*
-    El descuadre lo ve SOLO quien puede cuadrarlo.
+    ══ EL DESCUADRE DEL PLAN VIVE EN EL EDITOR, Y SOLO ALLÍ ═══════════════════
 
-    Es un aviso de que las dos cifras del plan no casan —«los macros suman 1.863
-    kcal, por debajo del objetivo de 1.950»— y eso es una corrección dirigida a
-    quien programa. Al cliente se le pintaba igual, en naranja y bajo el título
-    de su dieta: le señalaba un fallo del trabajo de su entrenador que él no
-    puede tocar, en la pantalla que existe para que se fíe de lo que le han
-    pautado. Con `editable` en false no se enseña, que es exactamente la misma
-    condición con la que aparece o no el lápiz de al lado.
+    Aquí había un aviso —«los macros suman 2.732 kcal, por debajo del objetivo
+    de 3.050»— que decía exactamente lo mismo que el del formulario de abajo. Y
+    esa duplicación era la mitad de un problema mayor: en la misma pantalla se
+    llegaron a medir CUATRO cifras de kcal, todas ciertas y ninguna presentada.
+    Una cifra por pregunta, y esta pregunta —«mi objetivo no casa consigo
+    mismo»— se responde donde se arregla, que es tecleando los cuatro campos.
+
+    El cliente nunca lo vio (`editable` lo escondía) por una razón que sigue
+    valiendo entera: le señalaba un fallo del trabajo de su entrenador que él no
+    puede tocar. Ahora tampoco lo ve el entrenador FUERA del sitio donde lo
+    corrige, que es la otra mitad de la misma idea.
   */
-  const mismatch =
-    editable &&
-    targets.targetKcals &&
-    macros.total > 0 &&
-    Math.abs(macros.total - targets.targetKcals) > 60;
 
   const nombre = (title || 'Objetivo diario').replace(/^Objetivo(?: ·)? /, '');
 
-  /* Lo que se está tecleando ahora mismo, para la barra y el aviso de la
-     ventana. Con la ventana cerrada `form` es null y se lee lo guardado, así
-     que la barra nunca aparece vacía en el primer fotograma. */
-  const borrador = form ?? targets;
-  const sumaBorrador = macroSplit({
-    proteinGrams: borrador.proteinGrams,
-    carbsGrams: borrador.carbsGrams,
-    fatsGrams: borrador.fatsGrams,
-  }).total;
-  const objetivoBorrador = toNum0(borrador.targetKcals);
-  const descuadre =
-    objetivoBorrador > 0 && sumaBorrador > 0 && Math.abs(sumaBorrador - objetivoBorrador) > 60
-      ? {
-          suma: Math.round(sumaBorrador),
-          objetivo: Math.round(objetivoBorrador),
-          cuanto: Math.round(Math.abs(sumaBorrador - objetivoBorrador)),
-          signo: sumaBorrador > objetivoBorrador ? 'por encima' : 'por debajo',
-        }
-      : null;
-
   /*
-    ══ EL OBJETIVO SE PONE EN UNA VENTANA CENTRADA ════════════════════════════
-
-    La tarjeta se sustituía a sí misma por un formulario: las cifras del plan
-    desaparecían, las cuatro casillas ocupaban su sitio y la columna entera daba
-    un salto. Con dos dietas eso pasaba en una de las dos tarjetas mientras la
-    otra se quedaba quieta al lado, así que además se perdía la comparación —que
-    es justo para lo que están las dos juntas.
-
-    Se decide, no se compara con lo de debajo: por eso va CENTRADA y no por el
-    canto derecho. Es la misma regla que ya tenían los ajustes del programa en
-    `WorkoutLogEditor` («`side` está para mirar un detalle sin soltar el trabajo,
-    no para decidir») y la que ahora siguen también las hojas de la ficha.
+    EL EDITOR es su propia pieza (`EditarObjetivo`): el objetivo se lee ya en
+    tres formas —esta tarjeta, la sección de la mesa y la sección del costado de
+    la dieta— y atar el formulario a una de ellas obligaba a montar esa lectura
+    aunque no se quisiera pintar. Aquí queda solo la lectura y su llave.
   */
   const ventana = (
-    <Modal
+    <EditarObjetivo
       open={editing}
       onClose={() => setEditing(false)}
       title={title || 'Objetivo diario'}
-      footer={
-        <>
-          <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
-            Cancelar
-          </button>
-          <button type="submit" form={formId} className="btn btn-primary">
-            <Check size={15} /> Guardar
-          </button>
-        </>
-      }
-    >
-      <form id={formId} className="col gap-4" onSubmit={commit}>
-        {/*
-          ── El objetivo se ve mientras se escribe ──────────────────────────
-          Era un formulario de cuatro casillas: cuatro números sueltos y ninguna
-          idea de qué salía de ellos. Pero un objetivo de macros NO es cuatro
-          números, es un reparto —y el reparto solo se entiende viéndolo—, así
-          que arriba va la misma barra que enseña la tarjeta, alimentada por el
-          BORRADOR: se teclean 120 de proteína y el trozo rosa crece ahí mismo.
-          Ni una pieza nueva; la del producto, en el sitio donde se decide.
-        */}
-        <MacroBar
-          protein={borrador.proteinGrams}
-          carbs={borrador.carbsGrams}
-          fats={borrador.fatsGrams}
-          kcals={borrador.targetKcals}
-        />
-
-        <div className="grid-auto">
-          {TARGET_FIELDS.map((key) => (
-            <label className="field" key={key}>
-              <span className="field-label">{LABELS[key]}</span>
-              {/* La unidad va DENTRO del recuadro, no entre paréntesis en la
-                  etiqueta: es parte de lo que se escribe. Ver `.input-suffix`. */}
-              <span className="input-suffix">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="input input-center"
-                  value={form?.[key] ?? ''}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                />
-                <span aria-hidden="true">{UNIDADES[key]}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-
-        {/*
-          El descuadre, POR FIN donde se arregla. Vivía solo en la tarjeta —o
-          sea, fuera del editor—, así que avisaba de un desajuste en la única
-          pantalla en la que no se podía tocar. Aquí se recalcula con cada
-          tecla. Dice lo que pasa y no qué hacer: cuadrarlo bajando carbos o
-          subiendo el objetivo es criterio del entrenador, no de la aplicación.
-        */}
-        {descuadre && (
-          <p className="t-xs" style={{ color: 'var(--warning)' }}>
-            Los macros suman {descuadre.suma} kcal, {descuadre.cuanto}{' '}
-            {descuadre.signo} del objetivo de {descuadre.objetivo}.
-          </p>
-        )}
-      </form>
-    </Modal>
+      targets={targets}
+      onSave={onSave}
+      avanzado={avanzado}
+    />
   );
+
+  /*
+    ══ EN LA MESA, CUANDO LA MESA NO TIENE OTRA COSA QUE HACER ════════════════
+
+    Un plan «por macros / solo el objetivo» es el chasis de fábrica, o sea lo
+    primero que ve cualquier cliente nuevo. Y su hoja tenía OCHOCIENTOS CINCUENTA
+    PÍXELES vacíos: la mesa —746 px de ancho, el sitio noble de la pantalla—
+    llevaba la elección de cómo se pauta y el rótulo de las pautas, y nada más,
+    mientras el objetivo del día vivía en una tarjeta de 300 px al costado.
+
+    Y el objetivo, en ese plan, ES el trabajo: el entrenador ha dicho que no
+    reparte nada por comidas, así que las cuatro cifras son todo lo que pauta.
+    La ley de esta pantalla lleva escrita la respuesta desde la tanda 1: en la
+    mesa lo que se pauta, en el costado con qué se juzga. Estaba al revés.
+
+    Baja tal cual —el MISMO editor, el mismo descuadre, el mismo `onSave`—, con
+    la anatomía de una sección de hoja: rótulo, dato en voz baja, verbo en azul
+    al canto. Las cifras son `.bloque-cifra`, la pieza con la que Entreno pinta
+    las suyas dentro de su hoja: una mesa y otra, la misma gramática.
+
+    ── Y EL COSTADO SE QUEDA SIN «EL DÍA» TAMBIÉN ────────────────────────────
+    Aquí ponía que conservaba «El día» —«los mismos gramos en g/kg»— y esa era
+    la avería que quedaba viva en la pantalla por macros: la mesa decía «120 g ·
+    Proteína · 15 %» y el costado, cuatrocientos píxeles a la derecha, «Proteína
+    120 g · 1,59 g/kg». Los mismos tres gramajes por tercera vez.
+
+    Con un menú que sumar, «El día» dice algo que la mesa no puede decir —lo que
+    suma su menú contra lo pedido—. Sin menú no suma nada: lo único que añadía
+    eran los g/kg, y los g/kg son un apunte de esta cifra, no otra lectura. Así
+    que bajan aquí, al renglón de cada macro, y el costado se queda con lo que sí
+    es suyo: el ciclo y la evolución. Ver `NutritionModule`.
+  */
+  if (forma === 'mesa') {
+    return (
+      <>
+        <section className="dieta-objetivo" aria-label="Lo que le pides al día">
+          <div className="pautas-cab">
+            <span className="section-label">{title || 'Lo que le pides al día'}</span>
+            <span className="pautas-dice">
+              {macros.total === 0
+                ? 'Ponle las kcal y los macros que tiene que cuadrar.'
+                : 'Sin reparto por comidas: lo que cuadra es el día entero.'}
+            </span>
+            <span className="tira-hueco" />
+            {editable && (
+              <button type="button" className="cab-accion" onClick={open}>
+                {macros.total === 0 ? 'Poner el objetivo' : 'Cambiar'}
+              </button>
+            )}
+          </div>
+
+          <div className="bloque-cifras is-4">
+            <div className="bloque-cifra">
+              <span className="v">
+                {kcals > 0 ? kcals : '—'}
+                <small> kcal</small>
+              </span>
+              <span className="k">{derived ? 'salen de los macros' : 'al día'}</span>
+            </div>
+            {MACRO_META.map(({ key, label }) => {
+              const porKilo = peso > 0 && reparto.grams[key] > 0
+                ? localeNumber(Math.round((reparto.grams[key] / peso) * 100) / 100)
+                : null;
+              return (
+                <div className="bloque-cifra" key={key}>
+                  <span className="v">
+                    {reparto.grams[key]}
+                    <small> g</small>
+                  </span>
+                  <span className="k">
+                    {label}
+                    {!reparto.empty && ` · ${reparto.pct[key]} %`}
+                    {/* Y los GRAMOS POR KILO aquí, que es la otra mitad de la
+                        misma cifra. Vivían en el costado, en «El día», con estos
+                        mismos tres gramajes al lado: en un plan por macros sin
+                        reparto la pantalla acababa enseñando «120 g de proteína»
+                        en la mesa y «Proteína 120 g · 1,59 g/kg» a cuatrocientos
+                        píxeles, o sea la tercera lista de macros de la misma
+                        pantalla. Es la avería que este archivo ya cuenta haber
+                        corregido dos veces. Aquí no cabe otra lectura: si estos
+                        son 120 g y no hay menú que sumar, lo único que se puede
+                        añadir es a cuánto salen por kilo. */}
+                    {porKilo && ` · ${porKilo} g/kg`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {peso > 0 && (
+            <p className="t-xs t-tertiary">
+              g/kg sobre {localeNumber(peso)} kg{cuando ? ` · último el ${shortDate(cuando)}` : ''}
+            </p>
+          )}
+        </section>
+        {ventana}
+      </>
+    );
+  }
 
   return (
     <>
@@ -232,12 +249,32 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
         </div>
       )}
 
-      <MacroBar
+      {/*
+        ══ LA CIFRA, Y DEBAJO LOS TRES MACROS A PLOMO CON «EL DÍA» ═══════════
+
+        Aquí había una barra de tres colores con un filete, una espiga y una
+        gota, y los porcentajes en píldoras. Justo debajo, en la misma columna
+        de 300 px, «El día» listaba ESOS MISMOS TRES MACROS en renglones
+        sobrios. La misma información dibujada dos veces y en dos idiomas.
+
+        Es la avería que ya se corrigió una vez —«El día» y «El reparto» eran
+        dos tarjetas seguidas con la misma lista de tres— y que había vuelto por
+        arriba.
+
+        Ahora las dos usan la misma pieza, el renglón de `Medidor`, así que el
+        gramaje cae bajo el gramaje y el apunte en voz baja bajo el apunte: aquí
+        el reparto en %, abajo los g/kg. Ver `MacroLista`.
+      */}
+      <div className="objetivo-cifra">
+        <span className="v">{kcals > 0 ? kcals : '—'}</span>
+        <span className="u">kcal</span>
+      </div>
+      {derived && <p className="t-xs t-tertiary">calculadas a partir de los macros</p>}
+
+      <MacroLista
         protein={targets.proteinGrams}
         carbs={targets.carbsGrams}
         fats={targets.fatsGrams}
-        kcals={kcals}
-        caption={derived ? 'calculadas a partir de los macros' : undefined}
       />
 
       {macros.total === 0 && (
@@ -246,13 +283,6 @@ export const MacroTargetCard = ({ plan, variant = 'default', title, editable = f
         </p>
       )}
 
-      {mismatch && (
-        <p className="t-xs" style={{ color: 'var(--warning)' }}>
-          Los macros suman {Math.round(macros.total)} kcal,{' '}
-          {macros.total > targets.targetKcals ? 'por encima' : 'por debajo'} del objetivo de{' '}
-          {targets.targetKcals}.
-        </p>
-      )}
     </article>
     {ventana}
     </>

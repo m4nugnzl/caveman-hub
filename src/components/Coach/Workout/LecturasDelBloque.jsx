@@ -110,7 +110,12 @@ const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
    La cuenta por grupo vive en el dominio (`volumeByGroup`) y las barras en
    `ui/BarrasDeVolumen`. */
 
-const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
+/* Exportada porque el COMPOSITOR necesita decir lo mismo: cuántas series lleva
+   cada grupo en el bloque que se está montando. Es presentación pura —recibe
+   los grupos ya contados— así que vale igual para un bloque guardado y para uno
+   que todavía no está escrito en ninguna parte. Escribir allí una segunda
+   tarjeta sería tener dos maneras de decir la misma cifra. */
+export const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
   const pasados = grupos.filter((m) => m.mrv && m.valor > m.mrv).length;
   return (
     <section className={`lado-tarjeta${grupos.length > 0 ? ' tarjeta-puerta' : ''}`} aria-label="Volumen por grupo">

@@ -19,10 +19,35 @@ import { Notice } from '@/components/ui/primitives';
  *
  * Nada se aplica hasta pulsar el botón, y aplicar lleva su «Deshacer» (lo pone
  * quien llama, que es quien guarda el menú anterior).
+ *
+ * ══ Y ahora reescala por DOS medidas ═══════════════════════════════════════
+ *
+ * Por kcal es el ajuste de siempre: bajas el objetivo del día y bajan hidratos
+ * y grasas. Por HIDRATOS es la operación de un ciclado —duplicas «Alto», le
+ * quitas cien gramos de hidratos y se mueve solo la fuente de hidratos, con la
+ * proteína Y LAS GRASAS quietas—. Sin la segunda, montar un alto/bajo obligaba a
+ * recorrer las veinte filas a mano, que es exactamente lo que esta ventana
+ * existe para evitar.
+ *
+ * Es la misma ventana porque es la misma pregunta y la misma respuesta: qué
+ * gramos se van a mover. Lo único que cambia son las palabras, y salen del
+ * propio cálculo (`res.unidad`, `res.sinNada`).
+ *
+ * @param {'kcals'|'carbs'} medida  Con qué se reescala.
+ * @param {number} from  El valor anterior de esa medida.
+ * @param {number} to    El nuevo.
  */
-export const ReescalarMenu = ({ plan, variant, fromKcals, toKcals, onApply, onClose }) => {
+export const ReescalarMenu = ({ plan, variant, medida = 'kcals', from, to, onApply, onClose }) => {
   const meals = mealsForVariant(plan, variant);
-  const res = useMemo(() => rescaleMeals(meals, { fromKcals, toKcals }), [meals, fromKcals, toKcals]);
+  const porHidratos = medida === 'carbs';
+  const res = useMemo(
+    () =>
+      rescaleMeals(
+        meals,
+        porHidratos ? { fromCarbs: from, toCarbs: to } : { fromKcals: from, toKcals: to }
+      ),
+    [meals, porHidratos, from, to]
+  );
 
   /* Agrupado por comida y opción, que es como se va a comprobar contra la hoja. */
   const grupos = useMemo(() => {
@@ -42,7 +67,7 @@ export const ReescalarMenu = ({ plan, variant, fromKcals, toKcals, onApply, onCl
 
   return (
     <Modal
-      title={`Reajustar el menú a ${toKcals} kcal`}
+      title={porHidratos ? `Reajustar el menú a ${to} g de hidratos` : `Reajustar el menú a ${to} kcal`}
       onClose={onClose}
       footer={
         <div className="row gap-2">
@@ -57,9 +82,11 @@ export const ReescalarMenu = ({ plan, variant, fromKcals, toKcals, onApply, onCl
     >
       <div className="col gap-4">
         <p className="t-sm t-secondary" style={{ margin: 0 }}>
-          El objetivo pasó de {fromKcals} a {toKcals} kcal. Esto escala los hidratos y las grasas
-          de cada opción en la misma proporción; la proteína y lo que se cuenta por unidades no se
-          tocan, y los gramos se redondean a medida de cocina.
+          El objetivo pasó de {from} a {to} {res.unidad}.{' '}
+          {porHidratos
+            ? 'Esto mueve solo las fuentes de hidratos de cada opción, en la misma proporción; la proteína, las grasas y lo que se cuenta por unidades no se tocan.'
+            : 'Esto escala los hidratos y las grasas de cada opción en la misma proporción; la proteína y lo que se cuenta por unidades no se tocan.'}{' '}
+          Los gramos se redondean a medida de cocina.
         </p>
 
         <div className="col gap-3">
@@ -83,8 +110,8 @@ export const ReescalarMenu = ({ plan, variant, fromKcals, toKcals, onApply, onCl
         {res.sinTocar.length > 0 && (
           <Notice tone="info">
             {res.sinTocar.length === 1
-              ? `«${res.sinTocar[0].meal}» (opción ${res.sinTocar[0].option}) no tiene hidratos ni grasas que mover y se queda como está.`
-              : `${res.sinTocar.length} opciones no tienen hidratos ni grasas que mover y se quedan como están.`}
+              ? `«${res.sinTocar[0].meal}» (opción ${res.sinTocar[0].option}) ${res.sinNada} y se queda como está.`
+              : `${res.sinTocar.length} opciones ${res.sinNada.replace('tiene', 'tienen')} y se quedan como están.`}
           </Notice>
         )}
       </div>

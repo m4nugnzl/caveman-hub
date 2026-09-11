@@ -50,6 +50,7 @@ export const useCloseReview = () => {
     publishUpdate,
     nutrition,
     workoutData,
+    clients,
   } = useApp();
   const toast = useToast();
 
@@ -72,7 +73,13 @@ export const useCloseReview = () => {
       const res = await reviewCheckIn(
         id,
         notes,
-        planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId] })
+        planSnapshot({
+          nutrition: nutrition[clientId],
+          program: workoutData[clientId],
+          /* Su ciclo es lo que convierte la foto en la media del ciclo en vez
+             de en el primer día del plan. Ver `cycleFoto`. */
+          client: clients.find((c) => c.id === clientId) || null,
+        })
       );
       if (!res.ok) return res;
 
@@ -103,6 +110,7 @@ export const useCloseReview = () => {
       toast,
       nutrition,
       workoutData,
+      clients,
     ]
   );
 

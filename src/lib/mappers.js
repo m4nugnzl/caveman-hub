@@ -474,25 +474,60 @@ export const mapNutritionFromDb = (row) => ({
   closedMeals: row.closed_meals || [],
   closedMealsTraining: row.closed_meals_training || [],
   closedMealsRest: row.closed_meals_rest || [],
+  /* Los días y el reparto del ciclo (migración 0111). Vacíos mientras el plan
+     quepa en las columnas de arriba: ver «LOS DÍAS DE LA DIETA» en
+     `domain/nutrition.js`. Con la lista puesta, ELLA manda y lo de arriba es su
+     reflejo. */
+  days: row.days || [],
+  week: row.week || {},
 });
 
-export const mapNutritionToDb = (clientId, data) => ({
-  client_id: clientId,
-  type: data.type,
-  target_kcals: data.targetKcals,
-  protein_grams: data.proteinGrams,
-  carbs_grams: data.carbsGrams,
-  fats_grams: data.fatsGrams,
-  steps_goal: data.stepsGoal,
-  cardio_goal: data.cardioGoal,
-  habits_notes: data.habitsNotes,
-  has_day_variants: data.hasDayVariants,
-  meals: data.restTargets ? { restTargets: data.restTargets } : [],
-  closed_meals: data.closedMeals,
-  closed_meals_training: data.closedMealsTraining,
-  closed_meals_rest: data.closedMealsRest,
-  updated_at: new Date().toISOString(),
-});
+/**
+ * ── El reflejo de los dos primeros días en las columnas de siempre ──────────
+ *
+ * Con `days` escrito, el plan tiene N días y las columnas viejas solo saben de
+ * uno o dos. Se siguen escribiendo igualmente, por POSICIÓN: el primer día a
+ * las columnas principales y el segundo al de descanso.
+ *
+ * No es por nostalgia. Un plan lo leen por su cuenta la copia de seguridad
+ * (`scripts/backup.mjs`), la radiografía y cualquier cliente que todavía tenga
+ * abierta la versión anterior de la aplicación. Sin el reflejo, todos ellos
+ * verían una dieta vacía; con él ven los dos primeros días, que es incompleto
+ * pero no es falso.
+ *
+ * `days` y `week` solo se envían si hay algo que enviar. Es la misma cautela
+ * que `blocks` en `mapWorkoutToDb`: quien nunca añada un tercer día nunca toca
+ * las columnas nuevas, así que el código puede desplegarse antes que la 0111.
+ */
+export const mapNutritionToDb = (clientId, data) => {
+  const dias = data.days?.length ? data.days : null;
+  const primero = dias?.[0] || null;
+  const segundo = dias?.[1] || null;
+  const objetivo = (dia, campo, porDefecto) => (dia ? dia.targets?.[campo] ?? null : porDefecto);
+
+  return {
+    client_id: clientId,
+    type: data.type,
+    target_kcals: objetivo(primero, 'targetKcals', data.targetKcals),
+    protein_grams: objetivo(primero, 'proteinGrams', data.proteinGrams),
+    carbs_grams: objetivo(primero, 'carbsGrams', data.carbsGrams),
+    fats_grams: objetivo(primero, 'fatsGrams', data.fatsGrams),
+    steps_goal: data.stepsGoal,
+    cardio_goal: data.cardioGoal,
+    habits_notes: data.habitsNotes,
+    has_day_variants: dias ? dias.length > 1 : data.hasDayVariants,
+    meals: segundo
+      ? { restTargets: segundo.targets }
+      : data.restTargets
+        ? { restTargets: data.restTargets }
+        : [],
+    closed_meals: dias ? (dias.length === 1 ? primero.meals : []) : data.closedMeals,
+    closed_meals_training: dias ? (dias.length > 1 ? primero.meals : []) : data.closedMealsTraining,
+    closed_meals_rest: dias ? segundo?.meals || [] : data.closedMealsRest,
+    ...(dias ? { days: dias, week: data.week || {} } : {}),
+    updated_at: new Date().toISOString(),
+  };
+};
 
 // ── Bibliotecas del coach ──────────────────────────────────────────────────
 //
@@ -526,6 +561,35 @@ export const mapLibraryExerciseFromDb = (row) => ({
   /* `row.alternatives` existe en la tabla (0098) y ya no se lee: las
      alternativas se retiraron del producto. La columna se queda —borrarla es
      irreversible— pero no entra en el modelo. Ver `domain/training.js`. */
+});
+
+/**
+ * Una pieza del cajón del entrenador (0112): un bloque, un día o un plato
+ * guardado con nombre. Ver `domain/cajon.js`.
+ *
+ * `savedAt` y no `createdAt` porque es como se llama en el producto desde que
+ * existen las piezas y los platos, y es lo que la fila enseña: cuándo lo
+ * guardaste. La columna de la tabla es `created_at` porque ahí es una fila.
+ */
+/*
+  ── EL PUENTE DE LA 0114, Y POR QUÉ SE LEE AQUÍ ────────────────────────────
+  Los platos se guardaron como `kind: 'comida'` hasta que el plato tuvo forma
+  propia en el portapapeles (`TIPO.PLATO`). La 0114 reescribe esas filas, pero
+  entre que se despliega el código y se aplica la migración —o si se aplica en
+  el otro orden— un `kind` que ya nadie conoce no se enseña en ningún tramo, y
+  el entrenador vería su vitrina de platos VACÍA sin que nada se lo dijera. Que
+  es exactamente el dato falso contra el que se escribió el puente de `useCajon`.
+
+  Se traduce al leer, que no cuesta nada y no puede llegar tarde. Se retira
+  cuando la 0114 esté aplicada en todas partes.
+*/
+export const mapCajonFromDb = (row) => ({
+  id: row.id,
+  kind: row.kind === 'comida' ? 'plato' : row.kind,
+  name: row.name,
+  savedAt: row.created_at ?? null,
+  coachId: row.coach_id ?? null,
+  carga: row.carga || {},
 });
 
 export const mapLibraryFoodFromDb = (row) => ({
@@ -743,6 +807,14 @@ export const mapPlanFromDb = (row) =>
  * `recent_sessions` llega como el array de sesiones tal cual está guardado, sin
  * transformar: quien calcula tonelaje y series es el dominio, con los mismos
  * objetos de siempre.
+ *
+ * ── El índice, y qué pasa sin la 0110 ───────────────────────────────────────
+ * `microcycle_weeks` y `blocks` son de la 0110 y sirven para lo mismo que el
+ * `indice` que arma `trainingSummary`: saber por qué microciclo va cada uno y si
+ * tiene hoja escrita para la semana siguiente. Sin la migración aplicada llegan
+ * `undefined` y el índice queda vacío — mismo trato que `conFacturacion` arriba:
+ * la barra no pinta microciclo y la cola de «sin semana siguiente» sale a cero,
+ * que es preferible a inventarse un horizonte que no se ha podido leer.
  */
 export const mapTrainingSummaryFromDb = (row) => ({
   clientId: row.client_id,
@@ -750,4 +822,15 @@ export const mapTrainingSummaryFromDb = (row) => ({
   sessionCount: row.session_count || 0,
   microcycleCount: row.microcycle_count || 0,
   recentSessions: Array.isArray(row.recent_sessions) ? row.recent_sessions : [],
+  /* La semana más alta montada, como en `trainingSummary`: es el último recurso
+     del reloj (`semanaDeAhora`) para quien no tiene fecha de alta. */
+  weekNumber: Array.isArray(row.microcycle_weeks) && row.microcycle_weeks.length > 0
+    ? Math.max(...row.microcycle_weeks)
+    : null,
+  indice: {
+    microcycles: (Array.isArray(row.microcycle_weeks) ? row.microcycle_weeks : []).map((weekNumber) => ({
+      weekNumber,
+    })),
+    blocks: Array.isArray(row.blocks) ? row.blocks : [],
+  },
 });

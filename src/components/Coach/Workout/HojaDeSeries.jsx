@@ -1,19 +1,10 @@
-import { Fragment, useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, Plus, Quote, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowDown, ArrowUp, ClipboardPaste, Copy, GripVertical, Quote, Trash2 } from 'lucide-react';
 
-import { isSetLogged } from '@/domain/sessions';
-import {
-  nombreDeSubserie,
-  restLabel,
-  subseriesDe,
-  supersetLabels,
-  tecnicaDeLaSerie,
-  tecnicaFrase,
-  tecnicaSpec,
-} from '@/domain/training';
-import { toNum } from '@/lib/num';
+import { restLabel, supersetLabels } from '@/domain/training';
+import { useArrastreOrden } from '@/lib/useArrastreOrden';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { RemateDeLaSerie } from './RemateDeLaSerie';
+import { TablaDeSeries, camposDeLaHoja } from './TablaDeSeries';
 
 /**
  * La hoja de series: el día como TABLA, no como fichas.
@@ -55,31 +46,15 @@ import { RemateDeLaSerie } from './RemateDeLaSerie';
  *
  * Recibe exactamente las mismas props que `ExerciseList`, para que el editor
  * elija una u otra según el ancho sin cambiar nada más.
+ *
+ * ── Y la TABLA de cada ejercicio no vive aquí ──────────────────────────────
+ * Vivía, mientras esta fue la única superficie donde se escribía serie a serie.
+ * Desde que el compositor también pauta kilos y RIR está en `TablaDeSeries`,
+ * que es la misma pieza en los dos sitios: la de allí es esta sin la mitad de
+ * lo hecho. Aquí queda lo que es DE LA HOJA —el renglón del ejercicio, sus
+ * verbos, la excepción y el reordenar— y qué columnas pauta, que es una
+ * decisión de la hoja entera y no de una tabla.
  */
-/** El mínimo del rango objetivo: «8-10» → 8. */
-const minimoDe = (targetReps) => toNum(String(targetReps ?? '').split(/[-–]/)[0]);
-
-/* Las dos mitades, y el mismo orden en las dos: kg, reps, rir. La simetría no
-   es estética — es lo que deja comparar en horizontal sin contar columnas. */
-/* `pautable` dice que la columna solo existe si esta hoja la usa (ver
-   `conCampo`); `siempre` es la puerta por la que el protocolo del cliente puede
-   dejar una puesta de entrada aunque esté vacía. Las repeticiones no llevan
-   ninguna de las dos: son el objetivo que define una serie. */
-const CAMPOS_PIDES = [
-  { key: 'targetKg', label: 'kg', mode: 'decimal', pista: '', opcional: true, pautable: true },
-  { key: 'targetReps', label: 'reps', mode: 'text', pista: '8-10' },
-  { key: 'targetRir', label: 'rir', mode: 'numeric', pista: '2', pautable: true },
-];
-const CAMPOS_HECHO = [
-  { key: 'kg', label: 'kg', mode: 'decimal' },
-  { key: 'reps', label: 'reps', mode: 'numeric' },
-  { key: 'rir', label: 'rir', mode: 'numeric' },
-];
-/* Y lo que se anota en una tanda de remate: kilos y repeticiones. RIR no: una
-   bajada y un rest-pause van al fallo por definición, así que la columna solo
-   podría llevar un cero repetido. */
-const SUBCAMPOS = CAMPOS_HECHO.filter((c) => c.key !== 'rir');
-
 /*
   ══ LOS DESCANSOS QUE SE PAUTAN ═══════════════════════════════════════════
   Un campo numérico en segundos obliga a saber que 2 min son 120 y a teclear
@@ -92,37 +67,6 @@ const SUBCAMPOS = CAMPOS_HECHO.filter((c) => c.key !== 'rir');
   compone `restLabel`, que es quien sabe decir «90 s» y «2 min».
 */
 const DESCANSOS = [45, 60, 75, 90, 120, 150, 180, 240];
-
-/*
-  La celda vacía se queda VACÍA. El relleno era una raya, y las tres columnas
-  de «Hizo» de un microciclo sin registrar son doce rayas por ejercicio: sobre
-  cinco ejercicios, sesenta guiones alineados en tres columnas que se leen como
-  un dibujo antes que como una tabla. La casilla hundida ya dice que ahí se
-  escribe y que ahí no hay nada; la raya solo lo repite en tinta.
-
-  Los objetivos sí conservan su pista («8-10», «2»): ahí el relleno enseña el
-  FORMATO de lo que se espera, que no es evidente.
-*/
-const Celda = ({ value, placeholder = '', mode = 'numeric', tone = '', label, onChange }) => (
-  <input
-    type="text"
-    inputMode={mode}
-    className={`hoja-celda${tone ? ` ${tone}` : ''}`}
-    value={value ?? ''}
-    placeholder={placeholder}
-    aria-label={label}
-    onChange={(e) => onChange(e.target.value)}
-    onKeyDown={(e) => {
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      const hoja = e.currentTarget.closest('.hoja');
-      const campos = [...(hoja?.querySelectorAll('input.hoja-celda') || [])];
-      const siguiente = campos[campos.indexOf(e.currentTarget) + 1];
-      if (siguiente) siguiente.focus();
-      else e.currentTarget.blur();
-    }}
-  />
-);
 
 export const HojaDeSeries = ({
   exercises,
@@ -157,10 +101,44 @@ export const HojaDeSeries = ({
   /* El remate de UNA serie: `(exerciseId, indiceDeLaSerie, tecnica | null)`.
      Sin él la hoja enseña los remates pautados y no deja tocarlos. */
   onTecnica = null,
+  /* Copiar el ejercicio al portapapeles, con sus series y sus objetivos. Es lo
+     que Efort llama «copy sets between exercises» y aquí es lo mismo un escalón
+     más arriba: se copia el ejercicio entero y se pega donde haga falta, en
+     esta hoja o en la de otra persona. Como todo aquí, solo aparece si llega su
+     manejador — en el portal del cliente no llega. */
+  onCopiar = null,
+  /*
+    ── PONERLE A ESTA FILA LA PAUTA DE LA QUE SE LLEVA ───────────────────────
+    `pautaEnMano` es el ejercicio copiado (la pieza del portapapeles) y
+    `onPegarPauta(ex)` le pone sus series a la fila, conservando su nombre. El
+    verbo sale SOLO en la fila encendida, que es la misma regla que ⌘V: sin ella
+    serían diez botones a la vez, uno por fila, para un gesto que va a uno.
+
+    Y sale solo mientras se lleva algo, que es la ley del reposo de la casa: una
+    oferta que no se puede aceptar es mobiliario.
+  */
+  pautaEnMano = null,
+  onPegarPauta = null,
 }) => {
   const [notaAbierta, setNotaAbierta] = useState(null);
-  const [dragIndex, setDragIndex] = useState(null);
-  const [overIndex, setOverIndex] = useState(null);
+  /*
+    ══ REORDENAR ES UN GESTO DE PUNTERO, NO UN `draggable` ═══════════════════
+
+    Aquí vivió el arrastre de HTML5 —asa `draggable`, `onDrop` en la fila— y
+    estaba roto de una forma que no se ve: el gesto arrancaba, la fila se
+    atenuaba, el destino se marcaba... y soltar sobre el CUERPO de la fila no
+    disparaba ningún `drop`. Como el cuerpo de una fila son su tabla de series
+    y sus casillas —el 90 % de su superficie—, lo normal era arrastrar, soltar
+    y que no pasara nada. De ahí «no puedo mover ejercicios de orden».
+
+    `useArrastreOrden` es el mecanismo que esta casa ya tenía escrito para esto
+    (y que se quedó sin usar al morir el carril de días): el destino lo decide
+    la GEOMETRÍA —qué sitio hay bajo el puntero— y no quién recibe el evento,
+    funciona igual con el dedo, y la página sigue al puntero al llegar al canto,
+    que en una hoja de 2.000 px de alto es la diferencia entre poder llevar el
+    primero al último sitio y no poder.
+  */
+  const orden = useArrastreOrden({ onMove, eje: 'y' });
   /* Abrir a mano una columna de objetivo que esta hoja todavía no pauta. Es
      estado de PANTALLA y no dato: en cuanto se escribe el primer valor, la
      columna se sostiene sola y esto deja de importar. Ver `OBJETIVOS`. */
@@ -170,47 +148,16 @@ export const HojaDeSeries = ({
     return <p className="t-sm t-secondary hoja-vacia">{emptyMessage}</p>;
   }
 
-  /*
-    ══ CADA OBJETIVO SE PAUTA SI SE QUIERE, Y SU COLUMNA EXISTE SI SE PAUTA ══
-
-    «Tanto kg como reps como rir se deberían poder pautar si se quiere.» Los
-    tres eran tres reglas distintas y ninguna era esa:
-
-      · kg   — columna fija en todas las hojas. Medido sobre un bloque entero:
-               80 casillas y CERO escritas. De ahí «yo sigo viendo kg pautados».
-      · reps — columna fija, y esta sí se usa siempre: es el objetivo normal.
-      · rir  — encendido o apagado por el PROTOCOLO del cliente, o sea una
-               decisión que se toma en otra pantalla, otro día, para todas sus
-               hojas a la vez. Puesto, la columna salía vacía en las hojas donde
-               no se pauta; quitado, no había forma de pautarlo en la que sí.
-
-    Ahora la regla es una sola y la manda el CONTENIDO: la columna está si algo
-    de esta hoja la usa. Basta una serie con valor para que la columna esté en
-    todos sus ejercicios —han de cuadrar, es una tabla—, y para escribir el
-    primero está `aMano`, que la abre sin guardar nada.
-
-    `showRir` no desaparece: el protocolo sigue pudiendo dejar el RIR puesto de
-    entrada para quien programa así siempre. Lo que ya no hace es IMPEDIRLO.
-
-    `targetReps` no lleva `pautable`: el rango de repeticiones es el objetivo
-    que define una serie, y una hoja sin él no es una hoja.
-  */
-  const pautado = (key) =>
-    exercises.some((ex) => (ex.sets || []).some((s) => String(s?.[key] ?? '').trim() !== ''));
-  const conCampo = (c) =>
-    !c.pautable || (c.key === 'targetRir' && showRir) || pautado(c.key) || Boolean(aMano[c.key]);
-  const campos = CAMPOS_PIDES.filter(conCampo);
-  const conKg = campos.some((c) => c.key === 'targetKg');
-  const conRir = campos.some((c) => c.key === 'targetRir');
-  /* Los que faltan, para ofrecerlos: `+ kg`, `+ rir`. */
-  const porPautar = CAMPOS_PIDES.filter((c) => c.pautable && !conCampo(c));
-  const columnas = `${conRir ? 'is-rir' : 'is-sin-rir'}${conKg ? '' : ' is-sin-kg'}`;
+  /* Qué objetivos pauta esta hoja —y por tanto qué columnas tiene su tabla—,
+     con «+ kg» y «+ rir» para los que faltan. La regla entera, y por qué es del
+     CONTENIDO y no del protocolo, está en `camposDeLaHoja`. */
+  const { campos, porPautar, columnas } = camposDeLaHoja(exercises, { showRir, aMano });
   /* A1/A2, derivado de la posición. La superserie se decide al escribir el
      bloque; aquí —el plan de un microciclo— se lee. */
   const marcasSS = supersetLabels(exercises);
 
   return (
-    <div className="hoja">
+    <div className={`hoja${orden.arrastrando !== null ? ' is-ordenando' : ''}`} ref={orden.carrilRef}>
       {/*
         ══ NO HAY LEYENDA, Y ES A PROPÓSITO ══════════════════════════════════
         Aquí vivió un renglón —«lo que pides | lo que hizo»— sobre la retícula
@@ -235,18 +182,8 @@ export const HojaDeSeries = ({
         return (
           <section
             key={ex.id}
-            className={`hoja-ej${enFoco ? ' is-focused' : ''}${overIndex === index && dragIndex !== index ? ' is-drop-target' : ''}${dragIndex === index ? ' is-dragging' : ''}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOverIndex(index);
-            }}
-            onDragLeave={() => setOverIndex((i) => (i === index ? null : i))}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragIndex !== null && dragIndex !== index) onMove(dragIndex, index);
-              setDragIndex(null);
-              setOverIndex(null);
-            }}
+            className={`hoja-ej${enFoco ? ' is-focused' : ''}${orden.destino === index && orden.arrastrando !== index ? ' is-drop-target' : ''}${orden.arrastrando === index ? ' is-viajando' : ''}${orden.arrastrando !== null ? ' is-en-orden' : ''}`}
+            {...orden.pieza(index)}
             onClick={onFocusExercise ? () => onFocusExercise(ex.id) : undefined}
             onFocus={onFocusExercise ? () => onFocusExercise(ex.id) : undefined}
           >
@@ -254,29 +191,11 @@ export const HojaDeSeries = ({
               <button
                 type="button"
                 className="hoja-asa"
-                draggable
-                onDragStart={(e) => {
-                  setDragIndex(index);
-                  e.dataTransfer.effectAllowed = 'move';
-                  /* Firefox no arranca el arrastre sin datos: sin esto, el asa
-                     se puede agarrar y no pasa nada. Es la misma línea que la
-                     vista de bloque ya tenía y a esta hoja le faltaba. */
-                  try {
-                    e.dataTransfer.setData('text/plain', ex.name);
-                  } catch {
-                    /* Algún navegador puede negarse a escribir en el portapapeles
-                       de arrastre; el reordenado no depende del dato, solo lo
-                       necesita Firefox para arrancar el gesto. */
-                  }
-                }}
-                onDragEnd={() => {
-                  setDragIndex(null);
-                  setOverIndex(null);
-                }}
-                /* Y con el teclado, que es la otra mitad: el arrastre del ratón
-                   deja fuera a quien no lo pueda usar, y además es el camino
-                   fiable cuando el gesto no arranca. Igual que en la lista del
-                   teléfono (`ExerciseList`). */
+                {...orden.asa(index)}
+                /* Y con el teclado, que es la otra mitad: arrastrar deja fuera a
+                   quien no pueda hacerlo, y además es el camino exacto cuando se
+                   sabe adónde va. Igual que en la lista del teléfono
+                   (`ExerciseList`). */
                 onKeyDown={(e) => {
                   if (!e.altKey || !onMove) return;
                   if (e.key === 'ArrowUp' && index > 0) {
@@ -288,7 +207,7 @@ export const HojaDeSeries = ({
                   }
                 }}
                 aria-label={`Reordenar ${ex.name}. Alt y flechas para moverlo.`}
-                title="Arrastra para reordenar (o Alt + ↑/↓)"
+                title="Arrastra para moverlo de sitio (o Alt + ↑/↓)"
               >
                 <GripVertical size={15} />
               </button>
@@ -454,6 +373,30 @@ export const HojaDeSeries = ({
                   lo puntual. Sin `onRemoveOnly` —o sobre algo que ya es una
                   excepción— no hay nada que elegir y vuelve a ser un botón.
                 */}
+                {onCopiar && (
+                  <button
+                    type="button"
+                    className="btn btn-icon btn-icon-compact"
+                    title={`Copiar «${ex.name}» al portapapeles, con sus series`}
+                    aria-label={`Copiar «${ex.name}» al portapapeles`}
+                    onClick={() => onCopiar(ex)}
+                  >
+                    <Copy size={13} />
+                  </button>
+                )}
+                {/* La pauta de lo que se lleva, en esta fila. Solo en la
+                    encendida y solo con algo en la mano: ver `pautaEnMano`. */}
+                {onPegarPauta && pautaEnMano && enFoco && pautaEnMano.carga?.name !== ex.name && (
+                  <button
+                    type="button"
+                    className="btn btn-icon btn-icon-compact"
+                    title={`Poner en «${ex.name}» las series de «${pautaEnMano.carga?.name || pautaEnMano.titulo}»`}
+                    aria-label={`Poner en ${ex.name} las series de ${pautaEnMano.carga?.name || pautaEnMano.titulo}`}
+                    onClick={() => onPegarPauta(ex)}
+                  >
+                    <ClipboardPaste size={13} />
+                  </button>
+                )}
                 {onRemoveOnly && !excepcion ? (
                   <MenuAcciones
                     clase="btn btn-icon btn-icon-compact btn-icon-danger"
@@ -496,183 +439,15 @@ export const HojaDeSeries = ({
               </span>
             </header>
 
-            <div className={`hoja-tabla ${columnas}`} role="table" aria-label={`Series de ${ex.name}`}>
-              {/*
-                Los rótulos de ESTE ejercicio. Es la línea que el dueño pidió
-                —«kg, reps y rir deberían ir en cada fila, no se entiende qué va
-                dónde»— resuelta al nivel donde el dato deja de reconocerse: el
-                ejercicio. Por serie sería repetirla cuatro veces seguidas.
-              */}
-              <div className="hoja-fila is-head" role="row">
-                <span>#</span>
-                {campos.map((c) => (
-                  <span key={c.key}>{c.label}</span>
-                ))}
-                <span className="hoja-costura" aria-hidden="true" />
-                {CAMPOS_HECHO.map((c) => (
-                  <span key={c.key}>{c.label}</span>
-                ))}
-                <span />
-                <span />
-              </div>
-              {sets.map((set, i) => {
-                const etiqueta = `${ex.name}, serie ${i + 1}`;
-                const minimo = minimoDe(set.targetReps);
-                const hechas = toNum(set.reps);
-                const corta = minimo !== null && hechas !== null && hechas < minimo;
-                /* El remate de ESTA serie, y las tandas que cuelgan de él. */
-                const remate = tecnicaDeLaSerie(ex, i);
-                const subs = subseriesDe(remate);
-                return (
-                  <Fragment key={i}>
-                  <div
-                    className={`hoja-fila${isSetLogged(set) ? ' is-hecha' : ''}${remate ? ' is-remate' : ''}`}
-                    role="row"
-                  >
-                    <span className="hoja-num">{i + 1}</span>
-                    {campos.map((c) => (
-                      <Celda
-                        key={c.key}
-                        value={set[c.key]}
-                        placeholder={c.pista}
-                        mode={c.mode}
-                        /*
-                          El peso es el único objetivo OPCIONAL —vacío significa
-                          «a criterio del cliente», que es lo normal— así que
-                          vacío se dibuja como un renglón y no como una casilla.
-                          Con caja, una hoja donde nadie pauta pesos son cuatro
-                          cajas grises vacías por ejercicio, que es la avería que
-                          esta hoja ya arregló una vez en la mitad derecha.
-                        */
-                        tone={`is-pide${c.opcional && String(set[c.key] ?? '') === '' ? ' is-vacia' : ''}`}
-                        label={`${etiqueta}: ${c.label} que pides`}
-                        onChange={(v) => onSetChange(ex.id, i, c.key, v)}
-                      />
-                    ))}
-                    {/*
-                      LA COSTURA. Una columna de un píxel, presente en la
-                      cabecera, en cada serie y en cada subserie, así que la
-                      línea que parte lo pedido de lo hecho baja recta por toda
-                      la tabla. Un `border-left` en la primera celda de la
-                      derecha habría teñido el canto de un campo de escritura;
-                      esto no es de ningún campo, es de la tabla.
-                    */}
-                    <span className="hoja-costura" aria-hidden="true" />
-                    {/*
-                      ── LO QUE HIZO NO SE PINTA COMO LO QUE SE PIDE ─────────
-                      Las tres columnas de «Hizo» las escribe el CLIENTE desde
-                      su teléfono; el entrenador las toca para corregir una vez
-                      de cada veinte. Con la casilla hundida en las cinco
-                      columnas, un microciclo sin registrar son sesenta cajas
-                      grises por hoja y la pantalla entera se lee como un
-                      formulario en blanco: «me da la sensación de ser una hoja
-                      muy plana, sosa».
-
-                      Vacías son un renglón —el sitio donde caerá el dato, con
-                      su raya—; escritas o al pasar por encima recuperan la
-                      caja. El plan, que es lo que el entrenador SÍ escribe,
-                      conserva la suya en las dos columnas de la izquierda: la
-                      diferencia de superficie es la que separa lo pedido de lo
-                      hecho sin gastar un rótulo más.
-                    */}
-                    {CAMPOS_HECHO.map((c) => (
-                      <Celda
-                        key={c.key}
-                        value={set[c.key]}
-                        mode={c.mode}
-                        tone={[
-                          'is-hecho',
-                          String(set[c.key] ?? '') === '' ? 'is-vacia' : '',
-                          c.key === 'reps' && corta ? 'is-corta' : '',
-                          c.key === 'reps' && !corta && isSetLogged(set) ? 'is-cumple' : '',
-                        ]
-                          .filter(Boolean)
-                          .join(' ')}
-                        label={`${etiqueta}: ${c.label} hechos`}
-                        onChange={(v) => onSetChange(ex.id, i, c.key, v)}
-                      />
-                    ))}
-                    {/*
-                      El remate, en la fila que remata. Solo se pauta donde se
-                      escribe el plan: sin `onTecnica` —la hoja de solo lectura
-                      del portal— la columna se queda vacía y las cifras siguen
-                      cuadrando.
-                    */}
-                    {onTecnica ? (
-                      <RemateDeLaSerie
-                        tecnica={remate}
-                        etiqueta={etiqueta}
-                        onCambio={(t) => onTecnica(ex.id, i, t)}
-                      />
-                    ) : (
-                      <span />
-                    )}
-                    <button
-                      type="button"
-                      className="hoja-x"
-                      disabled={sets.length <= 1}
-                      aria-label={`Quitar ${etiqueta}`}
-                      title="Quitar serie"
-                      onClick={() => onRemoveSet(ex.id, i)}
-                    >
-                      <X size={13} />
-                    </button>
-                  </div>
-
-                  {/*
-                    ══ EL REMATE SE DIBUJA DONDE PASA ══════════════════════════
-                    «Que se vea bonito cuando pautas dropset o myoreps o cosas
-                    así.» Estuvo en el renglón del ejercicio, a cinco filas de
-                    la serie de la que hablaba, y luego al pie de la tabla. Las
-                    dos veces había que acordarse de a cuál se refería.
-
-                    Ahora cuelga de SU fila: el corchete, la pauta con sus
-                    números, y debajo un renglón por tanda —«bajada 1», «bajada
-                    2»— con sus casillas bajo las columnas de lo hecho. El
-                    nombre de la tanda ocupa el sitio de lo pedido porque eso es
-                    exactamente lo que es: lo pedido ya lo dice la pauta de
-                    arriba, y aquí solo se anota lo que salió.
-
-                    Tipografía de la hoja y no chapas de color: en esta tabla el
-                    color ya significa «repeticiones por debajo del objetivo».
-                  */}
-                  {remate && (
-                    <p className="hoja-remate" title={tecnicaSpec(remate.id)?.ayuda}>
-                      <span className="hoja-remate-corchete" aria-hidden="true" />
-                      {tecnicaFrase(remate)}
-                    </p>
-                  )}
-                  {Array.from({ length: subs }, (_, j) => {
-                    const extra = set.extras?.[j] || {};
-                    const nombre = nombreDeSubserie(remate, j);
-                    return (
-                      <div className="hoja-fila is-sub" role="row" key={`sub-${j}`}>
-                        <span className="hoja-num" aria-hidden="true" />
-                        <span className="hoja-sub-nombre">{nombre}</span>
-                        <span className="hoja-costura" aria-hidden="true" />
-                        {SUBCAMPOS.map((c) => (
-                          <Celda
-                            key={c.key}
-                            value={extra[c.key]}
-                            mode={c.mode}
-                            tone={`is-hecho${String(extra[c.key] ?? '') === '' ? ' is-vacia' : ''}`}
-                            label={`${etiqueta}, ${nombre}: ${c.label}`}
-                            onChange={(v) => onSetChange(ex.id, i, c.key, v, j)}
-                          />
-                        ))}
-                        <span />
-                        <span />
-                        <span />
-                      </div>
-                    );
-                  })}
-                  </Fragment>
-                );
-              })}
-              <button type="button" className="hoja-mas" onClick={() => onAddSet(ex.id)}>
-                <Plus size={13} /> serie
-              </button>
-            </div>
+            <TablaDeSeries
+              ex={ex}
+              campos={campos}
+              columnas={columnas}
+              onSetChange={onSetChange}
+              onAddSet={onAddSet}
+              onRemoveSet={onRemoveSet}
+              onTecnica={onTecnica}
+            />
 
             {conNota && (
               <label className="hoja-nota">

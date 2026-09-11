@@ -28,6 +28,7 @@ import {
   toggleQuestion,
   toggleService,
   activeServices,
+  queLeLlevas,
   isServiceOn,
   asksWeighIns,
   setWeighIns,
@@ -584,6 +585,19 @@ describe('los servicios', () => {
   it('un servicio que no existe se ignora', () => {
     const base = clientProtocol({});
     expect(toggleService(base, 'telepatia')).toBe(base);
+  });
+
+  /* La línea que resume lo que alguien lleva puesto, donde no cabe la etiqueta
+     larga: la celda «Protocolo» de su ficha y el pie de los interruptores a
+     mano. Ver `queLeLlevas`. */
+  it('se dice en dos palabras', () => {
+    expect(queLeLlevas(clientProtocol({}))).toBe('Entreno y dieta');
+    expect(queLeLlevas(clientProtocol({ protocol: { services: { nutrition: false } } }))).toBe(
+      'Entreno'
+    );
+    expect(queLeLlevas(clientProtocol({ protocol: { services: { training: false } } }))).toBe(
+      'Dieta'
+    );
   });
 
   /*

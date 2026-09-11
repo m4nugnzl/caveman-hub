@@ -321,7 +321,7 @@
    la del entrenador y merece el mismo sitio: la medida de trabajo, con el
    mosaico y sus dos columnas respirando. El fondo con aire se conserva. */
 @media (min-width: 1024px) { .layout-portal { max-width: var(--max-w); } }
-@media (min-width: 1440px) { .layout-portal { max-width: var(--max-w-trabajo); padding-left: var(--s6); padding-right: var(--s6); } }
+@media (min-width: 1440px) { .layout-portal { --hueco-hoja: var(--s6); max-width: var(--max-w-trabajo); padding-left: var(--hueco-hoja); padding-right: var(--hueco-hoja); } }
 
 /* ==========================================================================
    El mapa muscular — ver `ui/MapaMuscular.jsx`
@@ -541,8 +541,10 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* El menú de los dos navegadores es más ancho que el de acciones: lleva el
-   nombre y su dato, no un verbo. */
+/* El suelo de los dos navegadores es más alto que el del menú de acciones: sus
+   ítems llevan el nombre y su dato, no un verbo, y con un solo bloque en el
+   programa el menú no puede quedarse del ancho de una palabra. El ancho de
+   verdad lo pone `max-content` en `.menu-acciones-popover`. */
 .linea-titulo + .popover, .linea-micro + .popover { min-width: 268px; }
 /* En línea, para que el renglón se asiente por la base del botón y no por la
    primera línea del bloque que lo envuelve. */
@@ -736,6 +738,9 @@
    más abajo (ver `.plan-mesa`): allí hay panel, y dentro de un panel una caja
    por columna es un objeto suelto donde hay una tabla. */
 .plan-col {
+  /* Relativa por sus verbos, que se posan en la esquina (`.plan-col-acciones`)
+     para no quitarle el renglón al nombre de la hoja. */
+  position: relative;
   display: flex; flex-direction: column; gap: var(--s2); min-width: 0;
   padding: var(--s3) var(--s4) var(--s4);
   border: 1px solid var(--hairline); border-radius: var(--r-md);
@@ -1049,7 +1054,22 @@
    (`.mesa-cuerpo .plan-col-cab`), y con tres renglones de rótulo eso dejaba los
    tres botones flotando a media altura, a la de «hecha el miércoles», en vez de
    al lado del nombre de la hoja, que es sobre lo que actúan. */
-.plan-col-acciones { display: inline-flex; gap: 1px; align-self: flex-start; margin-top: 1px; opacity: 0; transition: opacity var(--fast); }
+/* ── LOS VERBOS DE LA HOJA, EN LA ESQUINA Y NO EN EL RENGLÓN ───────────────
+   Vivieron dentro de `.plan-col-cab`, en fila con el nombre. Con tres botones
+   ya apretaba; al entrar el cuarto —duplicar— el titular se quedó en «Emp…»
+   con la columna a 150 px, y encima SIEMPRE: la fila ocupa su ancho aunque
+   esté en `opacity: 0`, así que el nombre pagaba el sitio de unos botones que
+   no se veían.
+
+   Ahora se posan en la esquina, a la altura del renglón del día —que es corto
+   («LUN») y deja libre todo el canto derecho—, así que no tapan nada y el
+   nombre recupera la columna entera. Es la misma gramática de la casa: la caja
+   se enciende al alcanzarla y sus verbos aparecen donde no estorban. */
+.plan-col-acciones {
+  position: absolute; top: 5px; right: var(--s3);
+  display: inline-flex; gap: 1px;
+  opacity: 0; transition: opacity var(--fast);
+}
 .plan-col:hover .plan-col-acciones,
 .plan-col:focus-within .plan-col-acciones { opacity: 1; }
 @media (hover: none) { .plan-col-acciones { opacity: 1; } }
@@ -1459,6 +1479,40 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
 .lado-tarjeta .bloque-cifra { padding: var(--s2) var(--s3); }
 .lado-tarjeta .bloque-cifra > .v { font-size: var(--fs-lg); }
 .lado-tarjeta .bloque-cifra > .v > small { font-size: var(--fs-sm); }
+
+/* ── EL RENGLÓN DE UNA TARJETA DEL COSTADO ─────────────────────────────────
+   Nombre a la izquierda, cifra a la derecha, y nada en medio. Es el mismo
+   reparto que ya tiene la lista de progresión del bloque (`.progresion-quietos`)
+   y se separa de ella porque aquella habla de ejercicios y sus tonos: esto es
+   la forma pelada, la que usan «El reparto» y «La semana» de la dieta.
+
+   Sin filetes entre renglones: son tres o cuatro líneas dentro de una caja que
+   ya tiene canto, y una regla por línea convierte la tarjeta en una tabla. */
+.lado-lineas { display: flex; flex-direction: column; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.lado-lineas > li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  min-width: 0; font-size: var(--fs-sm);
+}
+.lado-lineas > li > .n {
+  display: inline-flex; align-items: baseline; gap: 6px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);
+}
+/* El punto del macro: el mismo disco de 7 px de la ley del color. */
+.lado-lineas > li > .n > i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+.lado-lineas > li > .d {
+  display: inline-flex; align-items: baseline; gap: 6px; flex-shrink: 0;
+  font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text);
+}
+.lado-lineas > li > .d > small { font-size: var(--fs-2xs); font-weight: 550; color: var(--text-tertiary); }
+.lado-lineas > li.is-on > .lado-linea-puerta { color: var(--text); font-weight: 650; }
+/* El nombre que además es puerta: texto, nunca caja — la ley de los gestos. */
+.lado-linea-puerta {
+  padding: 0; border: 0; background: transparent; font: inherit; text-align: left;
+  color: var(--text-secondary); cursor: pointer; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lado-linea-puerta:hover { color: var(--text); }
+.lado-linea-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
 
 /* ── El registro del bloque: la ley 2, a la vista ──────────────────────────
    Cada cambio del plan con su tramo y sus dos salidas, en el margen. Habla
@@ -1872,48 +1926,115 @@ a.title:hover { text-decoration: underline; }
    ══════════════════════════════════════════════════════════════════════════
 
    Componer es un trabajo con principio y final, y por eso tiene pantalla
-   propia. Reusa el banco entero —`.bloque-pagina.is-banco.is-definiendo`, con
-   el cajón a un lado y `.bloque-plan` en el centro—; lo único suyo es la
-   cabecera (de dónde vuelves y qué estás componiendo) y las tres puertas del
-   primer gesto.
+   propia. Dos pasos y dos piezas prestadas:
+
+     paso 1   la ficha del bloque y las tres puertas de las que parte
+     paso 2   la biblioteca fija a la izquierda y, a la derecha, LA MESA DE
+              ENTRENO —`.entreno-hoja.mesa-panel` con `.mesa-cuerpo` dentro—
+              con el camino (`.tira`) de cabecera y la rejilla del bloque
+              (`.plan-rejilla`) de contenido
+
+   O sea que de esta pantalla casi no hay CSS: lo suyo son las puertas, la
+   ficha leída y la rejilla de dos columnas. Todo lo demás se ve igual que en
+   `?v=bloque` porque ES lo de `?v=bloque`.
    ══════════════════════════════════════════════════════════════════════════ */
 .compositor-pagina { display: flex; flex-direction: column; gap: var(--s3); }
 
-/* ── La cabecera: qué es este bloque, en una línea ──────────────────────────
-   El nombre, a qué juega, cuánto se prevé que dure y las dos salidas. Esto
-   era un FORMULARIO de cuatro filas encima del plan —campo de nombre a todo
-   lo ancho, dos botones de duración, cinco pastillas de intención y otro
-   campo de texto—: el trabajo empezaba a media pantalla. Aquí las
-   características se leen sin ocupar sitio y solo se abren si se van a tocar. */
-.compositor-cab { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
-.compositor-say { display: flex; flex-direction: column; gap: 1px; margin-right: var(--s2); }
-.compositor-titulo {
-  margin: 0; padding: 0; border: 0; background: none;
-  text-align: left; color: var(--text);
-  font-family: var(--font-display);
-  font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.03em;
-}
-button.compositor-titulo { cursor: pointer; }
-button.compositor-titulo:hover { color: var(--accent); }
-.compositor-acciones { margin-left: auto; display: flex; align-items: center; gap: var(--s2); }
+/* ── LA CABECERA ES EL CAMINO, Y AQUÍ ESTUVIERON LAS CHAPAS ────────────────
+   Esto fue un FORMULARIO de cuatro filas encima del plan —el trabajo empezaba
+   a media pantalla—; después, para arreglarlo, las características subieron a
+   la cabecera como CHAPAS con su desplegable cada una. El dueño, con la
+   pantalla delante: «el "a qué juega" no me gusta nada, y tampoco la interfaz;
+   el cuánto dura y el nombre creo que deberían definirse distinto, quizás por
+   pasos».
 
-/* La chapa: un dato del bloque que además se puede cambiar. Apagada mientras
-   no se ha decidido —«A qué juega», «Abierto»—, y en tinta cuando sí. */
-.chapa {
-  display: inline-flex; align-items: center; gap: var(--s1);
-  padding: 4px var(--s3);
-  border: 1px solid var(--hairline-strong); border-radius: var(--r-pill);
-  background: var(--surface); color: var(--text-secondary);
-  font-size: var(--fs-xs); font-weight: 500;
-  cursor: pointer;
-  transition: border-color var(--fast), color var(--fast);
-}
-.chapa:hover { border-color: var(--accent); color: var(--accent); }
-.chapa.is-puesta { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+   Tenía razón y el diagnóstico es el mismo las dos veces: son datos que se
+   deciden UNA vez, al empezar, y estaban puestos donde se trabaja cincuenta
+   veces al día. Ahora tienen su propio paso (`.compositor-paso`) y en la mesa
+   se LEEN en una línea callada (`.compositor-ficha`).
 
-/* ── El banco: la biblioteca fija y la mesa ──────────────────────────────── */
-.compositor { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: var(--s3); align-items: start; }
-.compositor-centro { min-width: 0; }
+   Lo que queda arriba es el camino —`.tira`, la misma pieza que Entreno— y las
+   dos salidas. La flecha de volver se va con las chapas: se vuelve pulsando la
+   miga, que es la ley que esta casa ya había escrito en `TiraDelPrograma`. */
+.compositor-acciones { display: flex; align-items: center; gap: var(--s2); flex-shrink: 0; }
+/* ── Deshacer y rehacer, y por qué van SEPARADOS de las dos salidas ─────────
+   Son de otra familia: tocan el bloque, no lo terminan. Pegados a «Cancelar»
+   se leerían como una tercera y una cuarta forma de salir de aquí, que es
+   justo lo que no son. Un filete y el aire bastan; y salen solo cuando hay
+   algo que deshacer, así que la fila no se mueve sin motivo. */
+.compositor-mandos {
+  display: flex; align-items: center; gap: 1px;
+  padding-right: var(--s2); border-right: 1px solid var(--hairline);
+}
+/* El camino vive DENTRO del panel, como la tira de Entreno: hereda de
+   `.entreno-hoja > .tira` el fondo hundido y el filete de abajo, y aquí solo
+   se le dice que no lleva el segundo renglón. */
+.compositor-tira { gap: 0; }
+/* ══ Y LO QUE SE PARTE ES LA FILA, NO EL CAMINO ════════════════════════════
+   Medido con cuatro hojas a 1600 px (12 sep 2026): la cabecera salía rota —el
+   nombre de la hoja abierta flotando arriba y «Tirón», «Pierna», «Full body»
+   apilados debajo, uno por renglón—. La causa es de aquí y no de la tira:
+   Entreno pinta este mismo camino en una sola línea porque sus verbos son
+   iconos, y el compositor lleva en la misma fila DOS botones con texto —
+   «Cancelar» y «Cerrar “Bloque 1” y abrir este», unos 400 px— sobre una mesa
+   que además es la estrecha de las tres columnas (biblioteca · mesa · costado).
+   Con `nowrap` en la fila, lo único que podía partirse era la lista de hojas.
+
+   Ahora la fila envuelve: cuando no caben las dos cosas, lo que baja a un
+   segundo renglón son las SALIDAS —que son dos y siempre las mismas— y el
+   camino se queda entero en el primero, que es lo que hay que poder leer de
+   una pasada. Con mesa ancha vuelven solas a su sitio. */
+.compositor-tira > .tira-fila { flex-wrap: wrap; row-gap: var(--s2); }
+/* Y al bajar, pegadas al canto derecho: sueltas a la izquierda se leerían como
+   el principio de otra fila de camino. */
+.compositor-acciones { margin-left: auto; }
+
+/* ── El banco: la biblioteca fija y la mesa ────────────────────────────────
+   ══ SE LLAMABA `.compositor`, Y ESO ERA UNA AVERÍA ═════════════════════════
+   La caja de mensaje de Revisión se llama `.compositor` desde antes (ver
+   `revision.css`), y esta rejilla heredaba de ella lo que `piezas.css` no
+   redeclaraba: un canto, un radio, un fondo de superficie, un relleno de 4 px
+   y —lo peor— un `:focus-within` con resplandor de acento. O sea que el banco
+   entero iba metido en una tarjeta que se ENCENDÍA en azul cada vez que se
+   escribía en cualquier campo de la pantalla.
+
+   Dos colisiones de nombre en la misma pantalla (la otra era `.hojas-carril`,
+   ver `revision.css`), y las dos por lo mismo: nombres de clase genéricos que
+   sobreviven a la pantalla que los inventó. Este se hace propio. */
+/* ── TRES COLUMNAS: DE DÓNDE SALE, DÓNDE SE MONTA, Y CUÁNTO LLEVAS ────────
+   La anatomía de Entreno, entera: la biblioteca fija a la izquierda, la mesa
+   en medio y el costado con las lecturas a la derecha. Faltaba la tercera, y
+   con ella la respuesta a la única pregunta que uno se hace mientras reparte
+   ejercicios entre cinco hojas: de qué son estas series. El pie decía cuántas
+   («90 series por microciclo») y ahí se acababa.
+
+   El costado cae a 264 px —las barras de volumen tuvieron 300 desde siempre y
+   no necesitan más— y se TUMBA debajo de la mesa a partir de 1439, no
+   desaparece: la rejilla necesita ese ancho para no partir las columnas, pero
+   la lectura sigue haciendo falta. */
+.compositor-banco { display: grid; grid-template-columns: 264px minmax(0, 1fr) 264px; gap: var(--s3); align-items: start; }
+.compositor-costado { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+@media (max-width: 1439.98px) {
+  .compositor-banco { grid-template-columns: 264px minmax(0, 1fr); }
+  .compositor-costado { grid-column: 2; }
+}
+@media (max-width: 1023.98px) {
+  .compositor-banco { grid-template-columns: minmax(0, 1fr); }
+  .compositor-costado { grid-column: 1; }
+}
+/* ── EL PASO 1 NO TIENE BANCO ──────────────────────────────────────────────
+   Aquí se decide qué bloque es, no se le meten ejercicios: la biblioteca ni
+   se pinta (ver `Compositor`), así que la rejilla se queda en una columna.
+
+   Y la columna se CENTRA y se cae a 920 px. Un formulario de cuatro filas
+   estirado a 1.500 px no se lee mejor: se lee desamparado —que es la palabra
+   que usó el dueño, «escaso»—. Al pasar al paso 2 la mesa se abre entera, y
+   ese salto cuenta algo: se acabó de decidir, empieza el trabajo. */
+.compositor-banco.es-paso1 { grid-template-columns: minmax(0, 1fr); }
+/* El ancho se contiene en la PÁGINA y no en el banco, para que la nota de
+   condicionantes —que es hermana del banco, no hija— se quede alineada con la
+   hoja en vez de cruzar la pantalla por encima de ella. */
+.compositor-pagina.es-paso1 { max-width: 920px; margin-inline: auto; width: 100%; }
 
 /* ── LA BIBLIOTECA ──────────────────────────────────────────────────────────
    Fija, con su propio desplazamiento y su buscador: es de donde salen los
@@ -1982,54 +2103,125 @@ button.compositor-titulo:hover { color: var(--accent); }
 .biblioteca-foto { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r-xs); border: 1px solid var(--hairline); }
 .biblioteca-carpeta { margin: 0 var(--s3) var(--s3); font-size: var(--fs-xs); display: inline-flex; align-items: center; gap: var(--s1); }
 
-/* ── LA MESA: las hojas y la abierta ────────────────────────────────────── */
-.compositor-mesa { display: flex; flex-direction: column; gap: var(--s3); }
-.compositor-herencia {
-  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
-  font-size: var(--fs-xs); color: var(--text-secondary);
-}
-.compositor-diff { margin-left: auto; color: var(--text-tertiary); }
+/* ── LA MESA ────────────────────────────────────────────────────────────────
+   Aquí vivió un CARRIL de pastillas —una hoja por pastilla, y debajo la hoja
+   abierta— que era un segundo editor de bloque, peor que el que ya existe.
+   Se ha ido entero: la mesa del compositor es `.entreno-hoja.mesa-panel` con
+   la rejilla del bloque dentro, o sea el mismo mueble de `?v=bloque`. Lo único
+   que hace falta decirle es que aquí no hay costado. */
+.compositor-mesa { min-width: 0; }
 
-/* El carril de hojas: la fila de pastillas de Coachway, con nuestra cuenta de
-   series dentro de cada una — un bloque se juzga por cuánto pide cada día. */
-.hojas-carril { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
-.hoja-chip {
-  display: inline-flex; align-items: center; gap: var(--s2);
-  padding: 5px var(--s3);
-  border: 1px solid var(--hairline-strong); border-radius: var(--r-pill);
-  background: var(--surface); color: var(--text-secondary);
-  font-size: var(--fs-sm); font-weight: 500; cursor: pointer;
-  transition: border-color var(--fast), color var(--fast);
+/* El alta de un ejercicio en la hoja abierta de Entreno vivió aquí por vecindad
+   con aquel carril. Se ha ido ENTERA a `revision.css`, con el resto de la hoja:
+   estaba declarada en dos ficheros a la vez, y el `.input` de 132 px que tenía
+   este bloque era lo que estrangulaba la lista de sugerencias del nombre. */
+
+/* ══ LA FICHA, LEÍDA ═══════════════════════════════════════════════════════
+   A qué juega, cuánto dura y qué se persigue, en un renglón y en voz baja: se
+   leen mientras se compone, se cambian en su paso. NO son tres chapas con tres
+   desplegables —eso es de lo que se viene—, sino UNA caja que se enciende con
+   el verbo en acento, que es la ley de los gestos de la casa: un solo destino
+   en vez de un menú por característica. */
+.compositor-ficha {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
 }
-.hoja-chip:hover { border-color: var(--accent); color: var(--accent); }
-.hoja-chip.is-on {
-  background: var(--accent); border-color: var(--accent); color: var(--accent-on); font-weight: 600;
+.compositor-ficha-caja {
+  display: inline-flex; align-items: baseline; gap: var(--s2); min-width: 0;
+  margin-left: calc(var(--s2) * -1);
+  padding: 4px var(--s2); border: 0; border-radius: var(--r-sm);
+  background: transparent; cursor: pointer; text-align: left;
+  font: inherit; color: var(--text-secondary);
+  transition: background-color var(--fast), color var(--fast);
 }
-.hoja-chip-n { font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; opacity: 0.7; }
-.hoja-alta { display: inline-flex; align-items: center; gap: var(--s2); }
-.hoja-alta .input { width: 132px; }
-.hojas-carril-fin { margin-left: auto; }
+.compositor-ficha-caja:hover { background: var(--fill-subtle); color: var(--text); }
+.compositor-ficha-caja:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.compositor-ficha-dicho { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.compositor-ficha-verbo { flex-shrink: 0; color: var(--accent); font-weight: 600; }
+.compositor-ficha-nace { margin-left: auto; flex-shrink: 0; }
+
+/* ── LA BANDA DE ANTES DE EMPEZAR, AQUÍ DENTRO ────────────────────────────
+   `.hoja-preambulo` nació pegada al canto del panel de Entreno —de ahí su
+   sangrado de `--s5` y su filete de abajo, que separan la banda de la mesa—.
+   En el compositor vive DENTRO de `.mesa-cuerpo`, que ya sangra, así que aquí
+   solo pone el filete: repetir el sangrado la metería dos centímetros por
+   dentro de la lista que encabeza. */
+.compositor-preambulo { padding-inline: 0; }
 
 .compositor-pie {
-  display: flex; align-items: flex-end; gap: var(--s3); flex-wrap: wrap;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  flex-wrap: wrap;
   padding-top: var(--s3); border-top: 1px solid var(--hairline);
 }
-.compositor-nota { flex: 1 1 280px; display: flex; flex-direction: column; gap: var(--s1); }
+
+/* ══ PASO 1 · QUÉ BLOQUE ES ════════════════════════════════════════════════
+   El formulario vuelve, y esta vez en su sitio: una pantalla propia antes de
+   empezar, no una franja encima del trabajo. Ancho contenido —un formulario
+   de cuatro campos estirado a 1.400 px se lee peor, no mejor— y las puertas
+   abajo, que son el gesto que avanza.
+
+   Quien contiene el ancho es `.compositor-banco.es-paso1`, arriba: la mesa se
+   estrecha ENTERA —con su camino y su «Cancelar»— en vez de dejar una columna
+   de 760 px arrinconada a la izquierda de un panel de 1.500. */
+.compositor-paso { display: flex; flex-direction: column; gap: var(--s6); }
+.compositor-paso-say { display: flex; flex-direction: column; gap: 6px; }
+.compositor-paso-t {
+  margin: 0;
+  font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em;
+  color: var(--text); line-height: 1.25;
+}
+.compositor-paso-d { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); max-width: 62ch; }
+
+/* ── LAS CUATRO DECISIONES, COMO FILAS DE UNA FICHA ────────────────────────
+   Rótulo a la izquierda, lo que se decide a la derecha, un filete entre medias
+   y el último sin él. Es la misma gramática de `.repaso-fila` —dos columnas y
+   una línea de lectura— pero con controles dentro, y es lo que hace que las
+   cuatro filas se recorran de un vistazo en lugar de leerse como cuatro cajas
+   sueltas. La columna del rótulo mide lo mismo siempre: en el paso 1 la
+   alineación ES el orden. */
+.compositor-campos {
+  display: flex; flex-direction: column;
+  border-top: 1px solid var(--hairline);
+}
+.compositor-dato {
+  display: grid; grid-template-columns: 13rem minmax(0, 1fr);
+  gap: var(--s4); align-items: center;
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.compositor-dato-k {
+  font-size: var(--fs-sm); font-weight: 550; color: var(--text-secondary); line-height: 1.3;
+}
+/* El campo mide lo que mide lo que se escribe en él, no lo que sobra: un
+   nombre de dos palabras en una caja del ancho de la pantalla era la mitad de
+   lo que hacía parecer vacía esta página. */
+.compositor-dato-v { min-width: 0; }
+.compositor-dato-v > .input { width: 100%; max-width: 420px; }
+
+/* «4» «5» «6» y, al final del grupo, la unidad: la cifra es lo que se elige y
+   la palabra no se repite seis veces. */
+.compositor-opciones-cola { align-self: center; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+@media (max-width: 720px) {
+  .compositor-dato { grid-template-columns: minmax(0, 1fr); gap: var(--s2); align-items: start; }
+  .compositor-dato-v > .input { max-width: none; }
+}
 
 /* Las tres puertas: tarjetas de decisión, no una lista de opciones. */
 .compositor-puertas { display: flex; flex-direction: column; gap: var(--s4); }
-.compositor-puertas-say { display: flex; flex-direction: column; gap: var(--s1); }
+.compositor-puertas-say { display: flex; flex-direction: column; gap: 6px; }
 .compositor-puertas-rejilla {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
   gap: var(--s3);
+  align-items: stretch;
 }
 
 .compositor-puerta {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--s1);
+  gap: 6px;
   text-align: left;
   padding: var(--s4);
   border: 1px solid var(--hairline-strong);
@@ -2044,12 +2236,36 @@ button.compositor-titulo:hover { color: var(--accent); }
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
-.compositor-puerta:disabled { cursor: default; opacity: 0.6; }
+/* ── LA QUE NO SE PUEDE ABRIR NO SE APAGA: SE CALLA ────────────────────────
+   Estuvo a `opacity: .6`, que en una tarjeta con canto y fondo no se lee como
+   «todavía no» sino como «esto está roto». Aquí dice lo mismo con la voz: sin
+   canto, sobre el fondo hundido y con la frase que explica CÓMO se guarda una
+   pieza. Un estado vacío es una invitación, no un cartel de avería. */
+.compositor-puerta:disabled {
+  cursor: default;
+  background: var(--surface-sunken);
+  border-color: transparent;
+  color: var(--text-tertiary);
+}
+.compositor-puerta:disabled .compositor-puerta-t,
+.compositor-puerta:disabled .compositor-puerta-d { color: var(--text-tertiary); }
 /* La señal solo donde se puede tocar: la recomendada lleva el canto, no un relleno. */
 .compositor-puerta.is-recomendada { border-color: var(--accent); }
-.compositor-puerta svg { color: var(--text-tertiary); margin-bottom: var(--s1); }
+/* ── LA FILA DEL ICONO, Y POR QUÉ EXISTE ───────────────────────────────────
+   El «LO NORMAL» iba ENTRE el icono y el nombre, así que la tarjeta
+   recomendada tenía un renglón más que sus dos hermanas y los tres nombres
+   caían a tres alturas distintas. Aquí el eyebrow se sienta a la derecha del
+   icono, en la misma fila: las tres tarjetas arrancan igual y lo único que
+   distingue a la recomendada es el canto y el color, que es lo que se quería
+   decir. */
+.compositor-puerta-cab {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; margin-bottom: var(--s1);
+}
+.compositor-puerta svg { color: var(--text-tertiary); flex-shrink: 0; }
 .compositor-puerta.is-recomendada svg { color: var(--accent); }
 .compositor-puerta-recom {
+  margin-left: auto;
   font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: var(--tracking-stencil);
@@ -2057,7 +2273,7 @@ button.compositor-titulo:hover { color: var(--accent); }
   color: var(--accent);
 }
 .compositor-puerta-t { font-size: var(--fs-sm); font-weight: 600; letter-spacing: -0.01em; }
-.compositor-puerta-d { font-size: var(--fs-xs); color: var(--text-secondary); }
+.compositor-puerta-d { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.5; }
 
 /* Cuál de tus piezas: segundo paso, y solo si entras por esa puerta. */
 .compositor-piezas { display: flex; flex-direction: column; gap: var(--s2); }
@@ -2185,29 +2401,199 @@ button.compositor-titulo:hover { color: var(--accent); }
    Un ejercicio añadido desde la hoja va al bloque; marcando esto se queda solo
    en ese microciclo. La casilla vive en el formulario y no en un menú porque el
    alcance se elige ANTES de añadir, que es cuando se sabe. */
-.alta-alcance { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); }
-.alta-alcance .k { font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
-.alta-alcance small { flex: 1 1 220px; font-size: var(--fs-xs); color: var(--text-tertiary); }
+/* Y con ella `.alta-alcance`, el bloque rotulado del «hasta cuándo»: ahora es un
+   desplegable más de la línea, con su frase debajo (`.alta-dice`). */
 
-/* ══ ESCRIBIR UNA HOJA ══════════════════════════════════════════════════════
-   La ventana donde se le meten los ejercicios a una hoja del bloque. Dos
-   piezas y en este orden: arriba el banco donde se escribe —hundido, que es
-   como esta casa marca «aquí se toca»— y debajo, a pelo, lo que la hoja lleva
-   ya. Se ven a la vez a propósito: escribir sin ver la lista es repetir el
-   tercer ejercicio, y era justo lo que pasaba con el alta metida en una
-   columna de 168 px (`Workout/EscribirHoja.jsx`). */
-.escribir { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
-/* ── El alta: UNA fila, no un bloque ────────────────────────────────────────
-   Eran dos renglones dentro de una caja hundida: un buscador a todo lo ancho
-   encima, y debajo el músculo, la pauta y «Añadir». Ciento y pico píxeles de
-   formulario por encima de la hoja, y con la biblioteca al lado —que ya busca
-   y ya añade— la caja se leía como la parte importante de la pantalla.
+/* ══ ESCRIBIR UNA HOJA: LA HOJA ES UNA TABLA ═══════════════════════════════
+   El banco donde se le meten los ejercicios a una hoja del bloque
+   (`Workout/EscribirHoja.jsx`).
 
-   Ahora es una línea: buscar, músculo, pauta y añadir. Sigue estando porque es
-   lo único que permite escribir un ejercicio que TODAVÍA NO EXISTE; la
-   biblioteca es para lo que ya está. Dos caminos, dos trabajos. */
+   Fue una lista de renglones con tres campos rotulados por dentro —«SERIES 3»,
+   «REPS 8-10»— y una tabla de series escondida detrás de un icono. Eran dos
+   dibujos del mismo plan, y el escondido era el único donde se pautaban los
+   kilos y el RIR.
+
+   Ahora es UNA tabla con dos alturas: la fila del ejercicio dice lo que vale
+   para todas sus series y, desplegada, cada serie cae DEBAJO y en las mismas
+   columnas. De ahí que la rejilla se declare una sola vez y la usen las tres
+   piezas —la cabecera de columnas, el ejercicio y la serie—: si cada una
+   midiera las suyas, la hoja volvería a leerse como dos.
+
+   `--pauta-n` lo pone el JSX —cuántas columnas de cifra pauta esta hoja— con su
+   valor por defecto en el `var()`, que es lo que pide el verificador (ver
+   `camposDeLaHoja`; los kilos y el RIR existen solo si se usan). Y el carril de
+   verbos es FIJO y no `auto`: cada rejilla mide sus columnas por su propio
+   contenido, así que un `auto` daría 166 px en la fila del ejercicio y 44 en la
+   de la serie — y las cifras dejarían de cuadrar justo entre madre e hija, que
+   es lo único que hay que comparar. */
+.escribir {
+  display: flex; flex-direction: column; gap: var(--s4); min-width: 0;
+  --pauta-track: 18px minmax(120px, 1fr) repeat(var(--pauta-n, 3), minmax(44px, 58px)) 168px;
+}
+.escribir-head,
+.escribir-ej,
+.escribir-serie {
+  display: grid; grid-template-columns: var(--pauta-track);
+  gap: var(--s2); align-items: center; min-width: 0;
+}
+
+/* ── LOS RÓTULOS, UNA VEZ PARA LA HOJA ─────────────────────────────────────
+   Estuvieron dentro de cada casilla de cada renglón, y ahí tenían su razón:
+   sin tabla debajo no había cabecera que encabezar. Con las series colgando de
+   su ejercicio sí la hay, así que el rótulo se dice una vez y cada fila
+   recupera catorce píxeles de alto. En la voz de los datos —la misma de
+   `.hoja-fila.is-head`— porque es una referencia, no un dato. */
+.escribir-head { padding-bottom: 1px; opacity: 0.85; }
+.escribir-head > span {
+  font-family: var(--font-display); font-size: var(--fs-3xs); font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.escribir-head > .escribir-head-ej { text-align: left; }
+
+/* ── LA CABECERA DE LA HOJA, CON SUS COLUMNAS ──────────────────────────────
+   «+ kg» y «+ rir» vivían dentro de la fila desplegada, y eran una decisión de
+   la hoja ENTERA metida donde solo se veía abriendo una de seis. Aquí se leen
+   enteras —no son el hueco de un ejercicio, son lo que esta hoja pauta— y
+   desaparecen en cuanto su columna existe. */
+.escribir-cab { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.escribir-columnas { display: inline-flex; align-items: center; gap: var(--s2); }
+.escribir-columnas .hoja-chapa:not(.is-puesta) { opacity: 1; }
+.escribir-cuenta { margin-left: auto; }
+
+.escribir-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+/* La fila: el número, el nombre con su músculo debajo, la banda de cifras y el
+   carril de verbos. La papelera está SIEMPRE —aquí hay sitio de sobra— y por
+   eso no tiene que posarse encima de nada, que es lo que la hacía difícil de
+   acertar en la rejilla del plan. */
+.escribir-ej {
+  position: relative;
+  padding: var(--s2) 0; border-top: 1px solid var(--hairline);
+}
+.escribir-ej:first-child { border-top: 0; }
+.escribir-num {
+  width: 18px; text-align: right;
+  font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+/* El nombre y su línea de abajo. Con suelo de 120 px en la rejilla: por debajo
+   de eso «Press inclinado con mancuernas» se leería «Pr…», que es no leerse. */
+.escribir-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.escribir-nombre { font-size: var(--fs-sm); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.escribir-musculo {
+  display: flex; align-items: baseline; gap: 6px; min-width: 0;
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+
+/* ── EL VERBO QUE ABRE LAS SERIES ──────────────────────────────────────────
+   Ni flecha ni icono en el carril: la fila se enciende y el verbo sale en azul
+   (`ley-de-los-gestos`), que es exactamente lo que hacen las equivalencias de
+   la dieta con «Usar». En reposo no está —una oferta por fila, en seis filas,
+   es mobiliario— y con las series a la vista se queda puesto, que entonces es
+   la única forma de volver a plegarlas. */
+.escribir-abrir {
+  flex: none; padding: 1px 5px; border: 0; border-radius: var(--r-sm);
+  background: transparent; font: inherit; font-size: var(--fs-xs); font-weight: 650;
+  color: var(--accent); cursor: pointer; opacity: 0;
+  transition: opacity var(--fast), background-color var(--fast);
+}
+.escribir-ej:hover .escribir-abrir,
+.escribir-ej:focus-within .escribir-abrir,
+.escribir-ej.is-abierta .escribir-abrir { opacity: 1; }
+.escribir-abrir:hover { background: var(--accent-soft); }
+.escribir-abrir:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Sin ratón no hay «acercarse», así que el verbo se queda puesto: la misma
+   excepción que ya tiene el de la fila hija de la dieta. */
+@media (hover: none) { .escribir-abrir { opacity: 1; } }
+
+/* ── EL ASA, EN EL CALLEJÓN Y NO EN EL RENGLÓN ──────────────────────────────
+   La fila ya lleva el número, el nombre, cinco casillas y su carril de verbos:
+   meter el agarre en la rejilla correría todo eso una columna. Va en el margen
+   —la misma solución que `.plan-asa` en la rejilla del bloque— y aparece al
+   acercarse a la fila.
+
+   `touch-action: none` no es opcional: sin él, en un táctil el navegador se
+   queda el gesto para desplazar la página y el arrastre no empieza nunca. */
+.escribir-asa {
+  position: absolute; left: -19px; top: 15px; margin: 0;
+  width: 15px; height: 22px; opacity: 0;
+  touch-action: none; -webkit-user-select: none; user-select: none;
+  transition: opacity var(--fast);
+}
+.escribir-ej:hover > .escribir-asa,
+.escribir-asa:focus-visible { opacity: 0.7; }
+.escribir-asa:hover { opacity: 1; }
+/* Sin ratón no hay «acercarse»: el asa se ve siempre, en voz baja. */
+@media (hover: none) { .escribir-asa { opacity: 0.5; } }
+
+/* ── LOS VERBOS DE LA FILA, EN TRES TRABAJOS ───────────────────────────────
+   Nada de un menú que los esconda (ley del dueño, 12 sep 2026): botones
+   siempre a la vista y siempre en el mismo orden. Lo que sí hacen ahora es
+   agruparse —construir │ ordenar │ quitar—, separados por un filete: eran seis
+   puntos grises idénticos seguidos y se recorrían de uno en uno.
+
+   24 px y no 26: el carril entero son 166 px de columna fija, y el glifo de 15
+   sigue teniendo una diana cómoda. */
+.escribir-acciones { display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.escribir-verbos { display: flex; align-items: center; gap: 0; }
+.escribir-verbos + .escribir-verbos {
+  margin-left: 5px; padding-left: 5px; border-left: 1px solid var(--hairline);
+}
+.escribir-acciones .btn-icon-compact { width: 24px; height: 24px; flex-shrink: 0; }
+/* El enlace PUESTO. La superserie ya se dice dos veces en la fila —el canto en
+   acento y la etiqueta A1/A2 en el número—, así que aquí basta con que el
+   botón se lea pulsado y no como un tercer aviso. */
+.escribir-acciones .btn-icon[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+
+/* La nota ocupa un renglón entero de la rejilla, sangrada a la altura del
+   nombre: es un texto para leer, no una cifra más de la fila. */
+.escribir-nota {
+  grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px;
+  padding: 0 0 var(--s1) calc(18px + var(--s2));
+}
+.escribir-nota .section-label { color: var(--text-tertiary); }
+.escribir-nota .textarea { min-height: 44px; font-size: var(--fs-sm); }
+
+/* ── LAS SERIES, EN LAS COLUMNAS DE SU EJERCICIO ───────────────────────────
+   Un renglón por serie, con la rejilla de la fila de arriba: los kilos de la
+   serie 2 caen debajo de los kilos de todas. La rejilla NO se sangra —eso
+   descuadraría las cifras, que es lo único que se compara—: lo que las ata a su
+   ejercicio es el filete de la izquierda y el rótulo «serie 1», dentro de la
+   columna del nombre. Es la misma figura que las equivalencias de la dieta,
+   donde la hija se dibuja con la rejilla de la madre. */
+.escribir-series {
+  grid-column: 1 / -1; min-width: 0;
+  display: flex; flex-direction: column; gap: 3px; padding-bottom: var(--s1);
+}
+.escribir-serie-n {
+  align-self: stretch; display: flex; align-items: center;
+  padding-left: var(--s3); border-left: 2px solid var(--hairline-strong);
+  font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* El remate y la papelera de la serie, pegados a la última cifra: es donde los
+   pone la hoja de Entreno, en sus dos columnas de 22 px. */
+.escribir-serie-verbos { display: flex; align-items: center; gap: 2px; }
+.escribir-serie:hover .hoja-x:not(:disabled),
+.escribir-serie:focus-within .hoja-x:not(:disabled) { opacity: 1; }
+/* La línea del remate cuelga de su serie y se alinea con el rótulo. Dos clases
+   para ganarle el margen a `.hoja-remate` sin depender del orden de los
+   ficheros. */
+.hoja-remate.escribir-remate { margin-left: calc(18px + var(--s2) + var(--s3)); }
+.hoja-mas.escribir-mas-serie { margin-left: calc(18px + var(--s2)); }
+
+/* ── EL ALTA: AL PIE, Y EN REPOSO APAGADA ──────────────────────────────────
+   Era una caja hundida PERMANENTE encima de la lista, con su buscador vacío a
+   treinta centímetros del buscador de la biblioteca. Ahora en reposo hay
+   «+ ejercicio» en azul (`BotonMas`) y el formulario sale al pulsarlo, que es
+   la misma mecánica que cada comida de la dieta.
+
+   Va al pie porque es donde va a aparecer lo que se añada: arriba, el
+   ejercicio nacía a seis renglones de donde se estaba mirando. Y es UNA línea
+   —buscar, músculo, añadir—: la pauta ya no se teclea aquí, la hereda del
+   anterior (`pautaHeredada`). */
+.escribir-pie { display: flex; align-items: center; min-height: 28px; }
 .escribir-alta {
-  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  flex: 1 1 auto; display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
   padding: var(--s2); border-radius: var(--r-md);
   background: var(--surface-sunken); border: 1px solid var(--hairline);
 }
@@ -2215,45 +2601,37 @@ button.compositor-titulo:hover { color: var(--accent); }
    (`ui/Autocomplete` solo pone `position: relative`): se le da el ancho por
    posición, que es lo que hay. */
 .escribir-alta > div:first-child { flex: 1 1 240px; min-width: 0; }
-.escribir-alta-pie { flex: 1 1 340px; }
-/* El músculo se lleva el ancho que sobra y la pauta con «Añadir» se quedan
-   juntas a la derecha: son el mismo gesto —cuánto y cuántas veces— y separarlas
-   obligaba a cruzar la ventana entre elegir y confirmar. */
-/* En una sola línea: el músculo cede ancho antes que romper la fila. */
-.escribir-alta-pie { display: flex; align-items: center; gap: var(--s2); flex-wrap: nowrap; }
-.escribir-alta-pie .select { flex: 0 1 168px; min-width: 0; }
-.escribir-alta-pie .escribir-pauta { margin-left: auto; }
-/* La pauta se escribe en caja aquí: sobre el fondo hundido, los campos sin
-   marco del plan (`.plan-series`) no se veían. */
-.escribir-pauta { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.escribir-pauta .plan-series,
-.escribir-pauta .plan-reps {
-  background: var(--surface); box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text);
-  padding: 5px 2px;
-}
-.escribir-pauta .plan-series { width: 30px; }
-.escribir-pauta .plan-reps { width: 54px; }
+.escribir-alta > .select { flex: 0 1 168px; min-width: 0; }
+.escribir-alta > .btn { flex-shrink: 0; }
 
-.escribir-cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
-.escribir-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-/* La fila: el número, el nombre con su músculo debajo, la pauta y la papelera.
-   La papelera está SIEMPRE —aquí hay sitio de sobra— y por eso no tiene que
-   posarse encima de nada, que es lo que la hacía difícil de acertar en la
-   rejilla del plan. */
-.escribir-ej {
-  display: flex; align-items: center; gap: var(--s3); min-width: 0;
-  padding: var(--s2) 0; border-top: 1px solid var(--hairline);
+/* ── MIENTRAS SE MUEVE UNO ─────────────────────────────────────────────────
+   La misma gramática que la hoja de series (`revision.css`): el que viaja se
+   levanta —va pegado al puntero, es la pieza que se está mirando—, los de en
+   medio se apartan dejando el hueco, y el resto de la fila baja la voz para
+   que ese hueco no se pierda entre las cifras. */
+.escribir-ej.is-en-orden { transition: transform var(--normal) var(--ease); }
+.escribir-ej.is-en-orden .hoja-celda,
+.escribir-ej.is-en-orden .escribir-acciones { opacity: 0.35; }
+.escribir-ej.is-viajando {
+  z-index: 3; transition: none; cursor: grabbing;
+  background: var(--surface); border-radius: var(--r-md); border-top-color: transparent;
+  box-shadow: var(--shadow-lg);
 }
-.escribir-ej:first-child { border-top: 0; }
-.escribir-num {
-  flex-shrink: 0; width: 18px; text-align: right;
-  font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+.escribir-ej.is-viajando .escribir-asa { opacity: 1; color: var(--text); }
+.escribir-ej.is-drop-target { box-shadow: inset 0 2px 0 var(--accent); }
+.escribir-lista.is-ordenando { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+
+/* ── Y EN UNA MESA ESTRECHA ────────────────────────────────────────────────
+   Por debajo de 720 px no caben las cifras y el carril en el mismo renglón. El
+   carril baja entero a un segundo renglón, pegado al canto derecho —suelto a la
+   izquierda se leería como de otra cosa—, y las columnas de cifra se reparten
+   lo que hay. Componer un bloque es trabajo de escritorio (el móvil ejecuta),
+   pero una hoja abierta en una tableta tiene que poder leerse. */
+@media (max-width: 719.98px) {
+  .escribir { --pauta-track: 18px minmax(0, 1fr) repeat(var(--pauta-n, 3), minmax(38px, 1fr)); }
+  .escribir-acciones { grid-column: 1 / -1; }
+  .escribir-serie-verbos { grid-column: 1 / -1; justify-content: flex-end; }
 }
-.escribir-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.escribir-nombre { font-size: var(--fs-sm); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.escribir-musculo { font-size: var(--fs-xs); color: var(--text-tertiary); }
-/* El pie de la ventana se fue con la ventana: escribir pasa en la mesa, y el
-   alcance y «Listo» viven ahora en su cabecera (`.escribir-mesa-cab`). */
 
 /* ── La gramática de serie ──────────────────────────────────────────────────
    Superserie, bajada y descanso, impresos con la tipografía de la hoja: la
@@ -2266,47 +2644,12 @@ button.compositor-titulo:hover { color: var(--accent); }
   font-family: var(--font-display); font-size: var(--fs-3xs); font-weight: 700;
   color: var(--accent); letter-spacing: 0.04em; margin-right: 5px;
 }
-/* Los verbos —enlazar, el remate, prever una alternativa— se fueron al menú de
-   la fila (`MenuAcciones`): eran cuatro controles de ancho distinto debajo de
-   cada nombre, y en seis filas convertían la hoja en un formulario. Con ellos
-   se van `.escribir-gram`, `.escribir-tecnica` y `.escribir-descanso`. */
-
-/* ── LAS CIFRAS DE LA FILA ──────────────────────────────────────────────────
-   Series, reps y descanso, cada una en su campo con el rótulo dentro y arriba.
-   Anchos FIJOS y en el mismo orden en todas las filas: eso es lo que deja leer
-   la hoja en vertical —todas las series en una columna, todas las reps en la
-   siguiente— sin dibujar una tabla con sus reglas.
-
-   El rótulo va dentro del campo y no encima porque la fila mide 44 px: fuera
-   obligaría a una cabecera de columnas, que es exactamente la tabla que la
-   hoja no quiere ser. */
-.ejercicio-cifras { display: flex; align-items: stretch; gap: var(--s2); flex-shrink: 0; }
-.cifra-campo {
-  display: flex; flex-direction: column; gap: 0;
-  padding: 3px var(--s2) 4px;
-  border: 1px solid var(--edge-control);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  cursor: text;
-  transition: border-color var(--fast);
-}
-.cifra-campo:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--luz); }
-.cifra-campo-k {
-  font-size: var(--fs-3xs); line-height: 1.2;
-  letter-spacing: var(--tracking-stencil); text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.cifra-campo-v {
-  border: 0; padding: 0; background: none; color: var(--text);
-  font: inherit; font-size: var(--fs-xs); font-weight: 600;
-  font-variant-numeric: tabular-nums; width: 100%;
-}
-.cifra-campo-v:focus { outline: none; }
-/* Los tres anchos: la serie es un dígito, las reps un rango, el descanso tres
-   cifras. Medidos por su contenido, no por repartir el hueco. */
-.ejercicio-cifras .cifra-campo:nth-child(1) { width: 58px; }
-.ejercicio-cifras .cifra-campo:nth-child(2) { width: 72px; }
-.ejercicio-cifras .cifra-campo:nth-child(3) { width: 78px; }
+/* Aquí vivían `.ejercicio-cifras` y `.cifra-campo`: tres campos con el rótulo
+   DENTRO, uno por fila, porque entonces no había tabla que encabezar. La hay
+   —las series de cada ejercicio cuelgan de sus columnas—, así que las casillas
+   son las mismas de la hoja de Entreno (`.hoja-celda`) y los rótulos suben a la
+   cabecera. Con ellas se van también `.escribir-alta-pie`, `.escribir-pauta` y
+   `.escribir-series-cab`. */
 
 /* ══ LA LISTA DE BLOQUES ═══════════════════════════════════════════════════
    La otra cara de Entreno (`?v=lista`). Misma gramática que la mesa del
@@ -2365,6 +2708,37 @@ button.compositor-titulo:hover { color: var(--accent); }
 .bl-nota {
   font-size: var(--fs-xs); color: var(--text-secondary); max-width: 60ch;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── LOS MICROCICLOS DEL BLOQUE, DIBUJADOS ─────────────────────────────────
+   Una casilla por microciclo escrito: llena la que tiene entrenos registrados,
+   vacía la que no, y en acento el que está en curso. La fila decía «10
+   microciclos» y eso hay que descifrarlo; esto se ve.
+
+   El bloque ABIERTO no cierra su barra: la última casilla se desvanece por la
+   derecha y al lado se dice «sigue abierto». Dibujar diez de doce en un bloque
+   sin duración sería inventarse un final — es lo único de la tarjeta de Efort
+   que no se puede copiar, porque sus bloques sí lo tienen. */
+.bl-micros { display: flex; align-items: center; gap: 3px; margin-top: 5px; }
+/* Tres tintas y bien separadas: la escrita sin entrenar es el relleno de la
+   casa; la ENTRENADA sube al filete fuerte —el mismo salto que separa un canto
+   de un relleno, o las dos no se distinguen a cinco píxeles de alto—; y la que
+   está en curso, acento. */
+.bl-micro {
+  width: 13px; height: 5px; border-radius: 1px;
+  background: var(--fill); flex: none;
+}
+.bl-micro.is-hecha { background: var(--hairline-strong); }
+.bl-micro.is-aqui { background: var(--accent); }
+/* El canto abierto: la última casilla se va en degradado hacia el papel. Salvo
+   que ahí mismo sea donde estás: el microciclo en curso es una afirmación —«va
+   por aquí»— y desvanecerlo lo convierte en una duda. */
+.bl-micros.is-abierto > .bl-micro:last-of-type:not(.is-aqui) {
+  -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 100%);
+          mask-image: linear-gradient(to right, #000 45%, transparent 100%);
+}
+.bl-micros-sigue {
+  font-size: var(--fs-3xs); color: var(--text-tertiary); margin-left: 3px;
 }
 
 /* Cuatro cifras de ancho fijo: en todas las filas caen en la misma vertical,
@@ -2476,3 +2850,51 @@ button.compositor-titulo:hover { color: var(--accent); }
 .bl-vs-a { text-align: left; }
 .bl-vs-b { text-align: right; }
 
+
+/* ── LA MEDIA DEL CICLO: el total de la lista de días ──────────────────────
+   Misma anatomía que un renglón de `.lado-lineas` —nombre a la izquierda, cifra
+   al canto derecho— y separada por un filete, porque es el total de las que
+   tiene encima: exactamente la figura del renglón de kcal de «El día».
+
+   Era una FRASE en tinta secundaria («De media, 2.867 kcal al día») debajo de
+   una lista con las cifras alineadas, así que la única cifra que manda en un
+   ciclado era la única que no caía en la columna de las cifras. Ver
+   `TarjetaDelCiclo`. */
+.lado-media {
+  display: flex; flex-direction: column; gap: 2px;
+  padding-top: var(--s2); border-top: 1px solid var(--hairline);
+}
+.lado-media-fila {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  min-width: 0; font-size: var(--fs-sm);
+}
+.lado-media-fila > .n { color: var(--text); font-weight: 600; min-width: 0; }
+.lado-media-fila > .n > small { font-size: var(--fs-2xs); font-weight: 550; color: var(--text-tertiary); }
+.lado-media-fila > .d {
+  flex-shrink: 0; font-weight: 650; color: var(--text); font-variant-numeric: tabular-nums;
+}
+/* Los tres macros de la media, en voz baja y en un renglón: son el desglose de
+   la cifra de arriba, no tres datos más. */
+.lado-media-macros {
+  margin: 0; font-size: var(--fs-xs); color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── LAS CUATRO DEL ENVASE, con las opciones avanzadas puestas ─────────────
+   Su propia sección dentro de la tarjeta, con el mismo filete que separa la
+   media del ciclo de sus días: son de otro orden que los macros —composición,
+   no reparto— y sin la separación se leían como cuatro macros más.
+
+   La cifra que se sale de lo pedido va en ámbar, y solo esa: es la misma ley
+   que en los renglones de macros (`.medidor`), donde el color vive en la línea
+   de la diferencia y nunca en las cuatro a la vez. Y ningún verde por cumplir:
+   cuatro señales de que todo va bien no son una señal. */
+.lado-micros {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding-top: var(--s3); border-top: 1px solid var(--hairline);
+}
+.lado-micros .lado-lineas > li.is-fuera > .d { color: var(--warning); }
+.lado-micros .lado-lineas > li > .d > small {
+  /* Lo que le pides, detrás de lo que suma y con su «mín.» o su «máx.». */
+  margin-left: 2px;
+}

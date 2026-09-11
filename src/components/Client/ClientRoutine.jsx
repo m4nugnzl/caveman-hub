@@ -1,12 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronRight, NotebookPen, Play, Quote, Timer } from 'lucide-react';
 
 import {
-  WEEK_DAYS,
   countSets,
   dayMuscleVolume,
   drillsForDay,
-  normalizePattern,
   unitLabel,
   unitLabelPlural,
   weekdayForDay,
@@ -22,7 +20,13 @@ import {
   sessionSetCount,
   sessionTonnage,
 } from '@/domain/sessions';
-import { blockOfWeek, blockSummary, isCurrentBlock, weeksOfBlock } from '@/domain/blocks';
+import {
+  blockOfWeek,
+  blockSummary,
+  isCurrentBlock,
+  structureOfBlock,
+  weeksOfBlock,
+} from '@/domain/blocks';
 import { activeQuestions, asksFeedback, clientProtocol, isModuleOn } from '@/domain/protocol';
 import { localeNumber, shortDate, todayISO } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -40,6 +44,8 @@ import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { useDaySession } from '@/components/Coach/Workout/useDaySession';
 import { FichaEjercicioCliente } from './FichaEjercicioCliente';
 import { PlanDelBloque } from './PlanDelBloque';
+import { DayPill, HojaNueva, HojasDelPrograma } from './CintaDeHojas';
+import { buildStrip, buildTape } from './hojas';
 
 /**
  * ══ La rutina, como la usa el cliente ═══════════════════════════════════════
@@ -84,140 +90,28 @@ import { PlanDelBloque } from './PlanDelBloque';
  * Ese «+» es la pieza más importante de la pantalla y por eso tiene nombre:
  * quien monta el plan es el entrenador, pero quien lo RECORRE es el cliente, y
  * hasta que no empieza la semana siguiente no tiene dónde apuntar.
+ *
+ * ── 5. Y en el teléfono, la rutina son HOJAS ────────────────────────────────
+ * Todo lo de arriba es de escritorio. El teléfono se abre de pie, en el
+ * gimnasio y con una mano, y ahí los cuatro elegidores apilados —bloque,
+ * microciclo, día, cabecera— gastaban 605 de 844 px antes del primer
+ * ejercicio, y decían «20 de 20» cuatro veces entre todos.
+ *
+ * En el teléfono el programa entero es una fila de hojas, una por sesión, en el
+ * orden en que se entrenan (`buildTape`). Se abre en la que toca hoy y se
+ * cambia de hoja deslizando: hacia atrás está lo que hiciste el microciclo
+ * pasado, y al final del todo, la hoja de empezar el que aún no existe. Encima
+ * queda una sola línea que dice dónde estás y una tira que es a la vez el mapa
+ * de la semana y el salto a las de al lado (`CintaDeHojas`).
+ *
+ * Lo que NO baja al teléfono, y en el ordenador se queda igual: el carril de
+ * microciclos —la cinta ES ese carril—, la miga de tres tramos y la tarjeta
+ * «Tu bloque» con la puerta al historial, que es lectura de balance y no de
+ * gimnasio. Recorrer lo anterior ya no necesita una ventana: es deslizar.
+ *
+ * Esta es además la forma que migra a una aplicación nativa sin traducirse: una
+ * hoja es una pantalla y la cinta es un pager.
  */
-
-/** Lunes = 0. Se calcula aquí y no en el dominio porque depende del reloj. */
-const todayWeekday = () => WEEK_DAYS[(new Date().getDay() + 6) % 7];
-
-/**
- * La tira de la semana: las SESIONES, y los descansos en una línea aparte.
- *
- * ── Por qué los descansos no son píldoras ───────────────────────────────────
- * El primer intento ponía los siete días, con los descansos como píldoras
- * apagadas. Dos cosas fallaban. Una, de sitio: siete destinos en 366 px salen a
- * 52 px cada uno, donde no cabe «Empuje A», y con nombre truncado la tira deja
- * de decir la estructura, que es justo para lo que está. Y dos, de fondo: un
- * descanso no lleva a ninguna parte, así que ocupaba el sitio de un control sin
- * serlo.
- *
- * Con solo las sesiones son tres o cuatro píldoras que caben con su nombre
- * entero, y el descanso se dice como lo que es —información— en una línea:
- * «Descansas miércoles y domingo».
- *
- * Para un ciclo semanal el orden y el día lo da `weeklySplit`. Para uno rotativo
- * —«2 entreno / 1 descanso»— no hay correspondencia con la semana natural, así
- * que la tira son las sesiones del ciclo en orden. Ese mismo camino es la red de
- * seguridad: si el split está vacío o nombra días que no existen en el
- * microciclo, la tira se quedaría sin una sola entrada y la pantalla sin salida.
- *
- * ── El descanso del rotativo también se dice ────────────────────────────────
- * La línea existía solo para el semanal, así que quien entrena por ciclos veía
- * sus sesiones en fila y NADA sobre sus descansos: ni aquí ni en ninguna otra
- * pantalla. Y el descanso es la mitad del patrón que le han puesto.
- */
-const buildStrip = ({ days, weeklySplit, cycleType, microcycle, pattern }) => {
-  const progressOf = (day) => {
-    const sessions = allSessionsOfDay(microcycle, day.dayName);
-    const logged = sessions.length > 0 ? Math.max(...sessions.map(sessionSetCount)) : 0;
-    return { logged, planned: countSets(day) };
-  };
-
-  const asSessions = () => {
-    /* El ritmo, no el total: «2 y 1» significa descansar cada dos sesiones, no
-       entrenarlo todo y descansar al final. El descanso sale del patrón, que es
-       lo único que lo sabe — los días del microciclo son las sesiones, no los
-       huecos entre ellas. */
-    const { train, rest: descanso } = cycleType === 'rotating'
-      ? normalizePattern(pattern)
-      : { train: 0, rest: 0 };
-
-    /*
-      ── El rótulo dice SESIÓN, nunca la unidad del programa ──────────────────
-      Ponía `${unit} N`, y `unit` es «Semana» en un ciclo semanal. Este camino es
-      el de un ciclo semanal SIN reparto por días —que es lo que hay hasta que el
-      entrenador asigna los días, o sea la primera semana de casi todo el
-      mundo—, así que la tira quedaba justo debajo del selector de semanas
-      diciendo «SEMANA 1 · Empuje, SEMANA 2 · Tirón» mientras el selector decía
-      «Semana 1 … Semana 10». Dos filas pegadas con la misma palabra y dos
-      significados: arriba la semana del programa, abajo el orden del día dentro
-      de esa semana.
-
-      Estas entradas son sesiones lo llame como lo llame el programa. En un ciclo
-      rotativo `unit` ya era «Sesión», así que ahí no cambia nada.
-    */
-    return {
-      entries: days.map((day, index) => ({
-        key: day.dayName,
-        lead: `Sesión ${index + 1}`,
-        name: day.dayName,
-        day,
-        isToday: false,
-        ...progressOf(day),
-      })),
-      restNote:
-        descanso > 0
-          ? `Descansas ${descanso} ${descanso === 1 ? 'día' : 'días'} cada ${train} ${
-              train === 1 ? 'sesión' : 'sesiones'
-            }.`
-          : null,
-    };
-  };
-
-  if (cycleType !== 'weekly') return asSessions();
-
-  const today = todayWeekday();
-  const entries = [];
-  const rest = [];
-
-  for (const weekday of WEEK_DAYS) {
-    const planned = (weeklySplit?.[weekday] ?? '').trim();
-    const day = planned
-      ? days.find((d) => d.dayName.trim().toLowerCase() === planned.toLowerCase())
-      : null;
-
-    if (!day) {
-      rest.push(weekday.toLowerCase());
-      continue;
-    }
-
-    entries.push({
-      key: weekday,
-      lead: weekday.slice(0, 3),
-      name: planned,
-      day,
-      isToday: weekday === today,
-      ...progressOf(day),
-    });
-  }
-
-  return entries.length > 0
-    ? { entries, restNote: rest.length > 0 ? `Descansas ${joinDays(rest)}.` : null }
-    : asSessions();
-};
-
-const DayPill = ({ entry, active, onOpen }) => {
-  const done = entry.planned > 0 && entry.logged >= entry.planned;
-
-  return (
-    <button
-      type="button"
-      className={`day-pill${entry.isToday ? ' is-today' : ''}${done ? ' is-done' : ''}`}
-      aria-pressed={active}
-      onClick={onOpen}
-    >
-      <span className="lead">
-        {entry.lead}
-        {entry.isToday && <span className="dot" aria-label="hoy" />}
-      </span>
-      <span className="nm">{entry.name}</span>
-      <span className="pg">{entry.planned > 0 ? `${entry.logged}/${entry.planned}` : 'sin series'}</span>
-    </button>
-  );
-};
-
-/** «miércoles y domingo» — la conjunción en su sitio, no una lista con comas. */
-const joinDays = (list) =>
-  list.length <= 1 ? list.join('') : `${list.slice(0, -1).join(', ')} y ${list[list.length - 1]}`;
 
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -448,18 +342,25 @@ const ClientDay = ({
           </span>
         </div>
 
-        {planned > 0 && (
-          <div
-            className="progress"
-            role="progressbar"
-            aria-valuenow={logged}
-            aria-valuemin={0}
-            aria-valuemax={planned}
-            aria-label={`Series registradas de ${day.dayName}`}
-          >
-            <span style={{ width: `${Math.min(100, (logged / planned) * 100)}%` }} />
-          </div>
-        )}
+        {/*
+          ══ Aquí había una barra de progreso, y decía lo mismo que la línea de
+             arriba ══════════════════════════════════════════════════════════
+
+          Una barra a todo el ancho, rellena en el acento, para dibujar el mismo
+          «12 de 20 series» que está escrito veinte píxeles más arriba y con más
+          precisión. Dos representaciones del mismo dato pegadas.
+
+          Y es exactamente el reproche que le hicimos a Efort al estudiar su
+          diseño: gastar la tinta de la señal en decorar, hasta que el botón que
+          hace la única cosa importante de la pantalla se ve igual que una barra
+          de progreso. En esta pantalla el acento tiene que ser tres cosas —dónde
+          estás, «Terminar» y la casilla que tocas—, y una franja de 340 px
+          rellena de azul se las come a las tres.
+
+          La cuenta se queda en palabras, que es donde se lee sin interpretar. Y
+          mientras se entrena vuelve a decirse sola en la barra de abajo, que es
+          la que se ve con la pantalla desplazada (`.save-bar`).
+        */}
 
         {Object.keys(volume).length > 0 && (
           <div className="row wrap gap-2">
@@ -473,9 +374,17 @@ const ClientDay = ({
         )}
       </header>
 
-      {/* Los selectores de sesión solo si de verdad hay más de una que elegir. */}
+      {/* Los selectores de sesión solo si de verdad hay más de una que elegir.
+
+          `data-sin-deslizar`: este carril ya se arrastra a lo ancho. Sin la
+          marca, moverlo cambiaría además de hoja. Ver `lib/useDeslizar`. */}
       {daySession.sessions.length > 1 && (
-        <div className="rail-wrap" role="group" aria-label={`Sesiones de ${day.dayName}`}>
+        <div
+          className="rail-wrap"
+          role="group"
+          aria-label={`Sesiones de ${day.dayName}`}
+          data-sin-deslizar
+        >
           {daySession.sessions.map((s) => (
             <button
               key={s.id}
@@ -723,7 +632,9 @@ export const ClientRoutine = ({
   onRetry,
 }) => {
   const protocol = clientProtocol(client.preferences);
-  const microcycles = program?.microcycles || [];
+  /* Memorizado por la cinta: `|| []` fabrica un array nuevo en cada render, y
+     con él se rearmaría el programa entero cada vez que se teclea un peso. */
+  const microcycles = useMemo(() => program?.microcycles || [], [program]);
   const micro = microcycles.find((m) => m.weekNumber === activeWeek);
   const cycleType = client.cycleType || 'weekly';
   const unit = unitLabel(cycleType);
@@ -764,6 +675,42 @@ export const ClientRoutine = ({
      'progresion' o 'sensaciones'. Se montan solo abiertas. */
   const [ventana, setVentana] = useState(null);
 
+  /* La hoja del microciclo que todavía no existe es la única de la cinta que no
+     sale del programa, así que es la única que necesita un estado: las demás las
+     dicen la semana abierta y el día elegido, que ya viven arriba. */
+  const [enHojaNueva, setEnHojaNueva] = useState(false);
+
+  /*
+    ══ El programa entero en fila (teléfono) ══════════════════════════════════
+
+    El reparto por días se pide POR SEMANA y no una vez: el que ordena las
+    sesiones dentro de un microciclo es el del bloque al que pertenece, y un
+    bloque cerrado se lleva el suyo congelado (`structureOfBlock`). Con el
+    reparto de hoy, el microciclo de junio saldría ordenado como se entrena en
+    septiembre, o sin ordenar si entonces había días que ya no existen.
+
+    Se memoriza porque esta pantalla se repinta con cada tecla que se escribe en
+    un peso, y armar la cinta recorre las series apuntadas de todo el programa.
+    En pantalla ancha no se arma: allí no hay cinta.
+  */
+  const splitDe = useCallback(
+    (semana) => structureOfBlock(program, blockOfWeek(program, semana))?.weeklySplit || {},
+    [program]
+  );
+  const hojas = useMemo(
+    () =>
+      anchoDePlan
+        ? []
+        : buildTape({
+            microcycles,
+            splitDe,
+            cycleType,
+            pattern: client.cyclePattern,
+            conNueva: Boolean(onContinue),
+          }),
+    [anchoDePlan, microcycles, splitDe, cycleType, client.cyclePattern, onContinue]
+  );
+
   if (microcycles.length === 0) {
     return (
       <Panel>
@@ -772,9 +719,11 @@ export const ClientRoutine = ({
     );
   }
 
+  /* El reparto del bloque de ESTA semana, no el del programa: mirando un bloque
+     cerrado, sus días son los que tenía entonces. Ver `splitDe`. */
   const { entries, restNote } = buildStrip({
     days,
-    weeklySplit: program?.weeklySplit,
+    weeklySplit: splitDe(activeWeek),
     cycleType,
     microcycle: micro,
     pattern: client.cyclePattern,
@@ -839,12 +788,111 @@ export const ClientRoutine = ({
     setVista('hoja');
   };
 
+  /*
+    ══ LA CINTA: qué hoja está abierta y cómo se llega a la de al lado ═════════
+
+    La posición no es un estado: es la semana abierta y el día elegido buscados
+    en la cinta. Así deslizar, pulsar la tira y entrar desde cualquier otro sitio
+    dejan la pantalla exactamente igual, sin nada que sincronizar.
+
+    Los microciclos se numeran DENTRO de su bloque —«M3» es el tercero de
+    Fuerza—, y en una cinta que cruza bloques cada marca se numera contra el
+    suyo: `enBloque` mide contra el bloque abierto y aquí eso no vale.
+  */
+  const indiceNueva = hojas[hojas.length - 1]?.tipo === 'nueva' ? hojas.length - 1 : -1;
+  const indiceHoja =
+    enHojaNueva && indiceNueva >= 0
+      ? indiceNueva
+      : hojas.findIndex(
+          (hoja) => hoja.tipo === 'sesion' && hoja.weekNumber === activeWeek && hoja.dayName === activeName
+        );
+  const enNueva = indiceNueva >= 0 && indiceHoja === indiceNueva;
+
+  const numeroEnBloque = (semana) => semana - blockOfWeek(program, semana).fromWeek + 1;
+  const etiquetaCorta = (hoja) => `${unit.charAt(0)}${numeroEnBloque(hoja.weekNumber)}`;
+  const etiquetaLarga = (hoja) => `${unit.toLowerCase()} ${numeroEnBloque(hoja.weekNumber)}`;
+
+  const irAHoja = (indice) => {
+    const hoja = hojas[indice];
+    if (!hoja) return;
+    setFoco(null);
+    setEnHojaNueva(hoja.tipo === 'nueva');
+    if (hoja.tipo === 'nueva') return;
+    if (hoja.weekNumber !== activeWeek) onSelectWeek(hoja.weekNumber);
+    setPicked(hoja.dayName);
+  };
+
+  /* Al empezar el microciclo nuevo se sale de su hoja y se suelta el día
+     elegido: la ruta salta a la semana recién creada y ahí manda la sugerencia,
+     que es su primera sesión. */
+  const empezarMicrociclo = () => {
+    setEnHojaNueva(false);
+    setPicked(null);
+    onContinue();
+  };
+
+  /* Dónde estás, en una línea. Sobre la hoja del microciclo que aún no existe no
+     se puede decir «de 3»: todavía no es uno de ellos. */
+  const donde = enNueva
+    ? `${bloque.name} · ${semanasDelBloque.length} ${units}`
+    : `${bloque.name} · ${unit.toLowerCase()} ${enBloque(activeWeek)} de ${semanasDelBloque.length}`;
+
+  /*
+    LA HOJA, que es la misma en las dos geometrías: en el ordenador cuelga de la
+    tira de días y en el teléfono, de la cinta. Se arma una vez para que no haya
+    dos sesiones que mantener iguales.
+  */
+  const sesionDelDia = activeDay ? (
+    <ClientDay
+      key={`${activeWeek}:${activeDay.dayName}`}
+      client={client}
+      program={program}
+      microcycle={micro}
+      day={activeDay}
+      cycleType={cycleType}
+      onLogSet={onLogSet}
+      protocol={protocol}
+      onMeta={onMeta}
+      fichaDe={fichaDe}
+      save={save}
+      onRetry={onRetry}
+      /* El ejercicio en foco lo pinta la lista y lo lee la progresión del
+         costado: el estado vive donde alcanza a las dos, que es aquí. */
+      focusedId={anchoDePlan ? ejercicioEnFoco?.id ?? null : null}
+      onFocusExercise={anchoDePlan ? setFoco : null}
+    />
+  ) : (
+    <Panel>
+      <p className="t-sm t-secondary">
+        Este {unit.toLowerCase()} no tiene ningún día programado todavía.
+      </p>
+    </Panel>
+  );
+
+  const laHoja = enNueva ? (
+    <HojaNueva
+      unidad={unit}
+      numero={numeroEnBloque(hojas[indiceNueva].weekNumber)}
+      onContinuar={empezarMicrociclo}
+    />
+  ) : (
+    sesionDelDia
+  );
+
   return (
     <div className="stack save-pad rutina-portal">
-      <div className="row between wrap gap-2">
-        <span className="section-label">Tu programa</span>
-        <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
-      </div>
+      {/*
+        «Tu programa» es un rótulo de ESCRITORIO. En el teléfono la pantalla ya
+        se titula «Mi rutina» y la línea de la cinta dice de qué bloque y qué
+        microciclo: tres encabezados seguidos para una sola cosa. El estado del
+        guardado se queda en las dos, que es lo único que aquí informa.
+      */}
+      {(anchoDePlan || save.status !== 'idle') && (
+        <div className="row between wrap gap-2">
+          {anchoDePlan && <span className="section-label">Tu programa</span>}
+          <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
+        </div>
+      )}
 
       {/*
         ══ La línea de bloques: EL MAPA, y solo donde se está mirando el mapa ══
@@ -885,28 +933,24 @@ export const ClientRoutine = ({
         />
       )}
 
-      {nivel === 'hoja' && (
+      {anchoDePlan && nivel === 'hoja' && (
         <>
           {/*
-            Dónde estás, en una línea. Con el nivel del bloque detrás es una miga
-            —el nombre vuelve a él—; sin él (el teléfono) es la misma línea sin
-            vuelta, porque no hay a dónde subir. En los dos casos es lo que
-            contesta «¿de qué bloque es esto?» sin repintar el mapa.
+            La miga: el nombre del bloque vuelve a él y el tramo de aquí dice en
+            qué sesión y en qué microciclo estás. Es de ESCRITORIO, donde hay un
+            nivel encima al que subir; en el teléfono ese nivel no existe y la
+            línea de la cinta dice lo mismo en la mitad de sitio.
           */}
           <nav className="entreno-miga" aria-label="Dónde estás">
-            {anchoDePlan ? (
-              <button
-                type="button"
-                className="entreno-miga-boton is-volver"
-                onClick={() => setVista('bloque')}
-                title={`Volver a ${bloque.name}`}
-              >
-                <ArrowLeft size={15} aria-hidden="true" />
-                {bloque.name}
-              </button>
-            ) : (
-              <span className="entreno-miga-aqui">{bloque.name}</span>
-            )}
+            <button
+              type="button"
+              className="entreno-miga-boton is-volver"
+              onClick={() => setVista('bloque')}
+              title={`Volver a ${bloque.name}`}
+            >
+              <ArrowLeft size={15} aria-hidden="true" />
+              {bloque.name}
+            </button>
             <span className="migas-sep" aria-hidden="true" />
             <span className="entreno-miga-aqui">
               {activeDay ? activeDay.dayName : 'Sin sesiones'} · {unit.toLowerCase()}{' '}
@@ -945,7 +989,24 @@ export const ClientRoutine = ({
 
       <div className="rutina-cuerpo">
         <div className="rutina-centro">
-          {nivel === 'bloque' ? (
+          {/*
+            EL TELÉFONO: la cinta y la hoja, y nada más. La línea de arriba, el
+            salto a las de al lado y el gesto de pasar página van dentro.
+          */}
+          {!anchoDePlan && (
+            <HojasDelPrograma
+              hojas={hojas}
+              indice={indiceHoja}
+              onIr={irAHoja}
+              etiquetaCorta={etiquetaCorta}
+              etiquetaLarga={etiquetaLarga}
+              donde={donde}
+            >
+              {laHoja}
+            </HojasDelPrograma>
+          )}
+
+          {nivel === 'bloque' && (
             <PlanDelBloque
               program={program}
               bloque={bloque}
@@ -954,7 +1015,9 @@ export const ClientRoutine = ({
               unidades={units}
               onAbrirHoja={abrirHoja}
             />
-          ) : (
+          )}
+
+          {anchoDePlan && nivel === 'hoja' && (
             <>
               {/* La tira: qué toca cada día, cuánto llevas y a dónde vas. */}
               <div className="day-strip">
@@ -968,33 +1031,7 @@ export const ClientRoutine = ({
                 ))}
               </div>
 
-              {activeDay ? (
-                <ClientDay
-                  key={`${activeWeek}:${activeDay.dayName}`}
-                  client={client}
-                  program={program}
-                  microcycle={micro}
-                  day={activeDay}
-                  cycleType={cycleType}
-                  onLogSet={onLogSet}
-                  protocol={protocol}
-                  onMeta={onMeta}
-                  fichaDe={fichaDe}
-                  save={save}
-                  onRetry={onRetry}
-                  /* El ejercicio en foco lo pinta la lista y lo lee la
-                     progresión del costado: el estado vive donde alcanza a las
-                     dos, que es aquí. */
-                  focusedId={anchoDePlan ? ejercicioEnFoco?.id ?? null : null}
-                  onFocusExercise={anchoDePlan ? setFoco : null}
-                />
-              ) : (
-                <Panel>
-                  <p className="t-sm t-secondary">
-                    Esta {unit.toLowerCase()} no tiene ningún día programado todavía.
-                  </p>
-                </Panel>
-              )}
+              {laHoja}
             </>
           )}
         </div>
@@ -1006,8 +1043,10 @@ export const ClientRoutine = ({
 
           Las dos tarjetas grandes —la progresión de un ejercicio y cómo lo
           llevas— son de pantalla ancha: son tablas, y en 390 px se leerían
-          peor que en la ventana que abren. Lo que sí queda en el teléfono es
-          «Tu bloque», que son dos cifras y la puerta al historial.
+          peor que en la ventana que abren.
+
+          En el teléfono el costado se queda en dos líneas: los descansos del
+          patrón y el vídeo de la rutina. Todo lo demás es de escritorio.
         */}
         <aside className="rutina-lado" aria-label="Tu bloque y tus referencias">
           {anchoDePlan && nivel === 'hoja' && (
@@ -1033,13 +1072,22 @@ export const ClientRoutine = ({
             />
           )}
 
-          <TuBloque
-            program={program}
-            bloque={bloque}
-            activeWeek={activeWeek}
-            unidad={unit}
-            onAbrirHistorial={() => setVentana('historial')}
-          />
+          {/*
+            «Tu bloque» —los kilos levantados, los entrenamientos y la puerta al
+            historial— es de ESCRITORIO. Es lectura de balance: se mira con
+            calma, no de pie entre serie y serie. Y su puerta llevaba a una
+            ventana para recorrer lo anterior, que en el teléfono ya no hace
+            falta: recorrer lo anterior es deslizar hacia atrás.
+          */}
+          {anchoDePlan && (
+            <TuBloque
+              program={program}
+              bloque={bloque}
+              activeWeek={activeWeek}
+              unidad={unit}
+              onAbrirHistorial={() => setVentana('historial')}
+            />
+          )}
 
           {restNote && <p className="t-xs t-tertiary">{restNote}</p>}
 

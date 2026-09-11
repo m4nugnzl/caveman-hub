@@ -500,6 +500,18 @@ export const latestActiveWeek = ({
  *
  * Sin fecha de alta no hay tiempo transcurrido que contar, y entonces sí manda
  * lo montado: se cae a `latestActiveWeek`.
+ *
+ * ── `montada`: el mismo reloj cuando solo se tiene el RESUMEN ───────────────
+ * La cartera habla de veinte personas a la vez y de cada una tiene el resumen
+ * (`trainingSummary`), no el programa: sin microciclos que mirar,
+ * `latestActiveWeek` devuelve `null` y la barra lateral se quedaría sin decir
+ * por dónde va nadie. Ahí entra `montada`, que es la semana más alta que el
+ * resumen ya trae.
+ *
+ * No es un tercer reloj: es el ÚLTIMO recurso, y solo se lee cuando no hay
+ * fecha de alta —el caso raro— y tampoco hay microciclos cargados. Con fecha de
+ * alta, que es lo normal, manda el tiempo transcurrido igual que en cualquier
+ * otra pantalla, y por eso la barra y la ficha dicen el mismo número.
  */
 export const semanaDeAhora = ({
   startDate = null,
@@ -507,12 +519,13 @@ export const semanaDeAhora = ({
   microcycles = [],
   history = [],
   photos = [],
+  montada = null,
 } = {}) => {
   if (startDate && today) {
     const n = weekFromStart(startDate, today);
     if (Number.isFinite(n) && n >= 1) return n;
   }
-  return latestActiveWeek({ microcycles, history, photos, startDate });
+  return latestActiveWeek({ microcycles, history, photos, startDate }) ?? montada;
 };
 
 /**

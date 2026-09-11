@@ -42,7 +42,7 @@ const EMPTY = {
  * @param onAddPlato  Qué hacer al elegir uno. Es otra acción que `onAdd` porque
  *   pone varios alimentos de golpe y quien la recibe necesita saber cuáles.
  */
-export const AddFoodControl = ({ foodLibrary, onAdd, platos = [], onAddPlato = null }) => {
+export const AddFoodControl = ({ foodLibrary, onAdd, platos = [], onAddPlato = null, inputProps = {} }) => {
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState(null);
   /*
@@ -286,6 +286,10 @@ export const AddFoodControl = ({ foodLibrary, onAdd, platos = [], onAddPlato = n
         }}
         onCreate={startCreating}
         placeholder={onAddPlato ? 'Buscar alimento o plato…' : 'Buscar o añadir alimento…'}
+        /* Quien abre el buscador desde el verbo de la comida quiere teclear ya,
+           y quien se va sin escribir nada lo cierra al salir. Ver `.comida-alta`
+           en `MealCard`. */
+        inputProps={inputProps}
       />
       {choque && (
         <Notice tone="warn">

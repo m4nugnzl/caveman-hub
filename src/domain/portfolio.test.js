@@ -16,6 +16,7 @@ import {
   portfolioInbox,
   portfolioSummary,
   colasDeInicio,
+  previsionEscrita,
   reviewQueue,
 } from './portfolio';
 
@@ -891,5 +892,138 @@ describe('el umbral de alerta afinado por cliente', () => {
   it('un valor absurdo guardado a mano cae a la vara general', () => {
     expect(conSilencio({ training: 'catorce' }).alerts.map((a) => a.id)).toContain('stale_training');
     expect(conSilencio({ training: -3 }).alerts.map((a) => a.id)).toContain('stale_training');
+  });
+});
+
+/*
+  ══ La cola que mira hacia delante ═══════════════════════════════════════════
+
+  La cartera sabía contar lo que ya había salido mal. «Sin semana siguiente» es
+  lo que se ve venir: por dónde va la persona sale del reloj de siempre
+  (`semanaDeAhora`) y lo escrito, del índice que trae el resumen.
+*/
+describe('sin semana siguiente', () => {
+  const hoy = '2026-09-10'; // jueves de la semana del 7 de septiembre
+  /* Alta el lunes 6 de julio: diez semanas justas hasta la del 7 de septiembre. */
+  const alta = '2026-07-06';
+
+  const conMicrociclos = (semanas, extra = {}) =>
+    clientStatus(
+      {
+        client: client({ startDate: alta }),
+        training: {
+          lastTraining: '2026-09-09',
+          microcycleCount: semanas.length,
+          sessionCount: 20,
+          weekNumber: semanas.length ? Math.max(...semanas) : null,
+          indice: { microcycles: semanas.map((weekNumber) => ({ weekNumber })), blocks: [] },
+          ...extra,
+        },
+      },
+      hoy
+    );
+
+  it('sitúa a la persona por el tiempo que lleva, no por lo montado', () => {
+    /* Diez semanas de alta y solo cinco escritas: va por la 10, no por la 5. */
+    expect(conMicrociclos([1, 2, 3, 4, 5]).horizonte.microcicloEnCurso).toBe(10);
+  });
+
+  it('avisa cuando no hay ningún microciclo escrito después del que va', () => {
+    const row = conMicrociclos([8, 9, 10]);
+    expect(row.horizonte.escritosDespues).toBe(0);
+    expect(row.alerts.map((a) => a.id)).toContain('sin_semana');
+  });
+
+  it('calla si le quedan semanas escritas por delante', () => {
+    const row = conMicrociclos([9, 10, 11, 12]);
+    expect(row.horizonte.escritosDespues).toBe(2);
+    expect(row.alerts.map((a) => a.id)).not.toContain('sin_semana');
+  });
+
+  it('no es «requiere atención»: es la lista de la compra, no una avería', () => {
+    const alerta = conMicrociclos([8, 9, 10]).alerts.find((a) => a.id === 'sin_semana');
+    expect(alerta.severity).toBe('baja');
+  });
+
+  it('quien no tiene ni un microciclo no entra aquí: lo suyo es «sin rutina»', () => {
+    const row = conMicrociclos([]);
+    expect(row.horizonte).toBeNull();
+    const ids = row.alerts.map((a) => a.id);
+    expect(ids).not.toContain('sin_semana');
+    expect(ids).toContain('no_program');
+  });
+
+  it('tiene su cola en la portada, con su verbo', () => {
+    const cola = colasDeInicio([conMicrociclos([8, 9, 10])], hoy).find((c) => c.id === 'siguiente');
+    expect(cola.n).toBe(1);
+    expect(cola.verbo).toBe('Escribir el microciclo');
+  });
+});
+
+/*
+  ══ La previsión ════════════════════════════════════════════════════════════
+
+  El gesto es de Efort; el dato no puede serlo, porque un bloque nuestro no tiene
+  duración. Se cuenta a quién se le acaba lo ESCRITO, semana a semana.
+*/
+describe('previsionEscrita', () => {
+  const hoy = '2026-09-10';
+  const alta = '2026-07-06'; // la semana en curso es la 10
+
+  const fila = (id, ultimoEscrito, over = {}) =>
+    clientStatus(
+      {
+        client: client({ id, startDate: alta, ...over }),
+        training: {
+          lastTraining: '2026-09-09',
+          microcycleCount: ultimoEscrito,
+          sessionCount: 10,
+          weekNumber: ultimoEscrito,
+          indice: {
+            microcycles: Array.from({ length: ultimoEscrito }, (_, i) => ({ weekNumber: i + 1 })),
+            blocks: [],
+          },
+        },
+      },
+      hoy
+    );
+
+  it('reparte a cada uno en la semana en la que se queda sin hoja', () => {
+    const cubos = previsionEscrita([fila('a', 10), fila('b', 11), fila('c', 13)], hoy);
+    expect(cubos.map((c) => c.n)).toEqual([1, 1, 0, 1]);
+    expect(cubos[0].desde).toBe('2026-09-07');
+    expect(cubos[3].desde).toBe('2026-09-28');
+  });
+
+  it('lo ya vencido cae en la primera columna, sin contar el retraso', () => {
+    /* Se le acabó en la semana 6: hace un mes. La hoja hace falta HOY. */
+    expect(previsionEscrita([fila('a', 5)], hoy)[0].n).toBe(1);
+  });
+
+  it('lo que cae más allá de las cuatro semanas no se pinta', () => {
+    expect(previsionEscrita([fila('a', 20)], hoy).map((c) => c.n)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('en pausa no se cuenta: a quien apartaste tú no se le escribe la semana', () => {
+    const row = fila('a', 10, { status: 'paused', pausedUntil: '2026-12-01' });
+    expect(previsionEscrita([row], hoy).map((c) => c.n)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('sin fecha de alta no hay calendario: sale en la cola, no en la previsión', () => {
+    const row = clientStatus(
+      {
+        client: client({ startDate: null }),
+        training: {
+          lastTraining: '2026-09-09',
+          microcycleCount: 3,
+          sessionCount: 9,
+          weekNumber: 3,
+          indice: { microcycles: [{ weekNumber: 1 }, { weekNumber: 2 }, { weekNumber: 3 }], blocks: [] },
+        },
+      },
+      hoy
+    );
+    expect(row.alerts.map((a) => a.id)).toContain('sin_semana');
+    expect(previsionEscrita([row], hoy).map((c) => c.n)).toEqual([0, 0, 0, 0]);
   });
 });

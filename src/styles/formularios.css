@@ -303,3 +303,96 @@
      sigue justo debajo de su paso, que es donde hace falta. */
   .mandar { grid-template-columns: 1fr; gap: var(--s4); }
 }
+
+/* ══ EL REPARTO: a quién, y qué le pasa a cada uno ═════════════════════════
+   Dos columnas, y el orden de lectura es el de la decisión: a la izquierda a
+   quién se lo mandas, a la derecha lo que le va a pasar. Enfrentadas y no una
+   debajo de otra porque la de la derecha es la RESPUESTA a la de la izquierda:
+   marcar un nombre y ver aparecer su consecuencia en la misma pantalla es lo
+   que convierte una lista de casillas en una decisión informada.
+
+   En pantalla estrecha se apilan, y entonces las consecuencias van primero:
+   cuando hay que desplazarse, lo que no se puede perder de vista es lo que se
+   va a romper. */
+.reparto {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s5); align-items: start;
+}
+@media (max-width: 720px) {
+  .reparto { grid-template-columns: 1fr; }
+  .reparto > :last-child { order: -1; }
+}
+
+/* La ficha de una persona: su nombre y las dos o tres líneas de qué le pasa. */
+.consec {
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3); background: var(--surface);
+}
+.consec > h6 {
+  margin: 0 0 4px; font-size: var(--fs-sm); font-weight: 650;
+}
+.consec-fila {
+  margin: 0; display: flex; align-items: baseline; gap: var(--s2);
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.consec-fila > .que { flex: 1; min-width: 0; }
+/* Entra y se cierra: las dos marcas del reparto. NO son un semáforo —nada de
+   esto está bien ni mal— así que la que entra habla en acento (lo que va a
+   pasar por lo que pediste) y la que se cierra, en tinta terciaria sobre su
+   relleno: un cambio de estado, no un error. */
+.consec-fila > .marca {
+  flex: none; font-size: var(--fs-3xs); font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  border-radius: 999px; padding: 2px 8px;
+}
+.consec-fila > .marca.entra { background: var(--accent-soft); color: var(--accent); }
+.consec-fila > .marca.sale { background: var(--fill); color: var(--text-tertiary); }
+
+/* ── QUÉ LLEVAS, arriba del reparto ────────────────────────────────────────
+   Quien abre esto desde la mano del portapapeles puede llevar tres piezas que
+   se llaman parecido, y el título del panel solo dice el nombre. Un par de
+   líneas de dentro es lo que distingue «Lower A» de «Lower A». */
+.pieza-carta {
+  border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3); background: var(--fill-subtle);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.pieza-carta > b { font-size: var(--fs-sm); font-weight: 650; }
+.pieza-carta > span { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.pieza-carta > ul {
+  list-style: none; margin: 4px 0 0; padding: 0;
+  font-size: var(--fs-xs); color: var(--text-secondary);
+}
+.pieza-carta > ul > li { padding: 1px 0; }
+.pieza-carta > ul > li.mas { color: var(--text-tertiary); }
+
+/* ── La casilla de la fila ─────────────────────────────────────────────────
+   Cada consecuencia se puede quitar sin cambiar la audiencia: ver qué le pasa
+   a alguien y no poder decir «éste no» convertiría la columna en un aviso. */
+.consec > h6 { display: flex; align-items: center; gap: var(--s2); }
+.consec > h6 > input { accent-color: var(--accent); margin: 0; flex: none; }
+/* Quien queda fuera no desaparece —se sigue leyendo por qué— pero se apaga:
+   es la ley de las casillas del lote, `opacity` y no `visibility`. */
+.consec.es-fuera { opacity: 0.55; }
+
+/* Lo que le condiciona. El veto en el tono de aviso de la casa y no en rojo:
+   nada de esto está mal, es una decisión que hay que tomar mirándola. */
+.consec-veto,
+.consec-ojo {
+  margin: 4px 0 0; font-size: var(--fs-2xs); font-weight: 600;
+}
+.consec-veto { color: var(--warning); }
+.consec-ojo { color: var(--text-tertiary); }
+
+/* ── El puente a un protocolo ──────────────────────────────────────────────
+   «¿Esto lo haces siempre?». Va al pie del repaso, después del aviso de cómo le
+   llega: primero se termina de mandar lo de hoy y solo entonces se ofrece
+   convertirlo en costumbre. Separado por un filete y no por aire a secas, porque
+   es lo único de este diálogo que NO va a pasar al pulsar «Mandárselo». */
+.mandar-puente {
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--hairline);
+  align-self: flex-start;
+  text-align: left;
+}

@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowLeftRight,
   Bell,
+  CalendarClock,
   Camera,
   CheckSquare,
   Copy,
@@ -42,8 +43,16 @@ import {
   protocolosToPreferences,
   sanitizeSchedule,
 } from '@/domain/protocolos';
-import { coachFormularios, cuentaPreguntas, formulariosToPreferences } from '@/domain/formularios';
-import { agrupar } from '@/domain/envios';
+import {
+  coachFormularios,
+  cuentaPreguntas,
+  formulariosMandables,
+  formulariosToPreferences,
+} from '@/domain/formularios';
+import { agrupar, vigente } from '@/domain/envios';
+import { cuentaPasos, deProtocolo, nombreDe } from '@/domain/automatizaciones';
+import { CarrilAutomatizaciones } from './CarrilAutomatizaciones';
+import { LoQueSale } from './LoQueSale';
 import { MandarAlgo } from '@/components/Coach/MandarAlgo';
 import { EnvioAbierto, EnviosSeccion } from './Envios';
 import { GuiaDeMedidas } from './GuiaDeMedidas';
@@ -134,8 +143,14 @@ export const ProtocolosPanel = () => {
     applyProtocolToClient,
     setSelectedClientId,
     envioRows,
+    automatizaciones,
   } = useApp();
-  const { updateCoachPreferences } = useActions();
+  const {
+    updateCoachPreferences,
+    guardarAutomatizacion,
+    quitarAutomatizacion,
+    correrAutomatizaciones,
+  } = useActions();
   const confirm = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
@@ -156,9 +171,21 @@ export const ProtocolosPanel = () => {
   /* Lo de «una vez»: el envío abierto y el diálogo de mandar. */
   const [envioAbierto, setEnvioAbierto] = useState(null);
   const [mandando, setMandando] = useState(false);
+  /* Qué mitad de la puerta se mira: los protocolos, o lo que sale de ellos. */
+  const [tramo, setTramo] = useState('protocolos');
+  /* El reloj del repaso. Ver `guardarAuto`. */
+  const relojRepaso = useRef(null);
 
   const protocolos = coachProtocolos(coachPrefs);
   const formularios = coachFormularios(coachPrefs);
+  /*
+    Los que se pueden MANDAR, que no son todos: un alta o un check-in no viajan
+    como acción suelta —sus preguntas no viven en `elementos`— y el carril los
+    ofrecía igual, así que elegir «Alta» en un paso mandaba una hoja en blanco.
+    El criterio es el mismo que usa «Mandar algo», escrito una vez en el
+    dominio.
+  */
+  const mandables = formulariosMandables(coachPrefs);
   const protocolo = protocolos.find((p) => p.id === abierto) || null;
 
   /* Los envíos salen de agrupar las filas: un envío no es una fila de la base,
@@ -167,6 +194,20 @@ export const ProtocolosPanel = () => {
   const envio = envios.find((e) => e.id === envioAbierto) || null;
 
   const porCliente = useMemo(() => cuentaClientes(coachPrefs, clients), [coachPrefs, clients]);
+
+  /*
+    Lo que va a salir y todavía no ha salido. Es la cifra del tramo y la única de
+    esta pantalla que caduca, así que es la única que se pone en la cinta.
+
+    El corte lo hace `vigente`, la misma función con la que el portal del cliente
+    decide qué enseñar: dos formas de contestar «¿esto ya está fuera?»
+    acabarían discrepando, y el día que discrepen esta cifra diría que quedan
+    cuatro cosas por salir cuando el cliente ya las tiene delante.
+  */
+  const porSalir = useMemo(
+    () => (envioRows || []).filter((f) => f.due && !vigente(f) && !f.submitted_at).length,
+    [envioRows]
+  );
 
   /* Quién se ha quedado atrás y quién está protegido, POR PROTOCOLO. Cada
      cliente se compara contra el suyo — el porqué, en `planDeCliente`. */
@@ -301,6 +342,66 @@ export const ProtocolosPanel = () => {
     suyos se cambia al primero que sí — cambiar de cliente y saltar al portal, en
     ese orden, que es lo que hace el botón de su ficha.
   */
+  /*
+    ══ Las tres de las automatizaciones ══════════════════════════════════════
+
+    Guardar una CORRE el repaso detrás, y no es un adorno: lo que acabas de
+    escribir tiene que materializarse para quien ya lo lleva puesto sin esperar
+    al siguiente arranque. Es el §6.3 —lo que ya corrió no se toca; lo que no ha
+    corrido, corre con la última versión— dicho en el único sitio donde se nota:
+    el momento en que lo escribes.
+  */
+  const guardarAuto = async (auto) => {
+    const res = await guardarAutomatizacion(auto);
+    if (!res.ok) {
+      toast({ text: res.error, tone: 'danger' });
+      return;
+    }
+    /*
+      El repaso va con su propio retardo, ENCIMA del que ya trae el carril.
+
+      No es lo mismo que guardar: guardar es una fila, y el repaso recorre la
+      cartera entera cruzándola con sus automatizaciones. Lanzarlo en cuanto se
+      posa cada tecla sería pagar ese recorrido por cada palabra de un título, y
+      el resultado del penúltimo no le sirve a nadie. Dos segundos y medio es
+      «ya no está tocando esto».
+    */
+    clearTimeout(relojRepaso.current);
+    relojRepaso.current = setTimeout(() => correrAutomatizaciones(), 2500);
+  };
+
+  const quitarAuto = async (auto) => {
+    const ok = await confirm({
+      title: `¿Quitar «${nombreDe(auto)}»?`,
+      /* Lo ya mandado no se toca: es de quien lo recibió. Lo que no ha salido
+         sigue en la cola y se quita desde ahí, que es donde se ve a quién le
+         toca — decirlo aquí evita el «lo he borrado y le ha llegado igual». */
+      message:
+        'Deja de pasar a partir de ahora. Lo que ya le llegó a alguien se queda donde está, y lo que está en la cola y aún no ha salido se quita desde «Lo que sale».',
+      confirmLabel: 'Quitarla',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    const res = await quitarAutomatizacion(auto.id);
+    if (!res.ok) toast({ text: res.error, tone: 'danger' });
+  };
+
+  /* Lanzarla a mano: la ocurrencia es el id de ESE empujón, así que mandarla dos
+     veces manda dos veces — y eso es lo correcto, porque el que la lanza es el
+     dedo y el dedo sabe lo que hace. Lo que el libro impide es que el mismo
+     empujón se cuente dos veces por una pestaña de más. */
+  const lanzarAuto = async (auto) => {
+    const res = await correrAutomatizaciones({ manual: { automationId: auto.id } });
+    toast({
+      text: res.ok
+        ? res.hechas === 0
+          ? 'No le tocaba a nadie: nadie lleva este protocolo puesto.'
+          : `Mandado. ${res.hechas} ${res.hechas === 1 ? 'cosa ha salido' : 'cosas han salido'}.`
+        : `Han salido ${res.hechas}, y ${res.fallos} no. Vuelve a lanzarla: solo se reintenta lo que falta.`,
+      tone: res.ok ? undefined : 'danger',
+    });
+  };
+
   const verComoCliente = (p) => {
     const suyos = clients.filter((c) => (c.preferences?.protocolId || protocolos[0]?.id) === p.id);
     if (suyos.length === 0) {
@@ -321,6 +422,22 @@ export const ProtocolosPanel = () => {
         <div className="taller">
           <BandaTaller
             titulo="Protocolos"
+            /*
+              Dos tramos, con el mecanismo de banda que el Taller ya tiene. La
+              puerta sigue llamándose «Protocolos» y no «Automatizaciones»:
+              renombrarla pondría el nombre en la máquina y no en la forma de
+              trabajar, que es lo que el entrenador viene a definir.
+
+              Y la cifra es la de lo que VA A SALIR, que es lo único de esta
+              pantalla que caduca. Cuántos protocolos tienes ya lo dice la lista
+              treinta píxeles más abajo.
+            */
+            tramos={[
+              { id: 'protocolos', label: 'Protocolos' },
+              { id: 'sale', label: 'Lo que sale', n: porSalir },
+            ]}
+            tramo={tramo}
+            onTramo={setTramo}
             accion={
               <span className="row gap-2">
                 <button type="button" className="btn btn-secondary btn-sm" onClick={nuevo}>
@@ -338,6 +455,10 @@ export const ProtocolosPanel = () => {
           />
 
           <div className="cartera-cuerpo">
+            {tramo === 'sale' ? (
+              <LoQueSale />
+            ) : (
+              <>
             {/* Dos rótulos y no dos pestañas: lo que pasa SIEMPRE y lo que pasó
                 UNA VEZ son la misma clase de cosa —una acción con su gente y su
                 momento— y se leen del tirón. */}
@@ -440,6 +561,8 @@ export const ProtocolosPanel = () => {
               onAbrir={setEnvioAbierto}
               onMandar={() => setMandando(true)}
             />
+              </>
+            )}
           </div>
         </div>
 
@@ -454,6 +577,7 @@ export const ProtocolosPanel = () => {
   const grupos = porPremisa(acciones);
   const desvio = conDesvio[protocolo.id] || { atrasados: [], excepciones: [] };
   const horario = sanitizeSchedule(protocolo.schedule);
+  const susAutomatizaciones = deProtocolo(automatizaciones || [], protocolo.id);
   const activa = acciones.find((a) => a.id === tocada) || acciones[0] || null;
 
   return (
@@ -520,7 +644,21 @@ export const ProtocolosPanel = () => {
           puede ocupar la primera pantalla del sitio donde se trabaja todas las
           semanas.
         */}
-        <aside className="plano-ficha" aria-label="Este protocolo">
+        {/*
+          ══ Y ES UN PANEL DE TRES TRAMOS, no tres títulos seguidos ══════════
+
+          Los tres rótulos eran `<h2>` del mismo cuerpo y peso que el título de
+          una página, apilados con un hueco de 12 px y sin nada que los separe:
+          se leían como tres cosas distintas puestas en la misma columna por
+          casualidad, y competían con el nombre del protocolo que hay arriba.
+
+          Aquí son RÓTULOS DE TRAMO —el mismo `.rotulo-tramo` que encabeza «Al
+          entrar» o «Qué le pasa solo» en la columna de al lado— con su filete
+          entre medias. El panel pasa a leerse como lo que es: un mueble con
+          tres cajones, y lo que se mira dentro de cada uno es el dato, no su
+          encabezado.
+        */}
+        <aside className="plano-ficha proto-plano" aria-label="Este protocolo">
           <section className="col gap-3 proto-lleva">
             <h2 className="plano-ficha-tit">Qué lleva</h2>
             <ServicesSection
@@ -552,6 +690,52 @@ export const ProtocolosPanel = () => {
                 Este protocolo no hace nada todavía. Añade la primera acción y aparecerá aquí.
               </p>
             )}
+          </section>
+
+          {/*
+            ══ Y el panel CUENTA, no receta ══════════════════════════════════
+
+            Cuánta gente lo lleva, cuánta se ha quedado atrás y cuántas cosas le
+            pasan solas. Ni una frase que proponga cambiar nada: el criterio es
+            del entrenador y esta columna es información. Lo que sí hace es
+            llevar a donde se arregla — la cifra de la cola es un enlace, porque
+            «4 cosas van a salir» sin poder ver cuáles es una cifra que inquieta
+            y no informa.
+          */}
+          <section className="col gap-3" aria-labelledby="proto-quien">
+            <h2 className="plano-ficha-tit" id="proto-quien">
+              Quién lo lleva
+            </h2>
+            <p className="t-sm">
+              {porCliente[protocolo.id] || 0}{' '}
+              {(porCliente[protocolo.id] || 0) === 1 ? 'cliente' : 'clientes'}
+              {desvio.atrasados.length > 0 && ` · ${desvio.atrasados.length} atrasados`}
+              {desvio.excepciones.length > 0 &&
+                ` · ${desvio.excepciones.length} ${desvio.excepciones.length === 1 ? 'excepción' : 'excepciones'}`}
+            </p>
+            <p className="t-xs t-tertiary">
+              {cuentaPasos(susAutomatizaciones) === 0
+                ? 'No le pasa nada solo.'
+                : `${cuentaPasos(susAutomatizaciones)} ${
+                    cuentaPasos(susAutomatizaciones) === 1 ? 'cosa le pasa sola' : 'cosas le pasan solas'
+                  }.`}
+            </p>
+            {/* Un enlace y no un botón a todo lo ancho. Esto no es el verbo de
+                la pantalla —la pantalla se usa para montar el protocolo, no
+                para mirar la cola—: es la puerta a donde se ve lo que la cifra
+                de arriba está contando, y una puerta se lee, no se pulsa por
+                accidente. La ley de los gestos: el verbo va en azul. */}
+            <button
+              type="button"
+              className="link proto-plano-link"
+              onClick={() => {
+                setAbierto(null);
+                setTramo('sale');
+              }}
+            >
+              <CalendarClock size={13} aria-hidden="true" />
+              {porSalir === 0 ? 'Ver lo que sale' : `Ver lo que sale · ${porSalir}`}
+            </button>
           </section>
         </aside>
 
@@ -622,6 +806,32 @@ export const ProtocolosPanel = () => {
             <Plus size={15} /> Añadir acción
           </button>
 
+          {/*
+            ══ Y debajo, lo que le pasa SOLO ══════════════════════════════════
+
+            Las premisas de arriba y el carril de abajo contestan la misma
+            pregunta —qué le pasa a esta persona— y por eso viven en la misma
+            columna y no en dos pestañas. Lo que las separa es de dónde sale cada
+            una: arriba, de lo que el protocolo ya sabía hacer (el alta, el
+            check-in, la sesión); abajo, de lo que tú escribas.
+
+            Que sigan siendo dos listas es un estado intermedio dicho en voz
+            alta, no un descuido: el §2.4 del doc da por muerta la columna de
+            conmutadores como forma de contar lo que le pasa a alguien, pero
+            mudar el alta y el check-in a automatizaciones es mover el dato de
+            cada cliente y eso no cabe en esta tanda.
+          */}
+          <p className="rotulo-tramo">Qué le pasa solo</p>
+          <CarrilAutomatizaciones
+            protocoloId={protocolo.id}
+            automatizaciones={susAutomatizaciones}
+            todas={automatizaciones}
+            formularios={mandables}
+            onGuardar={guardarAuto}
+            onQuitar={quitarAuto}
+            onLanzar={lanzarAuto}
+          />
+
           <p className="t-xs t-tertiary taller-pie">
             Tus protocolos se guardan en tu cuenta y te siguen de un ordenador a otro. Lo que cada
             cliente tiene puesto vive en su ficha: cambiar el protocolo no toca a nadie hasta que
@@ -689,11 +899,20 @@ const CarrilAccion = ({ accion, plan, onPlan, onEditarFormulario }) => {
         </span>
       </div>
 
-      {/* ── Un formulario: cuál, y la puerta para editarlo ─────────────── */}
+      {/* ── Un formulario: cuál, y la puerta para editarlo ───────────────
+
+          Sin el pie «Se escribe en Formularios; aquí se elige cuál se usa»:
+          justo debajo está «14 preguntas · editarlo →», que dice lo mismo y
+          además lleva a donde se escribe. Dos renglones para una sola idea, y
+          el que sobraba era el que no hacía nada.
+
+          Y el desplegable va en `select-sm`: a todo lo ancho del panel, un
+          campo de 54 px para la palabra «Alta» era lo más ruidoso de una
+          columna que se lee, no se rellena. */}
       {accion.tipo === 'form' && (
-        <Field label="Qué formulario" hint="Se escribe en Formularios; aquí se elige cuál se usa.">
+        <Field label="Qué formulario">
           <select
-            className="select"
+            className="select select-sm"
             value={suyo?.id || ''}
             onChange={(e) => {
               const clave = momento === 'alta' ? 'alta' : momento;

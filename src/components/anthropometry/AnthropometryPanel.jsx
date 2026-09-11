@@ -47,7 +47,7 @@ import { WeeklyCheckIn } from './WeeklyCheckIn';
 export const AnthropometryPanel = ({
   client,
   anthropometry,
-  nutritionPlan,
+  nutritionFoto,
   audience = 'client',
   save,
   onRetry,
@@ -238,7 +238,7 @@ export const AnthropometryPanel = ({
         <ReviewWizard
           client={client}
           history={history}
-          nutritionPlan={nutritionPlan}
+          nutritionFoto={nutritionFoto}
           audience={audience}
           save={save}
           onRetry={onRetry}

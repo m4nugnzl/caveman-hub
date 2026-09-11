@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { escucharConexion, hayRed } from '@/lib/conexion';
+import { borrarInstantanea, guardarInstantanea, leerInstantanea } from '@/lib/instantanea';
 import { createSaveQueue } from '@/lib/saveQueue';
+import { olvidarSesion, recordarSesion, sesionDeRespaldo } from '@/lib/sesionOffline';
 import { pendingStore } from '@/lib/pendingSaves';
 import { useMirroredState } from '@/lib/useMirroredState';
 import { recordIssue } from '@/lib/diagnostics';
@@ -9,6 +12,7 @@ import { flushEvents, forgetActor, identify } from '@/lib/analytics';
 import { useConditions } from '@/context/useConditions';
 import { useEquipment } from '@/context/useEquipment';
 import { useExerciseSheets } from '@/context/useExerciseSheets';
+import { useEquivGroups } from '@/context/useEquivGroups';
 import { useRoadmap } from '@/context/useRoadmap';
 import { useSupport } from '@/context/useSupport';
 import { useReviews } from '@/context/useReviews';
@@ -18,6 +22,8 @@ import { useTeam } from '@/context/useTeam';
 import { useIntegrations } from '@/context/useIntegrations';
 import { useProgressPhotos } from '@/context/useProgressPhotos';
 import { useCoachPrefs } from '@/context/useCoachPrefs';
+import { useCajon } from '@/context/useCajon';
+import { useAutomatizaciones } from '@/context/useAutomatizaciones';
 import { useEnvios } from '@/context/useEnvios';
 import { useClients } from '@/context/useClients';
 import { useAnthropometry } from '@/context/useAnthropometry';
@@ -80,6 +86,38 @@ const DOMINIOS = ['workout', 'anthro', 'nutrition', 'client', 'preferences'];
 const EMPTY_SAVE_STATE = { status: 'idle', error: null };
 
 /**
+ * Cuánto se espera a que `getSession()` conteste antes de abrir con lo que haya.
+ *
+ * Dos segundos y medio: una sesión válida se resuelve en milisegundos —sale del
+ * almacenamiento del navegador— y solo tarda cuando hay que renovar el testigo
+ * contra un servidor que no contesta. Que es justo el caso en el que esperar no
+ * sirve de nada. Ver el arranque, más abajo.
+ */
+const ESPERA_DE_SESION = 2500;
+
+/**
+ * Cuánto se espera a que la carga traiga datos antes de abrir con la copia.
+ *
+ * ══ Por qué hace falta un tope aquí también ═════════════════════════════════
+ *
+ * Porque `supabase-js` pide el testigo de sesión ANTES de cada consulta, y si el
+ * testigo está caducado sale a renovarlo con reintentos de espera creciente. Sin
+ * red eso no falla: se queda esperando. Así que la primera consulta de
+ * `loadForUser` no vuelve nunca, la promesa de la carga tampoco, y la aplicación
+ * se quedaba en la pantalla de la marca indefinidamente — comprobado el
+ * 9/09/2026 apagando el servidor.
+ *
+ * No se puede arreglar «no llamando cuando no hay red», porque en ese momento
+ * todavía no se sabe: `navigator.onLine` dice que sí y ninguna petición ha
+ * fallado aún. Lo que sí se sabe, pasados unos segundos, es que no ha llegado
+ * nada — y si hay copia, eso es suficiente para abrir.
+ *
+ * La carga NO se cancela: sigue por detrás y, si acaba llegando, reemplaza lo de
+ * la copia y apaga el aviso ella sola.
+ */
+const ESPERA_DE_CARGA = 3500;
+
+/**
  * Las claves de cola que son «la rutina de este cliente» sin ser `workout:<id>`.
  *
  * El cliente no escribe el bloque: escribe una serie (`set:`) o pide la semana
@@ -99,6 +137,19 @@ export const AppProvider = ({ children }) => {
     error que se pueda ignorar, y por eso vive aparte de `loadError`.
   */
   const [conflict, setConflict] = useState(null);
+
+  /*
+    ══ Se está mirando una COPIA ══════════════════════════════════════════════
+
+    Cuando no hay red, el arranque rehidrata desde la foto local
+    (`lib/instantanea`) en vez de dejar la aplicación vacía. Esto guarda de
+    CUÁNDO es esa foto, y es `null` siempre que los datos vengan del servidor.
+
+    Existe porque la interfaz tiene que poder decirlo. Enseñar la cartera de ayer
+    sin avisar de que es de ayer es exactamente la clase de dato silencioso sobre
+    el que alguien programa una semana entera.
+  */
+  const [copiaLocal, setCopiaLocal] = useState(null);
 
   /** Rol real, según la tabla `profiles`. La autorización la aplica RLS. */
   const [profileRole, setProfileRole] = useState('coach');
@@ -220,6 +271,13 @@ export const AppProvider = ({ children }) => {
   const queueRef = useRef(null);
   if (queueRef.current === null) {
     queueRef.current = createSaveQueue({
+      /*
+        Sin red la cola ESPERA en vez de intentarlo y fallar. Antes de esto, cada
+        pulsación en un sótano salía, se caía y pintaba «No se guardó» en rojo
+        sobre algo que estaba a salvo en el navegador — el aviso de pérdida más
+        repetido de la aplicación era mentira. Ver `lib/conexion`.
+      */
+      isOnline: hayRed,
       store: {
         save: (key, payload) => storeRef.current?.save(key, payload),
         clear: (key) => storeRef.current?.clear(key),
@@ -274,8 +332,16 @@ export const AppProvider = ({ children }) => {
 
       const failed = parts.find(([, s]) => s.status === 'error');
       if (failed) return failed[1];
+      /*
+        'pending' va DELANTE de 'saving' y de 'saved', y esta línea es lo que
+        impide que el modo sin conexión reintroduzca el fallo silencioso que toda
+        esta cadena existe para evitar: sin ella, un cliente anotando series en un
+        sótano —donde ningún campo está «en vuelo» porque no se intenta— caía en
+        la última rama y leía «✓ Guardado» con todo por mandar.
+      */
+      if (parts.some(([, s]) => s.status === 'pending')) return { status: 'pending', error: null };
       if (parts.some(([, s]) => s.status === 'saving')) return { status: 'saving', error: null };
-      if (own?.status === 'error' || own?.status === 'saving') return own;
+      if (own?.status === 'error' || own?.status === 'saving' || own?.status === 'pending') return own;
       return { status: 'saved', error: null };
     },
     [saveState]
@@ -295,9 +361,48 @@ export const AppProvider = ({ children }) => {
     [queue, saveState]
   );
 
-  /** ¿Hay algo escrito que todavía no está confirmado en el servidor? */
-  const hasUnsavedChanges = useMemo(
-    () => Object.values(saveState).some((s) => s.status === 'saving' || s.status === 'error'),
+  /**
+   * Lo que el servidor ya ha RECHAZADO, para toda la aplicación.
+   *
+   * `retrySave` pide por dominio y por cliente porque lo llama el indicador de
+   * una pantalla, que sabe qué está mirando. Esto es lo contrario: la franja de
+   * `ui/EstadoDeRed` sale en cualquier sitio —también en Inicio o en Cobros, donde
+   * no hay ningún indicador— y lo que tiene que decir es «algo tuyo no se guardó»
+   * sin saber de qué pantalla venía. Así que cuenta claves, no clientes, y su
+   * reintento suelta TODAS las que fallaron.
+   *
+   * Con red y un guardado rechazado la nube del título dice «Conectado. Todo lo
+   * tuyo está guardado», que es mentira; esto es lo que la tapa.
+   */
+  const fallosAlGuardar = useMemo(
+    () => Object.values(saveState).filter((s) => s.status === 'error').length,
+    [saveState]
+  );
+
+  const reintentarLoFallido = useCallback(() => {
+    for (const [key, s] of Object.entries(saveState)) {
+      if (s.status === 'error') queue.retry(key);
+    }
+  }, [queue, saveState]);
+
+  /*
+    ══ Y aquí estuvo `hasUnsavedChanges` ══════════════════════════════════════
+
+    «¿Hay algo escrito que todavía no esté confirmado?», que era `saving ||
+    error || pending`. Lo pintaba una sola pieza —la chapa «Cambios sin
+    confirmar» de `HeaderActions`— y mezclaba tres cosas que no se parecen y que
+    hoy las cuenta cada una por su lado: lo que ESPERA a que vuelva la red
+    (`enEspera`), lo que el servidor ha RECHAZADO (`fallosAlGuardar`) y lo que
+    está en vuelo, que dura un debounce y no es noticia de nadie —empezaba en la
+    primera pulsación, así que el aviso se encendía al teclear—.
+
+    Quien necesite saber si queda algo por mandar antes de cerrar la pestaña usa
+    `queue.hasUnsaved()`, que mira la cola y no los estados pintados.
+  */
+
+  /** Cuántas cosas esperan a que vuelva la red. Lo cuenta la franja de `ui/EstadoDeRed`. */
+  const enEspera = useMemo(
+    () => Object.values(saveState).filter((s) => s.status === 'pending').length,
     [saveState]
   );
 
@@ -769,6 +874,30 @@ export const AppProvider = ({ children }) => {
   /** Descarta respuestas de una carga anterior si el usuario cambia rápido. */
   const loadTokenRef = useRef(0);
 
+  /*
+    ¿La última carga trajo lo esencial? Un ref y no estado porque quien lo
+    pregunta es `loadOnce`, justo después de esperar la carga, y el estado
+    todavía no se ha repintado ahí. Sirve para dos cosas:
+
+      · decidir si hay que caer a la copia local (`lib/instantanea`);
+      · y NO sobrescribir una copia buena con un arranque a medias, que sería la
+        peor manera de perder los datos: en silencio y en el sitio que existe
+        precisamente para no perderlos.
+  */
+  const cargaOkRef = useRef(false);
+  /*
+    Los setters de la bandeja de envíos, alcanzables desde aquí.
+
+    `useEnvios` se monta MÁS ABAJO que la carga —necesita la sesión ya resuelta—
+    así que sus setters no existen todavía cuando se escribe esto. El espejo en un
+    ref es el recurso que este archivo ya usa para lo mismo (`planRef`, la fachada
+    de acciones): se rellena en cada render y se lee dentro de una llamada, que es
+    cuando ya está.
+  */
+  const siembraEnviosRef = useRef(null);
+  /** De cuándo son los datos que hay en memoria, según el SERVIDOR. */
+  const sincronizadoEnRef = useRef(null);
+
   /* Las fotos de progreso: estado espejado y acciones en su gancho
      (`useProgressPhotos.js`). `loadForUser` siembra las filas —sin firmar— con
      el setter que devuelve. */
@@ -787,6 +916,7 @@ export const AppProvider = ({ children }) => {
       const token = ++loadTokenRef.current;
       const isStale = () => token !== loadTokenRef.current;
 
+      cargaOkRef.current = false;
       setLoadError(null);
 
       const { data: profile, error: profileErr } = await supabase
@@ -952,6 +1082,11 @@ export const AppProvider = ({ children }) => {
         setNutrition({});
         setProgressPhotos([]);
         setCheckIns({});
+        /* Un entrenador recién dado de alta no tiene a nadie, y eso es una carga
+           correcta: la copia local debe poder guardarse igual. */
+        cargaOkRef.current = true;
+        sincronizadoEnRef.current = Date.now();
+        setCopiaLocal(null);
         return;
       }
 
@@ -1088,12 +1223,26 @@ export const AppProvider = ({ children }) => {
       const nameOf = (clientId) => mappedClients.find((c) => c.id === clientId)?.name;
       if (isStale()) return;
       setProgressPhotos((photos.data || []).map((r) => mapPhotoFromDb(r, nameOf(r.client_id))));
+
+      /*
+        Llegar hasta aquí es la definición de «carga buena»: perfil, cartera y
+        los tres bloques están en memoria. A partir de este punto la copia local
+        se puede escribir y lo que se está mirando ya no es una foto.
+
+        Lo de `failed.length > 0` de más arriba NO lo impide: ahí falló alguna de
+        las consultas secundarias y el aviso ya está puesto, pero lo esencial
+        está; guardar eso es mejor que quedarse con una copia de la semana pasada.
+      */
+      cargaOkRef.current = true;
+      sincronizadoEnRef.current = Date.now();
+      setCopiaLocal(null);
     },
     [
       setAnthropometry,
       setCheckIns,
       setCheckInsActivos,
       setClients,
+      setCopiaLocal,
       setExerciseLibrary,
       setFoodLibrary,
       setNutrition,
@@ -1120,6 +1269,83 @@ export const AppProvider = ({ children }) => {
     setTeamMembers([]);
     setCheckIns({});
   }, [queue, setAnthropometry, setCheckIns, setClients, setExerciseLibrary, setFoodLibrary, setNutrition, setProgressPhotos, setTeam, setTeamMembers, setWorkoutData]);
+
+  /**
+   * Rehidrata la aplicación desde la copia local. Devuelve si había algo.
+   *
+   * ══ Es el mismo aterrizaje que el del servidor ══════════════════════════════
+   *
+   * A propósito llama a LOS MISMOS setters que `loadForUser`, con los datos ya
+   * mapeados. Nada por debajo distingue de dónde vinieron: no hay una «pantalla
+   * offline» ni un camino paralelo que mantener en pie: es la aplicación entera,
+   * con datos de hace un rato.
+   *
+   * ── Las versiones viajan con la foto, y es lo importante ────────────────────
+   * `versionsRef` es la guardia de «esto es lo que yo leí» que impide pisar el
+   * trabajo de otro (ver `upsertClientRow`). Restaurarla es lo que hace que
+   * trabajar sin conexión sea SEGURO: si alguien tocó la misma ficha mientras
+   * estabas fuera, al volver la red sale el aviso de conflicto en vez de un
+   * borrado silencioso. Sin esto, el modo sin conexión sería una máquina de pisar
+   * cambios ajenos.
+   */
+  const aplicarInstantanea = useCallback(
+    (datos) => {
+      if (!datos) return false;
+
+      const clientes = datos.clients || [];
+
+      setProfileRole(datos.profileRole === 'client' ? 'client' : 'coach');
+      setProfileName(datos.profileName || '');
+      setViewMode(datos.profileRole === 'client' ? 'client' : 'coach');
+      setTeam(datos.team || null);
+      setTeamMembers(datos.teamMembers || []);
+      setPlan(datos.plan || null);
+      setClients(clientes);
+      setSelectedClientId((prev) =>
+        clientes.some((c) => c.id === prev) ? prev : clientes[0]?.id || ''
+      );
+      setExerciseLibrary(datos.exerciseLibrary || []);
+      setFoodLibrary(datos.foodLibrary || []);
+      setCatalogExercises(datos.catalogExercises || []);
+      setCatalogFoods(datos.catalogFoods || []);
+      setWorkoutData(datos.workoutData || {});
+      setServerSummaries(datos.serverSummaries || {});
+      setLegacyPending(Boolean(datos.legacyPending));
+      setAnthropometry(datos.anthropometry || {});
+      setNutrition(datos.nutrition || {});
+      setCheckIns(datos.checkIns || {});
+      setCheckInsActivos(datos.checkInsActivos !== false);
+      setProgressPhotos(datos.progressPhotos || []);
+
+      versionsRef.current = datos.versions || {
+        workout_data: {},
+        anthropometry: {},
+        nutrition_plans: {},
+      };
+
+      /* La bandeja se siembra por el espejo: su gancho vive más abajo. Y se da
+         por LISTA, o las pantallas que la esperan se quedarían cargando para
+         siempre contra un servidor que no está. */
+      siembraEnviosRef.current?.setEnvioRows(datos.envioRows || []);
+      siembraEnviosRef.current?.setEnviosReady(true);
+
+      return true;
+    },
+    [
+      setAnthropometry,
+      setCheckIns,
+      setCheckInsActivos,
+      setClients,
+      setExerciseLibrary,
+      setFoodLibrary,
+      setNutrition,
+      setPlan,
+      setProgressPhotos,
+      setTeam,
+      setTeamMembers,
+      setWorkoutData,
+    ]
+  );
 
   /**
    * Quién está cargado ahora mismo. Es la guardia de la recarga completa.
@@ -1190,31 +1416,164 @@ export const AppProvider = ({ children }) => {
       // Se marca ANTES de esperar: los dos caminos de arranque corren en el mismo
       // hilo y, sin esto, ambos verían el ref vacío y cargarían por duplicado.
       loadedUserRef.current = user.id;
-      try {
-        cargaEnVueloRef.current = loadForUser(user);
-        await cargaEnVueloRef.current;
-      } catch (e) {
+
+      /**
+       * Abrir con la foto local. Ver `lib/instantanea`.
+       *
+       * Deja la aplicación en el mismo sitio que la dejaría el servidor, marca de
+       * cuándo son los datos y da la carga por buena — para que lo que se escriba
+       * a partir de ahora entre también en la copia y no se pierda al recargar
+       * sin haber recuperado la señal.
+       */
+      const abrirConLaCopia = async () => {
+        const copia = await leerInstantanea(user.id);
+        if (!copia || !aplicarInstantanea(copia.datos)) return false;
+        cargaOkRef.current = true;
+        sincronizadoEnRef.current = copia.at;
+        setCopiaLocal({ at: copia.at });
+        setLoadError(null);
+        return true;
+      };
+
+      /*
+        ══ Lo que se comparte con el otro camino de arranque es la espera ACOTADA ══
+
+        `cargaEnVueloRef` guarda ESTA promesa —la que ya lleva el reloj dentro— y
+        no la de `loadForUser` pelada. La diferencia no es de estilo: los dos
+        caminos del arranque (`getSession()` e `INITIAL_SESSION`) llegan a la vez,
+        el segundo se encuentra la marca puesta y ESPERA a lo que guarde este ref.
+        Guardando ahí la carga cruda, sin red esa espera no terminaba nunca —
+        `supabase-js` pide el testigo antes de cada consulta y se queda
+        reintentando—, así que quien sostenía `loading` no lo soltaba jamás y la
+        aplicación se quedaba para siempre en la pantalla de la marca aunque la
+        copia estuviera cargada y lista. Medido el 9/09/2026.
+      */
+      cargaEnVueloRef.current = (async () => {
+        /*
+          Si ya se sabe que no hay red, ni se intenta: lanzar la carga solo
+          añadiría la espera de un fetch condenado antes de enseñar lo mismo.
+        */
+        if (!hayRed() && (await abrirConLaCopia())) return;
+
+        const carga = loadForUser(user);
+
+        /* Ver `ESPERA_DE_CARGA`. La carga NO se cancela: sigue viva por detrás y
+           se corrige sola si la red aparece. */
+        const desenlace = await Promise.race([
+          carga.then(
+            () => 'llegó',
+            (e) => {
+              recordIssue('carga', e);
+              return { reventó: e };
+            }
+          ),
+          new Promise((suelta) => setTimeout(() => suelta('tarda'), ESPERA_DE_CARGA)),
+        ]);
+
+        if (desenlace === 'llegó') {
+          /*
+            Volvió sin reventar, pero puede no haber traído lo esencial —la red se
+            cayó a media descarga—. Solo se cae a la copia SIN red: con red, un
+            fallo del servidor es un fallo de verdad (permisos, suscripción, RLS)
+            y taparlo con datos de ayer escondería justo lo que hay que arreglar.
+          */
+          if (!cargaOkRef.current && !hayRed()) await abrirConLaCopia();
+          return;
+        }
+
+        /* Tarda demasiado, o reventó. En los dos casos la copia es lo mejor que
+           hay. */
+        if (await abrirConLaCopia()) return;
+
+        if (desenlace === 'tarda') {
+          /*
+            Sin copia no hay nada que enseñar y la carga sigue esperando a una red
+            que quizá no vuelva. Se dice, que es más honesto que la pantalla de la
+            marca dando vueltas: la aplicación se pinta con su aviso y, si la red
+            aparece, la carga que sigue viva lo apaga sola.
+          */
+          setLoadError('No se ha podido conectar. Comprueba tu conexión; se reintentará solo.');
+          return;
+        }
+
         // Una carga que revienta no puede dejar la marca puesta: sin esto, la
         // aplicación se quedaría vacía hasta cerrar sesión, porque ya nadie
         // volvería a intentarlo.
         loadedUserRef.current = null;
-        recordIssue('carga', e);
-        setLoadError(e?.message || 'No se han podido cargar tus datos.');
-      }
+        setLoadError(desenlace.reventó?.message || 'No se han podido cargar tus datos.');
+      })();
+
+      await cargaEnVueloRef.current;
     };
 
-    supabase.auth
-      .getSession()
-      .then(async ({ data }) => {
+    (async () => {
+      try {
+        /*
+          ══ El arranque no se queda esperando a una red que no está ════════════
+
+          `getSession()` no es una lectura local: si el testigo de acceso ha
+          caducado —a la hora— sale a renovarlo, y auth-js reintenta esa
+          renovación con espera creciente. Sin red eso son decenas de segundos
+          durante los cuales `loading` sigue puesto y la aplicación entera es la
+          pantalla de la marca. Medido el 9/09/2026 con el servidor apagado: se
+          quedaba ahí, sin barra, sin login y sin explicación.
+
+          Con tope, lo normal no cambia —una sesión válida se resuelve en
+          milisegundos, sin tocar la red— y lo excepcional deja de bloquear.
+        */
+        const respuesta = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise((suelta) => setTimeout(() => suelta({ agotado: true }), ESPERA_DE_SESION)),
+        ]);
         if (!active) return;
-        setSession(data.session);
-        if (data.session?.user) await loadOnce(data.session.user);
-      })
-      .catch((e) => active && setLoadError(e?.message || 'Error al iniciar sesión.'))
-      .finally(() => active && setLoading(false));
+
+        const real = respuesta?.data?.session || null;
+
+        /*
+          ══ «No hay sesión» no siempre significa que hayas salido ══════════════
+
+          Puede significar «no he podido preguntar»: sin red, la renovación falla
+          y `getSession()` devuelve `null` aunque la sesión siga guardada y siga
+          siendo válida. Sin esto, abrir el icono en un gimnasio dos horas después
+          daba la pantalla de login — con la copia de los datos intacta al lado y
+          sin forma de verla.
+
+          El respaldo se usa SOLO cuando no hubo respuesta (se agotó el tope, o no
+          hay red). Si el servidor contesta que no hay nadie dentro, se le cree:
+          taparlo con el respaldo dejaría dentro a quien acaba de salir.
+
+          Y no autoriza nada: a quien hay que convencer es al servidor, y al
+          servidor se va con el testigo de auth-js. Ver `lib/sesionOffline`.
+        */
+        const sinRespuesta = Boolean(respuesta?.agotado) || !hayRed();
+        const sesion = real || (sinRespuesta ? sesionDeRespaldo() : null);
+
+        if (real?.user) recordarSesion(real.user);
+        setSession(sesion);
+        if (sesion?.user) await loadOnce(sesion.user);
+      } catch (e) {
+        if (active) setLoadError(e?.message || 'Error al iniciar sesión.');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (event, next) => {
       if (!active) return;
+
+      /*
+        Sin red, un evento SIN sesión no significa que hayas salido: significa que
+        no se ha podido renovar el testigo. `_emitInitialSession` de auth-js emite
+        exactamente eso —`INITIAL_SESSION` con `null`— cuando la renovación se cae
+        por falta de red, y hacerle caso vaciaba de golpe la sesión de respaldo y
+        la cartera entera que se acababa de abrir desde la copia.
+
+        `SIGNED_OUT` NUNCA se ignora: ese sí lo emite auth-js al borrar la sesión
+        de verdad, y salir tiene que funcionar aunque no haya cobertura.
+      */
+      if (!next && !hayRed() && event !== 'SIGNED_OUT') return;
+
+      if (next?.user) recordarSesion(next.user);
       setSession(next);
       await loadOnce(next?.user || null);
     });
@@ -1223,14 +1582,24 @@ export const AppProvider = ({ children }) => {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [loadForUser, clearAll]);
+  }, [loadForUser, clearAll, aplicarInstantanea]);
 
   const signOut = useCallback(async () => {
     queue.flushAll();
     flushEvents();
     forgetActor();
+    /*
+      La copia local se va con la sesión, y a diferencia de lo pendiente de
+      guardar (`lib/pendingSaves`, que SÍ sobrevive) no se pierde nada con ello:
+      es una foto que se puede volver a pedir. Lo que sí evita es que la cartera
+      entera de un entrenador —nombres, pesos, dietas— siga legible en el
+      ordenador compartido después de que haya salido. Y no se le quita nada:
+      volver a entrar necesita servidor de todas formas.
+    */
+    olvidarSesion();
+    await borrarInstantanea(session?.user?.id);
     await supabase.auth.signOut();
-  }, [queue]);
+  }, [queue, session]);
 
   /**
    * Cómo te llamas.
@@ -1347,11 +1716,25 @@ export const AppProvider = ({ children }) => {
      una escritura masiva de la cartera y vive con `reloadClients`. */
   const { coachPrefs, coachPrefsReady, updateCoachPreferences } = useCoachPrefs({ session });
 
+  /* El cajón: bloques, días y platos guardados con nombre (0112), en su gancho.
+     Va detrás de `useCoachPrefs` porque sin la migración aplicada se lee de las
+     preferencias, que es lo que hace que no parezca que se ha borrado nada. */
+  const {
+    cajon,
+    hayTabla: hayCajon,
+    guardarEnCajon,
+    renombrarEnCajon,
+    tirarDelCajon,
+    cabeEnCajon,
+  } = useCajon({ session, team, coachPrefs, isCoach: profileRole === 'coach' });
+
   /* Lo que se le manda a alguien y lo que vuelve (0099, generalizado en 0105),
      en su gancho. Lo usan los DOS lados: quien filtra es RLS, no la aplicación. */
   const {
     envioRows,
     enviosReady,
+    setEnvioRows,
+    setEnviosReady,
     reloadEnvios,
     mandarAccion,
     dejarDePedir,
@@ -1359,6 +1742,110 @@ export const AppProvider = ({ children }) => {
     marcarAccion,
     marcarVisto,
   } = useEnvios({ session });
+
+  /* El espejo que `aplicarInstantanea` usa para sembrar la bandeja: su gancho se
+     monta aquí abajo y la carga vive arriba. Ver `siembraEnviosRef`. */
+  siembraEnviosRef.current = { setEnvioRows, setEnviosReady };
+
+  // ── La copia local ───────────────────────────────────────────────────────
+
+  /**
+   * Guarda la foto de lo que hay en memoria. Ver `lib/instantanea`.
+   *
+   * ── Por qué se escribe con CADA cambio y no solo al cargar ──────────────────
+   * Porque si no, recargar sin conexión devolvería los datos del servidor —los de
+   * la última vez que hubo red— y el trabajo hecho offline desaparecería de la
+   * pantalla. Seguiría a salvo en la cola (`lib/pendingSaves`) y acabaría
+   * llegando, pero durante todo ese rato la aplicación estaría enseñando una
+   * versión sin ello: la definición exacta de «esto no me lo ha guardado».
+   *
+   * Escribiendo también los cambios, la foto es lo que la persona tiene delante.
+   *
+   * ── Y con retardo ──────────────────────────────────────────────────────────
+   * Un segundo y medio, para que escribir un peso no dispare una escritura a
+   * disco por pulsación. El caso que importa —cerrar la pestaña, quedarse sin
+   * batería— no ocurre a mitad de tecla, y lo pendiente de mandar ya tiene su
+   * propia red de seguridad, que sí es inmediata.
+   *
+   * ── Nunca sobre una carga a medias ─────────────────────────────────────────
+   * `cargaOkRef` es la guardia: sin ella, un arranque que falla a mitad
+   * sobrescribiría la copia buena con media cartera. Perder los datos en el sitio
+   * que existe para no perderlos sería el peor fallo posible de esta pieza.
+   */
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId || loading || !cargaOkRef.current) return undefined;
+
+    const temporizador = setTimeout(() => {
+      guardarInstantanea(
+        userId,
+        {
+          profileRole,
+          profileName,
+          team,
+          teamMembers,
+          plan,
+          clients,
+          exerciseLibrary,
+          foodLibrary,
+          catalogExercises,
+          catalogFoods,
+          workoutData,
+          serverSummaries,
+          legacyPending,
+          anthropometry,
+          nutrition,
+          checkIns,
+          checkInsActivos,
+          progressPhotos,
+          envioRows,
+          /* La guardia de escritura viaja con la foto: es lo que hace que
+             trabajar sin red no pise el trabajo de nadie. Ver `aplicarInstantanea`. */
+          versions: versionsRef.current,
+        },
+        /* La fecha es la del último dato del SERVIDOR, no la de esta escritura.
+           Si no, editar sin conexión rejuvenecería la copia y «datos de hace dos
+           horas» pasaría a leerse «de hace un momento», que es mentira. */
+        sincronizadoEnRef.current || Date.now()
+      );
+    }, 1500);
+
+    return () => clearTimeout(temporizador);
+  }, [
+    session, loading,
+    profileRole, profileName, team, teamMembers, plan, clients,
+    exerciseLibrary, foodLibrary, catalogExercises, catalogFoods,
+    workoutData, serverSummaries, legacyPending, anthropometry, nutrition,
+    checkIns, checkInsActivos, progressPhotos, envioRows,
+  ]);
+
+  /**
+   * Vuelve la conexión: se manda lo pendiente y, si se estaba mirando una copia,
+   * se va a por lo de verdad.
+   *
+   * ── El agujero que cierra ──────────────────────────────────────────────────
+   * Lo pendiente solo se reenviaba en el arranque (ver el efecto de recuperación,
+   * más arriba). O sea que quien anotaba tres series en un sótano y volvía a la
+   * calle con la pestaña abierta seguía sin haber mandado nada — y no había forma
+   * de saberlo ni de provocarlo salvo recargar. Todo el andamiaje de la cola
+   * estaba puesto y le faltaba justo el momento para el que se construyó.
+   */
+  useEffect(() => {
+    const user = session?.user;
+
+    return escucharConexion(() => {
+      if (!hayRed()) return;
+
+      queue.reenviarTodo();
+
+      /* Con la copia en pantalla, recuperar la señal significa que ya se puede
+         preguntar. No se recarga la página: se vuelve a cargar el estado, y las
+         pantallas se actualizan solas donde estén. */
+      if (user && copiaLocal) {
+        loadForUser(user).catch((e) => recordIssue('carga', e));
+      }
+    });
+  }, [queue, session, copiaLocal, loadForUser]);
 
   // ── Soporte ──────────────────────────────────────────────────────────────
 
@@ -1469,7 +1956,7 @@ export const AppProvider = ({ children }) => {
 
   /* Lo que condiciona lo que le puedes poner (migración 0077). Misma convención
      y mismo alcance que el roadmap: los del cliente abierto. */
-  const { conditions, addCondition, updateCondition, resolveCondition, removeCondition } =
+  const { conditions, conditionsOfMany, addCondition, updateCondition, resolveCondition, removeCondition } =
     useConditions({ activeClientId });
 
   /* La maquinaria de su gimnasio (migración 0079). Mismo alcance: la del cliente
@@ -1491,6 +1978,15 @@ export const AppProvider = ({ children }) => {
      decir de quién —los resuelve `auth.uid()`— y el entrenador que está en «Ver
      como» pide los del cliente abierto. */
   const { sheetOf } = useExerciseSheets({
+    session,
+    clientId: profileRole === 'client' ? null : activeClientId,
+  });
+
+  /* Y los grupos de equivalencia de su entrenador (migración 0113), por la
+     misma puerta y con el mismo alcance: lo que el cliente ve al preguntar «no
+     tengo plátanos, ¿qué pongo?» tiene que ser la lista que le podaron, no la
+     que calcula el catálogo. Ver `useEquivGroups`. */
+  const { gruposEquiv } = useEquivGroups({
     session,
     clientId: profileRole === 'client' ? null : activeClientId,
   });
@@ -1664,6 +2160,9 @@ export const AppProvider = ({ children }) => {
      grande, en su gancho (useWorkout.js). Recibe las puertas del guardado
      (persist, persistSet, queue), los dos loaders y los estados espejados. */
   const {
+    deshacerPlan,
+    rehacerPlan,
+    pasosDelPlan,
     updateExerciseSet,
     updateExerciseTarget,
     startSession,
@@ -1696,6 +2195,7 @@ export const AppProvider = ({ children }) => {
     updateWeeklySplit,
     startProgram,
     appendMicrocycle,
+    appendMicrocycleWithDays,
     startBlock,
     renameBlock,
     setBlockTraits,
@@ -1709,6 +2209,7 @@ export const AppProvider = ({ children }) => {
     renameBlockSheet,
     moveBlockSheet,
     addBlockExercise,
+    setBlockSheetExercises,
     removeBlockExercise,
     restoreBlockExercise,
     moveBlockExercise,
@@ -1757,19 +2258,30 @@ export const AppProvider = ({ children }) => {
   const {
     updateNutrition,
     updateNutritionTargets,
-    setHasDayVariants,
+    addDietDay,
+    addDietDayWithMeals,
+    replaceDiet,
+    duplicateDietDay,
+    renameDietDay,
+    moveDietDay,
+    removeDietDay,
+    setDietCycleSlot,
+    repartirPorElEntreno,
     applyRescaledMeals,
     copyVariantMeals,
     copyMealToVariant,
-    copyOptionToVariant,
     importDiet,
     addMeal,
+    appendMeal,
     removeMeal,
+    removeMealsById,
     restoreMeal,
     updateMealName,
     updateMealNote,
     updateMealTarget,
     addMealOption,
+    setMealOptions,
+    renameMealOption,
     removeMealOption,
     moveMeal,
     moveFood,
@@ -1932,6 +2444,29 @@ export const AppProvider = ({ children }) => {
     session,
   });
 
+  /*
+    Lo que le pasa a un cliente sin que tú lo mandes (0116), en su gancho.
+
+    Se monta AQUÍ y no arriba con los demás, y el orden no es estético: necesita
+    `addClientEvent` —una casilla tuya cae en la agenda— y `setEnvioRows` —lo que
+    materializa tiene que aparecer en la bandeja sin recargar—. Los dos viven en
+    ganchos que se montan antes, así que éste va detrás.
+  */
+  const {
+    automatizaciones,
+    automatizacionesReady,
+    corridas,
+    guardarAutomatizacion,
+    quitarAutomatizacion,
+    correrAutomatizaciones,
+  } = useAutomatizaciones({
+    session,
+    clients,
+    coachPrefs,
+    addClientEvent,
+    onFilaNueva: (fila) => setEnvioRows((prev) => [fila, ...prev]),
+  });
+
   // ── Equipo ───────────────────────────────────────────────────────────────
   //
   // Las acciones del equipo viven en su gancho (useTeam.js). Aquí queda solo
@@ -2033,6 +2568,11 @@ export const AppProvider = ({ children }) => {
       activeClient,
       selectedClientId,
       workoutData,
+      /* Cuántos pasos tiene la pila de deshacer de cada cliente, `{ atras,
+         adelante }`. Es dato y no acción porque la pantalla enseña el mando
+         SOLO cuando hay algo que deshacer: detrás de la fachada estable no se
+         enteraría de que la pila ha cambiado. Ver `useWorkout`. */
+      pasosDelPlan,
       training,
       legacyPending,
       anthropometry,
@@ -2040,10 +2580,20 @@ export const AppProvider = ({ children }) => {
       progressPhotos,
       exerciseLibrary,
       foodLibrary,
+      /* El cajón: bloques, días y platos guardados con nombre (`domain/cajon`).
+         Va aquí y no con la sesión porque cambia con cada guardado, que es lo
+         que distingue este contexto del otro. */
+      cajon,
+      hayCajon,
       /* La ficha por nombre, para quien entrena. No es una lista más: es la
          función que pregunta el renglón del ejercicio para saber si pinta
          marca. Ver `useExerciseSheets`. */
       sheetOf,
+      /* Los grupos que le LLEGAN a esta persona, de solo lectura. El entrenador
+         montando lee los suyos de `coachPrefs`, que es donde los escribe; esto
+         es la otra mitad, la misma que distingue `exerciseLibrary` de
+         `sheetOf`. Ver `useEquivGroups`. */
+      gruposEquiv,
       catalogFoods,
       catalogExercises,
       checkIns,
@@ -2054,15 +2604,25 @@ export const AppProvider = ({ children }) => {
       equipmentCounts,
       envioRows,
       enviosReady,
+      automatizaciones,
+      automatizacionesReady,
+      corridas,
       saveStatus,
-      hasUnsavedChanges,
+      /* Cuántos guardados esperan a que vuelva la red, cuántos ha rechazado el
+         servidor, y de cuándo son los datos que se están mirando (`null` si
+         vienen del servidor). Los tres los pinta `ui/EstadoDeRed`. Ver
+         `lib/instantanea`. */
+      enEspera,
+      fallosAlGuardar,
+      copiaLocal,
     }),
     [
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
-      workoutData, training, legacyPending, anthropometry, nutrition, progressPhotos,
-      exerciseLibrary, foodLibrary, sheetOf, catalogFoods, catalogExercises, checkIns, checkInsActivos,
+      workoutData, pasosDelPlan, training, legacyPending, anthropometry, nutrition, progressPhotos,
+      exerciseLibrary, foodLibrary, cajon, hayCajon, sheetOf, gruposEquiv, catalogFoods, catalogExercises, checkIns, checkInsActivos,
       phases, conditions, equipment, equipmentCounts, envioRows, enviosReady,
-      saveStatus, hasUnsavedChanges,
+      automatizaciones, automatizacionesReady, corridas,
+      saveStatus, enEspera, fallosAlGuardar, copiaLocal,
     ]
   );
 
@@ -2101,8 +2661,15 @@ export const AppProvider = ({ children }) => {
 
     // Estado de guardado
     retrySave,
+    /* El reintento global de la franja, para cuando el fallo no es de la
+       pantalla que se está mirando. Ver `fallosAlGuardar`. */
+    reintentarLoFallido,
 
     // Rutina
+    /* Deshacer y rehacer el PLAN de la rutina. Ver el bloque «DESHACER Y
+       REHACER EL PLAN» en `useWorkout`, y la ley en `domain/deshacer`. */
+    deshacerPlan,
+    rehacerPlan,
     updateExerciseSet,
     updateExerciseTarget,
     addExercise,
@@ -2133,6 +2700,7 @@ export const AppProvider = ({ children }) => {
     removeSession,
     startProgram,
     appendMicrocycle,
+    appendMicrocycleWithDays,
     startBlock,
     renameBlock,
     setBlockTraits,
@@ -2146,6 +2714,7 @@ export const AppProvider = ({ children }) => {
     renameBlockSheet,
     moveBlockSheet,
     addBlockExercise,
+    setBlockSheetExercises,
     removeBlockExercise,
     restoreBlockExercise,
     moveBlockExercise,
@@ -2179,9 +2748,19 @@ export const AppProvider = ({ children }) => {
     // Nutrición
     updateNutrition,
     updateNutritionTargets,
-    setHasDayVariants,
+    addDietDay,
+    addDietDayWithMeals,
+    replaceDiet,
+    duplicateDietDay,
+    renameDietDay,
+    moveDietDay,
+    removeDietDay,
+    setDietCycleSlot,
+    repartirPorElEntreno,
     addMeal,
+    appendMeal,
     removeMeal,
+    removeMealsById,
     restoreMeal,
     updateMealName,
     updateMealNote,
@@ -2189,13 +2768,14 @@ export const AppProvider = ({ children }) => {
     applyRescaledMeals,
     copyVariantMeals,
     copyMealToVariant,
-    copyOptionToVariant,
     importDiet,
     moveMeal,
     moveFood,
     duplicateOption,
     duplicateMeal,
     addMealOption,
+    setMealOptions,
+    renameMealOption,
     removeMealOption,
     addFoodToOption,
     addFoodsToOption,
@@ -2251,6 +2831,12 @@ export const AppProvider = ({ children }) => {
     updateCoachPreferences,
     applyDashboardToAll,
 
+    // El cajón: guardar con nombre, renombrar y tirar (0112, `domain/cajon`)
+    guardarEnCajon,
+    renombrarEnCajon,
+    tirarDelCajon,
+    cabeEnCajon,
+
     // Lo mandado: acciones sueltas sobre personas concretas (0105)
     reloadEnvios,
     mandarAccion,
@@ -2258,6 +2844,11 @@ export const AppProvider = ({ children }) => {
     quitarPedido,
     marcarAccion,
     marcarVisto,
+
+    // Y lo que sale solo: las automatizaciones del protocolo (0116)
+    guardarAutomatizacion,
+    quitarAutomatizacion,
+    correrAutomatizaciones,
 
     // Soporte
     loadTickets,
@@ -2326,6 +2917,8 @@ export const AppProvider = ({ children }) => {
     chooseFork,
 
     // Condicionantes
+    /* La lectura en bloque, para la pantalla que reparte: ver `useConditions`. */
+    conditionsOfMany,
     addCondition,
     updateCondition,
     resolveCondition,

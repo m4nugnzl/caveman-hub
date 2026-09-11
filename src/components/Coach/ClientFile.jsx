@@ -30,7 +30,10 @@ import { PROFILE_GROUPS, cleanProfile } from '@/domain/profile';
 import { shortDate } from '@/lib/dates';
 /* La pausa y las etiquetas viven ahora con la hoja de ajustes de la cartera
    (`ClientSettings.jsx`): una sola implementación, dos sitios que la enseñan. */
-import { LoQueLeHasMandado, PauseRow, TagsRow } from './ClientSettings';
+import { ClientSettingsSheet, LoQueLeHasMandado, PauseRow, TagsRow } from './ClientSettings';
+import { clientProtocol, queLeLlevas } from '@/domain/protocol';
+import { protocoloDeCliente } from '@/domain/protocolos';
+import { necesitaSuPlan, protegidoDeSuPlan } from '@/lib/protocolTemplate';
 import { fmt, toNum } from '@/lib/num';
 import {
   clientIntake,
@@ -1271,6 +1274,7 @@ export const ClientFile = () => {
   const {
     activeClient,
     anthropometry,
+    coachPrefs,
     equipment,
     checkIns,
     updateClient,
@@ -1279,9 +1283,10 @@ export const ClientFile = () => {
     openClientView,
   } = useApp();
   const toast = useToast();
-  /* Qué hoja está abierta: `identidad`, `alta`, `cobro`, `acceso` o `carpeta`.
-     Una sola, y en un solo estado: dos banderas independientes acabarían con dos
-     hojas abiertas a la vez el día que alguien añada la tercera. */
+  /* Qué hoja está abierta: `identidad`, `protocolo`, `alta`, `cobro`, `acceso` o
+     `carpeta`. Una sola, y en un solo estado: dos banderas independientes
+     acabarían con dos hojas abiertas a la vez el día que alguien añada la
+     tercera. */
   const [hoja, setHoja] = useState(null);
   const cerrar = () => setHoja(null);
 
@@ -1325,6 +1330,12 @@ export const ClientFile = () => {
 
   const pago = paymentState(activeClient);
   const periodo = billingPeriod(activeClient.billingPeriod);
+
+  /* Lo que lleva puesto: de qué protocolo sale, qué le llevas con él y si su
+     copia se ha separado de la plantilla. Ver la celda «Protocolo». */
+  const suProtocolo = protocoloDeCliente(coachPrefs, activeClient);
+  const atrasadoDeSuPlan = necesitaSuPlan(coachPrefs, activeClient);
+  const afinadoAMano = protegidoDeSuPlan(coachPrefs, activeClient);
 
   /* El mismo aviso con «Deshacer» que en la bandeja de «Hoy»: es el mismo gesto
      y tiene que dejar la misma señal, se pulse donde se pulse. */
@@ -1398,6 +1409,38 @@ export const ClientFile = () => {
         asesoría tiene, no una plantilla con huecos.
       */}
       <div className="ficha-pulso">
+        {/*
+          ══ SU PROTOCOLO, que estaba escondido ═══════════════════════════════
+
+          «El protocolo del cliente está escondido: solo en la cartera, pinchando
+          en opciones de cliente.» Era cierto y era literal: `ClientSettingsSheet`
+          se montaba en un único sitio —el «···» de una fila de la cartera—, así
+          que la forma de trabajar que lleva una persona no se veía en ninguna
+          pantalla de esa persona.
+
+          Va en PERFIL y no en Resumen, y el corte es ése: Resumen es lo que
+          cambia solo —entrenó, pesó, contestó— y Perfil es lo que LLEVA PUESTO,
+          que lo cambias tú. Al lado de su alta, su cobro y su carpeta, que son
+          exactamente de la misma clase de cosa.
+
+          Es información y no receta: dice qué lleva, no propone cambiarlo. Por
+          eso no lleva tono ni cuando se ha quedado atrás —quedarse atrás no es
+          una avería, es que su protocolo cambió después— y la frase lo cuenta
+          con palabras, que es donde se puede matizar.
+        */}
+        <CeldaPulso
+          rotulo="Protocolo"
+          valor={suProtocolo?.name || 'Sin protocolo'}
+          frase={
+            afinadoAMano
+              ? 'Afinado a mano'
+              : atrasadoDeSuPlan
+                ? 'Se ha quedado atrás'
+                : queLeLlevas(clientProtocol(activeClient.preferences))
+          }
+          onClick={() => setHoja('protocolo')}
+        />
+
         {pasosDelAlta.length > 0 && (
           <CeldaPulso
             rotulo="Alta"
@@ -1571,6 +1614,21 @@ export const ClientFile = () => {
           )}
         </div>
       </Modal>
+
+      {/*
+        Su protocolo se abre en LA MISMA hoja que desde la cartera, no en una
+        copia: dos editores del mismo objeto es la forma de que uno de los dos se
+        quede sin la sección que se añadió el mes pasado.
+
+        Sin «Lo que le has mandado», que el cuerpo de esta ficha ya enseña unos
+        centímetros más abajo.
+      */}
+      <ClientSettingsSheet
+        client={activeClient}
+        open={hoja === 'protocolo'}
+        mandado={false}
+        onClose={cerrar}
+      />
 
       <Modal open={hoja === 'alta'} size="lg" title="Su alta" onClose={cerrar}>
         <div className="hoja-ficha">

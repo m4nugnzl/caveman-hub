@@ -5,7 +5,6 @@ import {
   nombreDeSubserie,
   restLabel,
   seriesGrammar,
-  setColor,
   subseriesDe,
   supersetLabels,
   tecnicaDeLaSerie,
@@ -228,18 +227,10 @@ export const ExerciseList = ({
       <>
         <ul className="col gap-2" style={{ listStyle: 'none' }}>
           {exercises.map((exercise, index) => {
-            const accent = setColor(index);
             return (
               <li key={exercise.id}>
                 <button type="button" className="exercise-row" onClick={() => setAbierto(exercise.id)}>
-                  <span
-                    className="exercise-index"
-                    style={{
-                      background: `linear-gradient(135deg, ${accent}30, ${accent}10)`,
-                      border: `1px solid ${accent}40`,
-                      color: accent,
-                    }}
-                  >
+                  <span className={`exercise-index${marcasSS[index] ? ' is-ss' : ''}`}>
                     {marcasSS[index] || index + 1}
                   </span>
                   <span className="exercise-row-name">
@@ -348,7 +339,6 @@ export const ExerciseList = ({
   return (
     <ul className="col gap-2" style={{ listStyle: 'none' }}>
       {exercises.map((exercise, index) => {
-        const accent = setColor(index);
         /* La referencia de la primera serie sirve para saber SI hay vez
            anterior y de qué semana. Las cifras de cada serie van en su campo. */
         const antes = previousSets?.get(previousSetKey(exercise.name, 0)) || null;
@@ -429,13 +419,23 @@ export const ExerciseList = ({
               </>
             )}
 
+            {/*
+              ══ El número del ejercicio ya no lleva ocho colores ══════════════
+
+              Llevaba `setColor(index)`: una paleta de ocho tintes literales que
+              se repartía por POSICIÓN en la lista. Verde el primero, cian el
+              segundo, violeta el tercero. El color no distinguía nada que el
+              propio número no dijera ya, y en el portal del cliente —que usa
+              esta misma lista para registrar— convertía la pantalla principal
+              en ocho tintes que no significan nada.
+
+              Lo único que de verdad distingue a un renglón aquí es la
+              SUPERSERIE, y eso ya lo dice su marca («A1», «A2»). Se le da peso,
+              no color. Ver `ley del color` en tokens.css: el cromo no tiene
+              color salvo el acento, y el acento solo va donde se toca.
+            */}
             <span
-              className="exercise-index"
-              style={{
-                background: `linear-gradient(135deg, ${accent}30, ${accent}10)`,
-                border: `1px solid ${accent}40`,
-                color: accent,
-              }}
+              className={`exercise-index${marcasSS[index] ? ' is-ss' : ''}`}
               title={marcasSS[index] ? 'En superserie: se alterna con el ejercicio enlazado, sin descanso entre ellos' : undefined}
             >
               {marcasSS[index] || index + 1}

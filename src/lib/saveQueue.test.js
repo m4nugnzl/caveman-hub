@@ -103,6 +103,63 @@ describe('createSaveQueue', () => {
     expect(enviados).toEqual([{ v: 1 }, { v: 3 }]);
   });
 
+  /*
+    ── El sótano ─────────────────────────────────────────────────────────────
+    Sin red, la cola intentaba el envío igualmente, fallaba, y publicaba 'error'
+    — que en pantalla es «No se guardó» en rojo sobre algo que estaba a salvo en
+    el navegador y que se iba a mandar solo. El aviso de pérdida más repetido de
+    la aplicación era mentira, y en el sitio donde más falta hace que no lo sea.
+  */
+  it('sin red no se intenta el envío: queda en espera y no en error', async () => {
+    const sender = vi.fn(() => Promise.resolve({ error: null }));
+    const store = { save: vi.fn(), clear: vi.fn() };
+    const { q, estados } = cola({ isOnline: () => false, store });
+
+    q.enqueue('set:kg', { value: '40' }, sender);
+    await espera();
+
+    expect(sender).not.toHaveBeenCalled();
+    expect(estados.at(-1)).toEqual(['set:kg', 'pending']);
+    expect(q.hasUnsaved()).toBe(true);
+    // La nota se apunta igual, y NO se borra: es lo único que hay hasta que salga.
+    expect(store.save).toHaveBeenCalledWith('set:kg', { value: '40' });
+    expect(store.clear).not.toHaveBeenCalled();
+  });
+
+  it('al volver la red se manda lo que quedó esperando', async () => {
+    const sender = vi.fn(() => Promise.resolve({ error: null }));
+    let hayRed = false;
+    const { q, estados } = cola({ isOnline: () => hayRed });
+
+    q.enqueue('set:kg', { value: '40' }, sender);
+    q.enqueue('set:reps', { value: '8' }, sender);
+    await espera();
+    expect(sender).not.toHaveBeenCalled();
+
+    hayRed = true;
+    q.reenviarTodo();
+    await espera();
+
+    expect(sender).toHaveBeenCalledTimes(2);
+    expect(estados.at(-1)?.[1]).toBe('saved');
+    expect(q.hasUnsaved()).toBe(false);
+  });
+
+  it('una caída de red a mitad de envío es espera, no fallo', async () => {
+    let hayRed = true;
+    const sender = () => {
+      hayRed = false; // la petición no llega: se cae la conexión mientras iba
+      return Promise.reject(new TypeError('Failed to fetch'));
+    };
+    const { q, estados } = cola({ isOnline: () => hayRed });
+
+    q.enqueue('workout:1', { v: 1 }, sender);
+    await espera();
+
+    expect(estados.at(-1)).toEqual(['workout:1', 'pending']);
+    expect(q.hasUnsaved()).toBe(true);
+  });
+
   it('la nota del navegador se borra solo cuando el servidor confirma', async () => {
     const store = { save: vi.fn(), clear: vi.fn() };
     const { q } = cola({ store });

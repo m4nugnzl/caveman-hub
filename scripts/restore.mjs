@@ -66,6 +66,25 @@ const ORDEN = [
   'team_subscriptions',
   'platform_admins',
   'clients',
+  /*
+    ══ LO QUE PASA SOLO VA ANTES DE LOS HECHOS QUE LO DISPARAN (0116 + 0117) ══
+
+    En este orden entre ellas —`automation_runs` referencia a
+    `coach_automations` con clave ajena, así que al revés aborta fila a fila— y
+    las dos **antes de `anthropometry`**, que es lo que la 0117 obliga a cambiar.
+
+    Desde que el motor 2 existe, escribir en `anthropometry` dispara: cada
+    pesaje de los últimos días que entre por aquí es, para la base, un pesaje que
+    acaba de pasar. Restaurar una copia volvería a repartir lo que ya se repartió
+    —el peor error de este producto, el que no se puede corregir después—.
+
+    Con el libro puesto antes, cada uno de esos pesajes ya tiene su apunte y el
+    índice único los rechaza en silencio, que es exactamente para lo que está.
+    El mismo argumento vale al revés que la nota de la 0116: restaurar sin el
+    libro no deja un hueco, **vuelve a mandarlo todo**.
+  */
+  'coach_automations',
+  'automation_runs',
   'workout_data',
   'anthropometry',
   'nutrition_plans',
@@ -76,17 +95,44 @@ const ORDEN = [
   /* Lo mandado y lo contestado (0105). Después de `clients`, que es de quien
      cuelga por clave foránea. */
   'client_actions',
+  /* Lesiones, patologías y alergias (0077), y la maquinaria de su gimnasio
+     (0079). Las copiaba `backup.mjs` y esta lista no las nombraba, así que sus
+     archivos se escribían en la copia y nadie los volvía a leer: la
+     restauración terminaba bien y devolvía a cada cliente sin lo único de su
+     ficha que condiciona lo que se le prescribe. */
+  'client_conditions',
+  'client_equipment',
+  'client_calendar_feeds',
   'client_invites',
   'client_consents',
+  /*
+    `integrations` ANTES que lo que cuelga de ella.
+
+    Estaba después, y no es una preferencia: `client_payments`,
+    `client_external_refs` y `client_folders` la referencian con clave foránea
+    NOT NULL, así que restaurarlas primero aborta con una violación de clave
+    ajena a media base — el único momento en que este archivo se ejecuta es
+    justo el día en que eso no se puede permitir.
+  */
+  'integrations',
   'client_payments',
   'client_external_refs',
+  'client_folders',
   'review_links',
-  'integrations',
   'exercises',
   'foods',
   'support_tickets',
   'support_messages',
+  /* Las dos de la radiografía (0074): medidas que no se pueden recalcular y
+     decisiones de seguridad que no se pueden reconstruir. Entran en la copia
+     desde que se escribió, y salían de la restauración por el mismo olvido. */
+  'platform_snapshots',
+  'platform_acceptances',
   'audit_log',
+  /* Se queda aunque `backup.mjs` la excluya: la 0057 la borra, y hasta que se
+     aplique una copia antigua puede traer el archivo. Leer un archivo que no
+     está no cuesta nada; no leer uno que sí está es lo que se acaba de
+     arreglar. */
   'videos',
 ];
 
@@ -109,7 +155,29 @@ const CLAVE = {
   platform_admins: 'profile_id',
   client_external_refs: 'integration_id,external_key',
   plan_limits: 'plan',
+  /* Una carpeta por cliente (0082): la clave es el cliente y la tabla no tiene
+     columna `id`. Sin esta línea sería el mismo «column "id" does not exist»
+     que contó `team_members`, pero veinte tablas más adelante. */
+  client_folders: 'client_id',
+  /* Una foto por día (0074). También sin `id`: la clave natural es la fecha, y
+     es lo que hace que repetir la restauración no duplique el histórico. */
+  platform_snapshots: 'dia',
 };
+
+/*
+  Tablas que solo admiten AÑADIR, nunca pisar lo que ya está.
+
+  `platform_acceptances` lleva un disparador (0074) que revienta ante cualquier
+  UPDATE: es un registro de solo añadir a propósito, para que una aceptación de
+  seguridad no se pueda reescribir sin dejar rastro. Un `upsert` normal choca
+  contra él en cuanto la fila ya existe — es decir, la segunda vez que se
+  restaura, que es justo cuando este archivo promete poder repetirse.
+
+  Con `ignoreDuplicates` la fila que ya está se deja en paz en vez de
+  actualizarse. Es lo correcto además de lo único que funciona: si ya está, dice
+  exactamente lo mismo que la de la copia.
+*/
+const SOLO_ANADIR = new Set(['platform_acceptances']);
 
 /*
   Tablas cuyo `id` lo genera la base y NO admite que se le imponga uno.
@@ -150,12 +218,36 @@ const fail = (m) => {
   process.exit(1);
 };
 
-/** Las filas de una tabla, o `null` si esa tabla no está en la copia. */
+/**
+ * Las filas de una tabla, o `null` si esa tabla no está en la copia.
+ *
+ * ── Que falte y que esté ROTA no son lo mismo ───────────────────────────────
+ * Aquí se devolvía `null` ante cualquier error, así que un archivo truncado o
+ * con el JSON a medias —un disco lleno a mitad de copia, un `scp` cortado— se
+ * leía como «esta tabla no estaba en la copia»: la restauración lo anunciaba
+ * como `0 filas`, seguía adelante y terminaba en verde sin esos datos.
+ *
+ * Que FALTE es normal y no es un error: una copia anterior a una migración no
+ * trae la tabla nueva. Que esté rota es lo contrario de normal, y es lo único
+ * que hay que gritar — porque lo que queda del otro lado del silencio son datos
+ * de alguien que ya no están en ningún otro sitio.
+ */
 const leeTabla = async (dir, tabla) => {
+  let crudo;
   try {
-    return JSON.parse(await readFile(join(dir, 'datos', `${tabla}.json`), 'utf8'));
-  } catch {
-    return null;
+    crudo = await readFile(join(dir, 'datos', `${tabla}.json`), 'utf8');
+  } catch (e) {
+    if (e?.code === 'ENOENT') return null;
+    fail(`No se ha podido leer datos/${tabla}.json: ${e?.message || e}`);
+  }
+
+  try {
+    return JSON.parse(crudo);
+  } catch (e) {
+    fail(
+      `datos/${tabla}.json está en la copia pero no se puede leer: ${e?.message || e}\n` +
+        '  La copia está dañada. Restaurar desde ella dejaría esa tabla vacía sin avisar.'
+    );
   }
 };
 
@@ -297,7 +389,9 @@ const main = async () => {
               return copia;
             })
           )
-        : await db.from(tabla).upsert(lote, { onConflict });
+        : await db
+            .from(tabla)
+            .upsert(lote, { onConflict, ignoreDuplicates: SOLO_ANADIR.has(tabla) });
       if (error) fail(`${tabla}: ${error.message}`);
     }
     log(`  ✓  ${tabla.padEnd(22)} ${filas.length}${generado ? '  (con id nuevo)' : ''}`);

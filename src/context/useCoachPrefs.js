@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { escucharConexion, hayRed } from '@/lib/conexion';
 import { supabase } from '@/lib/supabaseClient';
 
 /*
@@ -41,7 +42,8 @@ export const useCoachPrefs = ({ session }) => {
     }
 
     let cancelado = false;
-    (async () => {
+
+    const leer = async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('preferences')
@@ -52,11 +54,35 @@ export const useCoachPrefs = ({ session }) => {
       // exactamente como se comportaba la aplicación antes.
       if (cancelado) return;
       setCoachPrefs(error ? {} : data?.preferences || {});
-      setCoachPrefsReady(true);
-    })();
+      /*
+        ── Un fallo de RED no es «no tiene plantilla» ───────────────────────────
+        Dar esto por leído con el objeto vacío es la condición que dispara subir
+        la plantilla del navegador «porque este entrenador no tiene ninguna». Sin
+        conexión eso es falso: no es que no tenga, es que no se ha podido
+        preguntar — y al volver la red se le escribiría la de partida ENCIMA de
+        la suya. Sin red no se da por leído; se leerá cuando la haya.
+
+        Con red, un error sí significa lo de siempre (la 0035 sin aplicar) y el
+        comportamiento no cambia.
+      */
+      setCoachPrefsReady(!error || hayRed());
+    };
+
+    leer();
+
+    /*
+      Y si no se pudo leer por no haber red, se vuelve a intentar cuando la haya:
+      sin esto, arrancar sin conexión dejaba las preferencias «sin leer» para
+      siempre —el efecto solo se repite al cambiar de sesión— y las pantallas que
+      las esperan no llegaban a arrancar nunca.
+    */
+    const baja = escucharConexion(() => {
+      if (!cancelado && hayRed()) leer();
+    });
 
     return () => {
       cancelado = true;
+      baja();
     };
   }, [session]);
 

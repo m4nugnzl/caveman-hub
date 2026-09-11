@@ -1,0 +1,1029 @@
+<title>El portapapeles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62.5..125,400..800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Los tokens son los de la app (src/styles/tokens.css). Si el «después» no se
+   ve como Caveman Hub, no prueba nada.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  color-scheme: light;
+  --mesa: #e8ebf1;
+  --canvas: #f6f7f9;
+  --surface: #ffffff;
+  --sunken: #f3f5f8;
+  --text: #12151a;
+  --text-2: #5b6270;
+  --text-3: #6e7686;
+  --hairline: #e6e9ef;
+  --hairline-strong: #cbd1dc;
+  --edge: rgba(18, 24, 38, 0.09);
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-wash: rgba(59, 73, 223, 0.12);
+  --positive: #10774c;
+  --negative: #b93429;
+  --negative-soft: rgba(185, 52, 41, .09);
+  --warning: #a4530e;
+  --warning-soft: #fbeee1;
+  --fill: #e9ecf1;
+  --sombra: 0 1px 2px rgba(18, 24, 38, .06), 0 12px 32px -12px rgba(18, 24, 38, .18);
+  --sombra-larga: 0 2px 6px rgba(18, 24, 38, .08), 0 22px 48px -18px rgba(18, 24, 38, .3);
+  --nav: #121722;
+  --nav-text: #e8ebf2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --mesa: #0e1116;
+    --canvas: #171a20;
+    --surface: #1c2027;
+    --sunken: #14171c;
+    --text: #e7eaf0;
+    --text-2: #a2a9b7;
+    --text-3: #7f8796;
+    --hairline: rgba(214, 224, 244, 0.09);
+    --hairline-strong: rgba(214, 224, 244, 0.18);
+    --edge: rgba(214, 224, 244, 0.14);
+    --accent: #5b8df7;
+    --accent-soft: rgba(91, 141, 247, 0.14);
+    --accent-wash: rgba(91, 141, 247, 0.22);
+    --positive: #4bb98a;
+    --negative: #f0776b;
+    --negative-soft: rgba(240, 119, 107, .14);
+    --warning: #e0a35c;
+    --warning-soft: rgba(224, 163, 92, .14);
+    --fill: #262b33;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -14px rgba(0, 0, 0, .6);
+    --sombra-larga: 0 2px 6px rgba(0, 0, 0, .5), 0 24px 50px -18px rgba(0, 0, 0, .75);
+    --nav: #10141b;
+    --nav-text: #e7eaf0;
+  }
+  :root:not([data-theme="light"]) .segmentado button[aria-pressed="true"] { color: #10131a; }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mesa: #0e1116;
+  --canvas: #171a20;
+  --surface: #1c2027;
+  --sunken: #14171c;
+  --text: #e7eaf0;
+  --text-2: #a2a9b7;
+  --text-3: #7f8796;
+  --hairline: rgba(214, 224, 244, 0.09);
+  --hairline-strong: rgba(214, 224, 244, 0.18);
+  --edge: rgba(214, 224, 244, 0.14);
+  --accent: #5b8df7;
+  --accent-soft: rgba(91, 141, 247, 0.14);
+  --accent-wash: rgba(91, 141, 247, 0.22);
+  --positive: #4bb98a;
+  --negative: #f0776b;
+  --negative-soft: rgba(240, 119, 107, .14);
+  --warning: #e0a35c;
+  --warning-soft: rgba(224, 163, 92, .14);
+  --fill: #262b33;
+  --sombra: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 34px -14px rgba(0, 0, 0, .6);
+  --sombra-larga: 0 2px 6px rgba(0, 0, 0, .5), 0 24px 50px -18px rgba(0, 0, 0, .75);
+  --nav: #10141b;
+  --nav-text: #e7eaf0;
+}
+:root[data-theme="dark"] .segmentado button[aria-pressed="true"] { color: #10131a; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--mesa);
+  color: var(--text);
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; }
+
+.cifra { font-stretch: 125%; font-weight: 680; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.rotulo {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-3);
+}
+code, .mono {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: .88em;
+}
+
+/* ── El documento ───────────────────────────────────────────────────────── */
+.doc { max-width: 1200px; margin: 0 auto; padding: 40px 24px 90px; }
+
+header.portada { max-width: 64ch; }
+header.portada .rotulo { color: var(--accent); }
+h1 {
+  font-stretch: 118%; font-weight: 750; letter-spacing: -0.025em;
+  font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; text-wrap: balance;
+  margin: 10px 0 14px;
+}
+header.portada p { color: var(--text-2); font-size: 17px; margin: 0 0 8px; }
+header.portada p strong { color: var(--text); font-weight: 620; }
+
+h2 {
+  font-size: clamp(21px, 2.4vw, 27px); font-weight: 720; letter-spacing: -0.02em;
+  margin: 0 0 6px; text-wrap: balance;
+}
+h3 { font-size: 17px; font-weight: 680; letter-spacing: -0.012em; margin: 0 0 6px; }
+section { margin-top: 56px; }
+section > .rotulo { display: block; margin-bottom: 4px; }
+.entradilla { color: var(--text-2); max-width: 68ch; margin: 0 0 22px; }
+.entradilla strong { color: var(--text); font-weight: 620; }
+p { margin: 0 0 12px; }
+
+.nota {
+  border-left: 2px solid var(--hairline-strong); padding: 2px 0 2px 14px;
+  color: var(--text-2); font-size: 14.5px; max-width: 68ch; margin: 16px 0;
+}
+.nota b { color: var(--text); font-weight: 650; }
+
+/* ── El mando de la página ──────────────────────────────────────────────── */
+.mando {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  margin: 32px 0 10px; padding: 12px 0;
+  background: linear-gradient(var(--mesa) 78%, transparent);
+}
+.segmentado {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(18, 24, 38, .05);
+}
+.segmentado button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 600; color: var(--text-2);
+  padding: 7px 16px; border-radius: 999px;
+  transition: background-color .14s, color .14s;
+}
+.segmentado button:hover { color: var(--text); }
+.segmentado button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.segmentado button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mando .pista { font-size: 13.5px; color: var(--text-3); }
+
+/* ── Las parejas antes / después ────────────────────────────────────────── */
+.par { display: grid; gap: 26px; margin-top: 20px; }
+[data-vista="antes"] .lado-despues, [data-vista="despues"] .lado-antes { display: none; }
+@media (min-width: 1040px) {
+  [data-vista="comparar"] .par { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+.marco { min-width: 0; }
+.marco > figcaption {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 12px;
+}
+.marco > figcaption b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.marco > figcaption span { font-size: 13.5px; color: var(--text-2); }
+.chapa {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+}
+.chapa.hoy { background: var(--fill); color: var(--text-2); }
+.chapa.nuevo { background: var(--accent-wash); color: var(--accent); }
+.chapa.rota { background: var(--negative-soft); color: var(--negative); }
+.chapa.ellos { background: var(--warning-soft); color: var(--warning); }
+
+/* ── El chasis de la app, en miniatura ──────────────────────────────────── */
+/* Flex y no `grid`: la barra se retira sola en las columnas estrechas, y con una
+   rejilla de dos pistas el hueco de la barra escondida seguiría ocupando 150 px
+   —un contenedor no puede reescribir sus propias pistas desde su @container—. */
+.app {
+  container-type: inline-size; position: relative;
+  display: flex; align-items: stretch;
+  background: var(--canvas); border: 1px solid var(--edge); border-radius: 14px;
+  box-shadow: var(--sombra); overflow: hidden;
+}
+@container (max-width: 660px) { .barra { display: none; } }
+.barra {
+  flex: 0 0 150px;
+  background: var(--nav); color: var(--nav-text); padding: 14px 10px; font-size: 12.5px;
+}
+.barra .marca { font-stretch: 125%; font-weight: 750; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .95; }
+.barra ul { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 2px; }
+.barra li { padding: 5px 8px; border-radius: 7px; color: rgba(232, 235, 242, .66); }
+.barra li.on { background: rgba(255, 255, 255, .10); color: #fff; font-weight: 600; }
+.hoja { flex: 1 1 auto; min-width: 0; }
+/* El mostrador del lote, al pie de la vista: cabe o se parte, pero no se sale. */
+.mostrador {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px;
+  display: flex; gap: 7px; align-items: center; justify-content: center; flex-wrap: wrap;
+  max-width: calc(100% - 24px);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 12px;
+  box-shadow: var(--sombra-larga); padding: 9px 13px;
+}
+.cliente { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 13px 16px 0; }
+.avatar {
+  width: 28px; height: 28px; border-radius: 999px; background: var(--fill);
+  display: grid; place-items: center; font-size: 10.5px; font-weight: 700; color: var(--text-2);
+}
+.cliente .nombre { font-weight: 700; font-size: 16px; letter-spacing: -0.015em; }
+.cliente .meta { font-size: 12px; color: var(--text-3); }
+.pestanas {
+  display: flex; gap: 16px; padding: 8px 16px 0; margin-top: 8px;
+  border-bottom: 1px solid var(--hairline); font-size: 13px; color: var(--text-2);
+}
+.pestanas span { padding-bottom: 8px; }
+.pestanas span.on { color: var(--text); font-weight: 650; box-shadow: inset 0 -2px 0 var(--accent); }
+.lienzo { padding: 16px; background: var(--canvas); min-height: 210px; }
+
+/* La tira del programa: migas + eslabones. */
+.tira { display: grid; gap: 5px; margin-bottom: 14px; }
+.tira-fila { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 12.5px; }
+.miga { color: var(--text-3); }
+.miga::after { content: " ›"; color: var(--hairline-strong); }
+.eslabon { color: var(--text-3); font-weight: 500; padding: 4px 8px; border-radius: 7px; }
+.eslabon.on { color: var(--text); font-weight: 660; font-size: 15px; letter-spacing: -.012em; }
+.mas { color: var(--accent); font-weight: 600; padding: 4px 8px; border-radius: 7px; }
+
+/* Tarjetas y piezas comunes. */
+.tarjeta { background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; }
+.tarjeta.p { padding: 13px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text-2);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 8px; padding: 5px 11px;
+}
+.btn.azul { color: var(--accent); border-color: transparent; background: transparent; }
+.btn.primario { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.icono { padding: 5px 7px; color: var(--text-3); }
+.derecha { margin-left: auto; }
+
+/* La hoja de series. */
+.ej { border-top: 1px solid var(--hairline); padding: 9px 12px; }
+.ej:first-child { border-top: 0; }
+.ej-cab { display: flex; align-items: center; gap: 8px; }
+.ej-cab .n { font-weight: 650; font-size: 14px; letter-spacing: -.01em; }
+.ej-cab .acciones { margin-left: auto; display: flex; gap: 2px; color: var(--text-3); font-size: 13px; }
+.series { display: grid; gap: 3px; margin-top: 7px; font-size: 12.5px; color: var(--text-2); }
+.serie { display: grid; grid-template-columns: 22px repeat(3, minmax(0, 1fr)); gap: 8px; align-items: center; }
+.serie .i { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.serie .c { background: var(--sunken); border-radius: 6px; padding: 3px 8px; font-variant-numeric: tabular-nums; }
+.serie.cab { color: var(--text-3); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; }
+.serie.cab .c { background: transparent; padding: 3px 0; }
+.serie.nueva .c { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+
+/* ── La bandeja del portapapeles ────────────────────────────────────────── */
+.bandeja {
+  width: 268px; background: var(--surface); border: 1px solid var(--edge);
+  border-radius: 12px; box-shadow: var(--sombra-larga); overflow: hidden;
+}
+.bandeja.flota { position: absolute; right: 14px; bottom: 14px; z-index: 5; }
+@container (max-width: 660px) { .bandeja.flota { position: static; width: auto; margin: 12px; } }
+.bandeja-cab {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--hairline);
+}
+.bandeja-cab .t { font-size: 12.5px; font-weight: 600; color: var(--text-2); }
+.bandeja-cab .n {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+  font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.bandeja-cab .vaciar { margin-left: auto; font-size: 12px; color: var(--text-3); }
+.pieza { display: flex; align-items: flex-start; gap: 9px; padding: 9px 12px; }
+.pieza + .pieza { border-top: 1px solid var(--hairline); }
+.pieza .ic {
+  width: 24px; height: 24px; flex: 0 0 auto; display: grid; place-items: center;
+  border-radius: 6px; background: var(--fill); color: var(--text-3); font-size: 12px;
+}
+.pieza .txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.pieza .tit { font-size: 13px; font-weight: 620; letter-spacing: -.008em; }
+.pieza .pie { font-size: 11px; color: var(--text-3); }
+.pieza .x { color: var(--text-3); font-size: 12px; }
+.pieza .verbos { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; }
+.pieza .verbo {
+  font-size: 12px; font-weight: 640; color: var(--accent); cursor: pointer;
+  background: transparent; border: 0; padding: 0; font-family: inherit;
+}
+.pieza .verbo.gris { color: var(--text-3); font-weight: 600; }
+.pieza.muda .tit, .pieza.muda .pie { opacity: .55; }
+
+/* ── Menús y ventanas simuladas ─────────────────────────────────────────── */
+.menu {
+  width: max-content; max-width: 300px; background: var(--surface);
+  border: 1px solid var(--edge); border-radius: 10px; box-shadow: var(--sombra-larga);
+  padding: 5px; font-size: 13px;
+}
+.menu .it { padding: 6px 9px; border-radius: 7px; display: flex; gap: 8px; align-items: baseline; }
+.menu .it .sub { font-size: 11px; color: var(--text-3); }
+.menu .it.on { background: var(--sunken); }
+.menu .it.azul { color: var(--accent); font-weight: 620; }
+.menu .sep { height: 1px; background: var(--hairline); margin: 4px 6px; }
+.menu .rot { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); padding: 6px 9px 3px; }
+
+.ventana {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 14px;
+  box-shadow: var(--sombra-larga); overflow: hidden; max-width: 520px;
+}
+.ventana-cab { padding: 14px 16px 10px; border-bottom: 1px solid var(--hairline); }
+.ventana-cab .t { font-size: 16px; font-weight: 700; letter-spacing: -.015em; }
+.ventana-cab .s { font-size: 13px; color: var(--text-2); }
+.ventana-cuerpo { padding: 14px 16px; display: grid; gap: 12px; }
+.ventana-pie {
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  padding: 11px 16px; border-top: 1px solid var(--hairline); background: var(--sunken);
+}
+
+.consecuencias { display: grid; gap: 0; border: 1px solid var(--hairline); border-radius: 10px; overflow: hidden; }
+.consec { display: flex; gap: 10px; align-items: baseline; padding: 9px 12px; font-size: 13px; }
+.consec + .consec { border-top: 1px solid var(--hairline); }
+.consec .quien { font-weight: 640; min-width: 66px; }
+.consec .que { color: var(--text-2); }
+.consec .que b { color: var(--text); font-weight: 620; }
+.consec.fuera { background: var(--sunken); }
+.consec.fuera .quien, .consec.fuera .que { color: var(--text-3); font-weight: 500; }
+
+.campo { display: grid; gap: 5px; }
+.campo .k { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
+.select {
+  display: flex; align-items: center; gap: 8px; font-size: 13.5px;
+  border: 1px solid var(--hairline-strong); border-radius: 8px; padding: 7px 10px; background: var(--surface);
+}
+.select .v { font-weight: 600; }
+.select .chev { margin-left: auto; color: var(--text-3); }
+.campo small { color: var(--text-3); font-size: 12px; }
+
+/* El aviso con deshacer. */
+.toast {
+  display: inline-flex; align-items: center; gap: 14px;
+  background: #12151a; color: #f4f6fa; border-radius: 10px; padding: 10px 14px;
+  font-size: 13px; box-shadow: var(--sombra-larga);
+}
+:root[data-theme="dark"] .toast { background: #2b313b; }
+.toast .u { color: #9db4ff; font-weight: 660; }
+
+/* ── Tablas ─────────────────────────────────────────────────────────────── */
+.tabla-marco { overflow-x: auto; border: 1px solid var(--edge); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 620px; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+th { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+tbody tr:last-child td { border-bottom: 0; }
+td b { font-weight: 640; }
+td.si { color: var(--positive); }
+td.no { color: var(--text-3); }
+td.falta { color: var(--accent); }
+
+/* ── El mapa interactivo ────────────────────────────────────────────────── */
+.mapa { display: grid; gap: 16px; }
+.tipos { display: flex; flex-wrap: wrap; gap: 6px; }
+.tipo {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2); cursor: pointer;
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 999px; padding: 6px 14px;
+  transition: background-color .14s, color .14s, border-color .14s;
+}
+.tipo:hover { color: var(--text); }
+.tipo[aria-pressed="true"] { background: var(--accent); border-color: transparent; color: #fff; }
+.tipo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.destinos { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px, 1fr)); gap: 10px; }
+.destino {
+  background: var(--surface); border: 1px solid var(--edge); border-radius: 11px; padding: 12px 13px;
+  opacity: .42; transition: opacity .18s, border-color .18s, box-shadow .18s, transform .18s;
+}
+.destino.acepta { opacity: 1; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.destino .donde { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
+.destino .t { font-weight: 660; font-size: 14.5px; letter-spacing: -.012em; margin: 2px 0 4px; }
+.destino .q { font-size: 12.5px; color: var(--text-2); }
+.destino .estado { margin-top: 7px; font-size: 11px; font-weight: 660; letter-spacing: .04em; text-transform: uppercase; }
+.destino .estado.hay { color: var(--positive); }
+.destino .estado.falta { color: var(--accent); }
+.destino .estado.rota { color: var(--negative); }
+
+/* ── El bloque de código de la avería ───────────────────────────────────── */
+.averia {
+  border: 1px solid var(--negative); border-left-width: 3px; border-radius: 12px;
+  background: var(--surface); padding: 16px 18px; max-width: 900px;
+}
+.averia h3 { color: var(--negative); }
+pre {
+  margin: 12px 0 0; padding: 12px 14px; background: var(--sunken); border-radius: 9px;
+  overflow-x: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px; line-height: 1.6; color: var(--text-2);
+}
+pre b { color: var(--negative); font-weight: 700; }
+pre i { color: var(--positive); font-style: normal; font-weight: 700; }
+
+/* ── El plan ────────────────────────────────────────────────────────────── */
+.tandas { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.tanda { background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; padding: 15px 16px; }
+.tanda .rotulo { color: var(--accent); }
+.tanda h3 { margin: 3px 0 10px; }
+.mov { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; padding: 8px 0; border-top: 1px solid var(--hairline); }
+.mov:first-of-type { border-top: 0; }
+.mov .id { font-size: 11.5px; font-weight: 700; color: var(--text-3); letter-spacing: .02em; padding-top: 2px; }
+.mov .q { font-size: 13.5px; }
+.mov .q b { font-weight: 650; }
+.mov .q span { color: var(--text-2); }
+.mov.urgente .id { color: var(--negative); }
+
+ul.limpia { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; max-width: 68ch; }
+ul.limpia li { padding-left: 18px; position: relative; color: var(--text-2); font-size: 14.5px; }
+ul.limpia li::before { content: "—"; position: absolute; left: 0; color: var(--hairline-strong); }
+ul.limpia li b { color: var(--text); font-weight: 640; }
+
+footer.cierre { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--hairline-strong); color: var(--text-3); font-size: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+
+<div class="doc">
+
+<header class="portada">
+  <span class="rotulo">Estudio · 10 sep 2026</span>
+  <h1>El portapapeles: de sitio donde se guardan cosas a herramienta</h1>
+  <p><strong>Lo que hay hoy funciona y está probado</strong>: un almacén de doce piezas, una
+  bandeja que aparece al copiar y cinco tipos que viajan entre clientes. Lo que no hay es
+  el otro lado del gesto — <strong>dónde cae lo que llevas en la mano</strong>.</p>
+  <p>Este documento cuenta lo que hace Efort, lo que hacemos nosotros, la avería que salió
+  al contar los destinos, y qué cambia exactamente en cada pantalla.</p>
+</header>
+
+<div class="mando" role="group" aria-label="Cómo se ven las pantallas">
+  <div class="segmentado" id="vista">
+    <button type="button" data-v="antes" aria-pressed="false">Hoy</button>
+    <button type="button" data-v="comparar" aria-pressed="true">Comparar</button>
+    <button type="button" data-v="despues" aria-pressed="false">Propuesta</button>
+  </div>
+  <span class="pista">Las pantallas de «propuesta» son maquetas: <b>nada de esto está construido todavía</b>.</span>
+</div>
+
+<!-- ══ 1 · EFORT ══════════════════════════════════════════════════════════ -->
+<section>
+  <span class="rotulo">1 · La referencia</span>
+  <h2>Efort no tiene un portapapeles: tiene dos familias de gestos</h2>
+  <p class="entradilla">Y conviene no confundirlas, porque solo una de las dos nos interesa
+  entera. Leído de <code>capturas/referencias/efortcoach/</code>.</p>
+
+  <div class="par" style="grid-template-columns: 1fr;">
+    <figure class="marco" style="margin:0">
+      <figcaption><b>Familia A · El utillaje del lienzo</b> <span class="chapa ellos">Efort</span>
+        <span>Un ⧉ siempre visible en cuatro niveles, y un pegar fijo al pie del día.</span></figcaption>
+      <div class="app" style="max-width:600px">
+        <div class="hoja">
+          <div class="lienzo" style="min-height:0">
+            <div class="tarjeta" style="max-width:520px">
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--hairline);font-size:12.5px;color:var(--text-2)">
+                <b style="color:var(--text)">Week 1</b> · Oct 13–18
+                <span class="derecha" style="color:var(--text-3)">👁 ✎ <b style="color:var(--accent)">⧉</b> 🗑</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--hairline);font-size:12.5px;color:var(--text-2)">
+                <b style="color:var(--text)">Day 1</b> · Oct 13
+                <span class="derecha" style="color:var(--text-3)">✎ <b style="color:var(--accent)">⧉</b> ···</span>
+              </div>
+              <div class="ej">
+                <div class="ej-cab">
+                  <span class="n">2ct Pause Bench Press</span>
+                  <span class="acciones"><b style="color:var(--accent)">⧉</b> ···</span>
+                </div>
+                <div class="series">
+                  <div class="serie cab"><span class="i">P</span><span class="c">weight</span><span class="c">reps</span><span class="c" style="color:var(--accent);font-weight:700">rpe ⧉</span></div>
+                  <div class="serie"><span class="i">●</span><span class="c">120</span><span class="c">4</span><span class="c">@4</span></div>
+                  <div class="serie"><span class="i">●</span><span class="c">130</span><span class="c">4</span><span class="c">@5</span></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--hairline);font-size:12.5px;color:var(--text-2)">
+                <span class="btn azul">+ Add exercise</span>
+                <span class="btn icono"><b style="color:var(--accent)">⧉</b></span>
+                <span class="derecha" style="color:var(--text-3)">⌃ ▾ 🗑</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="nota" style="margin-top:14px"><b>Lo que hay que aprender:</b> copiar es un clic y
+      nunca un menú; pegar vive donde se añade; y existe una granularidad por debajo del
+      ejercicio —<b>la pauta</b>: «Copy sets» le da a <i>este</i> remo las series del press,
+      y el remo conserva su nombre.<br>
+      <b>Lo que NO:</b> la cantidad. Su modelo escribe cada semana por separado
+      (<code>Ramp 3x4 @6</code> en la 1, otro texto en la 2), así que <b>necesita</b> copiar
+      semanas. Importar «copiar semana» sería importarnos su avería.</p>
+    </figure>
+  </div>
+
+  <div class="par" style="grid-template-columns: 1fr; margin-top:28px">
+    <figure class="marco" style="margin:0">
+      <figcaption><b>Familia B · La asignación a varios</b> <span class="chapa ellos">Efort</span>
+        <span>«Send it to your athlete»: un plan a N atletas en un gesto.</span></figcaption>
+      <div class="ventana" style="max-width:560px">
+        <div class="ventana-cab">
+          <div class="t">High Carb Training Day</div>
+          <div class="s">Select athletes to assign this nutrition plan to.</div>
+        </div>
+        <div class="ventana-cuerpo" style="grid-template-columns: 1fr 1fr; display:grid">
+          <div class="tarjeta" style="padding:0;overflow:hidden">
+            <div style="padding:8px 11px;border-bottom:1px solid var(--hairline);color:var(--text-3);font-size:12.5px">🔍 Search athletes</div>
+            <div class="consec" style="border:0"><span class="quien">✓ Abigail Cook</span></div>
+            <div class="consec" style="border-top:1px solid var(--hairline)"><span class="quien" style="font-weight:500;color:var(--text-2)">Alexander Evans</span></div>
+            <div class="consec" style="border-top:1px solid var(--hairline)"><span class="quien">✓ Benjamin Wright</span></div>
+          </div>
+          <div>
+            <div class="rotulo">Selected 3</div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 12px">
+              <span class="btn">Abigail ✕</span><span class="btn">Benjamin ✕</span><span class="btn">James ✕</span>
+            </div>
+            <div style="font-size:13px;font-weight:640;margin-bottom:6px">James Anderson's plans</div>
+            <div style="font-size:12.5px;color:var(--text-2)">● ACTIVE 2 · High Carb TD, Training Day Var I</div>
+          </div>
+        </div>
+        <div class="ventana-pie"><span class="btn">Cancel</span><span class="btn primario">Save changes</span></div>
+      </div>
+      <p class="nota" style="margin-top:14px"><b>Esto sí lo queremos entero</b>, y podemos hacerlo
+      mejor: ellos enseñan <i>lo que el atleta ya tiene</i>; nosotros podemos enseñar
+      <b>lo que va a pasar</b> con cada persona antes de pulsar.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ══ 2 · LA AVERÍA ══════════════════════════════════════════════════════ -->
+<section>
+  <span class="rotulo">2 · Lo primero</span>
+  <h2>Pegar un ejercicio revienta</h2>
+  <p class="entradilla">Salió al ir a comprobar con qué alcance cae lo pegado. No es una
+  opinión de diseño: es un <code>TypeError</code>, reproducido en <code>node</code>.</p>
+
+  <div class="averia">
+    <h3>PP-00 · <code>tramoDeAlta(null)</code></h3>
+    <pre><span style="color:var(--text-3)">// WorkoutLogEditor.jsx:1225 — el valor por defecto solo cubre `undefined`</span>
+const tramoDeAlta = ({ semanas } = {}) => …
+
+<span style="color:var(--text-3)">// :1072 — y el pegado le manda `null`</span>
+addPlanExercise(…, tramoDeAlta(<b>null</b>));
+<b>→ TypeError: Cannot destructure property 'semanas' of 'null'</b>
+
+<span style="color:var(--text-3)">// El arreglo, una línea:</span>
+addPlanExercise(…, tramoDeAlta(<i>undefined</i>));   <span style="color:var(--text-3)">// o `{}`</span></pre>
+    <p style="margin:14px 0 0;font-size:14.5px;color:var(--text-2)">Se lleva por delante el botón
+    «Pegar» del alta y <b style="color:var(--text)">⌘V</b>, que pasa por el mismo verbo. El alta
+    normal se salva porque <code>AddExerciseForm</code> manda siempre <code>{ semanas: … }</code>.
+    Y el fallo señala lo de fondo: <b style="color:var(--text)">el pegado se escribió como si no
+    tuviera que decidir tramo, y sí tiene que decidirlo</b>.</p>
+  </div>
+</section>
+
+<!-- ══ 3 · EL MAPA ════════════════════════════════════════════════════════ -->
+<section>
+  <span class="rotulo">3 · La pregunta de verdad</span>
+  <h2>¿Cuántos sitios hay donde pegar?</h2>
+  <p class="entradilla">Antes de decidir si la bandeja pega, hay que contarlos.
+  Salen <strong>siete destinos vivos repartidos por cinco pantallas</strong> — y tres de ellos
+  todavía no existen. Elige una pieza y mira dónde puede caer.</p>
+
+  <div class="mapa">
+    <div class="tipos" id="tipos" role="group" aria-label="Qué llevas copiado">
+      <button type="button" class="tipo" data-t="pauta" aria-pressed="false">Pauta</button>
+      <button type="button" class="tipo" data-t="ejercicio" aria-pressed="true">Ejercicio</button>
+      <button type="button" class="tipo" data-t="hoja" aria-pressed="false">Hoja</button>
+      <button type="button" class="tipo" data-t="bloque" aria-pressed="false">Bloque</button>
+      <button type="button" class="tipo" data-t="comida" aria-pressed="false">Comida</button>
+      <button type="button" class="tipo" data-t="menu" aria-pressed="false">Menú del día</button>
+    </div>
+
+    <div class="destinos" id="destinos">
+      <article class="destino" data-acepta="pauta">
+        <div class="donde">Entreno · la hoja abierta</div>
+        <div class="t">Sobre un ejercicio</div>
+        <div class="q">Le pone esas series y <b>conserva su nombre</b>. Con su tramo.</div>
+        <div class="estado falta">No existe</div>
+      </article>
+      <article class="destino" data-acepta="ejercicio">
+        <div class="donde">Entreno · la hoja abierta</div>
+        <div class="t">Un ejercicio más</div>
+        <div class="q">Se añade al día, con la pregunta de hasta cuándo vale.</div>
+        <div class="estado rota">Existe, y está roto</div>
+      </article>
+      <article class="destino" data-acepta="hoja">
+        <div class="donde">Entreno · el cajón del bloque</div>
+        <div class="t">Una hoja nueva</div>
+        <div class="q">Entra con nombre libre: «Lower A», «Lower A 2».</div>
+        <div class="estado hay">Ya existe</div>
+      </article>
+      <article class="destino" data-acepta="hoja">
+        <div class="donde">Entreno · un día que ya existe</div>
+        <div class="t">Sustituir el día</div>
+        <div class="q">Cambia sus ejercicios. Con tramo: «así de M3 a M5».</div>
+        <div class="estado falta">No existe</div>
+      </article>
+      <article class="destino" data-acepta="bloque">
+        <div class="donde">Entreno · la tira de bloques</div>
+        <div class="t">Empezar un bloque</div>
+        <div class="q">Cierra el abierto y abre uno con esas hojas. Pregunta antes.</div>
+        <div class="estado hay">Ya existe</div>
+      </article>
+      <article class="destino" data-acepta="comida menu">
+        <div class="donde">Dieta · el menú</div>
+        <div class="t">Al final del menú</div>
+        <div class="q">Se añade; nunca sustituye. Copiar no debería poder borrar.</div>
+        <div class="estado hay">Ya existe</div>
+      </article>
+      <article class="destino" data-acepta="comida">
+        <div class="donde">Dieta · una comida</div>
+        <div class="t">Como otra opción</div>
+        <div class="q">La cena de Marta, de alternativa a la cena de Luis.</div>
+        <div class="estado falta">No existe</div>
+      </article>
+      <article class="destino" data-acepta="hoja menu">
+        <div class="donde">La cartera · varios clientes</div>
+        <div class="t">Poner esto en…</div>
+        <div class="q">A los marcados, a una etiqueta, a un protocolo. Con las consecuencias delante.</div>
+        <div class="estado falta">No existe</div>
+      </article>
+      <article class="destino" data-acepta="hoja">
+        <div class="donde">El Taller · plantillas</div>
+        <div class="t">Guardar con nombre</div>
+        <div class="q">No se pega: se <b>guarda</b>. A tu cajón, y no toca a nadie.</div>
+        <div class="estado falta">Solo va en el otro sentido</div>
+      </article>
+    </div>
+  </div>
+
+  <p class="nota"><b>Y ese número es el argumento sobre la bandeja.</b> Con siete destinos en cinco
+  pantallas, nadie se acuerda de cuál acepta qué. La bandeja no tiene que <i>adivinar</i> el
+  destino —eso es lo que el componente rechaza, y con razón—: la pantalla lo <b>presenta</b>, y la
+  bandeja enciende el verbo con su nombre. Un menú «+» no puede enseñar eso, porque para leerlo
+  hay que abrirlo.</p>
+</section>
+
+<!-- ══ 4 · ANTES Y DESPUÉS ════════════════════════════════════════════════ -->
+<section>
+  <span class="rotulo">4 · Antes y después</span>
+  <h2>Qué cambia, pantalla por pantalla</h2>
+  <p class="entradilla">Seis cambios. Cada pareja es la misma pantalla: a la izquierda lo que
+  hay hoy en el árbol, a la derecha lo que propone el estudio.</p>
+
+  <!-- A · LA BANDEJA -->
+  <h3 style="margin-top:34px">A · La bandeja enseña, pero no hace</h3>
+  <p class="entradilla" style="margin-bottom:8px">Es lo único visible del sistema y su único verbo
+  es «Quitar». El verbo que importa vive dentro de un menú «+», en otra esquina de la pantalla.</p>
+  <div class="par">
+    <figure class="marco lado-antes" style="margin:0">
+      <figcaption><span class="chapa hoy">Hoy</span> <b>Un escaparate</b> <span>Miras lo que llevas y lo tiras.</span></figcaption>
+      <div class="bandeja">
+        <div class="bandeja-cab"><span style="color:var(--text-3)">▾</span><span class="t">Portapapeles</span><span class="n">3</span><span class="vaciar">Vaciar</span></div>
+        <div class="pieza"><span class="ic">▦</span><span class="txt"><span class="tit">Lower A</span><span class="pie">hoja · 6 ejercicios · Marta · Acumulación</span></span><span class="x">✕</span></div>
+        <div class="pieza"><span class="ic">⬒</span><span class="txt"><span class="tit">Press banca</span><span class="pie">ejercicio · 5 series · Marta</span></span><span class="x">✕</span></div>
+        <div class="pieza"><span class="ic">🍽</span><span class="txt"><span class="tit">Cena</span><span class="pie">comida · 3 opciones · Luis · dieta</span></span><span class="x">✕</span></div>
+      </div>
+    </figure>
+    <figure class="marco lado-despues" style="margin:0">
+      <figcaption><span class="chapa nuevo">Propuesta</span> <b>El destino se presenta</b> <span>La pantalla dice qué acepta; la bandeja lo dice en azul.</span></figcaption>
+      <div class="bandeja">
+        <div class="bandeja-cab"><span style="color:var(--text-3)">▾</span><span class="t">Portapapeles</span><span class="n">3</span><span class="vaciar">Vaciar</span></div>
+        <div class="pieza">
+          <span class="ic">▦</span>
+          <span class="txt"><span class="tit">Lower A</span><span class="pie">hoja · 6 ejercicios · Marta · Acumulación</span>
+            <span class="verbos"><button class="verbo">Pegar en Intensificación</button><button class="verbo gris">Poner en varios…</button><button class="verbo gris">Guardar</button></span>
+          </span>
+          <span class="x">✕</span>
+        </div>
+        <div class="pieza">
+          <span class="ic">⬒</span>
+          <span class="txt"><span class="tit">Press banca</span><span class="pie">ejercicio · 5 series · Marta</span>
+            <span class="verbos"><button class="verbo">Pegar en Lower A</button><button class="verbo gris">Solo las series…</button></span>
+          </span>
+          <span class="x">✕</span>
+        </div>
+        <div class="pieza muda">
+          <span class="ic">🍽</span>
+          <span class="txt"><span class="tit">Cena</span><span class="pie">comida · 3 opciones · Luis · aquí no cae</span></span>
+          <span class="x">✕</span>
+        </div>
+      </div>
+      <p class="nota" style="margin-top:12px"><b>La ley:</b> el verbo nombra el sitio —nunca «Pegar» a
+      secas—, y la pieza que esta pantalla no sabe recibir se apaga en vez de mentir.</p>
+    </figure>
+  </div>
+
+  <!-- B · EL ALCANCE -->
+  <h3 style="margin-top:42px">B · Pegar un ejercicio, y hasta cuándo vale</h3>
+  <p class="entradilla" style="margin-bottom:8px">Añadir ya hace la pregunta; pegar es el otro
+  camino al mismo sitio, así que tiene que hacer la misma. <b>Esto es «pegar estructuras en otras
+  semanas»</b>, y el motor ya está construido: sin tramo escribe el plan del bloque, con tramo
+  crea un <code>override</code>.</p>
+  <div class="par">
+    <figure class="marco lado-antes" style="margin:0">
+      <figcaption><span class="chapa rota">Hoy · roto</span> <b>Cae sin decir dónde</b> <span>Y antes de caer, lanza.</span></figcaption>
+      <div class="app">
+        <div class="barra"><span class="marca">Caveman</span><ul><li>Inicio</li><li class="on">Entreno</li><li>Dieta</li><li>Revisión</li></ul></div>
+        <div class="hoja">
+          <div class="cliente"><span class="avatar">M</span><span class="nombre">Marta</span><span class="meta">M3 · Acumulación</span></div>
+          <div class="pestanas"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span></div>
+          <div class="lienzo">
+            <div class="tira"><div class="tira-fila"><span class="miga">Bloques</span><span class="eslabon on">Acumulación</span><span class="eslabon">Lower A</span></div></div>
+            <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
+              <span class="btn">+ Nuevo ejercicio</span>
+              <div class="menu" style="width:230px">
+                <div class="rot">Pegar</div>
+                <div class="it on">Press banca <span class="sub">5 series · Marta</span></div>
+                <div class="it">Remo con barra <span class="sub">4 series · Luis</span></div>
+              </div>
+            </div>
+            <p style="font-size:12.5px;color:var(--negative);margin:12px 0 0">Al pulsar: <code>TypeError</code>. Y si no lo lanzara, entraría en el plan del bloque sin preguntar.</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+    <figure class="marco lado-despues" style="margin:0">
+      <figcaption><span class="chapa nuevo">Propuesta</span> <b>La misma pregunta que el alta</b> <span>Tres respuestas, ya escritas en el producto.</span></figcaption>
+      <div class="app">
+        <div class="barra"><span class="marca">Caveman</span><ul><li>Inicio</li><li class="on">Entreno</li><li>Dieta</li><li>Revisión</li></ul></div>
+        <div class="hoja">
+          <div class="cliente"><span class="avatar">L</span><span class="nombre">Luis</span><span class="meta">M3 · Intensificación</span></div>
+          <div class="pestanas"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span></div>
+          <div class="lienzo">
+            <div class="tira"><div class="tira-fila"><span class="miga">Bloques</span><span class="eslabon on">Intensificación</span><span class="eslabon">Upper A</span></div></div>
+            <div class="ventana" style="max-width:330px">
+              <div class="ventana-cab"><div class="t">Pegar «Press banca»</div><div class="s">5 series, de Marta · en Upper A</div></div>
+              <div class="ventana-cuerpo">
+                <div class="campo">
+                  <span class="k">Hasta cuándo</span>
+                  <div class="select"><span class="v">Unas semanas, a prueba</span><span class="chev">▾</span></div>
+                  <small>Tres microciclos desde este (M3–M5). Después vuelve solo al plan.</small>
+                </div>
+              </div>
+              <div class="ventana-pie"><span class="btn">Cancelar</span><span class="btn primario">Pegarlo</span></div>
+            </div>
+            <p style="font-size:12.5px;color:var(--text-2);margin:12px 0 0">Las otras dos: «En el bloque, mientras dure» · «Solo este microciclo».</p>
+          </div>
+        </div>
+      </div>
+    </figure>
+  </div>
+
+  <!-- C · LA PAUTA -->
+  <h3 style="margin-top:42px">C · La pauta viaja sola</h3>
+  <p class="entradilla" style="margin-bottom:8px">El gesto más vendido de Efort, y el más común al
+  programar: <b>darle a este remo la progresión del press</b>. Hoy son tres pasos —pegar el press,
+  renombrarlo, borrar el remo—.</p>
+  <div class="par">
+    <figure class="marco lado-antes" style="margin:0">
+      <figcaption><span class="chapa hoy">Hoy</span> <b>O el ejercicio entero, o nada</b> <span>Copiar arrastra el nombre.</span></figcaption>
+      <div class="tarjeta" style="max-width:440px">
+        <div class="ej">
+          <div class="ej-cab"><span class="n">Press banca</span><span class="acciones">✎ ↑ ↓ <b style="color:var(--accent)">⧉</b> 🗑</span></div>
+          <div class="series">
+            <div class="serie cab"><span class="i">#</span><span class="c">kg</span><span class="c">reps</span><span class="c">rir</span></div>
+            <div class="serie"><span class="i">1</span><span class="c">80</span><span class="c">8</span><span class="c">2</span></div>
+            <div class="serie"><span class="i">2</span><span class="c">85</span><span class="c">6</span><span class="c">1</span></div>
+            <div class="serie"><span class="i">3</span><span class="c">90</span><span class="c">4</span><span class="c">1</span></div>
+          </div>
+        </div>
+        <div class="ej">
+          <div class="ej-cab"><span class="n">Remo con barra</span><span class="acciones">✎ ↑ ↓ ⧉ 🗑</span></div>
+          <div class="series">
+            <div class="serie"><span class="i">1</span><span class="c">60</span><span class="c">10</span><span class="c">2</span></div>
+            <div class="serie"><span class="i">2</span><span class="c">60</span><span class="c">10</span><span class="c">2</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="nota" style="margin-top:12px">El ⧉ copia «Press banca» con sus series. Pegarlo crea
+      un <b>cuarto ejercicio</b> llamado Press banca, no le cambia la pauta al remo.</p>
+    </figure>
+    <figure class="marco lado-despues" style="margin:0">
+      <figcaption><span class="chapa nuevo">Propuesta</span> <b>Un sexto tipo: la pauta</b> <span>Las series sin nombre ni identidad.</span></figcaption>
+      <div class="tarjeta" style="max-width:440px">
+        <div class="ej">
+          <div class="ej-cab"><span class="n">Press banca</span><span class="acciones">✎ ↑ ↓ <b style="color:var(--accent)">⧉</b> 🗑</span></div>
+          <div class="series">
+            <div class="serie cab"><span class="i">#</span><span class="c">kg</span><span class="c">reps</span><span class="c">rir</span></div>
+            <div class="serie"><span class="i">1</span><span class="c">80</span><span class="c">8</span><span class="c">2</span></div>
+            <div class="serie"><span class="i">2</span><span class="c">85</span><span class="c">6</span><span class="c">1</span></div>
+            <div class="serie"><span class="i">3</span><span class="c">90</span><span class="c">4</span><span class="c">1</span></div>
+          </div>
+        </div>
+        <div class="ej">
+          <div class="ej-cab"><span class="n">Remo con barra</span><span class="acciones">✎ ↑ ↓ ⧉ 🗑</span></div>
+          <div class="series">
+            <div class="serie nueva"><span class="i">1</span><span class="c">60</span><span class="c">8</span><span class="c">2</span></div>
+            <div class="serie nueva"><span class="i">2</span><span class="c">65</span><span class="c">6</span><span class="c">1</span></div>
+            <div class="serie nueva"><span class="i">3</span><span class="c">70</span><span class="c">4</span><span class="c">1</span></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:12px">
+        <div class="menu" style="width:264px">
+          <div class="it on">Copiar el ejercicio</div>
+          <div class="it azul">Copiar solo las series</div>
+          <div class="sep"></div>
+          <div class="it azul" style="flex-direction:column;gap:1px;align-items:flex-start">Ponerle estas series <span class="sub">de «Press banca», de Marta</span></div>
+        </div>
+        <div class="toast">Al remo le pones la pauta del press. <span class="u">Deshacer</span></div>
+      </div>
+      <p class="nota" style="margin-top:12px"><b>Y mejor que el suyo:</b> el press de Marta le puede
+      poner las series al remo de Luis. Efort solo copia dentro del mismo atleta.</p>
+    </figure>
+  </div>
+
+  <!-- D · A VARIOS -->
+  <h3 style="margin-top:42px">D · Poner una hoja en varios clientes</h3>
+  <p class="entradilla" style="margin-bottom:8px">Hoy es entrar en cada persona, abrir su bloque y
+  pegar. Diez clientes son treinta clics. Y esta es nuestra mejor mano: como la hoja es
+  <b>plan</b> y no registro, ponerla en diez es barato y seguro.</p>
+  <div class="par">
+    <figure class="marco lado-antes" style="margin:0">
+      <figcaption><span class="chapa hoy">Hoy</span> <b>El lote no sabe poner</b> <span>Sabe mandar, avisar, etiquetar y pausar.</span></figcaption>
+      <div class="app">
+        <div class="barra"><span class="marca">Caveman</span><ul><li>Inicio</li><li class="on">Clientes</li><li>Taller</li></ul></div>
+        <div class="hoja">
+          <div class="lienzo" style="position:relative;min-height:230px">
+            <div class="tarjeta" style="padding:0;overflow:hidden">
+              <div class="consec"><span class="quien">☑ Marta</span><span class="que">Acumulación · M3</span></div>
+              <div class="consec"><span class="quien">☑ Luis</span><span class="que">Intensificación · M2</span></div>
+              <div class="consec"><span class="quien">☑ Ana</span><span class="que">Adaptación · M1</span></div>
+            </div>
+            <div class="mostrador">
+              <span style="font-size:12.5px;font-weight:650">3 seleccionados</span>
+              <span class="btn primario">Mandar algo</span><span class="btn">Aviso</span><span class="btn">Etiquetar</span><span class="btn">Pausar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="nota" style="margin-top:12px">La bandeja, mientras, flota en la esquina con la hoja
+      copiada dentro y <b>sin nada que ofrecer</b>. Además de pisarse con este mostrador por debajo
+      de 1200 px.</p>
+    </figure>
+    <figure class="marco lado-despues" style="margin:0">
+      <figcaption><span class="chapa nuevo">Propuesta</span> <b>Lo que va a pasar, antes de pulsar</b> <span>Nuestra versión de «Send it to your athlete».</span></figcaption>
+      <div class="ventana">
+        <div class="ventana-cab">
+          <div class="t">Poner «Lower A» en 4 clientes</div>
+          <div class="s">Hoja de 6 ejercicios, copiada del bloque de Marta.</div>
+        </div>
+        <div class="ventana-cuerpo">
+          <div class="campo">
+            <span class="k">A quién</span>
+            <div class="select"><span class="v">A los que marqué</span><span class="chev">▾</span></div>
+            <small>También: con una etiqueta · de un protocolo · a todos los activos.</small>
+          </div>
+          <div class="campo">
+            <span class="k">Qué va a pasar</span>
+            <div class="consecuencias">
+              <div class="consec"><span class="quien">Marta</span><span class="que">se añade al bloque <b>Acumulación</b></span></div>
+              <div class="consec"><span class="quien">Luis</span><span class="que">no tiene bloque abierto → <b>se le abre uno</b></span></div>
+              <div class="consec"><span class="quien">Ana</span><span class="que">ya tiene una «Lower A» → entra como <b>Lower A 2</b></span></div>
+              <div class="consec fuera"><span class="quien">Ruth</span><span class="que">en pausa · no se toca</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="ventana-pie"><span class="btn">Cancelar</span><span class="btn primario">Ponerlo en 3</span></div>
+      </div>
+      <p class="nota" style="margin-top:12px">Las audiencias no se inventan: son las de
+      <code>domain/envios</code>, ya escritas y probadas, las mismas de «Mandar algo». Lo que cambia
+      es el verbo — <b>pedir no es poner</b>.</p>
+    </figure>
+  </div>
+
+  <!-- E · GUARDAR -->
+  <h3 style="margin-top:42px">E · Guardar no es pegar</h3>
+  <p class="entradilla" style="margin-bottom:8px">La duda era si «pegar en plantillas» tiene sentido
+  con la función de guardado. La respuesta es que <b>es la misma mano con otro verbo</b>, y que el
+  puente hoy solo gira en un sentido.</p>
+  <div class="par">
+    <figure class="marco lado-antes" style="margin:0">
+      <figcaption><span class="chapa hoy">Hoy</span> <b>Un solo sentido</b></figcaption>
+      <div class="tarjeta p" style="max-width:420px;font-size:14px;color:var(--text-2)">
+        <p style="margin:0 0 10px"><b style="color:var(--text)">Plantillas → portapapeles</b><br>
+        Te llevas el día guardado y lo sueltas en el «+ hoja» de quien sea. <span style="color:var(--positive);font-weight:650">Existe.</span></p>
+        <p style="margin:0"><b style="color:var(--text)">Portapapeles → plantillas</b><br>
+        Copias la mejor hoja de Marta y quieres quedártela para siempre. <span style="color:var(--negative);font-weight:650">No hay puerta.</span></p>
+      </div>
+    </figure>
+    <figure class="marco lado-despues" style="margin:0">
+      <figcaption><span class="chapa nuevo">Propuesta</span> <b>Tres verbos, tres significados</b></figcaption>
+      <div class="tarjeta" style="padding:0;overflow:hidden;max-width:460px">
+        <div class="consec"><span class="quien" style="min-width:96px;color:var(--accent)">Guardar</span><span class="que">a <b>tu</b> cajón, con nombre, para siempre. No toca a nadie.</span></div>
+        <div class="consec"><span class="quien" style="min-width:96px;color:var(--accent)">Pegar</span><span class="que">al trabajo de <b>una</b> persona, ahora, y se deshace.</span></div>
+        <div class="consec"><span class="quien" style="min-width:96px;color:var(--accent)">Poner en varios</span><span class="que">lo mismo, a <b>N</b> personas, con las consecuencias delante.</span></div>
+      </div>
+      <p class="nota" style="margin-top:12px"><b>Y una decisión que deja encima de la mesa:</b>
+      plantillas guarda <i>días</i> y <i>platos</i>. El portapapeles lleva además bloques, ejercicios
+      y menús. O la bandeja solo ofrece guardar lo que tiene cajón (hoja → días), o hay que abrir
+      cajón de bloques — que ya es una biblioteca de programas, otra pieza y otra fase.</p>
+    </figure>
+  </div>
+
+  <!-- F · LA DIETA -->
+  <h3 style="margin-top:42px">F · La dieta, con los mismos gestos</h3>
+  <p class="entradilla" style="margin-bottom:8px">Copiar una comida está escondido en un «···», no
+  hay ⌘C/⌘V, y pegar solo sabe añadir al final — cuando lo que la estructura de opciones pide es
+  otra cosa.</p>
+  <div class="par">
+    <figure class="marco lado-antes" style="margin:0">
+      <figcaption><span class="chapa hoy">Hoy</span> <b>Siempre al final</b></figcaption>
+      <div class="tarjeta" style="padding:0;overflow:hidden;max-width:400px">
+        <div class="consec"><span class="quien">Desayuno</span><span class="que">2 opciones</span></div>
+        <div class="consec"><span class="quien">Comida</span><span class="que">1 opción</span></div>
+        <div class="consec"><span class="quien">Cena</span><span class="que">1 opción</span></div>
+        <div class="consec" style="background:var(--accent-soft)"><span class="quien" style="color:var(--accent)">Cena</span><span class="que" style="color:var(--accent)">pegada al final · ahora hay dos cenas</span></div>
+      </div>
+    </figure>
+    <figure class="marco lado-despues" style="margin:0">
+      <figcaption><span class="chapa nuevo">Propuesta</span> <b>O al final, o como otra opción</b></figcaption>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div class="tarjeta" style="padding:0;overflow:hidden;width:230px">
+          <div class="consec"><span class="quien">Desayuno</span><span class="que">2 opciones</span></div>
+          <div class="consec"><span class="quien">Comida</span><span class="que">1 opción</span></div>
+          <div class="consec" style="background:var(--accent-soft)"><span class="quien" style="color:var(--accent)">Cena</span><span class="que" style="color:var(--accent)">2 opciones</span></div>
+        </div>
+        <div class="menu" style="width:250px">
+          <div class="rot">Pegar «Cena» de Luis</div>
+          <div class="it azul">Como otra opción de la cena</div>
+          <div class="it">Como una comida más, al final</div>
+        </div>
+      </div>
+      <p class="nota" style="margin-top:12px">Y el ⧉ sale del «···» a la vista de la comida, como en
+      el ejercicio. La misma ley en las dos mitades del producto.</p>
+    </figure>
+  </div>
+</section>
+
+<!-- ══ 5 · EL PLAN ════════════════════════════════════════════════════════ -->
+<section>
+  <span class="rotulo">5 · Los cambios</span>
+  <h2>Catorce movimientos, tres tandas</h2>
+  <p class="entradilla">Cada tanda se puede parar y lo anterior sigue siendo coherente.
+  <strong>Nada de esto está construido</strong>: es el plan a decidir.</p>
+
+  <div class="tandas">
+    <article class="tanda">
+      <span class="rotulo">Tanda 1</span>
+      <h3>Que se pegue donde estás</h3>
+      <div class="mov urgente"><span class="id">PP-00</span><span class="q"><b>La avería.</b> <span><code>tramoDeAlta()</code>. Una línea, y va delante de todo.</span></span></div>
+      <div class="mov"><span class="id">PP-01</span><span class="q"><b>Destinos que se presentan.</b> <span>La pantalla registra qué acepta; la bandeja enciende el verbo con su nombre.</span></span></div>
+      <div class="mov"><span class="id">PP-02</span><span class="q"><b>La pauta viaja.</b> <span>Sexto tipo, y se pega sobre otro ejercicio conservando su nombre.</span></span></div>
+      <div class="mov"><span class="id">PP-03</span><span class="q"><b>El tramo del pegado.</b> <span>Las tres respuestas del alta, también al pegar.</span></span></div>
+      <div class="mov"><span class="id">PP-04</span><span class="q"><b>Deshacer.</b> <span>El aviso ya lo sabe hacer; ninguno de los cinco pegados lo usa.</span></span></div>
+    </article>
+
+    <article class="tanda">
+      <span class="rotulo">Tanda 2</span>
+      <h3>Que llegue a varios</h3>
+      <div class="mov"><span class="id">PP-05</span><span class="q"><b>«Poner esto en…»</b> <span>Desde la bandeja, con las audiencias de <code>domain/envios</code>.</span></span></div>
+      <div class="mov"><span class="id">PP-06</span><span class="q"><b>La lista de consecuencias.</b> <span>Qué le pasa a cada persona, antes de pulsar. El bloque, aparte y con pregunta.</span></span></div>
+      <div class="mov"><span class="id">PP-07</span><span class="q"><b>Guardar en plantillas.</b> <span>Cierra el círculo, y solo para los tipos que tienen cajón.</span></span></div>
+      <div class="mov"><span class="id">PP-08</span><span class="q"><b>Ver lo que llevas.</b> <span>La pieza se despliega. Requisito de PP-05, no adorno.</span></span></div>
+    </article>
+
+    <article class="tanda">
+      <span class="rotulo">Tanda 3</span>
+      <h3>Que sea uno solo</h3>
+      <div class="mov"><span class="id">PP-09</span><span class="q"><b>Pegar sobre un día que ya existe.</b> <span>Sustituir la hoja, con tramo.</span></span></div>
+      <div class="mov"><span class="id">PP-10</span><span class="q"><b>La dieta al día.</b> <span>⧉ a la vista, ⌘C/⌘V, y pegar como otra opción.</span></span></div>
+      <div class="mov"><span class="id">PP-11</span><span class="q"><b>Las otras puertas.</b> <span>«Traer de un fichero» deja la pieza en el portapapeles en vez de escribir directo.</span></span></div>
+      <div class="mov"><span class="id">PP-12</span><span class="q"><b>Arrastrar.</b> <span>Solo con puntero fino, y apoyado en PP-01: se ilumina lo registrado.</span></span></div>
+      <div class="mov"><span class="id">PP-13</span><span class="q"><b>Que no se pisen.</b> <span>Bandeja y mostrador del lote comparten pie y el mismo <code>z-index</code>.</span></span></div>
+    </article>
+  </div>
+</section>
+
+<!-- ══ 6 · LO QUE NO ══════════════════════════════════════════════════════ -->
+<section>
+  <span class="rotulo">6 · El límite</span>
+  <h2>Lo que este estudio no propone</h2>
+  <ul class="limpia">
+    <li><b>Copiar semanas o microciclos.</b> En nuestro modelo eso es calendario e historial: copiarlo a otra persona sería copiarle lo que registró. Lo que la gente quiere decir con «copia esta semana» son sus hojas, y las hojas viajan.</li>
+    <li><b>Sincronizar el portapapeles entre aparatos.</b> Lo que llevas en la mano ahora mismo no es un dato de la cuenta.</li>
+    <li><b>Tocar el portapapeles del sistema.</b> Lo copiado son objetos con sus ids, no texto: escribirlos además ahí le borraría a alguien lo que llevara encima.</li>
+    <li><b>Programar el pegado a futuro</b> («ponle esto dentro de dos semanas»). Eso es planificación, y es de otra fase.</li>
+    <li><b>Portapapeles para formularios y protocolos.</b> Ya son objetos del entrenador, comunes a todos sus clientes, y ya tienen «Duplicar».</li>
+  </ul>
+</section>
+
+<footer class="cierre">
+  Caveman Hub · estudio del portapapeles · 10 sep 2026 · el detalle escrito está en
+  <code>docs/estudio-portapapeles.md</code>
+</footer>
+
+</div>
+
+<script>
+/* El mando de las vistas: antes / comparar / después. */
+const doc = document.documentElement;
+const vista = document.getElementById('vista');
+doc.dataset.vista = 'comparar';
+vista.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-v]');
+  if (!b) return;
+  doc.dataset.vista = b.dataset.v;
+  vista.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+});
+
+/* El mapa: qué destinos acepta cada pieza. */
+const tipos = document.getElementById('tipos');
+const destinos = [...document.querySelectorAll('.destino')];
+const pintar = (t) => {
+  destinos.forEach((d) => d.classList.toggle('acepta', d.dataset.acepta.split(' ').includes(t)));
+};
+tipos.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-t]');
+  if (!b) return;
+  tipos.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+  pintar(b.dataset.t);
+});
+pintar('ejercicio');
+</script>

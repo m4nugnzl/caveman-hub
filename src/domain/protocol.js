@@ -145,11 +145,16 @@ export const SERVICES = [
   {
     id: 'training',
     label: 'Entrenamiento',
+    /* El nombre de pila del servicio: el que se dice al RESUMIR lo que alguien
+       lleva puesto, donde «Entrenamiento y Nutrición» gasta una línea entera en
+       decir dos cosas. Ver `queLeLlevas`. */
+    corto: 'Entreno',
     hint: 'Su programa, sus sesiones y todo lo que cuelga de ellas.',
   },
   {
     id: 'nutrition',
     label: 'Nutrición',
+    corto: 'Dieta',
     hint: 'Su objetivo de kcal y macros, el menú cerrado y tus pautas.',
   },
 ];
@@ -988,6 +993,24 @@ export const isServiceOn = (protocol, id) => protocol?.services?.[id] !== false;
 
 /** Los servicios activos, para contarlos o nombrarlos. */
 export const activeServices = (protocol) => SERVICES.filter((s) => isServiceOn(protocol, s.id));
+
+/**
+ * QUÉ LE LLEVAS, en dos palabras: «Entreno y dieta».
+ *
+ * Es la primera línea de todo sitio que resuma el protocolo de alguien sin
+ * abrirlo —la celda de su ficha, el pie de un interruptor a mano— y por eso usa
+ * el nombre corto: ahí no cabe «Entrenamiento y Nutrición», y lo que se pregunta
+ * al mirar es qué le llevas, no cómo se llama la sección.
+ *
+ * Sin ninguno no puede pasar —`toggleService` no deja apagar el último— pero se
+ * contempla igual: un valor escrito a mano en la base no puede dejar a medias
+ * una cabecera.
+ */
+export const queLeLlevas = (protocol) => {
+  const cortos = activeServices(protocol).map((s, i) => (i === 0 ? s.corto : s.corto.toLowerCase()));
+  if (cortos.length === 0) return '';
+  return cortos.length === 1 ? cortos[0] : `${cortos.slice(0, -1).join(', ')} y ${cortos.at(-1)}`;
+};
 
 /**
  * Enciende o apaga uno. **El último no se puede apagar**: sin ninguno de los dos

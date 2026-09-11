@@ -225,6 +225,35 @@ export const defaultElemento = (tipo) => {
 
 const texto = (v, tope) => String(v ?? '').trim().slice(0, tope);
 
+/*
+  ── SANEAR AL GUARDAR, NO AL TECLEAR ──────────────────────────────────────
+
+  `texto` recorta los extremos, y el saneado sustituye por un valor de fábrica
+  lo que queda vacío. Las dos cosas son correctas AL GUARDAR y las dos son una
+  avería mientras se escribe, porque `editarElemento` pasaba por aquí en cada
+  pulsación:
+
+    · La barra espaciadora no hacía nada. «Texto corto» + espacio se sanea a
+      «Texto corto», el valor vuelve igual que salió y no hay hueco detrás del
+      que escribir la siguiente palabra.
+    · Borrar el enunciado entero lo resucitaba. Al llegar a la cadena vacía, el
+      `|| t.label` lo repone con el nombre del tipo, y la siguiente pulsación de
+      Suprimir borra una letra de un texto que el entrenador no ha escrito: un
+      bucle del que no se sale.
+
+  La misma trampa afectaba a las opciones: vaciar una para reescribirla la hacía
+  desaparecer (`filter(Boolean)`), y quedarse sin ninguna devolvía «Sí» y «No»
+  de la nada.
+
+  `recorta` es lo que se aplica MIENTRAS SE ESCRIBE: acota la longitud —que es
+  un tope de verdad y hay que respetarlo donde se teclea— y no toca nada más. El
+  trimado y los valores de fábrica se aplican donde siempre se han aplicado de
+  verdad, en el borde de guardado (`desdeElementos` → `sanitizeElementos`). Es
+  el mismo criterio que ya sigue `RenombrarEnSitio` con el nombre de las cosas:
+  borrador mientras se teclea, saneado al confirmar.
+*/
+const recorta = (v, tope) => String(v ?? '').slice(0, tope);
+
 const entero = (v, min, max, porDefecto) => {
   const n = Number.parseInt(v, 10);
   if (!Number.isFinite(n)) return porDefecto;
@@ -241,15 +270,18 @@ const OPERADORES = ['es', 'noEs', 'mayorQue', 'menorQue'];
  * cliente vería un hueco y el entrenador contaría con una respuesta que nunca
  * va a llegar. Es el mismo criterio que `clientProtocol` con las preguntas.
  */
-export const sanitizeElemento = (raw) => {
+export const sanitizeElemento = (raw, { tecleando = false } = {}) => {
   const t = tipoById(raw?.tipo);
   if (!t || !raw?.id) return null;
+
+  /* Mientras se escribe solo se acota la longitud. Ver `recorta`. */
+  const txt = tecleando ? recorta : texto;
 
   const elem = {
     id: String(raw.id),
     tipo: t.id,
-    enun: texto(raw.enun, MAX_ENUN) || t.label,
-    ayuda: texto(raw.ayuda, MAX_AYUDA),
+    enun: tecleando ? recorta(raw.enun, MAX_ENUN) : texto(raw.enun, MAX_ENUN) || t.label,
+    ayuda: txt(raw.ayuda, MAX_AYUDA),
     /* La estructura no se puede exigir: no hay nada que contestar. */
     oblig: t.fam !== 'estructura' && raw.oblig === true,
     cae: DESTINOS.some((d) => d.id === raw.cae) ? raw.cae : t.cae,
@@ -274,9 +306,11 @@ export const sanitizeElemento = (raw) => {
   if (origen) elem.origen = origen;
 
   if (t.id === 'una' || t.id === 'varias') {
+    /* Al teclear se conservan las vacías: una opción a medio reescribir pasa
+       por la cadena vacía, y tirarla ahí la hacía desaparecer bajo el cursor. */
     const ops = (Array.isArray(raw.ops) ? raw.ops : [])
-      .map((o) => texto(o, MAX_OPCION))
-      .filter(Boolean)
+      .map((o) => txt(o, MAX_OPCION))
+      .filter((o) => tecleando || Boolean(o))
       .slice(0, MAX_OPCIONES);
     /* Sin opciones no es una elección, es un hueco. Se cae a las de fábrica. */
     elem.ops = ops.length > 0 ? ops : ['Sí', 'No'];
@@ -289,7 +323,7 @@ export const sanitizeElemento = (raw) => {
     elem.mejorAbajo = raw.mejorAbajo === true;
   }
 
-  if (t.id === 'numero' || t.id === 'peso') elem.unidad = texto(raw.unidad, 12);
+  if (t.id === 'numero' || t.id === 'peso') elem.unidad = txt(raw.unidad, 12);
   /*
     Cuántas veces a la semana se pesa. Vive en el elemento y no fuera porque es
     lo que hace fiable la media, y sin él una ida y vuelta por el lienzo
@@ -310,7 +344,7 @@ export const sanitizeElemento = (raw) => {
 
   const regla = raw.regla;
   if (regla && regla.de && OPERADORES.includes(regla.op)) {
-    elem.regla = { de: String(regla.de), op: regla.op, valor: texto(regla.valor, MAX_OPCION) };
+    elem.regla = { de: String(regla.de), op: regla.op, valor: txt(regla.valor, MAX_OPCION) };
   }
 
   return elem;
@@ -391,8 +425,19 @@ export const moverElemento = (elementos, id, direccion) => {
   return sanitizeElementos(copia);
 };
 
+/**
+ * Cambiar uno, MIENTRAS SE ESCRIBE.
+ *
+ * Sanea en modo `tecleando`: acota y valida la forma —un tipo que no existe, un
+ * operador inventado, una escala del revés— pero no recorta los extremos de lo
+ * escrito ni repone valores de fábrica. De eso se encarga el borde de guardado
+ * (`desdeElementos`), y hacerlo también aquí era lo que impedía escribir un
+ * espacio y resucitaba el enunciado al borrarlo. Ver `recorta`.
+ */
 export const editarElemento = (elementos, id, patch) =>
-  elementos.map((el) => (el.id === id ? sanitizeElemento({ ...el, ...patch }) || el : el));
+  elementos.map((el) =>
+    el.id === id ? sanitizeElemento({ ...el, ...patch }, { tecleando: true }) || el : el
+  );
 
 /** Los elementos que pueden ser el «de» de la regla de éste: los anteriores. */
 export const candidatosDeRegla = (elementos, id) => {

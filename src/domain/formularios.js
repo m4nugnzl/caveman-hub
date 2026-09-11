@@ -294,6 +294,25 @@ export const coachFormularios = (preferences) => {
 export const formulariosDe = (preferences, momento) =>
   coachFormularios(preferences).filter((f) => f.momento === momento);
 
+/**
+ * LOS QUE SE PUEDEN MANDAR, que no son todos.
+ *
+ * Un formulario de alta, el parte o el check-in no viajan como acción suelta:
+ * sus preguntas no viven en `elementos` sino en la forma de su momento, así que
+ * `filasDeEnvio` congelaría `elementos: []` y al cliente le llegaría un
+ * cuestionario **vacío**. «Mandar algo» ya filtraba así de su cosecha; el «⊕»
+ * del carril de automatizaciones no, y ofrecía los cuatro: elegir «Alta» ahí
+ * mandaba una hoja en blanco y la lista decía «0 preguntas» sin que eso
+ * impidiera nada.
+ *
+ * El criterio se escribe UNA vez y lo usan las dos bocas —y el motor 2, que lo
+ * comprueba otra vez en la base porque allí no puede fiarse de quién llama.
+ */
+export const formulariosMandables = (preferences) =>
+  coachFormularios(preferences).filter(
+    (f) => f.momento === 'libre' && cuentaElementos(f.elementos) > 0
+  );
+
 /** El elegido, o el primero de su momento: nadie se queda sin por un id roto. */
 export const formularioById = (preferences, id, momento = null) => {
   const lista = coachFormularios(preferences);

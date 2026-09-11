@@ -13,6 +13,8 @@ import {
   CornerDownLeft,
   LogOut,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Sun,
   User,
@@ -21,6 +23,8 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme.jsx';
+import { useBarraPlegada } from '@/lib/barraPlegada';
+import { modifierKey } from '@/lib/platform';
 import { useDismissable } from '@/lib/useDismissable';
 import { norm } from '@/lib/texto';
 import {
@@ -105,6 +109,10 @@ export const CommandPalette = () => {
   const { open, setOpen } = useCommandPalette();
   const { activeClient, clients, isCoach, view, setViewMode, signOut } = useApp();
   const { isDark, toggle: toggleTheme } = useTheme();
+  /* El pliegue de la barra, para ofrecerlo como acción: la paleta es donde la
+     app enseña sus verbos, y un mando que solo vive en una esquina no lo
+     encuentra quien no lo haya visto. */
+  const [plegada, alternarAncho] = useBarraPlegada();
   const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
@@ -215,6 +223,22 @@ export const CommandPalette = () => {
         });
       }
 
+      /* El ancho de la hoja. Va en «Acciones» y no en «Ajustes» porque no es
+         una pantalla a la que se vaya: es un gesto que se hace y deshace, como
+         el tema. Solo para el entrenador en su panel — es la barra del panel
+         la que se pliega. */
+      out.push({
+        id: 'action:ancho',
+        group: 'Acciones',
+        label: plegada ? 'Devolver la barra con sus nombres' : 'Ensanchar la hoja y plegar la barra',
+        hint: `${modifierKey()} + \\`,
+        icon: plegada ? PanelLeftOpen : PanelLeftClose,
+        run: () => {
+          alternarAncho();
+          close();
+        },
+      });
+
       out.push({
         id: 'action:new-client',
         group: 'Acciones',
@@ -274,6 +298,8 @@ export const CommandPalette = () => {
     setViewMode,
     signOut,
     toggleTheme,
+    plegada,
+    alternarAncho,
   ]);
 
   const results = useMemo(() => {

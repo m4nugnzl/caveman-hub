@@ -144,7 +144,7 @@ export const legacySession = (day, microcycle) => {
  * condición para que la cartera no cambie según de dónde vengan los datos, y
  * teniendo la forma definida aquí se puede comprobar con una prueba.
  *
- * @param {{ microcycles?: import('@/types').Microcycle[] }} program
+ * @param {{ microcycles?: import('@/types').Microcycle[], blocks?: any[] }} program
  * @param {{ today?: string, days?: number }} ventana
  */
 export const trainingSummary = (program, { today = todayISO(), days = 21 } = {}) => {
@@ -176,6 +176,31 @@ export const trainingSummary = (program, { today = todayISO(), days = 21 } = {})
         .sort()
         .pop() || null,
     recentSessions: sessions.filter((s) => s.date && s.date >= desde),
+    /*
+      ── EL ÍNDICE DEL PROGRAMA ────────────────────────────────────────────────
+      Los números de semana escritos y los bloques, sin nada dentro. Con eso
+      —y nada más— las funciones de `domain/blocks` saben situar una semana en
+      su bloque, así que la cartera puede contestar «¿hay hoja para la que
+      viene?» de veinte personas sin descargar el programa de ninguna.
+
+      Es deliberadamente la MISMA forma que un programa (`{ microcycles, blocks }`)
+      para que `horizonteEscrito` y `horizonteDeBloque` se le puedan pasar tal
+      cual: si hubiera que escribir una versión «de resumen» de esa aritmética,
+      habría dos y divergirían.
+
+      Pesa lo que pesa un puñado de enteros: un año de programa son varios MB y
+      su índice son cuatro líneas de JSON.
+    */
+    indice: {
+      microcycles: microcycles.map((m) => ({ weekNumber: m.weekNumber })),
+      blocks: (program?.blocks || []).map(({ id, name, fromWeek, toWeek, plannedWeeks }) => ({
+        id,
+        name,
+        fromWeek,
+        toWeek,
+        ...(plannedWeeks ? { plannedWeeks } : {}),
+      })),
+    },
   };
 };
 
@@ -185,6 +210,7 @@ export const emptyTrainingSummary = () => ({
   sessionCount: 0,
   lastTraining: null,
   recentSessions: [],
+  indice: { microcycles: [], blocks: [] },
 });
 
 /**

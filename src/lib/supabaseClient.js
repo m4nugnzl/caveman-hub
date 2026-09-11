@@ -1,6 +1,7 @@
 // src/lib/supabaseClient.js
 import { createClient } from '@supabase/supabase-js';
 
+import { apuntarRespuesta, apuntarSilencio } from './conexion';
 import { recordIssue } from './diagnostics';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -57,12 +58,24 @@ const fetchConRegistro = async (input, init) => {
   let response;
   try {
     response = await fetch(input, init);
+    /*
+      Ha contestado alguien. Da igual QUÉ conteste —un 403 también demuestra que
+      hay servidor al otro lado—: lo que se comprobaba es que la conversación es
+      posible. De aquí y de su gemelo de abajo sale la nube. Ver `lib/conexion`.
+    */
+    apuntarRespuesta();
   } catch (e) {
     /*
       Sin respuesta: no hay red, el túnel se cayó o el servidor no contesta. Es
       el caso que más tickets genera —«no me guarda nada»— y el que peor se
       diagnostica sin dejarlo escrito, porque no deja rastro en el servidor.
     */
+    /*
+      Y es además la señal MÁS fiable de que se está sin conexión, mejor que
+      `navigator.onLine`: aquí no hay opinión del sistema operativo, hay una
+      petición que no ha llegado.
+    */
+    apuntarSilencio();
     recordIssue('red', `${metodo} ${rutaLimpia(url)} — sin respuesta: ${e?.message || e}`);
     throw e;
   }

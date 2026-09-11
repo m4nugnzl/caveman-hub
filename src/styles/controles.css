@@ -668,70 +668,193 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   .form-bar { bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s2)); }
 }
 
-/* ── Las fotos de la maquinaria de su gimnasio ──────────────────────────────
-   Miniaturas pequeñas y muchas: lo que se mira es la FORMA de la máquina para
-   reconocerla, no su detalle. A 150 px caben seis por fila en escritorio y dos
-   en un teléfono, que es lo que convierte cuarenta fotos en algo que se recorre
-   de un vistazo en vez de en un scroll.
+/* ── LA MAQUINARIA DE SU GIMNASIO ───────────────────────────────────────────
+   Un inventario, no un álbum: se entra con una pregunta de un solo grupo —«qué
+   tiene para dorsal»— y se enseña ESE grupo, a lo ancho y en una sola rejilla.
+   El porqué entero está en `components/equipment/Maquinaria.jsx`.
 
-   `auto-fill` y no `auto-fit`: con tres fotos en una fila de seis huecos, el
+   Aquí vivía una rejilla de 150 px pensada para que cupiesen seis por fila «de
+   un vistazo». Con los quince grupos apilados eso no daba un vistazo: daba
+   quince rejillas a medio llenar, cada una con sus huecos, y un desplegable de
+   ancho completo debajo de cada foto repitiendo el rótulo que tenía encima. Con
+   una sola rejilla por pantalla las fotos pueden crecer —lo que se mira es la
+   FORMA de la máquina, y a 150 px varias eran un recorte del suelo del gimnasio.
+
+   `auto-fill` y no `auto-fit`: con tres fotos en una fila de cinco huecos, el
    segundo las estiraría hasta ocupar el ancho entero y tres máquinas se verían
-   gigantes al lado de las seis del grupo de al lado. Aquí el tamaño tiene que
-   ser el mismo en todos los grupos. */
+   gigantes al lado de las de cualquier otro grupo. El tamaño tiene que ser el
+   mismo se mire donde se mire. */
+
+/* ══ EL ÍNDICE ══════════════════════════════════════════════════════════════
+   Cuelga de la columna del rótulo del bloque —260 px que ya existen y que dicen
+   exactamente eso: de qué va esto y qué puedes hacerle—. Se queda quieto
+   mientras se recorren las fotos, que es lo que ningún carril puesto encima de
+   la rejilla puede hacer: en cuanto bajas, se ha ido. */
+.gym-cabeza { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+
+.gym-indice {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  /* El tinte del renglón necesita aire a los lados, y el margen negativo lo da
+     sin descolgar los nombres del rótulo que tienen encima. */
+  margin-left: -8px;
+}
+.gym-eje {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 5px 8px; border: 0; border-radius: var(--r-sm);
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: var(--fs-sm); font-weight: 500;
+  text-align: left; cursor: pointer;
+  transition: background-color var(--fast), color var(--fast);
+}
+.gym-eje:hover { background: var(--fill-subtle); color: var(--text); }
+.gym-eje[aria-current='true'] { background: var(--fill); color: var(--text); font-weight: 650; }
+.gym-eje:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* El color del músculo, en un disco. Es el MISMO dato que el volumen semanal y
+   la analítica —sale de `muscleColor`—, pero dicho sin gritar: cinco titulares
+   en rosa, cian, azul y morado compiten entre sí como si uno fuese urgente.
+   «Todo» no es un músculo, así que lleva el disco vacío; y así las etiquetas
+   siguen alineadas, que es la mitad del trabajo de una lista. */
+.gym-eje-disco {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: inset 0 0 0 1.5px var(--hairline-strong);
+}
+.gym-eje-nm {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gym-eje-n {
+  font-family: var(--font-display);
+  font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+}
+.gym-eje[aria-current='true'] > .gym-eje-n { color: var(--text-secondary); }
+
+/* ── El mismo índice donde no hay columna de rótulo ─────────────────────────
+   El pliegue de encima del programa, y la ficha por debajo del ancho de
+   trabajo. Es la misma lista puesta como cabe: chapas, con la gramática de
+   `.chip` —de la que sale el acento de lo marcado— para que no haya dos clases
+   de filtro en la casa. */
+.gym-indice.es-carril { flex-direction: row; flex-wrap: wrap; gap: 4px; margin-left: 0; }
+.gym-indice.es-carril .gym-eje {
+  border-radius: var(--r-pill); padding: 5px 11px; background: var(--fill-subtle);
+}
+.gym-indice.es-carril .gym-eje:hover { background: var(--fill); }
+.gym-indice.es-carril .gym-eje[aria-current='true'] { background: var(--accent); color: var(--accent-on); }
+.gym-indice.es-carril .gym-eje[aria-current='true'] > .gym-eje-n { color: inherit; opacity: 0.72; }
+
+/* ══ LA HOJA DE CONTACTOS ═══════════════════════════════════════════════════ */
 .gym-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr));
-  gap: var(--s2);
+  grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr));
+  gap: var(--s3);
+}
+.gym-pieza { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); }
+
+/* La foto es la pieza entera: el grupo, el nombre y el «···» viven DENTRO de
+   ella y no debajo. Lo que había debajo —un desplegable con su marco y su
+   flecha— pesaba más que la fotografía y convertía la rejilla en filas de
+   botones. Sin la proporción cada foto saldría a su tamaño natural y la rejilla
+   sería un mosaico de alturas distintas. */
+.gym-foto {
+  position: relative; overflow: hidden;
+  border-radius: var(--r-md); background: var(--fill);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  transition: box-shadow var(--fast);
+}
+.gym-foto:hover { box-shadow: inset 0 0 0 1px var(--hairline-strong), var(--shadow-md); }
+.gym-foto img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+/* El acercamiento al pasar es de la IMAGEN y nunca de un ancestro del «···»:
+   una `transform` por encima de un menú le cambia el sistema de coordenadas, y
+   ese es justo el fallo que `useCapaFlotante` lleva cuatro rondas curando. */
+@media (prefers-reduced-motion: no-preference) {
+  .gym-foto img { transition: transform var(--normal); }
+  .gym-foto:hover img { transform: scale(1.045); }
+}
+.gym-abrir {
+  display: block; width: 100%; padding: 0;
+  border: 0; background: none; cursor: zoom-in;
+}
+.gym-abrir:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* La pieza que no se pudo firmar. Ocupa lo mismo que una foto para que la
+   rejilla no se descoloque, y dice por qué en vez de enseñar un cuadro roto. */
+.gym-sinfoto {
+  display: grid; place-items: center; text-align: center;
+  aspect-ratio: 4 / 3; padding: var(--s2); color: var(--text-tertiary);
 }
 
-.gym-shot {
-  position: relative; margin: 0;
-  display: flex; flex-direction: column; gap: 4px;
-  border-radius: var(--r-md); overflow: hidden;
+/* De qué es, arriba a la izquierda, y solo mirando «Todo»: dentro de un grupo
+   es la palabra que ya está marcada en el índice.
+
+   Tinta clara FIJA sobre el velo oscuro, en los dos temas: lo que hay debajo es
+   una fotografía y no la superficie de la aplicación, así que `--accent-on`
+   —que se vuelve tinta oscura en tema oscuro— desaparecería. Mismo trato que
+   `.photo-thumb-tag`, que resuelve este caso desde el estudio de fotos. */
+.gym-tag {
+  position: absolute; top: 6px; left: 6px; pointer-events: none;
+  padding: 3px 8px; border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); font-weight: 650; letter-spacing: -0.01em;
+  background: var(--scrim); color: #fff;
+  backdrop-filter: blur(7px) saturate(1.4); -webkit-backdrop-filter: blur(7px) saturate(1.4);
 }
-/* Descendiente y no hijo directo: desde que la foto se pulsa para abrirla
-   grande, va envuelta en un botón (`.gym-shot-open`) y `> img` dejó de
-   alcanzarla. Sin la proporción, cada foto salía a su tamaño natural y la
-   rejilla se volvía un mosaico de alturas distintas con los selectores de grupo
-   bailando a media altura. */
-.gym-shot img {
-  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
-  border-radius: var(--r-md); background: var(--fill);
+
+/* Su nombre, al pie y sobre un velo que se funde. En reposo no está: la foto ya
+   dice qué máquina es, y el rótulo solo hace falta cuando se está mirando esa. */
+.gym-nombre {
+  position: absolute; inset: auto 0 0 0;
+  padding: 22px var(--s2) 7px;
+  font-size: var(--fs-2xs); font-weight: 600; color: #fff;
+  background: linear-gradient(to top, rgba(10, 12, 15, 0.78), rgba(10, 12, 15, 0));
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  opacity: 0; transition: opacity var(--fast); pointer-events: none;
 }
-.gym-shot > figcaption { padding: 0 2px; }
-/* El selector de grupo debajo de cada foto. Pequeño y a ancho completo: es la
-   etiqueta de la imagen, no un control de formulario, así que tiene que caber en
-   la columna de 150 px sin obligar a la rejilla a ensancharse. */
+.gym-foto:hover > .gym-nombre { opacity: 1; }
+
+/* ── Mover de grupo y borrar, en el «···» de la propia foto ─────────────────
+   Una acción en reposo no está. Y en táctil no hay «encima», así que allí está
+   puesta: una acción que no se puede alcanzar con el dedo no existe.
+
+   Con el menú ABIERTO se queda, aunque el puntero se haya ido a elegir grupo —
+   el botón desapareciendo bajo su propio menú es lo que hace que una lista
+   flotante parezca un error. Por `aria-expanded`, que es el estado de verdad y
+   no una clase que haya que acordarse de poner. */
+.gym-mas { position: absolute; top: 6px; right: 6px; opacity: 0; transition: opacity var(--fast); }
+.gym-foto:hover > .gym-mas,
+.gym-mas:has([aria-expanded='true']),
+.gym-mas:focus-within { opacity: 1; }
+.gym-mas-btn {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; border: 0; border-radius: var(--r-sm);
+  cursor: pointer; background: var(--scrim); color: #fff;
+  backdrop-filter: blur(7px) saturate(1.4); -webkit-backdrop-filter: blur(7px) saturate(1.4);
+}
+.gym-mas-btn:hover { background: rgba(10, 12, 15, 0.68); }
+.gym-mas-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+@media (hover: none) {
+  .gym-mas, .gym-nombre { opacity: 1; }
+}
+
+/* Debajo del ancho de trabajo el bloque de la ficha se apila —rótulo arriba,
+   datos debajo— y el rótulo pasa a ser una fila. El índice no cabe ahí dentro
+   sin estrangular al título, así que se queda con su renglón entero y se lee
+   como el carril que ya es a esa anchura. */
+@media (max-width: 1180px) {
+  .ficha-cuerpo .bloque-gym .panel-head { flex-wrap: wrap; }
+  .bloque-gym .gym-cabeza { flex-basis: 100%; order: 3; }
+  .ficha-cuerpo .gym-indice { flex-direction: row; flex-wrap: wrap; gap: 4px; margin-left: 0; }
+  .ficha-cuerpo .gym-indice .gym-eje {
+    border-radius: var(--r-pill); padding: 5px 11px; background: var(--fill-subtle);
+  }
+  .ficha-cuerpo .gym-indice .gym-eje[aria-current='true'] { background: var(--accent); color: var(--accent-on); }
+  .ficha-cuerpo .gym-indice .gym-eje[aria-current='true'] > .gym-eje-n { color: inherit; opacity: 0.72; }
+}
+
+/* El desplegable de grupo debajo de cada foto. Sobrevive en UN sitio —el alta
+   del cliente, donde decir de qué es cada una no es una corrección sino la
+   tarea— y ahí tiene que caber en la columna sin ensanchar la rejilla. */
 .select-xs {
   width: 100%; min-width: 0;
   font-size: var(--fs-2xs); padding: 3px 6px; height: auto;
-}
-/* La pieza que no se pudo firmar. Ocupa lo mismo que una foto para que la
-   rejilla no se descoloque, y dice por qué en vez de enseñar un cuadro roto. */
-.gym-shot-missing {
-  display: grid; place-items: center; text-align: center;
-  aspect-ratio: 4 / 3; padding: var(--s2);
-  border-radius: var(--r-md); background: var(--fill);
-}
-
-/* Borrar aparece al pasar por encima. En el móvil no hay «encima», así que ahí
-   está siempre: una acción que no se puede alcanzar con el dedo no existe. */
-.gym-shot-del {
-  position: absolute; top: 4px; right: 4px;
-  display: grid; place-items: center;
-  width: 26px; height: 26px; border-radius: var(--r-sm);
-  border: 0; cursor: pointer;
-  /* Tinta clara FIJA sobre el velo oscuro, en los dos temas: lo que hay debajo
-     es una fotografía y no la superficie de la aplicación, así que `--accent-on`
-     —que se vuelve tinta oscura en tema oscuro— desaparecería. Mismo trato que
-     `.photo-thumb-tag`, que resuelve este caso desde el estudio de fotos. */
-  background: var(--scrim); color: #fff;
-  opacity: 0; transition: opacity var(--fast);
-}
-.gym-shot:hover > .gym-shot-del,
-.gym-shot-del:focus-visible { opacity: 1; }
-@media (hover: none) {
-  .gym-shot-del { opacity: 1; }
 }
 
 /* El icono que gira mientras sube. Un `Loader2` quieto no dice «estoy
@@ -1059,7 +1182,42 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .save-indicator.is-saving { color: var(--warning); }
 .save-indicator.is-saved { color: var(--text-tertiary); }
 .save-indicator.is-error { color: var(--negative); }
+/* Sin conexión NO es un fallo: ni rojo ni ámbar. Es tinta secundaria, la voz de
+   «esto es un hecho, no un problema». Ver `ui/primitives`. */
+.save-indicator.is-pending { color: var(--text-secondary); }
 .save-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
+
+/* ══ LA NUBE ═══════════════════════════════════════════════════════════════
+   El estado de la red, pegado al título de la pantalla —no en la esquina de
+   los verbos, de donde la sacó el dueño: «el icono de la nube no termina de
+   convencerme, se le debería dar una vuelta o recolocarlo»—. El reparto con la
+   franja y el porqué del sitio, en `ui/EstadoDeRed`; aquí, las dos formas.
+
+   CONECTADA es un signo pelado en tinta terciaria: sin caja y sin palabra. Fue
+   una chapa que ponía «Conectado» todo el día al lado del cobro, y esa es la
+   forma más ruidosa posible del hecho menos noticiable que hay — dos palabras
+   permanentes que ya se leyó todo el mundo la primera semana, compitiendo con
+   lo que sí es del cliente. Se ve siempre, que es lo que hace que se aprenda
+   qué aspecto tiene «bien», pero no habla.
+
+   SIN CONEXIÓN o ENVIANDO toma la chapa entera (`.badge`, la pieza con la que
+   esta cinta dice «Renueva el 10 nov»): relleno, tinta plena y la palabra. Una
+   nube tachada suelta podría ser cualquier cosa; con la palabra al lado, no.
+
+   ── El color, y por qué no es ámbar ────────────────────────────────────────
+   Por la ley del color de la casa: el semáforo JUZGA, y quedarse sin cobertura
+   no es un suspenso que ponerle a nadie. Lo que cambia es el PESO, que es el
+   mismo recurso con el que la barra marca el destino activo. */
+.nube {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center;
+  transition: background-color var(--fast), color var(--fast);
+}
+.nube > svg { flex-shrink: 0; }
+.nube.is-bien { color: var(--text-tertiary); }
+.nube.is-fuera,
+.nube.is-mandando { background: var(--fill); color: var(--text); }
+
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 
 /* La carga en línea (`<Loading/>`, ui/primitives). Eran tres puntos genéricos
@@ -1188,6 +1346,10 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 
 .popover {
   position: absolute; z-index: 60; background: var(--surface);
+  /* La tinta, explícita: en el top layer el navegador viste `[popover]` con su
+     `color: canvastext` —negro del sistema— y lo que no lleve color propio
+     dejaría de heredar el de la casa. Es también lo correcto aquí abajo. */
+  color: var(--text);
   border: 1px solid var(--edge);
   border-radius: var(--r-md); padding: 5px; min-width: 208px;
   /* El mínimo de 208 px cuelga a veces de un campo estrecho (el autocompletar
@@ -1197,6 +1359,19 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 }
 @keyframes pop { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
 .popover-right { right: 0; }
+/* Hacia arriba, para los menús que viven al pie: sin `top` el popover cae justo
+   debajo de su botón, y a 22 px del borde inferior ahí no hay sitio. */
+.popover-arriba { bottom: 100%; margin-bottom: 4px; }
+
+/* ── Y ARRIBA DEL TODO, DONDE NINGÚN `overflow` LA ALCANZA ─────────────────
+   Con top layer (`useCapaFlotante`) la capa se pinta fuera del documento y sus
+   coordenadas son las de la ventana: las pone el hook en el `style`, y aquí se
+   deshacen las que el navegador trae de serie para `[popover]` —`inset: 0` y
+   `margin: auto`, que centrarían la capa en la pantalla— y su `overflow: auto`,
+   que con un `max-width` sacaría una barra horizontal donde antes el texto
+   envolvía. Quien necesite desplazamiento lo pide en su `style`, como hasta
+   ahora. Las reglas de colocación de arriba siguen siendo las del respaldo. */
+.popover:popover-open { inset: auto; margin: 0; overflow: visible; }
 
 /* ── La salida ─────────────────────────────────────────────────────────────
    Cada overlay entra con cuidado y hasta ahora desaparecía de un corte: React
@@ -1235,6 +1410,23 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   margin-left: auto; padding-left: var(--s4); flex-shrink: 0;
   font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
+}
+/* Y el nombre al que acompaña: un renglón, con puntos suspensivos si no cabe.
+   `min-width: 0` no es opcional — sin él un elemento flex no baja de su ancho
+   de contenido, así que el nombre se salía de su caja y se pintaba debajo del
+   dato en vez de ceder. Ver `Autocomplete`. */
+.menu-item-nombre {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Y cuando los dos compiten por el mismo renglón, cede EL DATO: en una lista de
+   sugerencias se busca por el nombre, así que «Press banca agarre cerrado» no
+   puede quedarse en «P…» para que quepa entero «Pectoral · Mancuernas · del
+   catálogo». Solo en las sugerencias: en un menú de verdad el sub es una fecha
+   o una cifra corta y no le hace sombra a nadie. */
+[role='option'] > .menu-sub {
+  flex-shrink: 1; min-width: 0; max-width: 50%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
 

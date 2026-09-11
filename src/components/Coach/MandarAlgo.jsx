@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, ArrowRight, Check, Send, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, Repeat, Send, Users } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
 import {
@@ -16,8 +16,9 @@ import {
   sePuedeProgramar,
 } from '@/domain/envios';
 import { NOTE_MAX, noteStamp } from '@/domain/updates';
-import { coachFormularios } from '@/domain/formularios';
+import { formulariosMandables } from '@/domain/formularios';
 import { coachProtocolos } from '@/domain/protocolos';
+import { VERBOS, buildAutomatizacion, buildPaso, deProtocolo, hiloDice, nombreDe } from '@/domain/automatizaciones';
 import { cuentaElementos, resumenElementos } from '@/domain/formulario';
 import { addDays, dayMonthMaybeYear, todayISO } from '@/lib/dates';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -95,10 +96,9 @@ export const MandarAlgo = ({ formulario = null, preseleccion = null, queInicial 
   const { mandarAccion, addClientEvent, updateClientPreferences } = useActions();
   const toast = useToast();
 
-  const formularios = useMemo(
-    () => coachFormularios(coachPrefs).filter((f) => f.momento === 'libre' && cuentaElementos(f.elementos) > 0),
-    [coachPrefs]
-  );
+  /* El criterio vive en el dominio (`formulariosMandables`): lo comparten esta
+     boca, el «⊕» del carril y la comprobación del motor 2 en la base. */
+  const formularios = useMemo(() => formulariosMandables(coachPrefs), [coachPrefs]);
   const protocolos = useMemo(() => coachProtocolos(coachPrefs), [coachPrefs]);
 
   const etiquetas = useMemo(() => {
@@ -754,10 +754,146 @@ export const MandarAlgo = ({ formulario = null, preseleccion = null, queInicial 
                   ? 'Se apunta en tu agenda, con lo del día y lo vencido. El cliente no la ve.'
                   : 'Nada le llega por correo: le aparecerá entre sus pendientes la próxima vez que entre en su portal.'}
               </p>
+
+              <GuardarComoPaso
+                que={que}
+                formId={formId}
+                titulo={texto}
+                enlace={enlace}
+                nota={nota}
+                cuando={cuando}
+                semanas={semanas}
+                protocolos={protocolos}
+                onCerrar={onCerrar}
+              />
             </>
           )}
         </div>
       </div>
     </Modal>
+  );
+};
+
+/**
+ * EL PUENTE: «Guárdalo como paso de un protocolo».
+ *
+ * ══ Por qué va aquí y no en el carril ══════════════════════════════════════
+ *
+ * Porque es en este momento cuando se sabe. Nadie abre el carril de un protocolo
+ * para inventarse un paso: se manda una cosa, se manda otra vez al mes
+ * siguiente, y a la tercera uno piensa «esto lo hago siempre». La herramienta
+ * nueva se aprende desde la que ya se usa, y este es el único sitio de la
+ * aplicación donde ya están contestadas las dos preguntas que un paso necesita:
+ * qué, y a los cuántos días.
+ *
+ * ══ Y por qué no siempre se puede ═════════════════════════════════════════
+ *
+ * Un paso lleva un DESFASE —a los cuántos días del disparador— y los tres
+ * «cuándo» de un envío no son la misma clase de cosa:
+ *
+ *     Ahora                    → ese mismo día        ✓
+ *     A las N semanas          → a las N semanas      ✓
+ *     El 24 de octubre         → …¿desde cuándo?      ✗
+ *
+ * Un día del calendario no se puede convertir en un desfase sin inventarse desde
+ * dónde se cuenta. Así que en ese caso no se ofrece el botón: se dice por qué,
+ * que es lo que deja aprender la diferencia en vez de tropezar con ella.
+ *
+ * El aviso tampoco: no tiene dónde guardar un cuándo, y por eso no es un verbo
+ * del carril (ver `VERBOS`, en `domain/automatizaciones`).
+ */
+const GuardarComoPaso = ({ que, formId, titulo, enlace, nota, cuando, semanas, protocolos, onCerrar }) => {
+  const { automatizaciones } = useApp();
+  const { guardarAutomatizacion, correrAutomatizaciones } = useActions();
+  const toast = useToast();
+
+  const [abierto, setAbierto] = useState(false);
+  const [protocoloId, setProtocoloId] = useState(protocolos[0]?.id || null);
+  const [destino, setDestino] = useState('nueva');
+
+  const cabe = VERBOS.some((v) => v.id === que);
+  const suyas = useMemo(
+    () => deProtocolo(automatizaciones || [], protocoloId),
+    [automatizaciones, protocoloId]
+  );
+
+  if (!cabe || protocolos.length === 0) return null;
+
+  if (cuando === 'dia') {
+    return (
+      <p className="t-xs t-tertiary mandar-aviso">
+        Para guardarlo como paso de un protocolo, el cuándo tiene que ser «Ahora» o «A las N
+        semanas»: un día del calendario no dice a los cuántos días de empezar le toca a cada uno.
+      </p>
+    );
+  }
+
+  const dia = cuando === 'semanas' ? Number(semanas) * 7 : 0;
+
+  const guardar = async () => {
+    const paso = buildPaso({ que, dia, formId, titulo, enlace, nota });
+    /* A una que ya existe se le AÑADE el paso; si no, nace una nueva con el
+       disparador que casi siempre es el que se quiere —al empezar contigo—, y
+       queda encendida: quien pulsa esto está diciendo que lo hace siempre. */
+    const base =
+      destino === 'nueva'
+        ? buildAutomatizacion({ protocoloId, disparador: 'alta' })
+        : suyas.find((a) => a.id === destino);
+    if (!base) return;
+
+    const res = await guardarAutomatizacion({ ...base, pasos: [...base.pasos, paso] });
+    if (!res.ok) {
+      toast({ text: res.error, tone: 'danger' });
+      return;
+    }
+    /* Y corre: lo que acabas de escribir tiene que salirle a quien ya lo lleva
+       puesto sin esperar al siguiente arranque. */
+    correrAutomatizaciones();
+    toast({
+      text: `Guardado en ${nombreDe(res.automatizacion)}. A partir de ahora le pasa solo a quien lleve ese protocolo.`,
+    });
+    onCerrar();
+  };
+
+  if (!abierto) {
+    return (
+      <button type="button" className="btn btn-secondary btn-sm mandar-puente" onClick={() => setAbierto(true)}>
+        <Repeat size={15} /> ¿Esto lo haces siempre? Guárdalo como paso de un protocolo
+      </button>
+    );
+  }
+
+  return (
+    <div className="mandar-puente col gap-3">
+      <Field label="De qué protocolo">
+        <select className="select" value={protocoloId || ''} onChange={(e) => setProtocoloId(e.target.value)}>
+          {protocolos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Dentro de qué" hint={`Entra ${hiloDice({ disparador: 'alta' }, dia)}.`}>
+        <select className="select" value={destino} onChange={(e) => setDestino(e.target.value)}>
+          <option value="nueva">Una nueva · cuando empieza contigo</option>
+          {suyas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {nombreDe(a)}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <div className="row gap-2">
+        <BotonAccion className="btn btn-secondary btn-sm" onClick={guardar}>
+          <Repeat size={15} /> Guardarlo como paso
+        </BotonAccion>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAbierto(false)}>
+          Ahora no
+        </button>
+      </div>
+    </div>
   );
 };

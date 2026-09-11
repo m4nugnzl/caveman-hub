@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MRV_GOALS } from './training';
 
 import {
   BLOCK_CHANGE,
@@ -25,6 +26,7 @@ import {
   weekChangesOfBlock,
   weekLabel,
   horizonteDeBloque,
+  horizonteEscrito,
   BLOCK_INTENTS,
   blockTraits,
   intentLabel,
@@ -51,11 +53,13 @@ import {
   renameBlockSessionIn,
   moveBlockSessionIn,
   addBlockExerciseIn,
+  setBlockExercisesIn,
   removeBlockExerciseIn,
   restoreBlockExerciseIn,
   moveBlockExerciseIn,
   setBlockExerciseSetsIn,
   setBlockExerciseTargetIn,
+  sheetVolumeByGroup,
   updatePlanDayIn,
   proyectarPlanEnDias,
 } from './blocks';
@@ -558,6 +562,15 @@ describe('el bloque en cifras', () => {
     expect(r.abierto).toBe(true);
   });
 
+  /* La forma del bloque, no solo su suma: «38 de 40» puede ser cuatro semanas
+     parejas o tres perfectas y una en blanco, y eso es lo que dibuja la fila. */
+  it('desglosa cada microciclo para poder dibujarlo', () => {
+    expect(blockSummary(p, currentBlock(p)).microciclos).toEqual([
+      { semana: 1, hechas: 2, planificadas: 2 },
+      { semana: 2, hechas: 1, planificadas: 2 },
+    ]);
+  });
+
   it('sin nada planificado no inventa una adherencia de cero', () => {
     const vacio = { microcycles: [] };
     const r = blockSummary(vacio, currentBlock(vacio));
@@ -1030,6 +1043,19 @@ describe('editar los ejercicios de una hoja del bloque', () => {
     expect(hoja(vuelto).map((e) => e.name)).toEqual(['Press banca', 'Fondos']);
   });
 
+  /*
+    Pegar una hoja ENCIMA de otra: la hoja conserva su nombre —que es lo que el
+    cliente reconoce— y cambia lo que lleva dentro, en una sola escritura. Es lo
+    que hace que el «Deshacer» sea la lista de antes y no catorce inversos.
+  */
+  it('cambia la lista entera de una hoja, y el nombre se queda', () => {
+    const p = setBlockExercisesIn(conPlan(), 'b1', 'Push', [ejercicio('z', 'Remo')]);
+    expect(blockSessionOf(blocksOf(p)[0], 'Push').dayName).toBe('Push');
+    expect(hoja(p).map((e) => e.name)).toEqual(['Remo']);
+    /* Y lo ven todos los microciclos, porque es la línea base del bloque. */
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Remo']);
+  });
+
   it('mueve un ejercicio dentro de su hoja', () => {
     const p = moveBlockExerciseIn(conPlan(), 'b1', 'Push', 1, 0);
     expect(hoja(p).map((e) => e.name)).toEqual(['Fondos', 'Press banca']);
@@ -1305,5 +1331,91 @@ describe('el plan, guardado también donde el servidor lo busca', () => {
       { id: 'ses_1', date: '2026-09-01', dayName: 'Push', entries: [{ exerciseId: 'a', name: 'Press banca', sets: [] }] },
     ];
     expect(proyectarPlanEnDias(p).microcycles[1].sessions).toEqual(p.microcycles[1].sessions);
+  });
+});
+
+/*
+  ══ El horizonte de lo ESCRITO ══════════════════════════════════════════════
+
+  La pregunta de la portada no es del bloque —el nuestro es abierto— sino de la
+  hoja: ¿hay microciclo escrito para la semana que viene? Y se contesta con el
+  ÍNDICE del programa, que es lo que la cartera tiene de veinte personas a la vez.
+*/
+describe('horizonteEscrito', () => {
+  const indice = (semanas, blocks = []) => ({
+    microcycles: semanas.map((weekNumber) => ({ weekNumber })),
+    blocks,
+  });
+
+  it('cuenta lo que hay escrito por delante', () => {
+    const h = horizonteEscrito(indice([1, 2, 3, 4]), 2);
+    expect(h.microcicloEnCurso).toBe(2);
+    expect(h.escritosDespues).toBe(2);
+    expect(h.ultimoEscrito).toBe(4);
+  });
+
+  it('cero escritos después es la cola: no hay hoja para la semana que viene', () => {
+    expect(horizonteEscrito(indice([1, 2, 3]), 3).escritosDespues).toBe(0);
+  });
+
+  it('quien se pasó de lo montado también está sin hoja, y su último sigue siendo el suyo', () => {
+    /* Va por la 18 y tiene diez escritas: es exactamente por quien hay que
+       preguntar, y `horizonteDeBloque` no lo cuenta porque ahí no hay bloque. */
+    const h = horizonteEscrito(indice([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), 18);
+    expect(h.escritosDespues).toBe(0);
+    expect(h.ultimoEscrito).toBe(10);
+    expect(h.previstas).toBeNull();
+  });
+
+  it('sin nada escrito no hay horizonte: eso es «sin rutina», que es otra cosa', () => {
+    expect(horizonteEscrito(indice([]), 3)).toBeNull();
+    expect(horizonteEscrito(undefined, 3)).toBeNull();
+    expect(horizonteEscrito(indice([1, 2]), null)).toBeNull();
+  });
+
+  it('con duración prevista trae el plan del entrenador, para poder decir «de 4»', () => {
+    const h = horizonteEscrito(
+      indice([1, 2, 3, 4, 5, 6], [
+        { id: 'a', name: 'Acumulación', fromWeek: 1, toWeek: 4 },
+        { id: 'b', name: 'Intensificación', fromWeek: 5, toWeek: null, plannedWeeks: 4 },
+      ]),
+      6
+    );
+    expect(h.previstas).toBe(4);
+    expect(h.posicion).toBe(2);
+  });
+});
+
+describe('sheetVolumeByGroup', () => {
+  const hojas = [
+    { dayName: 'Push A', volumen: { Pecho: 6, Tríceps: 3 } },
+    { dayName: 'Pull', volumen: { Dorsal: 8 } },
+    { dayName: 'Push B', volumen: { Pecho: 4, Tríceps: 2 } },
+  ];
+
+  it('la cifra de la hoja delante y la del bloque detrás', () => {
+    expect(sheetVolumeByGroup({ Pecho: 6, Tríceps: 3 }, hojas)).toEqual([
+      { name: 'Pecho', parte: 6, valor: 10, mrv: MRV_GOALS.Pecho?.mrv ?? null },
+      { name: 'Tríceps', parte: 3, valor: 5, mrv: MRV_GOALS['Tríceps']?.mrv ?? null },
+    ]);
+  });
+
+  it('solo los grupos que esta hoja trabaja: el resto es la tabla del bloque', () => {
+    expect(sheetVolumeByGroup({ Pecho: 6 }, hojas).map((g) => g.name)).toEqual(['Pecho']);
+  });
+
+  it('un grupo con cero series no ocupa sitio', () => {
+    expect(sheetVolumeByGroup({ Pecho: 6, Gemelo: 0 }, hojas).map((g) => g.name)).toEqual(['Pecho']);
+  });
+
+  it('sin bloque detrás la cifra de detrás es cero, no un fallo', () => {
+    expect(sheetVolumeByGroup({ Pecho: 6 }, [])).toEqual([
+      { name: 'Pecho', parte: 6, valor: 0, mrv: MRV_GOALS.Pecho?.mrv ?? null },
+    ]);
+  });
+
+  it('una hoja sin ejercicios no devuelve nada', () => {
+    expect(sheetVolumeByGroup({}, hojas)).toEqual([]);
+    expect(sheetVolumeByGroup(undefined, undefined)).toEqual([]);
   });
 });

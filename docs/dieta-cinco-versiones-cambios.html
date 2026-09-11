@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La dieta · las cinco versiones, con los cambios</title>
+<style>
+  :root{
+    --surface:#fff; --sunken:#f3f5f8; --hairline:#e6e9ef; --hairline-strong:#cbd1dc;
+    --fill:#f4f6f9; --edge:rgba(18,24,38,.09);
+    --text:#12151a; --t2:#5b6270; --t3:#6e7686;
+    --accent:#3b49df; --accent-soft:rgba(59,73,223,.08);
+    --ok:#1f8a5b; --warn:#b06a00; --bad:#c0392f; --bad-soft:rgba(192,57,47,.06);
+    --r-sm:7px; --r-md:11px;
+    --font:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#eef0f4;color:var(--text);font:14px/1.5 var(--font)}
+  header.top{position:sticky;top:0;z-index:9;background:rgba(255,255,255,.9);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--hairline);padding:14px 20px 0}
+  .top-in{max-width:1180px;margin:0 auto}
+  h1{margin:0 0 2px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  .sub{margin:0 0 12px;color:var(--t3);font-size:12.5px;max-width:78ch}
+  .sub code{font-size:12px;background:var(--fill);padding:1px 5px;border-radius:4px}
+  nav{display:flex;gap:2px;flex-wrap:wrap;align-items:center}
+  nav button{appearance:none;border:0;background:transparent;font:inherit;font-size:13px;
+    padding:8px 12px;border-radius:var(--r-sm) var(--r-sm) 0 0;color:var(--t2);cursor:pointer;
+    border-bottom:2px solid transparent}
+  nav button:hover{background:var(--fill);color:var(--text)}
+  nav button.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  main{padding:20px;max-width:1180px;margin:0 auto}
+  section.doc{background:#fff;border:1px solid var(--hairline);border-radius:var(--r-md);
+    padding:16px 18px;margin:0 0 16px}
+  h2{margin:0 0 10px;font-size:14px;font-weight:650}
+  h3{margin:0;font-size:15px;font-weight:650;letter-spacing:-.01em}
+  p{margin:0 0 8px}
+  .dato{color:var(--t3);font-size:12px}
+  .hueco{flex:1}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--t2)}
+
+  /* ── El interruptor de las señales ──────────────────────────────────────── */
+  .senales{display:flex;align-items:center;gap:7px;margin-left:auto;font-size:12.5px;
+    color:var(--t2);cursor:pointer;padding:6px 2px 10px}
+  .senales input{accent-color:var(--accent);width:15px;height:15px;margin:0}
+
+  /* ── Las tablas del documento ─────────────────────────────────────────────
+     Una tabla ancha scrollea DENTRO de su caja: el cuerpo de la página no se va
+     nunca a lo ancho. */
+  .scrollx{overflow-x:auto}
+  table.doc-t{width:100%;min-width:540px;border-collapse:collapse;font-size:13px}
+  table.doc-t th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--t3);text-align:left;padding:0 10px 6px;border-bottom:1px solid var(--hairline)}
+  table.doc-t td{padding:8px 10px;border-bottom:1px solid var(--hairline);vertical-align:top;color:var(--t2)}
+  table.doc-t td:first-child{color:var(--text);font-weight:600;white-space:nowrap}
+  table.doc-t tr:last-child td{border-bottom:0}
+  table.doc-t tr.reco td{background:var(--accent-soft);color:var(--text)}
+  .llave{display:inline-block;min-width:17px;font-weight:700;color:var(--accent)}
+
+  /* ── La cabecera de cada versión ────────────────────────────────────────── */
+  .ver-cab{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .num{font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--accent)}
+  .eje{color:var(--t2);font-size:13px;margin:0 0 12px}
+  .chapas{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .chapa{font-size:11.5px;color:var(--t2);background:var(--fill);border:1px solid var(--hairline);
+    padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .chapa b{color:var(--text);font-weight:600}
+  .chapa.r-bajo b{color:var(--ok)} .chapa.r-medio b{color:var(--warn)} .chapa.r-alto b{color:var(--bad)}
+
+  /* ── El conmutador antes / después ──────────────────────────────────────── */
+  .flip{display:inline-flex;background:var(--fill);border:1px solid var(--hairline);
+    border-radius:999px;padding:2px;margin:0 0 12px}
+  .flip button{appearance:none;border:0;background:transparent;font:inherit;font-size:12.5px;
+    color:var(--t2);padding:5px 14px;border-radius:999px;cursor:pointer}
+  .flip button.on{background:#fff;color:var(--text);font-weight:600;
+    box-shadow:0 1px 2px rgba(18,24,38,.08)}
+
+  /* ── El lienzo ──────────────────────────────────────────────────────────── */
+  .app{background:var(--surface);border:1px solid var(--edge);border-radius:var(--r-md);
+    box-shadow:0 1px 2px rgba(18,24,38,.05)}
+  .app>*:first-child{border-radius:var(--r-md) var(--r-md) 0 0}
+  .dos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .rotulo-app{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--t3);margin:0 0 6px}
+  .rotulo-app code{font-size:11px;text-transform:none;letter-spacing:0;font-weight:500}
+  .tira{background:var(--sunken);border-bottom:1px solid var(--hairline)}
+  .tira-fila{display:flex;align-items:center;gap:8px;padding:7px 16px 7px 12px}
+  .tira-fila+.tira-fila{border-top:1px solid var(--hairline)}
+  .eslabon{appearance:none;border:1px solid transparent;background:transparent;font:inherit;
+    font-size:13px;padding:5px 11px;border-radius:var(--r-sm);color:var(--t2);cursor:pointer}
+  .eslabon:hover{background:var(--fill)}
+  .eslabon.on{background:#fff;border-color:var(--hairline);color:var(--text);font-weight:600}
+  .mas{appearance:none;border:0;background:transparent;color:var(--accent);font:inherit;
+    font-size:13px;cursor:pointer;padding:5px 8px;border-radius:var(--r-sm)}
+  .mas:hover{background:var(--accent-soft)}
+  .casillas{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px;flex:1}
+  .casilla{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:4px 7px;
+    border:1px solid transparent;border-radius:var(--r-sm);background:transparent;cursor:pointer;
+    font:inherit;text-align:left;width:100%}
+  .casilla:hover{background:var(--fill)}
+  .casilla.on{background:#fff;border-color:var(--hairline)}
+  .casilla .k{display:flex;gap:4px;align-items:baseline;font-size:11px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--t3);min-width:0}
+  .casilla .k em{font-style:normal;font-weight:500;letter-spacing:0;text-transform:none;
+    opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .casilla .v{font-size:12px;font-weight:550;color:var(--t2);white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .casilla.on .v{color:var(--text)}
+  .cuerpo{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;padding:16px}
+  .cuerpo.solo{grid-template-columns:minmax(0,1fr)}
+  .lado{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .card{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);padding:12px}
+  .rot{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3)}
+  .cifra{font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .cifra.pq{font-size:19px}
+  .lineas{list-style:none;margin:8px 0 0;padding:0;font-size:13px}
+  .lineas li{display:flex;justify-content:space-between;gap:8px;padding:3px 0;color:var(--t2)}
+  .lineas li.on{color:var(--text);font-weight:600}
+  .vacio{border:1px dashed var(--hairline-strong);border-radius:var(--r-sm);
+    padding:26px;text-align:center;color:var(--t3);font-size:12.5px}
+
+  .mesa{width:100%;min-width:470px;border-collapse:collapse;font-size:13px}
+  .mesa th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--t3);text-align:left;padding:0 8px 6px;border-bottom:1px solid var(--hairline)}
+  .mesa th.num,.mesa td.num{text-align:right}
+  .mesa td{padding:3px 8px;border-bottom:1px solid var(--hairline)}
+  .mesa tr.on td{background:var(--accent-soft)}
+  .mesa td.nom{font-weight:600;cursor:pointer}
+  .mesa tr.total td{font-weight:600;border-bottom:0;color:var(--text)}
+  .mesa td.veces{color:var(--t3);font-size:12px}
+  .mesa input{width:70px;text-align:right;font:inherit;color:inherit;padding:5px 7px;
+    border:1px solid transparent;border-radius:var(--r-sm);background:var(--sunken)}
+  .mesa tr:hover input{border-color:var(--hairline-strong)}
+  .mesa input:focus{outline:2px solid var(--accent);outline-offset:0;background:#fff}
+
+  .cols{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,1fr);gap:12px;
+    overflow-x:auto;padding-bottom:4px}
+  .col{border:1px solid var(--hairline);border-radius:var(--r-md);padding:10px;min-width:0}
+  .col-cab{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+    padding-bottom:8px;border-bottom:1px solid var(--hairline);margin-bottom:8px}
+
+  .comida{padding:8px 0;border-bottom:1px solid var(--hairline)}
+  .comida:last-of-type{border-bottom:0}
+  .comida.ancha{padding:10px 2px}
+  .comida-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .peq{font-size:12.5px}
+  .swap{color:var(--accent);cursor:pointer}
+
+  /* Quieta, no pegada: dentro de este documento el marco no es la ventana, así
+     que un `sticky` se despegaría de la hoja y taparía la primera comida. Lo que
+     hace en la aplicación se dice con palabras, debajo. */
+  .regla{display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    padding:9px 16px;background:var(--surface);border-bottom:1px solid var(--hairline);
+    font-size:13px;color:var(--t2)}
+  .regla b{color:var(--text);font-size:15px}
+  .puerta{appearance:none;border:1px solid var(--hairline);background:#fff;font:inherit;
+    font-size:12.5px;color:var(--t2);padding:4px 10px;border-radius:999px;cursor:pointer}
+  .puerta:hover{border-color:var(--hairline-strong);color:var(--text)}
+
+  .linea{padding:16px 16px 12px;border-bottom:1px solid var(--hairline);background:var(--surface)}
+  .linea-cifras{display:flex;gap:34px;margin-bottom:14px;flex-wrap:wrap}
+  .hitos{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
+    border-top:1px solid var(--hairline);padding-top:10px}
+  .hito{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--t3)}
+  .hito .punto{width:8px;height:8px;border-radius:50%;background:var(--hairline-strong);margin-bottom:4px}
+  .hito.cambio .punto{background:var(--accent)}
+  .hito .k{color:var(--text);font-weight:600;font-size:13px}
+  .hito .d{color:var(--accent);font-weight:600}
+  .hito .w{color:var(--t2)}
+
+  /* La ventana de cuatro casillas: lo que hoy hay que abrir una vez por día. */
+  .ventana{border:1px solid var(--hairline-strong);border-radius:var(--r-md);background:#fff;
+    box-shadow:0 8px 24px rgba(18,24,38,.12);padding:12px;max-width:330px;margin:16px auto 4px}
+  .ventana-cab{display:flex;justify-content:space-between;align-items:center;
+    border-bottom:1px solid var(--hairline);padding-bottom:8px;margin-bottom:10px;font-weight:600}
+  .cuatro{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cuatro label{display:flex;flex-direction:column;gap:3px;font-size:11px;font-weight:700;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--t3)}
+  .cuatro input{font:inherit;font-size:13px;color:var(--text);padding:6px 8px;
+    border:1px solid var(--hairline-strong);border-radius:var(--r-sm);width:100%}
+
+  /* ── Las señales del cambio ─────────────────────────────────────────────── */
+  .marca{position:relative}
+  body.senal .marca.va{outline:1px dashed var(--bad);outline-offset:3px;border-radius:var(--r-sm);
+    background:var(--bad-soft)}
+  body.senal .marca.ll{outline:1px dashed var(--accent);outline-offset:3px;border-radius:var(--r-sm);
+    background:var(--accent-soft)}
+  body.senal .marca::after{content:attr(data-marca);position:absolute;top:-9px;left:10px;
+    font-size:9.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    padding:1px 7px;border-radius:999px;color:#fff;white-space:nowrap;z-index:3}
+  body.senal .marca.va::after{background:var(--bad)}
+  body.senal .marca.ll::after{background:var(--accent)}
+  /* La etiqueta de abajo se lleva su hueco: si no, muerde el último renglón. */
+  body.senal .marca.abajo{padding-bottom:9px}
+  body.senal .marca.abajo::after{top:auto;bottom:-9px}
+
+  /* ── La lista de lo que cambia ──────────────────────────────────────────── */
+  .cambios{display:grid;grid-template-columns:1fr 1fr;margin-top:18px;
+    border-top:1px solid var(--hairline)}
+  .cambios>div{padding:12px 14px 4px}
+  .cambios>div+div{border-left:1px solid var(--hairline)}
+  .cambios h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.07em;
+    text-transform:uppercase}
+  .cambios .sale h4{color:var(--bad)}
+  .cambios .llega h4{color:var(--accent)}
+  .cambios ul{list-style:none;margin:0;padding:0}
+  .cambios li{display:flex;gap:8px;padding:5px 0;font-size:13px;color:var(--t2);line-height:1.45}
+  .cambios li::before{content:'−';color:var(--bad);font-weight:700}
+  .cambios .llega li::before{content:'+';color:var(--accent)}
+  .cambios li b{color:var(--text);font-weight:600}
+  .cambios li code{display:block;color:var(--t3);font-size:11.5px;margin-top:1px}
+  .pero{margin:14px 0 0;padding:10px 12px;border-left:2px solid var(--hairline-strong);
+    font-size:12.5px;color:var(--t2);background:var(--fill);border-radius:0 var(--r-sm) var(--r-sm) 0}
+  .pero b{color:var(--text)}
+
+  @media (max-width:860px){
+    .cuerpo{grid-template-columns:minmax(0,1fr)}
+    .dos,.cambios{grid-template-columns:1fr}
+    .cambios>div+div{border-left:0;border-top:1px solid var(--hairline)}
+    .chapas{margin-left:0}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body class="senal">
+<header class="top">
+  <div class="top-in">
+    <h1>La dieta · las cinco versiones, con los cambios</h1>
+    <p class="sub">Cada versión, contra la pantalla de hoy: se pulsa <b>Antes / Después</b> sobre el
+       mismo marco y lo que se mueve se ve. En rojo lo que <b>sale</b>, en azul lo que <b>llega</b>,
+       con el fichero al lado. El texto largo está en <code>docs/estudio-dieta-cinco-versiones.md</code>;
+       las cinco sueltas, clicables, en <code>docs/dieta-cinco-versiones.html</code>.</p>
+    <nav id="nav"></nav>
+  </div>
+</header>
+<main>
+  <section class="doc">
+    <h2>Las seis averías medidas, que es contra lo que juega cada versión</h2>
+    <div class="scrollx"><table class="doc-t">
+      <thead><tr><th>&nbsp;</th><th>Qué</th><th>Dónde</th></tr></thead>
+      <tbody>
+        <tr><td><span class="llave">A</span></td><td>Un plan por macros sin reparto deja ~500 px de hoja vacía.</td><td><code>NutritionModule.jsx:240</code></td></tr>
+        <tr><td><span class="llave">B</span></td><td>El ciclo solo se ve de uno en uno: la distancia entre días no se ve en ninguna pantalla.</td><td><code>NutritionModule.jsx:224</code></td></tr>
+        <tr><td><span class="llave">C</span></td><td>El objetivo se edita en una ventana, y hay una por día.</td><td><code>MacroTargetCard.jsx:146</code></td></tr>
+        <tr><td><span class="llave">D</span></td><td>La misma dieta, dibujada dos veces: 1.589 + 451 líneas que ya se han desincronizado dos veces.</td><td><code>NutritionModule.jsx</code> · <code>ClientDiet.jsx</code></td></tr>
+        <tr><td><span class="llave">E</span></td><td>Cuatro tarjetas de costado junto a una mesa que mide varias pantallas.</td><td><code>LecturasDeLaDieta.jsx</code></td></tr>
+        <tr><td><span class="llave">F</span></td><td>La decisión que se toma aquí —subir o bajar— vive en una ventana de 120 px.</td><td><code>EvolucionPopup.jsx</code></td></tr>
+      </tbody>
+    </table></div>
+    <p class="dato" style="margin:12px 0 0">No se toca, en ninguna de las cinco: la cinta de los días,
+       la mesa a ras del papel, el semáforo con suelo, las equivalencias dentro de la comida y la ley
+       de que la app no receta. Ninguna propone kilocalorías, ni cambia tokens, ni toca el esquema.</p>
+  </section>
+
+  <div id="panel"></div>
+
+  <section class="doc">
+    <h2>Las cinco, de un vistazo</h2>
+    <div class="scrollx"><table class="doc-t">
+      <thead><tr><th>&nbsp;</th><th>Eje</th><th>Qué quita</th><th>Coste</th><th>Riesgo</th><th>Arregla</th></tr></thead>
+      <tbody>
+        <tr class="reco"><td>V1 · La mesa del ciclo</td><td>el ciclo</td><td>la ventana del objetivo y dos tarjetas</td><td>½ día</td><td>bajo</td><td>A, B, C</td></tr>
+        <tr><td>V2 · Las columnas</td><td>la comida</td><td>el cambio de día</td><td>2 días</td><td>medio</td><td>B</td></tr>
+        <tr class="reco"><td>V3 · A todo lo ancho</td><td>el ancho</td><td>el costado entero</td><td>½ día</td><td>bajo</td><td>E</td></tr>
+        <tr><td>V4 · La dieta fechada</td><td>el tiempo</td><td>la ventana de la evolución</td><td>2 días</td><td>alto</td><td>F</td></tr>
+        <tr><td>V5 · Una sola dieta</td><td>la audiencia</td><td>una pantalla entera</td><td>2 días</td><td>alto</td><td>D</td></tr>
+      </tbody>
+    </table></div>
+    <p style="margin:12px 0 0"><b>V1 y V3, en ese orden; V4 después.</b> No se estorban —una cambia lo que
+       hay <i>dentro</i> de la hoja y la otra <i>dónde</i> está la lectura— y entre las dos se llevan cinco
+       de las seis averías por un día de trabajo. V2 compite con V1 y V5 con V3: verlas cuando estén
+       construidas las baratas.</p>
+  </section>
+</main>
+<script>
+/* ── El ejemplo: un ciclado de tres días con ciclo rotativo 2/1 ─────────────
+   A propósito, el caso que hasta la 0111 no se podía ni pautar. */
+const DIAS = [
+  { id:'alto',  name:'Alto',  kcal:3200, p:180, c:420, g:80 },
+  { id:'medio', name:'Medio', kcal:2800, p:180, c:320, g:75 },
+  { id:'bajo',  name:'Bajo',  kcal:2400, p:180, c:220, g:70 },
+];
+const CASILLAS = [
+  { key:'1', corto:'D1', sesion:'Empuje',  dia:'alto'  },
+  { key:'2', corto:'D2', sesion:'Tirón',   dia:'alto'  },
+  { key:'3', corto:'D3', sesion:null,      dia:'bajo'  },
+  { key:'4', corto:'D4', sesion:'Pierna',  dia:'medio' },
+  { key:'5', corto:'D5', sesion:'Full',    dia:'alto'  },
+  { key:'6', corto:'D6', sesion:null,      dia:'bajo'  },
+];
+const COMIDAS = [
+  { n:'Desayuno', kcal:[900,780,600], de:[
+    'Avena 100 g · Whey 30 g', 'Avena 70 g · Whey 30 g', 'Claras 250 g · Whey 30 g'] },
+  { n:'Media mañana', kcal:[400,360,300], de:[
+    'Yogur griego · Plátano', 'Yogur griego · Nueces', 'Yogur griego · Nueces'] },
+  { n:'Comida', kcal:[1100,980,900], de:[
+    'Arroz 140 g · Pollo 200 g', 'Arroz 100 g · Pollo 200 g', 'Arroz 60 g · Pollo 220 g'] },
+  { n:'Cena', kcal:[800,680,600], de:[
+    'Patata 300 g · Salmón 180 g', 'Patata 200 g · Salmón 180 g', 'Ensalada · Salmón 200 g'] },
+];
+let dia = 'alto';
+const idx = () => DIAS.findIndex(d => d.id === dia);
+const mediaDe = (k) => Math.round(
+  CASILLAS.reduce((a,c) => a + (DIAS.find(d => d.id === c.dia)?.[k] || 0), 0) / CASILLAS.length);
+const veces = (id) => CASILLAS.filter(c => c.dia === id).length;
+const esc = (s) => String(s).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+
+/* ── Piezas compartidas por las dos caras ──────────────────────────────────── */
+const cinta = (conCasillas = true, eligiendo = true, marcaDias = '') => `
+  <div class="tira">
+    <div class="tira-fila">
+      <span class="${marcaDias ? 'marca va' : ''}"${marcaDias ? ` data-marca="${marcaDias}"` : ''}
+            style="display:flex;gap:2px">
+        ${DIAS.map(d => `<button class="eslabon${eligiendo && d.id === dia ? ' on' : ''}" data-dia="${d.id}">${d.name}</button>`).join('')}
+      </span>
+      <button class="mas">+ día</button>
+      <span class="hueco"></span>
+      <span class="dato">ciclo 2/1 · 6 casillas</span>
+    </div>
+    ${conCasillas ? `<div class="tira-fila">
+      <div class="casillas">
+        ${CASILLAS.map(c => `<button class="casilla${c.dia ? ' on' : ''}" data-casilla="${c.key}">
+            <span class="k">${c.corto}${c.sesion ? `<em>${esc(c.sesion)}</em>` : ''}</span>
+            <span class="v">${c.dia ? esc(DIAS.find(d => d.id === c.dia).name) : '—'}</span>
+          </button>`).join('')}
+      </div>
+    </div>` : ''}
+  </div>`;
+
+const tarjetaDia = (d) => `
+  <div class="card"><span class="rot">El día</span>
+    <ul class="lineas">
+      <li><span>Proteína</span><span>${d.p} g · 2,3 g/kg</span></li>
+      <li><span>Carbos</span><span>${d.c} g</span></li>
+      <li><span>Grasas</span><span>${d.g} g</span></li>
+    </ul></div>`;
+
+const tarjetaObjetivo = (d, marca = '') => `
+  <div class="card${marca ? ' marca va' : ''}"${marca ? ` data-marca="${marca}"` : ''}>
+    <span class="rot">Objetivo · ${esc(d.name)}</span>
+    <div class="cifra" style="margin-top:4px">${d.kcal} kcal</div>
+    <button class="mas" style="padding-left:0">Cambiar el objetivo</button></div>`;
+
+const tarjetaCiclo = (marca = '') => `
+  <div class="card${marca ? ' marca va' : ''}"${marca ? ` data-marca="${marca}"` : ''}>
+    <span class="rot">El ciclo</span>
+    <ul class="lineas">${DIAS.map(x => `<li class="${x.id === dia ? 'on' : ''}">
+      <span>${x.name} ×${veces(x.id)}</span><span>${x.kcal} kcal</span></li>`).join('')}</ul>
+    <p class="dato" style="margin:8px 0 0">De media, ${mediaDe('kcal')} kcal al día.</p></div>`;
+
+const tarjetaEvolucion = (marca = '') => `
+  <div class="card${marca ? ' marca va' : ''}"${marca ? ` data-marca="${marca}"` : ''}>
+    <span class="rot">La evolución</span>
+    <p class="dato" style="margin:6px 0 0">Le bajaste 250 kcal el 4 jul; desde entonces, −1,8 kg.</p>
+    <button class="mas" style="padding-left:0">Verla entera</button></div>`;
+
+const menu = (i, editable = true) => `
+  ${COMIDAS.map((c, n) => `<div class="comida ancha">
+    <div class="comida-cab"><b>${n + 1} · ${c.n}</b>
+      <span class="dato">${c.de[i]}</span><span class="hueco"></span>
+      <span class="dato">${c.kcal[i]} kcal</span></div>
+  </div>`).join('')}
+  ${editable ? '<button class="mas">+ comida</button>' : ''}`;
+
+/* ── V1 · LA MESA DEL CICLO ────────────────────────────────────────────────── */
+const v1antes = () => { const d = DIAS[idx()]; return `
+  <div class="app">
+    ${cinta()}
+    <div class="cuerpo">
+      <div>
+        <div class="card">
+          <span class="rot">Lo que le pides · ${esc(d.name.toLowerCase())}</span>
+          <div style="display:flex;gap:26px;margin-top:8px;flex-wrap:wrap">
+            <div><div class="cifra">${d.kcal}</div><span class="dato">kcal</span></div>
+            <div><div class="cifra">${d.p}</div><span class="dato">proteína</span></div>
+            <div><div class="cifra">${d.c}</div><span class="dato">carbos</span></div>
+            <div><div class="cifra">${d.g}</div><span class="dato">grasas</span></div>
+          </div>
+          <div class="ventana marca va" data-marca="C · una ventana por día">
+            <div class="ventana-cab"><span>Objetivo diario · ${esc(d.name)}</span><span class="dato">✕</span></div>
+            <div class="cuatro">
+              <label>Kcal<input value="${d.kcal}" readonly></label>
+              <label>Proteína<input value="${d.p}" readonly></label>
+              <label>Carbos<input value="${d.c}" readonly></label>
+              <label>Grasas<input value="${d.g}" readonly></label>
+            </div>
+          </div>
+        </div>
+        <div class="vacio marca va" data-marca="A · ~500 px"
+             style="margin-top:20px;height:230px;display:grid;place-items:center">
+          Plan por macros sin repartir: la caja llena el alto y aquí no hay nada que poner
+        </div>
+      </div>
+      <aside class="lado">
+        ${tarjetaObjetivo(d, 'se va')}
+        ${tarjetaDia(d)}
+        ${tarjetaCiclo('se va')}
+        ${tarjetaEvolucion()}
+      </aside>
+    </div>
+  </div>`; };
+
+const v1despues = () => `
+  <div class="app">
+    ${cinta()}
+    <div class="cuerpo">
+      <div>
+        <div class="rot" style="padding:0 0 8px">El ciclo · lo que le pides en cada día</div>
+        <div class="marca ll abajo" data-marca="B + C · se teclea aquí">
+          <div class="scrollx">
+          <table class="mesa">
+            <thead><tr><th>Día</th><th class="num">Kcal</th><th class="num">P</th>
+              <th class="num">C</th><th class="num">G</th><th class="num">Veces</th></tr></thead>
+            <tbody>
+              ${DIAS.map(d => `<tr class="${d.id === dia ? 'on' : ''}" data-dia="${d.id}">
+                <td class="nom">${d.name}</td>
+                ${['kcal','p','c','g'].map(k => `<td class="num"><input value="${d[k]}" data-id="${d.id}" data-k="${k}" aria-label="${d.name}, ${k}"></td>`).join('')}
+                <td class="num veces">×${veces(d.id)}</td></tr>`).join('')}
+              <tr class="total"><td class="nom">De media</td>
+                ${['kcal','p','c','g'].map(k => `<td class="num" data-media="${k}">${mediaDe(k)}</td>`).join('')}
+                <td class="num veces">${CASILLAS.length} casillas</td></tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+        <div class="rot" style="padding:22px 0 6px">Pautas</div>
+        <p class="dato" style="margin:0">Los días altos, los hidratos alrededor del entreno.
+           El día bajo, cena sin almidón.</p>
+      </div>
+      <aside class="lado">
+        ${tarjetaDia(DIAS[idx()])}
+        ${tarjetaEvolucion()}
+      </aside>
+    </div>
+  </div>
+  <p class="dato" style="margin:8px 2px 0">Teclea en una celda: la media del pie se recalcula sola.</p>`;
+
+/* ── V2 · LAS COLUMNAS DEL CICLO ───────────────────────────────────────────── */
+const v2antes = () => `
+  <div class="app">
+    ${cinta(true, true, 'B · uno de cada vez')}
+    <div class="cuerpo solo">
+      <div>
+        <p class="dato" style="margin:0 0 10px">Estás mirando <b>${esc(DIAS[idx()].name)}</b>.
+           Para ver otro hay que cambiar de eslabón, y dos días no se ven nunca juntos.</p>
+        ${menu(idx())}
+      </div>
+    </div>
+  </div>`;
+
+const v2despues = () => `
+  <div class="app">
+    ${cinta(false, false)}
+    <div class="cuerpo solo">
+      <!-- La marca va FUERA del carril: un overflow-x recorta la etiqueta. -->
+      <div class="marca ll" data-marca="B · los tres a la vez"><div class="cols">
+        ${DIAS.map((d, i) => `<div class="col">
+          <div class="col-cab"><b>${d.name}</b><span class="dato">${d.kcal} kcal · ×${veces(d.id)}</span></div>
+          ${COMIDAS.map(c => `<div class="comida">
+            <div class="comida-cab"><span>${c.n}</span><span class="hueco"></span><span class="dato">${c.kcal[i]}</span></div>
+            <div class="dato peq">${c.de[i]}</div>
+          </div>`).join('')}
+          <button class="mas">+ comida</button>
+        </div>`).join('')}
+      </div></div>
+    </div>
+  </div>`;
+
+/* ── V3 · LA HOJA A TODO LO ANCHO ──────────────────────────────────────────── */
+const v3antes = () => { const d = DIAS[idx()]; return `
+  <div class="app">
+    ${cinta()}
+    <div class="cuerpo">
+      <div>${menu(idx())}</div>
+      <aside class="lado marca va" data-marca="E · el costado entero">
+        ${tarjetaObjetivo(d)}
+        ${tarjetaDia(d)}
+        ${tarjetaCiclo()}
+        ${tarjetaEvolucion()}
+      </aside>
+    </div>
+  </div>
+  <p class="dato" style="margin:8px 2px 0">Al pie de la quinta comida, la cifra contra la que se
+     cuadra lleva dos pantallas fuera de cuadro.</p>`; };
+
+const v3despues = () => { const d = DIAS[idx()]; return `
+  <div class="app">
+    ${cinta()}
+    <div class="regla marca ll abajo" data-marca="E · la regla, siempre a la vista">
+      <b>${d.kcal} kcal</b><span>${d.p} P</span><span>${d.c} C</span><span>${d.g} G</span>
+      <span class="dato">2,3 g/kg · ▁▂▃▅ ↗</span>
+      <span class="hueco"></span>
+      <button class="puerta">El día</button>
+      <button class="puerta">El ciclo</button>
+      <button class="puerta">La evolución</button>
+    </div>
+    <div class="cuerpo solo"><div>${menu(idx())}</div></div>
+  </div>
+  <p class="dato" style="margin:8px 2px 0">En la aplicación la regla va <b>pegada</b> al alto de la
+     hoja: sigue ahí al pie de la quinta comida. Aquí se queda quieta porque el marco de esta página
+     no es la ventana.</p>`; };
+
+/* ── V4 · LA DIETA FECHADA ─────────────────────────────────────────────────── */
+const HITOS = [
+  { f:'6 jun',  kcal:3200, peso:81.2, delta:null },
+  { f:'20 jun', kcal:3200, peso:80.1, delta:null },
+  { f:'4 jul',  kcal:2950, peso:79.6, delta:-250 },
+  { f:'18 jul', kcal:2800, peso:78.9, delta:-150 },
+  { f:'hoy',    kcal:2800, peso:78.4, delta:null },
+];
+
+const v4antes = () => { const d = DIAS[idx()]; return `
+  <div class="app">
+    ${cinta()}
+    <div class="cuerpo">
+      <div>
+        <div class="rot" style="padding:0 0 8px">Lo que le pides · ${esc(d.name.toLowerCase())}</div>
+        <div style="display:flex;gap:26px;flex-wrap:wrap">
+          <div><div class="cifra">${d.kcal}</div><span class="dato">kcal</span></div>
+          <div><div class="cifra">${d.p}</div><span class="dato">proteína</span></div>
+          <div><div class="cifra">${d.c}</div><span class="dato">carbos</span></div>
+          <div><div class="cifra">${d.g}</div><span class="dato">grasas</span></div>
+        </div>
+        <div style="margin-top:16px">${menu(idx())}</div>
+      </div>
+      <aside class="lado">
+        ${tarjetaDia(d)}
+        ${tarjetaEvolucion('F · 120 px y un modal detrás')}
+      </aside>
+    </div>
+  </div>`; };
+
+const v4despues = () => `
+  <div class="app">
+    <div class="linea marca ll abajo" data-marca="F · la decisión, en la cabecera">
+      <div class="linea-cifras">
+        <div><div class="cifra">78,4 kg</div><span class="dato">−2,8 kg en 6 semanas</span></div>
+        <div><div class="cifra">2800</div><span class="dato">kcal en vigor</span></div>
+        <div><div class="cifra">2 cambios</div><span class="dato">el último, hace 12 días</span></div>
+      </div>
+      <div class="hitos">
+        ${HITOS.map(h => `<div class="hito${h.delta ? ' cambio' : ''}">
+          <span class="punto"></span>
+          <span class="f">${h.f}</span>
+          <span class="k">${h.kcal}</span>
+          <span class="d">${h.delta ? '−' + Math.abs(h.delta) : '&nbsp;'}</span>
+          <span class="w">${String(h.peso).replace('.', ',')} kg</span>
+        </div>`).join('')}
+      </div>
+    </div>
+    ${cinta()}
+    <div class="cuerpo solo">
+      <div>
+        <div class="rot">En vigor desde el 18 de julio</div>
+        <div style="display:flex;gap:26px;margin-top:8px;align-items:flex-end;flex-wrap:wrap">
+          ${DIAS.map(d => `<div><div class="cifra pq">${d.kcal}</div>
+            <span class="dato">${d.name} ×${veces(d.id)}</span></div>`).join('')}
+          <span class="hueco"></span><button class="mas">Cambiar el plan</button>
+        </div>
+        <div style="margin-top:16px">${menu(idx())}</div>
+      </div>
+    </div>
+  </div>`;
+
+/* ── V5 · UNA SOLA DIETA, DOS PERMISOS ─────────────────────────────────────── */
+let comoCliente = false;
+
+const v5antes = () => `
+  <div class="dos">
+    <div>
+      <p class="rotulo-app">El entrenador · <code>NutritionModule.jsx</code>, 1.589 líneas</p>
+      <div class="app marca va" data-marca="D · una maqueta">
+        ${cinta(false)}
+        <div class="cuerpo solo"><div>
+          ${COMIDAS.map((c, n) => `<div class="comida ancha">
+            <div class="comida-cab"><b>${n + 1} · ${c.n}</b><span class="hueco"></span>
+              <span class="dato">${c.kcal[idx()]} kcal</span></div>
+            <div class="dato peq">${c.de[idx()]}</div></div>`).join('')}
+          <button class="mas">+ comida</button>
+        </div></div>
+      </div>
+    </div>
+    <div>
+      <p class="rotulo-app">El cliente · <code>ClientDiet.jsx</code>, 451 líneas</p>
+      <div class="app marca va" data-marca="D · y otra">
+        <div class="tira"><div class="tira-fila">
+          <span class="dato">Hoy te toca <b>${esc(DIAS[idx()].name)}</b></span>
+        </div></div>
+        <div class="cuerpo solo"><div>
+          ${COMIDAS.map(c => `<div class="comida ancha">
+            <div class="comida-cab"><span>${c.n}</span><span class="hueco"></span>
+              <span class="dato">${c.kcal[idx()]} kcal</span></div>
+            <div class="dato peq">${c.de[idx()]} <span class="swap">⇄ cambiar</span></div></div>`).join('')}
+        </div></div>
+      </div>
+    </div>
+  </div>
+  <p class="dato" style="margin:8px 2px 0">Comparten las piezas y no el reparto: cada arreglo hay que
+     pensarlo dos veces, y ya se han desincronizado dos veces.</p>`;
+
+const v5despues = () => `
+  <div class="app marca ll" data-marca="D · un solo lienzo">
+    <div class="tira"><div class="tira-fila">
+      ${DIAS.map(d => `<button class="eslabon${d.id === dia ? ' on' : ''}" data-dia="${d.id}">${d.name}</button>`).join('')}
+      <span class="hueco"></span>
+      <button class="mas" id="ver-como">${comoCliente ? '← Volver a editar' : 'Ver como Javier'}</button>
+    </div></div>
+    <div class="cuerpo solo">
+      <div>
+        ${comoCliente ? `<p class="dato" style="margin:0 0 10px">Hoy te toca <b>${esc(DIAS[idx()].name)}</b>.</p>` : ''}
+        ${COMIDAS.map((c, n) => `<div class="comida ancha">
+          <div class="comida-cab"><b>${n + 1} · ${c.n}</b><span class="hueco"></span>
+            <span class="dato">${c.kcal[idx()]} kcal</span></div>
+          <div class="dato peq">${c.de[idx()]} ${comoCliente ? '<span class="swap">⇄ cambiar</span>' : ''}</div>
+        </div>`).join('')}
+        ${comoCliente ? '' : '<button class="mas">+ comida</button>'}
+      </div>
+    </div>
+  </div>
+  <p class="dato" style="margin:8px 2px 0">Pulsa <b>«Ver como Javier»</b>: lo único que cambia son los
+     mandos. La hoja es la misma.</p>`;
+
+/* ── Las cinco, con lo que sale y lo que llega ─────────────────────────────── */
+const VERSIONES = [
+  {
+    id:'v1', num:'V1', nombre:'La mesa del ciclo',
+    eje:'La mesa deja de ser un día y pasa a ser el ciclo entero.',
+    coste:'½ día', riesgo:'bajo', arregla:'A, B, C', antes:v1antes, despues:v1despues,
+    sale:[
+      ['La ventana de cuatro casillas', 'Montar un alto/medio/bajo son hoy tres aperturas del mismo modal.', 'MacroTargetCard.jsx:146'],
+      ['La tarjeta «Objetivo» del costado', 'La cifra pasa a ser la primera columna de la mesa.', 'LecturasDeLaDieta.jsx'],
+      ['La tarjeta «El ciclo» del costado', 'Sus kcal por día son ahora las filas.', 'LecturasDeLaDieta.jsx'],
+      ['El hueco de ~500 px', 'La caja llena el alto por ley; ahora hay tabla dentro.', 'NutritionModule.jsx:240'],
+    ],
+    llega:[
+      ['Una fila por día, tecleable en el sitio', 'Kcal, P, C y G en celdas a ras del papel: la misma <code style="display:inline">hoja-celda</code> de Entreno.', ''],
+      ['La media ponderada al pie', 'Deja de ser una frase al margen y pasa a ser el total de la tabla, que es donde una media significa algo.', ''],
+      ['La distancia entre días, visible', 'Lo que define un ciclado es el salto de 3.200 a 2.400, y hoy no se ve en ninguna pantalla.', ''],
+    ],
+    pero:'En una dieta <b>cerrada</b> esta mesa no sustituye al menú: convive con él arriba, y hay que decidir si nace plegada.',
+  },
+  {
+    id:'v2', num:'V2', nombre:'Las columnas del ciclo',
+    eje:'Los días, uno al lado del otro, como el plan del bloque enseña las sesiones.',
+    coste:'2 días', riesgo:'medio', arregla:'B', antes:v2antes, despues:v2despues,
+    sale:[
+      ['El cambio de día como gesto', 'Toda la hoja cuelga hoy de <code style="display:inline">variant</code>: un solo día a la vez.', 'NutritionModule.jsx:224'],
+      ['El menú de «copiar a otro día»', 'Copiar una comida pasa a ser arrastrarla a la columna de al lado.', ''],
+    ],
+    llega:[
+      ['Una columna por día', 'Es la pantalla que hace obvio lo que un ciclado <i>es</i>.', ''],
+      ['La gramática que el cliente ya tiene', 'La misma forma que <code style="display:inline">PlanDelBloque</code>: una casa, una gramática.', ''],
+    ],
+    pero:'Con cuatro días y cinco comidas son veinte tarjetas a la vista y ~2.000 px de scroll: hay que resolver el plegado por comida, el ancho mínimo de columna, las cabeceras pegadas y la vuelta a una sola columna en móvil. <b>Compite con V1</b>: verla después.',
+  },
+  {
+    id:'v3', num:'V3', nombre:'La hoja a todo lo ancho',
+    eje:'Quitar el costado. Una superficie y una lectura fija.',
+    coste:'½ día', riesgo:'bajo', arregla:'E', antes:v3antes, despues:v3despues,
+    sale:[
+      ['Las cuatro tarjetas apiladas', 'Objetivo, el día, el ciclo y la evolución, junto a una mesa de varias pantallas.', 'LecturasDeLaDieta.jsx'],
+      ['La columna de 290 px', 'El menú, que es donde está el trabajo, recupera todo el ancho.', ''],
+    ],
+    llega:[
+      ['Una regla pegada arriba', 'La cifra contra la que se cuadra, visible también al pie de la quinta comida. La pieza ya existe en Entreno.', ''],
+      ['Tres puertas en vez de tres tarjetas', '«El día», «El ciclo» y «La evolución» pasan a ventanas: el detalle se abre, no se apila.', ''],
+    ],
+    pero:'El costado es hoy la única lectura <b>pasiva</b>, y metida en ventanas puede no mirarse nunca. Por eso la cifra y la chispa se quedan <i>en</i> la regla y solo el detalle entra en la ventana.',
+  },
+  {
+    id:'v4', num:'V4', nombre:'La dieta fechada',
+    eje:'La dieta no es un documento: es una sucesión de decisiones con fecha.',
+    coste:'2 días', riesgo:'alto', arregla:'F', antes:v4antes, despues:v4despues,
+    sale:[
+      ['La ventana de la evolución', 'Una tarjeta de 120 px con una chispa y un modal detrás, mientras el plan ocupa la pantalla entera.', 'EvolucionPopup.jsx'],
+      ['La idea de que el plan es un formulario', 'Un cambio de kcal deja de ser «teclear otro número».', ''],
+    ],
+    llega:[
+      ['La línea del tiempo en la cabecera', 'Lo que le pusiste contra lo que hizo el peso, fecha a fecha. El dato ya se guarda: <code style="display:inline">dietLog</code>, <code style="display:inline">kcalSteps</code>.', ''],
+      ['«En vigor desde el 18 de julio»', 'El plan cuelga de su fecha, y cambiarlo es un hecho, no una edición.', ''],
+    ],
+    pero:'Es la que más cambia lo que la pantalla <i>es</i>, y hay que cuidar que no se deslice a recomendar («llevas tres semanas plano»): <b>la app no receta</b> sigue mandando.',
+  },
+  {
+    id:'v5', num:'V5', nombre:'Una sola dieta, dos permisos',
+    eje:'El entrenador edita la hoja que el cliente ve. No hay dos pantallas.',
+    coste:'2 días', riesgo:'alto', arregla:'D', antes:v5antes, despues:v5despues,
+    sale:[
+      ['<code style="display:inline">ClientDiet.jsx</code> como pantalla aparte', '451 líneas que dibujan la misma dieta con otra maqueta.', 'src/components/Client/ClientDiet.jsx'],
+      ['La desincronización', 'Comparten las piezas y no el reparto: cada arreglo se piensa dos veces.', 'NutritionModule.jsx · ClientDiet.jsx'],
+    ],
+    llega:[
+      ['Un lienzo con dos juegos de mandos', 'Lo que el entrenador monta es literalmente lo que el cliente abre.', ''],
+      ['«Ver como» como comprobación', 'Deja de ser otra pantalla y pasa a ser mirar la misma sin los mandos.', ''],
+    ],
+    pero:'Hay un antecedente en contra escrito en el propio repositorio: <code style="display:inline">PlanDelBloque</code> existe justo porque «<code style="display:inline">VistaBloque</code> no es una vista: es un editor». La respuesta candidata es que en la dieta el cliente no toca <b>nada</b>, así que lo que sobra es exactamente el editor. Y los permisos y lo oculto (<code style="display:inline">Oculto.jsx</code>) pasarían a decidirse dentro de una pieza en vez de por fichero.',
+  },
+];
+
+let ver = 'v1';
+const estados = { v1:'antes', v2:'antes', v3:'antes', v4:'antes', v5:'antes' };
+
+const listaCambios = (v) => `
+  <div class="cambios">
+    <div class="sale">
+      <h4>Se va</h4>
+      <ul>${v.sale.map(([q, por, d]) => `<li><span><b>${q}</b> — ${por}${d ? `<code>${d}</code>` : ''}</span></li>`).join('')}</ul>
+    </div>
+    <div class="llega">
+      <h4>Llega</h4>
+      <ul>${v.llega.map(([q, por, d]) => `<li><span><b>${q}</b> — ${por}${d ? `<code>${d}</code>` : ''}</span></li>`).join('')}</ul>
+    </div>
+  </div>
+  <p class="pero"><b>El pero.</b> ${v.pero}</p>`;
+
+const pinta = () => {
+  const v = VERSIONES.find(x => x.id === ver);
+  const est = estados[v.id];
+  document.getElementById('nav').innerHTML = VERSIONES
+    .map(x => `<button data-ver="${x.id}" class="${x.id === ver ? 'on' : ''}">${x.num} · ${x.nombre}</button>`).join('')
+    + `<label class="senales"><input type="checkbox" id="sen"${document.body.classList.contains('senal') ? ' checked' : ''}>
+         Señalar lo que cambia</label>`;
+  document.getElementById('panel').innerHTML = `
+    <section class="doc">
+      <div class="ver-cab">
+        <span class="num">${v.num}</span><h3>${v.nombre}</h3>
+        <span class="chapas">
+          <span class="chapa">Coste <b>${v.coste}</b></span>
+          <span class="chapa r-${v.riesgo}">Riesgo <b>${v.riesgo}</b></span>
+          <span class="chapa">Arregla <b>${v.arregla}</b></span>
+        </span>
+      </div>
+      <p class="eje">${v.eje}</p>
+      <div class="flip" role="group" aria-label="Antes o después">
+        <button data-est="antes" class="${est === 'antes' ? 'on' : ''}">Antes · hoy</button>
+        <button data-est="despues" class="${est === 'despues' ? 'on' : ''}">Después · ${v.num}</button>
+      </div>
+      ${est === 'antes' ? v.antes() : v.despues()}
+      ${listaCambios(v)}
+    </section>`;
+};
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-ver]');
+  if (b) { ver = b.dataset.ver; return pinta(); }
+  const s = e.target.closest('[data-est]');
+  if (s) { estados[ver] = s.dataset.est; return pinta(); }
+  if (e.target.id === 'ver-como') { comoCliente = !comoCliente; return pinta(); }
+  const d = e.target.closest('[data-dia]');
+  if (d) { dia = d.dataset.dia; return pinta(); }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'sen') document.body.classList.toggle('senal', e.target.checked);
+});
+
+/* Teclear en la mesa del ciclo escribe de verdad: la media del pie se recalcula
+   sin repintar, que es lo que hace creíble el prototipo. */
+document.addEventListener('input', (e) => {
+  const c = e.target.closest('input[data-k]');
+  if (!c) return;
+  const d = DIAS.find(x => x.id === c.dataset.id);
+  d[c.dataset.k] = Number(c.value) || 0;
+  document.querySelectorAll('[data-media]').forEach((el) => { el.textContent = mediaDe(el.dataset.media); });
+});
+
+pinta();
+</script>
+</body>
+</html>

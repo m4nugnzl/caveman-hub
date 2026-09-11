@@ -6,6 +6,7 @@ import {
   buildMicrocycle,
   cloneDays,
   cloneExerciseAsTemplate,
+  conLaPauta,
   cycleLengthDays,
   dayHasOwnDrills,
   dayMuscleVolume,
@@ -22,6 +23,7 @@ import {
   nextCycleDate,
   nombreDeSubserie,
   normalizaTecnica,
+  pesoPautado,
   restLabel,
   rotatingSlots,
   seriesGrammar,
@@ -264,6 +266,72 @@ describe('el plan sobrevive a vaciar la semana', () => {
     expect(set.kg).toBe('');
     expect(set.reps).toBe('');
     expect(set.rir).toBe('');
+  });
+
+  /*
+    El kilo pautado es LA TERCERA pauta y se quedaba fuera. Va vacío por defecto
+    —«a criterio del cliente», que es lo normal— pero cuando el entrenador SÍ lo
+    escribe se perdía cada vez que alguien continuaba el programa, que es lo que
+    hace el cliente cada siete días. El servidor lo perdía por su lado (0109).
+  */
+  it('blankDays conserva targetKg cuando el entrenador lo ha pautado', () => {
+    const days = [
+      {
+        dayName: 'Día 1',
+        exercises: [
+          {
+            id: 'e1',
+            name: 'Press',
+            muscle: 'Pecho',
+            sets: [
+              { kg: '100', reps: '8', rir: '1', targetKg: '95', targetReps: '8-10' },
+              { kg: '100', reps: '8', rir: '1', targetReps: '8-10' },
+            ],
+          },
+        ],
+      },
+    ];
+    const [pautada, suya] = blankDays(days)[0].exercises[0].sets;
+
+    expect(pautada.targetKg).toBe('95');
+    expect(pautada.kg).toBe('');
+    // Y lo que estaba vacío sigue vacío: no se inventa una pauta donde no la hay.
+    expect(suya.targetKg).toBe('');
+  });
+
+  /*
+    Lo que cuelgue del ejercicio viaja entero. Era una lista blanca —aquí y en el
+    servidor— y con ella se borraban solas la indicación del entrenador, la
+    superserie, el remate y el descanso. Ver la migración 0109.
+  */
+  it('blankDays conserva la indicación, la superserie, el remate y el descanso', () => {
+    const days = [
+      {
+        dayName: 'Día 1',
+        mobilityDrills: ['Gato-camello'],
+        exercises: [
+          {
+            id: 'e1',
+            name: 'Press',
+            muscle: 'Pecho',
+            notes: 'Controla la bajada, 3 segundos.',
+            enlazado: true,
+            tecnica: 'rest-pause',
+            restSeconds: 150,
+            sets: [{ kg: '100', reps: '8', rir: '1', targetReps: '8-10' }],
+          },
+        ],
+      },
+    ];
+    const [dia] = blankDays(days);
+    const [ejercicio] = dia.exercises;
+
+    expect(dia.mobilityDrills).toEqual(['Gato-camello']);
+    expect(ejercicio.notes).toBe('Controla la bajada, 3 segundos.');
+    expect(ejercicio.enlazado).toBe(true);
+    expect(ejercicio.tecnica).toBe('rest-pause');
+    expect(ejercicio.restSeconds).toBe(150);
+    expect(ejercicio.sets[0].kg).toBe('');
   });
 });
 
@@ -646,6 +714,60 @@ describe('cloneExerciseAsTemplate', () => {
   });
 });
 
+describe('conLaPauta — las series de aquel, en esta fila', () => {
+  const remo = {
+    id: 'ex_remo',
+    name: 'Remo con barra',
+    muscle: 'Espalda',
+    coachNote: 'codos pegados',
+    enlazado: true,
+    restSeconds: 90,
+    sets: [{ kg: '60', reps: '10', rir: '2', targetReps: '10-12', targetRir: '2' }],
+  };
+  const press = {
+    id: 'ex_press',
+    name: 'Press banca',
+    muscle: 'Pecho',
+    coachNote: 'nota del press',
+    sets: [
+      { kg: '100', reps: '5', rir: '1', targetReps: '4-6', targetRir: '1', targetKg: '95' },
+      { kg: '100', reps: '5', rir: '1', targetReps: '4-6', targetRir: '1', tecnica: { id: 'bajada' } },
+      { kg: '95', reps: '6', rir: '2', targetReps: '4-6', targetRir: '2' },
+    ],
+  };
+
+  it('conserva la fila entera y solo cambia las series', () => {
+    const puesto = conLaPauta(remo, press);
+    expect(puesto.id).toBe('ex_remo');
+    expect(puesto.name).toBe('Remo con barra');
+    expect(puesto.muscle).toBe('Espalda');
+    expect(puesto.coachNote).toBe('codos pegados');
+    /* `enlazado` es de la HOJA —dónde está la fila—, no de la pauta. */
+    expect(puesto.enlazado).toBe(true);
+    expect(puesto.sets).toHaveLength(3);
+    expect(puesto.sets.map((s) => s.targetReps)).toEqual(['4-6', '4-6', '4-6']);
+    expect(puesto.sets[0].targetKg).toBe('95');
+    expect(puesto.sets[1].tecnica).toEqual({ id: 'bajada' });
+  });
+
+  it('las series llegan en blanco: lo levantado es de quien lo levantó', () => {
+    const puesto = conLaPauta(remo, press);
+    expect(puesto.sets.every((s) => s.kg === '' && s.reps === '' && s.rir === '')).toBe(true);
+  });
+
+  it('el descanso viaja si el origen lo tiene, y si no se queda el de la fila', () => {
+    expect(conLaPauta(remo, { ...press, restSeconds: 180 }).restSeconds).toBe(180);
+    expect(conLaPauta(remo, press).restSeconds).toBe(90);
+  });
+
+  it('limpia la técnica vieja de la fila: los remates entran con las series', () => {
+    const conVieja = { ...remo, tecnica: 'bajada', bajada: true };
+    const puesto = conLaPauta(conVieja, press);
+    expect(puesto.tecnica).toBeUndefined();
+    expect(puesto.bajada).toBeUndefined();
+  });
+});
+
 /* ══ La gramática de serie: superserie, bajada, descanso, AMRAP y tiempo ═══ */
 
 describe('targetKind — qué pide de verdad el objetivo escrito', () => {
@@ -717,6 +839,27 @@ describe('seriesGrammar — lo impreso al lado de la pauta', () => {
   it('sin gramática, nada: la fila no gana una coletilla vacía', () => {
     expect(seriesGrammar({})).toBeNull();
     expect(seriesGrammar(null)).toBeNull();
+  });
+});
+
+describe('pesoPautado — el peso de un ejercicio, donde no hay una fila por serie', () => {
+  const con = (...kgs) => ({ sets: kgs.map((targetKg) => ({ targetKg })) });
+
+  it('con todas al mismo peso, una cifra; con pesos distintos, los extremos', () => {
+    expect(pesoPautado(con('100', '100', '100'))).toBe('100 kg');
+    expect(pesoPautado(con('100', '90', '80'))).toBe('100–80 kg');
+    /* Y de mayor a menor SIEMPRE, aunque la pirámide suba: es el rango, no el
+       recorrido. */
+    expect(pesoPautado(con('80', '90', '100'))).toBe('100–80 kg');
+  });
+
+  it('las series sin peso no cuentan, y ninguna con peso es `null`', () => {
+    /* Vacío significa «a criterio del cliente», así que una serie sin peso no
+       puede arrastrar el rango hasta el cero. */
+    expect(pesoPautado(con('100', '', ''))).toBe('100 kg');
+    expect(pesoPautado(con('', '', ''))).toBeNull();
+    expect(pesoPautado({ sets: [] })).toBeNull();
+    expect(pesoPautado(null)).toBeNull();
   });
 });
 

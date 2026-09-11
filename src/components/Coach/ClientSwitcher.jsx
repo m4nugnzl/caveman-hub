@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
+import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 import { norm } from '@/lib/texto';
@@ -54,6 +55,7 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
   /* El cierre animado del desplegable de escritorio; la hoja del teléfono ya lo
      trae de serie con la prop `open` del Modal. */
   const pop = useDismissable(open && !esTelefono);
+  const capa = useCapaFlotante(pop.mounted && !esTelefono, wrapRef, pop.ref, { alineado: 'izquierda' });
 
   const current = clients.find((c) => c.id === selectedClientId) || clients[0];
   if (!current) return null;
@@ -168,7 +170,8 @@ export const ClientSwitcher = ({ clients, selectedClientId, onSelect, subtitle }
           ref={pop.ref}
           className="popover"
           data-state={pop.closing ? 'closing' : 'open'}
-          style={{ top: 'calc(100% + 8px)', left: 0, maxHeight: 340, overflowY: 'auto' }}
+          style={{ ...(capa.estilo || { top: 'calc(100% + 8px)', left: 0 }), maxHeight: 340, overflowY: 'auto' }}
+          {...capa.atributos}
           role="menu"
         >
           {clients.map((client) => (

@@ -115,7 +115,7 @@ const MeasureGrid = ({ labels, values, unit, onChange }) => (
 export const ReviewWizard = ({
   client,
   history,
-  nutritionPlan,
+  nutritionFoto,
   audience = 'client',
   save,
   onRetry,
@@ -388,9 +388,12 @@ export const ReviewWizard = ({
       weight: pesoEfectivo,
       folds,
       perimeters,
-      // Foto de las kcal y macros vigentes, para poder cruzar después dieta
-      // con evolución de peso: la tabla de nutrición no guarda histórico.
-      nutritionPlan,
+      /* Foto de las kcal y macros vigentes, para poder cruzar después dieta con
+         evolución de peso: la tabla de nutrición no guarda histórico. Llega
+         HECHA (`cycleFoto`): en un ciclado, la cifra que significa algo es la
+         media del ciclo, y para ponderarla hacen falta sus casillas — que las
+         sabe la pantalla, no este asistente. */
+      nutritionFoto,
     });
     if (registro.weight !== null || registro.skinFolds || registro.perimeters) onAdd(registro);
 

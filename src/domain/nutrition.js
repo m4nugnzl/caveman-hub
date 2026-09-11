@@ -11,13 +11,14 @@
  */
 
 import { isBlank, round, toNum, toNum0 } from '@/lib/num';
-import { newId } from '@/lib/ids';
-import { norm } from '@/lib/texto';
-import { freezeMicros } from './micros';
+import { newId, deepClone } from '@/lib/ids';
+import { norm, pluralEs } from '@/lib/texto';
+import { MICRO_TARGET_FIELDS, freezeMicros } from './micros';
 
 /**
- * `hasDayVariants` activo ⇒ el cliente tiene dos dietas cerradas distintas
- * (entreno / descanso). Si no, hay una sola lista de comidas.
+ * Las columnas heredadas, una por día de los que cabían antes de que los días
+ * fueran una lista. Siguen siendo dónde se guarda un plan de uno o dos días:
+ * ver el bloque «LOS DÍAS DE LA DIETA» más abajo.
  */
 export const VARIANT_KEY = {
   default: 'closedMeals',
@@ -44,9 +45,568 @@ export const emptyNutrition = () => ({
   closedMeals: [],
   closedMealsTraining: [],
   closedMealsRest: [],
+  /* Los días, cuando son más de los que caben en las columnas de arriba, y el
+     reparto del ciclo. Vacíos hasta que hacen falta: ver «LOS DÍAS DE LA DIETA». */
+  days: [],
+  week: {},
 });
 
 export const TARGET_FIELDS = ['targetKcals', 'proteinGrams', 'carbsGrams', 'fatsGrams'];
+
+/* ==========================================================================
+   LOS DÍAS DE LA DIETA
+   --------------------------------------------------------------------------
+   Un plan tenía EXACTAMENTE dos días, y con el nombre puesto en el esquema:
+   `has_day_variants`, `closed_meals_training`, `closed_meals_rest` y el
+   objetivo de descanso aparte. Un alto/medio/bajo no cabía y un ciclado de
+   hidratos de siete días, tampoco. Y la pareja estaba escrita a mano en cinco
+   sitios, así que añadir un tercero no era un cambio: eran cinco.
+
+   Ahora el plan lleva una LISTA, y el reparto de la semana al lado:
+
+       days: [{ id, name, targets: { targetKcals, … }, meals: [ … ] }]
+       week: { Lunes: dayId|null, …, Domingo: dayId|null }
+
+   ── La lista se materializa cuando hace falta, y no antes ──────────────────
+   Mientras el plan sea uno o dos días con los nombres de siempre, `days` está
+   vacío y todo se lee y se escribe en las columnas de siempre: sin la
+   migración 0111 aplicada, la aplicación funciona exactamente como hoy. En
+   cuanto se añade un tercero, se renombra uno o se reparte el ciclo, `days`
+   pasa a ser la única verdad — y el mapeador sigue reflejando los dos primeros
+   días en las columnas viejas (`mapNutritionToDb`), para que nada de lo que ya
+   lee un plan por su cuenta —la copia de seguridad, la radiografía, un cliente
+   con la versión anterior abierta— se quede a ciegas.
+
+   ── El día NO es la opción de la comida ────────────────────────────────────
+   El día es qué dieta te toca hoy; la opción es qué versión de este desayuno
+   te comes. Confundirlos es lo que obliga a duplicar el plan entero por
+   persona.
+   ========================================================================== */
+
+/** Objetivo en blanco: los cuatro campos existen siempre, aunque estén a nulo. */
+const vacios = () => Object.fromEntries(TARGET_FIELDS.map((k) => [k, null]));
+
+/** ¿Hay alguna de las cuatro cifras puesta? */
+const hayObjetivo = (targets) =>
+  TARGET_FIELDS.some((k) => targets?.[k] !== null && targets?.[k] !== undefined && targets?.[k] !== '');
+
+/**
+ * El objetivo de un día, con lo que de verdad es un objetivo y nada más.
+ *
+ * ── Y las cuatro del envase, si alguien las ha escrito ────────────────────
+ * Fibra, azúcares, saturadas y sal pueden llevar objetivo desde las opciones
+ * avanzadas (ver `MICRO_TARGET_FIELDS` en `domain/micros.js`). Van aquí porque
+ * son objetivo DEL DÍA como los otros cuatro, y solo se copian **cuando están
+ * puestas**: si se sembraran a nulo como las kcal, cada día de cada plan de
+ * cada cliente engordaría con cuatro nulos por una opción que casi nadie
+ * enciende. La ausencia sigue significando «no lo pautas».
+ */
+const soloTargets = (raw) => {
+  const base = Object.fromEntries(TARGET_FIELDS.map((k) => [k, raw?.[k] ?? null]));
+  for (const k of MICRO_TARGET_FIELDS) {
+    if (raw?.[k] !== null && raw?.[k] !== undefined && raw?.[k] !== '') base[k] = raw[k];
+  }
+  return base;
+};
+
+export const DAY_NAME_MAX = 40;
+
+/* «Día 3», «Día 4»… El nombre se cambia en su sitio, así que lo único que tiene
+   que hacer el de partida es no repetirse ni obligar a teclear para empezar. */
+const nombreLibre = (dias) => {
+  for (let n = dias.length + 1; ; n += 1) {
+    const nombre = `Día ${n}`;
+    if (!dias.some((d) => norm(d.name) === norm(nombre))) return nombre;
+  }
+};
+
+/**
+ * Un día nuevo. Hereda el objetivo del día del que sale —lo normal es cambiar
+ * los hidratos y poco más—, y el menú NO: si viniera con la comida puesta, «+
+ * día» y «duplicar día» serían el mismo gesto con dos nombres.
+ */
+export const buildDietDay = ({ name = 'Día nuevo', targets = null } = {}) => ({
+  id: newId('dia'),
+  name,
+  targets: targets ? soloTargets(targets) : vacios(),
+  meals: [],
+});
+
+/** Los días tal y como se leen de las columnas de siempre. */
+const diasHeredados = (n) => {
+  const principal = soloTargets(n);
+  if (!n?.hasDayVariants) {
+    return [{ id: 'default', name: 'Dieta única', targets: principal, meals: n?.closedMeals || [] }];
+  }
+  const rest = n.restTargets || {};
+  return [
+    { id: 'training', name: 'Días de entreno', targets: principal, meals: n.closedMealsTraining || [] },
+    {
+      id: 'rest',
+      name: 'Días de descanso',
+      /* Hereda el de entreno EN CADA CAMPO que no declare, no en bloque: es la
+         regla que tenía `targetsFor` y se queda. `restTargets` es un parche del
+         objetivo —quien solo baja las kcal deja los macros a nulo—, y fundirlo
+         entero borraba la proteína heredada. */
+      targets: Object.fromEntries(TARGET_FIELDS.map((k) => [k, rest[k] ?? principal[k]])),
+      meals: n.closedMealsRest || [],
+    },
+  ];
+};
+
+const normalizaDia = (dia) => ({
+  id: dia?.id || newId('dia'),
+  name: dia?.name || 'Día',
+  targets: soloTargets(dia?.targets),
+  meals: Array.isArray(dia?.meals) ? dia.meals : [],
+});
+
+/**
+ * LOS DÍAS DEL PLAN, salgan de donde salgan. Es la única puerta: nadie mira
+ * `closedMeals*` ni `hasDayVariants` por su cuenta.
+ */
+export const planDays = (nutrition) =>
+  nutrition?.days?.length ? nutrition.days.map(normalizaDia) : diasHeredados(nutrition);
+
+/** Un día por su id. Sin id o con uno que ya no existe, el primero. */
+export const dayById = (nutrition, dayId) => {
+  const dias = planDays(nutrition);
+  return dias.find((d) => d.id === dayId) || dias[0];
+};
+
+/** ¿El plan tiene más de un día? */
+export const hasSeveralDays = (nutrition) => planDays(nutrition).length > 1;
+
+/**
+ * Pasa el plan a la lista, si no lo estaba ya.
+ *
+ * Los ids de los días heredados se conservan (`default` / `training` / `rest`):
+ * son estables, no se repiten y hacen legible un plan a medio migrar. Lo que ya
+ * NO significan es en qué columna vive cada uno — el reflejo del mapeador es
+ * por posición, porque el día que se quite el primero, el segundo pasa a serlo.
+ */
+export const withDays = (nutrition) => {
+  const base = nutrition || emptyNutrition();
+  if (base.days?.length) return base;
+  return { ...base, days: planDays(base).map((d) => ({ ...d, meals: deepClone(d.meals) })) };
+};
+
+/** Añade un día al final. `desde` es el día del que hereda el objetivo. */
+export const addDietDay = (nutrition, { desde = null, name = null } = {}) => {
+  const base = withDays(nutrition);
+  const origen = desde ? dayById(base, desde) : base.days[base.days.length - 1];
+  const dia = buildDietDay({
+    name: name || nombreLibre(base.days),
+    targets: origen?.targets,
+  });
+  return { ...base, days: [...base.days, dia], hasDayVariants: true };
+};
+
+/**
+ * SUSTITUIR LOS DÍAS DE UNA DIETA POR OTROS.
+ *
+ * ══ Es la única escritura de nutrición que BORRA ═══════════════════════════
+ *
+ * Todo lo demás del reparto añade, y está escrito el porqué en `reparto.js`:
+ * una dieta no tiene lista de planes, así que lo que se pisa no queda en
+ * ninguna parte. Existe para «mandar la dieta entera», que es lo que un
+ * entrenador hace cuando monta a alguien igual que a otro — y por eso se pide
+ * aparte y se avisa por persona antes de llegar aquí.
+ *
+ * ── Qué se conserva, y no es un detalle ────────────────────────────────────
+ *
+ * Todo lo que es de la persona y no del plan: sus pautas escritas, sus pasos,
+ * su cardio, si ve las equivalencias, y sobre todo SU OBJETIVO. Mandar la misma
+ * dieta a ocho no es darles las mismas calorías; los menús llegan ya
+ * reescalados (ver `consecuenciaDe`) y los objetivos de los días nuevos se
+ * derivan del suyo.
+ *
+ * ── La proporción, y por qué la proteína no se mueve ───────────────────────
+ *
+ * Con un alto/bajo, lo que define el plan es la DISTANCIA entre sus días. El
+ * primero se queda con el objetivo que el destinatario ya tenía y los demás lo
+ * multiplican por su proporción de origen. Dentro de cada uno se mueven las
+ * kcal y los HIDRATOS —`carbsFromRest`—, con la proteína y las grasas quietas:
+ * es la misma ley que `rescaleMeals` aplica al menú, y tenerla en dos sitios
+ * con dos criterios daría un objetivo que no cuadra con su propio menú.
+ *
+ * ── Y el reparto del ciclo se vacía ──────────────────────────────────────────
+ *
+ * `week` apunta a ids de días que dejan de existir. Conservarlo dejaría al
+ * cliente con un mapa roto —«hoy te toca» sin día al que apuntar—, así que se
+ * borra y hay que volver a repartir. La pantalla lo dice antes.
+ */
+export const replaceDietDays = (nutrition, days = []) => {
+  const base = withDays(nutrition || emptyNutrition());
+  if (days.length === 0) return base;
+
+  /* Su objetivo, el del primer día que tenía: es lo que NO viaja. Cuelga de
+     `.targets` del día, como lo lee `targetsFor`. */
+  const suyo = soloTargets(base.days[0]?.targets);
+  const kcals = toNum0(suyo.targetKcals);
+
+  const nuevos = days.map((dia, i) => {
+    const proporcion = Number(dia.proporcion) || 1;
+    /* El primero se queda su objetivo tal cual; sin objetivo puesto no hay nada
+       que escalar y los días nuevos nacen con el mismo (vacío) que tenía. */
+    const escala = i > 0 && kcals > 0 && proporcion !== 1;
+    const suKcal = escala ? Math.round(kcals * proporcion) : 0;
+    const targets = escala
+      ? {
+          ...suyo,
+          targetKcals: suKcal,
+          carbsGrams:
+            carbsFromRest({ kcals: suKcal, protein: suyo.proteinGrams, fats: suyo.fatsGrams }) ??
+            suyo.carbsGrams,
+        }
+      : suyo;
+
+    return {
+      ...buildDietDay({ name: dia.name || `Día ${i + 1}`, targets }),
+      meals: cloneMeals(dia.meals || []),
+    };
+  });
+
+  return {
+    ...base,
+    days: nuevos,
+    /* Con más de uno hay variantes; con uno solo, deja de haberlas. Es la misma
+       bandera que mantiene el reflejo de las columnas viejas. Ver la 0111. */
+    hasDayVariants: nuevos.length > 1,
+    week: {},
+  };
+};
+
+/**
+ * Duplica un día con su menú entero.
+ *
+ * Es el gesto que sostiene N días: un día de descanso casi nunca es otra dieta,
+ * es la misma con menos hidratos. Los identificadores de las comidas se
+ * regeneran (`cloneMeals`) para que compartir `id` entre dos días no llegue a
+ * ser una suposición sobre la que alguien construya.
+ */
+export const duplicateDietDay = (nutrition, dayId) => {
+  const base = withDays(nutrition);
+  const origen = dayById(base, dayId);
+  if (!origen) return base;
+  const copia = {
+    ...buildDietDay({ name: `${origen.name} (copia)`, targets: origen.targets }),
+    meals: cloneMeals(origen.meals),
+  };
+  const donde = base.days.findIndex((d) => d.id === origen.id);
+  const days = [...base.days];
+  days.splice(donde + 1, 0, copia);
+  return { ...base, days, hasDayVariants: true };
+};
+
+/**
+ * Quita un día, con su menú y su objetivo.
+ *
+ * El último no se puede quitar: un plan sin ningún día no es un plan vacío, es
+ * una pantalla sin sitio donde escribir. Y el reparto del ciclo se limpia de las
+ * casillas que apuntaban a él, o la semana señalaría a un día que ya no existe.
+ */
+export const removeDietDay = (nutrition, dayId) => {
+  /* Con el plan todavía en las columnas de siempre y dos días, quitar uno lo
+     deja en uno: eso ya lo sabe hacer `singleDietFrom`, y así quitar un día
+     sigue funcionando sin la migración 0111 aplicada. */
+  const heredados = !nutrition?.days?.length && planDays(nutrition);
+  if (heredados && heredados.length === 2) {
+    const otro = heredados.find((d) => d.id !== dayId);
+    return otro ? singleDietFrom(nutrition, otro.id) : nutrition;
+  }
+
+  const base = withDays(nutrition);
+  if (base.days.length <= 1) return base;
+  const days = base.days.filter((d) => d.id !== dayId);
+  if (days.length === base.days.length) return base;
+
+  /* Y el reparto se limpia POR VALOR, recorriendo lo guardado: las casillas
+     son las del ciclo del cliente —siete días, o los del microciclo— y aquí no
+     se tiene delante cuál es. Lo que se busca es a quién apuntaba. */
+  const week = Object.fromEntries(
+    Object.entries(base.week || {}).map(([k, v]) => [k, v === dayId ? null : v])
+  );
+  return { ...base, days, week, hasDayVariants: days.length > 1 };
+};
+
+export const renameDietDay = (nutrition, dayId, name) => {
+  const limpio = String(name || '').trim().slice(0, DAY_NAME_MAX);
+  if (!limpio) return nutrition;
+  const base = withDays(nutrition);
+  return { ...base, days: base.days.map((d) => (d.id === dayId ? { ...d, name: limpio } : d)) };
+};
+
+/** Mueve un día en la cinta. Reordenar no cambia a quién le toca qué: `week` manda. */
+export const moveDietDay = (nutrition, from, to) => {
+  const base = withDays(nutrition);
+  const days = moveItem(base.days, from, to);
+  return days === base.days ? base : { ...base, days };
+};
+
+/**
+ * Escribe el menú de un día.
+ *
+ * Con `days` sin materializar va a su columna de siempre; con la lista puesta,
+ * a la lista. Es la única indirección: quien llama dice el día y no dónde vive.
+ */
+export const setDayMeals = (nutrition, dayId, meals) => {
+  const base = nutrition || emptyNutrition();
+  /* Se resuelve por `dayById` y no por el id crudo: quien llama trae el día que
+     tiene abierto en pantalla, que puede haberse quedado rancio si otro cambio
+     rehízo la lista. Escribir contra un id que ya no existe se tragaría el
+     cambio en silencio, que es la peor de las tres opciones. */
+  const dia = dayById(base, dayId);
+  if (base.days?.length) {
+    return { ...base, days: base.days.map((d) => (d.id === dia?.id ? { ...d, meals } : d)) };
+  }
+  return { ...base, [VARIANT_KEY[dia?.id] || VARIANT_KEY.default]: meals };
+};
+
+/**
+ * Escribe (parcialmente) el objetivo de un día. Ver `setDayMeals`.
+ *
+ * ── Las cuatro del envase OBLIGAN a materializar la lista ─────────────────
+ * Un plan de uno o dos días vive en las columnas de siempre, y ahí no hay
+ * columna para la fibra: escribirla al nivel del plan la perdería el mapeador
+ * en silencio, que es la peor manera de no guardar algo. `days` es jsonb y
+ * guarda lo que se le ponga, así que en cuanto se pauta un micro el plan pasa a
+ * la lista. Es lo mismo que ya hacen renombrar un día o repartir el ciclo:
+ * la lista se materializa cuando hace falta, y no antes.
+ */
+export const setDayTargets = (nutrition, dayId, fields) => {
+  /* Un micro en blanco es «no lo pautas», y eso se escribe como `null` y no como
+     la cadena vacía: `soloTargets` solo deja pasar los que tienen valor, así que
+     un `''` guardado sería una clave muerta en el jsonb de todos los días. */
+  const limpio = { ...(fields || {}) };
+  for (const k of MICRO_TARGET_FIELDS) {
+    if (k in limpio && (limpio[k] === '' || limpio[k] === undefined)) limpio[k] = null;
+  }
+  const pide = MICRO_TARGET_FIELDS.some((k) => limpio[k] !== null && limpio[k] !== undefined);
+
+  const base = pide ? withDays(nutrition || emptyNutrition()) : nutrition || emptyNutrition();
+  const dia = dayById(base, dayId);
+  if (base.days?.length) {
+    return {
+      ...base,
+      days: base.days.map((d) => (d.id === dia?.id ? { ...d, targets: { ...d.targets, ...limpio } } : d)),
+    };
+  }
+  /* Sin lista materializada no hay dónde guardar un micro —las columnas de
+     siempre no lo tienen—, pero aquí ya se sabe que no hay ninguno que guardar:
+     con alguno puesto, `withDays` ha materializado la lista más arriba. */
+  return dia?.id === 'rest' && base.hasDayVariants
+    ? { ...base, restTargets: { ...(base.restTargets || {}), ...limpio } }
+    : { ...base, ...limpio };
+};
+
+/* ── EL REPARTO DEL CICLO ──────────────────────────────────────────────────
+   A qué día de dieta le toca cada casilla del ciclo de esta persona. Un solo
+   dato —el mapa `week`— y dos maneras de rellenarlo: a mano, casilla a casilla,
+   o de un botón que lo copia del entreno. No es un enlace vivo, y es a
+   propósito: el `weeklySplit` es por bloque y los bloques cambian; y un ciclado
+   de hidratos no sigue al entreno ni queriendo. Cuando dejen de coincidir se
+   DICE, con el botón al lado — la aplicación no recoloca sola la dieta de nadie.
+
+   ══ AQUÍ SE REPARTÍA LA SEMANA, Y ESA ERA LA AVERÍA ═══════════════════════
+
+   Las casillas eran los siete días de la semana, escritos a mano en esta misma
+   función. Y funcionaba para quien entrena de lunes a domingo: para un ciclo
+   rotativo —«2 entreno / 1 descanso»— no hay martes al que atar nada, así que
+   la única pantalla desde la que se reparte una dieta le hacía a esa persona
+   una pregunta sin respuesta posible. Un alto/bajo con ciclo rotativo, que es
+   la combinación más normal del mundo en un ciclado de hidratos, no se podía
+   pautar: el reparto se quedaba vacío y con él la media del ciclo, el aviso de
+   que ya no coincide con el entreno y lo que el cliente ve en su portal.
+
+   Ahora la dieta NO SABE de días de la semana. Sabe de casillas, y quién las
+   pone es el ciclo del cliente (`cycleSlots`, en `domain/training.js`). Siete
+   con nombre de día para el semanal; los días del microciclo con sus descansos
+   intercalados para el rotativo. Aquí no hay una segunda rama por tipo de
+   ciclo: hay una lista que llega hecha.
+
+   ── La columna se sigue llamando `week`, y no es descuido ──────────────────
+   Es jsonb: guardar `{ "1": …, "2": … }` en vez de `{ "Lunes": … }` no le pide
+   nada al esquema. Renombrarla costaría una migración sobre una tabla viva para
+   cambiar una palabra que solo se lee desde aquí. Lo que sí se corrige es el
+   comentario de la 0111, que prometía claves de `WEEK_DAYS`.
+
+   ── Y lo que había repartido un rotativo se queda quieto ───────────────────
+   El saneado es de LECTURA: una casilla que ya no existe —un «Lunes» en un
+   ciclo rotativo, o un día 9 en un ciclo que se ha quedado en seis— no se
+   enseña, pero tampoco se borra de lo guardado. Volver al ciclo semanal
+   devuelve el reparto que había, y ese es el mismo trato que la 0111 le da a
+   las columnas viejas. */
+
+/**
+ * El reparto, con una entrada por casilla y sin días que ya no existen.
+ *
+ * @param slots `cycleSlots(...)` — quien llama trae el ciclo del cliente.
+ */
+export const cycleMap = (nutrition, slots = []) => {
+  const dias = new Set(planDays(nutrition).map((d) => d.id));
+  const raw = nutrition?.week || {};
+  return Object.fromEntries(slots.map((s) => [s.key, dias.has(raw[s.key]) ? raw[s.key] : null]));
+};
+
+/**
+ * ¿Se ha repartido algo? Un mapa vacío no es un reparto: es que no hay.
+ *
+ * Sin casillas a propósito: lo contesta quien no tiene delante el ciclo del
+ * cliente —el reparto a varios lo pregunta de ocho personas a la vez— y para
+ * «¿hay algo puesto?» basta con que apunte a un día que exista.
+ */
+export const hasCycleMap = (nutrition) => {
+  const dias = new Set(planDays(nutrition).map((d) => d.id));
+  return Object.values(nutrition?.week || {}).some((id) => dias.has(id));
+};
+
+export const setCycleSlot = (nutrition, key, dayId) => {
+  const base = withDays(nutrition);
+  /* Se escribe sobre lo GUARDADO y no sobre el mapa saneado: cambiar el martes
+     no puede llevarse por delante el reparto rotativo de esta misma persona. */
+  return { ...base, week: { ...(base.week || {}), [key]: dayId } };
+};
+
+/**
+ * «Repartir por el entreno»: el día de entreno a las casillas con sesión, el de
+ * descanso a las vacías. Devuelve el mapa; no escribe nada.
+ */
+export const cycleFromSplit = (slots = [], { entreno, descanso }) =>
+  Object.fromEntries(slots.map((s) => [s.key, s.rest ? descanso ?? null : entreno ?? null]));
+
+/** ¿El reparto de la dieta dice lo mismo que el del entreno? */
+export const cycleMatchesSplit = (nutrition, slots = [], { entreno, descanso }) => {
+  const mapa = cycleMap(nutrition, slots);
+  const segunEntreno = cycleFromSplit(slots, { entreno, descanso });
+  return slots.every((s) => mapa[s.key] === segunEntreno[s.key]);
+};
+
+/**
+ * LA MEDIA DEL CICLO PONDERADA: lo que come esta persona en una vuelta de su
+ * ciclo, dividido entre los días que tiene.
+ *
+ * ══ Por qué es la única cifra que dice algo con varios días ════════════════
+ * En un alto/bajo, ni el alto ni el bajo son «sus calorías». Sin reparto no se
+ * podía calcular sin adivinar cuántos días entrena; con el mapa es aritmética.
+ * Sin reparto devuelve `null` y no se inventa nada.
+ */
+export const cycleAverage = (nutrition, slots = []) => {
+  const mapa = cycleMap(nutrition, slots);
+  const acc = { targetKcals: 0, proteinGrams: 0, carbsGrams: 0, fatsGrams: 0 };
+  let puestos = 0;
+
+  for (const s of slots) {
+    const dia = mapa[s.key] ? dayById(nutrition, mapa[s.key]) : null;
+    if (!dia) continue;
+    puestos += 1;
+    for (const k of TARGET_FIELDS) acc[k] += toNum0(dia.targets?.[k]);
+  }
+
+  if (puestos === 0) return null;
+  /* Se divide entre los días REPARTIDOS y no entre los del ciclo: medio ciclo
+     repartido dividido entre todo diría que come la mitad de lo que come. */
+  return {
+    days: puestos,
+    ...Object.fromEntries(TARGET_FIELDS.map((k) => [k, Math.round(acc[k] / puestos)])),
+  };
+};
+
+/**
+ * LA FOTO DEL PLAN: lo que come esta persona, en cuatro cifras y con los días
+ * de los que salen.
+ *
+ * ══ La avería que cierra ═══════════════════════════════════════════════════
+ *
+ * «No tiene mucho sentido que las gráficas muestren tanto high como low y la
+ * media, pero le des clic a la gráfica principal de kcals y solo muestre high.»
+ *
+ * Y era literal. Todo lo que guarda un histórico de la dieta —la foto de cada
+ * pesaje (`buildAnthropometryLog`), la de cada revisión cerrada (`planSnapshot`)
+ * y con ellas la escalera del Resumen, la de la revisión y la ventana de la
+ * evolución— leía `nutrition.targetKcals`, que es la columna heredada, que es
+ * **el primer día del plan**. En un alto/bajo, siempre el alto. Sin decirlo.
+ *
+ * Así que el costado decía «High 3.100, Low 2.400, de media 2.867» y la gráfica
+ * de al lado dibujaba una raya en 3.100 rotulada «las kcal que tenía pautadas».
+ * De las tres cifras, la única que la persona no come ningún día.
+ *
+ * ══ Qué se guarda ahora ════════════════════════════════════════════════════
+ *
+ * Las cuatro cifras de cabecera son **la media ponderada del ciclo** cuando el
+ * ciclo está repartido —la única que significa algo en un ciclado, y la misma
+ * que ya da `cycleAverage` en el costado— y el día que haya cuando no lo está,
+ * porque sin reparto no se puede ponderar sin adivinar. `de` dice cuál de las
+ * dos es, para que ninguna pantalla tenga que suponerlo.
+ *
+ * Y debajo van los días con lo que pide cada uno, que es lo que permite que la
+ * gráfica pueda contestar de dónde salía esa media sin volver a la dieta de
+ * hoy —que ya no es la de entonces—.
+ *
+ * ── Lo viejo se sigue leyendo como lo que era ─────────────────────────────
+ * Una foto guardada antes de esto no tiene `days` ni `de`: es una cifra suelta
+ * y quien la pinte la trata como lo que siempre fue. No se reescribe nada
+ * hacia atrás: inventar la media de julio con el reparto de hoy sería peor que
+ * el escalón que falta.
+ *
+ * @param slots `cycleSlots(...)`. Sin ellos no hay reparto que ponderar.
+ */
+export const cycleFoto = (nutrition, slots = []) => {
+  const dias = planDays(nutrition);
+  if (dias.length === 0) return null;
+
+  const mapa = cycleMap(nutrition, slots);
+  const media = cycleAverage(nutrition, slots);
+  const cabeza = media || soloTargets(dias[0].targets);
+  const cifras = TARGET_FIELDS.map((k) => toNum(cabeza[k]));
+
+  /*
+    Un plan sin una sola cifra no deja foto. La regla es de `planSnapshot` —«las
+    claves vacías no se guardan: una foto llena de nulos ocupa lo mismo que una
+    con datos y hace creer que se midió algo que no existía»— y se cumple aquí,
+    que es donde nace la foto: si no, cada cliente sin dieta arrastraría el
+    nombre de su día y una lista de nulos en cada pesaje.
+  */
+  if (cifras.every((v) => v === null)) return null;
+
+  return {
+    kcals: cifras[0],
+    protein: cifras[1],
+    carbs: cifras[2],
+    fats: cifras[3],
+    /*
+      De dónde salen las cuatro de arriba: la media del ciclo o un día suelto
+      —y entonces cuál—. Sin esto, «2.867 kcal» y «3.100 kcal» se leen igual.
+
+      Con UN SOLO DÍA no se dice nada: no hay ambigüedad que deshacer, y una
+      foto de cada pesaje de cada cliente repitiendo «de: dia, dia: Dieta
+      única» es ruido en la columna de todo el mundo para el caso en el que no
+      hay pregunta.
+    */
+    de: dias.length > 1 ? (media ? 'media' : 'dia') : null,
+    dia: dias.length > 1 && !media ? dias[0].name : null,
+    reparto: media ? media.days : null,
+    /* Recortado a lo que se lee: nombre, cifras y cuántas casillas le tocan. El
+       menú NO viaja aquí — la foto de la revisión ya lo guarda aparte y con su
+       presupuesto (ver `planSnapshot`).
+
+       Y se llama `cycle` y no `days`: en las fotos de revisión `days` es una
+       forma ANTIGUA de guardar los días del PROGRAMA, que `semanasDe` sigue
+       aceptando por compatibilidad. Dos cosas distintas con el mismo nombre en
+       la misma columna serían días de entreno leídos como días de dieta.
+
+       Y solo con MÁS DE UNO: la lista de un plan de un día repite las cifras de
+       arriba con otro nombre. */
+    cycle: dias.length < 2 ? null : dias.map((d) => ({
+      n: String(d.name || '').slice(0, DAY_NAME_MAX),
+      kcals: toNum(d.targets?.targetKcals),
+      protein: toNum(d.targets?.proteinGrams),
+      carbs: toNum(d.targets?.carbsGrams),
+      fats: toNum(d.targets?.fatsGrams),
+      x: slots.filter((s) => mapa[s.key] === d.id).length || null,
+    })),
+  };
+};
 
 /**
  * ¿Este plan está en blanco?
@@ -64,69 +624,50 @@ export const TARGET_FIELDS = ['targetKcals', 'proteinGrams', 'carbsGrams', 'fats
 export const isEmptyDiet = (plan) => {
   if (!plan) return true;
 
-  const sinObjetivo = TARGET_FIELDS.every((k) => plan[k] === null || plan[k] === undefined || plan[k] === '');
-  const sinDescanso =
-    !plan.restTargets ||
-    TARGET_FIELDS.every((k) => plan.restTargets[k] === null || plan.restTargets[k] === undefined);
+  /*
+    Se mira por los DÍAS —con la lista materializada, las columnas de siempre
+    solo llevan el reflejo de los dos primeros, y preguntarles a ellas diría
+    «vacía» de un plan de cuatro—, y ADEMÁS por las columnas crudas.
+
+    Lo segundo no es cinturón y tirantes: hay planes con `has_day_variants` en
+    falso y menú escrito en `closed_meals_training`, porque apagar «dos dietas»
+    fue durante mucho tiempo bajar la bandera y nada más. `planDays` no los
+    devuelve —y hace bien, son días que no se enseñan—, pero siguen siendo dos
+    menús montados a mano. Y de esta respuesta cuelga si copiar la dieta de otro
+    cliente avisa de que va a SUSTITUIR algo: darla por vacía es borrarlos sin
+    decirlo.
+  */
+  const dias = planDays(plan);
+  const columnas = [plan.closedMeals, plan.closedMealsTraining, plan.closedMealsRest];
 
   return (
-    sinObjetivo &&
-    sinDescanso &&
+    dias.every((dia) => !hayObjetivo(dia.targets) && (dia.meals || []).length === 0) &&
+    columnas.every((lista) => (lista || []).length === 0) &&
+    !hayObjetivo(plan.restTargets) &&
     String(plan.stepsGoal || '').trim() === '' &&
     String(plan.cardioGoal || '').trim() === '' &&
-    (plan.habitsNotes || []).length === 0 &&
-    (plan.closedMeals || []).length === 0 &&
-    (plan.closedMealsTraining || []).length === 0 &&
-    (plan.closedMealsRest || []).length === 0
+    (plan.habitsNotes || []).length === 0
   );
 };
 
 /**
- * Objetivo calórico y de macros de una variante.
+ * Objetivo calórico y de macros de UN día.
  *
- * ── Por qué hay dos ─────────────────────────────────────────────────────────
- * Activar "dos dietas (entreno / descanso)" no era solo tener dos listas de
- * comidas: en un día de descanso cambian las calorías y el reparto de macros,
- * que es justo el motivo de separarlos. Antes había un único objetivo para las
- * dos variantes, así que la cifra mostrada era incorrecta en uno de los dos días.
+ * ── Por qué cada día lleva el suyo ──────────────────────────────────────────
+ * Porque es justo lo que distingue a un día de otro: en uno de descanso cambian
+ * las calorías y el reparto de macros, que es el motivo de separarlos. Un solo
+ * objetivo para todos los días haría que la cifra mostrada fuera incorrecta en
+ * todos menos uno.
  *
- * Reparto: las columnas principales de la tabla guardan el objetivo de los días
- * de ENTRENO (o el único, si no hay variantes), y `restTargets` el de los días
- * de descanso. Si el de descanso no se ha configurado, se hereda el de entreno,
- * de modo que activar la opción nunca deja una cifra vacía.
+ * Los pasos van con el objetivo aunque sean del PLAN y no del día —lo que esta
+ * persona camina no depende de si hoy entrena—: se devuelven aquí porque quien
+ * pinta un objetivo los pinta al lado, y separarlos obligaría a pasar dos cosas
+ * a todas partes.
  */
-export const targetsFor = (nutrition, variant) => {
-  const base = {
-    targetKcals: nutrition?.targetKcals ?? null,
-    proteinGrams: nutrition?.proteinGrams ?? null,
-    carbsGrams: nutrition?.carbsGrams ?? null,
-    fatsGrams: nutrition?.fatsGrams ?? null,
-    stepsGoal: nutrition?.stepsGoal ?? '',
-  };
-
-  if (variant !== 'rest' || !nutrition?.hasDayVariants) return base;
-
-  const rest = nutrition.restTargets || {};
-  const hasAny = TARGET_FIELDS.some((key) => rest[key] !== null && rest[key] !== undefined && rest[key] !== '');
-  if (!hasAny) return base;
-
-  return {
-    targetKcals: rest.targetKcals ?? base.targetKcals,
-    proteinGrams: rest.proteinGrams ?? base.proteinGrams,
-    carbsGrams: rest.carbsGrams ?? base.carbsGrams,
-    fatsGrams: rest.fatsGrams ?? base.fatsGrams,
-    stepsGoal: base.stepsGoal,
-  };
-};
-
-/** Las dos variantes que hay que mostrar, según la configuración del plan. */
-export const activeVariants = (nutrition) =>
-  nutrition?.hasDayVariants
-    ? [
-        { id: 'training', label: 'Días de entreno' },
-        { id: 'rest', label: 'Días de descanso' },
-      ]
-    : [{ id: 'default', label: 'Dieta única' }];
+export const targetsFor = (nutrition, dayId) => ({
+  ...soloTargets(dayById(nutrition, dayId)?.targets),
+  stepsGoal: nutrition?.stepsGoal ?? '',
+});
 
 export const buildMeal = () => ({
   id: newId('meal'),
@@ -138,6 +679,27 @@ export const buildMeal = () => ({
 });
 
 export const buildOption = () => ({ id: newId('opt'), foods: [] });
+
+/**
+ * Cómo se llama una alternativa de comida.
+ *
+ * ══ Por qué las opciones se nombran ════════════════════════════════════════
+ *
+ * «Opción 1» y «Opción 2» es vocabulario del sistema: dice DÓNDE está la cosa
+ * en una lista, no qué es. Y lo lee el cliente, que es quien tiene que elegir
+ * una: entre «Opción 1» y «Opción 2» no hay nada que decidir; entre «Con
+ * avena» y «Con tostada», sí. Al entrenador le pasa lo mismo montando una
+ * comida de tres alternativas.
+ *
+ * El nombre es OPCIONAL y vive en el propio jsonb del menú, así que no hay
+ * columna nueva ni migración: sin él se cae al ordinal de siempre, que es la
+ * respuesta correcta para las miles de opciones que ya existen sin nombre y
+ * para la que se acaba de crear.
+ */
+export const optionName = (option, index) => {
+  const propio = String(option?.name ?? '').trim();
+  return propio || `Opción ${index + 1}`;
+};
 
 /**
  * Un alimento dentro de una opción de comida.
@@ -244,6 +806,10 @@ export const moveItem = (list, fromIndex, toIndex) => {
  */
 export const cloneOption = (option) => ({
   id: newId('opt'),
+  /* El nombre viaja con la copia. Duplicar «Con avena» para cambiarle una cosa
+     tiene que dar otra «Con avena» —y renombrarla es un gesto—, no una «Opción
+     2» sin apellido. Sin nombre no se escribe la clave: ver `optionName`. */
+  ...(String(option?.name ?? '').trim() ? { name: option.name } : {}),
   foods: (option?.foods || []).map((food) => ({ ...food, id: newId('food') })),
 });
 
@@ -314,17 +880,21 @@ export const gramsFromUnits = (entry, units) => {
 };
 
 /**
- * «2 huevos», «1 rebanada», «1,5 cucharadas».
+ * «2 huevos», «1 rebanada», «1,5 cucharadas», «3 unidades».
  *
- * El plural se hace añadiendo una «s» y solo funciona en castellano, que es el
- * único idioma de la aplicación. La alternativa —guardar singular y plural de
- * cada etiqueta— es el doble de campos para arreglar «lata»/«latas», y una
- * etiqueta que acabe en consonante («filet») la escribe el entrenador y la ve él.
+ * El plural se hacía añadiendo una «s», con este argumento: «una etiqueta que
+ * acabe en consonante la escribe el entrenador y la ve él». Era falso, y lo
+ * desmiente el catálogo de la casa: DIECISÉIS de sus alimentos tienen «unidad»
+ * por unidad, así que la aplicación decía «3 unidads» a todo el mundo —al
+ * entrenador y a su cliente— y «2 dátils» al que desayunara dátiles.
+ *
+ * Las reglas del castellano están en `pluralEs` (`lib/texto.js`), que es donde
+ * viven las cosas del idioma y no de la nutrición.
  */
 export const unitsLabel = (entry) => {
   const units = foodUnits(entry);
   if (units === null) return null;
-  const nombre = units === 1 ? entry.unitLabel : `${entry.unitLabel}s`;
+  const nombre = units === 1 ? entry.unitLabel : pluralEs(entry.unitLabel);
   return `${String(units).replace('.', ',')} ${nombre}`;
 };
 
@@ -441,15 +1011,12 @@ export const MACROS = [
 
 export const macroColor = (key) => MACROS.find((m) => m.key === key)?.color || 'var(--data-slate)';
 
-/** Nº de comidas configuradas, contando las dos variantes si están activas. */
+/** Nº de comidas configuradas, sumando todos los días del plan. */
 export const mealsConfigured = (nutrition) =>
-  nutrition?.hasDayVariants
-    ? (nutrition.closedMealsTraining?.length || 0) + (nutrition.closedMealsRest?.length || 0)
-    : nutrition?.closedMeals?.length || 0;
+  planDays(nutrition).reduce((total, dia) => total + (dia.meals?.length || 0), 0);
 
-/** Lista de comidas activa según la variante seleccionada. */
-export const mealsForVariant = (nutrition, variant) =>
-  nutrition?.[VARIANT_KEY[variant] || VARIANT_KEY.default] || [];
+/** Lista de comidas de un día. */
+export const mealsForVariant = (nutrition, dayId) => dayById(nutrition, dayId)?.meals || [];
 
 /**
  * VOLVER A UNA SOLA DIETA QUEDÁNDOSE CON UNA DE LAS DOS.
@@ -484,22 +1051,19 @@ export const mealsForVariant = (nutrition, variant) =>
  */
 export const singleDietFrom = (nutrition, variant) => {
   const base = nutrition || emptyNutrition();
-  const menu = mealsForVariant(base, variant);
-  const objetivo = variant === 'rest' ? targetsFor(base, 'rest') : null;
+  const dia = dayById(base, variant);
 
   return {
     ...base,
-    ...(objetivo
-      ? {
-          targetKcals: objetivo.targetKcals,
-          proteinGrams: objetivo.proteinGrams,
-          carbsGrams: objetivo.carbsGrams,
-          fatsGrams: objetivo.fatsGrams,
-        }
-      : {}),
+    /* El objetivo del día elegido SUBE a las columnas principales: son las que
+       lee un plan de un solo día, y quedarse con el de descanso sin subirlo
+       dejaba las kcal del de entreno con el menú del otro. */
+    ...soloTargets(dia?.targets),
     hasDayVariants: false,
     restTargets: null,
-    closedMeals: cloneMeals(menu),
+    days: [],
+    week: {},
+    closedMeals: cloneMeals(dia?.meals || []),
     closedMealsTraining: [],
     closedMealsRest: [],
   };
@@ -555,7 +1119,7 @@ export const singleDietFrom = (nutrition, variant) => {
  * UNA dieta. «Se usa en 14 dietas» responde a «cuánta gente come esto», que es
  * la pregunta; «se usa 38 veces» no responde a nada.
  *
- * Mira las tres variantes (la única, la de entreno y la de descanso): un
+ * Mira TODOS los días del plan: un
  * alimento que solo aparece los días de descanso se usa igual.
  *
  * ══ Y devuelve QUIÉNES, no cuántos ═════════════════════════════════════════
@@ -583,8 +1147,19 @@ export const foodClientsByName = (nutritionByClient = {}) => {
        dietas. Se acumula al terminar cada uno. */
     const enEstaDieta = new Set();
 
-    for (const clave of Object.values(VARIANT_KEY)) {
-      for (const meal of plan[clave] || []) {
+    /* Los días del plan Y las columnas crudas, por lo mismo que `isEmptyDiet`:
+       un alimento que solo está en un menú de variante apagado sigue estando en
+       la dieta de esa persona el día que se vuelva a encender. Repetir no cuesta
+       nada aquí, porque lo que se acumula es un conjunto de nombres. */
+    const menus = [
+      ...planDays(plan).map((d) => d.meals || []),
+      plan.closedMeals || [],
+      plan.closedMealsTraining || [],
+      plan.closedMealsRest || [],
+    ];
+
+    for (const menu of menus) {
+      for (const meal of menu) {
         for (const option of meal?.options || []) {
           for (const food of option?.foods || []) {
             const nombre = norm(String(food?.name || '').trim());
@@ -683,6 +1258,60 @@ export const notesToStorage = (notes) =>
 
 const TARGET_KEYS = ['kcals', 'protein', 'carbs', 'fats'];
 
+/* ══════════════════════════════════════════════════════════════════════════
+   EL SEMÁFORO, Y VIVE AQUÍ
+   ══════════════════════════════════════════════════════════════════════════
+
+   ── Lo que fallaba: el margen era RELATIVO y nada más ──────────────────────
+   Cuadrar contra un objetivo se juzgaba con el 5 % de lo pautado, así que 620
+   kcal se medían con ±31 y 4 g de grasa con ±0,2. Una comida con 4 g de grasa
+   pautados NO podía estar en verde nunca. Medido en un plan que el propio
+   entrenador acababa de cuadrar: 17 de 20 celdas marcadas en ámbar o rojo. Eso
+   no es señalar, es reñir — y la ley de la casa dice que aquí no se riñe.
+
+   Con suelo —`máx(5 %, 3 g)` y `máx(5 %, 25 kcal)`— esas 17 celdas bajan a 6, y
+   las 6 son desvíos de verdad (23 g de grasa donde se pidieron 9).
+
+   ── Y estaba escrito CUATRO veces ─────────────────────────────────────────
+   `estadoDe` en `MealCard`, otro `estadoDe` idéntico en `PlanDia`, `tono` en
+   `DiaPopup` y `estadoMacro` en `macros.jsx`, más el 5 % suelto de `optionGaps`
+   y el de `DiaResumen` (que ya no existe: su lectura vive en `ObjetivoDelDia`). Arreglar el margen en una sola dejaba media pantalla
+   riñendo con la otra mitad, así que el suelo entra por aquí y todas beben de
+   esta función. Cualquier pieza que juzgue una cifra contra su objetivo llama a
+   `estadoDe`; ninguna vuelve a escribir un 0,05.                             */
+
+/** El suelo del margen, por campo. En gramos y en kilocalorías. */
+export const SUELO_MARGEN = { kcals: 25, protein: 3, carbs: 3, fats: 3 };
+
+/** El margen dentro del cual una cifra cuadra: el 5 %, pero nunca menos que el suelo. */
+export const margenDe = (objetivo, campo = 'kcals') =>
+  Math.max(Math.abs(toNum0(objetivo)) * 0.05, SUELO_MARGEN[campo] ?? SUELO_MARGEN.protein);
+
+/**
+ * El veredicto sobre una DIFERENCIA ya calculada: `'ok' | 'over' | 'under'`, o
+ * `'none'` cuando no hay objetivo contra el que juzgar —que no es lo mismo que
+ * cuadrar—.
+ */
+export const estadoDeDiff = (diff, objetivo, campo = 'kcals') => {
+  const meta = toNum0(objetivo);
+  if (!meta) return 'none';
+  const margen = margenDe(meta, campo);
+  return diff > margen ? 'over' : diff < -margen ? 'under' : 'ok';
+};
+
+/** Lo mismo, con lo real y lo pautado. */
+export const estadoDe = (real, objetivo, campo = 'kcals') =>
+  estadoDeDiff(toNum0(real) - toNum0(objetivo), objetivo, campo);
+
+/** `' is-ok'`, `' is-over'`, `' is-under'` o cadena vacía, para pegar a una clase. */
+export const claseDe = (real, objetivo, campo = 'kcals') => {
+  const estado = estadoDe(real, objetivo, campo);
+  return estado === 'none' ? '' : ` is-${estado}`;
+};
+
+/** ¿Cuadra? Sin objetivo no cuadra ni descuadra: no hay pregunta. */
+export const cuadra = (real, objetivo, campo = 'kcals') => estadoDe(real, objetivo, campo) === 'ok';
+
 /**
  * El objetivo de una comida, en números. `null` si no se ha puesto nada.
  *
@@ -747,6 +1376,60 @@ export const mealTargetsTotal = (meals, dayTarget) => {
   };
 };
 
+/* ══════════════════════════════════════════════════════════════════════════
+   «CUADRA» TIENE QUE DECIR DE QUÉ
+   ══════════════════════════════════════════════════════════════════════════
+
+   Medido en la pantalla: la fila de mando decía «el reparto cuadra» mirando
+   SOLO las kilocalorías, y en esa misma pantalla la proteína repartida eran
+   204 g contra un objetivo de 156. Las dos cosas eran ciertas y la palabra
+   «cuadra» se estaba gastando en la mitad de la pregunta.
+
+   Un reparto cuadra cuando cuadran los CUATRO números. Y cuando no, dice
+   cuál — que es lo que convierte un veredicto en una lectura.                */
+
+const NOMBRE_CAMPO = { kcals: 'kcal', protein: 'P', carbs: 'C', fats: 'G' };
+const CAMPO_DEL_PLAN = {
+  kcals: 'targetKcals',
+  protein: 'proteinGrams',
+  carbs: 'carbsGrams',
+  fats: 'fatsGrams',
+};
+
+/** Lo repartido entre las comidas frente al objetivo del día, campo a campo. */
+export const repartoDelDia = (meals, targets) => {
+  const total = mealTargetsTotal(meals, targets?.targetKcals);
+  const estados = {};
+  const fuera = [];
+
+  for (const key of TARGET_KEYS) {
+    estados[key] = estadoDe(total[key], targets?.[CAMPO_DEL_PLAN[key]], key);
+    if (estados[key] === 'over' || estados[key] === 'under') fuera.push(key);
+  }
+
+  return { ...total, estados, fuera, cuadra: total.meals > 0 && fuera.length === 0 };
+};
+
+/**
+ * El veredicto del reparto, dicho. `null` cuando no hay nada que decir —sin
+ * comidas repartidas o sin objetivo, callar es la respuesta correcta—.
+ */
+export const vozDelReparto = (reparto) => {
+  if (!reparto || reparto.meals === 0) return null;
+
+  const macros = reparto.fuera.filter((key) => key !== 'kcals');
+  const cola = macros.length > 0 ? `no cuadra en ${macros.map((k) => NOMBRE_CAMPO[k]).join(' ni ')}` : '';
+
+  if (reparto.estados.kcals === 'none') return cola || null;
+  if (reparto.estados.kcals === 'ok') return cola ? `cuadra en kcal, ${cola}` : 'el reparto cuadra';
+
+  const kcal =
+    reparto.left > 0
+      ? `quedan ${reparto.left} kcal por repartir`
+      : `el reparto se pasa ${Math.abs(reparto.left)} kcal`;
+  return cola ? `${kcal} · ${cola}` : kcal;
+};
+
 /**
  * Los hidratos que faltan para cuadrar una comida.
  *
@@ -803,17 +1486,10 @@ export const optionGaps = (meal) => {
       target,
       actual,
       diff,
-      // Margen del 5 %: cuadrar al kilocaloría exacta
-      // con alimentos reales no es posible, y un aviso que nunca se apaga se
-      // deja de mirar.
-      tone:
-        target.kcals === 0
-          ? 'none'
-          : Math.abs(diff.kcals) <= target.kcals * 0.05
-            ? 'ok'
-            : diff.kcals > 0
-              ? 'over'
-              : 'under',
+      /* El mismo margen que el resto de la pantalla, con su suelo: cuadrar a la
+         kilocaloría exacta con alimentos reales no es posible, y un aviso que
+         nunca se apaga se deja de mirar. Ver `estadoDe`. */
+      tone: estadoDeDiff(diff.kcals, target.kcals, 'kcals'),
     };
   });
 };
@@ -833,7 +1509,9 @@ export const optionGaps = (meal) => {
  *   · LA PROTEÍNA NO SE TOCA. Un alimento cuya energía es proteína en más de
  *     la mitad (pollo, claras, pescado blanco…) es una fuente de proteína, y
  *     en un ajuste calórico la proteína se mantiene: se escalan hidratos y
- *     grasas, que es como se ajusta una dieta de verdad.
+ *     grasas, que es como se ajusta una dieta de verdad. Ajustando POR HIDRATOS
+ *     (`fromCarbs`/`toCarbs`) solo se mueve la fuente de hidratos y las grasas
+ *     también se quedan — ver `MEDIDAS`.
  *   · LO QUE SE CUENTA POR UNIDADES NO SE TOCA. «1 plátano» no puede volverse
  *     0,8 plátanos; si el entrenador quiere quitarlo, lo quita él.
  *   · CADA OPCIÓN A SU PROPORCIÓN. Todas las alternativas de una comida bajan
@@ -851,29 +1529,61 @@ export const optionGaps = (meal) => {
  * @returns `{ meals, cambios, sinTocar, ratio }`, o `null` si no hay nada que
  *   reescalar (sin objetivo previo, sin cambio, o sin ningún gramo que mover).
  */
-export const rescaleMeals = (meals = [], { fromKcals, toKcals } = {}) => {
-  const from = toNum0(fromKcals);
-  const to = toNum0(toKcals);
+/**
+ * LAS DOS MEDIDAS CON LAS QUE SE REESCALA, y quién no se mueve en cada una.
+ *
+ * ── Por qué hay una segunda ────────────────────────────────────────────────
+ * Con un solo día, ajustar es «de 3.100 a 2.900 kcal» y se recorta de todo lo
+ * que no es proteína. Con varios días la operación real es otra: duplicas
+ * «Alto» y le quitas cien gramos de HIDRATOS, con la proteína y las grasas
+ * clavadas — que es lo que hace que los dos días sigan siendo la misma dieta.
+ * Sobre kcal, ese ajuste tocaría el aceite y el pescado, que es justo lo que
+ * un ciclado no quiere mover.
+ */
+const MEDIDAS = {
+  kcals: {
+    unidad: 'kcal',
+    valor: (m) => m.kcal,
+    /* Quieta: la fuente de proteína —más de la mitad de su energía— y lo que se
+       cuenta por unidades. */
+    quieta: (m) => m.kcal > 0 && (m.protein * 4) / m.kcal >= 0.5,
+    sinNada: 'no tiene hidratos ni grasas que mover',
+  },
+  carbs: {
+    unidad: 'g de hidratos',
+    valor: (m) => m.carbs,
+    /* Aquí se mueve SOLO la fuente de hidratos: lo demás se queda, incluidas
+       las grasas, que en el reescalado por kcal sí bajaban. */
+    quieta: (m) => !(m.kcal > 0 && (m.carbs * 4) / m.kcal >= 0.5),
+    sinNada: 'no tiene ninguna fuente de hidratos que mover',
+  },
+};
+
+export const rescaleMeals = (meals = [], { fromKcals, toKcals, fromCarbs, toCarbs } = {}) => {
+  const porHidratos = fromCarbs !== undefined || toCarbs !== undefined;
+  const medida = porHidratos ? MEDIDAS.carbs : MEDIDAS.kcals;
+  const from = toNum0(porHidratos ? fromCarbs : fromKcals);
+  const to = toNum0(porHidratos ? toCarbs : toKcals);
   if (!from || !to || from === to || meals.length === 0) return null;
   const ratio = to / from;
 
   const cambios = [];
   const sinTocar = [];
 
-  /* Lo fijo: la fuente de proteína y lo contado por unidades. */
-  const fija = (f) => {
-    if (f.showAs === 'units') return true;
-    const m = foodMacros(f);
-    return m.kcal > 0 && (m.protein * 4) / m.kcal >= 0.5;
-  };
+  const fija = (f) => f.showAs === 'units' || medida.quieta(foodMacros(f));
 
   const nuevas = meals.map((meal) => ({
     ...meal,
     options: (meal.options || []).map((option, optIndex) => {
-      const total = optionMacros(option).kcal;
-      if (total <= 0) return option;
+      const total = medida.valor(optionMacros(option));
+      if (total <= 0) {
+        if ((option.foods || []).length > 0) sinTocar.push({ meal: meal.name, option: optIndex + 1 });
+        return option;
+      }
 
-      const kcalFijas = (option.foods || []).filter(fija).reduce((n, f) => n + foodMacros(f).kcal, 0);
+      const kcalFijas = (option.foods || [])
+        .filter(fija)
+        .reduce((n, f) => n + medida.valor(foodMacros(f)), 0);
       const kcalVariables = total - kcalFijas;
       /* El factor de lo variable: lo que tiene que moverse para que la opción
          entera quede en su proporción, con lo fijo quieto. */
@@ -898,5 +1608,5 @@ export const rescaleMeals = (meals = [], { fromKcals, toKcals } = {}) => {
   }));
 
   if (cambios.length === 0) return null;
-  return { meals: nuevas, ratio, cambios, sinTocar };
+  return { meals: nuevas, ratio, cambios, sinTocar, medida: porHidratos ? 'carbs' : 'kcals', unidad: medida.unidad, sinNada: medida.sinNada };
 };

@@ -216,6 +216,35 @@ de `billing-checkout` es más estricta que la de la pasarela —exige sesión v�
 > entrenador y es de solo lectura. Va en los secretos de la función
 > (`STRIPE_SECRET_KEY`), nunca en la base de datos ni en el navegador.
 
+### El latido, que es lo único que corre sin que nadie abra nada
+
+Las automatizaciones de disparador **«Cuando lleve tiempo sin…»** (motor 3,
+migración `0118_el_latido.sql`) las reparte el cron de las 07:00 que ya existía
+para el bot de la radiografía. Sin estos dos secretos **no se reparten**, y el
+único sitio donde se ve es el registro del worker (`npx wrangler tail`):
+
+```bash
+npx supabase secrets set LATIDO_CRON_SECRET="$(openssl rand -hex 24)"
+npx supabase functions deploy latido
+npx wrangler secret put LATIDO_CRON_SECRET     # el MISMO valor
+```
+
+Secreto propio y no el de la radiografía, a propósito: el empujón del bot manda
+un mensaje a un chat y el latido escribe en la lista de pendientes de los
+clientes de todos los entrenadores. Dos capacidades con ese salto de alcance
+compartiendo credencial significa que filtrar la pequeña regala la grande.
+
+`correr_el_latido()` está revocada para `public`, `anon` y `authenticated`, y
+concedida **solo a `service_role`**: no la puede llamar ningún navegador. El
+`GRANT` explícito no es decorativo —quitárselo a `public` se lo quita también al
+rol de servicio— y sin él el latido contesta `42501` todas las mañanas.
+
+Comprobarlo el primer día:
+
+```bash
+npx wrangler tail        # a las 07:00 UTC: «cron latido 200 {"ok":true,…}»
+```
+
 ---
 
 ## 4. El hosting: Cloudflare Pages

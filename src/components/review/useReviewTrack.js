@@ -99,8 +99,8 @@ export const useReviewTrack = (revisiones = []) => {
      aún no tienen revisión, y la misma que usa la barra de decisión para el
      diff. Dos formas de leer el plan acabarían discrepando. */
   const planDeHoy = useMemo(
-    () => planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId] }),
-    [nutrition, workoutData, clientId]
+    () => planSnapshot({ nutrition: nutrition[clientId], program: workoutData[clientId], client: activeClient }),
+    [nutrition, workoutData, clientId, activeClient]
   );
 
   const track = useMemo(

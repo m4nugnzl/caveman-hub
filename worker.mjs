@@ -57,7 +57,17 @@ const ARCHIVO = /\.(css|js|mjs|map|json|webmanifest|woff2?|ttf|otf|png|jpe?g|gif
 
 export default {
   /**
-   * El reloj del bot de la radiografía.
+   * El reloj: el bot de la radiografía y el latido.
+   *
+   * ══ Dos llamadas, un solo cron ═════════════════════════════════════════════
+   *
+   * A la misma hora y sin relación entre ellas. El empujón del bot cuenta cómo
+   * está la plataforma; el latido mira quién de los clientes lleva demasiado
+   * tiempo callado y reparte lo que su protocolo diga (motor 3, migración 0118).
+   *
+   * Van en paralelo y cada una con su `catch`: son independientes de verdad, y
+   * encadenarlas haría que un fallo del bot dejara a los clientes sin lo suyo.
+   * Cada una con SU secreto, por lo que dice la cabecera de `functions/latido`.
    *
    * ══ Por qué el cron está AQUÍ y no en la base ══════════════════════════════
    *
@@ -83,30 +93,44 @@ export default {
    * decidiera algo sería un cuarto sitio donde se contesta «qué va mal».
    */
   async scheduled(_evento, env, ctx) {
-    const { SUPABASE_URL, RADIOGRAFIA_CRON_SECRET } = env;
+    const { SUPABASE_URL, RADIOGRAFIA_CRON_SECRET, LATIDO_CRON_SECRET } = env;
 
-    /* Sin configurar, no pasa nada y se dice. Un cron que falla en silencio es
-       un aviso que deja de llegar sin que nadie se entere. */
-    if (!SUPABASE_URL || !RADIOGRAFIA_CRON_SECRET) {
-      console.error('cron radiografía: faltan SUPABASE_URL o RADIOGRAFIA_CRON_SECRET');
+    if (!SUPABASE_URL) {
+      console.error('cron: falta SUPABASE_URL');
       return;
     }
 
-    /* `waitUntil` porque el informe tarda varios segundos y el manejador
-       programado puede darse por terminado antes de que la petición vuelva. */
-    ctx.waitUntil(
-      fetch(`${SUPABASE_URL}/functions/v1/telegram?empujar`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${RADIOGRAFIA_CRON_SECRET}` },
-      })
-        .then(async (r) => {
-          const cuerpo = await r.text();
-          /* Se registra siempre, también el «no he hablado»: es lo que permite
-             distinguir un bot callado de un cron que no corre. */
-          console.log('cron radiografía', r.status, cuerpo.slice(0, 300));
+    /*
+      Tocar un timbre y contar lo que contesta. `waitUntil` porque el informe
+      tarda varios segundos y el manejador programado puede darse por terminado
+      antes de que la petición vuelva.
+
+      Se registra SIEMPRE, también el «no he hablado» y el «no he repartido
+      nada»: es lo único que permite distinguir un servicio callado de un cron
+      que dejó de correr.
+    */
+    const llamar = (nombre, ruta, secreto) => {
+      /* Sin configurar, no pasa nada y se dice. Un cron que falla en silencio es
+         un aviso que deja de llegar sin que nadie se entere. */
+      if (!secreto) {
+        console.error(`cron ${nombre}: falta su secreto`);
+        return;
+      }
+      ctx.waitUntil(
+        fetch(`${SUPABASE_URL}/functions/v1/${ruta}`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${secreto}` },
         })
-        .catch((e) => console.error('cron radiografía', e))
-    );
+          .then(async (r) => {
+            const cuerpo = await r.text();
+            console.log(`cron ${nombre}`, r.status, cuerpo.slice(0, 300));
+          })
+          .catch((e) => console.error(`cron ${nombre}`, e))
+      );
+    };
+
+    llamar('radiografía', 'telegram?empujar', RADIOGRAFIA_CRON_SECRET);
+    llamar('latido', 'latido', LATIDO_CRON_SECRET);
   },
 
   async fetch(request, env) {

@@ -100,6 +100,33 @@ export const parsePhotoPath = (path) => {
   };
 };
 
+/**
+ * Cómo se llama una foto cuando SALE de la aplicación.
+ *
+ * `manolo-perez-s03-frontal-2026-03-02.jpg`
+ *
+ * ── Por qué el nombre lleva todo eso ────────────────────────────────────────
+ * Porque una foto descargada acaba en una carpeta con otras cuarenta, y ahí no
+ * hay ni fila de mando ni pie de foto: el nombre es el único sitio donde queda
+ * escrito de quién es, de cuándo y de qué ángulo. Con la semana a dos cifras
+ * —`s03`, no `s3`— para que el ordenador las ordene como las ordenaría uno.
+ *
+ * La ruta de Storage no vale para esto: es `1757…-frontal.jpg`, una marca de
+ * tiempo pensada para no colisionar, no para leerse.
+ */
+export const photoFileName = (photo, { clientName = '', week = null } = {}) => {
+  const semana = week ?? photo.week;
+  return [
+    slug(clientName),
+    semana != null ? `s${String(semana).padStart(2, '0')}` : null,
+    slug(photo.angle) || 'foto',
+    photo.date,
+  ]
+    .filter(Boolean)
+    .join('-')
+    .concat(`.${extensionOf(photo.path || photo.url || '')}`);
+};
+
 // ── Semanas ────────────────────────────────────────────────────────────────
 
 const DAY_MS = 86400000;

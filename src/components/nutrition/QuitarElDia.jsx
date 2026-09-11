@@ -1,92 +1,76 @@
-import { useState } from 'react';
-import { Dumbbell, Moon } from 'lucide-react';
-
-import { mealsForVariant, targetsFor } from '@/domain/nutrition';
+import { mealsForVariant, planDays, targetsFor } from '@/domain/nutrition';
 import { localeNumber } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
-import { Notice, OptionCard } from '@/components/ui/primitives';
+import { Notice } from '@/components/ui/primitives';
 
 /**
- * VOLVER A UNA SOLA DIETA: con cuál se queda.
+ * QUITAR UN DÍA DE LA DIETA: qué se lleva por delante.
  *
- * ══ Por qué hay que preguntar ══════════════════════════════════════════════
+ * ══ Qué era antes, y por qué ya no vale ════════════════════════════════════
  *
- * Apagar «dos dietas» era bajar una bandera y ya. Pero la dieta única y las dos
- * de variante viven en campos distintos, así que al apagarla la pantalla volvía
- * a enseñar lo de ANTES de separarlas —normalmente nada— y las dos dietas
- * montadas se quedaban guardadas sin ninguna puerta por la que volver a verlas.
- * El entrenador se encontraba la pantalla en blanco y volvía a montar el menú
- * entero de cero.
+ * Era `UnaSolaDieta`: un diálogo que solo podía existir con exactamente dos
+ * días —«¿con cuál de las dos te quedas?»— y que se abría desde un interruptor
+ * escondido en los ajustes del plan. Con N días la pregunta ya no es cuál se
+ * queda: es cuál se va, y eso ya lo ha dicho quien pulsó su «···».
  *
- * No es una confirmación de «¿seguro?»: es la pregunta que faltaba. Juntar dos
- * dietas en una obliga a decir cuál es esa una, y no hay forma de acertarla
- * adivinando —el día de entreno tiene más calorías, pero el de descanso puede
- * ser el que se acaba de ajustar—.
+ * ══ Por qué sigue habiendo una ventana y no una confirmación seca ══════════
  *
- * ── Se enseña lo que hay en cada una ───────────────────────────────────────
- * Comidas y kcal de cada variante, antes de elegir. Elegir a ciegas entre dos
- * cosas que se llaman «entreno» y «descanso» es lo mismo que no elegir.
+ * Porque quitar un día se lleva SU MENÚ, y eso son seis comidas montadas a
+ * mano. Un «¿seguro?» no dice qué hay dentro de lo que se va, y ese es el único
+ * dato con el que se puede decidir. Aquí se enseña: cuántas comidas y qué
+ * objetivo tenía.
+ *
+ * ── El «Deshacer» sí existe ───────────────────────────────────────────────
+ * Lo pone quien llama (`NutritionModule`), capturando el plan entero antes de
+ * escribir. Esta ventana avisa igualmente: un aviso pasajero se pierde si te
+ * levantas de la silla, y el menú que se va no.
  */
-export const UnaSolaDieta = ({ open, plan, cerrado, onClose, onConfirm }) => {
-  const [quedarse, setQuedarse] = useState('training');
+export const QuitarElDia = ({ open, plan, dia, cerrado, onClose, onConfirm }) => {
+  const comidas = mealsForVariant(plan, dia?.id).length;
+  const kcal = targetsFor(plan, dia?.id).targetKcals;
+  const quedan = planDays(plan).filter((d) => d.id !== dia?.id);
 
-  const resumen = (id) => {
-    const comidas = mealsForVariant(plan, id).length;
-    const kcal = targetsFor(plan, id).targetKcals;
-    return [
-      cerrado ? `${comidas} ${comidas === 1 ? 'comida' : 'comidas'}` : null,
-      kcal ? `${localeNumber(Math.round(kcal))} kcal` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
-  };
-
-  const descartada = quedarse === 'rest' ? 'training' : 'rest';
-  const cual = (id) => (id === 'rest' ? 'de descanso' : 'de entreno');
+  const dentro = [
+    cerrado ? `${comidas} ${comidas === 1 ? 'comida' : 'comidas'}` : null,
+    kcal ? `${localeNumber(Math.round(kcal))} kcal` : null,
+  ].filter(Boolean);
 
   return (
     <Modal
       open={open}
-      title="Volver a una sola dieta"
+      title={`Quitar «${dia?.name || 'este día'}»`}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className="btn btn-primary" onClick={() => onConfirm(quedarse)}>
-            Dejar solo esta
+          <button type="button" className="btn btn-danger" onClick={onConfirm}>
+            Quitar el día
           </button>
         </>
       }
     >
       <div className="col gap-4">
         <p className="t-sm t-secondary">
-          Este cliente tiene dos dietas. Al juntarlas se queda una: elige cuál sigue siendo su dieta.
+          {dentro.length > 0
+            ? `Este día lleva ${dentro.join(' y ')}. Se va con su menú y con su objetivo.`
+            : 'Este día está vacío: no se lleva nada por delante.'}
         </p>
 
-        {/* Las dos con lo que tienen dentro, a la vez: si hay que cambiar de
-            opción para saber qué lleva cada una, no se elige, se adivina. */}
-        <div className="opt-group" role="group" aria-label="Con cuál se queda">
-          <OptionCard
-            icon={Dumbbell}
-            label="Días de entreno"
-            hint={resumen('training') || 'Sin nada escrito.'}
-            checked={quedarse === 'training'}
-            onChange={() => setQuedarse('training')}
-          />
-          <OptionCard
-            icon={Moon}
-            label="Días de descanso"
-            hint={resumen('rest') || 'Sin nada escrito.'}
-            checked={quedarse === 'rest'}
-            onChange={() => setQuedarse('rest')}
-          />
-        </div>
+        {/* Con qué se queda esta persona. Es la otra mitad de la decisión: quitar
+            el día que era su dieta entera no es lo mismo que quitar el tercero de
+            un ciclado, y la lista lo dice sin tener que explicarlo. */}
+        <p className="t-sm t-secondary">
+          Se queda con{' '}
+          {quedan.length === 1
+            ? `${quedan[0].name.toLowerCase()}, que pasa a ser su dieta.`
+            : `${quedan.length} días: ${quedan.map((d) => d.name.toLowerCase()).join(', ')}.`}
+        </p>
 
         <Notice tone="warn">
-          Se queda la dieta {cual(quedarse)}, con su menú y su objetivo. La {cual(descartada)} se
-          descarta; si vuelves a separarlas más adelante, se parte de la que te quedes.
+          Si esta persona tenía la semana repartida, los días que apuntaban a este
+          se quedan sin asignar. Puedes deshacerlo desde el aviso, justo después.
         </Notice>
       </div>
     </Modal>

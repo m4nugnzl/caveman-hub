@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
+import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { norm } from '@/lib/texto';
 
@@ -49,6 +50,7 @@ export const Autocomplete = ({
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const wrapRef = useRef(null);
+  const listaRef = useRef(null);
 
   useClickOutside(wrapRef, () => setOpen(false), open);
 
@@ -69,6 +71,12 @@ export const Autocomplete = ({
   const canCreate = Boolean(onCreate) && query.length > 0 && !exactExists;
   const rowCount = matches.length + (canCreate ? 1 : 0);
   const showList = open && rowCount > 0;
+  /* La lista sube al top layer: este campo vive dentro de tablas, carriles y
+     capas con `overflow`, y ahí un absoluto sale cortado (`useCapaFlotante`). */
+  const capa = useCapaFlotante(showList, wrapRef, listaRef, {
+    alineado: 'izquierda',
+    igualarAncho: true,
+  });
 
   const pick = (item) => {
     onPick(item);
@@ -115,7 +123,14 @@ export const Autocomplete = ({
       />
 
       {showList && (
-        <div className="popover" style={{ top: 'calc(100% + 4px)', left: 0, right: 0 }} role="listbox">
+        <div
+          ref={listaRef}
+          className="popover"
+          /* La lista mide lo que el campo: es su continuación, no un menú aparte. */
+          style={capa.estilo || { top: 'calc(100% + 4px)', left: 0, right: 0 }}
+          {...capa.atributos}
+          role="listbox"
+        >
           {matches.map((item, i) => (
             <button
               key={item.id ?? getLabel(item)}
@@ -127,8 +142,22 @@ export const Autocomplete = ({
               onMouseEnter={() => setCursor(i)}
               onClick={() => pick(item)}
             >
-              <span className="grow">{getLabel(item)}</span>
-              {getMeta && <span className="t-xs t-secondary">{getMeta(item)}</span>}
+              {/*
+                ── Un renglón por sugerencia, y el dato al canto ──────────────
+                Eran `.grow` y un `t-xs` sueltos, y en un campo estrecho —el
+                alta de un ejercicio— eso se veía literalmente ROTO: «Press
+                banca agarre cerrado con mancuernas» partía en tres renglones y
+                «Pectoral · Barra» se pintaba ENCIMA, porque un elemento flex no
+                baja de su ancho de contenido salvo que se le diga.
+
+                `.menu-sub` es la pieza que esta casa ya tiene para «el dato que
+                acompaña al nombre, al canto derecho y en voz baja»; el nombre,
+                a un renglón con puntos suspensivos. Un menú de sugerencias se
+                OJEA, y para ojear hace falta una columna de nombres, no un
+                párrafo por fila.
+              */}
+              <span className="menu-item-nombre">{getLabel(item)}</span>
+              {getMeta && <span className="menu-sub">{getMeta(item)}</span>}
             </button>
           ))}
 

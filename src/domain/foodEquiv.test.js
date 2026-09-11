@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { norm } from '@/lib/texto';
-import { equivalencesFor, foodCategory, SWAP_MACRO } from './foodEquiv';
+import { candidatosDeGrupo, equivalencesFor, foodCategory, SWAP_MACRO } from './foodEquiv';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -171,5 +171,233 @@ describe('equivalencesFor', () => {
     expect(SWAP_MACRO.Fruta).toBe('carbs');
     expect(SWAP_MACRO.Grasas).toBe('fats');
     expect(SWAP_MACRO.Otros).toBeUndefined();
+  });
+});
+
+/**
+ * ══ Y con un grupo TUYO puesto ═════════════════════════════════════════════
+ *
+ * «El grupo manda y el cálculo sigue siendo el suelo»: lo que cambia es QUIÉN
+ * sale en la lista, nunca cómo se calcula la ración. Lo que estas pruebas
+ * fijan es dónde para cada cosa:
+ *
+ *   · el filtro de cordura por kcal se apaga —lo pusiste tú—;
+ *   · la familia del catálogo deja de filtrar, así que un grupo puede cruzar
+ *     familias y rescatar lo que vive en «Otros»;
+ *   · los dos suelos de aritmética siguen en pie, porque no son criterio.
+ */
+describe('equivalencesFor con un grupo tuyo', () => {
+  const misFrutas = { id: 'g1', name: 'Mis frutas', macro: 'carbs', foods: ['Plátano', 'Manzana'] };
+
+  it('la lista son los que marcaste y ninguno más', () => {
+    const eq = equivalencesFor(platano, catalogo, [], { grupo: misFrutas });
+
+    expect(eq.items.map((i) => i.food.name)).toEqual(['Manzana']);
+    expect(eq.grupo).toEqual({ id: 'g1', name: 'Mis frutas' });
+    /* La familia se queda fuera del resultado: con grupo no ha pintado nada. */
+    expect(eq.category).toBeNull();
+    // Y la ración es la misma de siempre: 30 g de hidratos / 12 por 100 = 250 g.
+    expect(eq.items[0].grams).toBe(250);
+  });
+
+  it('si tú dices que el aguacate vale por el plátano, sale — con su diferencia', () => {
+    /* Sin grupo lo tapa el filtro de cordura: mismos hidratos, cuatro veces las
+       kcal. Con grupo sale, y lo que se paga va escrito al lado. */
+    const conAguacate = { ...misFrutas, foods: ['Plátano', 'Aguacate'] };
+    const eq = equivalencesFor(platano, catalogo, [], { grupo: conAguacate });
+
+    const aguacate = eq.items.find((i) => i.food.name === 'Aguacate');
+    expect(aguacate).toBeTruthy();
+    expect(aguacate.kcalDiff).toBeGreaterThan(300);
+    expect(equivalencesFor(platano, catalogo).items.find((i) => i.food.name === 'Aguacate')).toBeUndefined();
+  });
+
+  it('cruza familias, y rescata lo que vive en «Otros»', () => {
+    const pechuga = { name: 'Pechuga de pollo', grams: 150, proteinPer100: 23, carbsPer100: 0, fatsPer100: 2.6 };
+    const magra = { id: 'g2', name: 'Mi proteína magra', macro: 'protein', foods: ['Pechuga de pollo', 'Proteína de suero'] };
+
+    // Sin grupo, el suero está en «Otros» y no participa de nada.
+    expect(equivalencesFor(pechuga, catalogo).items.map((i) => i.food.name)).toEqual(['Ternera magra']);
+
+    const eq = equivalencesFor(pechuga, catalogo, [], { grupo: magra });
+    expect(eq.macro).toBe('protein');
+    expect(eq.items.map((i) => i.food.name)).toEqual(['Proteína de suero']);
+  });
+
+  it('un miembro que ya no está en ningún sitio se cae, no se inventa', () => {
+    const conFantasma = { ...misFrutas, foods: ['Plátano', 'Manzana', 'Papaya deshidratada'] };
+    const eq = equivalencesFor(platano, catalogo, [], { grupo: conFantasma });
+    expect(eq.items.map((i) => i.food.name)).toEqual(['Manzana']);
+  });
+
+  it('tu biblioteca sigue mandando sobre los números del catálogo', () => {
+    const biblioteca = [{ name: 'Manzana', carbsPer100: 15, proteinPer100: 0.3, fatsPer100: 0.2 }];
+    const eq = equivalencesFor(platano, catalogo, biblioteca, { grupo: misFrutas });
+    /* 30 g de hidratos / 15 por 100 son 200 g clavados, y no los 250 del
+       catálogo. Salen 205 porque la ración también cuadra las kcal: 200 g se
+       quedan a −5 kcal del plátano y 205 g, a −1,5 con 0,75 g de hidratos de
+       más. Es la misma holgura del 10 % que se gasta sin grupo. */
+    expect(eq.items[0].grams).toBe(205);
+  });
+
+  it('no levanta los suelos de aritmética: una ración de condimento sigue sin lista', () => {
+    const cacao = { name: 'Cacao puro en polvo', grams: 10, proteinPer100: 20, carbsPer100: 12, fatsPer100: 11 };
+    const dulces = { id: 'g3', name: 'Mis dulces', macro: 'carbs', foods: ['Cacao puro en polvo', 'Miel'] };
+    // 1,2 g de hidratos: lo que iguale eso es una miga de cualquier cosa.
+    expect(equivalencesFor(cacao, catalogo, [], { grupo: dulces })).toBeNull();
+  });
+});
+
+describe('candidatosDeGrupo', () => {
+  it('la lista de marcar es más ancha: la familia entera y sin filtro de cordura', () => {
+    const todos = candidatosDeGrupo(platano, catalogo).items.map((i) => i.food.name);
+    expect(todos).toContain('Aguacate');
+    expect(todos).toContain('Manzana');
+    expect(todos).toContain('Fresas');
+  });
+
+  it('lo que ya está en el grupo sale aunque viva en otra familia, y sin repetirse', () => {
+    const pechuga = { name: 'Pechuga de pollo', grams: 150, proteinPer100: 23, carbsPer100: 0, fatsPer100: 2.6 };
+    const nombres = candidatosDeGrupo(pechuga, catalogo, [], {
+      incluir: ['Proteína de suero', 'Ternera magra'],
+      macro: 'protein',
+    }).items.map((i) => i.food.name);
+
+    expect(nombres).toContain('Proteína de suero');
+    expect(nombres.filter((n) => n === 'Ternera magra')).toHaveLength(1);
+  });
+});
+
+/**
+ * ══ Ni el mismo alimento ni la misma fila dos veces ════════════════════════
+ *
+ * Los dos despropósitos que se veían en pantalla, con los nombres del catálogo
+ * real: «Arroz blanco» ofrecía «Arroz blanco (crudo)» y «Arroz blanco
+ * (cocido)» —la conversión de peso al cocerlo, disfrazada de equivalencia— y
+ * «Huevo entero fresco» ofrecía otros cuatro huevos indistinguibles.
+ */
+describe('equivalencesFor: el mismo alimento no es una equivalencia', () => {
+  const despensa = [
+    { id: 'a1', name: 'Arroz blanco (crudo)', category: 'Cereales', proteinPer100: 7, carbsPer100: 78, fatsPer100: 0.6 },
+    { id: 'a2', name: 'Arroz blanco (cocido)', category: 'Cereales', proteinPer100: 2.4, carbsPer100: 28, fatsPer100: 0.2 },
+    { id: 'a3', name: 'Arroz integral (crudo)', category: 'Cereales', proteinPer100: 7.5, carbsPer100: 76, fatsPer100: 2.7 },
+    { id: 'a4', name: 'Tortita de arroz', category: 'Cereales', proteinPer100: 8, carbsPer100: 81, fatsPer100: 3 },
+    { id: 'a5', name: 'Tortitas de arroz', category: 'Cereales', proteinPer100: 8, carbsPer100: 80, fatsPer100: 3 },
+    { id: 'h1', name: 'Huevo entero', category: 'Huevos', proteinPer100: 13, carbsPer100: 1, fatsPer100: 11, unitLabel: 'huevo', unitGrams: 55 },
+    { id: 'h2', name: 'Huevo entero L', category: 'Huevos', proteinPer100: 13, carbsPer100: 1, fatsPer100: 11, unitLabel: 'huevo', unitGrams: 63 },
+    { id: 'h3', name: 'Huevos enteros frescos', category: 'Huevos', proteinPer100: 13, carbsPer100: 1, fatsPer100: 11, unitLabel: 'huevo', unitGrams: 55 },
+    { id: 'h4', name: 'Huevo L', category: 'Huevos', proteinPer100: 12.5, carbsPer100: 0.7, fatsPer100: 10, unitLabel: 'unidad', unitGrams: 60 },
+    { id: 'h5', name: 'Huevina (huevo líquido)', category: 'Huevos', proteinPer100: 12, carbsPer100: 0.8, fatsPer100: 9.5 },
+    { id: 'l1', name: 'Lentejas (cocidas)', category: 'Legumbres', proteinPer100: 9, carbsPer100: 16, fatsPer100: 0.5 },
+    { id: 'l2', name: 'Garbanzos (cocidos)', category: 'Legumbres', proteinPer100: 8, carbsPer100: 27, fatsPer100: 2.6 },
+    { id: 'l3', name: 'Garbanzos (crudos)', category: 'Legumbres', proteinPer100: 19, carbsPer100: 55, fatsPer100: 6 },
+  ];
+
+  const arroz = { name: 'Arroz blanco', grams: 200, proteinPer100: 7, carbsPer100: 78, fatsPer100: 0.6 };
+  const huevo = { name: 'Huevo entero fresco', grams: 165, proteinPer100: 12.6, carbsPer100: 0.7, fatsPer100: 9.5, unitLabel: 'huevo', unitGrams: 55 };
+
+  it('el arroz no se ofrece a sí mismo, ni crudo ni cocido', () => {
+    const nombres = equivalencesFor(arroz, despensa).items.map((i) => i.food.name);
+
+    expect(nombres).not.toContain('Arroz blanco (crudo)');
+    expect(nombres).not.toContain('Arroz blanco (cocido)');
+    // El integral sí: es otro arroz, y esa es la diferencia.
+    expect(nombres).toContain('Arroz integral (crudo)');
+  });
+
+  it('la tortita y las tortitas son una sola fila', () => {
+    const nombres = equivalencesFor(arroz, despensa).items.map((i) => i.food.name);
+    expect(nombres.filter((n) => n.startsWith('Tortita'))).toHaveLength(1);
+  });
+
+  it('los cuatro huevos del catálogo no son cuatro equivalencias', () => {
+    const nombres = equivalencesFor(huevo, despensa).items.map((i) => i.food.name);
+
+    expect(nombres).not.toContain('Huevo entero');
+    expect(nombres).not.toContain('Huevo entero L');
+    expect(nombres).not.toContain('Huevos enteros frescos');
+    expect(nombres).not.toContain('Huevo L');
+    // Lo que queda es lo que de verdad es otra cosa.
+    expect(nombres).toEqual(['Huevina (huevo líquido)']);
+  });
+
+  it('en peso cocido se ofrece lo cocido, aunque lo crudo cuadre mejor', () => {
+    const lentejas = { name: 'Lentejas (cocidas)', grams: 250, proteinPer100: 9, carbsPer100: 16, fatsPer100: 0.5 };
+    const nombres = equivalencesFor(lentejas, despensa).items.map((i) => i.food.name);
+
+    expect(nombres).toContain('Garbanzos (cocidos)');
+    expect(nombres).not.toContain('Garbanzos (crudos)');
+    expect(nombres).not.toContain('Lentejas (crudas)');
+  });
+
+  it('un grupo tuyo se enseña entero: si metiste dos parecidos, tus razones tendrás', () => {
+    const misHuevos = {
+      id: 'g9',
+      name: 'Mis huevos',
+      macro: 'protein',
+      foods: ['Huevo entero fresco', 'Huevo entero', 'Huevo entero L'],
+    };
+    const nombres = equivalencesFor(huevo, despensa, [], { grupo: misHuevos }).items.map(
+      (i) => i.food.name
+    );
+
+    expect(nombres).toEqual(['Huevo entero', 'Huevo entero L']);
+  });
+
+  it('y la lista de marcar tampoco se poda: ahí eliges tú', () => {
+    const nombres = candidatosDeGrupo(huevo, despensa).items.map((i) => i.food.name);
+
+    expect(nombres).toContain('Huevo entero L');
+    expect(nombres).toContain('Huevos enteros frescos');
+  });
+});
+
+describe('equivalencesFor: una palabra de más no es el mismo alimento', () => {
+  /*
+    El otro lado de la regla, y el que costaba filas: por el nombre no se
+    distingue «Mayonesa light» de «Mayonesa Hacendado», y por la ración sí. Lo
+    que se tapa es lo que no añade una decisión; lo que propone otra cantidad
+    es justamente el intercambio.
+  */
+  const despensa = [
+    { id: 'g1', name: 'Mayonesa', category: 'Grasas', proteinPer100: 1, carbsPer100: 1.5, fatsPer100: 75 },
+    { id: 'g2', name: 'Mayonesa light', category: 'Grasas', proteinPer100: 1, carbsPer100: 6, fatsPer100: 30 },
+    { id: 'g3', name: 'Mayonesa Hacendado', category: 'Grasas', proteinPer100: 1, carbsPer100: 1.6, fatsPer100: 74 },
+    { id: 'c1', name: 'Pasta (cruda)', category: 'Cereales', proteinPer100: 12, carbsPer100: 71, fatsPer100: 1.5 },
+    { id: 'c2', name: 'Pasta (cocida)', category: 'Cereales', proteinPer100: 5, carbsPer100: 30, fatsPer100: 0.9 },
+    { id: 'c3', name: 'Arroz blanco (cocido)', category: 'Cereales', proteinPer100: 2.4, carbsPer100: 28, fatsPer100: 0.2 },
+  ];
+
+  it('la mayonesa light es el intercambio de la mayonesa: la misma grasa en otra cantidad', () => {
+    const mayonesa = { name: 'Mayonesa', grams: 30, proteinPer100: 1, carbsPer100: 1.5, fatsPer100: 75 };
+    const nombres = equivalencesFor(mayonesa, despensa).items.map((i) => i.food.name);
+
+    expect(nombres).toContain('Mayonesa light');
+    // La marca, en cambio, propone la misma ración: es la misma fila.
+    expect(nombres).not.toContain('Mayonesa Hacendado');
+  });
+
+  it('la misma vara mide a la fuente y a los candidatos', () => {
+    /* Partiendo del aceite, las tres mayonesas son candidatas entre sí y la
+       cuenta tiene que salir igual que partiendo de la mayonesa: una sola fila
+       de mayonesa —la de siempre y la de marca son la misma— y la light aparte.
+       Si no, la lista cambiaría según de dónde se abra. */
+    const aceite = { name: 'Aceite de oliva', grams: 10, proteinPer100: 0, carbsPer100: 0, fatsPer100: 100 };
+    const catalogo = [...despensa, { id: 'g0', name: 'Aceite de oliva', category: 'Grasas', proteinPer100: 0, carbsPer100: 0, fatsPer100: 100 }];
+    const nombres = equivalencesFor(aceite, catalogo).items.map((i) => i.food.name);
+
+    expect(nombres.filter((n) => n === 'Mayonesa' || n === 'Mayonesa Hacendado')).toHaveLength(1);
+    expect(nombres).toContain('Mayonesa light');
+  });
+
+  it('en peso cocido se ofrece lo crudo de OTRO alimento, que es un cambio de verdad', () => {
+    /* Lo que no se ofrece es el mismo alimento en el otro estado —eso es la
+       conversión de peso al cocerlo—. Entre alimentos distintos, el estado no
+       descarta nada: la ración ya viene con los gramos que hay que pesar. */
+    const pasta = { name: 'Pasta (cocida)', grams: 200, proteinPer100: 5, carbsPer100: 30, fatsPer100: 0.9 };
+    const nombres = equivalencesFor(pasta, despensa).items.map((i) => i.food.name);
+
+    expect(nombres).not.toContain('Pasta (cruda)');
+    expect(nombres).toContain('Arroz blanco (cocido)');
   });
 });
