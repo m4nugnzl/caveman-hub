@@ -1175,7 +1175,7 @@ export const ClientPortfolio = () => {
                 lo hace legible como navegación; lo único que cambia es que
                 ahora ocupa el hueco que había.
 
-                La misma anatomía la monta `BandaTaller`, así que la cartera y
+                La misma anatomía la monta `ui/Cinta`, así que la cartera y
                 las cuatro listas del Taller siguen arrancando igual. La cinta
                 del CLIENTE no cambia: allí el raíl son cinco DESTINOS a los que
                 se va, no tramos de la lista que ya estás mirando. */}

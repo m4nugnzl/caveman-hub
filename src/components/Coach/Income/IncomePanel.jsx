@@ -26,7 +26,8 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { BarBandChart, MeterList } from '@/components/ui/charts';
 import { ChartCard, RangeChips } from '@/components/ui/ChartCard';
 import { Delta, MetricRow, MetricCard } from '@/components/ui/metrics';
-import { EmptyState, GroupHead, Loading, Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { Cinta } from '@/components/ui/Cinta';
+import { EmptyState, GroupHead, Loading, Notice, Panel } from '@/components/ui/primitives';
 
 /*
   ══ Por qué esta pantalla existe ═════════════════════════════════════════════
@@ -117,7 +118,7 @@ const mensajeDeCarga = (err) => {
 
 /**
  * @param enCapa Montado como capa del puesto (la ventana «Cobros» de la barra):
- *   la ventana ya trae el título, así que el `PageHead` propio se retira — dos
+ *   la ventana ya trae el título, así que la cinta propia se retira — dos
  *   «Cobros» a tres centímetros se leen como un fallo. Como ruta (`/ingresos`,
  *   marcadores y móvil) no cambia nada.
  */
@@ -293,14 +294,35 @@ export const IncomePanel = ({ enCapa = false }) => {
 
   return (
     <div className="stack cascada">
-      {!enCapa && (
-        <PageHead
-          title="Cobros"
-          sub="Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman Hub: eso está en Ajustes."
-        />
-      )}
+      {/* ── La misma cinta que Clientes y el Taller ────────────────────────
+          Cobros era una de las dos pantallas del panel que seguían con la
+          cabecera vieja: titular de 42 px en la fuente ancha, suelto sobre el
+          cuerpo. Sus vecinas de la barra —Clientes arriba, Protocolos abajo—
+          llevaban la cinta desde hace tandas, así que bajar de una a otra
+          cambiaba el tamaño del nombre y su posición. Es la misma queja que ya
+          se pagó en `/clientes` («están en distinta posición que resumen»), y
+          la respuesta es la misma pieza: `ui/Cinta`.
 
-      {error && <Notice tone="error">{error}</Notice>}
+          La frase de orientación no se pierde, baja al cuerpo: en esta
+          gramática la cinta dice DÓNDE estás y el cuerpo explica qué es —como
+          la nota de Protocolos bajo su tabla—. Y sigue haciendo falta, porque
+          separa esta pantalla de la factura del propio entrenador. */}
+      {!enCapa && <Cinta titulo="Cobros" />}
+
+      {/* El cuerpo, con el sangrado de la casa. Con cinta, la hoja pierde el
+          suyo (`chasis.css`) para que el papel llegue de canto a canto, así que
+          el aire lo devuelve el cuerpo — y arranca a plomo con el titular,
+          calle del chasis incluida. Montada como capa no hay cinta ni hoja: ahí
+          el sangrado lo pone la ventana. */}
+      <div className={enCapa ? 'stack' : 'cartera-cuerpo stack'}>
+        {!enCapa && (
+          <p className="t-sm t-secondary">
+            Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de
+            Caveman Hub: eso está en Ajustes.
+          </p>
+        )}
+
+        {error && <Notice tone="error">{error}</Notice>}
 
       {/*
         ── La tarea, cuando la pantalla aún no puede contar nada ──────────────
@@ -649,6 +671,7 @@ export const IncomePanel = ({ enCapa = false }) => {
           />
         </Panel>
       )}
+      </div>
     </div>
   );
 };

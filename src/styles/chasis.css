@@ -376,10 +376,21 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      anatomía, dos sitios. Ahora es una sola regla para las dos familias.
 
      En el móvil no: allí no hay marco que llenar y las dos son tarjetas sobre
-     el lienzo (ver `superficies.css` y `taller.css`). */
-  .shell-main:has(.cartera) > .layout,
-  .shell-main:has(.taller) > .layout,
-  .shell-main:has(.constructor) > .layout { padding: 0; }
+     el lienzo (ver `superficies.css` y `taller.css`).
+
+     ── Y ahora cuelga de LA CINTA, no de tres envoltorios ─────────────────
+     Estuvo escrita como tres selectores —`.cartera`, `.taller`,
+     `.constructor`—, o sea una lista de quién la necesita, mantenida a mano.
+     Esa lista es justo la forma de que la siguiente pantalla con cinta se
+     quede fuera, y se quedaron dos: Cobros y Agenda entraron con la cinta y
+     salieron flotando con marco de hoja alrededor, que es el mismo defecto
+     que esta regla vino a cerrar.
+
+     Lo que pide el sangrado cero no es llamarse `.cartera`: es LLEVAR CINTA.
+     Así que la condición es la cinta (`.cartera-cab`, la clase que comparten
+     las seis) y la lista desaparece. La del cliente sigue fuera a propósito:
+     es hermana de `.layout` y llega al canto ella sola. */
+  .shell-main:has(.cartera-cab) > .layout { padding: 0; }
 
   /* ── EL MARCO: el expediente también es un objeto ────────────────────────
      La barra lateral lleva su hueco de 12, su canto, su radio de 24 y su

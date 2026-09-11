@@ -2572,7 +2572,7 @@
    al lado del otro no medían lo mismo ni tenían el mismo canto. Conviven así en
    Hoy, en el asistente de revisión, en el calendario y en media docena más.
    ══════════════════════════════════════════════════════════════════════════ */
-.btn-sm.btn-secondary, .btn-sm.btn-primary { height: 30px; padding: 0 12px; font-size: var(--fs-sm); font-weight: 600; border-radius: var(--r-pill); }
+.btn-sm.btn-secondary, .btn-sm.btn-primary { height: var(--h-control); padding: 0 12px; font-size: var(--fs-sm); font-weight: 600; border-radius: var(--r-pill); }
 .cliente-cab-acciones { gap: var(--s2); }
 
 /* ── Las dos acciones de la cabecera del cliente ────────────────────────────
@@ -2607,7 +2607,10 @@
 .cliente-cab-acciones > .btn.btn-secondary:hover:not(:disabled) > svg { color: var(--text); }
 
 .menu-acciones { position: relative; }
-.menu-acciones .btn-icon { width: 30px; height: 30px; box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text-secondary); }
+/* El aro y la tinta sí son de aquí —el menú de una fila se dibuja, no se
+   adivina—; el TAMAÑO no: estuvo en 30 px, que no es ninguna talla de la casa
+   y dejaba el menú dos píxeles por debajo del lápiz de al lado. */
+.menu-acciones .btn-icon { box-shadow: inset 0 0 0 1px var(--hairline-strong); color: var(--text-secondary); }
 .menu-acciones .btn-icon:hover { background: var(--fill-subtle); color: var(--text); }
 /* ── EL MENÚ SE MIDE POR LO QUE LLEVA DENTRO ───────────────────────────────
    «Se ve recortado y feo al darle clic.» No era el acabado: era el ancho.
@@ -3466,7 +3469,7 @@
   .comida-plegar { transition: color var(--fast), background-color var(--fast); }
 }
 .comida:hover .comida-acciones, .comida:focus-within .comida-acciones { opacity: 1; }
-.comida-acciones .menu-acciones .btn-icon { box-shadow: none; width: 26px; height: 26px; }
+.comida-acciones .menu-acciones .btn-icon { box-shadow: none; width: var(--h-control-sm); height: var(--h-control-sm); }
 
 /* La línea del objetivo y la de la nota: la misma franja que el calentamiento. */
 .comida-objetivo, .comida-nota {
@@ -3515,7 +3518,7 @@
 .comida-opcion.is-editable { cursor: text; }
 .comida-opcion.is-nueva { color: var(--text-tertiary); font-family: var(--font); font-weight: 500; }
 .comida-opciones-acciones { display: flex; align-items: center; flex-shrink: 0; }
-.comida-opciones-acciones .menu-acciones .btn-icon { box-shadow: none; width: 26px; height: 26px; }
+.comida-opciones-acciones .menu-acciones .btn-icon { box-shadow: none; width: var(--h-control-sm); height: var(--h-control-sm); }
 .comida-alta { padding-top: var(--s1); }
 
 /* La suma: lo puesto y lo pedido, en el color de si cuadra. */
@@ -3698,7 +3701,7 @@
 @media (max-width: 599.98px) { .plan-dia-tabla { overflow-x: auto; } .plan-dia-fila { width: max-content; min-width: 100%; } }
 
 /* ── Las acciones de una comida y de su opción, a la vista ───────────────── */
-.comida-acciones .btn-icon, .comida-opciones-acciones .btn-icon { width: 26px; height: 26px; box-shadow: none; color: var(--text-tertiary); }
+.comida-acciones .btn-icon, .comida-opciones-acciones .btn-icon { width: var(--h-control-sm); height: var(--h-control-sm); box-shadow: none; color: var(--text-tertiary); }
 .comida-acciones .btn-icon:hover, .comida-opciones-acciones .btn-icon:hover { color: var(--text); }
 .comida-opciones-acciones { gap: 2px; opacity: 0.45; transition: opacity var(--fast); }
 .comida:hover .comida-opciones-acciones, .comida:focus-within .comida-opciones-acciones { opacity: 1; }
@@ -4201,7 +4204,7 @@ button.objetivo:active { transform: scale(0.994); }
    en la cabecera de una comida. */
 .pauta-acciones { display: flex; align-items: center; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity var(--fast); }
 .pauta:hover .pauta-acciones, .pauta:focus-within .pauta-acciones { opacity: 1; }
-.pauta-acciones .btn-icon { width: 26px; height: 26px; box-shadow: none; color: var(--text-tertiary); }
+.pauta-acciones .btn-icon { width: var(--h-control-sm); height: var(--h-control-sm); box-shadow: none; color: var(--text-tertiary); }
 .pauta-acciones .btn-icon:hover:not(:disabled) { color: var(--text); }
 .pauta-acciones .btn-icon:disabled { opacity: 0.3; }
 

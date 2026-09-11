@@ -1390,7 +1390,7 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
    dentro del realce de la fila y no sobre el canto de la tarjeta. */
 .plan-ej-quitar {
   grid-area: quitar; align-self: center; justify-self: end;
-  width: 20px; height: 20px; min-width: 0;
+  width: var(--h-control-sm); height: var(--h-control-sm); min-width: 0;
   opacity: 0; background: transparent; transition: opacity var(--fast);
 }
 .plan-ej:hover .plan-ej-quitar,
@@ -2545,7 +2545,10 @@ a.title:hover { text-decoration: underline; }
 .escribir-verbos + .escribir-verbos {
   margin-left: 5px; padding-left: 5px; border-left: 1px solid var(--hairline);
 }
-.escribir-acciones .btn-icon-compact { width: 24px; height: 24px; flex-shrink: 0; }
+/* El tamaño lo pone `.btn-icon-compact`, que ya es el apretado de la casa
+   (`--h-control-sm`). Aquí estuvo repetido a 24 px, dos menos, y la diferencia
+   no se veía sola: se veía al lado del menú de la fila de arriba. */
+.escribir-acciones .btn-icon-compact { flex-shrink: 0; }
 /* El enlace PUESTO. La superserie ya se dice dos veces en la fila —el canto en
    acento y la etiqueta A1/A2 en el número—, así que aquí basta con que el
    botón se lea pulsado y no como un tercer aviso. */

@@ -152,7 +152,10 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .btn-block { width: 100%; }
 
 /* El de icono hereda la píldora y, cuadrado como es, sale círculo. */
-.btn-icon { width: 32px; height: 32px; padding: 0; background: transparent; color: var(--text-tertiary); }
+.btn-icon {
+  width: var(--h-control); height: var(--h-control);
+  padding: 0; background: transparent; color: var(--text-tertiary);
+}
 .btn-icon:hover:not(:disabled) { background: var(--fill); color: var(--text); }
 .btn-icon-danger:hover:not(:disabled) { background: var(--negative-soft); color: var(--negative); }
 /* La variante compacta: equis y lápices que viven DENTRO de una fila o sobre
@@ -160,7 +163,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    `width/height` en línea, y un estilo en línea le gana a cualquier media
    query: el bloque de ergonomía táctil no podía agrandarlos. Como clase, en
    táctil crecen a 36 (ver Ergonomía táctil). */
-.btn-icon-compact { width: 26px; height: 26px; }
+.btn-icon-compact { width: var(--h-control-sm); height: var(--h-control-sm); }
 
 /* ── EL LÁPIZ Y SUS PARIENTES: la acción callada, en el color que le toca ───
    `btn-icon` es una FORMA (caja cuadrada), no un peso, pero fijaba también la

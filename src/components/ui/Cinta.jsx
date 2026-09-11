@@ -3,7 +3,7 @@ import { Nube } from '@/components/ui/EstadoDeRed';
 import { Pliegue } from '@/components/ui/Pliegue';
 
 /**
- * La cinta de cabecera de las pantallas del Taller.
+ * LA CINTA: la cabecera con la que arranca toda pantalla de lista del panel.
  *
  * ══ Por qué es la MISMA pieza que la de la cartera ═════════════════════════
  *
@@ -15,7 +15,7 @@ import { Pliegue } from '@/components/ui/Pliegue';
  *
  * El Taller son cuatro listas más. Si cada una se dibujara su banda, tendríamos
  * el mismo problema multiplicado por cuatro. Así que se monta el traje que ya
- * existe (`.cartera-cab`) y `.taller-cab` queda solo como asidero para lo que
+ * existe (`.cartera-cab`) y `.cinta-pagina` queda solo como asidero para lo que
  * sea propio de estas pantallas.
  *
  * ══ LOS TRAMOS VAN EN LA LÍNEA DEL TITULAR, y no debajo ════════════════════
@@ -56,11 +56,11 @@ import { Pliegue } from '@/components/ui/Pliegue';
  * @param accion   Lo que se puede hacer con la lista entera (el alta), al lado
  *   del nombre: una pantalla tiene UNA acción primaria.
  */
-export const BandaTaller = ({ titulo, tramos = [], tramo, onTramo, accion = null }) => {
+export const Cinta = ({ titulo, tramos = [], tramo, onTramo, accion = null }) => {
   const carril = useMarcaDeslizante();
 
   return (
-    <header className="cartera-cab taller-cab">
+    <header className="cartera-cab cinta-pagina">
       <div className="cartera-cab-in">
         <div className="cartera-cab-linea">
           {/* El ancho, en cabeza y del lado por el que crece la hoja. Ver

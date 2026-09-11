@@ -81,7 +81,7 @@ const { PlantillasPanel } = await import('./PlantillasPanel');
  * el primero de `FORMAS`.
  */
 /*
-  `BandaTaller` usa `useLayoutEffect` para la marca deslizante del tramo, y en
+  `Cinta` usa `useLayoutEffect` para la marca deslizante del tramo, y en
   el renderizador de servidor eso avisa una vez por prueba. Se silencia SOLO ese
   mensaje y SOLO en este archivo — cualquier otro aviso de React sigue saliendo,
   que es el motivo por el que no se apaga la consola entera.

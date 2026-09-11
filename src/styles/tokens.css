@@ -425,6 +425,34 @@
   --s6: 32px;
   --s7: 44px;
 
+  /* ── Altura de control ───────────────────────────────────────────────────
+     Había escala de tipo (`--fs-*`) y escala de espaciado (`--s*`), y las dos
+     se respetaban. La de control NO EXISTÍA, y por eso lo que se pulsaba era
+     lo único de la casa que no caía en ninguna rejilla: medido sobre la
+     aplicación corriendo, los botones de icono salían a 20, 24, 26, 28, 30 y
+     32 px —seis tamaños para el mismo objeto— porque cada contexto se
+     redimensionaba el suyo a mano en su propia hoja.
+
+     Ninguno de esos seis era un error: cada uno se eligió mirando SU pantalla.
+     El defecto es que nadie los miraba juntos, y juntos es como se usan — se
+     pasa de la cartera a la hoja y de la hoja a la dieta en el mismo minuto.
+
+     Son dos, y la diferencia entre ellas dice algo:
+       · `sm` — DENTRO de algo que ya es una fila: la papelera de un ejercicio,
+         los verbos de una comida, el menú de una pauta. Ceden tamaño porque su
+         renglón manda.
+       · el normal — el control suelto, que es casi todo.
+
+     La tercera no es una talla sino el DEDO: en táctil no hay «al acercarse»
+     y la diana tiene que caber en una yema (ver `jornada.css`).
+
+     Lo que esto compra no es el aspecto de hoy sino que no vuelva a abrirse:
+     el siguiente contexto que necesite un botón apretado coge `sm` en vez de
+     inventarse el séptimo número. */
+  --h-control-sm: 26px;
+  --h-control: 32px;
+  --h-control-touch: 40px;
+
   /* ── Sombras ─────────────────────────────────────────────────────────────
      Sobre papel la sombra sigue existiendo, pero ahora ACOMPAÑA al canto en vez
      de sustituirlo: más corta y más suave que antes, porque una tarjeta con

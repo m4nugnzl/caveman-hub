@@ -29,7 +29,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
  *
  * ── Por qué es un almacén y no un `useState` ────────────────────────────────
  * El mando ya no lo pinta quien pinta la barra: la cinta la montan tres piezas
- * distintas (`CoachLayout`, `ClientPortfolio`, `BandaTaller`) y el `<aside>`
+ * distintas (`CoachLayout`, `ClientPortfolio`, `ui/Cinta`) y el `<aside>`
  * vive en la primera. Con un `useState` en `CoachLayout` habría que bajar el
  * gancho por contexto o por props hasta el fondo del árbol. Es una preferencia
  * del aparato guardada en `localStorage` —una sola verdad, fuera de React—, así

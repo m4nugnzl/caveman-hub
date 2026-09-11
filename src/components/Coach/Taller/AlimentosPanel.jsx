@@ -9,7 +9,7 @@ import { norm } from '@/lib/texto';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { EmptyState } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
-import { BandaTaller } from './BandaTaller';
+import { Cinta } from '@/components/ui/Cinta';
 import { SelectorDeGrupo } from './SelectorDeGrupo';
 import { FichaAlimento } from './FichaAlimento';
 
@@ -265,7 +265,7 @@ export const AlimentosPanel = ({ banda }) => {
   return (
     <div className="stack cascada">
       <div className="taller libreria">
-        <BandaTaller
+        <Cinta
           {...banda}
           accion={
             <button type="button" className="btn btn-primary btn-sm" onClick={() => abrirAlta()}>

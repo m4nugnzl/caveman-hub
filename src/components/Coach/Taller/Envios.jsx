@@ -228,7 +228,7 @@ export const EnvioAbierto = ({ envio, onVolver }) => {
   return (
     <div className="stack cascada">
       <div className="taller">
-        <header className="cartera-cab taller-cab">
+        <header className="cartera-cab cinta-pagina">
           <div className="cartera-cab-in">
             <div className="cartera-cab-linea">
               <button

@@ -34,7 +34,7 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { Destino } from '@/components/ui/Portapapeles';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
-import { BandaTaller } from './BandaTaller';
+import { Cinta } from '@/components/ui/Cinta';
 
 /**
  * TUS PLANTILLAS: lo que has guardado con nombre, de entreno y de dieta.
@@ -334,7 +334,7 @@ export const PlantillasPanel = () => {
   return (
     <div className="stack cascada">
       <div className="taller">
-        <BandaTaller
+        <Cinta
           titulo="Plantillas"
           tramos={tramos}
           tramo={tramo}

@@ -662,7 +662,7 @@ export const ConstructorLibre = ({
 
   return (
     <div className="constructor">
-      <header className="cartera-cab taller-cab">
+      <header className="cartera-cab cinta-pagina">
         <div className="cartera-cab-in">
           <div className="cartera-cab-linea">
             {/* El mando del ancho, en la calle del chasis: el mismo botón y el

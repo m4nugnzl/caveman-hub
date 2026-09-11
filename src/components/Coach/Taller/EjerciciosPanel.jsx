@@ -6,7 +6,7 @@ import { findByName, groupInOrder, mergeCatalog } from '@/domain/catalog';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { EmptyState } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
-import { BandaTaller } from './BandaTaller';
+import { Cinta } from '@/components/ui/Cinta';
 import { SelectorDeGrupo } from './SelectorDeGrupo';
 import { FichaEjercicio } from './FichaEjercicio';
 
@@ -180,7 +180,7 @@ export const EjerciciosPanel = ({ banda }) => {
   return (
     <div className="stack cascada">
       <div className="taller libreria">
-        <BandaTaller
+        <Cinta
           {...banda}
           accion={
             <button

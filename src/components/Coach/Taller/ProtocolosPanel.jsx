@@ -64,7 +64,7 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { EmptyState, Field, Notice, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
-import { BandaTaller } from './BandaTaller';
+import { Cinta } from '@/components/ui/Cinta';
 import { ServicesSection } from '@/components/Coach/Settings/Protocol/ServicesSection';
 import { ModulesSection } from '@/components/Coach/Settings/Protocol/ModulesSection';
 
@@ -420,7 +420,7 @@ export const ProtocolosPanel = () => {
     return (
       <div className="stack cascada">
         <div className="taller">
-          <BandaTaller
+          <Cinta
             titulo="Protocolos"
             /*
               Dos tramos, con el mecanismo de banda que el Taller ya tiene. La
@@ -582,7 +582,7 @@ export const ProtocolosPanel = () => {
 
   return (
     <div className="taller">
-      <header className="cartera-cab taller-cab">
+      <header className="cartera-cab cinta-pagina">
         <div className="cartera-cab-in">
           <div className="cartera-cab-linea">
             <button

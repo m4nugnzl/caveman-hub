@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { MandarAlgo } from '@/components/Coach/MandarAlgo';
-import { BandaTaller } from './BandaTaller';
+import { Cinta } from '@/components/ui/Cinta';
 import { ConstructorFormulario } from './ConstructorFormulario';
 import { ConstructorLibre } from './ConstructorLibre';
 
@@ -258,7 +258,7 @@ export const FormulariosPanel = () => {
   return (
     <div className="stack cascada">
       <div className="taller">
-        <BandaTaller
+        <Cinta
           titulo="Formularios"
           accion={
             <button

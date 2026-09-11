@@ -18,7 +18,8 @@ import {
 import { clientPath } from '@/routes';
 import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
-import { EmptyState, Notice, PageHead, Panel } from '@/components/ui/primitives';
+import { Cinta } from '@/components/ui/Cinta';
+import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
 import { KindLegend } from './KindLegend';
 
 /** «jueves 20 de agosto» → «Jueves 20 de agosto». Es un título; se le pone mayúscula. */
@@ -193,7 +194,7 @@ const AgendaSheet = ({ date, cards, clients, canWrite, onAdd, onToggle, onRemove
  */
 /**
  * @param enCapa Montado como capa del puesto (la ventana «Agenda» de la barra):
- *   la ventana ya trae el título, así que el `PageHead` propio se retira. Como
+ *   la ventana ya trae el título, así que la cinta propia se retira. Como
  *   ruta (`/calendario`, marcadores y móvil) no cambia nada.
  */
 export const CoachCalendar = ({ enCapa = false }) => {
@@ -376,9 +377,7 @@ export const CoachCalendar = ({ enCapa = false }) => {
   if (activos.length === 0) {
     return (
       <div className="stack">
-        {!enCapa && (
-          <PageHead title="Agenda" sub="Lo que tienes esta semana, con toda tu cartera junta." />
-        )}
+        {!enCapa && <Cinta titulo="Agenda" />}
         <EmptyState
           title="Todavía no hay a quién agendar"
           message="Da de alta a tu primer cliente y su día de revisión aparecerá aquí, junto al de los demás."
@@ -394,12 +393,18 @@ export const CoachCalendar = ({ enCapa = false }) => {
 
   return (
     <div className="stack cascada">
-      {!enCapa && (
-        <PageHead
-          title="Agenda"
-          sub="Quién te entrega y qué tienes agendado, con toda tu cartera junta."
-        />
-      )}
+      {/* La misma cinta que Clientes, el Taller y Cobros: era la otra pantalla
+          del panel que seguía con la cabecera vieja. Ver `ui/Cinta`. */}
+      {!enCapa && <Cinta titulo="Agenda" />}
+
+      {/* El cuerpo lleva el sangrado: con cinta, la hoja pierde el suyo para
+          llegar de canto a canto. Igual que en Cobros. */}
+      <div className={enCapa ? 'stack' : 'cartera-cuerpo stack'}>
+        {!enCapa && (
+          <p className="t-sm t-secondary">
+            Quién te entrega y qué tienes agendado, con toda tu cartera junta.
+          </p>
+        )}
 
       {unavailable && (
         <Notice tone="info">
@@ -555,6 +560,7 @@ export const CoachCalendar = ({ enCapa = false }) => {
           onClose={() => setOpenDay(null)}
         />
       )}
+      </div>
     </div>
   );
 };

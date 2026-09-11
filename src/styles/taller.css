@@ -46,7 +46,9 @@
    su hueco: aquí vivía un `gap: var(--s3)` propio que dejaba la separación
    entre «Librería» y sus pestañas 4 px más corta que la de la cartera, o sea
    dos cintas casi iguales, que es peor que dos distintas. */
-.taller-cab .badge { flex-shrink: 0; }
+/* La cinta ya no es del Taller: la montan también Cobros y Agenda (ver
+   `ui/Cinta`), así que el asidero se llama por lo que es. */
+.cinta-pagina .badge { flex-shrink: 0; }
 
 /* El pie de una lista del Taller: el tope, el recuento, lo que se dice en voz
    baja debajo de la tabla. */
@@ -61,8 +63,16 @@
 
    Los dos bancos quedan fuera: en `es-banco` (Ejercicios) y en `proto-banco` la
    columna de la izquierda ya arranca con su propio canto, y el hueco de más
-   descuadraría las dos mitades. */
-.taller .cartera-cuerpo:not(.es-banco):not(.proto-banco) { padding-top: var(--s4); }
+   descuadraría las dos mitades.
+
+   ── Y no es una regla del Taller, es de CUALQUIERA SIN BARRA ──────────────
+   Colgaba de `.taller`, o sea de quién lo necesitaba el día que se escribió.
+   Cobros y Agenda llegaron después con la misma cinta y sin barra, y el aire
+   les faltaba exactamente igual. Lo que abre el hueco no es ser del Taller: es
+   NO tener barra, así que eso es lo que se pregunta. */
+.cartera-cuerpo:not(.es-banco):not(.proto-banco):not(:has(> .cartera-barra)) {
+  padding-top: var(--s4);
+}
 
 /* ── UN VACÍO QUE SUSTITUYE A UNA LISTA MIDE LO QUE MEDIRÍA LA LISTA ───────
    `controles.css` le pone tope de 660 px a la tarjeta de un vacío, y por un
