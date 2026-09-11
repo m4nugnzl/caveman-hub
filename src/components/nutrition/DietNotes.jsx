@@ -122,7 +122,7 @@ const NoteCard = ({ note, index, total, onChange, onRemove, onMove }) => {
             type="button"
             className="btn btn-icon btn-icon-compact btn-icon-danger"
             onClick={onRemove}
-            aria-label="Eliminar esta pauta"
+            aria-label="Quitar esta pauta"
           >
             <Trash2 size={15} />
           </button>

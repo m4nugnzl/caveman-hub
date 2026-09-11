@@ -85,11 +85,11 @@ const IncomePanel = lazyRoute(() => import('@/components/Coach/Income/IncomePane
    mundo en cada visita. */
 const PlatformPanel = lazyRoute(() => import('@/components/Platform/PlatformPanel').then((m) => ({ default: m.PlatformPanel })));
 import {
-  CLIENT_HOME,
   COACH_CLIENT,
   COACH_TALLER,
   RESET_PATH,
   SETTINGS_SECTIONS,
+  clientHomeFor,
   clientViewOf,
   coachViewOf,
 } from '@/routes';
@@ -212,6 +212,10 @@ const usePantallaVista = (pathname, view) => {
 const OtherViewFallback = ({ view, clientId }) => {
   const { pathname } = useLocation();
   const { takeViewTarget } = useActions();
+  /* Qué le llevas: decide cuál es su inicio, porque una de sus secciones puede
+     no existir. Ver `clientHomeFor`. */
+  const { activeClient } = useApp();
+  const protocol = clientProtocol(activeClient?.preferences);
 
   /*
     ── El destino pedido manda sobre la traducción ────────────────────────────
@@ -225,7 +229,9 @@ const OtherViewFallback = ({ view, clientId }) => {
   */
   const [destino] = useState(() => {
     const pedido = view === 'client' ? takeViewTarget() : null;
-    return pedido || (view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname));
+    return (
+      pedido || (view === 'coach' ? coachViewOf(pathname, clientId) : clientViewOf(pathname, protocol))
+    );
   });
 
   return <Navigate to={destino} replace />;
@@ -245,13 +251,44 @@ const OtherViewFallback = ({ view, clientId }) => {
  * Redirige en lugar de explicar porque no hay nada que decidir: la sección no
  * existe para esta persona, y el sitio honesto es su resumen.
  */
-const ConServicio = ({ servicio, to, children }) => {
+/*
+  ── Sin `to`, la salida la elige el protocolo ───────────────────────────────
+  El panel del entrenador dice a dónde sale porque su destino es fijo: `resumen`
+  no depende de ningún servicio y siempre está. El portal del cliente no puede
+  nombrar el suyo, porque su inicio ES una de las secciones que pueden faltar.
+
+  Decirlo con una constante —`to` fijo a `/mi/rutina`— hacía que
+  el guardia de la rutina expulsara a la rutina: a quien solo le llevas la dieta,
+  su portal entero se quedaba en la barra de abajo sobre el vacío. Ver
+  `clientHomeFor` en `routes.jsx`.
+*/
+/**
+ * `/mi` a secas: la puerta del portal.
+ *
+ * Existía como `<Navigate to="inicio">` escrito a mano, y por tanto el portal
+ * tenía DOS inicios que no se sabían el uno del otro: por aquí se entraba en «Mi
+ * progreso» y todo lo demás —el comodín de las URLs que no existen, la salida de
+ * los guardias— caía en `/mi/rutina`, que es «Mi rutina». Dos puertas para la
+ * misma casa, y la constante decía una cosa y el árbol de rutas otra.
+ *
+ * Ahora las dos salen de `clientHomeFor`: la primera sección que esta persona
+ * tiene de verdad. Con entreno es su rutina —que es la decisión escrita en
+ * `CLIENT_SECTIONS`: se abre en el gimnasio para apuntar lo que acaba de
+ * levantar— y sin él, lo siguiente que sí exista.
+ */
+const InicioDelCliente = () => {
+  const { activeClient } = useApp();
+  return <Navigate to={clientHomeFor(clientProtocol(activeClient?.preferences))} replace />;
+};
+
+const ConServicio = ({ servicio, to = null, children }) => {
   const { activeClient } = useApp();
   const protocol = clientProtocol(activeClient?.preferences);
   /* Sin cliente resuelto todavía no se decide nada: expulsar durante la carga es
      el mismo fallo que ya costó una vez en `CoachLayout`. */
   if (!activeClient) return children;
-  return isServiceOn(protocol, servicio) ? children : <Navigate to={to} replace />;
+  if (isServiceOn(protocol, servicio)) return children;
+  return <Navigate to={to || clientHomeFor(protocol)} replace />;
 };
 
 export default function App() {
@@ -625,7 +662,7 @@ export default function App() {
                   </ConsentGate>
                 }
               >
-                <Route index element={<Navigate to="inicio" replace />} />
+                <Route index element={<InicioDelCliente />} />
 
                 {/* Su inicio ES su progreso: las cifras y los gráficos, con lo
                     que ha cambiado condensado arriba. Ver `ClientStart`. */}
@@ -647,7 +684,7 @@ export default function App() {
                 <Route
                   path="rutina"
                   element={
-                    <ConServicio servicio="training" to={CLIENT_HOME}>
+                    <ConServicio servicio="training">
                       <ClientRoutineRoute />
                     </ConServicio>
                   }
@@ -655,7 +692,7 @@ export default function App() {
                 <Route
                   path="dieta"
                   element={
-                    <ConServicio servicio="nutrition" to={CLIENT_HOME}>
+                    <ConServicio servicio="nutrition">
                       <ClientDietRoute />
                     </ConServicio>
                   }

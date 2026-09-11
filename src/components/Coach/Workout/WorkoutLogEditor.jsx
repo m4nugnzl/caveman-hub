@@ -983,7 +983,9 @@ export const WorkoutLogEditor = () => {
     irA(removeMicrocycle(activeClient.id, nav.week) || 1);
     if (!cycle) return;
     toast({
-      text: `${unidad} ${enBloque(cycle.weekNumber)} ${fem ? 'eliminada' : 'eliminado'}.`,
+      /* «Quitado» y no «eliminado»: el aviso que lo dice lleva «Deshacer» al
+         lado, y ése es exactamente el criterio (producto.md §5.7). */
+      text: `${unidad} ${enBloque(cycle.weekNumber)} ${fem ? 'quitada' : 'quitado'}.`,
       duration: 10000,
       action: {
         label: 'Deshacer',
@@ -2139,8 +2141,8 @@ export const WorkoutLogEditor = () => {
     <button
       type="button"
       className="btn btn-icon btn-icon-compact btn-icon-danger tira-menu"
-      title={`Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
-      aria-label={`Eliminar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+      title={`Quitar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
+      aria-label={`Quitar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
       onClick={eliminarSemana}
     >
       <Trash2 size={15} />

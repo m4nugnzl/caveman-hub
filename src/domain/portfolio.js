@@ -1285,6 +1285,31 @@ const countBy = (rows, id) => {
   return rows.filter(filter.test).length;
 };
 
+/**
+ * Los filtros que MERECEN estar en pantalla, con su cifra.
+ *
+ * ══ Un filtro solo se gana el sitio si PARTE la lista ═══════════════════════
+ *
+ * La regla estaba a medias y en el componente: se retiraban los que no tienen a
+ * nadie —«un chip a cero es una promesa vacía»— y se dejaban los que se llevan a
+ * todo el mundo, que es el mismo «no filtra nada» por el otro extremo. Contra la
+ * cartera de verdad se veía: «Requieren atención 6 · Sin entrenar 6 · Todos 6»
+ * sobre seis clientes. Tres botones para la misma lista, y encima prometiendo un
+ * subgrupo donde lo que hay es el grupo entero.
+ *
+ * `all` se queda siempre: es el sitio al que se vuelve, no un filtro.
+ *
+ * Vive aquí y no en la pantalla porque la cifra sale de `PORTFOLIO_FILTERS`, que
+ * también está aquí, y porque una regla que decide qué se ve tiene que poderse
+ * probar sin montar una tabla.
+ */
+export const filtrosUtiles = (rows) => {
+  const total = rows.length;
+  return PORTFOLIO_FILTERS.map((f) => ({ ...f, count: rows.filter(f.test).length })).filter(
+    (f) => f.id === 'all' || (f.count > 0 && f.count < total)
+  );
+};
+
 /** Cifras de cabecera: el estado de la cartera en cinco números. */
 export const portfolioSummary = (rows) => ({
   total: rows.length,
@@ -1307,9 +1332,24 @@ export const portfolioSummary = (rows) => ({
  *
  * Vive aquí, en el dominio, para que la chapa de la barra lateral y la portada
  * cuenten LO MISMO: una tercera cuenta propia divergiría (y divergió).
+ *
+ * ── `alDia`: cómo se llama esta cola CUANDO ESTÁ VACÍA ──────────────────────
+ * «Hoy» funde las colas a cero en un renglón que premia —«Revisiones y cobros,
+ * al día»— y para eso necesita el nombre en positivo y en plural, que no es el
+ * rótulo de la tarjeta: el rótulo dice el ESTADO («Sin leer», «Sin programar»)
+ * y ahí hace falta la COSA («respuestas», «rutinas por montar»).
+ *
+ * Estaba en una tabla aparte dentro de `Today.jsx`, con un respaldo al rótulo
+ * para lo que no estuviera en ella. Faltaba `leer`, así que el respaldo metía
+ * su rótulo tal cual en mitad de la lista y la portada decía:
+ *
+ *     «Revisiones, SIN LEER, rutinas y cobros, al día.»
+ *
+ * Una negación colada en una lista de cosas que van bien. Aquí no puede pasar:
+ * el nombre viaja con la cola, y una cola nueva sin él se ve al escribirla.
  */
 export const COLAS_INICIO = [
-  { id: 'revisar', label: 'Por revisar', verbo: 'Revisar', seccion: 'semana', tasks: [] },
+  { id: 'revisar', label: 'Por revisar', alDia: 'revisiones', verbo: 'Revisar', seccion: 'semana', tasks: [] },
   {
     /*
       Va la segunda, pegada a «Por revisar», porque es la misma clase de cosa:
@@ -1329,6 +1369,7 @@ export const COLAS_INICIO = [
        cinco tarjetas en la rejilla, un rótulo de tres palabras se parte en dos
        renglones y descoloca la cifra. */
     label: 'Sin leer',
+    alDia: 'respuestas',
     sub: 'te han contestado',
     verbo: 'Leer',
     seccion: 'ficha',
@@ -1337,6 +1378,13 @@ export const COLAS_INICIO = [
   {
     id: 'programar',
     label: 'Sin programar',
+    /* NO «rutinas» a secas, que es lo que decía y es el origen de que la portada
+       se contradijera consigo misma: con esta cola a cero y `siguiente` con
+       cinco personas, la línea afirmaba «rutinas al día» mientras la tarjeta de
+       al lado decía «Sin semana siguiente · 5». Las dos colas son de rutina; lo
+       que las separa es que ésta cuenta a quien no tiene NINGUNA y aquélla a
+       quien no tiene la que VIENE. El nombre tiene que decir cuál es cuál. */
+    alDia: 'rutinas por montar',
     sub: 'sin rutina o sin empezar',
     verbo: 'Programar',
     seccion: 'rutina',
@@ -1345,6 +1393,7 @@ export const COLAS_INICIO = [
   {
     id: 'senales',
     label: 'Sin señales',
+    alDia: 'entrenos',
     sub: 'llevan días sin entrenar',
     verbo: 'Escribir',
     seccion: 'semana',
@@ -1363,6 +1412,7 @@ export const COLAS_INICIO = [
     */
     id: 'siguiente',
     label: 'Sin semana siguiente',
+    alDia: 'microciclos',
     sub: 'no hay hoja después',
     verbo: 'Escribir el microciclo',
     seccion: 'rutina',
@@ -1371,6 +1421,7 @@ export const COLAS_INICIO = [
   {
     id: 'cobrar',
     label: 'Cobros',
+    alDia: 'cobros',
     sub: 'vencidos o vencen hoy',
     verbo: 'Cobrar',
     seccion: 'ficha',

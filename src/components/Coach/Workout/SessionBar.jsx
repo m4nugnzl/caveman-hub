@@ -46,9 +46,9 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
 
   const askRemove = async () => {
     const ok = await confirm({
-      title: `¿Eliminar la sesión del ${shortDate(active.date)}?`,
+      title: `¿Borrar la sesión del ${shortDate(active.date)}?`,
       message: `Se borrarán los ${sessionSetCount(active)} registros de esa sesión. El plan del día no se toca.`,
-      confirmLabel: 'Eliminar sesión',
+      confirmLabel: 'Borrar la sesión',
       tone: 'danger',
     });
     if (ok) onRemove(active.id);
@@ -141,7 +141,7 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
             type="button"
             className="btn btn-icon btn-icon-danger"
             onClick={askRemove}
-            aria-label="Eliminar sesión"
+            aria-label="Borrar la sesión"
           >
             <Trash2 size={15} />
           </button>

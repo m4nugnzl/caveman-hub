@@ -8,7 +8,7 @@ const ConfirmContext = createContext(null);
  * Confirmación para acciones destructivas, como promesa.
  *
  *     const confirm = useConfirm();
- *     if (await confirm({ title: 'Eliminar día', tone: 'danger' })) removeDay(...);
+ *     if (await confirm({ title: 'Quitar el día', tone: 'danger' })) removeDay(...);
  *
  * Antes no había ninguna: `removeDay`, `removeExercise` y `removeMeal` borraban
  * y persistían al instante, sin confirmar y sin deshacer. Y el botón que

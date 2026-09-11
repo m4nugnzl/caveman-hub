@@ -1615,8 +1615,12 @@ export const useWorkout = ({
   );
 
   /**
-   * Elimina una semana/sesión completa y RENUMERA las restantes para que la
-   * secuencia siga siendo continua (borrar la 2 de 1-2-3 deja 1-2, no 1-3).
+   * Quita una semana/sesión completa y RENUMERA las restantes para que la
+   * secuencia siga siendo continua (quitar la 2 de 1-2-3 deja 1-2, no 1-3).
+   *
+   * «Quita» y no «elimina»: el aviso que lo anuncia lleva «Deshacer» al lado
+   * —`restoreMicrocycle` la devuelve entera—, y ése es el criterio que separa
+   * los dos verbos del producto (`docs/producto.md` §5.7).
    *
    * Renumerar es seguro porque `weekNumber` solo identifica el microciclo dentro
    * de este mismo bloque JSONB: las fotos de progreso llevan su propia semana y

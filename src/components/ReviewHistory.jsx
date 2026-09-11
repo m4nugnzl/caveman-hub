@@ -140,11 +140,11 @@ export const ReviewHistory = ({
    */
   const borrar = async (fila) => {
     const ok = await confirm({
-      title: `¿Eliminar la revisión del ${shortDate(fila.weekStart)}?`,
+      title: `¿Borrar la revisión del ${shortDate(fila.weekStart)}?`,
       message: 'Se borra la revisión, tu respuesta y lo que entregó esa semana.',
       detail:
         'Los cambios que hicieras entonces en su dieta o en su rutina NO se deshacen: el plan se queda como está ahora. No se puede deshacer.',
-      confirmLabel: 'Eliminar',
+      confirmLabel: 'Borrar',
       tone: 'danger',
     });
     if (!ok) return;
@@ -248,7 +248,7 @@ export const ReviewHistory = ({
                     type="button"
                     className="btn btn-icon btn-icon-danger"
                     style={{ width: 24, height: 24 }}
-                    aria-label={`Eliminar la revisión del ${shortDate(fila.weekStart)}`}
+                    aria-label={`Borrar la revisión del ${shortDate(fila.weekStart)}`}
                     onClick={() => borrar(fila)}
                   >
                     <Trash2 size={13} />

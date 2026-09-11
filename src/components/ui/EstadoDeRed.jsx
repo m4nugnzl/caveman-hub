@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Cloud, CloudOff, CloudUpload } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
@@ -53,9 +54,9 @@ import { dayMonthMaybeYear, timeOfDay } from '@/lib/dates';
  * si esto está guardado—: lo que dice la nube es de qué se fía lo que estás
  * mirando, así que va con lo que estás mirando y no con lo que puedes hacer.
  *
- * ── Y cómo: crece cuando tiene algo que decir ──────────────────────────────
+ * ── Y cómo: lo dice, y luego se recoge ─────────────────────────────────────
  * Como la cobertura de un móvil, que son unas barras mudas hasta el día que se
- * cae y entonces sale la palabra.
+ * cae y entonces sale la palabra. Y como el móvil, la palabra no se queda.
  *
  *   · CONECTADA — un signo pequeño en tinta terciaria. Sin caja y sin palabra:
  *     la única frase que tiene que decir «todo va» es no decir ninguna. Se ve
@@ -63,9 +64,22 @@ import { dayMonthMaybeYear, timeOfDay } from '@/lib/dates';
  *     aviso que solo existe cuando falla no se ha visto NUNCA antes de la
  *     primera vez que hace falta, y esa primera vez —en un sótano y con trabajo
  *     a medias— es el peor momento para estrenar un dibujo nuevo.
- *   · SIN CONEXIÓN o ENVIANDO — chapa entera (`.badge`, la pieza con la que
- *     esta cinta ya dice «Renueva el 10 nov»), con su relleno y su palabra. Una
- *     nube tachada suelta podría ser cualquier cosa; con la palabra al lado no.
+ *   · RECIÉN CAÍDA — chapa entera (`.badge`, la pieza con la que esta cinta ya
+ *     dice «Renueva el 10 nov»), con su relleno y su palabra. Seis segundos: los
+ *     que hacen falta para que te enteres sin buscarlo.
+ *   · YA ASUMIDA — la nube tachada sola, sin caja, pero en TINTA PLENA. Porque
+ *     una nube tachada suelta podría ser cualquier cosa el primer día, pero no
+ *     después de habértelo dicho con todas las letras hace un momento: el dibujo
+ *     ya está aprendido y la palabra pasa a ser ruido —«sin conexión, sin
+ *     conexión, sin conexión» durante toda la hora que estés en el sótano—. La
+ *     palabra sigue en el `title` y en el lector de pantalla, que son los dos
+ *     sitios donde no estorba, y vuelve entera la próxima vez que se caiga: cada
+ *     corte es una noticia nueva.
+ *   · ENVIANDO — chapa con su palabra mientras dure, que dura un instante.
+ *
+ * Lo que separa «conectada» de «ya asumida» no es la caja ni la palabra, es el
+ * PESO de la tinta: terciaria contra plena. El mismo recurso con el que la barra
+ * marca el destino activo.
  *
  * El porqué de que aquí no haya ámbar ni rojo, en `controles.css`: por la ley
  * del color de la casa el semáforo JUZGA, y quedarse sin cobertura no es un
@@ -76,6 +90,24 @@ import { dayMonthMaybeYear, timeOfDay } from '@/lib/dates';
  * algo que explicar: qué pasa, que puedes seguir trabajando y cuánto queda por
  * mandar.
  */
+/*
+  Que la explicación de la franja ya se leyó. En la SESIÓN de la pestaña y no en
+  el estado de React —la franja se monta en tres sitios y se desmonta al navegar,
+  así que un `useState` suelto la traería de vuelta en cada pantalla— y no en
+  `localStorage` —quien vuelve mañana al gimnasio con el móvil en la mano merece
+  que se lo recuerden una vez—.
+*/
+const CLAVE_EXPLICACION = 'red:explicacion-leida';
+
+const seLeyoLaExplicacion = () => {
+  try {
+    return sessionStorage.getItem(CLAVE_EXPLICACION) === '1';
+  } catch {
+    /* Sin almacenamiento, la explicación sale siempre: es el lado seguro. */
+    return false;
+  }
+};
+
 /** «hoy a las 13:42» si es de hoy, «8 sep, 21:10» si no. */
 const cuando = (at) => {
   const d = new Date(at);
@@ -84,9 +116,43 @@ const cuando = (at) => {
   return esDeHoy ? `hoy a las ${timeOfDay(d)}` : dayMonthMaybeYear(d, { conHora: true });
 };
 
+/* Lo que tarda la chapa en recogerse. Seis segundos: menos no da tiempo a que
+   levantes la vista de lo que estabas escribiendo, y más ya es una chapa que se
+   queda. */
+const ANUNCIO_MS = 6000;
+
+/* Que ESTE corte ya se anunció, fuera de React a propósito: la nube se monta al
+   lado del título de cada pantalla, así que se desmonta y se vuelve a montar al
+   navegar. En estado del componente, el cartel reaparecería en cada pantalla
+   que abrieras durante el corte, que es justo lo que se está quitando. Se
+   rearma al volver la señal. */
+let anuncioHecho = false;
+
 export const Nube = () => {
   const enLinea = useConexion();
   const { enEspera, copiaLocal } = useData();
+  const [anunciando, setAnunciando] = useState(false);
+
+  /*
+    El corte se anuncia una vez por corte. Al volver la señal se rearma, porque
+    la siguiente caída vuelve a ser noticia; mientras dure, la nube tachada sola
+    basta. Montarse ya sin red cuenta como caída: quien abre la aplicación en el
+    sótano tiene que enterarse igual.
+  */
+  useEffect(() => {
+    if (enLinea) {
+      anuncioHecho = false;
+      setAnunciando(false);
+      return undefined;
+    }
+    if (anuncioHecho) return undefined;
+    setAnunciando(true);
+    const reloj = setTimeout(() => {
+      anuncioHecho = true;
+      setAnunciando(false);
+    }, ANUNCIO_MS);
+    return () => clearTimeout(reloj);
+  }, [enLinea]);
 
   const copia = copiaLocal ? ` Estás viendo tu copia, de ${cuando(copiaLocal.at)}.` : '';
   const cola = enEspera > 0 ? ` ${enEspera} ${enEspera === 1 ? 'cambio espera' : 'cambios esperan'}.` : '';
@@ -106,21 +172,27 @@ export const Nube = () => {
     en el título y en el lector de pantalla, que son los dos sitios donde no
     estorba.
   */
-  const { Icono, clase, texto, dice } = !enLinea
+  const { Icono, estado, texto, dice } = !enLinea
     ? {
         Icono: CloudOff,
-        clase: 'badge nube is-fuera',
-        texto: 'Sin conexión',
+        estado: 'is-fuera',
+        /* La palabra, solo mientras es noticia. Después, la nube tachada sola:
+           ver el comentario de arriba. */
+        texto: anunciando ? 'Sin conexión' : '',
         dice: 'Sin conexión: lo que escribas se guarda aquí y se envía solo al recuperar la señal.',
       }
     : enEspera > 0
       ? {
           Icono: CloudUpload,
-          clase: 'badge nube is-mandando',
+          estado: 'is-mandando',
           texto: 'Enviando…',
           dice: 'Enviando lo que quedaba pendiente.',
         }
-      : { Icono: Cloud, clase: 'nube is-bien', texto: '', dice: 'Conectado. Todo lo tuyo está guardado.' };
+      : { Icono: Cloud, estado: 'is-bien', texto: '', dice: 'Conectado. Todo lo tuyo está guardado.' };
+
+  /* La chapa la trae la PALABRA, no el estado: recogida, la nube tachada es un
+     signo pelado como el de «conectado», y lo que las separa es la tinta. */
+  const clase = `${texto ? 'badge ' : ''}nube ${estado}`;
 
   return (
     <span className={clase} role="status" title={`${dice}${cola}${copia}`}>
@@ -137,21 +209,37 @@ export const Nube = () => {
 /**
  * LA FRANJA: qué pasa, y qué puedes hacer mientras tanto.
  *
+ * ══ La franja NO repite el titular ═════════════════════════════════════════
+ *
+ * Decía «Sin conexión. Puedes seguir trabajando: …» a dos dedos de una chapa
+ * que ya dice «Sin conexión», y el dueño lo vio al primer vistazo: las mismas
+ * dos palabras dos veces en la misma pantalla, una de ellas en una franja del
+ * ancho del contenido. La nube pone el TITULAR y no lo pone nadie más; aquí
+ * empieza directamente por lo que la nube no cabe a decir —que puedes seguir
+ * trabajando— y por las cifras.
+ *
+ * Y la explicación se puede QUITAR. Es una frase que enseña algo: se lee una
+ * vez y a la tercera es mobiliario (la ley del reposo). La equis la retira para
+ * el resto de la sesión —no hasta que vuelva la señal: en un sótano se pierde y
+ * se recupera diez veces en una hora, y una frase ya leída no puede volver diez
+ * veces—. Lo que NO se puede quitar es lo que tiene consecuencias: la cola y la
+ * copia se quedan, sin equis. Retirada la explicación y sin nada pendiente, la
+ * franja desaparece entera y queda solo la nube, que es lo que el dueño pedía.
+ *
  * ══ Cuándo habla ═══════════════════════════════════════════════════════════
  *
  *   · NO SE GUARDÓ     — hay red y el servidor ha rechazado algo. Va la primera
  *                        porque es lo único de esta franja que no se arregla
  *                        solo, y es la única que trae un verbo: «Reintentar».
- *   · SIN CONEXIÓN     — y dice lo que de verdad hace falta saber: que se puede
- *                        seguir trabajando. Con la cifra de lo que espera, que
- *                        es lo único que puede preocupar a alguien.
- *   · MANDANDO         — hay red y quedaba cola. Dura un instante y existe para
- *                        que quien acaba de recuperar la señal VEA que se está
- *                        enviando en vez de tener que fiarse.
+ *   · SIN CONEXIÓN     — dice lo que de verdad hace falta saber: que se puede
+ *                        seguir trabajando. Una vez, y con equis.
+ *   · MANDANDO         — hay red y quedaba cola. Dura un instante y ya no dice
+ *                        «Enviando» —eso es la nube—: dice CUÁNTO, que es lo
+ *                        único que la chapa no cabe a contar.
  *   · SOBRE UNA COPIA  — los datos que se miran son de la última vez que hubo
  *                        red (ver `lib/instantanea`). Nunca puede faltar: sobre
  *                        datos de ayer se programa una semana entera sin
- *                        enterarse.
+ *                        enterarse. Tampoco en el móvil, donde antes se caía.
  *   · CONECTADA Y AL DÍA — nada. Ni un píxel: para eso está la nube.
  *
  * ── Dónde se monta ─────────────────────────────────────────────────────────
@@ -172,6 +260,18 @@ export const EstadoDeRed = () => {
   const enLinea = useConexion();
   const { enEspera, fallosAlGuardar, copiaLocal } = useData();
   const { reintentarLoFallido } = useActions();
+  const [explicacionLeida, setExplicacionLeida] = useState(seLeyoLaExplicacion);
+
+  const retirarExplicacion = () => {
+    setExplicacionLeida(true);
+    try {
+      sessionStorage.setItem(CLAVE_EXPLICACION, '1');
+    } catch (e) {
+      /* Modo privado o almacenamiento bloqueado: la equis sigue funcionando, lo
+         único que se pierde es que lo recuerde al cambiar de pantalla. */
+      console.warn('No se pudo recordar que el aviso de red ya se había leído:', e);
+    }
+  };
 
   /*
     ══ LO RECHAZADO VA PRIMERO, y por qué vive aquí ═══════════════════════════
@@ -225,34 +325,43 @@ export const EstadoDeRed = () => {
 
   if (enLinea && enEspera === 0 && !copiaLocal) return null;
 
-  /* Lo que espera a que vuelva la red. Se dice con su cifra porque la pregunta
-     de quien acaba de perder la señal es «¿cuánto llevo sin guardar?». */
+  /* LA EXPLICACIÓN: lo único que la nube no cabe a decir, y lo único que se
+     puede retirar. Sin el «Sin conexión» del principio, que ya está escrito a
+     dos dedos de aquí, en la chapa. */
+  const explicacion =
+    !enLinea && !explicacionLeida
+      ? {
+          largo: 'Puedes seguir trabajando: lo que escribas se guarda aquí y se envía solo al recuperar la señal.',
+          corto: 'Lo que escribas se envía solo al volver la señal.',
+        }
+      : null;
+
+  /* LA CIFRA. Sin red, la pregunta de quien acaba de perder la señal es «¿cuánto
+     llevo sin guardar?»; con red, lo que hay es una cuenta atrás. Y decía «a que
+     vuelva la red» en los dos casos, también mientras se estaba enviando. */
   const cola =
-    enEspera > 0
-      ? `${enEspera} ${enEspera === 1 ? 'cambio espera' : 'cambios esperan'} a que vuelva la red.`
-      : '';
+    enEspera === 0
+      ? ''
+      : !enLinea
+        ? `${enEspera} ${enEspera === 1 ? 'cambio espera' : 'cambios esperan'} a que vuelva la red.`
+        : `${enEspera === 1 ? 'Un cambio se está enviando' : `${enEspera} cambios se están enviando`}.`;
 
   /* Y de qué fecha es lo que se está mirando, si no es de ahora. Va detrás: es
-     contexto, no alarma — pero no se calla. */
-  const copia = copiaLocal ? `Estás viendo tu copia, de ${cuando(copiaLocal.at)}.` : '';
+     contexto, no alarma — pero no se calla, tampoco en el móvil, donde antes se
+     quedaba fuera del renglón corto. */
+  const copia = copiaLocal
+    ? `Estás viendo tu copia, de ${cuando(copiaLocal.at)}.${enLinea ? ' Se pondrá al día sola.' : ''}`
+    : '';
+  const copiaCorta = copiaLocal ? `Tu copia, de ${cuando(copiaLocal.at)}.` : '';
 
-  const { icono, texto, corto } = !enLinea
-    ? {
-        icono: CloudOff,
-        texto: 'Sin conexión. Puedes seguir trabajando: lo que escribas se guarda aquí y se envía solo al recuperar la señal.',
-        corto: 'Sin conexión. Lo que escribas se envía solo al volver la señal.',
-      }
-    : enEspera > 0
-      ? {
-          icono: CloudUpload,
-          texto: 'Enviando lo que quedaba pendiente.',
-          corto: 'Enviando lo pendiente.',
-        }
-      : {
-          icono: Cloud,
-          texto: 'Ya hay conexión. Esto es lo último que se descargó; se pondrá al día solo.',
-          corto: 'Esto es lo último que se descargó.',
-        };
+  const largo = [explicacion?.largo, cola, copia].filter(Boolean).join(' ');
+  const corto = [explicacion?.corto, cola, copiaCorta].filter(Boolean).join(' ');
+
+  /* Retirada la explicación y sin nada que contar, no queda franja: la nube se
+     basta. */
+  if (!largo) return null;
+
+  const icono = !enLinea ? CloudOff : enEspera > 0 ? CloudUpload : Cloud;
 
   return (
     /*
@@ -261,11 +370,11 @@ export const EstadoDeRed = () => {
       pierde su sitio.
     */
     <div className="layout" style={{ paddingBottom: 0 }}>
-      <Notice tone="info" icon={icono}>
+      <Notice tone="info" icon={icono} onClose={explicacion ? retirarExplicacion : undefined}>
         {/* La versión corta existe porque esta frase sale también en el móvil,
             donde la larga se envuelve en cuatro renglones sobre el trabajo. */}
-        <span className="solo-escritorio">{[texto, cola, copia].filter(Boolean).join(' ')}</span>
-        <span className="solo-movil">{[corto, cola].filter(Boolean).join(' ')}</span>
+        <span className="solo-escritorio">{largo}</span>
+        <span className="solo-movil">{corto}</span>
       </Notice>
     </div>
   );

@@ -32,10 +32,10 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
   const askDelete = async (photo, event) => {
     event.stopPropagation();
     const ok = await confirm({
-      title: '¿Eliminar esta foto?',
+      title: '¿Borrar esta foto?',
       message: `Se borrará la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}.`,
-      detail: 'La imagen se elimina también del almacenamiento y no se puede recuperar.',
-      confirmLabel: 'Eliminar foto',
+      detail: 'La imagen se borra también del almacenamiento y no se puede recuperar.',
+      confirmLabel: 'Borrar la foto',
       tone: 'danger',
     });
     if (ok) onDelete(photo);
@@ -141,7 +141,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                           className="btn btn-icon btn-icon-compact btn-icon-danger"
                           style={{ position: 'absolute', top: 4, right: 4 }}
                           onClick={(e) => askDelete(photo, e)}
-                          aria-label={`Eliminar foto del ${photo.date}`}
+                          aria-label={`Borrar la foto del ${photo.date}`}
                         >
                           <Trash2 size={13} />
                         </button>

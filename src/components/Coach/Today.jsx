@@ -312,14 +312,11 @@ export const Today = () => {
     día.»); si mañana tienen trabajo, vuelven a ser tarjeta solas.
   */
   const vivas = colas.filter(tieneGente);
-  const NOMBRE_ALDIA = {
-    revisar: 'revisiones',
-    programar: 'rutinas',
-    senales: 'entrenos',
-    siguiente: 'microciclos',
-    cobrar: 'cobros',
-  };
-  const alDia = colas.filter((c) => !tieneGente(c)).map((c) => NOMBRE_ALDIA[c.id] || c.label.toLowerCase());
+  /* El nombre en positivo viaja con la cola (`COLAS_INICIO.alDia`). Aquí había
+     una segunda tabla con un respaldo al rótulo, le faltaba `leer`, y el
+     respaldo escribía «Revisiones, SIN LEER, rutinas y cobros, al día». Sin
+     respaldo: una cola sin nombre no se cuela, se cae del renglón. */
+  const alDia = colas.filter((c) => !tieneGente(c) && c.alDia).map((c) => c.alDia);
   const fraseAlDia =
     alDia.length > 1 ? `${alDia.slice(0, -1).join(', ')} y ${alDia[alDia.length - 1]}` : alDia[0] || '';
 

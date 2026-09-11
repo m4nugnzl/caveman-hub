@@ -161,10 +161,19 @@ export const ComparativaEjercicio = ({ microcycles, ejercicios = [], name, weekN
             ))}
           </div>
           {/* Lo que la tarjeta no enseña se dice, no se esconde: el resto de
-              las series está en la ventana que abre la propia tarjeta. */}
+              las series está en la ventana que abre la propia tarjeta.
+
+              ── Y se dice DE QUÉ es ese total ──────────────────────────────
+              Decía «Las 3 primeras de 8 series» al lado de una hoja que ponía
+              «4 series», y las dos cifras eran ciertas hablando de cosas
+              distintas: la hoja dice lo que toca HOY y este 8 es el máximo que
+              ha llegado a hacer en las últimas seis sesiones. Sin decirlo, el
+              8 se lee como el número del ejercicio y contradice a la hoja que
+              tiene a un palmo. */}
           {seriesTotales > series && (
             <p className="t-xs t-tertiary">
-              Las {series} primeras de {seriesTotales} series. Ábrelo para verlas todas.
+              Las {series} primeras de las {seriesTotales} que ha llegado a hacer. Ábrelo para
+              verlas todas.
             </p>
           )}
           {trend.stalled >= 3 && <p className="t-xs t-tertiary">{trend.stalled} microciclos sin superar el tope.</p>}

@@ -514,9 +514,31 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    como un hueco donde falta algo. El hueco sobrante sigue siendo del pie
    (`margin-top: auto` en `.sidebar-foot`), que es de donde salió. */
 .sidebar-cartera { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; }
+/* ── La lista rueda, pero su barra NO le come ancho ────────────────────────
+   La barra de la casa son 11 px (ver `base.css`) y salen del ancho de la
+   lista: con catorce clientes —o sea, en cuanto la cola es una cola— la
+   columna de microciclos se metía 11 px hacia dentro y el canto derecho del
+   mueble se partía en dos, «14» y el mando arriba a 8, los «M17» a 21. Era lo
+   que se leía como «el icono está desalineado», y el icono estaba en su sitio.
+
+   Se cuelga en el CANALÓN del mueble: la lista desborda por la derecha
+   exactamente el `padding` de la barra (8 px) y reserva ahí una canal de 8, de
+   modo que la barra de desplazamiento cae a ras del canto interior y las filas
+   conservan su ancho. `stable` y no `auto` porque si no, la lista respiraría
+   8 px al dejar de rodar —al filtrar, por ejemplo— y los nombres bailarían. */
 .sidebar-lista {
   flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
   display: flex; flex-direction: column; gap: 2px;
+  margin-right: calc(var(--s2) * -1); scrollbar-gutter: stable;
+}
+.sidebar-lista::-webkit-scrollbar { width: var(--s2); }
+/* El pulgar mantiene su grosor de siempre (4 px): en una canal de 8 el filete
+   de 3.5 px de la casa lo dejaría en uno. */
+.sidebar-lista::-webkit-scrollbar-thumb { border-width: 2px; }
+/* Firefox no entiende `::-webkit-scrollbar`, así que allí la canal la mide
+   `scrollbar-width`. `thin` es lo más cerca de 8 px que ese motor ofrece. */
+@supports not selector(::-webkit-scrollbar) {
+  .sidebar-lista { scrollbar-width: thin; }
 }
 /* La cifra del rótulo: cuántos llevas. En la misma versalita terciaria y al
    otro extremo, que es donde el ojo la busca después de leer el rótulo. */
@@ -527,9 +549,13 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    canto porque te lleva a cualquier sitio de la aplicación; éste solo tacha
    filas de la lista que tiene debajo, así que va a ras, con su lupa pequeña y
    sin caja hasta que se enfoca. */
+/* El alto es el mismo de antes (3+5 = 4+4): lo que cambia es que el contenido
+   queda centrado en su caja, y con él la lupa. Con 3 arriba y 5 abajo la lupa
+   se sentaba 1 px por encima del centro de la línea, o sea 1 px por encima del
+   icono de ordenar, que sí va centrado en la suya. */
 .sidebar-filtro {
   display: flex; align-items: center; gap: var(--s2);
-  padding: 3px var(--s2) 5px;
+  padding: 4px var(--s2);
   color: var(--text-tertiary);
 }
 .sidebar-filtro > input {
@@ -552,13 +578,28 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    campo se queda con lo que sobra: una sola fila, pase lo que pase. */
 .sidebar-barra { display: flex; align-items: center; flex-wrap: nowrap; gap: var(--s1); min-width: 0; }
 .sidebar-barra > .sidebar-filtro { flex: 1 1 auto; min-width: 0; }
-.sidebar-barra > .menu-acciones { margin-left: auto; flex: none; }
+/* Y el mando se alinea por el DIBUJO, no por su caja: son 24 px de botón
+   alrededor de un icono de 15, o sea que la caja ya trae 5 px de aire por
+   dentro. Los 3 que faltan hasta la calle de la cifra (`--s2`) los pone este
+   margen.
+
+   Medido escaneando los píxeles de una captura, no calculado sobre la caja:
+   `getBBox` de un `svg` devuelve la geometría SIN el trazo, y con las puntas
+   redondeadas de lucide el dibujo pisa medio píxel más de lo que dice. Por eso
+   el ajuste anterior —hecho con la caja— dejaba el icono 1.25 px fuera del
+   canto del «14», que es exactamente lo que se veía y no cuadraba.
+
+   El canto es el de la cifra de arriba, que es lo que tiene justo encima. Los
+   microciclos de la lista quedan 2 px por dentro (`.side-link` remata a 10):
+   son otra columna, la de un dato de la fila, y el ojo no los compara con un
+   mando. */
+.sidebar-barra > .sidebar-orden { margin-left: auto; margin-right: calc(var(--s2) - 5px); }
 
 /* El mando, vestido como el filtro y por lo mismo: es cromo de la lista, no un
    botón de la página. Sin caja, terciario, y solo se enciende al apuntarlo o
    con el teclado. No se pinta en azul con un orden puesto —el azul de la casa
-   dice «hay algo acotado» y ordenar no esconde a nadie—: el estado lo dicen el
-   globo y la marca del menú. */
+   dice «hay algo acotado» y ordenar no esconde a nadie—: lo que dice el estado
+   es la lista misma, que se reordena al pulsar, y el globo. */
 .sidebar-orden {
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; flex: none;

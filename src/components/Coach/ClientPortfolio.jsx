@@ -27,7 +27,7 @@ import { useApp } from '@/context/AppContext';
 import { Nube } from '@/components/ui/EstadoDeRed';
 import { Pliegue } from '@/components/ui/Pliegue';
 import { traeALaVista } from '@/lib/motion';
-import { PORTFOLIO_FILTERS, TAG_LIMITS, buildPortfolio } from '@/domain/portfolio';
+import { PORTFOLIO_FILTERS, TAG_LIMITS, buildPortfolio, filtrosUtiles } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { semanaDeAhora } from '@/domain/week';
 import { memberName } from '@/domain/team';
@@ -145,8 +145,29 @@ const LLEVA = COACH_CLIENT.filter((s) => s.service === 'training' || s.service =
 const TONOS_VEREDICTO = new Set(['good', 'warn', 'bad', 'info']);
 const RANGO = { bad: 0, warn: 1, info: 2, good: 3, null: 4 };
 
+/*
+  ══ Lo que esta columna NO dice, porque lo mide la de al lado ═══════════════
+
+  La regla está escrita tres pantallas más abajo, en la celda de «Entrenó»: «el
+  semáforo juzga; la columna solo mide». Estaba escrita y no se cumplía. El
+  aviso `stale_training` lleva la cuenta dentro de su rótulo —«8 días sin
+  entrenar»— porque en la bandeja y en la ficha va solo y ahí el número ES el
+  aviso; aquí, con la columna «Entrenó» diciendo «hace 8 d» a un palmo, la fila
+  decía el mismo dato dos veces con dos formatos distintos.
+
+  Así que en ESTA columna ese aviso se dice sin su cuenta. El juicio se queda
+  —el punto ámbar y las dos palabras—, y el número lo pone quien lo mide.
+
+  Se puede hacer sin consultar a `columnas` (que se calcula más abajo) porque la
+  condición se cumple sola: una fila con `stale_training` tiene por fuerza
+  `sinceTraining` puesto, y `columnas.entreno` se enciende en cuanto una sola
+  fila visible lo tiene. Si esta frase se acorta, la de al lado está.
+*/
+const SIN_CUENTA = { stale_training: 'Sin entrenar' };
+
 const estadoDe = (row) => {
   const con = (text, tone) => ({ text, tone, rango: RANGO[tone ?? 'null'] });
+  const dicho = (alerta) => SIN_CUENTA[alerta.id] || alerta.label;
 
   /* La pausa va al final de cualquier orden: con quien has parado tú no hay
      nada que hacer hasta su vuelta. */
@@ -157,13 +178,13 @@ const estadoDe = (row) => {
     };
   }
   const grave = row.alerts.find((a) => a.severity === 'alta');
-  if (grave) return con(grave.label, 'bad');
+  if (grave) return con(dicho(grave), 'bad');
   const media = row.alerts.find((a) => a.severity === 'media');
-  if (media) return con(media.label, 'warn');
+  if (media) return con(dicho(media), 'warn');
   if (row.headline?.text) {
     return con(row.headline.text, TONOS_VEREDICTO.has(row.headline.tone) ? row.headline.tone : null);
   }
-  if (row.alerts.length > 0) return con(row.alerts[0].label, null);
+  if (row.alerts.length > 0) return con(dicho(row.alerts[0]), null);
   return con('Al día', 'good');
 };
 
@@ -703,17 +724,12 @@ export const ClientPortfolio = () => {
   /*
     ══ Los filtros, con su cifra ANTES del clic ═══════════════════════════════
     La cifra y el filtro salen del mismo predicado (`PORTFOLIO_FILTERS`), así
-    que no pueden discrepar. Solo se pintan los que tienen a alguien: un chip a
-    cero es una promesa vacía — y una cartera recién estrenada ve la lista
-    limpia de siempre, sin fila de filtros que no filtran nada.
+    que no pueden discrepar. Y se pinta el que PARTE la lista: ni el que no
+    tiene a nadie —un chip a cero es una promesa vacía— ni el que se lleva a
+    todo el mundo, que es el mismo «no filtra nada» por el otro extremo. La
+    regla entera y por qué, en `filtrosUtiles`.
   */
-  const filtros = useMemo(
-    () =>
-      PORTFOLIO_FILTERS.map((f) => ({ ...f, count: delTramo.filter(f.test).length })).filter(
-        (f) => f.id === 'all' || f.count > 0
-      ),
-    [delTramo]
-  );
+  const filtros = useMemo(() => filtrosUtiles(delTramo), [delTramo]);
 
   /* Las etiquetas que existen en el TRAMO abierto, con su cuenta. El
      vocabulario es del entrenador (columna `tags`, 0093): aquí solo se

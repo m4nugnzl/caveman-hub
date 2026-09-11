@@ -687,11 +687,29 @@ export const tecnicaSaid = (id) => TECNICAS.find((t) => t.id === id)?.dicho ?? n
  * mira un plan entero.
  */
 export const pesoPautado = (exercise) => {
-  const pesos = (exercise?.sets || []).map((s) => toNum(s?.targetKg)).filter((n) => n !== null);
-  if (pesos.length === 0) return null;
-  const min = Math.min(...pesos);
-  const max = Math.max(...pesos);
-  return min === max ? `${localeNumber(max)} kg` : `${localeNumber(max)}–${localeNumber(min)} kg`;
+  const rango = rangoPautado(exercise, 'targetKg');
+  return rango === null ? null : `${rango} kg`;
+};
+
+/**
+ * LO MISMO SIN UNIDAD, Y PARA CUALQUIER OBJETIVO EN CIFRAS: «100», «100–80».
+ *
+ * Lo que resume no es el dato sino EL DESACUERDO: una casilla del renglón del
+ * ejercicio dice lo que piden todas las series, y cuando no piden lo mismo
+ * tiene que decir algo. «Varias» es lo que se dice de las repeticiones —«8-10»
+ * y «5» no tienen término medio—, pero de los kilos y del RIR sí: los extremos
+ * son exactamente lo que hay que saber de una pirámide, y taparlos con una
+ * palabra es esconder al plegar.
+ *
+ * `null` si nadie lo pauta. Solo para campos numéricos: `toNum` de «8-10»
+ * contestaría 8 y el rango sería mentira.
+ */
+export const rangoPautado = (exercise, campo) => {
+  const cifras = (exercise?.sets || []).map((s) => toNum(s?.[campo])).filter((n) => n !== null);
+  if (cifras.length === 0) return null;
+  const min = Math.min(...cifras);
+  const max = Math.max(...cifras);
+  return min === max ? localeNumber(max) : `${localeNumber(max)}–${localeNumber(min)}`;
 };
 
 /**

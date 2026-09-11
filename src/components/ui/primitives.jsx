@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Check, CheckCircle2, ChevronRight, CloudOff, Info, Loader2, Plus, TriangleAlert, XCircle } from 'lucide-react';
+import { Check, CheckCircle2, ChevronRight, CloudOff, Info, Loader2, Plus, TriangleAlert, X, XCircle } from 'lucide-react';
 
 /**
  * Primitivas de presentación compartidas.
@@ -361,14 +361,28 @@ const NOTICE_ICONS = {
  *             un fallo, ver la ley del color— pero la «i» genérica le quitaba lo
  *             único que se reconoce de un vistazo sin leer. El tono sigue
  *             mandando en la tinta; esto solo cambia el dibujo.
+ * @param onClose Para el aviso que EXPLICA algo que ya se dice en otro sitio: se
+ *             lee una vez y estorba el resto del rato. Solo eso — un aviso que
+ *             cuenta un hecho con consecuencias (algo sin guardar, datos de
+ *             ayer) no se puede quitar de en medio, y no debe traer equis.
  */
-export const Notice = ({ tone = 'info', children, action, icon }) => {
+export const Notice = ({ tone = 'info', children, action, icon, onClose }) => {
   const Icon = icon || NOTICE_ICONS[tone] || Info;
   return (
     <div className={`notice notice-${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
       <Icon size={15} style={{ flexShrink: 0, marginTop: 1 }} />
       <span className="grow">{children}</span>
       {action}
+      {onClose && (
+        <button
+          type="button"
+          className="btn btn-icon btn-icon-compact notice-cerrar"
+          onClick={onClose}
+          aria-label="Cerrar aviso"
+        >
+          <X size={13} />
+        </button>
+      )}
     </div>
   );
 };
@@ -535,6 +549,67 @@ export const TextInput = ({ value, onChange, className = '', ...rest }) => (
     {...rest}
   />
 );
+
+/**
+ * ══ ESCRIBIR DONDE SE LEE ═══════════════════════════════════════════════════
+ *
+ * Un texto que es a la vez lo que se lee y donde se escribe: en reposo no
+ * parece un campo —sin canto y sin fondo, con la tipografía de lo que está
+ * escrito—, al pasar por encima se enciende y al enfocarlo se viste como
+ * cualquier otro control. Es la ley de los gestos de la casa: la caja se
+ * enciende, no hace falta un lápiz que lo anuncie.
+ *
+ * ── Por qué un `<textarea>` para una línea ──────────────────────────────────
+ * Porque un `<input>` de una línea metido en una columna estrecha esconde lo
+ * escrito: el enunciado de una pregunta llega a 140 caracteres y en un campo de
+ * 240 px se lee por una ventana de seis palabras que se desplaza sola mientras
+ * escribes. El `textarea` PARTE la línea y crece con ella, así que lo escrito se
+ * ve entero — que es la única razón por la que se escribe aquí y no en un panel
+ * aparte.
+ *
+ * El alto se recalcula con `scrollHeight` (el mismo recurso que las pautas de la
+ * dieta y la ficha del ejercicio) y hay que ponerlo a `auto` antes de medir, o
+ * la caja crece y no vuelve a encoger nunca.
+ *
+ * `Enter` NO mete un salto de línea: esto es un renglón, no un párrafo. Sale del
+ * campo, que es lo que espera quien viene de teclear un nombre en cualquier
+ * sitio. `Escape` también, sin confirmar nada — el valor ya va subiendo.
+ */
+export const TextoEnSitio = ({
+  value,
+  onChange,
+  className = '',
+  onFocus = null,
+  maxLength,
+  ...rest
+}) => {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className={`texto-en-sitio ${className}`.trim()}
+      value={value ?? ''}
+      maxLength={maxLength}
+      onFocus={onFocus}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== 'Escape') return;
+        e.preventDefault();
+        e.currentTarget.blur();
+      }}
+      {...rest}
+    />
+  );
+};
 
 /* ==========================================================================
    Elegir cosas: la tarjeta y el interruptor

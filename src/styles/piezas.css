@@ -2428,8 +2428,15 @@ a.title:hover { text-decoration: underline; }
    es lo único que hay que comparar. */
 .escribir {
   display: flex; flex-direction: column; gap: var(--s4); min-width: 0;
-  --pauta-track: 18px minmax(120px, 1fr) repeat(var(--pauta-n, 3), minmax(44px, 58px)) 168px;
+  --pauta-track: 18px minmax(120px, 1fr) repeat(var(--pauta-n, 3), minmax(44px, 62px)) 168px;
 }
+/* ── LA PISTA DE LA FILA NO ES UNA CIFRA ───────────────────────────────────
+   En el renglón del ejercicio la casilla vacía no dice «escribe aquí»: dice lo
+   que piden las series cuando no piden lo mismo —«100–95», «3–0»—, que es una
+   LECTURA. Con el cuerpo de 14 no cabía en la columna: «100–95» se cortaba a la
+   mitad y el rango se leía «100–9». Baja a la voz de las etiquetas, que además
+   es la que separa lo leído de lo escrito. */
+.escribir-ej > .hoja-celda::placeholder { font-size: var(--fs-xs); }
 .escribir-head,
 .escribir-ej,
 .escribir-serie {
@@ -2573,8 +2580,14 @@ a.title:hover { text-decoration: underline; }
 /* El remate y la papelera de la serie, pegados a la última cifra: es donde los
    pone la hoja de Entreno, en sus dos columnas de 22 px. */
 .escribir-serie-verbos { display: flex; align-items: center; gap: 2px; }
+/* Los dos callan hasta que te acercas a la serie —es su ley en la hoja de
+   Entreno—, pero allí la encendía `.hoja-fila:hover`, que aquí no existe: sin
+   esto, el mando del remate se queda invisible y una serie sin remate puesto no
+   se puede rematar. */
 .escribir-serie:hover .hoja-x:not(:disabled),
-.escribir-serie:focus-within .hoja-x:not(:disabled) { opacity: 1; }
+.escribir-serie:focus-within .hoja-x:not(:disabled),
+.escribir-serie:hover .remate-boton,
+.escribir-serie:focus-within .remate-boton { opacity: 1; }
 /* La línea del remate cuelga de su serie y se alinea con el rótulo. Dos clases
    para ganarle el margen a `.hoja-remate` sin depender del orden de los
    ficheros. */
@@ -2622,15 +2635,22 @@ a.title:hover { text-decoration: underline; }
 .escribir-lista.is-ordenando { cursor: grabbing; -webkit-user-select: none; user-select: none; }
 
 /* ── Y EN UNA MESA ESTRECHA ────────────────────────────────────────────────
-   Por debajo de 720 px no caben las cifras y el carril en el mismo renglón. El
-   carril baja entero a un segundo renglón, pegado al canto derecho —suelto a la
-   izquierda se leería como de otra cosa—, y las columnas de cifra se reparten
-   lo que hay. Componer un bloque es trabajo de escritorio (el móvil ejecuta),
-   pero una hoja abierta en una tableta tiene que poder leerse. */
+   Por debajo de 720 px no caben las cinco cifras y los seis verbos en el mismo
+   renglón. El carril del EJERCICIO baja entero a un segundo renglón, pegado al
+   canto derecho —suelto a la izquierda se leería como de otra cosa—, y las
+   columnas de cifra se reparten lo que hay, con el nombre llevándose casi el
+   doble que cada una: cortarlo en «Press inclina…» es no leerlo.
+
+   Los dos verbos de la SERIE no bajan: son 46 px y su columna se queda, que si
+   no cada serie se comía dos renglones y una tabla de cuatro pasaba de 120 a
+   240 px de alto por un remate que casi nunca está puesto. Componer un bloque
+   es trabajo de escritorio (el móvil ejecuta), pero una hoja abierta en una
+   tableta tiene que poder leerse. */
 @media (max-width: 719.98px) {
-  .escribir { --pauta-track: 18px minmax(0, 1fr) repeat(var(--pauta-n, 3), minmax(38px, 1fr)); }
+  .escribir {
+    --pauta-track: 18px minmax(96px, 1.8fr) repeat(var(--pauta-n, 3), minmax(38px, 1fr)) 56px;
+  }
   .escribir-acciones { grid-column: 1 / -1; }
-  .escribir-serie-verbos { grid-column: 1 / -1; justify-content: flex-end; }
 }
 
 /* ── La gramática de serie ──────────────────────────────────────────────────

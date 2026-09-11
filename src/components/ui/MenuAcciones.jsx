@@ -48,7 +48,6 @@ export const MenuAcciones = ({
   hacia = 'abajo',
   ariaLabel,
   clase = null,
-  titulo = null,
   sinFlecha = false,
   descriptivo = false,
 }) => {
@@ -77,10 +76,6 @@ export const MenuAcciones = ({
            nombre accesible saldría convertido en un objeto—. Iba al revés y los
            tres sitios que pasaban `ariaLabel` con `label` lo tenían ignorado. */
         aria-label={ariaLabel || label || 'Más acciones'}
-        /* El globo del sistema. Lo pide el mando MUDO: sin rótulo visible, en
-           qué estado está solo se leería abriendo el menú, y eso es un clic
-           para una pregunta que se contesta mirando. */
-        title={titulo || undefined}
         onClick={() => setAbierto((v) => !v)}
       >
         {label ? (

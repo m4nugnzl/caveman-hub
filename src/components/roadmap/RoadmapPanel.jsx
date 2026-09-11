@@ -499,8 +499,8 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
                 className="slot-btn is-danger"
                 onClick={onRemove}
                 disabled={busy}
-                aria-label={`Borrar ${phase.title}`}
-                title="Borrar"
+                aria-label={`Quitar ${phase.title}`}
+                title="Quitar"
               >
                 <Trash2 size={13} />
               </button>

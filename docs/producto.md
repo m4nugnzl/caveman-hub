@@ -523,6 +523,29 @@ Para poder revisar un diff sin discutir:
    enseña «Franco Es…» y «Sin cuenta enlaz…»: eso no es un problema de longitud,
    es una columna mal dimensionada.
 7. Un selector de semana nuevo. Hay cinco; el objetivo es uno.
+8. La palabra «Eliminar». Ver 5.7.
+
+### 5.7 Quitar y borrar no son lo mismo
+
+La papelera aparecía con tres verbos —«Quitar serie», «Eliminar sesión»,
+«Borrar este vídeo»— y los tres se leían como sinónimos, así que el gesto no
+decía nada sobre lo que iba a pasar. No son sinónimos: hay dos gestos
+distintos debajo, y el vocabulario los tapaba.
+
+**Quitar** — sacar del plan algo que pusiste tú: una serie, una comida, una
+pauta, una hoja, un bloque, una fase. Lo que se quita se puede volver a poner
+porque el original eras tú.
+
+**Borrar** — destruir un registro o un archivo: lo que él anotó o subió. Un
+pesaje, una foto, un vídeo, una sesión entrenada, una revisión. No vuelve, y
+por eso siempre pasa por `confirm` con `tone: 'danger'`.
+
+**Eliminar** no existe. Era el comodín que dejaba las dos categorías mezcladas:
+con él puesto, la misma palabra tapaba «esto lo puedes rehacer» y «esto no
+vuelve nunca», que es justo lo que hay que saber ANTES de pulsar.
+
+La prueba de la regla es el mensaje: si la confirmación tiene que decir «no se
+puede recuperar», el verbo es borrar. Si puede decir «Deshacer», es quitar.
 
 ---
 

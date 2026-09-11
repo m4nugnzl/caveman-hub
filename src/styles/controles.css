@@ -240,6 +240,35 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .input-sm { padding: 5px 9px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
 .textarea { resize: vertical; min-height: 86px; }
 
+/* ── ESCRIBIR DONDE SE LEE ─────────────────────────────────────────────────
+   Un texto que además se escribe. En reposo es TEXTO: sin canto, sin fondo y
+   con la tipografía de lo que hay escrito, porque un campo por cada palabra de
+   una pantalla la convierte en un formulario de administración. Al pasar por
+   encima se enciende y al enfocarlo se viste como cualquier control — la ley de
+   los gestos: la caja se enciende, no hace falta anunciarlo con un lápiz.
+
+   El alto lo pone el componente midiendo `scrollHeight`, así que aquí no puede
+   haber `min-height`: la línea la marca `line-height` y crece con lo escrito.
+   Ver `TextoEnSitio`. */
+.texto-en-sitio {
+  font-family: inherit; font-size: inherit; font-weight: inherit;
+  line-height: 1.45; color: inherit;
+  width: 100%; min-width: 0;
+  margin: 0; padding: 3px 6px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent;
+  resize: none; overflow: hidden;
+  transition: background-color var(--fast), border-color var(--fast), box-shadow var(--fast);
+}
+.texto-en-sitio:hover { background: var(--fill-subtle); }
+.texto-en-sitio:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.texto-en-sitio::placeholder { color: var(--text-tertiary); font-weight: 400; }
+
 .select {
   appearance: none; padding-right: 32px; cursor: pointer;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
@@ -1144,6 +1173,14 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   padding: var(--s3) var(--s4); border-radius: var(--r-md);
   font-size: var(--fs-sm); background: var(--fill-subtle); color: var(--text-secondary);
 }
+/* ── La equis de la franja que EXPLICA ─────────────────────────────────────
+   `btn-icon` trae el gris de los datos apagados (`--text-tertiary`), que dentro
+   de un aviso teñido es una mancha de otro color. Aquí hereda la tinta del tono
+   y se queda a media voz: está para cuando la busques, no para competir con la
+   frase. Y `margin: -4px 0` para que no engorde el renglón de una línea. */
+.notice-cerrar { color: inherit; opacity: 0.55; margin: -4px 0; }
+.notice-cerrar:hover:not(:disabled) { color: inherit; opacity: 1; background: var(--fill); }
+
 .notice-error { background: var(--negative-soft); color: var(--negative); }
 .notice-success { background: var(--positive-soft); color: var(--positive); }
 .notice-info { background: var(--info-soft); color: var(--info); }
@@ -1200,9 +1237,15 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    lo que sí es del cliente. Se ve siempre, que es lo que hace que se aprenda
    qué aspecto tiene «bien», pero no habla.
 
-   SIN CONEXIÓN o ENVIANDO toma la chapa entera (`.badge`, la pieza con la que
-   esta cinta dice «Renueva el 10 nov»): relleno, tinta plena y la palabra. Una
-   nube tachada suelta podría ser cualquier cosa; con la palabra al lado, no.
+   RECIÉN CAÍDA (o ENVIANDO) toma la chapa entera (`.badge`, la pieza con la que
+   esta cinta dice «Renueva el 10 nov»): relleno, tinta plena y la palabra. Pero
+   solo mientras es noticia —seis segundos, ver `ui/EstadoDeRed`—.
+
+   YA ASUMIDA pierde la caja y la palabra y se queda en la nube tachada sola, EN
+   TINTA PLENA. Ahí está la diferencia con «conectada», que es el mismo tamaño de
+   signo pelado en tinta terciaria: lo que las separa es el peso, no la forma. La
+   chapa permanente era el otro extremo del problema que ya tuvo «Conectado»:
+   dos palabras clavadas en la cinta durante la hora entera que dure el corte.
 
    ── El color, y por qué no es ámbar ────────────────────────────────────────
    Por la ley del color de la casa: el semáforo JUZGA, y quedarse sin cobertura
@@ -1216,7 +1259,11 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .nube > svg { flex-shrink: 0; }
 .nube.is-bien { color: var(--text-tertiary); }
 .nube.is-fuera,
-.nube.is-mandando { background: var(--fill); color: var(--text); }
+.nube.is-mandando { color: var(--text); }
+/* Aquí solo la TINTA. El relleno y la píldora los pone `.badge`, que la pieza se
+   añade únicamente cuando lleva palabra: sin ella no hay caja que rellenar, y
+   una mancha de fondo pegada a un icono de 15 px es una pastilla diminuta, no un
+   signo. Estas dos reglas le ganan al `color` de `.badge` por especificidad. */
 
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
 

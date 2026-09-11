@@ -9,13 +9,26 @@
  * sin actualizar a sus 38 consumidores y la aplicación entera se descolocó sin
  * que ni el linter ni el build dijeran nada.
  *
- * Este script cierra ese hueco. Comprueba cuatro cosas:
+ * Este script cierra ese hueco. Comprueba cinco cosas:
  *   1. Toda clase usada en `className` existe en el CSS.
  *   2. Todo `var(--x)` usado existe como token — en el JSX **y en el CSS**.
  *   3. La paleta de datos no se usa como cromo.
  *   4. No hay literales de color en el JSX (salvo las excepciones declaradas:
  *      el logo de marca y las paletas de dibujo sobre canvas, que no pueden usar
  *      variables CSS).
+ *   5. La palabra «Eliminar» no aparece. Ver la 5.
+ *
+ * ── Por qué la 5 ────────────────────────────────────────────────────────────
+ * Por lo mismo que la 3: es una regla de producto que solo vivía en la cabeza de
+ * quien la escribió y se degradaba sola. La papelera se decía con tres verbos
+ * —«Quitar serie», «Eliminar sesión», «Borrar este vídeo»— y los tres se leían
+ * como sinónimos, así que el gesto no decía si lo que iba a pasar tenía vuelta.
+ *
+ * Sí la tiene o no la tiene, y son dos palabras distintas (`docs/producto.md`
+ * §5.7): **quitar** es sacar del plan algo que pusiste tú y **borrar** es
+ * destruir lo que él anotó o subió. «Eliminar» era el comodín que dejaba las dos
+ * mezcladas, y por eso lo que se comprueba es su ausencia: quien escriba una
+ * papelera nueva tiene que elegir, que es justo lo que hay que pensar.
  *
  * ── Por qué la 2 mira también el CSS ────────────────────────────────────────
  * Porque solo miraba el JSX, y por ahí se coló un `border: 1px solid var(--border)`
@@ -152,6 +165,7 @@ const badTokens = [];
 const colorLiterals = [];
 const dataAsChrome = [];
 const iconSizes = [];
+const verbosProhibidos = [];
 
 /*
   Los tokens que usa el propio CSS. Un `var(--noExiste)` sin fallback invalida la
@@ -203,6 +217,11 @@ for (const file of code) {
       colorLiterals.push(`${rel} → ${match[0]}`);
     }
   }
+
+  /* «Eliminar». Ver `docs/producto.md` §5.7. */
+  for (const match of text.matchAll(/\bElimina(r|da|do|mos)?\b/g)) {
+    verbosProhibidos.push(`${rel} → ${match[0]}`);
+  }
 }
 
 const report = (label, list, fatal) => {
@@ -217,6 +236,7 @@ const classErrors = report('clases sin definir', badClasses, true);
 const tokenErrors = report('tokens sin definir', badTokens, true);
 const chromeErrors = report('paleta de datos usada como cromo', dataAsChrome, true);
 const iconErrors = report('iconos fuera de la escala 13/15/20', iconSizes, true);
+const verbErrors = report('«Eliminar»: es quitar o es borrar (producto.md §5.7)', verbosProhibidos, true);
 report('literales de color fuera de las excepciones', colorLiterals, false);
 
-process.exit(classErrors + tokenErrors + chromeErrors + iconErrors > 0 ? 1 : 0);
+process.exit(classErrors + tokenErrors + chromeErrors + iconErrors + verbErrors > 0 ? 1 : 0);

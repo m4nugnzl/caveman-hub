@@ -1198,7 +1198,7 @@ export const MealCard = ({
             {/* Sin confirmación: borrar una comida tiene inverso —el aviso con
                 «Deshacer» de `NutritionModule`— y lo que se deshace no se
                 confirma. */}
-            <Accion icon={Trash2} label="Eliminar comida" onClick={onRemoveMeal} danger />
+            <Accion icon={Trash2} label="Quitar la comida" onClick={onRemoveMeal} danger />
           </div>
         )}
 

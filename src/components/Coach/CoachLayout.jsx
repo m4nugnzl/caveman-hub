@@ -1,6 +1,8 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
+  ArrowDownNarrowWide,
+  ArrowDownWideNarrow,
   ArrowLeft,
   Cake,
   CalendarCheck,
@@ -39,7 +41,7 @@ import { useMarcaDeslizante } from '@/components/ui/carril';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { Logo } from '@/components/ui/Logo';
 import { Modal } from '@/components/ui/Modal';
-import { MandoDeOrden, ordenar, useOrden } from '@/components/ui/tabla';
+import { ordenar, useOrden } from '@/components/ui/tabla';
 import { HeaderActions, Omnibox } from '@/components/Header';
 import { ClientSwitcher } from './ClientSwitcher';
 import { GettingStarted } from './GettingStarted';
@@ -488,6 +490,49 @@ export const CoachLayout = () => {
       : [];
 
   /*
+    ── El ciclo: urgencia → nombre → último entreno → urgencia ────────────────
+    Una pulsación, el siguiente orden. Y el de casa DENTRO del ciclo, no fuera:
+    si volver a la urgencia costara un gesto distinto, el orden con el que se
+    abre la pantalla —«¿por quién empiezo hoy?»— se perdería en el primer clic.
+    Es lo que hace «Restablecer» en el menú de la cartera, dicho como paso.
+
+    NO se ofrecen los dos sentidos de cada campo: serían cinco paradas para tres
+    preguntas, y a la cuarta pulsación ya no se sabe dónde estás. Cada orden
+    entra por su lado útil (`num` lo decide: de los nombres se quiere la A; de
+    los días sin entrenar, el que más lleva). Los dos sentidos siguen en la
+    cartera, que tiene cabeceras donde se ve la flecha.
+  */
+  const cicloDeOrden = [null, ...camposDeOrden.map((c) => c.id)];
+  const siguienteOrden =
+    cicloDeOrden[(Math.max(0, cicloDeOrden.indexOf(orden.campo)) + 1) % cicloDeOrden.length];
+  const nombreDeOrden = (id) =>
+    id === null ? 'urgencia' : (camposDeOrden.find((c) => c.id === id)?.label || '').toLowerCase();
+  const pasarDeOrden = () => {
+    if (siguienteOrden === null) orden.restablecer();
+    else orden.cambiar(siguienteOrden, camposDeOrden.find((c) => c.id === siguienteOrden)?.num);
+  };
+  /*
+    ── El icono dice el SENTIDO, no el campo ──────────────────────────────────
+    Tres barras y una flecha: las barras son la lista y la flecha, por dónde
+    empieza. Es el icono de ordenar de todo el mundo, y se prefiere a la doble
+    flecha (`ArrowUpDown`) porque aquélla solo decía «esto se puede ordenar» —un
+    rótulo de la función, no del estado—, y el mando ya estaba mudo por fuera.
+
+    Qué campo manda NO se dibuja, y es a propósito: son tres paradas y el icono
+    daría para dos. Lo dice la lista, que se reordena debajo del dedo, y el
+    globo. Lo que sí cabe sin mentir es hacia dónde corre, que es lo único que
+    un icono de ordenar ha significado nunca.
+
+    La urgencia es «desc» aunque `useOrden` la guarde en su sentido de fábrica:
+    sin campo no hay sentido que leer, y el orden de casa pone arriba a quien
+    más espera — de más a menos, como el resto de las descendentes.
+  */
+  const IconoDeOrden =
+    (orden.campo === null ? 'desc' : orden.sentido) === 'asc'
+      ? ArrowDownNarrowWide
+      : ArrowDownWideNarrow;
+
+  /*
     A dónde lleva pulsar a alguien. Cambiar de cliente CONSERVA la sección: si
     estabas en su nutrición, pasas a la nutrición del otro. Salvo que al otro no
     le lleves dieta, y entonces se cae a su semana — mandarle a una sección que
@@ -774,7 +819,7 @@ export const CoachLayout = () => {
               <div className="sidebar-barra">
                 {cartera.length >= UMBRAL_FILTRO && (
                   <div className="sidebar-filtro">
-                    <Search size={13} aria-hidden="true" />
+                    <Search size={15} aria-hidden="true" />
                     <input
                       type="search"
                       value={filtro}
@@ -785,20 +830,27 @@ export const CoachLayout = () => {
                   </div>
                 )}
                 {camposDeOrden.length > 0 && (
-                  /* MUDO: el mismo menú de la cartera, pero al canto solo su
-                     icono. Decía el orden en voz alta —«Por último entreno»—
-                     porque aquí no hay cabeceras donde apoyarse, y en 240 px
-                     esa frase era lo más ancho de la línea: se comía el campo
-                     de filtrar o se bajaba a un renglón propio. El estado se
-                     lee en el globo y con la marca dentro del menú. */
-                  <MandoDeOrden
-                    orden={orden}
-                    campos={camposDeOrden}
-                    defecto="Urgencia"
-                    clase="sidebar-orden"
-                    ariaLabel="Ordenar tus clientes"
-                    mudo
-                  />
+                  /* EL MANDO ES EL GESTO: se pulsa y la lista se reordena. Sin
+                     menú. Aquí hubo el `MandoDeOrden` de la cartera —primero
+                     con su rótulo («Por último entreno», que en 240 px dejaba
+                     el campo de filtrar en 39 px) y luego mudo, con el menú
+                     dentro—, y las dos veces el dueño señaló lo mismo: para
+                     elegir entre tres cosas, abrir una capa y volver a apuntar
+                     es un paso de más. El menú se queda donde se gana el sitio:
+                     en la cartera, con seis columnas y dos sentidos cada una.
+
+                     La prueba de que basta una pulsación es que la respuesta
+                     está DELANTE: la lista se reordena debajo del dedo. El
+                     globo dice en cuál estás y cuál viene. */
+                  <button
+                    type="button"
+                    className="sidebar-orden"
+                    onClick={pasarDeOrden}
+                    title={`Por ${nombreDeOrden(orden.campo)} · pulsa para ordenar por ${nombreDeOrden(siguienteOrden)}`}
+                    aria-label={`Ordenar tus clientes. Ahora, por ${nombreDeOrden(orden.campo)}; al pulsar, por ${nombreDeOrden(siguienteOrden)}`}
+                  >
+                    <IconoDeOrden size={15} aria-hidden="true" />
+                  </button>
                 )}
               </div>
             )}

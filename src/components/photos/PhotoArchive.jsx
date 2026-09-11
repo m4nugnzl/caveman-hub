@@ -236,10 +236,10 @@ export const PhotoArchive = () => {
   const borrar = async (photo, event) => {
     event.stopPropagation();
     const ok = await confirm({
-      title: '¿Eliminar esta foto?',
+      title: '¿Borrar esta foto?',
       message: `Se borrará la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}.`,
-      detail: 'La imagen se elimina también del almacenamiento y no se puede recuperar.',
-      confirmLabel: 'Eliminar foto',
+      detail: 'La imagen se borra también del almacenamiento y no se puede recuperar.',
+      confirmLabel: 'Borrar la foto',
       tone: 'danger',
     });
     if (ok) deleteProgressPhoto(photo);
@@ -448,7 +448,7 @@ export const PhotoArchive = () => {
                                 type="button"
                                 className="btn btn-icon btn-icon-compact btn-icon-danger"
                                 onClick={(e) => borrar(photo, e)}
-                                aria-label={`Eliminar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
+                                aria-label={`Borrar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
                               >
                                 <Trash2 size={13} />
                               </button>

@@ -432,7 +432,7 @@ export const HojaDeSeries = ({
                     sinFlecha
                   />
                 ) : (
-                  <button type="button" className="btn btn-icon btn-icon-compact btn-icon-danger" aria-label={`Eliminar ${ex.name}`} onClick={() => onRemove(ex.id)}>
+                  <button type="button" className="btn btn-icon btn-icon-compact btn-icon-danger" aria-label={`Quitar ${ex.name}`} onClick={() => onRemove(ex.id)}>
                     <Trash2 size={13} />
                   </button>
                 )}

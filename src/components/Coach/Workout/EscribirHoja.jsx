@@ -5,6 +5,7 @@ import { pautaComun, pautaHeredada } from '@/domain/blocks';
 import {
   MUSCLE_GROUPS,
   buildExercise,
+  rangoPautado,
   rematesDe,
   supersetLabels,
   tecnicaDeLaSerie,
@@ -541,17 +542,25 @@ export const EscribirHoja = ({
                           />
                         );
                       }
-                      /* Un objetivo de serie, leído sobre todas: la cifra si
-                         coinciden, «varias» si no (`pautaComun`). */
+                      /*
+                        Un objetivo de serie, leído sobre todas: la cifra si
+                        coinciden (`pautaComun`) y, si no, lo que resume el
+                        desacuerdo sin esconderlo — los extremos en los campos
+                        numéricos («100–80»), que es justo lo que hay que saber
+                        de una pirámide, y «varias» donde un rango sería mentira:
+                        entre «8-10» y «5» no hay término medio.
+                      */
                       const comun = pautaComun(ex, col.key);
                       const vacia = comun === '' && col.opcional;
+                      const dispar =
+                        col.mode === 'text' ? 'varias' : rangoPautado(ex, col.key) || 'varias';
                       return (
                         <input
-                          key={`${col.key}-${comun ?? 'varias'}`}
+                          key={`${col.key}-${comun ?? dispar}`}
                           className={`hoja-celda${vacia ? ' is-vacia' : ''}`}
                           inputMode={col.mode}
                           defaultValue={comun ?? ''}
-                          placeholder={comun === null ? 'varias' : col.pista}
+                          placeholder={comun === null ? dispar : col.pista}
                           aria-label={`${col.label} de todas las series de ${ex.name}`}
                           onBlur={(e) => {
                             const v = e.target.value.trim();

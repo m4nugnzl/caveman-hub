@@ -63,9 +63,39 @@
   curar en la primera vuelta, cuando el control solo se veía en el carril.
 */
 .q-card.es-libre { flex-direction: column; align-items: stretch; gap: var(--s2); padding: var(--s3); }
-.q-libre-cab { display: flex; align-items: center; gap: var(--s2); }
+.q-libre-cab { display: flex; align-items: flex-start; gap: var(--s2); }
 .q-libre-control { padding-left: calc(15px + var(--s2)); }
-.q-oblig-marca { color: var(--accent); font-weight: 700; }
+.q-oblig-marca { color: var(--accent); font-weight: 700; flex-shrink: 0; padding-top: 3px; }
+
+/* ── EL RENGLÓN SE ESCRIBE ─────────────────────────────────────────────────
+   El enunciado y la ayuda ya no son texto plano con su copia editable en el
+   carril: son el campo. Lo que cambia del `.q-cuerpo` de siempre es que deja de
+   ser un botón —dentro hay dos campos, y un botón no puede contenerlos— y que
+   se alinea por arriba, porque el título puede ocupar dos líneas.
+
+   El asa, el glifo y la cruz se quedan a la altura de la PRIMERA línea; si se
+   centraran, una pregunta larga los dejaría flotando a media tarjeta. */
+.q-cuerpo.es-escrito { align-items: flex-start; cursor: auto; }
+.q-cuerpo.es-escrito > .q-glifo { margin-top: 2px; }
+/* Colgando de `.es-escrito` y no a secas: `.q-texto` es de toda la casa —el
+   renglón del protocolo, el carril de automatizaciones, «lo que sale»— y esta
+   hoja va DETRÁS de `taller.css`, así que una regla suelta se los llevaría por
+   delante a todos. */
+.q-cuerpo.es-escrito > .q-texto { flex: 1; }
+.q-titulo-linea { display: flex; align-items: flex-start; gap: 2px; min-width: 0; }
+
+/* El mismo peso y tamaño que `.q-titulo`, que es lo que había escrito ahí: al
+   entrar en modo de edición el renglón no debe moverse ni un píxel. Sin
+   `nowrap` ni recorte, a diferencia de aquel — una pregunta de veinte palabras
+   se lee entera en dos líneas en vez de por una ventanita. */
+.q-titulo-linea > .texto-en-sitio.es-titulo { font-size: var(--fs-sm); font-weight: 600; }
+.q-texto > .texto-en-sitio.es-ayuda { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* El asa y los mandos, a plomo con la primera línea del enunciado. */
+.q-libre-cab > .q-asa { margin-top: 7px; }
+.q-libre-cab > .q-donde,
+.q-libre-cab > .q-orden,
+.q-libre-cab > .q-quitar { margin-top: 4px; }
 
 /* El tono del suelto y del envío. Faltaba, y sin él `--fd-h` no existe: la
    declaración `hsl(var(--fd-h) …)` se invalida ENTERA y el disco sale sin

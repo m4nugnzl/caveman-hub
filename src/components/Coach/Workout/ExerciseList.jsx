@@ -282,7 +282,7 @@ export const ExerciseList = ({
                     onRemove(id);
                   }}
                 >
-                  <Trash2 size={15} /> Eliminar
+                  <Trash2 size={15} /> Quitar
                 </button>
               </>
             }
@@ -591,7 +591,7 @@ export const ExerciseList = ({
                 type="button"
                 className="btn btn-icon btn-icon-danger shrink-0"
                 onClick={() => askRemove(exercise)}
-                aria-label={`Eliminar ${exercise.name}`}
+                aria-label={`Quitar ${exercise.name}`}
               >
                 <Trash2 size={15} />
               </button>

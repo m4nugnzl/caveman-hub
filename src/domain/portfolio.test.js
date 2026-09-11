@@ -6,6 +6,7 @@ import {
   INBOX_TASKS,
   TRAMITES_INICIO,
   PORTFOLIO_FILTERS,
+  filtrosUtiles,
   buildPortfolio,
   clientStatus,
   columnFor,
@@ -215,6 +216,33 @@ describe('la bandeja llega entera a Inicio', () => {
       (id) => !enColas.has(id) && !TRAMITES_INICIO.includes(id)
     );
     expect(huerfanas).toEqual([]);
+  });
+
+  /*
+    El renglón de «al día» nombra las colas vacías EN POSITIVO, y ese nombre no
+    es el rótulo: el rótulo dice el estado («Sin leer») y la frase necesita la
+    cosa («respuestas»). Vivía en una tabla aparte dentro de `Today.jsx` con un
+    respaldo al rótulo; le faltaba `leer` y la portada llegó a decir «Revisiones,
+    sin leer, rutinas y cobros, al día» — una negación en mitad de una lista de
+    cosas que van bien. El respaldo se ha quitado, así que una cola sin `alDia`
+    ya no rompe la frase: desaparece de ella en silencio, que es peor de
+    encontrar. Esta prueba es la que lo impide.
+  */
+  it('cada cola sabe cómo se llama cuando está vacía', () => {
+    const sinNombre = COLAS_INICIO.filter((c) => !c.alDia).map((c) => c.id);
+    expect(sinNombre).toEqual([]);
+  });
+
+  /*
+    Y ninguna lo llama igual que otra. `programar` y `siguiente` son las dos de
+    rutina —quien no tiene NINGUNA y quien no tiene la que VIENE— y mientras la
+    primera se llamó «rutinas» a secas la portada se contradecía: afirmaba
+    «rutinas al día» con cinco personas en «Sin semana siguiente» a treinta
+    píxeles.
+  */
+  it('ninguna cola vacía se llama como otra', () => {
+    const nombres = COLAS_INICIO.map((c) => c.alDia);
+    expect(new Set(nombres).size).toBe(nombres.length);
   });
 
   it('lo contestado sale como cola propia, con su verbo', () => {
@@ -1025,5 +1053,37 @@ describe('previsionEscrita', () => {
     );
     expect(row.alerts.map((a) => a.id)).toContain('sin_semana');
     expect(previsionEscrita([row], hoy).map((c) => c.n)).toEqual([0, 0, 0, 0]);
+  });
+});
+
+/*
+  ══ Un filtro solo se gana el sitio si PARTE la lista ════════════════════════
+
+  Se retiraban los que no tienen a nadie y se dejaban los que se llevan a todo el
+  mundo. Contra la cartera de verdad salía «Requieren atención 6 · Sin entrenar 6
+  · Todos 6» sobre seis clientes: tres botones para la misma lista, y encima
+  prometiendo un subgrupo donde lo que hay es el grupo entero.
+*/
+describe('los filtros que se pintan', () => {
+  const fila = (extra) => ({ alerts: [], checkIn: { complete: true }, ...extra });
+  const ids = (rows) => filtrosUtiles(rows).map((f) => f.id);
+
+  it('ninguno cuando todos dicen lo mismo: solo queda «Todos»', () => {
+    expect(ids(Array.from({ length: 6 }, () => fila({ needsAttention: true })))).toEqual(['all']);
+  });
+
+  it('el que parte la lista sí, con su cifra', () => {
+    const rows = [...Array.from({ length: 4 }, () => fila({ needsAttention: true })), fila(), fila()];
+    const salida = filtrosUtiles(rows);
+    expect(salida.map((f) => `${f.id}:${f.count}`)).toEqual(['attention:4', 'ok:2', 'all:6']);
+  });
+
+  it('el que no tiene a nadie sigue sin pintarse', () => {
+    expect(ids([fila({ needsAttention: true }), fila()])).not.toContain('paused');
+  });
+
+  it('«Todos» se queda siempre: es el sitio al que se vuelve', () => {
+    expect(ids([])).toEqual(['all']);
+    expect(ids([fila()])).toEqual(['all']);
   });
 });

@@ -174,9 +174,13 @@ export const ThOrden = ({ orden, campo, num = false, clase = null, children }) =
  *   cada sentido EN EL VOCABULARIO DE ESA COLUMNA: «los que más llevan sin
  *   entrenar» dice lo que hace; «descendente» dice cómo está implementado.
  * @param defecto  Cómo se llama el orden del dominio («Urgencia»).
- * @param mudo     Solo el icono, sin el rótulo del orden puesto. Para el cromo
- *   de una lista estrecha (la cola de la barra), donde la frase es lo más ancho
- *   de la línea. El estado pasa al globo y al nombre accesible.
+ *
+ * ── Dónde NO va este menú ──────────────────────────────────────────────────
+ * En una lista de pocas preguntas y poca anchura —la cola de la barra— abrir un
+ * menú para elegir entre tres cosas es un paso de más: allí el mando ES el
+ * gesto y cada pulsación pasa al siguiente orden (ver `CoachLayout`). Este menú
+ * se queda donde hay cinco o seis columnas que ordenar y dos sentidos por
+ * columna, que es lo que no cabe en una pulsación.
  */
 const SENTIDOS = {
   texto: { asc: 'A → Z', desc: 'Z → A' },
@@ -189,33 +193,20 @@ export const MandoDeOrden = ({
   defecto = 'Como viene',
   clase = 'chip',
   ariaLabel = 'Ordenar la lista',
-  mudo = false,
 }) => {
   const activo = campos.find((c) => c.id === orden.campo) || null;
   const fraseDe = (campo, sentido) =>
     (campo.sentidos || SENTIDOS[campo.num ? 'num' : 'texto'])[sentido];
 
-  /* «Por urgencia», «Por último entreno»: el estado dicho en palabras. Encima
-     de una tabla es un rótulo más de la barra de herramientas; en una columna
-     de 240 px es lo más ancho de su línea, y ahí deja de informar y estorba
-     —el dueño, mirándolo: «menos intrusiva»—. Por eso el MUDO: mismo menú,
-     misma marca dentro, pero al canto solo el icono, y la frase entera en el
-     globo y en el nombre accesible. */
-  const estado = activo
-    ? `Por ${activo.label.toLowerCase()}: ${fraseDe(activo, orden.sentido)}`
-    : `Por ${defecto.toLowerCase()}`;
-
   return (
     <MenuAcciones
       clase={clase}
-      ariaLabel={`${ariaLabel}. ${estado}`}
-      titulo={mudo ? estado : null}
+      ariaLabel={ariaLabel}
       alineado="derecha"
-      sinFlecha={mudo}
       label={
         <>
           <ArrowUpDown size={13} aria-hidden="true" />
-          {!mudo && `Por ${(activo?.label || defecto).toLowerCase()}`}
+          Por {(activo?.label || defecto).toLowerCase()}
         </>
       }
       items={[

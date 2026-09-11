@@ -29,7 +29,9 @@ import {
   ESCALA_MAX,
   ESCALA_MIN,
   FAMILIAS,
+  MAX_AYUDA,
   MAX_ELEMENTOS,
+  MAX_ENUN,
   MAX_OPCIONES,
   anadirElemento,
   candidatosDeRegla,
@@ -46,7 +48,13 @@ import {
 } from '@/domain/formulario';
 import { estanteria, tiposDeMomento } from '@/domain/formularios';
 import { MAX_CUSTOM as MAX_PROPIAS, WEIGH_INS_MAX as MAX_VECES } from '@/domain/protocol';
-import { Field, SegmentedControl, Switch, TextInput } from '@/components/ui/primitives';
+import {
+  Field,
+  SegmentedControl,
+  Switch,
+  TextInput,
+  TextoEnSitio,
+} from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { Pliegue } from '@/components/ui/Pliegue';
 /* El control del cliente, tal cual. Ver el porqué en `CampoLibre`. */
@@ -179,7 +187,7 @@ const Lamina = ({ onElegir, onCoger, tipos, balda = [], sinCupo = null, inline =
 
 // ══ Un renglón del lienzo ══════════════════════════════════════════════════
 
-const Renglon = ({ elem, elementos, tocado, onTocar, onQuitar, onSubir, onBajar }) => {
+const Renglon = ({ elem, elementos, tocado, onTocar, onCambiar, onQuitar, onSubir, onBajar }) => {
   const Icono = iconoDe(elem.tipo);
   const tipo = tipoById(elem.tipo);
   const cae = destinoById(elem.cae);
@@ -188,22 +196,65 @@ const Renglon = ({ elem, elementos, tocado, onTocar, onQuitar, onSubir, onBajar 
 
   return (
     <div className="renglon-libre">
-      <div className={`q-card es-libre${tocado ? ' is-tocada' : ''}`}>
+      {/* Pinchar cualquier hueco de la tarjeta la deja tocada, y con ella sus
+          ajustes en el carril. Ya no ALTERNA: con el texto dentro, un segundo
+          clic para escribir apagaba el carril justo cuando se necesitaba. */}
+      <div
+        className={`q-card es-libre${tocado ? ' is-tocada' : ''}`}
+        onClick={onTocar}
+      >
         <div className="q-libre-cab">
           <GripVertical size={15} className="q-asa" aria-hidden="true" />
 
-          <button type="button" className="q-cuerpo" onClick={onTocar}>
+          {/*
+            ── EL ENUNCIADO SE ESCRIBE DONDE SE LEE ─────────────────────────
+            Se escribía en el carril de la derecha, en un campo de una línea de
+            240 px, mientras el texto salía a la izquierda: la vista iba y venía
+            entre las dos columnas por cada palabra, y un enunciado de más de
+            seis se leía por una ventanita que se desplazaba sola.
+
+            Aquí es el mismo texto del renglón, editable en sitio y partiendo la
+            línea cuando hace falta (ver `TextoEnSitio`). El carril se queda con
+            lo que NO es texto, que es lo que un panel de ajustes sabe hacer.
+          */}
+          <div className="q-cuerpo es-escrito">
             <span className="q-glifo" data-tono={tipo?.fam}>
               <Icono size={15} aria-hidden="true" />
             </span>
             <span className="q-texto">
-              <span className="q-titulo">
-                {elem.enun}
-                {elem.oblig && <span className="q-oblig-marca" aria-label="obligatoria"> *</span>}
+              <span className="q-titulo-linea">
+                <TextoEnSitio
+                  className="es-titulo"
+                  value={elem.enun}
+                  maxLength={MAX_ENUN}
+                  placeholder={tipo?.label}
+                  aria-label={elem.tipo === 'nota' ? 'El texto' : 'Enunciado'}
+                  onFocus={onTocar}
+                  onChange={(enun) => onCambiar({ enun })}
+                />
+                {elem.oblig && (
+                  <span className="q-oblig-marca" aria-label="obligatoria">
+                    *
+                  </span>
+                )}
               </span>
-              {elem.ayuda && <span className="q-tipo">{elem.ayuda}</span>}
+
+              {/* La ayuda solo se ofrece cuando la tarjeta está tocada: en
+                  reposo, un campo vacío por renglón es mobiliario. Si tiene
+                  algo escrito, se queda siempre — eso ya es un hecho. */}
+              {elem.tipo !== 'nota' && (tocado || elem.ayuda) && (
+                <TextoEnSitio
+                  className="es-ayuda"
+                  value={elem.ayuda}
+                  maxLength={MAX_AYUDA}
+                  placeholder="Una línea de ayuda debajo. Opcional."
+                  aria-label="Ayuda"
+                  onFocus={onTocar}
+                  onChange={(ayuda) => onCambiar({ ayuda })}
+                />
+              )}
             </span>
-          </button>
+          </div>
 
           {!esEstructura && <span className="q-donde">{cae.dice}</span>}
 
@@ -219,7 +270,13 @@ const Renglon = ({ elem, elementos, tocado, onTocar, onQuitar, onSubir, onBajar 
           <button
             type="button"
             className="btn btn-icon btn-sm q-quitar"
-            onClick={onQuitar}
+            /* Sin burbujear: la tarjeta entera selecciona al pincharla, y tirar
+               una y seleccionarla en el mismo clic deja el carril apuntando a
+               algo que ya no existe. */
+            onClick={(e) => {
+              e.stopPropagation();
+              onQuitar();
+            }}
             aria-label={`Quitar «${elem.enun}»`}
           >
             <Trash2 size={13} />
@@ -261,8 +318,12 @@ const Opciones = ({ elem, onCambiar }) => {
   return (
     <div className="col gap-2">
       <span className="ajustes-rot">Opciones</span>
+      {/* La clave es la POSICIÓN, no el texto. Con el texto dentro, cada letra
+          cambiaba la clave, React desmontaba el campo y lo volvía a montar, y el
+          foco se perdía: solo se podía escribir una letra por clic. Las opciones
+          no se reordenan, así que la posición las identifica bien. */}
       {ops.map((op, i) => (
-        <div className="row gap-2" key={`${op}-${i}`}>
+        <div className="row gap-2" key={i}>
           <TextInput
             value={op}
             aria-label={`Opción ${i + 1}`}
@@ -429,25 +490,12 @@ const Carril = ({ elem, elementos, onCambiar, onGuia }) => {
         </span>
       </div>
 
-      <Field label={elem.tipo === 'nota' ? 'El texto' : 'Enunciado'}>
-        {(props) => (
-          <TextInput {...props} value={elem.enun} onChange={(v) => onCambiar({ enun: v })} />
-        )}
-      </Field>
-
-      {elem.tipo !== 'nota' && (
-        <Field label="Ayuda" hint="Una línea debajo. Opcional.">
-          {(props) => (
-            <TextInput
-              {...props}
-              value={elem.ayuda}
-              placeholder="Sé concreto: «pescado azul», no «pescado»"
-              onChange={(v) => onCambiar({ ayuda: v })}
-            />
-          )}
-        </Field>
-      )}
-
+      {/*
+        Aquí NO se escribe el enunciado ni la ayuda: son texto, se leen en el
+        renglón y se escriben en el renglón (ver `Renglon`). Lo que queda en el
+        carril es lo que un panel de ajustes sabe hacer de verdad —opciones,
+        rangos, unidades, la regla—, y por eso cabe en una columna estrecha.
+      */}
       {(elem.tipo === 'una' || elem.tipo === 'varias') && (
         <Opciones elem={elem} onCambiar={onCambiar} />
       )}
@@ -678,7 +726,8 @@ export const ConstructorLibre = ({
                   elem={e}
                   elementos={elementos}
                   tocado={tocado === e.id}
-                  onTocar={() => setTocado(tocado === e.id ? null : e.id)}
+                  onTocar={() => setTocado(e.id)}
+                  onCambiar={(patch) => onChange(editarElemento(elementos, e.id, patch))}
                   onQuitar={() => quitar(e.id)}
                   onSubir={() => mover(e.id, 'up')}
                   onBajar={() => mover(e.id, 'down')}

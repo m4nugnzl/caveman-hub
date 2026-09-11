@@ -125,9 +125,9 @@ export const AnthropometryPanel = ({
 
   const askRemove = async (log) => {
     const ok = await confirm({
-      title: '¿Eliminar este registro?',
+      title: '¿Borrar este registro?',
       message: `Se borrará la medición del ${shortDate(log.date)}.`,
-      confirmLabel: 'Eliminar',
+      confirmLabel: 'Borrar',
       tone: 'danger',
     });
     if (ok) onRemove(log.id);
@@ -306,7 +306,7 @@ export const AnthropometryPanel = ({
                           type="button"
                           className="btn btn-icon btn-icon-danger"
                           onClick={() => askRemove(log)}
-                          aria-label={`Eliminar el registro del ${log.date}`}
+                          aria-label={`Borrar el registro del ${log.date}`}
                         >
                           <Trash2 size={15} />
                         </button>

@@ -593,7 +593,14 @@ export const CLIENT_SECTIONS = [
 export const RESET_PATH = '/nueva-contrasena';
 
 export const COACH_HOME = '/hoy';
-export const CLIENT_HOME = '/mi/rutina';
+/*
+  ── Y el del cliente NO es una constante: es `clientHomeFor` ────────────────
+  Aquí vivió `CLIENT_HOME = '/mi/rutina'`. Se ha ido, y no por limpieza: mientras
+  estuvo, el inicio del portal era una ruta que para media cartera no existe —la
+  rutina es una de las dos secciones con `service`— y quien solo recibe la dieta
+  se quedaba sin puerta. La decisión de producto no cambia (la rutina va primera;
+  ver `CLIENT_SECTIONS`), cambia que se calcula en vez de escribirse.
+*/
 /*
   Ajustes ya no abre por el protocolo: abre por lo primero que queda, que es tu
   cuenta. Y quien quiera «cómo trabajo» tiene su propia constante, porque son
@@ -615,6 +622,41 @@ export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${s
  */
 export const sectionsFor = (sections, protocol) =>
   sections.filter((s) => !s.service || isServiceOn(protocol, s.service));
+
+/**
+ * La puerta de entrada del portal PARA ESTE CLIENTE.
+ *
+ * ══ Por qué el inicio no puede ser una constante ════════════════════════════
+ *
+ * `/mi/rutina` como inicio fijo era correcto como decisión de producto —un
+ * cliente abre esto en el gimnasio para apuntar lo que acaba de levantar, y por
+ * eso la rutina va primera en `CLIENT_SECTIONS`—. Pero es una constante, y la
+ * rutina es una de las DOS secciones que pueden no existir (`service`).
+ *
+ * A quien solo le llevas la dieta, ese inicio no existe. Y como además era el
+ * destino al que salía el guardia de la propia sección —`ConServicio
+ * servicio="training" to={«/mi/rutina»}`—, el guardia expulsaba a la sección que
+ * él mismo estaba guardando: la ruta no cambiaba, `<Navigate>` no pinta nada, y
+ * lo que quedaba era la barra de abajo sobre el vacío. Medido: 39 caracteres en
+ * toda la página, y esa misma pantalla es donde caía CUALQUIER URL que el portal
+ * no reconociera. El portal de esa persona no tenía puerta.
+ *
+ * El panel del entrenador ya había tropezado con la versión suave de esto —«con
+ * `to` cruzado, una URL vieja rebotaba entre las dos para siempre», en `App.jsx`—
+ * y lo resolvió apuntando a una sección que no depende de ningún servicio. Aquí
+ * se resuelve igual pero sin elegir a mano: la puerta es **la primera sección que
+ * esta persona tiene de verdad**, que es exactamente la primera pestaña de su
+ * barra de abajo. Con entreno sigue siendo la rutina; sin él, lo siguiente.
+ *
+ * El respaldo no llega a usarse —`inicio`, `evolucion` y `calendario` no llevan
+ * `service`, así que la lista nunca sale vacía— y está por lo que pasó aquí: un
+ * inicio que puede no existir es lo que hay que impedir, no lo que hay que
+ * suponer.
+ */
+export const clientHomeFor = (protocol) => {
+  const [primera] = sectionsFor(CLIENT_SECTIONS, protocol);
+  return `/mi/${primera?.path || 'inicio'}`;
+};
 
 /**
  * La sección que se está mirando, tal cual, con sus niveles.
@@ -725,11 +767,23 @@ const EQUIVALENTES = [
   ['semana', 'evolucion'],
 ];
 
-/** La misma sección, vista desde el portal del cliente. */
-export const clientViewOf = (pathname) => {
+/**
+ * La misma sección, vista desde el portal del cliente.
+ *
+ * Lo que no tiene pareja cae en su inicio, y ése depende de lo que le lleves
+ * (`clientHomeFor`): éste es el comodín del árbol del portal, así que aquí llega
+ * TODA url que no exista, y mandarlas a una sección que este cliente no tiene
+ * era dejarlas en una pantalla en blanco. La traducción tampoco se libra: un
+ * entrenador que salta al portal desde la rutina de alguien a quien solo le
+ * lleva la dieta iría a `/mi/rutina`, que para esa persona no existe.
+ */
+export const clientViewOf = (pathname, protocol = null) => {
   const section = seccionDe(pathname, '/c/[^/]+');
   const par = EQUIVALENTES.find(([coach]) => coach === section);
-  return par ? `/mi/${par[1]}` : CLIENT_HOME;
+  const casa = clientHomeFor(protocol);
+  if (!par) return casa;
+  const destino = CLIENT_SECTIONS.find((s) => s.path === par[1]);
+  return destino && !sectionsFor([destino], protocol).length ? casa : `/mi/${par[1]}`;
 };
 
 /**
