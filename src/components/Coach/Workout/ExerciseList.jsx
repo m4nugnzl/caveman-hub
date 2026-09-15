@@ -35,7 +35,10 @@ import { e1rm, isRecord, isSetLogged, previousSetKey } from '@/domain/sessions';
  * Y sin vídeo y sin pautas no se pinta nada — el renglón queda idéntico al de
  * antes de todo esto, que es la mitad «si existen» del encargo.
  */
-const MarcaFicha = ({ ficha, onOpen }) => {
+/* Exportada porque la usan DOS: este renglón y el modo entreno del portal
+   (`Client/SesionEnCurso`). Es la misma marca y el mismo criterio de cuándo
+   aparece; dos copias divergirían el día que la ficha gane un campo. */
+export const MarcaFicha = ({ ficha, onOpen }) => {
   if (!ficha) return null;
 
   const conVideo = Boolean(ficha.videoUrl);

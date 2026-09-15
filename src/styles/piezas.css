@@ -163,6 +163,136 @@
 .sesion-kpi.is-record { background: var(--positive-soft); }
 .sesion-kpi.is-record > .v, .sesion-kpi.is-record > .k { color: var(--positive); }
 
+/* ══ EL MODO ENTRENO ═══════════════════════════════════════════════════════
+   Registrar en el teléfono: un ejercicio, la serie viva en grande y las hechas
+   a un toque de volver a abrirse. Ver `Client/SesionEnCurso.jsx`.
+
+   La regla de la pantalla es que solo hay UNA pieza alzada —la serie que estás
+   haciendo— y todo lo demás se calla: el carril de arriba son pastillas, las
+   series hechas son filas de relleno, y las que faltan ni eso. Sin esa
+   jerarquía la lista vuelve a ser lo que era, una tabla en la que hay que
+   buscar dónde ibas cada vez que levantas la vista del móvil. */
+.sesion-viva { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* El carril: el mapa del día y el salto. Rueda a lo ancho y se sale del hueco
+   de la tarjeta para que la primera pastilla empiece en su borde. */
+.sesion-carril {
+  display: flex; gap: var(--s2); overflow-x: auto; scrollbar-width: none;
+  margin-inline: calc(var(--s4) * -1); padding-inline: var(--s4);
+}
+.sesion-carril::-webkit-scrollbar { display: none; }
+.sesion-carril > .chip { flex: 0 0 auto; gap: 5px; }
+/* Terminado: el visto en verde de estado, no una pastilla de otro color — el
+   carril tiene que leerse como una sola fila de lo mismo. */
+.chip.is-entero { color: var(--positive); }
+.chip.is-entero[aria-pressed='true'] { color: var(--accent-on); }
+
+.sesion-ejercicio { display: flex; align-items: flex-start; gap: var(--s3); }
+.sesion-ejercicio > .col { gap: 2px; min-width: 0; }
+.sesion-ejercicio .n {
+  margin: 0; font-family: var(--font-display); font-size: var(--fs-lg);
+  font-weight: 700; letter-spacing: -0.015em; line-height: var(--lh-tight);
+}
+.sesion-ejercicio .m { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.sesion-ejercicio > .pos {
+  margin-left: auto; flex-shrink: 0;
+  font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+}
+
+.sesion-series { display: flex; flex-direction: column; gap: var(--s2); }
+
+/* ── La serie viva ───────────────────────────────────────────────────────── */
+.serie-abierta {
+  display: flex; flex-direction: column; gap: var(--s3);
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface-raised); border: 1px solid var(--hairline-strong);
+  box-shadow: var(--shadow-md);
+}
+.serie-abierta-cab { display: flex; align-items: baseline; gap: var(--s2); }
+.serie-abierta-cab > .n {
+  font-size: var(--fs-xs); font-weight: 700; color: var(--accent);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.serie-abierta-cab > .obj { margin-left: auto; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.serie-pasos { display: flex; gap: var(--s2); }
+.serie-paso { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.serie-paso > .k {
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-tertiary); text-align: center;
+}
+
+/* El − y el + a los lados del número. 34 px de tecla y 46 de alto: el objetivo
+   táctil completo lo da la fila entera, y el dedo que se pasa cae en el campo,
+   que no hace nada. Equivocarse aquí no puede costar un kilo de más. */
+.paso {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr) 34px; align-items: center;
+  height: 46px; border-radius: var(--r-sm);
+  background: var(--surface-sunken); border: 1px solid var(--edge-control);
+  transition: border-color var(--fast);
+}
+.paso:focus-within { border-color: var(--accent); }
+.paso > button {
+  display: grid; place-items: center; height: 100%;
+  background: none; border: 0; color: var(--text-secondary); cursor: pointer;
+  transition: color var(--fast);
+}
+.paso > button:hover { color: var(--text); }
+/* El número sigue siendo un campo: de 40 a 100 kg se escribe. */
+.paso-campo {
+  min-width: 0; height: 100%; padding: 0; text-align: center;
+  background: none; border: 0; color: var(--text); font: inherit;
+  font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.paso-campo:focus { outline: none; }
+/* Lo que se SUGIERE no puede pesar lo que se ha escrito: el marcador es la vez
+   anterior, y al mismo peso que un valor real cualquiera daría por apuntada una
+   serie que no ha levantado nadie. Es la misma distinción que hace la fila del
+   escritorio, dicha aquí donde la cifra es grande. */
+.paso-campo::placeholder { color: var(--text-tertiary); font-weight: 500; }
+
+.serie-abierta-pie { display: flex; align-items: center; gap: var(--s2); }
+.serie-abierta-pie > .ult { font-size: var(--fs-xs); color: var(--text-tertiary); min-width: 0; }
+.serie-abierta-pie > .chip { margin-left: auto; flex-shrink: 0; }
+
+/* ── Las demás series ────────────────────────────────────────────────────── */
+.serie-hecha, .serie-libre {
+  display: flex; align-items: center; gap: var(--s3);
+  width: 100%; padding: var(--s2) var(--s3); text-align: left;
+  border: 1px solid transparent; border-radius: var(--r-sm); font: inherit;
+}
+/* Hecha es un BOTÓN, y eso es lo importante de esta pantalla: cerrar una serie
+   es una marca, no un candado. Se toca y se vuelve a abrir con sus valores. */
+.serie-hecha {
+  color: var(--text); background: var(--fill-subtle); cursor: pointer;
+  transition: background-color var(--fast);
+}
+.serie-hecha:hover { background: var(--fill); }
+.serie-libre { color: var(--text-tertiary); }
+.serie-hecha > .t, .serie-libre > .t {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); font-weight: 700;
+}
+.serie-hecha > .t { background: var(--positive-soft); color: var(--positive); }
+.serie-libre > .t { background: var(--fill-subtle); }
+.serie-hecha > .v { font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.serie-libre > .v { font-size: var(--fs-xs); }
+.serie-hecha > .c { margin-left: auto; flex-shrink: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* La salida del ejercicio terminado: la misma forma que el cierre de la
+   sesión, porque es el mismo gesto —seguir— un escalón más abajo. */
+.sesion-siguiente {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  width: 100%; padding: var(--s3) var(--s4); text-align: left;
+  font: inherit; color: var(--text); cursor: pointer;
+  background: var(--surface-sunken); border: 1px solid var(--edge); border-radius: var(--r-md);
+  transition: border-color var(--fast);
+}
+.sesion-siguiente:hover { border-color: var(--hairline-strong); }
+.sesion-siguiente > .col { gap: 2px; min-width: 0; }
+.sesion-siguiente > svg { color: var(--text-tertiary); flex-shrink: 0; }
+
 /* Las escalas de 1 a 10 en UNA fila: diez pasos de 32 px caben en cualquier
    móvil, y así cuatro preguntas son cuatro líneas y no cuarenta botones. */
 .scale-picker { gap: 2px; }

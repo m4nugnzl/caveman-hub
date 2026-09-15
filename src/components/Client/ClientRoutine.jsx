@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronRight, NotebookPen, Play, Quote, Timer } from 'lucide-react';
 
 import {
@@ -29,7 +29,7 @@ import {
 } from '@/domain/blocks';
 import { activeQuestions, asksFeedback, clientProtocol, isModuleOn } from '@/domain/protocol';
 import { localeNumber, shortDate, todayISO } from '@/lib/dates';
-import { useMediaQuery } from '@/lib/useMediaQuery';
+import { useEsTelefono, useMediaQuery } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 import { Panel, SaveIndicator, WeekPicker } from '@/components/ui/primitives';
 import { ComoLoLlevo } from '@/components/Coach/Workout/ComoLoLlevo';
@@ -42,6 +42,8 @@ import { LineaDeBloques } from '@/components/Coach/Workout/LineaDeBloques';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { useDaySession } from '@/components/Coach/Workout/useDaySession';
+import { mmss, useDescanso } from '@/components/Coach/Workout/useDescanso';
+import { SesionEnCurso } from './SesionEnCurso';
 import { FichaEjercicioCliente } from './FichaEjercicioCliente';
 import { PlanDelBloque } from './PlanDelBloque';
 import { DayPill, HojaNueva, HojasDelPrograma } from './CintaDeHojas';
@@ -113,8 +115,6 @@ import { buildStrip, buildTape } from './hojas';
  * hoja es una pantalla y la cinta es un pager.
  */
 
-const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-
 /**
  * Un día de la rutina, con su sesión.
  *
@@ -162,6 +162,7 @@ const ClientDay = ({
   onRetry,
 }) => {
   const daySession = useDaySession(microcycle, day);
+  const esTelefono = useEsTelefono();
   const volume = dayMuscleVolume(day);
   const questions = activeQuestions(protocol);
   const session = daySession.session;
@@ -200,30 +201,21 @@ const ClientDay = ({
     return null;
   }, [program?.microcycles, microcycle.weekNumber, day.dayName]);
 
-  /* ── El descanso ──────────────────────────────────────────────────────── */
-  const [finDescanso, setFinDescanso] = useState(null);
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (!finDescanso) return undefined;
-    const id = setInterval(() => tick((t) => t + 1), 500);
-    return () => clearInterval(id);
-  }, [finDescanso]);
-  const restante = finDescanso ? Math.max(0, Math.ceil((finDescanso - Date.now()) / 1000)) : 0;
-  useEffect(() => {
-    if (finDescanso && restante === 0) setFinDescanso(null);
-  }, [finDescanso, restante]);
   /*
-    ── El descanso es el PAUTADO, y si no hay pauta no hay cuenta atrás ──────
-    Arrancaba noventa segundos por defecto, y eso le ponía a todo el mundo un
-    descanso que su entrenador no había puesto: un cronómetro fijo en la
-    pantalla marcando minuto y medio entre series es una instrucción, y no era
-    suya. El descanso lo dice quien programa, en la hoja (`restSeconds`); sin
-    él, la serie se cierra y ya está.
+    ── El descanso: el OBJETIVO lo pone el entrenador, el tiempo es un hecho ──
+
+    La regla de siempre se queda: si él no ha pautado un descanso, la
+    aplicación no se inventa uno — un número en pantalla es una instrucción, y
+    no sería suya. Lo que cambia es que de esa regla se sacaba una conclusión
+    que no se seguía: que sin pauta no hubiera NADA. Y sin pauta está la
+    mayoría de los entrenadores, así que la pieza existía en el código y no en
+    el producto.
+
+    Ahora la cuenta arranca siempre y lo que cambia es qué cuenta: hacia atrás
+    hacia la pauta, o hacia arriba diciendo cuánto llevas parado, que es mirar
+    el reloj de la pared. Ver `useDescanso`.
   */
-  const empezarDescanso = (segundos) => {
-    if (!(segundos > 0)) return;
-    setFinDescanso(Date.now() + segundos * 1000);
-  };
+  const reposo = useDescanso();
   const descansoDe = (exId) => {
     const s = Number(daySession.exercises.find((ex) => ex.id === exId)?.restSeconds);
     return Number.isFinite(s) && s > 0 ? s : null;
@@ -264,7 +256,7 @@ const ClientDay = ({
     /* La serie pasa a hecha con las repeticiones: ahí arranca el descanso. */
     const antes = daySession.exercises.find((ex) => ex.id === exId)?.sets?.[setIndex];
     if (field === 'reps' && antes && !isSetLogged(antes) && (Number(value) || 0) > 0) {
-      empezarDescanso(descansoDe(exId));
+      reposo.empezar(descansoDe(exId));
     }
     escribir(exId, setIndex, field, value);
   };
@@ -273,7 +265,7 @@ const ClientDay = ({
   const confirmarSet = (exId, setIndex, previo) => {
     const id = escribir(exId, setIndex, 'kg', String(previo.kg));
     escribir(exId, setIndex, 'reps', String(previo.reps), id);
-    empezarDescanso(descansoDe(exId));
+    reposo.empezar(descansoDe(exId));
   };
 
   const tonelaje = session ? sessionTonnage(session) : 0;
@@ -297,16 +289,18 @@ const ClientDay = ({
     fija de abajo; en escritorio, la cabecera de la sesión, que es lo único que
     se ve sin desplazarse.
   */
-  const descanso = finDescanso ? (
+  const descanso = reposo.lectura ? (
     <button
       type="button"
       className="descanso"
-      onClick={() => setFinDescanso(null)}
+      onClick={reposo.parar}
       aria-label="Parar el descanso"
     >
       <Timer size={15} aria-hidden="true" />
-      <strong>{mmss(restante)}</strong>
-      <span>descanso</span>
+      <strong>{mmss(reposo.lectura.segundos)}</strong>
+      {/* Con pauta cuenta hacia el objetivo; sin pauta dice lo único que se
+          sabe, que es cuánto llevas parado. Dos palabras, no dos piezas. */}
+      <span>{reposo.lectura.cuentaAtras ? 'descanso' : 'parado'}</span>
     </button>
   ) : null;
 
@@ -413,21 +407,51 @@ const ClientDay = ({
 
       {isModuleOn(protocol, 'warmup') && <WarmupView drills={drillsForDay(program, day)} />}
 
-      <ExerciseList
-        exercises={daySession.exercises}
-        canEditStructure={false}
-        emptyMessage="Tu entrenador no ha programado ejercicios en este día."
-        onSetChange={logSet}
-        showRir={isModuleOn(protocol, 'rir')}
-        showNotes={isModuleOn(protocol, 'coachNote')}
-        previousSets={previousSets}
-        bestSets={bestSets}
-        onConfirmSet={confirmarSet}
-        /* La marca junto al nombre, y su ficha. Solo aquí: en la hoja del
-           entrenador no se pinta nada. */
-        sheetOf={fichaDe}
-        onOpenSheet={setFichaAbierta}
-      />
+      {/*
+        ══ Dos formas de la misma sesión, y no por tamaño de pantalla ═════════
+
+        En el TELÉFONO se apunta: de pie, con una mano y el pulso alto, tres
+        números cada minuto y medio. Ahí la lista entera es la forma
+        equivocada —hay que buscar dónde ibas cada vez que levantas la vista—
+        y va el modo entreno: un ejercicio, la serie viva en grande y las
+        hechas a un toque de corregirse. Ver `SesionEnCurso`.
+
+        En ESCRITORIO se repasa: los ejercicios caben a la vez, se comparan de
+        un vistazo y los campos ya son editables sin gesto ninguno. Se queda
+        la lista, que es exactamente lo que hace falta ahí.
+
+        Es el mismo reparto que ya hace `ExerciseList` para programar, y por
+        el mismo motivo.
+      */}
+      {esTelefono ? (
+        <SesionEnCurso
+          exercises={daySession.exercises}
+          onSetChange={logSet}
+          onConfirmSet={confirmarSet}
+          previousSets={previousSets}
+          bestSets={bestSets}
+          showRir={isModuleOn(protocol, 'rir')}
+          sheetOf={fichaDe}
+          onOpenSheet={setFichaAbierta}
+          emptyMessage="Tu entrenador no ha programado ejercicios en este día."
+        />
+      ) : (
+        <ExerciseList
+          exercises={daySession.exercises}
+          canEditStructure={false}
+          emptyMessage="Tu entrenador no ha programado ejercicios en este día."
+          onSetChange={logSet}
+          showRir={isModuleOn(protocol, 'rir')}
+          showNotes={isModuleOn(protocol, 'coachNote')}
+          previousSets={previousSets}
+          bestSets={bestSets}
+          onConfirmSet={confirmarSet}
+          /* La marca junto al nombre, y su ficha. Solo aquí: en la hoja del
+             entrenador no se pinta nada. */
+          sheetOf={fichaDe}
+          onOpenSheet={setFichaAbierta}
+        />
+      )}
 
       {/*
         El cierre, en línea: una fila que dice si falta contar cómo ha ido y
