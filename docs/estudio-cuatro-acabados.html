@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuatro acabados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62.5..125,400..800;1,62.5..125,400..800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · Cuatro acabados — 15 sep 2026
+
+   Encargo: «replantear el diseño general, pulirlo, hacerlo más limpio;
+   plantea varias versiones y dame distintos acabados».
+
+   Nada de esto está construido. El documento tiene dos capas:
+
+     · EL DOCUMENTO — el papel que estás leyendo. Chrome neutro propio, para
+       que no se confunda con la aplicación.
+     · LAS LÁMINAS — la aplicación. Tokens copiados de src/styles/tokens.css
+       tal y como están hoy, y datos del cliente demo (Nerea Sanz) tal y como
+       salen de la aplicación corriendo. Si una lámina no se ve como Caveman
+       Hub, no prueba nada.
+
+   Las cuatro láminas pintan LA MISMA pantalla —Resumen de un cliente— con el
+   MISMO contenido y el MISMO chasis. Lo único que cambia entre ellas es el
+   acabado. Es la única forma de compararlos.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Chrome del documento ───────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --doc: #fbfaf8;
+  --doc-caja: #ffffff;
+  --doc-hundido: #f4f3f0;
+  --doc-canto: #e6e3dd;
+  --doc-canto-fuerte: #cfcbc2;
+  --doc-tinta: #16140f;
+  --doc-tinta-2: #4d483f;
+  --doc-tinta-3: #736d62;
+  --senal: #3b49df;
+  --verde: #10774c;
+  --rojo: #b93429;
+  --ambar: #a4530e;
+  --s-xs: 0 1px 2px rgba(38, 32, 20, .05);
+  --s-sm: 0 1px 2px rgba(38, 32, 20, .06), 0 14px 30px -22px rgba(38, 32, 20, .55);
+  --s-md: 0 6px 20px -8px rgba(38, 32, 20, .16), 0 1px 3px rgba(38, 32, 20, .06);
+  --ui: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ease: cubic-bezier(.32, .72, 0, 1);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--doc);
+  color: var(--doc-tinta);
+  font: 400 16px/1.65 var(--ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.doc { max-width: 1560px; margin: 0 auto; padding: 0 24px 140px; }
+.col { max-width: 760px; margin: 0 auto; }
+
+.portada { padding: 92px 0 48px; border-bottom: 1px solid var(--doc-canto-fuerte); }
+.kicker {
+  font: 600 11px/1 var(--ui);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--doc-tinta-3);
+}
+h1 {
+  font: 800 clamp(40px, 6.2vw, 66px)/1.02 var(--ui);
+  font-stretch: 118%;
+  letter-spacing: -.03em;
+  margin: 18px 0 0;
+}
+.bajada { font-size: 21px; line-height: 1.55; color: var(--doc-tinta-2); margin: 20px 0 0; max-width: 680px; }
+.bajada b { color: var(--doc-tinta); font-weight: 600; }
+
+h2 { font: 700 30px/1.15 var(--ui); font-stretch: 106%; letter-spacing: -.022em; margin: 0 0 6px; }
+h3 { font: 600 18px/1.3 var(--ui); letter-spacing: -.012em; margin: 40px 0 10px; }
+h4 { font: 600 11px/1 var(--ui); letter-spacing: .13em; text-transform: uppercase; color: var(--doc-tinta-3); margin: 0 0 12px; }
+section { padding: 70px 0 0; }
+section > .col > p { margin: 0 0 18px; color: var(--doc-tinta-2); }
+section > .col > p b, li b, td b { color: var(--doc-tinta); font-weight: 600; }
+.sub { color: var(--doc-tinta-3); font-size: 15px; margin: 0 0 30px; }
+ul, ol { margin: 0 0 18px; padding-left: 20px; color: var(--doc-tinta-2); }
+li { margin: 0 0 9px; }
+
+code {
+  font: 500 13px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  background: var(--doc-hundido);
+  border: 1px solid var(--doc-canto);
+  border-radius: 5px;
+  padding: 2px 5px;
+  color: var(--doc-tinta-2);
+}
+
+.nota { border-left: 2px solid var(--doc-canto-fuerte); padding: 2px 0 2px 18px; color: var(--doc-tinta-3); font-size: 15px; margin: 22px 0; }
+.alerta {
+  background: var(--doc-caja); border: 1px solid var(--doc-canto);
+  border-left: 3px solid var(--ambar); border-radius: 12px;
+  padding: 18px 20px; margin: 26px 0; font-size: 15px; color: var(--doc-tinta-2);
+  box-shadow: var(--s-xs);
+}
+.alerta b { color: var(--doc-tinta); }
+
+/* ── Tabla del documento ────────────────────────────────────────────────── */
+table.t { width: 100%; border-collapse: collapse; margin: 24px 0 8px; font-size: 14.5px; }
+table.t th {
+  text-align: left; font: 600 11px/1 var(--ui); letter-spacing: .1em;
+  text-transform: uppercase; color: var(--doc-tinta-3);
+  padding: 0 14px 10px 0; border-bottom: 1px solid var(--doc-canto-fuerte);
+}
+table.t td { padding: 11px 14px 11px 0; border-bottom: 1px solid var(--doc-canto); color: var(--doc-tinta-2); vertical-align: top; }
+table.t td:first-child { color: var(--doc-tinta); font-weight: 500; white-space: nowrap; }
+.si { color: var(--verde); font-weight: 600; }
+.no { color: var(--rojo); font-weight: 600; }
+
+/* ── Plan de tokens (la ficha de cada acabado) ──────────────────────────── */
+.plan { display: grid; grid-template-columns: 96px 1fr; gap: 0 18px; margin: 26px 0 0; }
+.plan dt {
+  font: 600 10.5px/1.5 var(--ui); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--doc-tinta-3); padding: 13px 0; border-top: 1px solid var(--doc-canto);
+}
+.plan dd { margin: 0; padding: 13px 0; border-top: 1px solid var(--doc-canto); font-size: 14.5px; color: var(--doc-tinta-2); }
+.plan dd b { color: var(--doc-tinta); font-weight: 600; }
+.sw { display: inline-flex; align-items: center; gap: 7px; margin: 0 14px 6px 0; font: 500 12.5px/1 var(--ui); color: var(--doc-tinta-2); white-space: nowrap; }
+.sw i { width: 15px; height: 15px; border-radius: 4px; border: 1px solid rgba(38,32,20,.16); display: block; }
+
+/* ── El escenario donde vive cada lámina ────────────────────────────────── */
+.escena { margin: 34px 0 0; }
+.escena-cab {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  padding: 0 0 12px; border-bottom: 1px solid var(--doc-canto-fuerte); margin: 0 0 18px;
+}
+.escena-cab h4 { margin: 0; }
+.escena-cab .pie { font-size: 13px; color: var(--doc-tinta-3); margin-left: auto; }
+
+.marco {
+  border-radius: 14px; overflow: hidden; box-shadow: var(--s-md);
+  border: 1px solid var(--doc-canto); background: var(--doc-caja);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA APLICACIÓN — esqueleto común
+   --------------------------------------------------------------------------
+   Un solo marcado para las cuatro láminas. Todo lo que cambia entre acabados
+   está en las variables `--ap-*`, que cada `.v1…v4` redefine en su raíz. Lo
+   que cambia de ESTRUCTURA (y no de color) va en un bloque aparte por
+   acabado, siempre con la misma especificidad: `.vN .clase`. No hay un solo
+   selector que pise a otro por accidente.
+   ══════════════════════════════════════════════════════════════════════════ */
+.ap {
+  font: 400 15px/1.5 var(--ui);
+  background: var(--ap-mesa);
+  color: var(--ap-tinta);
+  display: grid;
+  grid-template-columns: 236px 1fr;
+  min-height: 720px;
+  letter-spacing: -.004em;
+}
+
+/* ── El costado (chasis) ────────────────────────────────────────────────── */
+.ap .nav { background: var(--ap-nav); padding: 18px 12px; display: flex; flex-direction: column; gap: 3px; }
+.ap .marca {
+  display: flex; align-items: center; gap: 9px; padding: 4px 10px 20px;
+  font: 800 14px/1 var(--ui); font-stretch: 112%; letter-spacing: .04em;
+  color: var(--ap-nav-fuerte); text-transform: uppercase;
+}
+.ap .marca svg { flex: none; }
+.ap .buscar {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 16px;
+  background: var(--ap-nav-hueco); border-radius: var(--ap-r-control);
+  padding: 0 10px; height: 32px; color: var(--ap-nav-apagado); font-size: 13.5px;
+}
+.ap .buscar kbd {
+  margin-left: auto; font: 500 10.5px/1 ui-monospace, Menlo, monospace;
+  background: var(--ap-nav-hueco); border: 1px solid var(--ap-nav-filete);
+  border-radius: 4px; padding: 3px 4px; color: var(--ap-nav-apagado);
+}
+.ap .nav a {
+  display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px;
+  border-radius: var(--ap-r-control); color: var(--ap-nav-texto);
+  font-size: 14px; font-weight: 500; text-decoration: none;
+}
+.ap .nav a.on { background: var(--ap-nav-elegido); color: var(--ap-nav-fuerte); font-weight: 600; }
+.ap .nav a .cuenta { margin-left: auto; font-size: 12px; color: var(--ap-nav-apagado); font-variant-numeric: tabular-nums; }
+.ap .nav a.on .cuenta {
+  background: var(--ap-senal); color: #fff; border-radius: 999px;
+  padding: 1px 7px; font-weight: 600; font-size: 11.5px;
+}
+/* El microciclo de un cliente es una ETIQUETA, no una cuenta de trabajo
+   pendiente: la píldora de señal se queda para lo segundo. */
+.ap .nav a.cli.on .cuenta { background: transparent; color: var(--ap-nav-texto); padding: 0; font-weight: 500; }
+.ap .grupo {
+  font: 600 10px/1 var(--ui); letter-spacing: .13em; text-transform: uppercase;
+  color: var(--ap-nav-apagado); padding: 20px 10px 8px;
+}
+.ap .nav .fin { margin-top: auto; }
+.ap .yo {
+  display: flex; align-items: center; gap: 9px; padding: 10px;
+  border-top: 1px solid var(--ap-nav-filete); margin-top: 12px;
+}
+.ap .yo b { font-size: 13.5px; font-weight: 600; color: var(--ap-nav-fuerte); display: block; }
+.ap .yo span { font-size: 11.5px; color: var(--ap-nav-apagado); }
+.ap .disco {
+  width: 26px; height: 26px; border-radius: 999px; flex: none;
+  display: grid; place-items: center; font: 600 10px/1 var(--ui);
+  background: var(--ap-disco); color: var(--ap-disco-tinta);
+}
+
+/* ── La cinta de cabecera ───────────────────────────────────────────────── */
+.ap .lienzo { display: flex; flex-direction: column; min-width: 0; background: var(--ap-mesa); }
+.ap .cinta { background: var(--ap-cinta); padding: 16px 30px 0; position: relative; }
+.ap .cinta-fila { display: flex; align-items: center; gap: 12px; }
+.ap .cinta h1 { font: 700 19px/1.2 var(--ui); font-stretch: 104%; letter-spacing: -.018em; margin: 0; color: var(--ap-tinta); }
+.ap .cinta .meta { font-size: 13px; color: var(--ap-tinta-3); }
+.ap .cinta .der { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.ap .pestanas { display: flex; gap: 2px; margin: 12px 0 0; }
+.ap .pestanas a {
+  padding: 8px 12px 11px; font-size: 14px; font-weight: 500;
+  color: var(--ap-tinta-3); text-decoration: none; border-bottom: 2px solid transparent;
+}
+.ap .pestanas a.on { color: var(--ap-tinta); font-weight: 600; border-bottom-color: var(--ap-senal); }
+
+/* LA FIRMA DEL SISTEMA: marcas de graduación. Solo donde de verdad hay una
+   escala — el canto de la cinta y la línea base de un gráfico. Nunca de
+   adorno: repetida como separador se convierte en textura y deja de decir
+   «aquí se mide». */
+.ap .regla {
+  height: 7px; margin: 0 0 -1px;
+  background:
+    repeating-linear-gradient(to right, var(--ap-filete-fuerte) 0 1px, transparent 1px 12px),
+    linear-gradient(to bottom, transparent calc(100% - 1px), var(--ap-filete) calc(100% - 1px));
+  background-size: 100% 4px, 100% 100%;
+  background-position: bottom left, 0 0;
+  background-repeat: repeat-x, no-repeat;
+}
+
+/* ── Piezas sueltas ─────────────────────────────────────────────────────── */
+.ap .btn {
+  height: 32px; padding: 0 13px; border-radius: var(--ap-r-control); border: 0;
+  background: var(--ap-senal); color: #fff; font: 600 13.5px/1 var(--ui);
+  display: inline-flex; align-items: center; cursor: default;
+}
+.ap .btn.fantasma { background: var(--ap-hueco); color: var(--ap-tinta-2); border: 1px solid var(--ap-filete-fuerte); }
+.ap .chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 9px;
+  border-radius: 999px; font: 600 11.5px/1 var(--ui); letter-spacing: .01em;
+}
+.ap .chip.bien { background: var(--ap-verde-suave); color: var(--ap-verde); }
+.ap .chip.ojo { background: var(--ap-ambar-suave); color: var(--ap-ambar); }
+.ap .chip.neutro { background: var(--ap-hueco); color: var(--ap-tinta-2); }
+.ap .ante {
+  font: 600 10.5px/1 var(--ui); letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ap-tinta-3);
+}
+.ap .cifra {
+  font-stretch: 122%; font-weight: 800; letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums; color: var(--ap-tinta); line-height: 1;
+}
+.ap .u { font-stretch: 100%; font-weight: 600; font-size: .42em; letter-spacing: -.01em; color: var(--ap-tinta-3); margin-left: 3px; }
+.ap .num { font-variant-numeric: tabular-nums; }
+
+/* ══ Tokens · V1 «HOJA» ════════════════════════════════════════════════════ */
+.v1 {
+  --ap-mesa: #ece9e0;
+  --ap-hoja: #ffffff;
+  --ap-hueco: #f4f2ec;
+  --ap-cinta: #ffffff;
+  --ap-tinta: #191713;
+  --ap-tinta-2: #55504a;
+  --ap-tinta-3: #746e63;
+  --ap-filete: #e9e5d9;
+  --ap-filete-fuerte: #cfc9bb;
+  --ap-senal: #3b49df;
+  --ap-senal-suave: rgba(59, 73, 223, .08);
+  --ap-verde: #10774c; --ap-verde-suave: #e3f1ea;
+  --ap-ambar: #a4530e; --ap-ambar-suave: #fbeee1;
+  --ap-rojo: #b93429;
+  --ap-dato: #1b6ea6; --ap-dato-2: #96690a; --ap-dato-3: #7a34ad;
+  --ap-r: 20px; --ap-r-control: 8px;
+  --ap-sombra: 0 1px 2px rgba(38,32,20,.05), 0 16px 34px -26px rgba(38,32,20,.5);
+  --ap-nav: #16181d;
+  --ap-nav-texto: rgba(233,236,242,.72);
+  --ap-nav-fuerte: #f2f4f8;
+  --ap-nav-apagado: rgba(233,236,242,.44);
+  --ap-nav-elegido: rgba(233,236,242,.1);
+  --ap-nav-hueco: rgba(233,236,242,.07);
+  --ap-nav-filete: rgba(233,236,242,.11);
+  --ap-disco: #e6e2d6; --ap-disco-tinta: #55504a;
+}
+
+/* ══ Tokens · V2 «MESA» ════════════════════════════════════════════════════ */
+.v2 {
+  --ap-mesa: #e9e6dc;
+  --ap-hoja: #ffffff;
+  --ap-hueco: #f4f2ec;
+  --ap-cinta: #ffffff;
+  --ap-tinta: #191713;
+  --ap-tinta-2: #55504a;
+  --ap-tinta-3: #746e63;
+  --ap-filete: #e7e3d9;
+  --ap-filete-fuerte: #cfc9bb;
+  --ap-senal: #3b49df;
+  --ap-senal-suave: rgba(59, 73, 223, .08);
+  --ap-verde: #10774c; --ap-verde-suave: #e3f1ea;
+  --ap-ambar: #a4530e; --ap-ambar-suave: #fbeee1;
+  --ap-rojo: #b93429;
+  --ap-dato: #1b6ea6; --ap-dato-2: #96690a; --ap-dato-3: #7a34ad;
+  --ap-r: 20px; --ap-r-control: 8px;
+  --ap-sombra: 0 1px 2px rgba(38,32,20,.06), 0 12px 28px -24px rgba(38,32,20,.5);
+  --ap-nav: #16181d;
+  --ap-nav-texto: rgba(233,236,242,.72);
+  --ap-nav-fuerte: #f2f4f8;
+  --ap-nav-apagado: rgba(233,236,242,.44);
+  --ap-nav-elegido: rgba(233,236,242,.1);
+  --ap-nav-hueco: rgba(233,236,242,.07);
+  --ap-nav-filete: rgba(233,236,242,.11);
+  --ap-disco: #e6e2d6; --ap-disco-tinta: #55504a;
+}
+
+/* ══ Tokens · V3 «CINTA» ═══════════════════════════════════════════════════ */
+.v3 {
+  --ap-mesa: #f3f1ea;
+  --ap-hoja: #ffffff;
+  --ap-hueco: #eceadf;
+  --ap-cinta: #ffffff;
+  --ap-tinta: #191713;
+  --ap-tinta-2: #55504a;
+  --ap-tinta-3: #746e63;
+  --ap-filete: #e4e0d3;
+  --ap-filete-fuerte: #c9c3b3;
+  --ap-senal: #3b49df;
+  --ap-senal-suave: rgba(59, 73, 223, .08);
+  --ap-verde: #10774c; --ap-verde-suave: #e3f1ea;
+  --ap-ambar: #a4530e; --ap-ambar-suave: #fbeee1;
+  --ap-rojo: #b93429;
+  --ap-dato: #1b6ea6; --ap-dato-2: #96690a; --ap-dato-3: #7a34ad;
+  --ap-r: 16px; --ap-r-control: 8px;
+  --ap-sombra: none;
+  --ap-nav: #16181d;
+  --ap-nav-texto: rgba(233,236,242,.72);
+  --ap-nav-fuerte: #f2f4f8;
+  --ap-nav-apagado: rgba(233,236,242,.44);
+  --ap-nav-elegido: rgba(233,236,242,.1);
+  --ap-nav-hueco: rgba(233,236,242,.07);
+  --ap-nav-filete: rgba(233,236,242,.11);
+  --ap-disco: #e6e2d6; --ap-disco-tinta: #55504a;
+}
+
+/* ══ Tokens · V4 «NOCHE» ═══════════════════════════════════════════════════
+   Grafito CÁLIDO (mismo tono que el papel, 40°, desaturado), no el azul-negro
+   de siempre; y la MISMA señal índigo del día, subida de luminosidad hasta
+   pasar 4,5:1 sobre la superficie. Es el mismo producto con la luz apagada, no
+   un segundo producto. Es lo que pide CLAUDE.md §25.2: el default a evitar es
+   «casi negro + un único acento verde ácido o bermellón». */
+.v4 {
+  --ap-mesa: #151412;
+  --ap-hoja: #242220;
+  --ap-hueco: #2e2b27;
+  --ap-cinta: #242220;
+  --ap-tinta: #efeae1;
+  --ap-tinta-2: #b0a99e;
+  --ap-tinta-3: #999186;
+  --ap-filete: rgba(239,234,225,.1);
+  --ap-filete-fuerte: rgba(239,234,225,.2);
+  --ap-senal: #8098ff;
+  --ap-senal-suave: rgba(128,152,255,.16);
+  --ap-verde: #4ecb90; --ap-verde-suave: rgba(78,203,144,.15);
+  --ap-ambar: #f0a35c; --ap-ambar-suave: rgba(240,163,92,.16);
+  --ap-rojo: #ee7368;
+  --ap-dato: #59b4e6; --ap-dato-2: #e8bc55; --ap-dato-3: #c58ae6;
+  --ap-r: 20px; --ap-r-control: 8px;
+  --ap-sombra: none;
+  --ap-nav: #100f0e;
+  --ap-nav-texto: rgba(239,234,225,.7);
+  --ap-nav-fuerte: #f5f1ea;
+  --ap-nav-apagado: rgba(239,234,225,.42);
+  --ap-nav-elegido: rgba(239,234,225,.1);
+  --ap-nav-hueco: rgba(239,234,225,.06);
+  --ap-nav-filete: rgba(239,234,225,.1);
+  --ap-disco: #38352f; --ap-disco-tinta: #cfc7bb;
+}
+.v4 .btn { color: #1a1917; }
+.v4 .nav a.on .cuenta { color: #1a1917; }
+.v4 .hoja, .v4 .caja { border: 1px solid var(--ap-filete); }
+.v4 .cinta { border-bottom: 0; }
+/* Sobre grafito una sombra no se ve: lo que separa el costado del lienzo es
+   un canto declarado, igual que lo que separa una carta de la mesa. */
+.v4 .nav { border-right: 1px solid var(--ap-filete); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Piezas de contenido — comunes a los cuatro acabados
+   ══════════════════════════════════════════════════════════════════════════ */
+.ap .cuerpo { padding: 22px 26px 34px; }
+.ap .rejilla { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.ap .hoja { background: var(--ap-hoja); border-radius: var(--ap-r); }
+
+.ap .sec-cab { display: flex; align-items: baseline; gap: 4px 10px; margin: 0 0 14px; flex-wrap: wrap; }
+.ap .sec-cab h2 { font: 600 15px/1.3 var(--ui); letter-spacing: -.012em; margin: 0; color: var(--ap-tinta); }
+.ap .sec-cab .pie { font-size: 13px; color: var(--ap-tinta-3); }
+.ap .sec-cab .der { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ap .enlace { color: var(--ap-senal); font-size: 13px; font-weight: 500; text-decoration: none; }
+
+/* La firma del Resumen: la cifra de peso con su veredicto. Ocupa SOLA el
+   escalón más alto de la pantalla (42). Nada más lo alcanza. */
+.ap .firma { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.ap .firma .cifra { font-size: 42px; }
+.ap .firma .dicho { font-size: 13px; color: var(--ap-tinta-3); margin: 0 0 4px; }
+.ap .sec-cab .chip { align-self: center; }
+
+.ap .hitos { display: flex; align-items: center; gap: 14px; margin: 16px 0 0; }
+.ap .hito { font-size: 13px; color: var(--ap-tinta-3); }
+.ap .hito b { display: block; font-size: 15px; font-weight: 600; color: var(--ap-tinta-2); font-variant-numeric: tabular-nums; }
+.ap .flecha { color: var(--ap-tinta-3); font-size: 13px; }
+
+.ap .marcas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--ap-filete); margin: 18px 0 0; }
+.ap .marca-d { background: var(--ap-hoja); padding: 12px 14px 12px 0; }
+.ap .marca-d .ante { display: block; margin: 0 0 5px; }
+.ap .marca-d b { font: 600 17px/1 var(--ui); font-variant-numeric: tabular-nums; }
+.ap .marca-d span { font-size: 12.5px; color: var(--ap-tinta-3); margin-left: 3px; font-weight: 400; }
+
+.ap .fila { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; border-top: 1px solid var(--ap-filete); font-size: 14px; }
+.ap .fila .k { color: var(--ap-tinta-3); font-size: 13px; font-weight: 500; }
+.ap .fila .v { margin-left: auto; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ap-tinta); }
+.ap .fila .v.pide { color: var(--ap-senal); font-weight: 500; }
+.ap .fila .v small { font-weight: 400; color: var(--ap-tinta-3); font-size: 12.5px; }
+
+.ap .macros { display: flex; height: 6px; border-radius: 999px; overflow: hidden; margin: 10px 0 8px; }
+.ap .macros i { display: block; height: 100%; }
+.ap .macros-pie { display: flex; gap: 14px; font-size: 12px; color: var(--ap-tinta-3); }
+.ap .macros-pie b { color: var(--ap-tinta-2); font-weight: 600; }
+.ap .punto { width: 7px; height: 7px; border-radius: 999px; display: inline-block; margin-right: 5px; }
+
+.ap .sens { display: grid; grid-template-columns: 62px 1fr 34px; gap: 9px 12px; align-items: center; font-size: 13px; color: var(--ap-tinta-2); }
+.ap .barra { height: 5px; border-radius: 999px; background: var(--ap-hueco); overflow: hidden; }
+.ap .barra i { display: block; height: 100%; border-radius: 999px; background: var(--ap-dato); }
+.ap .sens .n { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ap-tinta); font-size: 12.5px; }
+.ap .aviso {
+  display: flex; align-items: center; gap: 8px; margin: 14px 0 0; padding: 9px 11px;
+  border-radius: var(--ap-r-control); background: var(--ap-ambar-suave); color: var(--ap-ambar);
+  font-size: 12.5px; font-weight: 500;
+}
+.ap .aviso b { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.ap .act { margin: 0; padding: 0; list-style: none; }
+.ap .act li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 11px 0; border-top: 1px solid var(--ap-filete); font-size: 13.5px; }
+.ap .act li:first-child { border-top: 0; padding-top: 0; }
+.ap .act b { font-weight: 600; color: var(--ap-tinta); }
+.ap .act span { grid-column: 1; font-size: 12.5px; color: var(--ap-tinta-3); }
+.ap .act time { font-size: 12px; color: var(--ap-tinta-3); white-space: nowrap; }
+
+.ap .graf { display: block; width: 100%; height: 132px; }
+.ap .graf.es-barras { height: 92px; }
+.ap .graf.es-banda { height: 76px; }
+.ap .graf.es-banda-baja { height: 48px; }
+.ap .graf.es-eje { height: 7px; }
+.ap .eje.es-celdas span { flex: 1; text-align: center; }
+.ap .bajo-fila { padding: 2px 0 12px; }
+.ap .eje { display: flex; justify-content: space-between; font: 500 10.5px/1 var(--ui); color: var(--ap-tinta-3); letter-spacing: .06em; margin: 7px 0 0; }
+
+/* Un vacío es una invitación, no un agujero: verbo y una línea de por qué. */
+.ap .vacio { padding: 18px 0 6px; }
+.ap .vacio p { margin: 0 0 10px; font-size: 13.5px; color: var(--ap-tinta-3); max-width: 42ch; }
+
+/* ══ Estructura · V1 «HOJA» ════════════════════════════════════════════════
+   Una sola hoja por pantalla. Dentro NO hay cajas: las secciones se separan
+   con aire y un filete, y el costado es una columna de la misma hoja, no un
+   montón de tarjetas pequeñas. */
+.v1 .lienzo { padding: 18px 20px 26px; }
+.v1 .cinta { border-radius: var(--ap-r) var(--ap-r) 0 0; padding: 18px 30px 0; }
+.v1 .cuerpo { background: var(--ap-hoja); border-radius: 0 0 var(--ap-r) var(--ap-r); box-shadow: var(--ap-sombra); padding: 0; }
+.v1 .rejilla { grid-template-columns: minmax(0, 1fr) 292px; gap: 0; }
+.v1 .principal { padding: 26px 30px 32px; min-width: 0; }
+.v1 .rail { padding: 26px 26px 32px; border-left: 1px solid var(--ap-filete); }
+.v1 .sec + .sec { margin-top: 26px; padding-top: 26px; border-top: 1px solid var(--ap-filete); }
+.v1 .rail .sec + .sec { margin-top: 24px; padding-top: 24px; }
+.v1 .marca-d { background: transparent; }
+.v1 .marcas { background: transparent; grid-template-columns: repeat(4, 1fr); gap: 0; }
+.v1 .marca-d + .marca-d { border-left: 1px solid var(--ap-filete); padding-left: 16px; }
+
+/* ══ Estructura · V2 «MESA» ════════════════════════════════════════════════
+   Cartas, pero CON RANGO: una manda y ocupa dos tercios, y el costado deja de
+   ser «tarjetas más pequeñas» para pasar a ser otro material —hundido, sin
+   sombra—. Dos clases de objeto, no ocho copias del mismo. */
+.v2 .caja { background: var(--ap-hoja); border-radius: var(--ap-r); box-shadow: var(--ap-sombra); padding: 22px 24px; }
+.v2 .caja + .caja { margin-top: 16px; }
+.v2 .caja.manda { padding: 26px 28px 24px; }
+.v2 .rail .caja { background: var(--ap-hueco); box-shadow: none; padding: 18px 20px; }
+.v2 .rail .caja + .caja { margin-top: 14px; }
+.v2 .par { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+.v2 .par .caja { margin: 0; height: 100%; }
+.v2 .cinta { padding: 16px 30px 0; }
+
+/* ══ Estructura · V3 «CINTA» ═══════════════════════════════════════════════
+   Bandas a todo ancho sobre UN SOLO eje de semanas. Peso, calorías, tonelaje
+   y sensaciones se leen en vertical: lo que pasó la semana 6 está en la misma
+   columna en las cuatro. Es lo que de verdad hace el entrenador y hoy exige
+   mirar en cuatro cajas con cuatro anchos distintos. */
+.v3 .lienzo { background: var(--ap-hoja); }
+.v3 .cuerpo { padding: 0; background: var(--ap-hoja); }
+.v3 .banda { padding: 18px 30px; border-top: 1px solid var(--ap-filete); display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 26px; align-items: center; }
+.v3 .banda:first-child { border-top: 0; }
+.v3 .banda.alta { padding: 24px 30px 22px; }
+.v3 .banda-t .ante { display: block; margin: 0 0 7px; }
+.v3 .banda-t .cifra { font-size: 34px; }
+.v3 .banda-t p { margin: 7px 0 0; font-size: 12.5px; color: var(--ap-tinta-3); line-height: 1.45; }
+.v3 .banda-t .n { font: 600 19px/1 var(--ui); font-variant-numeric: tabular-nums; }
+.v3 .banda-t .n small { font-size: 12.5px; font-weight: 400; color: var(--ap-tinta-3); margin-left: 3px; }
+.v3 .eje-pie { padding: 0 30px 20px; display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 26px; }
+.v3 .eje-pie .ante { align-self: center; }
+.v3 .costado { border-left: 1px solid var(--ap-filete); padding: 22px 26px; }
+.v3 .dos { display: grid; grid-template-columns: minmax(0, 1fr) 286px; align-items: start; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Suelo de calidad del documento
+   --------------------------------------------------------------------------
+   Las láminas son pantallas de escritorio: a 390 px no se encogen, se leen
+   con el dedo. Así que el que se desplaza es EL MARCO, no la página — que es
+   la diferencia entre poder leer el documento en el móvil y no poder.
+   ══════════════════════════════════════════════════════════════════════════ */
+.marco { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ap { min-width: 1180px; }
+
+a:focus-visible, button:focus-visible, .marco:focus-visible {
+  outline: 2px solid var(--senal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (max-width: 900px) {
+  .doc { padding: 0 16px 90px; }
+  .portada { padding: 60px 0 36px; }
+  .bajada { font-size: 18px; }
+  section { padding: 52px 0 0; }
+  .plan { grid-template-columns: 1fr; gap: 0; }
+  .plan dt { padding: 12px 0 0; border-top: 1px solid var(--doc-canto); }
+  .plan dd { padding: 4px 0 12px; border-top: 0; }
+  table.t { display: block; overflow-x: auto; white-space: nowrap; }
+  .escena-cab .pie { margin-left: 0; width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+.v3 .costado .sec + .sec { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--ap-filete); }
+
+/* Las pistas de marcas discretas: celdas de reparto igual, para que caigan en
+   el mismo eje que las líneas sin heredar su deformación. */
+.ap .pista { display: flex; align-items: flex-end; height: 62px; }
+.ap .pista.es-discos { align-items: center; }
+.ap .celda { flex: 1; display: flex; justify-content: center; align-items: flex-end; height: 100%; }
+.ap .pista.es-discos .celda { align-items: center; }
+.ap .barra-v { display: block; width: 26px; border-radius: 3px; background: var(--ap-dato-3); opacity: .5; }
+.ap .barra-v.es-ahora { opacity: 1; }
+.ap .disco-v { display: block; border-radius: 999px; background: var(--ap-verde); }
+.ap .disco-v.es-ojo { background: var(--ap-ambar); }
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="portada">
+  <div class="col">
+    <p class="kicker">Estudio · 15 sep 2026</p>
+    <h1>Cuatro acabados</h1>
+    <p class="bajada">
+      El encargo es <b>replantear el diseño general y hacerlo más limpio</b>, con
+      varias versiones para elegir. Lo que sigue no cambia ni una función: cambia
+      el <b>acabado</b> —cómo se reparte el peso visual, qué es una caja y qué no,
+      y dónde entra el ojo—. Las cuatro láminas pintan la misma pantalla, con el
+      mismo contenido y el mismo chasis, para que la comparación sea justa.
+    </p>
+  </div>
+</header>
+<section id="hoy">
+<div class="col">
+  <h2>1 &middot; Qué es lo que no está limpio hoy</h2>
+  <p class="sub">Medido sobre <code>capturas/barrido-acabado-11sep/10-resumen.png</code> y el árbol de trabajo de hoy.</p>
+  <p>
+    La pantalla no está sucia de adornos: está sucia de <b>empate</b>. Ocho cajas
+    con el mismo canto, el mismo radio, la misma sombra y el mismo rótulo de 15 px.
+    Cuando todo pesa igual, el ojo no tiene por dónde entrar y una herramienta se
+    lee como un formulario.
+  </p>
+  <table class="t">
+    <tr><th>Lo que se ve</th><th>Lo que lo causa</th></tr>
+    <tr><td>Nada manda</td><td>8 cajas al mismo peso en Resumen; la firma de la pantalla —la cifra de peso— comparte escalón con tres rótulos más</td></tr>
+    <tr><td>El costado compite</td><td>«El plan», «Lo último» y «Cómo le llevas» son cartas idénticas a las del cuerpo, solo que más estrechas</td></tr>
+    <tr><td>El azul dejó de significar</td><td><code>revision.css</code> pinta en acento el rótulo de toda fila que sea puerta: cinco rótulos azules en «El plan» compitiendo con los dos verbos que sí piden algo</td></tr>
+    <tr><td>Agujeros, no vacíos</td><td>~190 px de caja gris bajo tres píldoras en «Cómo va»; ~700 px en Dieta sin comidas</td></tr>
+    <tr><td>Los datos están en silos</td><td>Peso, calorías, tonelaje y adherencia son <b>la misma serie semanal</b> dibujada a cuatro anchos, cuatro escalas y en cuatro cajas. Cruzarlas es el trabajo del entrenador y hoy hay que hacerlo de memoria</td></tr>
+  </table>
+  <p>
+    Esa última línea es la que abre la puerta a algo más que un pulido, y es de
+    donde sale el tercer acabado.
+  </p>
+</div>
+</section>
+
+<section id="comun">
+<div class="col">
+  <h2>2 &middot; Lo que comparten los cuatro</h2>
+  <p class="sub">Si esto no se decide primero, el acabado solo cambia el color del problema.</p>
+  <p>
+    Cuatro reglas estructurales, iguales en las cuatro versiones. Las láminas de
+    abajo ya las llevan puestas, así que lo que estás comparando es de verdad el
+    acabado y no otra cosa.
+  </p>
+  <ol>
+    <li><b>Una firma por pantalla, sola en su escalón.</b> En Resumen es la cifra de peso con su veredicto, a 42 px. Nada más llega a 22. Es la regla L-07 que ya está escrita en <code>tokens.css</code> y que hoy no se cumple aquí.</li>
+    <li><b>El costado acompaña, no compite.</b> Deja de ser «cartas más estrechas» y pasa a ser otro material: sin sombra, sin canto propio, con filas de rótulo y valor.</li>
+    <li><b>El acento solo donde se toca.</b> Ni un rótulo azul en reposo. El azul queda para el botón, la pestaña abierta, el foco, el enlace y lo que está pendiente de que tú lo pongas —«Ponle cardio»—.</li>
+    <li><b>La regla de graduación, solo donde hay escala.</b> Canto de la cinta y línea base de los gráficos. Repetida como separador se vuelve textura y deja de decir «aquí se mide».</li>
+  </ol>
+</div>
+</section>
+
+<section id="v1">
+<div class="col">
+  <h2>3 &middot; Hoja</h2>
+  <p class="sub">La caja desaparece. Queda una hoja por pantalla.</p>
+  <p>
+    El más limpio de los cuatro y el que menos cosas tiene. No hay tarjetas
+    dentro: las secciones se separan con aire y un filete, y el costado es una
+    columna de <b>la misma hoja</b>, partida por una línea vertical. Toda la
+    jerarquía la lleva el tipo.
+  </p>
+  <dl class="plan"><dt>Color</dt><dd><span class="sw"><i style="background:#ece9e0"></i>mesa <code>#ece9e0</code></span><span class="sw"><i style="background:#ffffff"></i>hoja <code>#ffffff</code></span><span class="sw"><i style="background:#191713"></i>tinta <code>#191713</code></span><span class="sw"><i style="background:#e9e5d9"></i>filete <code>#e9e5d9</code></span><span class="sw"><i style="background:#3b49df"></i>señal <code>#3b49df</code></span></dd><dt>Tipo</dt><dd>Archivo en 400 / 500 / 600. La <b>Archivo Expanded 800</b> aparece una sola vez por pantalla: en la cifra. Escala 10 &middot; 13 &middot; 15 &middot; 17 &middot; 42.</dd><dt>Layout</dt><dd>Una hoja continua a <code>--r-lg</code>, cinta incluida. Cuerpo 1fr + costado 292 px separados por un filete.</dd><dt>Firma</dt><dd>El bloque de peso: cifra, veredicto y los tres hitos —empezó, hoy, objetivo— sin nada al lado.</dd><dt>Segunda pasada</dt><dd>El riesgo era que «quitar cajas» saliera plano. Lo que lo evita es que la hoja tenga <b>medida</b>: los bloques de dato ocupan todo el ancho y los de lectura no pasan de la columna. Sin eso es una pared.</dd></dl>
+</div>
+<div class="escena"><div class="escena-cab"><h4>Lámina 1 &middot; Hoja</h4><span class="pie">Resumen de cliente &middot; 1560 px</span></div><div class="marco"><div class="ap v1">
+<aside class="nav">
+  <div class="marca"><svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true"><rect x="0" y="6" width="4" height="11" rx="1.2" fill="currentColor"/><rect x="6.5" y="0" width="4" height="17" rx="1.2" fill="currentColor"/><rect x="13" y="9" width="4" height="8" rx="1.2" fill="#c4452e"/></svg>Caveman Hub</div>
+  <div class="buscar"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Buscar<kbd>Ctrl K</kbd></div>
+  <a href="#">Inicio<span class="cuenta">11</span></a>
+  <a class="on" href="#">Clientes<span class="cuenta">6</span></a>
+  <a href="#">Cobros</a>
+  <a href="#">Agenda</a>
+  <p class="grupo">Tus clientes</p>
+  <a class="cli on" href="#">Nerea Sanz<span class="cuenta">M9</span></a><a class="cli " href="#">Álvaro Pino<span class="cuenta">M25</span></a><a class="cli " href="#">Claudia Rey<span class="cuenta">M5</span></a><a class="cli " href="#">Iván Tormo<span class="cuenta">M31</span></a><a class="cli " href="#">Javier Ortega<span class="cuenta">M18</span></a><a class="cli " href="#">Marta Ruiz<span class="cuenta">M1</span></a>
+  <p class="grupo">Tu taller</p>
+  <a href="#">Protocolos</a>
+  <a href="#">Formularios</a>
+  <a href="#">Librería</a>
+  <a href="#">Plantillas</a>
+  <div class="fin"></div>
+  <div class="yo"><span class="disco">ED</span><span><b>Entrenador Demo</b><span>Entrenador</span></span></div>
+</aside>
+<div class="lienzo">
+<header class="cinta">
+  <div class="cinta-fila">
+    <span class="disco">NS</span>
+    <h1>Nerea Sanz</h1>
+    <span class="meta">Mujer · 31 años · Microciclo 9, en curso</span>
+    <span class="der"><span class="chip neutro">Renueva en 3 días</span><button class="btn">Nueva revisión</button></span>
+  </div>
+  <nav class="pestanas"><a class="on" href="#">Resumen</a><a href="#">Entreno</a><a href="#">Dieta</a><a href="#">Revisiones</a></nav>
+  <div class="regla"></div>
+</header>
+<div class="cuerpo">
+  <div class="rejilla">
+    <div class="principal">
+      <div class="sec">
+        <div class="sec-cab"><h2>Cómo va el peso</h2><span class="pie">Semanas 1 a 9</span><span class="der"><span class="chip bien">En rumbo</span></span></div>
+        <div class="firma">
+  <span class="cifra">56,6<span class="u">kg</span></span>
+  <p class="dicho">Baja <b>0,4 kg cada semana</b> desde el 16 de julio.<br>Dos pesajes esta semana.</p>
+</div>
+<div class="hitos">
+  <span class="hito">Empezó<b>58,6 kg</b></span><span class="flecha">&rarr;</span>
+  <span class="hito">Hoy<b>56,6 kg</b></span><span class="flecha">&rarr;</span>
+  <span class="hito">Objetivo<b>55,5 kg</b></span>
+</div>
+        <div class="marcas"><div class="marca-d"><span class="ante">Peso total</span><b>&minus;1,9</b><span>kg</span></div><div class="marca-d"><span class="ante">Cintura</span><b>&minus;2,4</b><span>cm</span></div><div class="marca-d"><span class="ante">Entrenos</span><b>23</b><span>sesiones</span></div><div class="marca-d"><span class="ante">Semanas</span><b>9</b><span>sem.</span></div></div>
+      </div>
+      <div class="sec">
+        <div class="sec-cab"><h2>Peso y calorías</h2><span class="der"><a class="enlace" href="#">Ver a fondo</a></span></div>
+        <svg class="graf" viewBox="0 0 620 140" preserveAspectRatio="none" role="img" aria-label="Peso semanal y calorías, semanas 1 a 9"><path d="M0.0,9.7 L77.5,24.3 L155.0,35.2 L232.5,46.2 L310.0,53.5 L387.5,60.8 L465.0,71.7 L542.5,75.4 L620.0,82.7 L620.0,100 L0.0,100 Z" fill="var(--ap-dato)" opacity=".07"/><path d="M0.0,9.7 L77.5,24.3 L155.0,35.2 L232.5,46.2 L310.0,53.5 L387.5,60.8 L465.0,71.7 L542.5,75.4 L620.0,82.7" fill="none" stroke="var(--ap-dato)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="620.0" cy="82.7" r="3.4" fill="var(--ap-dato)"/><line x1="0" y1="100" x2="620" y2="100" stroke="var(--ap-filete)" stroke-width="1"/><line x1="0.0" y1="96" x2="0.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="77.5" y1="96" x2="77.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="155.0" y1="96" x2="155.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="232.5" y1="96" x2="232.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="310.0" y1="96" x2="310.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="387.5" y1="96" x2="387.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="465.0" y1="96" x2="465.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="542.5" y1="96" x2="542.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="620.0" y1="96" x2="620.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="0" y1="118" x2="620" y2="118" stroke="var(--ap-filete-fuerte)" stroke-width="1" stroke-dasharray="2 5"/><path d="M0.0,114.8 L77.5,118.8 L155.0,117.2 L232.5,120.4 L310.0,118.0 L387.5,121.2 L465.0,116.4 L542.5,119.6 L620.0,122.0" fill="none" stroke="var(--ap-dato-2)" stroke-width="1.6" stroke-linejoin="round"/></svg><div class="eje"><span>S1</span><span>S2</span><span>S3</span><span>S4</span><span>S5</span><span>S6</span><span>S7</span><span>S8</span><span>S9</span></div><div class="macros-pie" style="margin-top:10px"><span><i class="punto" style="background:var(--ap-dato)"></i>Peso</span><span><i class="punto" style="background:var(--ap-dato-2)"></i>Calorías registradas</span><span style="color:var(--ap-tinta-3)">- - -  objetivo 1.800 kcal</span></div>
+      </div>
+      <div class="sec">
+        <div class="sec-cab"><h2>Carga por microciclo</h2><span class="pie">M1 a M9 &middot; kg acumulados</span></div>
+        <svg class="graf es-barras" viewBox="0 0 620 66" preserveAspectRatio="none" role="img" aria-label="Tonelaje por microciclo"><rect x="19.3" y="26.9" width="30.3" height="39.1" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="88.2" y="17.7" width="30.3" height="48.3" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="157.1" y="13.0" width="30.3" height="53.0" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="226.0" y="9.2" width="30.3" height="56.8" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="294.8" y="11.5" width="30.3" height="54.5" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="363.7" y="6.1" width="30.3" height="59.9" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="432.6" y="3.1" width="30.3" height="62.9" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="501.5" y="0.0" width="30.3" height="66.0" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="570.4" y="1.5" width="30.3" height="64.5" rx="2" fill="var(--ap-dato-3)" opacity="1"/></svg>
+      </div>
+      <div class="sec">
+        <div class="sec-cab"><h2>Volumen por grupo</h2><span class="pie">Series efectivas esta semana</span></div>
+        <div class="sens"><span>Pecho</span><span class="barra"><i style="width:100%;background:var(--ap-dato)"></i></span><span class="n">18</span><span>Espalda</span><span class="barra"><i style="width:94%;background:var(--ap-dato)"></i></span><span class="n">17</span><span>Pierna</span><span class="barra"><i style="width:67%;background:var(--ap-dato)"></i></span><span class="n">12</span><span>Brazos</span><span class="barra"><i style="width:44%;background:var(--ap-dato)"></i></span><span class="n">8</span></div>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="sec"><div class="sec-cab"><h2>El plan</h2><span class="der"><a class="enlace" href="#">Editar</a></span></div><div class="fila"><span class="k">Objetivo</span><span class="v">&minus;0,4 kg/semana</span></div><div class="fila"><span class="k">Calorías</span><span class="v">1.800 <small>kcal</small></span></div><div class="bajo-fila"><div class="macros"><i style="background:var(--ap-dato);width:26%"></i><i style="background:var(--ap-verde);width:42%"></i><i style="background:var(--ap-ambar);width:32%"></i></div><div class="macros-pie"><span><i class="punto" style="background:var(--ap-dato)"></i>P <b>117 g</b></span><span><i class="punto" style="background:var(--ap-verde)"></i>C <b>189 g</b></span><span><i class="punto" style="background:var(--ap-ambar)"></i>G <b>54 g</b></span></div></div><div class="fila"><span class="k">Pasos</span><span class="v">9.000 <small>al día</small></span></div><div class="fila"><span class="k">Cardio</span><span class="v pide">Ponle cardio</span></div><div class="fila"><span class="k">Entreno</span><span class="v">4 <small>días/semana</small></span></div></div>
+      <div class="sec"><div class="sec-cab"><h2>Adherencia y sensaciones</h2><span class="pie">Esta semana</span></div><div class="sens"><span>Dieta</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Hambre</span><span class="barra"><i style="width:70%;background:var(--ap-ambar)"></i></span><span class="n">7/10</span><span>Sueño</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Estrés</span><span class="barra"><i style="width:60%;background:var(--ap-ambar)"></i></span><span class="n">6/10</span><span>Ganas</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span></div><div class="aviso"><span>Fatiga alta tres semanas seguidas</span><b>9/10</b></div></div>
+      <div class="sec"><div class="sec-cab"><h2>Lo último</h2></div><ul class="act"><li><b>Pull A completado</b><time>Hoy</time><span>17 series efectivas &middot; 7.990 kg</span></li><li><b>56,7 kg de pesaje</b><time>Ayer</time><span>&minus;0,1 kg sobre el promedio de la semana</span></li><li><b>9 fotos de progreso</b><time>Ayer</time><span>Frente, perfil, espalda y piernas</span></li><li><b>Push A completado</b><time>Jueves</time><span>15 series efectivas &middot; 7.416 kg</span></li></ul></div>
+    </div>
+  </div>
+</div>
+</div>
+</div></div></div>
+<div class="col">
+  <h3>Qué gana</h3>
+  <ul>
+    <li>Es el que más se parece a un documento de trabajo y el que mejor aguanta una pantalla llena: no hay canto que sumar.</li>
+    <li>Barato: no toca ni un componente de datos, solo el envoltorio.</li>
+    <li>Responsive casi gratis. El costado cae debajo y la hoja sigue siendo una hoja.</li>
+  </ul>
+  <h3>Qué cuesta</h3>
+  <ul>
+    <li>Sin cajas, <b>el orden lo lleva todo el espaciado</b>. Un bloque mal medido se nota mucho más que hoy.</li>
+    <li>Pantallas con muchas secciones sueltas —Ajustes, Librería— pueden pedir alguna caja de vuelta; hay que decidir cuáles y no improvisarlo pantalla a pantalla.</li>
+  </ul>
+</div>
+</section>
+
+<section id="v2">
+<div class="col">
+  <h2>4 &middot; Mesa</h2>
+  <p class="sub">Cartas, pero con rango.</p>
+  <p>
+    Es la evolución del diseño de hoy y la más parecida a los ejemplos que
+    mandaste. Se quedan las cartas, pero dejan de ser ocho iguales: <b>una manda</b>
+    y ocupa dos tercios, y el costado cambia de material —hundido, sin sombra—
+    en vez de ser una carta más estrecha.
+  </p>
+  <p>
+    Con la mano en el corazón: quitar bordes, ablandar sombras y abrir el radio es
+    lo que sale para cualquier panel parecido. Lo digo así para que elijas sabiendo
+    que esta es la opción segura, no la distintiva. Lo que sí es una decisión y no
+    un default son las otras dos: la <b>mesa un paso más oscura</b> —porque un
+    blanco sobre un casi-blanco no se lee como hoja— y el costado en otro material.
+  </p>
+  <dl class="plan"><dt>Color</dt><dd><span class="sw"><i style="background:#e9e6dc"></i>mesa <code>#e9e6dc</code></span><span class="sw"><i style="background:#ffffff"></i>hoja <code>#ffffff</code></span><span class="sw"><i style="background:#f4f2ec"></i>hundido <code>#f4f2ec</code></span><span class="sw"><i style="background:#e7e3d9"></i>filete <code>#e7e3d9</code></span><span class="sw"><i style="background:#3b49df"></i>señal <code>#3b49df</code></span></dd><dt>Tipo</dt><dd>La misma que en Hoja. Cambia dónde vive, no cómo suena.</dd><dt>Layout</dt><dd>Carta que manda a 2/3, par de cartas debajo, costado de 300 px en hundido.</dd><dt>Firma</dt><dd>La carta dominante con la cifra y el gráfico dentro.</dd><dt>Segunda pasada</dt><dd>La primera versión ponía el costado en blanco con sombra suave: eso es «lo mismo pero más flojo». Pasa a hundido sin sombra, que es otra clase de objeto.</dd></dl>
+</div>
+<div class="escena"><div class="escena-cab"><h4>Lámina 2 &middot; Mesa</h4><span class="pie">Resumen de cliente &middot; 1560 px</span></div><div class="marco"><div class="ap v2">
+<aside class="nav">
+  <div class="marca"><svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true"><rect x="0" y="6" width="4" height="11" rx="1.2" fill="currentColor"/><rect x="6.5" y="0" width="4" height="17" rx="1.2" fill="currentColor"/><rect x="13" y="9" width="4" height="8" rx="1.2" fill="#c4452e"/></svg>Caveman Hub</div>
+  <div class="buscar"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Buscar<kbd>Ctrl K</kbd></div>
+  <a href="#">Inicio<span class="cuenta">11</span></a>
+  <a class="on" href="#">Clientes<span class="cuenta">6</span></a>
+  <a href="#">Cobros</a>
+  <a href="#">Agenda</a>
+  <p class="grupo">Tus clientes</p>
+  <a class="cli on" href="#">Nerea Sanz<span class="cuenta">M9</span></a><a class="cli " href="#">Álvaro Pino<span class="cuenta">M25</span></a><a class="cli " href="#">Claudia Rey<span class="cuenta">M5</span></a><a class="cli " href="#">Iván Tormo<span class="cuenta">M31</span></a><a class="cli " href="#">Javier Ortega<span class="cuenta">M18</span></a><a class="cli " href="#">Marta Ruiz<span class="cuenta">M1</span></a>
+  <p class="grupo">Tu taller</p>
+  <a href="#">Protocolos</a>
+  <a href="#">Formularios</a>
+  <a href="#">Librería</a>
+  <a href="#">Plantillas</a>
+  <div class="fin"></div>
+  <div class="yo"><span class="disco">ED</span><span><b>Entrenador Demo</b><span>Entrenador</span></span></div>
+</aside>
+<div class="lienzo">
+<header class="cinta">
+  <div class="cinta-fila">
+    <span class="disco">NS</span>
+    <h1>Nerea Sanz</h1>
+    <span class="meta">Mujer · 31 años · Microciclo 9, en curso</span>
+    <span class="der"><span class="chip neutro">Renueva en 3 días</span><button class="btn">Nueva revisión</button></span>
+  </div>
+  <nav class="pestanas"><a class="on" href="#">Resumen</a><a href="#">Entreno</a><a href="#">Dieta</a><a href="#">Revisiones</a></nav>
+  <div class="regla"></div>
+</header>
+<div class="cuerpo">
+  <div class="rejilla">
+    <div>
+      <section class="caja manda">
+        <div class="sec-cab"><h2>Cómo va el peso</h2><span class="pie">Semanas 1 a 9</span><span class="der"><span class="chip bien">En rumbo</span><a class="enlace" href="#">Ver a fondo</a></span></div>
+        <div class="firma">
+  <span class="cifra">56,6<span class="u">kg</span></span>
+  <p class="dicho">Baja <b>0,4 kg cada semana</b> desde el 16 de julio.<br>Dos pesajes esta semana.</p>
+</div>
+<div class="hitos">
+  <span class="hito">Empezó<b>58,6 kg</b></span><span class="flecha">&rarr;</span>
+  <span class="hito">Hoy<b>56,6 kg</b></span><span class="flecha">&rarr;</span>
+  <span class="hito">Objetivo<b>55,5 kg</b></span>
+</div>
+        <div class="marcas"><div class="marca-d"><span class="ante">Peso total</span><b>&minus;1,9</b><span>kg</span></div><div class="marca-d"><span class="ante">Cintura</span><b>&minus;2,4</b><span>cm</span></div><div class="marca-d"><span class="ante">Entrenos</span><b>23</b><span>sesiones</span></div><div class="marca-d"><span class="ante">Semanas</span><b>9</b><span>sem.</span></div></div>
+        <div style="margin-top:20px"><svg class="graf" viewBox="0 0 620 140" preserveAspectRatio="none" role="img" aria-label="Peso semanal y calorías, semanas 1 a 9"><path d="M0.0,9.7 L77.5,24.3 L155.0,35.2 L232.5,46.2 L310.0,53.5 L387.5,60.8 L465.0,71.7 L542.5,75.4 L620.0,82.7 L620.0,100 L0.0,100 Z" fill="var(--ap-dato)" opacity=".07"/><path d="M0.0,9.7 L77.5,24.3 L155.0,35.2 L232.5,46.2 L310.0,53.5 L387.5,60.8 L465.0,71.7 L542.5,75.4 L620.0,82.7" fill="none" stroke="var(--ap-dato)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="620.0" cy="82.7" r="3.4" fill="var(--ap-dato)"/><line x1="0" y1="100" x2="620" y2="100" stroke="var(--ap-filete)" stroke-width="1"/><line x1="0.0" y1="96" x2="0.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="77.5" y1="96" x2="77.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="155.0" y1="96" x2="155.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="232.5" y1="96" x2="232.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="310.0" y1="96" x2="310.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="387.5" y1="96" x2="387.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="465.0" y1="96" x2="465.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="542.5" y1="96" x2="542.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="620.0" y1="96" x2="620.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="0" y1="118" x2="620" y2="118" stroke="var(--ap-filete-fuerte)" stroke-width="1" stroke-dasharray="2 5"/><path d="M0.0,114.8 L77.5,118.8 L155.0,117.2 L232.5,120.4 L310.0,118.0 L387.5,121.2 L465.0,116.4 L542.5,119.6 L620.0,122.0" fill="none" stroke="var(--ap-dato-2)" stroke-width="1.6" stroke-linejoin="round"/></svg><div class="eje"><span>S1</span><span>S2</span><span>S3</span><span>S4</span><span>S5</span><span>S6</span><span>S7</span><span>S8</span><span>S9</span></div><div class="macros-pie" style="margin-top:10px"><span><i class="punto" style="background:var(--ap-dato)"></i>Peso</span><span><i class="punto" style="background:var(--ap-dato-2)"></i>Calorías registradas</span><span style="color:var(--ap-tinta-3)">- - -  objetivo 1.800 kcal</span></div></div>
+      </section>
+      <div class="par">
+        <section class="caja"><div class="sec-cab"><h2>Carga por microciclo</h2><span class="pie">M1 a M9</span></div><svg class="graf es-barras" viewBox="0 0 300 76" preserveAspectRatio="none" role="img" aria-label="Tonelaje por microciclo"><rect x="9.3" y="30.9" width="14.7" height="45.1" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="42.7" y="20.3" width="14.7" height="55.7" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="76.0" y="15.0" width="14.7" height="61.0" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="109.3" y="10.6" width="14.7" height="65.4" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="142.7" y="13.3" width="14.7" height="62.7" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="176.0" y="7.1" width="14.7" height="68.9" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="209.3" y="3.5" width="14.7" height="72.5" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="242.7" y="0.0" width="14.7" height="76.0" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="276.0" y="1.8" width="14.7" height="74.2" rx="2" fill="var(--ap-dato-3)" opacity="1"/></svg></section>
+        <section class="caja"><div class="sec-cab"><h2>Volumen por grupo</h2><span class="pie">Series</span></div><div class="sens"><span>Pecho</span><span class="barra"><i style="width:100%;background:var(--ap-dato)"></i></span><span class="n">18</span><span>Espalda</span><span class="barra"><i style="width:94%;background:var(--ap-dato)"></i></span><span class="n">17</span><span>Pierna</span><span class="barra"><i style="width:67%;background:var(--ap-dato)"></i></span><span class="n">12</span><span>Brazos</span><span class="barra"><i style="width:44%;background:var(--ap-dato)"></i></span><span class="n">8</span></div></section>
+      </div>
+    </div>
+    <div class="rail">
+      <section class="caja"><div class="sec-cab"><h2>El plan</h2><span class="der"><a class="enlace" href="#">Editar</a></span></div><div class="fila"><span class="k">Objetivo</span><span class="v">&minus;0,4 kg/semana</span></div><div class="fila"><span class="k">Calorías</span><span class="v">1.800 <small>kcal</small></span></div><div class="bajo-fila"><div class="macros"><i style="background:var(--ap-dato);width:26%"></i><i style="background:var(--ap-verde);width:42%"></i><i style="background:var(--ap-ambar);width:32%"></i></div><div class="macros-pie"><span><i class="punto" style="background:var(--ap-dato)"></i>P <b>117 g</b></span><span><i class="punto" style="background:var(--ap-verde)"></i>C <b>189 g</b></span><span><i class="punto" style="background:var(--ap-ambar)"></i>G <b>54 g</b></span></div></div><div class="fila"><span class="k">Pasos</span><span class="v">9.000 <small>al día</small></span></div><div class="fila"><span class="k">Cardio</span><span class="v pide">Ponle cardio</span></div><div class="fila"><span class="k">Entreno</span><span class="v">4 <small>días/semana</small></span></div></section>
+      <section class="caja"><div class="sec-cab"><h2>Adherencia y sensaciones</h2></div><div class="sens"><span>Dieta</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Hambre</span><span class="barra"><i style="width:70%;background:var(--ap-ambar)"></i></span><span class="n">7/10</span><span>Sueño</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Estrés</span><span class="barra"><i style="width:60%;background:var(--ap-ambar)"></i></span><span class="n">6/10</span><span>Ganas</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span></div><div class="aviso"><span>Fatiga alta tres semanas seguidas</span><b>9/10</b></div></section>
+      <section class="caja"><div class="sec-cab"><h2>Lo último</h2></div><ul class="act"><li><b>Pull A completado</b><time>Hoy</time><span>17 series efectivas &middot; 7.990 kg</span></li><li><b>56,7 kg de pesaje</b><time>Ayer</time><span>&minus;0,1 kg sobre el promedio de la semana</span></li><li><b>9 fotos de progreso</b><time>Ayer</time><span>Frente, perfil, espalda y piernas</span></li></ul></section>
+    </div>
+  </div>
+</div>
+</div>
+</div></div></div>
+<div class="col">
+  <h3>Qué gana</h3>
+  <ul>
+    <li>Lo más barato de todo: es el diseño de hoy con el peso repartido y la chatarra quitada.</li>
+    <li>Las cartas siguen siendo útiles donde el contenido es de verdad independiente.</li>
+    <li>Cero riesgo. Nadie va a echar nada de menos.</li>
+  </ul>
+  <h3>Qué cuesta</h3>
+  <ul>
+    <li>Sigue siendo un panel de cartas. Es un buen panel de cartas, pero no se distingue del de nadie.</li>
+    <li>Deja intacto el problema de los silos: el peso y el tonelaje siguen en cajas distintas a escalas distintas.</li>
+  </ul>
+</div>
+</section>
+
+<section id="v3">
+<div class="col">
+  <h2>5 &middot; Cinta</h2>
+  <p class="sub">Bandas a todo ancho sobre un solo eje de semanas.</p>
+  <p>
+    La única que sale de <b>este</b> producto y no de un catálogo. Todo lo que
+    mira el entrenador en esta pantalla es la misma cosa: una serie por semana.
+    Así que se dibujan una debajo de otra, <b>compartiendo un eje</b> que aparece
+    una sola vez, abajo. La semana 5 está en la misma columna en las cuatro bandas.
+  </p>
+  <p>
+    Lo que eso te da no es estética: es que «bajó el tonelaje en M5 y esa misma
+    semana se paró el peso y cayó la adherencia» se lee <b>de un vistazo</b>, en
+    vertical. Hoy eso exige abrir cuatro cajas y acordarse.
+  </p>
+  <dl class="plan"><dt>Color</dt><dd><span class="sw"><i style="background:#f3f1ea"></i>mesa <code>#f3f1ea</code></span><span class="sw"><i style="background:#ffffff"></i>hoja <code>#ffffff</code></span><span class="sw"><i style="background:#1b6ea6"></i>dato <code>#1b6ea6</code></span><span class="sw"><i style="background:#96690a"></i>dato 2 <code>#96690a</code></span><span class="sw"><i style="background:#7a34ad"></i>dato 3 <code>#7a34ad</code></span></dd><dt>Tipo</dt><dd>Antetítulo de 10,5 px con <code>0.12em</code> a la izquierda de cada banda; la cifra de la banda a 19, la del peso a 34.</dd><dt>Layout</dt><dd>Bandas a sangre, 188 px de rótulo + el resto de gráfico. Un eje de semanas al pie. Costado de 286 px a la derecha.</dd><dt>Firma</dt><dd>El eje compartido. En la aplicación llevaría además un cursor vertical que cruza las cuatro bandas al pasar el ratón.</dd><dt>Segunda pasada</dt><dd>Ojo con §25.2: filetes finos + columnas densas es uno de los defaults a evitar. Lo que lo saca de ahí es que aquí las bandas <b>codifican algo cierto</b> —comparten escala— en vez de decorar, y que conservan radio, papel templado y sombra de contacto.</dd></dl>
+</div>
+<div class="escena"><div class="escena-cab"><h4>Lámina 3 &middot; Cinta</h4><span class="pie">Resumen de cliente &middot; 1560 px</span></div><div class="marco"><div class="ap v3">
+<aside class="nav">
+  <div class="marca"><svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true"><rect x="0" y="6" width="4" height="11" rx="1.2" fill="currentColor"/><rect x="6.5" y="0" width="4" height="17" rx="1.2" fill="currentColor"/><rect x="13" y="9" width="4" height="8" rx="1.2" fill="#c4452e"/></svg>Caveman Hub</div>
+  <div class="buscar"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Buscar<kbd>Ctrl K</kbd></div>
+  <a href="#">Inicio<span class="cuenta">11</span></a>
+  <a class="on" href="#">Clientes<span class="cuenta">6</span></a>
+  <a href="#">Cobros</a>
+  <a href="#">Agenda</a>
+  <p class="grupo">Tus clientes</p>
+  <a class="cli on" href="#">Nerea Sanz<span class="cuenta">M9</span></a><a class="cli " href="#">Álvaro Pino<span class="cuenta">M25</span></a><a class="cli " href="#">Claudia Rey<span class="cuenta">M5</span></a><a class="cli " href="#">Iván Tormo<span class="cuenta">M31</span></a><a class="cli " href="#">Javier Ortega<span class="cuenta">M18</span></a><a class="cli " href="#">Marta Ruiz<span class="cuenta">M1</span></a>
+  <p class="grupo">Tu taller</p>
+  <a href="#">Protocolos</a>
+  <a href="#">Formularios</a>
+  <a href="#">Librería</a>
+  <a href="#">Plantillas</a>
+  <div class="fin"></div>
+  <div class="yo"><span class="disco">ED</span><span><b>Entrenador Demo</b><span>Entrenador</span></span></div>
+</aside>
+<div class="lienzo">
+<header class="cinta">
+  <div class="cinta-fila">
+    <span class="disco">NS</span>
+    <h1>Nerea Sanz</h1>
+    <span class="meta">Mujer · 31 años · Microciclo 9, en curso</span>
+    <span class="der"><span class="chip neutro">Renueva en 3 días</span><button class="btn">Nueva revisión</button></span>
+  </div>
+  <nav class="pestanas"><a class="on" href="#">Resumen</a><a href="#">Entreno</a><a href="#">Dieta</a><a href="#">Revisiones</a></nav>
+  <div class="regla"></div>
+</header>
+<div class="cuerpo">
+  <div class="dos">
+    <div>
+      <div class="banda alta"><div class="banda-t"><span class="ante">Peso</span><span class="cifra">56,6<span class="u">kg</span></span><p>&minus;1,9 kg desde el 16 jul &middot; &minus;0,4 kg/semana</p></div><div><svg class="graf es-banda" viewBox="0 0 900 80" preserveAspectRatio="none" role="img" aria-label="Peso por semana"><path d="M50.0,8.8 L150.0,19.9 L250.0,28.3 L350.0,36.6 L450.0,42.2 L550.0,47.7 L650.0,56.1 L750.0,58.9 L850.0,64.4" fill="none" stroke="var(--ap-dato)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="850.0" cy="64.4" r="3.6" fill="var(--ap-dato)"/></svg></div></div>
+      <div class="banda"><div class="banda-t"><span class="ante">Calorías registradas</span><span class="n">1.783<small>kcal</small></span><p>Objetivo 1.800 &middot; se queda 17 kcal por debajo</p></div><div><svg class="graf es-banda-baja" viewBox="0 0 900 56" preserveAspectRatio="none" role="img" aria-label="Calorías por semana"><line x1="0" y1="26" x2="900" y2="26" stroke="var(--ap-filete-fuerte)" stroke-width="1" stroke-dasharray="2 5"/><path d="M50.0,18.7 L150.0,27.8 L250.0,24.2 L350.0,31.5 L450.0,26.0 L550.0,33.3 L650.0,22.4 L750.0,29.6 L850.0,35.1" fill="none" stroke="var(--ap-dato-2)" stroke-width="2" stroke-linejoin="round"/></svg></div></div>
+      <div class="banda"><div class="banda-t"><span class="ante">Tonelaje semanal</span><span class="n">8.400<small>kg</small></span><p>Sube desde la semana 1 salvo el bajón de la 5</p></div><div><div class="pista"><span class="celda"><i class="barra-v" style="height:59%"></i></span><span class="celda"><i class="barra-v" style="height:73%"></i></span><span class="celda"><i class="barra-v" style="height:80%"></i></span><span class="celda"><i class="barra-v" style="height:86%"></i></span><span class="celda"><i class="barra-v" style="height:83%"></i></span><span class="celda"><i class="barra-v" style="height:91%"></i></span><span class="celda"><i class="barra-v" style="height:95%"></i></span><span class="celda"><i class="barra-v" style="height:100%"></i></span><span class="celda"><i class="barra-v es-ahora" style="height:98%"></i></span></div></div></div>
+      <div class="banda"><div class="banda-t"><span class="ante">Adherencia a la dieta</span><span class="n">4,1<small>de 5</small></span><p>La semana 5 es la única por debajo de 4</p></div><div><div class="pista es-discos"><span class="celda"><i class="disco-v" style="width:17px;height:17px"></i></span><span class="celda"><i class="disco-v" style="width:17px;height:17px"></i></span><span class="celda"><i class="disco-v" style="width:22px;height:22px"></i></span><span class="celda"><i class="disco-v" style="width:17px;height:17px"></i></span><span class="celda"><i class="disco-v es-ojo" style="width:12px;height:12px"></i></span><span class="celda"><i class="disco-v" style="width:17px;height:17px"></i></span><span class="celda"><i class="disco-v" style="width:22px;height:22px"></i></span><span class="celda"><i class="disco-v" style="width:17px;height:17px"></i></span><span class="celda"><i class="disco-v" style="width:17px;height:17px"></i></span></div></div></div>
+      <div class="eje-pie"><span class="ante">Semana</span><div><svg class="graf es-eje" viewBox="0 0 900 7" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="0" x2="900" y2="0" stroke="var(--ap-filete)" stroke-width="1"/><line x1="50.0" y1="0" x2="50.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="150.0" y1="0" x2="150.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="250.0" y1="0" x2="250.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="350.0" y1="0" x2="350.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="450.0" y1="0" x2="450.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="550.0" y1="0" x2="550.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="650.0" y1="0" x2="650.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="750.0" y1="0" x2="750.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="850.0" y1="0" x2="850.0" y2="6" stroke="var(--ap-filete-fuerte)" stroke-width="1"/></svg><div class="eje es-celdas"><span>S1</span><span>S2</span><span>S3</span><span>S4</span><span>S5</span><span>S6</span><span>S7</span><span>S8</span><span>S9</span></div></div></div>
+    </div>
+    <div class="costado">
+      <div class="sec"><div class="sec-cab"><h2>El plan</h2><span class="der"><a class="enlace" href="#">Editar</a></span></div><div class="fila"><span class="k">Objetivo</span><span class="v">&minus;0,4 kg/semana</span></div><div class="fila"><span class="k">Calorías</span><span class="v">1.800 <small>kcal</small></span></div><div class="bajo-fila"><div class="macros"><i style="background:var(--ap-dato);width:26%"></i><i style="background:var(--ap-verde);width:42%"></i><i style="background:var(--ap-ambar);width:32%"></i></div><div class="macros-pie"><span><i class="punto" style="background:var(--ap-dato)"></i>P <b>117 g</b></span><span><i class="punto" style="background:var(--ap-verde)"></i>C <b>189 g</b></span><span><i class="punto" style="background:var(--ap-ambar)"></i>G <b>54 g</b></span></div></div><div class="fila"><span class="k">Pasos</span><span class="v">9.000 <small>al día</small></span></div><div class="fila"><span class="k">Cardio</span><span class="v pide">Ponle cardio</span></div><div class="fila"><span class="k">Entreno</span><span class="v">4 <small>días/semana</small></span></div></div>
+      <div class="sec"><div class="sec-cab"><h2>Sensaciones</h2><span class="pie">Esta semana</span></div><div class="sens"><span>Dieta</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Hambre</span><span class="barra"><i style="width:70%;background:var(--ap-ambar)"></i></span><span class="n">7/10</span><span>Sueño</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Estrés</span><span class="barra"><i style="width:60%;background:var(--ap-ambar)"></i></span><span class="n">6/10</span><span>Ganas</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span></div><div class="aviso"><span>Fatiga alta tres semanas seguidas</span><b>9/10</b></div></div>
+      <div class="sec"><div class="sec-cab"><h2>Lo último</h2></div><ul class="act"><li><b>Pull A completado</b><time>Hoy</time><span>17 series efectivas &middot; 7.990 kg</span></li><li><b>56,7 kg de pesaje</b><time>Ayer</time><span>&minus;0,1 kg sobre el promedio de la semana</span></li><li><b>9 fotos de progreso</b><time>Ayer</time><span>Frente, perfil, espalda y piernas</span></li></ul></div>
+    </div>
+  </div>
+</div>
+</div>
+</div></div></div>
+<div class="col">
+  <h3>Qué gana</h3>
+  <ul>
+    <li>Contesta la pregunta que de verdad se hace el entrenador, y ninguna de las otras tres la contesta.</li>
+    <li>Es la más limpia de las cuatro en densidad real: cuatro series en menos alto que dos cartas de hoy.</li>
+    <li>Es lo que haría que esto no se confundiera con Coachway ni con Efort.</li>
+  </ul>
+  <h3>Qué cuesta</h3>
+  <ul>
+    <li>La más cara. Los cuatro gráficos tienen que pasar a compartir escala y ancho, y eso es tocar <code>datos.css</code> y los componentes de gráfico, no solo el envoltorio.</li>
+    <li>En móvil las bandas se estrechan mucho. O se recorta a tres semanas con desplazamiento, o el móvil se queda en el acabado Hoja. Hay que decidirlo antes de empezar.</li>
+    <li>Solo encaja donde el contenido es serie temporal. Ajustes o Librería seguirían en Hoja o Mesa, y eso es admitir dos gramáticas en el producto.</li>
+  </ul>
+</div>
+</section>
+
+<section id="v4">
+<div class="col">
+  <h2>6 &middot; Noche</h2>
+  <p class="sub">El mismo chasis con la luz apagada. Aquí montado sobre Mesa.</p>
+  <p>
+    No es un quinto diseño: es el tema oscuro hecho bien, y se puede poner encima
+    de cualquiera de los tres anteriores. Va aparte porque el oscuro de hoy sí es
+    un problema: <code>index.html</code> lo dice con todas las letras —grafito
+    azulado con acento cobalto es <b>exactamente</b> el default que §25.2 manda
+    evitar—, y porque todo el trabajo de acabado se hizo en claro.
+  </p>
+  <p>Dos decisiones lo sacan de ahí:</p>
+  <ul>
+    <li><b>Grafito cálido, no azul.</b> <code>#1a1917</code> lleva el mismo tono que el papel —40&deg;, casi sin saturación—. La noche es el mismo producto, no otro.</li>
+    <li><b>La misma señal.</b> El índigo de día subido de luminosidad hasta pasar 4,5:1 sobre la superficie, no un acento nuevo. Un acento distinto de noche es un segundo producto.</li>
+  </ul>
+  <dl class="plan"><dt>Color</dt><dd><span class="sw"><i style="background:#1a1917"></i>mesa <code>#1a1917</code></span><span class="sw"><i style="background:#242220"></i>hoja <code>#242220</code></span><span class="sw"><i style="background:#2d2b28"></i>hueco <code>#2d2b28</code></span><span class="sw"><i style="background:#efeae1"></i>tinta <code>#efeae1</code></span><span class="sw"><i style="background:#8098ff"></i>señal <code>#8098ff</code></span></dd><dt>Tipo</dt><dd>Idéntica al día. Ni un cuerpo más pequeño «porque en oscuro se lee mejor».</dd><dt>Layout</dt><dd>El de Mesa, sin tocar. Sobre grafito la sombra no se ve, así que la carta se apoya en el canto.</dd><dt>Firma</dt><dd>La misma: la carta que manda.</dd><dt>Segunda pasada</dt><dd>El primer intento era <code>#0d1014</code> con el índigo tal cual: el azul-negro + un acento es el default prohibido, y el índigo de día se queda en 3,1:1 sobre esa superficie. Corregido el tono y la luminosidad.</dd></dl>
+</div>
+<div class="escena"><div class="escena-cab"><h4>Lámina 4 &middot; Noche</h4><span class="pie">El acabado Mesa, de noche &middot; 1560 px</span></div><div class="marco"><div class="ap v2 v4">
+<aside class="nav">
+  <div class="marca"><svg width="17" height="17" viewBox="0 0 17 17" aria-hidden="true"><rect x="0" y="6" width="4" height="11" rx="1.2" fill="currentColor"/><rect x="6.5" y="0" width="4" height="17" rx="1.2" fill="currentColor"/><rect x="13" y="9" width="4" height="8" rx="1.2" fill="#c4452e"/></svg>Caveman Hub</div>
+  <div class="buscar"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Buscar<kbd>Ctrl K</kbd></div>
+  <a href="#">Inicio<span class="cuenta">11</span></a>
+  <a class="on" href="#">Clientes<span class="cuenta">6</span></a>
+  <a href="#">Cobros</a>
+  <a href="#">Agenda</a>
+  <p class="grupo">Tus clientes</p>
+  <a class="cli on" href="#">Nerea Sanz<span class="cuenta">M9</span></a><a class="cli " href="#">Álvaro Pino<span class="cuenta">M25</span></a><a class="cli " href="#">Claudia Rey<span class="cuenta">M5</span></a><a class="cli " href="#">Iván Tormo<span class="cuenta">M31</span></a><a class="cli " href="#">Javier Ortega<span class="cuenta">M18</span></a><a class="cli " href="#">Marta Ruiz<span class="cuenta">M1</span></a>
+  <p class="grupo">Tu taller</p>
+  <a href="#">Protocolos</a>
+  <a href="#">Formularios</a>
+  <a href="#">Librería</a>
+  <a href="#">Plantillas</a>
+  <div class="fin"></div>
+  <div class="yo"><span class="disco">ED</span><span><b>Entrenador Demo</b><span>Entrenador</span></span></div>
+</aside>
+<div class="lienzo">
+<header class="cinta">
+  <div class="cinta-fila">
+    <span class="disco">NS</span>
+    <h1>Nerea Sanz</h1>
+    <span class="meta">Mujer · 31 años · Microciclo 9, en curso</span>
+    <span class="der"><span class="chip neutro">Renueva en 3 días</span><button class="btn">Nueva revisión</button></span>
+  </div>
+  <nav class="pestanas"><a class="on" href="#">Resumen</a><a href="#">Entreno</a><a href="#">Dieta</a><a href="#">Revisiones</a></nav>
+  <div class="regla"></div>
+</header>
+<div class="cuerpo">
+  <div class="rejilla">
+    <div>
+      <section class="caja manda">
+        <div class="sec-cab"><h2>Cómo va el peso</h2><span class="pie">Semanas 1 a 9</span><span class="der"><span class="chip bien">En rumbo</span><a class="enlace" href="#">Ver a fondo</a></span></div>
+        <div class="firma">
+  <span class="cifra">56,6<span class="u">kg</span></span>
+  <p class="dicho">Baja <b>0,4 kg cada semana</b> desde el 16 de julio.<br>Dos pesajes esta semana.</p>
+</div>
+<div class="hitos">
+  <span class="hito">Empezó<b>58,6 kg</b></span><span class="flecha">&rarr;</span>
+  <span class="hito">Hoy<b>56,6 kg</b></span><span class="flecha">&rarr;</span>
+  <span class="hito">Objetivo<b>55,5 kg</b></span>
+</div>
+        <div class="marcas"><div class="marca-d"><span class="ante">Peso total</span><b>&minus;1,9</b><span>kg</span></div><div class="marca-d"><span class="ante">Cintura</span><b>&minus;2,4</b><span>cm</span></div><div class="marca-d"><span class="ante">Entrenos</span><b>23</b><span>sesiones</span></div><div class="marca-d"><span class="ante">Semanas</span><b>9</b><span>sem.</span></div></div>
+        <div style="margin-top:20px"><svg class="graf" viewBox="0 0 620 140" preserveAspectRatio="none" role="img" aria-label="Peso semanal y calorías, semanas 1 a 9"><path d="M0.0,9.7 L77.5,24.3 L155.0,35.2 L232.5,46.2 L310.0,53.5 L387.5,60.8 L465.0,71.7 L542.5,75.4 L620.0,82.7 L620.0,100 L0.0,100 Z" fill="var(--ap-dato)" opacity=".07"/><path d="M0.0,9.7 L77.5,24.3 L155.0,35.2 L232.5,46.2 L310.0,53.5 L387.5,60.8 L465.0,71.7 L542.5,75.4 L620.0,82.7" fill="none" stroke="var(--ap-dato)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><circle cx="620.0" cy="82.7" r="3.4" fill="var(--ap-dato)"/><line x1="0" y1="100" x2="620" y2="100" stroke="var(--ap-filete)" stroke-width="1"/><line x1="0.0" y1="96" x2="0.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="77.5" y1="96" x2="77.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="155.0" y1="96" x2="155.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="232.5" y1="96" x2="232.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="310.0" y1="96" x2="310.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="387.5" y1="96" x2="387.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="465.0" y1="96" x2="465.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="542.5" y1="96" x2="542.5" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="620.0" y1="96" x2="620.0" y2="100" stroke="var(--ap-filete-fuerte)" stroke-width="1"/><line x1="0" y1="118" x2="620" y2="118" stroke="var(--ap-filete-fuerte)" stroke-width="1" stroke-dasharray="2 5"/><path d="M0.0,114.8 L77.5,118.8 L155.0,117.2 L232.5,120.4 L310.0,118.0 L387.5,121.2 L465.0,116.4 L542.5,119.6 L620.0,122.0" fill="none" stroke="var(--ap-dato-2)" stroke-width="1.6" stroke-linejoin="round"/></svg><div class="eje"><span>S1</span><span>S2</span><span>S3</span><span>S4</span><span>S5</span><span>S6</span><span>S7</span><span>S8</span><span>S9</span></div><div class="macros-pie" style="margin-top:10px"><span><i class="punto" style="background:var(--ap-dato)"></i>Peso</span><span><i class="punto" style="background:var(--ap-dato-2)"></i>Calorías registradas</span><span style="color:var(--ap-tinta-3)">- - -  objetivo 1.800 kcal</span></div></div>
+      </section>
+      <div class="par">
+        <section class="caja"><div class="sec-cab"><h2>Carga por microciclo</h2><span class="pie">M1 a M9</span></div><svg class="graf es-barras" viewBox="0 0 300 76" preserveAspectRatio="none" role="img" aria-label="Tonelaje por microciclo"><rect x="9.3" y="30.9" width="14.7" height="45.1" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="42.7" y="20.3" width="14.7" height="55.7" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="76.0" y="15.0" width="14.7" height="61.0" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="109.3" y="10.6" width="14.7" height="65.4" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="142.7" y="13.3" width="14.7" height="62.7" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="176.0" y="7.1" width="14.7" height="68.9" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="209.3" y="3.5" width="14.7" height="72.5" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="242.7" y="0.0" width="14.7" height="76.0" rx="2" fill="var(--ap-dato-3)" opacity=".45"/><rect x="276.0" y="1.8" width="14.7" height="74.2" rx="2" fill="var(--ap-dato-3)" opacity="1"/></svg></section>
+        <section class="caja"><div class="sec-cab"><h2>Volumen por grupo</h2><span class="pie">Series</span></div><div class="sens"><span>Pecho</span><span class="barra"><i style="width:100%;background:var(--ap-dato)"></i></span><span class="n">18</span><span>Espalda</span><span class="barra"><i style="width:94%;background:var(--ap-dato)"></i></span><span class="n">17</span><span>Pierna</span><span class="barra"><i style="width:67%;background:var(--ap-dato)"></i></span><span class="n">12</span><span>Brazos</span><span class="barra"><i style="width:44%;background:var(--ap-dato)"></i></span><span class="n">8</span></div></section>
+      </div>
+    </div>
+    <div class="rail">
+      <section class="caja"><div class="sec-cab"><h2>El plan</h2><span class="der"><a class="enlace" href="#">Editar</a></span></div><div class="fila"><span class="k">Objetivo</span><span class="v">&minus;0,4 kg/semana</span></div><div class="fila"><span class="k">Calorías</span><span class="v">1.800 <small>kcal</small></span></div><div class="bajo-fila"><div class="macros"><i style="background:var(--ap-dato);width:26%"></i><i style="background:var(--ap-verde);width:42%"></i><i style="background:var(--ap-ambar);width:32%"></i></div><div class="macros-pie"><span><i class="punto" style="background:var(--ap-dato)"></i>P <b>117 g</b></span><span><i class="punto" style="background:var(--ap-verde)"></i>C <b>189 g</b></span><span><i class="punto" style="background:var(--ap-ambar)"></i>G <b>54 g</b></span></div></div><div class="fila"><span class="k">Pasos</span><span class="v">9.000 <small>al día</small></span></div><div class="fila"><span class="k">Cardio</span><span class="v pide">Ponle cardio</span></div><div class="fila"><span class="k">Entreno</span><span class="v">4 <small>días/semana</small></span></div></section>
+      <section class="caja"><div class="sec-cab"><h2>Adherencia y sensaciones</h2></div><div class="sens"><span>Dieta</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Hambre</span><span class="barra"><i style="width:70%;background:var(--ap-ambar)"></i></span><span class="n">7/10</span><span>Sueño</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span><span>Estrés</span><span class="barra"><i style="width:60%;background:var(--ap-ambar)"></i></span><span class="n">6/10</span><span>Ganas</span><span class="barra"><i style="width:80%;background:var(--ap-verde)"></i></span><span class="n">4/5</span></div><div class="aviso"><span>Fatiga alta tres semanas seguidas</span><b>9/10</b></div></section>
+      <section class="caja"><div class="sec-cab"><h2>Lo último</h2></div><ul class="act"><li><b>Pull A completado</b><time>Hoy</time><span>17 series efectivas &middot; 7.990 kg</span></li><li><b>56,7 kg de pesaje</b><time>Ayer</time><span>&minus;0,1 kg sobre el promedio de la semana</span></li><li><b>9 fotos de progreso</b><time>Ayer</time><span>Frente, perfil, espalda y piernas</span></li></ul></section>
+    </div>
+  </div>
+</div>
+</div>
+</div></div></div>
+<div class="col">
+  <h3>Qué gana</h3>
+  <ul>
+    <li>Deja de haber dos productos según la hora.</li>
+    <li>Cumple contraste sin apagar la paleta de datos, que es lo que se rompe en casi todos los oscuros.</li>
+  </ul>
+  <h3>Qué cuesta</h3>
+  <ul>
+    <li>Repasar la paleta de datos entera sobre el grafito cálido: nueve series, una a una.</li>
+    <li>Las sombras no valen de noche. Todo lo que hoy se apoya en sombra necesita un canto declarado.</li>
+  </ul>
+</div>
+</section>
+
+<section id="elegir">
+<div class="col">
+  <h2>7 &middot; Cómo elegir</h2>
+  <table class="t">
+    <tr><th>&nbsp;</th><th>Hoja</th><th>Mesa</th><th>Cinta</th></tr>
+    <tr><td>Más limpio que hoy</td><td class="si">mucho</td><td class="si">bastante</td><td class="si">mucho</td></tr>
+    <tr><td>Distintivo</td><td>algo</td><td class="no">nada</td><td class="si">mucho</td></tr>
+    <tr><td>Riesgo</td><td>medio</td><td class="si">bajo</td><td class="no">alto</td></tr>
+    <tr><td>Toca gráficos</td><td>no</td><td>no</td><td class="no">sí</td></tr>
+    <tr><td>Sirve para todas las pantallas</td><td class="si">sí</td><td class="si">sí</td><td class="no">solo las de serie</td></tr>
+    <tr><td>Móvil</td><td class="si">directo</td><td class="si">directo</td><td>hay que resolverlo</td></tr>
+  </table>
+  <h3>Lo que yo haría</h3>
+  <p>
+    <b>Hoja como base del producto entero</b>, y <b>Cinta solo en Resumen y en
+    Progreso</b>, que son las dos pantallas donde todo es serie semanal. Hoja
+    resuelve el empate en todas partes y no cuesta casi nada; Cinta paga su
+    precio justo en las dos pantallas donde el entrenador hace su trabajo de
+    verdad. Noche va encima de las dos, en cuanto la base esté decidida.
+  </p>
+  <p>
+    <b>Mesa</b> es la salida si prefieres no mover el esqueleto: mejora hoy de
+    forma clara y se hace en una tarde, pero la pantalla sigue siendo un panel de
+    cartas como el de todos.
+  </p>
+  <div class="alerta">
+    <b>Nada de esto está construido.</b> Es un estudio para elegir. Dime cuál
+    —o qué mezcla— y lo llevo a <code>src/styles</code> por fases, empezando por
+    el chasis común de §2, que vale para las cuatro y ya mejora lo de hoy.
+  </div>
+</div>
+</section>
+
+<section id="coste">
+<div class="col">
+  <h2>8 &middot; Qué costaría cada una</h2>
+  <p class="sub">Sobre el árbol de hoy: 31.600 líneas de CSS en 20 ficheros.</p>
+  <table class="t">
+    <tr><th>Fase</th><th>Qué toca</th><th>Dónde</th></tr>
+    <tr><td>0 &middot; Chasis común</td><td>La firma sola en su escalón, el costado en otro material, el acento fuera de los rótulos, los vacíos con verbo</td><td><code>tokens.css</code>, <code>revision.css</code>, <code>superficies.css</code></td></tr>
+    <tr><td>1 &middot; Hoja</td><td>Quitar la caja como unidad: una hoja por pantalla, secciones por aire y filete</td><td><code>superficies.css</code>, <code>layout.css</code>, <code>piezas.css</code></td></tr>
+    <tr><td>2 &middot; Mesa</td><td>Alternativa a la fase 1. Mesa más oscura, cartas sin canto, costado hundido</td><td><code>tokens.css</code>, <code>superficies.css</code></td></tr>
+    <tr><td>3 &middot; Cinta</td><td>Eje de semanas compartido y bandas alineadas. Es la única que toca los componentes de gráfico</td><td><code>datos.css</code>, <code>revision.css</code>, componentes de <code>analytics/</code></td></tr>
+    <tr><td>4 &middot; Noche</td><td>Grafito cálido, señal recalibrada, paleta de datos repasada, cantos donde hoy hay sombra</td><td>bloque oscuro de <code>tokens.css</code></td></tr>
+  </table>
+  <p class="nota">
+    Las fases 1 y 2 son excluyentes. La 0 vale para cualquiera de las dos y se
+    puede hacer ya, sin decidir el resto.
+  </p>
+</div>
+</section>
+</div>
+</body>
+</html>
