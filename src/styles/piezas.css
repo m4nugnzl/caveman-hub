@@ -553,22 +553,13 @@
 }
 .plan-tramo-meta { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
-/* ── EN EL PLAN DEL CLIENTE, EL NOMBRE NO SE RECORTA ───────────────────────
-   `.plan-ej` mide 42 px fijos y recorta el nombre con puntos suspensivos, y eso
-   es correcto en la mesa del ENTRENADOR: allí las ocho hojas de un microciclo
-   rotativo tienen que leerse como una sola tabla, con la fila N de todas a la
-   misma altura. Aquí no hay mesa: hay una tarjeta por sesión, cada una con sus
-   ejercicios, y desde que las tarjetas caben de tres en tres a lo ancho
-   («Press inclinado con mancuernas» en 307 px) el recorte se come justo lo que
-   esta persona viene a leer — el nombre del ejercicio que tiene que hacer.
-
-   `.plan-tramo` es del portal y de nadie más, así que esto no toca la mesa del
-   entrenador. */
-.plan-tramo .plan-ej { height: auto; min-height: 42px; padding: var(--s2) 0; }
-.plan-tramo .plan-ej-nombre {
-  white-space: normal; overflow: visible; text-overflow: clip;
-  line-height: 1.3;
-}
+/* ── EN EL PLAN DEL CLIENTE, LA FILA RESPIRA MÁS ───────────────────────────
+   El portal fue el primero en dejar que el nombre envolviera («Press inclinado
+   con mancuernas» en 307 px); desde el 15 sep lo hace también la mesa del
+   entrenador (ver `.plan-ej`). Aquí queda solo lo que el portal hace distinto:
+   más aire, porque es una tarjeta que se lee y no una tabla que se escribe. */
+.plan-tramo .plan-ej { padding: var(--s2) 0; }
+.plan-tramo .plan-ej-nombre { line-height: 1.3; }
 
 /* La tira de más: una hoja nueva, al final y del alto de las hojas, como el
    asa de «añadir columna» de una tabla. Estrecha —solo el «+»— hasta que se
@@ -1104,9 +1095,17 @@
   align-items: center; align-content: center;
   gap: 0 var(--s2); min-width: 0; position: relative;
   /* 42 y no 30: la fila gana el renglón del REGISTRO (ver `.plan-ej-real`).
-     Fijo con o sin registro — es lo que mantiene la fila N de todas las hojas
-     en la misma línea, que era el problema original de esta rejilla. */
-  height: 42px; padding: 0; border-top: 1px solid var(--hairline);
+     Mínimo con o sin registro — es lo que mantiene la fila N de todas las hojas
+     en la misma línea.
+
+     ── Y MÍNIMO, NO FIJO (15 sep) ──────────────────────────────────────────
+     Con alto fijo el nombre no tenía más remedio que cortarse: «CURL BAYESIAN
+     EN POL…», «JALÓN NEUTRO – ENFO…». Un entrenador: «que no quepan los
+     nombres es un problema para entender lo pautado». La alineación entre
+     hojas vale menos que leer el ejercicio, así que el nombre envuelve y SOLO
+     la fila que lo necesita crece; las de nombre corto siguen midiendo 42 y
+     cuadrando con sus vecinas. */
+  min-height: 42px; padding: var(--s1) 0; border-top: 1px solid var(--hairline);
   transition: opacity var(--fast), box-shadow var(--fast);
 }
 .plan-ej-nombre { grid-area: nombre; }
@@ -1130,7 +1129,7 @@
    mesa. */
 .plan-ej-nombre {
   min-width: 0; font-size: var(--fs-sm); font-weight: var(--peso-fuerte); color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.25; overflow-wrap: break-word;
 }
 /* ── V-02 · La tercera tinta: LO REGISTRADO, a la vista ────────────────────
    Lo de este microciclo si ya entrenó, o lo de la vez pasada como fantasma.
@@ -1263,7 +1262,6 @@
      columna ancha, o sea una gramática menos que aprender— y el registro se
      queda con los 250 px de abajo. */
   .plan-ej {
-    height: 42px;
     grid-template-columns: auto minmax(0, 1fr) 20px;
     grid-template-areas: 'nombre nombre quitar' 'pauta real quitar';
   }

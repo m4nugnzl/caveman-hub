@@ -213,20 +213,28 @@ export const HojaDeSeries = ({
               </button>
               {/* En superserie el número de orden ES la etiqueta: A1, A2. */}
               <span className={`hoja-ej-n${marcasSS[index] ? ' is-ss' : ''}`}>{marcasSS[index] || index + 1}</span>
-              <span className="hoja-ej-nombre">{ex.name}</span>
-              <span className="hoja-ej-meta">
-                {/* Lo que el ejercicio ES: su músculo, su peso y su plan B.
-                    Va PEGADO al nombre y antes que la excepción: con los tres
-                    verbos de la excepción en medio, «Pecho · 4 series» aterrizaba
-                    en un sitio distinto en cada fila —a 800 px del nombre que
-                    describe en unas, a 500 en otras— y la hoja no tenía columna
-                    que seguir con la vista. */}
-                {[
-                  ex.muscle,
-                  `${sets.length} ${sets.length === 1 ? 'serie' : 'series'}`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
+              {/*
+                ── EL NOMBRE SE LEE ENTERO ────────────────────────────────────
+                «Que no quepan los nombres es un problema para entender lo
+                pautado.» Nombre y dato eran dos piezas del renglón que se
+                recortaban a puntos suspensivos —«PECK DECK REVER…»— para que
+                cupieran los mandos. Ahora son UN título que envuelve como un
+                párrafo: con sitio, todo en una línea; sin él, baja a la segunda,
+                y los mandos se quedan quietos a la altura de la primera.
+              */}
+              <span className="hoja-ej-titulo">
+                <span className="hoja-ej-nombre">{ex.name}</span>
+                <span className="hoja-ej-meta">
+                  {/* Lo que el ejercicio ES: su músculo y sus series. Va PEGADO
+                      al nombre y antes que la excepción, para que la hoja tenga
+                      una columna que seguir con la vista. */}
+                  {[
+                    ex.muscle,
+                    `${sets.length} ${sets.length === 1 ? 'serie' : 'series'}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </span>
               </span>
               {/*
                 ══ EL DESCANSO Y EL REMATE, EN LA HOJA Y COMO MANDOS ═════════

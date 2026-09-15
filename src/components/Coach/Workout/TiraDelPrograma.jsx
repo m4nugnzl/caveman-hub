@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, FolderOpen, Layers, Trash2 } from 'lucide-react';
 
 import { blockSummary, blocksOf, blockTraits, intentLabel, weeksOfBlock } from '@/domain/blocks';
@@ -144,6 +144,57 @@ export const TiraDelPrograma = ({
     setVistaPrevia(vista);
     setSentido(vista === 'hoja' ? 'baja' : 'sube');
   }
+  /*
+    ── LAS HOJAS, EN UN SOLO RENGLÓN ─────────────────────────────────────────
+    «Se ven los días de entrenamiento como en dos líneas, lo cual afea mucho la
+    vista.» La lista envolvía: con la mesa estrecha —el costado al lado— cinco
+    hojas salían tres arriba y dos debajo, con el titular encendido a caballo
+    entre las dos. Ahora el renglón es uno y, si no caben, se desliza.
+
+    Deslizar esconde, así que se paga con tres cosas: el canto que tiene más
+    se desvanece (`data-desborde`, puesto a mano en el DOM y no en estado: es
+    pintura, no un dato que tenga que re-renderizar la cabecera), la rueda del
+    ratón lo mueve sin pedir Mayús, y la hoja abierta se trae a la vista si ha
+    quedado fuera. Se mueve el `scrollLeft` del carril y no `scrollIntoView`,
+    que arrastraría también la página (lo mismo que `WeekPicker`).
+  */
+  const carril = useRef(null);
+  useEffect(() => {
+    const caja = carril.current;
+    if (!caja || vista !== 'hoja') return undefined;
+    const medir = () => {
+      const izq = caja.scrollLeft > 1;
+      const der = caja.scrollLeft < caja.scrollWidth - caja.clientWidth - 1;
+      caja.dataset.desborde = izq && der ? 'ambos' : izq ? 'izq' : der ? 'der' : 'no';
+    };
+    const rueda = (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const tope = caja.scrollWidth - caja.clientWidth;
+      /* En el tope, la rueda vuelve a ser de la página: un carril que se traga
+         el desplazamiento vertical sin moverse es una trampa. */
+      if (tope <= 0 || (e.deltaY < 0 && caja.scrollLeft <= 0) || (e.deltaY > 0 && caja.scrollLeft >= tope)) return;
+      e.preventDefault();
+      caja.scrollLeft += e.deltaY;
+    };
+    medir();
+    const observador = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(medir);
+    observador?.observe(caja);
+    caja.addEventListener('scroll', medir, { passive: true });
+    caja.addEventListener('wheel', rueda, { passive: false });
+    return () => {
+      observador?.disconnect();
+      caja.removeEventListener('scroll', medir);
+      caja.removeEventListener('wheel', rueda);
+    };
+  }, [vista, hojas.length]);
+  useEffect(() => {
+    const caja = carril.current;
+    if (!caja || vista !== 'hoja' || caja.scrollWidth <= caja.clientWidth) return;
+    const on = caja.querySelector('.tira-eslabon.is-on');
+    if (!on) return;
+    const fuera = on.offsetLeft < caja.scrollLeft || on.offsetLeft + on.offsetWidth > caja.scrollLeft + caja.clientWidth;
+    if (fuera) caja.scrollLeft = on.offsetLeft - (caja.clientWidth - on.offsetWidth) / 2;
+  }, [vista, hojaAbierta]);
   /*
     ── AQUÍ ESTUVO «AMPLIAR» ─────────────────────────────────────────────────
     El mando que pliega la barra lateral pasó por esta cabecera: es la pantalla
@@ -339,7 +390,12 @@ export const TiraDelPrograma = ({
             estaba dentro de la lista, que es como se cuela un botón en el árbol
             de accesibilidad como si fuera una opción más.
           */}
-          <div className="tira-lista" key={vista} data-sentido={sentido}>
+          <div
+            className={`tira-lista${vista === 'hoja' ? ' is-carril' : ''}`}
+            key={vista}
+            data-sentido={sentido}
+            ref={carril}
+          >
             <div
               className="tira-tabs"
               role="tablist"
